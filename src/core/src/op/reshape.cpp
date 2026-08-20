@@ -67,8 +67,7 @@ bool Reshape::evaluate_reshape(TensorVector& outputs, const TensorVector& inputs
     } else {
         ov::reference::reshape(static_cast<const char*>(inputs[0].data()),
                                static_cast<char*>(outputs[0].data()),
-                               inputs[0].get_shape(),
-                               inputs[0].get_element_type().size());
+                               inputs[0].get_byte_size());
     }
     return true;
 }

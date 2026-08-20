@@ -41,12 +41,26 @@ def get_models_list(file_name: str):
             other = line_items[4:]
             transformations = [item[8:] for item in other if item.startswith('ts_name:')]
             layers = [item[6:] for item in other if item.startswith('layer:')]
-            models.append((model_name, model_link, mark, reason, transformations, layers))
+            model_type = None
+            for item in other:
+                if item.startswith('type:'):
+                    model_type = item[5:]
+                    break
+            models.append((model_name, model_link, mark, reason, transformations, layers, model_type))
         else:
             items = ','.join(line_items)
             assert False, \
                 f'Incorrect model info fields {items}. It must contain either 2 or 4 or more than 4 fields.'
     return models
+
+
+def model_list_path(models_dir: str, list_name: str):
+    if 'NPU' in os.environ.get("TEST_DEVICE", ""):
+        npu_list = os.path.join(models_dir, "npu_" + list_name)
+        if os.path.isfile(npu_list):
+            return npu_list
+    return os.path.join(models_dir, list_name)
+
 
 def get_skipped_model_links(file_name: str):
     return {line_items[1] for line_items in parse_list_file(file_name)}

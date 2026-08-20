@@ -32,7 +32,7 @@ def extractPatterns(dirName):
 
     with open(os.path.join(dirName, "logcommon_log.log")) as file:
         data = file.read()
-    intervalPattern = "[A-Za-z0-9]*\.\.[A-Za-z0-9]*"
+    intervalPattern = r'[A-Za-z0-9]*\.\.[A-Za-z0-9]*'
 
     pattern = "Check commits {}".format(intervalPattern)
     stats_re = re.compile(pattern, re.MULTILINE | re.DOTALL)
@@ -45,7 +45,7 @@ def extractPatterns(dirName):
     return hashPatternList, intervalPatternList
 
 def prepareCSVData(hashMap, dirName):
-    throughputPattern = "Throughput:\s*([0-9]*[.][0-9]*)\s*FPS"
+    throughputPattern = r'Throughput:\s*([0-9]*[.][0-9]*)\s*FPS'
     csvData = []
 
     for k, v in hashMap.items():

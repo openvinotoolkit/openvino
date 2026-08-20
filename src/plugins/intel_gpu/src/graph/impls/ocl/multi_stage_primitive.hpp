@@ -37,9 +37,7 @@ template <class PType>
 struct multi_stage_primitive : public typed_primitive_impl<PType> {
     std::vector<kernel_selector::kernel_data> _kernels_data;
     std::vector<kernel::ptr> _kernels;
-
-    // a pair of batch program hash and kernel entry hash of each ocl impl.
-    std::pair<std::string, std::string> kernel_dump_info;
+    mutable KernelDumpInfo kernel_dump_info;
 
     multi_stage_primitive() : _kernels_data({}), _kernels({}) {}
 
@@ -73,7 +71,7 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
     void save(BinaryOutputBuffer& ob) const override {
         primitive_impl::save(ob);
         ob << _kernels_data.size();
-        for (auto& kd : _kernels_data) {
+        for (const auto& kd : _kernels_data) {
             ob << make_data(&kd.internalBufferDataType, sizeof(kernel_selector::Datatype));
             ob << kd.internalBuffers;
             ob << kd.kernels;
@@ -117,11 +115,7 @@ protected:
                                                                       "Expected: ", total_kernels, "\n"
                                                                       "Got: ", compiled_kernels.size());
             _kernels.insert(_kernels.begin(), compiled_kernels.begin(), compiled_kernels.end());
-            // batch program hash and kernel entry point to find corresponding cl source code
-            kernel_dump_info = std::make_pair(std::to_string(kernels_cache.get_kernel_batch_hash(params)),
-                                              _kernels_data[0].kernels[0].code.kernelString->entry_point);
-            for (size_t i = 1; i < _kernels_data[0].kernels.size(); ++i)
-                kernel_dump_info.second += " " + _kernels_data[0].kernels[i].code.kernelString->entry_point;
+            kernel_dump_info.set_batch_hash(std::to_string(kernels_cache.get_kernel_batch_hash(params)));
         }
         this->can_share_kernels = kernels_cache.get_kernels_reuse();
     }
@@ -158,7 +152,7 @@ protected:
 
     std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
         std::vector<BufferDescriptor> internal_buffers;
-        for (auto& kd : _kernels_data) {
+        for (const auto& kd : _kernels_data) {
             if (kd.internalBuffers.empty())
                 continue;
 
@@ -229,7 +223,28 @@ protected:
         }
     }
 
-    std::pair<std::string, std::string> get_kernels_dump_info() const override {
+    // Regardless of the model's dynamism, the compile time graph will rely on the skip_execution mechanism to determine which kernels will be executed
+    // The runtime graph relies on the actual execution of the kernel in execute_stage(..)
+    KernelDumpInfo get_kernels_dump_info(const cldnn::kernel_impl_params& impl_params) const override {
+        if (!kernel_dump_info.has_entries()) {
+            return kernel_dump_info;
+        }
+
+        size_t kernel_idx = 0;
+        for (size_t stage = 0; stage < _kernels_data.size(); stage++) {
+            for (size_t kd_idx = 0; kd_idx < _kernels_data[stage].kernels.size(); kd_idx++, kernel_idx++) {
+                if (_kernels_data[stage].kernels[kd_idx].skip_execution) {
+                    continue;
+                }
+
+                if (_kernels_data[stage].kernels[kd_idx].code.kernelString) {
+                    kernel_dump_info.add_entry_point(_kernels_data[stage].kernels[kd_idx].code.kernelString->entry_point);
+                } else if (kernel_idx < _kernels.size() && _kernels[kernel_idx]) {
+                    kernel_dump_info.add_entry_point(_kernels[kernel_idx]->get_id());
+                }
+            }
+        }
+
         return kernel_dump_info;
     }
 

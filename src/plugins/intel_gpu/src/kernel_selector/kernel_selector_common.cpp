@@ -83,6 +83,7 @@ std::string toString(ActivationFunction activation) {
         case ActivationFunction::GELU_TANH:                 method = "GELU_TANH"; break;
         case ActivationFunction::ROUND_HALF_TO_EVEN:        method = "ROUND_HALF_TO_EVEN"; break;
         case ActivationFunction::ROUND_HALF_AWAY_FROM_ZERO: method = "ROUND_HALF_AWAY_FROM_ZERO"; break;
+        case ActivationFunction::ERFINV:                    method = "ERFINV"; break;
         default: break;
     }
     return method;
@@ -145,6 +146,7 @@ std::string toString(DataLayout l) {
 
 std::string toString(Datatype dType) {
     switch (dType) {
+        case Datatype::UINT2:  return "UINT2";
         case Datatype::UINT4:  return "UINT4";
         case Datatype::INT4:   return "INT4";
         case Datatype::INT8:   return "INT8";
@@ -156,6 +158,10 @@ std::string toString(Datatype dType) {
         case Datatype::INT64:  return "INT64";
         case Datatype::F16:    return "F16";
         case Datatype::F32:    return "F32";
+        case Datatype::F4E2M1: return "F4E2M1";
+        case Datatype::F8E4M3: return "F8E4M3";
+        case Datatype::F8E5M2: return "F8E5M2";
+        case Datatype::F8E8M0: return "F8E8M0";
         default: return "";
     }
 }
@@ -164,6 +170,7 @@ std::string toString(WeightsType wType) {
     switch (wType) {
         case WeightsType::F16:    return "F16";
         case WeightsType::F32:    return "F32";
+        case WeightsType::UINT2:  return "UINT2";
         case WeightsType::UINT4:  return "UINT4";
         case WeightsType::INT4:   return "INT4";
         case WeightsType::INT8:   return "INT8";
@@ -208,6 +215,7 @@ std::string toString(EltwiseMode b_mode) {
         case EltwiseMode::SQRT:   return "SQRT";
         case EltwiseMode::RSQRT:  return "RSQRT";
         case EltwiseMode::ASSIGN: return "ASSIGN";
+        case EltwiseMode::ATAN2:  return "ATAN2";
         default: return "";
     }
 }
@@ -408,6 +416,8 @@ std::string toString(ConcatAxis a) {
         case ConcatAxis::Y:       return "Y";
         case ConcatAxis::Z:       return "Z";
         case ConcatAxis::W:       return "W";
+        case ConcatAxis::U:       return "U";
+        case ConcatAxis::V:       return "V";
         case ConcatAxis::FEATURE: return "FEATURE";
         case ConcatAxis::BATCH:   return "BATCH";
         default: return "";
@@ -516,15 +526,21 @@ std::string toString(const DataTensor& tensor) {
     if (tensor.GetLayout() != DataLayout::b_fs_yx_fsv16 &&
         tensor.GetLayout() != DataLayout::b_fs_zyx_fsv16) {
         return toStringTensor(tensor);
-    } else {
-        std::stringstream s;
-        s << toString(tensor.GetDType()) << "_";
-        std::string layoutStr;
-        switch (tensor.GetLayout()) {
-            case DataLayout::b_fs_yx_fsv16: layoutStr = "BFYX_F16"; break;
-            case DataLayout::b_fs_zyx_fsv16: layoutStr = "BFZYX_F16"; break;
-            default: layoutStr = toString(tensor.GetLayout()); break;
-        }
+    }
+    std::stringstream s;
+    s << toString(tensor.GetDType()) << "_";
+    std::string layoutStr;
+    switch (tensor.GetLayout()) {
+    case DataLayout::b_fs_yx_fsv16:
+        layoutStr = "BFYX_F16";
+        break;
+    case DataLayout::b_fs_zyx_fsv16:
+        layoutStr = "BFZYX_F16";
+        break;
+    default:
+        layoutStr = toString(tensor.GetLayout());
+        break;
+    }
         s << layoutStr << "_";
         int i = 0;
         for (auto dim : tensor.GetDims()) {
@@ -532,7 +548,6 @@ std::string toString(const DataTensor& tensor) {
             i++;
         }
         return s.str();
-    }
 }
 
 std::string toString(const WeightsTensor& tensor) {

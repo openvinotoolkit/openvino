@@ -3,6 +3,7 @@
 //
 
 #include "include/auto_unit_test.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 
 using Config = std::map<std::string, std::string>;
 using namespace ov::mock_auto_plugin;
@@ -35,7 +36,7 @@ public:
         ON_CALL(*plugin, get_device_list)
             .WillByDefault([this](ov::AnyMap& config,
                                   const std::shared_ptr<const ov::Model>& model,
-                                  const std::string& model_path) {
+                                  const std::filesystem::path& model_path) {
                 return plugin->Plugin::get_device_list(config);
             });
     }

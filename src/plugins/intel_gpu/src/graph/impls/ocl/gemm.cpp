@@ -127,6 +127,7 @@ protected:
                 tmp_events = {ev};
             }
             all_events.push_back(ev);
+            kernel_dump_info.add_entry_point(_kernels[idx_final]->get_id());
         }
 
         return stream.aggregate_events(all_events, all_events.size() > 1);
@@ -154,6 +155,8 @@ protected:
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, gemm_inst& instance) override {
+        kernel_dump_info.clear_entries();
+
         if (instance.get_input_layout(0).count() == 0 ||
             instance.get_input_layout(1).count() == 0) {
             stream& stream = instance.get_network().get_stream();
@@ -161,10 +164,18 @@ protected:
             return instance.output_memory_ptr()->fill(stream, {}, false);
         }
 
-        if (need_indirect_load(instance))
+        if (need_indirect_load(instance)) {
+            for (auto& kernel : _kernels_data[default_gemm].kernels) {
+                kernel.skip_execution = true;
+            }
             return execute_stage(events, instance, indirect_gemm);
-        else
-            return execute_stage(events, instance, default_gemm);
+        }
+        if (_kernels_data.size() == 2) {
+            for (auto& kernel : _kernels_data[indirect_gemm].kernels) {
+                kernel.skip_execution = true;
+            }
+        }
+        return execute_stage(events, instance, default_gemm);
     }
 
 public:
@@ -203,13 +214,13 @@ public:
                         transposed_pshape[i + rank_diff] = pshape[rank_diff + order[i]];
                     }
                     return transposed_pshape;
-                } else {
-                    auto transposed_pshape = ov::PartialShape::dynamic(pshape.rank());
-                    for (size_t i = 0; i < order.size(); i++) {
-                        transposed_pshape[i] = pshape[order[i]];
-                    }
-                    return transposed_pshape;
                 }
+                auto transposed_pshape = ov::PartialShape::dynamic(pshape.rank());
+                for (size_t i = 0; i < order.size(); i++) {
+                    transposed_pshape[i] = pshape[order[i]];
+                }
+                return transposed_pshape;
+
             };
             size_t max_rank = input0_pshape.size();
             auto default_order = ov::intel_gpu::op::Gemm::default_order(max_rank);
@@ -241,7 +252,7 @@ public:
         }
 
         bool is_quantized = true;
-        for (auto& input : impl_param.input_layouts)
+        for (const auto& input : impl_param.input_layouts)
             is_quantized &= data_type_traits::is_quantized(input.data_type);
 
         if (is_quantized) {

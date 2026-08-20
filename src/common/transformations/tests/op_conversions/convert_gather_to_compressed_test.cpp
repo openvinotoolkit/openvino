@@ -10,6 +10,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
@@ -269,5 +270,37 @@ TEST_F(TransformationTestsF, MoveDecompressionAfterGatherBF16Weight) {
         auto convert = std::make_shared<v0::Convert>(gather, ov::element::f32);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{convert}, ov::ParameterVector{input1});
+    }
+}
+
+// LLM weight tying: the Convert(bf16->f32) feeds both a Gather and a MatMul.
+// MoveDecompressionAfterGather should still peel the Gather branch off into Gather(bf16) -> Convert(f32),
+// leaving the original Convert in place for the MatMul consumer.
+TEST_F(TransformationTestsF, MoveDecompressionAfterGatherMultiConsumer) {
+    {
+        auto indices = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 16});
+        auto matmul_input = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 16});
+        auto axis_const = v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
+        auto weights_const = v0::Constant::create(ov::element::bf16, ov::Shape{32, 16}, {1});
+        auto convert = std::make_shared<v0::Convert>(weights_const, ov::element::f32);
+        auto gather = std::make_shared<v8::Gather>(convert, indices, axis_const);
+        auto matmul = std::make_shared<v0::MatMul>(matmul_input, convert, false, true);
+
+        model =
+            std::make_shared<ov::Model>(ov::OutputVector{gather, matmul}, ov::ParameterVector{indices, matmul_input});
+        manager.register_pass<MoveDecompressionAfterGather>();
+    }
+    {
+        auto indices = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 16});
+        auto matmul_input = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 16});
+        auto axis_const = v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
+        auto weights_const = v0::Constant::create(ov::element::bf16, ov::Shape{32, 16}, {1});
+        auto convert = std::make_shared<v0::Convert>(weights_const, ov::element::f32);
+        auto new_gather = std::make_shared<v8::Gather>(weights_const, indices, axis_const);
+        auto new_convert = std::make_shared<v0::Convert>(new_gather, ov::element::f32);
+        auto matmul = std::make_shared<v0::MatMul>(matmul_input, convert, false, true);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{new_convert, matmul},
+                                                ov::ParameterVector{indices, matmul_input});
     }
 }

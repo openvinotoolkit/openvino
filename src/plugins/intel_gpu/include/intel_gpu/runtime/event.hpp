@@ -32,6 +32,16 @@ public:
         _profiling_captured = false;
         _profiling_info.clear();
     }
+    /// @brief Set event profiling data instead of retrieving it from event object
+    /// @param duration_nsec duration in nanoseconds
+    void set_profiling_duration(uint64_t duration_nsec) {
+        auto stage = instrumentation::profiling_stage::executing;
+        auto duration = std::chrono::nanoseconds(duration_nsec);
+        auto period = std::make_shared<instrumentation::profiling_period_basic>(duration);
+
+        _profiling_info.push_back({ stage, period });
+        _profiling_captured = true;
+    }
 
     // returns true if handler has been successfully added
     bool add_event_handler(event_handler handler, void* data);

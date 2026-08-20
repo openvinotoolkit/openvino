@@ -30,6 +30,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/reference/erfinv.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
@@ -208,8 +209,8 @@ void EltwiseRefBaseExecutor<T>::initializeDimsAndOffsets(const VectorDims& outBl
 
 template <typename T>
 void EltwiseRefBaseExecutor<T>::offset_out_calc(VectorDims& offset, const VectorDims& dims) {
-    int k = 1;
-    for (int i = offset.size() - 1; i >= 0; i--) {
+    size_t k = 1;
+    for (int i = static_cast<int>(offset.size()) - 1; i >= 0; i--) {
         offset[i] = k;
         k *= dims[i];
     }
@@ -219,8 +220,8 @@ template <typename T>
 void EltwiseRefBaseExecutor<T>::offset_in_calc(VectorDims& offset,
                                                const VectorDims& dims_in,
                                                const VectorDims& dims_out) {
-    int k = 1;
-    for (int i = offset.size() - 1; i >= 0; i--) {
+    size_t k = 1;
+    for (int i = static_cast<int>(offset.size()) - 1; i >= 0; i--) {
         offset[i] = (dims_in[i] == dims_out[i]) ? k : 0;
         k *= dims_in[i];
     }
@@ -371,7 +372,14 @@ void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_
                 *dst_ptr_f = src_f[0] || src_f[1];
                 break;
             case Algorithm::EltwiseLogicalXor:
-                *dst_ptr_f = (src_f[0] || src_f[1]) - (src_f[0] && src_f[1]);
+#ifdef _MSC_VER
+#    pragma warning(push)
+#    pragma warning(disable : 4244)
+#endif
+                *dst_ptr_f = static_cast<T>((src_f[0] || src_f[1]) - (src_f[0] && src_f[1]));
+#ifdef _MSC_VER
+#    pragma warning(pop)
+#endif
                 break;
             case Algorithm::EltwiseLogicalNot:
                 *dst_ptr_f = !src_f[0];
@@ -384,6 +392,9 @@ void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_
                 break;
             case Algorithm::EltwiseSoftSign:
                 *dst_ptr_f = src_f[0] / (1 + std::fabs(src_f[0]));
+                break;
+            case Algorithm::EltwiseErfInv:
+                *dst_ptr_f = static_cast<T>(ov::reference::func::erfinv(static_cast<float>(src_f[0])));
                 break;
             // @todo implement proper isinfinite for non-float precisions
             case Algorithm::EltwiseIsFinite:

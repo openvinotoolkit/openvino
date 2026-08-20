@@ -64,7 +64,9 @@ TEST_P(fully_connected_fake_align_test, fake_alignment) {
         EXPECT_THROW(fully_connected_inst::get_fake_aligned_params(*impl_param), std::exception);
     } else {
         auto updated_param = fully_connected_inst::get_fake_aligned_params(*impl_param);
-        if (!engine.get_device_info().supports_immad) {
+        // Fake alignment logic branches on dev_type (integrated vs discrete GPU),
+        // not on supports_immad, because alignment base differs by memory architecture.
+        if (engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu) {
             ASSERT_EQ(updated_param.get_input_layout(), p.expected_input_layout_igpu);
             ASSERT_EQ(updated_param.get_output_layout(), p.expected_output_layout_igpu);
         } else {
@@ -257,7 +259,7 @@ TEST_P(fully_connected_skip_fake_align_test, skip_fake_alignment_case) {
         EXPECT_THROW(fully_connected_inst::get_fake_aligned_params(*impl_param), std::exception);
     } else {
         auto updated_param = fully_connected_inst::get_fake_aligned_params(*impl_param);
-        if (!engine.get_device_info().supports_immad) {
+        if (engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu) {
             ASSERT_EQ(updated_param.get_input_layout(), p.expected_input_layout_igpu);
             ASSERT_EQ(updated_param.get_output_layout(), p.expected_output_layout_igpu);
         } else {

@@ -8,14 +8,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <sstream>
-#include <string>
 #include <utility>
 
 #include "cache/multi_cache.h"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
+#include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
@@ -28,13 +27,28 @@
 #    include "transformations/snippets/x64/pass/lowered/external_repacking_adjuster.hpp"
 #endif
 #ifdef OPENVINO_ARCH_ARM64
+#    include "transformations/snippets/aarch64/pass/lowered/external_repacking_adjuster.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/gemm_copy_b_loop_ports_adjuster.hpp"
+#endif
+#ifdef SNIPPETS_DEBUG_CAPS
+#    include <sstream>
+#    include <string>
 #endif
 
 namespace ov::intel_cpu {
 using namespace ov::snippets::lowered::pass;
 
 const size_t CPURuntimeConfigurator::rank6D = 6;
+
+CPURuntimeConfig::CPURuntimeConfig(const CPURuntimeConfig& other)
+    : ov::snippets::RuntimeConfig(other),
+      repacking_impl_type(other.repacking_impl_type),
+      input_repackers(other.input_repackers),
+      loop_args(other.loop_args) {
+    // Kernel executors keep mutable, shape-dependent state, so sharing the table
+    // between a configurator and its clone would let one instance affect the other.
+    kernel_executor_table = std::make_shared<ov::snippets::KernelExecutorTable>();
+}
 
 #ifdef SNIPPETS_DEBUG_CAPS
 std::string CPURuntimeConfig::to_string() const {
@@ -63,6 +77,14 @@ CPURuntimeConfigurator::CPURuntimeConfigurator(ov::intel_cpu::MultiCacheWeakPtr 
     : ov::snippets::RuntimeConfigurator(std::make_shared<CPURuntimeConfig>()),
       compiled_kernel_cache(std::move(cache)) {}
 
+CPURuntimeConfigurator::CPURuntimeConfigurator(const CPURuntimeConfigurator& other)
+    : ov::snippets::RuntimeConfigurator([&other]() {
+          const auto cpu_config = ov::as_type_ptr<CPURuntimeConfig>(other.get_config());
+          OPENVINO_ASSERT(cpu_config, "CPURuntimeConfigurator expects CPURuntimeConfig");
+          return std::make_shared<CPURuntimeConfig>(*cpu_config);
+      }()),
+      compiled_kernel_cache(other.compiled_kernel_cache) {}
+
 void CPURuntimeConfigurator::initialization(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
     RuntimeConfigurator::initialization(linear_ir);
 #ifdef OPENVINO_ARCH_X86_64
@@ -74,6 +96,9 @@ void CPURuntimeConfigurator::initialization(const ov::snippets::lowered::LinearI
     RuntimeOptimizer::register_if_applicable<pass::aarch64::GemmCopyBLoopPortsAdjuster>(m_intermediate_optimizers,
                                                                                         linear_ir,
                                                                                         this);
+    RuntimeOptimizer::register_if_applicable<pass::aarch64::GemmExternalRepackingAdjuster>(m_final_optimizers,
+                                                                                           linear_ir,
+                                                                                           this);
 #endif
 }
 

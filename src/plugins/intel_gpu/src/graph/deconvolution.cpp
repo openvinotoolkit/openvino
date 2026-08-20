@@ -37,7 +37,7 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, ke
     auto pad = desc->pad;
     auto strd = desc->stride;
 
-    int32_t number_of_features = weights_layout.group() * weights_layout.ofm();
+    auto number_of_features = weights_layout.group() * weights_layout.ofm();
 
     format out_fmt = input_layout.format;
     if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
@@ -107,18 +107,14 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
     auto weights_layout = *impl_param.weights_layout;
     weights_layout = weights_layout.convert_to_weights_layout(desc->grouped_weights_shape);
 
-    if (input_layout.is_dynamic())
-        return {layout{ShapeType::dynamic(input_layout.get<ShapeType>().rank()), input_layout.data_type, input_layout.format}};
-
     auto input_type = input_layout.data_type;
-    auto output_type = input_type;
-    if ((input_type == data_types::i8 || input_type == data_types::u8) && !impl_param.has_fused_primitives()) {
-        output_type = data_types::f32;
-    }
-
+    auto output_type = (input_type == data_types::u8 || input_type == data_types::i8) ? data_types::f32 : input_type;
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_output_element_type();
     }
+
+    if (input_layout.is_dynamic())
+        return {layout{ShapeType::dynamic(input_layout.get<ShapeType>().rank()), output_type, input_layout.format}};
 
     auto strides = desc->stride;
     auto dilations = desc->dilations;
@@ -127,7 +123,7 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
     auto output_padding = desc->out_padding;
     auto output_partial_shape = desc->output_partial_shape;
 
-    int32_t number_of_features = weights_layout.group() * weights_layout.ofm();
+    auto number_of_features = weights_layout.group() * weights_layout.ofm();
 
     format out_fmt = input_layout.format;
     if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
@@ -166,11 +162,32 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
         input_layout.get<ShapeType>()
     };
     std::vector<ShapeType> output_shapes;
-    auto& memory_deps = impl_param.memory_deps;
+    const auto& memory_deps = impl_param.memory_deps;
     // Dimensions order of weights is IOYX, but the selected format is OIYX by default and I/O dimensions are
     // already swapped when creating constant op. So we need to swap I/O dimensions according to the original
     // dimension order for shape inference.
     auto weights_pshape = weights_layout.get_partial_shape();
+    const auto shape_infer_deps = node.get_shape_infer_dependencies();
+
+    auto infer_output_shapes = [&](auto& op) {
+        if (output_partial_shape.size() != 0) {
+            op.set_output_shape(output_partial_shape.to_shape());
+            input_shapes.push_back(ov::Shape{output_partial_shape.size()});
+            output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
+        } else if (!shape_infer_deps.empty() && memory_deps.count(shape_infer_deps.front())) {
+            auto mem = memory_deps.at(shape_infer_deps.front());
+            auto dims = read_vector<int64_t>(mem, impl_param.get_stream());
+            auto dims_shape = ov::Shape{dims.size()};
+            auto const_data =
+                std::unordered_map<size_t, ov::Tensor>{{2, ov::Tensor(ov::element::i64, dims_shape, dims.data())}};
+            input_shapes.push_back(dims_shape);
+            output_shapes =
+                ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end, ov::make_tensor_accessor(const_data));
+        } else {
+            output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
+        }
+    };
+
     if (desc->groups > 1) {
         ov::op::v1::GroupConvolutionBackpropData op;
         op.set_strides(strides);
@@ -179,22 +196,7 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
         op.set_auto_pad(ov::op::PadType::EXPLICIT);
         std::swap(weights_pshape[2], weights_pshape[1]);
         input_shapes.push_back(weights_pshape);
-        if (output_partial_shape.size() != 0) {
-            op.set_output_shape(output_partial_shape.to_shape());
-            input_shapes.push_back(ov::Shape{output_partial_shape.size()});
-            output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
-        } else if (memory_deps.count(2)) {
-            auto mem = memory_deps.at(2);
-            auto dims = read_vector<int64_t>(mem, impl_param.get_stream());
-            auto dims_shape = ov::Shape{dims.size()};
-            auto const_data =
-                std::unordered_map<size_t, ov::Tensor>{{2, ov::Tensor(ov::element::i64, dims_shape, dims.data())}};
-            input_shapes.push_back(dims_shape);
-            output_shapes =
-                ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end, ov::make_tensor_accessor(const_data));
-        } else {
-            output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
-        }
+        infer_output_shapes(op);
     } else {
         ov::op::v1::ConvolutionBackpropData op;
         op.set_strides(strides);
@@ -203,23 +205,7 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
         op.set_auto_pad(ov::op::PadType::EXPLICIT);
         std::swap(weights_pshape[1], weights_pshape[0]);
         input_shapes.push_back(weights_pshape);
-        if (output_partial_shape.size() != 0) {
-            op.set_output_shape(output_partial_shape.to_shape());
-            input_shapes.push_back(ov::Shape{output_partial_shape.size()});
-            output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
-        } else if ((desc->output_shape_id.is_valid() || desc->output_partial_shape.size() > 0) && memory_deps.count(2)) {
-            auto mem = memory_deps.at(2);
-            auto dims = read_vector<int64_t>(mem, impl_param.get_stream());
-            auto dims_shape = ov::Shape{dims.size()};
-            auto const_data =
-                std::unordered_map<size_t, ov::Tensor>{{2, ov::Tensor(ov::element::i64, dims_shape, dims.data())}};
-            input_shapes.push_back(dims_shape);
-
-            output_shapes =
-                ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end, ov::make_tensor_accessor(const_data));
-        } else {
-            output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
-        }
+        infer_output_shapes(op);
     }
     return {layout{output_shapes[0], output_type, out_fmt.value}};
 }

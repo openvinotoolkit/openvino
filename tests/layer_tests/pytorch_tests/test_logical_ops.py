@@ -1,6 +1,9 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import numpy as np
 import pytest
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 class TestLogicalOp(PytorchLayerTest):
 
@@ -53,10 +56,11 @@ class TestLogicalOp(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("op_type", ["and", "or", "not", "xor"])
     @pytest.mark.parametrize("first_dtype", ["bool", "int32", 'int8', 'float32'])
     @pytest.mark.parametrize("second_dtype", ["bool", "int32", 'int8', 'float32'])
-    @pytest.mark.parametrize("out", [True, False])
+    @pytest.mark.parametrize("out", [skip_if_export(True), False])
     def test_logical(self, op_type, out, first_dtype, second_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(op_type, out),
                    ie_device, precision, ir_version, 

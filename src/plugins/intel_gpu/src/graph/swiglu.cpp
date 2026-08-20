@@ -38,14 +38,13 @@ std::vector<layout> swiglu_inst::calc_output_layouts(swiglu_node const& /*node*/
         op.set_axis(desc->axis);
         std::vector<ov::PartialShape> output_shapes = shape_infer(&op, input_shapes);
         return {layout(output_shapes[0], output_type, output_format)};
-    } else {
-        ov::op::internal::GLU op;
-        op.set_axis(desc->axis);
-        op.set_split_lengths(desc->glu_stride);
-
-        std::vector<ShapeType> output_shapes = shape_infer(&op, input_shapes);
-        return {layout(output_shapes[0], output_type, output_format)};
     }
+    ov::op::internal::GLU op;
+    op.set_axis(desc->axis);
+    op.set_split_lengths(desc->glu_stride);
+
+    std::vector<ShapeType> output_shapes = shape_infer(&op, input_shapes);
+    return {layout(output_shapes[0], output_type, output_format)};
 }
 
 template std::vector<layout> swiglu_inst::calc_output_layouts<ov::PartialShape>(swiglu_node const& node,
@@ -65,6 +64,7 @@ std::string swiglu_inst::to_string(swiglu_node const& node) {
     swiglu_info.add("gate_idx", desc->gate_idx);
     swiglu_info.add("swish_beta", desc->swish_beta);
     swiglu_info.add("up_add_val", desc->up_add_val);
+    swiglu_info.add("scale_factor", desc->scale_factor);
     if (desc->clamp_max != std::numeric_limits<float>::max()) {
         swiglu_info.add("clamp_max", desc->clamp_max);
     }

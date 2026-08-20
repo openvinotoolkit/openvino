@@ -79,7 +79,7 @@ bool FullyConnected_GEMV::Validate(const Params& params) const {
     auto wl = weights.GetLayout();
     auto wo = weights.OFM().v;
 
-    auto& fc_input = fc_params.inputs[0];
+    const auto& fc_input = fc_params.inputs[0];
     if (is_swiglu_fused(fc_params)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
@@ -88,9 +88,9 @@ bool FullyConnected_GEMV::Validate(const Params& params) const {
         if (input_size.first != 1) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
         }
-        if (!(wl == WeightsLayout::os_is_yx_osv32_isv2 && wo % 32 == 0) &&
-            !(wl == WeightsLayout::os_is_yx_osv64_isv2 && wo % 64 == 0) &&
-            !(wl == WeightsLayout::os_iyx_osv16 && wo % 16 == 0)) {
+        if ((wl != WeightsLayout::os_is_yx_osv32_isv2 || wo % 32 != 0) &&
+            (wl != WeightsLayout::os_is_yx_osv64_isv2 || wo % 64 != 0) &&
+            (wl != WeightsLayout::os_iyx_osv16 || wo % 16 != 0)) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
         }
     }
@@ -162,7 +162,7 @@ JitConstants FullyConnected_GEMV::GetJitConstants(const fully_connected_params& 
     } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
         jit.AddConstant(MakeJitConstant("FILTER_LAYOUT_OS_IS_YX_TYPE", 2));
     } else {
-        OPENVINO_ASSERT("GEMV doesn't support this weights layout: ", params.weights.GetLayout());
+        OPENVINO_THROW("GEMV doesn't support this weights layout: ", params.weights.GetLayout());
     }
 
     if (params.weights.GetDType() == WeightsType::UINT4) {
@@ -170,7 +170,7 @@ JitConstants FullyConnected_GEMV::GetJitConstants(const fully_connected_params& 
     } else if (params.weights.GetDType() == WeightsType::INT4) {
         jit.AddConstant(MakeJitConstant("WEI_UINT4", 0));
     } else {
-        OPENVINO_ASSERT("GEMV only support INT4 and UINT4, doesn't support ", static_cast<size_t>(params.weights.GetDType()));
+        OPENVINO_THROW("GEMV only support INT4 and UINT4, doesn't support ", static_cast<size_t>(params.weights.GetDType()));
     }
 
     jit.AddConstant(MakeJitConstant("SIMD", simd));
@@ -197,7 +197,7 @@ JitConstants FullyConnected_GEMV::GetJitConstants(const fully_connected_params& 
 }
 
 KernelsData FullyConnected_GEMV::GetTunedKernelsDataByIndex(const Params& params, const int autoTuneIndex) const {
-    auto& fc_params = static_cast<const fully_connected_params&>(params);
+    const auto& fc_params = static_cast<const fully_connected_params&>(params);
     auto output_f = get_output_aligned_bf_size(fc_params, false).second;
 
     WeightsLayout weights_layout = WeightsLayout::os_iyx_osv16;

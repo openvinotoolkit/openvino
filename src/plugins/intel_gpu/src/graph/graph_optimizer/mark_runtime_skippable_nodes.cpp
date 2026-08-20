@@ -28,7 +28,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
     auto itr = p.get_processing_order().begin();
 
     while (itr != p.get_processing_order().end()) {
-        auto& node = *itr++;
+        const auto& node = *itr++;
         // Set gathers that might be skipped at runtime as can_be_optimized.
         // If not set, memory dependency will not work for the nodes that are skipped at runtime
         if (node->is_type<data>() || node->is_constant())
@@ -37,7 +37,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
         std::function<bool(const program_node& node)> all_users_are_shape_of = [&](const program_node& node) {
             if (node.is_input() || node.is_output())
                 return false;
-            for (auto& u : node.get_users()) {
+            for (const auto& u : node.get_users()) {
                 if (!u->is_type<shape_of>())
                     return false;
             }
@@ -123,7 +123,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 || !prim->new_axis_mask.empty()
                 || !prim->shrink_axis_mask.empty()
                 || !prim->ellipsis_mask.empty()
-                || !(all_zeroes(begin) || all_ones(begin_mask))
+                || (!all_zeroes(begin) && !all_ones(begin_mask))
                 || !all_ones(strides))
                 return;
 
@@ -137,6 +137,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
                     is_valid = true;
                 } else {
                     is_valid = false;
+                    break;
                 }
             }
             if (!end.empty() && !is_valid)
@@ -298,7 +299,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
             // for dynamic case, postpone the judgement to runtime
             // for static case, judge if input/output are same here.
             if (!node.is_dynamic()) {
-                can_be_optimized = node.get_input_layout(0) == node.get_output_layout(0);
+                can_be_optimized = node.get_input_layout(0) == node.get_output_layout(false);
             }
             if (!node.has_fused_primitives() && can_be_optimized) {
                 node.can_be_optimized(true);

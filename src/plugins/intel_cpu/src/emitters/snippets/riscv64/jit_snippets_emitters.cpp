@@ -19,6 +19,7 @@
 #include "openvino/op/constant.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/broadcastmove.hpp"
+#include "utils.hpp"
 #include "utils/general_utils.h"
 #include "xbyak_riscv/xbyak_riscv.hpp"
 #include "xbyak_riscv/xbyak_riscv_csr.hpp"
@@ -60,19 +61,21 @@ void jit_broadcast_move_emitter::emit_isa(const std::vector<size_t>& in, const s
     // end up in a situation where source and destination registers are the same
     const bool in_place = src_vreg.getIdx() == dst_vreg.getIdx();
 
+    auto sew = Xbyak_riscv::SEW::e32;
     switch (byte_size) {
     case 1:
-        h->vsetivli(Xbyak_riscv::zero, 4, Xbyak_riscv::SEW::e8, Xbyak_riscv::LMUL::m1);
+        sew = Xbyak_riscv::SEW::e8;
         break;
     case 2:
-        h->vsetivli(Xbyak_riscv::zero, 4, Xbyak_riscv::SEW::e16, Xbyak_riscv::LMUL::m1);
+        sew = Xbyak_riscv::SEW::e16;
         break;
     case 4:
-        h->vsetivli(Xbyak_riscv::zero, 4, Xbyak_riscv::SEW::e32, Xbyak_riscv::LMUL::m1);
+        sew = Xbyak_riscv::SEW::e32;
         break;
     default:
         OV_CPU_JIT_EMITTER_THROW("Unsupported data size ", byte_size);
     }
+    set_vector_length(h, ov::intel_cpu::riscv64::utils::get_snippet_lanes(), sew, aux_gpr_idxs);
 
     if (in_place) {
         OV_CPU_JIT_EMITTER_ASSERT(!aux_vec_idxs.empty(), "BroadcastMove requires an auxiliary vector register");
@@ -88,6 +91,7 @@ jit_scalar_emitter::jit_scalar_emitter(jit_generator_t* h, cpu_isa_t isa, const 
     : jit_emitter(h, isa) {
     const auto n = expr->get_node();
     const auto& precision = n->get_output_element_type(0);
+    byte_size = precision.size();
     switch (precision) {
     case element::i32: {
         value = ov::as_type_ptr<ov::op::v0::Constant>(n)->cast_vector<int32_t>()[0];
@@ -121,16 +125,24 @@ void jit_scalar_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
 template <cpu_isa_t isa>
 void jit_scalar_emitter::emit_isa([[maybe_unused]] const std::vector<size_t>& in,
                                   const std::vector<size_t>& out) const {
-    // Get destination vector register
     auto dst_vreg = Xbyak_riscv::VReg(out[0]);
+    OV_CPU_JIT_EMITTER_ASSERT(!aux_gpr_idxs.empty(), "Scalar emitter expects one auxiliary GPR register");
 
-    // For now, use t0 as a temporary register
-    Xbyak_riscv::Reg tmp_gpr = Xbyak_riscv::t0;
+    auto sew = Xbyak_riscv::SEW::e32;
+    switch (byte_size) {
+    case 2:
+        sew = Xbyak_riscv::SEW::e16;
+        break;
+    case 4:
+        sew = Xbyak_riscv::SEW::e32;
+        break;
+    default:
+        OV_CPU_JIT_EMITTER_THROW("Unsupported scalar data size ", byte_size);
+    }
+    set_vector_length(h, ov::intel_cpu::riscv64::utils::get_snippet_lanes(), sew, aux_gpr_idxs);
 
-    // Load scalar value directly into register
+    const auto tmp_gpr = Xbyak_riscv::Reg(static_cast<int>(aux_gpr_idxs[0]));
     h->uni_li(tmp_gpr, value);
-
-    // Move scalar from GPR to vector register and broadcast
     h->vmv_v_x(dst_vreg, tmp_gpr);
 }
 

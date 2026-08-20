@@ -12,6 +12,7 @@
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "jitter.hpp"
+#include "kernel_selector/jitter.h"
 #include "openvino/core/type/element_type.hpp"
 #include "quantize_inst.h"
 
@@ -191,9 +192,11 @@ bool FusedOpsCodeGenerator::can_preload_data(const FusedOpsConfiguration& conf) 
 JitTerm FusedOpsCodeGenerator::get_op_type() const {
     if (desc.is_type<eltwise>()) {
         return JitTerm{"eltwise"};
-    } else if (desc.is_type<quantize>()) {
+    }
+    if (desc.is_type<quantize>()) {
         return JitTerm{"quantize"};
-    } else if (desc.is_type<activation>()) {
+    }
+    if (desc.is_type<activation>()) {
         return JitTerm{"activation"};
     }
     return {};
@@ -497,7 +500,7 @@ JitConstants FusedOpsCodeGenerator::make_op_jit_constants(const FusedOpsConfigur
 
             // Input shift
             if (p->_need_pre_shift) {
-                op_decls += make_statement(tmp_var.assign(tmp_var + pre_scale)).str();
+                op_decls += make_statement(tmp_var.assign(tmp_var + pre_shift)).str();
             }
 
             // Round operation isn't needed if output type is int8/uint8 and scale coefficient in all output channels is equal to 1.0
@@ -701,18 +704,14 @@ JitTerm FusedOpsCodeGenerator::get_jit_load(const FusedOpsConfiguration& conf,
     // 2. If in given configuration data can't be loaded by a simple UNIT_BLOCK_READx call or load from casted ptr,
     //    we can gather the data to vector
     if (conf.load_type == FusedOpsConfiguration::LoadType::LT_ALIGNED_READ) {
-        bool multiple_elements = false;
-        // For dynamic shape input tensor, check any one of static dimension has more than one element.
         if (input_tensor.is_dynamic()) {
-            for (const auto& dim : input_tensor.get_partial_shape()) {
-                if (dim.is_static() && dim.get_length() > 1) {
-                    multiple_elements = true;
-                    break;
-                }
-            }
+            const auto has_multiple_elements = kernel_selector::GetTensorHasMultipleElementsCondition(get_input_tensor_name(input_id).str());
+            auto block_load = make_block_read(input_dt, vec_size, in_ptr + index_func_call);
+            auto scalar_load = broadcast(in_ptr[index_func_call], input_dt, vec_size);
+            return ternary(JitTerm{"(" + has_multiple_elements + ")"}, block_load, scalar_load);
         }
 
-        if ((input_tensor.is_static() && input_tensor.count() > 1) || multiple_elements) {
+        if (input_tensor.count() > 1) {
             // Currently we assume that in such scenario we can safely load sub_group_size elements from the pointer
             return make_block_read(input_dt, vec_size, in_ptr + index_func_call);
         }
@@ -1017,6 +1016,58 @@ JitConstants make_activation_jit_constants(const std::string& suffix,
     case activation_func::round_half_away_from_zero:
         jit.add(make_jit_constant(macro_def, round(input)));
         break;
+    case activation_func::erfinv: {
+        // NOTE: exactly the same implementation can be found
+        // in jitter.cpp - ideally both should be defined
+        // in common place, but that would require deeper refactoring
+        // (e.g. class JitTerm is also defined in multiple places and
+        // it is a different implementation in different jitters)
+        // which is out of scope for the current change....
+        const bool is_f32 = (out_dt == ov::element::f32);
+        const JitTerm elem_inf{is_f32 ? "INFINITY" : "((half)INFINITY)"};
+        auto cf = [&](const char* lit) {
+            return concat(lit, type_suffix);
+        };
+        auto horner = [&](const JitTerm& s, std::initializer_list<JitTerm> coefs) {
+            const auto* it = coefs.begin();
+            JitTerm r = *it++;
+            for (; it != coefs.end(); ++it) {
+                r = r * s + *it;
+            }
+            return r;
+        };
+        const JitTerm& x = input;
+        const JitTerm w = neg(log((cf("1.0") - x) * (cf("1.0") + x)));
+        const JitTerm s_lo = w - cf("2.5");
+        const JitTerm s_hi = sqrt(w) - cf("3.0");
+        const JitTerm p_lo = horner(s_lo,
+                                    {cf("2.81022636e-08"),
+                                     cf("3.43273939e-07"),
+                                     cf("-3.5233877e-06"),
+                                     cf("-4.39150654e-06"),
+                                     cf("0.00021858087"),
+                                     cf("-0.00125372503"),
+                                     cf("-0.00417768164"),
+                                     cf("0.246640727"),
+                                     cf("1.50140941")});
+        const JitTerm p_hi = horner(s_hi,
+                                    {cf("-0.000200214257"),
+                                     cf("0.000100950558"),
+                                     cf("0.00134934322"),
+                                     cf("-0.00367342844"),
+                                     cf("0.00573950773"),
+                                     cf("-0.0076224613"),
+                                     cf("-0.00943887047"),
+                                     cf("1.00167406"),
+                                     cf("2.83297682")});
+        const JitTerm poly = x * ternary(w.lt(cf("5.0")), p_lo, p_hi);
+        // x = 0     -> poly yields 0 naturally.
+        // |x| > 1   -> log of a negative produces NaN, propagated by poly.
+        // x = +/-1  -> log(0) blows up the polynomial; force +/-inf via x *
+        // INFINITY.
+        jit.add(make_jit_constant(macro_def, ternary(fabs(x).eq(cf("1.0")), x * elem_inf, poly)));
+        break;
+    }
     case activation_func::none:
     default:
         jit.add(make_jit_constant(macro_def, input));

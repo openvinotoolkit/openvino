@@ -1,5 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #pragma once
 #include <napi.h>
@@ -134,6 +135,12 @@ template <>
 Napi::Boolean cpp_to_js<bool, Napi::Boolean>(const Napi::CallbackInfo& info, const bool value);
 
 Napi::Object cpp_to_js(const Napi::Env& env, const ov::CompiledModel& compiled_model);
+
+/**
+ * @brief Creates a JavaScript object with the `buildNumber` and `description` of an ov::Version.
+ * The object also exposes a non-enumerable `toString()` returning a formatted, multi-line string.
+ */
+Napi::Object cpp_to_js(const Napi::Env& env, const ov::Version& version);
 
 /** @brief Takes Napi::Value and parse Napi::Array or Napi::Object to ov::TensorVector. */
 ov::TensorVector parse_input_data(const Napi::Value& input);

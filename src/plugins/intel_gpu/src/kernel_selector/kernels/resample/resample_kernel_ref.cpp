@@ -27,11 +27,11 @@ ParamsKey ResampleKernelRef::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
-    k.EnableReampleType(ResampleType::NEAREST_NEIGHBOR);
-    k.EnableReampleType(ResampleType::CAFFE_BILINEAR_INTERP);
-    k.EnableReampleType(ResampleType::BILINEAR_INTERP);
-    k.EnableReampleType(ResampleType::CUBIC);
-    k.EnableReampleType(ResampleType::LINEAR_ONNX);
+    k.EnableResampleType(ResampleType::NEAREST_NEIGHBOR);
+    k.EnableResampleType(ResampleType::CAFFE_BILINEAR_INTERP);
+    k.EnableResampleType(ResampleType::BILINEAR_INTERP);
+    k.EnableResampleType(ResampleType::CUBIC);
+    k.EnableResampleType(ResampleType::LINEAR_ONNX);
     return k;
 }
 
@@ -85,10 +85,7 @@ static bool use_packing(const resample_params& params) {
     size_t max_work_items_per_eu = 32 * static_cast<size_t>(params.engineInfo.maxThreadsPerExecutionUnit);
     auto minimum_work_items = params.engineInfo.computeUnitsCount * max_work_items_per_eu;
 
-    if (packed_work_items < minimum_work_items)
-        return false;
-
-    return true;
+    return packed_work_items >= minimum_work_items;
 }
 
 JitConstants ResampleKernelRef::GetJitConstants(const resample_params& params) const {

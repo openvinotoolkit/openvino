@@ -38,7 +38,9 @@ public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<deconvolution>();
         const auto& stride = primitive->stride;
-        const ov::Strides dilation(impl_param.get_output_layout().get_spatial_rank(), 1);
+        auto spatial_rank = impl_param.get_output_layout().get_spatial_rank();
+        auto dilation = primitive->dilations;
+        dilation.resize(spatial_rank, 1);
 
         const auto& pad = primitive->pad;
         const auto& groups = primitive->groups;
@@ -49,9 +51,9 @@ public:
 
         const auto weights_idx = 1 + 0;
         const auto& weights_layout = impl_param.input_layouts[weights_idx].convert_to_weights_layout(primitive->grouped_weights_shape);
-        uint32_t kx = weights_layout.spatial(0);
-        uint32_t ky = weights_layout.spatial(1);
-        uint32_t kz = weights_layout.spatial(2);
+        uint32_t kx = static_cast<uint32_t>(weights_layout.spatial(0));
+        uint32_t ky = static_cast<uint32_t>(weights_layout.spatial(1));
+        uint32_t kz = static_cast<uint32_t>(weights_layout.spatial(2));
 
         params.filterSize = { kx, ky, kz };
 

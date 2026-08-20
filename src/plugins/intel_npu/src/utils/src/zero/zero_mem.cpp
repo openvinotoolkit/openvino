@@ -48,11 +48,13 @@ ZeroMem::ZeroMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                 "Importing standard allocation is not supported if memory is not aligned to standard page size");
         }
 
-        // We need to check if the end of the current region is part of a previous imported region
-        // The other cases are handled by the driver
-        if (zeroUtils::get_l0_context_memory_allocation_id(
-                _init_structs->getContext(),
-                static_cast<void*>(static_cast<uint8_t*>(const_cast<void*>(data)) + _size)) > 0) {
+        // Reject the import only when the region genuinely overlaps a previously imported
+        // allocation. Probe the last valid byte (data + _size - 1) so that a buffer whose end
+        // merely abuts an adjacent allocation is still importable. Other cases are handled by
+        // the driver.
+        if (_size > 0 && zeroUtils::get_l0_context_memory_allocation_id(
+                             _init_structs->getContext(),
+                             static_cast<void*>(static_cast<uint8_t*>(const_cast<void*>(data)) + _size - 1)) > 0) {
             throw ZeroMemException("Can not import a memory which is part of an existing allocation");
         }
 
@@ -111,7 +113,14 @@ uint64_t ZeroMem::id() {
 }
 
 ZeroMem::~ZeroMem() {
-    auto result = zeMemFree(_init_structs->getContext(), _ptr);
+    auto ze_context = _init_structs->getContext();
+    if (ze_context == nullptr) {
+        _logger.warning("Context is null while trying to free memory with id %llu. Memory might be already freed.",
+                        _id);
+        return;
+    }
+
+    auto result = zeMemFree(ze_context, _ptr);
     if (ZE_RESULT_SUCCESS != result) {
         _logger.error("L0 zeMemFree result: %s, code %#X - %s",
                       ze_result_to_string(result).c_str(),

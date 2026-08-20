@@ -300,6 +300,29 @@ std::vector<ReshapeParams> generateParamsForReshape8Bit() {
 }
 
 template <element::Type_t ET>
+std::vector<ReshapeParams> generateParamsForReshape4Bit() {
+    using T = typename element_type_traits<ET>::value_type;
+
+    std::vector<ReshapeParams> params{
+        ReshapeParams(Shape{2, 2, 3},
+                      Shape{12},
+                      ET,
+                      ET,
+                      std::vector<T>{0x12, 0x34, 0x56, 0x78, 0x1A, 0x2C},
+                      std::vector<T>{0x12, 0x34, 0x56, 0x78, 0x1A, 0x2C},
+                      false),
+        ReshapeParams(Shape{1, 1, 1}, Shape{}, ET, ET, std::vector<T>{6}, std::vector<T>{6}, false),
+        ReshapeParams(Shape{}, Shape{1, 1, 1, 1, 1, 1}, ET, ET, std::vector<T>{7}, std::vector<T>{7}, false),
+        ReshapeParams(Shape{3}, Shape{3, 1}, ET, ET, std::vector<T>{0x12, 0x03}, std::vector<T>{0x12, 0x03}, false),
+        ReshapeParams(Shape{3}, Shape{1, 3}, ET, ET, std::vector<T>{0x12, 0x03}, std::vector<T>{0x12, 0x03}, false),
+        ReshapeParams(Shape{3}, Shape{1, 3, 1}, ET, ET, std::vector<T>{0x12, 0x03}, std::vector<T>{0x12, 0x03}, false),
+        ReshapeParams(Shape{1}, Shape{}, ET, ET, std::vector<T>{1}, std::vector<T>{1}, false),
+        ReshapeParams(Shape{}, Shape{}, ET, ET, std::vector<T>{1}, std::vector<T>{1}, false)};
+
+    return params;
+}
+
+template <element::Type_t ET>
 std::vector<ReshapeShuffleParams> generateParamsForReshapeShuffle() {
     using T = typename element_type_traits<ET>::value_type;
 
@@ -325,6 +348,8 @@ std::vector<ReshapeParams> generateCombinedParamsForReshape() {
                                                                 generateParamsForReshape<element::Type_t::u16>(),
                                                                 generateParamsForReshape8Bit<element::Type_t::i8>(),
                                                                 generateParamsForReshape8Bit<element::Type_t::u8>(),
+                                                                generateParamsForReshape4Bit<element::Type_t::i4>(),
+                                                                generateParamsForReshape4Bit<element::Type_t::u4>(),
                                                                 generateParamsForReshapeString()};
 
     std::vector<ReshapeParams> combinedParams;

@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "emitters/plugin/aarch64/jit_emitter.hpp"
+#include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "snippets/lowered/expression.hpp"
 
 namespace ov::intel_cpu::aarch64 {
@@ -82,14 +83,12 @@ protected:
     std::shared_ptr<Xbyak_aarch64::Label> loop_end_label;
     size_t num_inputs = 0;
     size_t num_outputs = 0;
-    size_t work_amount = 0;
     size_t wa_increment = 0;
-    std::vector<bool> is_incremented;
-    std::vector<int64_t> ptr_increments;
-    std::vector<int64_t> finalization_offsets;
-    std::vector<int64_t> data_sizes;
     bool evaluate_once = false;
     size_t loop_id = 0;
+    bool are_ptr_increments_dynamic = false;
+    bool are_final_offsets_dynamic = false;
+    jit_snippets_call_args::loop_args_t loop_args;
 };
 
 /* ============================================================== */

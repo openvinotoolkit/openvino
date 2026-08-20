@@ -134,7 +134,7 @@ void EmbeddingBagOffset::initFromInputs() {
 void EmbeddingBagOffset::getIndices(size_t embIndex,
                                     const int*& indices,
                                     size_t& size,
-                                    int& weightsIdx,
+                                    size_t& weightsIdx,
                                     bool& withWeight) {
     CPU_NODE_ASSERT(embIndex < _offsetsLen, "Invalid embedding bag index.");
     CPU_NODE_ASSERT(static_cast<size_t>(offsetsData_[embIndex]) < _indicesLen, "Offset value exceeds indices size.");
@@ -146,6 +146,16 @@ void EmbeddingBagOffset::getIndices(size_t embIndex,
     if (embIndex == _offsetsLen - 1LU) {
         size = _indicesLen - offsetsData_[embIndex];
     } else {
+        // Guard against non-monotonic offsets: a decrease would underflow size_t
+        CPU_NODE_ASSERT(offsetsData_[embIndex + 1LU] >= offsetsData_[embIndex],
+                        "Offsets must be monotonically non-decreasing: offsets[",
+                        embIndex + 1LU,
+                        "]=",
+                        offsetsData_[embIndex + 1LU],
+                        " < offsets[",
+                        embIndex,
+                        "]=",
+                        offsetsData_[embIndex]);
         size = offsetsData_[embIndex + 1LU] - offsetsData_[embIndex];
     }
 

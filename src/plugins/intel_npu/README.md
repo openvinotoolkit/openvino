@@ -16,6 +16,7 @@ OpenVINO™ toolkit is officially supported and validated on the following platf
 | Arrow Lake (integrated NPU)   | NPU 3720    | 0xAD1D         | Ubuntu* 22, Ubuntu* 24, MS Windows* 11   |
 | Lunar Lake (integrated NPU)   | NPU 4000    | 0x643E         | Ubuntu* 22, Ubuntu* 24, MS Windows* 11   |
 | Panther Lake (integrated NPU) | NPU 5010    | 0xB03E         | Ubuntu* 22, Ubuntu* 24, MS Windows* 11   |
+| Wildcat Lake (integrated NPU) | NPU 5020    | 0xFD3E         | Ubuntu* 22, Ubuntu* 24, MS Windows* 11   |
 <br>
 
 ## High Level Design
@@ -189,24 +190,27 @@ The following properties are supported (may differ based on current system confi
 | `ov::supported_properties`/</br>`SUPPORTED_METRICS`/</br>`SUPPORTED_CONFIG_KEYS` | RO | Returns a list of all supported properties.</br> Can be queried on runtime. | `N/A` | `N/A` |
 | `ov::caching_properties`/</br>`CACHING_PROPERTIES` | RW | Returns a list of all properties that are used by OpenVINO cache to build the hash key. | `N/A` | `N/A` |
 | `ov::compilation_num_threads`/</br>`COMPILATION_NUM_THREADS` | RW | Maximum number of threads that can be used for compilation tasks. | `N/A` | `N/A` |
-| `ov::num_streams`/</br>`NUM_STREAMS` | RO | Not used by the NPU plugin.</br> Always set to 1. | `AUTO/`</br>`INT` | `1` |
+| `ov::num_streams`/</br>`NUM_STREAMS` | RW | Sets the per-executor stream/thread limit. Executor layout depends on mode: `AUTO` uses only the task executor; `0` runs `start_async` on the caller thread, uses a single wait executor thread, and disables the callback executor; explicit positive values use separate executors for start, wait, and callback stages, each configured with `num_streams` threads. | `AUTO/`</br>`INT` | `AUTO` |
+| `ov::runtime_requirements`/</br>`RUNTIME_REQUIREMENTS` | RO | Returns a string containing the runtime requirements of the compiled model. The string can be used with `ov::compatibility_check` to check compatibility before import.</br>Throws if no requirements are available for the compiled model (for example weightless models, or Level Zero drivers older than 1.16). | `N/A` | `N/A` |
+| `ov::compatibility_check`/</br>`COMPATIBILITY_CHECK` | RO | Checks whether the current runtime is compatible with a compiled model, using a requirements string passed through `ov::runtime_requirements`. | `SUPPORTED`/</br>`UNSUPPORTED`/</br>`NOT_APPLICABLE` | `NOT_APPLICABLE` |
 | `ov::optimal_number_of_infer_requests`/</br>`OPTIMAL_NUMBER_OF_INFER_REQUESTS` | RO | Returns the optimal number of inference requests to be used by the application. Depends on the platform version and on ov::hint::performance_mode. Please see the table below. | `N/A` | `N/A` |
 | `ov::range_for_async_infer_requests`/</br>`RANGE_FOR_ASYNC_INFER_REQUESTS` | RO | Returns a tuple (bottom, top, step). </br> Not used by the NPU plugin. | `N/A` | `N/A` |
 | `ov::range_for_streams`/</br>`RANGE_FOR_STREAMS` | RO | Returns a tuple (bottom, top).</br> Not used by the NPU plugin. | `N/A`| `N/A` |
 | `ov::enable_profiling`/</br>`PERF_COUNT` | RW | Enables or disables performance counters. | `YES`/ `NO` | `NO` |
+| `ov::workload_type`/</br>`WORKLOAD_TYPE` | RW | Selects the NPU workload profile for model execution. | `DEFAULT`/ `EFFICIENT`| `DEFAULT` |
 | `ov::hint::performance_mode`/</br>`PERFORMANCE_HINT` | RW | Sets the performance profile used to determine default values of Tiles/DMAs/NIREQs.</br>Default values for each profile are documented below. | `THROUGHPUT`/</br>`LATENCY`/</br>`UNDEFINED` | `UNDEFINED` |
 | `ov::hint::num_requests`/</br>`PERFORMANCE_HINT_NUM_REQUESTS` | RW | Sets the number of outstanding inference requests. | `[0-]` | `1` |
 | `ov::hint::model_priority`/</br>`MODEL_PRIORITY` | RW | Assigns a priority for the model execution. | `LOW`/</br>`MEDIUM`/</br>`HIGH` | `MEDIUM` |
-| `ov::hint::enable_cpu_pinning`/</br>`ENABLE_CPU_PINNING` | RW | Allows CPU threads pinning during inference. | `YES`/ `NO` /</br>`NO` 
+| `ov::hint::enable_cpu_pinning`/</br>`ENABLE_CPU_PINNING` | RW | This property is deprecated and has no effect on the NPU Plugin. It will be removed in the OpenVINO 2027.0 release. | `YES`/ `NO` /</br>`NO` 
 | `ov::log::level`/</br>`LOG_LEVEL` | RW |  Sets the log level for NPU Plugin. An environment variable is also made available to expose logs from early initialization phase: OV_NPU_LOG_LEVEL. | `LOG_NONE`/</br>`LOG_ERROR`/</br>`LOG_WARNING`/</br>`LOG_INFO`/</br>`LOG_DEBUG`/</br>`LOG_TRACE` |  `LOG_NONE` |
 | `ov::cache_dir`/</br>`CACHE_DIR` | RW | Folder path to be used by the OpenVINO cache. | Any string pointing towards a valid directory path | empty |
+| `ov::cache_encryption_callbacks`/</br>`CACHE_ENCRYPTION_CALLBACKS` | WO | Encryption/Decryption functions called when exporting or reading the blob. | ov::EncryptionCallbacks structures populated with any function respecting signature `std::string(const std::string&)` for both encryption and decryption callbacks | ov::EncryptionCallbacks{nullptr, nullptr} |
 | `ov::cache_mode`/</br>`CACHE_MODE` | RW | If `CACHE_DIR` has been set, then this option indicates whether or not the size of the compiled model binary object will be reduced by decoupling a portion of the weights. | `OPTIMIZE_SIZE` /</br>`OPTIMIZE_SPEED` | `OPTIMIZE_SPEED` |
 | `ov::available_devices`/</br>`AVAILABLE_DEVICES` | RO | Returns the list of enumerated NPU devices. </br> NPU plugin does not currently support multiple devices. | `N/A`| `N/A` |
 | `ov::device::id`/</br>`DEVICE_ID` | RW | Device identifier. Empty means auto detection. | empty/</br> `3720`/</br> `4000` | empty |
 | `ov::device::uuid`/</br> | RO | Returns the Universal Unique ID of the NPU device. | `N/A`| `N/A` |
 | `ov::device::architecture`/</br>`DEVICE_ARCHITECTURE` | RO | Returns the platform information. | `N/A`| `N/A` |
 | `ov::device::full_name`/</br>`FULL_DEVICE_NAME` | RO | Returns the full name of the NPU device. | `N/A`| `N/A` |
-| `ov::internal::exclusive_async_requests`/</br>`EXCLUSIVE_ASYNC_REQUESTS` | RW | Allows to use exclusive task executor for asynchronous infer requests. | `YES`/ `NO`| `NO` |
 | `ov::device::type`/</br>`DEVICE_TYPE` | RO | Returns the type of device, discrete or integrated. | `DISCRETE` /</br>`INTEGRATED` | `N/A` |
 | `ov::device::gops`/</br>`DEVICE_GOPS` | RO | Returns the Giga OPS per second count (GFLOPS or GIOPS) for a set of precisions supported by specified device. | `N/A`| `N/A` |
 | `ov::device::pci_info`/</br>`DEVICE_PCI_INFO` | RO | Returns the PCI bus information of device. See PCIInfo struct definition for details | `N/A`| `N/A` |
@@ -220,9 +224,9 @@ The following properties are supported (may differ based on current system confi
 | `ov::intel_npu::qdq_optimization`/</br>`NPU_QDQ_OPTIMIZATION` | RW | Enable/Disable additional optimizations and balances performance and accuracy for QDQ format models, quantized using ONNX Runtime | `YES` / `NO` | `NO` |
 | `ov::intel_npu::qdq_optimization_aggressive`/</br>`NPU_QDQ_OPTIMIZATION_AGGRESSIVE` | RW | Enable/Disable additional optimizations to improve performance for QDQ format models, quantized using ONNX Runtime | `YES` / `NO` | `NO` |
 | `ov::intel_npu::turbo`/</br>`NPU_TURBO` | RW | Set Turbo mode on/off | `YES`/ `NO`| `NO` |
-| `ov::intel_npu::platform`/</br>`NPU_PLATFORM` | RW | Selects the target compilation platform. Used in offline compilation | `3720`/</br>`4000`</br>`5010` | `AUTO_DETECT` |
+| `ov::intel_npu::platform`/</br>`NPU_PLATFORM` | RW | Selects the target compilation platform. Used in offline compilation | `3720`/</br>`4000`</br>`5010`</br>`5020` | `AUTO_DETECT` |
 | `ov::intel_npu::tiles`/</br>`NPU_TILES` | RW | Sets the number of npu tiles to compile the model for | `[0-]` | `-1` |
-| `ov::intel_npu::max_tiles`/</br>`NPU_MAX_TILES` | RW | Maximum number of tiles supported by the device we compile for. Can be set for offline compilation. If not set, it will be populated by driver.| `[0-]` | `[1-6] depends on npu platform` |
+| `ov::intel_npu::max_tiles`/</br>`NPU_MAX_TILES` | RO | Maximum number of tiles supported by the device we compile for. It will be populated by driver, if present. | `[1-6] depends on npu platform` | `[-1]` |
 | `ov::intel_npu::bypass_umd_caching`/</br>`NPU_BYPASS_UMD_CACHING` | RW | Bypass the caching of compiled models in UMD. | `YES`/ `NO`| `NO` |
 | `ov::intel_npu::defer_weights_load`/</br>`NPU_DEFER_WEIGHTS_LOAD` | RW | Delay loading the weights until inference is created. | `YES`/ `NO`| `NO` |
 | `ov::intel_npu::run_inferences_sequentially`/</br>`NPU_RUN_INFERENCES_SEQUENTIALLY` | RW | Run inferences in async mode sequentially in the order in which they are started to optimize host scheduling. | `YES`/ `NO`| `NO` |
@@ -244,9 +248,11 @@ The following table shows the default values for the number of Tiles and DMA Eng
 | THROUGHPUT       | 3720                | 2 (all of them)      |
 | THROUGHPUT       | 4000                | 2 (out of 5/6)       |
 | THROUGHPUT       | 5010                | 1 (out of 3)         |
+| THROUGHPUT       | 5020                | 1 (out of 1)         |
 | LATENCY          | 3720                | 2 (all of them)      |
 | LATENCY          | 4000                | 4 (out of 5/6)       |
 | LATENCY          | 5010                | 3 (out of 3)         |
+| LATENCY          | 5020                | 1 (out of 1)         |
 <br>
 
 ### Performance Hint: Optimal Number of Inference Requests
@@ -258,6 +264,7 @@ The following table shows the optimal number of inference requests returned by t
 | 3720                | 4                                           | 1                                       |
 | 4000                | 8                                           | 1                                       |
 | 5010                | 8                                           | 1                                       |
+| 5020                | 8                                           | 1                                       |
 <br>
 
 ### Compilation mode parameters
@@ -296,7 +303,7 @@ Supported values:
 ### ov::intel_npu::max_tiles and ov::intel_npu::tiles
 
 For on-device compilation, the plugin queries the driver for the available number of tiles and sets `ov::intel_npu::max_tiles`.  
-`ov::intel_npu::max_tiles` is a read-write property to allow users to set it during offline compilation.  
+`ov::intel_npu::max_tiles` is a read-only property, and it will not be listed as supported in cases where no device is present.
 Note that `ov::intel_npu::max_tiles` represents the maximum number of tiles available, but the compiler may target a lower number of tiles depending on other properties. Users can set ``ov::intel_npu::tiles`` to override the number of tiles selected by the compiler based on other properties.  
 
 When setting ``ov::intel_npu::tiles``, users must ensure that the value does not exceed ``ov::intel_npu::max_tiles``.  
@@ -325,6 +332,22 @@ Notes regarding on-device vs offline compilation:
 - For offline compilation, users must explicitly set the ``ov::intel_npu::platform`` property to one of the supported values (see table above).  
 Setting extra properties during offline compilation may result in compiled models that cannot be executed on SKUs with fewer resources or on drivers that do not support those features.  
 Example: Setting ``performance-hint-override=latency`` through ``ov::intel_npu::compilation_mode_params`` instructs the compiler to use all available resources for the given platform. If ``ov::intel_npu::max_tiles`` is not provided, the compiler falls back to a fixed lookup table embedded in the library to determine available resources, which might not be representative of all SKUs.
+<br>
+
+### ov::runtime_requirements and ov::compatibility_check
+
+A string containing plugin-specific runtime requirements can be retrieved from a compiled model using the ``ov::runtime_requirements`` property:
+```
+    auto requirements = compiled_model.get_property(ov::runtime_requirements);
+```
+This string can later be used before import to check the compatibility of the described model with the current runtime:
+```
+    auto compat = core.get_property("NPU", ov::compatibility_check, {{ov::runtime_requirements.name(), requirements}});
+```
+
+> Note: `ov::runtime_requirements` is not available for every compiled model. Querying it throws for models without runtime requirements (for example weightless models, or Level Zero drivers older than 1.16); `ov::compatibility_check` returns `NOT_APPLICABLE` in those cases. Before reading the property, the application is recommended to check whether it is present in the model's list of supported properties.
+
+Developers and contributors can find more details on how the plugin handles this data internally (the compile, export, and import flow) in [Runtime Requirements and Compatibility Check](./docs/runtime-requirements.md).
 <br>
 
 ## Stateful models

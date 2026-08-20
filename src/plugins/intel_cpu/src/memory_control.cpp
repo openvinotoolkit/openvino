@@ -9,14 +9,16 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
-#include <numeric>
-#include <queue>
 #include <string>
-#include <type_traits>
 #include <unordered_map>
-#include <unordered_set>
 #include <utility>
 #include <vector>
+#ifdef CPU_DEBUG_CAPS
+#    include <numeric>
+#    include <queue>
+#    include <type_traits>
+#    include <unordered_set>
+#endif
 
 #include "cpu_memory.h"
 #include "openvino/core/except.hpp"
@@ -37,7 +39,11 @@ public:
     }
 
     [[nodiscard]] void* getRawPtr() const noexcept override {
-        return static_cast<uint8_t*>(m_pBlock->getRawPtr()) + m_offset;
+        void* base = m_pBlock->getRawPtr();
+        if (base == nullptr) {
+            return nullptr;
+        }
+        return static_cast<uint8_t*>(base) + m_offset;
     }
     void setExtBuff([[maybe_unused]] void* ptr, [[maybe_unused]] size_t size) override {
         OPENVINO_THROW("Unexpected setExtBuff call to StaticPartitionMemoryBlock");
@@ -265,15 +271,17 @@ public:
         if (-1 != reg.finish) {
             // We have to extend the lifespan of tensors that are crossing a sync point border in order to save
             // the intermediate computation results from possible loss due to the tensor resize
-            auto itr_upper = std::upper_bound(syncInds.begin(), syncInds.end(), box.finish, [](int y, int x) {
-                return y <= x;
-            });
-            auto itr_lower = std::lower_bound(syncInds.begin(), syncInds.end(), box.start);
-            if (itr_lower != itr_upper) {  // across sections
-                if (itr_upper == syncInds.end()) {
+            OPENVINO_ASSERT(box.finish >= 0, "box.finish must be non-negative");
+            // [start, finish) is the lifespan of the box. Extend it only if that interval contains a sync point,
+            // which means the tensor spans more than one sync section.
+            const auto first_sync_at_or_after_start = std::lower_bound(syncInds.begin(), syncInds.end(), box.start);
+            const auto first_sync_at_or_after_finish = std::lower_bound(syncInds.begin(), syncInds.end(), box.finish);
+            const bool crosses_sync_section = first_sync_at_or_after_start != first_sync_at_or_after_finish;
+            if (crosses_sync_section) {
+                if (first_sync_at_or_after_finish == syncInds.end()) {
                     box.finish = -1;
                 } else {
-                    box.finish = *itr_upper;
+                    box.finish = static_cast<int>(*first_sync_at_or_after_finish);
                 }
             }
         }
@@ -298,7 +306,7 @@ private:
     }
 #else
     using InternalBlock = MemoryBlockWithRelease;
-    std::shared_ptr<InternalBlock> internalBlock(const std::shared_ptr<MemoryBlockWithRelease>& block) {
+    static std::shared_ptr<InternalBlock> internalBlock(const std::shared_ptr<MemoryBlockWithRelease>& block) {
         return block;
     }
 #endif  // CPU_DEBUG_CAPS
@@ -615,6 +623,7 @@ std::vector<std::pair<std::string, MemoryStatistics>> NetworkMemoryControl::dump
     }
     return retVal;
 #else
+    (void)m_controlUnits;
     return {};
 #endif  // CPU_DEBUG_CAPS
 }

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "intel_npu/network_metadata.hpp"
+#include "intel_npu/common/network_metadata.hpp"
 
 namespace intel_npu {
 

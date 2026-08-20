@@ -109,7 +109,7 @@ ov::mock_auto_plugin::tests::BaseTest::BaseTest(const MODELTYPE modelType) {
     ON_CALL(*plugin, get_device_list)
         .WillByDefault([this](ov::AnyMap& config,
                               const std::shared_ptr<const ov::Model>& model,
-                              const std::string& model_path) {
+                              const std::filesystem::path& model_path) {
             return plugin->Plugin::get_device_list(config, model, {});
         });
     ON_CALL(*plugin, parse_meta_devices)
@@ -120,14 +120,25 @@ ov::mock_auto_plugin::tests::BaseTest::BaseTest(const MODELTYPE modelType) {
     ON_CALL(*plugin, select_device)
         .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
                               const std::string& netPrecision,
-                              unsigned int priority) {
-            return plugin->Plugin::select_device(metaDevices, netPrecision, priority);
+                              unsigned int priority,
+                              const std::unordered_map<std::string, unsigned>& utilization_thresholds,
+                              const std::string& low_power_device) {
+            return plugin->Plugin::select_device(metaDevices, netPrecision, priority, utilization_thresholds, low_power_device);
         });
 
     ON_CALL(*plugin, get_valid_device)
         .WillByDefault([](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
             std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
             return devices;
+        });
+
+    ON_CALL(*plugin, get_property).WillByDefault([this](const std::string& name, const ov::AnyMap& arguments) {
+        return plugin->Plugin::get_property(name, arguments);
+    });
+
+    ON_CALL(*plugin, get_device_utilization)
+        .WillByDefault([](const std::string& device_name, const std::string& device_type) -> std::optional<float> {
+            return std::nullopt;
         });
 }
 

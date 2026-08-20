@@ -71,9 +71,9 @@ ParamsKey ResampleKernelOpt::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
-    k.EnableReampleType(ResampleType::BILINEAR_INTERP);
-    k.EnableReampleType(ResampleType::NEAREST_NEIGHBOR);
-    k.EnableReampleType(ResampleType::CAFFE_BILINEAR_INTERP);
+    k.EnableResampleType(ResampleType::BILINEAR_INTERP);
+    k.EnableResampleType(ResampleType::NEAREST_NEIGHBOR);
+    k.EnableResampleType(ResampleType::CAFFE_BILINEAR_INTERP);
     return k;
 }
 
@@ -84,9 +84,8 @@ DeviceFeaturesKey ResampleKernelOpt::get_required_device_features_key(const Para
 static size_t get_vec_size(const resample_params &params) {
     if (params.inputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
         return 2;
-    } else {
-        return 1;
     }
+    return 1;
 }
 
 static int get_feature_slice_size(const resample_params &params) {

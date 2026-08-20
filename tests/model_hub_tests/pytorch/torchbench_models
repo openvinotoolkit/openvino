@@ -80,8 +80,8 @@ sam,None,xfail,Unexpected type of example_input
 soft_actor_critic,None,skip,Tracer cannot infer type of SquashedNormal
 speech_transformer,None
 #squeezenet1_1,None - Already tested by torchvision tests
-stable_diffusion_text_encoder,None
-stable_diffusion_unet,None
+stable_diffusion_text_encoder,None,skip,Failed to install in torchbench
+stable_diffusion_unet,None,skip,Failed to install in torchbench
 tacotron2,None,skip,Can't be loaded without CUDA
 #timm_efficientdet,None - Already tested by timm tests
 #timm_efficientnet,None - Already tested by timm tests

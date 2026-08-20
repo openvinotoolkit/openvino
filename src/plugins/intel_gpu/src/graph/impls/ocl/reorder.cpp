@@ -27,7 +27,7 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
+        if (is_dynamic() && !_kernel_data.kernelName.empty()) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
@@ -38,7 +38,7 @@ protected:
     kernel_arguments_data get_arguments(const reorder_inst& instance) const override {
         kernel_arguments_data args = parent::get_arguments(instance);
         if (instance.has_node() && instance.has_mean()) {
-            auto input = &instance.input_memory();
+            auto* input = &instance.input_memory();
             auto input_layout = input->get_layout();
 
             if (input_layout.format == cldnn::format::nv12) {
@@ -78,7 +78,7 @@ public:
                 params.mean = convert_data_tensor(mean_layout);
                 params.mode = kernel_selector::mean_subtruct_mode::IN_BUFFER;
             }
-        } else if (primitive->subtract_per_feature.empty() == false) {
+        } else if (!primitive->subtract_per_feature.empty()) {
             params.mode = kernel_selector::mean_subtruct_mode::INSIDE_PARAMS;
             params.meanValues = primitive->subtract_per_feature;
         } else {
@@ -106,11 +106,13 @@ public:
         if (output_layout.format == format::winograd_2x3_s1_data) {
             params.winograd_input_offset_x = 0;
             params.winograd_input_offset_y = 0;
-            params.winograd_nr_tiles_x = ceil_div(output_layout.spatial(0), 4);
+            params.winograd_nr_tiles_x = static_cast<uint32_t>(ceil_div(output_layout.spatial(0), 4));
         }
 
         params.winograd = impl_param.input_layouts[0].format.is_winograd() || output_layout.format.is_winograd();
         params.truncate = impl_param.typed_desc<reorder>()->truncate;
+
+        validate_f4e2m1_packed_output(output_layout, "reorder");
 
         return params;
     }
@@ -122,6 +124,7 @@ public:
         }
 
         update_shapes(*_kernel_data.params, impl_param);
+        validate_f4e2m1_packed_output(impl_param.get_output_layout(), "reorder");
         (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
 
@@ -130,9 +133,8 @@ public:
                                   format::is_weights_format(impl_param.get_output_layout().format);
         if (is_reorder_weights) {
             return create_reorder_weights(impl_param);
-        } else {
-            return typed_primitive_impl_ocl<reorder>::create<reorder_impl>(arg, impl_param);
         }
+        return typed_primitive_impl_ocl<reorder>::create<reorder_impl>(arg, impl_param);
     }
 
     static std::unique_ptr<primitive_impl> create_reorder_weights(const kernel_impl_params& impl_param) {

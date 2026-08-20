@@ -36,7 +36,7 @@ using namespace cldnn;
 namespace {
 
 bool does_any_user_have_impl_type(program_node& node, impl_types impl) {
-    for (auto& user : node.get_users()) {
+    for (const auto& user : node.get_users()) {
         if (user->get_preferred_impl_type() == impl)
             return true;
     }
@@ -59,7 +59,7 @@ void remove_redundant_reorders::run(program& p) {
 
         node.set_unique_id();
         node.set_selected_impl(node.type()->create_impl(node));
-        if (auto impl = node.get_selected_impl()) {
+        if (auto* impl = node.get_selected_impl()) {
             auto params = node.get_kernel_impl_params();
             p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
         }
@@ -69,7 +69,7 @@ void remove_redundant_reorders::run(program& p) {
     auto itr = p.get_processing_order().begin();
     if (enable_reorder_fusing) {
         while (itr != p.get_processing_order().end()) {
-            auto node_ptr = *itr++;
+            auto* node_ptr = *itr++;
             if (!node_ptr->is_type<reorder>())  // only care for reorders
                 continue;
 
@@ -83,7 +83,7 @@ void remove_redundant_reorders::run(program& p) {
 
             std::function<bool(program_node&)> has_quantize_user;
             has_quantize_user = [&has_quantize_user](program_node& node) -> bool {
-                auto& users = node.get_users();
+                const auto& users = node.get_users();
                 if (users.size() != 1)
                     return false;
                 if (users.front()->is_type<quantize>())
@@ -99,7 +99,7 @@ void remove_redundant_reorders::run(program& p) {
                                input.get_output_layout().data_type == data_types::u8;
             auto quantize_user = has_quantize_user(node);
 
-            if (!same_data_type && !(i8_u8_input && quantize_user))
+            if (!same_data_type && (!i8_u8_input || !quantize_user))
                 continue;
 
             // Avoid optimization of nv12 reorder
@@ -109,7 +109,7 @@ void remove_redundant_reorders::run(program& p) {
             bool all_users_fuse = true;
             std::vector<program_node*> recalc_list;
 
-            for (auto usr : node.get_users()) {
+            for (auto* usr : node.get_users()) {
                 if (!lo.can_fuse_reorder(input, *usr, input.get_output_layout().format, usr->get_output_layout().format)) {
                     all_users_fuse = false;
                     break;
@@ -141,7 +141,7 @@ void remove_redundant_reorders::run(program& p) {
             LOG_NODE_REMOVAL(node.id());
             p.extract_and_remove(node);
 
-            for (auto rl : recalc_list) {
+            for (auto* rl : recalc_list) {
                 rl->recalc_output_layout(true);
             }
         }
@@ -150,7 +150,7 @@ void remove_redundant_reorders::run(program& p) {
     // Shrink reorder chains
     itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
-        auto node = *itr++;
+        auto* node = *itr++;
         if (!node->is_type<reorder>())  // only care for reorders
             continue;
         auto& r_node = node->as<reorder>();
@@ -226,7 +226,7 @@ void remove_redundant_reorders::run(program& p) {
     // Reorder (nv12_uint8 -> bfyx_uint8) /|
     itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
-        auto node = *itr++;
+        auto* node = *itr++;
         if (!node->is_type<reorder>())
             continue;
 
@@ -235,7 +235,7 @@ void remove_redundant_reorders::run(program& p) {
             r_node.is_output() ||
             r_node.has_mean() ||
             r_node.get_users().size() > 1 ||
-            r_node.get_primitive()->subtract_per_feature.size() ||
+            !r_node.get_primitive()->subtract_per_feature.empty() ||
             r_node.has_fused_primitives())
             continue;
 
@@ -273,7 +273,7 @@ void remove_redundant_reorders::run(program& p) {
     // Optimize reorders not changing memory layout
     itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
-        auto node = *itr++;
+        auto* node = *itr++;
         if (!node->is_type<reorder>())  // only care for reorders
             continue;
 
@@ -382,7 +382,7 @@ void remove_redundant_reorders::run(program& p) {
     // This pass removes redundant reorders in case when several users of a node have the same input reorders
     itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
-        auto& node = *itr++;
+        const auto& node = *itr++;
         if (!node->is_type<reorder>())
             continue;
 
@@ -396,7 +396,7 @@ void remove_redundant_reorders::run(program& p) {
 
         auto& dep = node->get_dependency(0);
 
-        for (auto& user : dep.get_users()) {
+        for (const auto& user : dep.get_users()) {
             if (user->is_type<reorder>() &&
                 user != node &&
                 !user->is_output() &&
@@ -420,7 +420,7 @@ void remove_redundant_reorders::run(program& p) {
 
         auto rem_itr = r_nodes_to_remove.begin();
         while (rem_itr != r_nodes_to_remove.end()) {
-            auto remove_reorder_node = *rem_itr++;
+            auto* remove_reorder_node = *rem_itr++;
             // Outer loop iterator has been already moved, so if we try to remove a node which the iterator
             // pointing to, we should increment it again
             if (remove_reorder_node == *itr)
@@ -438,7 +438,7 @@ void remove_redundant_reorders::run(program& p) {
     itr = p.get_processing_order().begin();
     if (enable_reorder_fusing) {
         while (itr != p.get_processing_order().end()) {
-            auto& node_ptr = *itr++;
+            const auto& node_ptr = *itr++;
             if (!node_ptr->is_type<reorder>())  // only care for reorders
                 continue;
 
@@ -503,7 +503,7 @@ void remove_redundant_reorders::run(program& p) {
     // This pass removed reorder if the next node supports reorder's input format and data type doesn't change
     itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
-        auto& node_ptr = *itr++;
+        const auto& node_ptr = *itr++;
         if (!node_ptr->is_type<reorder>() || !node_ptr->is_in_data_flow() || node_ptr->get_users().size() != 1 ||
             node_ptr->get_dependencies().size() != 1 || node_ptr->is_dynamic())
             continue;
@@ -511,7 +511,7 @@ void remove_redundant_reorders::run(program& p) {
         auto& node = node_ptr->as<reorder>();
         auto prim_desc = node.get_primitive();
 
-        auto& usr = node_ptr->get_users().front();
+        const auto& usr = node_ptr->get_users().front();
         auto& dep = node_ptr->get_dependency(0);
 
         auto quantize_opt = usr->is_type<quantize>() &&
@@ -543,7 +543,7 @@ void remove_redundant_reorders::run(program& p) {
         if (node->get_users().size() != 1)
             return false;
 
-        auto& usr = node->get_users().front();
+        const auto& usr = node->get_users().front();
         auto& dep = node->get_dependency(0);
         auto  dep_layout = dep.get_output_layout();
 
@@ -564,7 +564,7 @@ void remove_redundant_reorders::run(program& p) {
             if (update_implementations)
                 return false;
 
-            for (auto user : dep.get_users()) {
+            for (auto* user : dep.get_users()) {
                 if (user != node) {
                     if (user->can_be_optimized())
                         return false;
@@ -573,7 +573,7 @@ void remove_redundant_reorders::run(program& p) {
                     auto sizes_in_format = layout::format_sizes(node->get_input_layout(0).data_padding._lower_size, node_format);
                     for (size_t axis = 0; axis < sizes_in_format.size(); axis++) {
                         if (!user->is_padding_supported(static_cast<int>(axis),
-                            sizes_in_format[axis]))
+                            static_cast<int>(sizes_in_format[axis])))
                             return false;
                     }
                 }
@@ -619,7 +619,7 @@ void remove_redundant_reorders::run(program& p) {
             input_dep.get_output_layout().data_type == data_types::i8)
             return false;
 
-        for (auto& user : node->get_users()) {
+        for (const auto& user : node->get_users()) {
             // if concat is reorder's user and concat's axis is 0(Batch) or 1(Feature), conv's output would have padding.
             // This padding might lead not to select the optimized conv kernel("convolution_gpu_bfyx_f16")
             if (user->is_type<concatenation>()) {
@@ -651,16 +651,16 @@ void remove_redundant_reorders::run(program& p) {
             p.add_optimized_primitive_info(node->id());
             p.extract_and_remove(*node);
             return true;
-        } else {
-            input.set_output_layout(old_output_layout_of_input, false);
-            return false;
         }
+        input.set_output_layout(old_output_layout_of_input, false);
+        return false;
+
     };
 
     if (enable_reorder_fusing) {
         itr = p.get_processing_order().begin();
         while (itr != p.get_processing_order().end()) {
-            auto& node = *itr++;
+            const auto& node = *itr++;
             if (!node->is_type<reorder>())
                 continue;
 
@@ -690,7 +690,7 @@ void remove_redundant_reorders::run(program& p) {
     // In addition this pass can completely remove useless reshapes sequence where the output size is equal to input.
     itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
-        auto node = *itr++;
+        auto* node = *itr++;
         if (!node->is_type<reshape>())
             continue;
 
@@ -737,7 +737,7 @@ void remove_redundant_reorders::run(program& p) {
     // Remove reorders before shape_of primitive
     itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
-        auto& node = *itr++;
+        const auto& node = *itr++;
         if (!node->is_type<reorder>() || node->has_fused_primitives() ||
             !node->is_in_data_flow() || node->get_users().size() != 1 ||
             !node->get_users().front()->is_type<shape_of>())
@@ -752,7 +752,7 @@ void remove_redundant_reorders::run(program& p) {
         p.remove_if_dangling(*node);
     }
 
-    for (auto n : p.get_processing_order()) {
+    for (auto* n : p.get_processing_order()) {
         if (n->is_in_data_flow() && n->is_type<reorder>()) {
             auto preferred_impl = lo.get_preferred_impl_type(*n, n->get_input_layout(0).format);
             n->set_preferred_impl_type(preferred_impl);
@@ -761,7 +761,7 @@ void remove_redundant_reorders::run(program& p) {
 
     // Recalculate processing order if it is not correct
     bool is_correct = true;
-    for (auto node : p.get_processing_order()) {
+    for (auto* node : p.get_processing_order()) {
         if (!p.get_processing_order().is_correct(node)) {
             is_correct = false;
             break;

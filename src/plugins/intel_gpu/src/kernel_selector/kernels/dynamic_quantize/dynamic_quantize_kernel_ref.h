@@ -21,12 +21,13 @@ struct dynamic_quantize_params : public base_params {
     bool use_asymmetric_quantization = false;
     bool combine_scales_and_zp = false;
     bool generate_precomputed_reduction = false;
+    bool is_int4_compressed = false;
 };
 
 class DynamicQuantizeKernelRef : public KernelBaseOpenCL {
 public:
     DynamicQuantizeKernelRef() : KernelBaseOpenCL("dynamic_quantize_gpu_ref") {}
-    virtual ~DynamicQuantizeKernelRef() {}
+    ~DynamicQuantizeKernelRef() override = default;
 
     virtual JitConstants GetJitConstants(const dynamic_quantize_params& params) const;
     virtual CommonDispatchData SetDefault(const dynamic_quantize_params& params) const;

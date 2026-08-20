@@ -33,6 +33,7 @@ ParamsKey DeconvolutionKernel_b_fs_zyx_fsv16::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableDifferentTypes();
+    k.EnableDilation();
     return k;
 }
 
@@ -103,7 +104,7 @@ bool DeconvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p) const {
     if (!DeconvolutionKernelBase::Validate(p)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
-    auto& deconv_params = static_cast<const deconvolution_params&>(p);
+    const auto& deconv_params = static_cast<const deconvolution_params&>(p);
 
     if (deconv_params.outputs[0].GetLayout() != deconv_params.inputs[0].GetLayout())
         DO_NOT_USE_THIS_KERNEL(p.layerID);
@@ -249,7 +250,7 @@ JitConstants DeconvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const deconvolu
             Tensor::DataChannelName::BATCH };
 
         auto load_type = LoadType::LT_ALIGNED_READ;
-        for (auto& fused_op : params.fused_ops) {
+        for (const auto& fused_op : params.fused_ops) {
             if (!fused_op.output_tensor.SameDims(params.outputs[0]) &&
                 (fused_op.output_tensor.X().v > 1 || fused_op.output_tensor.Y().v > 1 || fused_op.output_tensor.Z().v > 1)) {
                 load_type = LoadType::LT_UNALIGNED;

@@ -11,11 +11,12 @@ namespace kernel_selector {
 namespace {
 
 size_t getTileXY(const concatenation_params& params) {
-    auto& input = params.inputs[0];
+    const auto& input = params.inputs[0];
     size_t tileXY =  1;
     if (params.isAligned) {
         switch (input.GetDType()) {
         case Datatype::F16:
+        case Datatype::BF16:
         case Datatype::INT8:
         case Datatype::UINT8:
             tileXY = 4;
@@ -29,6 +30,7 @@ size_t getTileXY(const concatenation_params& params) {
             tileXY = 2;
             break;
         case Datatype::F16:
+        case Datatype::BF16:
             tileXY = 4;
             break;
         case Datatype::INT8:
@@ -58,6 +60,8 @@ ParamsKey ConcatenationKernel_b_fs_yx_fsv16::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);

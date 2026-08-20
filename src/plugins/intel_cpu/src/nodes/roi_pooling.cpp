@@ -8,7 +8,6 @@
 #include <cmath>
 #include <common/float16.hpp>
 #include <common/utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
@@ -30,6 +29,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/roi_pooling.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "selective_build.h"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/bfloat16.hpp"
@@ -38,6 +38,7 @@
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <xbyak/xbyak.h>
 
+#    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "cpu/x64/jit_generator.hpp"
 #    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #    include "utils/cpu_utils.hpp"
@@ -45,9 +46,11 @@
 
 using namespace dnnl;
 using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
+#endif
 
 #define GET_OFF(field) offsetof(jit_roi_pooling_call_args, field)
 
@@ -377,6 +380,7 @@ size_t RoiPoolingKey::hash() const {
     seed = hash_combine(seed, refParams.mb);
     seed = hash_combine(seed, refParams.c);
     seed = hash_combine(seed, refParams.nb_c);
+    seed = hash_combine(seed, refParams.b_num);
     seed = hash_combine(seed, refParams.c_block);
     seed = hash_combine(seed, refParams.nb_c_blocking);
     seed = hash_combine(seed, refParams.ih);
@@ -467,15 +471,15 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    auto format = mayiuse(avx512_core) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
+    auto format = ov::with_cpu_x86_avx512_core() ? LayoutType::nCsp16c : LayoutType::nCsp8c;
     impl_desc_type impl_type = [&]() {
-        if (mayiuse(cpu::x64::avx512_core)) {
+        if (ov::with_cpu_x86_avx512_core()) {
             return impl_desc_type::jit_avx512;
         }
-        if (mayiuse(cpu::x64::avx2)) {
+        if (ov::with_cpu_x86_avx2()) {
             return impl_desc_type::jit_avx2;
         }
-        if (mayiuse(cpu::x64::sse41)) {
+        if (ov::with_cpu_x86_sse42()) {
             return impl_desc_type::jit_sse42;
         }
         return impl_desc_type::ref;
@@ -483,7 +487,7 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
 
     refParams.src_prc = getOriginalInputPrecisionAtPort(0);
 
-    if (!mayiuse(avx512_core)) {
+    if (!ov::with_cpu_x86_avx512_core()) {
         if (refParams.src_prc == ov::element::bf16) {
             refParams.src_prc = ov::element::f32;
         }
@@ -502,9 +506,9 @@ void ROIPooling::createPrimitive() {
     auto* selectedPD = getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(selectedPD, "doesn't have primitive descriptors.");
 
-    refParams.c_block = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
+    refParams.c_block = ov::with_cpu_x86_avx512_core() ? 16 : 8;
     ;
-    refParams.nb_c_blocking = mayiuse(cpu::x64::avx512_core) ? 15 : 7;
+    refParams.nb_c_blocking = ov::with_cpu_x86_avx512_core() ? 15 : 7;
     refParams.alg = getAlgorithm();
 
     const auto& config = selectedPD->getConfig();
@@ -546,9 +550,12 @@ void ROIPooling::prepareParams() {
     const auto& inDims = getParentEdgeAt(0)->getMemory().getStaticDims();
     const auto& outDims = getChildEdgeAt(0)->getMemory().getStaticDims();
 
+    const auto& featureShape = getParentEdgeAt(0)->getMemory().getStaticDims();
+
     refParams.mb = outDims[0];
     refParams.c = rnd_up(inDims[1], refParams.c_block);
     refParams.nb_c = refParams.c / refParams.c_block;
+    refParams.b_num = featureShape[0];
     refParams.ih = inDims[2];
     refParams.iw = inDims[3];
     refParams.oh = outDims[2];
@@ -610,6 +617,10 @@ private:
         int cb_work = impl::utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
         int MB = jpp.mb;
 
+        if (MB <= 0 || cb_work <= 0 || jpp.oh <= 0 || jpp.ow <= 0) {
+            return;
+        }
+
         int real_rois = 0;
         for (; real_rois < MB; real_rois++) {
             size_t roi_off = real_rois * src_roi_step;
@@ -619,6 +630,9 @@ private:
             if (roi_batch_ind == -1) {
                 break;
             }
+            OPENVINO_ASSERT(0 <= roi_batch_ind && roi_batch_ind <= jpp.b_num,
+                            "takes incorrect roi_ind, max roi_ind = ",
+                            jpp.b_num);
         }
 
         cpuParallel->parallel_for4d(MB, cb_work, jpp.oh, jpp.ow, [&](int n, int cbb, int oh, int ow) {
@@ -636,6 +650,9 @@ private:
                 const auto* src_roi_ptr = &src_roi[roi_off];
 
                 auto roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
+                OPENVINO_ASSERT(0 <= roi_batch_ind && roi_batch_ind <= jpp.b_num,
+                                "takes incorrect roi_ind, max roi_ind = ",
+                                jpp.b_num);
 
                 if (jpp.alg == Algorithm::ROIPoolingMax) {
                     auto roi_start_w = static_cast<int>(round(src_roi_ptr[1] * jpp.spatial_scale));
@@ -749,6 +766,10 @@ public:
         int cb_work = impl::utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
         int MB = jpp.mb;
 
+        if (MB <= 0 || cb_work <= 0 || jpp.oh <= 0 || jpp.ow <= 0) {
+            return;
+        }
+
         int real_rois = 0;
         for (; real_rois < MB; real_rois++) {
             size_t roi_off = real_rois * src_roi_step;
@@ -758,6 +779,9 @@ public:
             if (roi_batch_ind == -1) {
                 break;
             }
+            OPENVINO_ASSERT(0 <= roi_batch_ind && roi_batch_ind <= jpp.b_num,
+                            "takes incorrect roi_ind, max roi_ind = ",
+                            jpp.b_num);
         }
 
         cpuParallel->parallel_for4d(MB, cb_work, jpp.oh, jpp.ow, [&](int n, int cbb, int oh, int ow) {
@@ -780,6 +804,9 @@ public:
                 const auto* src_roi_ptr = &src_roi[roi_off];
 
                 auto roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
+                OPENVINO_ASSERT(0 <= roi_batch_ind && roi_batch_ind <= jpp.b_num,
+                                "takes incorrect roi_ind, max roi_ind = ",
+                                jpp.b_num);
 
                 if (jpp.alg == Algorithm::ROIPoolingMax) {
                     auto roi_start_w = static_cast<int>(round(src_roi_ptr[1] * jpp.spatial_scale));

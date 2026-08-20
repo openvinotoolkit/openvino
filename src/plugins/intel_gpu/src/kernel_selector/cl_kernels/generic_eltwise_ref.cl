@@ -184,13 +184,13 @@ KERNEL(eltwise)(
 
 #if HAS_FUSED_OPS
     FUSED_OPS;
-    OUTPUT_TYPE out = FUSED_OPS_RESULT;
+    OUTPUT_COMPUTE_TYPE out = DECODE_OUTPUT_COMPUTE_TYPE(FUSED_OPS_RESULT);
 #else
     #define out res
 #endif
 
 #if QUANTIZATION_TERM && !OUTPUT_IS_FP
-    output[output_offset] = TO_OUTPUT_TYPE_SAT(ACTIVATION(out, ACTIVATION_PARAMS));
+    output[output_offset] = TO_OUTPUT_TYPE(ACTIVATION(out, ACTIVATION_PARAMS));
 #else
     output[output_offset] = TO_OUTPUT_TYPE(ACTIVATION_TYPED(out, ACTIVATION_PARAMS_TYPED));
 #endif

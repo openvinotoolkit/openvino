@@ -1,0 +1,126 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "ze_kernel_builder.hpp"
+
+// To be removed once OCL compilation is no longer required
+#include "ocl/ocl_kernel_builder.hpp"
+#include "ocl/ocl_device_detector.hpp"
+
+#include <map>
+
+using namespace cldnn;
+using namespace ze;
+
+void ze_kernel_builder::init_ocl_builder() const {
+    using namespace cldnn::ocl;
+    ocl_device_detector ocl_detector;
+    auto devices = ocl_detector.get_available_devices(nullptr, nullptr);
+    const auto &dev_info = m_device.get_info();
+    m_ocl_device = nullptr;
+    for (const auto& [key, dev] : devices) {
+        auto ocl_dev = std::dynamic_pointer_cast<ocl_device>(dev);
+        OPENVINO_ASSERT(ocl_dev != nullptr, "[GPU] Unexepected null device");
+        if (ocl_dev->get_info().uuid.uuid == dev_info.uuid.uuid) {
+            m_ocl_device = ocl_dev;
+        }
+    }
+    OPENVINO_ASSERT(m_ocl_device != nullptr, "[GPU] Level Zero kernel builder was not able to find matching OCL device");
+    if (!m_ocl_device->is_initialized())
+        m_ocl_device->initialize();
+    m_ocl_builder = std::make_shared<ocl_kernel_builder>(*m_ocl_device);
+}
+
+bool ze_kernel_builder::check_ze_build_support() const {
+    static std::map<ze_device_handle_t, bool> cache;
+    static std::mutex m;
+    // Prevent multiple threads from checking support at the same time
+    std::lock_guard lock(m);
+    const char src[] = R"(__kernel void k(){})";
+    auto src_bytes = sizeof(src);
+    auto dev_handle = m_device.get_device().handle();
+    if (cache.find(dev_handle) != cache.end()) {
+        return cache.at(dev_handle);
+    }
+    try {
+        std::vector<kernel::ptr> tmp_out;
+        build_kernels_ze(src, src_bytes, KernelFormat::SOURCE, "", tmp_out);
+        cache[dev_handle] = true;
+    } catch (std::exception&) {
+        GPU_DEBUG_INFO << "[GPU] Device(" << dev_handle << ") does not support kernel compilation from source through Level Zero" << std::endl;
+        cache[dev_handle] = false;
+    }
+    return cache.at(dev_handle);
+}
+
+void ze_kernel_builder::build_kernels_ze(const void *src, size_t src_bytes, KernelFormat src_format, const std::string &options, std::vector<kernel::ptr> &out) const {
+    ze_module_desc_t module_desc = {
+            ZE_STRUCTURE_TYPE_MODULE_DESC,
+            nullptr,
+            ZE_MODULE_FORMAT_NATIVE,
+            src_bytes,
+            reinterpret_cast<const uint8_t *>(src),
+            options.c_str(),
+            nullptr // specialization constants
+        };
+    switch (src_format) {
+        case KernelFormat::SOURCE: {
+            // Account for NULL terminator in source format
+            module_desc.inputSize += 1;
+            module_desc.format = ze_module_format_oclc;
+            break;
+        }
+        case KernelFormat::NATIVE_BIN: {
+            module_desc.format = ZE_MODULE_FORMAT_NATIVE;
+            break;
+        }
+        default:
+            OPENVINO_THROW("[GPU] Trying to build kernel from unexpected format");
+            break;
+    }
+    ze_module_handle_t module_handle;
+    ze_module_build_log_handle_t log_handle;
+    auto ctx_handle = m_device.get_context().handle();
+    auto device_handle = m_device.get_device().handle();
+    ze_result_t build_result = ze::zeModuleCreate(ctx_handle, device_handle, &module_desc, &module_handle, &log_handle);
+    ze_module_build_log_resource build_log_holder(log_handle);
+    if (build_result != ZE_RESULT_SUCCESS) {
+        size_t log_size = 0;
+        OV_ZE_EXPECT(ze::zeModuleBuildLogGetString(log_handle, &log_size, nullptr));
+        std::string log(log_size, ' ');
+        OV_ZE_EXPECT(ze::zeModuleBuildLogGetString(log_handle, &log_size, log.data()));
+        GPU_DEBUG_INFO << "-------- Kernel build error" << std::endl;
+        GPU_DEBUG_INFO << log << std::endl;
+        GPU_DEBUG_INFO << "-------- End of Kernel build error" << std::endl;
+        OPENVINO_THROW("[GPU] Failed to build module");
+    }
+    ze_module_resource module_holder(module_handle);
+    ze_kernel::create_kernels_from_module(module_holder, build_log_holder, out);
+}
+
+void ze_kernel_builder::build_kernels_ocl(const void *src, size_t src_bytes, KernelFormat src_format, const std::string &options, std::vector<kernel::ptr> &out) const {
+    OPENVINO_ASSERT(src_format == KernelFormat::SOURCE, "[GPU] Level Zero kernel builder should only fallback to OCL when building kernels from source");
+    OPENVINO_ASSERT(m_ocl_builder != nullptr, "[GPU] Level Zero kernel builder expected initialized OCL builder");
+    std::vector<kernel::ptr> tmp;
+    m_ocl_builder->build_kernels(src, src_bytes, src_format, options, tmp);
+    OPENVINO_ASSERT(tmp.size() > 0, "[GPU] Level Zero kernel builder expected non-empty module");
+    auto binary = tmp[0]->get_binary();
+
+    build_kernels_ze(binary.data(), binary.size(), KernelFormat::NATIVE_BIN, options, out);
+}
+
+void ze_kernel_builder::build_kernels(const void *src, size_t src_bytes, KernelFormat src_format, const std::string &options, std::vector<kernel::ptr> &out) const {
+    if (src_format == KernelFormat::SOURCE && !check_ze_build_support()) {
+        {
+            std::lock_guard lock(this->m_mutex);
+            // Prevent ocl builder init call from multiple threads
+            if (!m_ocl_builder) {
+                init_ocl_builder();
+            }
+        }
+        build_kernels_ocl(src, src_bytes, src_format, options, out);
+    } else {
+        build_kernels_ze(src, src_bytes, src_format, options, out);
+    }
+}

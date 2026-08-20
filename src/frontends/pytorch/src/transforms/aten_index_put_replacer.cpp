@@ -36,16 +36,6 @@ namespace pass {
 
 using namespace ov::op;
 
-namespace {
-Output<Node> generate_zeros_with_convertlike(ov::pass::NodeRegistry& rg,
-                                             const Output<Node> sizes,
-                                             const Output<Node> tensor_of_type) {
-    auto const_0 = v0::Constant::create(element::i32, Shape{}, {0});
-    auto zeros = rg.make<v3::Broadcast>(const_0, sizes);
-    return rg.make<v1::ConvertLike>(zeros, tensor_of_type);
-}
-}  // namespace
-
 AtenIndexPutReplacer::AtenIndexPutReplacer() {
     auto index_op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>(
         fw_node_predicate({"aten::index_put_", "aten.index_put.default"}));
@@ -254,9 +244,7 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
 
         std::shared_ptr<ov::Node> result;
         if (accumulate) {
-            auto zeros = generate_zeros_with_convertlike(rg, input_shape, input);
-            auto scatter = rg.make<v3::ScatterNDUpdate>(zeros, index, values);
-            result = rg.make<v1::Add>(input, scatter);
+            result = rg.make<v15::ScatterNDUpdate>(input, index, values, v15::ScatterNDUpdate::Reduction::SUM);
         } else {
             result = rg.make<v3::ScatterNDUpdate>(input, index, values);
         }

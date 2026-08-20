@@ -13,7 +13,7 @@ namespace {
 size_t collect_stats(const std::shared_ptr<ov::Model>& m, std::map<DiscreteTypeInfo, size_t>& ops_stat) {
     const std::vector<std::shared_ptr<ov::Node>> ops = m->get_ops();
     size_t total = ops.size();
-    for (auto& op : ops) {
+    for (const auto& op : ops) {
         const auto& tinfo = op->get_type_info();
         if (ops_stat.find(tinfo) == ops_stat.end()) {
             ops_stat[tinfo] = 0;
@@ -38,7 +38,7 @@ bool PrintModelStatistics::run_on_model(const std::shared_ptr<ov::Model>& m) {
     size_t total = collect_stats(m, ops_stat);
 
     std::stringstream ss;
-    ss << "Operations statistics:\n";
+    ss << "Operations statistics for model with friendly_name: " << m->get_friendly_name() << " with name: " << m->get_name() << "\n";
     for (auto& kv : ops_stat) {
         ss << "\t" << kv.first.version_id << "::" << kv.first.name << " " << kv.second << std::endl;
     }

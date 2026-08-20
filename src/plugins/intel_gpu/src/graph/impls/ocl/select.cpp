@@ -25,7 +25,7 @@ struct select_impl : typed_primitive_impl_ocl<select> {
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
+        if (is_dynamic() && !_kernel_data.kernelName.empty()) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
@@ -46,12 +46,19 @@ struct select_impl : typed_primitive_impl_ocl<select> {
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
         auto updated_impl_params = canonicalize_fused_shapes(impl_params);
 
+        auto& output_layout = updated_impl_params.output_layouts[0];
+        auto out_pshape = output_layout.get_partial_shape();
+        size_t target_rank = std::max<size_t>(4, out_pshape.size());
+
         for (auto& input_layout : updated_impl_params.input_layouts) {
-            input_layout.set_partial_shape(extend_shape_to_rank_from_begin(input_layout.get_partial_shape()));
+            auto input_pshape = input_layout.get_partial_shape();
+            input_pshape = extend_shape_to_rank_from_begin(input_pshape, target_rank);
+            input_layout.set_partial_shape(input_pshape);
+            input_layout.format = format::adjust_to_rank(input_layout.format, input_pshape.size());
         }
 
-        auto& output_layout = updated_impl_params.output_layouts[0];
-        output_layout.set_partial_shape(extend_shape_to_rank_from_begin(output_layout.get_partial_shape()));
+        output_layout.set_partial_shape(extend_shape_to_rank_from_begin(out_pshape, target_rank));
+        output_layout.format = format::adjust_to_rank(output_layout.format, target_rank);
 
         return updated_impl_params;
     }

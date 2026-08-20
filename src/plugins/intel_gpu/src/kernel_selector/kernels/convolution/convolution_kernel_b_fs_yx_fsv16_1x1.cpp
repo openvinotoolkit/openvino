@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <iostream>
 #include "convolution_kernel_b_fs_yx_fsv16_1x1.h"
 #include "kernel_selector_utils.h"
 #include <string>
@@ -29,21 +28,20 @@ ConvolutionKernel_b_fs_yx_fsv16_1x1::AutoTuneOption ConvolutionKernel_b_fs_yx_fs
 
         if (x == 1 && y == 1) {
             return { 1, EXE_MODE_DEFAULT };
-        } else if (x * f <= 256) {
+        }
+        if (x * f <= 256) {
             if (x < 8 || x * f <= 128)
                 return { 2, EXE_MODE_DEFAULT };
-            else
-                return { 4, EXE_MODE_DEFAULT };
-        } else if (x * f <= 1536) {
-            return { 4, EXE_MODE_DEFAULT };
-        } else {
-            return { 8, EXE_MODE_DEFAULT };
+            return {4, EXE_MODE_DEFAULT};
         }
-    } else {
-        // In shape agnostic kernel, the output shape can not be specified at build time,
-        // So we prepare 4 kernels(blockWith 1, 2, 4, 8) in advance and then use proper kernel at runtime when static shape comes.
-        return { 8, EXE_MODE_DEFAULT };
-    }
+        if (x * f <= 1536) {
+            return { 4, EXE_MODE_DEFAULT };
+        }
+        return {8, EXE_MODE_DEFAULT};
+
+    }  // In shape agnostic kernel, the output shape can not be specified at build time,
+    // So we prepare 4 kernels(blockWith 1, 2, 4, 8) in advance and then use proper kernel at runtime when static shape comes.
+    return {8, EXE_MODE_DEFAULT};
 }
 
 float ConvolutionKernel_b_fs_yx_fsv16_1x1::EstimateOccupancy(const convolution_params& params,
@@ -152,15 +150,12 @@ KernelsPriority ConvolutionKernel_b_fs_yx_fsv16_1x1::GetKernelsPriority(const Pa
         if (out.Batch().v == 1) {
             if ((bBlockSizeX || bBlockSizeXY) && !bInputPad) {
                 return FORCE_PRIORITY_1;
-            } else {
-                return FORCE_PRIORITY_3;
             }
-        } else {
-            return FORCE_PRIORITY_7;
+            return FORCE_PRIORITY_3;
         }
-    } else {
-        return FORCE_PRIORITY_1;
+        return FORCE_PRIORITY_7;
     }
+    return FORCE_PRIORITY_1;
 }
 
 bool ConvolutionKernel_b_fs_yx_fsv16_1x1::Validate(const Params& p) const {
@@ -241,8 +236,8 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
         bool non_unit_fused_op_spatial = false;
 
         // Set padded_output to true when fused inputs have paddings to have correct blocked loads
-        for (auto& fused_op : params.fused_ops) {
-            for (auto& t : fused_op.tensors) {
+        for (const auto& fused_op : params.fused_ops) {
+            for (const auto& t : fused_op.tensors) {
                 if (t.PitchesDifferFromLogicalDims()) {
                     padded_output = true;
                 }
@@ -273,28 +268,24 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
         DimensionAccessHelperJit output_dims(params.outputs[0]);
         DimensionAccessHelperJit output_padded_dims(params.outputs[0], true);
 
-        const auto padded_input = "(" + input0_padded_dims.x_pad().first + "+" + input0_padded_dims.x_pad().first + ") != 0";
+        const auto padded_input = "(" + input0_padded_dims.x_pad().first + "+" + input0_padded_dims.x_pad().second + ") != 0";
         jit.AddConstant(MakeJitConstant("PADDED_INPUT", padded_input));
 
-        const auto padded_output = "(" + output_padded_dims.x_pad().first + "+" + output_padded_dims.x_pad().first + ") != 0";
+        const auto padded_output = "(" + output_padded_dims.x_pad().first + "+" + output_padded_dims.x_pad().second + ") != 0";
         jit.AddConstant(MakeJitConstant("PADDED_OUTPUT", padded_output));
 
         // In shape agnostic kernel, the fused shape cannot be specified at build time or run time.
         // Currently simply check whether fused_op is dynmaic. Need to further follow up like static behavior.
         bool non_unit_fused_op_spatial = false;
-        for (auto& fused_op : params.fused_ops) {
-            for (auto& t : fused_op.tensors) {
+        for (const auto& fused_op : params.fused_ops) {
+            for (const auto& t : fused_op.tensors) {
                 if (t.is_dynamic()) {
                     non_unit_fused_op_spatial = true;
                     break;
-                } else {
-                    if ((t.X().v > 1) ||
-                        (t.Y().v > 1) ||
-                        (t.Z().v > 1) ||
-                        (t.W().v > 1)) {
-                        non_unit_fused_op_spatial = true;
-                        break;
-                    }
+                }
+                if ((t.X().v > 1) || (t.Y().v > 1) || (t.Z().v > 1) || (t.W().v > 1)) {
+                    non_unit_fused_op_spatial = true;
+                    break;
                 }
             }
         }

@@ -1,0 +1,3 @@
+# Extra dependencies for test_torchvision_models.py
+# PyAV is needed by torchvision for video operations (e.g. raft_small)
+av==13.0.0

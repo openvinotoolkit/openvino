@@ -75,3 +75,70 @@ class TestAtan2Types(PytorchLayerTest):
         self.rhs_shape = rhs_shape
         self._test(*self.create_model(lhs_type, rhs_type),
                    ie_device, precision, ir_version, freeze_model=False, trace_model=True, fx_kind="aten.arctan2")
+
+
+class TestAtan2ZeroEdgeCases(PytorchLayerTest):
+    """Test atan2 with zero in the inputs - regression test for atan2(0, 0)
+    returning NaN.
+
+    The common_translators atan2 decomposition computes atan(y/x), which for
+    x=0, y=0 produces atan(NaN) = NaN. Test handling for all IEEE 754
+    signed-zero cases:
+      atan2(+0, +0) = +0
+      atan2(-0, +0) = -0
+      atan2(+0, -0) = +π
+      atan2(-0, -0) = -π
+    """
+
+    def _prepare_input(self):
+        if self.zero_case == "both_positive_zero":
+            y = torch.zeros(1, dtype=torch.float32).numpy()
+            x = torch.zeros(1, dtype=torch.float32).numpy()
+        elif self.zero_case == "mixed_zeros_and_axes":
+            y = torch.tensor([0.0, 1.0, 0.0, -1.0, 0.0], dtype=torch.float32).numpy()
+            x = torch.tensor([0.0, 0.0, 1.0, 0.0, -1.0], dtype=torch.float32).numpy()
+        elif self.zero_case == "all_zeros":
+            y = torch.zeros(3, dtype=torch.float32).numpy()
+            x = torch.zeros(3, dtype=torch.float32).numpy()
+        elif self.zero_case == "x_zero_various_y":
+            y = torch.tensor([0.0, 1.0, -1.0], dtype=torch.float32).numpy()
+            x = torch.zeros(3, dtype=torch.float32).numpy()
+        elif self.zero_case == "signed_neg_zero_x":
+            y = torch.tensor([0.0, -0.0], dtype=torch.float32).numpy()
+            x = torch.tensor([-0.0, -0.0], dtype=torch.float32).numpy()
+        elif self.zero_case == "signed_neg_zero_y":
+            y = torch.tensor([-0.0, -0.0], dtype=torch.float32).numpy()
+            x = torch.tensor([0.0, -0.0], dtype=torch.float32).numpy()
+        elif self.zero_case == "all_four_signed_zero_combos":
+            y = torch.tensor([0.0, -0.0, 0.0, -0.0], dtype=torch.float32).numpy()
+            x = torch.tensor([0.0, 0.0, -0.0, -0.0], dtype=torch.float32).numpy()
+        return (y, x)
+
+    def create_model(self):
+        class aten_atan2(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+
+            def forward(self, lhs, rhs):
+                out = torch.arctan2(lhs, rhs)
+                # Use reciprocal so that signed-zero differences become
+                # observable: +0 -> +inf, -0 -> -inf.
+                return 1.0 / out
+
+        return aten_atan2(), "aten::atan2"
+
+    @pytest.mark.parametrize("zero_case", [
+        "both_positive_zero",
+        "mixed_zeros_and_axes",
+        "all_zeros",
+        "x_zero_various_y",
+        "signed_neg_zero_x",
+        "signed_neg_zero_y",
+        "all_four_signed_zero_combos",
+    ])
+    @pytest.mark.precommit
+    @pytest.mark.nightly
+    def test_atan2_zero_edge_cases(self, ie_device, precision, ir_version, zero_case):
+        self.zero_case = zero_case
+        self._test(*self.create_model(), ie_device, precision, ir_version,
+                   use_convert_model=True, fx_kind="aten.arctan2")

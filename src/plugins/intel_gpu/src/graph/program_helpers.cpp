@@ -50,8 +50,8 @@ void program_helpers::reshape_deconvolution_weights(const std::vector<float> &de
     const int kernel_sz = kernel_width + pad_zero_x;
 
     auto get_row_index = [](int index, const int kernel_sz)->int {
-        bool isRowEven = (index / (kernel_sz)) % 2 == 0 ? true : false;
-        bool isColEven = (index % 2) == 0 ? true : false;
+        bool isRowEven = (index / (kernel_sz)) % 2 == 0;
+        bool isColEven = (index % 2) == 0;
         int kernel_num = isRowEven ? (isColEven ? 0 : 1) : isColEven ? 2 : 3;
         return kernel_num;
     };
@@ -74,18 +74,15 @@ void program_helpers::reshape_deconvolution_weights(const std::vector<float> &de
 }
 
 bool onednn_add_fusing_helpers::is_full_tensor(const layout& l) {
-    if (l.spatial(0) > 1 || l.spatial(1) > 1 || (l.get_spatial_rank() == 3 && l.spatial(2) > 1)
-        || l.batch() > 1) {
-        return true;
-    }
-    return false;
+    return l.spatial(0) > 1 || l.spatial(1) > 1 || (l.get_spatial_rank() == 3 && l.spatial(2) > 1)
+        || l.batch() > 1;
 }
 
 void onednn_add_fusing_helpers::for_eltwise(
     const program_node& node, eltwise_mode mode,
     std::function<void(const program_node& p_node,
                     const fused_primitive_desc& desc)> func) {
-    for (auto& fo : node.get_fused_primitives()) {
+    for (const auto& fo : node.get_fused_primitives()) {
         if (fo.is_type<eltwise>() && fo.typed_desc<eltwise>()->mode == mode) {
             func(node, fo);
         }
@@ -111,11 +108,11 @@ static bool is_direct_ancestor(const program_node& child, const program_node& ta
         return false;
 
     // Limit the iteration depth to 5 for performance reason
-    auto iter = &child;
+    const auto* iter = &child;
     for (int i = 0; i < 5; i++) {
         if (iter == &target)
             return true;
-        if (iter->get_dependencies().size() == 0)
+        if (iter->get_dependencies().empty())
             break;
         iter = &iter->get_dependency(0);
     }
@@ -149,9 +146,10 @@ add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
             && !dep_node.is_constant()
             && !p_node.is_type<pooling>()
             && !p_node.is_output()
-            && !(dep_node.get_program().is_body_program() && dep_node.is_type<input_layout>())) {
+            && (!dep_node.is_type<input_layout>() || dep_node.get_users().size() <= 1)) {
             return add_fusing_type::sum;
-        } else if (p_layout.get_tensor() == d_layout.get_tensor()) {
+        }
+        if (p_layout.get_tensor() == d_layout.get_tensor()) {
             return add_fusing_type::binary_per_tensor;
         }
     }
@@ -161,7 +159,7 @@ add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
 
 int32_t onednn_add_fusing_helpers::get_reused_eltwmem_idx(const program_node& node) {
     if (node.get_preferred_impl_type() == impl_types::onednn) {
-        for (auto& fused_op : node.get_fused_primitives()) {
+        for (const auto& fused_op : node.get_fused_primitives()) {
             if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
                 // If it is first sum, reuse the buffer
                 auto fusing_type = get_add_fusing_type(node, fused_op);

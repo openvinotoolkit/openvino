@@ -63,7 +63,7 @@ layout space_to_batch_inst::calc_output_layout(space_to_batch_node const& node, 
 static std::vector<int32_t> tensor_to_vec(const tensor& t, const format f) {
     std::vector<int32_t> vec(cldnn::format::dimension(f));
     for (size_t i = 0; i < vec.size(); ++i) {
-        vec[i] = t.sizes()[i];
+        vec[i] = static_cast<int32_t>(t.sizes()[i]);
     }
     std::reverse(vec.begin() + 2, vec.end());
     return vec;
@@ -77,7 +77,7 @@ std::vector<layout> space_to_batch_inst::calc_output_layouts(space_to_batch_node
     auto input0_size = input0_shape.size();
     auto input0_format = input0_layout.format;
 
-    auto& constant_mem = impl_param.memory_deps;
+    const auto& constant_mem = impl_param.memory_deps;
     auto block_data = desc->block_shape;
     auto begin_data = desc->pads_begin;
     auto end_data = desc->pads_end;
@@ -107,9 +107,9 @@ std::vector<layout> space_to_batch_inst::calc_output_layouts(space_to_batch_node
         auto begin_sizes = tensor_to_vec(begin_data, input0_format);
         auto end_sizes = tensor_to_vec(end_data, input0_format);
 
-        auto block_values = static_cast<void*>(block_sizes.data());
-        auto begin_values = static_cast<void*>(begin_sizes.data());
-        auto end_values = static_cast<void*>(end_sizes.data());
+        auto* block_values = static_cast<void*>(block_sizes.data());
+        auto* begin_values = static_cast<void*>(begin_sizes.data());
+        auto* end_values = static_cast<void*>(end_sizes.data());
 
         auto block_tensor = make_tensor({ block_shape, data_types::i32, input0_format }, block_values);
         auto begin_tensor = make_tensor({ begin_shape, data_types::i32, input0_format }, begin_values);

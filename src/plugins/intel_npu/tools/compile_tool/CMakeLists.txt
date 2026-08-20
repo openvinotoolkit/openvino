@@ -25,14 +25,15 @@ ov_add_target(TYPE EXECUTABLE
               ROOT ${CMAKE_CURRENT_SOURCE_DIR}
               LINK_LIBRARIES
                   PRIVATE
-                      openvino::runtime
+                      openvino::runtime::dev
+                      openvino::npu_ops
                       gflags
                       Threads::Threads
                       npu_tools_utils)
 
 set_target_properties(${TARGET_NAME} PROPERTIES
-                          FOLDER ${CMAKE_CURRENT_SOURCE_DIR}
-                          CXX_STANDARD 17)
+                      FOLDER intel_npu_tools
+                      CXX_STANDARD 17)
 
 # TODO: fix warnings and remove this exception
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)

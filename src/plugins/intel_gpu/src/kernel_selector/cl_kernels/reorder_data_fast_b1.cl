@@ -160,7 +160,7 @@ KERNEL (reorder_data_fast_b1)(
 
     tmp_data_idx  = data_idx / OUTPUT_SIZE_W;
     const uint w = data_idx - tmp_data_idx * OUTPUT_SIZE_W;
-#else // BYXF?
+#else // BYXF or blocked formats (b_fs_yx_fsv16, etc.)
     uint tmp_data_idx = data_idx / OUTPUT_BATCH_NUM;
     const uint b = data_idx - tmp_data_idx * OUTPUT_BATCH_NUM;
     data_idx = tmp_data_idx;
@@ -190,15 +190,15 @@ KERNEL (reorder_data_fast_b1)(
 #endif
 
 #if   defined MEAN_SUBTRACT_INSIDE_PARAMS
-    float res = TO_MEAN_TYPE(input[input_idx]);
+    float res = TO_MEAN_TYPE(LOAD_(input_idx));
     res -= VALUE_TO_SUBTRACT[f % VALUE_TO_SUBTRACT_SIZE];
 #elif defined MEAN_SUBTRACT_IN_BUFFER
-    MEAN_SUBTRACT_TYPE res = TO_MEAN_TYPE(input[input_idx]);
+    MEAN_SUBTRACT_COMPUTE_TYPE res = TO_MEAN_TYPE(LOAD_(input_idx));
     uint8 msv = RESHAPE_DIMS(INPUT0, MEAN_SUBTRACT, b, f, 0, 0, w, z, y, x);
-    res -= mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv.s0, msv.s1, msv.s6, msv.s7)];
+    res -= DECODE_MEAN_SUBTRACT_COMPUTE_TYPE(mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv.s0, msv.s1, msv.s6, msv.s7)]);
 #else
-    CALC_TYPE res = TO_CALC_TYPE(input[input_idx]);
+    CALC_TYPE res = TO_CALC_TYPE(LOAD_(input_idx));
 #endif
 
-    output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE_SAT(res), ACTIVATION_PARAMS_TYPED);
+    STORE_(output_idx, res);
 }

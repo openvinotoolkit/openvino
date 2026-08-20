@@ -21,7 +21,7 @@ OutputVector base_translate_upsample(const NodeContext& context,
                                      v11::Interpolate::InterpolateMode interpolate_mode,
                                      size_t dims,
                                      bool antialias = false) {
-    num_inputs_check(context, 1, 4);
+    num_inputs_check(context, 1, 5);
     auto data = context.get_input(0);
     std::vector<size_t> pad(dims, 0);
     auto size_mode = v11::Interpolate::ShapeCalcMode::SIZES;

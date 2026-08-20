@@ -391,6 +391,15 @@ ov::Any NodeContext::apply_additional_conversion_rules(const ov::Any& data, cons
         } else if (type_info == typeid(int32_t)) {
             int32_t res = const_node->cast_vector<int32_t>()[0];
             return res;
+        } else if (type_info == typeid(int64_t)) {
+            int64_t res = const_node->cast_vector<int64_t>()[0];
+            return res;
+        } else if (type_info == typeid(double)) {
+            double res = const_node->cast_vector<double>()[0];
+            return res;
+        } else if (type_info == typeid(float)) {
+            float res = const_node->cast_vector<float>()[0];
+            return res;
         } else {
             FRONT_END_GENERAL_CHECK(false,
                                     "Could not decode attribute for ",

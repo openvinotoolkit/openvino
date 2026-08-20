@@ -406,7 +406,7 @@ This concludes developer work on OpenVINO™ Python API. Don't forget to recompi
 
 Coding is now finished. Let's move on to testing.
 
-To learn how to test your code, refer to the guide on [how to test OpenVINO™ Python API?](./test_examples.md#Running_OpenVINO™_Python_API_tests)
+To learn how to test your code, refer to the guide on [how to test OpenVINO™ Python API?](./test_examples.md#run-openvino-python-api-tests)
 
 ## See also
  * [OpenVINO™ README](../../../../README.md)

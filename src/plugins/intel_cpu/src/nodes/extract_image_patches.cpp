@@ -4,9 +4,9 @@
 
 #include "extract_image_patches.h"
 
+#include <algorithm>
 #include <cmath>
 #include <common/utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -30,20 +30,22 @@
 #include "openvino/core/type.hpp"
 #include "openvino/op/extractimagepatches.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <xbyak/xbyak.h>
 
+#    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "cpu/x64/jit_generator.hpp"
 #    include "utils/cpu_utils.hpp"
-#endif
 
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::utils;
 using namespace Xbyak;
+#endif
 
 namespace ov::intel_cpu::node {
 #if defined(OPENVINO_ARCH_X86_64)
@@ -451,7 +453,7 @@ void ExtractImagePatches::prepareParams() {
     const auto& out_dims = getChildEdgeAt(0)->getMemory().getStaticDims();
     const auto prcSize = getOriginalInputPrecisionAtPort(0).size();
     ExtractImagePatchesKey key = {in_dims, out_dims, _ksizes, _strides, _rates, _auto_pad, prcSize};
-    const auto isJit = mayiuse(x64::sse41);
+    const auto isJit = ov::with_cpu_x86_sse42();
     auto buildExecutor = [&isJit](const ExtractImagePatchesKey& key) -> executorPtr {
         if (isJit) {
             return std::make_shared<ExtractImagePatchesJitExecutor>(key.inDims,
@@ -525,27 +527,25 @@ void ExtractImagePatches::ExtractImagePatchesRefExecutor::executeReference(void*
         [&](const size_t ob, const size_t kh, const size_t kw, const size_t ic) {
             const int64_t iw_start = static_cast<int64_t>(kw * RW) - PL;
             const int64_t ih_start = static_cast<int64_t>(kh * RH) - PT;
-            const size_t ih_lpad =
-                ih_start >= 0
-                    ? 0
-                    : static_cast<size_t>(std::ceil(-1.F * static_cast<float>(ih_start) / static_cast<float>(jpp.SH)));
-            const size_t iw_lpad =
-                iw_start >= 0
-                    ? 0
-                    : static_cast<size_t>(std::ceil(-1.F * static_cast<float>(iw_start) / static_cast<float>(jpp.SW)));
+            const size_t ih_lpad = ih_start >= 0 ? 0
+                                                 : static_cast<size_t>((-ih_start + static_cast<int64_t>(jpp.SH) - 1) /
+                                                                       static_cast<int64_t>(jpp.SH));
+            const size_t iw_lpad = iw_start >= 0 ? 0
+                                                 : static_cast<size_t>((-iw_start + static_cast<int64_t>(jpp.SW) - 1) /
+                                                                       static_cast<int64_t>(jpp.SW));
 
+            const int64_t ih_diff = static_cast<int64_t>(IH) - ih_start;
             const size_t ih_hpad =
-                static_cast<size_t>(std::ceil((static_cast<float>(IH) - 1.F * static_cast<float>(ih_start)) /
-                                              static_cast<float>(jpp.SH))) > jpp.OH
-                    ? jpp.OH
-                    : static_cast<size_t>(std::ceil((static_cast<float>(IH) + -1.F * static_cast<float>(ih_start)) /
-                                                    static_cast<float>(jpp.SH)));
+                ih_diff <= 0 ? 0
+                             : std::min<size_t>(static_cast<size_t>((ih_diff + static_cast<int64_t>(jpp.SH) - 1) /
+                                                                    static_cast<int64_t>(jpp.SH)),
+                                                jpp.OH);
+            const int64_t iw_diff = static_cast<int64_t>(jpp.IW) - iw_start;
             const size_t iw_hpad =
-                static_cast<size_t>(std::ceil((static_cast<float>(jpp.IW) - 1.F * static_cast<float>(iw_start)) /
-                                              static_cast<float>(jpp.SW))) > jpp.OW
-                    ? jpp.OW
-                    : static_cast<size_t>(std::ceil((static_cast<float>(jpp.IW) - 1.F * static_cast<float>(iw_start)) /
-                                                    static_cast<float>(jpp.SW)));
+                iw_diff <= 0 ? 0
+                             : std::min<size_t>(static_cast<size_t>((iw_diff + static_cast<int64_t>(jpp.SW) - 1) /
+                                                                    static_cast<int64_t>(jpp.SW)),
+                                                jpp.OW);
 
             char* my_dst_ptr = dst_data + (ob * ostrides_partial[0] + kh * ostrides_partial[1] +
                                            kw * ostrides_partial[2] + ic * ostrides_partial[3]) *
@@ -605,26 +605,24 @@ void ExtractImagePatches::ExtractImagePatchesJitExecutor::executeOptimizedGeneri
         [&](const size_t ob, const size_t kh, const size_t kw, const size_t ic) {
             const int64_t ih_start = kh * RH - PT;
             const int64_t iw_start = kw * RW - PL;
-            const size_t ih_lpad =
-                ih_start >= 0
-                    ? 0
-                    : static_cast<size_t>(std::ceil(-1.F * static_cast<float>(ih_start) / static_cast<float>(jpp.SH)));
-            const size_t iw_lpad =
-                iw_start >= 0
-                    ? 0
-                    : static_cast<size_t>(std::ceil(-1.F * static_cast<float>(iw_start) / static_cast<float>(jpp.SW)));
+            const size_t ih_lpad = ih_start >= 0 ? 0
+                                                 : static_cast<size_t>((-ih_start + static_cast<int64_t>(jpp.SH) - 1) /
+                                                                       static_cast<int64_t>(jpp.SH));
+            const size_t iw_lpad = iw_start >= 0 ? 0
+                                                 : static_cast<size_t>((-iw_start + static_cast<int64_t>(jpp.SW) - 1) /
+                                                                       static_cast<int64_t>(jpp.SW));
+            const int64_t ih_diff = static_cast<int64_t>(IH) - ih_start;
             const size_t ih_hpad =
-                static_cast<size_t>(std::ceil((static_cast<float>(IH) - 1.F * static_cast<float>(ih_start)) /
-                                              static_cast<float>(jpp.SH))) > jpp.OH
-                    ? jpp.OH
-                    : static_cast<size_t>(std::ceil((static_cast<float>(IH) - 1.F * static_cast<float>(ih_start)) /
-                                                    static_cast<float>(jpp.SH)));
+                ih_diff <= 0 ? 0
+                             : std::min<size_t>(static_cast<size_t>((ih_diff + static_cast<int64_t>(jpp.SH) - 1) /
+                                                                    static_cast<int64_t>(jpp.SH)),
+                                                jpp.OH);
+            const int64_t iw_diff = static_cast<int64_t>(jpp.IW) - iw_start;
             const size_t iw_hpad =
-                static_cast<size_t>(std::ceil((static_cast<float>(jpp.IW) - 1.F * static_cast<float>(iw_start)) /
-                                              static_cast<float>(jpp.SW))) > jpp.OW
-                    ? jpp.OW
-                    : static_cast<size_t>(std::ceil((static_cast<float>(jpp.IW) - 1.F * static_cast<float>(iw_start)) /
-                                                    static_cast<float>(jpp.SW)));
+                iw_diff <= 0 ? 0
+                             : std::min<size_t>(static_cast<size_t>((iw_diff + static_cast<int64_t>(jpp.SW) - 1) /
+                                                                    static_cast<int64_t>(jpp.SW)),
+                                                jpp.OW);
 
             size_t dst_offset = ob * ostrides_partial[0] + kh * ostrides_partial[1] + kw * ostrides_partial[2] +
                                 ic * ostrides_partial[3];
@@ -704,12 +702,12 @@ jit_extract_image_patches_params ExtractImagePatches::ExtractImagePatchesExecuto
     }
 
     jpp.dtype_size = prcSize;
-    if (mayiuse(x64::avx512_core)) {
-        jpp.block_size = dnnl::impl::cpu::x64::cpu_isa_traits_t<x64::avx512_core>::vlen / prcSize;
-    } else if (mayiuse(x64::avx2)) {
-        jpp.block_size = dnnl::impl::cpu::x64::cpu_isa_traits_t<x64::avx2>::vlen / prcSize;
-    } else if (mayiuse(x64::sse41)) {
-        jpp.block_size = dnnl::impl::cpu::x64::cpu_isa_traits_t<x64::sse41>::vlen / prcSize;
+    if (ov::with_cpu_x86_avx512_core()) {
+        jpp.block_size = 64 / prcSize;
+    } else if (ov::with_cpu_x86_avx2()) {
+        jpp.block_size = 32 / prcSize;
+    } else if (ov::with_cpu_x86_sse42()) {
+        jpp.block_size = 16 / prcSize;
     } else {
         jpp.block_size = 1;
     }

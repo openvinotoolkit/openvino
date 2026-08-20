@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/single_op/pad.hpp"
 
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
@@ -71,5 +72,53 @@ std::shared_ptr<ov::Node> Pad12LayerTest::create_pad_op(const std::shared_ptr<ov
                                         ov::op::PadMode pad_mode) const {
     return std::make_shared<ov::op::v12::Pad>(data, pads_begin, pads_end, arg_pad_value, pad_mode);
 }
+
+std::string PadStringLayerTest::getTestCaseName(const testing::TestParamInfo<PadStringLayerTestParamSet>& obj) {
+    const auto& [pads_begin, pads_end, pad_value, shapes, target_device] = obj.param;
+    std::ostringstream result;
+    result << "IS=(";
+    for (size_t i = 0lu; i < shapes.size(); i++) {
+        result << ov::test::utils::partialShape2str({shapes[i].first}) << (i < shapes.size() - 1lu ? "_" : "");
+    }
+    result << ")_TS=";
+    for (size_t i = 0lu; i < shapes.front().second.size(); i++) {
+        result << "{";
+        for (size_t j = 0lu; j < shapes.size(); j++) {
+            result << ov::test::utils::vec2str(shapes[j].second[i]) << (j < shapes.size() - 1lu ? "_" : "");
+        }
+        result << "}_";
+    }
+    result << "PadsBegin=" << ov::test::utils::vec2str(pads_begin) << "_";
+    result << "PadsEnd=" << ov::test::utils::vec2str(pads_end) << "_";
+    result << "Value=" << pad_value << "_";
+    result << "TrgDev=" << target_device;
+    return result.str();
+}
+
+void PadStringLayerTest::SetUp() {
+    const auto& [pads_begin, pads_end, pad_value, shapes, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
+    init_input_shapes(shapes);
+
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::string, inputDynamicShapes.front());
+    auto pads_begin_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{pads_begin.size()}, pads_begin.data());
+    auto pads_end_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{pads_end.size()}, pads_end.data());
+    auto pad_value_const = std::make_shared<ov::op::v0::Constant>(ov::element::string, ov::Shape{}, std::vector<std::string>{pad_value});
+
+    auto pad = std::make_shared<ov::op::v12::Pad>(param, pads_begin_const, pads_end_const, pad_value_const, ov::op::PadMode::CONSTANT);
+    auto result_node = std::make_shared<ov::op::v0::Result>(pad);
+    function = std::make_shared<ov::Model>(result_node, ov::ParameterVector{param}, "pad_string");
+}
+
+void PadStringLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    inputs.clear();
+    const auto& funcInputs = function->inputs();
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = 0;
+    in_data.range = 10;
+    inputs.insert({funcInputs[0].get_node_shared_ptr(),
+                   utils::create_and_fill_tensor(ov::element::string, targetInputStaticShapes[0], in_data)});
+}
+
 }  // namespace test
 }  // namespace ov

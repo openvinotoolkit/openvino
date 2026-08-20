@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,6 +13,15 @@
 #include <vector>
 
 namespace utils {
+
+// NB: protopipe-specific precision marker (not a real cv::Mat depth) used to distinguish
+// boolean layers from generic U8 ones. Booleans are physically stored as a single byte,
+// like U8, but only 0/1 are valid values, which matters for random test data generation.
+constexpr int kBooleanDepth = CV_16F + 1;
+
+// NB: Maps kBooleanDepth to its actual physical cv::Mat storage depth (CV_8U), leaving
+// any real cv::Mat depth unchanged.
+int toPhysicalDepth(int depth);
 
 void createNDMat(cv::Mat& mat, const std::vector<int>& dims, int depth);
 void generateRandom(cv::Mat& out);

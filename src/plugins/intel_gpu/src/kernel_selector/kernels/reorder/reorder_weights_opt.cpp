@@ -14,10 +14,18 @@ ParamsKey ReorderWeightsOpt::GetSupportedKey() const {
     k.EnableInputWeightsType(WeightsType::F16);
     k.EnableInputWeightsType(WeightsType::F32);
     k.EnableInputWeightsType(WeightsType::INT32);
+    k.EnableInputWeightsType(WeightsType::F8E4M3);
+    k.EnableInputWeightsType(WeightsType::F8E5M2);
+    k.EnableInputWeightsType(WeightsType::F4E2M1);
+    k.EnableInputWeightsType(WeightsType::F8E8M0);
     k.EnableOutputWeightsType(WeightsType::INT8);
     k.EnableOutputWeightsType(WeightsType::F16);
     k.EnableOutputWeightsType(WeightsType::F32);
     k.EnableOutputWeightsType(WeightsType::INT32);
+    k.EnableOutputWeightsType(WeightsType::F8E4M3);
+    k.EnableOutputWeightsType(WeightsType::F8E5M2);
+    k.EnableOutputWeightsType(WeightsType::F4E2M1);
+    k.EnableOutputWeightsType(WeightsType::F8E8M0);
     k.EnableInputWeightsLayout(WeightsLayout::oiyx);
     k.EnableInputWeightsLayout(WeightsLayout::ioyx);
     k.EnableInputWeightsLayout(WeightsLayout::oyxi);
@@ -102,33 +110,29 @@ static inline std::pair<size_t, size_t> GetSliceSizes(WeightsLayout l) {
         l == WeightsLayout::os_is_yx_osv16_isv16 || l == WeightsLayout::g_os_zyx_is_osv16_isv16 ||
         l == WeightsLayout::g_is_os_yx_isv16_osv16 || l == WeightsLayout::g_is_os_zyx_isv16_osv16)
         return {16, 16};
-    else if (l == WeightsLayout::os_iyx_osv16 || l == WeightsLayout::g_os_iyx_osv16)
+    if (l == WeightsLayout::os_iyx_osv16 || l == WeightsLayout::g_os_iyx_osv16)
         return {1, 16};
-    else if (l == WeightsLayout::os_iyx_osv32 || l == WeightsLayout::g_os_iyx_osv32 || l == WeightsLayout::os_iyx_osv32__ai32)
+    if (l == WeightsLayout::os_iyx_osv32 || l == WeightsLayout::g_os_iyx_osv32 || l == WeightsLayout::os_iyx_osv32__ai32)
         return {1, 32};
-    else if (l == WeightsLayout::os_is_zyx_osv32_isv16 || l == WeightsLayout::g_os_zyx_is_osv32_isv16)
+    if (l == WeightsLayout::os_is_zyx_osv32_isv16 || l == WeightsLayout::g_os_zyx_is_osv32_isv16)
         return {16, 32};
-    else if (l == WeightsLayout::os_is_zyx_osv64_isv16)
+    if (l == WeightsLayout::os_is_zyx_osv64_isv16)
         return {16, 64};
-    else if (l == WeightsLayout::g_os_zyx_is_osv16_isv32)
+    if (l == WeightsLayout::g_os_zyx_is_osv16_isv32)
         return {32, 16};
-    else if (l == WeightsLayout::g_os_zyx_is_osv32_isv32)
+    if (l == WeightsLayout::g_os_zyx_is_osv32_isv32)
         return {32, 32};
-    else
-        return {1, 1};
+    return {1, 1};
 }
 
 static inline bool IsOsvFirst(WeightsLayout l) {
-    if (l == WeightsLayout::os_is_yx_isv16_osv16 || l == WeightsLayout::os_is_zyx_isv16_osv16 ||
+    return l == WeightsLayout::os_is_yx_isv16_osv16 || l == WeightsLayout::os_is_zyx_isv16_osv16 ||
         l == WeightsLayout::g_os_is_yx_isv16_osv16 || l == WeightsLayout::g_os_is_zyx_isv16_osv16 ||
         l == WeightsLayout::os_iyx_osv16 || l == WeightsLayout::g_os_iyx_osv16||
         l == WeightsLayout::os_iyx_osv32 || l == WeightsLayout::g_os_iyx_osv32 ||
         l == WeightsLayout::os_iyx_osv32__ai32 || l == WeightsLayout::is_os_yx_isv16_osv16 ||
         l == WeightsLayout::is_os_zyx_isv16_osv16 || l == WeightsLayout::g_is_os_yx_isv16_osv16 ||
-        l == WeightsLayout::g_is_os_zyx_isv16_osv16)
-        return true;
-    else
-        return false;
+        l == WeightsLayout::g_is_os_zyx_isv16_osv16;
 }
 
 static inline size_t GetOptimalSize(size_t val, std::vector<size_t> optimal_sizes) {
@@ -157,7 +161,14 @@ ReorderWeightsOpt::DispatchData ReorderWeightsOpt::SetDefault(
                                        : subgroup_size;
 
     if (osv_first) {
-        dispatchData.gws = { output.G().v * (output.IFM().v / ifm_block),
+        // When IFM is not aligned to the ISV block size, expand GWS to cover padding
+        // positions so they can be zero-filled by the kernel.
+        auto slice_sizes = GetSliceSizes(output_layout);
+        size_t isv_size = slice_sizes.first;
+        size_t ifm_padded = (isv_size > 1 && (output.IFM().v % isv_size) != 0)
+                                ? Align(output.IFM().v, isv_size)
+                                : output.IFM().v;
+        dispatchData.gws = { output.G().v * (ifm_padded / ifm_block),
                              output.Z().v * output.Y().v * output.X().v,
                              Align(output.OFM().v, ofm_block) };
     } else {
@@ -196,6 +207,28 @@ JitConstants ReorderWeightsOpt::GetJitConstants(const reorder_weights_params& pa
 
     if (leftovers)
         jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", leftovers));
+
+    // For blocked weight formats with OSV_FIRST (e.g., os_is_yx_isv16_osv16), when the
+    // input feature count is not aligned to the ISV block size, we must zero-fill IFM
+    // padding positions. Otherwise, uninitialized memory (potentially containing NaN)
+    // in weight padding can propagate through convolution via NaN * 0 = NaN (IEEE 754).
+    if (osv_first) {
+        size_t isv_size = slice_sizes.first;
+        if (isv_size > 1 && (output.IFM().v % isv_size) != 0) {
+            jit.AddConstant(MakeJitConstant("IFM_PADDING", 1));
+            jit.AddConstant(MakeJitConstant("ACTUAL_IFM_NUM", output.IFM().v));
+            jit.AddConstant(MakeJitConstant("IFM_PADDED_NUM", Align(output.IFM().v, isv_size)));
+        }
+    }
+
+    jit.AddConstant(MakeJitConstant("F8E5M2_INPUT", params.input.GetDType() == WeightsType::F8E5M2 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F8E4M3_INPUT", params.input.GetDType() == WeightsType::F8E4M3 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F4E2M1_INPUT", params.input.GetDType() == WeightsType::F4E2M1 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F8E8M0_INPUT", params.input.GetDType() == WeightsType::F8E8M0 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F8E5M2_OUTPUT", params.output.GetDType() == WeightsType::F8E5M2 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F8E4M3_OUTPUT", params.output.GetDType() == WeightsType::F8E4M3 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F4E2M1_OUTPUT", params.output.GetDType() == WeightsType::F4E2M1 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F8E8M0_OUTPUT", params.output.GetDType() == WeightsType::F8E8M0 ? 1 : 0));
 
     return jit;
 }

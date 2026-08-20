@@ -4,10 +4,10 @@
 
 #include "jit_uni_eltwise_generic.hpp"
 
-#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
-#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_gen.h>
-#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_label.h>
-#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+#include <xbyak_aarch64/xbyak_aarch64_adr.h>
+#include <xbyak_aarch64/xbyak_aarch64_gen.h>
+#include <xbyak_aarch64/xbyak_aarch64_label.h>
+#include <xbyak_aarch64/xbyak_aarch64_reg.h>
 
 #include <cpu/aarch64/cpu_isa_traits.hpp>
 #include <cpu/aarch64/jit_generator.hpp>
@@ -759,6 +759,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
         OV_CASE(Algorithm::EltwiseSigmoid, ov::intel_cpu::aarch64::jit_sigmoid_emitter),
         OV_CASE(Algorithm::EltwiseSoftRelu, ov::intel_cpu::aarch64::jit_softplus_emitter),
         OV_CASE(Algorithm::EltwiseSoftSign, ov::intel_cpu::aarch64::jit_soft_sign_emitter),
+        OV_CASE(Algorithm::EltwiseErfInv, ov::intel_cpu::aarch64::jit_erfinv_emitter),
         OV_CASE(Algorithm::EltwiseSqrt, ov::intel_cpu::aarch64::jit_sqrt_emitter),
         OV_CASE(Algorithm::EltwiseSquaredDifference, ov::intel_cpu::aarch64::jit_squared_difference_emitter),
         OV_CASE(Algorithm::EltwiseSubtract, ov::intel_cpu::aarch64::jit_subtract_emitter),
@@ -894,6 +895,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseSigmoid, jit_sigmoid_emitter),
               OV_CASE(Algorithm::EltwiseSoftRelu, jit_softplus_emitter),
               OV_CASE(Algorithm::EltwiseSoftSign, jit_soft_sign_emitter),
+              OV_CASE(Algorithm::EltwiseErfInv, jit_erfinv_emitter),
               OV_CASE(Algorithm::EltwiseSqrt, jit_sqrt_emitter),
               OV_CASE(Algorithm::EltwiseSquaredDifference, jit_squared_difference_emitter),
               OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter),

@@ -27,7 +27,7 @@ static std::vector<uint16_t> convert_axes(std::vector<int64_t> axes, size_t rank
     std::vector<uint16_t> converted_axes;
     for (auto axis : axes) {
         if (axis == 0 || axis == 1) {
-            converted_axes.push_back(axis);
+            converted_axes.push_back(static_cast<uint16_t>(axis));
             continue;
         }
 
@@ -98,10 +98,9 @@ layout reduce_inst::calc_output_layout(reduce_node const& node, kernel_impl_para
 
     if (format_dim == 6)
         return layout{output_type, input_format, tensor(batch(in_dims[0]), feature(in_dims[1]), spatial(in_dims[2], in_dims[3], in_dims[4], in_dims[5]))};
-    else if (format_dim == 5)
+    if (format_dim == 5)
         return layout{output_type, input_format, tensor(batch(in_dims[0]), feature(in_dims[1]), spatial(in_dims[2], in_dims[3], in_dims[4]))};
-    else
-        return layout{output_type, input_format, tensor(batch(in_dims[0]), feature(in_dims[1]), spatial(in_dims[2], in_dims[3]))};
+    return layout{output_type, input_format, tensor(batch(in_dims[0]), feature(in_dims[1]), spatial(in_dims[2], in_dims[3]))};
 }
 
 template<typename ShapeType>

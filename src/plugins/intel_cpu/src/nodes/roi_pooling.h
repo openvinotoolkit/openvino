@@ -27,6 +27,8 @@ struct jit_roi_pooling_params {
 
     int c_block, nb_c, nb_c_blocking;
 
+    int b_num;
+
     double spatial_scale;
     int pooled_h;
     int pooled_w;

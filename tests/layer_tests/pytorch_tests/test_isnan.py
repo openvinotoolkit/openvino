@@ -24,6 +24,7 @@ class TestIsNan(PytorchLayerTest):
         return aten_isnan(), "aten::isnan"
 
     @pytest.mark.precommit_fx_backend
+    @pytest.mark.precommit_torch_export
     def test_isnan(self, ie_device, precision, ir_version, input_tensor):
         self.input_tensor = input_tensor
         self._test(*self.create_model(), ie_device, precision, ir_version)

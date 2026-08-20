@@ -39,19 +39,17 @@ DeviceFeaturesKey PoolingKernel_b_fs_yx_fsv16::get_required_device_features_key(
 size_t PoolingKernel_b_fs_yx_fsv16::GetBlockSize(const pooling_params& params) const {
     if (params.outputs[0].X().v > 4)
         return 8;
-    else if (params.outputs[0].X().v > 1)
+    if (params.outputs[0].X().v > 1)
         return 2;
-    else
-        return 1;
+    return 1;
 }
 
 size_t PoolingKernel_b_fs_yx_fsv16::GetSimdSize(const pooling_params& params) const {
-    auto& out = params.outputs[0];
+    const auto& out = params.outputs[0];
     // Use smaller simd size in case of global pooling and small channels count to have more threads
-    if (out.X().v == 1 && out.Y().v == 1 && out.Feature().v < 64)
+    if (out.X().v == 1 && out.Y().v == 1 && out.Feature().v < 64 && IsSIMDSizeSupported(params.engineInfo, 8))
         return 8;
-    else
-        return 16;
+    return 16;
 }
 
 PoolingKernelBase::DispatchData PoolingKernel_b_fs_yx_fsv16::SetDefault(const pooling_params& params) const {

@@ -4,6 +4,7 @@
 
 #include "intel_gpu/op/kv_cache.hpp"
 #include "intel_gpu/op/kv_cache_compressed.hpp"
+#include "intel_gpu/runtime/utils.hpp"
 #include "gather_shape_inference.hpp"
 #include "concat_shape_inference.hpp"
 #include "openvino/core/partial_shape.hpp"
@@ -126,8 +127,8 @@ std::shared_ptr<Node> KVCache::clone_with_new_inputs(const ov::OutputVector& new
                                          m_variable,
                                          m_concat_axis,
                                          m_output_type);
-
-    } else if (new_args.size() == 3) {
+    }
+    if (new_args.size() == 3) {
         if (m_trim) {
             return std::make_shared<KVCache>(new_args.at(0),
                                              new_args.at(1),
@@ -135,16 +136,10 @@ std::shared_ptr<Node> KVCache::clone_with_new_inputs(const ov::OutputVector& new
                                              m_variable,
                                              m_concat_axis,
                                              m_output_type);
-        } else {
-            return std::make_shared<KVCache>(new_args.at(0),
-                                             new_args.at(1),
-                                             new_args.at(2),
-                                             m_variable,
-                                             m_concat_axis,
-                                             m_gather_axis,
-                                             m_output_type);
         }
-    } else if (new_args.size() == 4) {
+        return std::make_shared<KVCache>(new_args.at(0), new_args.at(1), new_args.at(2), m_variable, m_concat_axis, m_gather_axis, m_output_type);
+    }
+    if (new_args.size() == 4) {
         return std::make_shared<KVCache>(new_args.at(0),
                                          new_args.at(1),
                                          new_args.at(2),
@@ -153,7 +148,8 @@ std::shared_ptr<Node> KVCache::clone_with_new_inputs(const ov::OutputVector& new
                                          m_concat_axis,
                                          m_gather_axis,
                                          m_output_type);
-    } else if (new_args.size() == 5) {
+    }
+    if (new_args.size() == 5) {
         return std::make_shared<KVCache>(new_args.at(0),
                                          new_args.at(1),
                                          new_args.at(2),
@@ -162,9 +158,8 @@ std::shared_ptr<Node> KVCache::clone_with_new_inputs(const ov::OutputVector& new
                                          m_variable,
                                          m_concat_axis,
                                          m_output_type);
-    } else {
-        OPENVINO_ASSERT(false);
     }
+    OPENVINO_ASSERT(false);
 }
 
 std::vector<ov::PartialShape> shape_infer(const KVCache* op, const std::vector<ov::PartialShape>& input_shapes) {
@@ -207,8 +202,8 @@ KVCacheCompressed::KVCacheCompressed(const OutputVector& inputs,
     : KVCache(inputs, past_variable, true, trim, concat_axis, gather_axis, output_type)
     , m_compressed(true)
     , m_quantization_attrs(quantization_attrs) {
-    OPENVINO_ASSERT(quantization_attrs.quantization_dt == ov::element::i8,
-                    "[GPU] Only I8 data type is currently supported for KV-cache compression");
+    OPENVINO_ASSERT(cldnn::one_of(quantization_attrs.quantization_dt , {element::i8, element::i4, element::u4}),
+                    "[GPU] data type is currently not supported for KV-cache compression");
 
     m_variable = past_variable;
     size_t output_size = 3;

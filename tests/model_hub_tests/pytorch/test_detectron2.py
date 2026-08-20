@@ -7,13 +7,41 @@ import subprocess
 import platform
 import pytest
 import torch
-from models_hub_common.utils import get_models_list, compare_two_tensors
+from models_hub_common.utils import get_models_list, compare_two_tensors, retry
 
-from torch_utils import TestTorchConvertModel, process_pytest_marks
+from torch_utils import TestTorchConvertModel, process_pytest_marks, skip_npu_precommit
 
+# Precommit models out of the NPU scope, per platform ("*" = all platforms).
+NPU_PRECOMMIT_SKIP = {
+    "COCO-Detection/faster_rcnn_R_50_FPN_1x": "*",
+    "COCO-Detection/faster_rcnn_X_101_32x8d_FPN_3x": "*",
+    "COCO-Detection/retinanet_R_50_FPN_1x": "*",
+    "COCO-Detection/rpn_R_50_C4_1x": "*",
+    "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_1x": "*",
+    "COCO-InstanceSegmentation/mask_rcnn_X_101_32x8d_FPN_3x": "*",
+    "COCO-Keypoints/keypoint_rcnn_R_50_FPN_3x": "*",
+    "COCO-Keypoints/keypoint_rcnn_X_101_32x8d_FPN_3x": "*",
+    "Cityscapes/mask_rcnn_R_50_FPN": "*",
+    "Detectron1-Comparisons/faster_rcnn_R_50_FPN_noaug_1x": "*",
+    "Detectron1-Comparisons/keypoint_rcnn_R_50_FPN_1x": "*",
+    "Detectron1-Comparisons/mask_rcnn_R_50_FPN_noaug_1x": "*",
+    "LVISv0.5-InstanceSegmentation/mask_rcnn_R_50_FPN_1x": "*",
+    "LVISv0.5-InstanceSegmentation/mask_rcnn_X_101_32x8d_FPN_1x": "*",
+    "Misc/cascade_mask_rcnn_R_50_FPN_3x": "*",
+    "Misc/cascade_mask_rcnn_X_152_32x8d_FPN_IN5k_gn_dconv": "*",
+    "Misc/mask_rcnn_R_50_FPN_3x_syncbn": "*",
+    "Misc/scratch_mask_rcnn_R_50_FPN_9x_syncbn": "*",
+    "PascalVOC-Detection/faster_rcnn_R_50_C4": "*",
+}
 
 class TestDetectron2ConvertModel(TestTorchConvertModel):
     def setup_class(self):
+        # On NPU all detectron2 precommit models are out of scope (see NPU_PRECOMMIT_SKIP),
+        # so skip the whole class before the detectron2 build in setup (which also fails on
+        # Windows). Skipping here reports as skipped instead of erroring in setup.
+        if "NPU" in os.environ.get("TEST_DEVICE", ""):
+            pytest.skip("detectron2 is out of the NPU scope")
+
         from PIL import Image
         import requests
 
@@ -23,9 +51,11 @@ class TestDetectron2ConvertModel(TestTorchConvertModel):
         self.image = Image.open(response.raw)
         self.image = self.image.resize([640, 480])
 
-        subprocess.run([sys.executable, "-m", "pip", "install",
-                       "git+https://github.com/facebookresearch/detectron2.git@017abbfa5f2c2a2afa045200c2af9ccf2fc6227f"])
+        subprocess.check_call([sys.executable, "-m", "pip", "install",
+                              "setuptools<78",  # detectron2 needs pkg_resources, removed in setuptools>=78
+                              "git+https://github.com/facebookresearch/detectron2.git@017abbfa5f2c2a2afa045200c2af9ccf2fc6227f"])
 
+    @retry(3, exceptions=(OSError,), delay=10, exponential_backoff=True, backoff_multiplier=2, max_delay=120)
     def load_model(self, model_name, model_link):
         from detectron2 import model_zoo, export
         from detectron2.modeling import build_model, PanopticFPN
@@ -97,6 +127,7 @@ class TestDetectron2ConvertModel(TestTorchConvertModel):
                              get_models_list(os.path.join(os.path.dirname(__file__), "detectron2_precommit")))
     @pytest.mark.precommit
     def test_detectron2_precommit(self, name, type, mark, reason, ie_device):
+        skip_npu_precommit(name, ie_device, NPU_PRECOMMIT_SKIP)
         if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
             pytest.skip("Detectron2 models are not enabled on ARM")
         self.run(name, None, ie_device)

@@ -17,7 +17,7 @@ void basic_memory_dependencies::run(program& p) {
     auto itr = p.get_processing_order().begin();
     std::vector<size_t> past_outputs;
     while (itr != p.get_processing_order().end()) {
-        auto& node = *itr;
+        const auto& node = *itr;
         itr++;
 
         // data primitive can't be reused
@@ -51,9 +51,15 @@ void basic_memory_dependencies::run(program& p) {
                         continue;
                     eltw_dep = fused_op.outer_dep_start_idx;
                     auto& eltw_node = node->get_dependency(eltw_dep);
-                    eltw_node.can_share_buffer(false);
                     node->can_share_buffer(false);
-                    for (auto& user : node->get_users()) {
+                    // Walk up the in-place chain to mark the root buffer owner as non-shareable.
+                    auto* root = &eltw_node;
+                    while (root->can_be_optimized() && !root->get_dependencies().empty()) {
+                        root = &root->get_dependency(0);
+                    }
+                    root->can_share_buffer(false);
+
+                    for (const auto& user : node->get_users()) {
                         add_memory_dependency(user, &eltw_node);
                         add_memory_dependency(user, node);
                     }
@@ -69,7 +75,7 @@ void basic_memory_dependencies::run(program& p) {
             past_outputs.push_back(node->get_unique_id());
             if (node->is_type<mutable_data>()) {
                 // if output is mutable data, then propagate output flag to its dependencies
-                for (auto& dep : node->get_dependencies()) {
+                for (const auto& dep : node->get_dependencies()) {
                     dep.first->set_output(true);
                 }
             }

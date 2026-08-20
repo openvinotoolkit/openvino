@@ -57,7 +57,7 @@ public:
         return m_runtimeInfo;
     }
 
-    const uint32_t get_header_size_alignment() const {
+    uint32_t get_header_size_alignment() const {
         return m_headerSizeAlignment;
     }
 

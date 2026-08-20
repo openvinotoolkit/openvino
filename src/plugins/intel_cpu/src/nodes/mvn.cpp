@@ -7,11 +7,11 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
-#include <common/primitive_hashing_utils.hpp>
+#include <common/primitive_hashing.hpp>
 #include <common/utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
@@ -40,6 +40,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/mvn.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 #include "utils/precision_support.h"
@@ -50,6 +51,7 @@
 #    include <common/c_types_map.hpp>
 #    include <functional>
 
+#    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #    include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #    include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
@@ -61,9 +63,11 @@
 using namespace dnnl;
 
 using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
+#endif
 
 #define GET_OFF(field) offsetof(jit_mvn_call_args, field)
 
@@ -1920,7 +1924,7 @@ bool MVN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
             // 5D: axes: [1,2,3,4], [2,3,4]
             auto axesVal = axesOp->cast_vector<int>();
             for (int& axe : axesVal) {
-                axe = axe < 0 ? axe + inDataRank : axe;
+                axe = axe < 0 ? axe + static_cast<int>(inDataRank) : axe;
             }
             std::sort(axesVal.begin(), axesVal.end());
             if (inDataRank == 1) {
@@ -1934,8 +1938,8 @@ bool MVN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                     errorMessage = "Unsupported axes.";
                     return false;
                 }
-                int value = inDataRank - 1;
-                for (int i = axesVal.size() - 1; i >= 0; i--, value--) {
+                int value = static_cast<int>(inDataRank) - 1;
+                for (int i = static_cast<int>(axesVal.size()) - 1; i >= 0; i--, value--) {
                     if (axesVal[i] != value) {
                         errorMessage = "Unsupported axes.";
                         return false;
@@ -2097,19 +2101,19 @@ void MVN::initSupportedPrimitiveDescriptors() {
 #endif  // OV_CPU_WITH_ACL
 
     impl_desc_type impl_type = [&]() {
-        if (mayiuse(cpu::x64::avx512_core)) {
+        if (ov::with_cpu_x86_avx512_core()) {
             return impl_desc_type::jit_avx512;
         }
-        if (mayiuse(cpu::x64::avx2)) {
+        if (ov::with_cpu_x86_avx2()) {
             return impl_desc_type::jit_avx2;
         }
-        if (mayiuse(cpu::x64::sse41)) {
+        if (ov::with_cpu_x86_sse42()) {
             return impl_desc_type::jit_sse42;
         }
         return impl_desc_type::ref;
     }();
 
-    if (mayiuse(cpu::x64::sse41)) {
+    if (ov::with_cpu_x86_sse42()) {
         // nspc
         if (getInputShapeAtPort(0).getRank() == 4 || getInputShapeAtPort(0).getRank() == 5) {
             pushDesc(LayoutType::nspc, impl_type);
@@ -2276,7 +2280,7 @@ void MVN::prepareParams() {
 
     auto builder = [&](const MVNKey& key) -> std::shared_ptr<MVNExecutorBase> {
         std::shared_ptr<MVNExecutorBase> executor;
-        if (mayiuse(cpu::x64::sse41)) {
+        if (ov::with_cpu_x86_sse42()) {
             executor = std::make_shared<MVNJitExecutor>(key.mvnAttrs, key.attr);
         } else {
             executor = std::make_shared<MVNRefExecutor>(key.mvnAttrs);
@@ -2385,11 +2389,11 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data,
                                   const VectorDims& shape5d,
                                   const CpuParallelPtr& cpu_parallel) {
     size_t blk_size = 1;  // blk size in vmm
-    if (mayiuse(cpu::x64::avx512_core)) {
+    if (ov::with_cpu_x86_avx512_core()) {
         blk_size = 16;
-    } else if (mayiuse(cpu::x64::avx2)) {
+    } else if (ov::with_cpu_x86_avx2()) {
         blk_size = 8;
-    } else if (mayiuse(cpu::x64::sse41)) {
+    } else if (ov::with_cpu_x86_sse42()) {
         blk_size = 4;
     }
 
@@ -2636,9 +2640,9 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data,
                                    const void* post_ops_data_,
                                    const VectorDims& shape5d) {
     size_t blk_size = 1;  // channel blk for memory layout
-    if (mayiuse(cpu::x64::avx512_core)) {
+    if (ov::with_cpu_x86_avx512_core()) {
         blk_size = 16;
-    } else if (mayiuse(cpu::x64::avx2)) {
+    } else if (ov::with_cpu_x86_avx2()) {
         blk_size = 8;
     } else {
         blk_size = 4;
@@ -2771,7 +2775,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                                   const VectorDims& shape5d,
                                   const CpuParallelPtr& cpu_parallel) {
     size_t blk_size = 1;  // channel blk for memory layout
-    if (mayiuse(cpu::x64::avx512_core)) {
+    if (ov::with_cpu_x86_avx512_core()) {
         blk_size = 16;
     } else {
         blk_size = 8;
@@ -2796,6 +2800,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
     aux_buffer_size += blk_size;
     std::vector<float> mean_buffer(aux_buffer_size * threads_num);
     std::vector<float> variance_buffer(aux_buffer_size * threads_num);
+    const size_t overflow_thread_id = std::numeric_limits<size_t>::max() / aux_buffer_size;
 
     for (size_t b = 0LU; b < N; b++) {
         size_t b_offset = b * C3;
@@ -2816,11 +2821,19 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                 //                      //  |
                 //                      // \|/
                 /////////////////////////////////
-                auto thread_idx = static_cast<size_t>(parallel_get_thread_num());
-                if (thread_idx >= threads_num) {
-                    return mean_internal;
-                }
-                auto* mean_buffer_ptr = &mean_buffer[aux_buffer_size * thread_idx];
+                auto raw_tid = parallel_get_thread_num();
+                OPENVINO_ASSERT(raw_tid >= 0, "parallel_get_thread_num() returns negative value in MVNJitExecutor");
+                const auto thread_idx = static_cast<size_t>(raw_tid);
+                OPENVINO_ASSERT(
+                    thread_idx < threads_num,
+                    "parallel_get_thread_num() returns value greater than or equal to max threads in MVNJitExecutor");
+                // Prevent overflow in aux_buffer_size * thread_idx (for static analyzers and safety)
+                OPENVINO_ASSERT(thread_idx <= overflow_thread_id,
+                                "Calculated offset for mean_buffer is too large in MVNJitExecutor");
+                const size_t offset = aux_buffer_size * thread_idx;
+                OPENVINO_ASSERT(offset <= mean_buffer.size(),
+                                "Calculated offset for mean_buffer is out of range in MVNJitExecutor");
+                auto* mean_buffer_ptr = mean_buffer.data() + offset;
                 for (size_t i = 0; i < blk_size; i++) {
                     mean_buffer_ptr[i] = 0.F;
                 }
@@ -2850,8 +2863,20 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                         size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
 
                         float variance_internal = 0.0F;
-                        auto* variance_buffer_ptr =
-                            &variance_buffer[aux_buffer_size * static_cast<size_t>(parallel_get_thread_num())];
+                        auto raw_tid = parallel_get_thread_num();
+                        OPENVINO_ASSERT(raw_tid >= 0,
+                                        "parallel_get_thread_num() returns negative value in MVNJitExecutor");
+                        const auto thread_idx = static_cast<size_t>(raw_tid);
+                        OPENVINO_ASSERT(thread_idx < threads_num,
+                                        "parallel_get_thread_num() returns value greater than or equal to max threads "
+                                        "in MVNJitExecutor");
+                        // Prevent overflow in aux_buffer_size * thread_idx (for static analyzers and safety)
+                        OPENVINO_ASSERT(thread_idx <= overflow_thread_id,
+                                        "Calculated offset for mean_buffer is too large in MVNJitExecutor");
+                        const size_t offset = aux_buffer_size * thread_idx;
+                        OPENVINO_ASSERT(offset <= variance_buffer.size(),
+                                        "Calculated offset for variance_buffer is out of range in MVNJitExecutor");
+                        auto* variance_buffer_ptr = variance_buffer.data() + offset;
                         for (size_t i = 0; i < blk_size; i++) {
                             variance_buffer_ptr[i] = 0.F;
                         }
@@ -3028,7 +3053,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
 }
 
 bool MVN::canFuse(const NodePtr& node) const {
-    if (!mayiuse(cpu::x64::sse41)) {
+    if (!ov::with_cpu_x86_sse42()) {
         return false;
     }
     // limit post ops to unary when shape transformed on channel

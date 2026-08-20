@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include <tuple>
+#include <optional>
 
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
@@ -34,6 +35,7 @@ enum class gpu_arch {
     xe_hpc = 6,
     xe2 = 7,
     xe3 = 8,
+    xe3p = 9,
 };
 
 /// @brief Defines version of GFX IP
@@ -56,13 +58,13 @@ struct gfx_version {
                <= std::tie(r.major, r.minor, r.revision); // same order
     }
 
-    bool operator==(const gfx_version& other) {
+    bool operator==(const gfx_version& other) const {
         return major == other.major &&
                minor == other.minor &&
                revision == other.revision;
     }
 
-    bool operator!=(const gfx_version& other) {
+    bool operator!=(const gfx_version& other) const {
         return !(*this == other);
     }
 };
@@ -73,14 +75,14 @@ struct pci_bus_info {
     uint32_t pci_device = 0;
     uint32_t pci_function = 0;
 
-    bool operator==(const pci_bus_info& other) {
+    bool operator==(const pci_bus_info& other) const {
         return pci_domain == other.pci_domain &&
                pci_bus == other.pci_bus &&
                pci_device == other.pci_device &&
                pci_function == other.pci_function;
     }
 
-    bool operator!=(const pci_bus_info& other) {
+    bool operator!=(const pci_bus_info& other) const {
         return !(*this == other);
     }
 };
@@ -116,8 +118,14 @@ struct device_info {
     bool supports_imad;                         ///< Does engine support int8 mad.
     bool supports_immad;                        ///< Does engine support int8 multi mad.
 
+    bool supports_mutable_command_list;         ///< [ZE] Does the target runtime/device support mutable command list feature
+
     bool supports_usm;                          ///< Does engine support unified shared memory.
     bool has_separate_cache;                    ///< Does the target hardware has separate cache for usm_device and usm_host
+
+    bool supports_cp_offload;                   ///< [L0] Does the command queue support copy offload
+    bool supports_counter_based_events;         ///< [L0] Does the target runtime support counter based events
+    bool supports_leo;                          ///< [L0] Does the device support Level Zero - OpenCL interoperability (LEO)
 
     std::vector<size_t> supported_simd_sizes;   ///< List of SIMD sizes supported by current device and compiler
 
@@ -137,11 +145,46 @@ struct device_info {
     uint32_t num_threads_per_eu;                ///< Number of hardware threads per execution unit
     uint32_t num_ccs;                           ///< Number of compute command streamers
     uint32_t sub_device_idx;                    ///< Index of sub-device
-
+    std::optional<uint32_t> cacheline_size;     ///< Cache line size in bytes
+    std::optional<uint32_t> sub_buffer_base_alignment;  ///< Alignment requirement (in bytes) for sub-buffer offsets
     pci_bus_info pci_info;                      ///< PCI bus information for the device
+
+    uint64_t timer_resolution;                  ///< [ZE] Resolution of device timer used for profiling in cycles/sec
+    uint32_t kernel_timestamp_valid_bits;       ///< [ZE] Number of valid bits in the kernel timestamp values
+    uint32_t compute_queue_group_ordinal;       ///< [ZE] Ordinal of the command queue group to use for compute
+    uint32_t device_memory_ordinal;             ///< [ZE] Ordinal of the selected global device memory
 
     ov::device::UUID uuid;                      ///< UUID of the gpu device
     ov::device::LUID luid;                      ///< LUID of the gpu device
+
+    inline bool is_same_device(const device_info &other) const {
+        // Relying solely on the UUID is not reliable in all the cases (particularly on legacy platforms),
+        // where the UUID may be missing or incorrectly generated
+        // Therefore, we also validate other attributes
+        if (uuid.uuid != other.uuid.uuid)
+            return false;
+
+        if (pci_info != other.pci_info)
+            return false;
+
+        if (sub_device_idx != other.sub_device_idx)
+            return false;
+
+        if (vendor_id != other.vendor_id ||
+            dev_name != other.dev_name ||
+            driver_version != other.driver_version)
+            return false;
+
+        if (dev_type != other.dev_type ||
+            gfx_ver != other.gfx_ver ||
+            arch != other.arch)
+            return false;
+
+        if (ip_version != other.ip_version || device_id != other.device_id)
+            return false;
+
+        return execution_units_count == other.execution_units_count && max_global_mem_size == other.max_global_mem_size;
+    }
 };
 
 /// @}

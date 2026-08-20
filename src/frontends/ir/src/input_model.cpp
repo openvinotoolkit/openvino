@@ -208,13 +208,13 @@ class InputModel::InputModelIRImpl {
     std::unordered_map<std::string, ov::OpSet> m_opsets;
     pugi::xml_node m_root;
     pugi::xml_document m_xml_doc;
-    std::string m_weights_path;
+    std::filesystem::path m_weights_path;
 
 public:
     InputModelIRImpl(std::istream& model,
                      const std::shared_ptr<ov::AlignedBuffer>& weights,
                      const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                     std::string weights_path)
+                     std::filesystem::path weights_path)
         : m_weights(weights),
           m_extensions(extensions),
           m_weights_path(std::move(weights_path)) {
@@ -226,7 +226,7 @@ public:
     InputModelIRImpl(const std::shared_ptr<ov::AlignedBuffer>& model,
                      const std::shared_ptr<ov::AlignedBuffer>& weights,
                      const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                     std::string weights_path)
+                     std::filesystem::path weights_path)
         : m_weights(weights),
           m_extensions(extensions),
           m_weights_path(std::move(weights_path)) {
@@ -249,14 +249,14 @@ private:
 InputModel::InputModel(std::istream& model,
                        const std::shared_ptr<ov::AlignedBuffer>& weights,
                        const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                       std::string weights_path) {
+                       std::filesystem::path weights_path) {
     _impl = std::make_shared<InputModelIRImpl>(model, weights, extensions, std::move(weights_path));
 }
 
 InputModel::InputModel(const std::shared_ptr<ov::AlignedBuffer>& model,
                        const std::shared_ptr<ov::AlignedBuffer>& weights,
                        const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                       std::string weights_path) {
+                       std::filesystem::path weights_path) {
     _impl = std::make_shared<InputModelIRImpl>(model, weights, extensions, std::move(weights_path));
 }
 
@@ -274,7 +274,7 @@ std::shared_ptr<ov::Model> InputModel::InputModelIRImpl::convert() {
     visitor.on_attribute("net", model);
     model->get_rt_info()["version"] = int64_t(version);
     if (!m_weights_path.empty())
-        model->get_rt_info()["__weights_path"] = m_weights_path;
+        model->get_rt_info()["__weights_path"] = ov::util::path_to_string(m_weights_path);
     parse_pre_process(m_root, m_weights, model);
 
     return model;

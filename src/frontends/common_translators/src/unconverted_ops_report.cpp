@@ -34,14 +34,24 @@ UnconvertedOpsReport collect_unconverted_ops(const std::shared_ptr<ov::Model>& m
     if (!model) {
         return report;
     }
-
     for (const auto& node : model->get_ordered_ops()) {
-        // Try framework-specific extractor first
+        // Try framework-specific extractor first; fall back to the universal
+        // FrameworkNode handler for any node the extractor did not claim.
         if (auto result = extractor(node)) {
             report.add(result->first, result->second);
+        } else if (ov::is_type<ov::op::util::FrameworkNode>(node)) {
+            // Any unclaimed FrameworkNode left at the end of conversion —
+            // typically a frontend helper like SequenceMark / SequenceAt that
+            // no transformation managed to lower — is an unconverted op too.
+            const auto& ti = node->get_type_info();
+            std::string op_name = ti.version_id ? std::string(ti.version_id) + "::" + ti.name : std::string(ti.name);
+            report.add(op_name, std::string{});
         }
 
-        // Handle MultiSubGraphOp (parent of Loop, If, etc.) - common for all frontends
+        // Handle MultiSubGraphOp instances (Loop / If / TensorIterator, and FrameworkNode
+        // subclasses such as PtFrameworkNode that hold real body subgraphs) — recurse into
+        // their body subgraphs. Helper FrameworkNodes without bodies (SequenceAt, SequenceErase,
+        // etc.) have get_internal_subgraphs_size() == 0 and the loop simply does not execute.
         if (const auto& subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
             for (size_t i = 0; i < subgraph_op->get_internal_subgraphs_size(); ++i) {
                 report.merge(collect_unconverted_ops(subgraph_op->get_function(i), extractor));

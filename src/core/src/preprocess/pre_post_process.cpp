@@ -8,6 +8,7 @@
 #include "function_guard.hpp"
 #include "itt.hpp"
 #include "layout_utils.hpp"
+#include "low_precision/low_precision.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
@@ -21,10 +22,12 @@
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
 #include "transformations/common_optimizations/ric_fusion.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
+#include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
+#include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -91,10 +94,16 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
     RTInfoCache rt_info_cache;
     rt_info_cache.store(model);
 
-    auto get_manager = []() {
+    auto get_manager = [](const ov::Model& model) {
         Manager manager("pre_post_processing");
         manager.set_per_pass_validation(false);
 
+        // To avoid extra memory allocations and ensure behavior consistent with plugin
+        // expectations, Transpose on MatMul inputs (optionally via Convert)
+        // must be fused into MatMul rather than constant-folded.
+        // Therefore, TransposeMatMul should run before the first ConstantFolding pass.
+        REGISTER_PASS(manager, TransposeConvert)
+        REGISTER_PASS(manager, TransposeMatMul)
         // prerequisite: the model structure optimization before applying of the markup
         REGISTER_PASS(manager, SharedOpOptimization)
 
@@ -104,14 +113,16 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
                       MarkGatherSubgraph,
                       element::TypeVector{element::f8e4m3},
                       element::TypeVector{element::u4});
+
         REGISTER_PASS(
             manager,
             MarkDequantization,
-            TypeVector{i32, u32, i16, u16, i8, u8, u6, i4, u4, u3, u2, u1, nf4, f4e2m1, f8e4m3, f8e5m2, f8e8m0});
+            TypeVector{i32, u32, i16, u16, i8, u8, u6, i4, u4, u3, u2, u1, nf4, f8e4m3, f8e5m2, f4e2m1, f8e8m0});
+        REGISTER_PASS(manager, MarkDequantization, TypeVector{f8e4m3, f8e5m2, f4e2m1, f8e8m0}, false, false);
         REGISTER_PASS(manager, DisableShapeOfConstantFolding, false);
         REGISTER_PASS(manager, DisableRandomUniformConstantFolding)
         // Mark quantized and f16/bf16 compressed constants to prevent CF for them,
-        // so that not extra memory is used for intermediate decompressed constants.
+        // so that no extra memory is used for intermediate decompressed constants.
         REGISTER_PASS(manager, MarkCompressedFloatConstants);
         REGISTER_PASS(manager, DisableDecompressionConvertConstantFolding);
 
@@ -132,7 +143,7 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
 
         return manager;
     };
-    static Manager manager = get_manager();
+    static thread_local Manager manager = get_manager(*model);
 
     manager.run_passes(model);
 

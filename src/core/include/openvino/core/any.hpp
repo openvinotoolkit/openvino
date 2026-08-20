@@ -12,6 +12,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <type_traits>
 #include <typeindex>
 #include <typeinfo>
 #include <unordered_map>
@@ -483,7 +484,7 @@ class OPENVINO_API Any {
         virtual bool equal(const Base& rhs) const = 0;
         virtual void print(std::ostream& os) const = 0;
         virtual void read(std::istream& os) = 0;
-        void read_to(Base& other) const;
+        virtual void read_from(const Base& other);
 
         virtual const DiscreteTypeInfo& get_type_info() const = 0;
         virtual std::shared_ptr<RuntimeAttribute> as_runtime_attribute() const;
@@ -683,6 +684,16 @@ class OPENVINO_API Any {
             read_impl(is, value);
         }
 
+        void read_from(const Base& other) override {
+            if constexpr (std::is_same<T, std::string>::value) {
+                std::stringstream strm;
+                other.print(strm);
+                value = strm.str();
+            } else {
+                Base::read_from(other);
+            }
+        }
+
         T value;
     };
 
@@ -704,7 +715,7 @@ class OPENVINO_API Any {
                 return _impl->as<T>();
             } else {
                 _temp = std::make_shared<Impl<std::string>>();
-                _impl->read_to(*_temp);
+                _temp->read_from(*_impl);
                 return _temp->as<std::string>();
             }
         } else {
@@ -765,7 +776,7 @@ class OPENVINO_API Any {
             return _impl->as<T>();
         } else if (_impl->is<std::string>()) {
             _temp = std::make_shared<Impl<decay_t<T>>>();
-            _impl->read_to(*_temp);
+            _temp->read_from(*_impl);
             return _temp->as<T>();
         }
 
@@ -979,7 +990,7 @@ T& Any::as_impl(int) {
         return _impl->as<T>();
     } else if (util::Readable<T>::value && _impl->is<std::string>()) {
         _temp = std::make_shared<Impl<decay_t<T>>>();
-        _impl->read_to(*_temp);
+        _temp->read_from(*_impl);
         return _temp->as<T>();
     } else if (_impl->is_signed_integral()) {
         auto value = _impl->convert<long long>();

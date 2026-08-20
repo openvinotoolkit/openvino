@@ -82,10 +82,10 @@ public:
     void set_gate_idx(size_t gate_idx) {
         m_gate_idx = gate_idx;
     }
-    void set_clamp_min(int64_t min) {
+    void set_clamp_min(float min) {
         m_clamp_min = min;
     }
-    void set_clamp_max(int64_t max) {
+    void set_clamp_max(float max) {
         m_clamp_max = max;
     }
     void set_swiglu_beta(float beta) {
@@ -104,7 +104,7 @@ private:
     float m_clamp_max = std::numeric_limits<float>::max();
     float m_swiglu_beta = 1.0f;
     float m_up_add_val = 0.0f;
-    ov::element::Type m_output_type{};
+    ov::element::Type m_output_type;
 };
 
 std::vector<ov::PartialShape> shape_infer(const ov::intel_gpu::op::SwiGluWithClamp* op,

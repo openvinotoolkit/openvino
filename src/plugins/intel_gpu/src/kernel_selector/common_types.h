@@ -66,6 +66,7 @@ enum class KernelType {
     SDPA,
     SHUFFLE_CHANNELS,
     SLICE,
+    SLICE_SCATTER,
     STRIDED_SLICE,
     REVERSE_SEQUENCE,
     QUANTIZE,
@@ -106,6 +107,7 @@ enum class KernelType {
     ROPE,
     DYNAMIC_QUANTIZE,
     SEARCH_SORTED,
+    SEGMENT_MAX,
     STFT,
     ISTFT,
     COL2IM,
@@ -117,6 +119,7 @@ enum class KernelType {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 enum class Datatype {
     UNSUPPORTED,
+    UINT2,
     UINT4,
     INT4,
     INT8,
@@ -129,6 +132,10 @@ enum class Datatype {
     F16,
     F32,
     BF16,
+    F4E2M1,
+    F8E4M3,
+    F8E5M2,
+    F8E8M0,
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -140,10 +147,15 @@ enum class WeightsType {
     F32,
     INT8,
     UINT8,
+    UINT2,
     UINT4,
     INT4,
     INT32,
-    BF16
+    BF16,
+    F4E2M1,
+    F8E4M3,
+    F8E5M2,
+    F8E8M0,
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -195,7 +207,8 @@ enum class ActivationFunction {
     GELU,
     GELU_TANH,
     ROUND_HALF_TO_EVEN,
-    ROUND_HALF_AWAY_FROM_ZERO
+    ROUND_HALF_AWAY_FROM_ZERO,
+    ERFINV
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -318,7 +331,8 @@ enum class EltwiseMode {
     LEFT_SHIFT,
     BITWISE_AND,
     BITWISE_OR,
-    BITWISE_XOR
+    BITWISE_XOR,
+    ATAN2
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -370,6 +384,8 @@ enum class ConcatAxis {
     Y,
     Z,
     W,
+    U,
+    V,
     FEATURE,
     BATCH
 };

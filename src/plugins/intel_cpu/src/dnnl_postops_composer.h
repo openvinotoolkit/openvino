@@ -86,12 +86,12 @@ private:
                       bool isLastPostOp,
                       bool allowBinary = true);
     void appendClip(const std::vector<float>& low, const std::vector<float>& high);
-    void appendDepthwiseConvolution(int inH,
-                                    int inW,
-                                    int kerH,
-                                    int kerW,
-                                    int strH,
-                                    int strW,
+    void appendDepthwiseConvolution(size_t inH,
+                                    size_t inW,
+                                    size_t kerH,
+                                    size_t kerW,
+                                    size_t strH,
+                                    size_t strW,
                                     dnnl::memory::data_type inDataType);
     void appendZeroPoints(const MemoryArgs& memory);
     void appendZeroPointsLegacy(const MemoryArgs& memory);

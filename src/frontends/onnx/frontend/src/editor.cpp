@@ -157,8 +157,9 @@ void modify_initializer(TensorProto& initializer,
         initializer.add_dims(dim);
     }
 
-    const auto data_size_in_bytes = shape_size(values->get_shape()) * get_onnx_data_size(initializer.data_type());
-    initializer.set_raw_data(values->get_data_ptr(), data_size_in_bytes);
+    // Constant::get_byte_size() accounts for sub-byte (nibble) types, which are stored packed,
+    // unlike shape_size() * get_onnx_data_size(), which would over-read the constant buffer.
+    initializer.set_raw_data(values->get_data_ptr(), values->get_byte_size());
 
     // update input with type and shape of initializer
     if (input) {
@@ -313,45 +314,28 @@ struct ONNXModelEditor::Impl {
         graph_topological_sort(m_model_proto->mutable_graph());
     }
 
-    Impl(const std::string& model_path) : Impl(std::make_shared<ModelProto>(parse_from_file(model_path))) {}
+    Impl(const std::filesystem::path& model_path) : Impl(std::make_shared<ModelProto>(parse_from_file(model_path))) {}
 
     Impl(std::istream& model_stream) : Impl(std::make_shared<ModelProto>(parse_from_istream(model_stream))) {}
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    Impl(const std::wstring& model_path) : Impl(std::make_shared<ModelProto>(parse_from_file(model_path))) {}
-#endif
 };
 
-ONNXModelEditor::ONNXModelEditor(const std::string& model_path,
+ONNXModelEditor::ONNXModelEditor(const std::filesystem::path& model_path,
                                  const bool enable_mmap,
                                  frontend::ExtensionHolder extensions)
     : m_model_path{model_path},
-      m_mmap_cache{enable_mmap ? std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>()
+      m_mmap_cache{enable_mmap ? std::make_shared<std::map<std::filesystem::path, std::shared_ptr<ov::MappedMemory>>>()
                                : nullptr},
       m_extensions{std::move(extensions)},
       m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
                   delete impl;
               }} {}
 
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-ONNXModelEditor::ONNXModelEditor(const std::wstring& model_path,
-                                 const bool enable_mmap,
-                                 frontend::ExtensionHolder extensions)
-    : m_extensions{std::move(extensions)},
-      m_model_path{ov::util::wstring_to_string(model_path)},
-      m_mmap_cache{enable_mmap ? std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>()
-                               : nullptr},
-      m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
-                  delete impl;
-              }} {}
-#endif
-
 ONNXModelEditor::ONNXModelEditor(std::istream& model_stream,
-                                 const std::string& model_path,
+                                 const std::filesystem::path& model_path,
                                  const bool enable_mmap,
                                  frontend::ExtensionHolder extensions)
     : m_model_path{model_path},
-      m_mmap_cache{enable_mmap ? std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>()
+      m_mmap_cache{enable_mmap ? std::make_shared<std::map<std::filesystem::path, std::shared_ptr<ov::MappedMemory>>>()
                                : nullptr},
       m_extensions{std::move(extensions)},
       m_pimpl{new ONNXModelEditor::Impl{model_stream}, [](Impl* impl) {
@@ -366,11 +350,11 @@ ONNXModelEditor::ONNXModelEditor(std::shared_ptr<ModelProto> model_proto, fronte
                   delete impl;
               }} {}
 
-const std::string& ONNXModelEditor::model_path() const {
+const std::filesystem::path& ONNXModelEditor::model_path() const {
     return m_model_path;
 }
 
-void ONNXModelEditor::serialize(const std::string& out_file_path) const {
+void ONNXModelEditor::serialize(const std::filesystem::path& out_file_path) const {
     std::ofstream out_file{out_file_path, std::ios::out | std::ios::binary};
 
     OPENVINO_ASSERT(out_file.is_open(), "Could not open the file: ", out_file_path);

@@ -15,15 +15,13 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(one_hot)
 
-static bool is_output_bfzyx(const layout& input, int32_t axis) {
+static bool is_output_bfzyx(const layout& input, int64_t axis) {
     if (input.format == format::bfzyx)
         return true;
     if (axis == 4)
         return true;
     auto in_dims = input.get_tensor().sizes(format::bfyx);
-    if (in_dims[3] != 1)
-        return true;
-    return false;
+    return in_dims[3] != 1;
 }
 
 layout one_hot_inst::calc_output_layout(one_hot_node const& node, kernel_impl_params const& impl_param) {
@@ -66,7 +64,7 @@ std::vector<layout> one_hot_inst::calc_output_layouts(const one_hot_node& /*node
     };
 
     int64_t depth = desc->depth;
-    auto& memory_deps = impl_param.memory_deps;
+    const auto& memory_deps = impl_param.memory_deps;
 
     std::unordered_map<size_t, ov::Tensor> const_data = {};
     if (depth != 0) {
@@ -76,7 +74,7 @@ std::vector<layout> one_hot_inst::calc_output_layouts(const one_hot_node& /*node
         auto depth_mem = memory_deps.at(1);
 
         cldnn::mem_lock<uint8_t, mem_lock_type::read> depth_lock(depth_mem, impl_param.get_stream());
-        auto depth_ptr = depth_lock.data();
+        auto* depth_ptr = depth_lock.data();
 
         // update depth_tensor if depth value comes from memory_deps instead of Constant node
         auto depth_tensor = make_tensor(depth_mem->get_layout(), depth_ptr);

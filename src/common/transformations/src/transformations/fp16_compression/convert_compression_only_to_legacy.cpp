@@ -9,7 +9,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;

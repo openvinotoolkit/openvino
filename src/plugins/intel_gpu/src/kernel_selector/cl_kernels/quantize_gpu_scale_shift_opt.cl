@@ -28,6 +28,11 @@ KERNEL(quantize_gpu_scale_shift_opt)(OPTIONAL_SHAPE_INFO_ARG
     const int b = get_global_id(GWS_BATCH);
     const int of = get_global_id(GWS_FEATURE);
 
+#if FEATURE_BLOCKED_FORMAT
+    if (of >= OUTPUT_FEATURE_NUM || b >= OUTPUT_BATCH_NUM)
+        return;
+#endif
+
 #if OUTPUT_DIMS <= 4
     const int yx = get_global_id(GWS_YX);
 
@@ -126,40 +131,40 @@ KERNEL(quantize_gpu_scale_shift_opt)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #if PER_TENSOR_INPUT_SCALE
-    INPUT1_TYPE input_scale_val  = IN_SCALE_VAL;
+    INPUT1_COMPUTE_TYPE input_scale_val  = IN_SCALE_VAL;
 #else
-    INPUT1_TYPE input_scale_val  = input_scale[scales_offset];
+    INPUT1_COMPUTE_TYPE input_scale_val  = input_scale[scales_offset];
 #endif
 
 #if PER_TENSOR_INPUT_SHIFT
-    INPUT1_TYPE input_shift_val  = IN_SHIFT_VAL;
+    INPUT1_COMPUTE_TYPE input_shift_val  = IN_SHIFT_VAL;
 #else
-    INPUT1_TYPE input_shift_val  = input_shift[scales_offset];
+    INPUT1_COMPUTE_TYPE input_shift_val  = input_shift[scales_offset];
 #endif
 
 #if PER_TENSOR_OUTPUT_SCALE
-    INPUT1_TYPE output_scale_val = OUT_SCALE_VAL;
+    INPUT1_COMPUTE_TYPE output_scale_val = OUT_SCALE_VAL;
 #else
-    INPUT1_TYPE output_scale_val = output_scale[scales_offset];
+    INPUT1_COMPUTE_TYPE output_scale_val = output_scale[scales_offset];
 #endif
 
 #if PER_TENSOR_OUTPUT_SHIFT
-    INPUT1_TYPE output_shift_val = OUT_SHIFT_VAL;
+    INPUT1_COMPUTE_TYPE output_shift_val = OUT_SHIFT_VAL;
 #else
-    INPUT1_TYPE output_shift_val = output_shift[scales_offset];
+    INPUT1_COMPUTE_TYPE output_shift_val = output_shift[scales_offset];
 #endif
 
 #if HAS_CLAMP
 #if CAN_USE_OUTPUT_RANGE
-    INPUT1_TYPE output_low_val   = OUT_LO_VAL;
-    INPUT1_TYPE output_high_val  = OUT_HI_VAL;
+    INPUT1_COMPUTE_TYPE output_low_val   = OUT_LO_VAL;
+    INPUT1_COMPUTE_TYPE output_high_val  = OUT_HI_VAL;
 #else
 #if PER_TENSOR_INPUT_RANGE
-    INPUT1_TYPE input_low_val    = IN_LO_VAL;
-    INPUT1_TYPE input_high_val   = IN_HI_VAL;
+    INPUT1_COMPUTE_TYPE input_low_val    = IN_LO_VAL;
+    INPUT1_COMPUTE_TYPE input_high_val   = IN_HI_VAL;
 #else
-    INPUT1_TYPE input_low_val    = input_low[in_range_offset];
-    INPUT1_TYPE input_high_val   = input_high[in_range_offset];
+    INPUT1_COMPUTE_TYPE input_low_val    = input_low[in_range_offset];
+    INPUT1_COMPUTE_TYPE input_high_val   = input_high[in_range_offset];
 #endif // PER_TENSOR_INPUT_RANGE
 #endif // CAN_USE_OUTPUT_RANGE
 #endif // HAS_CLAMP
@@ -171,9 +176,9 @@ KERNEL(quantize_gpu_scale_shift_opt)(OPTIONAL_SHAPE_INFO_ARG
 #if CAN_USE_OUTPUT_RANGE
 
 #if HAS_PRE_SHIFT
-    INPUT1_TYPE val = TO_INPUT1_TYPE(input[input_offset]) * input_scale_val + input_shift_val;
+    INPUT1_COMPUTE_TYPE val = TO_INPUT1_COMPUTE_TYPE(DECODE_INPUT0_COMPUTE_TYPE(input[input_offset])) * input_scale_val + input_shift_val;
 #else
-    INPUT1_TYPE val = TO_INPUT1_TYPE(input[input_offset]) * input_scale_val;
+    INPUT1_COMPUTE_TYPE val = TO_INPUT1_COMPUTE_TYPE(DECODE_INPUT0_COMPUTE_TYPE(input[input_offset])) * input_scale_val;
 #endif
 
 #if HAS_OUTPUT_RANGE_ROUND
@@ -205,9 +210,9 @@ KERNEL(quantize_gpu_scale_shift_opt)(OPTIONAL_SHAPE_INFO_ARG
 #else // CAN_USE_OUTPUT_RANGE
 
 #if HAS_CLAMP
-    INPUT1_TYPE val = clamp(TO_INPUT1_TYPE(input[input_offset]), input_low_val, input_high_val);
+    INPUT1_COMPUTE_TYPE val = clamp(TO_INPUT1_COMPUTE_TYPE(DECODE_INPUT0_COMPUTE_TYPE(input[input_offset])), input_low_val, input_high_val);
 #else
-    INPUT1_TYPE val = TO_INPUT1_TYPE(input[input_offset]);
+    INPUT1_COMPUTE_TYPE val = TO_INPUT1_COMPUTE_TYPE(DECODE_INPUT0_COMPUTE_TYPE(input[input_offset]));
 #endif
 
 #if HAS_PRE_SHIFT
@@ -230,9 +235,6 @@ KERNEL(quantize_gpu_scale_shift_opt)(OPTIONAL_SHAPE_INFO_ARG
 // Common section with results writing //
 // *********************************** //
 
-#if FEATURE_BLOCKED_FORMAT
-    if (of < OUTPUT_FEATURE_NUM)
-#endif
 #if OUTPUT_IS_FP
         output[output_offset] = TO_OUTPUT_TYPE_SAT(val);
 #else

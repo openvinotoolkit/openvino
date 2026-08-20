@@ -97,14 +97,15 @@ inline size_t GemmKernelMMADint8::GetMmadOperationsNumber(const GemmTuningData& 
 
 bool GemmKernelMMADint8::HasLeftovers(const GemmTuningData& tuning_data, int tile_size) const {
     if (tile_size == 32) {
-        return tuning_data.size_m % 32 || tuning_data.size_n % 16 || tuning_data.size_k % 64;
-    } else if (tile_size == 16) {
-        return tuning_data.size_m % 16 || tuning_data.size_n % 16 || tuning_data.size_k % 64;
-    } else if (tile_size == 8) {
-        return tuning_data.size_m % 8 || tuning_data.size_n % 8 || tuning_data.size_k % 32;
-    } else {
-        return true;
+        return ((tuning_data.size_m % 32) != 0u) || ((tuning_data.size_n % 16) != 0u) || ((tuning_data.size_k % 64) != 0u);
     }
+    if (tile_size == 16) {
+        return ((tuning_data.size_m % 16) != 0u) || ((tuning_data.size_n % 16) != 0u) || ((tuning_data.size_k % 64) != 0u);
+    }
+    if (tile_size == 8) {
+        return ((tuning_data.size_m % 8) != 0u) || ((tuning_data.size_n % 8) != 0u) || ((tuning_data.size_k % 32) != 0u);
+    }
+    return true;
 }
 
 GemmKernelMMADint8::GemmTuningData GemmKernelMMADint8::SetTuningParams(const gemm_params& params) const {
@@ -117,14 +118,14 @@ GemmKernelMMADint8::GemmTuningData GemmKernelMMADint8::SetTuningParams(const gem
 
     bool small_matrices = mmad_operations_number <= 128 * 128 * 128;
     bool very_big_matrices = mmad_operations_number >= 1024 * 1024 * 1024;
-    bool no_input2 = params.inputs.size() == 3 ? false : true;
+    bool no_input2 = params.inputs.size() != 3;
 
     size_t simd_size = 16;
     size_t tile_num = 1;
 
     if (!leftovers_simd16x2 && very_big_matrices && no_input2)
         { simd_size = 16; tile_num = 2; }
-    else if ((leftovers_simd16 && !leftovers_simd8) || small_matrices)
+    else if (((leftovers_simd16 && !leftovers_simd8) || small_matrices) && IsSIMDSizeSupported(params.engineInfo, 8))
         { simd_size = 8; }
 
     tuning_data.simd_size = simd_size;

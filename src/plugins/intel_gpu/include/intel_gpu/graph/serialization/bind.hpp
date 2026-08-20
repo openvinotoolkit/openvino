@@ -40,17 +40,22 @@ struct saver_storage {
     }
 
     const save_function& get_save_function(const std::string& type) const {
-        return map.at(type);
+        try {
+            return map.at(type);
+        } catch (const std::exception& e) {
+            OPENVINO_THROW("saver_storage: Failed to get save function for type: ", type, ". Error: ", e.what());
+        }
     }
 
     void set_save_function(const value_type& pair) {
         map.insert(pair);
     }
 
-private:
-    saver_storage() = default;
     saver_storage(const saver_storage&) = delete;
     void operator=(const saver_storage&) = delete;
+
+private:
+    saver_storage() = default;
 
     std::unordered_map<std::string, save_function> map;
 };
@@ -70,17 +75,22 @@ struct loader_storage {
     }
 
     const FuncT& get_load_function(const std::string& type) {
-        return map.at(type);
+        try {
+            return map.at(type);
+        } catch (const std::exception& e) {
+            OPENVINO_THROW("loader_storage: Failed to get load function for type: ", type, ". Error: ", e.what());
+        }
     }
 
     void set_load_function(const value_type& pair) {
         map.insert(pair);
     }
 
-private:
-    loader_storage() = default;
     loader_storage(const loader_storage&) = delete;
     void operator=(const loader_storage&) = delete;
+
+private:
+    loader_storage() = default;
 
     std::unordered_map<std::string, FuncT> map;
 };
@@ -102,13 +112,13 @@ public:
         return instance;
     }
 
+    buffer_binder(const buffer_binder&) = delete;
+    void operator=(const buffer_binder&) = delete;
+
 private:
     buffer_binder() {
         saver_storage<BufferType>::instance().set_save_function({T::get_type_info_s(), save});
     }
-
-    buffer_binder(const buffer_binder&) = delete;
-    void operator=(const buffer_binder&) = delete;
 
     template <typename Derived>
     static const Derived* downcast(const void* base_ptr) {
@@ -130,6 +140,9 @@ public:
         return instance;
     }
 
+    buffer_binder(const buffer_binder&) = delete;
+    void operator=(const buffer_binder&) = delete;
+
 private:
     buffer_binder() {
         def<BufferType>::instance().set_load_function(
@@ -139,9 +152,6 @@ private:
             result_ptr.reset(derived_ptr.release());
         }});
     }
-
-    buffer_binder(const buffer_binder&) = delete;
-    void operator=(const buffer_binder&) = delete;
 };
 
 template <typename BufferType, typename T>
@@ -153,6 +163,9 @@ public:
         return instance;
     }
 
+    buffer_binder(const buffer_binder&) = delete;
+    void operator=(const buffer_binder&) = delete;
+
 private:
     buffer_binder() {
         dif<BufferType>::instance().set_load_function(
@@ -162,9 +175,6 @@ private:
             result_ptr.reset(derived_ptr.release());
         }});
     }
-
-    buffer_binder(const buffer_binder&) = delete;
-    void operator=(const buffer_binder&) = delete;
 };
 
 template <typename BufferType, typename T>

@@ -50,7 +50,7 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
+        if (is_dynamic() && !_kernel_data.kernelName.empty()) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
@@ -87,9 +87,9 @@ public:
                     size_t total = std::accumulate(static_shape.begin(), static_shape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
                     auto dim = feature.is_static() ? feature.get_length() : static_cast<int64_t>(static_shape[rank - 1]);
                     return ov::PartialShape{ static_cast<int64_t>(total) / dim, dim };
-                } else {
-                    return ov::PartialShape{ ov::Dimension::dynamic(), feature };
                 }
+                return ov::PartialShape{ov::Dimension::dynamic(), feature};
+
             };
 
             auto input0_layout = input_layouts[0];
@@ -137,8 +137,9 @@ public:
 
             auto input0_pshape = input_layouts[0].get_partial_shape();
             auto input1_pshape = input_layouts[1].get_partial_shape();
-            ov::PartialShape updated_out_pshape {input0_pshape[0], input1_pshape[0]};
-            const auto output_feature_size = swiglu_fused ? input1_pshape[0] / 2 : input1_pshape[0];
+            const auto out_features_dim = primitive->weights_transposed ? input1_pshape[0] : input1_pshape[1];
+            ov::PartialShape updated_out_pshape {input0_pshape[0], out_features_dim};
+            const auto output_feature_size = swiglu_fused ? out_features_dim / 2 : out_features_dim;
 
             if (primitive->input_size == 3) {
                 updated_out_pshape = { input0_pshape[0], input0_pshape[1], output_feature_size};
@@ -151,7 +152,7 @@ public:
         bool allow_new_shape_infer = impl_param.get_program().is_new_shape_infer();
         auto updated_impl_param = impl_param;
         bool swiglu_fused = false;
-        if (updated_impl_param.fused_desc.size() > 0) {
+        if (!updated_impl_param.fused_desc.empty()) {
             for (const auto& f : updated_impl_param.fused_desc) {
                 if (f.is_type<swiglu>())
                     swiglu_fused = true;
@@ -199,7 +200,7 @@ public:
             params.outputs = { params.outputs[0].FlattenFeatureAndSpatials() };
 
         bool is_quantized = true;
-        for (auto& input : impl_param.input_layouts)
+        for (const auto& input : impl_param.input_layouts)
             is_quantized &= data_type_traits::is_quantized(input.data_type);
 
         if (is_quantized) {

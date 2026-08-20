@@ -55,6 +55,14 @@ def test_properties_rw_base():
             ),
         ),
         (
+            props.CompatibilityCheck,
+            (
+                (props.CompatibilityCheck.NOT_APPLICABLE, "CompatibilityCheck.NOT_APPLICABLE", 0),
+                (props.CompatibilityCheck.SUPPORTED, "CompatibilityCheck.SUPPORTED", 1),
+                (props.CompatibilityCheck.UNSUPPORTED, "CompatibilityCheck.UNSUPPORTED", 2),
+            ),
+        ),
+        (
             props.WorkloadType,
             (
                 (props.WorkloadType.DEFAULT, "WorkloadType.DEFAULT", 0),
@@ -88,9 +96,7 @@ def test_properties_rw_base():
         ),
         (
             hints.ModelDistributionPolicy,
-            (
-                (hints.ModelDistributionPolicy.TENSOR_PARALLEL, "ModelDistributionPolicy.TENSOR_PARALLEL", 0),
-            ),
+            ((hints.ModelDistributionPolicy.TENSOR_PARALLEL, "ModelDistributionPolicy.TENSOR_PARALLEL", 0),),
         ),
         (
             hints.ExecutionMode,
@@ -187,6 +193,8 @@ def test_conflicting_enum(proxy_enums, expected_values):
         (props.range_for_async_infer_requests, "RANGE_FOR_ASYNC_INFER_REQUESTS"),
         (props.execution_devices, "EXECUTION_DEVICES"),
         (props.loaded_from_cache, "LOADED_FROM_CACHE"),
+        (props.runtime_requirements, "RUNTIME_REQUIREMENTS"),
+        (props.compatibility_check, "COMPATIBILITY_CHECK"),
         (device.full_name, "FULL_DEVICE_NAME"),
         (device.architecture, "DEVICE_ARCHITECTURE"),
         (device.type, "DEVICE_TYPE"),
@@ -204,6 +212,7 @@ def test_conflicting_enum(proxy_enums, expected_values):
         (intel_npu.device_total_mem_size, "NPU_DEVICE_TOTAL_MEM_SIZE"),
         (intel_npu.driver_version, "NPU_DRIVER_VERSION"),
         (intel_npu.compiler_version, "NPU_COMPILER_VERSION"),
+        (intel_npu.max_tiles, "NPU_MAX_TILES")
     ],
 )
 def test_properties_ro(ov_property_ro, expected_value):
@@ -480,11 +489,6 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((128, 128),),
         ),
         (
-            intel_npu.max_tiles,
-            "NPU_MAX_TILES",
-            ((128, 128),),
-        ),
-        (
             intel_npu.bypass_umd_caching,
             "NPU_BYPASS_UMD_CACHING",
             ((True, True),),
@@ -586,6 +590,37 @@ def test_properties_device_properties():
            "GPU": make_dict(streams.num(1), hints.inference_precision(Type.f16))},
           {"CPU": {"INFERENCE_PRECISION_HINT": Type.f32, "NUM_STREAMS": streams.Num(2)},
            "GPU": {"INFERENCE_PRECISION_HINT": Type.f16, "NUM_STREAMS": streams.Num(1)}})
+
+
+def test_properties_devices_utilization_threshold():
+    # Assert the property name is correctly registered
+    assert intel_auto.devices_utilization_threshold == "DEVICES_UTILIZATION_THRESHOLD"
+
+    def check(value1, value2):
+        ret = intel_auto.devices_utilization_threshold(value1)
+        assert ret[0] == "DEVICES_UTILIZATION_THRESHOLD"
+        assert ret[1].value == value2
+
+    # Test cases for different input formats and expected outputs
+    check({"GPU": 88}, {"GPU": 88})
+    check({"CPU": 75, "GPU": 88}, {"CPU": 75, "GPU": 88})
+    with pytest.raises(TypeError) as e:
+        value = {"GPU": "75"}
+        intel_auto.devices_utilization_threshold(value)
+    assert "incompatible function arguments" in str(e.value)
+
+    with pytest.raises(TypeError) as e:
+        value = {23: "CPU"}
+        intel_auto.devices_utilization_threshold(value)
+    assert "incompatible function arguments" in str(e.value)
+
+
+def test_properties_low_power_device():
+    assert intel_auto.low_power_device == "LOW_POWER_DEVICE"
+
+    property_tuple = intel_auto.low_power_device("NPU")
+    assert property_tuple[0] == "LOW_POWER_DEVICE"
+    assert property_tuple[1].value == "NPU"
 
 
 def test_properties_streams():

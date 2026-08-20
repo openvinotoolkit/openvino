@@ -43,12 +43,16 @@ TEST(conditional_compilation, collect_ops_in_opset) {
 #define ov_opset_test_opset1_Abs 1
     ov::OpSet opset("test_opset1");
     INSERT_OP(test_opset1, Abs, ov::op::v0);
-    EXPECT_NE(opset.create("Abs"), nullptr);
-    EXPECT_NE(opset.create_insensitive("Abs"), nullptr);
+    auto node = std::shared_ptr<ov::Node>(opset.create("Abs"));
+    EXPECT_NE(node.get(), nullptr);
+    node = std::shared_ptr<ov::Node>(opset.create_insensitive("Abs"));
+    EXPECT_NE(node.get(), nullptr);
 
     INSERT_OP(test_opset1, Constant, ov::op::v0);
-    EXPECT_NE(opset.create("Constant"), nullptr);
-    EXPECT_NE(opset.create_insensitive("Constant"), nullptr);
+    node = std::shared_ptr<ov::Node>(opset.create("Constant"));
+    EXPECT_NE(node.get(), nullptr);
+    node = std::shared_ptr<ov::Node>(opset.create_insensitive("Constant"));
+    EXPECT_NE(node.get(), nullptr);
 #undef ov_opset_test_opset1_Abs
 }
 

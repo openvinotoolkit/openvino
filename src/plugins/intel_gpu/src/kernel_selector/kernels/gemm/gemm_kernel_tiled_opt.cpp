@@ -87,7 +87,7 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
         tuning_data.tile_k_size = tuning_data.simd_size;
         tuning_data.tile_m_size = tuning_data.simd_size;
 
-        bool leftovers = m_size % tuning_data.tile_m_size || k_size % tuning_data.tile_k_size || n_size % tuning_data.tile_n_size;
+        bool leftovers = ((m_size % tuning_data.tile_m_size) != 0u) || ((k_size % tuning_data.tile_k_size) != 0u) || ((n_size % tuning_data.tile_n_size) != 0u);
 
         if (leftovers || total_batches > 1 || params.transpose_input0 || params.transpose_input1 || !IsSIMDSizeSupported(params.engineInfo, 8)) {
             tuning_data.simd_size = 16;
@@ -108,7 +108,7 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
         tuning_data.simd_size = 16;
         tuning_data.tile_k_size = tuning_data.simd_size;
         tuning_data.tile_m_size = tuning_data.simd_size;
-        bool output_ndim_transposed = (params.output_order.size() > 0 && (params.output_order.back() != (static_cast<int>(params.output_order.size()) - 1)));
+        bool output_ndim_transposed = (!params.output_order.empty() && (params.output_order.back() != (static_cast<int>(params.output_order.size()) - 1)));
         if ((params.transpose_input0 == 0 /*X_LAST*/) && (params.transpose_input1 == 0 /*X_LAST*/ || params.transpose_input1 == 1 /*Y_LAST*/)
             && (!params.indirect_input0 && !params.inputs[0].has_dynamic_pad() && params.indirect_axis != 1)
             && (!output_ndim_transposed || params.fused_ops.empty())
@@ -171,6 +171,7 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
                 k_aligned_4byte = "(" + k_size + "*" + bytes_per_element + " % 4 == 0)";
             }
         }
+        const std::string n_aligned_with_simd_tile = "(" + leftover_n + "==0)";
 
         jit.AddConstants({
             MakeJitConstant("M", m_size),
@@ -180,6 +181,7 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             MakeJitConstant("N_PADDED", n_padded_size),
             MakeJitConstant("K_IS_ALIGNED_4BYTE", k_aligned_4byte),
             MakeJitConstant("N_IS_ALIGNED_4BYTE", n_aligned_4byte),
+            MakeJitConstant("N_IS_ALIGNED_WITH_SIMD_TILE", n_aligned_with_simd_tile),
             MakeJitConstant("SIMD_WIDTH", tuning_data.simd_size),
             MakeJitConstant("TILE_M", tuning_data.tile_m_size),
             MakeJitConstant("TILE_K", tuning_data.tile_k_size),
@@ -199,7 +201,7 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             MakeJitConstant("TR_X", GetTransposedDims(params.output_order, true).at(7)),
         });
 
-        bool transpose_output = (params.output_order.size() > 0 && (params.output_order.back() != (static_cast<int>(params.output_order.size()) - 1)));
+        bool transpose_output = (!params.output_order.empty() && (params.output_order.back() != (static_cast<int>(params.output_order.size()) - 1)));
         if (transpose_output)
             jit.AddConstant(MakeJitConstant("TRANSPOSE_OUTPUT", 2 /* set as TRANSPOSE_OTHER */));
         else
@@ -216,32 +218,37 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             const size_t rank = data_tensor.GetDims().size();
             if (dims_order.size() > 1 && dim.compare("Y") == 0) {
                 target_dim_idx = dims_order.at(dims_order.size() - 2);
-            } else if (dims_order.size() > 0 && dim.compare("X") == 0) {
+            } else if (!dims_order.empty() && dim.compare("X") == 0) {
                 target_dim_idx = dims_order.back();
-            } else if (dims_order.size() == 0 && dim.compare("Y") == 0) {
+            } else if (dims_order.empty() && dim.compare("Y") == 0) {
                 target_dim_idx = rank - 2;
-            } else if (dims_order.size() == 0 && dim.compare("X") == 0) {
+            } else if (dims_order.empty() && dim.compare("X") == 0) {
                 target_dim_idx = rank - 1;
             } else {
                 OPENVINO_THROW("Unsupported dimension: ", dim);
             }
 
             size_t loc = static_cast<size_t>(target_dim_idx);
-            if (dims_order.size() > 0) {
+            if (!dims_order.empty()) {
                 loc += (dims_order.size() < rank) ? (rank - dims_order.size()) : 0;
             }
 
             if (loc == 0) {
                 return data_tensor.Batch().v;
-            } else if (loc == 1) {
+            }
+            if (loc == 1) {
                 return data_tensor.Feature().v;
-            } else if (loc == (rank - 1) && rank >= 3) {
+            }
+            if (loc == (rank - 1) && rank >= 3) {
                 return data_tensor.X().v;
-            } else if (loc == (rank - 2) && rank >= 4) {
+            }
+            if (loc == (rank - 2) && rank >= 4) {
                 return data_tensor.Y().v;
-            } else if (loc == (rank - 3) && rank >= 5) {
+            }
+            if (loc == (rank - 3) && rank >= 5) {
                 return data_tensor.Z().v;
-            } else if (loc == (rank - 4) && rank >= 6) {
+            }
+            if (loc == (rank - 4) && rank >= 6) {
                 return data_tensor.W().v;
             }
             OPENVINO_THROW("Target dimension is not found.");
@@ -255,6 +262,7 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
         auto leftover_k = k_size % tuning_data.tile_k_size;
         auto n_aligned_4byte = (n_size * BytesPerElement(params.inputs[0].GetDType())) % 4 == 0;
         auto k_aligned_4byte = (k_size * BytesPerElement(params.inputs[0].GetDType())) % 4 == 0;
+        auto n_aligned_with_simd_tile = leftover_n == 0;
 
         jit.AddConstants({
             MakeJitConstant("M", m_size),
@@ -264,6 +272,7 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             MakeJitConstant("N_PADDED", n_size),
             MakeJitConstant("K_IS_ALIGNED_4BYTE", k_aligned_4byte),
             MakeJitConstant("N_IS_ALIGNED_4BYTE", n_aligned_4byte),
+            MakeJitConstant("N_IS_ALIGNED_WITH_SIMD_TILE", n_aligned_with_simd_tile),
             MakeJitConstant("SIMD_WIDTH", tuning_data.simd_size),
             MakeJitConstant("TILE_M", tuning_data.tile_m_size),
             MakeJitConstant("TILE_K", tuning_data.tile_k_size),
@@ -400,18 +409,23 @@ KernelsData GemmKernelTiledOpt::GetKernelsData(const Params& params) const {
         if (params.is_shape_agnostic) {
             cldnn_jit.RemoveConstant("TILE_K_NOT_DIVISIBLE");
             cldnn_jit.RemoveConstant("TILE_N_NOT_DIVISIBLE");
+            cldnn_jit.RemoveConstant("N_IS_ALIGNED_WITH_SIMD_TILE");
             if (i == 0) {
                 cldnn_jit.AddConstant(MakeJitConstant("TILE_K_NOT_DIVISIBLE", "0"));
                 cldnn_jit.AddConstant(MakeJitConstant("TILE_N_NOT_DIVISIBLE", "0"));
+                cldnn_jit.AddConstant(MakeJitConstant("N_IS_ALIGNED_WITH_SIMD_TILE", "1"));
             } else if (i == 1) {
                 cldnn_jit.AddConstant(MakeJitConstant("TILE_K_NOT_DIVISIBLE", "0"));
                 cldnn_jit.AddConstant(MakeJitConstant("TILE_N_NOT_DIVISIBLE", "1"));
+                cldnn_jit.AddConstant(MakeJitConstant("N_IS_ALIGNED_WITH_SIMD_TILE", "0"));
             } else if (i == 2) {
                 cldnn_jit.AddConstant(MakeJitConstant("TILE_K_NOT_DIVISIBLE", "1"));
                 cldnn_jit.AddConstant(MakeJitConstant("TILE_N_NOT_DIVISIBLE", "0"));
+                cldnn_jit.AddConstant(MakeJitConstant("N_IS_ALIGNED_WITH_SIMD_TILE", "1"));
             } else if (i == 3) {
                 cldnn_jit.AddConstant(MakeJitConstant("TILE_K_NOT_DIVISIBLE", "1"));
                 cldnn_jit.AddConstant(MakeJitConstant("TILE_N_NOT_DIVISIBLE", "1"));
+                cldnn_jit.AddConstant(MakeJitConstant("N_IS_ALIGNED_WITH_SIMD_TILE", "0"));
             }
         }
         auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, i);
@@ -453,7 +467,7 @@ bool GemmKernelTiledOpt::Validate(const Params& params) const {
 
     size_t num_inputs = (gmm_params.indirect_input0 || gmm_params.indirect_input1) ? gmm_params.inputs.size() - 1 : gmm_params.inputs.size();
     for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
-        auto& input = gmm_params.inputs[input_idx];
+        const auto& input = gmm_params.inputs[input_idx];
         if (!Tensor::SimpleLayout(input.GetLayout())) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
         }
@@ -518,13 +532,13 @@ void GemmKernelTiledOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
             bool not_divisible_k = ((k_size % tuning_data.tile_k_size) != 0);
             bool not_divisible_n = ((n_size % tuning_data.tile_n_size) != 0);
             size_t execute_kernel_idx = 0;
-            if (not_divisible_k == false && not_divisible_n == false) {
+            if (!not_divisible_k && !not_divisible_n) {
                 execute_kernel_idx = 0;
-            } else if (not_divisible_k == false && not_divisible_n == true) {
+            } else if (!not_divisible_k && not_divisible_n) {
                 execute_kernel_idx = 1;
-            } else if (not_divisible_k == true && not_divisible_n == false) {
+            } else if (not_divisible_k && !not_divisible_n) {
                 execute_kernel_idx = 2;
-            } else if (not_divisible_k == true && not_divisible_n == true) {
+            } else if (not_divisible_k && not_divisible_n) {
                 execute_kernel_idx = 3;
             }
 

@@ -20,7 +20,7 @@
 #include "scatter_update/scatter_elements_update_kernel_ref.h"
 #include "openvino/core/dimension.hpp"
 
-#include <limits.h>
+#include <climits>
 
 namespace cldnn {
 namespace ocl {
@@ -70,7 +70,7 @@ struct stages_helper {
 
     void save(BinaryOutputBuffer& ob) const {
         ob << stages.size();
-        for (auto& stage : stages) {
+        for (const auto& stage : stages) {
             ob << static_cast<uint8_t>(stage);
         }
     }
@@ -89,16 +89,15 @@ struct stages_helper {
     std::optional<size_t> try_get_index(kv_stage stage) const noexcept {
         if (const auto it = std::find(stages.begin(), stages.end(), stage); it != stages.end()) {
             return static_cast<size_t>(std::distance(stages.begin(), it));
-        } 
+        }
         return {};
     }
 
-    size_t get_index(kv_stage stage) const noexcept {
+    size_t get_index(kv_stage stage) const {
         const auto idx = try_get_index(stage);
         OPENVINO_ASSERT(idx.has_value(), "expect stage ", static_cast<uint8_t>(stage), " exist");
         return *idx;
     }
-
 };
 
 struct kv_cache_impl : multi_stage_primitive<kv_cache> {
@@ -117,9 +116,9 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::kv_cache_impl)
 
-    kv_cache_impl() {}
+    kv_cache_impl() = default;
 
-    kv_cache_impl(const kv_cache_impl& other) 
+    kv_cache_impl(const kv_cache_impl& other)
         : parent(other)
         , stages(other.stages) {
     }
@@ -160,7 +159,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             auto& concat_kernel_selector = kernel_selector_t::Instance();
             auto concat_kernel_impl = concat_kernel_selector.GetImplementation(_kernels_data[concat_stage].kernelName);
             concat_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[concat_stage]);
-            
+
             if (const auto beam_table_stage = stages.try_get_index(kv_stage::beam_table)) {
                 auto& bt_kernel_selector = bt_kernel_selector_t::Instance();
                 auto bt_kernel_impl = bt_kernel_selector.GetImplementation(_kernels_data[*beam_table_stage].kernelName);
@@ -177,6 +176,12 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
                 auto& scale_zp_concat_kernel_selector = kernel_selector_t::Instance();
                 auto scale_zp_concat_kernel_impl = scale_zp_concat_kernel_selector.GetImplementation(_kernels_data[*scale_concat_stage].kernelName);
                 scale_zp_concat_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[*scale_concat_stage]);
+            }
+
+            if (const auto zp_concat_stage = stages.try_get_index(kv_stage::zp_concat)) {
+                auto& zp_concat_kernel_selector = kernel_selector_t::Instance();
+                auto zp_concat_kernel_impl = zp_concat_kernel_selector.GetImplementation(_kernels_data[*zp_concat_stage].kernelName);
+                zp_concat_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[*zp_concat_stage]);
             }
         }
     }
@@ -264,6 +269,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
                 tmp_events = {ev};
             }
             all_events.push_back(ev);
+            kernel_dump_info.add_entry_point(_kernels[idx_final]->get_id());
         }
     }
 
@@ -275,6 +281,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         auto& variable = instance.get_network().get_variable(desc->variable_info.variable_id);
         std::vector<event::ptr> res_events;
         const auto& impl_param = *instance.get_impl_params();
+        kernel_dump_info.clear_entries();
 
         if (const auto scatter_update_stage = stages.try_get_index(kv_stage::scatter_update)) {
             execute_stage(events, instance, res_events, *scatter_update_stage);
@@ -317,6 +324,12 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
             execute_stage(events, instance, res_events, beam_table_stage);
             beam_table_state->set();
+        } else if (desc->indirect) {
+            // Explicitly mark that kernels will not be executed for more accurate results kernels_dump_info
+            const auto beam_table_stage = stages.get_index(kv_stage::beam_table);
+            for (auto& kernel : _kernels_data[beam_table_stage].kernels) {
+                kernel.skip_execution = true;
+            }
         }
 
         if (desc->compressed) {
@@ -336,7 +349,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             (_kernels_data[dq_stage].update_dispatch_data_func)(dq_params, _kernels_data[dq_stage]);
             execute_stage(events, instance, res_events, dq_stage);
 
-            auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable);
+            auto* compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable);
             OPENVINO_ASSERT(compressed_cache_variable != nullptr, "compressed_cache_variable should not be null.");
             compressed_cache_variable->get_compression_scale_state()->set();
 
@@ -350,32 +363,31 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             GPU_DEBUG_TRACE_DETAIL << desc->id  << " : Output is same as variable memory! Skip copying " << std::endl;
             // When primitive is optimized, concat kernel writes directly to variable memory
             return stream.aggregate_events(res_events, res_events.size() > 1);
-        } else {
-            // Otherwise, we need to copy result from out buffer to state memory
-            GPU_DEBUG_TRACE_DETAIL << desc->id  << " : Copying output to variable memory" << std::endl;
-
-            stream.enqueue_barrier();
-
-            std::vector<event::ptr> res_events;
-            auto out = instance.get_network().get_engine().reinterpret_buffer(instance.output_memory(0), variable.get_memory()->get_layout());
-            res_events.push_back(variable.get_memory()->copy_from(stream, *out, false));
-
-            if (desc->compressed) {
-                auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable);
-                OPENVINO_ASSERT(compressed_cache_variable != nullptr, "compressed_cache_variable is nullptr!!!");
-                auto scale_state = compressed_cache_variable->get_compression_scale_state();
-                auto out_scale_mem = instance.get_network().get_engine().reinterpret_buffer(instance.output_memory(2), scale_state->get_memory()->get_layout());
-                res_events.push_back(scale_state->get_memory()->copy_from(stream, *out_scale_mem, false));
-
-                if (desc->get_compression_zp_inputs_num() > 0) {
-                    auto zp_state = compressed_cache_variable->get_compression_zp_state();
-                    auto out_zp_mem = instance.get_network().get_engine().reinterpret_buffer(instance.output_memory(3), zp_state->get_memory()->get_layout());
-                    res_events.push_back(zp_state->get_memory()->copy_from(stream, *out_zp_mem, false));
-                }
-            }
-
-            return stream.aggregate_events(res_events, res_events.size() > 1);
         }
+        // Otherwise, we need to copy result from out buffer to state memory
+        GPU_DEBUG_TRACE_DETAIL << desc->id << " : Copying output to variable memory" << std::endl;
+
+        stream.enqueue_barrier();
+
+        std::vector<event::ptr> copy_events;
+        auto out = instance.get_network().get_engine().reinterpret_buffer(instance.output_memory(0), variable.get_memory()->get_layout());
+        copy_events.push_back(variable.get_memory()->copy_from(stream, *out, false));
+
+        if (desc->compressed) {
+            auto* compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable);
+            OPENVINO_ASSERT(compressed_cache_variable != nullptr, "compressed_cache_variable is nullptr!!!");
+            auto scale_state = compressed_cache_variable->get_compression_scale_state();
+            auto out_scale_mem = instance.get_network().get_engine().reinterpret_buffer(instance.output_memory(2), scale_state->get_memory()->get_layout());
+            copy_events.push_back(scale_state->get_memory()->copy_from(stream, *out_scale_mem, false));
+
+            if (desc->get_compression_zp_inputs_num() > 0) {
+                auto zp_state = compressed_cache_variable->get_compression_zp_state();
+                auto out_zp_mem = instance.get_network().get_engine().reinterpret_buffer(instance.output_memory(3), zp_state->get_memory()->get_layout());
+                copy_events.push_back(zp_state->get_memory()->copy_from(stream, *out_zp_mem, false));
+            }
+        }
+
+        return stream.aggregate_events(copy_events, copy_events.size() > 1);
     }
 
     static layout get_beam_table_layout(const kernel_impl_params& impl_param) {
@@ -400,23 +412,23 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         auto inputs_count = 3;
 
         params.inputs.resize(inputs_count);
-        params.inputs[0] = convert_data_tensor(impl_param.input_layouts[0], tensor()); 
-        params.inputs[1] = convert_data_tensor(impl_param.input_layouts[3], tensor());  
+        params.inputs[0] = convert_data_tensor(impl_param.input_layouts[0], tensor());
+        params.inputs[1] = convert_data_tensor(impl_param.input_layouts[3], tensor());
         params.inputs[2] = convert_data_tensor(impl_param.input_layouts[4], tensor());
         params.outputs[0] = convert_data_tensor(impl_param.output_layouts[0], tensor());
-        
+
         params.axis = kernel_selector::scatter_update_axis::Y;                   // always update axis 2 which is KV seq_len dimension
-        params.mode = kernel_selector::ScatterUpdateReduction::NONE;  
-        params.use_init_val = true;  
+        params.mode = kernel_selector::ScatterUpdateReduction::NONE;
+        params.use_init_val = true;
 
         const auto& in_offsets_map = impl_param.in_port_to_shape_info_offset;    // [kv_past, kv_new_token, [beam_idx], past_seq_len, dst_idx, update_data]
         std::map<size_t, size_t> in_tensor_to_offset_map = {
-            {0, in_offsets_map.at(0)}, 
-            {1, in_offsets_map.at(3)},  
+            {0, in_offsets_map.at(0)},
+            {1, in_offsets_map.at(3)},
             {2, in_offsets_map.at(4)},
         };
         std::map<size_t, size_t> out_tensor_to_offset_map = {
-            {0, in_offsets_map.at(0)}, 
+            {0, in_offsets_map.at(0)},
         };
 
         params.set_dynamic_shape_offsets(in_tensor_to_offset_map, out_tensor_to_offset_map);
@@ -505,6 +517,14 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             primitive->quantization_attributes.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
         params.combine_scales_and_zp =
             primitive->quantization_attributes.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
+
+        // 4-bit KV-cache: the dynamic quantize kernel packs two u4 values into one i8 byte,
+        // halving the physical innermost dimension (head_size).  This also forces unsigned
+        // asymmetric quantization (u4 range 0..15) regardless of the original quantization mode.
+        const auto kv_cache_dt = impl_param.get_program().get_config().get_kv_cache_precision();
+        params.is_int4_compressed = ov::element::Type(kv_cache_dt).bitwidth() == 4;
+        if (params.is_int4_compressed)
+            params.use_asymmetric_quantization = true;
 
         const auto& past_kv_cache_shape = impl_param.input_layouts[0].get_partial_shape();
         params.axis_offset = past_kv_cache_shape[primitive->concat_axis].is_static() ? past_kv_cache_shape[primitive->concat_axis].get_length() : 0;

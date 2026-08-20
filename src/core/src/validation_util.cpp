@@ -107,14 +107,13 @@ std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const ov::
         }
 
         auto original_node = node;
-        const auto inputs = get_inputs_from_map(node, node_map);
 
         if (ov::util::node_requires_precision_conversion(node.get())) {
-            node = ov::util::convert_to_supported_precision(node.get(), inputs);
+            node = ov::util::convert_to_supported_precision(node.get(), get_inputs_from_map(node, node_map));
         }
 
-        OutputVector outputs(node->get_output_size());
-        if (node->constant_fold(outputs, inputs)) {
+        if (OutputVector outputs(node->get_output_size());
+            node->constant_fold(outputs, get_inputs_from_map(node, node_map))) {
             stack.pop();
             for (size_t i = 0; i < outputs.size(); i++) {
                 node_map[original_node->output(i)] = outputs[i].get_node_shared_ptr();
@@ -127,9 +126,9 @@ std::shared_ptr<ov::op::v0::Constant> ov::util::constantfold_subgraph(const ov::
                     stack.push(input.get_node_shared_ptr());
                 }
             }
-            // if none of the inputs was pushed to stack, it means the node that was not constantfolded
-            // is processed the second time. If that case - the node is not constfoldable.
-            // A good example would be a node that all of its inputs are constants and yet it cannot be constantfolded
+            // if none of the inputs was pushed to stack, it means the node that was not constant folded
+            // is processed the second time. If that case - the node is not constant foldable.
+            // A good example would be a node that all of its inputs are constants and yet it cannot be constant folded
             // for some reason (like lack of evaluate, it's a op::util::FrameworkNode, etc.).
             if (stack_size_before == stack.size()) {
                 return nullptr;
@@ -163,6 +162,11 @@ std::shared_ptr<Constant> get_constant_from_source(const ov::Output<ov::Node>& s
     } else {
         return {};
     }
+}
+
+bool is_empty_constant_tensor(const Output<Node>& source) {
+    const auto constant = ov::as_type_ptr<Constant>(source.get_node_shared_ptr());
+    return constant != nullptr && constant->get_shape() == Shape{0};
 }
 
 template <class T>

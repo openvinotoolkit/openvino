@@ -49,11 +49,8 @@ void prepare_primitive_fusing_through::run(program& p) {
                 return false;
 
             // Not to raise up target node through reshape or reorder where the size of dimension is changed (e.g. Unsqueeze or Squeeze)
-            if ((node->is_type<reshape>() || node->is_type<reorder>()) &&
-                node->get_output_pshape().size() != node->get_input_pshape(0).size())
-                return false;
-
-            return true;
+            return (!node->is_type<reshape>() && !node->is_type<reorder>()) ||
+                node->get_output_pshape().size() == node->get_input_pshape(0).size();
         };
 
         std::vector<program_node*> pass_through;
@@ -72,7 +69,7 @@ void prepare_primitive_fusing_through::run(program& p) {
 
     auto node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {
-        auto node = (*node_itr++);
+        auto* node = (*node_itr++);
         cldnn::program_node* input_node;
 
         if (node->is_output() || node->is_constant())
@@ -85,16 +82,10 @@ void prepare_primitive_fusing_through::run(program& p) {
             input_node = &node->get_dependency(0);
         } else if (node->is_type<quantize>()) {
             auto& quantize_node = node->as<quantize>();
-            bool per_tensor_values = quantize_node.get_scale_shift_opt() &&
-                                     quantize_node.get_per_tensor_input_scale() &&
-                                     (quantize_node.get_per_tensor_input_shift() || !quantize_node.get_need_pre_shift()) &&
-                                     quantize_node.get_per_tensor_input_range() &&
-                                     quantize_node.get_per_tensor_output_scale() &&
-                                     (quantize_node.get_per_tensor_output_shift() || !quantize_node.get_need_post_shift()) &&
-                                     quantize_node.get_per_tensor_output_range();
 
-            if (!per_tensor_values)
+            if (!quantize_node.has_per_tensor_values() && !quantize_node.get_scale_shift_opt()) {
                 continue;
+            }
 
             input_node = &node->get_dependency(0);
         } else if (node->is_type<eltwise>()) {
@@ -131,8 +122,18 @@ void prepare_primitive_fusing_through::run(program& p) {
         if (static_cast<bool>(node->get_output_layout().data_padding))
             continue;
 
-        auto new_prev = fuse_through_order[fuse_through_order.size() - 1];
-        auto new_next = fuse_through_order[fuse_through_order.size() - 2];
+        auto* new_prev = fuse_through_order[fuse_through_order.size() - 1];
+        auto* new_next = fuse_through_order[fuse_through_order.size() - 2];
+
+        // For per-channel quantize, allow only when the fused target's output shape
+        // matches the quantize's current input shape. This ensures per-channel
+        // parameters remain correctly broadcast-aligned at the new position.
+        if (node->is_type<quantize>() && !node->as<quantize>().has_per_tensor_values()) {
+            auto target_shape = new_prev->get_output_layout().get_partial_shape();
+            auto current_input_shape = node->get_input_layout(0).get_partial_shape();
+            if ((target_shape != current_input_shape) || target_shape.is_dynamic() || current_input_shape.is_dynamic())
+                continue;
+        }
 
         // Check broadcastable for fused eltwise's output
         if (node->is_type<eltwise>()) {
@@ -148,18 +149,18 @@ void prepare_primitive_fusing_through::run(program& p) {
             continue;
 
         std::vector<cldnn::program_node*> dependencies;
-        for (auto& dep : node->get_dependencies()) {
+        for (const auto& dep : node->get_dependencies()) {
             if (dep.first == input_node)
                 continue;
             dependencies.push_back(dep.first);
         }
 
-        for (auto dep : dependencies)
+        for (auto* dep : dependencies)
             p.remove_connection(*dep, *node);
 
         p.move_node(*node, *new_prev, *new_next);
 
-        for (auto dep : dependencies)
+        for (auto* dep : dependencies)
             p.add_connection(*dep, *node);
 
         // Update node's layout and keep original data type
@@ -171,7 +172,7 @@ void prepare_primitive_fusing_through::run(program& p) {
         // Update intermediate nodes
         auto node_itr = std::next(fuse_through_order.rbegin());
         while (node_itr != fuse_through_order.rend()) {
-            auto itermediate_node = *node_itr++;
+            auto* itermediate_node = *node_itr++;
 
             if (itermediate_node->is_type<reorder>()) {
                 // We can't modify reorder's output type directly, so replace old node with new one

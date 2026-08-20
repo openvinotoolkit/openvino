@@ -23,23 +23,14 @@ namespace onnx {
 
 class InputModel : public ov::frontend::InputModel {
 public:
-    InputModel(const std::string& path, const bool enable_mmap = false, ExtensionHolder extensions = {});
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    InputModel(const std::wstring& path, const bool enable_mmap = false, ExtensionHolder extensions = {});
-#endif
+    InputModel(const std::filesystem::path& path, const bool enable_mmap = false, ExtensionHolder extensions = {});
     InputModel(std::istream& model_stream, const bool enable_mmap = false, ExtensionHolder extensions = {});
     // The path can be required even if the model is passed as a stream because it is necessary
     // for ONNX external data feature
     InputModel(std::istream& model_stream,
-               const std::string& path,
+               const std::filesystem::path& path,
                const bool enable_mmap = false,
                ExtensionHolder extensions = {});
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    InputModel(std::istream& model_stream,
-               const std::wstring& path,
-               const bool enable_mmap = false,
-               ExtensionHolder extensions = {});
-#endif
     InputModel(std::shared_ptr<ModelProto> model_proto, ExtensionHolder extensions = {});
 
     std::vector<ov::frontend::Place::Ptr> get_inputs() const override;
@@ -120,9 +111,22 @@ public:
 
     explicit InputModel(const ov::frontend::onnx::GraphIterator::Ptr& graph_iterator,
                         const bool enable_mmap,
-                        const std::shared_ptr<TelemetryExtension>& telemetry = {});
+                        const std::shared_ptr<TelemetryExtension>& telemetry = {},
+                        const bool reuse_const_data = false);
+
     explicit InputModel(const ov::frontend::onnx::GraphIterator::Ptr& graph_iterator,
                         unify::InputModel::Ptr parent_model);
+
+    /// \brief Returns the underlying GraphIterator without forcing the Place graph to be built.
+    /// Used by the single-pass converter to translate directly from decoders.
+    ov::frontend::onnx::GraphIterator::Ptr get_graph_iterator() const;
+
+    /// \brief True when load_model() has run and the Place graph is available.
+    bool is_loaded() const;
+
+    /// \brief True when constant data may be wrapped zero-copy rather than deep-copied.
+    /// Used by the single-pass converter, which materializes Constants without the Place graph.
+    bool is_const_data_reusable() const;
 
     /////  Searching for places  /////
     std::vector<ov::frontend::Place::Ptr> get_inputs() const override;

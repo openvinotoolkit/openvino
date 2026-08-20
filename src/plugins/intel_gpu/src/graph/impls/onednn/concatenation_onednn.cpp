@@ -70,7 +70,7 @@ protected:
         return std::make_shared<dnnl::concat::primitive_desc>(
             engine.get_onednn_engine(),
             output_md,
-            axis,
+            static_cast<int>(axis),
             input_mds,
             attr);
     }
@@ -82,9 +82,8 @@ public:
             ob << false;
             primitive_impl::save(ob);
             return;
-        } else {
-            ob << true;
         }
+        ob << true;
 
         parent::save(ob);
 
@@ -128,7 +127,7 @@ public:
 
     static std::unique_ptr<primitive_impl> create(const concatenation_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
-        auto& config = impl_params.prog->get_config();
+        const auto& config = impl_params.prog->get_config();
         if (impl_params.can_be_optimized())
             return std::make_unique<concatenation_onednn>(engine, config);
         auto prim = impl_params.typed_desc<concatenation>();

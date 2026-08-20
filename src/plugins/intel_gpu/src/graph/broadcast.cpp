@@ -37,9 +37,8 @@ layout broadcast_inst::calc_output_layout(broadcast_node const& node, kernel_imp
         return { output_type,
                  input_layout.format,
                  tensor(format::get_default_format(dims_converted.size()), dims_converted) };
-    } else {
-        return { output_type, input_layout.format, desc->broadcast_sizes };
     }
+    return {output_type, input_layout.format, desc->broadcast_sizes};
 }
 
 template<typename ShapeType>
@@ -77,7 +76,7 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
         const_data.emplace(2, axes_mapping_tensor);
     }
 
-    auto& constant_mem = impl_param.memory_deps;
+    const auto& constant_mem = impl_param.memory_deps;
     if (constant_mem.count(1)) {
         auto target_shape_mem = constant_mem.at(1);
         cldnn::mem_lock<uint8_t, mem_lock_type::read> target_shape_lock(target_shape_mem, impl_param.get_stream());
@@ -137,10 +136,14 @@ void broadcast_inst::on_execute() {
 void broadcast_inst::update_output_memory() {
     if (!can_be_optimized())
         return;
-    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
-        return;
 
     build_deps();
+
+    if (input_memory_ptr() == nullptr)
+        return;
+
+    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+        return;
 
     GPU_DEBUG_TRACE_DETAIL << id() << " : update_output_memory with mem of input " << get_node().get_dependency(0).id()
                            << " : " << input_memory_ptr()->buffer_ptr() << std::endl;

@@ -1,8 +1,7 @@
 -c ../constraints.txt
 # paddlepaddle #  ticket 95904
 numpy
-onnxruntime>=1.18.0,<=1.19.2; python_version <= '3.9'
-onnxruntime>=1.18.0; python_version >= '3.10'
+onnxruntime
 requests
 torch
 torchvision; platform_machine == 'arm64' and python_version >= '3.9'
@@ -14,5 +13,7 @@ packaging
 pillow
 pytest
 defusedxml
+# Tensorflow depends on Keras without version constraint, Keras update to 3.14.0 caused Tensorflow Lite Layer Tests failure
+keras<=3.13.2
 tensorflow
 tensorflow-addons; python_version <= '3.10'

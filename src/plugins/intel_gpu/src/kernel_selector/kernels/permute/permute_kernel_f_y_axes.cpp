@@ -63,9 +63,13 @@ size_t GetTileWidth(const permute_params& params) {
         min_divisor = std::min(min_divisor, cSimpleMemCopyOpDivider);
     }
 
-    // i64 only supports tile size 4
+    // i64 uses a smaller tile to reduce register/SLM pressure, but only if
+    // the resulting subgroup size is supported by the platform (Xe2+ lacks SIMD8).
     if ((input_type == Datatype::INT64) || (output_type == Datatype::INT64)) {
-        min_divisor = min_divisor >= 4 ? min_divisor / 2 : min_divisor;
+        size_t halved = min_divisor >= 4 ? min_divisor / 2 : min_divisor;
+        const auto& supported = params.engineInfo.supportedSimdSizes;
+        if (std::any_of(supported.begin(), supported.end(), [halved](size_t s) { return s == halved; }) || supported.empty())
+            min_divisor = halved;
     }
     if (input_type == Datatype::F16) {
         min_divisor = min_divisor * 2;
@@ -207,10 +211,7 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
         if (order.size() != 4) {
             return false;
         }
-        if (order[0] != 0 || order[1] != 3 || order[2] != 2 || order[3] != 1) {
-            return false;
-        }
-        return true;
+        return order[0] == 0 && order[1] == 3 && order[2] == 2 && order[3] == 1;
     };
 
     const auto& params = dynamic_cast<const permute_params&>(p);
@@ -240,8 +241,8 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
         const auto feature_block_size = GetFeatureBlockSize(params);
         const auto tile_size = GetTileSize(params);
         const auto subgroup_size = Is3DTranspose(params) ? feature_block_size : tile_size;
-        if (!(IsSIMDSizeSupported(params.engineInfo, subgroup_size) &&
-              (in_layout == DataLayout::b_fs_yx_fsv32 || in_layout == DataLayout::b_fs_yx_fsv16))) {
+        if (!IsSIMDSizeSupported(params.engineInfo, subgroup_size) ||
+              (in_layout != DataLayout::b_fs_yx_fsv32 && in_layout != DataLayout::b_fs_yx_fsv16)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }

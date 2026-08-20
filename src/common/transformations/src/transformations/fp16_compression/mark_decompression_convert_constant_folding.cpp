@@ -12,7 +12,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/rt_info/is_shape_subgraph.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
@@ -143,6 +143,7 @@ MarkCompressedFloatConstants::MarkCompressedFloatConstants() {
             return false;
         if (const_node->get_output_element_type(0) != element::f16 &&
             const_node->get_output_element_type(0) != element::bf16 &&
+            const_node->get_output_element_type(0) != element::f4e2m1 &&
             const_node->get_output_element_type(0) != element::f8e4m3 &&
             const_node->get_output_element_type(0) != element::f8e5m2 &&
             const_node->get_output_element_type(0) != element::f8e8m0)

@@ -63,7 +63,9 @@ enum class eltwise_mode : int32_t {
     /// @brief Eltwise bitwise or.
     bitwise_or,
     /// @brief Eltwise bitwise xor.
-    bitwise_xor
+    bitwise_xor,
+    /// @brief Eltwise atan2(y, x). Two-input. fp16/fp32 only.
+    atan2
 };
 
 /// @brief Performs elementwise operations (sum, subtract, max or product) on two input primitives
@@ -194,7 +196,7 @@ struct eltwise : public primitive_base<eltwise> {
         size_t seed = primitive::hash();
         seed = cldnn::hash_combine(seed, mode);
         seed = cldnn::hash_range(seed, coefficients.begin(), coefficients.end());
-        for (auto& s : stride) {
+        for (const auto& s : stride) {
             seed = cldnn::hash_combine(seed, s.hash());
         }
         seed = cldnn::hash_combine(seed, m_pythondiv);

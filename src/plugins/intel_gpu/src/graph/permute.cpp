@@ -60,7 +60,7 @@ std::vector<layout> permute_inst::calc_output_layouts(permute_node const& node, 
 
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_output_element_type();
-        for (auto& desc : impl_param.fused_desc) {
+        for (const auto& desc : impl_param.fused_desc) {
             if (desc.is_type<reorder>()) {
                 output_fmt = desc.output_layout.format;
             }
@@ -80,7 +80,7 @@ std::vector<layout> permute_inst::calc_output_layouts(permute_node const& node, 
     auto permute_order = desc->permute_order;
     if (permute_order.empty()) {
         for (int64_t i = 1; i <= input_static_rank; ++i) {
-            permute_order.emplace_back(input_static_rank - i);
+            permute_order.emplace_back(static_cast<uint16_t>(input_static_rank - i));
         }
     }
 
@@ -141,11 +141,14 @@ void permute_inst::update_output_memory() {
     if (!can_be_optimized() || _impl_params->is_dynamic())
         return;
 
-    if (_outputs.size() > 0 && static_cast<bool>(_outputs[0])
-        && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+    build_deps();
+
+    if (input_memory_ptr() == nullptr)
         return;
 
-    build_deps();
+    if (!_outputs.empty() && static_cast<bool>(_outputs[0])
+        && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+        return;
 
     GPU_DEBUG_TRACE_DETAIL << id() << " : update_output_memory with mem of input " << get_node().get_dependency(0).id()
                            << " : " << input_memory_ptr()->buffer_ptr() << std::endl;

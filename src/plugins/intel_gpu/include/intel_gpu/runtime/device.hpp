@@ -13,6 +13,8 @@
 namespace cldnn {
 
 const uint32_t INTEL_VENDOR_ID = 0x8086;
+const uint32_t NVIDIA_VENDOR_ID = 0x10DE;
+const uint32_t AMD_VENDOR_ID = 0x1002;
 
 /// @brief Represents detected GPU device object. Use device_query to get list of available objects.
 struct device {
@@ -32,5 +34,30 @@ public:
 
     virtual ~device() = default;
 };
+
+// The priority return by this function impacts the order of devices reported by GPU plugin and devices enumeration
+// Lower priority value means lower device ID
+// Current behavior is: Intel iGPU < Intel dGPU < any other GPU
+// Devices with the equal priority keep the order they were enumerated in.
+// The OCL runtime moves the Intel platform to the beginning of the platform list.
+// Order of the devices reported by the same platform is undefined and depends on the OCL impl
+inline size_t get_device_priority(const cldnn::device_info& info) {
+    if (info.vendor_id == cldnn::INTEL_VENDOR_ID && info.dev_type == cldnn::device_type::integrated_gpu) {
+        return 0;
+    }
+    if (info.vendor_id == cldnn::INTEL_VENDOR_ID) {
+        return 1;
+    }
+    return std::numeric_limits<size_t>::max();
+}
+
+inline std::vector<device::ptr> sort_devices(const std::vector<device::ptr>& devices_list) {
+    std::vector<device::ptr> sorted_list = devices_list;
+    std::stable_sort(sorted_list.begin(), sorted_list.end(), [](device::ptr d1,  device::ptr d2) {
+        return get_device_priority(d1->get_info()) < get_device_priority(d2->get_info());
+    });
+
+    return sorted_list;
+}
 
 }  // namespace cldnn

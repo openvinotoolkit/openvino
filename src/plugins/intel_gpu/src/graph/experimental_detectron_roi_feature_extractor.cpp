@@ -17,9 +17,8 @@ size_t experimental_detectron_roi_feature_extractor_inst::inputs_memory_count() 
 memory::ptr experimental_detectron_roi_feature_extractor_inst::second_output_memory() const {
     if (desc()->num_outputs == 1) {
         return input_memory_ptr(parent::inputs_memory_count() - 1);
-    } else {
-        return output_memory_ptr(1);
     }
+    return output_memory_ptr(1);
 }
 
 memory::ptr experimental_detectron_roi_feature_extractor_inst::rois_memory() const {
@@ -55,8 +54,8 @@ layout experimental_detectron_roi_feature_extractor_inst::calc_output_layout(
            "Output data type forcing is not supported for roi_pooling_node!");
     layout rois_layout = impl_param.get_input_layout(0);
     layout data_layout = impl_param.get_input_layout(1);
-    int num_rois = rois_layout.batch();
-    int num_channels = data_layout.feature();
+    int64_t num_rois = rois_layout.batch();
+    int64_t num_channels = data_layout.feature();
     auto desc = impl_param.typed_desc<experimental_detectron_roi_feature_extractor>();
 
     return layout(data_layout.data_type, format::bfyx, {num_rois, num_channels, desc->output_dim, desc->output_dim});

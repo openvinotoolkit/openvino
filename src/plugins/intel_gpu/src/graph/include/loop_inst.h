@@ -14,6 +14,7 @@
 #include "primitive_inst.h"
 #include <string>
 #include <memory>
+#include <utility>
 #include <vector>
 
 namespace cldnn {
@@ -49,7 +50,7 @@ public:
     const primitive_id& get_execution_condition_id() const { return execution_condition_id; }
     const primitive_id& get_num_iterations_id() const { return num_iterations_id; }
 
-    const int32_t get_max_num_iteration() const { return get_primitive()->max_num_iterations; }
+    int32_t get_max_num_iteration() const { return get_primitive()->max_num_iterations; }
 
     const std::vector<loop::io_primitive_map>& get_input_primitive_maps() const { return input_primitive_maps; }
     const std::vector<loop::io_primitive_map>& get_output_primitive_maps() const { return output_primitive_maps; }
@@ -151,14 +152,7 @@ public:
             sliced_data_prim(std::move(sliced_data_prim)),
             io_prim_map(io_prim_map) {}
 
-        concatenated_memory_mapping(const concatenated_memory_mapping& o) :
-            concatenated_mem(o.concatenated_mem),
-            sliced_mems(o.sliced_mems),
-            stream(o.stream),
-            engine(o.engine),
-            concat_data_prim(o.concat_data_prim),
-            sliced_data_prim(o.sliced_data_prim),
-            io_prim_map(o.io_prim_map) {}
+        concatenated_memory_mapping(const concatenated_memory_mapping& o) = default;
 
         void update_concatenated_mem(memory::ptr mem) {
             concatenated_mem = mem;
@@ -177,7 +171,7 @@ public:
 
         memory::ptr get_or_create_sliced_mem(int64_t idx, const layout& mem_layout) const {
             while (sliced_mems.size() <= static_cast<size_t>(idx)) {
-                memory::ptr sliced_mem = engine.allocate_memory(mem_layout, 0);
+                memory::ptr sliced_mem = engine.allocate_memory(mem_layout, false);
                 sliced_mems.push_back(sliced_mem);
             }
             return sliced_mems.at(idx);
@@ -351,6 +345,7 @@ public:
 
     void update_shape() override { primitive_inst::update_shape(); }
     void update_output_layout();
+    void handle_zero_iterations();
 
     // num_iteration is used for slicing input memory
     int64_t get_num_iterations();
@@ -368,6 +363,7 @@ private:
     network::ptr body_network;
     memory::ptr get_external_memory(const primitive_id& external_id, size_t mem_idx = 0) const;
     layout get_external_output_layout(const primitive_id& external_id, size_t mem_idx = 0) const;
+    std::pair<memory::ptr, layout> get_external_memory_and_layout(const input_info& external_id) const;
     std::shared_ptr<concatenated_memory_mapping> get_sliced_mem(const primitive_id& internal_id) const;
     int64_t calculate_num_iterations(const cldnn::loop::io_primitive_map& io_prim_map, ov::PartialShape& pshape);
     std::vector<event::ptr> handle_buffers_for_next_iteration(const backedge_memory_mapping& mapping,

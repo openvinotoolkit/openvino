@@ -19,7 +19,6 @@ namespace cldnn {
 namespace onednn {
 
 // common utils
-template <typename T>
 cldnn::memory::ptr convert_zp_data_to_s32(const memory::ptr zp_memory);
 cldnn::format default_fmt_for_dims(size_t dims, bool is_grouped = false);
 
@@ -80,6 +79,7 @@ int get_prelu_mask_from_layouts(const std::function<layout()>& get_output_layout
                                 int32_t slope_input_idx);
 
 std::string memory_desc_to_string(const dnnl::memory::desc& desc);
+std::string dnnl_status_to_string(dnnl_status_t status);
 
 }  // namespace onednn
 }  // namespace cldnn

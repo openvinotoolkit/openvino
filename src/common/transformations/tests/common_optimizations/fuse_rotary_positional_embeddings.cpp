@@ -2123,3 +2123,288 @@ TEST_F(TransformationTestsF, ConvertToROPE_LtxVideo) {
         model_ref = std::make_shared<Model>(OutputVector{rope}, ParameterVector{input, cos_freqs, sin_freqs});
     }
 }
+
+TEST_F(TransformationTestsF, ConvertToROPE_GPTOSS_negative_axis) {
+    disable_rt_info_check();
+    const int batch = 2;
+    const int num_head = 32;
+    const int seq_len = 16;
+    const int ndims = 128;
+    const int half_ndims = ndims / 2;
+    using namespace ov;
+    {
+        // gpt-oss style RoPE pattern with Concat and VariadicSplit using axis = -1 to represent the last dimension.
+        auto input = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, num_head, seq_len, ndims});
+        auto t_cos = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, 1, seq_len, half_ndims});
+        auto t_sin = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, 1, seq_len, half_ndims});
+
+        auto split_lengths = makeConst(element::i64, {2}, std::vector<int64_t>{half_ndims, half_ndims});
+        auto axis_const = makeConst(element::i64, {}, std::vector<int64_t>{-1});
+        auto vsplit = makeOP<opset1::VariadicSplit>({input, axis_const, split_lengths});
+
+        // first_ = first_half * cos - second_half * sin
+        auto first_half_mul_cos = makeOP<opset1::Multiply>({vsplit->output(0), t_cos}, {{"auto_broadcast", "numpy"}});
+        auto second_half_mul_sin = makeOP<opset1::Multiply>({vsplit->output(1), t_sin}, {{"auto_broadcast", "numpy"}});
+        auto neg = makeOP<opset1::Multiply>({second_half_mul_sin, -1.0f}, {{"auto_broadcast", "numpy"}});
+        auto first_ = makeOP<opset1::Add>({first_half_mul_cos, neg}, {{"auto_broadcast", "numpy"}});
+
+        // second_ = second_half * cos + first_half * sin
+        auto second_half_mul_cos = makeOP<opset1::Multiply>({vsplit->output(1), t_cos}, {{"auto_broadcast", "numpy"}});
+        auto first_half_mul_sin = makeOP<opset1::Multiply>({vsplit->output(0), t_sin}, {{"auto_broadcast", "numpy"}});
+        auto second_ = makeOP<opset1::Add>({second_half_mul_cos, first_half_mul_sin}, {{"auto_broadcast", "numpy"}});
+
+        auto result = makeOP<opset1::Concat>({first_, second_}, {{"axis", -1}});
+
+        model = std::make_shared<Model>(OutputVector{result}, ParameterVector{input, t_cos, t_sin});
+    }
+    manager.register_pass<pass::RoPEFusion>();
+    {
+        auto input = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, num_head, seq_len, ndims});
+        auto t_cos = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, 1, seq_len, half_ndims});
+        auto t_sin = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, 1, seq_len, half_ndims});
+
+        auto rope = makeOP<op::internal::RoPE>({input, t_cos, t_sin},
+                                               {{"config.slice_start", 0},
+                                                {"config.slice_stop", 0},
+                                                {"config.input_trans0213", false},
+                                                {"config.output_trans0213", false},
+                                                {"config.is_interleaved", false},
+                                                {"config.rotary_ndims", ndims},
+                                                {"config.cos_sin_ndims", half_ndims},
+                                                {"config.is_chatglm", false},
+                                                {"config.support_2d_rope", false},
+                                                {"config.support_3d_rope", false},
+                                                {"config.is_qwen", false},
+                                                {"config.use_rope_cache", false},
+                                                {"config.is_ltx_video", false},
+                                                {"config.head_cnt", 0},
+                                                {"config.head_size", 0},
+                                                {"config.gather_position_arg_id", 0}});
+
+        model_ref = std::make_shared<Model>(OutputVector{rope}, ParameterVector{input, t_cos, t_sin});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_GPTOSS_concat_axis_positive) {
+    disable_rt_info_check();
+    const int batch = 2;
+    const int num_head = 32;
+    const int seq_len = 16;
+    const int ndims = 128;
+    const int half_ndims = ndims / 2;
+    using namespace ov;
+    {
+        // gpt-oss style RoPE pattern with Concat using axis = 3 to represent the last dimension.
+        auto input = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, num_head, seq_len, ndims});
+        auto t_cos = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, 1, seq_len, half_ndims});
+        auto t_sin = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, 1, seq_len, half_ndims});
+
+        auto split_lengths = makeConst(element::i64, {2}, std::vector<int64_t>{half_ndims, half_ndims});
+        auto axis_const = makeConst(element::i64, {}, std::vector<int64_t>{-1});
+        auto vsplit = makeOP<opset1::VariadicSplit>({input, axis_const, split_lengths});
+
+        // first_ = first_half * cos - second_half * sin
+        auto first_half_mul_cos = makeOP<opset1::Multiply>({vsplit->output(0), t_cos}, {{"auto_broadcast", "numpy"}});
+        auto second_half_mul_sin = makeOP<opset1::Multiply>({vsplit->output(1), t_sin}, {{"auto_broadcast", "numpy"}});
+        auto neg = makeOP<opset1::Multiply>({second_half_mul_sin, -1.0f}, {{"auto_broadcast", "numpy"}});
+        auto first_ = makeOP<opset1::Add>({first_half_mul_cos, neg}, {{"auto_broadcast", "numpy"}});
+
+        // second_ = second_half * cos + first_half * sin
+        auto second_half_mul_cos = makeOP<opset1::Multiply>({vsplit->output(1), t_cos}, {{"auto_broadcast", "numpy"}});
+        auto first_half_mul_sin = makeOP<opset1::Multiply>({vsplit->output(0), t_sin}, {{"auto_broadcast", "numpy"}});
+        auto second_ = makeOP<opset1::Add>({second_half_mul_cos, first_half_mul_sin}, {{"auto_broadcast", "numpy"}});
+
+        auto result = makeOP<opset1::Concat>({first_, second_}, {{"axis", 3}});
+
+        model = std::make_shared<Model>(OutputVector{result}, ParameterVector{input, t_cos, t_sin});
+    }
+    manager.register_pass<pass::RoPEFusion>();
+    {
+        auto input = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, num_head, seq_len, ndims});
+        auto t_cos = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, 1, seq_len, half_ndims});
+        auto t_sin = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, 1, seq_len, half_ndims});
+
+        auto rope = makeOP<op::internal::RoPE>({input, t_cos, t_sin},
+                                               {{"config.slice_start", 0},
+                                                {"config.slice_stop", 0},
+                                                {"config.input_trans0213", false},
+                                                {"config.output_trans0213", false},
+                                                {"config.is_interleaved", false},
+                                                {"config.rotary_ndims", ndims},
+                                                {"config.cos_sin_ndims", half_ndims},
+                                                {"config.is_chatglm", false},
+                                                {"config.support_2d_rope", false},
+                                                {"config.support_3d_rope", false},
+                                                {"config.is_qwen", false},
+                                                {"config.use_rope_cache", false},
+                                                {"config.is_ltx_video", false},
+                                                {"config.head_cnt", 0},
+                                                {"config.head_size", 0},
+                                                {"config.gather_position_arg_id", 0}});
+
+        model_ref = std::make_shared<Model>(OutputVector{rope}, ParameterVector{input, t_cos, t_sin});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_GPTOSS_split_axis_positive) {
+    disable_rt_info_check();
+    const int batch = 2;
+    const int num_head = 32;
+    const int seq_len = 16;
+    const int ndims = 128;
+    const int half_ndims = ndims / 2;
+    using namespace ov;
+    {
+        // gpt-oss style RoPE pattern with VariadicSplit using axis = 3 to represent the last dimension.
+        auto input = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, num_head, seq_len, ndims});
+        auto t_cos = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, 1, seq_len, half_ndims});
+        auto t_sin = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, 1, seq_len, half_ndims});
+
+        auto split_lengths = makeConst(element::i64, {2}, std::vector<int64_t>{half_ndims, half_ndims});
+        auto axis_const = makeConst(element::i64, {}, std::vector<int64_t>{3});
+        auto vsplit = makeOP<opset1::VariadicSplit>({input, axis_const, split_lengths});
+
+        // first_ = first_half * cos - second_half * sin
+        auto first_half_mul_cos = makeOP<opset1::Multiply>({vsplit->output(0), t_cos}, {{"auto_broadcast", "numpy"}});
+        auto second_half_mul_sin = makeOP<opset1::Multiply>({vsplit->output(1), t_sin}, {{"auto_broadcast", "numpy"}});
+        auto neg = makeOP<opset1::Multiply>({second_half_mul_sin, -1.0f}, {{"auto_broadcast", "numpy"}});
+        auto first_ = makeOP<opset1::Add>({first_half_mul_cos, neg}, {{"auto_broadcast", "numpy"}});
+
+        // second_ = second_half * cos + first_half * sin
+        auto second_half_mul_cos = makeOP<opset1::Multiply>({vsplit->output(1), t_cos}, {{"auto_broadcast", "numpy"}});
+        auto first_half_mul_sin = makeOP<opset1::Multiply>({vsplit->output(0), t_sin}, {{"auto_broadcast", "numpy"}});
+        auto second_ = makeOP<opset1::Add>({second_half_mul_cos, first_half_mul_sin}, {{"auto_broadcast", "numpy"}});
+
+        auto result = makeOP<opset1::Concat>({first_, second_}, {{"axis", -1}});
+
+        model = std::make_shared<Model>(OutputVector{result}, ParameterVector{input, t_cos, t_sin});
+    }
+    manager.register_pass<pass::RoPEFusion>();
+    {
+        auto input = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, num_head, seq_len, ndims});
+        auto t_cos = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, 1, seq_len, half_ndims});
+        auto t_sin = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, 1, seq_len, half_ndims});
+
+        auto rope = makeOP<op::internal::RoPE>({input, t_cos, t_sin},
+                                               {{"config.slice_start", 0},
+                                                {"config.slice_stop", 0},
+                                                {"config.input_trans0213", false},
+                                                {"config.output_trans0213", false},
+                                                {"config.is_interleaved", false},
+                                                {"config.rotary_ndims", ndims},
+                                                {"config.cos_sin_ndims", half_ndims},
+                                                {"config.is_chatglm", false},
+                                                {"config.support_2d_rope", false},
+                                                {"config.support_3d_rope", false},
+                                                {"config.is_qwen", false},
+                                                {"config.use_rope_cache", false},
+                                                {"config.is_ltx_video", false},
+                                                {"config.head_cnt", 0},
+                                                {"config.head_size", 0},
+                                                {"config.gather_position_arg_id", 0}});
+
+        model_ref = std::make_shared<Model>(OutputVector{rope}, ParameterVector{input, t_cos, t_sin});
+    }
+}
+
+// Parameterized over:
+//  - whether a leading {0,2,1,3} Transpose precedes the pattern. In a real model (e.g. aya-expanse-8b)
+//    the Q/K projection is BSNH [batch, seq, heads, head_size] and transposed to BNSH before RoPE;
+//    RoPEFusion's RoPEFusionPreprocess sub-pass must absorb that Transpose into the fused RoPE
+//    (input_trans0213=true).
+//  - whether the "add last dim" step uses Reshape (PagedAttention mode) instead of Unsqueeze.
+//    In PagedAttention mode, SDPAToPagedAttention changes Q/K seq-length to 1, which causes
+//    shape propagation to canonicalize Unsqueeze ops into Reshape ops with explicit shapes.
+class ConvertToROPECohereTest : public TransformationTestsF,
+                                public ::testing::WithParamInterface<std::tuple<bool, bool>> {};
+
+TEST_P(ConvertToROPECohereTest, basic) {
+    disable_rt_info_check();
+    const int batch = 2, seq_len = 16, num_heads = 8;
+    const int head_size = 128;  // must be static for the pass
+    const bool has_transpose = std::get<0>(GetParam());
+    const bool use_reshape = std::get<1>(GetParam());
+
+    // Without a Transpose the input is already BNSH [batch, num_heads, seq_len, head_size].
+    // With a Transpose the projection is BSNH [batch, seq_len, num_heads, head_size]; the {0,2,1,3}
+    // Transpose makes it BNSH and is folded into RoPE (input_trans0213=true).
+    const ov::Shape input_shape = has_transpose
+                                      ? ov::Shape{(size_t)batch, (size_t)seq_len, (size_t)num_heads, (size_t)head_size}
+                                      : ov::Shape{(size_t)batch, (size_t)num_heads, (size_t)seq_len, (size_t)head_size};
+    // cos/sin are [batch, 1, seq_len, head_size]; the leading 1 broadcasts over num_heads.
+    const ov::Shape cs_shape{(size_t)batch, 1, (size_t)seq_len, (size_t)head_size};
+
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f32, input_shape);
+        auto param_cos = std::make_shared<v0::Parameter>(ov::element::f32, cs_shape);
+        auto param_sin = std::make_shared<v0::Parameter>(ov::element::f32, cs_shape);
+
+        // The Cohere rotation operates on BNSH; with a Transpose it is applied to the transposed tensor.
+        std::shared_ptr<ov::Node> x = input;
+        if (has_transpose) {
+            x = makeOP<v1::Transpose>({input, {0, 2, 1, 3}});
+        }
+
+        // x[..., start::2] along axis 3; stop value encodes "all remaining elements".
+        auto x_odd = makeOP<ov::op::v8::Slice>({x, {1}, {INT_MAX}, {2}, {3}});
+        auto x_even = makeOP<ov::op::v8::Slice>({x, {0}, {INT_MAX}, {2}, {3}});
+        auto neg_x_odd = makeOP<v1::Multiply>({x_odd, -1.0f}, {{"auto_broadcast", "numpy"}});
+        // stack((-x_odd, x_even), dim=-1)
+        std::shared_ptr<ov::Node> neg_x_odd_unsq;
+        std::shared_ptr<ov::Node> x_even_unsq;
+        if (use_reshape) {
+            // Use Reshape(x, explicit_shape, special_zero=false) instead of Unsqueeze(x, -1).
+            // This is what SDPAToPagedAttention produces when the seq dimension becomes 1.
+            neg_x_odd_unsq =
+                makeOP<v1::Reshape>({neg_x_odd, {-1, num_heads, seq_len, head_size / 2, 1}}, {{"special_zero", false}});
+            x_even_unsq =
+                makeOP<v1::Reshape>({x_even, {-1, num_heads, seq_len, head_size / 2, 1}}, {{"special_zero", false}});
+        } else {
+            neg_x_odd_unsq = makeOP<v0::Unsqueeze>({neg_x_odd, -1});
+            x_even_unsq = makeOP<v0::Unsqueeze>({x_even, -1});
+        }
+        auto stack = makeOP<v0::Concat>({neg_x_odd_unsq, x_even_unsq}, {{"axis", -1}});
+        // .flatten(-2) using special_zero=true: {0,0,0,-1} -> [B,H,L,head_size]
+        auto x_rotate = makeOP<v1::Reshape>({stack, {0, 0, 0, -1}}, {{"special_zero", true}});
+        auto mul_cos = makeOP<v1::Multiply>({x, param_cos}, {{"auto_broadcast", "numpy"}});
+        auto mul_sin = makeOP<v1::Multiply>({x_rotate, param_sin}, {{"auto_broadcast", "numpy"}});
+        auto result = makeOP<v1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{input, param_cos, param_sin});
+
+        // Run the full composite pass so the test also guards the internal pass ordering: RoPEFusionCohere
+        // (producer) must be registered before RoPEFusionPreprocess (decorator) inside RoPEFusion for the
+        // leading Transpose to be absorbed (input_trans0213=true).
+        manager.register_pass<ov::pass::RoPEFusion>();
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f32, input_shape);
+        auto param_cos = std::make_shared<v0::Parameter>(ov::element::f32, cs_shape);
+        auto param_sin = std::make_shared<v0::Parameter>(ov::element::f32, cs_shape);
+
+        // With a Transpose the RoPE is fed directly from `input` and folds it (input_trans0213=true);
+        // without one the input is already BNSH and input_trans0213=false.
+        auto rope = makeOP<ov::op::internal::RoPE>({input, param_cos, param_sin},
+                                                   {{"config.slice_start", 0},
+                                                    {"config.slice_stop", 0},
+                                                    {"config.input_trans0213", has_transpose},
+                                                    {"config.output_trans0213", false},
+                                                    {"config.is_interleaved", true},
+                                                    {"config.is_chatglm", false},
+                                                    {"config.support_2d_rope", false},
+                                                    {"config.support_3d_rope", false},
+                                                    {"config.is_qwen", false},
+                                                    {"config.use_rope_cache", false},
+                                                    {"config.is_ltx_video", false},
+                                                    {"config.head_cnt", 0},
+                                                    {"config.head_size", 0},
+                                                    {"config.rotary_ndims", head_size},
+                                                    {"config.gather_position_arg_id", 0}});
+        model_ref =
+            std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, param_cos, param_sin});
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(TransformationTestsF,
+                         ConvertToROPECohereTest,
+                         ::testing::Combine(::testing::Bool(), ::testing::Bool()));

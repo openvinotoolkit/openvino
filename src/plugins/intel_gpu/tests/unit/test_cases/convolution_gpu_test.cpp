@@ -341,7 +341,7 @@ TEST(deformable_convolution_f32_fw_gpu, basic_deformable_convolution_def_group1_
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -473,7 +473,7 @@ TEST(deformable_convolution_f32_fw_gpu, basic_deformable_convolution_def_group1)
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -637,7 +637,7 @@ TEST(deformable_convolution_f32_fw_gpu, basic_deformable_convolution) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -776,7 +776,7 @@ TEST(deformable_convolution_f32_fw_gpu, basic_deformable_convolution_group2) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -838,7 +838,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_no_bias) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -909,7 +909,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_no_bias_dynamic) {
 
         auto output_memory = outputs.at("conv").get_memory();
         auto output_layout = output_memory->get_layout();
-        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
         int y_size = output_layout.spatial(1);
         int x_size = output_layout.spatial(0);
@@ -957,7 +957,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_no_bias_dynamic) {
 
         auto output_memory = outputs.at("conv").get_memory();
         auto output_layout = output_memory->get_layout();
-        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
         int y_size = output_layout.spatial(1);
         int x_size = output_layout.spatial(0);
@@ -1033,7 +1033,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_int8_no_bias) {
 
     auto output_memory = outputs.at("output").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -1085,7 +1085,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution3D_no_bias) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int z_size = output_layout.spatial(2);
     int y_size = output_layout.spatial(1);
@@ -1221,7 +1221,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution3D) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int z_size = output_layout.spatial(2);
     int y_size = output_layout.spatial(1);
@@ -1351,7 +1351,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution3D_group2) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int z_size = output_layout.spatial(2);
     int y_size = output_layout.spatial(1);
@@ -1490,7 +1490,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution3D_group2_dynamic) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int z_size = output_layout.spatial(2);
     int y_size = output_layout.spatial(1);
@@ -1556,7 +1556,7 @@ TEST(convolution_f32_fw_gpu, three_convolutions_same_weights) {
 
     auto output_memory = outputs.at("conv3").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -1627,7 +1627,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -1746,7 +1746,7 @@ TEST(convolution_f32_fw_gpu, convolution_big_size_weights) {
 
         auto output_memory = outputs.at("conv").get_memory();
         auto output_layout = output_memory->get_layout();
-        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
         int y_size = output_layout.spatial(1);
         int x_size = output_layout.spatial(0);
@@ -1815,7 +1815,7 @@ TEST(convolution_f16_fw_gpu, convolution_big_size_weights) {
 
         auto output_memory = outputs.at("conv").get_memory();
         auto output_layout = output_memory->get_layout();
-        cldnn::mem_lock<ov::float16> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
         int y_size = output_layout.spatial(1);
         int x_size = output_layout.spatial(0);
@@ -1860,7 +1860,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_bfyx_weights_as_input_layout) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -1909,7 +1909,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_bfyx_weights_as_input_layout_non_
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -2003,7 +2003,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_input_padding) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -2106,7 +2106,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_sym_input_padding) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -2203,7 +2203,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_asym_input_padding) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -2311,7 +2311,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_sym_input_padding_with_pad) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -2422,7 +2422,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_asym_input_padding_with_pad) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -2529,7 +2529,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_input_and_output_padding) {
     auto output_layout = output_memory->get_layout();
     auto padded_dims = output_layout.get_padded_dims();
     auto non_padded_dims = output_layout.get_dims();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int b_size = padded_dims[0];
     int f_size = padded_dims[1];
@@ -2629,7 +2629,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x1x1_nopad_random) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     for (size_t i = 0; i < output_rnd.size(); ++i) {
         float x = float_round(output_rnd_vec[i]), y = float_round(output_ptr[i]);
@@ -2700,7 +2700,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in2x2x1x2_nopad_random) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     for (size_t i = 0; i < output_rnd.size(); ++i) {
         float x = float_round(output_rnd_vec[i]), y = float_round(output_ptr[i]);
@@ -2758,7 +2758,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x1x1_nopad) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_FLOAT_EQ(8.0f, output_ptr[0]);
     ASSERT_FLOAT_EQ(0.5f, output_ptr[1]);
@@ -2812,7 +2812,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in2x2x1x2_nopad) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_FLOAT_EQ(3.65f, output_ptr[0]);
     ASSERT_FLOAT_EQ(-5.36f, output_ptr[1]);
@@ -2864,7 +2864,7 @@ TEST(convolution_f32_fw_gpu, basic_ofm_wsiz2x1x2x1_in1x2x1_nopad) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_FLOAT_EQ(5.1f, output_ptr[0]);
     ASSERT_FLOAT_EQ(-5.2f, output_ptr[1]);
@@ -2923,7 +2923,7 @@ TEST(convolution_f32_fw_gpu, basic_ofm_wsiz3x2x2x1_in2x2x1_nopad) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_FLOAT_EQ(25.0f, output_ptr[0]);
     ASSERT_FLOAT_EQ(64.0f, output_ptr[1]);
@@ -2979,7 +2979,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2x1x3_wstr2x2_in2x2x1x1_nopad) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_TRUE(are_equal(3.08f, output_ptr[0]));
     ASSERT_TRUE(are_equal(2.12f, output_ptr[1]));
@@ -3035,7 +3035,7 @@ TEST(convolution_f32_fw_gpu, wsiz3x3_wstr2x2_in2x2x1x1_zeropad) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_FLOAT_EQ(12.25f, output_ptr[0]);
 }
@@ -3106,7 +3106,7 @@ TEST(convolution_f32_fw_gpu, offsets_wsiz3x3_wstr2x2_in2x2x1x1_zeropad) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_FLOAT_EQ(-7.25f, output_ptr[4]);
 }
@@ -3188,7 +3188,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x1_nopad_split2) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_FLOAT_EQ(8.0f,   output_ptr[0]);
     ASSERT_FLOAT_EQ(3.65f,  output_ptr[1]);
@@ -3288,7 +3288,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_split2) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_FLOAT_EQ(8.0f,   output_ptr[0]);
     ASSERT_FLOAT_EQ(8.0f,   output_ptr[1]);
@@ -3354,7 +3354,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x1_nopad_group2) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_FLOAT_EQ(8.0f, output_ptr[0]);
     ASSERT_FLOAT_EQ(3.65f, output_ptr[1]);
@@ -3414,7 +3414,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x1_nopad_group2_bfyx) 
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_FLOAT_EQ(8.0f, output_ptr[0]);
     ASSERT_FLOAT_EQ(0.5f, output_ptr[1]);
@@ -3473,7 +3473,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_group2) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_FLOAT_EQ(8.0f, output_ptr[0]);
     ASSERT_FLOAT_EQ(8.0f, output_ptr[1]);
@@ -3570,7 +3570,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_split2_depthw
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     std::vector<float> expected_output_vec = {
         8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f,
@@ -3661,7 +3661,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_split2_depthw
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     std::vector<float> expected_output_vec = {
         8.0f, 0.5f,  6.0f,  9.0f, 3.65f,-5.36f, 3.65f, -5.36f,
@@ -3762,7 +3762,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_group16) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     std::vector<float> expected_output_vec = {
         8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f, 8.0f, 8.0f, 3.65f, 3.65f,
@@ -3859,7 +3859,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_group16_bfyx)
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     std::vector<float> expected_output_vec = {
         8.0f, 0.5f,  6.0f,  9.0f, 3.65f,-5.36f, 3.65f, -5.36f,
@@ -3935,7 +3935,7 @@ TEST(convolution_gpu, trivial_convolution_relu) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_FLOAT_EQ(4.0f, output_ptr[0]);
     ASSERT_FLOAT_EQ(0.0f, output_ptr[1]);
@@ -4000,7 +4000,7 @@ TEST(convolution_gpu, relu_with_negative_slope) {
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     ASSERT_FLOAT_EQ(4.0f, output_ptr[0]);
     ASSERT_FLOAT_EQ(-0.35f, output_ptr[1]);
@@ -4044,7 +4044,7 @@ TEST(convolution_gpu, DISABLED_two_1x1_kernels_after_each_other) {
 
     auto output_prim = outputs.at("conv_2").get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
     auto output_layout = output_prim->get_layout();
 
     int y_size = output_layout.spatial(1);
@@ -4210,7 +4210,7 @@ TEST(convolution_gpu, basic_yxfb_4_4_yxfb_2_2_b16_if2_of16_st2_2_p0_sp1_fp32)
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     // Checking result.
     uint32_t i = 0;
@@ -4318,7 +4318,7 @@ TEST(convolution_f32_fw_gpu, byte_activation) {
 
     auto output_memory = outputs.at("out").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -4386,7 +4386,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_symmetric) {
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_memory = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto output_layout = output_memory->get_layout();
     int y_size = output_layout.spatial(1);
@@ -4453,7 +4453,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8u8f32_symmetric) {
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_memory = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto output_layout = output_memory->get_layout();
     int y_size = output_layout.spatial(1);
@@ -4527,7 +4527,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_weight_an
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_memory = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto output_layout = output_memory->get_layout();
     int y_size = output_layout.spatial(1);
@@ -4598,7 +4598,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activatio
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_memory = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto output_layout = output_memory->get_layout();
     int y_size = output_layout.spatial(1);
@@ -4695,7 +4695,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activatio
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_memory = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto output_layout = output_memory->get_layout();
     int y_size = output_layout.spatial(1);
@@ -4806,7 +4806,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activatio
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_memory = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto output_layout = output_memory->get_layout();
     int y_size = output_layout.spatial(1);
@@ -4906,7 +4906,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activatio
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_memory = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto output_layout = output_memory->get_layout();
     int y_size = output_layout.spatial(1);
@@ -4976,7 +4976,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_weights_p
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_memory = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto output_layout = output_memory->get_layout();
     int y_size = output_layout.spatial(1);
@@ -5002,9 +5002,7 @@ TEST(convolution_gpu, basic_yxfb_4_4_yxfb_2_2_b16_if2_of16_st2_2_p0_sp1_fp16)
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const auto input_format   = format::yxfb;
@@ -5150,7 +5148,7 @@ TEST(convolution_gpu, basic_yxfb_4_4_yxfb_2_2_b16_if2_of16_st2_2_p0_sp1_fp16)
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     // Checking result.
     uint32_t i = 0;
@@ -5398,9 +5396,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32, fs_byx_fsv32)
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     if (engine.get_device_info().supports_immad) {
@@ -5525,7 +5521,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32, fs_byx_fsv32)
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv_fsv").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::fs_b_yx_fsv32);
 
@@ -5554,9 +5550,7 @@ TEST(convolution_f16_fsv_gpu, convolution_f16_fsv_gpu_padding) {
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const int batch_num = 2;
@@ -5635,7 +5629,7 @@ TEST(convolution_f16_fsv_gpu, convolution_f16_fsv_gpu_padding) {
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv_fsv").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::fs_b_yx_fsv32);
 
@@ -5663,9 +5657,7 @@ TEST(convolution_f16_fsv16, preload_groups_when_groups_is_not_greater_than_one) 
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
     const int batch_num = 1;
     const int input_xy = 5;
@@ -5725,7 +5717,7 @@ TEST(convolution_f16_fsv16, preload_groups_when_groups_is_not_greater_than_one) 
     network.set_input_data("input", input_mem);
     auto outputs = network.execute();
     auto out_mem = outputs.at("out").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
     auto flatten_ref = flatten_4d(format::bfyx, reference_result);
     for (size_t i = 0; i < flatten_ref.size(); i++) {
         auto equal = are_equal(flatten_ref[i], out_ptr[i], 1e-3f);
@@ -5733,6 +5725,136 @@ TEST(convolution_f16_fsv16, preload_groups_when_groups_is_not_greater_than_one) 
         if (!equal) {
             std::cout << "Difference at idx = " << i << std::endl;
             return;
+        }
+    }
+}
+
+// Regression test for grouped convolution in convolution_gpu_bfyx_f16 kernel
+// when OC/groups < sub_group_size (16) and IC/groups == sub_group_size.
+// When OC/groups < 16, multiple groups are packed into one 16-lane sub-group.
+// The GROUPED loop must isolate each lane to its own group's data and weights.
+
+TEST(convolution_f16_fsv16, grouped_conv_bfyx_f16_multi_group_per_subgroup) {
+ 
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_fp16) {
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
+    }
+
+    if (engine.get_device_info().supports_immad) {
+        // On platforms with oneDNN (XeHP+), this OpenCL kernel is not used
+        GTEST_SKIP() << "The test is skipped for oneDNN platforms.";
+    }
+
+    struct test_case {
+        int batch_num;
+        int input_f;
+        int output_f;
+        int groups;
+        int filter_xy;
+        int input_xy;
+        int stride;
+        int pad;
+    };
+
+    std::vector<test_case> test_cases = {
+        // Original bug: groups=32, IC/g=16, OC/g=4, 3x3
+        {1, 512, 128, 32, 3, 16, 1, 1},
+        // OC/g=2: 8 groups per sub-group
+        {1, 128, 16, 8, 3, 16, 1, 1},
+        // OC/g=8: 2 groups per sub-group
+        {1, 256, 128, 16, 3, 16, 1, 1},
+        // OC/g=4, 1x1 kernel variant
+        {1, 512, 128, 32, 1, 16, 1, 0},
+        // OC/g=16: groups_per_sub_group=1, regression check (should always work)
+        {1, 256, 256, 16, 3, 16, 1, 1},
+    };
+
+    for (size_t tci = 0; tci < test_cases.size(); ++tci) {
+        const auto& tc = test_cases[tci];
+        const int ic_per_group = tc.input_f / tc.groups;
+        const int oc_per_group = tc.output_f / tc.groups;
+
+        // Generate random input [batch, IC, H, W]
+        auto input_data = rg.generate_random_4d<ov::float16>(tc.batch_num, tc.input_f, tc.input_xy, tc.input_xy, -1, 1);
+        auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
+        auto input_size = tensor(tc.batch_num, tc.input_f, tc.input_xy, tc.input_xy);
+        auto input_mem = engine.allocate_memory({data_types::f16, format::bfyx, input_size});
+        set_values(input_mem, input_data_bfyx);
+
+        // Generate random weights [groups, OC/g, IC/g, kH, kW]
+        // generate_random_4d generates [OC, IC/g, kH, kW] which maps to goiyx
+        auto weights_size = tensor(group(tc.groups), batch(oc_per_group), feature(ic_per_group), spatial(tc.filter_xy, tc.filter_xy));
+        auto weights_data = rg.generate_random_4d<ov::float16>(tc.output_f, ic_per_group, tc.filter_xy, tc.filter_xy, -1, 1);
+        auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+        auto weights_mem = engine.allocate_memory({data_types::f16, format::goiyx, weights_size});
+        set_values(weights_mem, weights_data_bfyx);
+
+        // Compute reference per output feature using grouped reference_convolve
+        auto reference_result = VVVVF<ov::float16>(tc.batch_num, VVVF<ov::float16>(tc.output_f));
+        for (int bi = 0; bi < tc.batch_num; ++bi) {
+            for (int ofi = 0; ofi < tc.output_f; ++ofi) {
+                int g = ofi / oc_per_group;
+                int f_begin = g * ic_per_group;
+                int f_end = (g + 1) * ic_per_group;
+
+                reference_result[bi][ofi] = reference_convolve<ov::float16>(input_data[bi],
+                                                                            weights_data[ofi],
+                                                                            tc.stride,
+                                                                            tc.stride,
+                                                                            0,  // bias
+                                                                            1,
+                                                                            1,  // dilation
+                                                                            tc.pad,
+                                                                            tc.pad,  // input padding
+                                                                            0,
+                                                                            0,  // output padding
+                                                                            f_begin,
+                                                                            f_end,  // f_begin, f_end
+                                                                            false,  // depthwise
+                                                                            true);  // grouped
+            }
+        }
+
+        // Build GPU topology with b_fs_yx_fsv16 to target convolution_gpu_bfyx_f16
+        topology topo(input_layout("input", input_mem->get_layout()), data("weights", weights_mem));
+
+        topo.add(reorder("input_fsv16", input_info("input"), {data_types::f16, format::b_fs_yx_fsv16, input_size}));
+
+        auto conv = convolution("conv_fsv16",
+                                input_info("input_fsv16"),
+                                "weights",
+                                no_bias,
+                                tc.groups,
+                                {(uint64_t)tc.stride, (uint64_t)tc.stride},
+                                {1, 1},
+                                {tc.pad, tc.pad},
+                                {tc.pad, tc.pad},
+                                false);
+        topo.add(conv);
+        topo.add(reorder("out", input_info("conv_fsv16"), format::bfyx, data_types::f16));
+
+        // Force b_fs_yx_fsv16 to ensure the bfyx_f16 kernel is selected
+        ExecutionConfig config = get_test_default_config(engine);
+        ov::intel_gpu::ImplementationDesc conv_impl = {format::b_fs_yx_fsv16, ""};
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv_fsv16", conv_impl}}));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+
+        network network(engine, topo, config);
+        network.set_input_data("input", input_mem);
+        auto outputs = network.execute();
+
+        auto out_mem = outputs.at("out").get_memory();
+        cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+        auto flatten_ref = flatten_4d(format::bfyx, reference_result);
+
+        for (size_t i = 0; i < flatten_ref.size(); i++) {
+            auto equal = are_equal(flatten_ref[i], out_ptr[i], 1e-2f);
+            ASSERT_TRUE(equal) << "Case " << tci << " (groups=" << tc.groups << ", IC=" << tc.input_f << ", OC=" << tc.output_f << ", OC/g=" << oc_per_group
+                               << ", k=" << tc.filter_xy << "x" << tc.filter_xy << "): mismatch at idx=" << i << " ref=" << static_cast<float>(flatten_ref[i])
+                               << " gpu=" << static_cast<float>(out_ptr[i]);
         }
     }
 }
@@ -5772,9 +5894,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32_crop, fs_byx_fsv32_crop)
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const int batch_num = 4;
@@ -5937,7 +6057,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32_crop, fs_byx_fsv32_crop)
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("concat").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::bfyx);
 
@@ -6019,7 +6139,7 @@ TEST(convolution_f32_fw_gpu, convolution_int8_b_fs_yx_fsv4_to_bfyx) {
 
     auto output_memory = outputs.at("output").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto conv = convolution("conv", input_info("to_int"), "weights", "biases", 1, { 1, 1 }, { 1, 1 }, { input_padding, input_padding }, { input_padding, input_padding }, false, ov::op::PadType::EXPLICIT);
     conv.output_paddings = { padding{ { 0, 0, output_padding, output_padding }, 0 }};
@@ -6044,7 +6164,7 @@ TEST(convolution_f32_fw_gpu, convolution_int8_b_fs_yx_fsv4_to_bfyx) {
     ASSERT_EQ(outputs_act.begin()->first, "output");
 
     auto output_memory_act = outputs_act.at("output").get_memory();
-    cldnn::mem_lock<float> output_act_ptr(output_memory_act, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_act_ptr(output_memory_act, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -6071,9 +6191,7 @@ TEST(convolution_gpu, bfyx_iyxo_5x5_fp16)
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const int batch_num = 1;
@@ -6184,7 +6302,7 @@ TEST(convolution_gpu, bfyx_iyxo_5x5_fp16)
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("out").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     auto output_layout = out_mem->get_layout();
     ASSERT_EQ(output_layout.format, format::bfyx);
@@ -6418,10 +6536,10 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32)
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv_bsv16_fsv16").get_memory();
-    cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     auto out_mem_bfyx = outputs.at("reorder_bfzyx").get_memory();
-    cldnn::mem_lock<float> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
 
     blockedFormatZeroCheck<float>(out_mem);
 
@@ -6447,9 +6565,7 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp16)
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const int batch_num = testing::get<0>(GetParam());
@@ -6558,10 +6674,10 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp16)
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv_bsv16_fsv16").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     auto out_mem_bfyx = outputs.at("reorder_bfzyx").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
 
     blockedFormatZeroCheck<ov::float16>(out_mem);
 
@@ -6695,10 +6811,10 @@ TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32_fused_ops)
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv_bsv16_fsv16").get_memory();
-    cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     auto out_mem_bfyx = outputs.at("reorder_bfzyx").get_memory();
-    cldnn::mem_lock<float> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
 
     blockedFormatZeroCheck<float>(out_mem);
 
@@ -6762,9 +6878,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32)
 
     if (batch_num <= 16)
     {
-        std::cout << "[ SKIPPED ] The test is skipped (for bs_fs_yx_bsv16_fsv16 batch should be greater than 16)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (for bs_fs_yx_bsv16_fsv16 batch should be greater than 16).";
     }
 
     auto input_size = tensor(batch_num, input_f, input_xy, input_xy);
@@ -6859,10 +6973,10 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32)
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv_bsv16_fsv16").get_memory();
-    cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     auto out_mem_bfyx = outputs.at("reorder_bfyx").get_memory();
-    cldnn::mem_lock<float> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::bs_fs_yx_bsv16_fsv16);
 
@@ -6884,9 +6998,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp16)
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const int batch_num = testing::get<0>(GetParam());
@@ -6901,9 +7013,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp16)
 
     if (batch_num % 32 != 0)
     {
-        std::cout << "[ SKIPPED ] The test is skipped (for fp16 batch should be multiple of 32)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (for fp16 batch should be multiple of 32).";
     }
 
     tests::random_generator rg(GET_SUITE_NAME);
@@ -7000,10 +7110,10 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp16)
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv_bsv16_fsv16").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     auto out_mem_bfyx = outputs.at("reorder_bfyx").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::bs_fs_yx_bsv16_fsv16);
 
@@ -7025,9 +7135,7 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32_fused_ops)
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const int batch_num = testing::get<0>(GetParam()) * 2;
@@ -7139,10 +7247,10 @@ TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32_fused_ops)
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv_bsv16_fsv16").get_memory();
-    cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     auto out_mem_bfyx = outputs.at("reorder_bfyx").get_memory();
-    cldnn::mem_lock<float> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr_bfyx(out_mem_bfyx, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::bs_fs_yx_bsv16_fsv16);
 
@@ -7200,9 +7308,7 @@ TEST_P(convolution_depthwise_gpu, depthwise_conv_fs_b_yx_fsv32)
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
     if (engine.get_device_info().supports_immad) {
         // This test is not targeting for onednn case
@@ -7281,7 +7387,7 @@ TEST_P(convolution_depthwise_gpu, depthwise_conv_fs_b_yx_fsv32)
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv_fsv").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::fs_b_yx_fsv32);
 
@@ -7347,9 +7453,7 @@ TEST_P(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16)
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const int batch_num = 2;
@@ -7425,7 +7529,7 @@ TEST_P(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16)
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv_fsv").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::b_fs_yx_fsv16);
 
@@ -7478,9 +7582,7 @@ TEST_P(convolution_depthwise_gpu_fsv16_xy, depthwise_conv_b_fs_yx_fsv16)
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const int batch_num = 2;
@@ -7564,7 +7666,7 @@ TEST_P(convolution_depthwise_gpu_fsv16_xy, depthwise_conv_b_fs_yx_fsv16)
 
     auto out_mem = outputs.at("out").get_memory();
 
-    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
     ASSERT_EQ(out_mem->get_layout().format, format::b_fs_yx_fsv16);
 
     for (int bi = 0; bi < batch_num; ++bi) {
@@ -7659,7 +7761,7 @@ TEST(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16_in_feature_pa
 
     auto output_memory = outputs.at("out").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -7695,9 +7797,7 @@ TEST_P(convolution_depthwise_gpu_bfyx, depthwise_conv_bfyx)
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const int batch_num = 2;
@@ -7770,7 +7870,7 @@ TEST_P(convolution_depthwise_gpu_bfyx, depthwise_conv_bfyx)
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::bfyx);
 
@@ -8148,14 +8248,10 @@ TEST_P(convolution_general_gpu, conv_fp16_cases) {
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
     if (engine.get_device_info().supports_immad) {
-        std::cout << "[ SKIPPED ] The test is skipped (not targeting for onednn path)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (not targeting for onednn path).";
     }
 
     const int input_x = testing::get<0>(GetParam()),
@@ -8267,7 +8363,7 @@ TEST_P(convolution_general_gpu, conv_fp16_cases) {
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv_fsv").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
     auto out_lay = out_mem->get_layout();
 
     ASSERT_EQ(out_mem->get_layout().format, input_data_format);
@@ -8317,9 +8413,7 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_padding)
 
     if (!engine.get_device_info().supports_fp16)
     {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const int input_b = testing::get<10>(GetParam());
@@ -8375,7 +8469,7 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_padding)
     auto ref_out = network_ref.execute();
 
     auto ref_out_mem = ref_out.begin()->second.get_memory();
-    cldnn::mem_lock<ov::float16> ref_out_ptr(ref_out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_out_ptr(ref_out_mem, get_test_stream());
 
     // Exec target network (fusing: conv+reorder)
     ExecutionConfig config_target = get_test_default_config(engine);
@@ -8388,7 +8482,7 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_padding)
     auto target_out = network_target.execute();
 
     auto target_out_mem = target_out.begin()->second.get_memory();
-    cldnn::mem_lock<ov::float16> target_out_ptr(target_out_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> target_out_ptr(target_out_mem, get_test_stream());
 
     // Compare ref and target result
     for (size_t i = 0; i < ref_out_ptr.size(); i++) {
@@ -8417,9 +8511,7 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_different_type)
 
     if (!engine.get_device_info().supports_fp16)
     {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const int input_b = testing::get<10>(GetParam());
@@ -8468,7 +8560,7 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_different_type)
     auto ref_out = network_ref.execute();
 
     auto ref_out_mem = ref_out.begin()->second.get_memory();
-    cldnn::mem_lock<float> ref_out_ptr(ref_out_mem, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> ref_out_ptr(ref_out_mem, get_test_stream());
 
     // Exec target network (fusing: conv+reorder)
     ExecutionConfig config_target = get_test_default_config(engine);
@@ -8481,7 +8573,7 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_different_type)
     auto target_out = network_target.execute();
 
     auto target_out_mem = target_out.begin()->second.get_memory();
-    cldnn::mem_lock<float> target_out_ptr(target_out_mem, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> target_out_ptr(target_out_mem, get_test_stream());
 
     // Compare ref and target result
     for (size_t i = 0; i < ref_out_ptr.size(); i++) {
@@ -8610,7 +8702,7 @@ public:
         auto out_mem = result.at(output_primitive_id()).get_memory();
         auto out_lay = out_mem->get_layout();
         bool is_output_fp = (out_lay.data_type == data_types::f32 || out_lay.data_type == data_types::f16);
-        cldnn::mem_lock<OutputT> out_ptr(out_mem, get_test_stream());
+        cldnn::mem_lock<OutputT, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
         std::stringstream description;
         for (auto i : net.get_primitives_info()) {
@@ -8637,7 +8729,11 @@ public:
                         tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
                         size_t offset = out_lay.get_linear_offset(coords);
                         if (is_output_fp) {
-                            ASSERT_NEAR(out_ptr[offset], expected[bi][fi][yi][xi], 1e-5f)
+                            // Use relative tolerance for large values where absolute 1e-5 is too tight.
+                            // IMAD kernels may reorder f32 accumulation, causing magnitude-proportional diffs.
+                            auto ref_val = expected[bi][fi][yi][xi];
+                            auto abs_tol = std::max(1e-5, static_cast<double>(std::abs(ref_val)) * 1e-7);
+                            ASSERT_NEAR(out_ptr[offset], ref_val, abs_tol)
                                 << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
                                 << description.str();
                         } else {
@@ -9088,7 +9184,7 @@ public:
         auto out_mem = result.at(this->output_primitive_id()).get_memory();
         auto out_lay = out_mem->get_layout();
         bool is_output_fp = (out_lay.data_type == data_types::f32 || out_lay.data_type == data_types::f16);
-        cldnn::mem_lock<OutputT> out_ptr(out_mem, get_test_stream());
+        cldnn::mem_lock<OutputT, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
         std::stringstream description;
         for (auto i : net.get_primitives_info()) {
@@ -9866,9 +9962,7 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
 
     if (!engine.get_device_info().supports_fp16)
     {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const int input_x = testing::get<0>(GetParam()),
@@ -10087,11 +10181,11 @@ TEST(convolution_gpu_onednn, padding_for_cldnn_kernel_after_onednn) {
 
     auto output_memory_test = outputs_test.at("reorder").get_memory();
     auto output_layout_test = output_memory_test->get_layout();
-    cldnn::mem_lock<float> output_ptr_test(output_memory_test, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_test(output_memory_test, get_test_stream());
 
     auto output_memory_ref = outputs_ref.at("reorder").get_memory();
     auto output_layout_ref = output_memory_ref->get_layout();
-    cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_ref(output_memory_ref, get_test_stream());
 
     ASSERT_EQ(output_layout_test.spatial(0), output_x);
     ASSERT_EQ(output_layout_test.spatial(1), output_y);
@@ -10181,15 +10275,15 @@ TEST(convolution_gpu_onednn, spatial_1d) {
 
     auto output_memory_test_blocked = outputs_test_blocked.at("reorder").get_memory();
     auto output_layout_test_blocked = output_memory_test_blocked->get_layout();
-    cldnn::mem_lock<float> output_ptr_test_blocked(output_memory_test_blocked, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_test_blocked(output_memory_test_blocked, get_test_stream());
 
     auto output_memory_test_planar = outputs_test_planar.at("reorder").get_memory();
     auto output_layout_test_planar = output_memory_test_planar->get_layout();
-    cldnn::mem_lock<float> output_ptr_test_planar(output_memory_test_planar, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_test_planar(output_memory_test_planar, get_test_stream());
 
     auto output_memory_ref = outputs_ref.at("reorder").get_memory();
     auto output_layout_ref = output_memory_ref->get_layout();
-    cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_ref(output_memory_ref, get_test_stream());
 
     ov::PartialShape expected_shape = {1, 16, 4};
     ASSERT_EQ(output_layout_test_blocked.get_partial_shape(), expected_shape);
@@ -10257,7 +10351,7 @@ TEST(convolution_gpu_onednn, spatial_1d_dynamic) {
     ASSERT_EQ(outputs_ref.begin()->first, "reorder");
     auto output_memory_ref = outputs_ref.at("reorder").get_memory();
     auto output_layout_ref = output_memory_ref->get_layout();
-    cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_ref(output_memory_ref, get_test_stream());
 
     network network_test_dynamic(engine, t, config_test_dynamic);
     network_test_dynamic.set_input_data("input", input_mem);
@@ -10266,7 +10360,7 @@ TEST(convolution_gpu_onednn, spatial_1d_dynamic) {
     ASSERT_EQ(outputs_test_dynamic.begin()->first, "reorder");
     auto output_memory_test_dynamic = outputs_test_dynamic.at("reorder").get_memory();
     auto output_layout_test_dynamic = output_memory_test_dynamic->get_layout();
-    cldnn::mem_lock<float> output_ptr_test_dynamic(output_memory_test_dynamic, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_test_dynamic(output_memory_test_dynamic, get_test_stream());
 
     ov::PartialShape expected_shape = {1, 16, 4};
     ASSERT_EQ(output_layout_test_dynamic.get_partial_shape(), expected_shape);
@@ -10400,7 +10494,7 @@ TEST_P(convolution_gpu_onednn_both_shapes, quantized_onednn_convolution_u8s8f32_
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_memory = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto output_layout = output_memory->get_layout();
     int y_size = output_layout.spatial(1);
@@ -10515,7 +10609,7 @@ TEST_P(convolution_gpu_onednn_both_shapes, quantized_onednn_convolution_u8s8f32_
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_memory = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto output_layout = output_memory->get_layout();
     int y_size = output_layout.spatial(1);
@@ -10633,7 +10727,7 @@ TEST_P(convolution_gpu_onednn_both_shapes, quantized_onednn_convolution_u8s8f32_
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_memory = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto output_layout = output_memory->get_layout();
     int y_size = output_layout.spatial(1);
@@ -10835,7 +10929,7 @@ TEST_P(convolution_gpu_onednn_both_shapes_3d, quantized_onednn_convolution_u8s8f
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_memory = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto output_layout = output_memory->get_layout();
     int z_size = output_layout.spatial(2);
@@ -10948,7 +11042,7 @@ TEST(convolution_gpu_onednn, support_activation_zero_points_for_i32) {
     ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_memory = outputs.at("out").get_memory();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     auto output_layout = output_memory->get_layout();
     int y_size = output_layout.spatial(1);
@@ -11121,7 +11215,7 @@ TEST(convolution_gpu_onednn, has_proper_synchronization) {
     ASSERT_EQ(res_test->get_layout().get_linear_size(), res_ref->get_layout().get_linear_size());
 
     cldnn::mem_lock<float> test_mem(res_test, get_test_stream());
-    cldnn::mem_lock<float> ref_mem(res_ref, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> ref_mem(res_ref, get_test_stream());
 
     for (size_t i = 0; i < res_ref->get_layout().get_linear_size(); ++i) {
         ASSERT_EQ(test_mem[i], ref_mem[i]);
@@ -11176,7 +11270,7 @@ TEST(convolution_gpu_onednn, grouped_runtime_weights) {
 
     auto output_memory = output.at("reorder").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     ASSERT_EQ(output_layout.get_shape(), ov::Shape({1, 256, 25, 25}));
 }
@@ -11228,9 +11322,7 @@ TEST(convolution_gpu_onednn, dyn_conv4d_reshape6d_pattern) {
 
     if (!engine.get_device_info().supports_fp16)
     {
-        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
     }
 
     const int input_x = 8, input_y = 8, input_f = 32, output_f = 32, filter_x = 3, filter_y = 3, groups = 1, batch_num = 1;
@@ -11470,7 +11562,7 @@ void test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_block_size_1(
     auto outputs = network->execute();
 
     auto out_mem = outputs.at("conv_fsv").get_memory();
-    cldnn::mem_lock<T> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(out_mem->get_layout().format, format::b_fs_yx_fsv16);
 
@@ -11562,7 +11654,7 @@ TEST(convolution_f32_fw_gpu, convolution_gpu_f32_convolution_gpu_bfyx_f16_depthw
 
         auto outputs = net.execute();
         auto out_mem = outputs.at("out").get_memory();
-        cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
         std::vector<float> out(out_mem->count());
         for (size_t i = 0; i < out.size(); ++i) {
@@ -11651,7 +11743,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_no_bias_swap_xy) {
 
     auto output_memory = outputs.at("conv").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);
@@ -11801,9 +11893,18 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv32_no_bias) {
     auto p = GetParam();
 
     if (p.groups > 1) {
-        std::cout << "[ SKIPPED ] The test is skipped (group convolution is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (group convolution is not supported).";
+    }
+
+    // convolution_gpu_bfyx_os_iyx_osv32 is disabled for dynamic shapes on Xe2+
+    // because its scatter input reads can access memory beyond the allocated
+    // buffer (OOB), which causes CL_OUT_OF_RESOURCES on Xe2+ (pre-Xe2 hardware
+    // silently returns zero for OOB reads). See Validate() in
+    // convolution_kernel_bfyx_os_iyx_osv32.cpp.
+    const auto& device_info = engine.get_device_info();
+    if (device_info.gfx_ver.major >= 20) {
+        GTEST_SKIP() << "convolution_gpu_bfyx_os_iyx_osv32 is disabled for dynamic shapes on Xe2+ "
+                     << "(OOB scatter reads cause CL_OUT_OF_RESOURCES)";
     }
 
     auto groups_num = 1;
@@ -11851,7 +11952,8 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv32_no_bias) {
 
     auto inst = network.get_primitive("conv");
     auto impl = inst->get_impl();
-    ASSERT_TRUE(impl != nullptr);
+    ASSERT_NE(impl, nullptr) << "Forced convolution_gpu_bfyx_os_iyx_osv32 implementation was not selected; "
+                             << "if this platform is expected to lack support, add an explicit skip above";
     ASSERT_TRUE(impl->is_dynamic());
 
     auto outputs = network.execute();
@@ -11859,7 +11961,7 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv32_no_bias) {
     auto output_memory = outputs.at("conv").get_memory();
     auto output_memory_ref = calculate_ref(input, weights, config);
 
-    cldnn::mem_lock<ov::float16> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<ov::float16> output_ptr_ref(output_memory_ref, get_test_stream());
 
     ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
@@ -11887,7 +11989,7 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv32_no_bias) {
         auto output_memory = outputs.at("conv").get_memory();
         auto output_memory_ref = calculate_ref(input, weights, config);
 
-        cldnn::mem_lock<ov::float16> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
         cldnn::mem_lock<ov::float16> output_ptr_ref(output_memory_ref, get_test_stream());
 
         ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
@@ -11904,9 +12006,7 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_1x1_no_bias) {
     auto is_grouped = p.wei_shape.size() == 5;
 
     if (is_grouped) {
-        std::cout << "[ SKIPPED ] The test is skipped (group convolution is not supported)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (group convolution is not supported).";
     }
     auto groups_num = 1;
 
@@ -11917,16 +12017,12 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_1x1_no_bias) {
         && std::all_of(p.pad_end.begin(), p.pad_end.end(), [](int i) { return i == 0; });
 
     if (!is_weight_1x1 || !is_valid_output || !is_valid_strid || !is_valid_padding) {
-        std::cout << "[ SKIPPED ] The test is skipped (is_weight_1x1: " << is_weight_1x1 << ", is_valid_output: " << is_valid_output
-                  << ", is_valid_strid: " << is_valid_strid << ", is_valid_padding: " << is_valid_padding << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (is_weight_1x1: " << is_weight_1x1 << ", is_valid_output: " << is_valid_output
+                  << ", is_valid_strid: " << is_valid_strid << ", is_valid_padding: " << is_valid_padding;
     }
 
     if (!engine.get_device_info().supports_immad && p.in_shape[1] > 16) {
-        std::cout << "[ SKIPPED ] The test is skipped (convolution_fsv16_1x1 static kernel has accuracy issue with input feature > 16 in igpu)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (convolution_fsv16_1x1 static kernel has accuracy issue with input feature > 16 in igpu).";
     }
 
     auto calculate_ref = [&](memory::ptr input, memory::ptr weights, ExecutionConfig config) {
@@ -11991,7 +12087,7 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_1x1_no_bias) {
 
     auto output_memory_ref = calculate_ref(input, weights, config);
 
-    cldnn::mem_lock<ov::float16> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<ov::float16> output_ptr_ref(output_memory_ref, get_test_stream());
 
 
@@ -12017,7 +12113,7 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_1x1_no_bias) {
         auto output_memory = outputs.at("conv").get_memory();
         auto output_memory_ref = calculate_ref(input, weights, config);
 
-        cldnn::mem_lock<ov::float16> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
         cldnn::mem_lock<ov::float16> output_ptr_ref(output_memory_ref, get_test_stream());
 
         ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
@@ -12033,9 +12129,7 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_depthwise_quantized) {
     auto is_depthwise = p.in_shape[1] == p.groups;
 
     if (!is_depthwise) {
-        std::cout << "[ SKIPPED ] The test is skipped (convolution is not depthwise)." << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+        GTEST_SKIP() << "The test is skipped (convolution is not depthwise).";
     }
 
     auto is_valid_output = p.wei_shape[0] % 16 == 0;
@@ -12043,12 +12137,10 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_depthwise_quantized) {
     auto is_valid_padding = all_zeroes(p.pad_begin) && all_zeroes(p.pad_end);
     auto is_valid_ranks = p.in_shape.size() == p.wei_shape.size() - 1;
     if (!is_valid_output || !is_valid_strid || !is_valid_padding || !is_valid_ranks) {
-        std::cout << "[ SKIPPED ] The test is skipped (is_valid_output: " << is_valid_output
+        GTEST_SKIP() << "The test is skipped (is_valid_output: " << is_valid_output
                   << ", is_valid_strid: " << is_valid_strid
                   << ", is_valid_padding: " << is_valid_padding
-                  << ", is_valid_ranks: " << is_valid_ranks << std::endl;
-        ASSERT_EQ(1, 1);
-        return;
+                  << ", is_valid_ranks: " << is_valid_ranks;
     }
 
     auto calculate_ref = [&](memory::ptr input, memory::ptr weights,
@@ -12130,7 +12222,7 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_depthwise_quantized) {
 
     auto output_memory_ref = calculate_ref(input, weights, a_zp, compensation, config);
 
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
 
     ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
@@ -12154,7 +12246,7 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_depthwise_quantized) {
         auto output_memory = outputs.at("conv").get_memory();
         auto output_memory_ref = calculate_ref(input, weights, a_zp, compensation, config);
 
-        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
         cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
 
         ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
@@ -12192,6 +12284,107 @@ INSTANTIATE_TEST_SUITE_P(smoke, conv_dyn_test,
     { ov::Shape{1, 32, 91}, ov::Shape{32, 1, 1, 11}, ov::Strides{1}, ov::Strides{1}, ov::CoordinateDiff{0}, ov::CoordinateDiff{0}, 32 },
     { ov::Shape{1, 64, 16, 16}, ov::Shape{64, 1, 1, 3, 3}, ov::Strides{1, 1}, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, 64 },
 }));
+
+TEST(conv_dyn_test_depth_anything_v2, convolution_gpu_bfyx_os_iyx_osv16_no_oob_on_dyn_batch_reshape) {
+    auto& engine = get_test_engine();
+
+    const size_t in_h = 518;
+    const size_t in_w = 8288;
+    const ov::Shape default_in_shape{1, 3, in_h, in_w};
+    const ov::Shape reshaped_in_shape{2, 3, in_h, in_w};
+    const ov::Shape wei_shape{384, 3, 14, 14};
+    const ov::Strides stride{14, 14};
+    const ov::Strides dilation{1, 1};
+    const ov::CoordinateDiff pad_begin{0, 0};
+    const ov::CoordinateDiff pad_end{0, 0};
+    const uint32_t groups = 1;
+
+    const auto alloc_type = engine.supports_allocation(allocation_type::usm_device)
+                                ? allocation_type::usm_device
+                                : engine.get_default_allocation_type();
+
+    auto dyn_input_pshape = ov::PartialShape{ov::Dimension(), ov::Dimension(default_in_shape[1]),
+                                             ov::Dimension(), ov::Dimension()};
+    auto in_layout = layout{dyn_input_pshape, data_types::f32, format::bfyx};
+
+    auto weights = engine.allocate_memory({wei_shape, data_types::f32, format::bfyx});
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    VF<float> weights_rnd = rg.generate_random_1d<float>(ov::shape_size(wei_shape), -10, 10);
+    set_values(weights, weights_rnd);
+
+    topology topology(
+        input_layout("input", in_layout),
+        data("weights", weights),
+        convolution("conv", input_info("input"), "weights", no_bias, groups,
+                    stride, dilation, pad_begin, pad_end, false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl = {format::bfyx, "convolution_gpu_bfyx_os_iyx_osv16", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", conv_impl}}));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+
+    auto inst = network.get_primitive("conv");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto calculate_ref = [&](memory::ptr input, ExecutionConfig ref_config) {
+        cldnn::topology topology_ref(
+            input_layout("input", input->get_layout()),
+            data("weights", weights),
+            convolution("conv", input_info("input"), "weights", no_bias, groups,
+                        stride, dilation, pad_begin, pad_end, false));
+        cldnn::network network_ref(engine, topology_ref, ref_config);
+        network_ref.set_input_data("input", input);
+        return network_ref.execute().at("conv").get_memory();
+    };
+
+    ExecutionConfig ref_config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl_ref = {format::bfyx, "convolution_gpu_ref", impl_types::ocl};
+    ref_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", conv_impl_ref}}));
+    ref_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    {
+        auto input = engine.allocate_memory({default_in_shape, data_types::f32, format::bfyx}, alloc_type);
+        VF<float> input_rnd = rg.generate_random_1d<float>(ov::shape_size(default_in_shape), -10, 10);
+        set_values(input, input_rnd);
+
+        network.set_input_data("input", input);
+
+        memory::ptr output_memory;
+        ASSERT_NO_THROW(output_memory = network.execute().at("conv").get_memory());
+
+        auto output_memory_ref = calculate_ref(input, ref_config);
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr_ref(output_memory_ref, get_test_stream());
+
+        ASSERT_EQ(output_memory->get_layout(), output_memory_ref->get_layout());
+        for (size_t i = 0; i < output_ptr.size(); ++i)
+            ASSERT_EQ(output_ptr[i], output_ptr_ref[i]);
+    }
+
+    {
+        auto input = engine.allocate_memory({reshaped_in_shape, data_types::f32, format::bfyx}, alloc_type);
+        VF<float> input_rnd = rg.generate_random_1d<float>(ov::shape_size(reshaped_in_shape), -10, 10);
+        set_values(input, input_rnd);
+
+        network.set_input_data("input", input);
+
+        memory::ptr output_memory;
+        ASSERT_NO_THROW(output_memory = network.execute().at("conv").get_memory());
+
+        auto output_memory_ref = calculate_ref(input, ref_config);
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr_ref(output_memory_ref, get_test_stream());
+
+        ASSERT_EQ(output_memory->get_layout(), output_memory_ref->get_layout());
+        for (size_t i = 0; i < output_ptr.size(); ++i)
+            ASSERT_EQ(output_ptr[i], output_ptr_ref[i]);
+    }
+}
 
 TEST(convolution_gpu_imad_cache, convolution_gpu_b_fs_yx_fsv16_imad_1x1_cache) {
     auto& engine = get_test_engine();
@@ -12326,12 +12519,24 @@ TEST_P(conv_dyn_3d_test, convolution_gpu_b_fs_zyx_fsv16_imad_quantized) {
 
     auto output_memory_ref = calculate_ref(input, weights, a_zp, compensation, config);
 
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
 
-    ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
-    for (size_t i = 0; i < output_ptr.size(); i++) {
-        ASSERT_EQ(output_ptr[i], output_ptr_ref[i]);
+    // Compare only valid output elements using coordinate-based indexing to skip
+    // FSV16 padding positions which may differ between dynamic and static networks
+    {
+        auto out_lay = outputs.at("conv").get_layout();
+        ASSERT_EQ(out_lay, output_memory_ref->get_layout());
+        for (int bi = 0; bi < out_lay.batch(); ++bi)
+            for (int fi = 0; fi < out_lay.feature(); ++fi)
+                for (int zi = 0; zi < out_lay.spatial(2); ++zi)
+                    for (int yi = 0; yi < out_lay.spatial(1); ++yi)
+                        for (int xi = 0; xi < out_lay.spatial(0); ++xi) {
+                            tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, 0));
+                            auto offset = out_lay.get_linear_offset(coords);
+                            ASSERT_EQ(output_ptr[offset], output_ptr_ref[offset])
+                                << "Mismatch at b=" << bi << " f=" << fi << " z=" << zi << " y=" << yi << " x=" << xi;
+                        }
     }
 
     {
@@ -12350,12 +12555,22 @@ TEST_P(conv_dyn_3d_test, convolution_gpu_b_fs_zyx_fsv16_imad_quantized) {
         auto output_memory = outputs.at("conv").get_memory();
         auto output_memory_ref = calculate_ref(input, weights, a_zp, compensation, config);
 
-        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
         cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
 
-        ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
-        for (size_t i = 0; i < output_ptr.size(); i++) {
-            ASSERT_EQ(output_ptr[i], output_ptr_ref[i]);
+        {
+            auto out_lay = outputs.at("conv").get_layout();
+            ASSERT_EQ(out_lay, output_memory_ref->get_layout());
+            for (int bi = 0; bi < out_lay.batch(); ++bi)
+                for (int fi = 0; fi < out_lay.feature(); ++fi)
+                    for (int zi = 0; zi < out_lay.spatial(2); ++zi)
+                        for (int yi = 0; yi < out_lay.spatial(1); ++yi)
+                            for (int xi = 0; xi < out_lay.spatial(0); ++xi) {
+                                tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, 0));
+                                auto offset = out_lay.get_linear_offset(coords);
+                                ASSERT_EQ(output_ptr[offset], output_ptr_ref[offset])
+                                    << "Mismatch at b=" << bi << " f=" << fi << " z=" << zi << " y=" << yi << " x=" << xi;
+                            }
         }
     }
 }
@@ -12438,7 +12653,7 @@ TEST(group_convolution_f16_fw_gpu, basic_1d_group_convolution) {
     auto mem_opt = out_opt.at("output").get_memory();
 
     cldnn::mem_lock<float> output_ptr_ref(mem_ref, get_test_stream());
-    cldnn::mem_lock<float> output_ptr_opt(mem_opt, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_opt(mem_opt, get_test_stream());
 
     ASSERT_EQ(mem_opt->get_layout(), mem_ref->get_layout());
     for (size_t i = 0; i < output_ptr_opt.size(); i++) {
@@ -12512,7 +12727,7 @@ TEST(group_convolution_f16_fw_gpu, with_weights_as_input) {
     auto mem_opt = out_opt.at("output").get_memory();
 
     cldnn::mem_lock<float> output_ptr_ref(mem_ref, get_test_stream());
-    cldnn::mem_lock<float> output_ptr_opt(mem_opt, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_opt(mem_opt, get_test_stream());
 
     ASSERT_EQ(mem_opt->get_layout(), mem_ref->get_layout());
     for (size_t i = 0; i < output_ptr_opt.size(); i++) {
@@ -12652,7 +12867,7 @@ TEST(conv_dyn_test, changed_batch_convolution_test_reorder_cache_mismatch) {
         // Change original shape to 'new_shape' for the second run
         auto input = engine.allocate_memory({ new_shape, data_types::f32, format::bfyx });
 
-        VF<float> input_rnd = rg.generate_random_1d<float>(ov::shape_size(in_shape), -10, 10);
+        VF<float> input_rnd = rg.generate_random_1d<float>(ov::shape_size(new_shape), -10, 10);
         set_values(input, input_rnd);
 
         network.set_input_data("input", input);
@@ -12744,7 +12959,7 @@ TEST_P(conv_3d_test_mmad, convolution_gpu_b_fs_zyx_mmad) {
 
     auto output_memory_ref = calculate_ref(input, weights, a_zp, compensation, config);
 
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
     cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
 
     ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
@@ -12787,3 +13002,472 @@ TEST(convolution_gpu, onednn_custom_format_3d_weights) {
     });
 }
 #endif  // ENABLE_ONEDNN_FOR_GPU
+
+TEST(convolution_gpu_bfyx_f16, dynamic_padded_input_asymmetric_x_padding_1x1) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_fp16)
+        GTEST_SKIP() << "fp16 is not supported on this device.";
+
+    const int batch = 1, in_f = 32, out_f = 32, in_h = 7, in_w = 8;
+    const int x_pad_after = 4;
+
+    auto input_mem = engine.allocate_memory({ ov::Shape{batch, in_f, in_h, in_w}, data_types::f16, format::bfyx });
+    auto weights   = engine.allocate_memory({ ov::Shape{out_f, in_f, 1, 1},        data_types::f16, format::bfyx });
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    set_values(input_mem, rg.generate_random_1d<ov::float16>(batch * in_f * in_h * in_w, -5, 5));
+    set_values(weights,   rg.generate_random_1d<ov::float16>(out_f * in_f, -5, 5));
+
+    padding x_padding({0, 0, 0, 0}, {0, 0, 0, x_pad_after});
+    layout padded_fsv16(data_types::f16, format::b_fs_yx_fsv16, tensor{batch, in_f, in_w, in_h}, x_padding);
+    layout plain_fsv16 (data_types::f16, format::b_fs_yx_fsv16, tensor{batch, in_f, in_w, in_h});
+
+    layout dyn_input_layout{ov::PartialShape::dynamic(4), data_types::f16, format::bfyx};
+
+    auto make_topology = [&](bool with_x_padding) {
+        return topology(
+            input_layout("input", dyn_input_layout),
+            reorder("reordered", input_info("input"), with_x_padding ? padded_fsv16 : plain_fsv16),
+            data("weights", weights),
+            convolution("conv", input_info("reordered"), "weights", no_bias, 1,
+                        ov::Strides{1, 1}, ov::Strides{1, 1},
+                        ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, false));
+    };
+
+    ExecutionConfig cfg_test = get_test_default_config(engine);
+    cfg_test.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        { "conv", { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_1x1", impl_types::ocl } }
+    }));
+    cfg_test.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    ExecutionConfig cfg_ref = get_test_default_config(engine);
+    cfg_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        { "conv", { format::b_fs_yx_fsv16, "convolution_gpu_ref", impl_types::ocl } }
+    }));
+    cfg_ref.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network net_test(engine, make_topology(/*with_x_padding=*/true),  cfg_test);
+    network net_ref (engine, make_topology(/*with_x_padding=*/true),  cfg_ref);
+
+    net_test.set_input_data("input", input_mem);
+    net_ref .set_input_data("input", input_mem);
+
+    cldnn::mem_lock<ov::float16> out(net_test.execute().at("conv").get_memory(), get_test_stream());
+    cldnn::mem_lock<ov::float16> ref(net_ref .execute().at("conv").get_memory(), get_test_stream());
+
+    ASSERT_EQ(out.size(), ref.size());
+    for (size_t i = 0; i < out.size(); i++)
+        ASSERT_EQ(out[i], ref[i]) << "Mismatch at idx=" << i;
+}
+
+TEST(convolution_gpu_bfyx_f16, dynamic_tail_spatial_block_with_output_padding_1x1) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_fp16)
+        GTEST_SKIP() << "fp16 is not supported on this device.";
+
+    const ov::Shape in_shape = {1, 32, 3, 5};   // X*Y = 15 => tail when X_BLOCK_SIZE is 2/4/8
+    const ov::Shape wei_shape = {32, 32, 1, 1};
+
+    auto input_mem = engine.allocate_memory({in_shape, data_types::f16, format::bfyx});
+    auto weights = engine.allocate_memory({wei_shape, data_types::f16, format::bfyx});
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    set_values(input_mem, rg.generate_random_1d<ov::float16>(ov::shape_size(in_shape), -5, 5));
+    set_values(weights, rg.generate_random_1d<ov::float16>(ov::shape_size(wei_shape), -5, 5));
+
+    layout dyn_input_layout{ov::PartialShape::dynamic(4), data_types::f16, format::bfyx};
+    layout input_fsv16_layout{in_shape, data_types::f16, format::b_fs_yx_fsv16};
+
+    auto make_topo = [&]() {
+        auto conv = convolution("conv",
+                                input_info("input"),
+                                "weights",
+                                no_bias,
+                                1,
+                                ov::Strides{1, 1},
+                                ov::Strides{1, 1},
+                                ov::CoordinateDiff{0, 0},
+                                ov::CoordinateDiff{0, 0},
+                                false,
+                                ov::op::PadType::EXPLICIT);
+
+        conv.output_paddings = {padding{{0, 0, 1, 2}, 0}};
+
+        return topology(
+            input_layout("input", dyn_input_layout),
+            reorder("input_fsv16", input_info("input"), input_fsv16_layout),
+            data("weights", weights),
+            conv);
+    };
+
+    // Target kernel
+    ExecutionConfig cfg_test = get_test_default_config(engine);
+    cfg_test.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"conv", {format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_1x1", impl_types::ocl}}
+    }));
+    cfg_test.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    // Reference kernel
+    ExecutionConfig cfg_ref = get_test_default_config(engine);
+    cfg_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"conv", {format::b_fs_yx_fsv16, "convolution_gpu_ref", impl_types::ocl}}
+    }));
+    cfg_ref.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network net_test(engine, make_topo(), cfg_test);
+    network net_ref(engine, make_topo(), cfg_ref);
+
+    net_test.set_input_data("input", input_mem);
+    net_ref.set_input_data("input", input_mem);
+
+    auto out_test = net_test.execute();
+    auto out_ref = net_ref.execute();
+
+    auto mem_test = out_test.at("conv").get_memory();
+    auto mem_ref = out_ref.at("conv").get_memory();
+
+    cldnn::mem_lock<ov::float16> ptr_test(mem_test, get_test_stream());
+    cldnn::mem_lock<ov::float16> ptr_ref(mem_ref, get_test_stream());
+
+    ASSERT_EQ(mem_test->get_layout(), mem_ref->get_layout());
+    ASSERT_EQ(ptr_test.size(), ptr_ref.size());
+
+    const float atol = 0.1f;
+    const float rtol = 1e-2f;
+    for (size_t i = 0; i < ptr_test.size(); i++) {
+        const float test_val = float(ptr_test[i]);
+        const float ref_val = float(ptr_ref[i]);
+        const float tol = atol + rtol * std::fabs(ref_val);
+        ASSERT_NEAR(test_val, ref_val, tol) << "Mismatch at idx=" << i;
+    }
+}
+
+TEST(convolution_gpu_bfyx_f16, dynamic_tail_spatial_block_with_output_padding) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_fp16)
+        GTEST_SKIP() << "fp16 is not supported on this device.";
+
+    const ov::Shape in_shape = {1, 32, 3, 5};
+    const ov::Shape wei_shape = {32, 32, 3, 3};
+
+    auto input_mem = engine.allocate_memory({in_shape, data_types::f16, format::bfyx});
+    auto weights = engine.allocate_memory({wei_shape, data_types::f16, format::bfyx});
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    set_values(input_mem, rg.generate_random_1d<ov::float16>(ov::shape_size(in_shape), -5, 5));
+    set_values(weights, rg.generate_random_1d<ov::float16>(ov::shape_size(wei_shape), -5, 5));
+
+    layout dyn_input_layout{ov::PartialShape::dynamic(4), data_types::f16, format::bfyx};
+    layout input_fsv16_layout{in_shape, data_types::f16, format::b_fs_yx_fsv16};
+
+    auto make_topo = [&]() {
+        auto conv = convolution("conv",
+                                input_info("input"),
+                                "weights",
+                                no_bias,
+                                1,
+                                ov::Strides{1, 1},
+                                ov::Strides{1, 1},
+                                ov::CoordinateDiff{1, 1},
+                                ov::CoordinateDiff{1, 1},
+                                false,
+                                ov::op::PadType::EXPLICIT);
+
+        conv.output_paddings = {padding{{0, 0, 1, 2}, 0}};
+
+        return topology(
+            input_layout("input", dyn_input_layout),
+            reorder("input_fsv16", input_info("input"), input_fsv16_layout),
+            data("weights", weights),
+            conv);
+    };
+
+    // Target kernel
+    ExecutionConfig cfg_test = get_test_default_config(engine);
+    cfg_test.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"conv", {format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16", impl_types::ocl}}
+    }));
+    cfg_test.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    // Reference kernel
+    ExecutionConfig cfg_ref = get_test_default_config(engine);
+    cfg_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"conv", {format::b_fs_yx_fsv16, "convolution_gpu_ref", impl_types::ocl}}
+    }));
+    cfg_ref.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network net_test(engine, make_topo(), cfg_test);
+    network net_ref(engine, make_topo(), cfg_ref);
+
+    net_test.set_input_data("input", input_mem);
+    net_ref.set_input_data("input", input_mem);
+
+    auto out_test = net_test.execute();
+    auto out_ref = net_ref.execute();
+
+    auto mem_test = out_test.at("conv").get_memory();
+    auto mem_ref = out_ref.at("conv").get_memory();
+
+    cldnn::mem_lock<ov::float16> ptr_test(mem_test, get_test_stream());
+    cldnn::mem_lock<ov::float16> ptr_ref(mem_ref, get_test_stream());
+
+    ASSERT_EQ(mem_test->get_layout(), mem_ref->get_layout());
+    ASSERT_EQ(ptr_test.size(), ptr_ref.size());
+
+    const float atol = 0.54f;
+    const float rtol = 1e-2f;
+    for (size_t i = 0; i < ptr_test.size(); i++) {
+        const float test_val = float(ptr_test[i]);
+        const float ref_val = float(ptr_ref[i]);
+        const float tol = atol + rtol * std::fabs(ref_val);
+        ASSERT_NEAR(test_val, ref_val, tol) << "Mismatch at idx=" << i;
+    }
+}
+
+TEST(convolution_gpu_bfyx_f16, dynamic_fused_input_scalar_and_non_scalar_fp32) {
+    auto& engine = get_test_engine();
+
+    const ov::Shape input_shape = {1, 32, 3, 5};
+    const ov::Shape weights_shape = {32, 32, 1, 1};
+    const ov::Shape scalar_shape = {1, 1, 1, 1};
+
+    auto input_mem = engine.allocate_memory({input_shape, data_types::f32, format::bfyx});
+    auto weights_mem = engine.allocate_memory({weights_shape, data_types::f32, format::bfyx});
+    auto residual_mem = engine.allocate_memory({input_shape, data_types::f32, format::bfyx});
+    auto scalar_mem = engine.allocate_memory({scalar_shape, data_types::f32, format::bfyx});
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    set_values(input_mem, rg.generate_random_1d<float>(ov::shape_size(input_shape), -1, 1));
+    set_values(weights_mem, rg.generate_random_1d<float>(ov::shape_size(weights_shape), -1, 1));
+    set_values(residual_mem, rg.generate_random_1d<float>(ov::shape_size(input_shape), -1, 1));
+    set_values(scalar_mem, std::vector<float>{0.25f});
+
+    const layout dynamic_layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
+    auto make_topology = [&]() {
+        return topology(
+            input_layout("input", dynamic_layout),
+            input_layout("residual", dynamic_layout),
+            reorder("input_fsv16", input_info("input"), format::b_fs_yx_fsv16, data_types::f32),
+            data("weights", weights_mem),
+            convolution("conv", input_info("input_fsv16"), "weights", no_bias, 1,
+                        ov::Strides{1, 1}, ov::Strides{1, 1},
+                        ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, false),
+            eltwise("add", {input_info("conv"), input_info("residual")}, eltwise_mode::sum),
+            reorder("output", input_info("add"), format::bfyx, data_types::f32));
+    };
+
+    ExecutionConfig cfg_fused = get_test_default_config(engine);
+    cfg_fused.set_property(ov::intel_gpu::optimize_data(true));
+    cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"conv", {format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_1x1", impl_types::ocl}}
+    }));
+
+    ExecutionConfig cfg_ref = cfg_fused;
+    cfg_ref.set_property(ov::intel_gpu::optimize_data(false));
+
+    network net_fused(engine, make_topology(), cfg_fused);
+    network net_ref(engine, make_topology(), cfg_ref);
+    net_fused.set_input_data("input", input_mem);
+    net_ref.set_input_data("input", input_mem);
+
+    auto compare = [&](const memory::ptr& fused_input) {
+        net_fused.set_input_data("residual", fused_input);
+        net_ref.set_input_data("residual", fused_input);
+
+        auto fused_outputs = net_fused.execute();
+        auto ref_outputs = net_ref.execute();
+        auto fused_values = get_output_values_to_float(net_fused, fused_outputs.at("output"));
+        auto ref_values = get_output_values_to_float(net_ref, ref_outputs.at("output"));
+
+        ASSERT_EQ(fused_values.size(), ref_values.size());
+        for (size_t i = 0; i < fused_values.size(); ++i)
+            ASSERT_NEAR(fused_values[i], ref_values[i], 1e-4f) << "Mismatch at idx=" << i;
+    };
+
+    compare(residual_mem);
+    compare(scalar_mem);
+
+    const auto primitives_info = net_fused.get_primitives_info();
+    const auto conv_info = std::find_if(primitives_info.begin(), primitives_info.end(), [](const primitive_info& info) {
+        return info.original_id == "conv";
+    });
+    ASSERT_NE(conv_info, primitives_info.end());
+    ASSERT_NE(std::find(conv_info->c_fused_ids.begin(), conv_info->c_fused_ids.end(), "add"), conv_info->c_fused_ids.end());
+    ASSERT_NE(conv_info->kernel_id.find("convolution_gpu_bfyx_f16_1x1"), std::string::npos);
+}
+
+// ---------------------------------------------------------------------------
+// convolution_gpu_1d_small_ic_gemm
+// Each case runs the same topology twice - once forced onto this kernel, once onto
+// convolution_gpu_ref - and compares, so no reference values live here.
+// ---------------------------------------------------------------------------
+
+// Laid out as bfyx with the long axis on Y (x == 1), as the plugin canonicalizes 3D conv.
+struct conv_1d_case {
+    const char* name;
+    data_types dt;  // input dtype; weights are i8 when this is u8/i8
+    size_t batch;
+    size_t in_features;
+    size_t in_length;
+    size_t out_features;
+    size_t filter_len;
+    size_t stride;
+    size_t dilation;
+    size_t pad_begin;
+    size_t pad_end;
+    bool with_bias;
+    bool with_zp;  // int8 only: asymmetric data and weights zero points
+};
+
+static bool conv_1d_is_int8(data_types dt) { return dt == data_types::u8 || dt == data_types::i8; }
+
+template <typename T>
+static void conv_1d_set(memory::ptr mem, const std::vector<float>& src) {
+    std::vector<T> dst(src.size());
+    std::transform(src.begin(), src.end(), dst.begin(), [](float v) { return static_cast<T>(v); });
+    set_values(mem, dst);
+}
+
+static void conv_1d_set_values(memory::ptr mem, const std::vector<float>& src) {
+    const auto dt = mem->get_layout().data_type;
+    if (dt == data_types::f32) conv_1d_set<float>(mem, src);
+    else if (dt == data_types::f16) conv_1d_set<ov::float16>(mem, src);
+    else if (dt == data_types::u8) conv_1d_set<uint8_t>(mem, src);
+    else conv_1d_set<int8_t>(mem, src);
+}
+
+// Runs the case with dt for input and weights, forced onto forced_kernel. Seeded from
+// the case name, so two calls for one case see identical data.
+static std::vector<float> run_conv_1d(const conv_1d_case& c, data_types dt, const char* forced_kernel) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg(std::string(c.name));
+
+    const bool int8 = conv_1d_is_int8(dt);
+    const int lo = (dt == data_types::u8) ? 0 : -8;
+    // Multiples of 1/8 in [-1, 1]: exact in f16 and their products exact in f32, so an
+    // f32 accumulation over K is exact. int8 values are integers, exact either way.
+    auto gen = [&](size_t n, int int_lo, int int_hi) {
+        if (!int8)
+            return rg.generate_random_1d<float>(n, -1, 1, 8);
+        const auto v = rg.generate_random_1d<int>(n, int_lo, int_hi, 1);
+        return std::vector<float>(v.begin(), v.end());
+    };
+    auto i32 = [](size_t v) { return static_cast<int32_t>(v); };
+    auto make_layout = [&](data_types t, size_t b, size_t f, size_t y) {
+        return layout{t, format::bfyx, tensor(i32(b), i32(f), 1, i32(y))};
+    };
+    auto add_data = [&](topology& t, const std::string& id, const layout& l, const std::vector<float>& v) {
+        auto mem = engine.allocate_memory(l);
+        conv_1d_set_values(mem, v);
+        t.add(data(id, mem));
+    };
+
+    auto input_mem = engine.allocate_memory(make_layout(dt, c.batch, c.in_features, c.in_length));
+    conv_1d_set_values(input_mem, gen(c.batch * c.in_features * c.in_length, lo, (dt == data_types::u8) ? 15 : 7));
+    topology topo;
+    topo.add(input_layout("input", input_mem->get_layout()));
+    add_data(topo, "weights", make_layout(int8 ? data_types::i8 : dt, c.out_features, c.in_features, c.filter_len),
+             gen(c.out_features * c.in_features * c.filter_len, -4, 4));
+    std::string bias_id, a_zp_id, w_zp_id;
+    if (c.with_bias) {
+        bias_id = "bias";
+        add_data(topo, bias_id, make_layout(int8 ? data_types::f32 : dt, 1, c.out_features, 1),
+                 gen(c.out_features, -8, 8));
+    }
+    if (c.with_zp) {
+        a_zp_id = "a_zp";
+        add_data(topo, a_zp_id, make_layout(dt, 1, c.in_features, 1), gen(c.in_features, lo, lo + 4));
+        w_zp_id = "w_zp";
+        add_data(topo, w_zp_id, make_layout(data_types::i8, c.out_features, 1, 1), gen(c.out_features, -2, 2));
+    }
+    const ov::Strides stride{c.stride, 1}, dilation{c.dilation, 1};
+    const ov::CoordinateDiff pad_begin{static_cast<std::ptrdiff_t>(c.pad_begin), 0},
+                             pad_end{static_cast<std::ptrdiff_t>(c.pad_end), 0};
+    if (int8) {
+        topo.add(convolution("conv", input_info("input"), "weights", bias_id, w_zp_id, a_zp_id, "", 1, stride,
+                             dilation, pad_begin, pad_end, false, data_types::f32));
+    } else {
+        topo.add(convolution("conv", input_info("input"), "weights", bias_id, 1, stride, dilation, pad_begin,
+                             pad_end, false));
+    }
+    topo.add(reorder("out", input_info("conv"), format::bfyx, data_types::f32));
+
+    ov::intel_gpu::ImplementationDesc conv_impl = {format::bfyx, forced_kernel, impl_types::ocl};
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", conv_impl}}));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"out"}));
+
+    network net(engine, topo, config);
+    net.set_input_data("input", input_mem);
+    auto out_mem = net.execute().at("out").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> ptr(out_mem, get_test_stream());
+    return std::vector<float>(ptr.data(), ptr.data() + ptr.size());
+}
+
+// One entry per code path, in conv_1d_case field order.
+const std::vector<conv_1d_case> conv_1d_cases = {
+    // Filter length at min_filter_len, OC 3 and out_length 23 below their tiles: every leftover path at once.
+    {"min_filter_len", data_types::f32, 1, 1, 300, 3, 256, 2, 1, 0, 0, true, false},
+    // K = 2048 at the model layer's stride, so a K tile never straddles a filter boundary.
+    {"large_k", data_types::f32, 1, 1, 3742, 17, 2048, 242, 1, 0, 0, true, false},
+    // OC 273 = 17 * TILE_M + 1: M ragged over many tiles.
+    {"oc_leftover", data_types::f32, 1, 1, 300, 273, 256, 2, 1, 0, 0, true, false},
+    // Dilation and padding on the guarded path; dilated extent 511.
+    {"dilation_and_padding", data_types::f32, 2, 1, 800, 17, 256, 32, 2, 13, 5, true, false},
+    // Maximum overlap, and the one stride where a dropped stride still lands in range.
+    {"stride_1", data_types::f32, 2, 1, 300, 17, 256, 1, 1, 0, 0, true, false},
+    // Unguarded vector loads: no padding, dilation 1, TILE_K | filter_len, TILE_N | batch * out_length (2 * 32).
+    {"fast", data_types::f32, 2, 1, 318, 17, 256, 2, 1, 0, 0, true, false},
+    // out_length 33 vs TILE_N 32: the second tile has one valid column, so j = 0 is partially valid. No bias too.
+    {"ragged_n_no_bias", data_types::f32, 1, 1, 320, 17, 256, 2, 1, 0, 0, false, false},
+    // K = 2048, where an f16 accumulator would fail well outside tolerance.
+    {"f16_large_k", data_types::f16, 1, 1, 3742, 17, 2048, 242, 1, 0, 0, true, false},
+    // f16 on the fast path, which stages B through f16 vector loads.
+    {"f16_fast", data_types::f16, 2, 1, 318, 17, 256, 2, 1, 0, 0, true, false},
+    // Zero points are subtracted while staging, so the compensation term is ignored - these catch a double-count.
+    {"u8_zp", data_types::u8, 2, 1, 300, 17, 256, 32, 1, 0, 0, true, true},
+    {"i8_fast_zp", data_types::i8, 2, 1, 318, 17, 256, 2, 1, 0, 0, true, true},
+};
+
+class convolution_1d_small_ic_gemm : public ::testing::TestWithParam<conv_1d_case> {};
+
+TEST_P(convolution_1d_small_ic_gemm, vs_ref_kernel) {
+    const auto& c = GetParam();
+    if (c.dt == data_types::f16 && !get_test_engine().get_device_info().supports_fp16) {
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
+    }
+
+    // convolution_gpu_ref accumulates in the input dtype, so an f16 reference would be
+    // the inaccurate side; it runs in f32, leaving only this kernel's output rounding.
+    const auto ref_dt = conv_1d_is_int8(c.dt) ? c.dt : data_types::f32;
+    const auto expected = run_conv_1d(c, ref_dt, "convolution_gpu_ref");
+    const auto actual = run_conv_1d(c, c.dt, "convolution_gpu_1d_small_ic_gemm");
+
+    ASSERT_EQ(expected.size(), actual.size());
+    const float tolerance = (c.dt == data_types::f16) ? 5e-4f : 1e-4f;
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_TRUE(are_equal(expected[i], actual[i], tolerance)) << "mismatch at flat index " << i;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(convolution_gpu_1d_small_ic_gemm,
+                         convolution_1d_small_ic_gemm,
+                         ::testing::ValuesIn(conv_1d_cases),
+                         [](const testing::TestParamInfo<conv_1d_case>& info) {
+                             return std::string(info.param.name);
+                         });
+
+// The IC bound is selection policy, so it lives in Validate(). Repeated as a literal
+// rather than read from max_input_features, so widening it cannot pass silently.
+TEST(convolution_1d_small_ic_gemm_gate, rejects_input_features_above_max) {
+    conv_1d_case c = conv_1d_cases[0];
+    c.in_features = 2;
+    // kernel_selector throws when the forced kernel rejects the params.
+    ASSERT_ANY_THROW(run_conv_1d(c, c.dt, "convolution_gpu_1d_small_ic_gemm"))
+        << "kernel accepted IC = " << c.in_features;
+}

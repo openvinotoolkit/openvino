@@ -157,9 +157,9 @@ JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_par
 
     auto jit = Parent::GetJitConstants(params, runInfo);
 
-    auto& input = params.inputs[0];
-    auto& output = params.outputs[0];
-    auto& weights = params.weights;
+    const auto& input = params.inputs[0];
+    const auto& output = params.outputs[0];
+    const auto& weights = params.weights;
 
     size_t sub_group_pack_size = tuning_data.sub_group_size * tuning_data.pack_size;
 
@@ -204,14 +204,27 @@ JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_par
         jit.AddConstant(MakeJitConstant("MMAD_INPUT_FBLOCK_PITCH", input.Feature().pitch * sub_group_pack_size));
     }
 
-    bool has_feature_leftovers = (input.GetLayout() == DataLayout::bfyx && input.Feature().v % sub_group_pack_size) ||
-                                 (input.GetLayout() != DataLayout::bfyx && tuning_data.sub_group_size == 16 && CeilDiv(input.Feature().v, 32) % 2);
+    bool has_feature_leftovers = (input.GetLayout() == DataLayout::bfyx && ((input.Feature().v % sub_group_pack_size) != 0u)) ||
+                                 (input.GetLayout() != DataLayout::bfyx && tuning_data.sub_group_size == 16 && ((CeilDiv(input.Feature().v, 32) % 2) != 0u));
 
     if (output.GetLayout() == DataLayout::bfyx)
-        has_feature_leftovers = input.Y().v % sub_group_pack_size;
+        has_feature_leftovers = ((input.Y().v % sub_group_pack_size) != 0u);
 
     jit.AddConstant(MakeJitConstant("HAS_FEATURE_LEFTOVERS", has_feature_leftovers));
     jit.AddConstant(MakeJitConstant("FEATURE_BLOCKS_COUNT", tuning_data.feature_blocks_count));
+
+    // For SUB_GROUP_SIZE==16 with feature leftovers, check if the second ISA8 block
+    // (the .hi half of the BLOCK_READ_8 pair) exists in the weight buffer.
+    // Weight layout is os_is_yx_isa8_osv16_isv4: each IS block = ISA8 * OSV16 * ISV4 = 512 bytes.
+    // One "fblock" in the kernel = 2 IS blocks = 1024 bytes (.lo + .hi).
+    // The .hi read is valid only if there are at least 2 IS blocks remaining after the main loop.
+    if (has_feature_leftovers && tuning_data.sub_group_size == 16) {
+        auto input_feature = output.GetLayout() == DataLayout::bfyx ? input.Y().v : input.Feature().v;
+        size_t is_blocks = CeilDiv(input_feature, (size_t)32);
+        size_t required_is_blocks = tuning_data.feature_blocks_count * 2 + 2;
+        bool hi_valid = is_blocks >= required_is_blocks;
+        jit.AddConstant(MakeJitConstant("MMAD_FILTER_LEFTOVER_HI", hi_valid ? 1 : 0));
+    }
     jit.AddConstant(MakeJitConstant("SLM_DIV_FACTOR", tuning_data.slm_div_factor));
     jit.AddConstant(MakeJitConstant("UNROLL_FACTOR", tuning_data.unroll_factor));
     jit.AddConstant(MakeJitConstant("FULL_UNROLL_FACTOR", tuning_data.full_unroll_factor));

@@ -201,7 +201,7 @@ public:
         const auto& lora_input_lo = params.input_layouts[1];
         size_t batch = extract_channel(ChannelName::BATCH, lora_input_lo);
         size_t feature = extract_channel(ChannelName::FEATURE, lora_input_lo);
-        return batch * feature > 1;
+        return static_cast<size_t>(batch * feature > 1);
     }
 
     static constexpr size_t gemm_a_sg_bk = 32ul;
@@ -223,7 +223,7 @@ protected:
     }
 
     std::string generate_block_write(ov::element::Type_t dtype, std::string dst, std::string src) const {
-        std::string res = "";
+        std::string res;
         if (dtype == ov::element::f16) {
             res = "intel_sub_group_block_write_us((__global ushort*)(" + dst + "), as_short(" + src + "));";
         } else {
@@ -240,7 +240,7 @@ protected:
     }
 
     std::string generate_matmul_code(size_t M, size_t N, ov::element::Type_t dtype, size_t lora_count, bool is_a_kernel) const {
-        std::string res = "";
+        std::string res;
         std::string int_type = dtype == ov::element::f16 ? "ushort" : "uint";
         std::string input_type = is_a_kernel ? "INPUT1_TYPE" : "ACCUMULATOR_TYPE";
 
@@ -285,7 +285,7 @@ protected:
     }
 
     std::string generate_store_result_code(size_t M, size_t N, ov::element::Type_t dtype, bool is_a_kernel) const {
-        std::string res = "";
+        std::string res;
 
         if (is_a_kernel) {
             for (size_t n = 0; n < N; ++n) {
@@ -766,27 +766,22 @@ bool is_optimized_kernel_supported(const RuntimeParams& params) {
 
     const auto& state_b_layout = params.get_input_layout(4);
     size_t output_state = state_b_layout.get_shape().front();
-    if (output_state % subgroup_size != 0) {
-        return false;
-    }
-
-    return true;
+    return output_state % subgroup_size == 0;
 }
 
-std::vector<size_t> get_stages_execution_order_single_lora(const cldnn::primitive_inst& instance) {
+std::vector<size_t> get_stages_execution_order_single_lora(const cldnn::kernel_impl_params& impl_params) {
     std::vector<size_t> stages_order;
-    const auto& params = *instance.get_impl_params();
 
-    bool is_empty_lora = instance.get_input_layout(2).count() == 0;
+    bool is_empty_lora = impl_params.get_input_layout(2).count() == 0;
     if (!is_empty_lora) {
-        if (!is_optimized_kernel_supported(params)) {
+        if (!is_optimized_kernel_supported(impl_params)) {
             stages_order.emplace_back(SingleKernelTypes::REFERENCE);
         } else {
-            if (LoraOptBase<>::is_first_token(params)) {
-                const auto& state_alpha_lo = instance.get_input_layout(3);
+            if (LoraOptBase<>::is_first_token(impl_params)) {
+                const auto& state_alpha_lo = impl_params.get_input_layout(3);
                 size_t lora_rank = extract_channel(ChannelName::FEATURE, state_alpha_lo);
 
-                const auto& lora_input = instance.get_input_layout(1);
+                const auto& lora_input = impl_params.get_input_layout(1);
                 size_t batch = extract_channel(ChannelName::BATCH, lora_input);
                 size_t feature = extract_channel(ChannelName::FEATURE, lora_input);
                 size_t acc_batch = batch * feature;
@@ -815,32 +810,31 @@ std::vector<size_t> get_stages_execution_order_single_lora(const cldnn::primitiv
         }
     }
 
-    if (instance.has_fused_primitives()) {
+    if (impl_params.has_fused_primitives()) {
         stages_order.emplace_back(SingleKernelTypes::FUSED_OPS);
     }
 
     return stages_order;
 }
 
-std::vector<size_t> get_stages_execution_order_hf_lora(const cldnn::primitive_inst& instance) {
-    const auto& params = *instance.get_impl_params();
+std::vector<size_t> get_stages_execution_order_hf_lora(const cldnn::kernel_impl_params& impl_params) {
     std::vector<size_t> stages_order;
 
-    if (!is_optimized_kernel_supported(params)) {
+    if (!is_optimized_kernel_supported(impl_params)) {
         return {FusedKernelTypes::HF_REFERENCE};
     }
 
-    const auto& lora_input = instance.get_input_layout(1);
+    const auto& lora_input = impl_params.get_input_layout(1);
     size_t batch = extract_channel(ChannelName::BATCH, lora_input);
     size_t feature = extract_channel(ChannelName::FEATURE, lora_input);
     size_t acc_batch = batch * feature;
     bool is_first_token = acc_batch > 1;
 
     if (is_first_token) {
-        const auto& state_alpha_lo = instance.get_input_layout(3);
+        const auto& state_alpha_lo = impl_params.get_input_layout(3);
         size_t lora_rank = extract_channel(ChannelName::FEATURE, state_alpha_lo);
-        size_t lora_count = LoraRefBase<>::get_lora_count(params);
-        size_t max_workgroup_size = params.get_device_info().max_work_group_size;
+        size_t lora_count = LoraRefBase<>::get_lora_count(impl_params);
+        size_t max_workgroup_size = impl_params.get_device_info().max_work_group_size;
 
         if (acc_batch > 1000 && lora_rank > 16) {
             stages_order.emplace_back(FusedKernelTypes::HF_FIRST_TOKEN_A_LARGE);
@@ -852,16 +846,16 @@ std::vector<size_t> get_stages_execution_order_hf_lora(const cldnn::primitive_in
             stages_order.emplace_back(FusedKernelTypes::HF_FIRST_TOKEN_A_SMALL);
         }
 
-        size_t subgroup_size = LoraOptBase<>::get_subgroup_size(params);
+        size_t subgroup_size = LoraOptBase<>::get_subgroup_size(impl_params);
 
-        size_t kv_state = extract_channel(ChannelName::BATCH, instance.get_input_layout(7));
+        size_t kv_state = extract_channel(ChannelName::BATCH, impl_params.get_input_layout(7));
         size_t fused_mlp_output = kv_state * 2;
 
         size_t output_state = 0;
         if (lora_count == 2) {
             output_state = fused_mlp_output;
         } else {
-            size_t q_state = extract_channel(ChannelName::FEATURE, instance.get_input_layout(2));
+            size_t q_state = extract_channel(ChannelName::FEATURE, impl_params.get_input_layout(2));
             output_state = fused_mlp_output + q_state;
         }
 
@@ -963,26 +957,24 @@ public:
             size_t feature = extract_channel(ChannelName::FEATURE, lora_input_lo);
 
             return {BufferDescriptor{lora_rank * batch * feature * lora_count, params.get_output_layout().data_type}};
-        } else {
-            const auto& state_a_lo = params.input_layouts[2];
-            size_t input_state = extract_channel(ChannelName::FEATURE, state_a_lo);
-
-            size_t max_workgroup_size = params.get_device_info().max_work_group_size;
-
-            size_t gemma_sgK = max_workgroup_size / (lora_rank * lora_count);
-            size_t gemma_wgs = ceil_div(input_state, LoraOptBase<>::gemm_a_sg_bk * gemma_sgK);
-
-            return {BufferDescriptor{gemma_wgs * lora_count, params.get_output_layout().data_type}};
         }
+        const auto& state_a_lo = params.input_layouts[2];
+        size_t input_state = extract_channel(ChannelName::FEATURE, state_a_lo);
+
+        size_t max_workgroup_size = params.get_device_info().max_work_group_size;
+
+        size_t gemma_sgK = max_workgroup_size / (lora_rank * lora_count);
+        size_t gemma_wgs = ceil_div(input_state, LoraOptBase<>::gemm_a_sg_bk * gemma_sgK);
+
+        return {BufferDescriptor{gemma_wgs * lora_count, params.get_output_layout().data_type}};
     }
 
-    std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& instance) const override {
-        size_t is_single_lora = LoraRefBase<>::get_lora_count(*instance.get_impl_params()) == 1;
+    std::vector<size_t> get_stages_execution_order(const cldnn::kernel_impl_params& impl_params) const override {
+        size_t is_single_lora = static_cast<size_t>(LoraRefBase<>::get_lora_count(impl_params) == 1);
         if (is_single_lora) {
-            return get_stages_execution_order_single_lora(instance);
-        } else {
-            return get_stages_execution_order_hf_lora(instance);
+            return get_stages_execution_order_single_lora(impl_params);
         }
+        return get_stages_execution_order_hf_lora(impl_params);
     }
 };
 

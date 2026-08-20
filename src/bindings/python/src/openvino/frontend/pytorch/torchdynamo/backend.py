@@ -102,13 +102,13 @@ def fx_openvino(subgraph, example_inputs, options=None):
             example_inputs = [example_inputs[ind] for ind in preserved_arg_indices]
             model = subgraph
         else:
-            from torch._subclasses.fake_tensor import FakeTensorMode
-
             decompositions = _get_decompositions(options) + get_inf_decomposition_list()
-            with FakeTensorMode(allow_non_fake_inputs=True) as fakemode:
-                fake_inputs = [fakemode.from_tensor(x) for x in example_inputs]
-                model = make_fx(subgraph, decomposition_table=get_decompositions(decompositions))(*fake_inputs)
-
+            model = make_fx(
+                subgraph,
+                decomposition_table=get_decompositions(decompositions),
+                tracing_mode="fake",
+                _allow_non_fake_inputs=True,
+            )(*example_inputs)
             with torch.no_grad():
                 model.eval()
         partitioner = Partitioner(options)

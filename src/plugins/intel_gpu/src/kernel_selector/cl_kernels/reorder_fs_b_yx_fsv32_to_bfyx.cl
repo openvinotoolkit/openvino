@@ -5,6 +5,8 @@
 #include "include/batch_headers/fetch_data.cl"
 #include "include/unit_type.cl"
 
+#define STORE_RAW_(idx, val) output[idx] = TO_OUTPUT_REORDER_TYPE(ACTIVATION_TYPED(OUTPUT_REORDER, val, ACTIVATION_PARAMS_TYPED))
+
 __attribute__((reqd_work_group_size(1, LWS1, 1)))
 KERNEL (reorder_fs_b_yx_fsv32_to_bfyx)(
         const __global INPUT_REORDER_TYPE* input,
@@ -23,7 +25,14 @@ KERNEL (reorder_fs_b_yx_fsv32_to_bfyx)(
 
     __attribute__((opencl_unroll_hint(X_BLOCK_SIZE)))
     for (int i = 0; i < X_BLOCK_SIZE; i++) {
-        in_data[sglid * X_BLOCK_SIZE + i] = input[in_idx + (i * FSV) + sglid];
+#if defined(LEFTOVERS_OX)
+        if (x + i < INPUT0_SIZE_X)
+            in_data[sglid * X_BLOCK_SIZE + i] = DECODE_INPUT_REORDER_COMPUTE_TYPE(input[in_idx + (i * FSV) + sglid]);
+        else
+            in_data[sglid * X_BLOCK_SIZE + i] = 0;
+#else
+        in_data[sglid * X_BLOCK_SIZE + i] = DECODE_INPUT_REORDER_COMPUTE_TYPE(input[in_idx + (i * FSV) + sglid]);
+#endif
     }
 
     __attribute__((opencl_unroll_hint(X_BLOCK_SIZE)))
@@ -41,10 +50,10 @@ KERNEL (reorder_fs_b_yx_fsv32_to_bfyx)(
         const bool skip = x_idx >= OUTPUT_SIZE_X;
 #endif
         if (!skip) {
-            output[out_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, in_data[data_idx], ACTIVATION_PARAMS_TYPED);
+            STORE_RAW_(out_idx, in_data[data_idx]);
         }
 #else
-        output[out_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, in_data[data_idx], ACTIVATION_PARAMS_TYPED);
+        STORE_RAW_(out_idx, in_data[data_idx]);
 #endif
     }
 }

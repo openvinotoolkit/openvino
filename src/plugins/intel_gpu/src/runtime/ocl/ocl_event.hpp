@@ -24,10 +24,6 @@ public:
         : ocl_base_event(queue_stamp)
         , _event(ev) {}
 
-    ocl_event(uint64_t duration_nsec, uint64_t queue_stamp = 0)
-        : ocl_base_event(queue_stamp)
-        , duration_nsec(duration_nsec) {}
-
     cl::Event& get() override { return _event; }
 
 private:
@@ -45,7 +41,6 @@ private:
 
 protected:
     cl::Event _event;
-    std::optional<uint64_t> duration_nsec;
 };
 
 struct ocl_events : public ocl_base_event {
@@ -69,10 +64,10 @@ private:
 
     void process_events(const std::vector<event::ptr>& ev) {
         for (size_t i = 0; i < ev.size(); i++) {
-            auto multiple_events = dynamic_cast<ocl_events*>(ev[i].get());
+            auto* multiple_events = dynamic_cast<ocl_events*>(ev[i].get());
             if (multiple_events) {
                 for (size_t j = 0; j < multiple_events->_events.size(); j++) {
-                    if (auto base_ev = dynamic_cast<ocl_event*>(multiple_events->_events[j].get())) {
+                    if (auto* base_ev = dynamic_cast<ocl_event*>(multiple_events->_events[j].get())) {
                         auto current_ev_queue_stamp = base_ev->get_queue_stamp();
                         if ((_queue_stamp == 0) || (current_ev_queue_stamp > _queue_stamp)) {
                             _queue_stamp = current_ev_queue_stamp;
@@ -82,7 +77,7 @@ private:
                     _events.push_back(multiple_events->_events[j]);
                 }
             } else {
-                if (auto base_ev = dynamic_cast<ocl_event*>(ev[i].get())) {
+                if (auto* base_ev = dynamic_cast<ocl_event*>(ev[i].get())) {
                     auto current_ev_queue_stamp = base_ev->get_queue_stamp();
                     if ((_queue_stamp == 0) || (current_ev_queue_stamp > _queue_stamp)) {
                         _queue_stamp = current_ev_queue_stamp;

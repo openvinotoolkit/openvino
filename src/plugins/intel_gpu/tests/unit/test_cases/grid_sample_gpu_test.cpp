@@ -81,7 +81,7 @@ public:
         ASSERT_EQ(outputs.begin()->first, "plane_grid_sample");
 
         auto output = outputs.at("plane_grid_sample").get_memory();
-        cldnn::mem_lock<TD> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<TD, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), p.expected_values.size());
         for (size_t i = 0; i < output_ptr.size(); ++i) {
@@ -687,6 +687,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_gpu_test_FLOAT16_FLOAT16,
                                           testing::Values(RUN_CACHING_TEST)),
                          grid_sample_gpu_test_FLOAT16_FLOAT16::PrintToStringParamName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_gpu_test_FLOAT16_FLOAT16_layouts,
+                         grid_sample_gpu_test_FLOAT16_FLOAT16,
+                         testing::Combine(testing::ValuesIn(getParamsToCheckLayouts<ov::float16, ov::float16>()),
+                                          testing::ValuesIn(layout_formats),
+                                          testing::Values(RUN_CACHING_TEST)),
+                         grid_sample_gpu_test_FLOAT16_FLOAT16::PrintToStringParamName);
+
 #ifndef RUN_ALL_MODEL_CACHING_TESTS
 INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_gpu_test_FLOAT16_FLOAT16_cached,
                          grid_sample_gpu_test_FLOAT16_FLOAT16,
@@ -740,7 +747,7 @@ TEST_P(grid_sample_gpu_dynamic, basic) {
 
     const auto outputs = network.execute();
     auto output = outputs.at("plane_grid_sample").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(output_ptr.size(), p.expected_values.size());
     for (size_t i = 0; i < output_ptr.size(); ++i) {

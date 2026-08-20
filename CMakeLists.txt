@@ -2,13 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(CPACK_GENERATOR STREQUAL "DEB")
-    # we have to use CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS variable
-    cmake_minimum_required(VERSION 3.20)
-else()
-    # 3.18: default choice as minimum version for onnx 1.18
-    cmake_minimum_required(VERSION 3.18)
-endif()
+# 3.26 is required by the bundled ONNX version.
+cmake_minimum_required(VERSION 3.26)
 
 if(POLICY CMP0091)
     cmake_policy(SET CMP0091 NEW) # Enables use of MSVC_RUNTIME_LIBRARY
@@ -30,6 +25,14 @@ endif()
 if(POLICY CMP0177)
     # install() DESTINATION paths are normalized.
     cmake_policy(SET CMP0177 NEW)
+endif()
+
+if(POLICY CMP0194)
+    # NOTE: Keeping the policy "OLD" in order to retain custom assembler search (icpx/icx/icx.exe)
+    # Making it "NEW" would result in (incorrect) usage of cl64.exe in certain contexts on Windows
+    set(CMAKE_POLICY_DEFAULT_CMP0194 OLD)
+    # NOTE: Some CMake versions have a typo in the policy number, so we set both to be safe
+    set(CMAKE_POLICY_DEFAULT_CMP194 OLD)
 endif()
 
 # set CMAKE_POLICY_VERSION_MINIMUM to avoid errors from 3rd party dependencies

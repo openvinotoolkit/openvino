@@ -71,8 +71,8 @@ void ExperimentalDetectronTopKROIs::initSupportedPrimitiveDescriptors() {
 }
 
 void ExperimentalDetectronTopKROIs::execute([[maybe_unused]] const dnnl::stream& strm) {
-    const int input_rois_num = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
-    const int top_rois_num = (std::min)(max_rois_num_, input_rois_num);
+    const auto input_rois_num = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
+    const auto top_rois_num = (std::min)(max_rois_num_, input_rois_num);
 
     const auto* input_rois = getSrcDataAtPortAs<const float>(INPUT_ROIS);
     const auto* input_probs = getSrcDataAtPortAs<const float>(INPUT_PROBS);
@@ -85,7 +85,7 @@ void ExperimentalDetectronTopKROIs::execute([[maybe_unused]] const dnnl::stream&
         return input_probs[i1] > input_probs[i2];
     });
 
-    for (int i = 0; i < top_rois_num; ++i) {
+    for (size_t i = 0; i < top_rois_num; ++i) {
         cpu_memcpy(output_rois + 4 * i, input_rois + 4 * idx[i], 4 * sizeof(float));
     }
 }

@@ -26,10 +26,20 @@ namespace v1 = ov::op::v1;
 static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& matmul,
                                                    const Output<Node>& weights,
                                                    std::shared_ptr<v0::Constant> mul_const) {
-    auto const_shape = mul_const->get_shape();
+    const auto& const_shape = mul_const->get_shape();
     auto const_rank = static_cast<int64_t>(const_shape.size());
     const auto& weights_shape = weights.get_partial_shape();
     int64_t weights_rank = static_cast<int64_t>(weights_shape.rank().get_length());
+    bool is_dynamic_weights = !ov::is_type<v0::Constant>(weights.get_node());
+    const auto& weights_el_type = weights.get_element_type();
+
+    // Don't fuse amplifying scalar into non-constant weights in f16/bf16/f8 to avoid potential overflow.
+    if (weights_el_type.is_real() && weights_el_type.size() <= 2 && is_dynamic_weights) {
+        float value;
+        if (op::util::get_constant_value(mul_const, value) && std::abs(value) > 1.0f) {
+            return nullptr;
+        }
+    }
 
     // Fuse if const is a scalar
     if (ov::is_scalar(const_shape)) {
@@ -55,7 +65,7 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
     // If weights is not a constant node - disallow Multiply constant
     // that extends weights rank. This is LPT requirement in case where
     // weights are meant to be quantized.
-    if (const_rank > weights_rank && !ov::is_type<v0::Constant>(weights.get_node())) {
+    if (const_rank > weights_rank && is_dynamic_weights) {
         return nullptr;
     }
 

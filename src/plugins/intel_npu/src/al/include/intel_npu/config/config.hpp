@@ -57,6 +57,13 @@ TYPE_PRINTER(std::size_t)
 #ifndef ONEAPI_MAKE_VERSION
 /// @brief Generates generic 'oneAPI' API versions
 #    define ONEAPI_MAKE_VERSION(_major, _minor) ((_major << 16) | (_minor & 0x0000ffff))
+
+/// @brief extract 'oneAPI' API major version
+#    define ONEAPI_VERSION_MAJOR(_version) ((_version) >> 16)
+
+/// @brief extract 'oneAPI' API minor version
+#    define ONEAPI_VERSION_MINOR(_version) ((_version) & 0x0000ffff)
+
 #endif  // ONEAPI_MAKE_VERSION
 
 //
@@ -282,7 +289,7 @@ struct OptionBase {
         return OptionMode::Both;
     }
 
-    // Overload this for private options.
+    // Overload this for public options.
     static bool isPublic() {
         return false;
     }
@@ -290,11 +297,6 @@ struct OptionBase {
     // Overload this for read-only options (metrics)
     static ov::PropertyMutability mutability() {
         return ov::PropertyMutability::RW;
-    }
-
-    /// Overload this for options conditioned by compiler version
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(7, 23);
     }
 
     static bool isValueSupported(std::string_view val) {
@@ -370,11 +372,11 @@ struct OptionConcept final {
     OptionMode (*mode)() = nullptr;
     bool (*isPublic)() = nullptr;
     ov::PropertyMutability (*mutability)() = nullptr;
-    uint32_t (*compilerSupportVersion)() = nullptr;
     bool (*isValueSupportedImpl)(std::string_view val) =
         nullptr;  // better make this private, but won't be able to use aggregate initialization anymore in
                   // "makeOptionModel"
-    std::shared_ptr<OptionValue> (*validateAndParse)(std::string_view val) = nullptr;
+    std::shared_ptr<OptionValue> (*validateAndParseFromString)(std::string_view val) = nullptr;
+    std::shared_ptr<OptionValue> (*validateAndParseFromAny)(const ov::Any& val) = nullptr;
     std::optional<std::function<bool(std::string_view)>> customValueCheckerOpt = std::nullopt;
     bool isValueSupported(std::string_view val) {
         if (customValueCheckerOpt.has_value()) {
@@ -385,11 +387,24 @@ struct OptionConcept final {
 };
 
 template <class Opt>
-std::shared_ptr<OptionValue> validateAndParse(std::string_view val) {
+std::shared_ptr<OptionValue> validateAndParseFromString(std::string_view val) {
     using ValueType = typename Opt::ValueType;
 
     try {
         auto parsedVal = Opt::parse(val);
+        Opt::validateValue(parsedVal);
+        return std::make_shared<OptionValueImpl<Opt, ValueType>>(std::move(parsedVal), &Opt::toString);
+    } catch (const std::exception& e) {
+        OPENVINO_THROW("Failed to parse '", Opt::key().data(), "' option : ", e.what());
+    }
+}
+
+template <class Opt>
+std::shared_ptr<OptionValue> validateAndParseFromAny(const ov::Any& val) {
+    using ValueType = typename Opt::ValueType;
+
+    try {
+        auto parsedVal = val.as<ValueType>();
         Opt::validateValue(parsedVal);
         return std::make_shared<OptionValueImpl<Opt, ValueType>>(std::move(parsedVal), &Opt::toString);
     } catch (const std::exception& e) {
@@ -405,9 +420,9 @@ OptionConcept makeOptionModel(
             &Opt::mode,
             &Opt::isPublic,
             &Opt::mutability,
-            &Opt::compilerSupportVersion,
             &Opt::isValueSupported,
-            &validateAndParse<Opt>,
+            &validateAndParseFromString<Opt>,
+            &validateAndParseFromAny<Opt>,
             std::move(customValueCheckerOpt)};
 }
 
@@ -466,6 +481,8 @@ public:
 
     virtual void update(const ConfigMap& options);
 
+    virtual void updateAny(const ov::AnyMap& options);
+
     void parseEnvVars();
 
     template <class Opt>
@@ -521,7 +538,7 @@ typename Opt::ValueType Config::get() const {
     OPENVINO_ASSERT(it->second != nullptr, "Got NULL OptionValue for :", Opt::key().data());
 
     const auto optVal = std::dynamic_pointer_cast<details::OptionValueImpl<Opt, ValueType>>(it->second);
-#if defined(__CHROMIUMOS__)
+#if defined(__CHROMIUMOS__) || defined(__ANDROID__)
     if (optVal == nullptr) {
         if (Opt::getTypeName() == it->second->getTypeName()) {
             const auto val = std::static_pointer_cast<details::OptionValueImpl<Opt, ValueType>>(it->second);

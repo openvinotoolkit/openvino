@@ -68,7 +68,7 @@ public:
         auto result = net->execute();
 
         auto out_mem = result.at("random_uniform").get_memory();
-        cldnn::mem_lock<T> out_ptr(out_mem, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
 
         ASSERT_EQ(params.expected_out.size(), out_ptr.size());
         for (size_t i = 0; i < params.expected_out.size(); ++i) {
@@ -102,10 +102,22 @@ std::string PrintToStringParamName::operator()(const testing::TestParamInfo<Rand
     return buf.str();
 }
 
+template<>
+std::string PrintToStringParamName::operator()(const testing::TestParamInfo<RandomUniformParams<ov::bfloat16> > &param) {
+    std::stringstream buf;
+    buf << "output_tensor_" << param.param.output_shape
+        << "_min_value_" << static_cast<float>(param.param.min_val)
+        << "_max_value_" << static_cast<float>(param.param.max_val)
+        << "_global_seed_" << param.param.global_seed
+        << "_op_seed_" << param.param.op_seed;
+    return buf.str();
+}
+
 using random_uniform_gpu_test_i32 = random_uniform_gpu_test<int32_t>;
 using random_uniform_gpu_test_i64 = random_uniform_gpu_test<int64_t>;
 using random_uniform_gpu_test_f32 = random_uniform_gpu_test<float>;
 using random_uniform_gpu_test_f16 = random_uniform_gpu_test<ov::float16>;
+using random_uniform_gpu_test_bf16 = random_uniform_gpu_test<ov::bfloat16>;
 
 TEST_P(random_uniform_gpu_test_i32, random_int32) {
     ASSERT_NO_FATAL_FAILURE(test(false));
@@ -121,6 +133,10 @@ TEST_P(random_uniform_gpu_test_f32, random_f32) {
 }
 
 TEST_P(random_uniform_gpu_test_f16, random_f16) {
+    ASSERT_NO_FATAL_FAILURE(test(false));
+}
+
+TEST_P(random_uniform_gpu_test_bf16, random_bf16) {
     ASSERT_NO_FATAL_FAILURE(test(false));
 }
 
@@ -195,6 +211,27 @@ INSTANTIATE_TEST_SUITE_P(smoke_random_uniform_f16,
                          ),
                          PrintToStringParamName());
 
+INSTANTIATE_TEST_SUITE_P(smoke_random_uniform_bf16,
+                         random_uniform_gpu_test_bf16,
+                         ::testing::Values(
+                                 RandomUniformParams<ov::bfloat16>{ov::Shape{1, 1, 4, 2, 3}, ov::bfloat16(-1.5),
+                                                             ov::bfloat16(-1.0), 150, 10,
+                                                             {ov::bfloat16(-1.07812500), ov::bfloat16(-1.27343750),
+                                                              ov::bfloat16(-1.17187500), ov::bfloat16(-1.46875000),
+                                                              ov::bfloat16(-1.35937500), ov::bfloat16(-1.17187500),
+                                                              ov::bfloat16(-1.32812500), ov::bfloat16(-1.16406250),
+                                                              ov::bfloat16(-1.15625000), ov::bfloat16(-1.12500000),
+                                                              ov::bfloat16(-1.38281250), ov::bfloat16(-1.48437500),
+                                                              ov::bfloat16(-1.10937500), ov::bfloat16(-1.02343750),
+                                                              ov::bfloat16(-1.34375000), ov::bfloat16(-1.21093750),
+                                                              ov::bfloat16(-1.20312500), ov::bfloat16(-1.24218750),
+                                                              ov::bfloat16(-1.37500000), ov::bfloat16(-1.21093750),
+                                                              ov::bfloat16(-1.20312500), ov::bfloat16(-1.46875000),
+                                                              ov::bfloat16(-1.42187500), ov::bfloat16(-1.35937500)}
+                                 }
+                         ),
+                         PrintToStringParamName());
+
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
 TEST_P(random_uniform_gpu_test_i32, random_int32_cached) {
     ASSERT_NO_FATAL_FAILURE(test(true));
@@ -209,5 +246,9 @@ TEST_P(random_uniform_gpu_test_f32, random_f32_cached) {
 }
 #endif
 TEST_P(random_uniform_gpu_test_f16, random_f16_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+
+TEST_P(random_uniform_gpu_test_bf16, random_bf16_cached) {
     ASSERT_NO_FATAL_FAILURE(test(true));
 }

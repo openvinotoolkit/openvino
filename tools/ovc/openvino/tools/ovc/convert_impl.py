@@ -454,8 +454,17 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
         model_framework = None
         inp_model_is_object = input_model_is_object(args['input_model']) if python_api_used else False
 
+        if not inp_model_is_object and args.get("dynamo", False):
+            log.warning("dynamo=True is only supported for PyTorch nn.Module objects, "
+                        "but the provided model is a file path. "
+                        "The dynamo parameter will be ignored.")
+
         if inp_model_is_object:
             model_framework = check_model_object(args)
+            if args.get("dynamo", False) and model_framework != "pytorch":
+                log.warning("dynamo=True is only supported for PyTorch models, "
+                            "but the provided model is detected as '{}'. "
+                            "The dynamo parameter will be ignored.".format(model_framework))
             if model_framework == "pytorch":
                 example_inputs = None
                 if 'example_input' in args and args['example_input'] is not None:

@@ -17,7 +17,7 @@ using namespace cldnn;
 
 namespace {
 
-using shuffle_range = std::pair<int32_t, int32_t>;
+using shuffle_range = std::pair<tensor::value_type, tensor::value_type>;
 
 bool can_shuffle_features(program_node& node, program_node& concat_node, stream& stream) {
     if (node.is_type<convolution>()) {
@@ -47,7 +47,7 @@ bool can_shuffle_features(program_node& node, program_node& concat_node, stream&
     pass_through &= !node.is_output() && node.get_dependencies().size() == 1 && !node.has_fused_primitives();
     if (pass_through) {
         // Primitives that are feature order invariant, pass-through shuffled features to users
-        for (auto& user : node.get_users()) {
+        for (const auto& user : node.get_users()) {
             if (!can_shuffle_features(*user, node, stream))
                 return false;
         }
@@ -68,12 +68,15 @@ void shuffle_weights(data_node& node, const std::vector<shuffle_range>& ranges, 
     auto bytes_per_elem = data_type_traits::size_of(wei_layout.data_type);
     mem_lock<uint8_t, mem_lock_type::read> old_weights_memory_lock{old_weights_memory, stream};
     mem_lock<uint8_t, mem_lock_type::write> new_weights_memory_lock{new_weights_memory, stream};
-    auto old_ptr = old_weights_memory_lock.data();
-    auto new_ptr = new_weights_memory_lock.data();
+    auto* old_ptr = old_weights_memory_lock.data();
+    auto* new_ptr = new_weights_memory_lock.data();
+
     for (int32_t ofi = 0; ofi < wei_layout.batch(); ++ofi) {
         int32_t new_ifi = 0;
-        for (auto& range : ranges) {
-            for (int32_t ifi = range.first; ifi < range.second; ++ifi, ++new_ifi) {
+        for (const auto& range : ranges) {
+            const int32_t range_begin = static_cast<int32_t>(range.first);
+            const int32_t range_end = static_cast<int32_t>(range.second);
+            for (int32_t ifi = range_begin; ifi < range_end; ++ifi, ++new_ifi) {
                 for (int32_t wi = 0; wi < wei_layout.spatial(3); ++wi) {
                     for (int32_t zi = 0; zi < wei_layout.spatial(2); ++zi) {
                         for (int32_t yi = 0; yi < wei_layout.spatial(1); ++yi) {
@@ -105,7 +108,7 @@ void shuffle_features(program_node& node, const std::vector<shuffle_range>& rang
         shuffle_weights(fc.weights().as<data>(), ranges, stream);
     } else {
         // General case for pass-through layers
-        for (auto& user : node.get_users()) {
+        for (const auto& user : node.get_users()) {
             shuffle_features(*user, ranges, stream);
         }
     }
@@ -114,7 +117,7 @@ void shuffle_features(program_node& node, const std::vector<shuffle_range>& rang
 }  // namespace
 
 void concat_input_order::run(program& p) {
-    for (auto node : p.get_processing_order()) {
+    for (auto* node : p.get_processing_order()) {
         // Check that optimization can be performed:
         // 1. Not an output
         // 2. Concatenation along features
@@ -159,7 +162,7 @@ void concat_input_order::run(program& p) {
         }
         // Check that we can fuse shuffling to users
         bool can_shuffle_users = true;
-        for (auto user : concat_node.get_users()) {
+        for (auto* user : concat_node.get_users()) {
             can_shuffle_users &= can_shuffle_features(*user, concat_node, p.get_stream());
         }
 
@@ -179,7 +182,7 @@ void concat_input_order::run(program& p) {
                 new_order.push_back(i);
         }
         // Calculate new ranges
-        int32_t current_offset = 0;
+        tensor::value_type current_offset = 0;
         std::vector<shuffle_range> original_ranges;
         original_ranges.reserve(inputs_count);
         for (auto& feature_size : feature_sizes) {
@@ -198,7 +201,7 @@ void concat_input_order::run(program& p) {
             new_dependencies.push_back({concat_node.get_dependency_with_port(ord).first, concat_node.get_dependency_with_port(ord).second});
         }
         // Update in place with const cast instead of replacing
-        auto& dependencies = concat_node.get_dependencies();
+        const auto& dependencies = concat_node.get_dependencies();
         auto& mutable_dependencies = const_cast<std::vector<std::pair<program_node*, int32_t>>&>(dependencies);
         for (size_t i = 0; i < new_dependencies.size(); ++i) {
             mutable_dependencies[i] = new_dependencies[i];
@@ -211,7 +214,7 @@ void concat_input_order::run(program& p) {
         auto mutable_prim = std::const_pointer_cast<concatenation>(prim);
         mutable_prim->input = new_input_info;
         // Correct users for shuffled features
-        for (auto& user : concat_node.get_users()) {
+        for (const auto& user : concat_node.get_users()) {
             shuffle_features(*user, shuffled_ranges, p.get_stream());
         }
     }

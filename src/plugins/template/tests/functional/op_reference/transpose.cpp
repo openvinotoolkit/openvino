@@ -105,6 +105,19 @@ TEST_P(ReferenceTransposeLayerTest, CompareWithRefs) {
     }
 }
 
+TEST(TransposeEvaluateTest, ReturnsFalseForNonIntegralOrderType) {
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3});
+    const auto order_param = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
+    const auto transpose = std::make_shared<op::v1::Transpose>(data, order_param);
+
+    ov::Tensor order_tensor(element::f32, Shape{2});
+    order_tensor.data<float>()[0] = 1.0f;
+    order_tensor.data<float>()[1] = 0.0f;
+    ov::TensorVector outputs{ov::Tensor(element::f32, Shape{3, 2})};
+    const ov::TensorVector inputs{ov::Tensor(element::f32, Shape{2, 3}), order_tensor};
+    EXPECT_FALSE(transpose->evaluate(outputs, inputs));
+}
+
 template <element::Type_t IN_ET>
 std::vector<TransposeParams> generateTransposeParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
@@ -180,6 +193,61 @@ std::vector<TransposeParams> generateTransposeParams() {
     return transposeParams;
 }
 
+std::vector<TransposeParams> generateTransposeParamsForString() {
+    using T = std::string;
+    const auto ET = element::string;
+    return std::vector<TransposeParams>{
+        // 2D transpose with uniform-length strings
+        TransposeParams(PartialShape::dynamic(),
+                        reference_tests::Tensor(ET, {2, 3}, std::vector<T>{"a0", "a1", "a2", "b0", "b1", "b2"}),
+                        reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{1, 0}),
+                        reference_tests::Tensor(ET, {3, 2}, std::vector<T>{"a0", "b0", "a1", "b1", "a2", "b2"}),
+                        "transpose_string_2d"),
+        // 2D transpose with variable-length strings
+        TransposeParams(PartialShape::dynamic(),
+                        reference_tests::Tensor(ET, {2, 3}, std::vector<T>{"a", "abc", "abcd", "x", "xy", "xyz"}),
+                        reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{1, 0}),
+                        reference_tests::Tensor(ET, {3, 2}, std::vector<T>{"a", "x", "abc", "xy", "abcd", "xyz"}),
+                        "transpose_string_2d_variable_length"),
+        // 3D transpose with uniform-length strings
+        TransposeParams(
+            PartialShape::dynamic(),
+            reference_tests::Tensor(ET,
+                                    {2, 2, 3},
+                                    std::vector<T>{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"}),
+            reference_tests::Tensor(element::i64, {3}, std::vector<int64_t>{2, 0, 1}),
+            reference_tests::Tensor(ET,
+                                    {3, 2, 2},
+                                    std::vector<T>{"a", "d", "g", "j", "b", "e", "h", "k", "c", "f", "i", "l"}),
+            "transpose_string_3d"),
+        // 3D transpose with variable-length strings
+        TransposeParams(
+            PartialShape::dynamic(),
+            reference_tests::Tensor(
+                ET,
+                {2, 2, 3},
+                std::vector<T>{"", "x", "hello", "world!", "ab", "abcde", "A", "BB", "CCC", "DDDD", "EEEEE", "FFFFFF"}),
+            reference_tests::Tensor(element::i64, {3}, std::vector<int64_t>{2, 0, 1}),
+            reference_tests::Tensor(
+                ET,
+                {3, 2, 2},
+                std::vector<T>{"", "world!", "A", "DDDD", "x", "ab", "BB", "EEEEE", "hello", "abcde", "CCC", "FFFFFF"}),
+            "transpose_string_3d_variable_length"),
+        // static-shape identity (order {0,1})
+        TransposeParams({},
+                        reference_tests::Tensor(ET, {2, 3}, std::vector<T>{"x0", "x1", "x2", "y0", "y1", "y2"}),
+                        reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{0, 1}),
+                        reference_tests::Tensor(ET, {2, 3}, std::vector<T>{"x0", "x1", "x2", "y0", "y1", "y2"}),
+                        "transpose_string_identity_static"),
+        // dynamic-shape identity (order {0,1})
+        TransposeParams(PartialShape::dynamic(),
+                        reference_tests::Tensor(ET, {2, 3}, std::vector<T>{"x0", "x1", "x2", "y0", "y1", "y2"}),
+                        reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{0, 1}),
+                        reference_tests::Tensor(ET, {2, 3}, std::vector<T>{"x0", "x1", "x2", "y0", "y1", "y2"}),
+                        "transpose_string_identity_dynamic"),
+    };
+}
+
 template <element::Type_t IN_ET>
 std::vector<TransposeParams> generateThrowingTransposeParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
@@ -205,6 +273,46 @@ std::vector<TransposeParams> generateThrowingTransposeParams() {
     };
 }
 
+std::vector<TransposeParams> generateTransposeParamsForSubByte() {
+    std::vector<TransposeParams> params;
+
+    // NOTE: Sub-byte types (u2, u4, i4) pack multiple values per byte.
+    // These tests validate transpose_2bit and transpose_4bit reference implementations.
+    // u2: 4 values per byte (2 bits each), u4/i4: 2 values per byte (4 bits each)
+
+    // u2 transpose test - swap dimensions
+    // Input: [2,2] = [[0,1], [2,3]] with axes {1,0}
+    // Output: [2,2] = [[0,2], [1,3]] = {0,2,1,3}
+    params.push_back(
+        TransposeParams(PartialShape::dynamic(),
+                        reference_tests::Tensor(element::u2, {2, 2}, std::vector<uint8_t>{0xE4}),  // {0,1,2,3}
+                        reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{1, 0}),
+                        reference_tests::Tensor(element::u2, {2, 2}, std::vector<uint8_t>{0xD8}),  // {0,2,1,3}
+                        "transpose_u2_2d_swap"));
+
+    // u4 transpose test - swap dimensions
+    // Input: [2,2] = [[1,2], [3,4]] with axes {1,0}
+    // Output: [2,2] = [[1,3], [2,4]] = {1,3,2,4}
+    params.push_back(
+        TransposeParams(PartialShape::dynamic(),
+                        reference_tests::Tensor(element::u4, {2, 2}, std::vector<uint8_t>{0x21, 0x43}),  // {1,2,3,4}
+                        reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{1, 0}),
+                        reference_tests::Tensor(element::u4, {2, 2}, std::vector<uint8_t>{0x31, 0x42}),  // {1,3,2,4}
+                        "transpose_u4_2d_swap"));
+
+    // i4 transpose test - swap dimensions with signed values
+    // Input: [2,2] = [[1,-2], [3,-4]] with axes {1,0}
+    // Output: [2,2] = [[1,3], [-2,-4]] = {1,3,-2,-4}
+    params.push_back(
+        TransposeParams(PartialShape::dynamic(),
+                        reference_tests::Tensor(element::i4, {2, 2}, std::vector<uint8_t>{0xE1, 0xC3}),  // {1,-2,3,-4}
+                        reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{1, 0}),
+                        reference_tests::Tensor(element::i4, {2, 2}, std::vector<uint8_t>{0x31, 0xCE}),  // {1,3,-2,-4}
+                        "transpose_i4_2d_swap"));
+
+    return params;
+}
+
 std::vector<TransposeParams> generateTransposeCombinedParams() {
     const std::vector<std::vector<TransposeParams>> transposeTypeParams{
         generateTransposeParams<element::Type_t::i8>(),
@@ -219,6 +327,8 @@ std::vector<TransposeParams> generateTransposeCombinedParams() {
         generateTransposeParams<element::Type_t::f32>(),
         generateThrowingTransposeParams<element::Type_t::f32>(),
         generateThrowingTransposeParams<element::Type_t::i32>(),
+        generateTransposeParamsForString(),
+        generateTransposeParamsForSubByte(),
     };
     std::vector<TransposeParams> combinedParams;
 

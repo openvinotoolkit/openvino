@@ -7,6 +7,7 @@
 #include "concatenation_kernel_simple_ref.h"
 #include "concatenation_kernel_depth_bfyx_no_pitch.h"
 #include "concatenation_kernel_b_fs_yx_fsv16.h"
+#include "concatenation_kernel_b_fs_yx_fsv32.h"
 #include "concatenation_kernel_fs_b_yx_fsv32.h"
 
 namespace kernel_selector {
@@ -15,6 +16,7 @@ concatenation_kernel_selector::concatenation_kernel_selector() {
     Attach<ConcatenationKernel_simple_Ref>();
     Attach<ConcatenationKernel_depth_bfyx_no_pitch>();
     Attach<ConcatenationKernel_b_fs_yx_fsv16>();
+    Attach<ConcatenationKernel_b_fs_yx_fsv32>();
     Attach<ConcatenationKernel_fs_b_yx_fsv32>();
 }
 

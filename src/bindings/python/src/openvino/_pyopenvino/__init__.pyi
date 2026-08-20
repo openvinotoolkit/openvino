@@ -431,12 +431,14 @@ class ConstOutput:
                         :return: Copy of PartialShape of the output.
                         :rtype: openvino.PartialShape
         """
-    def get_rt_info(self) -> RTMap:
+    def get_rt_info(self) -> typing.Any:
         """
-                        Returns RTMap which is a dictionary of user defined runtime info.
+                    Returns a view of the RTMap for this output.
+                    Reads are transparent; writes are deprecated (to be removed in 2027.0).
+                    Use a non-const output to modify runtime info.
         
-                        :return: A dictionary of user defined data.
-                        :rtype: openvino.RTMap
+                    :return: View of runtime info dictionary.
+                    :rtype: openvino.RTMap
         """
     def get_shape(self) -> Shape:
         """
@@ -479,7 +481,7 @@ class ConstOutput:
     def partial_shape(self) -> PartialShape:
         ...
     @property
-    def rt_info(self) -> RTMap:
+    def rt_info(self) -> typing.Any:
         ...
     @property
     def shape(self) -> Shape:
@@ -553,7 +555,7 @@ class Core:
     def __repr__(self) -> str:
         ...
     @typing.overload
-    def add_extension(self, library_path: str) -> None:
+    def add_extension(self, library_path: os.PathLike | str | bytes) -> None:
         """
                         Registers an extension to a Core object.
         
@@ -628,7 +630,7 @@ class Core:
                     GIL is released while running this function.
         
                     :param model_path: A path to a model in IR / ONNX / PDPD / TF and TFLite format.
-                    :type model_path: typing.Union[str, pathlib.Path]
+                    :type model_path: Union[str, bytes, pathlib.Path]
                     :param device_name: Name of the device to load the model to.
                     :type device_name: str
                     :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
@@ -666,7 +668,7 @@ class Core:
                     GIL is released while running this function.
         
                     :param model_path: A path to a model in IR / ONNX / PDPD / TF and TFLite format.
-                    :type model_path: typing.Union[str, pathlib.Path]
+                    :type model_path: Union[str, bytes, pathlib.Path]
                     :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
                     :type properties: dict[str, typing.Any]
                     :return: A compiled model.
@@ -847,28 +849,6 @@ class Core:
                     :rtype: openvino.Model
         """
     @typing.overload
-    def read_model(self, model: str, weights: str = '', config: collections.abc.Mapping[str, typing.Any] = {}) -> Model:
-        """
-                    Reads models from IR / ONNX / PDPD / TF and TFLite formats.
-        
-                    GIL is released while running this function.
-        
-                    :param model: A path to a model in IR / ONNX / PDPD / TF and TFLite format.
-                    :type model: str
-                    :param weights: A path to a data file For IR format (*.bin): if path is empty,
-                                    it tries to read a bin file with the same name as xml and if the bin
-                                    file with the same name was not found, loads IR without weights.
-                                    For ONNX format (*.onnx): weights parameter is not used.
-                                    For PDPD format (*.pdmodel) weights parameter is not used.
-                                    For TF format (*.pb) weights parameter is not used.
-                                    For TFLite format (*.tflite) weights parameter is not used.
-                    :type weights: str
-                    :param config: Optional map of pairs: (property name, property value) relevant only for this read operation.
-                    :type config: dict[str, typing.Any], optional
-                    :return: A model.
-                    :rtype: openvino.Model
-        """
-    @typing.overload
     def read_model(self, model: str, weights: Tensor) -> Model:
         """
                     Reads models from IR / ONNX / PDPD / TF and TFLite formats.
@@ -890,8 +870,8 @@ class Core:
         
                     GIL is released while running this function.
         
-                    :param model: A path to a model in IR / ONNX / PDPD / TF and TFLite format or a model itself wrapped in io.ByesIO format.
-                    :type model: typing.Union[pathlib.Path, io.BytesIO]
+                    :param model: A path to a model in IR / ONNX / PDPD / TF and TFLite format or a model itself wrapped in io.BytesIO format.
+                    :type model: Union[str, pathlib.Path, io.BytesIO]
                     :param weights: A path to a data file For IR format (*.bin): if path is empty,
                                     it tries to read a bin file with the same name as xml and if the bin
                                     file with the same name was not found, loads IR without weights.
@@ -899,7 +879,7 @@ class Core:
                                     For PDPD format (*.pdmodel) weights parameter is not used.
                                     For TF format (*.pb): weights parameter is not used.
                                     For TFLite format (*.tflite) weights parameter is not used.
-                    :type weights: typing.Union[pathlib.Path, io.BytesIO]
+                    :type weights: Union[str, pathlib.Path, io.BytesIO]
                     :param config: Optional map of pairs: (property name, property value) relevant only for this read operation.
                     :type config: dict[str, typing.Any], optional
                     :return: A model.
@@ -1474,12 +1454,12 @@ class FrontEndManager:
         """
                         Selects and loads appropriate frontend depending on model type or model file extension and other file info (header).
         
-                        :param model_path: A model object or path to a model file/directory.
-                        :type model_path: Any
+                        :param model: A model object or path to a model file/directory.
+                        :type model: Any
                         :return: Frontend interface for further loading of models. 'None' if no suitable frontend is found.
                         :rtype: openvino.frontend.FrontEnd
         """
-    def register_front_end(self, name: str, library_path: str) -> None:
+    def register_front_end(self, name: str, library_path: typing.Any) -> None:
         """
                         Register frontend with name and factory loaded from provided library.
         
@@ -1489,7 +1469,7 @@ class FrontEndManager:
                         :param library_path: Path (absolute or relative) or name of a frontend library. If name is
                         provided, depending on platform, it will be wrapped with shared library suffix and prefix
                         to identify library full name.
-                        :type library_path: str
+                        :type library_path: Union[str, pathlib.Path]
         
                         :return: None
         """
@@ -3801,10 +3781,10 @@ class Output:
         """
     def get_rt_info(self) -> RTMap:
         """
-                        Returns RTMap which is a dictionary of user defined runtime info.
+                    Returns RTMap which is a dictionary of user defined runtime info.
         
-                        :return: A dictionary of user defined data.
-                        :rtype: openvino.RTMap
+                    :return: A dictionary of user defined data.
+                    :rtype: openvino.RTMap
         """
     def get_shape(self) -> Shape:
         """
@@ -5243,6 +5223,33 @@ class Version:
                     :return: OpenVINO's version patch.
                     :rtype: int
         """
+class _ConstRTMapView(RTMap):
+    def __bool__(self) -> bool:
+        ...
+    def __contains__(self, arg0: str) -> bool:
+        ...
+    def __delitem__(self, arg0: str) -> None:
+        ...
+    def __getitem__(self, arg0: str) -> typing.Any:
+        ...
+    def __iter__(self) -> collections.abc.Iterator[str]:
+        ...
+    def __len__(self) -> int:
+        ...
+    def __repr__(self) -> str:
+        ...
+    @typing.overload
+    def __setitem__(self, arg0: str, arg1: str) -> None:
+        ...
+    @typing.overload
+    def __setitem__(self, arg0: str, arg1: typing.SupportsInt | typing.SupportsIndex) -> None:
+        ...
+    def items(self) -> typing.Any:
+        ...
+    def keys(self) -> collections.abc.Iterator[str]:
+        ...
+    def values(self) -> typing.Any:
+        ...
 class _ConversionExtension(ConversionExtensionBase):
     pass
 class _IDecoder:

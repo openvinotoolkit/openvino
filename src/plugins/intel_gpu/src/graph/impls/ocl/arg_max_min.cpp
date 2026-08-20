@@ -47,7 +47,7 @@ struct arg_max_min_impl : typed_primitive_impl_ocl<arg_max_min> {
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
+        if (is_dynamic() && !_kernel_data.kernelName.empty()) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
@@ -82,13 +82,13 @@ public:
         argm_params.outputs_num = outputs_num;
         argm_params.argMaxMinAxis = GetArgMaxMinAxis(axis, impl_param.get_output_layout().get_rank());
 
-        auto& constant_mem = impl_param.memory_deps;
-        if (constant_mem.count(1) && !argm_params.has_dynamic_outputs()) {
+        const auto& constant_mem = impl_param.memory_deps;
+        if ((constant_mem.count(1) != 0u) && !argm_params.has_dynamic_outputs()) {
             // The topK could be got by reading impl_param.memory_deps.at(1).
             // However, here we utilize output_layout and axis information to minimize mem_lock.
             auto output_layout = impl_param.get_output_layout(0);
             auto out_dims = output_layout.get_dims();
-            argm_params.topK = out_dims[axis];
+            argm_params.topK = static_cast<uint32_t>(out_dims[axis]);
         } else {
             argm_params.topK = top_k;
         }

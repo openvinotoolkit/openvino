@@ -3,17 +3,21 @@
 //
 #pragma once
 
-#include <xbyak/xbyak.h>
-
 #include <cstddef>
 #include <cstdint>
 #include <openvino/core/type/element_type.hpp>
 #include <utility>
 #include <vector>
 
-#include "cpu/x64/jit_generator.hpp"
 #include "cpu_memory.h"
+#include "openvino/core/visibility.hpp"
 #include "utils/plain_tensor.hpp"
+
+#if defined(OPENVINO_ARCH_X86_64)
+#    include <xbyak/xbyak.h>
+
+#    include "cpu/x64/jit_generator.hpp"
+#endif  // OPENVINO_ARCH_X86_64
 
 namespace ov::Extensions::Cpu {
 
@@ -46,8 +50,12 @@ struct PagedAttentionExecutor {
     static const size_t ID_ADAPTIVE_RKV_EVICTABLE_SIZES = 22;  // [B_seq], int32
     static const size_t ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES = 23;         // [num_adaptive_rkv_blocks], int32
     static const size_t ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS = 24;  // [B_seq + 1], int32
+    static const size_t ID_TOKEN_TYPE_IDS = 25;                                   // [B_token | 0] or [1, B_token], i32
+    static const size_t ID_QQ_BIAS = 26;         // [batch_mask_size_in_sequences], uint8
+    static const size_t ID_QQ_BIAS_BEGINS = 27;  // [B_seq + 1], int32
     virtual void execute(const std::vector<ov::intel_cpu::MemoryPtr>& inputs,
-                         std::vector<ov::intel_cpu::MemoryPtr> outputs) = 0;
+                         std::vector<ov::intel_cpu::MemoryPtr> outputs,
+                         bool write_kv_cache) = 0;
     virtual ~PagedAttentionExecutor() = default;
 };
 

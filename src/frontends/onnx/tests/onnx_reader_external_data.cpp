@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 #include <onnx/onnx_pb.h>
 
 #include <algorithm>
@@ -18,11 +18,13 @@
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/op/constant.hpp"
+#include "utils/tensor_external_data.hpp"
 
 using namespace std;
 using namespace ov;
 using namespace frontend;
 using namespace frontend::onnx::tests;
+using testing::AnyOf, testing::HasSubstr;
 
 // API 2.0 tests
 class OnnxFeMmapFixture : public ::testing::TestWithParam<bool> {};
@@ -66,28 +68,64 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data_0_size_offset) {
     test_case.run();
 }
 
-// !!! Experimental feature, it may be changed or removed in the future !!!
-TEST_P(OnnxFeMmapFixture, onnx_external_data_enumerating) {
+TEST_P(OnnxFeMmapFixture, onnx_external_data_weightless_cache_attribute) {
     const auto path =
         test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) + "external_data/external_data.onnx");
     Core core;
     core.set_property(enable_mmap(GetParam()));
     const auto model = core.read_model(path);
+
+    // "A" is an external initializer, so a real offset and size are expected.
+    // The model has external data, so other constants are expected to have no attribute.
     const auto& operations = model->get_ordered_ops();
-    for (uint32_t idx = 0; idx < operations.size(); ++idx) {
-        const auto& const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(operations[idx]);
+    size_t external_constants = 0;
+    for (const auto& operation : operations) {
+        const auto& const_node = ov::as_type_ptr<ov::op::v0::Constant>(operation);
         if (const_node == nullptr)
             continue;
-        EXPECT_TRUE(const_node->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()]
-                        .is<ov::WeightlessCacheAttribute>());
-        const auto& weightless_cache = const_node->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()]
-                                           .as<ov::WeightlessCacheAttribute>();
-        EXPECT_EQ(weightless_cache.original_size, 0);
-        EXPECT_EQ(weightless_cache.bin_offset, idx);
-        EXPECT_EQ(weightless_cache.original_dtype, const_node->get_element_type());
+        const auto& rt_info = const_node->get_rt_info();
+        const auto it = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
+        if (const_node->get_friendly_name() == "A") {
+            ASSERT_NE(it, rt_info.end()) << "Constant 'A' is expected to have WeightlessCacheAttribute";
+            const auto& weightless_cache = it->second.as<ov::WeightlessCacheAttribute>();
+            EXPECT_EQ(weightless_cache.original_dtype, const_node->get_element_type());
+            EXPECT_EQ(weightless_cache.bin_offset, 0);
+            EXPECT_EQ(weightless_cache.original_size, const_node->get_byte_size());
+            ++external_constants;
+        } else {
+            EXPECT_EQ(it, rt_info.end()) << "Constant '" << const_node->get_friendly_name()
+                                         << "' is not external, so it is expected to have no WeightlessCacheAttribute";
+        }
     }
+    EXPECT_EQ(external_constants, 1);
 }
-// !!! End of Experimental feature
+
+TEST(OnnxWeightlessCacheAttribute, onnx_no_external_data_weightless_cache_attribute) {
+    const auto path =
+        test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) + "add_abc_initializers.onnx");
+    Core core;
+    const auto model = core.read_model(path);
+
+    // The model has no external data, so all constants are enumerated:
+    // an index is used as an offset and a size stays unknown.
+    const auto& operations = model->get_ordered_ops();
+    size_t constants = 0;
+    for (uint32_t idx = 0; idx < operations.size(); ++idx) {
+        const auto& const_node = ov::as_type_ptr<ov::op::v0::Constant>(operations[idx]);
+        if (const_node == nullptr)
+            continue;
+        const auto& rt_info = const_node->get_rt_info();
+        const auto it = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
+        ASSERT_NE(it, rt_info.end()) << "Constant '" << const_node->get_friendly_name()
+                                     << "' is expected to have WeightlessCacheAttribute";
+        const auto& weightless_cache = it->second.as<ov::WeightlessCacheAttribute>();
+        EXPECT_EQ(weightless_cache.original_dtype, const_node->get_element_type());
+        EXPECT_EQ(weightless_cache.bin_offset, idx);
+        EXPECT_EQ(weightless_cache.original_size, 0);
+        ++constants;
+    }
+    EXPECT_GT(constants, 0);
+}
 
 TEST_P(OnnxFeMmapFixture, onnx_external_data_from_stream) {
     const auto path =
@@ -120,11 +158,10 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data_incorrect_size_exception) {
         const auto model = core.read_model(path);
         FAIL() << "Incorrect size of external data not detected";
     } catch (const Exception& ex) {
-        EXPECT_PRED_FORMAT2(
-            testing::IsSubstring,
-            string(
-                "The size of the external data file does not match the byte size of an initializer 'A' in the model"),
-            ex.what());
+        EXPECT_THAT(
+            ex.what(),
+            HasSubstr(
+                "The size of the external data file does not match the byte size of an initializer 'A' in the model"));
     } catch (...) {
         FAIL() << "Importing onnx model failed for unexpected reason";
     }
@@ -253,10 +290,7 @@ TEST_P(OnnxFeMmapFixture, onnx_external_invalid_up_dir_path) {
         core.read_model(path);
         FAIL() << "Incorrect path to external data not detected";
     } catch (const Exception& ex) {
-        EXPECT_PRED_FORMAT2(testing::IsSubstring,
-                            string("tensor.data, offset: 4096, "
-                                   "data_length: 16)"),
-                            ex.what());
+        EXPECT_PRED_FORMAT2(testing::IsSubstring, string("which is outside the base directory"), ex.what());
     } catch (...) {
         FAIL() << "Importing onnx model failed for unexpected reason";
     }

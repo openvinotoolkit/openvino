@@ -2000,6 +2000,13 @@ std::vector<PadParams> generateParamsTooLarge() {
     using T = typename element_type_traits<ET>::value_type;
     using T_INT = typename element_type_traits<ET_INT>::value_type;
     std::vector<PadParams> params{
+        PadParams(reference_tests::Tensor(ET, {3}, std::vector<T>{1, 2, 3}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{0}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{-5}),
+                  reference_tests::Tensor(ET, {1}, std::vector<T>{0}),
+                  op::PadMode::CONSTANT,
+                  "pad_negative_output_dim"),
+
         PadParams(reference_tests::Tensor(ET,
                                           {2, 2},
                                           std::vector<T>{
@@ -2154,4 +2161,153 @@ INSTANTIATE_TEST_SUITE_P(smoke_Pad_With_Hardcoded_Refs,
                          ReferencePadV1TestNonConstPadsBeginPadsEndPadValParamsOk,
                          testing::ValuesIn(generateCombinedParamsOk()),
                          ReferencePadTest::getTestCaseName);
+
+std::vector<PadParams> generateStringParams() {
+    const auto ET = element::Type_t::string;
+    const auto ET_INT = element::Type_t::i64;
+    using T = typename element_type_traits<ET>::value_type;
+    using T_INT = typename element_type_traits<ET_INT>::value_type;
+
+    return {
+        // 1-D, pad begin and end with explicit pad value
+        PadParams(reference_tests::Tensor(ET, {4}, std::vector<T>{"a", "bb", "ccc", "dddd"}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{1}),
+                  reference_tests::Tensor(ET, {7}, std::vector<T>{"<p>", "<p>", "a", "bb", "ccc", "dddd", "<p>"}),
+                  op::PadMode::CONSTANT,
+                  reference_tests::Tensor(ET, {}, std::vector<T>{"<p>"}),
+                  "pad_string_1d_begin_end_explicit_value"),
+
+        // 1-D, explicit empty-string pad value
+        PadParams(reference_tests::Tensor(ET, {3}, std::vector<T>{"x", "yy", "zzz"}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{1}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
+                  reference_tests::Tensor(ET, {6}, std::vector<T>{"", "x", "yy", "zzz", "", ""}),
+                  op::PadMode::CONSTANT,
+                  reference_tests::Tensor(ET, {}, std::vector<T>{""}),
+                  "pad_string_1d_empty_pad_value"),
+
+        // 2-D, pad rows and columns
+        PadParams(reference_tests::Tensor(ET, {2, 2}, std::vector<T>{"a", "bb", "ccc", "dddd"}),
+                  reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{1, 2}),
+                  reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, 1}),
+                  reference_tests::Tensor(
+                      ET,
+                      {3, 5},
+                      std::vector<T>{".", ".", ".", ".", ".", ".", ".", "a", "bb", ".", ".", ".", "ccc", "dddd", "."}),
+                  op::PadMode::CONSTANT,
+                  reference_tests::Tensor(ET, {}, std::vector<T>{"."}),
+                  "pad_string_2d_rows_cols"),
+
+        // 1-D, negative pads (crop)
+        PadParams(reference_tests::Tensor(ET, {5}, std::vector<T>{"a", "bb", "ccc", "dddd", "eeeee"}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{-1}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{-2}),
+                  reference_tests::Tensor(ET, {2}, std::vector<T>{"bb", "ccc"}),
+                  op::PadMode::CONSTANT,
+                  reference_tests::Tensor(ET, {}, std::vector<T>{""}),
+                  "pad_string_1d_negative_crop"),
+
+        // 1-D, pad only at end
+        PadParams(reference_tests::Tensor(ET, {3}, std::vector<T>{"x", "yy", "zzz"}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{0}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{3}),
+                  reference_tests::Tensor(ET, {6}, std::vector<T>{"x", "yy", "zzz", "", "", ""}),
+                  op::PadMode::CONSTANT,
+                  reference_tests::Tensor(ET, {}, std::vector<T>{""}),
+                  "pad_string_1d_end_only"),
+
+        // 1-D, pad both sides with non-empty pad value
+        PadParams(reference_tests::Tensor(ET, {3}, std::vector<T>{"a", "bb", "ccc"}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{1}),
+                  reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{2}),
+                  reference_tests::Tensor(ET, {6}, std::vector<T>{"FILL", "a", "bb", "ccc", "FILL", "FILL"}),
+                  op::PadMode::CONSTANT,
+                  reference_tests::Tensor(ET, {}, std::vector<T>{"FILL"}),
+                  "pad_string_1d_both_sides_non_empty"),
+
+        // 2-D, pad rows only (begin and end)
+        PadParams(reference_tests::Tensor(ET, {2, 3}, std::vector<T>{"a", "b", "c", "d", "e", "f"}),
+                  reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, 0}),
+                  reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{1, 0}),
+                  reference_tests::Tensor(
+                      ET,
+                      {5, 3},
+                      std::vector<T>{"X", "X", "X", "X", "X", "X", "a", "b", "c", "d", "e", "f", "X", "X", "X"}),
+                  op::PadMode::CONSTANT,
+                  reference_tests::Tensor(ET, {}, std::vector<T>{"X"}),
+                  "pad_string_2d_rows_only"),
+
+        // 2-D, pad columns only
+        PadParams(
+            reference_tests::Tensor(ET, {2, 3}, std::vector<T>{"a", "b", "c", "d", "e", "f"}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, 1}),
+            reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{0, 2}),
+            reference_tests::Tensor(ET, {2, 6}, std::vector<T>{"", "a", "b", "c", "", "", "", "d", "e", "f", "", ""}),
+            op::PadMode::CONSTANT,
+            reference_tests::Tensor(ET, {}, std::vector<T>{""}),
+            "pad_string_2d_cols_only"),
+
+        // 3-D
+        // slice 2 = original slice 1 + 1 row of "?" at end for dim1
+        PadParams(reference_tests::Tensor(ET, {2, 2, 2}, std::vector<T>{"a", "b", "c", "d", "e", "f", "g", "h"}),
+                  reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{1, 0, 0}),
+                  reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{0, 1, 0}),
+                  reference_tests::Tensor(
+                      ET,
+                      {3, 3, 2},
+                      std::vector<
+                          T>{"?", "?", "?", "?", "?", "?", "a", "b", "c", "d", "?", "?", "e", "f", "g", "h", "?", "?"}),
+                  op::PadMode::CONSTANT,
+                  reference_tests::Tensor(ET, {}, std::vector<T>{"?"}),
+                  "pad_string_3d"),
+    };
+}
+
+class ReferencePadV12StringTest : public ReferencePadTest {
+public:
+    void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        BaseConstSetUp();
+        function = commonConstPadsCreateFunction<op::v12::Pad>(GetParam());
+    }
+};
+
+TEST_P(ReferencePadV12StringTest, CompareWithRefs) {
+    Exec();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_Pad_String_With_Hardcoded_Refs,
+                         ReferencePadV12StringTest,
+                         testing::ValuesIn(generateStringParams()),
+                         ReferencePadTest::getTestCaseName);
+
+// Test that non-CONSTANT pad modes are rejected for element::string at construction/validation time.
+TEST(ReferencePadV12StringNegative, NonConstantModeThrows) {
+    const auto data = std::make_shared<op::v0::Parameter>(element::string, Shape{4});
+    const auto pads_begin = op::v0::Constant::create(element::i64, Shape{1}, {1});
+    const auto pads_end = op::v0::Constant::create(element::i64, Shape{1}, {1});
+    for (const auto mode : {op::PadMode::EDGE, op::PadMode::REFLECT, op::PadMode::SYMMETRIC}) {
+        EXPECT_THROW(std::make_shared<op::v12::Pad>(data, pads_begin, pads_end, mode), ov::Exception)
+            << "Expected throw for pad mode " << mode;
+    }
+}
+
+// Test that the 3-input ctor (omitted pad_value) defaults to empty string for element::string.
+TEST(ReferencePadV12StringDefaultPadValue, DefaultsToEmptyString) {
+    const auto data = std::make_shared<op::v0::Parameter>(element::string, Shape{3});
+    const auto pads_begin = op::v0::Constant::create(element::i64, Shape{1}, {1});
+    const auto pads_end = op::v0::Constant::create(element::i64, Shape{1}, {1});
+    // Must not throw — default pad value for string should be ""
+    std::shared_ptr<op::v12::Pad> pad;
+    ASSERT_NO_THROW(pad = std::make_shared<op::v12::Pad>(data, pads_begin, pads_end, op::PadMode::CONSTANT));
+    // Verify output shape: {3} + 1 + 1 = {5}
+    EXPECT_EQ(pad->get_output_partial_shape(0), PartialShape({5}));
+    // Verify the default pad_value constant is an empty string
+    const auto pad_val_const = ov::as_type_ptr<op::v0::Constant>(pad->get_input_node_shared_ptr(3));
+    ASSERT_NE(pad_val_const, nullptr);
+    EXPECT_EQ(pad_val_const->get_element_type(), element::string);
+    EXPECT_EQ(pad_val_const->cast_vector<std::string>(), std::vector<std::string>{""})
+        << "Default pad value for string Pad should be empty string";
+}
 }  // namespace

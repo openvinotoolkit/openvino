@@ -1,5 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #pragma once
 
@@ -8,17 +9,53 @@
 /*
  * Description:
  *     FallbackUnsupportedLPConvToFP16 detects quantized Convolution patterns with
- *     Convolution -> Multiply -> Add -> FakeQuantize, when dequantized
- *     FakeQuantize output precision is different from Convolution activation precision.
- *     This precision-mismatch case is not supported by ACL int8 executor and is
- *     handled by convolution fp primitive.
+ *     Convolution -> Multiply -> Add -> FakeQuantize that cannot execute as int8.
+ *
+ *     The pass fires when either:
+ *       1. The Convolution activation comes from a Subtract (zero-point dequantization),
+ *          indicating the int8 path is broken for this Conv (unconditional fallback).
+ *       2. The FakeQuantize output precision differs from Conv activation precision
+ *          (original type-mismatch case).
+ *
  *     The pass moves DQ scaling from Convolution output path to Convolution weights:
  *     post-conv DQ Multiply is removed, and equivalent scaling is applied on weights
  *     before Convolution.
  *     This avoids fp16 overflow on large post-conv values that would otherwise be scaled
  *     in the output path.
  *
- * Before:
+ * Before (case 1 - Subtract on activation):
+ *
+ *  +--------+     +----------+
+ *  |Convert | --> | Subtract | (zero-point)    +---------------+
+ *  +--------+     +-----+----+                 | Weights (i8)  |
+ *                       |                      +-------+-------+
+ *                       +----------+-----------+
+ *                                  |
+ *                            +-----v------+
+ *                            | Convolution |
+ *                            +------+------+
+ *                                   |
+ *                                   v
+ *                            +-------------+
+ *                            |  Multiply   |
+ *                            +------+------+
+ *                                   |
+ *                                   v
+ *                            +-------------+
+ *                            |     Add     |
+ *                            +------+------+
+ *                                   |
+ *                                   v
+ *                            +-------------+
+ *                            | FakeQuantize|
+ *                            +------+------+
+ *                                   |
+ *                                   v
+ *                            +-------------+
+ *                            |   Result    |
+ *                            +-------------+
+ *
+ * Before (case 2 - type mismatch, no Subtract):
  *
  * +--------------+      +---------------+
  * | Input (u8/i8)|      | Weights (i8)  |
@@ -42,7 +79,7 @@
  *                    |
  *                    v
  *             +-------------+
- *             | FakeQuantize|
+ *             | FakeQuantize|  (output precision != Conv activation precision)
  *             +------+------+
  *                    |
  *                    v

@@ -311,7 +311,7 @@ using TensorVector = std::vector<Tensor>;
 
 /// \brief Read a tensor content from a file. Only raw data is loaded.
 /// \param file_name Path to file to read.
-/// \param element_type Element type, when not specified the it is assumed as element::u8.
+/// \param element_type Element type, when not specified then it is assumed as element::u8.
 /// \param shape Shape for resulting tensor. If provided shape is static, specified number of elements is read only.
 ///              File should contain enough bytes, an exception is raised otherwise.
 ///              One of the dimensions can be dynamic. In this case it will be determined automatically based on the

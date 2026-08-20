@@ -4,6 +4,8 @@
 
 #include "behavior/compiled_model/properties.hpp"
 
+#include <openvino/util/codec_xor.hpp>
+
 #include "common/functions.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
@@ -50,21 +52,25 @@ const std::vector<std::pair<std::string, ov::Any>> compiledModelProperties = {
     {ov::hint::model_priority.name(), ov::Any(ov::hint::Priority::HIGH)},
     {ov::intel_npu::tiles.name(), ov::Any(2)},
     {ov::intel_npu::profiling_type.name(), ov::Any(ov::intel_npu::ProfilingType::INFER)},
-    {ov::intel_npu::defer_weights_load.name(), ov::Any(false)}};
+    {ov::intel_npu::defer_weights_load.name(), ov::Any(false)},
+    {ov::cache_encryption_callbacks.name(), ov::Any(ov::EncryptionCallbacks{ov::util::codec_xor, ov::util::codec_xor})},
+};
 
 const std::string& expectedModelName = []() -> std::string {
     return ov::test::behavior::getDefaultNGraphFunctionForTheDevice()->get_friendly_name();
 }();
 
 const std::vector<ov::AnyMap> compatibilityPublicCompiledModelConfigs = {
-    {{ov::hint::enable_cpu_pinning.name(), ov::Any(false)}},
     {{ov::hint::model_priority.name(), ov::Any(ov::hint::Priority::MEDIUM)}},
     {{ov::execution_devices.name(), ov::Any(ov::test::utils::DEVICE_NPU)}},
     {{ov::loaded_from_cache.name(), ov::Any(false)}},
     {{ov::model_name.name(), ov::Any(expectedModelName)}},
     {{ov::optimal_number_of_infer_requests.name(), ov::Any(1u)}},
     {{ov::hint::performance_mode.name(), ov::Any(ov::hint::PerformanceMode::LATENCY)}},
-    {{ov::hint::num_requests.name(), ov::Any(1u)}}};
+    {{ov::hint::num_requests.name(), ov::Any(1u)}},
+    {{ov::cache_encryption_callbacks.name(),
+      ov::Any(ov::EncryptionCallbacks{ov::util::codec_xor, ov::util::codec_xor})}},
+};
 
 const std::vector<ov::AnyMap> publicCompiledModelConfigs = {
     // execution_mode isn't supported with PV driver.

@@ -67,15 +67,20 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
         return ov::element::dynamic;
     case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
         return ov::element::bf16;
+    case TensorProto_DataType::TensorProto_DataType_FLOAT4E2M1:
+        return ov::element::f4e2m1;
     case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN:
         return ov::element::f8e4m3;
     case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
         return ov::element::f8e5m2;
+    case TensorProto_DataType::TensorProto_DataType_FLOAT8E8M0:
+        return ov::element::f8e8m0;
     case TensorProto_DataType::TensorProto_DataType_STRING:
         return ov::element::string;
     }
     ONNX_UNSUPPORTED_DATA_TYPE(onnx_type,
-                               "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, INT8, INT16, "
+                               "BOOL, BFLOAT16, FLOAT4E2M1, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT8E8M0, FLOAT, FLOAT16, "
+                               "DOUBLE, INT4, INT8, INT16, "
                                "INT32, INT64, UINT4, UINT8, UINT16, UINT32, UINT64, STRING, UNDEFINED");
 }
 
@@ -101,12 +106,15 @@ void default_op_checks(const Node& node, size_t min_inputs_size, size_t max_inpu
                                   inputs.size());
 }
 
-bool is_input_valid(const Node& node, size_t index) {
-    const auto& inputs = node.get_ov_inputs();
+bool is_input_valid(const ov::OutputVector& inputs, size_t index) {
     if (index >= inputs.size())
         return false;
     const auto node_ptr = inputs[index].get_node_shared_ptr();
     return node_ptr != nullptr && !ov::as_type_ptr<NullNode>(node_ptr);
+}
+
+bool is_input_valid(const Node& node, size_t index) {
+    return is_input_valid(node.get_ov_inputs(), index);
 }
 
 std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const ov::Output<ov::Node>& value,
@@ -197,6 +205,13 @@ std::shared_ptr<v0::Constant> make_failsafe_constant(const ov::element::Type& dt
 bool is_failsafe_node(const std::shared_ptr<ov::Node>& node) {
     const auto& rt_info = node->get_rt_info();
     return rt_info.find(FAILSAFE_NODE) != rt_info.end();
+}
+
+bool is_constant_empty_node(const std::shared_ptr<ov::Node>& node) {
+    if (auto constant_node = ov::as_type_ptr<v0::Constant>(node)) {
+        return shape_size(constant_node->get_shape()) == 0;
+    }
+    return false;
 }
 
 const std::string OPTIMIZED_OUT_NODE = "OPTIMIZED_OUT_NODE";

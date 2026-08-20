@@ -6,6 +6,7 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
+
 namespace ov::intel_gpu {
 
 class KeepMOE3GemmConstPrecision: public ov::pass::MatcherPass {

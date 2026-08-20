@@ -10,6 +10,10 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include "ocl/ocl_engine_factory.hpp"
+#include "ze/ze_engine_factory.hpp"
+#ifdef OV_GPU_WITH_SYCL_RT
+#include "sycl/sycl_engine_factory.hpp"
+#endif  // OV_GPU_WITH_SYCL_RT
 
 #include <string>
 #include <vector>
@@ -74,10 +78,7 @@ bool engine::use_unified_shared_memory() const {
     GPU_DEBUG_IF(ExecutionConfig::get_disable_usm()) {
         return false;
     }
-    if (_device->get_mem_caps().supports_usm()) {
-        return true;
-    }
-    return false;
+    return _device->get_mem_caps().supports_usm();
 }
 
 uint64_t engine::get_max_memory_size() const {
@@ -99,6 +100,11 @@ bool engine::supports_allocation(allocation_type type) const {
     if (allocation_type::usm_shared == type)
         return false;
     return _device->get_mem_caps().support_allocation_type(type);
+}
+
+bool engine::can_use_host_usm_zero_copy() const {
+    const auto& info = get_device_info();
+    return info.dev_type == cldnn::device_type::integrated_gpu && info.arch >= cldnn::gpu_arch::xe2 && supports_allocation(cldnn::allocation_type::usm_host);
 }
 
 allocation_type engine::get_lockable_preferred_memory_allocation_type(bool is_image_layout) const {
@@ -257,6 +263,12 @@ bool engine::get_enable_large_allocations() const {
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_types runtime_type, const device::ptr device) {
     std::shared_ptr<cldnn::engine> ret;
     switch (engine_type) {
+#ifdef OV_GPU_WITH_SYCL_RT
+    case engine_types::sycl:
+        ret = sycl::create_sycl_engine(device, runtime_type);
+        break;
+#endif  // OV_GPU_WITH_SYCL_RT
+#ifdef OV_GPU_WITH_OCL_RT
 #ifdef OV_GPU_WITH_SYCL
     case engine_types::sycl:
         ret = ocl::create_sycl_engine(device, runtime_type);
@@ -265,6 +277,12 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_
     case engine_types::ocl:
         ret = ocl::create_ocl_engine(device, runtime_type);
         break;
+#endif
+#ifdef OV_GPU_WITH_ZE_RT
+    case engine_types::ze:
+        ret = ze::create_ze_engine(device, runtime_type);
+        break;
+#endif
     default:
         throw std::runtime_error("Invalid engine type");
     }
@@ -284,6 +302,64 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_
     auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
 
     return engine::create(engine_type, runtime_type, device);
+}
+
+bool engine::check_allocatable(const layout& layout, allocation_type type) {
+    OPENVINO_ASSERT(supports_allocation(type), "[GPU] Unsupported allocation type: ", type);
+
+    if (!get_enable_large_allocations()) {
+        bool exceed_allocatable_mem_size = (layout.bytes_count() > get_device_info().max_alloc_mem_size);
+
+        // When dynamic shape upper bound makes bigger buffer, then return false.
+        if (exceed_allocatable_mem_size && layout.is_dynamic()) {
+            OPENVINO_ASSERT(layout.has_upper_bound(), "[GPU] Dynamic shape without upper bound tries to allocate");
+            return false;
+        }
+
+        OPENVINO_ASSERT(!exceed_allocatable_mem_size,
+                        "[GPU] Exceeded max size of memory object allocation: ",
+                        "requested ", layout.bytes_count(), " bytes, "
+                        "but max alloc size supported by device is ", get_device_info().max_alloc_mem_size, " bytes. ",
+                        "Please try to reduce batch size, use lower precision, "
+                        "or set ov::intel_gpu::hint::enable_large_allocations config property to true.");
+    }
+
+    auto used_mem = get_used_device_memory(allocation_type::usm_device) + get_used_device_memory(allocation_type::usm_host);
+    auto exceed_available_mem_size = (layout.bytes_count() + used_mem > get_max_memory_size());
+
+    // When dynamic shape upper bound makes bigger buffer, then return false.
+    if (exceed_available_mem_size && layout.is_dynamic()) {
+        OPENVINO_ASSERT(layout.has_upper_bound(), "[GPU] Dynamic shape without upper bound tries to allocate");
+        return false;
+    }
+
+#ifdef __unix__
+    // Prevent from being killed by Ooo Killer of Linux
+    OPENVINO_ASSERT(!exceed_available_mem_size,
+                    "[GPU] Exceeded max size of memory allocation: ",
+                    "Required ", layout.bytes_count(), " bytes, already occupied : ", used_mem, " bytes, ",
+                    "but available memory size is ", get_max_memory_size(), " bytes");
+#else
+    if (exceed_available_mem_size) {
+        GPU_DEBUG_COUT << "[Warning] [GPU] Exceeded max size of memory allocation: " << "Required " << layout.bytes_count() << " bytes, already occupied : "
+                       << used_mem << " bytes, but available memory size is " << get_max_memory_size() << " bytes" << std::endl;
+        GPU_DEBUG_COUT << "Please note that performance might drop due to memory swap." << std::endl;
+    }
+#endif
+
+    return true;
+}
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+dnnl::engine& engine::get_onednn_engine() const {
+    const std::lock_guard<std::mutex> lock(onednn_mutex);
+    OPENVINO_ASSERT(_onednn_engine, "[GPU] Can't get onednn engine handle as it was not initialized. Please check that create_onednn_engine() was called");
+    return *_onednn_engine;
+}
+#endif
+
+stream& engine::get_service_stream() const {
+    return *_service_stream;
 }
 
 }  // namespace cldnn

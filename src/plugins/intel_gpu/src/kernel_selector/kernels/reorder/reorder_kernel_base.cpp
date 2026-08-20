@@ -109,18 +109,22 @@ JitConstants ReorderKernelBase::GetJitConstants(const reorder_params& params) co
         jit.AddConstant(MakeJitConstant("TO_MEAN_TYPE", "convert_float"));
     } else if (params.mode == MeanSubtractMode::IN_BUFFER) {
         jit.AddConstant(MakeJitConstant("MEAN_SUBTRACT", params.mean));
-        jit.AddConstant(MakeJitConstant("TO_MEAN_TYPE", "convert_" + toCLType(params.mean.GetDType())));
+        jit.AddConstant(MakeJitConstant("TO_MEAN_TYPE", "convert_" + toCLType(GetComputeDatatype(params.mean.GetDType()))));
     }
 
     // Type JITs:
 
     // half->half without subtraction and activation (so plain reorder) can be done on shorts without explicit fp16 support
-    bool useUshort = (params.inputs[0].GetDType() == Datatype::F16 && params.outputs[0].GetDType() == Datatype::F16 &&
-                      params.mode == MeanSubtractMode::NONE && params.activations.empty());
+    bool useUshort = (((params.inputs[0].GetDType() == Datatype::F16 && params.outputs[0].GetDType() == Datatype::F16) || 
+        (params.inputs[0].GetDType() == Datatype::BF16 && params.outputs[0].GetDType() == Datatype::BF16)) &&
+                      params.mode == MeanSubtractMode::NONE && params.activations.empty() && params.fused_ops.empty());
 
     Datatype calc_type = useUshort ? Datatype::UINT16 : params.inputs[0].GetDType();
-    if ( params.inputs[0].GetDType() == Datatype::BF16 ) {
+    if (params.inputs[0].GetDType() == Datatype::BF16 || params.inputs[0].GetDType() == Datatype::F8E8M0) {
         calc_type = Datatype::F32;
+    }
+    if (params.inputs[0].GetDType() == Datatype::F8E4M3 || params.inputs[0].GetDType() == Datatype::F8E5M2 || params.inputs[0].GetDType() == Datatype::F4E2M1) {
+        calc_type = Datatype::F16;
     }
     Datatype output_reorder_type = useUshort ? Datatype::UINT16 : params.outputs[0].GetDType();
     Datatype input_reorder_type = useUshort ? Datatype::UINT16 : params.inputs[0].GetDType();
@@ -132,7 +136,9 @@ JitConstants ReorderKernelBase::GetJitConstants(const reorder_params& params) co
     jit.AddConstant(MakeJitConstant("MEAN_OP(val, mean_val)", getMeanOpString(params.mean_op)));
 
     // Type parametrized activation:
-    jit.Merge(MakeActivationJitConstants(params.activations, GetUnitType(params), "_TYPED", true));
+    jit.Merge(MakeActivationJitConstants(params.activations, GetComputeDatatype(GetUnitType(params)), "_TYPED", true));
+    jit.AddConstant(MakeJitConstant("LOAD_(idx)", "DECODE_INPUT_REORDER_COMPUTE_TYPE(input[idx])"));
+    jit.AddConstant(MakeJitConstant("STORE_(idx, val)", "output[idx] = TO_OUTPUT_REORDER_TYPE(ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_COMPUTE_TYPE(val), ACTIVATION_PARAMS_TYPED))"));
 
     // TODO: Move to lower classes
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", SubGroupSize(params.outputs[0].GetLayout())));
@@ -154,8 +160,8 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_weig
 ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_params& params) const {
     DispatchData dispatchData;
 
-    auto& input = params.inputs[0];
-    auto& output = params.outputs[0];
+    const auto& input = params.inputs[0];
+    const auto& output = params.outputs[0];
     auto input_l = input.GetLayout();
     auto output_l = output.GetLayout();
     DataTensor input_tensor = input;

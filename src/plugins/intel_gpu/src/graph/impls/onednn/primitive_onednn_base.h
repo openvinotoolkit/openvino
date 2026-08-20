@@ -12,7 +12,6 @@
 #include "intel_gpu/runtime/file_util.hpp"
 #include "to_string_utils.h"
 #include "utils.hpp"
-#include "runtime/ocl/ocl_event.hpp"
 
 #include "intel_gpu/primitives/reorder.hpp"
 
@@ -20,6 +19,7 @@
 
 #include <vector>
 #include <utility>
+#include <mutex>
 
 #include <oneapi/dnnl/dnnl.hpp>
 
@@ -70,7 +70,8 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
         _pd(),
         _prim() {
             _enable_profiling = config.get_enable_profiling();
-            GPU_DEBUG_IF(!config.get_dump_profiling_data_path().empty()) {
+            GPU_DEBUG_IF(!config.get_dump_profiling_data_path().empty() ||
+                         !config.get_average_counters().empty()) {
                 _enable_profiling = true;
             }
         }
@@ -264,7 +265,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                         dnnl::algorithm aalgorithm = dnnl::algorithm::undef;
                         ib >> make_data(&aalgorithm, sizeof(dnnl::algorithm));
 
-                        if (fused_desc.at(idx).dims.size() > 0) {
+                        if (!fused_desc.at(idx).dims.empty()) {
                             _post_ops.append_binary(aalgorithm,
                                 dnnl::memory::desc(fused_desc.at(idx).dims, fused_desc.at(idx).dt, fused_desc.at(idx).tag));
                         } else {
@@ -530,6 +531,9 @@ protected:
 
     event::ptr execute_impl(const std::vector<event::ptr>& /* events */,
                             typed_primitive_inst<PType>& instance) override {
+#ifdef OV_GPU_WITH_ZE_RT
+        static std::mutex execute_mutex;
+#endif
         auto& network = instance.get_network();
         auto& stream = network.get_stream();
         auto net_id = network.get_id();
@@ -545,10 +549,14 @@ protected:
 
         if (!instance.can_be_optimized()) {
             try {
+#ifdef OV_GPU_WITH_ZE_RT
+                // Prevent race condition issue for Level Zero runtime
+                // To be removed once MFDNN-15356 is resolved
+                std::lock_guard<std::mutex> lock(execute_mutex);
+#endif
                 _prim.execute(stream.get_onednn_stream(), _args[net_id]);
             } catch (dnnl::error& err) {
-                auto err_code = err.status == dnnl_status_t::dnnl_out_of_memory ? CL_OUT_OF_RESOURCES : CL_INVALID_OPERATION;
-                ocl::rethrow(err.what(), err_code, _engine->get_device_info());
+                OPENVINO_THROW(err.what());
             }
 
             if (_enable_profiling) {
@@ -557,12 +565,11 @@ protected:
                 stream.wait();
 
                 std::vector<uint64_t> duration = dnnl::get_profiling_data(stream.get_onednn_stream(), dnnl::profiling_data_kind::time);
-                if (duration.empty()) {
-                    event = std::make_shared<ocl::ocl_event>(0);
-                } else {
+                event = stream.create_user_event(true);
+                if (!duration.empty()) {
                     OPENVINO_ASSERT(duration.size() == 1, "[GPU] oneDNN profiling data is expected to have info only for single primitive ",
                                                       "actual number is ", duration.size());
-                    event = std::make_shared<ocl::ocl_event>(duration[0]);
+                    event->set_profiling_duration(duration[0]);
                 }
 
             } else {

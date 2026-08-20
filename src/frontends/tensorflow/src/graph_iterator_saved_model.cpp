@@ -29,43 +29,24 @@ bool GraphIteratorSavedModel::is_valid_signature(const ::tensorflow::SignatureDe
     return true;
 }
 
-bool GraphIteratorSavedModel::is_supported(const std::string& path) {
+bool GraphIteratorSavedModel::is_supported(const std::filesystem::path& path) {
     if (ov::util::directory_exists(path)) {
-        FRONT_END_GENERAL_CHECK(util::file_exists(ov::util::path_join({path, "saved_model.pb"})),
-                                "Could not open the file: \"",
-                                ov::util::path_join({path, "saved_model.pb"}),
-                                '"');
+        FRONT_END_GENERAL_CHECK(util::file_exists(path / "saved_model.pb"),
+                                "Could not open the file: ",
+                                path / "saved_model.pb");
         return true;
     } else {
         return false;
     }
 }
 
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-bool GraphIteratorSavedModel::is_supported(const std::wstring& path) {
-    return ov::util::directory_exists(path) && ov::util::file_exists(ov::util::path_join_w({path, L"saved_model.pb"}));
-}
-#endif
-
-template <>
-std::basic_string<char> get_saved_model_name<char>() {
-    return "/saved_model.pb";
-}
-template <>
-std::basic_string<char> get_variables_index_name<char>() {
-    return "/variables/variables.index";
+std::filesystem::path get_saved_model_name() {
+    return "saved_model.pb";
 }
 
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-template <>
-std::basic_string<wchar_t> get_saved_model_name<wchar_t>() {
-    return L"/saved_model.pb";
+std::filesystem::path get_variables_index_name() {
+    return std::filesystem::path("variables") / "variables.index";
 }
-template <>
-std::basic_string<wchar_t> get_variables_index_name<wchar_t>() {
-    return L"/variables/variables.index";
-}
-#endif
 
 std::vector<std::string> GraphIteratorSavedModel::split_tags(const std::string tags) const {
     std::vector<std::string> tag_list = {};

@@ -182,7 +182,7 @@ describe("ov.Model tests", () => {
 
     it("should not accept any arguments", () => {
       assert.throws(
-        () => model.clone("Unexpected argument").then(),
+        () => model.clone("Unexpected argument"),
         /'clone' method called with incorrect parameters./,
       );
     });
@@ -296,7 +296,7 @@ describe("ov.Model tests", () => {
 
     it("should not accept any arguments", () => {
       assert.throws(
-        () => model.getOps("Unexpected argument").then(),
+        () => model.getOps("Unexpected argument"),
         /'getOps' method called with incorrect parameters./,
       );
     });

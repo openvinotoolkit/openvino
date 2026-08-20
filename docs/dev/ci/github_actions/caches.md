@@ -18,7 +18,7 @@ Three types of caches are available:
   * Accessible by `actions/cache` action.
   * Limited to 10 GB per repository.
   * Suitable for small dependencies caches and reusable artifacts.
-* [Shared drive cache](#shared-drive-cache-usage-and-structure)
+* [Shared drive cache](#shared-drive-cache)
   * Available only to self-hosted runners.
   * Automatically available via a predefined path.
   * Large storage.

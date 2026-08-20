@@ -1,5 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include <pybind11/pybind11.h>
 
@@ -57,6 +58,7 @@
 #include "pyopenvino/graph/ops/if.hpp"
 #include "pyopenvino/graph/ops/loop.hpp"
 #include "pyopenvino/graph/ops/paged_attention_extension.hpp"
+#include "pyopenvino/graph/ops/internal/gqa_extension.hpp"
 #include "pyopenvino/graph/ops/parameter.hpp"
 #include "pyopenvino/graph/ops/read_value.hpp"
 #include "pyopenvino/graph/ops/result.hpp"
@@ -234,6 +236,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regclass_graph_Input(m);
     regclass_graph_Node(m);
     regclass_graph_NodeFactory(m);
+    regclass_graph_ConstOutputRTMap(m);
     regclass_graph_Output<const ov::Node>(m, std::string("Const"));
     regmodule_graph_util(m);
     regclass_graph_Op(m);
@@ -242,6 +245,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regclass_graph_op_Assign(m_op);
     regclass_graph_op_Constant(m_op);
     regclass_graph_op_PagedAttentionExtension(m_op);
+    regclass_graph_op_GroupQueryAttention(m_op);
     regclass_graph_op_Parameter(m_op);
     regclass_graph_op_ReadValue(m_op);
     regclass_graph_op_Result(m_op);

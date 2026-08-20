@@ -1,5 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include "node/include/addon.hpp"
 
@@ -56,6 +57,10 @@ Napi::Value save_model_sync(const Napi::CallbackInfo& info) {
     return info.Env().Undefined();
 }
 
+Napi::Value get_openvino_version(const Napi::CallbackInfo& info) {
+    return cpp_to_js(info.Env(), ov::get_openvino_version());
+}
+
 /** @brief Initialize native add-on */
 Napi::Object init_module(Napi::Env env, Napi::Object exports) {
     auto addon_data = new AddonData();
@@ -73,6 +78,7 @@ Napi::Object init_module(Napi::Env env, Napi::Object exports) {
     init_class(env, exports, "Node", &NodeWrap::get_class, addon_data->node);
 
     init_function(env, exports, "saveModelSync", save_model_sync);
+    init_function(env, exports, "getOpenvinoVersion", get_openvino_version);
 
     preprocess::init(env, exports);
     element::init(env, exports);

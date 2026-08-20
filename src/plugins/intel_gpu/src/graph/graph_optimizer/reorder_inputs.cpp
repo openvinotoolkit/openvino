@@ -44,7 +44,7 @@ std::map<program_node*, format::type> get_preferred_formats(program& p, layout_o
     size_t onednn_impls_counter = 0;
     bool should_update_fmt_map = false;
     // Calculate onednn kernels number and all kernels number inside the network
-    for (auto n : p.get_processing_order()) {
+    for (auto* n : p.get_processing_order()) {
         if (!n->is_in_data_flow())
             continue;
 
@@ -67,7 +67,7 @@ std::map<program_node*, format::type> get_preferred_formats(program& p, layout_o
     if (should_update_fmt_map)
 #endif // ENABLE_ONEDNN_FOR_GPU
     {
-        for (auto n : p.get_processing_order()) {
+        for (auto* n : p.get_processing_order()) {
             if (!n->is_in_data_flow())
                 continue;
 
@@ -259,7 +259,7 @@ void propagate_formats_in_dir(std::map<program_node*, format::type>& fmt_map,
 void propagate_formats(program& p, std::map<program_node*, format::type>& fmt_map, layout_optimizer& lo) {
     auto it = p.get_processing_order().begin();
     while (it != p.get_processing_order().end()) {
-        auto node = *it++;
+        auto* node = *it++;
 
         if (fmt_map.count(node) == 0 || fmt_map.at(node) == format::any)
             continue;
@@ -311,7 +311,7 @@ reorder_cnt count_reorders(const std::map<program_node*, format::type>& fmt_map,
 }
 
 void minimize_local_reorders(program& p, std::map<program_node*, format::type>& fmt_map, layout_optimizer& lo) {
-    for (auto node : p.get_processing_order()) {
+    for (auto* node : p.get_processing_order()) {
         if (!node->is_in_data_flow())
             continue;
         auto preferred_format = lo.get_preferred_format(*node);
@@ -320,7 +320,7 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
             if (preferred_format == format::b_fs_yx_fsv4 &&
                 (node->get_output_layout().data_type == data_types::i8 || node->get_output_layout().data_type == data_types::u8)) {
                 std::set<format::type> io_formats;
-                for (auto user : node->get_users()) {
+                for (auto* user : node->get_users()) {
                     io_formats.insert(fmt_map.at(user));
                 }
                 for (const auto& dep : node->get_dependencies()) {
@@ -328,7 +328,7 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
                         continue;
                     io_formats.insert(fmt_map.at(dep.first));
                 }
-                if (!(io_formats.size() == 1 && io_formats.count(preferred_format) == 0))
+                if (io_formats.size() != 1 || io_formats.count(preferred_format) != 0)
                     continue;
             } else {
                 continue;
@@ -351,7 +351,7 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
 
         std::set<format::type> local_formats;
 
-        for (auto user : node->get_users()) {
+        for (auto* user : node->get_users()) {
             auto user_fmt = get_target_input_format(lo, fmt_map, user, node);
 
             if (user_fmt != format::any &&
@@ -400,8 +400,7 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
 const char *dir_msg(direction_e dir) {
     if (dir == direction_e::forwards)
         return "forward";
-    else
-        return "backward";
+    return "backward";
 }
 
 static bool is_weights_dependency(program_node* predecessor, program_node* successor) {
@@ -409,6 +408,13 @@ static bool is_weights_dependency(program_node* predecessor, program_node* succe
     if (successor->is_type<convolution>() || successor->is_type<deconvolution>() || successor->is_type<fully_connected>()) {
         size_t dep_idx = successor->get_dependency_index(*predecessor);
         is_weights_dep = dep_idx == successor->get_primitive()->input_size();
+    }
+    // Reorder nodes with weights_reorder_params handle their own format conversion
+    // (e.g. bfyx → os_iyx_osv32). Don't insert data reorders before them.
+    if (!is_weights_dep && successor->is_type<reorder>()) {
+        const auto& r_prim = successor->as<reorder>().get_primitive();
+        if (r_prim->weights_reorder_params)
+            is_weights_dep = true;
     }
     return is_weights_dep;
 }
@@ -482,7 +488,7 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
 void insert_reorders(program& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf, layout_optimizer& lo) {
     auto fwd_it = p.get_processing_order().begin();
     while (fwd_it != p.get_processing_order().end()) {
-        auto node = *(fwd_it++);
+        auto* node = *(fwd_it++);
 
         if (fmt_map.count(node) != 1)
             continue;
@@ -496,7 +502,7 @@ void insert_reorders(program& p, const std::map<program_node*, format::type>& fm
 
     auto bwd_it = p.get_processing_order().rbegin();
     while (bwd_it != p.get_processing_order().rend()) {
-        auto node = *(bwd_it++);
+        auto* node = *(bwd_it++);
 
         if (fmt_map.count(node) != 1)
             continue;
@@ -529,7 +535,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
     minimize_local_reorders(p, fmt_map, lo);
 
     GPU_DEBUG_LOG_PASS << "Selected formats:" << std::endl;
-    for (auto node_ptr : p.get_processing_order()) {
+    for (auto* node_ptr : p.get_processing_order()) {
         if (fmt_map.count(node_ptr) == 0)
             continue;
 
@@ -554,7 +560,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
 
         // Count number of reorders that will be fused
         size_t nodes_with_fusing = 0;
-        for (auto node_ptr : p.get_processing_order()) {
+        for (auto* node_ptr : p.get_processing_order()) {
             if (fmt_map.count(node_ptr) == 0 || fmt_map.at(node_ptr) == format::any)
                 continue;
             for (const auto& prev_ptr : travel_direction_wrapper<direction_e::backwards>::next_nodes(node_ptr)) {
@@ -572,7 +578,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
 
     insert_reorders(p, fmt_map, rf, lo);
 
-    for (auto n : p.get_processing_order()) {
+    for (auto* n : p.get_processing_order()) {
         n->recalc_output_layouts(true);
     }
 
@@ -789,7 +795,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
                     auto reorder_back = rf.get_reorder(mvn_node.id(), mvn_output_layout, output_layout);
                     if (reorder_back.first) {
                         const auto& users = mvn_node.get_users();
-                        auto first_user = users.front();
+                        auto* first_user = users.front();
                         p.add_intermediate(reorder_back.first, *first_user, 0, !reorder_back.second, true);
                     }
                 }
@@ -830,7 +836,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
     };
 #endif // ENABLE_ONEDNN_FOR_GPU
 
-    for (auto& prim : p.get_processing_order()) {
+    for (const auto& prim : p.get_processing_order()) {
         program_helpers::do_for_types<detection_output, deconvolution, convolution, fully_connected, pooling, mvn>(
             *prim,
             reorder_input_detection_output,
@@ -847,7 +853,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
 #endif // ENABLE_ONEDNN_FOR_GPU
     }
 
-    for (auto n : p.get_processing_order()) {
+    for (auto* n : p.get_processing_order()) {
         if (n->is_in_data_flow() && fmt_map.count(n) != 0) {
             n->get_output_layout(); // There might be some invalid output layout
             auto preferred_impl = lo.get_preferred_impl_type(*n, fmt_map.at(n));
@@ -856,7 +862,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
     }
 
     // WA for OneDNN PRelu activation fusions: convert activation's slope buffer to expected f32 data type
-    for (auto& node : p.get_processing_order()) {
+    for (const auto& node : p.get_processing_order()) {
         if (node->get_preferred_impl_type() == impl_types::onednn) {
             auto fused_prims = node->get_fused_primitives();
             for (auto& fused_desc : fused_prims) {
@@ -889,7 +895,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
     // If batch dimension of gemm output is not equal to 1, then OneDNN will not be able to broadcast fused op data
     // correctly and we need to do it manually
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    for (auto& node : p.get_processing_order()) {
+    for (const auto& node : p.get_processing_order()) {
         if (node->is_type<gemm>() && node->get_preferred_impl_type() == impl_types::onednn) {
             for (const auto& fused_prim : node->get_fused_primitives()) {
                 if (fused_prim.is_type<eltwise>() &&
@@ -909,7 +915,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
                         continue;
 
                     auto data_shape = data_layout.get_shape();
-                    if (data_shape.size() && shape_size(data_shape) == 1ul)
+                    if (!data_shape.empty() && shape_size(data_shape) == 1ul)
                         continue;
 
                     static size_t idx = 0;

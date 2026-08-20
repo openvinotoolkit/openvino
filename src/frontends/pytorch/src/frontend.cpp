@@ -16,6 +16,7 @@
 #include "transformations/common_optimizations/push_constant_to_subgraph.hpp"
 #include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
+#include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/convert_convertlike.hpp"
@@ -29,6 +30,7 @@
 #include "transforms/einsum_list_construct.hpp"
 #include "transforms/index_loop_getitem_replacer.hpp"
 #include "transforms/listconstruct_replacer.hpp"
+#include "transforms/max_pool_dynamic_kernel_resolver.hpp"
 #include "transforms/min_max_prim_list_construct_replacer.hpp"
 #include "transforms/prim_list_tuple_construct_replacer.hpp"
 #include "transforms/prim_list_unpack_replacer.hpp"
@@ -228,6 +230,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
 
         manager.register_pass<ov::pass::ConvertConvertPromoteTypes>();
+        manager.register_pass<ov::pass::TransposeFuse>();  // Required for fusion of Transpose for grouped_mm
         manager.register_pass<ov::pass::PushConstantToSubgraph>();
         manager.register_pass<ov::frontend::pytorch::pass::TupleUnpackInBodyReplacer>();
         manager.register_pass<ov::frontend::pass::SequenceConcatReplacer>();
@@ -263,6 +266,10 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenIndexPutReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::IndexLoopGetitemReplacer>();
+    // Resolve the deferred max_pool placeholder: after the preceding manager validated shapes, and
+    // before SequenceMarkReplacer collapses the kernel_size SequenceMark to a Concat. A kernel that
+    // became static (e.g. convert_model(input=...)) lowers to a plain MaxPool, else to ReduceMax.
+    manager.register_pass<ov::frontend::pytorch::pass::MaxPoolDynamicKernelResolver>();
     manager.register_pass<ov::frontend::pytorch::pass::SequenceMarkReplacer>();
 
     // Check if model is symmetrically quantized

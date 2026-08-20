@@ -64,6 +64,7 @@ struct SDPABase : public KernelGenerator {
                                                      const std::vector<int64_t>& input_k_transpose_order,
                                                      const std::vector<int64_t>& input_v_transpose_order);
 
+    static bool is_int4_kv_cache(const kernel_impl_params& params);
     static bool requires_shape_canonicalization(const kernel_impl_params& impl_params);
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params);
 

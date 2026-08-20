@@ -14,6 +14,7 @@
 #include "dev/core_impl.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "openvino/util/file_util.hpp"
 
 namespace ov::test {
@@ -493,4 +494,27 @@ TEST_F(ApplyAutoBatchThreading, ApplyAutoBatch) {
         core.apply_auto_batching(model, device, config);
     });
 }
+
+// Core-level property validation tests (require device availability)
+
+TEST(CorePropertyValidation, SetPropertyRejectsNegativeNumRequests) {
+    ov::Core core;
+    std::string device = "CPU";
+
+    try {
+        std::ignore = core.get_property(device, ov::available_devices);
+    } catch (...) {
+        device = "GPU";
+        try {
+            std::ignore = core.get_property(device, ov::available_devices);
+        } catch (...) {
+            GTEST_SKIP() << "No suitable device (CPU/GPU) available in this test environment";
+        }
+    }
+
+    OV_EXPECT_THROW(core.set_property(device, ov::hint::num_requests(-1)),
+                    ov::Exception,
+                    testing::HasSubstr("negative"));
+}
+
 }  // namespace ov::test

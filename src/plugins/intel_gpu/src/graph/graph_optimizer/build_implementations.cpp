@@ -15,16 +15,21 @@ void build_implementations::run(program& p) {
         return;
     }
 
+    // Skip for the SYCL runtime because JIT compilation is not supported
+    if (p.get_engine().runtime_type() == runtime_types::sycl) {
+        return;
+    }
+
     auto& cache = p.get_kernels_cache();
-    for (auto& n : p.get_processing_order()) {
-        if (auto impl = n->get_selected_impl()) {
+    for (const auto& n : p.get_processing_order()) {
+        if (auto* impl = n->get_selected_impl()) {
             auto params = n->get_kernel_impl_params();
             cache.add_kernels_source(*params, impl->get_kernels_source());
         }
     }
     cache.build_all();
-    for (auto& n : p.get_processing_order()) {
-        if (auto impl = n->get_selected_impl()) {
+    for (const auto& n : p.get_processing_order()) {
+        if (auto* impl = n->get_selected_impl()) {
             auto params = n->get_kernel_impl_params();
             impl->init_kernels(cache, *params);
             impl->reset_kernels_source();
