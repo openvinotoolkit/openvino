@@ -38,7 +38,7 @@ ze_usm_resource import_dx_buffer(ze_engine* engine, shared_mem_params params) {
         auto ctx = engine->get_context();
         auto cl_ctx_handle = ctx.ocl_handle<ocl_resource_type::context>();
         cl::BufferDX buffer(cl_ctx_handle, CL_MEM_READ_WRITE, params.mem);
-        OPENVINO_ASSERT(clRetainMemObject(buffer()) == CL_SUCCESS, "clRetainMemObject failed");
+        OPENVINO_ASSERT(clRetainMemObject(buffer()) == CL_SUCCESS, "[GPU] clRetainMemObject failed");
         return ze_import_usm(buffer.get(), ctx, false);
     #endif
 }
@@ -47,7 +47,7 @@ ze_image_resource import_media_buffer(ze_engine* engine, shared_mem_params param
     auto ctx = engine->get_context();
     auto cl_ctx_handle = ctx.ocl_handle<ocl_resource_type::context>();
     cl::ImageVA image(cl_ctx_handle, CL_MEM_READ_WRITE, params.surface, params.plane);
-    OPENVINO_ASSERT(clRetainMemObject(image()) == CL_SUCCESS, "clRetainMemObject failed");
+    OPENVINO_ASSERT(clRetainMemObject(image()) == CL_SUCCESS, "[GPU] clRetainMemObject failed");
     return ze_import_image(image.get(), false);
 }
 
