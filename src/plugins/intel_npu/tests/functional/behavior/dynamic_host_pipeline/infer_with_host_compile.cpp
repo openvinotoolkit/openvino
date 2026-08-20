@@ -1249,51 +1249,21 @@ TEST_P(InferWithHostCompileTests, SetProperty_WorkloadType_SingleCompiledModel) 
                                        "Workload_EFFICIENT_to_DEFAULT"));
 }
 
-// ── V2: compiledModel.set_property(turbo) → QUEUE_OPTIONS diff — documents bug ─
-//
-// ov::intel_npu::turbo maps to ZE_NPU_COMMAND_QUEUE_OPTION_TURBO bit in
-// CommandQueueDesc._options.  update_runtime_config() appends QUEUE_OPTIONS diff.
-// vm_runtime's configCmdQueue currently REJECTS QUEUE_OPTIONS (the known bug).
-//
-// The test: after restoring turbo=false the baseline request must still succeed,
-// confirming the exception is propagated cleanly (no unrecoverable state corruption).
-// TODO: Once bug is fixed, add compareInferenceResult after the turbo=true infer.
-TEST_P(InferWithHostCompileTests, SetProperty_Turbo_SingleCompiledModel_DocumentsBug) {
+// TURBO is a compile-time command queue option. Verify both compile-time values
+// for the shared common queue configuration.
+TEST_P(InferWithHostCompileTests, CompileTimeConfig_Turbo_SharedCommonQueue) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
 
-    ov::AnyMap cfg = configuration;
-    cfg[ov::intel_npu::shared_common_queue.name()] = true;
-    cfg[ov::intel_npu::turbo.name()]               = false;
-
     auto model = createModelByName(selectedModelName);
-    ov::CompiledModel compiledModel;
-    try {
-        auto savedCfg = configuration;
-        configuration = cfg;
-        compiledModel = core->compile_model(model, target_device, configuration);
-        configuration = savedCfg;
-    } catch (const ov::Exception& e) {
-        GTEST_SKIP() << "compile_model failed: " << e.what();
-    }
     ov::CompiledModel refModel;
     try {
         refModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
-    try {
-        compiledModel.set_property({{ov::intel_npu::turbo.name(), true}});
-        compiledModel.set_property({{ov::intel_npu::turbo.name(), false}});
-    } catch (const ov::Exception& e) {
-        GTEST_SKIP() << "turbo not supported: " << e.what();
-    }
-
-    ov::InferRequest reqDynamic = compiledModel.create_infer_request();
-    ov::InferRequest reqRef     = refModel.create_infer_request();
-
     ov::Shape shape;
     if (selectedModelName == "MaxPool_NCHW") {
         shape = {1, 16, 720, 1280};
@@ -1304,34 +1274,26 @@ TEST_P(InferWithHostCompileTests, SetProperty_Turbo_SingleCompiledModel_Document
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(
             model->input().get_element_type(), shape, 100, 0);
 
-    // Baseline without turbo: must succeed.
-    OV_ASSERT_NO_THROW(setInputInferAndCompare(model, reqDynamic, reqRef,
-                                               inTensor, "Turbo_OFF_baseline"));
+    for (bool turbo : {false, true}) {
+        ov::AnyMap cfg = configuration;
+        cfg[ov::intel_npu::shared_common_queue.name()] = true;
+        cfg[ov::intel_npu::turbo.name()] = turbo;
 
-    // Enable turbo: update_runtime_config sends QUEUE_OPTIONS diff.
-    // vm_runtime currently returns error → ov::Exception is thrown.
-    // TODO: Change to OV_ASSERT_NO_THROW + compareInferenceResult after bug fix.
-    OV_ASSERT_NO_THROW(compiledModel.set_property(
-            {{ov::intel_npu::turbo.name(), true}}));
-    bool gotExpectedRuntimeError = false;
-    try {
-        reqDynamic.infer();
-        // Bug fixed: add comparison here once resolved.
-    } catch (const ov::Exception& e) {
-        // Expected until vm_runtime handles QUEUE_OPTIONS in configCmdQueue.
-        const std::string errorMsg = e.what();
-        gotExpectedRuntimeError = errorMsg.find("QUEUE_OPTIONS") != std::string::npos ||
-                                  errorMsg.find("configCmdQueue") != std::string::npos ||
-                                  errorMsg.find("vm_runtime") != std::string::npos;
-        ASSERT_TRUE(gotExpectedRuntimeError)
-            << "Unexpected turbo failure reason: " << errorMsg;
+        ov::CompiledModel compiledModel;
+        try {
+            compiledModel = core->compile_model(model, target_device, cfg);
+        } catch (const ov::Exception& e) {
+            GTEST_SKIP() << "turbo compile-time config not supported: " << e.what();
+        }
+
+        auto reqDynamic = compiledModel.create_infer_request();
+        auto reqRef = refModel.create_infer_request();
+        OV_ASSERT_NO_THROW(setInputInferAndCompare(model,
+                                                   reqDynamic,
+                                                   reqRef,
+                                                   inTensor,
+                                                   turbo ? "Turbo_ON_compile_time" : "Turbo_OFF_compile_time"));
     }
-
-    // Restore turbo=false; subsequent infer must succeed (no state corruption).
-    OV_ASSERT_NO_THROW(compiledModel.set_property(
-            {{ov::intel_npu::turbo.name(), false}}));
-    OV_ASSERT_NO_THROW(inferAndCompare(model, reqDynamic, reqRef,
-                                       "Turbo_restored_to_OFF"));
 }
 
 // ── V2: set_property between two InferRequests from the same CompiledModel ────
@@ -1530,42 +1492,19 @@ TEST_P(InferWithHostCompileTests, SetProperty_WorkloadType_SingleCompiledModel_N
                                        "Workload_nonshared_EFFICIENT_to_DEFAULT"));
 }
 
-TEST_P(InferWithHostCompileTests, SetProperty_Turbo_SingleCompiledModel_NonSharedCommonQueue_DocumentsBug) {
+TEST_P(InferWithHostCompileTests, CompileTimeConfig_Turbo_NonSharedCommonQueue) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
 
-    ov::AnyMap cfg = configuration;
-    cfg[ov::intel_npu::shared_common_queue.name()] = false;
-    cfg[ov::intel_npu::turbo.name()]               = false;
-
     auto model = createModelByName(selectedModelName);
-    ov::CompiledModel compiledModel;
-    try {
-        auto savedCfg = configuration;
-        configuration = cfg;
-        compiledModel = core->compile_model(model, target_device, configuration);
-        configuration = savedCfg;
-    } catch (const ov::Exception& e) {
-        GTEST_SKIP() << "compile_model failed: " << e.what();
-    }
     ov::CompiledModel refModel;
     try {
         refModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception&) {
         GTEST_SKIP() << "TEMPLATE plugin unavailable";
     }
-    try {
-        compiledModel.set_property({{ov::intel_npu::turbo.name(), true}});
-        compiledModel.set_property({{ov::intel_npu::turbo.name(), false}});
-    } catch (const ov::Exception& e) {
-        GTEST_SKIP() << "turbo not supported in nonshared queue mode: " << e.what();
-    }
-
-    ov::InferRequest reqDynamic = compiledModel.create_infer_request();
-    ov::InferRequest reqRef     = refModel.create_infer_request();
-
     ov::Shape shape;
     if (selectedModelName == "MaxPool_NCHW") {
         shape = {1, 16, 720, 1280};
@@ -1575,26 +1514,23 @@ TEST_P(InferWithHostCompileTests, SetProperty_Turbo_SingleCompiledModel_NonShare
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(
             model->input().get_element_type(), shape, 100, 0);
 
-    OV_ASSERT_NO_THROW(setInputInferAndCompare(model, reqDynamic, reqRef,
-                                               inTensor, "Turbo_nonshared_OFF_baseline"));
+    for (bool turbo : {false, true}) {
+        ov::AnyMap cfg = configuration;
+        cfg[ov::intel_npu::shared_common_queue.name()] = false;
+        cfg[ov::intel_npu::turbo.name()] = turbo;
 
-    OV_ASSERT_NO_THROW(compiledModel.set_property(
-            {{ov::intel_npu::turbo.name(), true}}));
-    try {
-        reqDynamic.infer();
-    } catch (const ov::Exception& e) {
-        const std::string errorMsg = e.what();
-        const bool gotExpectedRuntimeError = errorMsg.find("QUEUE_OPTIONS") != std::string::npos ||
-                                             errorMsg.find("configCmdQueue") != std::string::npos ||
-                                             errorMsg.find("vm_runtime") != std::string::npos;
-        ASSERT_TRUE(gotExpectedRuntimeError)
-            << "Unexpected turbo failure reason in nonshared queue mode: " << errorMsg;
+        ov::CompiledModel compiledModel;
+        try {
+            compiledModel = core->compile_model(model, target_device, cfg);
+        } catch (const ov::Exception& e) {
+            GTEST_SKIP() << "turbo compile-time config not supported in nonshared queue mode: " << e.what();
+        }
+
+        auto reqDynamic = compiledModel.create_infer_request();
+        auto reqRef = refModel.create_infer_request();
+        OV_ASSERT_NO_THROW(setInputInferAndCompare(
+            model, reqDynamic, reqRef, inTensor, turbo ? "Turbo_nonshared_ON_compile_time" : "Turbo_nonshared_OFF_compile_time"));
     }
-
-    OV_ASSERT_NO_THROW(compiledModel.set_property(
-            {{ov::intel_npu::turbo.name(), false}}));
-    OV_ASSERT_NO_THROW(inferAndCompare(model, reqDynamic, reqRef,
-                                       "Turbo_nonshared_restored_to_OFF"));
 }
 
 TEST_P(InferWithHostCompileTests, SetProperty_Priority_BetweenTwoRequests_NonSharedCommonQueue) {
