@@ -56,16 +56,11 @@ endif()
 # Keep the header-only nlohmann/json dependency out of the exported link interface.
 get_target_property(_ipf_link_interface ClientApiLib INTERFACE_LINK_LIBRARIES)
 if(_ipf_link_interface)
-    list(FILTER _ipf_link_interface EXCLUDE REGEX "nlohmann_json")
+    list(FILTER _ipf_link_interface EXCLUDE REGEX "^(\\$<LINK_ONLY:)?nlohmann_json(::nlohmann_json)?>?$")
     set_property(TARGET ClientApiLib PROPERTY INTERFACE_LINK_LIBRARIES "${_ipf_link_interface}")
 endif()
 
 # Install ClientApiLib for static OpenVINO builds.
-if(NOT BUILD_SHARED_LIBS)
-    install(TARGETS ClientApiLib EXPORT OpenVINOTargets
-            ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${OV_CPACK_COMP_CORE_DEV} ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
-    export(TARGETS ClientApiLib NAMESPACE openvino::
-           APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
-endif()
+ov_install_static_lib(ClientApiLib ${OV_CPACK_COMP_CORE_DEV} ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
 
 message(STATUS "[AUTO] IPF: successfully configured (ClientApiLib linked statically)")
