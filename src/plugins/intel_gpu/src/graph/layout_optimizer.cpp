@@ -1108,6 +1108,13 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
     bool onednn_valid_post_ops = get_post_ops_count(node) <= 32;
     bool use_onednn_impls = contains_onednn_impls_optimization_attribute(&node) && input_layout.data_type != data_types::f32;
 
+    // convolution_gpu_1d_small_ic_gemm declares no fused ops, but a single
+    // dependency-free activation still reaches it through convolution_params::activations
+    // (see use_legacy_fused_ops()). Anything else fused would make it reject the node.
+    const auto& fused_prims = node.get_fused_primitives();
+    const bool activation_only_fusion = fused_prims.empty() ||
+        (fused_prims.size() == 1 && fused_prims[0].is_type<activation>() && fused_prims[0].deps.empty());
+
     // Use planar bfyx format for dynamic convolutions with explicit padding in clDNN
     if (node.is_dynamic() && output_layout.get_partial_shape().size() == 4 && node.use_explicit_padding() && !i8_u8_input &&
         (!use_onednn_impls || !onednn_valid_post_ops || node.has_padded_dependency())) {
@@ -1135,6 +1142,11 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
                 expected_format = cldnn::format::b_fs_yx_fsv32;
             else
                 expected_format = cldnn::format::b_fs_zyx_fsv32;
+        } else if (input_layout.get_rank() == 4 && input_layout.feature() == 1 &&
+                   input_layout.spatial(0) == 1 && weights_layout.spatial(0) == 1 &&
+                   weights_layout.spatial(1) >= 256 && activation_only_fusion) {
+            // Use bfyx format for 1d conv with feature size 1 and 1d kernel size >= 256
+            expected_format = cldnn::format::bfyx;
         } else if (i8_u8_input) {
             if (((_optimization_attributes.b_fs_yx_fsv16_network != 0) &&
                 convolution_b_fs_yx_fsv16_opt(input_layout, output_layout, weights_layout, prim))) {

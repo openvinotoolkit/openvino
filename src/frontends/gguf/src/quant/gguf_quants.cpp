@@ -640,8 +640,10 @@ void fill_q8_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& s
     });
 }
 
-// Block = |f16 d|u2 qs[64]| (18 bytes / 64 weights). ggml packs the codes 4 per byte LSB-first,
-// the same order an OpenVINO u2 Constant reads, so the code bytes are copied verbatim.
+// Q2_0 ternary: block = |f16 d|u2 qs[64]| (18 bytes / 64 weights), value = (code - 1) * d with
+// code in [0..3] -> {-1, 0, +1, +2}. ggml packs the codes 4 per byte LSB-first
+// (dequantize_row_q2_0: `(qs[j/4] >> ((j%4)*2)) & 3`), which is exactly the order OpenVINO's u2
+// Constant reads, so the 16 code bytes are copied verbatim. The zero-point is the constant 1.
 void gguf_fill_q2_0(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr, ov::Tensor& zp_arr) {
     const uint64_t bytes_per_block = 18;
     const uint64_t bytes_per_block_codes = 16;
