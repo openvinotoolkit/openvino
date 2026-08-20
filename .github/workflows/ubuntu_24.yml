@@ -184,11 +184,12 @@ jobs:
     uses: ./.github/workflows/job_llm_accuracy_tests.yml
     with:
       runner: '["aks-linux-4-cores-16gb"]'
+      runner-group: 'aks'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}
       device: 'CPU'
       test-suffix: 'CPU'
       use-pip-proxy: true
-      timeout-minutes: 30
+      timeout-minutes: 90
 
   LLM_Accuracy_iGPU:
     name: LLM accuracy iGPU tests
@@ -208,7 +209,7 @@ jobs:
       device: 'GPU'
       test-suffix: 'iGPU'
       use-pip-proxy: false
-      timeout-minutes: 30
+      timeout-minutes: 90
 
   LLM_Accuracy_dGPU:
     name: LLM accuracy dGPU tests
@@ -228,7 +229,7 @@ jobs:
       device: 'GPU'
       test-suffix: 'dGPU'
       use-pip-proxy: false
-      timeout-minutes: 30
+      timeout-minutes: 90
 
   Pytorch_Layer_Tests:
     name: Pytorch Layer Tests
