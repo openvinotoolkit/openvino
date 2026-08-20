@@ -3,6 +3,7 @@
 //
 
 #include "openvino/runtime/make_tensor.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/preprocess/input_tensor_info.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -903,7 +904,8 @@ void SyncInferRequest::allocate_outputs() {
         const auto& pshape = port.get_partial_shape();
         // Deferred static outputs have no tensor yet; size them from the static shape.
         if (pshape.is_static())
-            total_output_bytes += ov::shape_size(pshape.to_shape()) * port.get_element_type().size();
+            total_output_bytes += ov::util::get_memory_size(port.get_element_type(),
+                                                            ov::shape_size(pshape.to_shape()));
         else
             total_output_bytes += ov::ISyncInferRequest::get_tensor(port)->get_byte_size();
     }
