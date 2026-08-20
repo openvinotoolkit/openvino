@@ -229,7 +229,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
-    FilteredConfig localConfig = _propertiesManager->deriveConfigForProperties(localProperties);
+    FilteredConfig localConfig = _propertiesManager->deriveConfigForPropertiesForCompiler(localProperties);
     localConfig.update({{ov::intel_npu::compiler_version.name(), std::to_string(compiler->get_version())}});
 
     auto updateBatchMode = [&](ov::intel_npu::BatchMode mode) {
@@ -527,7 +527,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     _backend->updateInfo(npuPluginProperties);
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "fork_local_config");
-    FilteredConfig localConfig = _propertiesManager->deriveConfigForProperties(npuPluginProperties);
+    FilteredConfig localConfig = _propertiesManager->deriveConfigForPropertiesForCompiler(npuPluginProperties);
 
     try {
         std::unique_ptr<IBlobFormatImporter> blobFormatImporter =
@@ -567,7 +567,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
     _backend->updateInfo(npuPluginProperties);
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "fork_local_config");
-    FilteredConfig localConfig = _propertiesManager->deriveConfigForProperties(npuPluginProperties);
+    FilteredConfig localConfig = _propertiesManager->deriveConfigForPropertiesForCompiler(npuPluginProperties);
 
     try {
         std::unique_ptr<IBlobFormatImporter> blobFormatImporter =
@@ -665,7 +665,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
         localProperties[ov::intel_npu::platform.name()] = compilationPlatform;
     }
 
-    FilteredConfig localConfig = _propertiesManager->deriveConfigForProperties(localProperties);
+    FilteredConfig localConfig = _propertiesManager->deriveConfigForPropertiesForCompiler(localProperties);
     ov::SupportedOpsMap supportedOpsMap;
     try {
         supportedOpsMap = compiler->query(model->clone(), localConfig);
