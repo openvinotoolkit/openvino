@@ -196,6 +196,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |StringSplit                                             |                        |20                              |                                |
 |                        |Sub                                                     |7, 1                    |14, 13, 7, 6, 1                 |                                |
 |                        |Sum                                                     |8, 1                    |13, 8, 6, 1                     |                                |
+|                        |Swish                                                   |24                      |24                              |                                |
 |                        |Tan                                                     |7                       |22, 7                           |                                |
 |                        |Tanh                                                    |1                       |13, 6, 1                        |                                |
 |                        |TfIdfVectorizer                                         |                        |9                               |Supported through openvino_tokenizers|
@@ -243,6 +244,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |FusedMatMul                                             |1                       |1                               |                                |
 |com.microsoft           |FusedMatMulActivation                                   |                        |1                               |                                |
 |com.microsoft           |GatedRelativePositionBias                               |                        |1                               |                                |
+|com.microsoft           |GatherBlockQuantized                                    |1                       |1                               |                                |
 |com.microsoft           |GatherND                                                |1                       |1                               |                                |
 |com.microsoft           |Gelu                                                    |1                       |1                               |                                |
 |com.microsoft           |GemmFastGelu                                            |                        |1                               |                                |

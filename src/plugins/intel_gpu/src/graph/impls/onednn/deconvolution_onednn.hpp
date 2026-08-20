@@ -97,10 +97,7 @@ struct DeconvolutionImplementationManager : public ImplementationManager {
         if (!f16_deconv && !bf16_deconv && !f32_deconv && !u8s8_deconv)
             return false;
 
-        if (!is_supported_post_ops(deconv_node))
-            return false;
-
-        return true;
+        return is_supported_post_ops(deconv_node);
     }
 
     in_out_fmts_t query_formats(const program_node& node) const override;

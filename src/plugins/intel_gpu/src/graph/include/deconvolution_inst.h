@@ -32,7 +32,12 @@ public:
 
     bool bias_term() const { return get_primitive()->bias.is_valid();}
 
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {2}; }
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        auto prim = get_primitive();
+        if (!prim->output_shape_id.is_valid())
+            return {};
+        return {prim->dependencies().size() - 1};
+    }
 
     using parent::get_kernel_impl_params;
     std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
@@ -65,7 +70,7 @@ public:
             return false;
 
         auto input_layout = _deps[0].first->_impl_params->get_output_layout(0);
-        return input_layout.data_padding ? true : false;
+        return static_cast<bool>(input_layout.data_padding);
     }
 
     bool need_reset_output_memory() const override {
@@ -84,9 +89,8 @@ public:
             auto weights_mem = _reordered_weights_cache.get(*_impl_params->weights_layout);
             OPENVINO_ASSERT(weights_mem != nullptr, "[GPU] Can't find proper weights memory buffer in cache");
             return weights_mem;
-        } else {
-            return dep_memory_ptr(1);
         }
+        return dep_memory_ptr(1);
     }
 
     memory::ptr bias_memory() const { return dep_memory_ptr(2); }

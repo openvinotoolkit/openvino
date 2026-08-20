@@ -66,7 +66,7 @@ JitConstants PermuteKernel_bfzyx_to_bfyxz::GetJitConstants(const permute_params&
     std::string x_remainder_cond = "true";
     std::string z_remainder_cond = "true";
 
-    if (params.inputs[0].X().v % tile_size) {
+    if ((params.inputs[0].X().v % tile_size) != 0u) {
         jit.AddConstant(MakeJitConstant("X_REMAINDER_ITEM", params.inputs[0].X().v / tile_size));
         jit.AddConstant(MakeJitConstant("X_REMAINDER_SIZE", params.inputs[0].X().v % tile_size));
         jit.AddConstant(MakeJitConstant("X_REMAINDER_SIZE_AS_VECTOR", CeilDiv(params.inputs[0].X().v % tile_size, vector_width)));
@@ -74,7 +74,7 @@ JitConstants PermuteKernel_bfzyx_to_bfyxz::GetJitConstants(const permute_params&
         x_remainder_cond += " && (x == X_REMAINDER_ITEM)";
         z_remainder_cond += " && (x < X_REMAINDER_ITEM)";
     }
-    if (params.inputs[0].Z().v % tile_size) {
+    if ((params.inputs[0].Z().v % tile_size) != 0u) {
         jit.AddConstant(MakeJitConstant("Z_REMAINDER_ITEM", params.inputs[0].Z().v / tile_size));
         jit.AddConstant(MakeJitConstant("Z_REMAINDER_SIZE", params.inputs[0].Z().v % tile_size));
         jit.AddConstant(MakeJitConstant("Z_REMAINDER_SIZE_AS_VECTOR", CeilDiv(params.inputs[0].Z().v % tile_size, vector_width)));
@@ -170,10 +170,10 @@ KernelsPriority PermuteKernel_bfzyx_to_bfyxz::GetKernelsPriority(const Params& p
 
     if (IsMultipleDefaultTileSize(newParams.inputs[0].Z().v) && IsMultipleDefaultTileSize(newParams.inputs[0].X().v)) {
         return FORCE_PRIORITY_1;
-    } else if (IsMultipleDefaultTileSize(newParams.inputs[0].Z().v) || IsMultipleDefaultTileSize(newParams.inputs[0].X().v)) {
-        return FORCE_PRIORITY_2;
-    } else {
-        return FORCE_PRIORITY_3;
     }
+    if (IsMultipleDefaultTileSize(newParams.inputs[0].Z().v) || IsMultipleDefaultTileSize(newParams.inputs[0].X().v)) {
+        return FORCE_PRIORITY_2;
+    }
+    return FORCE_PRIORITY_3;
 }
 }  // namespace kernel_selector

@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -36,10 +35,11 @@ void RandomProvider::pull(cv::Mat& mat) {
 }
 
 cv::GMatDesc RandomProvider::desc() {
+    const int depth = utils::toPhysicalDepth(m_depth);
     if (m_dims.size() == 2u) {
-        return cv::GMatDesc{m_depth, 1, cv::Size(m_dims[1], m_dims[0])};
+        return cv::GMatDesc{depth, 1, cv::Size(m_dims[1], m_dims[0])};
     }
-    return cv::GMatDesc{m_depth, m_dims};
+    return cv::GMatDesc{depth, m_dims};
 }
 
 CircleBuffer::CircleBuffer(const std::vector<cv::Mat>& buffer): m_buffer(buffer), m_pos(0u) {

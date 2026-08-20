@@ -56,7 +56,7 @@ class timer {
 
 public:
     /// @brief Timer value type.
-    typedef typename ClockTy::duration val_type;
+    using val_type = typename ClockTy::duration;
 
     /// @brief Starts timer.
     timer() : start_point(ClockTy::now()) {}
@@ -139,17 +139,17 @@ struct perf_counter_hash {
         seed = hash_combine(seed, static_cast<std::underlying_type<instrumentation::pipeline_stage>::type>(k.stage));
         seed = hash_combine(seed, static_cast<int>(k.cache_hit));
         seed = hash_combine(seed, k.iteration_num);
-        for (auto& layout : k.network_input_layouts) {
+        for (const auto& layout : k.network_input_layouts) {
             for (auto& d : layout.get_shape()) {
                 seed = hash_combine(seed, d);
             }
         }
-        for (auto& layout : k.input_layouts) {
+        for (const auto& layout : k.input_layouts) {
             for (auto& d : layout.get_shape()) {
                 seed = hash_combine(seed, d);
             }
         }
-        for (auto& layout : k.output_layouts) {
+        for (const auto& layout : k.output_layouts) {
             for (auto& d : layout.get_shape()) {
                 seed = hash_combine(seed, d);
             }
@@ -189,14 +189,14 @@ public:
 
 private:
     bool profiling_enabled = false;
-    std::chrono::high_resolution_clock::time_point _start = {};
-    std::chrono::high_resolution_clock::time_point _finish = {};
+    std::chrono::high_resolution_clock::time_point _start;
+    std::chrono::high_resolution_clock::time_point _finish;
     std::chrono::nanoseconds custom_duration = {};
     ProfiledObjectType& _obj;
     instrumentation::pipeline_stage _stage;
     bool _per_iter_mode = false;
     bool cache_hit = false;
-    std::string memalloc_info = "";
+    std::string memalloc_info;
 };
 
 class mem_usage_logger {
@@ -385,7 +385,7 @@ private:
         return footprint;
     }
 
-    std::string _stage_name = {};
+    std::string _stage_name;
     bool _lifetime_logging_mode = false;
     bool _print_mem_usage = false;
     bool _is_active = false;
