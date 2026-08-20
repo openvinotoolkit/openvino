@@ -15,6 +15,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
+#include "transformations/common_optimizations/fuse_ssm.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 #include "transformations/paged_attention/attention_mask_shape_replacer.hpp"
@@ -150,6 +151,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     manager.register_pass<ov::pass::GatedDeltaNetFusion>();  // This pass is required to ensure that all GatedDeltaNet
                                                              // nodes are in the expected form before running
                                                              // PagedGatedDeltaNetFusion.
+    manager.register_pass<SelectiveSSMFusion>();
     manager.register_pass<StateManagementPattern>(m_params, m_results, m_options, var_ids_to_remove);
     manager.register_pass<EliminateConvPaddingMaskGating>();
     manager.register_pass<AttentionMaskShapeReplacer>(input_ids_node);
