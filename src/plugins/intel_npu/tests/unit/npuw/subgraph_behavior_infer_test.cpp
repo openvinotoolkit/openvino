@@ -14,12 +14,16 @@
 #include <vector>
 
 #define private public
+#define protected public
+#include "base_sync_infer_request.hpp"
 #include "compiled_model.hpp"
+#undef protected
 #undef private
 #include "just_sync_infer_request.hpp"
 #include "llm_test_helpers.hpp"
 #include "model_builder.hpp"
 #include "partitioning/patterns/sdpa.hpp"
+#include "perf_tags.hpp"
 #include "unfold_sync_infer_request.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/openvino.hpp"
@@ -36,6 +40,40 @@ constexpr std::size_t kKVCacheSize = kSeqLen + kPastKvLen;
 struct BehaviorHits {
     std::mutex mutex;
     std::vector<std::pair<std::size_t, std::size_t>> values;
+};
+
+// Publishes a perf attribution handle from prepare() - the same lifecycle point the
+// pyramid attention behavior uses - and records the calls that actually reach run().
+// run() only fires for subgraphs dispatched through JustInferRequest::unsafe_infer(),
+// which is exactly why timing must NOT live there.
+class AttributingBehavior final : public ov::npuw::v1::subgraphs::ISubgraphBehavior {
+public:
+    using Switch = std::shared_ptr<std::atomic<bool>>;
+
+    AttributingBehavior(std::shared_ptr<BehaviorHits> hits, std::string level, Switch publish)
+        : m_hits(std::move(hits)),
+          m_level(std::move(level)),
+          m_publish(std::move(publish)) {}
+
+    void prepare(ov::npuw::v1::subgraphs::InferContext& ctx) override {
+        auto& request = ctx.infer_request;
+        if (!request.perf_enabled() || !m_publish->load()) {
+            return;
+        }
+        const auto tag = request.perf_submodel_tag(ctx.subgraph_idx) + "/attn/" + m_level;
+        request.set_perf_attribution(ctx.real_subgraph_idx, request.perf_handle(tag));
+    }
+
+    void run(ov::npuw::v1::subgraphs::InferContext& ctx) override {
+        ctx.legacy_infer();
+        std::lock_guard<std::mutex> lock(m_hits->mutex);
+        m_hits->values.emplace_back(ctx.subgraph_idx, ctx.real_subgraph_idx);
+    }
+
+private:
+    std::shared_ptr<BehaviorHits> m_hits;
+    std::string m_level;
+    Switch m_publish;
 };
 
 class TestPlugin final : public ov::IPlugin {
@@ -526,5 +564,184 @@ TEST_F(SubgraphBehaviorInferTest, DynAttnBehaviorNotAttachedWithoutAttnIsolation
     EXPECT_EQ(count_dyn_attn_behaviors(compiled), 0u)
         << "DynAttnBehavior must NOT be attached when NPUW_ONLINE_ISOLATE=ATTN is not set";
 }
+
+// --- Perf attribution tests ---
+//
+// These pin the bug class the per-submodel breakdown exists to prevent: an attention
+// behavior publishes "attribute my next run to this metric" from prepare(), and the
+// generic subgraph timer in IBaseInferRequest::infer() must pick it up for EVERY logical
+// call of the prototype - regardless of which dispatch path unsafe_during() selects.
+
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+
+namespace {
+
+using AttrSwitch = AttributingBehavior::Switch;
+
+// Attaches AttributingBehavior to every compiled (prototype) subgraph and returns the
+// number of _logical_ submodels that map onto each of them.
+std::map<std::size_t, std::size_t> attach_attributing_behavior(
+    const std::shared_ptr<ov::npuw::CompiledModel>& compiled,
+    const std::shared_ptr<BehaviorHits>& hits,
+    const std::string& level,
+    const AttrSwitch& publish) {
+    for (auto& desc : compiled->m_compiled_submodels) {
+        if (!desc.compiled_model) {
+            continue;
+        }
+        ov::npuw::v1::subgraphs::RuntimeBehaviorSpec spec;
+        spec.registration.group = "test";
+        spec.registration.name = "attribute";
+        spec.context.put<std::shared_ptr<BehaviorHits>>(hits);
+        spec.context.put<std::string>(level);
+        spec.context.put<AttrSwitch>(publish);
+        spec.factory = [](const ov::npuw::v1::subgraphs::Context& ctx)
+            -> ov::npuw::v1::subgraphs::ISubgraphBehavior::Ptr {
+            return std::make_unique<AttributingBehavior>(ctx.get<std::shared_ptr<BehaviorHits>>(),
+                                                         ctx.get<std::string>(),
+                                                         ctx.get<AttrSwitch>());
+        };
+        desc.pipeline.runtime_behavior = std::move(spec);
+    }
+
+    std::map<std::size_t, std::size_t> logical_calls;
+    for (std::size_t idx = 0; idx < compiled->m_compiled_submodels.size(); idx++) {
+        const auto& desc = compiled->m_compiled_submodels[idx];
+        const auto real_idx = desc.replaced_by.value_or(idx);
+        if (!compiled->m_compiled_submodels[real_idx].compiled_model) {
+            continue;
+        }
+        logical_calls[real_idx]++;
+    }
+    return logical_calls;
+}
+
+ov::npuw::IBaseInferRequest* enable_profiling(const std::shared_ptr<ov::ISyncInferRequest>& request) {
+    auto* base = dynamic_cast<ov::npuw::IBaseInferRequest*>(request.get());
+    if (base == nullptr) {
+        return nullptr;
+    }
+    base->m_perf_on = true;
+    base->m_profile.report_on_die = true;  // doubles as the "enabled" marker
+    return base;
+}
+
+}  // namespace
+
+TEST_F(SubgraphBehaviorInferTest, PerfAttributionCoversEveryLogicalCall) {
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    auto model = build_static_llm_model();
+    auto hits = std::make_shared<BehaviorHits>();
+    auto publish = std::make_shared<std::atomic<bool>>(true);
+    ov::npuw::v1::subgraphs::PatternRegistry registry;
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, base_props(), &registry);
+    const auto logical_calls = attach_attributing_behavior(compiled, hits, "level[00]", publish);
+    ASSERT_FALSE(logical_calls.empty());
+
+    auto request = compiled->create_sync_infer_request();
+    ASSERT_NE(request, nullptr);
+    auto* base = enable_profiling(request);
+    ASSERT_NE(base, nullptr);
+
+    request->infer();
+
+    for (const auto& entry : logical_calls) {
+        const auto real_idx = entry.first;
+        const auto calls = entry.second;
+        const auto submodel_tag = base->perf_submodel_tag(real_idx);
+        const auto attn_tag = submodel_tag + "/attn/level[00]";
+
+        const auto attributed = base->m_profile.metrics.find(attn_tag);
+        ASSERT_NE(attributed, base->m_profile.metrics.end()) << "No attribution recorded for " << attn_tag;
+        EXPECT_EQ(calls, attributed->second.count()) << "Attribution must cover every logical call of " << attn_tag;
+
+        const auto submodel = base->m_profile.metrics.find(submodel_tag);
+        ASSERT_NE(submodel, base->m_profile.metrics.end());
+        EXPECT_EQ(calls, submodel->second.count());
+    }
+
+    base->m_profile.report_on_die = false;  // keep the test output clean
+}
+
+TEST_F(SubgraphBehaviorInferTest, PerfAttributionIsClearedBetweenRuns) {
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    auto model = build_static_llm_model();
+    auto hits = std::make_shared<BehaviorHits>();
+    auto publish = std::make_shared<std::atomic<bool>>(true);
+    ov::npuw::v1::subgraphs::PatternRegistry registry;
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, base_props(), &registry);
+    const auto logical_calls = attach_attributing_behavior(compiled, hits, "level[00]", publish);
+    ASSERT_FALSE(logical_calls.empty());
+
+    auto request = compiled->create_sync_infer_request();
+    auto* base = enable_profiling(request);
+    ASSERT_NE(base, nullptr);
+
+    request->infer();
+
+    std::map<std::size_t, std::size_t> after_first;
+    for (const auto& entry : logical_calls) {
+        after_first[entry.first] =
+            base->m_profile.metrics.at(base->perf_submodel_tag(entry.first) + "/attn/level[00]").count();
+    }
+
+    // A level that stops being selected must not leak attribution into the next run
+    publish->store(false);
+    request->infer();
+
+    for (const auto& entry : logical_calls) {
+        const auto tag = base->perf_submodel_tag(entry.first) + "/attn/level[00]";
+        EXPECT_EQ(after_first.at(entry.first), base->m_profile.metrics.at(tag).count())
+            << "Stale attribution leaked into the next run for " << tag;
+        // the submodel entry itself must have doubled - the run really happened
+        EXPECT_EQ(2u * entry.second, base->m_profile.metrics.at(base->perf_submodel_tag(entry.first)).count());
+    }
+
+    base->m_profile.report_on_die = false;
+}
+
+TEST_F(SubgraphBehaviorInferTest, DisabledProfilingCollectsNothingAndKeepsTheDispatchPath) {
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    auto make_run = [&](bool profiling) {
+        auto model = build_static_llm_model();
+        auto hits = std::make_shared<BehaviorHits>();
+        auto publish = std::make_shared<std::atomic<bool>>(true);
+        ov::npuw::v1::subgraphs::PatternRegistry registry;
+        auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, base_props(), &registry);
+        attach_attributing_behavior(compiled, hits, "level[00]", publish);
+
+        auto request = compiled->create_sync_infer_request();
+        auto* base = dynamic_cast<ov::npuw::IBaseInferRequest*>(request.get());
+        EXPECT_NE(base, nullptr);
+        if (profiling) {
+            enable_profiling(request);
+        }
+        request->infer();
+        const bool collected = base != nullptr && base->m_profile.has_samples();
+        if (base != nullptr) {
+            base->m_profile.report_on_die = false;
+        }
+        return std::make_pair(hits->values, collected);
+    };
+
+    const auto off = make_run(false);
+    const auto on = make_run(true);
+
+    EXPECT_FALSE(off.second) << "Nothing must be collected when profiling is off";
+    EXPECT_TRUE(on.second);
+    // Same dispatch decisions either way - profiling must not change execution topology
+    EXPECT_EQ(off.first, on.first);
+}
+
+#endif  // NPU_PLUGIN_DEVELOPER_BUILD
 
 }  // namespace
