@@ -434,6 +434,33 @@ void split_llm_properties(const ov::AnyMap& properties, ov::AnyMap& llm_properti
     }
 }
 
+// Decide on using fused flash attention tile based on provided option and NPU capabilities.
+// If hardware supports and attention hint is set to HFA, then we can use fused flash attention implementation
+// automatically, unless user explicitly disables it via NPUW_ATTN_HFA_FUSED=NO option.
+void resolve_hfa_fused_attention(::intel_npu::Config& cfg,
+                                 ov::AnyMap& other_props,
+                                 const std::optional<NPUDesc>& npudesc) {
+    uint32_t max_prompt_len = align_to(cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
+    const auto prefill_attn_hint_provided = cfg.has<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>();
+    const auto hfa_fused_npu_supported = npudesc.has_value() && npudesc->support_flash_attention_tile;
+    const auto prompt_length_supported =
+        max_prompt_len >= 4096;  // HFA fused attention tile is optimal prompt length >= 4096
+
+    // If NPUW_LLM_PREFILL_ATTENTION_HINT was not provided, set HFA automatically
+    // when the hardware and prompt length favor the fused flash attention tile implementation
+    if (!prefill_attn_hint_provided && hfa_fused_npu_supported && prompt_length_supported) {
+        cfg.update({{"NPUW_LLM_PREFILL_ATTENTION_HINT", "HFA"}});
+        LOG_INFO("Auto-selected NPUW_LLM_PREFILL_ATTENTION_HINT to HFA");
+    }
+
+    const auto is_hfa =
+        cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>() == ::intel_npu::npuw::llm::AttentionHint::HFA;
+    if (other_props.count("NPUW_ATTN_HFA_FUSED") == 0 && is_hfa && hfa_fused_npu_supported && prompt_length_supported) {
+        other_props["NPUW_ATTN_HFA_FUSED"] = "YES";
+        LOG_INFO("Set NPUW_ATTN_HFA_FUSED to YES");
+    }
+}
+
 void refine_dynamic_props(ov::AnyMap& llm_properties, const std::optional<NPUDesc>& npudesc) {
     if (!npudesc) {
         // No NPU device detected - no idea about the actual capabilities.
@@ -761,27 +788,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     refine_dynamic_props(npuw_llm_props, npudesc);
     m_cfg.update(any_copy(npuw_llm_props));
 
-    // Decide on using fused flash attention tile based on provided option and NPU capabilities.
-    // If hardware supports and attention hint is set to HFA, then we can use fused flash attention implementation
-    // automatically, unless user explicitly disables it via NPUW_ATTN_HFA_FUSED=NO option.
-    uint32_t max_prompt_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
-    const auto prefill_attn_hint_provided = m_cfg.has<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>();
-    const auto hfa_fused_npu_supported = npudesc.has_value() && npudesc->support_flash_attention_tile;
-    const auto prompt_length_supported = max_prompt_len >= 4096; // HFA fused attention tile is optimal prompt length >= 4096
-
-    // If NPUW_LLM_PREFILL_ATTENTION_HINT was not provided, set HFA automatically
-    // when the hardware and prompt length favor the fused flash attention tile implementation
-    if (!prefill_attn_hint_provided && hfa_fused_npu_supported && prompt_length_supported) {
-        m_cfg.update({{"NPUW_LLM_PREFILL_ATTENTION_HINT", "HFA"}});
-        LOG_INFO("Auto-selected NPUW_LLM_PREFILL_ATTENTION_HINT to HFA");
-    }
-
-    const auto is_hfa =
-        m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>() == ::intel_npu::npuw::llm::AttentionHint::HFA;
-    if (other_props.count("NPUW_ATTN_HFA_FUSED") == 0 && is_hfa && hfa_fused_npu_supported && prompt_length_supported) {
-        other_props["NPUW_ATTN_HFA_FUSED"] = "YES";
-        LOG_INFO("Set NPUW_ATTN_HFA_FUSED to YES");
-    }
+    resolve_hfa_fused_attention(m_cfg, other_props, npudesc);
 
     m_is_whisper = m_cfg.get<::intel_npu::NPUW_WHISPER>();
     if (m_is_whisper) {
@@ -814,7 +821,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const ::intel_npu::npuw::llm::PrefillHint prefill_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_HINT>();
     m_prefill_chunk_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE>();
     m_use_chunk_prefill = (prefill_hint == ::intel_npu::npuw::llm::PrefillHint::DYNAMIC && m_prefill_chunk_size > 0);
-
+    
+    uint32_t max_prompt_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
     const uint32_t min_response_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>(), 64u);
     uint32_t max_generation_token_len = m_cfg.get<::intel_npu::NPUW_LLM_MAX_GENERATION_TOKEN_LEN>();
     if (max_generation_token_len != 1) {
