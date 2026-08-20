@@ -188,6 +188,9 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
         std::tie(target_device, configuration, selectedModelName) = this->GetParam();
+        if (selectedModelName == "CustomNet") {
+            GTEST_SKIP() << "CustomNet is currently skipped for multithread host compile tests";
+        }
         configuration[ov::intel_npu::compile_log_level.name()] = ov::log::Level::ERR;
 
         std::vector<std::string> deviceNames =
@@ -256,6 +259,79 @@ public:
         runConcurrently(threadCount, worker, [](const std::shared_future<void>&) {});
     }
 
+    static void runConcurrentlyAsync(size_t threadCount,
+                                     const std::function<void(size_t)>& prepareInference,
+                                     const std::function<void(size_t)>& startInference,
+                                     const std::function<void(size_t)>& waitInference) {
+        std::mutex mutex;
+        std::condition_variable condition;
+        size_t readyCount = 0;
+        bool start = false;
+        bool aborted = false;
+        std::vector<std::future<void>> futures;
+        futures.reserve(threadCount);
+
+        for (size_t i = 0; i < threadCount; ++i) {
+            futures.emplace_back(std::async(std::launch::async, [i, &prepareInference, &startInference, &waitInference,
+                                                                  &mutex, &condition, &readyCount, &start, &aborted]() {
+                try {
+                    prepareInference(i);
+                } catch (...) {
+                    std::lock_guard<std::mutex> lock(mutex);
+                    aborted = true;
+                    condition.notify_all();
+                    throw;
+                }
+                {
+                    std::unique_lock<std::mutex> lock(mutex);
+                    ++readyCount;
+                    condition.notify_all();
+                    condition.wait(lock, [&start, &aborted]() {
+                        return start || aborted;
+                    });
+                    if (aborted) {
+                        return;
+                    }
+                }
+                startInference(i);
+                waitInference(i);
+            }));
+        }
+
+        {
+            std::unique_lock<std::mutex> lock(mutex);
+            condition.wait(lock, [&readyCount, threadCount, &aborted]() {
+                return readyCount == threadCount || aborted;
+            });
+            start = true;
+        }
+        condition.notify_all();
+
+        std::vector<std::string> failures;
+        for (size_t i = 0; i < futures.size(); ++i) {
+            try {
+                futures[i].get();
+            } catch (const std::exception& e) {
+                failures.push_back("thread " + std::to_string(i) + ": " + e.what());
+            }
+        }
+
+        if (!failures.empty()) {
+            std::ostringstream os;
+            os << "Parallel async execution failures (" << failures.size() << "):";
+            for (const auto& message : failures) {
+                os << "\n" << message;
+            }
+            FAIL() << os.str();
+        }
+    }
+
+    static void runConcurrentlyAsync(size_t threadCount,
+                                     const std::function<void(size_t)>& startInference,
+                                     const std::function<void(size_t)>& waitInference) {
+        runConcurrentlyAsync(threadCount, [](size_t) {}, startInference, waitInference);
+    }
+
     static ov::Tensor makeInputTensor(const std::shared_ptr<ov::Model>& model,
                                       const ov::Shape& shape,
                                       const int startFrom) {
@@ -264,6 +340,15 @@ public:
 
     static void inferAndCompare(ov::InferRequest& reqDynamic, ov::InferRequest& reqReference) {
         reqDynamic.infer();
+        reqReference.infer();
+
+        const auto npuOutputTensor = reqDynamic.get_output_tensor(0);
+        const auto referenceOutputTensor = reqReference.get_output_tensor(0);
+        ov::test::utils::compare(referenceOutputTensor, npuOutputTensor, npuOutputTensor.get_element_type());
+    }
+
+    static void waitAndCompare(ov::InferRequest& reqDynamic, ov::InferRequest& reqReference) {
+        reqDynamic.wait();
         reqReference.infer();
 
         const auto npuOutputTensor = reqDynamic.get_output_tensor(0);
@@ -330,14 +415,27 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileCreateInfer) {
 
     for (bool sharedQueue : {true, false}) {
         const auto cfg = makeConfig(sharedQueue);
-        runConcurrently(kThreadCount, [this, &cfg, &shape, &referenceCompiledModel](size_t threadIdx) {
-            auto model = createModelByName(selectedModelName);
-            auto compiledModel = core->compile_model(model, target_device, cfg);
-            auto reqDynamic = compiledModel.create_infer_request();
-            auto reqReference = referenceCompiledModel.create_infer_request();
-            auto input = makeInputTensor(model, shape, static_cast<int>(100 + threadIdx));
-            setInputInferAndCompare(reqDynamic, reqReference, input);
-        });
+        std::vector<std::shared_ptr<ov::InferRequest>> requests(kThreadCount);
+        std::vector<std::shared_ptr<ov::InferRequest>> referenceRequests(kThreadCount);
+        std::vector<ov::Tensor> inputs(kThreadCount);
+        runConcurrentlyAsync(
+            kThreadCount,
+            [this, &cfg, &shape, &referenceCompiledModel, &requests, &referenceRequests, &inputs](size_t threadIdx) {
+                auto model = createModelByName(selectedModelName);
+                auto compiledModel = core->compile_model(model, target_device, cfg);
+                requests[threadIdx] = std::make_shared<ov::InferRequest>(compiledModel.create_infer_request());
+                referenceRequests[threadIdx] =
+                    std::make_shared<ov::InferRequest>(referenceCompiledModel.create_infer_request());
+                inputs[threadIdx] = makeInputTensor(model, shape, static_cast<int>(100 + threadIdx));
+                requests[threadIdx]->set_input_tensor(0, inputs[threadIdx]);
+                referenceRequests[threadIdx]->set_input_tensor(0, inputs[threadIdx]);
+            },
+            [&requests](size_t threadIdx) {
+                requests[threadIdx]->start_async();
+            },
+            [&requests, &referenceRequests](size_t threadIdx) {
+                waitAndCompare(*requests[threadIdx], *referenceRequests[threadIdx]);
+            });
     }
 }
 
@@ -369,11 +467,121 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelCreateReque
         ov::CompiledModel compiledModel;
         OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, cfg));
 
-        runConcurrently(kThreadCount, [model, &compiledModel, &referenceCompiledModel, &shape](size_t threadIdx) {
-            auto reqDynamic = compiledModel.create_infer_request();
-            auto reqReference = referenceCompiledModel.create_infer_request();
-            auto input = makeInputTensor(model, shape, static_cast<int>(100 + threadIdx));
-            setInputInferAndCompare(reqDynamic, reqReference, input);
+        std::vector<std::shared_ptr<ov::InferRequest>> requests(kThreadCount);
+        std::vector<std::shared_ptr<ov::InferRequest>> referenceRequests(kThreadCount);
+        std::vector<ov::Tensor> inputs(kThreadCount);
+        runConcurrentlyAsync(
+            kThreadCount,
+            [model, &compiledModel, &referenceCompiledModel, &shape, &requests, &referenceRequests, &inputs](
+                size_t threadIdx) {
+                requests[threadIdx] = std::make_shared<ov::InferRequest>(compiledModel.create_infer_request());
+                referenceRequests[threadIdx] =
+                    std::make_shared<ov::InferRequest>(referenceCompiledModel.create_infer_request());
+                inputs[threadIdx] = makeInputTensor(model, shape, static_cast<int>(100 + threadIdx));
+                requests[threadIdx]->set_input_tensor(0, inputs[threadIdx]);
+                referenceRequests[threadIdx]->set_input_tensor(0, inputs[threadIdx]);
+            },
+            [&requests](size_t threadIdx) {
+                requests[threadIdx]->start_async();
+            },
+            [&requests, &referenceRequests](size_t threadIdx) {
+                waitAndCompare(*requests[threadIdx], *referenceRequests[threadIdx]);
+            });
+    }
+}
+
+TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAndInfer) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    constexpr size_t kThreadCount = 8;
+    ov::Shape shape;
+    if (selectedModelName == "MaxPool_NCHW") {
+        shape = {1, 16, 720, 1280};
+    } else {
+        shape = {1, 720, 1280, 16};
+    }
+
+    auto referenceModel = createModelByName(selectedModelName);
+    ov::CompiledModel referenceCompiledModel;
+    try {
+        referenceCompiledModel = core->compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
+    } catch (const ov::Exception&) {
+        GTEST_SKIP() << "TEMPLATE plugin unavailable";
+    }
+
+    for (bool sharedQueue : {true, false}) {
+        auto cfg = makeConfig(sharedQueue);
+        cfg[ov::hint::model_priority.name()] = ov::hint::Priority::LOW;
+
+        auto model = createModelByName(selectedModelName);
+        ov::CompiledModel compiledModel;
+        try {
+            compiledModel = core->compile_model(model, target_device, cfg);
+        } catch (const ov::Exception& e) {
+            GTEST_SKIP() << "model priority is not supported: " << e.what();
+        }
+
+        std::vector<ov::InferRequest> requests;
+        std::vector<ov::InferRequest> referenceRequests;
+        requests.reserve(kThreadCount);
+        referenceRequests.reserve(kThreadCount);
+        for (size_t i = 0; i < kThreadCount; ++i) {
+            requests.emplace_back(compiledModel.create_infer_request());
+            referenceRequests.emplace_back(referenceCompiledModel.create_infer_request());
+        }
+
+        std::vector<ov::Tensor> firstInputs;
+        firstInputs.reserve(kThreadCount);
+        for (size_t i = 0; i < kThreadCount; ++i) {
+            firstInputs.emplace_back(makeInputTensor(model, shape, static_cast<int>(100 + i)));
+            requests[i].set_input_tensor(0, firstInputs.back());
+            referenceRequests[i].set_input_tensor(0, firstInputs.back());
+        }
+        runConcurrentlyAsync(kThreadCount,
+                             [&requests](size_t threadIdx) {
+                                 requests[threadIdx].start_async();
+                             },
+                             [&requests, &referenceRequests](size_t threadIdx) {
+                                 waitAndCompare(requests[threadIdx], referenceRequests[threadIdx]);
+                             });
+
+        OV_ASSERT_NO_THROW(compiledModel.set_property(
+            {{ov::hint::model_priority.name(), ov::hint::Priority::HIGH}}));
+
+        std::vector<ov::Tensor> secondInputs;
+        secondInputs.reserve(kThreadCount);
+        for (size_t i = 0; i < kThreadCount; ++i) {
+            secondInputs.emplace_back(makeInputTensor(model, shape, static_cast<int>(200 + i)));
+            requests[i].set_input_tensor(0, secondInputs.back());
+            referenceRequests[i].set_input_tensor(0, secondInputs.back());
+        }
+        runConcurrentlyAsync(kThreadCount,
+                             [&requests](size_t threadIdx) {
+                                 requests[threadIdx].start_async();
+                             },
+                             [&requests, &referenceRequests](size_t threadIdx) {
+                                 waitAndCompare(requests[threadIdx], referenceRequests[threadIdx]);
+                             });
+
+        OV_ASSERT_NO_THROW(compiledModel.set_property(
+            {{ov::hint::model_priority.name(), ov::hint::Priority::LOW}}));
+
+        std::vector<ov::Tensor> thirdInputs;
+        thirdInputs.reserve(kThreadCount);
+        for (size_t i = 0; i < kThreadCount; ++i) {
+            thirdInputs.emplace_back(makeInputTensor(model, shape, static_cast<int>(300 + i)));
+            requests[i].set_input_tensor(0, thirdInputs.back());
+            referenceRequests[i].set_input_tensor(0, thirdInputs.back());
+        }
+        runConcurrentlyAsync(kThreadCount,
+                             [&requests](size_t threadIdx) {
+                                 requests[threadIdx].start_async();
+                             },
+                             [&requests, &referenceRequests](size_t threadIdx) {
+                                 waitAndCompare(requests[threadIdx], referenceRequests[threadIdx]);
         });
     }
 }
@@ -422,24 +630,50 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
         ASSERT_EQ(compiledModels.size(), kModelCount);
 
         std::atomic<size_t> successInferCount{0};
-        runConcurrently(kThreadCount, [model, &compiledModels, &referenceCompiledModel, &shapeLarge, &shapeSmall,
-                                       &successInferCount, kRequestsPerModel, kInferLoops](size_t threadIdx) {
-            auto reqReference = referenceCompiledModel.create_infer_request();
-            for (size_t modelIdx = 0; modelIdx < compiledModels.size(); ++modelIdx) {
-                for (size_t reqIdx = 0; reqIdx < kRequestsPerModel; ++reqIdx) {
-                    auto reqDynamic = compiledModels[modelIdx].create_infer_request();
-                    for (size_t inferIdx = 0; inferIdx < kInferLoops; ++inferIdx) {
-                        const bool useAltShape = (inferIdx % 2U) == 1U;
-                        const auto& shape = useAltShape ? shapeSmall : shapeLarge;
-                        const int startFrom = static_cast<int>(100 + threadIdx * 17 + modelIdx * 7 + reqIdx * 3 +
-                                                               inferIdx);
-                        auto input = makeInputTensor(model, shape, startFrom);
-                        setInputInferAndCompare(reqDynamic, reqReference, input);
+        std::vector<std::vector<ov::InferRequest>> requests(kThreadCount);
+        std::vector<std::vector<ov::InferRequest>> referenceRequests(kThreadCount);
+        std::vector<std::vector<ov::Tensor>> inputs(kThreadCount);
+        for (size_t inferIdx = 0; inferIdx < kInferLoops; ++inferIdx) {
+            const bool useAltShape = (inferIdx % 2U) == 1U;
+            const auto& shape = useAltShape ? shapeSmall : shapeLarge;
+            runConcurrentlyAsync(
+                kThreadCount,
+                [model, &compiledModels, &referenceCompiledModel, &requests, &referenceRequests, &inputs, &shape,
+                 kRequestsPerModel, inferIdx](size_t threadIdx) {
+                    if (requests[threadIdx].empty()) {
+                        requests[threadIdx].reserve(compiledModels.size() * kRequestsPerModel);
+                        referenceRequests[threadIdx].reserve(compiledModels.size() * kRequestsPerModel);
+                    }
+                    inputs[threadIdx].clear();
+                    inputs[threadIdx].reserve(compiledModels.size() * kRequestsPerModel);
+                    for (size_t modelIdx = 0; modelIdx < compiledModels.size(); ++modelIdx) {
+                        for (size_t reqIdx = 0; reqIdx < kRequestsPerModel; ++reqIdx) {
+                            if (inferIdx == 0) {
+                                requests[threadIdx].emplace_back(compiledModels[modelIdx].create_infer_request());
+                                referenceRequests[threadIdx].emplace_back(
+                                    referenceCompiledModel.create_infer_request());
+                            }
+                            const int startFrom = static_cast<int>(100 + threadIdx * 17 + modelIdx * 7 + reqIdx * 3 +
+                                                                   inferIdx);
+                            inputs[threadIdx].emplace_back(makeInputTensor(model, shape, startFrom));
+                            const size_t requestIdx = modelIdx * kRequestsPerModel + reqIdx;
+                            requests[threadIdx][requestIdx].set_input_tensor(0, inputs[threadIdx].back());
+                            referenceRequests[threadIdx][requestIdx].set_input_tensor(0, inputs[threadIdx].back());
+                        }
+                    }
+                },
+                [&requests](size_t threadIdx) {
+                    for (auto& request : requests[threadIdx]) {
+                        request.start_async();
+                    }
+                },
+                [&requests, &referenceRequests, &successInferCount](size_t threadIdx) {
+                    for (size_t requestIdx = 0; requestIdx < requests[threadIdx].size(); ++requestIdx) {
+                        waitAndCompare(requests[threadIdx][requestIdx], referenceRequests[threadIdx][requestIdx]);
                         successInferCount.fetch_add(1, std::memory_order_relaxed);
                     }
-                }
-            }
-        });
+                });
+        }
 
         const size_t expectedInferCount = kThreadCount * kModelCount * kRequestsPerModel * kInferLoops;
         ASSERT_EQ(successInferCount.load(std::memory_order_relaxed), expectedInferCount)
@@ -480,24 +714,38 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelZeroInputOu
         OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, cfg));
 
         std::atomic<size_t> successInferCount{0};
-        runConcurrently(kThreadCount, [this, model, &compiledModel, &referenceCompiledModel, &shapeLarge, &shapeSmall,
-                                       &successInferCount, kInferLoops](size_t threadIdx) {
-            auto zeroContext = core->get_default_context(target_device);
-            auto reqDynamic = compiledModel.create_infer_request();
-            auto reqReference = referenceCompiledModel.create_infer_request();
-            for (size_t inferIdx = 0; inferIdx < kInferLoops; ++inferIdx) {
-                const bool useAltShape = (inferIdx % 2U) == 1U;
-                const auto& shape = useAltShape ? shapeSmall : shapeLarge;
-                const int startFrom = static_cast<int>(100 + threadIdx * 11 + inferIdx);
-                auto zeroInput = makeZeroInputTensor(zeroContext, model, shape, startFrom);
-                auto zeroOutput = zeroContext.create_host_tensor(model->output().get_element_type(), shape);
-                reqDynamic.set_tensor(model->input(), zeroInput);
-                reqDynamic.set_tensor(model->output(), zeroOutput);
-                reqReference.set_input_tensor(0, zeroInput);
-                inferAndCompare(reqDynamic, reqReference);
-                successInferCount.fetch_add(1, std::memory_order_relaxed);
-            }
-        });
+        std::vector<std::shared_ptr<ov::InferRequest>> requests(kThreadCount);
+        std::vector<std::shared_ptr<ov::InferRequest>> referenceRequests(kThreadCount);
+        std::vector<ov::Tensor> inputs(kThreadCount);
+        std::vector<ov::Tensor> outputs(kThreadCount);
+        for (size_t inferIdx = 0; inferIdx < kInferLoops; ++inferIdx) {
+            const bool useAltShape = (inferIdx % 2U) == 1U;
+            const auto& shape = useAltShape ? shapeSmall : shapeLarge;
+            runConcurrentlyAsync(
+                kThreadCount,
+                [this, model, &compiledModel, &referenceCompiledModel, &requests, &referenceRequests, &inputs,
+                 &outputs, &shape, inferIdx](size_t threadIdx) {
+                    if (!requests[threadIdx]) {
+                        requests[threadIdx] = std::make_shared<ov::InferRequest>(compiledModel.create_infer_request());
+                        referenceRequests[threadIdx] =
+                            std::make_shared<ov::InferRequest>(referenceCompiledModel.create_infer_request());
+                    }
+                    auto zeroContext = core->get_default_context(target_device);
+                    const int startFrom = static_cast<int>(100 + threadIdx * 11 + inferIdx);
+                    inputs[threadIdx] = makeZeroInputTensor(zeroContext, model, shape, startFrom);
+                    outputs[threadIdx] = zeroContext.create_host_tensor(model->output().get_element_type(), shape);
+                    requests[threadIdx]->set_tensor(model->input(), inputs[threadIdx]);
+                    requests[threadIdx]->set_tensor(model->output(), outputs[threadIdx]);
+                    referenceRequests[threadIdx]->set_input_tensor(0, inputs[threadIdx]);
+                },
+                [&requests](size_t threadIdx) {
+                    requests[threadIdx]->start_async();
+                },
+                [&requests, &referenceRequests, &successInferCount](size_t threadIdx) {
+                    waitAndCompare(*requests[threadIdx], *referenceRequests[threadIdx]);
+                    successInferCount.fetch_add(1, std::memory_order_relaxed);
+                });
+        }
 
         ASSERT_EQ(successInferCount.load(std::memory_order_relaxed), kThreadCount * kInferLoops)
             << "Unexpected successful zero tensor infer count";
@@ -533,26 +781,45 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileZeroInputOutputT
     for (bool sharedQueue : {true, false}) {
         const auto cfg = makeConfig(sharedQueue);
         std::atomic<size_t> successInferCount{0};
-        runConcurrently(kThreadCount, [this, &cfg, &referenceCompiledModel, &shapeLarge, &shapeSmall,
-                                       &successInferCount, kInferLoops](size_t threadIdx) {
-            auto model = createModelByName(selectedModelName);
-            auto zeroContext = core->get_default_context(target_device);
-            auto compiledModel = core->compile_model(model, target_device, cfg);
-            auto reqDynamic = compiledModel.create_infer_request();
-            auto reqReference = referenceCompiledModel.create_infer_request();
-            for (size_t inferIdx = 0; inferIdx < kInferLoops; ++inferIdx) {
-                const bool useAltShape = (inferIdx % 2U) == 1U;
-                const auto& shape = useAltShape ? shapeSmall : shapeLarge;
-                const int startFrom = static_cast<int>(100 + threadIdx * 11 + inferIdx);
-                auto zeroInput = makeZeroInputTensor(zeroContext, model, shape, startFrom);
-                auto zeroOutput = zeroContext.create_host_tensor(model->output().get_element_type(), shape);
-                reqDynamic.set_tensor(model->input(), zeroInput);
-                reqDynamic.set_tensor(model->output(), zeroOutput);
-                reqReference.set_input_tensor(0, zeroInput);
-                inferAndCompare(reqDynamic, reqReference);
-                successInferCount.fetch_add(1, std::memory_order_relaxed);
-            }
-        });
+        std::vector<std::shared_ptr<ov::Model>> models(kThreadCount);
+        std::vector<std::shared_ptr<ov::CompiledModel>> compiledModels(kThreadCount);
+        std::vector<std::shared_ptr<ov::InferRequest>> requests(kThreadCount);
+        std::vector<std::shared_ptr<ov::InferRequest>> referenceRequests(kThreadCount);
+        std::vector<ov::Tensor> inputs(kThreadCount);
+        std::vector<ov::Tensor> outputs(kThreadCount);
+        for (size_t inferIdx = 0; inferIdx < kInferLoops; ++inferIdx) {
+            const bool useAltShape = (inferIdx % 2U) == 1U;
+            const auto& shape = useAltShape ? shapeSmall : shapeLarge;
+            runConcurrentlyAsync(
+                kThreadCount,
+                [this, &cfg, &referenceCompiledModel, &models, &compiledModels, &requests, &referenceRequests,
+                 &inputs, &outputs, &shape, inferIdx](size_t threadIdx) {
+                    if (!models[threadIdx]) {
+                        models[threadIdx] = createModelByName(selectedModelName);
+                        compiledModels[threadIdx] = std::make_shared<ov::CompiledModel>(
+                            core->compile_model(models[threadIdx], target_device, cfg));
+                        requests[threadIdx] =
+                            std::make_shared<ov::InferRequest>(compiledModels[threadIdx]->create_infer_request());
+                        referenceRequests[threadIdx] =
+                            std::make_shared<ov::InferRequest>(referenceCompiledModel.create_infer_request());
+                    }
+                    auto zeroContext = core->get_default_context(target_device);
+                    const int startFrom = static_cast<int>(100 + threadIdx * 11 + inferIdx);
+                    inputs[threadIdx] = makeZeroInputTensor(zeroContext, models[threadIdx], shape, startFrom);
+                    outputs[threadIdx] =
+                        zeroContext.create_host_tensor(models[threadIdx]->output().get_element_type(), shape);
+                    requests[threadIdx]->set_tensor(models[threadIdx]->input(), inputs[threadIdx]);
+                    requests[threadIdx]->set_tensor(models[threadIdx]->output(), outputs[threadIdx]);
+                    referenceRequests[threadIdx]->set_input_tensor(0, inputs[threadIdx]);
+                },
+                [&requests](size_t threadIdx) {
+                    requests[threadIdx]->start_async();
+                },
+                [&requests, &referenceRequests, &successInferCount](size_t threadIdx) {
+                    waitAndCompare(*requests[threadIdx], *referenceRequests[threadIdx]);
+                    successInferCount.fetch_add(1, std::memory_order_relaxed);
+                });
+        }
 
         ASSERT_EQ(successInferCount.load(std::memory_order_relaxed), kThreadCount * kInferLoops)
             << "Unexpected successful per-thread zero tensor infer count";
@@ -618,7 +885,10 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CompileAndInferOverlap) {
                 auto reqDynamic = compiledModel.create_infer_request();
                 auto reqReference = referenceCompiledModel.create_infer_request();
                 auto input = makeInputTensor(model, shape, static_cast<int>(100 + threadIdx));
-                setInputInferAndCompare(reqDynamic, reqReference, input);
+                reqDynamic.set_input_tensor(0, input);
+                reqReference.set_input_tensor(0, input);
+                reqDynamic.start_async();
+                waitAndCompare(reqDynamic, reqReference);
                 successInferCount.fetch_add(1, std::memory_order_relaxed);
             }
         }, [this, &cfg, &model, &compiledModels, &mutex, &cv, &producerDone, &producerException, kModelCount,
@@ -670,7 +940,7 @@ const std::vector<ov::AnyMap> mtConfigs = {
     },
 };
 
-const std::vector<std::string> mtModelNames = {"MaxPool_NCHW"};
+const std::vector<std::string> mtModelNames = {"MaxPool_NCHW", "CustomNet"};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          InferWithHostCompileMultithreadTests,
