@@ -455,7 +455,7 @@ void resolve_hfa_fused_attention(::intel_npu::Config& cfg,
 
     const auto is_hfa =
         cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>() == ::intel_npu::npuw::llm::AttentionHint::HFA;
-    if (other_props.count("NPUW_ATTN_HFA_FUSED") == 0 && is_hfa && hfa_fused_npu_supported && prompt_length_supported) {
+    if (other_props.count("NPUW_ATTN_HFA_FUSED") == 0 && is_hfa && hfa_fused_npu_supported) {
         other_props["NPUW_ATTN_HFA_FUSED"] = "YES";
         LOG_INFO("Set NPUW_ATTN_HFA_FUSED to YES");
     }
