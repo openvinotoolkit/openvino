@@ -356,6 +356,10 @@ int64_t ProgramBuilder::get_result_index(const ov::Output<const ov::Node>& value
     return m_model->get_result_index(value);
 }
 
+void ProgramBuilder::register_shared_weight_source(std::shared_ptr<ov::AlignedBuffer> source) {
+    m_shared_weight_sources.insert(source);
+}
+
 void validate_inputs_count(const std::shared_ptr<ov::Node>& op, std::vector<size_t> valid_inputs_count) {
     for (auto ic : valid_inputs_count) {
         if (op->get_input_size() == ic) {

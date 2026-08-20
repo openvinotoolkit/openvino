@@ -101,13 +101,11 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
     cldnn::primitive_id constPrimID;
     const auto* data = op->get_data_ptr<char>();
 
-    // check whether the constant is a shared constant with cross-device visibility
-    // From the current weight sharing design it seems to be normal if no one would 
-    // own this cross_device_weight_shared_buffer. 
-    // The real memory should be stored in weight sharing context, and the purpose of this
-    // cross_device_weight_shared_buffer is to carry a pointer which will be imported as host shared  buffer.
-    // Thus I don't see any reason to keep this cross_device_weight_shared_buffer until the end of the program builder,
-    // and it is safe to release it after the buffer is created.
+    // Check whether this constant comes from a shared source buffer that may be used across devices.
+    // The imported view may not own the underlying storage; though the actual backing buffer is not kept alive by the
+    // weight-sharing context, the source buffer track held on the plugin side. That means each consumer must retain
+    // a strong reference to the source buffer for as long as the imported constant may still be used.
+    // We register it in ProgramBuilder::m_shared_weight_sources so the buffer remains valid while the graph is alive.
     std::shared_ptr<ov::AlignedBuffer> cross_device_weight_shared_buffer;
     if (p.get_weight_sharing_ctx()) {
         // It's assumed that the constant is a shared constant with cross-device visibility if the model has
@@ -115,6 +113,7 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         auto constant_source_id = weight_sharing::Extension::get_constant_source_id(*op);
         auto source_buffer = weight_sharing::Extension::get_constant_source_buffer(*op);
         if (source_buffer) {
+            p.register_shared_weight_source(source_buffer);
             auto constant_id = weight_sharing::Extension::get_constant_id(*op);
             cross_device_weight_shared_buffer = weight_sharing::get_buffer(*p.get_weight_sharing_ctx(), constant_source_id, constant_id);
         }
