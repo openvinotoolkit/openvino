@@ -90,13 +90,6 @@ public:
      */
     bool is_contiguous() const;
 
-    /**
-     * @return true The blob is contiguous (the "tensor" scenario) and the current position of the data cursor is page
-     * aligned (cursor % 4096).
-     * @return false Otherwise
-     */
-    bool is_contiguous_and_cursor_page_aligned() const;
-
 private:
     /**
      * @brief A union that captures all possible data types of the blob. The tensor type also has a separate data cursor

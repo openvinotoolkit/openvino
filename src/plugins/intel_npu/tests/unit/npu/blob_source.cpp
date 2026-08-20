@@ -479,15 +479,6 @@ TEST_P(BlobSourceDifferentBlobsNonContiguous, FalseIsContiguous) {
 }
 
 /**
- * @brief If the underlying buffer is not contiguous, then the "is_contiguous_and_cursor_page_aligned" call should
- * return "false"
- */
-TEST_P(BlobSourceDifferentBlobsNonContiguous, FalseIsContiguousAndPageAligned) {
-    BlobSource blob_source = create_blob_source();
-    ASSERT_FALSE(blob_source.is_contiguous_and_cursor_page_aligned());
-}
-
-/**
  * @brief Extract the first byte without copying
  */
 TEST_P(BlobSourceDifferentBlobsContiguous, ReadViewFirstByte) {
@@ -635,44 +626,6 @@ TEST_P(BlobSourceDifferentBlobsContiguous, GetROITensorAfterEnd) {
 TEST_P(BlobSourceDifferentBlobsContiguous, TrueIsContiguous) {
     BlobSource blob_source = create_blob_source();
     ASSERT_TRUE(blob_source.is_contiguous());
-}
-
-/**
- * @brief "is_contiguous_and_cursor_page_aligned" should return true if the underlying buffer is contiguous, the cursor
- * was not moved and the origin is page aligned
- */
-TEST_P(BlobSourceDifferentBlobsContiguous, TrueIsContiguousAndPageAligned) {
-    BlobSource blob_source = create_blob_source(true);
-    ASSERT_TRUE(blob_source.is_contiguous_and_cursor_page_aligned());
-}
-
-using BlobSourcePageAlignment = testing::Test;
-
-/**
- * @brief "is_contiguous_and_cursor_page_aligned" should return true if the underlying buffer is contiguous and the
- * cursor was moved to a page aligned position
- */
-TEST_F(BlobSourcePageAlignment, TrueIsContiguousAndPageAlignedAfterMove) {
-    std::vector<uint8_t> blob_content(utils::STANDARD_PAGE_SIZE);
-
-    ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
-    ov::Tensor tensor = ov::Tensor(ov::element::u8, ov::Shape{utils::STANDARD_PAGE_SIZE}, customAllocator);
-    ASSERT_TRUE(reinterpret_cast<size_t>(tensor.data()) % utils::STANDARD_PAGE_SIZE == 0);
-    std::memcpy(tensor.data(), blob_content.data(), blob_content.size());
-
-    BlobSource blob_source = BlobSource(tensor);
-    blob_source.seekg(utils::STANDARD_PAGE_SIZE);
-    ASSERT_TRUE(blob_source.is_contiguous_and_cursor_page_aligned());
-}
-
-/**
- * @brief "is_contiguous_and_cursor_page_aligned" should return false if the underlying buffer is contiguous and the
- * cursor was moved to a position that is not page aligned
- */
-TEST_P(BlobSourceDifferentBlobsContiguous, FalseIsContiguousAndPageAlignedAfterMove) {
-    BlobSource blob_source = create_blob_source(true);
-    blob_source.seekg(1);
-    ASSERT_FALSE(blob_source.is_contiguous_and_cursor_page_aligned());
 }
 
 INSTANTIATE_TEST_SUITE_P(UnitTests,

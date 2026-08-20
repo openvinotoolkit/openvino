@@ -185,7 +185,7 @@ public:
         const size_t blob_size = compiler_main_schedule.get_remaining_size();
         OPENVINO_ASSERT(blob_size > 0, EMPTY_BLOB_MESSAGE);
 
-        if (!compiler_main_schedule.is_contiguous_and_cursor_page_aligned()) {
+        if (!compiler_main_schedule.is_contiguous()) {
             m_main_schedule = allocate_aligned_tensor(blob_size);
             compiler_main_schedule.read_into_buffer(m_main_schedule.data(), blob_size);
 
@@ -280,7 +280,7 @@ public:
         const size_t compiler_payload_size = m_metadata->get_compiler_payload_size();
         OPENVINO_ASSERT(compiler_payload_size > 0, EMPTY_COMPILER_PAYLOAD_MESSAGE);
 
-        if (!npu_formatted_blob.is_contiguous_and_cursor_page_aligned()) {
+        if (!npu_formatted_blob.is_contiguous()) {
             m_compiler_payload = allocate_aligned_tensor(compiler_payload_size);
             npu_formatted_blob.read_into_buffer(m_compiler_payload.data(), compiler_payload_size);
 
