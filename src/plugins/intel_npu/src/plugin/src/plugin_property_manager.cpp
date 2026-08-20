@@ -248,11 +248,13 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
     REGISTER_OPTION(COMPATIBILITY_CHECK);
     REGISTER_OPTION(MAX_TILES);
 
-    if (backend->isCommandQueueExtSupported()) {
-        REGISTER_OPTION(WORKLOAD_TYPE);
-    }
-    if (backend->isContextExtSupported()) {
-        REGISTER_OPTION(DISABLE_IDLE_MEMORY_PRUNING);
+    if (backend) {
+        if (backend->isCommandQueueExtSupported()) {
+            REGISTER_OPTION(WORKLOAD_TYPE);
+        }
+        if (backend->isContextExtSupported()) {
+            REGISTER_OPTION(DISABLE_IDLE_MEMORY_PRUNING);
+        }
     }
 
     OPENVINO_SUPPRESS_DEPRECATED_START
