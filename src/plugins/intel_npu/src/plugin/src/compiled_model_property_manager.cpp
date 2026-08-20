@@ -127,6 +127,10 @@ ov::Any CompiledModelPropertyManager::getProperty(const std::string& name) const
 void CompiledModelPropertyManager::registerProperties() {
     _properties.clear();
 
+    const auto hasPropertyValue = [this](const std::string& property_name) {
+        return _config.hasOpt(property_name) && _config.has(property_name);
+    };
+
     // clang-format off
     register_property<MODEL_PRIORITY>(_config, _properties, true, ov::PropertyMutability::RW);
     register_property<WORKLOAD_TYPE>(_config, _properties, true, ov::PropertyMutability::RW); // TODO
@@ -144,9 +148,6 @@ void CompiledModelPropertyManager::registerProperties() {
     register_property<ENABLE_CPU_PINNING>(_config, _properties, false, ov::PropertyMutability::RO);
     OPENVINO_SUPPRESS_DEPRECATED_END
 
-    const auto hasPropertyValue = [this](std::string_view property_name) {
-        return _config.hasOpt(property_name) && _config.has(std::string(property_name));
-    };
     register_property_with_support<BYPASS_UMD_CACHING>(_config, _properties, true, ov::PropertyMutability::RO, [hasPropertyValue](const ov::AnyMap&) { return hasPropertyValue(ov::intel_npu::bypass_umd_caching.name()); });
     register_property_with_support<CACHE_DIR>(_config, _properties, true, ov::PropertyMutability::RO, [hasPropertyValue](const ov::AnyMap&) { return hasPropertyValue(ov::cache_dir.name()); });
     register_property_with_support<COMPILATION_MODE_PARAMS>(_config, _properties, true, ov::PropertyMutability::RO, [hasPropertyValue](const ov::AnyMap&) { return hasPropertyValue(ov::intel_npu::compilation_mode_params.name()); });

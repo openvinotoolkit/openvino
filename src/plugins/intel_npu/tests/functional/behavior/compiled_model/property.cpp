@@ -398,7 +398,7 @@ TEST_P(CheckCompilerTypeProperty, CheckLogAfterSettingExtraConfigToGetProperty) 
     }
 
     ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::DRIVER);
-    ASSERT_NE(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
 
     compiler_type = core.get_property(deviceName, ov::intel_npu::compiler_type);
     ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::PLUGIN);
@@ -438,7 +438,7 @@ TEST_P(CheckCompilerTypeProperty, CheckLogAfterGettingPropertyWithExtraConfig) {
                                               ov::intel_npu::qdq_optimization(true)}));
     }
 
-    ASSERT_NE(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
 }
 
 TEST_P(CheckCompilerTypeProperty, SetRuntimeProperty) {
@@ -650,7 +650,7 @@ TEST_P(CheckCompilerPropertyWhenImporting, ExpectedNoThrowFromImportWithCompiler
             core_import.import_model(export_stream, deviceName, {{ov::intel_npu::qdq_optimization(true)}}));
     }
 
-    ASSERT_NE(logs.find("Config key 'NPU_QDQ_OPTIMIZATION' is recognized as a compiler option, will not be used"),
+    ASSERT_NE(logs.find("Property 'NPU_QDQ_OPTIMIZATION' is recognized as a compiler option, will not be used"),
               std::string::npos);
 }
 
@@ -697,9 +697,7 @@ TEST_P(CheckCompilerPropertyWhenImporting, ExpectedNoThrowFromImportWithRuntimeP
                                                     {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
                                                       ov::workload_type(ov::WorkloadType::EFFICIENT)}}));
 
-    ov::intel_npu::CompilerType compiler_type = ov::intel_npu::CompilerType::PLUGIN;
-    OV_ASSERT_NO_THROW(compiler_type = imported_model.get_property(ov::intel_npu::compiler_type));
-    ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::DRIVER);
+    ASSERT_THROW(imported_model.get_property(ov::intel_npu::compiler_type), ov::Exception);
 
     ov::WorkloadType workload_type = ov::WorkloadType::DEFAULT;
     OV_ASSERT_NO_THROW(workload_type = imported_model.get_property(ov::workload_type));
@@ -740,10 +738,10 @@ TEST_P(CheckCompilerPropertyWhenImporting, CheckImportWithCompilerProperty) {
 
     ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
     ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
-    ASSERT_NE(logs.find("Config key 'NPU_PLATFORM' is recognized as a compiler option, will not be used for current "
+    ASSERT_NE(logs.find("Property 'NPU_PLATFORM' is recognized as a compiler option, will not be used for current "
                         "configuration."),
               std::string::npos);
-    ASSERT_NE(logs.find("Config key 'NPU_QDQ_OPTIMIZATION' is recognized as a compiler option, will not be used for "
+    ASSERT_NE(logs.find("Property 'NPU_QDQ_OPTIMIZATION' is recognized as a compiler option, will not be used for "
                         "current configuration."),
               std::string::npos);
 }
@@ -780,10 +778,10 @@ TEST_P(CheckCompilerPropertyWhenImporting, CheckImportWithCompilerPropertyAfterC
 
     ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
     ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
-    ASSERT_NE(logs.find("Config key 'NPU_PLATFORM' is recognized as a compiler option, will not be used for current "
+    ASSERT_NE(logs.find("Property 'NPU_PLATFORM' is recognized as a compiler option, will not be used for current "
                         "configuration."),
               std::string::npos);
-    ASSERT_NE(logs.find("Config key 'NPU_QDQ_OPTIMIZATION' is recognized as a compiler option, will not be used for "
+    ASSERT_NE(logs.find("Property 'NPU_QDQ_OPTIMIZATION' is recognized as a compiler option, will not be used for "
                         "current configuration."),
               std::string::npos);
 }

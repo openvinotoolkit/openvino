@@ -65,36 +65,6 @@ public:
     details::OptionConcept getOpt(std::string_view key) const;
 
     /**
-     * @brief Checks if a specific option is available (enabled and valid).
-     * @param key The key of the option to check.
-     * @return True if the option is available, false otherwise.
-     */
-    bool isAvailable(std::string key) const;
-
-    /**
-     * @brief Enables or disables a specific configuration option.
-     * @param key The key of the option to enable/disable.
-     * @param enable True to enable the option, false to disable it.
-     */
-    void enable(std::string key, bool enable);
-
-    /**
-     * @brief Enables all available configuration options.
-     */
-    void enableAll();
-
-    /**
-     * @brief Enables only runtime configuration options.
-     */
-    void enableRuntimeOptions();
-
-    /**
-     * @brief Iterates over all enabled options and applies a callback function to each enabled key.
-     * @param cb A callback function that takes a string (key) as input and performs an operation on it.
-     */
-    void walkEnables(std::function<void(const std::string&)> cb) const;
-
-    /**
      * @brief Adds or updates an internal configuration value for compiler-specific needs.
      * @param key The key of the internal configuration to add or update.
      * @param value The value to set for the internal configuration.
@@ -116,23 +86,10 @@ public:
     std::string getInternal(std::string key) const;
 
     /**
-     * @brief Generates a string representation of all internal configurations for compiler use.
-     * @return A string containing all internal configurations formatted for compiler use.
-     */
-    std::string toStringForCompilerInternal() const;
-
-    /**
      * @brief Iterates over all internal configurations and applies a callback function to each entry's key.
      * @param cb A callback function that takes a string (key) as input and performs an operation on it.
      */
     void walkInternals(std::function<void(const std::string&)> cb) const;
-
-    /**
-     * @brief Generates a string representation of all config keys with set values
-     *        that are relevant for compilation (`OptionMode::Compile` or `OptionMode::Both`).
-     * @return A string containing filtered configuration keys formatted for compiler use.
-     */
-    std::string toStringForCompiler() const;
 
     /**
      * @brief Generates a compiler configuration string for options supported by the current compiler.
@@ -142,8 +99,6 @@ public:
     std::string toStringForCompiler(const std::function<bool(std::string_view)>& isSupported) const;
 
 private:
-    EnableMap _enabled;  ///< Map to track whether specific configuration keys are enabled or disabled.
-
     ConfigMap _internal_compiler_configs;  ///< Map to store internal (hidden) configurations used for compiler.
 };
 
