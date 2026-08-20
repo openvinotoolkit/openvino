@@ -81,8 +81,7 @@ std::shared_ptr<ov::AlignedBuffer> FileWeightsProvider::make_region(size_t offse
             file_region->get_ptr<char>(),
             size,
             file_region,
-            ov::create_base_descriptor(std::filesystem::hash_value(m_weights_path), offset, file_region),
-            ov::preserve_descriptor_offset);
+            ov::create_base_descriptor(ov::util::get_id_for_file(m_weights_path, offset, size), 0, file_region));
     }
 
     m_loaded_weights_regions.emplace(key, buffer);
