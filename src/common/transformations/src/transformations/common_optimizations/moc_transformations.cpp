@@ -16,6 +16,7 @@
 #include "transformations/common_optimizations/batch_to_space_fusion.hpp"
 #include "transformations/common_optimizations/binarize_weights.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
+#include "transformations/common_optimizations/broadcast_matmul_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/clamp_fusion.hpp"
 #include "transformations/common_optimizations/concat_to_broadcast.hpp"
@@ -195,6 +196,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, ConvertNmsGatherPathToUnsigned)
     REGISTER_PASS(manager, StridedSliceOptimization, m_use_shapes)
     REGISTER_PASS(manager, BroadcastElementwiseFusion)
+    REGISTER_PASS(manager, BroadcastMatMulFusion)
     REGISTER_PASS(manager, BroadcastTransition)
     REGISTER_PASS(manager, PullThroughReduce)
 

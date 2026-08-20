@@ -2,10 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# LINKABLE_FRONTEND: installed alongside the other frontends so callers (the llama.cpp
-# ggml-openvino backend, OpenVINO GenAI) can link openvino::frontend::gguf directly. It is kept
-# out of the generic FrontEndManager loading API (FrontEndManager treats "gguf" as hidden); see
-# the discoverability note in frontend.cpp.
+# LINKABLE_FRONTEND (no SKIP_INSTALL): installs the library + headers alongside the other
+# frontends so a direct linker -- the llama.cpp ggml-openvino backend -- can link
+# openvino::frontend::gguf and feed it a live GgufDecoder.
 ov_add_frontend(NAME gguf
                 LINKABLE_FRONTEND
                 FILEDESCRIPTION "FrontEnd to convert GGUF models"

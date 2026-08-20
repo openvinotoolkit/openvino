@@ -178,8 +178,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_zyx_fsv16::SetDefault
         while (ocb > 16) {
             if (f % ocb == 0)
                 break;
-            else
-                ocb /= 2;
+            ocb /= 2;
         }
 
         dispatchData.cldnnStyle.blockWidth = ow_block;

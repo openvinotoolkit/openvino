@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
-
-#include "openvino/core/node_output.hpp"
 #include "openvino/decompositions/rms_norm.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/pass/node_registry.hpp"
+
+#include <memory>
 
 #include "node_context.hpp"
 #include "op_table.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/pass/node_registry.hpp"
 #include "utils.hpp"
 
 namespace ov {
