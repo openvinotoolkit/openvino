@@ -76,11 +76,11 @@ namespace ov::pass {
 PagedSelectiveSSMFusion::PagedSelectiveSSMFusion(ov::pass::paged_attention::PaParams& pa_params,
                                                  std::unordered_set<std::string>& var_ids_to_remove) {
     // SelectiveSSM inputs: A, dt, B, x, C, recurrent_state (state at index 5).
-    auto a = any_input();
-    auto dt = any_input();
-    auto b = any_input();
-    auto x = any_input();
-    auto c = any_input();
+    auto a = any_input(ov::pass::pattern::rank_equals(1));
+    auto dt = any_input(ov::pass::pattern::rank_equals(3));
+    auto b = any_input(ov::pass::pattern::rank_equals(4));
+    auto x = any_input(ov::pass::pattern::rank_equals(4));
+    auto c = any_input(ov::pass::pattern::rank_equals(4));
 
     auto cache_param = any_input();
     auto read_value = wrap_type<ov::op::util::ReadValueBase>({cache_param});
