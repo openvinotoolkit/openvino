@@ -1171,7 +1171,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
 
     m_longrope_context_limit =
-        ov::npuw::patterns::pre_compute::extract_phi_v5_longrope_context_limit(prefill_model).value_or(0u);
+        ov::npuw::patterns::pre_compute::extract_longrope_context_limit(prefill_model).value_or(0u);
     if (m_longrope_context_limit > 0u) {
         LOG_INFO("Detected long-rope context limit: " << m_longrope_context_limit);
     }
@@ -1199,9 +1199,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
         if (!is_best || (max_prompt_len >= CACHE_ROPE_START || force_rope_cache)) {
             LOG_DEBUG("Enable RoPE Cache for prefill");
-            ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(
-                max_prompt_len,
-                ov::npuw::LLMInferRequest::layer_names::longrope_input);
+            ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(max_prompt_len);
             rope_prefill_cacher.run_on_model(prefill_model);
             absorb_longrope_tables(rope_prefill_cacher.host_tables());
         }
@@ -1211,14 +1209,21 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             const uint32_t kv_size = m_kvcache_sizes[i];
             if (!is_best || (kv_size >= CACHE_ROPE_START || force_rope_cache)) {
                 LOG_DEBUG("Enable RoPE Cache for generate variant with size: " << kv_size);
-                ov::npuw::patterns::pre_compute::RopeCache rope_cacher(
-                    kv_size,
-                    ov::npuw::LLMInferRequest::layer_names::longrope_input);
+                ov::npuw::patterns::pre_compute::RopeCache rope_cacher(kv_size);
                 rope_cacher.run_on_model(generate_model_variants[i]);
                 absorb_longrope_tables(rope_cacher.host_tables());
             }
         }
 
+        // The long factors are only worth materializing if a position can actually reach
+        // the context limit and they differ from the short ones - models that declare
+        // LongRoPE but set the limit at (or beyond) their whole context, or repeat the
+        // same factors twice, always run in the short regime.
+        m_longrope_tables.has_long = m_longrope_context_limit < m_longrope_tables.max_len &&
+                                     m_longrope_tables.inv_freq_long != m_longrope_tables.inv_freq_short;
+        if (m_longrope_tables.rotary_ndims > 0 && !m_longrope_tables.has_long) {
+            LOG_INFO("LongRoPE long factors are unreachable for this configuration - keeping the short ones only");
+        }
         m_longrope_tables.rebuild_tables();
     }
 

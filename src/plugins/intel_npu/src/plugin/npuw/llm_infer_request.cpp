@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstring>
 #include <regex>
 
 #include "infer_request_utils.hpp"
@@ -16,6 +15,7 @@
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "util.hpp"
 
 namespace {
@@ -216,27 +216,21 @@ size_t scatter_deepstack_visual_embeds(const ov::SoPtr<ov::ITensor>& src,
     return k;
 }
 
-void process_longrope(const std::shared_ptr<ov::IAsyncInferRequest>& infer_req,
-                      const LLMInferRequest::PortsMap& ports,
-                      const ov::SoPtr<ov::ITensor>& position_ids) {
-    if (auto longrope_port_it = ports.find(LLMInferRequest::layer_names::longrope_input);
-        longrope_port_it != ports.end()) {
-        auto longrope_input = infer_req->get_tensor(longrope_port_it->second);
-        longrope_input->data<int64_t>()[0] = get_max_position_id(position_ids);
-    }
-}
-
-// Fills the npuw_lr_cos/npuw_lr_sin model inputs the LongRoPE RoPE-cache rewrite
-// created (see RopeCacheMatcher, pre_compute.cpp). Those inputs are the model's only
-// source of RoPE coefficients, so the short/long-factor choice the graph used to make
-// with an in-graph Select is made here instead - by the very same criterion:
+// Points the npuw_lr_cos/npuw_lr_sin model inputs the LongRoPE RoPE-cache rewrite
+// created (see RopeCacheMatcher, pre_compute.cpp) at the precomputed coefficient rows
+// of the applicable regime. Those inputs are the model's only source of RoPE
+// coefficients, so the short/long-factor choice the graph used to make with an in-graph
+// Select is made here instead - by the same criterion:
 // max(position_ids) + 1 > original_max_position_embeddings.
 //
-// A no-op for models without those inputs (feature not applicable, or the RoPE cache
-// pass didn't run).
+// Binding is by pointer into the compiled model's own tables, which outlive this
+// request - no coefficients are copied per inference.
+//
+// A no-op for models without those inputs (not a LongRoPE model, or the RoPE cache pass
+// didn't run).
 void process_longrope_tables(const std::shared_ptr<ov::IAsyncInferRequest>& infer_req,
                              const LLMInferRequest::PortsMap& ports,
-                             const ov::npuw::patterns::pre_compute::LongRopeCosSin& tables,
+                             ov::npuw::patterns::pre_compute::LongRopeCosSin& tables,
                              const ov::SoPtr<ov::ITensor>& position_ids,
                              uint64_t context_limit) {
     namespace pc = ov::npuw::patterns::pre_compute;
@@ -251,25 +245,18 @@ void process_longrope_tables(const std::shared_ptr<ov::IAsyncInferRequest>& infe
     // failed to come back.
     OPENVINO_ASSERT(tables.is_valid(),
                     "NPUW: the compiled model has npuw_lr_cos/npuw_lr_sin inputs but no precomputed LongRoPE "
-                    "cos/sin table to fill them with.");
+                    "cos/sin table to bind them to.");
 
     const auto max_position_id = get_max_position_id(position_ids);
     const bool is_long = max_position_id >= 0 && static_cast<uint64_t>(max_position_id) >= context_limit;
 
-    const auto& cos_table = is_long ? tables.cos_long : tables.cos_short;
-    const auto& sin_table = is_long ? tables.sin_long : tables.sin_short;
+    const auto& lut_shape = cos_port_it->second.get_shape();
+    OPENVINO_ASSERT(lut_shape.size() == 3 && lut_shape.back() == tables.rotary_ndims,
+                    "NPUW: unexpected npuw_lr_cos/npuw_lr_sin shape, expected [1, lut_len, rotary_ndims]");
+    const auto lut_len = lut_shape[1];
 
-    auto cos_input = infer_req->get_tensor(cos_port_it->second);
-    auto sin_input = infer_req->get_tensor(sin_port_it->second);
-    // Row i holds position i, so a LUT shorter than the shared table takes its
-    // leading rows.
-    OPENVINO_ASSERT(cos_input->get_byte_size() <= cos_table.get_byte_size() &&
-                        sin_input->get_byte_size() <= sin_table.get_byte_size() &&
-                        cos_input->get_shape().back() == tables.rotary_ndims,
-                    "NPUW: LongRoPE cos/sin table does not cover the npuw_lr_cos/npuw_lr_sin model inputs.");
-
-    std::memcpy(cos_input->data(), cos_table.data(), cos_input->get_byte_size());
-    std::memcpy(sin_input->data(), sin_table.data(), sin_input->get_byte_size());
+    infer_req->set_tensor(cos_port_it->second, ov::get_tensor_impl(tables.cos_rows(lut_len, is_long)));
+    infer_req->set_tensor(sin_port_it->second, ov::get_tensor_impl(tables.sin_rows(lut_len, is_long)));
 }
 }  // anonymous namespace
 
@@ -1235,7 +1222,6 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
         prepare_for_new_conversation(prompt_length);
     });
 
-    process_longrope(m_prefill_request, m_prefill_in_ports, position_ids);
     // One regime decision for the whole logical prompt - chunked prefill reuses it, as
     // the in-graph Select did when it was fed from these same position_ids.
     process_longrope_tables(m_prefill_request,
@@ -1356,7 +1342,6 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             // No visual tokens are generated during the generate stage
             std::fill_n(reinterpret_cast<uint8_t*>(deepstack_local->data()), deepstack_local->get_byte_size(), 0);
         }
-        process_longrope(m_kvcache_request, m_kvcache_in_ports, position_ids);
         process_longrope_tables(m_kvcache_request,
                                 m_kvcache_in_ports,
                                 m_npuw_llm_compiled_model->m_longrope_tables,

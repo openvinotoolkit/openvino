@@ -77,6 +77,60 @@ std::shared_ptr<ov::Model> make_longrope_v5_model(const std::vector<float>& shor
                                        "longrope_v5_test_model");
 }
 
+// Builds a minimal model matching the older LongRopePatternPhi: the Select picks
+// between two ready-made inverse-frequency constants on
+// max(position_ids) + 1 <= original_max_position_embeddings.
+std::shared_ptr<ov::Model> make_longrope_phi_model(const std::vector<float>& inv_freq_short_values,
+                                                   const std::vector<float>& inv_freq_long_values,
+                                                   int32_t context_limit) {
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4, 2});
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2, 1});
+
+    auto inv_freq_short =
+        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{inv_freq_short_values.size()}, inv_freq_short_values);
+    auto inv_freq_long =
+        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{inv_freq_long_values.size()}, inv_freq_long_values);
+
+    auto reduce_axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1});
+    auto red_max = std::make_shared<ov::op::v1::ReduceMax>(position_ids, reduce_axes, false);
+    auto one_i32 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {1});
+    auto add = std::make_shared<ov::op::v1::Add>(red_max, one_i32);
+    auto limit = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {context_limit});
+    auto leq = std::make_shared<ov::op::v1::LessEqual>(add, limit);
+
+    auto select = std::make_shared<ov::op::v1::Select>(leq, inv_freq_short, inv_freq_long);
+
+    auto unsqueeze_axis0 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+    auto unsq0 = std::make_shared<ov::op::v0::Unsqueeze>(select, unsqueeze_axis0);
+    auto unsq1 = std::make_shared<ov::op::v0::Unsqueeze>(unsq0, unsqueeze_axis0);
+
+    auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(data);
+    auto gather_idx0 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+    auto axis0 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto gather = std::make_shared<ov::op::v8::Gather>(shape_of, gather_idx0, axis0);
+    auto seq_len = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {4});
+    auto rotary_dims = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+    auto concat_1 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{gather, seq_len, rotary_dims}, 0);
+
+    auto broadcast = std::make_shared<ov::op::v3::Broadcast>(unsq1, concat_1);
+    auto pos_unsq = std::make_shared<ov::op::v0::Unsqueeze>(position_ids, unsqueeze_axis0);
+    auto pos_fp32 = std::make_shared<ov::op::v0::Convert>(pos_unsq, ov::element::f32);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(broadcast, pos_fp32);
+
+    auto transpose_order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 2, 1});
+    auto transpose = std::make_shared<ov::op::v1::Transpose>(matmul, transpose_order);
+    auto zeros = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 4}, {0.0f, 0.0f, 0.0f, 0.0f});
+    auto concat_2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{transpose, zeros}, 1);
+
+    auto sin = std::make_shared<ov::op::v0::Sin>(concat_2);
+    auto cos = std::make_shared<ov::op::v0::Cos>(concat_2);
+
+    return std::make_shared<ov::Model>(
+        ov::ResultVector{std::make_shared<ov::op::v0::Result>(sin), std::make_shared<ov::op::v0::Result>(cos)},
+        ov::ParameterVector{data, position_ids},
+        "longrope_phi_test_model");
+}
+
 // Builds a minimal RoPE model matching RopePatternLLama2.
 // When with_concat2=true (LLama2 style): Transpose → Concat_2 → Sin/Cos, duplicate_freqs=true.
 // When with_concat2=false (GPT style):   Transpose → Sin/Cos directly, duplicate_freqs=false.
@@ -131,52 +185,120 @@ bool has_input_name(const std::shared_ptr<ov::Model>& model, const std::string& 
     });
 }
 
+size_t count_ops_of_type_sin_cos(const std::shared_ptr<ov::Model>& model) {
+    const auto& ops = model->get_ops();
+    return static_cast<size_t>(std::count_if(ops.begin(), ops.end(), [](const auto& op) {
+        return ov::is_type<ov::op::v0::Sin>(op) || ov::is_type<ov::op::v0::Cos>(op);
+    }));
+}
+
+// Every LongRoPE model, old or new pattern, must end up with the same shape of result:
+// no Sin/Cos and no Select left, and two named cos/sin inputs instead.
+void expect_longrope_lut_inputs(const std::shared_ptr<ov::Model>& model) {
+    EXPECT_EQ(count_ops_of_type_sin_cos(model), 0u);
+    const auto& ops = model->get_ops();
+    EXPECT_EQ(std::count_if(ops.begin(),
+                            ops.end(),
+                            [](const auto& op) {
+                                return ov::is_type<ov::op::v1::Select>(op);
+                            }),
+              0)
+        << "the short/long Select is decided on the host now";
+    EXPECT_TRUE(has_input_name(model, ov::npuw::patterns::pre_compute::longrope_cos_input));
+    EXPECT_TRUE(has_input_name(model, ov::npuw::patterns::pre_compute::longrope_sin_input));
+    EXPECT_FALSE(has_input_name(model, "npuw_longrope_input"));
+}
+
 TEST(PreComputeTest, RopeCacheTransformsLongRopeV5Pattern) {
     auto model = make_longrope_v5_model({1.0f, 2.0f}, {4.0f, 5.0f}, {0.5f, 1.0f}, {2.0f});
 
-    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16, "longrope_input");
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16);
     ASSERT_NO_THROW(pass.run_on_model(model));
 
-    const auto& ops = model->get_ops();
-    const auto sin_count = std::count_if(ops.begin(), ops.end(), [](const auto& op) {
-        return ov::is_type<ov::op::v0::Sin>(op);
-    });
-    const auto cos_count = std::count_if(ops.begin(), ops.end(), [](const auto& op) {
-        return ov::is_type<ov::op::v0::Cos>(op);
-    });
-
-    EXPECT_EQ(sin_count, 0);
-    EXPECT_EQ(cos_count, 0);
-    // LongRoPE coefficients are model inputs, so the graph keeps no short/long Select
-    // and needs no max-position-id scalar to drive it.
-    EXPECT_TRUE(has_input_name(model, ov::npuw::patterns::pre_compute::longrope_cos_input));
-    EXPECT_TRUE(has_input_name(model, ov::npuw::patterns::pre_compute::longrope_sin_input));
-    EXPECT_FALSE(has_input_name(model, "longrope_input"));
+    expect_longrope_lut_inputs(model);
 
     const auto& tables = pass.host_tables();
     EXPECT_EQ(tables.max_len, 16u);
     EXPECT_EQ(tables.rotary_ndims, 4u);  // 2 factors, mirrored
-    EXPECT_EQ(tables.inv_freq_short.size(), 2u);
-    EXPECT_EQ(tables.inv_freq_long.size(), 2u);
+    // short = (factor * multiply) ^ power, long likewise
+    EXPECT_EQ(tables.inv_freq_short, (std::vector<float>{0.25f, 4.0f}));
+    EXPECT_EQ(tables.inv_freq_long, (std::vector<float>{4.0f, 25.0f}));
+}
 
-    auto built = tables;
-    built.rebuild_tables();
-    ASSERT_TRUE(built.is_valid());
-    EXPECT_EQ(built.cos_short.get_shape(), (ov::Shape{1, 16, 4}));
-    EXPECT_EQ(built.cos_long.get_shape(), (ov::Shape{1, 16, 4}));
+TEST(PreComputeTest, RopeCacheTransformsLongRopePhiPattern) {
+    auto model = make_longrope_phi_model({0.5f, 0.25f}, {0.1f, 0.05f}, /*context_limit=*/4096);
+
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16);
+    ASSERT_NO_THROW(pass.run_on_model(model));
+
+    expect_longrope_lut_inputs(model);
+
+    const auto& tables = pass.host_tables();
+    EXPECT_EQ(tables.max_len, 16u);
+    EXPECT_EQ(tables.rotary_ndims, 4u);
+    // The old pattern's constants already are the inverse frequencies.
+    EXPECT_EQ(tables.inv_freq_short, (std::vector<float>{0.5f, 0.25f}));
+    EXPECT_EQ(tables.inv_freq_long, (std::vector<float>{0.1f, 0.05f}));
+}
+
+TEST(PreComputeTest, ExtractLongRopeContextLimitFromBothPatterns) {
+    namespace pc = ov::npuw::patterns::pre_compute;
+
+    auto v5 = make_longrope_v5_model({1.0f, 2.0f}, {4.0f, 5.0f}, {0.5f, 1.0f}, {2.0f});
+    EXPECT_EQ(pc::extract_longrope_context_limit(v5), std::optional<uint64_t>{4u});
+
+    auto phi = make_longrope_phi_model({0.5f, 0.25f}, {0.1f, 0.05f}, /*context_limit=*/4096);
+    EXPECT_EQ(pc::extract_longrope_context_limit(phi), std::optional<uint64_t>{4096u});
+
+    auto plain = make_rope_model(/*with_concat2=*/true);
+    EXPECT_FALSE(pc::extract_longrope_context_limit(plain).has_value());
+}
+
+// Both regimes live in one tensor, short rows first. Views must be dense and, when the
+// long half is absent, both regimes must resolve to the same rows.
+TEST(PreComputeTest, LongRopeCosSinTableLayout) {
+    ov::npuw::patterns::pre_compute::LongRopeCosSin tables;
+    tables.max_len = 8;
+    tables.rotary_ndims = 4;
+    tables.inv_freq_short = {0.5f, 0.25f};
+    tables.inv_freq_long = {0.1f, 0.05f};
+
+    tables.has_long = true;
+    tables.rebuild_tables();
+    ASSERT_TRUE(tables.is_valid());
+    EXPECT_EQ(tables.cos.get_shape(), (ov::Shape{1, 16, 4}));
+    EXPECT_EQ(tables.sin.get_shape(), (ov::Shape{1, 16, 4}));
+
+    auto short_rows = tables.cos_rows(/*lut_len=*/5, /*is_long=*/false);
+    auto long_rows = tables.cos_rows(/*lut_len=*/5, /*is_long=*/true);
+    EXPECT_EQ(short_rows.get_shape(), (ov::Shape{1, 5, 4}));
+    EXPECT_TRUE(short_rows.is_continuous());
+    EXPECT_TRUE(long_rows.is_continuous());
+    EXPECT_EQ(short_rows.data<ov::float16>(), tables.cos.data<ov::float16>());
+    EXPECT_EQ(long_rows.data<ov::float16>(), tables.cos.data<ov::float16>() + 8 * 4);
+    // Row 1 differs between regimes because the frequencies do.
+    EXPECT_NE(static_cast<float>(short_rows.data<ov::float16>()[4]),
+              static_cast<float>(long_rows.data<ov::float16>()[4]));
+
+    // Long half dropped: half the memory, and both regimes bind the short rows.
+    tables.has_long = false;
+    tables.rebuild_tables();
+    ASSERT_TRUE(tables.is_valid());
+    EXPECT_EQ(tables.cos.get_shape(), (ov::Shape{1, 8, 4}));
+    EXPECT_EQ(tables.cos_rows(5, true).data<ov::float16>(), tables.cos_rows(5, false).data<ov::float16>());
 }
 
 TEST(PreComputeTest, RopeCacheThrowsOnMismatchedFactorSizesInLongRopeV5) {
     // multiply has scalar shape {1}: graph is valid by broadcast, but calculate_freq requires exact size match.
     auto model = make_longrope_v5_model({1.0f, 2.0f}, {4.0f, 5.0f}, {1.0f}, {1.0f});
-    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16, "longrope_input");
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16);
 
     EXPECT_THROW(pass.run_on_model(model), ov::AssertFailure);
 }
 
 TEST(PreComputeTest, RopeCacheThrowsOnNonScalarPowerInLongRopeV5) {
     auto model = make_longrope_v5_model({1.0f, 2.0f}, {4.0f, 5.0f}, {1.0f, 2.0f}, {1.0f, 2.0f});
-    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16, "longrope_input");
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16);
 
     EXPECT_THROW(pass.run_on_model(model), ov::AssertFailure);
 }
@@ -186,7 +308,7 @@ TEST(PreComputeTest, RopeCacheThrowsOnNonScalarPowerInLongRopeV5) {
 TEST(PreComputeTest, RopeCacheTransformsLLama2Pattern) {
     auto model = make_rope_model(/*with_concat2=*/true);
 
-    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16, /*longrope_input_name=*/{});
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16);
     ASSERT_NO_THROW(pass.run_on_model(model));
 
     const auto& ops = model->get_ops();
@@ -206,7 +328,7 @@ TEST(PreComputeTest, RopeCacheTransformsLLama2Pattern) {
 TEST(PreComputeTest, RopeCacheTransformsGPTPattern) {
     auto model = make_rope_model(/*with_concat2=*/false);
 
-    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16, /*longrope_input_name=*/{});
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16);
     ASSERT_NO_THROW(pass.run_on_model(model));
 
     const auto& ops = model->get_ops();
