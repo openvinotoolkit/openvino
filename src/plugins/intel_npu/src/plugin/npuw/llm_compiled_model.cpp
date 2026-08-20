@@ -929,11 +929,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg);
 
-    // Detect attention mask type before the SDPA subgraph is isolated by partitioning.
-    // Mask-skipping optimization on HFA regular tiles will be enabled depending on the mask type.
-    ov::npuw::DetectAttentionMask detect_mask;
-    detect_mask.run_on_model(kvcache_model);
-    const auto mask_info = detect_mask.get_mask_info();
+    // Detect attention mask kind before the SDPA subgraph is isolated by partitioning,
+    // annotating each SDPA node's rt_info. HostFlashAttention reads this per-node to
+    // decide whether the regular-tile mask-skipping optimization is safe for that layer.
+    ov::npuw::DetectAttentionMask().run_on_model(kvcache_model);
+    ov::npuw::log_detected_masks(kvcache_model);
 
     if (!m_is_whisper) {
         LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
@@ -1114,12 +1114,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
 
     if (prefill_attn_hfa) {
-        prefill_config[ov::intel_npu::npuw::partitioning::attn_hfa_mask_skipping.name()] =
-            mask_info.mask_type == ov::npuw::MaskInfo::MaskType::Causal ||
-                    (mask_info.mask_type == ov::npuw::MaskInfo::MaskType::SlidingWindow &&
-                     mask_info.window_size >= max_prompt_len)
-                ? "YES"
-                : "NO";
+        // Enable the mask-skipping optimization by default; the actual per-layer
+        // decision (safe only for Causal, or SlidingWindow whose window already
+        // covers the full context) is made independently for each SDPA subgraph in
+        // HostFlashAttention::from(), based on the rt_info DetectAttentionMask wrote
+        // above. Setting this to "NO" here (or via user-supplied config, which
+        // overrides this below) acts as a master kill switch disabling the
+        // optimization outright.
+        prefill_config[ov::intel_npu::npuw::partitioning::attn_hfa_mask_skipping.name()] = "YES";
     }
 
     // NB: GENERATE_HINT is only applicable for default generate config!
