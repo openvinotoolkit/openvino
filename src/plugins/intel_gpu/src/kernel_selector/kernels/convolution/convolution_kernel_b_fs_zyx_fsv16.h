@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "convolution_kernel_base.h"
 #include <vector>
+
+#include "convolution_kernel_base.h"
 
 namespace kernel_selector {
 
@@ -13,9 +14,9 @@ class ConvolutionKernel_b_fs_zyx_fsv16 : public ConvolutionKernelBase {
 public:
     using Parent = ConvolutionKernelBase;
 
-    explicit ConvolutionKernel_b_fs_zyx_fsv16(Datatype use_data_type) :
-        ConvolutionKernelBase(use_data_type == Datatype::F32 ? "gen9_common_conv_fwd_data_f32" : "gen9_common_conv_fwd_data_f16"),
-        use_data_type(use_data_type) {}
+    explicit ConvolutionKernel_b_fs_zyx_fsv16(Datatype use_data_type)
+        : ConvolutionKernelBase(use_data_type == Datatype::F32 ? "gen9_common_conv_fwd_data_f32" : "gen9_common_conv_fwd_data_f16"),
+          use_data_type(use_data_type) {}
 
     ~ConvolutionKernel_b_fs_zyx_fsv16() override = default;
 
@@ -31,18 +32,15 @@ protected:
             return WeightsLayout::os_zyxi_osv16;
         }
         if (use_data_type == Datatype::F32 && params.inputs[0].Batch().v % 16 == 0) {
-          if (is_3d_case) {
-            return (params.groups > 1) ? WeightsLayout::g_is_os_zyx_isv16_osv16
-                                       : WeightsLayout::is_os_zyx_isv16_osv16;
-          }
+            if (is_3d_case) {
+                return (params.groups > 1) ? WeightsLayout::g_is_os_zyx_isv16_osv16 : WeightsLayout::is_os_zyx_isv16_osv16;
+            }
             return (params.groups > 1) ? WeightsLayout::g_is_os_yx_isv16_osv16 : WeightsLayout::is_os_yx_isv16_osv16;
         }
         if (use_data_type == Datatype::F16 && params.inputs[0].Batch().v % 32 == 0) {
-          if (is_3d_case) {
-            return (params.groups > 1)
-                       ? WeightsLayout::g_os_is_zyx_isv8_osv16_isv2
-                       : WeightsLayout::os_is_zyx_isv8_osv16_isv2;
-          }
+            if (is_3d_case) {
+                return (params.groups > 1) ? WeightsLayout::g_os_is_zyx_isv8_osv16_isv2 : WeightsLayout::os_is_zyx_isv8_osv16_isv2;
+            }
             return (params.groups > 1) ? WeightsLayout::g_os_is_yx_isv8_osv16_isv2 : WeightsLayout::os_is_yx_isv8_osv16_isv2;
         }
         return (params.groups > 1) ? WeightsLayout::g_os_is_zyx_isv16_osv16 : WeightsLayout::os_is_zyx_isv16_osv16;
@@ -52,9 +50,7 @@ protected:
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
 
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::ELTWISE,
-                 FusedOpType::QUANTIZE,
-                 FusedOpType::ACTIVATION };
+        return {FusedOpType::ELTWISE, FusedOpType::QUANTIZE, FusedOpType::ACTIVATION};
     }
 
     // This class is base one for FP16 and FP32 classes

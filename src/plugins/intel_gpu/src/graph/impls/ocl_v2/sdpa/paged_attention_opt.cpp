@@ -1227,13 +1227,11 @@ public:
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});  // softmax_results
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});  // subsequence_offsets
             if (has_score_aggregation) {
-              args.push_back(
-                  {ArgumentDescriptor::Types::INTERNAL_BUFFER,
-                   internal_index++}); // cumulative_score_aggregation_sum
+                args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});  // cumulative_score_aggregation_sum
             }
-            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});      // exp_sums
-            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});      // max_logits
-            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});      // tmp_out
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});  // exp_sums
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});  // max_logits
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});  // tmp_out
 
             // Scalar used for proper offset calculation of intermediate data buffers
             args.push_back({ArgumentDescriptor::Types::SCALAR, 0});
@@ -1267,13 +1265,9 @@ public:
         if (has_alibi) {
             const size_t tensor_id = PagedAttentionInputIdx::ALIBI;
             if (has_scale_input) {
-              jit.add(make_layout_jit_constants("INPUT5",
-                                                params.input_layouts[tensor_id],
-                                                in_offsets_map.at(tensor_id)));
+                jit.add(make_layout_jit_constants("INPUT5", params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
             } else {
-              jit.add(make_layout_jit_constants("INPUT4",
-                                                params.input_layouts[tensor_id],
-                                                in_offsets_map.at(tensor_id)));
+                jit.add(make_layout_jit_constants("INPUT4", params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
             }
         }
 
@@ -1383,19 +1377,19 @@ public:
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     bool valid_micro_stage(const PagedAttentionStage& stage) const {
-      if (stage == PagedAttentionStage::PREFILL) {
-        return !pa_sdpa_micro->kd.micro_kernels.empty();
-      }
-      if (stage == PagedAttentionStage::MIXED) {
-        return !pa_sdpa_micro_mixed->kd.micro_kernels.empty();
-      }
+        if (stage == PagedAttentionStage::PREFILL) {
+            return !pa_sdpa_micro->kd.micro_kernels.empty();
+        }
+        if (stage == PagedAttentionStage::MIXED) {
+            return !pa_sdpa_micro_mixed->kd.micro_kernels.empty();
+        }
         return false;
     }
 
     bool can_use_micro_sdpa_for(const kernel_impl_params& params, const PagedAttentionStage& stage) const {
-      if (!supports_micro_sdpa(params) || !valid_micro_stage(stage)) {
-        return false;
-      }
+        if (!supports_micro_sdpa(params) || !valid_micro_stage(stage)) {
+            return false;
+        }
         const auto desc = params.typed_desc<paged_attention>();
         return !desc->has_token_type_ids || stage == PagedAttentionStage::PREFILL;
     }
@@ -1460,12 +1454,12 @@ public:
     size_t get_query_block_size(const PagedAttentionStage& stage, const bool use_micro_sdpa) const {
         const auto default_block_size = 16;
         if (use_micro_sdpa) {
-          if (stage == PagedAttentionStage::PREFILL) {
-            return get_micro_tile_qsize(pa_sdpa_micro->kd);
-          }
-          if (stage == PagedAttentionStage::MIXED) {
-            return get_micro_tile_qsize(pa_sdpa_micro_mixed->kd);
-          }
+            if (stage == PagedAttentionStage::PREFILL) {
+                return get_micro_tile_qsize(pa_sdpa_micro->kd);
+            }
+            if (stage == PagedAttentionStage::MIXED) {
+                return get_micro_tile_qsize(pa_sdpa_micro_mixed->kd);
+            }
         }
         return default_block_size;
     }
@@ -1501,11 +1495,8 @@ public:
         }
         rt_params->num_of_partitions = ceil_div(effective_context_len, rt_params->partition_size);
 
-        if ((rt_params->stage == PagedAttentionStage::PREFILL ||
-             rt_params->stage == PagedAttentionStage::MIXED) &&
-            !params.is_dynamic()) {
-          rt_params->paged_attention_aligned_seq_len = static_cast<size_t>(
-              get_aligned_seq_len(params, rt_params->stage));
+        if ((rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) && !params.is_dynamic()) {
+            rt_params->paged_attention_aligned_seq_len = static_cast<size_t>(get_aligned_seq_len(params, rt_params->stage));
         }
 
         rt_params->sdpa_opt_seq_len_partition_size = get_seq_len_partition_size(params.get_device_info(), desc->v_head_size, SDPAStage::MULTI_TOKENS);
@@ -1574,12 +1565,14 @@ public:
 
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-          if (rt_params->use_micro_sdpa) {
-            res_event = {execute_stage(res_event, instance, pa_sdpa_micro)};
-          } else {
-#endif
+            if (rt_params->use_micro_sdpa) {
+                res_event = {execute_stage(res_event, instance, pa_sdpa_micro)};
+            } else {
+                res_event = {execute_stage(res_event, instance, pa_sdpa_opt)};
+            }
+#else
             res_event = {execute_stage(res_event, instance, pa_sdpa_opt)};
-          }
+#endif
         } else if (rt_params->stage == PagedAttentionStage::GENERATE || rt_params->stage == PagedAttentionStage::MIXED) {
             const auto multi_tokens_mode = rt_params->stage == PagedAttentionStage::MIXED;
             auto num_of_partitions = rt_params->num_of_partitions;
@@ -1587,15 +1580,14 @@ public:
                 res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_gqa_single_token)};
             } else {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-              if (multi_tokens_mode && rt_params->use_micro_sdpa) {
-                res_event = {
-                    execute_stage(res_event, instance, pa_sdpa_micro_mixed)};
-              } else {
+                if (multi_tokens_mode && rt_params->use_micro_sdpa) {
+                    res_event = {execute_stage(res_event, instance, pa_sdpa_micro_mixed)};
+                } else {
+                    res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_single_token)};
+                }
+#else
+                res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_single_token)};
 #endif
-                res_event = {execute_stage(
-                    res_event, instance,
-                    multi_tokens_mode ? pa_multi_token : pa_single_token)};
-              }
             }
             if (num_of_partitions > 1 && !rt_params->use_micro_sdpa) {
                 res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token_finalization : pa_single_token_finalization)};
@@ -1756,9 +1748,9 @@ public:
 
             size_t snap_kv_tokens = 0;
             if (rt_params) {
-              snap_kv_tokens = rt_params->paged_attention_snap_kv_tokens;
+                snap_kv_tokens = rt_params->paged_attention_snap_kv_tokens;
             } else {
-              snap_kv_tokens = get_snap_kv_tokens(desc->has_score_aggregation);
+                snap_kv_tokens = get_snap_kv_tokens(desc->has_score_aggregation);
             }
             auto tokens_number = desc->has_score_aggregation ? snap_kv_tokens : subsequences_number;
             auto softmax_buf_elements_count = static_cast<int64_t>(tokens_number * desc->heads_num * num_of_partitions * partition_size) * element_size;
@@ -1864,10 +1856,8 @@ public:
             return sequential_gws_subseq_mapping_idx;
         };
 
-        if ((stage == PagedAttentionStage::UNKNOWN) ||
-            (stage == PagedAttentionStage::GENERATE && !has_scores_output &&
-             !use_micro_sdpa)) {
-          return;
+        if ((stage == PagedAttentionStage::UNKNOWN) || (stage == PagedAttentionStage::GENERATE && !has_scores_output && !use_micro_sdpa)) {
+            return;
         }
 
         auto& stream = instance.get_network().get_stream();

@@ -4,7 +4,12 @@
 
 #include "sdpa_transpose_fusion.hpp"
 
+#include <memory>
+#include <vector>
+
 #include "intel_gpu/op/sdpa.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
@@ -13,23 +18,17 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-#include <memory>
-#include <vector>
-#include "openvino/core/graph_util.hpp"
-#include "openvino/core/node_vector.hpp"
-
 using ov::pass::pattern::op::Or;
 
 namespace ov::intel_gpu {
 
 /// Compose two transpose orders: first apply `inner`, then `outer`.
 /// compose_orders({a,b,c}, {x,y,z}) = {a[inner[x]], a[inner[y]], a[inner[z]]}
-static std::vector<int64_t> compose_orders(const std::vector<int64_t>& inner,
-                                           const std::vector<int64_t>& outer) {
+static std::vector<int64_t> compose_orders(const std::vector<int64_t>& inner, const std::vector<int64_t>& outer) {
     OPENVINO_ASSERT(inner.size() == outer.size());
     std::vector<int64_t> result(inner.size());
     for (size_t i = 0; i < inner.size(); ++i) {
-      result[i] = inner[outer[i]];
+        result[i] = inner[outer[i]];
     }
     return result;
 }
@@ -37,15 +36,14 @@ static std::vector<int64_t> compose_orders(const std::vector<int64_t>& inner,
 /// Returns the {0,2,1,3} permutation of `transpose` if it is a rank-4
 /// heads<->seq swap with a constant order, otherwise an empty vector.
 static std::vector<int64_t> match_heads_seq_swap(const std::shared_ptr<ov::op::v1::Transpose>& transpose) {
-    auto order_node =
-        ov::as_type_ptr<ov::op::v0::Constant>(transpose->input_value(1).get_node_shared_ptr());
+    auto order_node = ov::as_type_ptr<ov::op::v0::Constant>(transpose->input_value(1).get_node_shared_ptr());
     if (!order_node) {
-      return {};
+        return {};
     }
 
     auto order = order_node->cast_vector<int64_t>();
     if (order != std::vector<int64_t>{0, 2, 1, 3}) {
-      return {};
+        return {};
     }
 
     return order;
@@ -85,30 +83,28 @@ SDPATransposeFusion::SDPATransposeFusion() {
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        auto transpose = ov::as_type_ptr<v1::Transpose>(
-            pattern_map.at(transpose_m).get_node_shared_ptr());
+        auto transpose = ov::as_type_ptr<v1::Transpose>(pattern_map.at(transpose_m).get_node_shared_ptr());
         if (!transpose) {
-          return false;
+            return false;
         }
 
         auto order = match_heads_seq_swap(transpose);
         if (order.empty()) {
-          return false;
+            return false;
         }
 
         std::shared_ptr<ov::Node> sdpa_node;
         std::shared_ptr<ov::intel_gpu::op::SDPA> new_sdpa;
 
         if (pattern_map.count(sdpa_m) > 0) {
-            auto sdpa = ov::as_type_ptr<ov::intel_gpu::op::SDPA>(
-                pattern_map.at(sdpa_m).get_node_shared_ptr());
+            auto sdpa = ov::as_type_ptr<ov::intel_gpu::op::SDPA>(pattern_map.at(sdpa_m).get_node_shared_ptr());
             if (!sdpa || transformation_callback(sdpa)) {
-              return false;
+                return false;
             }
 
             // Only match rank-4 output.
             if (!is_rank_4(sdpa->get_output_partial_shape(0))) {
-              return false;
+                return false;
             }
 
             // Absorb the trailing Transpose into the SDPA's output_transpose_order,
@@ -121,59 +117,55 @@ SDPATransposeFusion::SDPATransposeFusion() {
             // output_transpose_order
             auto cur_out_order = sdpa->get_output_transpose_order();
             for (size_t i = 0; i < cur_out_order.size(); ++i) {
-              if (cur_out_order[i] != static_cast<int64_t>(i)) {
-                return false;
-              }
+                if (cur_out_order[i] != static_cast<int64_t>(i)) {
+                    return false;
+                }
             }
             auto new_out_order = compose_orders(cur_out_order, order);
 
             // Build replacement SDPA preserving the original's compression state.
             if (sdpa->get_kv_compressed()) {
-                new_sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(
-                    sdpa->input_values(),
-                    sdpa->get_causal(),
-                    sdpa->get_input0_transpose_order(),
-                    sdpa->get_input1_transpose_order(),
-                    sdpa->get_input2_transpose_order(),
-                    new_out_order,
-                    sdpa->get_quantization_attrs(),
-                    sdpa->get_output_type());
+                new_sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(sdpa->input_values(),
+                                                                     sdpa->get_causal(),
+                                                                     sdpa->get_input0_transpose_order(),
+                                                                     sdpa->get_input1_transpose_order(),
+                                                                     sdpa->get_input2_transpose_order(),
+                                                                     new_out_order,
+                                                                     sdpa->get_quantization_attrs(),
+                                                                     sdpa->get_output_type());
             } else {
-                new_sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(
-                    sdpa->input_values(),
-                    sdpa->get_causal(),
-                    sdpa->get_input0_transpose_order(),
-                    sdpa->get_input1_transpose_order(),
-                    sdpa->get_input2_transpose_order(),
-                    new_out_order,
-                    sdpa->get_output_type());
+                new_sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(sdpa->input_values(),
+                                                                     sdpa->get_causal(),
+                                                                     sdpa->get_input0_transpose_order(),
+                                                                     sdpa->get_input1_transpose_order(),
+                                                                     sdpa->get_input2_transpose_order(),
+                                                                     new_out_order,
+                                                                     sdpa->get_output_type());
             }
             sdpa_node = sdpa;
         } else {
-            auto sdpa = ov::as_type_ptr<v13::ScaledDotProductAttention>(
-                pattern_map.at(sdpa_v13_m).get_node_shared_ptr());
+            auto sdpa = ov::as_type_ptr<v13::ScaledDotProductAttention>(pattern_map.at(sdpa_v13_m).get_node_shared_ptr());
             if (!sdpa || transformation_callback(sdpa)) {
-              return false;
+                return false;
             }
 
             // Only match rank-4 inputs/output.
             if (!is_rank_4(sdpa->get_output_partial_shape(0))) {
-              return false;
+                return false;
             }
             for (size_t i = 0; i < 3; ++i) {
-              if (!is_rank_4(sdpa->get_input_partial_shape(i))) {
-                return false;
-              }
+                if (!is_rank_4(sdpa->get_input_partial_shape(i))) {
+                    return false;
+                }
             }
 
             // Keep identity input orders and only absorb the output Transpose.
-            new_sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(
-                sdpa->input_values(),
-                sdpa->get_causal(),
-                ov::intel_gpu::op::SDPA::default_order(4),
-                ov::intel_gpu::op::SDPA::default_order(4),
-                ov::intel_gpu::op::SDPA::default_order(4),
-                compose_orders(ov::intel_gpu::op::SDPA::default_order(4), order));
+            new_sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(sdpa->input_values(),
+                                                                 sdpa->get_causal(),
+                                                                 ov::intel_gpu::op::SDPA::default_order(4),
+                                                                 ov::intel_gpu::op::SDPA::default_order(4),
+                                                                 ov::intel_gpu::op::SDPA::default_order(4),
+                                                                 compose_orders(ov::intel_gpu::op::SDPA::default_order(4), order));
             sdpa_node = sdpa;
         }
 
@@ -183,14 +175,12 @@ SDPATransposeFusion::SDPATransposeFusion() {
         // Replace the SDPA node, then rewire Transpose consumers to the new
         // SDPA output (bypassing the now-dead Transpose).
         ov::replace_node(sdpa_node, new_sdpa);
-        ov::replace_output_update_name(transpose->output(0),
-                                       transpose->input_value(0));
+        ov::replace_output_update_name(transpose->output(0), transpose->input_value(0));
 
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_m,
-                                                          "SDPATransposeFusion");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_m, "SDPATransposeFusion");
     this->register_matcher(m, callback);
 }
 

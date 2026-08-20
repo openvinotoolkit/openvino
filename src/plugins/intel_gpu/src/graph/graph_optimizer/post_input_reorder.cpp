@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pass_manager.h"
-#include "impls/ocl/primitive_base.hpp"
-#include "fully_connected_inst.h"
-#include "fully_connected/fully_connected_params.h"
 #include <memory>
 #include <stdexcept>
+
+#include "fully_connected/fully_connected_params.h"
+#include "fully_connected_inst.h"
+#include "impls/ocl/primitive_base.hpp"
+#include "pass_manager.h"
 
 using namespace cldnn;
 
@@ -19,16 +20,12 @@ If not than required reorder is added to the network.
 /*
 Add a reorder in between node and usr with reorder_layout as layout
 */
-program_node& post_input_reorder::add_reorder(program& p,
-                                              program_node* node,
-                                              program_node* usr,
-                                              const layout& reorder_layout) {
+program_node& post_input_reorder::add_reorder(program& p, program_node* node, program_node* usr, const layout& reorder_layout) {
     auto new_reorder = std::make_shared<reorder>(node->id() + "_reorder_" + usr->id(), node->id(), reorder_layout);
     auto& new_reorder_node = p.get_or_create(new_reorder);
 
     // ToDo: add a method to program class which adds an intermediate node given a node and its user
-    auto it = std::find_if(usr->get_dependencies().begin(), usr->get_dependencies().end(),
-    [&](const std::pair<program_node*, int32_t>& dep) {
+    auto it = std::find_if(usr->get_dependencies().begin(), usr->get_dependencies().end(), [&](const std::pair<program_node*, int32_t>& dep) {
         return node == dep.first;
     });
     if (it == usr->get_dependencies().end()) {
@@ -51,10 +48,9 @@ void post_input_reorder::run(program& p) {
         if (node->is_type<fully_connected>()) {
             auto* const fc_impl = dynamic_cast<ocl::typed_primitive_impl_ocl<fully_connected>*>(impl);
             if (!fc_impl || node->can_be_optimized()) {
-              continue;
+                continue;
             }
-            const auto& fc_params =
-                *static_cast<kernel_selector::fully_connected_params*>(fc_impl->_kernel_data.params.get());
+            const auto& fc_params = *static_cast<kernel_selector::fully_connected_params*>(fc_impl->_kernel_data.params.get());
 
             auto layout_format = from_data_layout(fc_params.inputs[0].GetLayout());
             const auto& input = node->get_dependencies()[0].first;
@@ -62,10 +58,7 @@ void post_input_reorder::run(program& p) {
 
             if (input_layout.format != layout_format) {
                 auto previous_layout = node->get_output_layout();
-                layout current_layout(input_layout.get_partial_shape(),
-                                      input_layout.data_type,
-                                      layout_format,
-                                      input_layout.data_padding);
+                layout current_layout(input_layout.get_partial_shape(), input_layout.data_type, layout_format, input_layout.data_padding);
                 auto& reorder = add_reorder(p, input, node, current_layout);
                 reorder.set_unique_id();
                 reorder.get_output_layout(false);

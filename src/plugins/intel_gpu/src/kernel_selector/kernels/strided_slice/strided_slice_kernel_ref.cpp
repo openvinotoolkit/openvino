@@ -3,13 +3,15 @@
 //
 
 #include "strided_slice_kernel_ref.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
 #include <vector>
 
+#include "kernel_selector_utils.h"
+
 namespace kernel_selector {
 
-template<typename T>
+template <typename T>
 static void makeJitConstForParam(JitConstants& jit, const std::string name, const T& vec) {
     jit.AddConstant(MakeJitConstant(name + "_SIZES", vec));
     jit.AddConstant(MakeJitConstant(name + "_BATCH", vec[0]));
@@ -34,7 +36,7 @@ static void makeJitConstForParam(JitConstants& jit, const std::string name, cons
 
 static size_t GetUsedOutDimsCount(const strided_slice_params& params) {
     auto dims = params.outputs[0].GetDims();
-    size_t first_non_unit_dim = 0; // order is xy(zw)fb, so by default consider that we use all dims
+    size_t first_non_unit_dim = 0;  // order is xy(zw)fb, so by default consider that we use all dims
     for (size_t i = 0; i < dims.size(); i++) {
         if (dims[i].v != 1) {
             break;
@@ -107,17 +109,17 @@ CommonDispatchData StridedSliceKernelRef::SetDefault(const strided_slice_params&
     CommonDispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },
-                                                                     { Tensor::DataChannelName::FEATURE },
-                                                                     { Tensor::DataChannelName::X, Tensor::DataChannelName::Y,
-                                                                       Tensor::DataChannelName::Z, Tensor::DataChannelName::W }};
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {
+        {Tensor::DataChannelName::BATCH},
+        {Tensor::DataChannelName::FEATURE},
+        {Tensor::DataChannelName::X, Tensor::DataChannelName::Y, Tensor::DataChannelName::Z, Tensor::DataChannelName::W}};
 
     // If the new_axis_mask is set, then begin, end, and stride are ignored
     // and a new length 1 dimension is adding. Input data just copying to output
     // TODO: remove data copying in case where only shape size changing
-    dispatchData.gws = { params.outputs[0].Batch().v,
-                         params.outputs[0].Feature().v,
-                         params.outputs[0].W().v * params.outputs[0].Z().v * params.outputs[0].Y().v * params.outputs[0].X().v };
+    dispatchData.gws = {params.outputs[0].Batch().v,
+                        params.outputs[0].Feature().v,
+                        params.outputs[0].W().v * params.outputs[0].Z().v * params.outputs[0].Y().v * params.outputs[0].X().v};
 
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
@@ -164,9 +166,7 @@ JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& 
     } else {
         makeJitConstForParam(jit, "SLICE_STEPS", params.striding_params[2]);
     }
-    jit.AddConstant(MakeJitConstant(
-        "NEW_AXIS_MODE",
-        std::find(params.new_axis_mask.begin(), params.new_axis_mask.end(), 1) != params.new_axis_mask.end()));
+    jit.AddConstant(MakeJitConstant("NEW_AXIS_MODE", std::find(params.new_axis_mask.begin(), params.new_axis_mask.end(), 1) != params.new_axis_mask.end()));
 
     std::vector<int> dims_indexes;
     bool ellipsis_mode = std::find(params.ellipsis_mask.begin(), params.ellipsis_mask.end(), 1) != params.ellipsis_mask.end();
@@ -184,17 +184,16 @@ JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& 
         int dim_counter = 0;
 
         for (size_t i = 0; i < ellipsis_pos1; i++) {
-          dims_indexes.push_back(dim_counter++);
+            dims_indexes.push_back(dim_counter++);
         }
 
         for (size_t i = 0; i < skip_dims_num; i++) {
-          dims_indexes.push_back(-1);
+            dims_indexes.push_back(-1);
         }
 
         dim_counter++;
-        for (size_t i = 0; i < params.ellipsis_mask.size() - ellipsis_pos1 - 1;
-             i++) {
-          dims_indexes.push_back(dim_counter++);
+        for (size_t i = 0; i < params.ellipsis_mask.size() - ellipsis_pos1 - 1; i++) {
+            dims_indexes.push_back(dim_counter++);
         }
 
         OPENVINO_ASSERT(dims_indexes.size() == output_rank, "[GPU] Number of indexes is expected to match with output rank");
@@ -210,11 +209,11 @@ JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& 
         makeJitConstForParam(jit, "SHRINK", params.shrink_axis_mask);
         std::vector<std::string> bfwzyx_in_order;
         if (params.outputs[0].Dimentions() == 6) {
-          bfwzyx_in_order = {"batch", "feature", "w", "z", "y", "x"};
+            bfwzyx_in_order = {"batch", "feature", "w", "z", "y", "x"};
         } else if (params.outputs[0].Dimentions() == 5) {
-          bfwzyx_in_order = {"batch", "feature", "z", "y", "x"};
+            bfwzyx_in_order = {"batch", "feature", "z", "y", "x"};
         } else {
-          bfwzyx_in_order = {"batch", "feature", "y", "x"};
+            bfwzyx_in_order = {"batch", "feature", "y", "x"};
         }
 
         // Insert zeroes to indices order for shinked axes
@@ -225,12 +224,9 @@ JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& 
         }
 
         auto get_input_idx_order = [&](std::vector<std::string> bfwzyx_in_order) -> std::string {
-            std::string order = bfwzyx_in_order[0] + "," +
-                                bfwzyx_in_order[1] + "," +
-                                bfwzyx_in_order[2] + "," +
-                                bfwzyx_in_order[3] + "," +
-                                bfwzyx_in_order[4];
-            if (bfwzyx_in_order.size() == 6) order += "," + bfwzyx_in_order[5];
+            std::string order = bfwzyx_in_order[0] + "," + bfwzyx_in_order[1] + "," + bfwzyx_in_order[2] + "," + bfwzyx_in_order[3] + "," + bfwzyx_in_order[4];
+            if (bfwzyx_in_order.size() == 6)
+                order += "," + bfwzyx_in_order[5];
             return order;
         };
         // Erase indices that exceeds 6d tensor. It should be safe, because we check in Validate method that
@@ -290,9 +286,19 @@ KernelsData StridedSliceKernelRef::GetKernelsData(const Params& params) const {
 
     GetUpdateDispatchDataFunc(kd);
 
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     "", false, false, static_cast<int>(newParams.inputs.size()),
-                     0, 1, newParams.is_shape_agnostic);
+    FillCLKernelData(kernel,
+                     dispatchData,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     "",
+                     false,
+                     false,
+                     static_cast<int>(newParams.inputs.size()),
+                     0,
+                     1,
+                     newParams.is_shape_agnostic);
 
     return {kd};
 }

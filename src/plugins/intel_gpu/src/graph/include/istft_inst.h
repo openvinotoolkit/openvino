@@ -21,9 +21,9 @@ public:
         return get_dependency(idx);
     }
     std::vector<size_t> get_shape_infer_dependencies() const override {
-      if (this->get_dependencies().size() == 5) {
-        return {2, 3, 4};
-      }
+        if (this->get_dependencies().size() == 5) {
+            return {2, 3, 4};
+        }
         return {2, 3};
     }
 };
@@ -36,11 +36,11 @@ class typed_primitive_inst<ISTFT> : public typed_primitive_inst_base<ISTFT> {
     using parent::parent;
 
 public:
-    typed_primitive_inst(network& network, ISTFT_node const& desc);
+    typed_primitive_inst(network& network, const ISTFT_node& desc);
     template <typename ShapeType>
-    static std::vector<layout> calc_output_layouts(ISTFT_node const& node, kernel_impl_params const& impl_param);
-    static layout calc_output_layout(ISTFT_node const& node, kernel_impl_params const& impl_param);
-    static std::string to_string(ISTFT_node const& node);
+    static std::vector<layout> calc_output_layouts(const ISTFT_node& node, const kernel_impl_params& impl_param);
+    static layout calc_output_layout(const ISTFT_node& node, const kernel_impl_params& impl_param);
+    static std::string to_string(const ISTFT_node& node);
     bool need_reset_output_memory() const override {
         return true;
     }

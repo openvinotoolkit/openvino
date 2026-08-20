@@ -37,21 +37,20 @@ DeviceFeaturesKey PoolingKernel_b_fs_yx_fsv16::get_required_device_features_key(
 }
 
 size_t PoolingKernel_b_fs_yx_fsv16::GetBlockSize(const pooling_params& params) const {
-  if (params.outputs[0].X().v > 4) {
-    return 8;
-  }
-  if (params.outputs[0].X().v > 1) {
-    return 2;
-  }
+    if (params.outputs[0].X().v > 4) {
+        return 8;
+    }
+    if (params.outputs[0].X().v > 1) {
+        return 2;
+    }
     return 1;
 }
 
 size_t PoolingKernel_b_fs_yx_fsv16::GetSimdSize(const pooling_params& params) const {
     const auto& out = params.outputs[0];
     // Use smaller simd size in case of global pooling and small channels count to have more threads
-    if (out.X().v == 1 && out.Y().v == 1 && out.Feature().v < 64 &&
-        IsSIMDSizeSupported(params.engineInfo, 8)) {
-      return 8;
+    if (out.X().v == 1 && out.Y().v == 1 && out.Feature().v < 64 && IsSIMDSizeSupported(params.engineInfo, 8)) {
+        return 8;
     }
     return 16;
 }
@@ -121,23 +120,23 @@ JitConstants PoolingKernel_b_fs_yx_fsv16::GetJitConstants(const pooling_params& 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
         FusedOpsConfiguration conf_vec = {"_VEC",
-                                         {"b", "(f_block*FEATURE_SLICE_SIZE + f_val*SUB_GROUP_SIZE)", "y", "x"},
-                                         "pool_result",
-                                         input_dt,
-                                         x_block_size,
-                                         LoadType::LT_ALIGNED_READ,
-                                         BoundaryCheck::ENABLED,
-                                         IndexType::TENSOR_COORD,
-                                         Tensor::DataChannelName::X};
+                                          {"b", "(f_block*FEATURE_SLICE_SIZE + f_val*SUB_GROUP_SIZE)", "y", "x"},
+                                          "pool_result",
+                                          input_dt,
+                                          x_block_size,
+                                          LoadType::LT_ALIGNED_READ,
+                                          BoundaryCheck::ENABLED,
+                                          IndexType::TENSOR_COORD,
+                                          Tensor::DataChannelName::X};
         FusedOpsConfiguration conf_scalar = {"_SCALAR",
-                                            {"b", "(f_block*FEATURE_SLICE_SIZE + f_val*SUB_GROUP_SIZE)", "y", "(x+i)"},
-                                            "pool_result[i]",
-                                            input_dt,
-                                            1,
-                                            LoadType::LT_ALIGNED_READ,
-                                            BoundaryCheck::ENABLED,
-                                            IndexType::TENSOR_COORD,
-                                            Tensor::DataChannelName::X};
+                                             {"b", "(f_block*FEATURE_SLICE_SIZE + f_val*SUB_GROUP_SIZE)", "y", "(x+i)"},
+                                             "pool_result[i]",
+                                             input_dt,
+                                             1,
+                                             LoadType::LT_ALIGNED_READ,
+                                             BoundaryCheck::ENABLED,
+                                             IndexType::TENSOR_COORD,
+                                             Tensor::DataChannelName::X};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec, conf_scalar}));
     }
 

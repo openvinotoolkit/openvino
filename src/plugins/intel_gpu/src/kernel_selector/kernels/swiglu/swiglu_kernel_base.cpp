@@ -3,6 +3,7 @@
 //
 
 #include "swiglu_kernel_base.h"
+
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
@@ -55,7 +56,7 @@ KernelsData SwiGLUKernelBase::GetKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::SWIGLU);
 
     if (!Validate(params)) {
-      return {};
+        return {};
     }
 
     const swiglu_params& orgParams = static_cast<const swiglu_params&>(params);
@@ -87,7 +88,6 @@ KernelsData SwiGLUKernelBase::GetKernelsData(const Params& params) const {
     return {kd};
 }
 
-
 bool SwiGLUKernelBase::Validate(const Params& params) const {
     if (!KernelBaseOpenCL::Validate(params)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
@@ -97,14 +97,14 @@ bool SwiGLUKernelBase::Validate(const Params& params) const {
 }
 
 Datatype SwiGLUKernelBase::GetAccumulatorType(const swiglu_params& params) const {
-    Datatype types[] = { Datatype::F32, Datatype::F16, Datatype::INT64, Datatype::INT32, Datatype::UINT32};
+    Datatype types[] = {Datatype::F32, Datatype::F16, Datatype::INT64, Datatype::INT32, Datatype::UINT32};
 
     for (Datatype type : types) {
-      for (const auto &in : params.inputs) {
-        if (in.GetDType() == type) {
-          return type;
+        for (const auto& in : params.inputs) {
+            if (in.GetDType() == type) {
+                return type;
+            }
         }
-      }
     }
 
     return Datatype::F32;

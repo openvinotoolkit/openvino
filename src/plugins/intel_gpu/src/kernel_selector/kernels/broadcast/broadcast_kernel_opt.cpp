@@ -3,10 +3,11 @@
 //
 
 #include "broadcast_kernel_opt.h"
-#include "kernel_selector_utils.h"
 
 #include <numeric>
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -89,13 +90,13 @@ OptChoices PickStaticChoices(const broadcast_params& p) {
 CommonDispatchData ComputeDispatch(const OptChoices& c) {
     CommonDispatchData dispatchData;
     if (c.x_broadcast_block_write) {
-        dispatchData.gws = { 16, c.num_rows, 1 };
-        dispatchData.lws = { 16, 1, 1 };
+        dispatchData.gws = {16, c.num_rows, 1};
+        dispatchData.lws = {16, 1, 1};
     } else {
         const size_t work_items_per_row = (c.out_x + kOptVecSize - 1) / kOptVecSize;
         const size_t gws_x = std::min(work_items_per_row, kWIsPerRow);
-        dispatchData.gws = { gws_x, c.num_rows, 1 };
-        dispatchData.lws = { gws_x, 1, 1 };
+        dispatchData.gws = {gws_x, c.num_rows, 1};
+        dispatchData.lws = {gws_x, 1, 1};
     }
     return dispatchData;
 }
@@ -119,11 +120,11 @@ bool BroadcastKernelOpt::Validate(const Params& params) const {
     const auto& output = p.outputs[0];
 
     if (input.GetLayout() != output.GetLayout()) {
-      return false;
+        return false;
     }
 
     if (!p.fused_ops.empty()) {
-      return false;
+        return false;
     }
 
     // This kernel does pure value-broadcast with no type cast. Broadcast-with-convert
@@ -131,7 +132,7 @@ bool BroadcastKernelOpt::Validate(const Params& params) const {
     // The params-key already routes mismatches to ref (this kernel does not enable
     // different_types); this guard makes that invariant explicit.
     if (input.GetDType() != output.GetDType()) {
-      return false;
+        return false;
     }
 
     // The kernel maps output axis i directly to input axis i (no permutation). Two distinct
@@ -142,13 +143,13 @@ bool BroadcastKernelOpt::Validate(const Params& params) const {
     //     like identity [0,1,2,...], but canonicalize_shapes places the input dim elsewhere —
     //     caught by the is_explicit_mode flag.
     if (p.is_explicit_mode) {
-      return false;
+        return false;
     }
 
     std::vector<uint16_t> identity_order(p.input_order.size());
     std::iota(identity_order.begin(), identity_order.end(), 0);
     if (p.input_order != identity_order) {
-      return false;
+        return false;
     }
 
     if (input.is_dynamic() || output.is_dynamic()) {
@@ -164,7 +165,7 @@ bool BroadcastKernelOpt::Validate(const Params& params) const {
         //    non-row-coherent pattern -> reject.
         const bool y_known = !input.Y().is_dynamic && !output.Y().is_dynamic;
         if (!y_known || input.Y().v != output.Y().v) {
-          return false;
+            return false;
         }
 
         const bool x_known = !input.X().is_dynamic && !output.X().is_dynamic;
@@ -172,33 +173,30 @@ bool BroadcastKernelOpt::Validate(const Params& params) const {
     }
 
     if (output.X().v < kMinXForOpt) {
-      return false;
+        return false;
     }
 
     // X-broadcast splat: input.X==1, output.X>=32.
     bool is_x_broadcast = (input.X().v == 1) && (output.X().v > 1);
     if (is_x_broadcast) {
-      return true;
+        return true;
     }
 
     // Standard vectorized path requires X dimensions to match.
     if (input.X().v != output.X().v) {
-      return false;
+        return false;
     }
 
     // Don't use opt kernel for Y-only broadcast — ref kernel's Y-blocking is faster
-    bool is_y_only_broadcast = (input.Batch().v == output.Batch().v)
-        && (input.Feature().v == output.Feature().v)
-        && (input.Y().v != output.Y().v);
+    bool is_y_only_broadcast = (input.Batch().v == output.Batch().v) && (input.Feature().v == output.Feature().v) && (input.Y().v != output.Y().v);
     if (is_y_only_broadcast) {
-      return false;
+        return false;
     }
 
     // Only use opt kernel when batch-repeat gives benefit (large input, batch broadcast)
     // Otherwise ref kernel is faster due to lower per-element overhead
     const size_t input_bytes = input.LogicalSize() * BytesPerElement(input.GetDType());
-    const bool has_batch_repeat = (input.Batch().v == 1) && (output.Batch().v > 1)
-                                && (input_bytes > kBatchRepeatInputBytesThreshold);
+    const bool has_batch_repeat = (input.Batch().v == 1) && (output.Batch().v > 1) && (input_bytes > kBatchRepeatInputBytesThreshold);
     return has_batch_repeat;
 }
 
@@ -215,8 +213,7 @@ void BroadcastKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
         OptChoices c;
         const auto& output = prim_params.outputs[0];
         c.out_x = output.X().v;
-        c.num_rows = output.Y().v * output.Z().v * output.W().v
-                   * output.Feature().v * output.Batch().v;
+        c.num_rows = output.Y().v * output.Z().v * output.W().v * output.Feature().v * output.Batch().v;
         const auto dispatchData = ComputeDispatch(c);
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
@@ -231,7 +228,7 @@ KernelsData BroadcastKernelOpt::GetKernelsData(const Params& params) const {
     const auto& prim_params = static_cast<const broadcast_params&>(params);
 
     if (!Validate(params)) {
-      return {};
+        return {};
     }
 
     OptChoices choices;
@@ -260,7 +257,12 @@ KernelsData BroadcastKernelOpt::GetKernelsData(const Params& params) const {
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
+    FillCLKernelData(kernel,
+                     dispatchData,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
                      EXE_MODE_DEFAULT,
                      false,
                      false,

@@ -4,10 +4,11 @@
 
 #pragma once
 
-#include "weight_bias_kernel_base.h"
-#include "kernel_selector_params.h"
 #include <string>
 #include <vector>
+
+#include "kernel_selector_params.h"
+#include "weight_bias_kernel_base.h"
 
 namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -54,10 +55,10 @@ protected:
     using WeightBiasKernelBase::GetJitConstants;
     virtual JitConstants GetJitConstants(const deconvolution_params& params) const;
     virtual DispatchData SetDefault(const deconvolution_params& params) const;
-    virtual WeightsLayout GetPreferredWeightsLayout(const deconvolution_params &params) const {
-      if (params.inputs[0].Dimentions() == 4) {
-        return (params.groups > 1) ? WeightsLayout::goiyx : WeightsLayout::oiyx;
-      }
+    virtual WeightsLayout GetPreferredWeightsLayout(const deconvolution_params& params) const {
+        if (params.inputs[0].Dimentions() == 4) {
+            return (params.groups > 1) ? WeightsLayout::goiyx : WeightsLayout::oiyx;
+        }
         return (params.groups > 1) ? WeightsLayout::goizyx : WeightsLayout::oizyx;
     }
     bool Validate(const Params& p) const override;

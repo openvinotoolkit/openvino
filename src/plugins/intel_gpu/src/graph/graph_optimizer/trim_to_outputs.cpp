@@ -6,9 +6,10 @@
 
 // ToDo: remove those include with the appropriate code below once we will have support for multiple outputs of a
 // primitive
-#include "pooling_inst.h"
-#include <vector>
 #include <queue>
+#include <vector>
+
+#include "pooling_inst.h"
 
 using namespace cldnn;
 
@@ -25,9 +26,9 @@ void trim_to_outputs::run(program& p) {
 
     std::vector<program_node*> special_nodes;
     for (const auto& node : p.get_processing_order()) {  // input layout may become disconnected during prior boxes calculations so
-        if (node->is_type<input_layout>()) {        // it may have not been marked at this place but we don't want to remove it
-            special_nodes.push_back(node);          // ToDo: remove this after support for multi-outputs in primitives will
-        }                                           // be implemented.
+        if (node->is_type<input_layout>()) {             // it may have not been marked at this place but we don't want to remove it
+            special_nodes.push_back(node);               // ToDo: remove this after support for multi-outputs in primitives will
+        }  // be implemented.
     }
     queue.push(special_nodes);
 
@@ -39,10 +40,10 @@ void trim_to_outputs::run(program& p) {
             if (!node->is_marked()) {
                 node->mark();
                 if (!node->get_dependencies().empty()) {
-                   std::vector<program_node*> deps;
-                   for (const auto& dep : node->get_dependencies()) {
-                       deps.push_back(dep.first);
-                   }
+                    std::vector<program_node*> deps;
+                    for (const auto& dep : node->get_dependencies()) {
+                        deps.push_back(dep.first);
+                    }
                     queue.push(deps);
                 }
             }
@@ -52,9 +53,9 @@ void trim_to_outputs::run(program& p) {
     // all not-marked nodes should be removed
     std::vector<program_node*> to_rem;
     for (const auto& node : p.get_processing_order()) {
-      if (!node->is_marked()) {
-        to_rem.push_back(node);
-      }
+        if (!node->is_marked()) {
+            to_rem.push_back(node);
+        }
     }
     p.remove_nodes(to_rem);
 

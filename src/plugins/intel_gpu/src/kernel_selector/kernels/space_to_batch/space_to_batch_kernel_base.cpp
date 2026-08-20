@@ -3,8 +3,10 @@
 //
 
 #include "space_to_batch_kernel_base.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -35,14 +37,13 @@ CommonDispatchData SpaceToBatchKernelBase::SetDefault(const space_to_batch_param
 
     CommonDispatchData dispatchData;
     if (out.GetLayout() == DataLayout::b_fs_yx_fsv16 && out.Feature().v % 16 == 0) {
-        dispatchData.gws = { out.Batch().v, out.Feature().v, out.Y().v * out.X().v };
-        dispatchData.lws = { 1, 16, 1 };
+        dispatchData.gws = {out.Batch().v, out.Feature().v, out.Y().v * out.X().v};
+        dispatchData.lws = {1, 16, 1};
     } else {
-        dispatchData.gws = { out.Batch().v, out.Feature().v, out.W().v * out.Z().v * out.Y().v * out.X().v };
-        dims_by_gws = {{ Tensor::DataChannelName::BATCH },
-                       { Tensor::DataChannelName::FEATURE },
-                       { Tensor::DataChannelName::X, Tensor::DataChannelName::Y,
-                         Tensor::DataChannelName::Z, Tensor::DataChannelName::W }};
+        dispatchData.gws = {out.Batch().v, out.Feature().v, out.W().v * out.Z().v * out.Y().v * out.X().v};
+        dims_by_gws = {{Tensor::DataChannelName::BATCH},
+                       {Tensor::DataChannelName::FEATURE},
+                       {Tensor::DataChannelName::X, Tensor::DataChannelName::Y, Tensor::DataChannelName::Z, Tensor::DataChannelName::W}};
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
     }
 
@@ -114,10 +115,20 @@ KernelsData SpaceToBatchKernelBase::GetCommonKernelsData(const Params& params) c
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     "", false, false, static_cast<int>(newParams.inputs.size()),
-                     GetFusedPrimitiveInputsCount(params), 1, newParams.is_shape_agnostic);
+    FillCLKernelData(kernel,
+                     dispatchData,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     "",
+                     false,
+                     false,
+                     static_cast<int>(newParams.inputs.size()),
+                     GetFusedPrimitiveInputsCount(params),
+                     1,
+                     newParams.is_shape_agnostic);
 
-    return { kd };
+    return {kd};
 }
 }  // namespace kernel_selector

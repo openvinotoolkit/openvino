@@ -2,27 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "data_inst.h"
+#include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
+#include "intel_gpu/runtime/itt.hpp"
+#include "mutable_data_inst.h"
 #include "pass_manager.h"
 #include "program_node.h"
-#include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
-#include "intel_gpu/graph/program.hpp"
-#include "intel_gpu/graph/network.hpp"
-#include "data_inst.h"
-#include "mutable_data_inst.h"
-#include "intel_gpu/runtime/itt.hpp"
 #include "registry/implementation_manager.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
-#include "reorder_inst.h"
-#include "graph/impls/onednn/utils.hpp"
-#endif // ENABLE_ONEDNN_FOR_GPU
-#include <vector>
+#    include "graph/impls/onednn/utils.hpp"
+#    include "reorder_inst.h"
+#endif  // ENABLE_ONEDNN_FOR_GPU
 #include <list>
 #include <memory>
-#include <utility>
-#include <unordered_set>
 #include <queue>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
 using namespace cldnn;
 
@@ -34,7 +34,7 @@ namespace {
 void try_reselect_impl_for_node(program_node* node) {
     bool can_select_impl = !node->is_type<data>() && (!node->is_type<mutable_data>() || !node->get_dependencies().empty());
     if (!can_select_impl) {
-      return;
+        return;
     }
 
     auto* selected_impl = node->get_selected_impl();
@@ -48,7 +48,7 @@ void try_reselect_impl_for_node(program_node* node) {
     }
 
     if (!need_new_impl_selection) {
-      return;
+        return;
     }
 
     // Refresh stale output layouts before building kernel params.
@@ -62,7 +62,7 @@ void try_reselect_impl_for_node(program_node* node) {
     auto params = node->get_kernel_impl_params();
     auto shape_type = ImplementationManager::get_shape_type(*params);
     if (shape_type == shape_types::dynamic_shape) {
-      return;
+        return;
     }
 
     auto selected_impl_manager = node->type()->choose_impl(*node, shape_type);
@@ -95,9 +95,9 @@ void try_reselect_impl_for_node(program_node* node) {
 void propagate_constants::run(program& p) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::PropagateConstants");
     for (const auto& node : p.get_processing_order()) {
-      if (node->is_constant()) {
-        handle_constant(p, *node);
-      }
+        if (node->is_constant()) {
+            handle_constant(p, *node);
+        }
     }
 
     auto&& to_replace = calculate(p.get_engine(), p.get_config(), p.get_task_executor());
@@ -112,11 +112,10 @@ void propagate_constants::run(program& p) {
     while (proc_itr != p.get_processing_order().end()) {
         const auto& node = (*proc_itr++);
         if (!node->is_constant()) {
-          continue;
+            continue;
         }
-        if (has_non_const_user(*node) ||
-            (node->is_output() && !node->is_type<data>())) {
-          continue;
+        if (has_non_const_user(*node) || (node->is_output() && !node->is_type<data>())) {
+            continue;
         }
 
         auto& users = node->users;
@@ -129,18 +128,19 @@ void propagate_constants::run(program& p) {
 
         for (auto& usr : users) {
             auto& usr_deps = usr->dependencies;
-            usr_deps.erase(std::remove_if(usr_deps.begin(), usr_deps.end(),
-                           [&](const std::pair<program_node*, int>& dep) {
-                               return node == dep.first;
-                           }), usr_deps.end());
+            usr_deps.erase(std::remove_if(usr_deps.begin(),
+                                          usr_deps.end(),
+                                          [&](const std::pair<program_node*, int>& dep) {
+                                              return node == dep.first;
+                                          }),
+                           usr_deps.end());
         }
         users.clear();
 
         if (!node->is_output()) {
             auto rem = p.remove_if_dangling(*node);
-            assert(rem &&
-                   "Non-output constant node which has only constant users should have been removed during constants "
-                   "propagation pass");
+            assert(rem && "Non-output constant node which has only constant users should have been removed during constants "
+                          "propagation pass");
             (void)rem;
         }
     }
@@ -167,9 +167,9 @@ void propagate_constants::run(program& p) {
         for (auto& dep : curr_node_deps) {
             auto dep_users = dep.first->get_users();
             for (auto& dep_user : dep_users) {
-              if (dep_user == &curr_node) {
-                p.remove_connection(*dep.first, curr_node);
-              }
+                if (dep_user == &curr_node) {
+                    p.remove_connection(*dep.first, curr_node);
+                }
             }
         }
 
@@ -182,7 +182,9 @@ void propagate_constants::run(program& p) {
         // dependencies)
         curr_node.users.erase(std::remove_if(curr_node.users.begin(),
                                              curr_node.users.end(),
-                                             [](program_node* node) { return node->is_constant(); }),
+                                             [](program_node* node) {
+                                                 return node->is_constant();
+                                             }),
                               curr_node.users.end());
         bool was_dynamic = curr_node.get_output_layout().is_dynamic();
         p.replace(curr_node, new_node);
@@ -199,7 +201,7 @@ void propagate_constants::run(program& p) {
                 auto* n = queue.front();
                 queue.pop();
                 if (reselection_targets.count(n) > 0) {
-                  continue;
+                    continue;
                 }
                 reselection_targets.insert(n);
                 if (!n->is_all_valid_output_layouts()) {
@@ -220,27 +222,25 @@ void propagate_constants::run(program& p) {
 }
 
 bool propagate_constants::has_non_const_user(program_node& node) const {
-  if (!node.is_constant()) {
-    return true;
-  }
-    for (const auto& user : node.get_users()) {
-      if (!user->is_constant()) {
+    if (!node.is_constant()) {
         return true;
-      }
+    }
+    for (const auto& user : node.get_users()) {
+        if (!user->is_constant()) {
+            return true;
+        }
     }
     return false;
 }
 
-using cache_tuple =
-    std::tuple<std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>, std::shared_ptr<reorder>>;
+using cache_tuple = std::tuple<std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>, std::shared_ptr<reorder>>;
 
-std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>>
-propagate_constants::calculate(engine& engine,
-                               const ExecutionConfig& config,
-                               std::shared_ptr<ov::threading::IStreamsExecutor> task_executor) {
-  if (!has_non_trivial_constants) {
-    return {};
-  }
+std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>> propagate_constants::calculate(engine& engine,
+                                                                                             const ExecutionConfig& config,
+                                                                                             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor) {
+    if (!has_non_trivial_constants) {
+        return {};
+    }
 
     ExecutionConfig cf_config = config.clone();
     cf_config.set_property(ov::intel_gpu::optimize_data(false));
@@ -266,8 +266,7 @@ propagate_constants::calculate(engine& engine,
     net->reset_execution(true);  // wait for computations to complete
     auto outputs = net->get_outputs();
 
-    std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>>
-        ret;
+    std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>> ret;
     for (auto& out : outputs) {
         cache_tuple cache_info{};
         auto it = weightless_cache_map.find(out->id());
@@ -284,21 +283,21 @@ void propagate_constants::handle_constant(program& prog, program_node& node) {
     if (!node.is_type<data>()) {
         add_constant(prog, node);
         if (has_non_const_user(node)) {
-          const_outputs.push_back(node.id());
+            const_outputs.push_back(node.id());
         }
     }
 }
 
 void propagate_constants::add_constant(program& prog, program_node& node) {
-  if (node.is_type<data>()) {
-    return;
-  }
+    if (node.is_type<data>()) {
+        return;
+    }
     nodes.insert(prog.get_node_ptr(node.get_primitive()->id));
     has_non_trivial_constants = true;
 
     // if a node is either an endpoint or an output, always add it as an output
     if (node.is_endpoint() || node.is_output()) {
-      const_outputs.push_back(node.id());
+        const_outputs.push_back(node.id());
     }
 
     // if a non-tirivial constant has a trivial input, add this input as an input for our network
@@ -321,11 +320,10 @@ void propagate_constants::add_constant(program& prog, program_node& node) {
             prog.add_intermediate(rotate_node, node, 0);
             prog.get_or_create(rotate_prim).recalc_output_layouts(false);
             nodes.insert(prog.get_node_ptr(rotate_node.id()));
-            GPU_DEBUG_LOG << "Added " << rotate_reorder_id << " for transposing weights before "
-                << node.id() << std::endl;
+            GPU_DEBUG_LOG << "Added " << rotate_reorder_id << " for transposing weights before " << node.id() << std::endl;
         }
     }
-#endif // ENABLE_ONEDNN_FOR_GPU
+#endif  // ENABLE_ONEDNN_FOR_GPU
 }
 
 void propagate_constants::add_deps_to_tpl(program& prog, const std::vector<std::pair<program_node*, int32_t>>& deps) {

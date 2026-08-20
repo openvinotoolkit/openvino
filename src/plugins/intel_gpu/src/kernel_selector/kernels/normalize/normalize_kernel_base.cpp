@@ -3,8 +3,10 @@
 //
 
 #include "normalize_kernel_base.h"
-#include "kernel_selector_utils.h"
+
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 JitConstants NormalizeKernelBase::GetJitConstants(const normalize_params& np) const {
@@ -20,9 +22,9 @@ JitConstants NormalizeKernelBase::GetJitConstants(const normalize_params& np) co
     auto activation_dt = GetActivationType(np);
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
     if (!np.fused_ops.empty()) {
-        std::vector<std::string> idx_order = { "b", "f", "y", "x" };
+        std::vector<std::string> idx_order = {"b", "f", "y", "x"};
         auto conf = FusedOpsConfiguration("", idx_order, "result", activation_dt);
-        jit.Merge(MakeFusedOpsJitConstants(np, { conf }));
+        jit.Merge(MakeFusedOpsJitConstants(np, {conf}));
     }
 
     return jit;
@@ -46,7 +48,7 @@ NormalizeKernelBase::DispatchData NormalizeKernelBase::SetDefault(const normaliz
 KernelsData NormalizeKernelBase::GetCommonKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::NORMALIZE);
     if (!Validate(params)) {
-      return {};
+        return {};
     }
 
     const normalize_params& orgParams = static_cast<const normalize_params&>(params);
@@ -60,17 +62,7 @@ KernelsData NormalizeKernelBase::GetCommonKernelsData(const Params& params) cons
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel,
-                     dispatchData,
-                     params.engineInfo,
-                     kernelName,
-                     jit,
-                     entry_point,
-                     "",
-                     false,
-                     false,
-                     1,
-                     GetFusedPrimitiveInputsCount(params));
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, 1, GetFusedPrimitiveInputsCount(params));
 
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALE_TABLE, 0});
 
@@ -90,9 +82,9 @@ bool NormalizeKernelBase::Validate(const Params& params) const {
 }
 
 Datatype NormalizeKernelBase::GetActivationType(const normalize_params& params) const {
-  if (params.outputs[0].GetDType() == Datatype::F16) {
-    return Datatype::F16;
-  }
+    if (params.outputs[0].GetDType() == Datatype::F16) {
+        return Datatype::F16;
+    }
     return Datatype::F32;
 }
 }  // namespace kernel_selector

@@ -42,20 +42,20 @@ JitConstants MVNKernelRef::GetJitConstants(const mvn_params& params, DispatchDat
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order;
         if (params.inputs[0].GetDims().size() <= 4) {
-            idx_order = { "b", "f", "y", "x" };
+            idx_order = {"b", "f", "y", "x"};
         } else if (params.inputs[0].GetDims().size() == 5) {
-            idx_order = { "b", "f", "z", "y", "x" };
+            idx_order = {"b", "f", "z", "y", "x"};
         }
         auto conf = FusedOpsConfiguration("", idx_order, "result", activation_dt);
-        jits.Merge(MakeFusedOpsJitConstants(params, { conf }));
+        jits.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
     return jits;
 }
 
 std::string MVNKernelRef::GetKernelName(const mvn_params& params) const {
-  if (params.mvnMode == MVNMode::ACROSS_CHANNELS) {
-    return kernelName + "_across_channels";
-  }
+    if (params.mvnMode == MVNMode::ACROSS_CHANNELS) {
+        return kernelName + "_across_channels";
+    }
     return kernelName + "_within_channels";
 }
 

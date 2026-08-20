@@ -1,19 +1,20 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "gemm_inst.h"
-#include "primitive_type_base.h"
-#include "json_object.h"
+#include "intel_gpu/op/gemm.hpp"
+
+#include <algorithm>
 #include <string>
 #include <utility>
-#include <algorithm>
 
-#include "intel_gpu/op/gemm.hpp"
+#include "gemm_inst.h"
+#include "json_object.h"
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(gemm)
 
-layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params const& impl_param) {
+layout gemm_inst::calc_output_layout(const gemm_node& node, const kernel_impl_params& impl_param) {
     auto prim = impl_param.typed_desc<gemm>();
 
     auto input0_layout = impl_param.get_input_layout(0);
@@ -41,8 +42,7 @@ layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params c
             input_shape_update = _input_shape_update;
         }
         if (input_shape_update.size() == 1) {
-            first_input ? input_shape_update.insert(input_shape_update.begin(), 1)
-                        : input_shape_update.insert(input_shape_update.end(), 1);
+            first_input ? input_shape_update.insert(input_shape_update.begin(), 1) : input_shape_update.insert(input_shape_update.end(), 1);
             output_rank = std::max(output_rank, rank + 1);
         }
         input_shape_update.insert(input_shape_update.begin(), output_rank - input_shape_update.size(), 1);
@@ -84,14 +84,12 @@ layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params c
     output_shape.insert(output_shape.begin(), ones_to_add, 1);
 
     if (!prim->output_transpose_order.empty()) {
-      output_shape =
-          transpose_shape(output_shape, prim->output_transpose_order);
+        output_shape = transpose_shape(output_shape, prim->output_transpose_order);
     }
 
     auto output_type = input0_layout.data_type;
-    if ((output_type == data_types::u8 || output_type == data_types::i8) &&
-        prim->output_data_types[0]) {
-      output_type = *prim->output_data_types[0];
+    if ((output_type == data_types::u8 || output_type == data_types::i8) && prim->output_data_types[0]) {
+        output_type = *prim->output_data_types[0];
     }
 
     if (impl_param.has_fused_primitives()) {
@@ -111,8 +109,8 @@ layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params c
     return layout(output_shape, output_type, output_format, prim->output_paddings[0]);
 }
 
-template<typename ShapeType>
-std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& node, const kernel_impl_params& impl_param) {
+template <typename ShapeType>
+std::vector<layout> gemm_inst::calc_output_layouts(const gemm_node& node, const kernel_impl_params& impl_param) {
     auto prim = impl_param.typed_desc<gemm>();
     auto input0_layout = impl_param.get_input_layout(0);
     auto input1_layout = impl_param.get_input_layout(1);
@@ -128,16 +126,10 @@ std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& node, const 
     op.set_transpose_a(false);
     op.set_transpose_b(false);
 
-    std::vector<ShapeType> input_shapes = {
-        input0_layout.get<ShapeType>(),
-        input1_layout.get<ShapeType>()
-    };
+    std::vector<ShapeType> input_shapes = {input0_layout.get<ShapeType>(), input1_layout.get<ShapeType>()};
 
-    std::vector<ShapeType> output_shapes = ov::intel_gpu::op::shape_infer(&op,
-                                                                          input_shapes,
-                                                                          prim->input0_transpose_order,
-                                                                          prim->input1_transpose_order,
-                                                                          prim->output_transpose_order);
+    std::vector<ShapeType> output_shapes =
+        ov::intel_gpu::op::shape_infer(&op, input_shapes, prim->input0_transpose_order, prim->input1_transpose_order, prim->output_transpose_order);
 
     cldnn::format output_format = input0_layout.format;
     if (output_shapes[0].size() > output_format.dimension()) {
@@ -147,13 +139,13 @@ std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& node, const 
         output_format = cldnn::format::adjust_to_rank(output_format, output_shapes[0].size());
     }
     if (node.get_preferred_output_fmt() != format::any) {
-      output_format = node.get_preferred_output_fmt();
+        output_format = node.get_preferred_output_fmt();
     }
 
-    return { layout{output_shapes[0], output_type, output_format, prim->output_paddings[0]} };
+    return {layout{output_shapes[0], output_type, output_format, prim->output_paddings[0]}};
 }
 
-template std::vector<layout> gemm_inst::calc_output_layouts<ov::PartialShape>(gemm_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> gemm_inst::calc_output_layouts<ov::PartialShape>(const gemm_node& node, const kernel_impl_params& impl_param);
 
 std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<const gemm> primitive,
                                                        const std::vector<layout>& input_layouts,
@@ -193,14 +185,17 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
         if (input_rank == 1) {
             if (input_pshape.is_static()) {
                 auto input_shape = input_pshape.to_shape();
-                transposed_input_pshape = ov::PartialShape{ static_cast<int64_t>(*std::max_element(input_shape.begin(), input_shape.end())) };
+                transposed_input_pshape = ov::PartialShape{static_cast<int64_t>(*std::max_element(input_shape.begin(), input_shape.end()))};
             } else {
                 transposed_input_pshape = ov::PartialShape::dynamic(input_rank);
             }
         } else {
             if (input_pshape.is_static()) {
-                OPENVINO_ASSERT(input_pshape.size() >= input_rank, "[GPU] Requested input rank[",
-                        input_rank, "] in gemm primitive is greater than actual shape: ", input_pshape.to_string());
+                OPENVINO_ASSERT(input_pshape.size() >= input_rank,
+                                "[GPU] Requested input rank[",
+                                input_rank,
+                                "] in gemm primitive is greater than actual shape: ",
+                                input_pshape.to_string());
                 std::vector<ov::Dimension> dims(input_pshape.begin(), input_pshape.begin() + input_rank);
                 transposed_input_pshape = ov::PartialShape(dims);
             } else {
@@ -209,8 +204,7 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
         }
 
         if (transposed_input_pshape.size() == 1) {
-            first_input ? transposed_input_pshape.insert(transposed_input_pshape.begin(), 1)
-                        : transposed_input_pshape.insert(transposed_input_pshape.end(), 1);
+            first_input ? transposed_input_pshape.insert(transposed_input_pshape.begin(), 1) : transposed_input_pshape.insert(transposed_input_pshape.end(), 1);
 
             // Do not swap weight (2nd input) because TRANSPOSE_Y_LAST expects [Y=K, X=N];
             // swapping would make input1_offset1 = TILE_K * K instead of TILE_K * N.
@@ -242,8 +236,7 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
     std::vector<layout> layouts = input_layouts;
     // Format update for rank > 4 case
     if (layouts[0].format.dimension() < transposed_input0_pshape.size()) {
-      layouts[0].format =
-          cldnn::format::get_default_format(transposed_input0_pshape.size());
+        layouts[0].format = cldnn::format::get_default_format(transposed_input0_pshape.size());
     }
     layouts[0].set_partial_shape(transposed_input0_pshape);
     layouts[0].data_padding = get_transposed_padding(layouts[0].data_padding, input_rank, input_format_rank, primitive->transpose_input0 != 0u, true);
@@ -259,9 +252,7 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
     return layouts;
 }
 
-layout gemm_inst::transform_output_layout(const std::shared_ptr<const gemm> primitive,
-                                          const std::vector<layout>& input_layouts,
-                                          const layout& output_layout) {
+layout gemm_inst::transform_output_layout(const std::shared_ptr<const gemm> primitive, const std::vector<layout>& input_layouts, const layout& output_layout) {
     auto transpose_pshape = [](const ov::PartialShape& pshape, const std::vector<int64_t>& transpose_order) {
         ov::PartialShape transposed_pshape = pshape;
         auto rank_diff = pshape.size() - transpose_order.size();
@@ -278,8 +269,7 @@ layout gemm_inst::transform_output_layout(const std::shared_ptr<const gemm> prim
         ov::PartialShape transposed_input0_pshape = transpose_pshape(input_layouts[0].get_partial_shape(), primitive->input0_transpose_order);
         ov::PartialShape transposed_input1_pshape = transpose_pshape(input_layouts[1].get_partial_shape(), primitive->input1_transpose_order);
 
-        auto M = (transposed_input0_pshape.size() > 1) ? transposed_input0_pshape[transposed_input0_pshape.size() - 2]
-                                                       : transposed_input0_pshape[0];
+        auto M = (transposed_input0_pshape.size() > 1) ? transposed_input0_pshape[transposed_input0_pshape.size() - 2] : transposed_input0_pshape[0];
         auto N = transposed_input1_pshape[transposed_input1_pshape.size() - 1];
 
         auto output_pshape = transposed_input0_pshape;
@@ -294,10 +284,8 @@ layout gemm_inst::transform_output_layout(const std::shared_ptr<const gemm> prim
                     output_pshape[j] = std::max(output_pshape[j].get_length(), input_pshape[j].get_length());
                 } else {
                     ov::Dimension broadcasted_dim;
-                    if (ov::Dimension::broadcast_merge(broadcasted_dim,
-                                                       output_pshape[j],
-                                                       input_pshape[j])) {
-                      output_pshape[j] = std::move(broadcasted_dim);
+                    if (ov::Dimension::broadcast_merge(broadcasted_dim, output_pshape[j], input_pshape[j])) {
+                        output_pshape[j] = std::move(broadcasted_dim);
                     }
                 }
             }
@@ -320,7 +308,7 @@ layout gemm_inst::transform_output_layout(const std::shared_ptr<const gemm> prim
     return updated_output_layout;
 }
 
-std::string gemm_inst::to_string(gemm_node const& node) {
+std::string gemm_inst::to_string(const gemm_node& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
     auto alpha = desc->alpha;
@@ -351,5 +339,5 @@ std::string gemm_inst::to_string(gemm_node const& node) {
     return primitive_description.str();
 }
 
-gemm_inst::typed_primitive_inst(network& network, gemm_node const& node) : parent(network, node) {}
+gemm_inst::typed_primitive_inst(network& network, const gemm_node& node) : parent(network, node) {}
 }  // namespace cldnn

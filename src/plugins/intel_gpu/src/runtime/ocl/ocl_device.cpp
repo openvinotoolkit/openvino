@@ -5,47 +5,47 @@
 #include "ocl_device.hpp"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-#ifndef NOMINMAX
-# define NOMINMAX
-#endif
-#include "gpu/intel/jit/generator.hpp"
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include "gpu/intel/jit/generator.hpp"
 #endif
 
-#include "ocl_common.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
-
-#include <map>
-#include <string>
-#include <vector>
 #include <algorithm>
-#include <unordered_map>
-#include <string>
 #include <cassert>
-#include <ctime>
-#include <limits>
 #include <chrono>
+#include <ctime>
 #include <fstream>
 #include <iostream>
+#include <limits>
+#include <map>
+#include <string>
+#include <unordered_map>
 #include <utility>
+#include <vector>
+
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "ocl_common.hpp"
 
 #ifdef _WIN32
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-#include <setupapi.h>
-#include <devguid.h>
-#include <cstring>
-#else
-#include <unistd.h>
-#include <climits>
-#include <link.h>
-#include <dlfcn.h>
-#endif
+#    ifndef WIN32_LEAN_AND_MEAN
+#        define WIN32_LEAN_AND_MEAN
+#    endif
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include <devguid.h>
+#    include <setupapi.h>
+#    include <windows.h>
 
+#    include <cstring>
+#else
+#    include <dlfcn.h>
+#    include <link.h>
+#    include <unistd.h>
+
+#    include <climits>
+#endif
 
 namespace cldnn {
 namespace ocl {
@@ -55,26 +55,34 @@ namespace {
 #if defined(ENABLE_ONEDNN_FOR_GPU) && defined(OV_GPU_WITH_OCL_RT)
 gpu_arch convert_ngen_arch(ngen::HW gpu_arch) {
     switch (gpu_arch) {
-        case ngen::HW::Gen9: return gpu_arch::gen9;
-        case ngen::HW::Gen11: return gpu_arch::gen11;
-        case ngen::HW::XeLP: return gpu_arch::xe_lp;
-        case ngen::HW::XeHP: return gpu_arch::xe_hp;
-        case ngen::HW::XeHPG: return gpu_arch::xe_hpg;
-        case ngen::HW::XeHPC: OPENVINO_THROW("[GPU] XeHPC is not supported");
-        case ngen::HW::Xe2: return gpu_arch::xe2;
-        case ngen::HW::Xe3: return gpu_arch::xe3;
-        case ngen::HW::Xe3p: return gpu_arch::xe3p;
-        case ngen::HW::Gen10:
-        case ngen::HW::Unknown: return gpu_arch::unknown;
+    case ngen::HW::Gen9:
+        return gpu_arch::gen9;
+    case ngen::HW::Gen11:
+        return gpu_arch::gen11;
+    case ngen::HW::XeLP:
+        return gpu_arch::xe_lp;
+    case ngen::HW::XeHP:
+        return gpu_arch::xe_hp;
+    case ngen::HW::XeHPG:
+        return gpu_arch::xe_hpg;
+    case ngen::HW::XeHPC:
+        OPENVINO_THROW("[GPU] XeHPC is not supported");
+    case ngen::HW::Xe2:
+        return gpu_arch::xe2;
+    case ngen::HW::Xe3:
+        return gpu_arch::xe3;
+    case ngen::HW::Xe3p:
+        return gpu_arch::xe3p;
+    case ngen::HW::Gen10:
+    case ngen::HW::Unknown:
+        return gpu_arch::unknown;
     }
     return gpu_arch::unknown;
 }
 #endif
 
 int driver_dev_id() {
-    const std::vector<int> unused_ids = {
-        0x4905, 0x4906, 0x4907, 0x4908
-    };
+    const std::vector<int> unused_ids = {0x4905, 0x4906, 0x4907, 0x4908};
     std::vector<int> result;
 
 #ifdef _WIN32
@@ -109,7 +117,7 @@ int driver_dev_id() {
     }
 #elif defined(__linux__)
     {
-        std::string dev_base{ "/sys/devices/pci0000:00/0000:00:02.0/" };
+        std::string dev_base{"/sys/devices/pci0000:00/0000:00:02.0/"};
         std::ifstream ifs(dev_base + "vendor");
         if (ifs.good()) {
             int ven_id;
@@ -129,16 +137,15 @@ int driver_dev_id() {
 
     auto id_itr = result.begin();
     while (id_itr != result.end()) {
-      if (std::find(unused_ids.begin(), unused_ids.end(), *id_itr) !=
-          unused_ids.end()) {
-        id_itr = result.erase(id_itr);
-      } else {
-        id_itr++;
-      }
+        if (std::find(unused_ids.begin(), unused_ids.end(), *id_itr) != unused_ids.end()) {
+            id_itr = result.erase(id_itr);
+        } else {
+            id_itr++;
+        }
     }
 
     if (result.empty()) {
-      return 0;
+        return 0;
     }
     return result.back();
 }
@@ -148,7 +155,6 @@ device_type get_device_type(const cl::Device& device) {
 
     return unified_mem ? device_type::integrated_gpu : device_type::discrete_gpu;
 }
-
 
 gfx_version parse_version(cl_uint gmdid) {
     union GMDID {
@@ -164,38 +170,32 @@ gfx_version parse_version(cl_uint gmdid) {
     GMDID gmd_id = {gmdid};
     if (gmd_id.architecture > 0 && gmd_id.architecture < 100) {
         // New format
-        return { static_cast<uint16_t>(gmd_id.architecture), static_cast<uint8_t>(gmd_id.release), static_cast<uint8_t>(gmd_id.revision)};
+        return {static_cast<uint16_t>(gmd_id.architecture), static_cast<uint8_t>(gmd_id.release), static_cast<uint8_t>(gmd_id.revision)};
     }  // Old format
-        cl_uint ver = gmdid;
-        uint16_t major = ver >> 16;
-        uint8_t minor = (ver >> 8) & 0xFF;
-        uint8_t revision = ver & 0xFF;
+    cl_uint ver = gmdid;
+    uint16_t major = ver >> 16;
+    uint8_t minor = (ver >> 8) & 0xFF;
+    uint8_t revision = ver & 0xFF;
 
-        return {major, minor, revision};
+    return {major, minor, revision};
 }
 
 bool get_imad_support(const cl::Device& device) {
     std::string dev_name = device.getInfo<CL_DEVICE_NAME>();
 
-    if (dev_name.find("Gen12") != std::string::npos ||
-        dev_name.find("Xe") != std::string::npos) {
-      return true;
+    if (dev_name.find("Gen12") != std::string::npos || dev_name.find("Xe") != std::string::npos) {
+        return true;
     }
 
     if (get_device_type(device) == device_type::integrated_gpu) {
-        const std::vector<int> imad_ids = {
-            0x9A40, 0x9A49, 0x9A59, 0x9AD9,
-            0x9A60, 0x9A68, 0x9A70, 0x9A78,
-            0x9A7F, 0x9AF8, 0x9AC0, 0x9AC9
-        };
+        const std::vector<int> imad_ids = {0x9A40, 0x9A49, 0x9A59, 0x9AD9, 0x9A60, 0x9A68, 0x9A70, 0x9A78, 0x9A7F, 0x9AF8, 0x9AC0, 0x9AC9};
         int dev_id = driver_dev_id();
         if (dev_id == 0) {
-          return false;
+            return false;
         }
 
-        if (std::find(imad_ids.begin(), imad_ids.end(), dev_id) !=
-            imad_ids.end()) {
-          return true;
+        if (std::find(imad_ids.begin(), imad_ids.end(), dev_id) != imad_ids.end()) {
+            return true;
         }
     } else {
         return true;
@@ -214,7 +214,7 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
 
     info.cacheline_size = device.getInfo<CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE>();
     // Alignment requirement (in bits) for sub-buffer offsets, converting to bytes and ensuring at least 1 byte alignment.
-    auto bits = device.getInfo<CL_DEVICE_MEM_BASE_ADDR_ALIGN>(); 
+    auto bits = device.getInfo<CL_DEVICE_MEM_BASE_ADDR_ALIGN>();
     info.sub_buffer_base_alignment = std::max<uint32_t>(1, bits / 8);
     info.execution_units_count = device.getInfo<CL_DEVICE_MAX_COMPUTE_UNITS>();
 
@@ -267,9 +267,9 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     auto query_device_bool = [&](cl_device_info param) -> bool {
         cl_bool value = CL_FALSE;
         try {
-          if (device.getInfo(param, &value) != CL_SUCCESS) {
-            return false;
-          }
+            if (device.getInfo(param, &value) != CL_SUCCESS) {
+                return false;
+            }
         } catch (const cl::Error&) {
             return false;
         }
@@ -312,8 +312,7 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
 
         info.supports_imad = info.supports_imad || ((features & CL_DEVICE_FEATURE_FLAG_DP4A_INTEL) != 0u);
         info.supports_immad = info.supports_immad || ((features & CL_DEVICE_FEATURE_FLAG_DPAS_INTEL) != 0u);
-        if (info.dev_type == device_type::discrete_gpu ||
-            info.gfx_ver.major > 12 || (info.gfx_ver.major == 12 && info.gfx_ver.minor >= 70)) {
+        if (info.dev_type == device_type::discrete_gpu || info.gfx_ver.major > 12 || (info.gfx_ver.major == 12 && info.gfx_ver.minor >= 70)) {
             info.has_separate_cache = true;
         }
     } else if (nv_device_attr_supported) {
@@ -376,28 +375,38 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
             info.supports_immad = false;
         }
     }
-#else  // ENABLE_ONEDNN_FOR_GPU
+#else   // ENABLE_ONEDNN_FOR_GPU
     info.arch = gpu_arch::unknown;
 #endif  // ENABLE_ONEDNN_FOR_GPU
 
     auto arch_to_string = [](gpu_arch arch) -> const char* {
         switch (arch) {
-            case gpu_arch::unknown: return "unknown";
-            case gpu_arch::gen9:    return "gen9";
-            case gpu_arch::gen11:   return "gen11";
-            case gpu_arch::xe_lp:   return "xe_lp";
-            case gpu_arch::xe_hp:   return "xe_hp";
-            case gpu_arch::xe_hpg:  return "xe_hpg";
-            case gpu_arch::xe_hpc:  return "xe_hpc";
-            case gpu_arch::xe2:     return "xe2";
-            case gpu_arch::xe3:     return "xe3";
-            case gpu_arch::xe3p:    return "xe3p";
+        case gpu_arch::unknown:
+            return "unknown";
+        case gpu_arch::gen9:
+            return "gen9";
+        case gpu_arch::gen11:
+            return "gen11";
+        case gpu_arch::xe_lp:
+            return "xe_lp";
+        case gpu_arch::xe_hp:
+            return "xe_hp";
+        case gpu_arch::xe_hpg:
+            return "xe_hpg";
+        case gpu_arch::xe_hpc:
+            return "xe_hpc";
+        case gpu_arch::xe2:
+            return "xe2";
+        case gpu_arch::xe3:
+            return "xe3";
+        case gpu_arch::xe3p:
+            return "xe3p";
         }
         return "unknown";
     };
-    GPU_DEBUG_INFO << "GPU architecture: " << arch_to_string(info.arch) << ", version: "
-        << static_cast<int>(info.gfx_ver.major) << "." << static_cast<int>(info.gfx_ver.minor) << "." << static_cast<int>(info.gfx_ver.revision)
-        << (info.has_separate_cache ? " with separate cache" : "") << std::endl;
+    GPU_DEBUG_INFO << "GPU architecture: " << arch_to_string(info.arch) << ", version: " << static_cast<int>(info.gfx_ver.major) << "."
+                   << static_cast<int>(info.gfx_ver.minor) << "." << static_cast<int>(info.gfx_ver.revision)
+                   << (info.has_separate_cache ? " with separate cache" : "") << std::endl;
 
     return info;
 }
@@ -405,7 +414,8 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
 bool does_device_support(int32_t param, const cl::Device& device) {
     cl_device_unified_shared_memory_capabilities_intel capabilities;
     auto err = clGetDeviceInfo(device.get(), param, sizeof(cl_device_unified_shared_memory_capabilities_intel), &capabilities, nullptr);
-    if (err) throw std::runtime_error("[CLDNN ERROR]. clGetDeviceInfo error " + std::to_string(err));
+    if (err)
+        throw std::runtime_error("[CLDNN ERROR]. clGetDeviceInfo error " + std::to_string(err));
 
     return !((capabilities & CL_UNIFIED_SHARED_MEMORY_ACCESS_INTEL) == 0u);
 }
@@ -437,20 +447,20 @@ void ocl_device::initialize_context(const cl::Context& ctx) {
 }
 
 ocl_device::ocl_device(const cl::Device dev, const cl::Context& ctx, const cl::Platform& platform, bool initialize_ctx)
-: _device(dev)
-, _platform(platform)
-, _info(init_device_info(dev, ctx))
-, _mem_caps(init_memory_caps(dev, _info)) {
+    : _device(dev),
+      _platform(platform),
+      _info(init_device_info(dev, ctx)),
+      _mem_caps(init_memory_caps(dev, _info)) {
     if (initialize_ctx) {
         initialize_context(ctx);
     }
 }
 
 ocl_device::ocl_device(const ocl_device::ptr other, bool initialize_ctx)
-: _device(other->_device)
-, _platform(other->_platform)
-, _info(other->_info)
-, _mem_caps(other->_mem_caps) {
+    : _device(other->_device),
+      _platform(other->_platform),
+      _info(other->_info),
+      _mem_caps(other->_mem_caps) {
     if (initialize_ctx) {
         initialize_context(other->_context);
     }
@@ -459,13 +469,12 @@ ocl_device::ocl_device(const ocl_device::ptr other, bool initialize_ctx)
 bool ocl_device::is_same(const device::ptr other) {
     auto* casted = downcast<ocl_device>(other.get());
     if (!casted) {
-      return false;
+        return false;
     }
 
     // Short path if cl_device is the same
-    if (_platform == casted->_platform && _device.get() &&
-        casted->_device.get() && _device == casted->_device) {
-      return true;
+    if (_platform == casted->_platform && _device.get() && casted->_device.get() && _device == casted->_device) {
+        return true;
     }
     return _info.is_same_device(casted->_info);
 }
@@ -479,9 +488,9 @@ void ocl_device::set_sub_device_idx(uint32_t idx) {
 }
 
 void ocl_device::initialize() {
-  if (_is_initialized) {
-    return;
-  }
+    if (_is_initialized) {
+        return;
+    }
 
     ocl::ocl_device_detector detector;
     auto device_map = detector.get_available_devices(nullptr, nullptr, 0, -1, false);

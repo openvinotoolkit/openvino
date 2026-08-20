@@ -3,12 +3,14 @@
 //
 
 #include "convolution_kernel_b_fs_zyx_fsv16_imad.h"
-#include "kernel_selector_utils.h"
-#include "common_tools.h"
-#include <vector>
-#include <string>
-#include <iostream>
+
 #include <algorithm>
+#include <iostream>
+#include <string>
+#include <vector>
+
+#include "common_tools.h"
+#include "kernel_selector_utils.h"
 
 //
 // Kernel specific constants
@@ -28,13 +30,13 @@ static size_t getOutBlock_X(const size_t output_size_x, const size_t stride_x, c
     size_t max_block_size = std::min((min_in_block_simds * simd - 1 - (filter_size_x - 1) * dilation_x) / stride_x + 1, output_size_x);
 
     if (output_size_x <= max_block_size) {
-      return output_size_x;
+        return output_size_x;
     }
 
     for (size_t block = 4; block <= max_block_size; ++block) {
-      if (output_size_x % block == 0) {
-        output_block_width = block;
-      }
+        if (output_size_x % block == 0) {
+            output_block_width = block;
+        }
     }
     if (output_block_width == 0 && output_size_x < max_block_size * 3) {
         size_t min_overhang = max_block_size;
@@ -55,8 +57,7 @@ static size_t getOutBlock_X(const size_t output_size_x, const size_t stride_x, c
 
 namespace kernel_selector {
 
-Convolution_kernel_b_fs_zyx_fsv16_imad::BlockParams
-Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params& params) const {
+Convolution_kernel_b_fs_zyx_fsv16_imad::BlockParams Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params& params) const {
     size_t max_block_width = 1;
     if (!params.outputs[0].X().is_dynamic) {
         max_block_width = getOutBlock_X(params.outputs[0].X().v, params.stride.x, params.filterSize.x, params.dilation.x);
@@ -82,7 +83,7 @@ Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params&
     size_t in_block_depth = 1;
 
     // Estimate basic block params ratio
-    auto test_block_params = BlockParams{ block_width, 1, 1, simd, in_block_width, 1, 1, 1 };
+    auto test_block_params = BlockParams{block_width, 1, 1, simd, in_block_width, 1, 1, 1};
 
     // Use default block parameters for asymmetric weights quantization for devices with immad support due to unoptimized tuning
     if ((params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS || params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) &&
@@ -98,18 +99,17 @@ Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params&
     if (params.is_shape_agnostic) {
         max_slm_split = 2;
     } else if (params.engineInfo.deviceType == dev_type::integrated_gpu && params.engineInfo.computeUnitsCount == 96) {
-        bool split_exception_1 = params.outputs[0].X().v == 3 && params.outputs[0].Y().v == 3 && params.outputs[0].Z().v == 1
-                                 && params.outputs[0].Feature().v == 512;
-        bool split_exception_2 = params.outputs[0].X().v == 5 && params.outputs[0].Y().v == 5 && params.outputs[0].Z().v == 1
-                                 && params.outputs[0].Feature().v == 256;
-        bool split_exception_3 = params.outputs[0].X().v == 9 && params.outputs[0].Y().v == 9 && params.outputs[0].Z().v == 1
-                                 && params.outputs[0].Feature().v == 128;
-        bool split_exception_4 = params.outputs[0].X().v == 18 && params.outputs[0].Y().v == 18 && params.outputs[0].Z().v == 1
-                                 && params.outputs[0].Feature().v == 64;
+        bool split_exception_1 =
+            params.outputs[0].X().v == 3 && params.outputs[0].Y().v == 3 && params.outputs[0].Z().v == 1 && params.outputs[0].Feature().v == 512;
+        bool split_exception_2 =
+            params.outputs[0].X().v == 5 && params.outputs[0].Y().v == 5 && params.outputs[0].Z().v == 1 && params.outputs[0].Feature().v == 256;
+        bool split_exception_3 =
+            params.outputs[0].X().v == 9 && params.outputs[0].Y().v == 9 && params.outputs[0].Z().v == 1 && params.outputs[0].Feature().v == 128;
+        bool split_exception_4 =
+            params.outputs[0].X().v == 18 && params.outputs[0].Y().v == 18 && params.outputs[0].Z().v == 1 && params.outputs[0].Feature().v == 64;
 
-        if (split_exception_1 || split_exception_2 || split_exception_3 ||
-            split_exception_4) {
-          max_slm_split = 2;
+        if (split_exception_1 || split_exception_2 || split_exception_3 || split_exception_4) {
+            max_slm_split = 2;
         }
     }
 
@@ -133,13 +133,13 @@ Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params&
         for (size_t split = 1; split <= max_slm_split; split *= 2) {
             for (size_t temp_block_features = simd; temp_block_features <= simd * 2; temp_block_features += simd) {
                 for (size_t d = 1; d < max_d; ++d) {
-                  if (d != 1 && ((params.outputs[0].Z().v % d) != 0u)) {
-                    continue;
-                  }
-                    for (size_t h = 1; h < max_h; ++h) {
-                      if (h != 1 && ((params.outputs[0].Y().v % h) != 0u)) {
+                    if (d != 1 && ((params.outputs[0].Z().v % d) != 0u)) {
                         continue;
-                      }
+                    }
+                    for (size_t h = 1; h < max_h; ++h) {
+                        if (h != 1 && ((params.outputs[0].Y().v % h) != 0u)) {
+                            continue;
+                        }
 
                         bool c_ifm_mul = CeilDiv(params.weights.IFM().v, fsv) % split == 0;
                         bool c_mul_f = temp_block_features == simd ? true : params.weights.OFM().v % temp_block_features == 0;
@@ -157,8 +157,14 @@ Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params&
                         }
 
                         // Estimate current block params ratio
-                        test_block_params = BlockParams{ temp_block_width, temp_block_height, temp_block_depth, temp_block_features,
-                                                         temp_in_block_width, temp_in_block_height, temp_in_block_depth, split };
+                        test_block_params = BlockParams{temp_block_width,
+                                                        temp_block_height,
+                                                        temp_block_depth,
+                                                        temp_block_features,
+                                                        temp_in_block_width,
+                                                        temp_in_block_height,
+                                                        temp_in_block_depth,
+                                                        split};
                         auto block_params_ratio = EstimateBlockParamsRatio(params, test_block_params);
 
                         // Try to increase block_params_ratio
@@ -180,12 +186,12 @@ Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params&
                 }
             }
             if (split * fsv >= params.weights.IFM().v) {
-              break;
+                break;
             }
         }
     }
 
-    return BlockParams{ block_width, block_height, block_depth, block_features, in_block_width, in_block_height, in_block_depth, feature_slm_split };
+    return BlockParams{block_width, block_height, block_depth, block_features, in_block_width, in_block_height, in_block_depth, feature_slm_split};
 }
 
 float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateBlockParamsRatio(const convolution_params& params, const BlockParams& block) const {
@@ -225,10 +231,8 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateBlockParamsRatio(const con
         // Exception for z != 1
         bool fb32_exception_z = output.X().v == output.Y().v && output.X().v % 28 == 0 && output.Z().v == 40 && output.Feature().v % 32 == 0;
 
-        if ((output.X().v == output.Y().v && output.Z().v == 1 &&
-             fb32_exceptions) ||
-            fb32_exception_z) {
-          fb32_factor = 1.f;
+        if ((output.X().v == output.Y().v && output.Z().v == 1 && fb32_exceptions) || fb32_exception_z) {
+            fb32_factor = 1.f;
         }
     } else if (occupancy_by_logic_size >= 2500.f) {
         fb32_factor = 0.5f;
@@ -258,11 +262,8 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateBlockParamsRatio(const con
     }
 
     // Estimate current block_params_ratio
-    float block_params_ratio = occupancy +
-                               feature_block_32 * fb32_factor +
-                               slm_usage * slm_usage_factor +
-                               reg_pressure * reg_pressure_factor -
-                               reduce_occupancy;
+    float block_params_ratio =
+        occupancy + feature_block_32 * fb32_factor + slm_usage * slm_usage_factor + reg_pressure * reg_pressure_factor - reduce_occupancy;
 
     // Check all restrictions
     bool bad_block_params = reg_pressure > max_reg_pressure || slm_usage > max_slm_usage || (occupancy < 1.0f && can_increase_occupancy);
@@ -315,28 +316,25 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateOccupancy(const convolutio
 }
 
 float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateSLMUsage(const convolution_params& params, const BlockParams& block) const {
-  if (block.feature_slm_split == 1) {
-    return 0.f;
-  }
+    if (block.feature_slm_split == 1) {
+        return 0.f;
+    }
 
-    size_t slm_elements_per_work_group = block.output_block_width * block.output_block_height * block.output_block_depth *
-                                         block.output_block_features * (block.feature_slm_split - 1);
+    size_t slm_elements_per_work_group =
+        block.output_block_width * block.output_block_height * block.output_block_depth * block.output_block_features * (block.feature_slm_split - 1);
     size_t slm_bytes_per_work_group = slm_elements_per_work_group * BytesPerElement(GetAccumulatorType(params));
 
     // Check maxLocalMemSize limitations
     size_t max_slm_bytes_per_sub_slice = params.engineInfo.maxLocalMemSize;
     if (slm_bytes_per_work_group > max_slm_bytes_per_sub_slice) {
-      return 0.f;
+        return 0.f;
     }
 
     // Estimate work groups number
     const auto& output = params.outputs[0];
-    size_t work_groups_number = CeilDiv(output.X().v, block.output_block_width) *
-                                CeilDiv(output.Y().v, block.output_block_height) *
-                                CeilDiv(output.Z().v, block.output_block_depth) *
-                                output.Batch().v *
-                                CeilDiv(params.weights.OFM().v, block.output_block_features) *
-                                params.groups;
+    size_t work_groups_number = CeilDiv(output.X().v, block.output_block_width) * CeilDiv(output.Y().v, block.output_block_height) *
+                                CeilDiv(output.Z().v, block.output_block_depth) * output.Batch().v *
+                                CeilDiv(params.weights.OFM().v, block.output_block_features) * params.groups;
 
     // Check work groups per device limitations
     size_t max_threads_per_compute_unit = static_cast<size_t>(params.engineInfo.maxThreadsPerExecutionUnit);
@@ -345,31 +343,28 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateSLMUsage(const convolution
     size_t max_sub_slices_per_device = params.engineInfo.computeUnitsCount / max_compute_units_per_sub_slice;
     size_t max_work_groups_per_device = max_sub_slices_per_device * max_work_groups_per_sub_slice;
     if (work_groups_number > max_work_groups_per_device * 100) {
-      return 0.f;
+        return 0.f;
     }
 
     // Estimate work groups number in sub slice
     size_t threads_per_work_group = block.feature_slm_split;
     size_t threads_per_sub_slice = max_threads_per_compute_unit * max_compute_units_per_sub_slice;
     size_t current_max_work_groups_per_sub_slice = threads_per_sub_slice / threads_per_work_group;
-    while (current_max_work_groups_per_sub_slice * slm_bytes_per_work_group >
-           max_slm_bytes_per_sub_slice) {
-      current_max_work_groups_per_sub_slice--;
+    while (current_max_work_groups_per_sub_slice * slm_bytes_per_work_group > max_slm_bytes_per_sub_slice) {
+        current_max_work_groups_per_sub_slice--;
     }
 
     // The best scenario for slm usage from the point of view of time spending is a case with 1 work group per sub slice
     // due to time isn't spent on waiting of synchronizations between work groups in sub slice
     if (current_max_work_groups_per_sub_slice == 1) {
-      return 1.0;
+        return 1.0;
     }
 
     // Estimate the size of the SLM memory used
     float max_slm_bytes_per_work_group = static_cast<float>(max_slm_bytes_per_sub_slice) / static_cast<float>(current_max_work_groups_per_sub_slice);
     max_slm_bytes_per_work_group = static_cast<float>(Align(static_cast<size_t>(max_slm_bytes_per_work_group), 1024));
-    if (max_slm_bytes_per_work_group *
-            static_cast<float>(current_max_work_groups_per_sub_slice) >
-        static_cast<float>(max_slm_bytes_per_sub_slice)) {
-      max_slm_bytes_per_work_group -= 1024.0;
+    if (max_slm_bytes_per_work_group * static_cast<float>(current_max_work_groups_per_sub_slice) > static_cast<float>(max_slm_bytes_per_sub_slice)) {
+        max_slm_bytes_per_work_group -= 1024.0;
     }
 
     return static_cast<float>(slm_bytes_per_work_group) / static_cast<float>(max_slm_bytes_per_work_group);
@@ -419,8 +414,7 @@ KernelsData Convolution_kernel_b_fs_zyx_fsv16_imad::GetKernelsData(const Params&
     return GetCommonKernelsData(params);
 }
 
-JitConstants Convolution_kernel_b_fs_zyx_fsv16_imad::GetJitConstants(const convolution_params& params,
-                                                                     const DispatchData& dispatchData) const {
+JitConstants Convolution_kernel_b_fs_zyx_fsv16_imad::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
     auto mem_consts = Parent::GetJitConstants(params, dispatchData);
 
     auto block_params = GetBlockParams(params);
@@ -444,12 +438,12 @@ JitConstants Convolution_kernel_b_fs_zyx_fsv16_imad::GetJitConstants(const convo
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
-        std::vector<std::string> idx_order = { "out_b", "(out_f + ofb * 16)", "(out_y + oh)", "(out_x + ow)" };
+        std::vector<std::string> idx_order = {"out_b", "(out_f + ofb * 16)", "(out_y + oh)", "(out_x + ow)"};
         if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
-            idx_order = { "out_b", "(out_f + ofb * 16)", "(out_z + od)", "(out_y + oh)", "(out_x + ow)" };
+            idx_order = {"out_b", "(out_f + ofb * 16)", "(out_z + od)", "(out_y + oh)", "(out_x + ow)"};
         }
 
-        std::vector<Tensor::DataChannelName> loop_axes = { Tensor::DataChannelName::X };
+        std::vector<Tensor::DataChannelName> loop_axes = {Tensor::DataChannelName::X};
 
         if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
             if (block_params.output_block_depth != 1) {
@@ -465,13 +459,7 @@ JitConstants Convolution_kernel_b_fs_zyx_fsv16_imad::GetJitConstants(const convo
             idx_order[idx_order.size() - 2] = "out_y";
         }
 
-        FusedOpsConfiguration conf_scalar = { "_SCALAR",
-                                              idx_order,
-                                              "dequantized_val",
-                                              input_dt,
-                                              1,
-                                              LoadType::LT_UNALIGNED,
-                                              BoundaryCheck::DISABLED };
+        FusedOpsConfiguration conf_scalar = {"_SCALAR", idx_order, "dequantized_val", input_dt, 1, LoadType::LT_UNALIGNED, BoundaryCheck::DISABLED};
         conf_scalar.SetLoopAxes(loop_axes, true);
 
         mem_consts.Merge(MakeFusedOpsJitConstants(params, {conf_scalar}));
@@ -480,8 +468,7 @@ JitConstants Convolution_kernel_b_fs_zyx_fsv16_imad::GetJitConstants(const convo
     return mem_consts;
 }  // GetJitConstants
 
-ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_zyx_fsv16_imad::SetDefault(const convolution_params& params,
-                                                                                       int) const {
+ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_zyx_fsv16_imad::SetDefault(const convolution_params& params, int) const {
     const BlockParams& block_params = GetBlockParams(params);
     return CalcDispatchDataWithBlockParams(params, block_params);
 }  // SetDefault
@@ -494,8 +481,8 @@ ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_zyx_fsv16_imad::Calc
 
     dispatchData.gws[0] = CeilDiv(output.X().v, block_params.output_block_width);
     dispatchData.gws[1] = CeilDiv(output.Y().v, block_params.output_block_height) * CeilDiv(output.Z().v, block_params.output_block_depth);
-    dispatchData.gws[2] = output.Batch().v * CeilDiv(weights.OFM().v, block_params.output_block_features) *
-                          params.groups * simd * block_params.feature_slm_split;
+    dispatchData.gws[2] =
+        output.Batch().v * CeilDiv(weights.OFM().v, block_params.output_block_features) * params.groups * simd * block_params.feature_slm_split;
 
     dispatchData.lws[0] = 1;
     dispatchData.lws[1] = 1;
@@ -503,10 +490,14 @@ ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_zyx_fsv16_imad::Calc
 
     dispatchData.cldnnStyle = {0, 0, 0, 0, 0};
     dispatchData.gemmStyle = {0, 0, 0, 0, 0, 0};
-    dispatchData.blockParams = { block_params.output_block_width, block_params.output_block_height,
-                                 block_params.output_block_depth, block_params.output_block_features,
-                                 block_params.input_block_width, block_params.input_block_height,
-                                 block_params.input_block_depth, block_params.feature_slm_split };
+    dispatchData.blockParams = {block_params.output_block_width,
+                                block_params.output_block_height,
+                                block_params.output_block_depth,
+                                block_params.output_block_features,
+                                block_params.input_block_width,
+                                block_params.input_block_height,
+                                block_params.input_block_depth,
+                                block_params.feature_slm_split};
     return dispatchData;
 }
 
@@ -514,11 +505,9 @@ KernelsPriority Convolution_kernel_b_fs_zyx_fsv16_imad::GetKernelsPriority(const
     const auto& p = static_cast<const convolution_params&>(params);
 
     if (!p.is_shape_agnostic) {
-      if (static_cast<float>(p.weights.IFM().v) /
-              static_cast<float>(Align(p.weights.IFM().v, fsv)) <
-          0.5f) {
-        return FORCE_PRIORITY_4;
-      }
+        if (static_cast<float>(p.weights.IFM().v) / static_cast<float>(Align(p.weights.IFM().v, fsv)) < 0.5f) {
+            return FORCE_PRIORITY_4;
+        }
         return FORCE_PRIORITY_2;
     }
     return FORCE_PRIORITY_4;
@@ -533,13 +522,11 @@ bool Convolution_kernel_b_fs_zyx_fsv16_imad::Validate(const Params& params) cons
     convolution_params& conv_params = *static_cast<convolution_params*>(kd.params.get());
 
     if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS) {
-        if ((conv_params.activations_zero_points.empty() || conv_params.weights_zero_points.empty()) &&
-            (conv_params.compensation.empty())) {
+        if ((conv_params.activations_zero_points.empty() || conv_params.weights_zero_points.empty()) && (conv_params.compensation.empty())) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
         }
     } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA) {
-        if ((conv_params.activations_zero_points.empty()) &&
-            (conv_params.compensation.empty())) {
+        if ((conv_params.activations_zero_points.empty()) && (conv_params.compensation.empty())) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
         }
     } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
@@ -547,9 +534,7 @@ bool Convolution_kernel_b_fs_zyx_fsv16_imad::Validate(const Params& params) cons
             DO_NOT_USE_THIS_KERNEL(params.layerID);
         }
     } else {
-        if (!conv_params.activations_zero_points.empty() ||
-            !conv_params.weights_zero_points.empty() ||
-            !conv_params.compensation.empty()) {
+        if (!conv_params.activations_zero_points.empty() || !conv_params.weights_zero_points.empty() || !conv_params.compensation.empty()) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
         }
     }

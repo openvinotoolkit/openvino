@@ -2,19 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+#include <memory>
+#include <stdexcept>
+#include <vector>
 
-#include "pass_manager.h"
-#include "program_node.h"
+#include "assign_inst.h"
 #include "convert_color_inst.h"
 #include "fully_connected_inst.h"
 #include "gated_mlp_inst.h"
-#include "assign_inst.h"
 #include "mvn_inst.h"
-
-#include <algorithm>
-#include <memory>
-#include <vector>
-#include <stdexcept>
+#include "pass_manager.h"
+#include "program_node.h"
 
 using namespace cldnn;
 
@@ -26,7 +25,7 @@ void eliminate_pad_for_onednn_impl(program& p, program_node& node) {
     for (size_t idx = 0; idx < node.get_dependencies().size(); idx++) {
         const auto& input = node.get_dependency(idx);
         if (!input.is_in_data_flow() || input.is_constant()) {
-          continue;
+            continue;
         }
         if (input.get_output_layout().data_padding) {
             has_paddings = true;
@@ -51,7 +50,7 @@ void eliminate_pad_for_onednn_impl(program& p, program_node& node) {
             auto& input = *node_and_port.first;
             auto port = node_and_port.second;
             if (!input.is_in_data_flow() || input.is_constant()) {
-              continue;
+                continue;
             }
 
             const auto& in_layout = input.get_output_layout(false, port);
@@ -100,7 +99,7 @@ void eliminate_pad_for_onednn_impl(program& p, program_node& node) {
         return;
     }
 }
-} // namespace
+}  // namespace
 
 /*
 This pass checks if data formats (layouts) of output/input in hidden layers match.
@@ -116,12 +115,11 @@ void add_required_reorders::add_reorder(program& p, program_node* node, program_
     reorder_layout.data_type = usr->get_output_layout().data_type;
 
     if (keep_original_dt) {
-      reorder_layout.data_type = node->get_output_layout().data_type;
+        reorder_layout.data_type = node->get_output_layout().data_type;
     }
 
     // dep index in reorder id distinguishes multi-port edges; otherwise add_intermediate fails on the second pass.
-    auto it = std::find_if(usr->get_dependencies().begin(), usr->get_dependencies().end(),
-    [&](const std::pair<program_node*, int32_t>& dep) {
+    auto it = std::find_if(usr->get_dependencies().begin(), usr->get_dependencies().end(), [&](const std::pair<program_node*, int32_t>& dep) {
         return node == dep.first;
     });
     if (it == usr->get_dependencies().end()) {
@@ -132,8 +130,7 @@ void add_required_reorders::add_reorder(program& p, program_node* node, program_
         throw std::runtime_error("Internal Error: container index out of range exception.");
     }
 
-    auto new_reorder = std::make_shared<reorder>(
-        node->id() + "_reorder_" + usr->id() + "_p" + std::to_string(idx), node->id(), reorder_layout);
+    auto new_reorder = std::make_shared<reorder>(node->id() + "_reorder_" + usr->id() + "_p" + std::to_string(idx), node->id(), reorder_layout);
     auto& new_reorder_node = p.get_or_create(new_reorder);
     new_reorder_node.set_output_layout(reorder_layout, false);
 
@@ -155,7 +152,7 @@ bool add_required_reorders::test_format(cldnn::program_node& node, format reques
         auto current_format = dep->get_output_layout(false, dep_with_port.second).format;
 
         if (dep->is_constant() || format::is_weights_format(current_format)) {
-          continue;
+            continue;
         }
 
         if (dep->is_type<reorder>()) {
@@ -177,10 +174,10 @@ void add_required_reorders::run(program& p) {
     while (usr_itr != p.get_processing_order().end()) {
         const auto& usr = *usr_itr++;
         if (usr->get_dependencies().empty()) {
-          continue; // only nodes with dependencies
+            continue;  // only nodes with dependencies
         }
         if (usr->is_type<data>()) {
-          continue;
+            continue;
         }
 
         if (!usr->is_all_valid_output_layouts()) {
@@ -207,7 +204,7 @@ void add_required_reorders::run(program& p) {
                 auto& eltwise_node = usr->as<eltwise>();
                 auto& dep = usr->get_dependency(i);
                 if (!dep.is_in_data_flow() || dep.is_constant()) {
-                  continue;
+                    continue;
                 }
                 auto dep_layout = dep.get_output_layout();
                 auto out_layout = usr->get_output_layout();
@@ -236,19 +233,17 @@ void add_required_reorders::run(program& p) {
                 // Some kernels use blocked aligned subgroup reads for a vector of elements from dependency tensor
                 // In that case jitter checks that layout of input tensor from fused op is same as output layout or broadcast is possible
                 // The code below is intended to insert additional reorder node for const eltwise dependency to ensure jitter can process such fusion
-                if (!fused_op.is_type<eltwise>() &&
-                    (!fused_op.is_type<activation>() ||
-                     fused_op.total_num_deps != 2)) {
-                  continue;
+                if (!fused_op.is_type<eltwise>() && (!fused_op.is_type<activation>() || fused_op.total_num_deps != 2)) {
+                    continue;
                 }
 
                 if (!fused_op.has_outer_dep()) {
-                  continue;
+                    continue;
                 }
                 auto dep_id = fused_op.outer_dep_start_idx;
                 auto& dep = usr->get_dependency(dep_id);
                 if (!dep.is_type<data>()) {
-                  continue;
+                    continue;
                 }
 
                 auto dep_layout = dep.get_output_layout();
@@ -282,13 +277,12 @@ void add_required_reorders::run(program& p) {
                     new_reorder_node.recalc_output_layout(false);
                 }
             }
-
         }
 
         eliminate_pad_for_onednn_impl(p, *usr);
 
         if (usr->type()->has_impl_for(*usr)) {
-          continue;
+            continue;
         }
 
         bool correct_layout_selected = false;
@@ -303,9 +297,7 @@ void add_required_reorders::run(program& p) {
                         ToDo: Here we should handle also the situation where primitive usr has data inputs in different
                        formats
                     */
-                    layout current_layout(original_layout.get_partial_shape(),
-                                          original_layout.data_type,
-                                          node.first->get_output_layout().format);
+                    layout current_layout(original_layout.get_partial_shape(), original_layout.data_type, node.first->get_output_layout().format);
                     usr->set_output_layout(current_layout, false);
                     if (usr->type()->has_impl_for(*usr)) {
                         correct_layout_selected = true;
@@ -319,14 +311,13 @@ void add_required_reorders::run(program& p) {
             std::vector<cldnn::format> preferred_layout_formats;
             size_t max_in_dims = std::max(cldnn::format::dimension(original_layout.format), static_cast<size_t>(4));
             for (const auto& node : usr->get_dependencies()) {
-              if (format::is_weights_format(
-                      node.first->get_output_layout().format)) {
-                continue;
-              }
+                if (format::is_weights_format(node.first->get_output_layout().format)) {
+                    continue;
+                }
                 max_in_dims = std::max(cldnn::format::dimension(node.first->get_output_layout().format), max_in_dims);
             }
             // This list of preferred layouts has been selected arbitrarily due to developers' experience
-            preferred_layout_formats = { cldnn::format::get_default_format(max_in_dims) };
+            preferred_layout_formats = {cldnn::format::get_default_format(max_in_dims)};
             if (max_in_dims == 8) {
                 preferred_layout_formats.push_back(cldnn::format::bfvuwzyx);
             } else if (max_in_dims == 7) {
@@ -355,8 +346,17 @@ void add_required_reorders::run(program& p) {
         }
 
         OPENVINO_ASSERT(correct_layout_selected,
-                        "[GPU] No layout format available for ", usr->id(),  ", impl_type: ", usr->get_preferred_impl_type(),
-                        " (format: ", original_layout.format.to_string(),
-                        ", data_type: ", ov::element::Type(original_layout.data_type), ") ", original_layout.to_string(), ", ", correct_layout_selected);
+                        "[GPU] No layout format available for ",
+                        usr->id(),
+                        ", impl_type: ",
+                        usr->get_preferred_impl_type(),
+                        " (format: ",
+                        original_layout.format.to_string(),
+                        ", data_type: ",
+                        ov::element::Type(original_layout.data_type),
+                        ") ",
+                        original_layout.to_string(),
+                        ", ",
+                        correct_layout_selected);
     }
 }

@@ -3,9 +3,10 @@
 //
 
 #include "convolution_kernel_b_fs_yx_fsv4_int8.h"
-#include <vector>
-#include <utility>
+
 #include <algorithm>
+#include <utility>
+#include <vector>
 
 namespace kernel_selector {
 constexpr size_t sub_group_size = 16;
@@ -58,9 +59,8 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv4_int8::SetDefa
 KernelsPriority ConvolutionKernel_b_fs_yx_fsv4_int8::GetKernelsPriority(const Params& params) const {
     const auto& p = static_cast<const convolution_params&>(params);
 
-    if (p.outputs[0].X().v > 512 && p.filterSize.x == 5 &&
-        p.filterSize.y == 5) {
-      return FORCE_PRIORITY_2;
+    if (p.outputs[0].X().v > 512 && p.filterSize.x == 5 && p.filterSize.y == 5) {
+        return FORCE_PRIORITY_2;
     }
     return FORCE_PRIORITY_9;
 }
@@ -98,15 +98,15 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv4_int8::GetJitConstants(const convolut
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
-        FusedOpsConfiguration conf0 = { "_0", {"batch", "FILTER_OFM_MAX * iter + ofm + 0", "idy", "idx"}, "res0", input_dt, 1 };
-        FusedOpsConfiguration conf1 = { "_1", {"batch", "FILTER_OFM_MAX * iter + ofm + 1", "idy", "idx"}, "res1", input_dt, 1 };
-        FusedOpsConfiguration conf2 = { "_2", {"batch", "FILTER_OFM_MAX * iter + ofm + 2", "idy", "idx"}, "res2", input_dt, 1 };
-        FusedOpsConfiguration conf3 = { "_3", {"batch", "FILTER_OFM_MAX * iter + ofm + 3", "idy", "idx"}, "res3", input_dt, 1 };
-        FusedOpsConfiguration conf4 = { "_4", {"batch", "FILTER_OFM_MAX * iter + ofm + 0", "idy", "idx"}, "res4", input_dt, 1 };
-        FusedOpsConfiguration conf5 = { "_5", {"batch", "FILTER_OFM_MAX * iter + ofm + 1", "idy", "idx"}, "res5", input_dt, 1 };
-        FusedOpsConfiguration conf6 = { "_6", {"batch", "FILTER_OFM_MAX * iter + ofm + 2", "idy", "idx"}, "res6", input_dt, 1 };
-        FusedOpsConfiguration conf7 = { "_7", {"batch", "FILTER_OFM_MAX * iter + ofm + 3", "idy", "idx"}, "res7", input_dt, 1 };
-        jit.Merge(MakeFusedOpsJitConstants(params, { conf0, conf1, conf2, conf3, conf4, conf5, conf6, conf7 }));
+        FusedOpsConfiguration conf0 = {"_0", {"batch", "FILTER_OFM_MAX * iter + ofm + 0", "idy", "idx"}, "res0", input_dt, 1};
+        FusedOpsConfiguration conf1 = {"_1", {"batch", "FILTER_OFM_MAX * iter + ofm + 1", "idy", "idx"}, "res1", input_dt, 1};
+        FusedOpsConfiguration conf2 = {"_2", {"batch", "FILTER_OFM_MAX * iter + ofm + 2", "idy", "idx"}, "res2", input_dt, 1};
+        FusedOpsConfiguration conf3 = {"_3", {"batch", "FILTER_OFM_MAX * iter + ofm + 3", "idy", "idx"}, "res3", input_dt, 1};
+        FusedOpsConfiguration conf4 = {"_4", {"batch", "FILTER_OFM_MAX * iter + ofm + 0", "idy", "idx"}, "res4", input_dt, 1};
+        FusedOpsConfiguration conf5 = {"_5", {"batch", "FILTER_OFM_MAX * iter + ofm + 1", "idy", "idx"}, "res5", input_dt, 1};
+        FusedOpsConfiguration conf6 = {"_6", {"batch", "FILTER_OFM_MAX * iter + ofm + 2", "idy", "idx"}, "res6", input_dt, 1};
+        FusedOpsConfiguration conf7 = {"_7", {"batch", "FILTER_OFM_MAX * iter + ofm + 3", "idy", "idx"}, "res7", input_dt, 1};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf0, conf1, conf2, conf3, conf4, conf5, conf6, conf7}));
     }
 
     return jit;

@@ -5,11 +5,8 @@
 #include "sink_reshape.hpp"
 
 #include "intel_gpu/op/convolution.hpp"
-#include "openvino/core/rt_info.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/utils/utils.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/divide.hpp"
@@ -26,6 +23,9 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -37,66 +37,59 @@ SinkReshape::SinkReshape() {
 
     auto reshape_predicate = [](const ov::Output<ov::Node>& output) -> bool {
         auto supported_conv_act_post_ops_for_fuse = [](const std::shared_ptr<const Node>& node) -> bool {
-            return ov::is_type<v0::Relu>(node) || ov::is_type<v0::Elu>(node) || ov::is_type<v0::Sigmoid>(node) ||
-                   ov::is_type<v5::HSigmoid>(node) || ov::is_type<v0::Clamp>(node) || ov::is_type<v4::Swish>(node) ||
-                   ov::is_type<v4::HSwish>(node) || ov::is_type<v4::Mish>(node) || ov::is_type<v5::Round>(node) ||
-                   ov::is_type<v4::Mish>(node) || ov::is_type<v5::Round>(node);
+            return ov::is_type<v0::Relu>(node) || ov::is_type<v0::Elu>(node) || ov::is_type<v0::Sigmoid>(node) || ov::is_type<v5::HSigmoid>(node) ||
+                   ov::is_type<v0::Clamp>(node) || ov::is_type<v4::Swish>(node) || ov::is_type<v4::HSwish>(node) || ov::is_type<v4::Mish>(node) ||
+                   ov::is_type<v5::Round>(node) || ov::is_type<v4::Mish>(node) || ov::is_type<v5::Round>(node);
         };
-        auto supported_conv_eltwise_post_ops_for_fuse =
-            [](const std::shared_ptr<const Node> &node) -> bool {
-          if (ov::is_type<v1::Add>(node) || ov::is_type<v1::Subtract>(node) ||
-              ov::is_type<v1::Multiply>(node) ||
-              ov::is_type<v1::Divide>(node)) {
-            return std::dynamic_pointer_cast<v0::Constant>(
-                       node->get_input_node_shared_ptr(1)) != nullptr;
-          }
-          return ov::is_type<v0::Exp>(node);
+        auto supported_conv_eltwise_post_ops_for_fuse = [](const std::shared_ptr<const Node>& node) -> bool {
+            if (ov::is_type<v1::Add>(node) || ov::is_type<v1::Subtract>(node) || ov::is_type<v1::Multiply>(node) || ov::is_type<v1::Divide>(node)) {
+                return std::dynamic_pointer_cast<v0::Constant>(node->get_input_node_shared_ptr(1)) != nullptr;
+            }
+            return ov::is_type<v0::Exp>(node);
         };
         std::function<bool(const std::shared_ptr<ov::Node>&)> is_suitable_parent;
-        is_suitable_parent =
-            [&](const std::shared_ptr<ov::Node> &node) -> bool {
-          if (node->get_users().size() != 1 || node->is_dynamic()) {
+        is_suitable_parent = [&](const std::shared_ptr<ov::Node>& node) -> bool {
+            if (node->get_users().size() != 1 || node->is_dynamic()) {
+                return false;
+            }
+            if (ov::as_type_ptr<op::Convolution>(node)) {
+                return true;
+            }
+            for (size_t idx = 0; idx < node->get_input_size(); idx++) {
+                auto input = node->get_input_node_shared_ptr(idx);
+                if (ov::as_type_ptr<v0::Constant>(node)) {
+                    continue;
+                }
+                if (supported_conv_eltwise_post_ops_for_fuse(node)) {
+                    return is_suitable_parent(input);
+                }
+                if (supported_conv_act_post_ops_for_fuse(node)) {
+                    return is_suitable_parent(input);
+                }
+                return false;
+            }
             return false;
-          }
-          if (ov::as_type_ptr<op::Convolution>(node)) {
-            return true;
-          }
-          for (size_t idx = 0; idx < node->get_input_size(); idx++) {
-            auto input = node->get_input_node_shared_ptr(idx);
-            if (ov::as_type_ptr<v0::Constant>(node)) {
-              continue;
-            }
-            if (supported_conv_eltwise_post_ops_for_fuse(node)) {
-              return is_suitable_parent(input);
-            }
-            if (supported_conv_act_post_ops_for_fuse(node)) {
-              return is_suitable_parent(input);
-            }
-            return false;
-          }
-          return false;
         };
         // reshape supported only in one case, if two consecutive input dims are merged into 1
-        auto is_suitable_reshape =
-            [](const std::shared_ptr<ov::Node> &node) -> bool {
-          if (node->is_dynamic()) {
-            return false;
-          }
-          const auto &in_ps = node->get_input_partial_shape(0);
-          const auto &out_ps = node->get_output_partial_shape(0);
-          if (in_ps.size() - out_ps.size() != 1) {
-            return false;
-          }
-          size_t mismatch_count = 0;
-          for (size_t i = 0; i < out_ps.size(); ++i) {
-            if (i + mismatch_count >= in_ps.size()) {
-              return false;
+        auto is_suitable_reshape = [](const std::shared_ptr<ov::Node>& node) -> bool {
+            if (node->is_dynamic()) {
+                return false;
             }
-            if (out_ps[i] != in_ps[i + mismatch_count]) {
-              mismatch_count++;
+            const auto& in_ps = node->get_input_partial_shape(0);
+            const auto& out_ps = node->get_output_partial_shape(0);
+            if (in_ps.size() - out_ps.size() != 1) {
+                return false;
             }
-          }
-          return mismatch_count == 1;
+            size_t mismatch_count = 0;
+            for (size_t i = 0; i < out_ps.size(); ++i) {
+                if (i + mismatch_count >= in_ps.size()) {
+                    return false;
+                }
+                if (out_ps[i] != in_ps[i + mismatch_count]) {
+                    mismatch_count++;
+                }
+            }
+            return mismatch_count == 1;
         };
         const auto reshape = ov::as_type_ptr<v1::Reshape>(output.get_node_shared_ptr());
         return is_suitable_reshape(reshape) && is_suitable_parent(reshape->get_input_node_shared_ptr(0));
@@ -125,9 +118,9 @@ SinkReshape::SinkReshape() {
             ov::Shape new_shape(transformed_order.size());
             const uint16_t merge_dim_idx = [&]() {
                 for (uint16_t i = 0; i < reshape_out_shape.size(); ++i) {
-                  if (reshape_in_shape[i] != reshape_out_shape[i]) {
-                    return i;
-                  }
+                    if (reshape_in_shape[i] != reshape_out_shape[i]) {
+                        return i;
+                    }
                 }
                 OPENVINO_THROW("same input/output for reshape node");
             }();
@@ -145,22 +138,22 @@ SinkReshape::SinkReshape() {
         };
 
         // allow tranposes which rotate feature dim to back to be taken as inner-most axis
-        auto check_transpose_order = [](std::vector<uint16_t> &order) -> bool {
-          if (order.size() <= 2) {
-            return false;
-          }
-          if ((int32_t)order[order.size() - 2] != order.size() - 1) {
-            return false;
-          }
-          if ((int32_t)order[0] != 0) {
-            return false;
-          }
-          for (int32_t i = 2; i < (int32_t)order.size(); ++i) {
-            if ((int32_t)order[i - 1] != i) {
-              return false;
+        auto check_transpose_order = [](std::vector<uint16_t>& order) -> bool {
+            if (order.size() <= 2) {
+                return false;
             }
-          }
-          return true;
+            if ((int32_t)order[order.size() - 2] != order.size() - 1) {
+                return false;
+            }
+            if ((int32_t)order[0] != 0) {
+                return false;
+            }
+            for (int32_t i = 2; i < (int32_t)order.size(); ++i) {
+                if ((int32_t)order[i - 1] != i) {
+                    return false;
+                }
+            }
+            return true;
         };
 
         auto transpose = std::dynamic_pointer_cast<v1::Transpose>(pattern_map.at(transpose_m).get_node_shared_ptr());
@@ -170,21 +163,15 @@ SinkReshape::SinkReshape() {
             auto tranpose_order = std::dynamic_pointer_cast<v0::Constant>(org_transpose_m);
             auto updated_order = update_order(tranpose_order->cast_vector<uint16_t>(), reshape);
             if (check_transpose_order(updated_order)) {
-                auto updated_transpose_order = std::make_shared<v0::Constant>(tranpose_order->get_element_type(),
-                                                                              ov::Shape(1, updated_order.size()),
-                                                                              updated_order);
+                auto updated_transpose_order =
+                    std::make_shared<v0::Constant>(tranpose_order->get_element_type(), ov::Shape(1, updated_order.size()), updated_order);
                 updated_transpose_order->set_friendly_name(tranpose_order->get_friendly_name() + "_updated");
-                auto new_transpose =
-                    std::make_shared<v1::Transpose>(reshape->input(0).get_source_output(), updated_transpose_order);
+                auto new_transpose = std::make_shared<v1::Transpose>(reshape->input(0).get_source_output(), updated_transpose_order);
                 new_transpose->set_friendly_name(transpose->get_friendly_name() + "_with_updated_order");
                 copy_runtime_info(transpose, new_transpose);
                 ov::replace_node(reshape, new_transpose);
-                auto new_pattern_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
-                                                                                ov::Shape{org_transpose_os.size()},
-                                                                                org_transpose_os);
-                auto new_reshape = std::make_shared<ov::op::v1::Reshape>(new_transpose,
-                                                                         new_pattern_const,
-                                                                         reshape->get_special_zero());
+                auto new_pattern_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{org_transpose_os.size()}, org_transpose_os);
+                auto new_reshape = std::make_shared<ov::op::v1::Reshape>(new_transpose, new_pattern_const, reshape->get_special_zero());
                 new_reshape->set_friendly_name(reshape->get_friendly_name() + "_sinked_after_transpose");
                 copy_runtime_info(reshape, new_reshape);
                 ov::replace_node(transpose, new_reshape);

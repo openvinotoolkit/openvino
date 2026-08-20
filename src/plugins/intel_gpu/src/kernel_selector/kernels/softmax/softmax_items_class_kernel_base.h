@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "softmax_kernel_base.h"
 #include <vector>
+
+#include "softmax_kernel_base.h"
 
 namespace kernel_selector {
 class SoftmaxItemsClassKernelBase : public SoftmaxKernelBase {
@@ -18,13 +19,13 @@ protected:
     static ParamsKey GetDefaultSupportedKey();
     static std::vector<size_t> GetSoftmaxDimGlobalSizes(SoftmaxDim dim, const DataTensor& output);
     Datatype GetAccumulatorType(const softmax_params& params) const {
-      if (params.inputs[0].GetDType() == Datatype::F16) {
-        return Datatype::F16;
-      }
+        if (params.inputs[0].GetDType() == Datatype::F16) {
+            return Datatype::F16;
+        }
         return Datatype::F32;
     }
     std::vector<KernelBase::FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::QUANTIZE };
+        return {FusedOpType::QUANTIZE};
     }
 };
 }  // namespace kernel_selector

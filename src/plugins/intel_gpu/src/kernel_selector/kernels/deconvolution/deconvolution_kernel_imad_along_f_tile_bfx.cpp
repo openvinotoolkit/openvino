@@ -4,17 +4,17 @@
 
 #include "deconvolution_kernel_imad_along_f_tile_bfx.hpp"
 
-#include "kernel_selector_utils.h"
-
 #include <algorithm>
-#include <vector>
 #include <iostream>
 #include <string>
+#include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
 namespace {
-    constexpr size_t simd = 16;
+constexpr size_t simd = 16;
 }
 
 ParamsKey DeconvolutionKernel_imad_along_f_tile_bfx::GetSupportedKey() const {
@@ -87,13 +87,12 @@ WeightsLayout DeconvolutionKernel_imad_along_f_tile_bfx::GetPreferredWeightsLayo
     using layout_map_key = std::tuple<size_t, size_t>;
     using layout_map = std::map<layout_map_key, WeightsLayout>;
 
-    layout_map lt_map = {
-        {layout_map_key((size_t)4,  (size_t)16), WeightsLayout::g_os_zyx_is_osv16_isv4 },
-        {layout_map_key((size_t)16, (size_t)16), WeightsLayout::g_os_zyx_is_osv16_isv16 },
-        {layout_map_key((size_t)32, (size_t)16), WeightsLayout::g_os_zyx_is_osv16_isv32 },
-        {layout_map_key((size_t)4,  (size_t)32), WeightsLayout::g_os_zyx_is_osv32_isv4 },
-        {layout_map_key((size_t)16, (size_t)32), WeightsLayout::g_os_zyx_is_osv32_isv16 },
-        {layout_map_key((size_t)32, (size_t)32), WeightsLayout::g_os_zyx_is_osv32_isv32 }};
+    layout_map lt_map = {{layout_map_key((size_t)4, (size_t)16), WeightsLayout::g_os_zyx_is_osv16_isv4},
+                         {layout_map_key((size_t)16, (size_t)16), WeightsLayout::g_os_zyx_is_osv16_isv16},
+                         {layout_map_key((size_t)32, (size_t)16), WeightsLayout::g_os_zyx_is_osv16_isv32},
+                         {layout_map_key((size_t)4, (size_t)32), WeightsLayout::g_os_zyx_is_osv32_isv4},
+                         {layout_map_key((size_t)16, (size_t)32), WeightsLayout::g_os_zyx_is_osv32_isv16},
+                         {layout_map_key((size_t)32, (size_t)32), WeightsLayout::g_os_zyx_is_osv32_isv32}};
 
     auto tile_ifm = GetTileIFM(params);
     auto tile_ofm_simd = GetTileOFM(params) * simd;
@@ -114,13 +113,11 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernel_imad_along_f_tile_bfx:
     auto tile_ofm = GetTileOFM(params);
     auto tile_b = GetTileB(params);
 
-    dispatchData.gws = {
-         CeilDiv(params.outputs[0].X().v, tile_x) * params.outputs[0].Y().v * params.outputs[0].Z().v,
-         Align(CeilDiv(params.outputs[0].Feature().v, tile_ofm), simd),
-         CeilDiv(params.outputs[0].Batch().v, tile_b)
-    };
+    dispatchData.gws = {CeilDiv(params.outputs[0].X().v, tile_x) * params.outputs[0].Y().v * params.outputs[0].Z().v,
+                        Align(CeilDiv(params.outputs[0].Feature().v, tile_ofm), simd),
+                        CeilDiv(params.outputs[0].Batch().v, tile_b)};
 
-    dispatchData.lws = { 1, simd, 1 };
+    dispatchData.lws = {1, simd, 1};
 
     return dispatchData;
 }
@@ -129,9 +126,8 @@ KernelsPriority DeconvolutionKernel_imad_along_f_tile_bfx::GetKernelsPriority(co
     const auto& p = static_cast<const deconvolution_params&>(params);
 
     // Currently most optimized for fsv16 formats
-    if (p.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 ||
-        p.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16) {
-      return FORCE_PRIORITY_7;
+    if (p.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || p.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16) {
+        return FORCE_PRIORITY_7;
     }
     return FORCE_PRIORITY_8;
 }
@@ -188,36 +184,34 @@ JitConstants DeconvolutionKernel_imad_along_f_tile_bfx::GetJitConstants(const de
         auto fused_in_dt = GetActivationType(params);
         std::vector<std::string> idx_order;
         if (params.outputs[0].Dimentions() <= 4) {
-            idx_order = { "(out_b + ob)", "(out_f + of * SIMD)", "out_y", "(out_x + tx)" };
+            idx_order = {"(out_b + ob)", "(out_f + of * SIMD)", "out_y", "(out_x + tx)"};
         } else {
-            idx_order = { "(out_b + ob)", "(out_f + of * SIMD)", "out_z", "out_y", "(out_x + tx)" };
+            idx_order = {"(out_b + ob)", "(out_f + of * SIMD)", "out_z", "out_y", "(out_x + tx)"};
         }
         auto boundary_check = BoundaryCheck::DISABLED;
-        if (params.outputs[0].X().v % tile_x != 0
-            || params.outputs[0].Feature().v % (tile_ofm * simd) != 0
-            || params.outputs[0].Batch().v % tile_b != 0) {
+        if (params.outputs[0].X().v % tile_x != 0 || params.outputs[0].Feature().v % (tile_ofm * simd) != 0 || params.outputs[0].Batch().v % tile_b != 0) {
             boundary_check = BoundaryCheck::ENABLED;
         }
-        std::vector<Tensor::DataChannelName> loop_axes = { Tensor::DataChannelName::X };
+        std::vector<Tensor::DataChannelName> loop_axes = {Tensor::DataChannelName::X};
         if (tile_b != 1) {
             loop_axes.push_back(Tensor::DataChannelName::BATCH);
         } else {
             idx_order[0] = "out_b";
         }
 
-        auto conf = FusedOpsConfiguration{ "",
-                                           idx_order,
-                                           "dequantized[ob][of][tx]",
-                                           fused_in_dt,
-                                           1,
-                                           LoadType::LT_UNALIGNED,
-                                           boundary_check,
-                                           IndexType::TENSOR_COORD,
-                                           Tensor::DataChannelName::X,
-                                           loop_axes,
-                                           true };
+        auto conf = FusedOpsConfiguration{"",
+                                          idx_order,
+                                          "dequantized[ob][of][tx]",
+                                          fused_in_dt,
+                                          1,
+                                          LoadType::LT_UNALIGNED,
+                                          boundary_check,
+                                          IndexType::TENSOR_COORD,
+                                          Tensor::DataChannelName::X,
+                                          loop_axes,
+                                          true};
 
-        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
     return jit;
@@ -225,14 +219,11 @@ JitConstants DeconvolutionKernel_imad_along_f_tile_bfx::GetJitConstants(const de
 
 size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileIFM(const deconvolution_params& params) const {
     size_t fsv = 4;
-    if (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16
-        || params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16
-        || params.inputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16
-        || params.inputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16) {
+    if (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 ||
+        params.inputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 || params.inputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16) {
         fsv = 16;
     }
-    if (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv32
-        || params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv32) {
+    if (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv32 || params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv32) {
         fsv = 32;
     }
 
@@ -240,21 +231,20 @@ size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileIFM(const deconvolution
     bool grouped = params.groups > 1;
     auto pref_tile_ifm = std::min(fsv, ifm);
 
-    std::vector<size_t> allowed_tile_ifm = { 4, 16, 32 };
+    std::vector<size_t> allowed_tile_ifm = {4, 16, 32};
     size_t tile_ifm = 1;
     for (auto candidate : allowed_tile_ifm) {
-      if (candidate <= pref_tile_ifm && (!grouped || ifm % candidate == 0)) {
-        tile_ifm = candidate;
-      }
+        if (candidate <= pref_tile_ifm && (!grouped || ifm % candidate == 0)) {
+            tile_ifm = candidate;
+        }
     }
     return tile_ifm;
 }
 
 size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileOFM(const deconvolution_params& params) const {
     // TODO Loosen divisibility requirement for tile ofm 2
-    if (params.weights.OFM().v % (simd * 2) == 0 &&
-        params.outputs[0].Batch().v % 2 != 0) {
-      return 2;
+    if (params.weights.OFM().v % (simd * 2) == 0 && params.outputs[0].Batch().v % 2 != 0) {
+        return 2;
     }
 
     return 1;
@@ -263,16 +253,16 @@ size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileOFM(const deconvolution
 size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileX(const deconvolution_params& params) const {
     constexpr size_t max_tile_x = simd;
     if (params.outputs[0].X().v <= max_tile_x) {
-      return params.outputs[0].X().v;
+        return params.outputs[0].X().v;
     }
 
     return max_tile_x;
 }
 
 size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileB(const deconvolution_params& params) const {
-  if (params.outputs[0].Batch().v % 2 == 0) {
-    return 2;
-  }
+    if (params.outputs[0].Batch().v % 2 == 0) {
+        return 2;
+    }
 
     return 1;
 }

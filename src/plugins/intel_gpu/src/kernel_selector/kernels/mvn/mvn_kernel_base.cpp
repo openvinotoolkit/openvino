@@ -3,8 +3,10 @@
 //
 
 #include "mvn_kernel_base.h"
-#include "kernel_selector_utils.h"
+
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -63,7 +65,7 @@ KernelsData MVNKernelBase::GetCommonKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::MVN);
 
     if (!Validate(params)) {
-      return {};
+        return {};
     }
 
     const mvn_params& orgParams = static_cast<const mvn_params&>(params);
@@ -98,9 +100,9 @@ KernelsData MVNKernelBase::GetCommonKernelsData(const Params& params) const {
 }
 
 Datatype MVNKernelBase::GetActivationType(const mvn_params& params) const {
-  if (params.inputs[0].GetDType() == Datatype::F16) {
-    return Datatype::F16;
-  }
+    if (params.inputs[0].GetDType() == Datatype::F16) {
+        return Datatype::F16;
+    }
     return Datatype::F32;
 }
 

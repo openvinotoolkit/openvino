@@ -3,9 +3,11 @@
 //
 
 #include "eltwise_kernel_base.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 namespace {
@@ -17,9 +19,11 @@ std::vector<size_t> GetLimitedOptimalLocalWorkGroupSizes(std::vector<size_t> gws
     for (size_t i = 0; i < gws.size(); ++i) {
         auto rest_lws = lws_max / total_lws;
         size_t lws_idx = 0;
-        while (rest_lws < optimal_lws_values[lws_idx] || optimal_lws_values[lws_idx] > limited_size_lws[i]) lws_idx++;
+        while (rest_lws < optimal_lws_values[lws_idx] || optimal_lws_values[lws_idx] > limited_size_lws[i])
+            lws_idx++;
 
-        while (gws[i] % optimal_lws_values[lws_idx]) lws_idx++;
+        while (gws[i] % optimal_lws_values[lws_idx])
+            lws_idx++;
 
         lws.push_back(optimal_lws_values[lws_idx]);
         total_lws *= optimal_lws_values[lws_idx];
@@ -30,41 +34,41 @@ std::vector<size_t> GetLimitedOptimalLocalWorkGroupSizes(std::vector<size_t> gws
 
 uint32_t GetNumberOfInputs(EltwiseMode m) {
     switch (m) {
-        case EltwiseMode::ADD:
-        case EltwiseMode::SUB:
-        case EltwiseMode::MUL:
-        case EltwiseMode::DIV:
-        case EltwiseMode::MIN:
-        case EltwiseMode::MAX:
-        case EltwiseMode::POW:
-        case EltwiseMode::MODULU:
-        case EltwiseMode::EQ:
-        case EltwiseMode::NE:
-        case EltwiseMode::LT:
-        case EltwiseMode::LE:
-        case EltwiseMode::GT:
-        case EltwiseMode::GE:
-        case EltwiseMode::LOGIC_AND:
-        case EltwiseMode::LOGIC_OR:
-        case EltwiseMode::LOGIC_XOR:
-        case EltwiseMode::SQUARED_DIFF:
-        case EltwiseMode::FLOOR_MOD:
-        case EltwiseMode::RIGHT_SHIFT:
-        case EltwiseMode::LEFT_SHIFT:
-        case EltwiseMode::BITWISE_AND:
-        case EltwiseMode::BITWISE_OR:
-        case EltwiseMode::BITWISE_XOR:
-        case EltwiseMode::ATAN2:
-            return 2;
-        case EltwiseMode::SQRT:
-        case EltwiseMode::RSQRT:
-        case EltwiseMode::ASSIGN:
-        case EltwiseMode::IS_FINITE:
-        case EltwiseMode::IS_INF:
-        case EltwiseMode::IS_NAN:
-            return 1;
-        default:
-            return 0;
+    case EltwiseMode::ADD:
+    case EltwiseMode::SUB:
+    case EltwiseMode::MUL:
+    case EltwiseMode::DIV:
+    case EltwiseMode::MIN:
+    case EltwiseMode::MAX:
+    case EltwiseMode::POW:
+    case EltwiseMode::MODULU:
+    case EltwiseMode::EQ:
+    case EltwiseMode::NE:
+    case EltwiseMode::LT:
+    case EltwiseMode::LE:
+    case EltwiseMode::GT:
+    case EltwiseMode::GE:
+    case EltwiseMode::LOGIC_AND:
+    case EltwiseMode::LOGIC_OR:
+    case EltwiseMode::LOGIC_XOR:
+    case EltwiseMode::SQUARED_DIFF:
+    case EltwiseMode::FLOOR_MOD:
+    case EltwiseMode::RIGHT_SHIFT:
+    case EltwiseMode::LEFT_SHIFT:
+    case EltwiseMode::BITWISE_AND:
+    case EltwiseMode::BITWISE_OR:
+    case EltwiseMode::BITWISE_XOR:
+    case EltwiseMode::ATAN2:
+        return 2;
+    case EltwiseMode::SQRT:
+    case EltwiseMode::RSQRT:
+    case EltwiseMode::ASSIGN:
+    case EltwiseMode::IS_FINITE:
+    case EltwiseMode::IS_INF:
+    case EltwiseMode::IS_NAN:
+        return 1;
+    default:
+        return 0;
     }
 }
 }  // namespace
@@ -84,11 +88,11 @@ ParamsKey eltwise_params::GetParamsKey() const {
 }
 
 static bool IsBitwiseMode(EltwiseMode mode) {
-    return mode == EltwiseMode::BITWISE_AND || mode == EltwiseMode::LEFT_SHIFT || mode == EltwiseMode::RIGHT_SHIFT ||
-           mode == EltwiseMode::BITWISE_OR || mode == EltwiseMode::BITWISE_XOR;
+    return mode == EltwiseMode::BITWISE_AND || mode == EltwiseMode::LEFT_SHIFT || mode == EltwiseMode::RIGHT_SHIFT || mode == EltwiseMode::BITWISE_OR ||
+           mode == EltwiseMode::BITWISE_XOR;
 }
 
-Datatype EltwiseKernelBase::GetAccumulatorType(const eltwise_params &params) const {
+Datatype EltwiseKernelBase::GetAccumulatorType(const eltwise_params& params) const {
     // NOTE: Workaround for not promoting shift operations. Not sure what should happen
     // if shift op is just one operation of other elementwise operations. My guess is that is should be promoted as
     // well, but in reality more robust solution will be needed or (better) - assumption that types are not promoted. So
@@ -98,17 +102,17 @@ Datatype EltwiseKernelBase::GetAccumulatorType(const eltwise_params &params) con
     }
 
     if (params.int8_quantization) {
-      return Datatype::INT32;
+        return Datatype::INT32;
     }
 
-    Datatype types[] = { Datatype::F32, Datatype::BF16, Datatype::F16, Datatype::INT64, Datatype::INT32, Datatype::UINT32};
+    Datatype types[] = {Datatype::F32, Datatype::BF16, Datatype::F16, Datatype::INT64, Datatype::INT32, Datatype::UINT32};
 
     for (Datatype type : types) {
-      for (const auto &in : params.inputs) {
-        if (in.GetDType() == type) {
-          return GetComputeDatatype(type);
+        for (const auto& in : params.inputs) {
+            if (in.GetDType() == type) {
+                return GetComputeDatatype(type);
+            }
         }
-      }
     }
 
     return Datatype::F32;
@@ -178,11 +182,10 @@ bool EltwiseKernelBase::IsUnsupportedModeForVecCode(const eltwise_params& params
         EltwiseMode::IS_NAN,
     };
 
-    for (size_t op_num = 0; op_num <  params.operations.size(); op_num++) {
-        const auto& ew =  params.operations[op_num];
-        if (std::find(unsupported_modes.begin(), unsupported_modes.end(),
-                      ew.mode) != unsupported_modes.end()) {
-          return true;
+    for (size_t op_num = 0; op_num < params.operations.size(); op_num++) {
+        const auto& ew = params.operations[op_num];
+        if (std::find(unsupported_modes.begin(), unsupported_modes.end(), ew.mode) != unsupported_modes.end()) {
+            return true;
         }
     }
 
@@ -221,8 +224,7 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                 if (input.mode == EltwiseInputMode::INPUT_BUFFER && input.index < coefficients.size()) {
                     const float c = coefficients[input.index];
                     if (c != 1.0f) {
-                      coeff_strings[input_idx] =
-                          cast_type + "(" + toCodeString(c) + ")*";
+                        coeff_strings[input_idx] = cast_type + "(" + toCodeString(c) + ")*";
                     }
                 }
             }
@@ -232,144 +234,142 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
         }
 
         switch (ew.mode) {
-            case EltwiseMode::ADD:
-                op += input0_str + " + " + input1_str;
-                break;
-            case EltwiseMode::SUB:
-                op += input0_str + " - " + input1_str;
-                break;
-            case EltwiseMode::MUL:
-                op += input0_str + " * " + input1_str;
-                break;
-            case EltwiseMode::DIV:
-                op += input0_str + " / " + input1_str;
-                break;
-            case EltwiseMode::MODULU:
-            case EltwiseMode::MIN:
-            case EltwiseMode::MAX: {
-                const auto* mode = (ew.mode == EltwiseMode::MODULU ? "mod" : (ew.mode == EltwiseMode::MIN ? "min" : "max"));
-                auto input_0_type = params.inputs[0].GetDType();
-                auto input_1_type = params.inputs[1].GetDType();
+        case EltwiseMode::ADD:
+            op += input0_str + " + " + input1_str;
+            break;
+        case EltwiseMode::SUB:
+            op += input0_str + " - " + input1_str;
+            break;
+        case EltwiseMode::MUL:
+            op += input0_str + " * " + input1_str;
+            break;
+        case EltwiseMode::DIV:
+            op += input0_str + " / " + input1_str;
+            break;
+        case EltwiseMode::MODULU:
+        case EltwiseMode::MIN:
+        case EltwiseMode::MAX: {
+            const auto* mode = (ew.mode == EltwiseMode::MODULU ? "mod" : (ew.mode == EltwiseMode::MIN ? "min" : "max"));
+            auto input_0_type = params.inputs[0].GetDType();
+            auto input_1_type = params.inputs[1].GetDType();
 
-                auto is_integer_type = [](kernel_selector::Datatype type) {
-                    return type == kernel_selector::Datatype::INT8 || type == kernel_selector::Datatype::UINT8 ||
-                           type == kernel_selector::Datatype::INT16 || type == kernel_selector::Datatype::UINT16 ||
-                           type == kernel_selector::Datatype::INT32 || type == kernel_selector::Datatype::UINT32 ||
-                           type == kernel_selector::Datatype::INT64;
-                };
+            auto is_integer_type = [](kernel_selector::Datatype type) {
+                return type == kernel_selector::Datatype::INT8 || type == kernel_selector::Datatype::UINT8 || type == kernel_selector::Datatype::INT16 ||
+                       type == kernel_selector::Datatype::UINT16 || type == kernel_selector::Datatype::INT32 || type == kernel_selector::Datatype::UINT32 ||
+                       type == kernel_selector::Datatype::INT64;
+            };
 
-                // input_0 == int
-                if (is_integer_type(input_0_type)) {
-                    // input_0 == int && input_1 == int
-                    if (is_integer_type(input_1_type)) {
-                      if (ew.mode == EltwiseMode::MODULU) {
+            // input_0 == int
+            if (is_integer_type(input_0_type)) {
+                // input_0 == int && input_1 == int
+                if (is_integer_type(input_1_type)) {
+                    if (ew.mode == EltwiseMode::MODULU) {
                         op += input0_str + " % " + input1_str;
-                      } else {
-                        op += cast_type + mode + "(" + input0_str + ", " +
-                              input1_str + ")";
-                      }
                     } else {
-                        // input_0 == int && input_1 != int
-                        op += cast_type + "f" + mode + "(convert_float(" + input0_str + "), " + input1_str + ")";
+                        op += cast_type + mode + "(" + input0_str + ", " + input1_str + ")";
                     }
-                } else if (is_integer_type(input_1_type)) {
-                    // input_0 != int && input_1 == int
-                    op += cast_type + "f" + mode + "(" + input0_str + ", convert_float(" + input1_str + "))";
                 } else {
-                    // input_0 != int && input_1 != int
-                    op += cast_type + "f" + mode + "(" + input0_str + ", " + input1_str + ")";
+                    // input_0 == int && input_1 != int
+                    op += cast_type + "f" + mode + "(convert_float(" + input0_str + "), " + input1_str + ")";
                 }
-            } break;
-            case EltwiseMode::POW:
-                op += cast_type + "pow(" + input0_str + ", " + input1_str + ")";
-                break;
-            case EltwiseMode::ATAN2:
-                // input0 = y (lhs of atan2), input1 = x (rhs).
-                op += cast_type + "atan2(" + input0_str + ", " + input1_str + ")";
-                break;
-            case EltwiseMode::SQRT:
-                op += cast_type + "sqrt(" + input0_str + ")";
-                break;
-            case EltwiseMode::RSQRT:
-                op += cast_type + "1/sqrt(" + input0_str + ")";
-                break;
-            case EltwiseMode::SQUARED_DIFF:
-                op += cast_type + "((" + input0_str + " - " + input1_str +
-                      ")"
-                      " * (" +
-                      input0_str + " - " + input1_str + "))";
-                break;
-            case EltwiseMode::EQ:
-                op += "(" + input0_str + " == " + input1_str + ")";
-                break;
-            case EltwiseMode::NE:
-                op += "(" + input0_str + " != " + input1_str + ")";
-                break;
-            case EltwiseMode::LT:
-                op += "(" + input0_str + " < " + input1_str + ")";
-                break;
-            case EltwiseMode::LE:
-                op += "(" + input0_str + " <= " + input1_str + ")";
-                break;
-            case EltwiseMode::GT:
-                op += "(" + input0_str + " > " + input1_str + ")";
-                break;
-            case EltwiseMode::GE:
-                op += "(" + input0_str + " >= " + input1_str + ")";
-                break;
-            case EltwiseMode::LOGIC_AND:
-                op += "(" + input0_str + " && " + input1_str + ")";
-                break;
-            case EltwiseMode::LOGIC_OR:
-                op += "(" + input0_str + " || " + input1_str + ")";
-                break;
-            case EltwiseMode::LOGIC_XOR:
-                op += "(!" + input0_str + " != !" + input1_str + ")";
-                break;
-            case EltwiseMode::FLOOR_MOD: {
-                auto input_0_type = params.inputs[0].GetDType();
-                auto input_1_type = params.inputs[1].GetDType();
-                if (input_0_type == input_1_type && (input_0_type == kernel_selector::Datatype::F16 || input_0_type == kernel_selector::Datatype::BF16 ||
-                                                     input_0_type == kernel_selector::Datatype::F32)) {
-                    op += "fmod(" + input0_str + ", " + input1_str + ")";
-                } else if (input_1_type == kernel_selector::Datatype::F16 || input_1_type == kernel_selector::Datatype::BF16 ||
-                           input_1_type == kernel_selector::Datatype::F32) {
-                    op += "(" + input0_str + " - trunc(" + input0_str + " / " + input1_str + ") * " + input1_str + ")";
-                } else {
-                    op += "(" + input0_str + " - trunc(" + input0_str + " / convert_float(" + input1_str + ")) * " + input1_str + ")";
-                }
-                break;
+            } else if (is_integer_type(input_1_type)) {
+                // input_0 != int && input_1 == int
+                op += cast_type + "f" + mode + "(" + input0_str + ", convert_float(" + input1_str + "))";
+            } else {
+                // input_0 != int && input_1 != int
+                op += cast_type + "f" + mode + "(" + input0_str + ", " + input1_str + ")";
             }
-            case EltwiseMode::ASSIGN:
-                op += input0_str;
-                break;
-            case EltwiseMode::IS_FINITE:
-                op += "(isfinite(" + input0_str + "))";
-                break;
-            case EltwiseMode::IS_INF:
-                op += "(isinf(" + input0_str + ") && (" + toCodeString(coefficients.at(0)) + " && signbit(" +
-                      input0_str + ") || " + toCodeString(coefficients.at(1)) + " && !signbit(" + input0_str + ")))";
-                break;
-            case EltwiseMode::IS_NAN:
-                op += "(isnan(" + input0_str + "))";
-                break;
-            case EltwiseMode::RIGHT_SHIFT:
-                op += "(" + input0_str + " >> " + input1_str + ")";
-                break;
-            case EltwiseMode::LEFT_SHIFT:
-                op += "(" + input0_str + " << " + input1_str + ")";
-                break;
-            case EltwiseMode::BITWISE_AND:
-                op += "(" + input0_str + " & " + input1_str + ")";
-                break;
-            case EltwiseMode::BITWISE_OR:
-                op += "(" + input0_str + " | " + input1_str + ")";
-                break;
-            case EltwiseMode::BITWISE_XOR:
-                op += "(" + input0_str + " ^ " + input1_str + ")";
-                break;
-            default:
-                break;
+        } break;
+        case EltwiseMode::POW:
+            op += cast_type + "pow(" + input0_str + ", " + input1_str + ")";
+            break;
+        case EltwiseMode::ATAN2:
+            // input0 = y (lhs of atan2), input1 = x (rhs).
+            op += cast_type + "atan2(" + input0_str + ", " + input1_str + ")";
+            break;
+        case EltwiseMode::SQRT:
+            op += cast_type + "sqrt(" + input0_str + ")";
+            break;
+        case EltwiseMode::RSQRT:
+            op += cast_type + "1/sqrt(" + input0_str + ")";
+            break;
+        case EltwiseMode::SQUARED_DIFF:
+            op += cast_type + "((" + input0_str + " - " + input1_str +
+                  ")"
+                  " * (" +
+                  input0_str + " - " + input1_str + "))";
+            break;
+        case EltwiseMode::EQ:
+            op += "(" + input0_str + " == " + input1_str + ")";
+            break;
+        case EltwiseMode::NE:
+            op += "(" + input0_str + " != " + input1_str + ")";
+            break;
+        case EltwiseMode::LT:
+            op += "(" + input0_str + " < " + input1_str + ")";
+            break;
+        case EltwiseMode::LE:
+            op += "(" + input0_str + " <= " + input1_str + ")";
+            break;
+        case EltwiseMode::GT:
+            op += "(" + input0_str + " > " + input1_str + ")";
+            break;
+        case EltwiseMode::GE:
+            op += "(" + input0_str + " >= " + input1_str + ")";
+            break;
+        case EltwiseMode::LOGIC_AND:
+            op += "(" + input0_str + " && " + input1_str + ")";
+            break;
+        case EltwiseMode::LOGIC_OR:
+            op += "(" + input0_str + " || " + input1_str + ")";
+            break;
+        case EltwiseMode::LOGIC_XOR:
+            op += "(!" + input0_str + " != !" + input1_str + ")";
+            break;
+        case EltwiseMode::FLOOR_MOD: {
+            auto input_0_type = params.inputs[0].GetDType();
+            auto input_1_type = params.inputs[1].GetDType();
+            if (input_0_type == input_1_type && (input_0_type == kernel_selector::Datatype::F16 || input_0_type == kernel_selector::Datatype::BF16 ||
+                                                 input_0_type == kernel_selector::Datatype::F32)) {
+                op += "fmod(" + input0_str + ", " + input1_str + ")";
+            } else if (input_1_type == kernel_selector::Datatype::F16 || input_1_type == kernel_selector::Datatype::BF16 ||
+                       input_1_type == kernel_selector::Datatype::F32) {
+                op += "(" + input0_str + " - trunc(" + input0_str + " / " + input1_str + ") * " + input1_str + ")";
+            } else {
+                op += "(" + input0_str + " - trunc(" + input0_str + " / convert_float(" + input1_str + ")) * " + input1_str + ")";
+            }
+            break;
+        }
+        case EltwiseMode::ASSIGN:
+            op += input0_str;
+            break;
+        case EltwiseMode::IS_FINITE:
+            op += "(isfinite(" + input0_str + "))";
+            break;
+        case EltwiseMode::IS_INF:
+            op += "(isinf(" + input0_str + ") && (" + toCodeString(coefficients.at(0)) + " && signbit(" + input0_str + ") || " +
+                  toCodeString(coefficients.at(1)) + " && !signbit(" + input0_str + ")))";
+            break;
+        case EltwiseMode::IS_NAN:
+            op += "(isnan(" + input0_str + "))";
+            break;
+        case EltwiseMode::RIGHT_SHIFT:
+            op += "(" + input0_str + " >> " + input1_str + ")";
+            break;
+        case EltwiseMode::LEFT_SHIFT:
+            op += "(" + input0_str + " << " + input1_str + ")";
+            break;
+        case EltwiseMode::BITWISE_AND:
+            op += "(" + input0_str + " & " + input1_str + ")";
+            break;
+        case EltwiseMode::BITWISE_OR:
+            op += "(" + input0_str + " | " + input1_str + ")";
+            break;
+        case EltwiseMode::BITWISE_XOR:
+            op += "(" + input0_str + " ^ " + input1_str + ")";
+            break;
+        default:
+            break;
         }
 
         jit.AddConstant(MakeJitConstant("OPERATION" + op_num_str, op));
@@ -378,57 +378,49 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
     return jit;
 }
 
-JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& params,
-                                                     bool useVload8) const {
+JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& params, bool useVload8) const {
     JitConstants jit = {};
     std::string vload_decls;
 
     for (size_t op_num = 0; op_num < params.operations.size(); op_num++) {
         const std::string op_num_str = toCodeString(op_num);
-        const auto &ew = params.operations[op_num];
+        const auto& ew = params.operations[op_num];
         bool is_dynamic_crop_kernel = params.is_shape_agnostic && params.operations[op_num].mode == EltwiseMode::ASSIGN;
         if (is_dynamic_crop_kernel) {
-          jit.AddConstant(MakeJitConstant("IS_DYNAMIC_CROP", 1));
+            jit.AddConstant(MakeJitConstant("IS_DYNAMIC_CROP", 1));
         }
         for (size_t input_idx = 0; input_idx < ew.inputs.size(); input_idx++) {
-            const auto &input = ew.inputs[input_idx];
+            const auto& input = ew.inputs[input_idx];
             const std::string name = "INPUT_" + op_num_str + "_" + toCodeString(input_idx);
             std::string idx_order = "INPUT" + toCodeString(input.index) + "_IDX_ORDER";
             switch (input.mode) {
-                case EltwiseInputMode::SCALAR:
-                    jit.AddConstant(MakeJitConstant(name, input.scalar));
-                    break;
-                case EltwiseInputMode::INPUT_BUFFER:
-                  if (useVload8) {
-                    jit.AddConstant(MakeJitConstant(
-                        name, "DECODE_INPUT" + toCodeString(input.index) +
-                                  "_COMPUTE_VECTOR_TYPE(in" +
-                                  toCodeString(input.index) + ", 8)"));
-                  } else {
-                    jit.AddConstant(MakeJitConstant(
-                        name,
-                        "DECODE_INPUT" + toCodeString(input.index) +
-                            "_COMPUTE_TYPE(input" + toCodeString(input.index) +
-                            "[GET_INDEX(INPUT, " + toCodeString(input.index) +
-                            "," + idx_order + ") " +
-                            (is_dynamic_crop_kernel ? "+ runtime_offset]"
-                                                    : "]") +
-                            ")"));
-                  }
-                    break;
-                case EltwiseInputMode::OUTPUT_BUFFER:
-                    jit.AddConstant(MakeJitConstant(name, "DECODE_OUTPUT_COMPUTE_TYPE(output[GET_INDEX(OUTPUT,,OUTPUT_IDX_ORDER)])"));
-                    break;
-                case EltwiseInputMode::UNORDERED_ACCESS_INPUT_BUFFER:
+            case EltwiseInputMode::SCALAR:
+                jit.AddConstant(MakeJitConstant(name, input.scalar));
+                break;
+            case EltwiseInputMode::INPUT_BUFFER:
+                if (useVload8) {
+                    jit.AddConstant(
+                        MakeJitConstant(name, "DECODE_INPUT" + toCodeString(input.index) + "_COMPUTE_VECTOR_TYPE(in" + toCodeString(input.index) + ", 8)"));
+                } else {
                     jit.AddConstant(MakeJitConstant(name,
-                        "DECODE_INPUT" + toCodeString(input.index) + "_COMPUTE_TYPE(input" + toCodeString(input.index) +
-                            "[(size_t)tmp" + toCodeString(input.tmpIndex) + "])"));
-                    break;
-                case EltwiseInputMode::INTERMEDIATE_RESULTS_INDEX:
-                    jit.AddConstant(MakeJitConstant(name, "tmp" + toCodeString(input.tmpIndex)));
-                    break;
-                default:
-                    break;
+                                                    "DECODE_INPUT" + toCodeString(input.index) + "_COMPUTE_TYPE(input" + toCodeString(input.index) +
+                                                        "[GET_INDEX(INPUT, " + toCodeString(input.index) + "," + idx_order + ") " +
+                                                        (is_dynamic_crop_kernel ? "+ runtime_offset]" : "]") + ")"));
+                }
+                break;
+            case EltwiseInputMode::OUTPUT_BUFFER:
+                jit.AddConstant(MakeJitConstant(name, "DECODE_OUTPUT_COMPUTE_TYPE(output[GET_INDEX(OUTPUT,,OUTPUT_IDX_ORDER)])"));
+                break;
+            case EltwiseInputMode::UNORDERED_ACCESS_INPUT_BUFFER:
+                jit.AddConstant(MakeJitConstant(name,
+                                                "DECODE_INPUT" + toCodeString(input.index) + "_COMPUTE_TYPE(input" + toCodeString(input.index) +
+                                                    "[(size_t)tmp" + toCodeString(input.tmpIndex) + "])"));
+                break;
+            case EltwiseInputMode::INTERMEDIATE_RESULTS_INDEX:
+                jit.AddConstant(MakeJitConstant(name, "tmp" + toCodeString(input.tmpIndex)));
+                break;
+            default:
+                break;
             }
         }
     }
@@ -436,11 +428,10 @@ JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& param
     if (useVload8) {
         for (size_t i = 0; i < params.inputs.size(); i++) {
             vload_decls += "\\\n\tconst " + toCLType(params.inputs[i].GetDType()) + "8 in" + toCodeString(i);
-            if (params.inputs[i].PhysicalSize() == 1) { // Scalar case
-              vload_decls += " = (" + toCLType(params.inputs[i].GetDType()) +
-                             "8)(input" + toCodeString(i) + "[0]";
-            } else { // Buffer case
-              vload_decls += " = vload8(global_id, input" + toCodeString(i);
+            if (params.inputs[i].PhysicalSize() == 1) {  // Scalar case
+                vload_decls += " = (" + toCLType(params.inputs[i].GetDType()) + "8)(input" + toCodeString(i) + "[0]";
+            } else {  // Buffer case
+                vload_decls += " = vload8(global_id, input" + toCodeString(i);
             }
             vload_decls += ");";
         }
@@ -449,8 +440,7 @@ JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& param
     return jit;
 }
 
-JitConstants EltwiseKernelBase::MakeInputDeclsJitConstants(const eltwise_params& params,
-                                                           bool /*useVload8*/) const {
+JitConstants EltwiseKernelBase::MakeInputDeclsJitConstants(const eltwise_params& params, bool /*useVload8*/) const {
     JitConstants jit = {};
     std::string inputs_decls;
     const auto& updateInputs = params.updateInputIds;
@@ -469,8 +459,7 @@ JitConstants EltwiseKernelBase::MakeInputDeclsJitConstants(const eltwise_params&
     return jit;
 }
 
-JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& params,
-                                                      bool useVload8) const {
+JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& params, bool useVload8) const {
     JitConstants jit = {};
     const auto& updateInputs = params.updateInputIds;
 
@@ -478,18 +467,18 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
         // TODO: Generalize this method
         std::vector<std::string> bfyx_idx_order = {};
         if (layoutBased) {
-            bfyx_idx_order = { "d4", "d3", "d2", "d1" };
+            bfyx_idx_order = {"d4", "d3", "d2", "d1"};
         } else {
             if (l == DataLayout::yxfb) {
-                bfyx_idx_order = { "d1", "d2", "d4", "d3" };
+                bfyx_idx_order = {"d1", "d2", "d4", "d3"};
             } else if (l == DataLayout::fyxb) {
-                bfyx_idx_order = { "d1", "d4", "d3", "d2" };
+                bfyx_idx_order = {"d1", "d4", "d3", "d2"};
             } else if (l == DataLayout::byxf) {
-                bfyx_idx_order = { "d4", "d1", "d3", "d2" };
+                bfyx_idx_order = {"d4", "d1", "d3", "d2"};
             } else if (l == DataLayout::fs_b_yx_fsv32) {
-                bfyx_idx_order = { "d3", "d4", "d2", "d1" };
+                bfyx_idx_order = {"d3", "d4", "d2", "d1"};
             } else {
-                bfyx_idx_order = { "d4", "d3", "d2", "d1" };
+                bfyx_idx_order = {"d4", "d3", "d2", "d1"};
             }
         }
 
@@ -504,25 +493,20 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
     auto GetIdxOrderStringForLayout = [&](DataLayout l, bool layoutBased, uSize stride) -> std::string {
         std::vector<std::string> bfyx_idx_order = GetIdxOrderVecForLayout(l, layoutBased, stride);
 
-        return bfyx_idx_order[0] + "," +
-               bfyx_idx_order[1] + "," +
-               bfyx_idx_order[2] + "," +
-               bfyx_idx_order[3];
+        return bfyx_idx_order[0] + "," + bfyx_idx_order[1] + "," + bfyx_idx_order[2] + "," + bfyx_idx_order[3];
     };
 
     std::string out_idx_order = "OUTPUT_IDX_ORDER";
     if (useVload8) {
         jit.AddConstant(MakeJitConstant(out_idx_order, "d1"));
     } else {
-        if (CheckInputsOutputNoPitchSameDims(params) &&
-            !params.layoutBased && !params.int8_quantization && !params.broadcast) {
+        if (CheckInputsOutputNoPitchSameDims(params) && !params.layoutBased && !params.int8_quantization && !params.broadcast) {
             jit.AddConstant(MakeJitConstant(out_idx_order, "d1"));
         } else {
             size_t out_c = DataTensor::ChannelsCount(params.outputs[0].GetLayout());
             if (out_c <= 4) {
-                jit.AddConstant(MakeJitConstant(out_idx_order, GetIdxOrderStringForLayout(params.outputs[0].GetLayout(),
-                                                                                          params.layoutBased || params.broadcast,
-                                                                                          {1, 1, 1})));
+                jit.AddConstant(MakeJitConstant(out_idx_order,
+                                                GetIdxOrderStringForLayout(params.outputs[0].GetLayout(), params.layoutBased || params.broadcast, {1, 1, 1})));
             } else {
                 std::string idx_order;
                 for (size_t i = 0; i < out_c; i++) {
@@ -553,17 +537,16 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
         if (useVload8) {
             jit.AddConstant(MakeJitConstant(idx_order, "d1"));
         } else {
-            if (CheckInputsOutputNoPitchSameDims(params) &&
-                !params.layoutBased && !params.int8_quantization && !params.broadcast) {
+            if (CheckInputsOutputNoPitchSameDims(params) && !params.layoutBased && !params.int8_quantization && !params.broadcast) {
                 jit.AddConstant(MakeJitConstant(idx_order, "d1"));
             } else {
                 size_t in_c = DataTensor::ChannelsCount(params.inputs[i].GetLayout());
                 size_t out_c = DataTensor::ChannelsCount(params.outputs[0].GetLayout());
                 auto in_stride = params.stride.empty() ? uSize{1, 1, 1} : params.stride[i];
                 if (out_c <= 4 && in_c <= 4) {
-                    jit.AddConstant(MakeJitConstant(idx_order, GetIdxOrderStringForLayout(params.inputs[i].GetLayout(),
-                                                                                          params.layoutBased || params.broadcast,
-                                                                                          in_stride)));
+                    jit.AddConstant(
+                        MakeJitConstant(idx_order,
+                                        GetIdxOrderStringForLayout(params.inputs[i].GetLayout(), params.layoutBased || params.broadcast, in_stride)));
                 } else if (out_c == 5) {
                     if (in_c < 5) {
                         // Skip Z coord for 4d tensors
@@ -639,16 +622,11 @@ JitConstants EltwiseKernelBase::GetJitConstantsCommon(const eltwise_params& para
     }
 
     const auto& updateInputs = params.updateInputIds;
-    for (size_t update_input_idx = 0; update_input_idx < updateInputs.size();
-         update_input_idx++) {
-      do_eltwise +=
-          "\\\n\tinput" + toCodeString(updateInputs[update_input_idx].inputId) +
-          "[GET_INDEX(INPUT, " +
-          toCodeString(updateInputs[update_input_idx].inputId) + ", " +
-          "INPUT" + toCodeString(updateInputs[update_input_idx].inputId) +
-          "_IDX_ORDER)] = TO_INPUT" +
-          toCodeString(updateInputs[update_input_idx].inputId) + "_TYPE(tmp" +
-          toCodeString(updateInputs[update_input_idx].tmpId) + ");";
+    for (size_t update_input_idx = 0; update_input_idx < updateInputs.size(); update_input_idx++) {
+        do_eltwise += "\\\n\tinput" + toCodeString(updateInputs[update_input_idx].inputId) + "[GET_INDEX(INPUT, " +
+                      toCodeString(updateInputs[update_input_idx].inputId) + ", " + "INPUT" + toCodeString(updateInputs[update_input_idx].inputId) +
+                      "_IDX_ORDER)] = TO_INPUT" + toCodeString(updateInputs[update_input_idx].inputId) + "_TYPE(tmp" +
+                      toCodeString(updateInputs[update_input_idx].tmpId) + ");";
     }
 
     do_eltwise += "\\\n\tres = tmp" + toCodeString(operations.size() - 1) + ";";
@@ -716,20 +694,14 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
     auto local = GetOptimalLocalWorkGroupSizes({dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]}, params.engineInfo);
 
     // TODO: can be potentially improved for GPUs with support of LWS > 256
-    const size_t optimal_lws_values[] = { 256, 224, 192, 160, 128, 96, 64, 32, 16 };
+    const size_t optimal_lws_values[] = {256, 224, 192, 160, 128, 96, 64, 32, 16};
 
-    if (dispatchData.gws[2] % 16 == 0 &&
-        params.outputs[0].Batch().v % 16 == 0 &&
-        params.outputs[0].Feature().v % 16 == 0 &&
-        dispatchData.gws[1] % 16 == 0 &&
-        (params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 ||
-        params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
-        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv16 ||
-        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16 ||
-        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv32 ||
-        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv32)) {
+    if (dispatchData.gws[2] % 16 == 0 && params.outputs[0].Batch().v % 16 == 0 && params.outputs[0].Feature().v % 16 == 0 && dispatchData.gws[1] % 16 == 0 &&
+        (params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 || params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
+         params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv16 || params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16 ||
+         params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv32 || params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv32)) {
         dispatchData.lws[0] = 1;
-        //dispatchData.gws[1] = ???; calc it below
+        // dispatchData.gws[1] = ???; calc it below
         dispatchData.lws[2] = 16;
         for (auto lws : optimal_lws_values) {
             if (dispatchData.gws[1] % lws == 0 && lws * dispatchData.lws[2] <= params.engineInfo.maxWorkGroupSize) {
@@ -737,13 +709,10 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
                 break;
             }
         }
-    } else if ((params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 ||
-         params.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 ||
-         params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 ||
-         params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
-         params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv16 ||
-         params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16) &&
-        params.outputs[0].Feature().v % 16 == 0 && dispatchData.gws[1] % 16 == 0) {
+    } else if ((params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || params.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 ||
+                params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 || params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
+                params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv16 || params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16) &&
+               params.outputs[0].Feature().v % 16 == 0 && dispatchData.gws[1] % 16 == 0) {
         dispatchData.lws[0] = 1;
         for (auto lws : optimal_lws_values) {
             if (dispatchData.gws[1] % lws == 0) {
@@ -757,15 +726,12 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
         dispatchData.lws[0] = 1;
         dispatchData.lws[1] = 1;
         dispatchData.lws[2] = 32;
-    } else if ((params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv32 ||
-                params.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv32 ||
-                params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv32 ||
-                params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 ||
-                params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv32 ||
-                params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv32)) {
+    } else if ((params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv32 || params.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv32 ||
+                params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv32 || params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 ||
+                params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv32 || params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv32)) {
         if (params.layoutBased || params.int8_quantization || params.broadcast) {
-            auto bs_fsv32_local = GetLimitedOptimalLocalWorkGroupSizes({dispatchData.gws[1], dispatchData.gws[2], dispatchData.gws[0]},
-                                                                        params.engineInfo, {32, 32, 1024});
+            auto bs_fsv32_local =
+                GetLimitedOptimalLocalWorkGroupSizes({dispatchData.gws[1], dispatchData.gws[2], dispatchData.gws[0]}, params.engineInfo, {32, 32, 1024});
             dispatchData.lws[0] = bs_fsv32_local[2];
             dispatchData.lws[1] = bs_fsv32_local[0];
             dispatchData.lws[2] = bs_fsv32_local[1];
@@ -777,16 +743,14 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
             dispatchData.lws[1] = bs_fsv32_local[2];
             dispatchData.lws[2] = bs_fsv32_local[0];
         }
-    } else if ((params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 ||
-                params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
-                params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16 ||
-                params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv16) &&
-                (params.outputs[0].Feature().v % 16 != 0 || dispatchData.gws[1] % 16 != 0)) {
-            auto bs_fsv16_local = GetLimitedOptimalLocalWorkGroupSizes({dispatchData.gws[2], dispatchData.gws[0], dispatchData.gws[1]},
-                                                                        params.engineInfo, {32 * 16, 1024, 1024});
-            dispatchData.lws[0] = bs_fsv16_local[1];
-            dispatchData.lws[1] = bs_fsv16_local[2];
-            dispatchData.lws[2] = bs_fsv16_local[0];
+    } else if ((params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 || params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
+                params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16 || params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv16) &&
+               (params.outputs[0].Feature().v % 16 != 0 || dispatchData.gws[1] % 16 != 0)) {
+        auto bs_fsv16_local =
+            GetLimitedOptimalLocalWorkGroupSizes({dispatchData.gws[2], dispatchData.gws[0], dispatchData.gws[1]}, params.engineInfo, {32 * 16, 1024, 1024});
+        dispatchData.lws[0] = bs_fsv16_local[1];
+        dispatchData.lws[1] = bs_fsv16_local[2];
+        dispatchData.lws[2] = bs_fsv16_local[0];
     } else {
         dispatchData.lws[0] = local[0];
         dispatchData.lws[1] = local[1];
@@ -830,12 +794,7 @@ KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params) const 
     kernel.params.workGroups.global = dispatchData.gws;
     kernel.params.workGroups.local = dispatchData.lws;
     bool is_dynamic = newParams.is_shape_agnostic;
-    kernel.params.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(),
-                                   false,
-                                   false,
-                                   GetFusedPrimitiveInputsCount(params),
-                                   1,
-                                   is_dynamic);
+    kernel.params.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(), false, false, GetFusedPrimitiveInputsCount(params), 1, is_dynamic);
     if (params.is_shape_agnostic && newParams.operations[0].mode == EltwiseMode::ASSIGN) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
         kernel_selector::ScalarDescriptor s;

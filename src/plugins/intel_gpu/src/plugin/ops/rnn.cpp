@@ -2,23 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
-
-#include "openvino/op/lstm_cell.hpp"
-#include "openvino/op/lstm_sequence.hpp"
-#include "openvino/op/gru_sequence.hpp"
-
-#include "intel_gpu/primitives/reshape.hpp"
-#include "intel_gpu/primitives/reorder.hpp"
-#include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/primitives/concatenation.hpp"
+#include "intel_gpu/primitives/crop.hpp"
+#include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include "intel_gpu/primitives/lstm_cell.hpp"
-#include "intel_gpu/primitives/crop.hpp"
-#include "intel_gpu/primitives/concatenation.hpp"
-#include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/permute.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/primitives/slice.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/lstm_sequence.hpp"
 
 namespace ov::intel_gpu {
 static cldnn::activation_func GetActivationFunc(std::string name) {
@@ -29,7 +27,7 @@ static cldnn::activation_func GetActivationFunc(std::string name) {
     };
     auto itr = name_mapping.find(name);
     if (itr != name_mapping.end()) {
-      return itr->second;
+        return itr->second;
     }
     return cldnn::activation_func::none;
 }
@@ -38,22 +36,17 @@ template <typename T>
 void GetLSTMActivationParams(const std::shared_ptr<T>& op,
                              std::vector<cldnn::activation_func>& activations,
                              std::vector<cldnn::activation_additional_params>& activation_params) {
-    activations = { cldnn::activation_func::logistic,
-                    cldnn::activation_func::hyperbolic_tan,
-                    cldnn::activation_func::hyperbolic_tan };
+    activations = {cldnn::activation_func::logistic, cldnn::activation_func::hyperbolic_tan, cldnn::activation_func::hyperbolic_tan};
     activation_params = {};
     auto op_activations = op->get_activations();
     if (!op_activations.empty()) {
-      if (op_activations.size() != 3) {
-        OPENVINO_THROW("Wrong number of activations for LSTMCell op ",
-                       op->get_friendly_name());
-      }
+        if (op_activations.size() != 3) {
+            OPENVINO_THROW("Wrong number of activations for LSTMCell op ", op->get_friendly_name());
+        }
         for (int i = 0; i < 3; i++) {
             auto af = GetActivationFunc(op_activations[i]);
             if (af == cldnn::activation_func::none) {
-              OPENVINO_THROW("Wrong or unsupported activation type ",
-                             op_activations[i], " for LSTMCell op ",
-                             op->get_friendly_name());
+                OPENVINO_THROW("Wrong or unsupported activation type ", op_activations[i], " for LSTMCell op ", op->get_friendly_name());
             }
             activations[i] = af;
         }
@@ -61,12 +54,11 @@ void GetLSTMActivationParams(const std::shared_ptr<T>& op,
     auto op_a = op->get_activations_alpha();
     auto op_b = op->get_activations_beta();
     if (!op_a.empty()) {
-      if (op_a.size() != 3 || op_b.size() != 3) {
-        OPENVINO_THROW("Wrong number of activation parameters for LSTMCell op ",
-                       op->get_friendly_name());
-      }
+        if (op_a.size() != 3 || op_b.size() != 3) {
+            OPENVINO_THROW("Wrong number of activation parameters for LSTMCell op ", op->get_friendly_name());
+        }
         for (int i = 0; i < 3; i++) {
-            cldnn::activation_additional_params params = { op_a[i], op_b[i] };
+            cldnn::activation_additional_params params = {op_a[i], op_b[i]};
             activation_params.push_back(cldnn::activation_additional_params(params));
         }
     }
@@ -74,10 +66,9 @@ void GetLSTMActivationParams(const std::shared_ptr<T>& op,
 
 template <typename T>
 void GetGRUActivationParams(const std::shared_ptr<T>& op,
-                             std::vector<cldnn::activation_func>& activations,
-                             std::vector<cldnn::activation_additional_params>& activation_params) {
-    activations = { cldnn::activation_func::logistic,
-                    cldnn::activation_func::hyperbolic_tan };
+                            std::vector<cldnn::activation_func>& activations,
+                            std::vector<cldnn::activation_additional_params>& activation_params) {
+    activations = {cldnn::activation_func::logistic, cldnn::activation_func::hyperbolic_tan};
     activation_params = {};
     auto op_activations = op->get_activations();
     if (!op_activations.empty()) {
@@ -85,9 +76,7 @@ void GetGRUActivationParams(const std::shared_ptr<T>& op,
         for (int i = 0; i < 2; i++) {
             auto af = GetActivationFunc(op_activations[i]);
             if (af == cldnn::activation_func::none) {
-              OPENVINO_THROW("Wrong or unsupported activation type ",
-                             op_activations[i], " for GRUSeq op ",
-                             op->get_friendly_name());
+                OPENVINO_THROW("Wrong or unsupported activation type ", op_activations[i], " for GRUSeq op ", op->get_friendly_name());
             }
             activations[i] = af;
         }
@@ -97,7 +86,7 @@ void GetGRUActivationParams(const std::shared_ptr<T>& op,
     if (!op_a.empty()) {
         OPENVINO_ASSERT(op_a.size() == 2 && op_b.size() == 2);
         for (int i = 0; i < 2; i++) {
-            cldnn::activation_additional_params params = { op_a[i], op_b[i] };
+            cldnn::activation_additional_params params = {op_a[i], op_b[i]};
             activation_params.push_back(cldnn::activation_additional_params(params));
         }
     }
@@ -112,18 +101,27 @@ static void CreateGRUSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
     std::vector<cldnn::activation_additional_params> activation_params;
     GetGRUActivationParams(op, activations, activation_params);
     float clip = op->get_clip();
-    if (op->get_input_shape(2).size() != 1 ||
-        op->get_input_shape(3).size() != 3 ||
-        op->get_input_shape(4).size() != 3 ||
-        op->get_input_shape(5).size() != 2) {
-      OPENVINO_THROW("Wrong input shapes for GRUSequence op ",
-                     op->get_friendly_name());
+    if (op->get_input_shape(2).size() != 1 || op->get_input_shape(3).size() != 3 || op->get_input_shape(4).size() != 3 || op->get_input_shape(5).size() != 2) {
+        OPENVINO_THROW("Wrong input shapes for GRUSequence op ", op->get_friendly_name());
     }
     auto direction = op->get_direction();
 
     OPENVINO_ASSERT(p.use_new_shape_infer());
-    cldnn::gru_seq prim(layerName,  inputs[0], inputs[1], cldnn::input_info(""), inputs[3], inputs[4], inputs[5], inputs[2],
-        clip, false, activations, activation_params, cldnn::lstm_weights_order::fizo, direction, static_cast<int>(op->get_output_size()));
+    cldnn::gru_seq prim(layerName,
+                        inputs[0],
+                        inputs[1],
+                        cldnn::input_info(""),
+                        inputs[3],
+                        inputs[4],
+                        inputs[5],
+                        inputs[2],
+                        clip,
+                        false,
+                        activations,
+                        activation_params,
+                        cldnn::lstm_weights_order::fizo,
+                        direction,
+                        static_cast<int>(op->get_output_size()));
     prim.linear_before_reset = op->get_linear_before_reset();
     prim.output_data_types = get_output_data_types(op);
     p.add_primitive(*op, prim);
@@ -139,9 +137,22 @@ static void CreateLSTMCellOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4
     float clip = op->get_clip();
     OPENVINO_ASSERT(!inputs[5].pid.empty());
     OPENVINO_ASSERT(p.use_new_shape_infer());
-    p.add_primitive(*op, cldnn::lstm_cell(layerName, inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5], cldnn::input_info(),
-        clip, false, activations, activation_params, cldnn::lstm_weights_order::fizo, ov::op::RecurrentSequenceDirection::FORWARD,
-        static_cast<int>(op->get_output_size())));
+    p.add_primitive(*op,
+                    cldnn::lstm_cell(layerName,
+                                     inputs[0],
+                                     inputs[1],
+                                     inputs[2],
+                                     inputs[3],
+                                     inputs[4],
+                                     inputs[5],
+                                     cldnn::input_info(),
+                                     clip,
+                                     false,
+                                     activations,
+                                     activation_params,
+                                     cldnn::lstm_weights_order::fizo,
+                                     ov::op::RecurrentSequenceDirection::FORWARD,
+                                     static_cast<int>(op->get_output_size())));
 }
 
 static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v5::LSTMSequence>& op) {
@@ -153,12 +164,27 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     GetLSTMActivationParams(op, activations, activation_params);
     const float clip = op->get_clip();
     OPENVINO_ASSERT(op->get_input_shape(2).size() == 3 && op->get_input_shape(3).size() == 1 && op->get_input_shape(4).size() == 3 &&
-        op->get_input_shape(5).size() == 3 && op->get_input_shape(6).size() == 2, "Wrong input shapes for LSTMSequence op ", op->get_friendly_name());
+                        op->get_input_shape(5).size() == 3 && op->get_input_shape(6).size() == 2,
+                    "Wrong input shapes for LSTMSequence op ",
+                    op->get_friendly_name());
     auto direction = op->get_direction();
 
     OPENVINO_ASSERT(p.use_new_shape_infer());
-    cldnn::lstm_seq prim(layerName, inputs[0], inputs[1], inputs[2], inputs[4], inputs[5], inputs[6], inputs[3], clip, false, activations,
-        activation_params, cldnn::lstm_weights_order::fizo, direction, static_cast<int>(op->get_output_size()));
+    cldnn::lstm_seq prim(layerName,
+                         inputs[0],
+                         inputs[1],
+                         inputs[2],
+                         inputs[4],
+                         inputs[5],
+                         inputs[6],
+                         inputs[3],
+                         clip,
+                         false,
+                         activations,
+                         activation_params,
+                         cldnn::lstm_weights_order::fizo,
+                         direction,
+                         static_cast<int>(op->get_output_size()));
     prim.output_data_types = get_output_data_types(op);
     p.add_primitive(*op, prim);
 }

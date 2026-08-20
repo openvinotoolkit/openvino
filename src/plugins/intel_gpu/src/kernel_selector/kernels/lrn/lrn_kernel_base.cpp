@@ -3,6 +3,7 @@
 //
 
 #include "lrn_kernel_base.h"
+
 #include <algorithm>
 
 namespace kernel_selector {
@@ -65,7 +66,7 @@ LRNKernelBase::DispatchData LRNKernelBase::SetDefault(const lrn_params& params) 
     dispatchData.gws[0] = output.Batch().v * output.Feature().v;  // B, F
     dispatchData.gws[1] = output.X().v;                           // X
     dispatchData.gws[2] = output.Y().v;                           // Y
-                             // Find largest positive local work size that is divider for global work size.
+                                                                  // Find largest positive local work size that is divider for global work size.
     dispatchData.lws[0] = std::min(std::max(dispatchData.gws[0], static_cast<size_t>(1)), static_cast<size_t>(32));
     while (dispatchData.gws[0] % dispatchData.lws[0] != 0) {
         --dispatchData.lws[0];
@@ -92,17 +93,7 @@ KernelsData LRNKernelBase::GetCommonKernelsData(const Params& params) const {
     auto fused_deps_total = GetFusedPrimitiveInputsCount(params);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel,
-                     dispatchData,
-                     params.engineInfo,
-                     kernelName,
-                     jit,
-                     entryPoint,
-                     "",
-                     false,
-                     false,
-                     1,
-                     fused_deps_total);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entryPoint, "", false, false, 1, fused_deps_total);
 
     return {kd};
 }

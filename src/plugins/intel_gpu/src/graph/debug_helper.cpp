@@ -3,36 +3,49 @@
 //
 
 #include "debug_helper.hpp"
+
 #include <regex>
+
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/util/file_util.hpp"
 
 #ifdef GPU_DEBUG_CONFIG
 
-#include "impls/ocl/kernels_cache.hpp"
-#include "to_string_utils.h"
-#include "loop_inst.h"
-#include "condition_inst.h"
-#include "activation_inst.h"
-#include "program_dump_graph.h"
+#    include <sys/stat.h>
 
-#include <iomanip>
-#include <fstream>
-#include <sys/stat.h>
+#    include <fstream>
+#    include <iomanip>
+
+#    include "activation_inst.h"
+#    include "condition_inst.h"
+#    include "impls/ocl/kernels_cache.hpp"
+#    include "loop_inst.h"
+#    include "program_dump_graph.h"
+#    include "to_string_utils.h"
 
 namespace cldnn {
 
 namespace {
 
-float convert_element(int64_t i) { return static_cast<float>(i); }
-float convert_element(int32_t i) { return static_cast<float>(i); }
+float convert_element(int64_t i) {
+    return static_cast<float>(i);
+}
+float convert_element(int32_t i) {
+    return static_cast<float>(i);
+}
 
-float convert_element(float f) { return f; }
+float convert_element(float f) {
+    return f;
+}
 
-float convert_element(ov::float16 h) { return static_cast<float>(h); }
+float convert_element(ov::float16 h) {
+    return static_cast<float>(h);
+}
 
-float convert_element(ov::bfloat16 h) { return static_cast<float>(h); }
+float convert_element(ov::bfloat16 h) {
+    return static_cast<float>(h);
+}
 
 size_t get_x_pitch(const layout& layout) {
     try {
@@ -48,10 +61,10 @@ size_t get_x_pitch(const layout& layout) {
 }
 
 template <class T>
-std::pair<float, float> __validate_data_range(memory::ptr mem, stream& stream, const layout& data_layout, std::string &info) {
-  if (!mem) {
-    return {0.0f, 0.0f};
-  }
+std::pair<float, float> __validate_data_range(memory::ptr mem, stream& stream, const layout& data_layout, std::string& info) {
+    if (!mem) {
+        return {0.0f, 0.0f};
+    }
 
     // Reinterpret buffer to represent actual data layout (same as log_memory_to_file)
     auto actual_mem = mem->get_engine()->reinterpret_buffer(*mem, data_layout);
@@ -74,10 +87,10 @@ std::pair<float, float> __validate_data_range(memory::ptr mem, stream& stream, c
                 return {0.0f, 0.0f};
             }
             if (val > val_max) {
-              val_max = val;
+                val_max = val;
             }
             if (val < val_min) {
-              val_min = val;
+                val_min = val;
             }
         }
         count = actual_mem->count();
@@ -99,10 +112,10 @@ std::pair<float, float> __validate_data_range(memory::ptr mem, stream& stream, c
                                         return {0.0f, 0.0f};
                                     }
                                     if (val > val_max) {
-                                      val_max = val;
+                                        val_max = val;
                                     }
                                     if (val < val_min) {
-                                      val_min = val;
+                                        val_min = val;
                                     }
                                     count++;
                                 }
@@ -122,23 +135,22 @@ std::pair<float, float> __validate_data_range(memory::ptr mem, stream& stream, c
     return {val_min, val_max};
 }
 
-std::pair<float, float> validate_data_range(memory::ptr mem, stream& stream, const layout& data_layout, std::string &info) {
+std::pair<float, float> validate_data_range(memory::ptr mem, stream& stream, const layout& data_layout, std::string& info) {
     auto data_type = data_layout.data_type;
     if (data_type == cldnn::data_types::f32) {
-      return __validate_data_range<float>(mem, stream, data_layout, info);
+        return __validate_data_range<float>(mem, stream, data_layout, info);
     }
     if (data_type == cldnn::data_types::f16) {
-      return __validate_data_range<ov::float16>(mem, stream, data_layout, info);
+        return __validate_data_range<ov::float16>(mem, stream, data_layout, info);
     }
     if (data_type == cldnn::data_types::bf16) {
-      return __validate_data_range<ov::bfloat16>(mem, stream, data_layout,
-                                                 info);
+        return __validate_data_range<ov::bfloat16>(mem, stream, data_layout, info);
     }
     if (data_type == cldnn::data_types::i8) {
-      return __validate_data_range<int8_t>(mem, stream, data_layout, info);
+        return __validate_data_range<int8_t>(mem, stream, data_layout, info);
     }
     if (data_type == cldnn::data_types::u8) {
-      return __validate_data_range<uint8_t>(mem, stream, data_layout, info);
+        return __validate_data_range<uint8_t>(mem, stream, data_layout, info);
     }
     GPU_DEBUG_INFO << "Unsupport data type for validating data range " << data_type << std::endl;
     return {0.0f, 0.0f};
@@ -153,17 +165,12 @@ void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump
     tmp_size.batch[0] = batch_size;
     if (tmp_size == size) {
         file_stream << "shape: " << size.to_string() << " ";
-        file_stream << "(count: " << size.count()
-                    << ", addr: " << mem->buffer_ptr()
-                    << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format) << ")"
-                    << (dump_raw ? " raw data" : "") << std::endl;
+        file_stream << "(count: " << size.count() << ", addr: " << mem->buffer_ptr() << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format)
+                    << ")" << (dump_raw ? " raw data" : "") << std::endl;
     } else {
         file_stream << "shape: " << tmp_size.to_string() << " ";
-        file_stream << "(count: " << tmp_size.count()
-                    << ", addr: " << mem->buffer_ptr()
-                    << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format)
-                    << ", original shape: " << size.to_string() << ")"
-                    << (dump_raw ? " raw data" : "") << std::endl;
+        file_stream << "(count: " << tmp_size.count() << ", addr: " << mem->buffer_ptr() << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format)
+                    << ", original shape: " << size.to_string() << ")" << (dump_raw ? " raw data" : "") << std::endl;
     }
 
     if (size.count() == 0) {
@@ -203,7 +210,7 @@ void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump
     file_stream << buffer.str();
 }
 
-void unpack(cldnn::data_types type, uint8_t input, int8_t &v0, int8_t &v1) {
+void unpack(cldnn::data_types type, uint8_t input, int8_t& v0, int8_t& v1) {
     if (type == cldnn::data_types::i4) {
         char s_bit = (input & 0x08);
         char mask = s_bit > 0 ? 0xF0 : 0x00;
@@ -229,15 +236,12 @@ void dump_i4u4(cldnn::data_types type, memory::ptr mem, stream& stream, std::ofs
     tmp_size.batch[0] = batch_size;
     if (tmp_size == size) {
         file_stream << "shape: " << size.to_string() << " ";
-        file_stream << "(count: " << size.count()
-                    << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format) << ")"
+        file_stream << "(count: " << size.count() << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format) << ")"
                     << (dump_raw ? " raw data" : "") << std::endl;
     } else {
         file_stream << "shape: " << tmp_size.to_string() << " ";
-        file_stream << "(count: " << tmp_size.count()
-                    << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format)
-                    << ", original shape: " << size.to_string() << ")"
-                    << (dump_raw ? " raw data" : "") << std::endl;
+        file_stream << "(count: " << tmp_size.count() << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format)
+                    << ", original shape: " << size.to_string() << ")" << (dump_raw ? " raw data" : "") << std::endl;
     }
 
     if (size.count() == 0) {
@@ -283,35 +287,33 @@ void log_memory_to_file(memory::ptr mem, layout data_layout, stream& stream, std
 
     auto mem_dt = actual_mem->get_layout().data_type;
     if (mem_dt == cldnn::data_types::f32) {
-      dump<float>(actual_mem, stream, file_stream, dump_raw);
+        dump<float>(actual_mem, stream, file_stream, dump_raw);
     } else if (mem_dt == cldnn::data_types::f16) {
-      dump<ov::float16>(actual_mem, stream, file_stream, dump_raw);
+        dump<ov::float16>(actual_mem, stream, file_stream, dump_raw);
     } else if (mem_dt == cldnn::data_types::bf16) {
-      dump<ov::bfloat16>(actual_mem, stream, file_stream, dump_raw);
+        dump<ov::bfloat16>(actual_mem, stream, file_stream, dump_raw);
     } else if (mem_dt == cldnn::data_types::i64) {
-      dump<int64_t>(actual_mem, stream, file_stream, dump_raw);
+        dump<int64_t>(actual_mem, stream, file_stream, dump_raw);
     } else if (mem_dt == cldnn::data_types::i32) {
-      dump<int32_t>(actual_mem, stream, file_stream, dump_raw);
+        dump<int32_t>(actual_mem, stream, file_stream, dump_raw);
     } else if (mem_dt == cldnn::data_types::i8) {
-      dump<int8_t>(actual_mem, stream, file_stream, dump_raw);
+        dump<int8_t>(actual_mem, stream, file_stream, dump_raw);
     } else if (mem_dt == cldnn::data_types::u8) {
-      dump<uint8_t>(actual_mem, stream, file_stream, dump_raw);
+        dump<uint8_t>(actual_mem, stream, file_stream, dump_raw);
     } else if (mem_dt == cldnn::data_types::f8e5m2) {
-      dump<ov::float8_e5m2>(actual_mem, stream, file_stream, dump_raw);
+        dump<ov::float8_e5m2>(actual_mem, stream, file_stream, dump_raw);
     } else if (mem_dt == cldnn::data_types::f8e4m3) {
-      dump<ov::float8_e4m3>(actual_mem, stream, file_stream, dump_raw);
+        dump<ov::float8_e4m3>(actual_mem, stream, file_stream, dump_raw);
     } else if (mem_dt == cldnn::data_types::f4e2m1) {
-      dump<ov::float4_e2m1>(actual_mem, stream, file_stream, dump_raw);
+        dump<ov::float4_e2m1>(actual_mem, stream, file_stream, dump_raw);
     } else if (mem_dt == cldnn::data_types::f8e8m0) {
-      dump<ov::float8_e8m0>(actual_mem, stream, file_stream, dump_raw);
+        dump<ov::float8_e8m0>(actual_mem, stream, file_stream, dump_raw);
     } else if (mem_dt == cldnn::data_types::boolean) {
-      dump<uint8_t>(actual_mem, stream, file_stream, dump_raw);
-    } else if (mem_dt == cldnn::data_types::i4 ||
-               mem_dt == cldnn::data_types::u4) {
-      dump_i4u4(mem_dt, actual_mem, stream, file_stream, dump_raw);
+        dump<uint8_t>(actual_mem, stream, file_stream, dump_raw);
+    } else if (mem_dt == cldnn::data_types::i4 || mem_dt == cldnn::data_types::u4) {
+        dump_i4u4(mem_dt, actual_mem, stream, file_stream, dump_raw);
     } else
-      GPU_DEBUG_COUT << "Dump for this data type is not supported: "
-                     << dt_to_str(mem_dt) << std::endl;
+        GPU_DEBUG_COUT << "Dump for this data type is not supported: " << dt_to_str(mem_dt) << std::endl;
 }
 
 std::string get_file_path_for_binary_dump(cldnn::layout layout, const std::string& name, const std::string& dump_layers_path) {
@@ -320,7 +322,7 @@ std::string get_file_path_for_binary_dump(cldnn::layout layout, const std::strin
     std::string format = layout.format.to_string();
     std::string tensor;
     auto dims = layout.get_dims();
-    for (size_t r = 0 ; r < layout.get_rank() ; r++) {
+    for (size_t r = 0; r < layout.get_rank(); r++) {
         tensor += ("_" + to_string(dims[r]));
     }
 
@@ -330,13 +332,13 @@ std::string get_file_path_for_binary_dump(cldnn::layout layout, const std::strin
 }
 
 bool is_target_iteration(int64_t iteration, const std::set<int64_t> dump_iteration) {
-  if (iteration < 0) {
-    return true;
-  }
+    if (iteration < 0) {
+        return true;
+    }
 
-  if (dump_iteration.empty()) {
-    return true;
-  }
+    if (dump_iteration.empty()) {
+        return true;
+    }
 
     return dump_iteration.find(iteration) != std::end(dump_iteration);
 }
@@ -373,10 +375,10 @@ bool is_layer_name_matched(const std::string& layer_name, const std::string& pat
 bool is_layer_for_dumping(const ExecutionConfig& config, const std::string& layer_name) {
     const auto& dump_layers = config.get_dump_layer_names();
     if (dump_layers.empty()) {
-      return true;
+        return true;
     }
 
-    auto iter = std::find_if(dump_layers.begin(), dump_layers.end(), [&](const std::string& dl){
+    auto iter = std::find_if(dump_layers.begin(), dump_layers.end(), [&](const std::string& dl) {
         return is_layer_name_matched(layer_name, dl);
     });
     return (iter != dump_layers.end());
@@ -385,7 +387,7 @@ bool is_layer_for_dumping(const ExecutionConfig& config, const std::string& laye
 std::vector<std::string> get_filenames_for_matched_layer_loading_binaries(const ExecutionConfig& config, const std::string& id) {
     std::vector<std::string> file_names;
     if (config.get_load_dump_raw_binary().empty()) {
-      return file_names;
+        return file_names;
     }
 
     for (const auto& load_layer : config.get_load_dump_raw_binary()) {
@@ -398,15 +400,13 @@ std::vector<std::string> get_filenames_for_matched_layer_loading_binaries(const 
                 do {
                     found = file_name_str.find(",", head);
                     if (found != std::string::npos) {
-                      file_names.push_back(
-                          file_name_str.substr(head, (found - head)));
+                        file_names.push_back(file_name_str.substr(head, (found - head)));
                     } else {
-                      file_names.push_back(file_name_str.substr(head));
+                        file_names.push_back(file_name_str.substr(head));
                     }
 
-                    head = found+1;
-                    GPU_DEBUG_LOG << " Layer name loading raw dump : " << load_layer.substr(0, file) << " / the dump file : "
-                                << file_names.back() << std::endl;
+                    head = found + 1;
+                    GPU_DEBUG_LOG << " Layer name loading raw dump : " << load_layer.substr(0, file) << " / the dump file : " << file_names.back() << std::endl;
                 } while (found != std::string::npos);
 
                 return file_names;
@@ -420,18 +420,18 @@ std::vector<std::string> get_filenames_for_matched_layer_loading_binaries(const 
 }  // namespace
 
 NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
-    : m_inst(inst)
-    , m_stream(inst.get_network().get_stream())
-    , m_network(inst.get_network())
-    , m_program(inst.get_network().get_program().get())
-    , m_iter(m_network.iteration) {
+    : m_inst(inst),
+      m_stream(inst.get_network().get_stream()),
+      m_network(inst.get_network()),
+      m_program(inst.get_network().get_program().get()),
+      m_iter(m_network.iteration) {
     const auto& config = m_network.get_config();
     // Load binary dump for input layers
     if (!config.get_load_dump_raw_binary().empty()) {
         const std::string layer_name = m_inst.id();
         auto files = get_filenames_for_matched_layer_loading_binaries(config, layer_name);
         if (!files.empty()) {
-            m_stream.finish(); // Wait for stream completion before buffer assignment
+            m_stream.finish();  // Wait for stream completion before buffer assignment
             if (m_inst.is_input()) {
                 // Loading binary dumps for output tensors of input-layers : only one output exists or index(dstN) exists
                 auto dump_file = get_matched_from_filelist(files, "_dst0__");
@@ -452,10 +452,11 @@ NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
                     OPENVINO_ASSERT(!bin.empty(), "Failure loading binary from OV_LOAD_DUMP_RAW_BINARY : " + dump_file);
 
                     auto output_mem = m_inst.output_memory_ptr(i);
-                    OPENVINO_ASSERT(output_mem->size() == bin.size(), "memory size mis-match for OV_LOAD_DUMP_RAW_BINARY : " + layer_name
-                                    + "\n Expected size : " + to_string(output_mem->size()) + ", Binary : " + to_string(bin.size()));
+                    OPENVINO_ASSERT(output_mem->size() == bin.size(),
+                                    "memory size mis-match for OV_LOAD_DUMP_RAW_BINARY : " + layer_name +
+                                        "\n Expected size : " + to_string(output_mem->size()) + ", Binary : " + to_string(bin.size()));
 
-                    output_mem->copy_from(m_stream, static_cast<void *>(&bin[0]), true);
+                    output_mem->copy_from(m_stream, static_cast<void*>(&bin[0]), true);
                 }
             } else {
                 auto check_dst = get_matched_from_filelist(files, "_dst0__");
@@ -472,23 +473,23 @@ NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
                         dump_file = get_matched_from_filelist(files, pattern);
                     }
                     if (dump_file.empty()) {
-                        GPU_DEBUG_COUT  << " Skip loading for  input(" << i << ") of " << layer_name << std::endl;
+                        GPU_DEBUG_COUT << " Skip loading for  input(" << i << ") of " << layer_name << std::endl;
                         continue;
                     }
                     OPENVINO_ASSERT((!dump_file.empty()), "Could not find expected pattern '_src[N]__' for binary dump input");
-                    GPU_DEBUG_COUT  << " Load binary dump : " << dump_file << " for input(" << i << ") of " << layer_name << std::endl;
+                    GPU_DEBUG_COUT << " Load binary dump : " << dump_file << " for input(" << i << ") of " << layer_name << std::endl;
 
                     std::vector<uint8_t> bin = ov::util::load_binary(dump_file);
                     OPENVINO_ASSERT(!bin.empty(), "Failure loading binary from OV_LOAD_DUMP_RAW_BINARY : " + dump_file);
 
                     auto input_mem = m_inst.dep_memory_ptr(i);
                     if (input_mem->size() != bin.size()) {
-                        std::cout << "WARNING: memory size mis-match for OV_LOAD_DUMP_RAW_BINARY : " + layer_name
-                                    << "  " << input_mem->size() << " / " << bin.size() << std::endl;
+                        std::cout << "WARNING: memory size mis-match for OV_LOAD_DUMP_RAW_BINARY : " + layer_name << "  " << input_mem->size() << " / "
+                                  << bin.size() << std::endl;
                         bin.resize(input_mem->size());
                     }
 
-                    input_mem->copy_from(m_stream, static_cast<void *>(&bin[0]), true);
+                    input_mem->copy_from(m_stream, static_cast<void*>(&bin[0]), true);
                 }
             }
         }
@@ -498,15 +499,15 @@ NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
     if (!config.get_dump_tensors_path().empty()) {
         const std::string& layer_name = inst.id();
 
-        if (is_target_iteration(m_iter, config.get_dump_iterations()) &&
-            config.get_dump_tensors() != ov::intel_gpu::DumpTensors::out && is_layer_for_dumping(config, layer_name)) {
-            m_stream.finish(); // Wait for stream completion before dumping input buffers
+        if (is_target_iteration(m_iter, config.get_dump_iterations()) && config.get_dump_tensors() != ov::intel_gpu::DumpTensors::out &&
+            is_layer_for_dumping(config, layer_name)) {
+            m_stream.finish();  // Wait for stream completion before dumping input buffers
             std::string debug_str_for_bin_load = " Command for loading : OV_LOAD_DUMP_RAW_BINARY=\"" + layer_name + ":";
             for (size_t i = 0; i < m_inst.dependencies().size(); i++) {
                 std::string name = get_file_prefix() + "_src" + std::to_string(i);
                 auto input_mem = m_inst.dep_memory_ptr(i);
                 if (input_mem == nullptr) {
-                    GPU_DEBUG_COUT  << " input_mem_" << i << " is nullptr. Nothing to dump." << std::endl;
+                    GPU_DEBUG_COUT << " input_mem_" << i << " is nullptr. Nothing to dump." << std::endl;
                     continue;
                 }
 
@@ -524,28 +525,23 @@ NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
                     const bool dump_raw = config.get_dump_tensors_format() == ov::intel_gpu::DumpFormat::text_raw;
                     GPU_DEBUG_COUT << " Dump " << (dump_raw ? "raw " : "") << name << std::endl;
                     auto filename = config.get_dump_tensors_path() + get_name_for_dump(name) + ".txt";
-                    log_memory_to_file(input_mem,
-                                       input_layout,
-                                       m_stream,
-                                       filename,
-                                       dump_raw);
+                    log_memory_to_file(input_mem, input_layout, m_stream, filename, dump_raw);
                 }
             }
 
             if (config.get_dump_tensors_format() == ov::intel_gpu::DumpFormat::binary && !inst.is_input()) {
-                debug_str_for_bin_load[debug_str_for_bin_load.size()-1] = '\"';
+                debug_str_for_bin_load[debug_str_for_bin_load.size() - 1] = '\"';
                 GPU_DEBUG_COUT << debug_str_for_bin_load << std::endl;
             }
         }
     }
 }
 
-
 NodeDebugHelper::~NodeDebugHelper() {
     const auto& config = m_network.get_config();
 
     if (config.get_validate_output_buffer() && !m_network.is_internal()) {
-        m_stream.finish(); // Wait for stream completion before checking output buffers
+        m_stream.finish();  // Wait for stream completion before checking output buffers
         for (size_t i = 0; i < m_inst.outputs_memory_count(); i++) {
             auto output_mem = m_inst.output_memory_ptr(i);
             std::string info = m_inst.id() + "(" + std::to_string(i) + ") at iteration " + std::to_string(m_network.get_current_iteration_num());
@@ -555,8 +551,7 @@ NodeDebugHelper::~NodeDebugHelper() {
         // FP16 mantissa loss early warning for Sin/Cos activation inputs
         if (m_inst.desc()->type == activation::type_id()) {
             auto act_desc = std::static_pointer_cast<const activation>(m_inst.desc());
-            if (act_desc->activation_function == activation_func::sin ||
-                act_desc->activation_function == activation_func::cos) {
+            if (act_desc->activation_function == activation_func::sin || act_desc->activation_function == activation_func::cos) {
                 auto input_mem = m_inst.dep_memory_ptr(0);
                 auto dep = m_inst.dependencies().at(0);
                 auto input_layout = dep.first->get_output_layout(dep.second);
@@ -566,10 +561,8 @@ NodeDebugHelper::~NodeDebugHelper() {
                     float abs_max = std::max(std::abs(val_min), std::abs(val_max));
                     constexpr float threshold = 1024.0f;
                     if (abs_max >= threshold) {
-                        GPU_DEBUG_COUT << "*** FP16 MANTISSA LOSS WARNING *** : " << m_inst.id()
-                                    << " input max(abs)=" << abs_max
-                                    << " (threshold=" << threshold << ")"
-                                    << " — Sin/Cos output will lose fractional precision" << std::endl;
+                        GPU_DEBUG_COUT << "*** FP16 MANTISSA LOSS WARNING *** : " << m_inst.id() << " input max(abs)=" << abs_max << " (threshold=" << threshold
+                                       << ")" << " — Sin/Cos output will lose fractional precision" << std::endl;
                     }
                 }
             }
@@ -580,17 +573,15 @@ NodeDebugHelper::~NodeDebugHelper() {
     if (!config.get_dump_tensors_path().empty()) {
         const std::string layer_name = m_inst.id();
 
-        if (is_target_iteration(m_iter, config.get_dump_iterations()) &&
-            config.get_dump_tensors() != ov::intel_gpu::DumpTensors::in &&
+        if (is_target_iteration(m_iter, config.get_dump_iterations()) && config.get_dump_tensors() != ov::intel_gpu::DumpTensors::in &&
             is_layer_for_dumping(config, layer_name)) {
-            m_stream.finish(); // Wait for stream completion before dumping output buffers
-            std::string debug_str_for_bin_load = " Command for loading : OV_LOAD_DUMP_RAW_BINARY=\""
-                                                    + layer_name + ":";
+            m_stream.finish();  // Wait for stream completion before dumping output buffers
+            std::string debug_str_for_bin_load = " Command for loading : OV_LOAD_DUMP_RAW_BINARY=\"" + layer_name + ":";
             for (size_t i = 0; i < m_inst.outputs_memory_count(); i++) {
                 std::string name = get_file_prefix() + "_dst" + std::to_string(i);
                 auto output_mem = m_inst.output_memory_ptr(i);
                 if (output_mem == nullptr) {
-                    GPU_DEBUG_COUT  << " output_mem is nullptr. Nothing to dump." << std::endl;
+                    GPU_DEBUG_COUT << " output_mem is nullptr. Nothing to dump." << std::endl;
                     continue;
                 }
 
@@ -601,18 +592,14 @@ NodeDebugHelper::~NodeDebugHelper() {
 
                     mem_lock<char, mem_lock_type::read> lock(output_mem, m_stream);
                     ov::util::save_binary(ov::util::make_path(filename), lock.data(), output_mem->size());
-                    GPU_DEBUG_COUT  << " Dump layer dst : " << layer_name << " to " << filename << std::endl;
+                    GPU_DEBUG_COUT << " Dump layer dst : " << layer_name << " to " << filename << std::endl;
                     debug_str_for_bin_load += (filename + ",");
                 } else {
                     const bool dump_raw = config.get_dump_tensors_format() == ov::intel_gpu::DumpFormat::text_raw;
                     GPU_DEBUG_COUT << " Dump " << (dump_raw ? "raw " : "") << name << std::endl;
                     auto filename = config.get_dump_tensors_path() + get_name_for_dump(name) + ".txt";
                     // Text dump
-                    log_memory_to_file(output_mem,
-                                       m_inst.get_output_layout(i),
-                                       m_stream,
-                                       filename,
-                                       dump_raw);
+                    log_memory_to_file(output_mem, m_inst.get_output_layout(i), m_stream, filename, dump_raw);
                 }
             }
             for (size_t i = 0; i < m_inst.get_intermediates_memories().size(); i++) {
@@ -670,16 +657,15 @@ NodeDebugHelper::~NodeDebugHelper() {
             }
 
             if (config.get_dump_tensors_format() == ov::intel_gpu::DumpFormat::binary && m_inst.is_input()) {
-                debug_str_for_bin_load[debug_str_for_bin_load.size()-1] = '\"';
-                GPU_DEBUG_COUT << debug_str_for_bin_load << std::endl;;
+                debug_str_for_bin_load[debug_str_for_bin_load.size() - 1] = '\"';
+                GPU_DEBUG_COUT << debug_str_for_bin_load << std::endl;
+                ;
             }
         }
     }
 }
 
-NetworkDebugHelper::NetworkDebugHelper(network& net)
-    : m_network(net)
-    , m_iter(net.iteration) {
+NetworkDebugHelper::NetworkDebugHelper(network& net) : m_network(net), m_iter(net.iteration) {
     if (m_network.get_config().get_network_marker()) {
         NetworkMarkerHelper::enqueue_start_marker(m_network);
     }
@@ -722,7 +708,7 @@ NetworkDebugHelper::NetworkDebugHelper(network& net)
             }
         }
         if (!m_network.is_internal()) {
-          exit(0);
+            exit(0);
         }
     }
 }
@@ -748,9 +734,8 @@ NetworkDebugHelper::~NetworkDebugHelper() {
             }
         }
 
-        GPU_DEBUG_COUT << "[program:" << std::setw(2) << ((prog != nullptr) ? prog->get_id() : 0)
-                       << "|network:" << std::setw(2) << net_id << "|iter:" << std::setw(4) << m_iter <<  "] benchmark_app cmd: "
-                       << data_shape_str.str() << std::endl;
+        GPU_DEBUG_COUT << "[program:" << std::setw(2) << ((prog != nullptr) ? prog->get_id() : 0) << "|network:" << std::setw(2) << net_id
+                       << "|iter:" << std::setw(4) << m_iter << "] benchmark_app cmd: " << data_shape_str.str() << std::endl;
     }
 
     if (!config.get_dump_graphs_path().empty() && is_target_iteration(m_iter, config.get_dump_iterations())) {
@@ -761,8 +746,8 @@ NetworkDebugHelper::~NetworkDebugHelper() {
         };
         std::string path = get_dir_path(m_network.get_config());
         if (!path.empty()) {
-            std::ofstream ofs(path + "cldnn_program_exec_p" + get_fixed_str(prog->get_id()) + "_n" + get_fixed_str(net_id)
-                              + "_" + get_fixed_str(m_iter, 5) + ".graph");
+            std::ofstream ofs(path + "cldnn_program_exec_p" + get_fixed_str(prog->get_id()) + "_n" + get_fixed_str(net_id) + "_" + get_fixed_str(m_iter, 5) +
+                              ".graph");
             dump_graph_init(ofs, *prog, [this](const primitive_id& id) -> std::shared_ptr<const primitive_inst> {
                 return m_network.get_primitive(id);
             });
@@ -790,8 +775,7 @@ void NetworkDebugHelper::dump_memory_pool(std::string dump_path, int64_t curr_it
 
     // Dump detailed entries in memory pool
     if (config.get_dump_memory_pool() > 1) {
-      m_network.get_memory_pool().dump(m_network.get_id(), curr_iter,
-                                       dump_path);
+        m_network.get_memory_pool().dump(m_network.get_id(), curr_iter, dump_path);
     }
 
     auto get_constants_mem_size = [&](allocation_type type) -> size_t {
@@ -799,10 +783,9 @@ void NetworkDebugHelper::dump_memory_pool(std::string dump_path, int64_t curr_it
         for (auto& prim : m_network._primitives) {
             if (prim.second->get_node().is_constant()) {
                 for (size_t i = 0; i < prim.second->outputs_memory_count(); i++) {
-                  if (prim.second->output_memory_ptr(i)
-                          ->get_allocation_type() == type) {
-                    mem_size += prim.second->output_memory_ptr(i)->size();
-                  }
+                    if (prim.second->output_memory_ptr(i)->get_allocation_type() == type) {
+                        mem_size += prim.second->output_memory_ptr(i)->size();
+                    }
                 }
             }
         }
@@ -811,10 +794,9 @@ void NetworkDebugHelper::dump_memory_pool(std::string dump_path, int64_t curr_it
     auto get_variables_mem_size = [&](allocation_type type) -> size_t {
         size_t mem_size = 0;
         for (const auto& var : m_network.get_variables()) {
-          if (var.second->get_memory() &&
-              var.second->get_memory()->get_allocation_type() == type) {
-            mem_size += var.second->get_actual_mem_size();
-          }
+            if (var.second->get_memory() && var.second->get_memory()->get_allocation_type() == type) {
+                mem_size += var.second->get_actual_mem_size();
+            }
         }
         return mem_size;
     };
@@ -824,42 +806,41 @@ void NetworkDebugHelper::dump_memory_pool(std::string dump_path, int64_t curr_it
             for (size_t i = 0; i < prim->outputs_memory_count(); i++) {
                 auto mem = prim->output_memory_ptr(i);
                 if (mem) {
-                  mem_size += mem->size();
+                    mem_size += mem->size();
                 }
             }
         }
         return mem_size;
     };
     auto get_mb_size = [&](int64_t size) -> std::string {
-        if (size == 0) return "0 MB";
+        if (size == 0)
+            return "0 MB";
         return std::to_string(static_cast<float>(size) / (1024 * 1024)) + " MB";
     };
-    int64_t usm_host_const_mem_size     = get_constants_mem_size(allocation_type::usm_host);
-    int64_t usm_device_const_mem_size   = get_constants_mem_size(allocation_type::usm_device);
-    int64_t usm_host_var_mem_size       = get_variables_mem_size(allocation_type::usm_host);
-    int64_t usm_device_var_mem_size     = get_variables_mem_size(allocation_type::usm_device);
-    int64_t param_mem_size              = get_parameters_mem_size();
-    int64_t host_mem_size               = m_network.get_engine().get_used_device_memory(allocation_type::usm_host);
-    int64_t device_mem_size             = m_network.get_engine().get_used_device_memory(allocation_type::usm_device);
-    int64_t usm_host_mem_pool_size      = m_network.get_memory_pool().get_total_mem_pool_size(allocation_type::usm_host);
-    int64_t usm_host_etc_size           = host_mem_size - usm_host_mem_pool_size
-                                            - usm_host_const_mem_size - usm_host_var_mem_size;
-    int64_t usm_device_mem_pool_size    = m_network.get_memory_pool().get_total_mem_pool_size(allocation_type::usm_device);
-    int64_t usm_device_etc_size         = device_mem_size - usm_device_mem_pool_size
-                                            - usm_device_const_mem_size - usm_device_var_mem_size;
+    int64_t usm_host_const_mem_size = get_constants_mem_size(allocation_type::usm_host);
+    int64_t usm_device_const_mem_size = get_constants_mem_size(allocation_type::usm_device);
+    int64_t usm_host_var_mem_size = get_variables_mem_size(allocation_type::usm_host);
+    int64_t usm_device_var_mem_size = get_variables_mem_size(allocation_type::usm_device);
+    int64_t param_mem_size = get_parameters_mem_size();
+    int64_t host_mem_size = m_network.get_engine().get_used_device_memory(allocation_type::usm_host);
+    int64_t device_mem_size = m_network.get_engine().get_used_device_memory(allocation_type::usm_device);
+    int64_t usm_host_mem_pool_size = m_network.get_memory_pool().get_total_mem_pool_size(allocation_type::usm_host);
+    int64_t usm_host_etc_size = host_mem_size - usm_host_mem_pool_size - usm_host_const_mem_size - usm_host_var_mem_size;
+    int64_t usm_device_mem_pool_size = m_network.get_memory_pool().get_total_mem_pool_size(allocation_type::usm_device);
+    int64_t usm_device_etc_size = device_mem_size - usm_device_mem_pool_size - usm_device_const_mem_size - usm_device_var_mem_size;
     GPU_DEBUG_COUT << "------------------------------------------------------------------------" << std::endl;
     GPU_DEBUG_COUT << "Memory statistics for (net_id:" << m_network.get_id() << ", iter:" << curr_iter << ")" << std::endl;
-    GPU_DEBUG_COUT << " * Parameter             : " << get_mb_size(param_mem_size)   << std::endl;
-    GPU_DEBUG_COUT << " Total host mem size     : " << get_mb_size(host_mem_size)               << std::endl;
-    GPU_DEBUG_COUT << " * Memory pool @ host    : " << get_mb_size(usm_host_mem_pool_size)      << std::endl;
-    GPU_DEBUG_COUT << " * Constant @ host       : " << get_mb_size(usm_host_const_mem_size)     << std::endl;
-    GPU_DEBUG_COUT << " * Variable @ host       : " << get_mb_size(usm_host_var_mem_size)       << std::endl;
-    GPU_DEBUG_COUT << " * ETC @ host            : " << get_mb_size(usm_host_etc_size)           << std::endl;
-    GPU_DEBUG_COUT << " Total device mem size   : " << get_mb_size(device_mem_size)             << std::endl;
-    GPU_DEBUG_COUT << " * Memory pool @ device  : " << get_mb_size(usm_device_mem_pool_size)    << std::endl;
-    GPU_DEBUG_COUT << " * Constant @ device     : " << get_mb_size(usm_device_const_mem_size)   << std::endl;
-    GPU_DEBUG_COUT << " * Variable @ device     : " << get_mb_size(usm_device_var_mem_size)     << std::endl;
-    GPU_DEBUG_COUT << " * ETC @ device          : " << get_mb_size(usm_device_etc_size)         << std::endl;
+    GPU_DEBUG_COUT << " * Parameter             : " << get_mb_size(param_mem_size) << std::endl;
+    GPU_DEBUG_COUT << " Total host mem size     : " << get_mb_size(host_mem_size) << std::endl;
+    GPU_DEBUG_COUT << " * Memory pool @ host    : " << get_mb_size(usm_host_mem_pool_size) << std::endl;
+    GPU_DEBUG_COUT << " * Constant @ host       : " << get_mb_size(usm_host_const_mem_size) << std::endl;
+    GPU_DEBUG_COUT << " * Variable @ host       : " << get_mb_size(usm_host_var_mem_size) << std::endl;
+    GPU_DEBUG_COUT << " * ETC @ host            : " << get_mb_size(usm_host_etc_size) << std::endl;
+    GPU_DEBUG_COUT << " Total device mem size   : " << get_mb_size(device_mem_size) << std::endl;
+    GPU_DEBUG_COUT << " * Memory pool @ device  : " << get_mb_size(usm_device_mem_pool_size) << std::endl;
+    GPU_DEBUG_COUT << " * Constant @ device     : " << get_mb_size(usm_device_const_mem_size) << std::endl;
+    GPU_DEBUG_COUT << " * Variable @ device     : " << get_mb_size(usm_device_var_mem_size) << std::endl;
+    GPU_DEBUG_COUT << " * ETC @ device          : " << get_mb_size(usm_device_etc_size) << std::endl;
     GPU_DEBUG_COUT << "------------------------------------------------------------------------" << std::endl;
 }
 
@@ -872,7 +853,7 @@ kernel::ptr NetworkMarkerHelper::get_or_compile_marker(network& net, const std::
     std::lock_guard<std::mutex> lock(_mutex);
     auto it = _compiled_kernels.find(kernel_name);
     if (it != _compiled_kernels.end()) {
-      return it->second;
+        return it->second;
     }
 
     auto kernel_src = std::make_shared<kernel_string>();
@@ -913,4 +894,4 @@ void NetworkMarkerHelper::enqueue_finish_marker(network& net) {
 
 }  // namespace cldnn
 
-#endif // GPU_DEBUG_CONFIG
+#endif  // GPU_DEBUG_CONFIG
