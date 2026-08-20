@@ -10,6 +10,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -234,7 +235,34 @@ struct HostFlashAttention {
     }
 
     bool is_valid() const {
-        return _compiled_tile_model != nullptr && _compiled_final_tile_model != nullptr && _tile_size > 0;
+        if (_compiled_tile_model == nullptr || _compiled_final_tile_model == nullptr || _tile_size <= 0) {
+            return false;
+        }
+
+        const auto& tile_inputs = _compiled_tile_model->inputs();
+        const auto& final_inputs = _compiled_final_tile_model->inputs();
+        const auto& tile_outputs = _compiled_tile_model->outputs();
+        const auto& final_outputs = _compiled_final_tile_model->outputs();
+        const auto& tin = _sdpa_attention_info._tile_input_indices;
+        const auto& tout = _sdpa_attention_info._tile_output_indices;
+
+        auto in_range = [](std::size_t idx, std::size_t size) {
+            return idx < size;
+        };
+
+        // q/k/v/acc/max/d are always present on both the regular and the final tile model.
+        // mask may legitimately be absent from the regular tile model (mask-skipping optimization);
+        // the runtime detects that case by comparing tin.mask against inputs().size(), so it is only
+        // required to be in range for the final tile model, which always consumes a mask.
+        return in_range(tin.q, tile_inputs.size()) && in_range(tin.q, final_inputs.size()) &&
+               in_range(tin.k, tile_inputs.size()) && in_range(tin.k, final_inputs.size()) &&
+               in_range(tin.v, tile_inputs.size()) && in_range(tin.v, final_inputs.size()) &&
+               in_range(tin.mask, final_inputs.size()) &&
+               in_range(tin.acc, tile_inputs.size()) && in_range(tin.acc, final_inputs.size()) &&
+               in_range(tin.max, tile_inputs.size()) && in_range(tin.max, final_inputs.size()) &&
+               in_range(tin.d, tile_inputs.size()) && in_range(tin.d, final_inputs.size()) &&
+               in_range(tout.acc, tile_outputs.size()) && in_range(tout.max, tile_outputs.size()) &&
+               in_range(tout.d, tile_outputs.size()) && !final_outputs.empty();
     }
 };
 
