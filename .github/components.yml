@@ -36,6 +36,7 @@ CPU:
     - TF_FE
     - ONNX_FE
     - JAX_FE
+    - GGUF_FE
     - snippets
   build:
     - AUTO
@@ -106,6 +107,10 @@ PROXY:
     - inference
     - GPU
   build: []
+
+GGUF_FE:
+  build:
+    - CPU
 
 IR_FE:
   revalidate:
