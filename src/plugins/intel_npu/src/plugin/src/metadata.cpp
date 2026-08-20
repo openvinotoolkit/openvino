@@ -601,7 +601,7 @@ std::unique_ptr<MetadataBase> read_metadata_from(BlobSource& source) {
     OPENVINO_ASSERT(MAGIC_BYTES == blobMagicBytes, MISSING_METADATA_MESSAGE);
 
     uint64_t payloadSize;
-    source.seekg(-static_cast<int>(MAGIC_BYTES.size()) - sizeof(payloadSize), std::ios::end);
+    source.seekg(-static_cast<int>(MAGIC_BYTES.size()) - static_cast<int>(sizeof(payloadSize)), std::ios::end);
     source.read_into_buffer(&payloadSize, sizeof(payloadSize));
 
     // Subtraction form avoids integer overflow when payloadSize is near UINT64_MAX.
