@@ -862,6 +862,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto use_text_embed_key = pop_option(other_props, std::string("NPUW_TEXT_EMBED"));
     m_is_embedding = use_text_embed_key.value_or(false).as<bool>() == true;
 
+    // The rerank tag only gates the batched wrapper at the entry point. Pop it here
+    // so it stays out of the submodel configs, like the embed tag above.
+    pop_option(other_props, std::string("NPUW_TEXT_RERANK"));
+
     if (m_is_embedding) {
         // Both embedding flavours only ever prefill; what differs is how they attend. An
         // autoregressive embedder (Qwen3-Embedding-style) has a causal mask and a KV cache to
@@ -1906,6 +1910,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::whisper::whisper_eos_token, NPUW_WHISPER_EOS_TOKEN, get),
                           BIND(npuw::whisper::whisper_decompose_sdpa, NPUW_WHISPER_DECOMPOSE_SDPA, get),
                           BIND(npuw::eagle::enabled, NPUW_EAGLE, get),
-                          BIND(npuw::text_embed::enabled, NPUW_TEXT_EMBED, get)});
+                          BIND(npuw::text_embed::enabled, NPUW_TEXT_EMBED, get),
+                          BIND(npuw::text_rerank::enabled, NPUW_TEXT_RERANK, get)});
 #undef BIND
 }

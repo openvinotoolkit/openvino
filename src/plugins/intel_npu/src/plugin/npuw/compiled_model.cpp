@@ -31,6 +31,7 @@
 #include "unfold_sync_infer_request.hpp"
 #include "util.hpp"
 #include "v1/elements/accuracy_checked.hpp"
+#include "v1/elements/batched.hpp"
 #include "v1/elements/failsafe.hpp"
 
 // required for get_properties_per_device()
@@ -316,7 +317,17 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
         compiled_model = std::make_shared<ov::npuw::GQACompiledModel>(model, plugin, config);
     } else if (properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true) {
         LOG_INFO("ov::npuw::LLMCompiledModel will be created.");
-        compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, config);
+        auto llm_compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, config);
+        if (ov::npuw::batched::requested(config)) {
+            // Single-shot scoring pipelines (text rerank / embedding) may submit
+            // batched [N, ...] inputs, while the LLM pipeline pins everything to a
+            // static batch of 1. The batched element unrolls such an infer row by
+            // row over the unchanged batch-1 inner request.
+            LOG_INFO("Wrapping with ov::npuw::batched::CompiledModel.");
+            compiled_model = std::make_shared<ov::npuw::batched::CompiledModel>(llm_compiled_model, plugin);
+        } else {
+            compiled_model = llm_compiled_model;
+        }
     } else if (properties.count(use_kokoro_key) && properties.at(use_kokoro_key).as<bool>() == true) {
         LOG_INFO("ov::npuw::KokoroCompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::KokoroCompiledModel>(model, plugin, config);
