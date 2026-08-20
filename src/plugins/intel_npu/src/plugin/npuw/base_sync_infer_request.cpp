@@ -649,6 +649,10 @@ void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
     const auto& comp_submodel_path = m_npuw_model->m_name + subgr_path_suffix(idx) + iter_path_suffix(idx);
     const auto num_inputs = comp_submodel->inputs().size();
 
+    const auto port_selected = [this, &comp_submodel_path](const ov::Output<const ov::Node>& port) {
+        return port_matches_dump_filter(comp_submodel_path, port);
+    };
+
     // There's different approaches to dumping normal and spatial subgraphs.
     if (!comp_submodel_desc.spatial) {
         // In the normal, non-spatial mode, we just dump the current subgrequests
@@ -656,10 +660,16 @@ void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
         std::vector<std::string> in_base_names;
         for (std::size_t i = 0u; i < num_inputs; i++) {
             const auto& port = comp_submodel->inputs()[i];
+            if (!port_selected(port)) {
+                continue;
+            }
             const auto& tnsr = m_subrequests[real_idx]->get_tensor(port);
             std::string in_base_name = comp_submodel_path + "_input_" + ov::npuw::util::fmt(i, num_inputs);
             ov::npuw::dump_tensor(tnsr, in_base_name);
             in_base_names.push_back(std::move(in_base_name));
+        }
+        if (in_base_names.empty()) {
+            return;
         }
         ov::npuw::dump_input_list(comp_submodel_path, in_base_names);
     } else {
@@ -677,6 +687,9 @@ void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
                 continue;
             }
             const auto& port = comp_submodel->inputs()[i];
+            if (!port_selected(port)) {
+                continue;
+            }
             const auto& tnsr = m_subrequests[real_idx]->get_tensor(port);
             std::string in_base_name = comp_submodel_path + "_input_" + ov::npuw::util::fmt(i, num_inputs);
             ov::npuw::dump_tensor(tnsr, in_base_name);
@@ -694,6 +707,9 @@ void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
             }
 
             for (auto&& p : s.params) {
+                if (!port_selected(comp_submodel->inputs()[p.idx])) {
+                    continue;
+                }
                 std::string in_base_name = comp_submodel_path + "_input_" + ov::npuw::util::fmt(p.idx, num_inputs) +
                                            "_d" + ov::npuw::util::fmt(p.dim, 10) + "_" +
                                            ov::npuw::util::fmt(offset, s.range);
@@ -731,15 +747,25 @@ void ov::npuw::IBaseInferRequest::dump_output_tensors(std::size_t idx) {
     const auto& comp_submodel_path = m_npuw_model->m_name + subgr_path_suffix(idx) + iter_path_suffix(idx);
     const std::size_t num_outputs = comp_submodel->outputs().size();
 
+    const auto port_selected = [this, &comp_submodel_path](const ov::Output<const ov::Node>& port) {
+        return port_matches_dump_filter(comp_submodel_path, port);
+    };
+
     // Same approach as in above. Spatial tensors require special handling
     if (!comp_submodel_desc.spatial) {
         std::vector<std::string> out_base_names;
         for (std::size_t i = 0u; i < num_outputs; i++) {
             const auto& port = comp_submodel->outputs()[i];
+            if (!port_selected(port)) {
+                continue;
+            }
             const auto& tnsr = m_subrequests[real_idx]->get_tensor(port);
             std::string out_base_name = comp_submodel_path + "_output_" + ov::npuw::util::fmt(i, num_outputs);
             ov::npuw::dump_tensor(tnsr, out_base_name);
             out_base_names.push_back(std::move(out_base_name));
+        }
+        if (out_base_names.empty()) {
+            return;
         }
         ov::npuw::dump_output_list(comp_submodel_path, out_base_names);
     } else {
@@ -750,6 +776,9 @@ void ov::npuw::IBaseInferRequest::dump_output_tensors(std::size_t idx) {
                                                                       : (s.range - offset);  // the last tile
             std::vector<std::string> tile_olist;
             for (std::size_t i = 0u; i < num_outputs; i++) {
+                if (!port_selected(comp_submodel->outputs()[i])) {
+                    continue;
+                }
                 std::string out_base_name = comp_submodel_path + "_output_" + ov::npuw::util::fmt(i, num_outputs) +
                                             "_d" + ov::npuw::util::fmt(s.out_dim, 10) + "_" +
                                             ov::npuw::util::fmt(offset, s.range);
@@ -759,11 +788,36 @@ void ov::npuw::IBaseInferRequest::dump_output_tensors(std::size_t idx) {
                 ov::npuw::dump_tensor(view, out_base_name);
                 tile_olist.push_back(std::move(out_base_name));
             }
+            if (tile_olist.empty()) {
+                continue;
+            }
             // Dump olist per tile
             std::string tile_olist_name = comp_submodel_path + "_" + ov::npuw::util::fmt(offset, s.range);
             ov::npuw::dump_output_list(tile_olist_name, tile_olist);
         }
     }
+}
+
+bool ov::npuw::IBaseInferRequest::port_matches_dump_filter(const std::string& submodel_path,
+                                                           const ov::Output<const ov::Node>& port) const {
+    if (!m_dump_filter.has_value()) {
+        m_dump_filter = m_npuw_model->m_cfg.get<::intel_npu::NPUW_DUMP_IO_FILTER>();
+    }
+    const auto& filter = m_dump_filter.value();
+    if (filter.empty()) {
+        return true;
+    }
+    // A match on the submodel path selects the whole subgraph
+    if (ov::npuw::util::name_matches(submodel_path, filter)) {
+        return true;
+    }
+    if (ov::npuw::util::name_matches(port.get_node()->get_friendly_name(), filter)) {
+        return true;
+    }
+    const auto& names = port.get_names();
+    return std::any_of(names.begin(), names.end(), [&filter](const std::string& n) {
+        return ov::npuw::util::name_matches(n, filter);
+    });
 }
 
 std::string ov::npuw::IBaseInferRequest::subgr_name(std::size_t idx) const {

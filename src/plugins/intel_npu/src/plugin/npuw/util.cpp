@@ -4,6 +4,8 @@
 
 #include "util.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include <intel_npu/config/config.hpp>
 #include <iomanip>
 #include <openvino/core/parallel.hpp>
@@ -59,6 +61,27 @@ bool ov::npuw::util::is_set(const std::size_t sub_idx,
     sub_inds = ::intel_npu ::OptionParser<std::vector<std::size_t>>::parse(str);
     if (std::find(sub_inds.begin(), sub_inds.end(), sub_idx) != sub_inds.end()) {
         return true;
+    }
+    return false;
+}
+
+bool ov::npuw::util::name_matches(const std::string& name, const std::string& filter) {
+    if (filter.empty()) {
+        return true;
+    }
+    const auto to_lower = [](std::string s) {
+        std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
+            return static_cast<char>(std::tolower(c));
+        });
+        return s;
+    };
+    const auto lname = to_lower(name);
+    std::stringstream ss(filter);
+    std::string token;
+    while (std::getline(ss, token, ',')) {
+        if (!token.empty() && lname.find(to_lower(token)) != std::string::npos) {
+            return true;
+        }
     }
     return false;
 }
@@ -295,6 +318,10 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         NPUW_ASSERT(type_zerop == ov::element::u8);
         NPUW_ASSERT(type_scale == ov::element::f16);
         NPUW_ASSERT(type_to == ov::element::f16);
+    } else if (type_from == ov::element::i8) {
+        NPUW_ASSERT(type_zerop == ov::element::i8);
+        NPUW_ASSERT(type_scale == ov::element::f16);
+        NPUW_ASSERT(type_to == ov::element::f16);
     } else {
         NPUW_ASSERT(false && "Unsupported combination");
     }
@@ -381,6 +408,52 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
                                                 unpack_options);
         } else if (scale_shape.size() == 2 && scale_shape[0] == from_shape[0] && scale_shape[1] == 1) {
             ov::npuw::util::XARCH::unpack_u8f16(from, zerop, scale, to, unpack_options);
+        } else {
+            NPUW_ASSERT(false);
+        }
+    } else if (type_from == ov::element::i8) {
+        if (scale_shape.size() == 3 && scale_shape[1] == 1 && scale_shape[2] == 1) {
+            // Special case for broadcasting vocab by 2 dimensions
+            // FIXME: all this logic probably should be in some specific unpack or another util function
+            const auto& from_strides = from->get_strides();
+            const auto& zerop_strides = zerop->get_strides();
+            const auto& scale_strides = scale->get_strides();
+            ov::Tensor wraped_from(from->get_element_type(),
+                                   ov::Shape{from_shape[0], from_shape[1] * from_shape[2]},
+                                   from->data(),
+                                   ov::Strides{from_strides[0], from_strides[2]});
+            ov::Tensor wraped_zerop(zerop->get_element_type(),
+                                    ov::Shape{zerop_shape[0], zerop_shape[1] * zerop_shape[2]},
+                                    zerop->data(),
+                                    ov::Strides{zerop_strides[0], zerop_strides[2]});
+            ov::Tensor wraped_scale(scale->get_element_type(),
+                                    ov::Shape{scale_shape[0], scale_shape[1] * scale_shape[2]},
+                                    scale->data(),
+                                    ov::Strides{scale_strides[0], scale_strides[2]});
+
+            ov::npuw::util::XARCH::unpack_i8f16_scale_zp(ov::get_tensor_impl(wraped_from),
+                                                          ov::get_tensor_impl(wraped_zerop),
+                                                          ov::get_tensor_impl(wraped_scale),
+                                                          to,
+                                                          unpack_options);
+        } else if (scale_shape.size() == 3 && scale_shape[0] == 1 && scale_shape[2] == 1) {
+            // Special case for broadcasting vocab by 2 dimensions
+            // FIXME: all this logic probably should be in some specific unpack or another util function
+            ov::Tensor wraped_from(from->get_element_type(), ov::Shape{from_shape[1], from_shape[2]}, from->data());
+            ov::Tensor wraped_zerop(zerop->get_element_type(),
+                                    ov::Shape{zerop_shape[1], zerop_shape[2]},
+                                    zerop->data());
+            ov::Tensor wraped_scale(scale->get_element_type(),
+                                    ov::Shape{scale_shape[1], scale_shape[2]},
+                                    scale->data());
+
+            ov::npuw::util::XARCH::unpack_i8f16_scale_zp(ov::get_tensor_impl(wraped_from),
+                                                          ov::get_tensor_impl(wraped_zerop),
+                                                          ov::get_tensor_impl(wraped_scale),
+                                                          to,
+                                                          unpack_options);
+        } else if (scale_shape.size() == 2 && scale_shape[0] == from_shape[0] && scale_shape[1] == 1) {
+            ov::npuw::util::XARCH::unpack_i8f16_scale_zp(from, zerop, scale, to, unpack_options);
         } else {
             NPUW_ASSERT(false);
         }

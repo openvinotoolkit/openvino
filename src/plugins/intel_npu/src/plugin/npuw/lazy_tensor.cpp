@@ -37,8 +37,11 @@ Const::Const(const std::shared_ptr<ov::op::v0::Constant>& n) : m_node(n) {
         m_offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
     } else {
         // See the comment in serialize() for more details
-        LOG_WARN("Some pattern introduced a new Constant node not present in the original weights file. We need to "
-                 "keep it in case export occurs. This will increase memory consumption.");
+        LOG_WARN("Some pattern introduced a new Constant node, "
+                 << m_node
+                 << ", not present in the "
+                    "original weights file. We need to keep it in case export occurs. This will increase "
+                    "memory consumption.");
         m_copied_if_not_in_model = ov::npuw::util::copy_tensor_from_const(m_node);
     }
 }
@@ -57,9 +60,9 @@ bool Const::operator==(const Const& other) const {
             m_cached_ptr == other.m_cached_ptr);
 }
 
-ov::Tensor Const::eval() const {
+ov::Tensor Const::eval_view() const {
     if (m_node) {
-        return ov::npuw::util::copy_tensor_from_const(m_node);
+        return ov::npuw::util::tensor_from_const(m_node);
     }
 
     // Weightless import case. Mmmap CPU weight on demand to avoid allocating all weights at once.
@@ -81,6 +84,15 @@ ov::Tensor Const::eval() const {
 
     NPUW_ASSERT(m_read_from_bin && "Underlying data should have been read first! Or the tensor is already detached.");
     return m_read_from_bin;
+}
+
+ov::Tensor Const::eval() const {
+    if (m_node) {
+        return ov::npuw::util::copy_tensor_from_const(m_node);
+    }
+    // The import branches of eval_view() don't copy - the bank takes
+    // ownership on its side when required
+    return eval_view();
 }
 
 LazyTensor::Meta Const::eval_meta() const {
@@ -356,6 +368,54 @@ void Gather::detach() {
     w.detach();
 }
 
+std::size_t Sub128::hash() const {
+    std::size_t seed = std::hash<std::size_t>()(7u) + 0x9e3779b9;
+    seed ^= tensor.get_hash() + 0x9e3779b9;
+    return seed;
+}
+
+bool Sub128::operator==(const Sub128& other) const {
+    return tensor == other.tensor;
+}
+
+ov::Tensor Sub128::eval() const {
+    const auto trs = tensor.get_transformations();
+
+    ov::Tensor src;
+    if (trs.size() == 1 && std::holds_alternative<op::Const>(trs.front())) {
+        // Fused path: read straight through a zero-copy view of the source,
+        // skipping the intermediate copy Const::eval() would make. The view is
+        // only ever READ here, so this is correct for all Const flavors,
+        // including the deserialized ones (read-only mmap / cached bin tensor)
+        src = std::get<op::Const>(trs.front()).eval_view();
+    } else {
+        src = tensor.eval();
+    }
+
+    const auto src_type = src.get_element_type();
+    NPUW_ASSERT(src_type == ov::element::u8 || src_type == ov::element::i8);
+
+    ov::Tensor dst(ov::element::i8, src.get_shape());
+    const auto* s = static_cast<const uint8_t*>(src.data());
+    auto* d = dst.data<int8_t>();
+    for (std::size_t i = 0, n = src.get_size(); i < n; ++i) {
+        d[i] = static_cast<int8_t>(static_cast<int8_t>(s[i]) - 128);
+    }
+    return dst;
+}
+
+LazyTensor::Meta Sub128::eval_meta() const {
+    return {tensor.eval_meta().shape, ov::element::i8};
+}
+
+void Sub128::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
+    tensor.read_weight(ctx);
+}
+
+void Sub128::detach() {
+    tensor.detach();
+}
+
 }  // namespace op
 
 // Stable, permanently assigned op-type IDs.
@@ -368,6 +428,7 @@ enum class TransformType : std::uint16_t {
     PERMUTE = 4,
     CONVERT = 5,
     GATHER = 6,
+    SUB128 = 7,
 };
 
 struct LazyTensorImpl {
@@ -428,6 +489,10 @@ ov::npuw::weights::TransformType get_transform_type(const ov::npuw::weights::op:
 
 ov::npuw::weights::TransformType get_transform_type(const ov::npuw::weights::op::Gather&) {
     return ov::npuw::weights::TransformType::GATHER;
+}
+
+ov::npuw::weights::TransformType get_transform_type(const ov::npuw::weights::op::Sub128&) {
+    return ov::npuw::weights::TransformType::SUB128;
 }
 
 }  // namespace
@@ -500,6 +565,10 @@ void Gather::serialize(ov::npuw::orc::Stream& stream) {
     }
 }
 
+void Sub128::serialize(ov::npuw::orc::Stream& stream) {
+    stream & tensor;
+}
+
 }  // namespace op
 
 void LazyTensorImpl::serialize(ov::npuw::orc::Stream& stream) {
@@ -536,6 +605,9 @@ void LazyTensorImpl::serialize(ov::npuw::orc::Stream& stream) {
         break;
     case TransformType::GATHER:
         m_transform.emplace<op::Gather>(ov::npuw::orc::load_versioned_payload<op::Gather>(section));
+        break;
+    case TransformType::SUB128:
+        m_transform.emplace<op::Sub128>(ov::npuw::orc::load_versioned_payload<op::Sub128>(section));
         break;
     default:
         OPENVINO_THROW("ORC LazyTensor: unknown op_type ", section.type, " — please upgrade NPUW");
@@ -649,6 +721,10 @@ void LazyTensorImpl::get_transformations(std::vector<LazyTensor::Transform>& vec
                        auto next_tr = op.w.get_transformations();
                        vec.insert(vec.end(), next_tr.begin(), next_tr.end());
                    },
+                   [&vec](const op::Sub128& op) {
+                       auto next_tr = op.tensor.get_transformations();
+                       vec.insert(vec.end(), next_tr.begin(), next_tr.end());
+                   },
                },
                m_transform);
 }
@@ -685,6 +761,12 @@ LazyTensor LazyTensor::permute(const std::vector<std::size_t>& axes) {
 LazyTensor LazyTensor::convert(const ov::element::Type& type) {
     LazyTensor new_lt;
     new_lt.m_impl = std::make_shared<LazyTensorImpl>(op::Convert(*this, type));
+    return new_lt;
+}
+
+LazyTensor LazyTensor::sub128() {
+    LazyTensor new_lt;
+    new_lt.m_impl = std::make_shared<LazyTensorImpl>(op::Sub128(*this));
     return new_lt;
 }
 

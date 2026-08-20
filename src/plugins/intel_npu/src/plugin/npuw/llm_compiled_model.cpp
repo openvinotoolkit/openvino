@@ -66,8 +66,111 @@ bool is_aligned_to(T value, T alignment) {
     return value % alignment == 0;
 }
 
+// Asymmetrically quantized vocab (LM head) dequantization chain:
+//   Constant(w) -> Convert -.
+//                            Subtract -> Multiply(scale) -> Convert -> MatMul -> Result
+//   Constant(z) -> Convert -'
+struct AsymVocabPattern {
+    std::shared_ptr<ov::Node> qweight;
+    std::shared_ptr<ov::Node> qcoeff;
+    std::shared_ptr<ov::Node> qzerop;
+    std::shared_ptr<ov::Node> qmmi;
+    std::shared_ptr<ov::Node> qmm;
+    std::shared_ptr<ov::Node> qres;
+
+    AsymVocabPattern() {
+        qweight = opp::wrap_type<ov::op::v0::Constant>();
+        qcoeff = opp::wrap_type<ov::op::v0::Constant>();
+        qzerop = opp::wrap_type<ov::op::v0::Constant>();
+        auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
+        auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
+        auto qsub = opp::wrap_type<ov::op::v1::Subtract>({qcvtw, qcvtz});
+        auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsub, qcoeff});
+        auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
+        qmmi = opp::any_input();
+        qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qcvtm});
+        qres = opp::wrap_type<ov::op::v0::Result>({qmm});
+    }
+};
+
 }  // namespace
 
+class ConvertVocabAsymU8ToI8 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::ConvertVocabU8ToI8");
+    explicit ConvertVocabAsymU8ToI8() {
+        AsymVocabPattern p;
+        const auto& qweight = p.qweight;
+        const auto& qcoeff = p.qcoeff;
+        const auto& qzerop = p.qzerop;
+        const auto& qmm = p.qmm;
+
+        auto callback = [=](opp::Matcher& m) {
+            auto& node_to_output = m.get_pattern_value_map();
+
+            auto matched_qweight = node_to_output.at(qweight).get_node_shared_ptr();
+            if (matched_qweight->get_element_type() != ov::element::u8) {
+                return false;
+            }
+            if (matched_qweight->get_shape().size() != 2) {
+                return false;
+            }
+            auto matched_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
+            auto matched_qzerop = node_to_output.at(qzerop).get_node_shared_ptr();
+            auto qcoeff_shape = std::static_pointer_cast<ov::op::v0::Constant>(matched_qcoeff)->get_shape();
+            auto matched_matmul =
+                std::static_pointer_cast<ov::op::v0::MatMul>(node_to_output.at(qmm).get_node_shared_ptr());
+
+            if (qcoeff_shape.size() == 2 && qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() &&
+                matched_matmul->get_transpose_b()) {
+                auto matched_qweight_const = std::static_pointer_cast<ov::op::v0::Constant>(matched_qweight);
+                auto matched_qzerop_const = std::static_pointer_cast<ov::op::v0::Constant>(matched_qzerop);
+
+                if (matched_qzerop_const->get_element_type() != ov::element::u8) {
+                    return false;
+                }
+
+                auto reinterpret_u8_as_i8 = [](const std::shared_ptr<ov::op::v0::Constant>& src) {
+                    OPENVINO_ASSERT(src->get_element_type() == ov::element::u8);
+                    const void* src_data = src->get_data_ptr();
+                    OPENVINO_ASSERT(src_data != nullptr,
+                                    "Constant ",
+                                    src->get_friendly_name(),
+                                    " has no data to reinterpret as i8");
+                    auto dst = std::make_shared<ov::op::v0::Constant>(
+                        ov::element::i8,
+                        src->get_shape(),
+                        src_data,
+                        src);  // <-- 'so': source node kept alive => no dangling, no copy
+                    dst->set_friendly_name(src->get_friendly_name());
+                    // FIXME: This copies weightless attribute to not preserve a constant as a new for weightless
+                    // import. NOTE: ov::copy_runtime_info(src, dst) doesn't lead to the desired behavior, failing the
+                    // LazyTensor to find Weightless attribute!
+                    dst->get_rt_info() = src->get_rt_info();
+                    return dst;
+                };
+
+                // To not mmap and allocate vocab memory here, its shifting will be deferred to the LazyTensor unpacking
+                // stage.
+                auto i8_qweight_constant = reinterpret_u8_as_i8(matched_qweight_const);
+                // Inform partitioning, that this Const is special and needs to be unpacked with -128 shift applied.
+                i8_qweight_constant->get_rt_info()[ov::npuw::weights::op::Sub128::rt_key] = true;
+                ov::replace_node(matched_qweight_const, i8_qweight_constant);
+                auto i8_qzerop_constant = reinterpret_u8_as_i8(matched_qzerop_const);
+                // Inform partitioning, that this Const is special and needs to be unpacked with -128 shift applied.
+                i8_qzerop_constant->get_rt_info()[ov::npuw::weights::op::Sub128::rt_key] = true;
+                ov::replace_node(matched_qzerop_const, i8_qzerop_constant);
+                return true;
+            }
+            return false;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(p.qres, "ConvertVocabAsymU8ToI8"), std::move(callback));
+    }
+};
+
+// Rewrites the LM head DQ chain so the heavy MatMul consumes raw u8/i8 weight and the
+// per-row (weight - zerop) * scale dequant is applied after it:
+//   logits = (x @ W^T) * s - sum(x, axis=-1) * (z * s)
 class CutLMHead : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::CutLMHead");
@@ -153,6 +256,14 @@ public:
 };
 
 namespace {
+bool convert_vocab_to_i8(const std::shared_ptr<ov::Model>& model) {
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ConvertVocabAsymU8ToI8>();
+    auto id_converted = rewr.run_on_model(model);
+    model->validate_nodes_and_infer_types();
+    return id_converted;
+}
+
 std::shared_ptr<ov::Model> cut_lm_head(const std::shared_ptr<ov::Model>& model) {
     ov::pass::GraphRewrite rewr;
     std::shared_ptr<ov::Model> lm_head_model = nullptr;
@@ -927,6 +1038,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     ov::npuw::ReplaceDeepstackScatterWithAdd().run_on_model(kvcache_model);
 
+    if (m_cfg.get<::intel_npu::NPUW_LLM_ASYM_VOCAB_AS_INPUT>()) {
+        if (!convert_vocab_to_i8(kvcache_model)) {
+            LOG_INFO("No asymmetric u8 vocab found - i8 vocab conversion is skipped.");
+        }
+    }
     auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg);
 
     // Detect attention mask kind before the SDPA subgraph is isolated by partitioning,
@@ -1362,6 +1478,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
         apply_weights_bank_name(lm_head_config, weights_bank_name);
 
+        // Host gather can't serve the vocab which is passed to the LM head as an input.
+            if (m_cfg.get<::intel_npu::NPUW_LLM_ASYM_VOCAB_AS_INPUT>()) {
+            lm_head_config["NPUW_HOST_GATHER"] = "NO";
+        }
         m_lm_head_compiled = m_compiled_model_factory(lm_head_model, plugin, lm_head_config);
         NPUW_ASSERT(m_lm_head_compiled);
     }

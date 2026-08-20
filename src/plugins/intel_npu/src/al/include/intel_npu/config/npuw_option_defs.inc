@@ -55,6 +55,7 @@ INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_DUMP_SUBS_DIR, std::string, "", ov::intel_npu::np
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_DUMP_SUBS_ON_FAIL, std::string, "", ov::intel_npu::npuw::dump, subgraphs_on_fail, "NPUW_DUMP_SUBS_ON_FAIL", ROOT, HIDDEN, UNCACHED, DEV)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_DUMP_IO, std::string, "", ov::intel_npu::npuw::dump, inputs_outputs, "NPUW_DUMP_IO", ROOT, HIDDEN, UNCACHED, DEV)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_DUMP_IO_ITERS, bool, false, ov::intel_npu::npuw::dump, io_iters, "NPUW_DUMP_IO_ITERS", ROOT, HIDDEN, UNCACHED, DEV)
+INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_DUMP_IO_FILTER, std::string, "", ov::intel_npu::npuw::dump, io_filter, "NPUW_DUMP_IO_FILTER", ROOT, HIDDEN, UNCACHED, DEV)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM, bool, false, ov::intel_npu::npuw::llm, enabled, "NPUW_LLM", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_BATCH_DIM, uint32_t, 0, ov::intel_npu::npuw::llm, batch_dim, "NPUW_LLM_BATCH_DIM", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_SEQ_LEN_DIM, uint32_t, 2, ov::intel_npu::npuw::llm, seq_len_dim, "NPUW_LLM_SEQ_LEN_DIM", LLM, EXPOSED, CACHED, ALL)
@@ -93,3 +94,4 @@ INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_TEXT_EMBED, bool, false, ov::intel_npu::npuw::tex
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_KOKORO, bool, false, ov::intel_npu::npuw::kokoro, enabled, "NPUW_KOKORO", KOKORO, EXPOSED, UNCACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_KOKORO_BLOCK_SIZE, uint64_t, 200, ov::intel_npu::npuw::kokoro, block_size, "NPUW_KOKORO_BLOCK_SIZE", KOKORO, EXPOSED, UNCACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_KOKORO_OVERLAP_SIZE, uint64_t, 20, ov::intel_npu::npuw::kokoro, overlap_size, "NPUW_KOKORO_OVERLAP_SIZE", KOKORO, EXPOSED, UNCACHED, ALL)
+INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_ASYM_VOCAB_AS_INPUT, bool, false, ov::intel_npu::npuw::llm, asym_vocab_as_input, "NPUW_LLM_ASYM_VOCAB_AS_INPUT", LLM, EXPOSED, CACHED, ALL)

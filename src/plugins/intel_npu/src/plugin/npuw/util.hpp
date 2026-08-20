@@ -26,6 +26,10 @@ bool is_set(const std::size_t sub_idx,
             const std::size_t real_idx = SIZE_MAX,
             const std::size_t end_idx = SIZE_MAX);
 
+// Case-insensitive match of `name` against a comma-separated list of substrings.
+// An empty `filter` matches everything.
+bool name_matches(const std::string& name, const std::string& filter);
+
 // Every great project has its own string class...
 // NB: Newer C++ standards would allow to use string views or smt
 ov::Tensor tensor_from_const(const std::shared_ptr<ov::Node>& node);

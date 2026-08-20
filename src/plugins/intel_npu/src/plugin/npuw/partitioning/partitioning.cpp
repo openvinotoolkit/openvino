@@ -1760,6 +1760,18 @@ void Partitioner::matchResults(const std::string& func_name) {
     LOG_VERB("Done");
 }
 
+namespace {
+ov::npuw::weights::LazyTensor put_to_closure(const std::shared_ptr<ov::Node>& input_node) {
+    auto const_node = std::static_pointer_cast<ov::op::v0::Constant>(input_node);
+    ov::npuw::weights::LazyTensor lt(const_node);
+    if (const_node->get_rt_info().count(ov::npuw::weights::op::Sub128::rt_key) > 0) {
+        LOG_DEBUG("Sub128 marker found on " << const_node->get_friendly_name() << " - applying to the LazyTensor");
+        lt = lt.sub128();
+    }
+    return lt;
+}
+}  // anonymous namespace
+
 void Partitioner::createFunction(FunctionPipeline& func_ggg) {
     using namespace ov::npuw::weights;
 
@@ -1814,6 +1826,10 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
 
                 auto new_param = std::make_shared<ov::op::v0::Parameter>(prod_output.get_element_type(),
                                                                          prod_output.get_partial_shape());
+                // The "npuw_closure_" prefix keeps the name out of the way of the existing
+                // name-based Parameter lookups (attention, pyramid, block KV cache).
+                new_param->set_friendly_name("npuw_closure_" + std::to_string(new_param_idx) + "_" +
+                                             input_node->get_friendly_name());
                 input_desc.replace_source_output(new_param);  // (n)/1/i/a
                 function._model->add_parameters({std::move(new_param)});
                 LOG_DEBUG("Register Parameter[" << new_param_idx << "] as input to " << iport.first << " / "
@@ -1822,8 +1838,15 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
                 new_param_idx++;
 
                 LOG_DEBUG("Register " << prod_output << " in the function closure");
-                funcall._lazy_closure.push_back(
-                    LazyTensor(std::static_pointer_cast<ov::op::v0::Constant>(input_node)));  // (n)/1/i/c
+                funcall._lazy_closure.push_back(put_to_closure(input_node));  // (n)/1/i/c
+            } else if (ov::op::util::is_constant(input_node) &&
+                       input_node->get_rt_info().count(ov::npuw::weights::op::Sub128::rt_key) > 0) {
+                // A Sub128-marked Constant landed in consts_to_keep and stays inline
+                // in the function body - the shift would be silently skipped there,
+                // producing wrong numerics. Fail loudly instead.
+                OPENVINO_THROW("NPUW: Sub128-marked Constant ",
+                               input_node->get_friendly_name(),
+                               " is kept in the function body and won't be transformed");
             } else if (ov::op::util::is_parameter(input_node)) {
                 LOG_DEBUG("Handling a Parameter input " << prod_output);
                 LOG_BLOCK();
@@ -1993,8 +2016,7 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
                         std::make_pair(proto_layer_name, input_desc.get_index()));  // (t)/1/b
                     LOG_DEBUG("Register " << prod_output << " in the function closure[" << param_idx
                                           << "] (via prototype " << proto_layer_name << ")");
-                    funcall._lazy_closure[param_idx - function._param_offset] =
-                        LazyTensor(std::static_pointer_cast<ov::op::v0::Constant>(input_node));  // (t)/1/c
+                    funcall._lazy_closure[param_idx - function._param_offset] = put_to_closure(input_node);  // (t)/1/c
                 }
             }  // for (inputs)
         }  // for(nodes)
