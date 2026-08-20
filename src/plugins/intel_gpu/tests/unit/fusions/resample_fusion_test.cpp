@@ -375,7 +375,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_eltwise_fusing_through, ::testing
     resample_test_params{ CASE_RESAMPLE_BF16_1, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
     resample_test_params{ CASE_RESAMPLE_BF16_3, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
     resample_test_params{ CASE_RESAMPLE_BF16_4, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
-    resample_test_params{ CASE_RESAMPLE_BF16_6, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
+    // BF16_6 (LINEAR non-integer upscale) covered by resample_basic and resample_eltwise_fusing
     resample_test_params{ CASE_RESAMPLE_BF16_7, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
     resample_test_params{ CASE_RESAMPLE_BF16_8, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
 
