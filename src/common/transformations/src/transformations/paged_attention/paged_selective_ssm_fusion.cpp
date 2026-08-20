@@ -87,77 +87,78 @@ PagedSelectiveSSMFusion::PagedSelectiveSSMFusion(ov::pass::paged_attention::PaPa
     auto gathered_state = wrap_type<ov::op::util::GatherBase>({read_value, any_input(), any_input()});
     auto ssm = wrap_type<ov::op::internal::SelectiveSSM>({a, dt, b, x, c, gathered_state});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &pa_params, &var_ids_to_remove](
-                                             ov::pass::pattern::Matcher& m) {
-        if (transformation_callback(m.get_match_root())) {
-            return false;
-        }
+    ov::matcher_pass_callback callback =
+        [OV_CAPTURE_CPY_AND_THIS, &pa_params, &var_ids_to_remove](ov::pass::pattern::Matcher& m) {
+            if (transformation_callback(m.get_match_root())) {
+                return false;
+            }
 
-        const auto& pm = m.get_pattern_value_map();
-        const auto ssm_node = ov::as_type_ptr<ov::op::internal::SelectiveSSM>(pm.at(ssm).get_node_shared_ptr());
-        if (!ssm_node || ssm_node->get_output_size() != 2) {
-            return false;
-        }
+            const auto& pm = m.get_pattern_value_map();
+            const auto ssm_node = ov::as_type_ptr<ov::op::internal::SelectiveSSM>(pm.at(ssm).get_node_shared_ptr());
+            if (!ssm_node || ssm_node->get_output_size() != 2) {
+                return false;
+            }
 
-        pa_params.add("subsequence_begins", ov::element::i32, ov::PartialShape{-1});
-        pa_params.add("la.block_indices", ov::element::i32, ov::PartialShape{-1});
-        pa_params.add("la.block_indices_begins", ov::element::i32, ov::PartialShape{-1});
-        pa_params.add("la.past_lens", ov::element::i32, ov::PartialShape{-1});
-        pa_params.add("la.cache_interval", ov::element::i32, ov::PartialShape{-1});
+            pa_params.add("subsequence_begins", ov::element::i32, ov::PartialShape{-1});
+            pa_params.add("la.block_indices", ov::element::i32, ov::PartialShape{-1});
+            pa_params.add("la.block_indices_begins", ov::element::i32, ov::PartialShape{-1});
+            pa_params.add("la.past_lens", ov::element::i32, ov::PartialShape{-1});
+            pa_params.add("la.cache_interval", ov::element::i32, ov::PartialShape{-1});
 
-        const auto state_consumers = ssm_node->output(1).get_target_inputs();
-        const auto& state_out = pm.at(read_value);
+            const auto state_consumers = ssm_node->output(1).get_target_inputs();
+            const auto& state_out = pm.at(read_value);
 
-        const auto state_table_param = pa_params.add(make_selective_ssm_state_table_name(m_layer_index++),
-                                                     ov::element::dynamic,
-                                                     make_selective_ssm_state_table_shape(state_out.get_partial_shape()));
-        enable_keep_const_precision(state_table_param);
+            const auto state_table_param =
+                pa_params.add(make_selective_ssm_state_table_name(m_layer_index++),
+                              ov::element::dynamic,
+                              make_selective_ssm_state_table_shape(state_out.get_partial_shape()));
+            enable_keep_const_precision(state_table_param);
 
-        const auto rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(pm.at(read_value).get_node_shared_ptr());
-        OPENVINO_ASSERT(rv, "Matched cache node is expected to be ReadValue");
-        var_ids_to_remove.insert(rv->get_variable_id());
+            const auto rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(pm.at(read_value).get_node_shared_ptr());
+            OPENVINO_ASSERT(rv, "Matched cache node is expected to be ReadValue");
+            var_ids_to_remove.insert(rv->get_variable_id());
 
-        // Flatten [B, L, ...] inputs to [B*L, ...]. A carries no batch/length dims and is passed through.
-        const auto dt_flat = flatten_batch_length(pm.at(dt));
-        const auto b_flat = flatten_batch_length(pm.at(b));
-        const auto x_flat = flatten_batch_length(pm.at(x));
-        const auto c_flat = flatten_batch_length(pm.at(c));
+            // Flatten [B, L, ...] inputs to [B*L, ...]. A carries no batch/length dims and is passed through.
+            const auto dt_flat = flatten_batch_length(pm.at(dt));
+            const auto b_flat = flatten_batch_length(pm.at(b));
+            const auto x_flat = flatten_batch_length(pm.at(x));
+            const auto c_flat = flatten_batch_length(pm.at(c));
 
-        const auto paged_ssm =
-            std::make_shared<ov::op::internal::PagedSelectiveSSM>(pm.at(a),
-                                                                  dt_flat,
-                                                                  b_flat,
-                                                                  x_flat,
-                                                                  c_flat,
-                                                                  state_table_param->output(0),
-                                                                  pa_params["subsequence_begins"],
-                                                                  pa_params["la.block_indices"],
-                                                                  pa_params["la.block_indices_begins"],
-                                                                  pa_params["la.past_lens"],
-                                                                  pa_params["la.cache_interval"]);
+            const auto paged_ssm =
+                std::make_shared<ov::op::internal::PagedSelectiveSSM>(pm.at(a),
+                                                                      dt_flat,
+                                                                      b_flat,
+                                                                      x_flat,
+                                                                      c_flat,
+                                                                      state_table_param->output(0),
+                                                                      pa_params["subsequence_begins"],
+                                                                      pa_params["la.block_indices"],
+                                                                      pa_params["la.block_indices_begins"],
+                                                                      pa_params["la.past_lens"],
+                                                                      pa_params["la.cache_interval"]);
 
-        paged_ssm->set_friendly_name(ssm_node->get_friendly_name() + "/PagedSelectiveSSM");
+            paged_ssm->set_friendly_name(ssm_node->get_friendly_name() + "/PagedSelectiveSSM");
 
-        // PagedSelectiveSSM output is [B*L, H, D]; reshape back to the matched SelectiveSSM output [B, L, H, D].
-        const auto x_shape = std::make_shared<ov::op::v3::ShapeOf>(pm.at(x), ov::element::i64);
-        const auto paged_ssm_out = std::make_shared<ov::op::v1::Reshape>(paged_ssm, x_shape, false);
-        paged_ssm_out->set_friendly_name(ssm_node->get_friendly_name());
+            // PagedSelectiveSSM output is [B*L, H, D]; reshape back to the matched SelectiveSSM output [B, L, H, D].
+            const auto x_shape = std::make_shared<ov::op::v3::ShapeOf>(pm.at(x), ov::element::i64);
+            const auto paged_ssm_out = std::make_shared<ov::op::v1::Reshape>(paged_ssm, x_shape, false);
+            paged_ssm_out->set_friendly_name(ssm_node->get_friendly_name());
 
-        ov::copy_runtime_info(ssm_node, {paged_ssm, x_shape, paged_ssm_out});
+            ov::copy_runtime_info(ssm_node, {paged_ssm, x_shape, paged_ssm_out});
 
-        // Reconnect consumer to the original state source so it becomes a dead branch.
-        for (const auto& state_consumer : state_consumers) {
-            state_consumer.replace_source_output(ssm_node->input_value(5));
-        }
+            // Reconnect consumer to the original state source so it becomes a dead branch.
+            for (const auto& state_consumer : state_consumers) {
+                state_consumer.replace_source_output(ssm_node->input_value(5));
+            }
 
-        if (!ov::replace_output_update_name(ssm_node->output(0), paged_ssm_out->output(0))) {
-            ssm_node->output(0).replace(paged_ssm_out->output(0));
-        }
+            if (!ov::replace_output_update_name(ssm_node->output(0), paged_ssm_out->output(0))) {
+                ssm_node->output(0).replace(paged_ssm_out->output(0));
+            }
 
-        register_new_node(paged_ssm_out);
-        register_new_node(paged_ssm);
-        return true;
-    };
+            register_new_node(paged_ssm_out);
+            register_new_node(paged_ssm);
+            return true;
+        };
 
     const auto matcher = std::make_shared<ov::pass::pattern::Matcher>(ssm, "PagedSelectiveSSMFusion");
     register_matcher(matcher, callback);

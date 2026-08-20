@@ -178,9 +178,8 @@ std::shared_ptr<ov::Model> build_reference_model() {
     auto in = make_ssm_inputs();
     auto pp = make_paged_params();
     // SelectiveSSM recurrent_state [B,H,P,N] -> state table [num_blocks,H,P,N].
-    auto state_table = make_param("selective_ssm_state_table.0",
-                                  element::dynamic,
-                                  PartialShape{Dimension::dynamic(), H, P, N});
+    auto state_table =
+        make_param("selective_ssm_state_table.0", element::dynamic, PartialShape{Dimension::dynamic(), H, P, N});
 
     const auto paged_ssm_out = build_paged_ssm_block(in,
                                                      state_table,
