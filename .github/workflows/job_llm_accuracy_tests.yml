@@ -6,6 +6,11 @@ on:
         description: 'Machine on which the tests would run'
         type: string
         required: true
+      runner-group:
+        description: 'Runner group on which to run the job'
+        type: string
+        required: false
+        default: 'GitHub Actions'
       image:
         description: 'Docker image to use for the job'
         type: string
@@ -39,7 +44,9 @@ jobs:
   LLM_Accuracy_Tests:
     name: LLM accuracy ${{ inputs.device }} tests
     timeout-minutes: ${{ inputs.timeout-minutes }}
-    runs-on: ${{ fromJSON(inputs.runner) }}
+    runs-on:
+      group: ${{ inputs.runner-group }}
+      labels: ${{ fromJSON(inputs.runner) }}
     container:
       image: ${{ inputs.image }}
       volumes:
