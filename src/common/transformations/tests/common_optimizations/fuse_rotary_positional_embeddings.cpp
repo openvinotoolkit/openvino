@@ -16,12 +16,14 @@
 #include "openvino/op/gather_elements.hpp"
 #include "openvino/op/gather_nd.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_nd_update.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/strided_slice.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -2408,3 +2410,123 @@ TEST_P(ConvertToROPECohereTest, basic) {
 INSTANTIATE_TEST_SUITE_P(TransformationTestsF,
                          ConvertToROPECohereTest,
                          ::testing::Combine(::testing::Bool(), ::testing::Bool()));
+
+namespace {
+// Builds the decomposed "slice-assign" RoPE subgraph that RoPEFusionSliceAssign targets:
+//   x[1,S,H,D] -> VariadicSplit(-1,[D/2,D/2]) -> x1,x2
+//   out1 = x1*cos - x2*sin   (Subtract, or Add of x2*sin*(-1) when add_negated_form)
+//   out2 = x2*cos + x1*sin
+//   scatter1 = ScatterNDUpdate(zeros[total], idx1, reshape(out1,[N/2]))
+//   scatter2 = ScatterNDUpdate(scatter1,    idx2, reshape(out2,[N/2]))
+//   result   = reshape(scatter2, [1,S,H,D])
+// cos_sin_shape lets tests exercise the cos/sin guard (rank 2..4 with last dim D/2 == valid).
+// flatten_result=true makes the final reshape flatten to [B,S,H*D] (result shape != x shape), which
+// exercises the pass's !replace_root branch (rebuild the final Reshape); false keeps the identity
+// [B,S,H,D] shape (replace_root branch).
+std::shared_ptr<ov::Model> make_slice_assign_rope_model(bool add_negated_form,
+                                                        const ov::PartialShape& cos_sin_shape,
+                                                        bool flatten_result = false,
+                                                        bool i32_indices = false) {
+    using namespace ov;
+    const int batch = 1, seq = 2, heads = 2, dim = 4, half = dim / 2;
+    const int total = batch * seq * heads * dim, half_elems = total / 2;
+
+    auto x = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, seq, heads, dim});
+    auto cos = std::make_shared<opset1::Parameter>(element::f32, cos_sin_shape);
+    auto sin = std::make_shared<opset1::Parameter>(element::f32, cos_sin_shape);
+
+    auto split_axis = makeConst(element::i64, {}, std::vector<int64_t>{-1});
+    auto split_len = makeConst(element::i64, {2}, std::vector<int64_t>{half, half});
+    auto split = makeOP<opset1::VariadicSplit>({x, split_axis, split_len});
+
+    auto mul_x1_cos = makeOP<opset1::Multiply>({split->output(0), cos}, {{"auto_broadcast", "numpy"}});
+    auto mul_x2_sin = makeOP<opset1::Multiply>({split->output(1), sin}, {{"auto_broadcast", "numpy"}});
+    std::shared_ptr<Node> out1;
+    if (add_negated_form) {
+        auto neg = makeConst(element::f32, {}, std::vector<float>{-1.0f});
+        auto neg_x2_sin = makeOP<opset1::Multiply>({mul_x2_sin, neg}, {{"auto_broadcast", "numpy"}});
+        out1 = makeOP<opset1::Add>({mul_x1_cos, neg_x2_sin}, {{"auto_broadcast", "numpy"}});
+    } else {
+        out1 = makeOP<opset1::Subtract>({mul_x1_cos, mul_x2_sin}, {{"auto_broadcast", "numpy"}});
+    }
+    auto mul_x2_cos = makeOP<opset1::Multiply>({split->output(1), cos}, {{"auto_broadcast", "numpy"}});
+    auto mul_x1_sin = makeOP<opset1::Multiply>({split->output(0), sin}, {{"auto_broadcast", "numpy"}});
+    auto out2 = makeOP<opset1::Add>({mul_x2_cos, mul_x1_sin}, {{"auto_broadcast", "numpy"}});
+
+    std::vector<int64_t> idx1v(half_elems), idx2v(half_elems);
+    for (int k = 0; k < half_elems; ++k) {
+        idx1v[k] = (k / half) * dim + (k % half);
+        idx2v[k] = idx1v[k] + half;
+    }
+    const Shape idx_shape{static_cast<size_t>(half_elems), 1};
+    auto make_idx = [&](const std::vector<int64_t>& v) -> std::shared_ptr<Node> {
+        if (i32_indices)
+            return makeConst(element::i32, idx_shape, std::vector<int32_t>(v.begin(), v.end()));
+        return makeConst(element::i64, idx_shape, v);
+    };
+    auto zeros = makeConst(element::f32, {static_cast<size_t>(total)}, std::vector<float>(total, 0.0f));
+    auto upd_shape = makeConst(element::i64, {1}, std::vector<int64_t>{half_elems});
+    auto upd1 = makeOP<opset1::Reshape>({out1, upd_shape}, {{"special_zero", false}});
+    auto idx1 = make_idx(idx1v);
+    auto scatter1 = makeOP<op::v3::ScatterNDUpdate>({zeros, idx1, upd1});
+    auto upd2 = makeOP<opset1::Reshape>({out2, upd_shape}, {{"special_zero", false}});
+    auto idx2 = make_idx(idx2v);
+    auto scatter2 = makeOP<op::v3::ScatterNDUpdate>({scatter1, idx2, upd2});
+    std::shared_ptr<Node> result;
+    if (flatten_result) {
+        auto out_shape = makeConst(element::i64, {3}, std::vector<int64_t>{batch, seq, heads * dim});
+        result = makeOP<opset1::Reshape>({scatter2, out_shape}, {{"special_zero", false}});
+    } else {
+        auto out_shape = makeConst(element::i64, {4}, std::vector<int64_t>{batch, seq, heads, dim});
+        result = makeOP<opset1::Reshape>({scatter2, out_shape}, {{"special_zero", false}});
+    }
+
+    return std::make_shared<Model>(OutputVector{result}, ParameterVector{x, cos, sin});
+}
+
+std::shared_ptr<ov::Model> make_fused_rope_ref(bool flatten_result = false) {
+    using namespace ov;
+    const int batch = 1, seq = 2, heads = 2, dim = 4;
+    auto x = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, seq, heads, dim});
+    auto cos = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, seq, 1, dim / 2});
+    auto sin = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, seq, 1, dim / 2});
+    std::shared_ptr<Node> rope = makeOP<op::internal::RoPE>({x, cos, sin},
+                                                            {{"config.slice_start", 0},
+                                                             {"config.slice_stop", 0},
+                                                             {"config.input_trans0213", false},
+                                                             {"config.output_trans0213", false},
+                                                             {"config.is_interleaved", false},
+                                                             {"config.rotary_ndims", dim},
+                                                             {"config.cos_sin_ndims", dim / 2},
+                                                             {"config.is_chatglm", false},
+                                                             {"config.support_2d_rope", false},
+                                                             {"config.support_3d_rope", false},
+                                                             {"config.is_qwen", false},
+                                                             {"config.use_rope_cache", false},
+                                                             {"config.is_ltx_video", false},
+                                                             {"config.head_cnt", 0},
+                                                             {"config.head_size", 0},
+                                                             {"config.gather_position_arg_id", 0}});
+    if (flatten_result) {
+        auto out_shape = makeConst(element::i64, {3}, std::vector<int64_t>{batch, seq, heads * dim});
+        rope = makeOP<opset1::Reshape>({rope, out_shape}, {{"special_zero", false}});
+    }
+    return std::make_shared<Model>(OutputVector{rope}, ParameterVector{x, cos, sin});
+}
+}  // namespace
+
+TEST_F(TransformationTestsF, ConvertToROPE_SliceAssign_Subtract) {
+    disable_rt_info_check();
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    model = make_slice_assign_rope_model(/*add_negated_form=*/false, /*cos_sin_shape=*/{1, 2, 1, 2});
+    manager.register_pass<ov::pass::RoPEFusion>();
+    model_ref = make_fused_rope_ref();
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_SliceAssign_AddNegated) {
+    disable_rt_info_check();
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    model = make_slice_assign_rope_model(/*add_negated_form=*/true, /*cos_sin_shape=*/{1, 2, 1, 2});
+    manager.register_pass<ov::pass::RoPEFusion>();
+    model_ref = make_fused_rope_ref();
+}
