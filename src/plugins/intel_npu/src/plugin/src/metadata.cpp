@@ -596,12 +596,12 @@ std::unique_ptr<MetadataBase> read_metadata_from(BlobSource& source) {
     OPENVINO_ASSERT(npuBlobSize >= MINIMUM_BLOB_SIZE, BLOB_TOO_SMALL_MESSAGE, npuBlobSize);
 
     std::string blobMagicBytes(MAGIC_BYTES.size(), 0);
-    source.seekg(-MAGIC_BYTES.size(), std::ios::end);
+    source.seekg(-static_cast<int>(MAGIC_BYTES.size()), std::ios::end);
     source.read_into_buffer(blobMagicBytes.data(), MAGIC_BYTES.size());
     OPENVINO_ASSERT(MAGIC_BYTES == blobMagicBytes, MISSING_METADATA_MESSAGE);
 
     uint64_t payloadSize;
-    source.seekg(-MAGIC_BYTES.size() - sizeof(payloadSize), std::ios::end);
+    source.seekg(-static_cast<int>(MAGIC_BYTES.size()) - sizeof(payloadSize), std::ios::end);
     source.read_into_buffer(&payloadSize, sizeof(payloadSize));
 
     // Subtraction form avoids integer overflow when payloadSize is near UINT64_MAX.

@@ -215,7 +215,7 @@ TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorToLastByteReferenceBeginning) {
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorToStartReferenceEnd) {
     BlobSource blob_source = create_blob_source();
 
-    blob_source.seekg(-blob_content.size(), std::ios::end);
+    blob_source.seekg(-static_cast<int64_t>(blob_content.size()), std::ios::end);
     size_t cursor = 0;
     OV_ASSERT_NO_THROW(cursor = blob_source.tellg());
     ASSERT_EQ(cursor, 0);
@@ -440,7 +440,9 @@ TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorAfterEndReferenceCurrent) {
  */
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorBeforeStartReferenceEnd) {
     BlobSource blob_source = create_blob_source();
-    OV_EXPECT_THROW(blob_source.seekg(-(blob_content.size() + 1), std::ios::end), ov::Exception, _);
+    OV_EXPECT_THROW(blob_source.seekg(-(static_cast<int64_t>(blob_content.size()) + 1), std::ios::end),
+                    ov::Exception,
+                    _);
 }
 
 /**

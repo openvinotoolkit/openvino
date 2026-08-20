@@ -503,7 +503,7 @@ std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
     OPENVINO_ASSERT(input_size >= MAGIC_BYTES.size(), BLOB_SIZE_SMALLER_THAN_MAGIC);
 
     const size_t compiler_payload_beggining = npu_formatted_blob.tellg();
-    npu_formatted_blob.seekg(-MAGIC_BYTES.size(), std::ios::end);
+    npu_formatted_blob.seekg(-static_cast<int>(MAGIC_BYTES.size()), std::ios::end);
 
     std::string blob_magic_bytes(MAGIC_BYTES.size(), 0);
     npu_formatted_blob.read_into_buffer(blob_magic_bytes.data(), MAGIC_BYTES.size());
