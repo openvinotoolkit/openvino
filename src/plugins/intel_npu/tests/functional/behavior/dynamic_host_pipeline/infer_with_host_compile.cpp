@@ -721,6 +721,839 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
         << logCapture.str();
 }
 
+// ── V2: NPU_SHARED_COMMON_QUEUE=YES and =NO baseline ─────────────────────────
+//
+// shared=YES → DynamicPipeline::DynamicPipeline() calls ensureV2(..., queue->handle(), ...)
+// shared=NO  → ensureV2(..., nullptr, ...)  (vm_runtime owns the internal queue)
+// Verifies first-infer, reuse (same ptr), new-ptr, and shape-change for both modes.
+TEST_P(InferWithHostCompileTests, SharedCommonQueue_BasicInferAndReuse) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    for (bool sharedQueue : {true, false}) {
+        ov::AnyMap cfg = configuration;
+        cfg[ov::intel_npu::shared_common_queue.name()] = sharedQueue;
+
+        auto model = createModelByName(selectedModelName);
+        RuntimeCompareSetupResult setupResult;
+        {
+            auto savedCfg = configuration;
+            configuration = cfg;
+            setupResult = prepareRuntimeCompareContext(model);
+            configuration = savedCfg;
+        }
+        if (setupResult.status == RuntimeCompareStatus::fail) {
+            FAIL() << "shared=" << sharedQueue << ": " << setupResult.message;
+        }
+        if (setupResult.status == RuntimeCompareStatus::skip) {
+            GTEST_SKIP() << setupResult.message;
+        }
+        auto& ctx = setupResult.context;
+        const std::string tag = sharedQueue ? "shared" : "nonshared";
+
+        ov::Shape shape = {1, 720, 1280, 16};
+        ov::Tensor t0 = ov::test::utils::create_and_fill_tensor(
+                model->input().get_element_type(), shape, 100, 0);
+
+        OV_ASSERT_NO_THROW(setInputInferAndCompare(model, ctx.reqDynamic, ctx.reqReference,
+                                                   t0, tag + "_first"));
+        OV_ASSERT_NO_THROW(inferAndCompare(model, ctx.reqDynamic, ctx.reqReference,
+                                           tag + "_reuse"));
+
+        ov::Tensor t1 = ov::test::utils::create_and_fill_tensor(
+                model->input().get_element_type(), shape, 200, 0);
+        OV_ASSERT_NO_THROW(setInputInferAndCompare(model, ctx.reqDynamic, ctx.reqReference,
+                                                   t1, tag + "_new_ptr"));
+
+        ov::Shape shape2 = {1, 360, 640, 16};
+        ov::Tensor t2 = ov::test::utils::create_and_fill_tensor(
+                model->input().get_element_type(), shape2, 50, 0);
+        OV_ASSERT_NO_THROW(setInputInferAndCompare(model, ctx.reqDynamic, ctx.reqReference,
+                                                   t2, tag + "_shape_change"));
+    }
+}
+
+TEST_P(InferWithHostCompileTests, SharedCommonQueue_ZeroTensorInputOutputSet) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    for (bool sharedQueue : {true, false}) {
+        ov::AnyMap cfg = configuration;
+        cfg[ov::intel_npu::shared_common_queue.name()] = sharedQueue;
+
+        auto model = createModelByName(selectedModelName);
+        RuntimeCompareSetupResult setupResult;
+        {
+            auto savedCfg = configuration;
+            configuration = cfg;
+            setupResult = prepareRuntimeCompareContext(model);
+            configuration = savedCfg;
+        }
+        if (setupResult.status == RuntimeCompareStatus::fail) {
+            FAIL() << "shared=" << sharedQueue << ": " << setupResult.message;
+        }
+        if (setupResult.status == RuntimeCompareStatus::skip) {
+            GTEST_SKIP() << setupResult.message;
+        }
+        auto& ctx = setupResult.context;
+        const std::string tag = sharedQueue ? "shared" : "nonshared";
+
+        auto zeroContext = core->get_default_context(target_device);
+        ov::Shape shape = {1, 720, 1280, 16};
+        ov::Tensor hostInput = ov::test::utils::create_and_fill_tensor(
+                model->input().get_element_type(), shape, 100, 0);
+        OV_ASSERT_NO_THROW(setInputInferAndCompare(model, ctx.reqDynamic, ctx.reqReference,
+                                                   hostInput, tag + "_host_input_baseline"));
+
+        auto zeroInput = zeroContext.create_host_tensor(model->input().get_element_type(), shape);
+        auto zeroInputSource = ov::test::utils::create_and_fill_tensor(
+                model->input().get_element_type(), shape, 100, 1);
+        ASSERT_EQ(zeroInputSource.get_byte_size(), zeroInput.get_byte_size());
+        std::memcpy(zeroInput.data(), zeroInputSource.data(), zeroInputSource.get_byte_size());
+        OV_ASSERT_NO_THROW(setInputInferAndCompare(model, ctx.reqDynamic, ctx.reqReference,
+                                                   zeroInput, tag + "_zero_input"));
+
+        const auto outputShape = ctx.reqDynamic.get_tensor(model->output()).get_shape();
+        auto zeroOutput = zeroContext.create_host_tensor(model->output().get_element_type(), outputShape);
+        OV_ASSERT_NO_THROW(ctx.reqDynamic.set_tensor(model->output(), zeroOutput));
+        OV_ASSERT_NO_THROW(inferAndCompare(model, ctx.reqDynamic, ctx.reqReference,
+                                           tag + "_zero_output"));
+
+        ov::Shape shape2 = {1, 360, 640, 16};
+        auto zeroInput2 = zeroContext.create_host_tensor(model->input().get_element_type(), shape2);
+        auto zeroInputSource2 = ov::test::utils::create_and_fill_tensor(
+                model->input().get_element_type(), shape2, 100, 2);
+        ASSERT_EQ(zeroInputSource2.get_byte_size(), zeroInput2.get_byte_size());
+        std::memcpy(zeroInput2.data(), zeroInputSource2.data(), zeroInputSource2.get_byte_size());
+        auto zeroOutput2 = zeroContext.create_host_tensor(model->output().get_element_type(), shape2);
+        OV_ASSERT_NO_THROW(ctx.reqDynamic.set_tensor(model->output(), zeroOutput2));
+        OV_ASSERT_NO_THROW(setInputInferAndCompare(model, ctx.reqDynamic, ctx.reqReference,
+                                                   zeroInput2, tag + "_zero_input_output_shape_change"));
+    }
+}
+
+TEST_P(InferWithHostCompileTests, CompileTimeConfig_ModelPriority) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    for (bool sharedQueue : {true, false}) {
+        for (auto priority : {ov::hint::Priority::LOW, ov::hint::Priority::MEDIUM, ov::hint::Priority::HIGH}) {
+            ov::AnyMap cfg = configuration;
+            cfg[ov::intel_npu::shared_common_queue.name()] = sharedQueue;
+            cfg[ov::hint::model_priority.name()] = priority;
+
+            auto model = createModelByName(selectedModelName);
+            RuntimeCompareSetupResult setupResult;
+            {
+                auto savedCfg = configuration;
+                configuration = cfg;
+                setupResult = prepareRuntimeCompareContext(model);
+                configuration = savedCfg;
+            }
+            if (setupResult.status == RuntimeCompareStatus::fail) {
+                FAIL() << setupResult.message;
+            }
+            if (setupResult.status == RuntimeCompareStatus::skip) {
+                GTEST_SKIP() << setupResult.message;
+            }
+
+            ov::Shape shape = {1, 720, 1280, 16};
+            ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(
+                    model->input().get_element_type(), shape, 100, 0);
+            OV_ASSERT_NO_THROW(setInputInferAndCompare(model,
+                                                       setupResult.context.reqDynamic,
+                                                       setupResult.context.reqReference,
+                                                       inTensor,
+                                                       "CompileTimePriority"));
+        }
+    }
+}
+
+TEST_P(InferWithHostCompileTests, CompileTimeConfig_WorkloadType) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    for (bool sharedQueue : {true, false}) {
+        for (auto workloadType : {ov::WorkloadType::DEFAULT, ov::WorkloadType::EFFICIENT}) {
+            ov::AnyMap cfg = configuration;
+            cfg[ov::intel_npu::shared_common_queue.name()] = sharedQueue;
+            cfg[ov::workload_type.name()] = workloadType;
+
+            auto model = createModelByName(selectedModelName);
+            ov::CompiledModel compiledModel;
+            try {
+                auto savedCfg = configuration;
+                configuration = cfg;
+                compiledModel = core->compile_model(model, target_device, configuration);
+                configuration = savedCfg;
+            } catch (const ov::Exception& e) {
+                GTEST_SKIP() << "workload_type compile-time config not supported: " << e.what();
+            }
+            ov::CompiledModel refModel;
+            try {
+                refModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+            } catch (const ov::Exception&) {
+                GTEST_SKIP() << "TEMPLATE plugin unavailable";
+            }
+
+            auto reqDynamic = compiledModel.create_infer_request();
+            auto reqRef = refModel.create_infer_request();
+            ov::Shape shape = {1, 720, 1280, 16};
+            ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(
+                    model->input().get_element_type(), shape, 100, 0);
+            OV_ASSERT_NO_THROW(setInputInferAndCompare(model, reqDynamic, reqRef,
+                                                       inTensor, "CompileTimeWorkload"));
+        }
+    }
+}
+
+TEST_P(InferWithHostCompileTests, CompileTimeConfig_Turbo) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    for (bool sharedQueue : {true, false}) {
+        for (bool turbo : {false, true}) {
+            ov::AnyMap cfg = configuration;
+            cfg[ov::intel_npu::shared_common_queue.name()] = sharedQueue;
+            cfg[ov::intel_npu::turbo.name()] = turbo;
+
+            auto model = createModelByName(selectedModelName);
+            ov::CompiledModel compiledModel;
+            try {
+                auto savedCfg = configuration;
+                configuration = cfg;
+                compiledModel = core->compile_model(model, target_device, configuration);
+                configuration = savedCfg;
+            } catch (const ov::Exception& e) {
+                GTEST_SKIP() << "turbo compile-time config not supported: " << e.what();
+            }
+            ov::CompiledModel refModel;
+            try {
+                refModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+            } catch (const ov::Exception&) {
+                GTEST_SKIP() << "TEMPLATE plugin unavailable";
+            }
+
+            auto reqDynamic = compiledModel.create_infer_request();
+            auto reqRef = refModel.create_infer_request();
+            ov::Shape shape = {1, 720, 1280, 16};
+            ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(
+                    model->input().get_element_type(), shape, 100, 0);
+            OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor));
+            OV_ASSERT_NO_THROW(reqRef.set_input_tensor(0, inTensor));
+            try {
+                reqDynamic.infer();
+                OV_ASSERT_NO_THROW(reqRef.infer());
+                OV_ASSERT_NO_THROW(compareInferenceResult(model, reqDynamic, reqRef));
+            } catch (const ov::Exception& e) {
+                if (!turbo) {
+                    FAIL() << "Unexpected turbo=false compile-time failure: " << e.what();
+                }
+                const std::string errorMsg = e.what();
+                const bool gotExpectedRuntimeError = errorMsg.find("QUEUE_OPTIONS") != std::string::npos ||
+                                                     errorMsg.find("configCmdQueue") != std::string::npos ||
+                                                     errorMsg.find("vm_runtime") != std::string::npos;
+                ASSERT_TRUE(gotExpectedRuntimeError)
+                    << "Unexpected turbo compile-time failure reason: " << errorMsg;
+            }
+        }
+    }
+}
+
+TEST_P(InferWithHostCompileTests, SetProperty_CombinedPriorityAndWorkload) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    for (bool sharedQueue : {true, false}) {
+        ov::AnyMap cfg = configuration;
+        cfg[ov::intel_npu::shared_common_queue.name()] = sharedQueue;
+        cfg[ov::hint::model_priority.name()] = ov::hint::Priority::LOW;
+        cfg[ov::workload_type.name()] = ov::WorkloadType::DEFAULT;
+
+        auto model = createModelByName(selectedModelName);
+        ov::CompiledModel compiledModel;
+        try {
+            auto savedCfg = configuration;
+            configuration = cfg;
+            compiledModel = core->compile_model(model, target_device, configuration);
+            configuration = savedCfg;
+        } catch (const ov::Exception& e) {
+            GTEST_SKIP() << "compile_model failed: " << e.what();
+        }
+        ov::CompiledModel refModel;
+        try {
+            refModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+        } catch (const ov::Exception&) {
+            GTEST_SKIP() << "TEMPLATE plugin unavailable";
+        }
+
+        try {
+            compiledModel.set_property({{ov::workload_type.name(), ov::WorkloadType::EFFICIENT}});
+            compiledModel.set_property({{ov::workload_type.name(), ov::WorkloadType::DEFAULT}});
+        } catch (const ov::Exception& e) {
+            GTEST_SKIP() << "workload_type not supported: " << e.what();
+        }
+
+        auto reqDynamic = compiledModel.create_infer_request();
+        auto reqRef = refModel.create_infer_request();
+        ov::Shape shape = {1, 720, 1280, 16};
+        ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(
+                model->input().get_element_type(), shape, 100, 0);
+        OV_ASSERT_NO_THROW(setInputInferAndCompare(model, reqDynamic, reqRef,
+                                                   inTensor, "CombinedConfig_baseline"));
+
+        OV_ASSERT_NO_THROW(compiledModel.set_property({
+                {ov::hint::model_priority.name(), ov::hint::Priority::HIGH},
+                {ov::workload_type.name(), ov::WorkloadType::EFFICIENT}}));
+        OV_ASSERT_NO_THROW(inferAndCompare(model, reqDynamic, reqRef,
+                                           "CombinedConfig_priority_high_workload_efficient"));
+
+        ov::Shape shape2 = {1, 360, 640, 16};
+        ov::Tensor inTensor2 = ov::test::utils::create_and_fill_tensor(
+                model->input().get_element_type(), shape2, 100, 1);
+        OV_ASSERT_NO_THROW(setInputInferAndCompare(model, reqDynamic, reqRef,
+                                                   inTensor2, "CombinedConfig_shape_change"));
+
+        OV_ASSERT_NO_THROW(compiledModel.set_property({
+                {ov::hint::model_priority.name(), ov::hint::Priority::LOW},
+                {ov::workload_type.name(), ov::WorkloadType::DEFAULT}}));
+        OV_ASSERT_NO_THROW(inferAndCompare(model, reqDynamic, reqRef,
+                                           "CombinedConfig_restored"));
+    }
+}
+
+// ── V2: compiledModel.set_property(model_priority) → priority change ──────────
+//
+// This is the primary missing scenario: a user calls set_property() on a single
+// already-compiled model to change priority at runtime, then infers.
+//
+// Call chain:
+//   compiledModel.set_property({model_priority, HIGH})
+//   → DynamicGraph::set_model_priority(HIGH)
+//     → _commandQueueDesc.set_priority(HIGH) → new key
+//   reqDynamic.infer() → DynamicPipeline::push()
+//     → command_queue_desc.key() != _command_queue->desc().key()   (changed)
+//     → [shared=YES] _command_queue = ZeroCmdQueuePool::getCommandQueue(new_desc)
+//     → update_runtime_config(prev_desc, curr_desc) → QUEUE_PRIORITY diff → pConfig
+//     → execute_vm_runtime_v2(..., pConfig) → npuVMRuntimeExecute2 with pConfig
+//
+// Transitions: LOW → HIGH → MEDIUM → LOW; also verifies a new InferRequest created
+// after set_property picks up the updated CommandQueueDesc.
+TEST_P(InferWithHostCompileTests, SetProperty_ModelPriority_SingleCompiledModel) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    ov::AnyMap cfg = configuration;
+    cfg[ov::hint::model_priority.name()]           = ov::hint::Priority::LOW;
+    cfg[ov::intel_npu::shared_common_queue.name()] = true;
+
+    auto model = createModelByName(selectedModelName);
+    RuntimeCompareSetupResult setupResult;
+    {
+        auto savedCfg = configuration;
+        configuration = cfg;
+        setupResult = prepareRuntimeCompareContext(model);
+        configuration = savedCfg;
+    }
+    if (setupResult.status == RuntimeCompareStatus::fail) {
+        FAIL() << setupResult.message;
+    }
+    if (setupResult.status == RuntimeCompareStatus::skip) {
+        GTEST_SKIP() << setupResult.message;
+    }
+    auto& ctx = setupResult.context;
+
+    ov::Shape shape = {1, 720, 1280, 16};
+    ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(
+            model->input().get_element_type(), shape, 100, 0);
+
+    // Baseline at LOW: command_queue_version_changed=false on first push().
+    OV_ASSERT_NO_THROW(setInputInferAndCompare(model, ctx.reqDynamic, ctx.reqReference,
+                                               inTensor, "Priority_low_baseline"));
+
+    // LOW → HIGH: _commandQueueDesc.key() changes; push() detects it and replaces queue.
+    // update_runtime_config produces QUEUE_PRIORITY diff in pConfig.
+    OV_ASSERT_NO_THROW(ctx.compiledModel.set_property(
+            {{ov::hint::model_priority.name(), ov::hint::Priority::HIGH}}));
+    OV_ASSERT_NO_THROW(inferAndCompare(model, ctx.reqDynamic, ctx.reqReference,
+                                       "Priority_LOW_to_HIGH"));
+
+    // Reuse at HIGH: same shape, same ptr → no re-record, queue is now HIGH-priority.
+    OV_ASSERT_NO_THROW(inferAndCompare(model, ctx.reqDynamic, ctx.reqReference,
+                                       "Priority_HIGH_reuse"));
+
+    // HIGH → MEDIUM.
+    OV_ASSERT_NO_THROW(ctx.compiledModel.set_property(
+            {{ov::hint::model_priority.name(), ov::hint::Priority::MEDIUM}}));
+    OV_ASSERT_NO_THROW(inferAndCompare(model, ctx.reqDynamic, ctx.reqReference,
+                                       "Priority_HIGH_to_MEDIUM"));
+
+    // MEDIUM → LOW: exercises roundtrip back to LOW-priority queue entry in pool.
+    OV_ASSERT_NO_THROW(ctx.compiledModel.set_property(
+            {{ov::hint::model_priority.name(), ov::hint::Priority::LOW}}));
+    OV_ASSERT_NO_THROW(inferAndCompare(model, ctx.reqDynamic, ctx.reqReference,
+                                       "Priority_MEDIUM_to_LOW"));
+
+    // New InferRequest after set_property: must use the updated CommandQueueDesc.
+    ov::InferRequest reqNew   = ctx.compiledModel.create_infer_request();
+    ov::InferRequest reqRefNew = ctx.referenceCompiledModel.create_infer_request();
+    OV_ASSERT_NO_THROW(setInputInferAndCompare(model, reqNew, reqRefNew,
+                                               inTensor, "Priority_new_request_after_set"));
+}
+
+// ── V2: compiledModel.set_property(workload_type) → workload change ───────────
+//
+// Call chain (shared=YES):
+//   set_property(workload_type, EFFICIENT)
+//   → DynamicGraph::set_workload_type()
+//     → [_commandQueue not set yet] _commandQueueDesc.set_workload() → key changes
+//   push(): command_queue_desc.key() changed → replace _command_queue from pool
+//           update_runtime_config → WORKLOAD_TYPE diff → pConfig → configCmdQueue
+//
+// Skipped gracefully when the driver does not support workload_type.
+TEST_P(InferWithHostCompileTests, SetProperty_WorkloadType_SingleCompiledModel) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    ov::AnyMap cfg = configuration;
+    cfg[ov::intel_npu::shared_common_queue.name()] = true;
+
+    auto model = createModelByName(selectedModelName);
+    ov::CompiledModel compiledModel;
+    try {
+        auto savedCfg = configuration;
+        configuration = cfg;
+        compiledModel = core->compile_model(model, target_device, configuration);
+        configuration = savedCfg;
+    } catch (const ov::Exception& e) {
+        GTEST_SKIP() << "compile_model failed: " << e.what();
+    }
+    ov::CompiledModel refModel;
+    try {
+        refModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+    } catch (const ov::Exception&) {
+        GTEST_SKIP() << "TEMPLATE plugin unavailable";
+    }
+
+    // Probe support before the actual test.
+    try {
+        compiledModel.set_property({{ov::workload_type.name(), ov::WorkloadType::EFFICIENT}});
+        compiledModel.set_property({{ov::workload_type.name(), ov::WorkloadType::DEFAULT}});
+    } catch (const ov::Exception& e) {
+        GTEST_SKIP() << "workload_type not supported: " << e.what();
+    }
+
+    ov::InferRequest reqDynamic = compiledModel.create_infer_request();
+    ov::InferRequest reqRef     = refModel.create_infer_request();
+
+    ov::Shape shape = {1, 720, 1280, 16};
+    ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(
+            model->input().get_element_type(), shape, 100, 0);
+
+    OV_ASSERT_NO_THROW(setInputInferAndCompare(model, reqDynamic, reqRef,
+                                               inTensor, "Workload_default_baseline"));
+
+    OV_ASSERT_NO_THROW(compiledModel.set_property(
+            {{ov::workload_type.name(), ov::WorkloadType::EFFICIENT}}));
+    OV_ASSERT_NO_THROW(inferAndCompare(model, reqDynamic, reqRef,
+                                       "Workload_DEFAULT_to_EFFICIENT"));
+
+    OV_ASSERT_NO_THROW(inferAndCompare(model, reqDynamic, reqRef,
+                                       "Workload_EFFICIENT_reuse"));
+
+    OV_ASSERT_NO_THROW(compiledModel.set_property(
+            {{ov::workload_type.name(), ov::WorkloadType::DEFAULT}}));
+    OV_ASSERT_NO_THROW(inferAndCompare(model, reqDynamic, reqRef,
+                                       "Workload_EFFICIENT_to_DEFAULT"));
+}
+
+// ── V2: compiledModel.set_property(turbo) → QUEUE_OPTIONS diff — documents bug ─
+//
+// ov::intel_npu::turbo maps to ZE_NPU_COMMAND_QUEUE_OPTION_TURBO bit in
+// CommandQueueDesc._options.  update_runtime_config() appends QUEUE_OPTIONS diff.
+// vm_runtime's configCmdQueue currently REJECTS QUEUE_OPTIONS (the known bug).
+//
+// The test: after restoring turbo=false the baseline request must still succeed,
+// confirming the exception is propagated cleanly (no unrecoverable state corruption).
+// TODO: Once bug is fixed, add compareInferenceResult after the turbo=true infer.
+TEST_P(InferWithHostCompileTests, SetProperty_Turbo_SingleCompiledModel_DocumentsBug) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    ov::AnyMap cfg = configuration;
+    cfg[ov::intel_npu::shared_common_queue.name()] = true;
+    cfg[ov::intel_npu::turbo.name()]               = false;
+
+    auto model = createModelByName(selectedModelName);
+    ov::CompiledModel compiledModel;
+    try {
+        auto savedCfg = configuration;
+        configuration = cfg;
+        compiledModel = core->compile_model(model, target_device, configuration);
+        configuration = savedCfg;
+    } catch (const ov::Exception& e) {
+        GTEST_SKIP() << "compile_model failed: " << e.what();
+    }
+    ov::CompiledModel refModel;
+    try {
+        refModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+    } catch (const ov::Exception&) {
+        GTEST_SKIP() << "TEMPLATE plugin unavailable";
+    }
+    try {
+        compiledModel.set_property({{ov::intel_npu::turbo.name(), true}});
+        compiledModel.set_property({{ov::intel_npu::turbo.name(), false}});
+    } catch (const ov::Exception& e) {
+        GTEST_SKIP() << "turbo not supported: " << e.what();
+    }
+
+    ov::InferRequest reqDynamic = compiledModel.create_infer_request();
+    ov::InferRequest reqRef     = refModel.create_infer_request();
+
+    ov::Shape shape = {1, 720, 1280, 16};
+    ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(
+            model->input().get_element_type(), shape, 100, 0);
+
+    // Baseline without turbo: must succeed.
+    OV_ASSERT_NO_THROW(setInputInferAndCompare(model, reqDynamic, reqRef,
+                                               inTensor, "Turbo_OFF_baseline"));
+
+    // Enable turbo: update_runtime_config sends QUEUE_OPTIONS diff.
+    // vm_runtime currently returns error → ov::Exception is thrown.
+    // TODO: Change to OV_ASSERT_NO_THROW + compareInferenceResult after bug fix.
+    OV_ASSERT_NO_THROW(compiledModel.set_property(
+            {{ov::intel_npu::turbo.name(), true}}));
+    bool gotExpectedRuntimeError = false;
+    try {
+        reqDynamic.infer();
+        // Bug fixed: add comparison here once resolved.
+    } catch (const ov::Exception& e) {
+        // Expected until vm_runtime handles QUEUE_OPTIONS in configCmdQueue.
+        const std::string errorMsg = e.what();
+        gotExpectedRuntimeError = errorMsg.find("QUEUE_OPTIONS") != std::string::npos ||
+                                  errorMsg.find("configCmdQueue") != std::string::npos ||
+                                  errorMsg.find("vm_runtime") != std::string::npos;
+        ASSERT_TRUE(gotExpectedRuntimeError)
+            << "Unexpected turbo failure reason: " << errorMsg;
+    }
+
+    // Restore turbo=false; subsequent infer must succeed (no state corruption).
+    OV_ASSERT_NO_THROW(compiledModel.set_property(
+            {{ov::intel_npu::turbo.name(), false}}));
+    OV_ASSERT_NO_THROW(inferAndCompare(model, reqDynamic, reqRef,
+                                       "Turbo_restored_to_OFF"));
+}
+
+// ── V2: set_property between two InferRequests from the same CompiledModel ────
+//
+// Both InferRequests call _graph->get_command_queue_desc() on every push(), so
+// after set_property() changes the priority, each request's next push() sees
+// command_queue_version_changed=true and independently replaces its _command_queue.
+//
+// Sequence:
+//   reqA.infer() at LOW  → establishes LOW queue in reqA's DynamicPipeline
+//   reqB.infer() at LOW  → establishes LOW queue in reqB's DynamicPipeline
+//   set_property(HIGH)   → _commandQueueDesc.key() changes for both pipelines
+//   reqA.infer() at HIGH → push() detects change; QUEUE_PRIORITY diff in pConfig
+//   reqB.infer() at HIGH → same
+//   set_property(LOW)    → back to LOW
+//   reqA.infer() at LOW  → second transition
+//   reqB.infer() at LOW  → second transition
+TEST_P(InferWithHostCompileTests, SetProperty_Priority_BetweenTwoRequests) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    ov::AnyMap cfg = configuration;
+    cfg[ov::hint::model_priority.name()]           = ov::hint::Priority::LOW;
+    cfg[ov::intel_npu::shared_common_queue.name()] = true;
+
+    auto model = createModelByName(selectedModelName);
+    ov::CompiledModel compiledModel;
+    try {
+        auto savedCfg = configuration;
+        configuration = cfg;
+        compiledModel = core->compile_model(model, target_device, configuration);
+        configuration = savedCfg;
+    } catch (const ov::Exception& e) {
+        GTEST_SKIP() << "compile_model failed: " << e.what();
+    }
+    ov::CompiledModel refModel;
+    try {
+        refModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+    } catch (const ov::Exception&) {
+        GTEST_SKIP() << "TEMPLATE plugin unavailable";
+    }
+
+    ov::InferRequest reqA   = compiledModel.create_infer_request();
+    ov::InferRequest reqB   = compiledModel.create_infer_request();
+    ov::InferRequest reqRef = refModel.create_infer_request();
+
+    ov::Shape shape = {1, 720, 1280, 16};
+    ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(
+            model->input().get_element_type(), shape, 100, 0);
+
+    // Warmup both at LOW.
+    OV_ASSERT_NO_THROW(setInputInferAndCompare(model, reqA, reqRef, inTensor, "TwoReq_A_LOW"));
+    OV_ASSERT_NO_THROW(setInputInferAndCompare(model, reqB, reqRef, inTensor, "TwoReq_B_LOW"));
+
+    // Change to HIGH: both DynamicPipelines will see new CommandQueueDesc on next push().
+    OV_ASSERT_NO_THROW(compiledModel.set_property(
+            {{ov::hint::model_priority.name(), ov::hint::Priority::HIGH}}));
+    OV_ASSERT_NO_THROW(inferAndCompare(model, reqA, reqRef, "TwoReq_A_LOW_to_HIGH"));
+    OV_ASSERT_NO_THROW(inferAndCompare(model, reqB, reqRef, "TwoReq_B_LOW_to_HIGH"));
+
+    // Back to LOW: second transition for both.
+    OV_ASSERT_NO_THROW(compiledModel.set_property(
+            {{ov::hint::model_priority.name(), ov::hint::Priority::LOW}}));
+    OV_ASSERT_NO_THROW(inferAndCompare(model, reqA, reqRef, "TwoReq_A_HIGH_to_LOW"));
+    OV_ASSERT_NO_THROW(inferAndCompare(model, reqB, reqRef, "TwoReq_B_HIGH_to_LOW"));
+}
+
+TEST_P(InferWithHostCompileTests, SetProperty_ModelPriority_SingleCompiledModel_NonSharedCommonQueue) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    ov::AnyMap cfg = configuration;
+    cfg[ov::hint::model_priority.name()]           = ov::hint::Priority::LOW;
+    cfg[ov::intel_npu::shared_common_queue.name()] = false;
+
+    auto model = createModelByName(selectedModelName);
+    RuntimeCompareSetupResult setupResult;
+    {
+        auto savedCfg = configuration;
+        configuration = cfg;
+        setupResult = prepareRuntimeCompareContext(model);
+        configuration = savedCfg;
+    }
+    if (setupResult.status == RuntimeCompareStatus::fail) {
+        FAIL() << setupResult.message;
+    }
+    if (setupResult.status == RuntimeCompareStatus::skip) {
+        GTEST_SKIP() << setupResult.message;
+    }
+    auto& ctx = setupResult.context;
+
+    ov::Shape shape = {1, 720, 1280, 16};
+    ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(
+            model->input().get_element_type(), shape, 100, 0);
+
+    OV_ASSERT_NO_THROW(setInputInferAndCompare(model, ctx.reqDynamic, ctx.reqReference,
+                                               inTensor, "Priority_nonshared_low_baseline"));
+
+    OV_ASSERT_NO_THROW(ctx.compiledModel.set_property(
+            {{ov::hint::model_priority.name(), ov::hint::Priority::HIGH}}));
+    OV_ASSERT_NO_THROW(inferAndCompare(model, ctx.reqDynamic, ctx.reqReference,
+                                       "Priority_nonshared_LOW_to_HIGH"));
+
+    OV_ASSERT_NO_THROW(inferAndCompare(model, ctx.reqDynamic, ctx.reqReference,
+                                       "Priority_nonshared_HIGH_reuse"));
+
+    OV_ASSERT_NO_THROW(ctx.compiledModel.set_property(
+            {{ov::hint::model_priority.name(), ov::hint::Priority::MEDIUM}}));
+    OV_ASSERT_NO_THROW(inferAndCompare(model, ctx.reqDynamic, ctx.reqReference,
+                                       "Priority_nonshared_HIGH_to_MEDIUM"));
+
+    OV_ASSERT_NO_THROW(ctx.compiledModel.set_property(
+            {{ov::hint::model_priority.name(), ov::hint::Priority::LOW}}));
+    OV_ASSERT_NO_THROW(inferAndCompare(model, ctx.reqDynamic, ctx.reqReference,
+                                       "Priority_nonshared_MEDIUM_to_LOW"));
+
+    ov::InferRequest reqNew = ctx.compiledModel.create_infer_request();
+    ov::InferRequest reqRefNew = ctx.referenceCompiledModel.create_infer_request();
+    OV_ASSERT_NO_THROW(setInputInferAndCompare(model, reqNew, reqRefNew,
+                                               inTensor, "Priority_nonshared_new_request_after_set"));
+}
+
+TEST_P(InferWithHostCompileTests, SetProperty_WorkloadType_SingleCompiledModel_NonSharedCommonQueue) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    ov::AnyMap cfg = configuration;
+    cfg[ov::intel_npu::shared_common_queue.name()] = false;
+
+    auto model = createModelByName(selectedModelName);
+    ov::CompiledModel compiledModel;
+    try {
+        auto savedCfg = configuration;
+        configuration = cfg;
+        compiledModel = core->compile_model(model, target_device, configuration);
+        configuration = savedCfg;
+    } catch (const ov::Exception& e) {
+        GTEST_SKIP() << "compile_model failed: " << e.what();
+    }
+    ov::CompiledModel refModel;
+    try {
+        refModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+    } catch (const ov::Exception&) {
+        GTEST_SKIP() << "TEMPLATE plugin unavailable";
+    }
+
+    try {
+        compiledModel.set_property({{ov::workload_type.name(), ov::WorkloadType::EFFICIENT}});
+        compiledModel.set_property({{ov::workload_type.name(), ov::WorkloadType::DEFAULT}});
+    } catch (const ov::Exception& e) {
+        GTEST_SKIP() << "workload_type not supported in nonshared queue mode: " << e.what();
+    }
+
+    ov::InferRequest reqDynamic = compiledModel.create_infer_request();
+    ov::InferRequest reqRef = refModel.create_infer_request();
+
+    ov::Shape shape = {1, 720, 1280, 16};
+    ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(
+            model->input().get_element_type(), shape, 100, 0);
+
+    OV_ASSERT_NO_THROW(setInputInferAndCompare(model, reqDynamic, reqRef,
+                                               inTensor, "Workload_nonshared_default_baseline"));
+
+    OV_ASSERT_NO_THROW(compiledModel.set_property(
+            {{ov::workload_type.name(), ov::WorkloadType::EFFICIENT}}));
+    OV_ASSERT_NO_THROW(inferAndCompare(model, reqDynamic, reqRef,
+                                       "Workload_nonshared_DEFAULT_to_EFFICIENT"));
+
+    OV_ASSERT_NO_THROW(inferAndCompare(model, reqDynamic, reqRef,
+                                       "Workload_nonshared_EFFICIENT_reuse"));
+
+    OV_ASSERT_NO_THROW(compiledModel.set_property(
+            {{ov::workload_type.name(), ov::WorkloadType::DEFAULT}}));
+    OV_ASSERT_NO_THROW(inferAndCompare(model, reqDynamic, reqRef,
+                                       "Workload_nonshared_EFFICIENT_to_DEFAULT"));
+}
+
+TEST_P(InferWithHostCompileTests, SetProperty_Turbo_SingleCompiledModel_NonSharedCommonQueue_DocumentsBug) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    ov::AnyMap cfg = configuration;
+    cfg[ov::intel_npu::shared_common_queue.name()] = false;
+    cfg[ov::intel_npu::turbo.name()]               = false;
+
+    auto model = createModelByName(selectedModelName);
+    ov::CompiledModel compiledModel;
+    try {
+        auto savedCfg = configuration;
+        configuration = cfg;
+        compiledModel = core->compile_model(model, target_device, configuration);
+        configuration = savedCfg;
+    } catch (const ov::Exception& e) {
+        GTEST_SKIP() << "compile_model failed: " << e.what();
+    }
+    ov::CompiledModel refModel;
+    try {
+        refModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+    } catch (const ov::Exception&) {
+        GTEST_SKIP() << "TEMPLATE plugin unavailable";
+    }
+    try {
+        compiledModel.set_property({{ov::intel_npu::turbo.name(), true}});
+        compiledModel.set_property({{ov::intel_npu::turbo.name(), false}});
+    } catch (const ov::Exception& e) {
+        GTEST_SKIP() << "turbo not supported in nonshared queue mode: " << e.what();
+    }
+
+    ov::InferRequest reqDynamic = compiledModel.create_infer_request();
+    ov::InferRequest reqRef     = refModel.create_infer_request();
+
+    ov::Shape shape = {1, 720, 1280, 16};
+    ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(
+            model->input().get_element_type(), shape, 100, 0);
+
+    OV_ASSERT_NO_THROW(setInputInferAndCompare(model, reqDynamic, reqRef,
+                                               inTensor, "Turbo_nonshared_OFF_baseline"));
+
+    OV_ASSERT_NO_THROW(compiledModel.set_property(
+            {{ov::intel_npu::turbo.name(), true}}));
+    try {
+        reqDynamic.infer();
+    } catch (const ov::Exception& e) {
+        const std::string errorMsg = e.what();
+        const bool gotExpectedRuntimeError = errorMsg.find("QUEUE_OPTIONS") != std::string::npos ||
+                                             errorMsg.find("configCmdQueue") != std::string::npos ||
+                                             errorMsg.find("vm_runtime") != std::string::npos;
+        ASSERT_TRUE(gotExpectedRuntimeError)
+            << "Unexpected turbo failure reason in nonshared queue mode: " << errorMsg;
+    }
+
+    OV_ASSERT_NO_THROW(compiledModel.set_property(
+            {{ov::intel_npu::turbo.name(), false}}));
+    OV_ASSERT_NO_THROW(inferAndCompare(model, reqDynamic, reqRef,
+                                       "Turbo_nonshared_restored_to_OFF"));
+}
+
+TEST_P(InferWithHostCompileTests, SetProperty_Priority_BetweenTwoRequests_NonSharedCommonQueue) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    ov::AnyMap cfg = configuration;
+    cfg[ov::hint::model_priority.name()]           = ov::hint::Priority::LOW;
+    cfg[ov::intel_npu::shared_common_queue.name()] = false;
+
+    auto model = createModelByName(selectedModelName);
+    ov::CompiledModel compiledModel;
+    try {
+        auto savedCfg = configuration;
+        configuration = cfg;
+        compiledModel = core->compile_model(model, target_device, configuration);
+        configuration = savedCfg;
+    } catch (const ov::Exception& e) {
+        GTEST_SKIP() << "compile_model failed: " << e.what();
+    }
+    ov::CompiledModel refModel;
+    try {
+        refModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
+    } catch (const ov::Exception&) {
+        GTEST_SKIP() << "TEMPLATE plugin unavailable";
+    }
+
+    ov::InferRequest reqA   = compiledModel.create_infer_request();
+    ov::InferRequest reqB   = compiledModel.create_infer_request();
+    ov::InferRequest reqRef = refModel.create_infer_request();
+
+    ov::Shape shape = {1, 720, 1280, 16};
+    ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(
+            model->input().get_element_type(), shape, 100, 0);
+
+    OV_ASSERT_NO_THROW(setInputInferAndCompare(model, reqA, reqRef, inTensor, "TwoReq_nonshared_A_LOW"));
+    OV_ASSERT_NO_THROW(setInputInferAndCompare(model, reqB, reqRef, inTensor, "TwoReq_nonshared_B_LOW"));
+
+    OV_ASSERT_NO_THROW(compiledModel.set_property(
+            {{ov::hint::model_priority.name(), ov::hint::Priority::HIGH}}));
+    OV_ASSERT_NO_THROW(inferAndCompare(model, reqA, reqRef, "TwoReq_nonshared_A_LOW_to_HIGH"));
+    OV_ASSERT_NO_THROW(inferAndCompare(model, reqB, reqRef, "TwoReq_nonshared_B_LOW_to_HIGH"));
+
+    OV_ASSERT_NO_THROW(compiledModel.set_property(
+            {{ov::hint::model_priority.name(), ov::hint::Priority::LOW}}));
+    OV_ASSERT_NO_THROW(inferAndCompare(model, reqA, reqRef, "TwoReq_nonshared_A_HIGH_to_LOW"));
+    OV_ASSERT_NO_THROW(inferAndCompare(model, reqB, reqRef, "TwoReq_nonshared_B_HIGH_to_LOW"));
+}
+
 using InferWithDefaultHostCompileTests = InferWithHostCompileTests;
 
 inline bool isByteCodeBlob(const std::string& blob) {
