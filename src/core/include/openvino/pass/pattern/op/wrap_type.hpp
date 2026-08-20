@@ -52,6 +52,14 @@ public:
         m_strict_output_index = strict;
     }
 
+    using ov::Node::output;
+    // Grow the placeholder output list on demand so strict multi-output patterns need not fix arity up front.
+    Output<Node> output(size_t index) {
+        if (index >= get_output_size())
+            set_output_size(index + 1);
+        return Node::output(index);
+    }
+
 private:
     std::vector<NodeTypeInfo> m_wrapped_types;
     bool m_strict_output_index = false;
@@ -102,22 +110,40 @@ std::shared_ptr<Node> wrap_type(std::initializer_list<std::pair<const std::strin
 template <class... Args,
           typename TPredicate,
           typename std::enable_if_t<std::is_constructible_v<op::Predicate, TPredicate>>* = nullptr>
-std::shared_ptr<Node> wrap_type_strict(size_t num_outputs,
-                                       const PatternOps& inputs,
-                                       const TPredicate& pred,
-                                       const Attributes& attrs = {}) {
+std::shared_ptr<op::WrapType> wrap_type_strict(size_t num_outputs,
+                                               const PatternOps& inputs,
+                                               const TPredicate& pred,
+                                               const Attributes& attrs = {}) {
     auto node = wrap_type<Args...>(inputs, op::Predicate(pred), attrs);
     auto wrap = ov::as_type_ptr<op::WrapType>(node);
     wrap->set_output_size(num_outputs);
     wrap->set_strict_output_index(true);
-    return node;
+    return wrap;
 }
 
 template <class... Args>
-std::shared_ptr<Node> wrap_type_strict(size_t num_outputs,
-                                       const PatternOps& inputs = {},
-                                       const Attributes& attrs = {}) {
+std::shared_ptr<op::WrapType> wrap_type_strict(size_t num_outputs,
+                                               const PatternOps& inputs = {},
+                                               const Attributes& attrs = {}) {
     return wrap_type_strict<Args...>(num_outputs, inputs, (attrs.empty() ? op::Predicate() : attrs_match(attrs)));
+}
+
+// Count-free overloads: outputs grow lazily via WrapType::output(), so the arity need not be given up front.
+template <class... Args,
+          typename TPredicate,
+          typename std::enable_if_t<std::is_constructible_v<op::Predicate, TPredicate>>* = nullptr>
+std::shared_ptr<op::WrapType> wrap_type_strict(const PatternOps& inputs,
+                                               const TPredicate& pred,
+                                               const Attributes& attrs = {}) {
+    auto node = wrap_type<Args...>(inputs, op::Predicate(pred), attrs);
+    auto wrap = ov::as_type_ptr<op::WrapType>(node);
+    wrap->set_strict_output_index(true);
+    return wrap;
+}
+
+template <class... Args>
+std::shared_ptr<op::WrapType> wrap_type_strict(const PatternOps& inputs = {}, const Attributes& attrs = {}) {
+    return wrap_type_strict<Args...>(inputs, (attrs.empty() ? op::Predicate() : attrs_match(attrs)));
 }
 
 OPENVINO_API std::shared_ptr<Node> wrap_const();

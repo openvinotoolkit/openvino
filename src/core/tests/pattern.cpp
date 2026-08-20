@@ -1871,3 +1871,38 @@ TEST(pattern, wrap_type_strict_matches_subset_of_outputs) {
     TestMatcher tm;
     ASSERT_TRUE(tm.match(concat_p, concat));
 }
+
+TEST(pattern, wrap_type_strict_count_free_output_grows) {
+    auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 20, 30});
+    auto axis = op::v0::Constant::create(element::i64, {}, {0});
+    auto split_lengths = op::v0::Constant::create(element::i64, {2}, {5, 5});
+    auto scale = op::v0::Constant::create(element::f32, Shape{}, {-1.0f});
+
+    // Count-free: the strict producer's output arity is never stated up front;
+    // referencing ->output(i) grows the placeholder outputs on demand.
+    auto split_p = pattern::wrap_type_strict<op::v1::VariadicSplit>();
+    auto neg_p = pattern::wrap_type<op::v1::Multiply>({split_p->output(1), pattern::any_input()});
+    auto concat_p = pattern::wrap_type<op::v0::Concat>({neg_p, split_p->output(0)});
+
+    // Correctly-wired graph: neg uses output(1), concat uses output(0) -> matches.
+    {
+        auto split = std::make_shared<op::v1::VariadicSplit>(input, axis, split_lengths);
+        split->set_output_size(2);
+        auto neg = std::make_shared<op::v1::Multiply>(split->output(1), scale);
+        auto concat = std::make_shared<op::v0::Concat>(OutputVector{neg, split->output(0)}, 0);
+
+        TestMatcher tm;
+        ASSERT_TRUE(tm.match(concat_p, concat));
+    }
+
+    // Swapped-wired graph: index mismatch is still honored -> must NOT match.
+    {
+        auto split = std::make_shared<op::v1::VariadicSplit>(input, axis, split_lengths);
+        split->set_output_size(2);
+        auto neg = std::make_shared<op::v1::Multiply>(split->output(0), scale);
+        auto concat = std::make_shared<op::v0::Concat>(OutputVector{neg, split->output(1)}, 0);
+
+        TestMatcher tm;
+        ASSERT_FALSE(tm.match(concat_p, concat));
+    }
+}
