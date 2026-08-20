@@ -44,6 +44,10 @@ size_t BufferWeightsProvider::size() const {
 }
 
 FileWeightsProvider::FileWeightsProvider(std::filesystem::path weights_path) : m_weights_path(std::move(weights_path)) {
+    if (!ov::util::file_exists(m_weights_path)) {
+        OPENVINO_THROW("Weights file ", m_weights_path, " cannot be opened!");
+    }
+
     std::streamoff weights_size{};
     ov::util::get_file_handle_and_size(m_weights_path, 0, m_weights_handle, weights_size);
     m_weights_size = static_cast<size_t>(weights_size);
