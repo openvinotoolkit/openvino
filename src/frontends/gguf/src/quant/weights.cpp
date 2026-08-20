@@ -10,9 +10,9 @@
 
 #include "weights.hpp"
 
+#include <array>
 #include <cctype>
 #include <cmath>
-#include <cstdlib>
 #include <cstring>
 #include <vector>
 
@@ -36,13 +36,41 @@ namespace {
 
 const ov::Tensor& get(const std::unordered_map<std::string, ov::Tensor>& weights, const std::string& key) {
     auto it = weights.find(key);
-    OPENVINO_ASSERT(it != weights.end(), "[ggml] missing weight tensor: ", key);
+    OPENVINO_ASSERT(it != weights.end(), "[GGUF] missing weight tensor: ", key);
     return it->second;
 }
 
+// Copy rows [r0, r1) out of a 2D tensor. Rows are block-independent in every GGUF quant layout,
+// so a fused attn_qkv weight can be split by a plain row copy without touching the quant blocks.
+ov::Tensor slice_rows(const ov::Tensor& t, size_t r0, size_t r1) {
+    const auto& s = t.get_shape();
+    OPENVINO_ASSERT(s.size() == 2 && r1 <= s[0] && r0 <= r1, "[GGUF] bad row slice");
+    ov::Shape out_shape{r1 - r0, s[1]};
+    ov::Tensor out(t.get_element_type(), out_shape);
+    const size_t row_bytes = t.get_byte_size() / s[0];
+    std::memcpy(out.data(), static_cast<const uint8_t*>(t.data()) + r0 * row_bytes, (r1 - r0) * row_bytes);
+    return out;
+}
 
-// Shared shape helpers for grouped weight layouts. See make_int8 comment for why we keep
-// all leading dims separate rather than flattening: the trailing Reshape must be
+// Gather rows in a repeating per-block pattern: for every `block` consecutive rows, take
+// [offset, offset + take) into the result. Used to de-interleave qwen35's attn_q, which packs
+// query and gate per head as [q_h0 | gate_h0 | q_h1 | gate_h1 | ...].
+ov::Tensor gather_rows_strided(const ov::Tensor& t, size_t block, size_t take, size_t offset) {
+    const auto& s = t.get_shape();
+    OPENVINO_ASSERT(s.size() == 2 && block > 0 && offset + take <= block && s[0] % block == 0,
+                    "[GGUF] bad strided row gather");
+    const size_t n_blocks = s[0] / block;
+    ov::Tensor out(t.get_element_type(), ov::Shape{n_blocks * take, s[1]});
+    const size_t row_bytes = t.get_byte_size() / s[0];
+    const auto* src = static_cast<const uint8_t*>(t.data());
+    auto* dst = static_cast<uint8_t*>(out.data());
+    for (size_t b = 0; b < n_blocks; ++b) {
+        std::memcpy(dst + b * take * row_bytes, src + (b * block + offset) * row_bytes, take * row_bytes);
+    }
+    return out;
+}
+
+// Keep all leading dims separate rather than flattening: the trailing Reshape must be
 // (orig_rank+1)D -> orig_rank for the CompressedWeightsBlock matcher to fire.
 ov::Shape grouped_weight_shape(const ov::Shape& orig, size_t num_groups, size_t group_size) {
     ov::Shape s(orig.begin(), orig.end() - 1);
@@ -363,7 +391,7 @@ std::vector<float> dequant_extracted_to_f32(const std::unordered_map<std::string
             for (size_t c = 0; c < cols; ++c)
                 emit(r, c, static_cast<float>(q[r * cols + c]));
     } else if (et == ov::element::u2) {
-        // Q2_K: u2 weights, 4 per byte LSB-first, raw [0..3] with a zero-point.
+        // Q2_K / Q2_0: u2 weights, 4 per byte LSB-first, raw [0..3] with a zero-point.
         const auto* bytes = static_cast<const uint8_t*>(weight.data());
         const size_t per_row_bytes = cols / 4;
         for (size_t r = 0; r < rows; ++r)
@@ -392,11 +420,6 @@ std::vector<float> dequant_extracted_to_f32(const std::unordered_map<std::string
 // Decide whether a weight is requantized to Q8_0_C, mirroring llama.cpp's
 // ggml_openvino_get_requant_type for the CPU/GPU (non-NPU) path.
 bool needs_q8_0_c_requant(const std::string& name, gguf_tensor_type qtype) {
-    // The env var does not change during a conversion; read it once.
-    static const bool no_requant = std::getenv("GGUF_FE_NO_REQUANT") != nullptr;
-    if (no_requant) {
-        return false;  // diagnostic: faithful dequant only
-    }
     if (name.rfind("token_embd.weight", 0) == 0 || name.rfind("output.weight", 0) == 0) {
         return true;
     }
@@ -404,6 +427,17 @@ bool needs_q8_0_c_requant(const std::string& name, gguf_tensor_type qtype) {
 }
 
 }  // namespace
+
+ov::element::Type gguf_zero_point_type(const std::string& name, gguf_tensor_type qtype) {
+    // The CPU compressed-FullyConnected fast path only folds the dequant when the zero-point is an
+    // INTEGER constant; a fractional f16 one leaves a ~2x slower kernel. Q4_K carries the matmul
+    // weights of modern models and Q2_0's zp is the exact integer 1, so both use u8. The others
+    // keep a faithful f16 zp: their zp = min/scale can exceed u8 range, and rounding it injects
+    // error into every weight. Tensors that are requantized to Q8_0_C are excluded -- their dequant
+    // feeds the channel-wise path, not a compressed FC.
+    const bool integer_zp = (qtype == GGUF_TYPE_Q4_K || qtype == GGUF_TYPE_Q2_0);
+    return (integer_zp && !needs_q8_0_c_requant(name, qtype)) ? ov::element::u8 : ov::element::f16;
+}
 
 std::shared_ptr<ov::Node> make_weight_node(const std::string& base,
                                            const std::unordered_map<std::string, ov::Tensor>& weights,
@@ -426,6 +460,7 @@ std::shared_ptr<ov::Node> make_weight_node(const std::string& base,
         node = make_int4(base, weights);
         break;
     case GGUF_TYPE_Q2_K:
+    case GGUF_TYPE_Q2_0:
         node = make_int2(base, weights);
         break;
     case GGUF_TYPE_Q5_K:
@@ -474,7 +509,8 @@ gguf_tensor_type gguf_type_from_name(const std::string& quant_type) {
                                                                             {"Q5_K", GGUF_TYPE_Q5_K},
                                                                             {"Q6_K", GGUF_TYPE_Q6_K},
                                                                             {"Q8_K", GGUF_TYPE_Q8_K},
-                                                                            {"MXFP4", GGUF_TYPE_MXFP4}};
+                                                                            {"MXFP4", GGUF_TYPE_MXFP4},
+                                                                            {"Q2_0", GGUF_TYPE_Q2_0}};
     // Accept ggml's lowercase type names ("q4_0", "q6_K", "f16", ...) as well as the
     // canonical uppercase form by upper-casing the prefix before the "_K"/"_0" suffix.
     std::string key = quant_type;
@@ -482,8 +518,91 @@ gguf_tensor_type gguf_type_from_name(const std::string& quant_type) {
         ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
     }
     auto it = names.find(key);
-    OPENVINO_ASSERT(it != names.end(), "[ggml] unsupported weight quant type: ", quant_type);
+    OPENVINO_ASSERT(it != names.end(), "[GGUF] unsupported weight quant type: ", quant_type);
     return it->second;
+}
+
+std::array<FusedQkvPart, 3> split_fused_qkv_extracted(
+    const std::string& base,
+    const std::unordered_map<std::string, ov::Tensor>& weights,
+    const std::unordered_map<std::string, gguf_tensor_type>& qtypes,
+    size_t n_q,
+    size_t n_k,
+    size_t n_v) {
+    gguf_tensor_type qtype = GGUF_TYPE_F16;
+    if (auto it = qtypes.find(base + ".qtype"); it != qtypes.end()) {
+        qtype = it->second;
+    }
+    const bool has_scales = qtype == GGUF_TYPE_Q4_0 || qtype == GGUF_TYPE_Q4_1 || qtype == GGUF_TYPE_Q4_K ||
+                            qtype == GGUF_TYPE_Q5_0 || qtype == GGUF_TYPE_Q5_1 || qtype == GGUF_TYPE_Q8_0 ||
+                            qtype == GGUF_TYPE_Q2_K || qtype == GGUF_TYPE_Q3_K || qtype == GGUF_TYPE_Q5_K ||
+                            qtype == GGUF_TYPE_Q6_K || qtype == GGUF_TYPE_Q2_0;
+    const bool has_zp = qtype == GGUF_TYPE_Q4_1 || qtype == GGUF_TYPE_Q4_K || qtype == GGUF_TYPE_Q5_K ||
+                        qtype == GGUF_TYPE_Q5_1 || qtype == GGUF_TYPE_Q2_K || qtype == GGUF_TYPE_Q2_0;
+
+    const ov::Tensor& w = get(weights, base + ".weight");
+    const size_t total_rows = w.get_shape()[0];
+    OPENVINO_ASSERT(n_q + n_k + n_v == total_rows, "[GGUF] fused qkv row mismatch for ", base);
+
+    const std::array<std::pair<size_t, size_t>, 3> ranges = {std::make_pair(size_t(0), n_q),
+                                                             std::make_pair(n_q, n_q + n_k),
+                                                             std::make_pair(n_q + n_k, total_rows)};
+    const std::array<std::string, 3> parts = {base + ".q", base + ".k", base + ".v"};
+
+    std::array<FusedQkvPart, 3> out;
+    for (size_t i = 0; i < 3; ++i) {
+        const auto [r0, r1] = ranges[i];
+        out[i].qtype = qtype;
+        out[i].extracted[parts[i] + ".weight"] = slice_rows(w, r0, r1);
+        if (has_scales) {
+            out[i].extracted[parts[i] + ".scales"] = slice_rows(get(weights, base + ".scales"), r0, r1);
+        }
+        if (has_zp) {
+            out[i].extracted[parts[i] + ".zp"] = slice_rows(get(weights, base + ".zp"), r0, r1);
+        }
+    }
+    return out;
+}
+
+// qwen35: attn_q packs the query and the attention output gate interleaved per head, as
+// [q_h0 | gate_h0 | q_h1 | gate_h1 | ...] with a stride of 2*head_dim rows. De-interleave it
+// into two plain weights so the graph sees ordinary projections. Returns {query, gate}.
+std::array<FusedQkvPart, 2> split_interleaved_q_gate(const std::string& base,
+                                                     const std::unordered_map<std::string, ov::Tensor>& weights,
+                                                     const std::unordered_map<std::string, gguf_tensor_type>& qtypes,
+                                                     size_t head_dim) {
+    gguf_tensor_type qtype = GGUF_TYPE_F16;
+    if (auto it = qtypes.find(base + ".qtype"); it != qtypes.end()) {
+        qtype = it->second;
+    }
+    const bool has_scales = qtype == GGUF_TYPE_Q4_0 || qtype == GGUF_TYPE_Q4_1 || qtype == GGUF_TYPE_Q4_K ||
+                            qtype == GGUF_TYPE_Q5_0 || qtype == GGUF_TYPE_Q5_1 || qtype == GGUF_TYPE_Q8_0 ||
+                            qtype == GGUF_TYPE_Q2_K || qtype == GGUF_TYPE_Q3_K || qtype == GGUF_TYPE_Q5_K ||
+                            qtype == GGUF_TYPE_Q6_K || qtype == GGUF_TYPE_Q2_0;
+    const bool has_zp = qtype == GGUF_TYPE_Q4_1 || qtype == GGUF_TYPE_Q4_K || qtype == GGUF_TYPE_Q5_K ||
+                        qtype == GGUF_TYPE_Q5_1 || qtype == GGUF_TYPE_Q2_K || qtype == GGUF_TYPE_Q2_0;
+
+    const ov::Tensor& w = get(weights, base + ".weight");
+    const size_t block = 2 * head_dim;
+    OPENVINO_ASSERT(w.get_shape()[0] % block == 0, "[GGUF] interleaved q/gate row mismatch for ", base);
+
+    const std::array<std::string, 2> parts = {base + ".q", base + ".gate"};
+    const std::array<size_t, 2> offsets = {0, head_dim};
+
+    std::array<FusedQkvPart, 2> out;
+    for (size_t i = 0; i < 2; ++i) {
+        out[i].qtype = qtype;
+        out[i].extracted[parts[i] + ".weight"] = gather_rows_strided(w, block, head_dim, offsets[i]);
+        if (has_scales) {
+            out[i].extracted[parts[i] + ".scales"] =
+                gather_rows_strided(get(weights, base + ".scales"), block, head_dim, offsets[i]);
+        }
+        if (has_zp) {
+            out[i].extracted[parts[i] + ".zp"] =
+                gather_rows_strided(get(weights, base + ".zp"), block, head_dim, offsets[i]);
+        }
+    }
+    return out;
 }
 
 std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
@@ -491,7 +610,7 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
                                            const ov::Shape& logical_shape,
                                            const std::string& name) {
     OPENVINO_ASSERT(logical_shape.size() == 2,
-                    "[ggml] weight logical shape must be 2D [rows, cols], got rank ",
+                    "[GGUF] weight logical shape must be 2D [rows, cols], got rank ",
                     logical_shape.size());
     const uint64_t rows = logical_shape[0];
     const uint64_t cols = logical_shape[1];
@@ -532,12 +651,12 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
     // zp is an INTEGER (u8) low-precision constant; a fractional f16 zp leaves a standalone
     // dequant MatMul (~2x slower prefill). Q4_K is the asymmetric type that appears as MatMul
     // weights in modern models (Q4_K_M = Q4_K + symmetric Q6_K), so it uses integer zp to match
-    // the original ggml-openvino backend. The legacy Q4_1/Q5_1/Q2_K types keep a faithful f16 zp:
+    // the original ggml-openvino backend; Q2_0's zp is the exact integer 1, so it does too.
+    // The legacy Q4_1/Q5_1/Q2_K types keep a faithful f16 zp:
     // they are not perf-critical here, and their zp = -min/scale can fall outside u8 range. The
     // requant path (token_embd/output) also keeps f16 -- its dequant feeds channel-wise Q8_0_C.
     const bool requant = needs_q8_0_c_requant(name, qtype);
-    const ov::element::Type zp_type =
-        (!requant && qtype == GGUF_TYPE_Q4_K) ? ov::element::u8 : ov::element::f16;
+    const ov::element::Type zp_type = gguf_zero_point_type(name, qtype);
 
     // K-quant requant sources: the fused dequant -> Q8_0_C streams from the raw bytes, so skip the
     // full-tensor gguf_fill_* extraction below (it would be discarded) and return before the switch.
@@ -546,7 +665,7 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
         ov::Tensor rq_scales(ov::element::f16, ov::Shape{rows, 1});
         bool ok = requantize_q8_0_channelwise_faithful(tensor, rows, cols, qtype, rq_weights.data<int8_t>(),
                                                        rq_scales.data<ov::float16>());
-        OPENVINO_ASSERT(ok, "[ggml] faithful K-quant requant failed for ", base);
+        OPENVINO_ASSERT(ok, "[GGUF] faithful K-quant requant failed for ", base);
         return build_q8_0_c_node(rq_weights, rq_scales, rows, cols);
     }
 
@@ -622,14 +741,25 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
         w[base + ".zp"] = zp;
         break;
     }
+    case GGUF_TYPE_Q2_0: {
+        // Ternary: u2 weights + f16 scales + a zero-point that is the constant 1 (group 64).
+        ov::Tensor weights(ov::element::u2, ov::Shape{rows, cols});
+        ov::Tensor scales(ov::element::f16, ov::Shape{rows, sub_blocks_per_row(64)});
+        ov::Tensor zp(zp_type, ov::Shape{rows, sub_blocks_per_row(64)});
+        gguf_fill_q2_0(tensor, weights, scales, zp);
+        w[base + ".weight"] = weights;
+        w[base + ".scales"] = scales;
+        w[base + ".zp"] = zp;
+        break;
+    }
     default:
-        OPENVINO_THROW("[ggml] unsupported weight quant type: ", quant_type);
+        OPENVINO_THROW("[GGUF] unsupported weight quant type: ", quant_type);
     }
 
     // Non-K requant sources (e.g. an F16 / Q4_0 / Q8_0 token_embd or output): the K-quant fast path
     // above already handled Q4_K/Q5_K/Q6_K, so here reproduce the backend's channel-wise Q8_0_C by
     // dequantizing to f32 from the extracted tensors, then re-quantizing.
-    if (requant) {  // computed above; reuse rather than re-running getenv + name scans
+    if (requant) {
         auto f32 = dequant_extracted_to_f32(w, base, rows, cols);
         return requantize_q8_0_channelwise(f32, rows, cols);
     }

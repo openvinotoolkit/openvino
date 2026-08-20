@@ -6,6 +6,7 @@ set(TARGET_NAME "openvino_npu_common")
 
 set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/compiler_adapter_factory.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/option_support_cache.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/device_helpers.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/filtered_config.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/icompiled_model.hpp

@@ -15,6 +15,7 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/utils.cpp"
     "${FE_SRC_DIR}/helper_ops/set_rows_op.cpp"
     "${FE_SRC_DIR}/pass/lower_set_rows_stateless.cpp"
+    "${FE_SRC_DIR}/pass/make_stateful.cpp"
     "${FE_SRC_DIR}/quant/gguf_quants.cpp"
     "${FE_SRC_DIR}/quant/weights.cpp"
     "${FE_SRC_DIR}/op/add_id.cpp"
@@ -23,6 +24,10 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/op/concat.cpp"
     "${FE_SRC_DIR}/op/cont.cpp"
     "${FE_SRC_DIR}/op/cpy.cpp"
+    "${FE_SRC_DIR}/op/cumsum.cpp"
+    "${FE_SRC_DIR}/op/diag.cpp"
+    "${FE_SRC_DIR}/op/div.cpp"
+    "${FE_SRC_DIR}/op/fill.cpp"
     "${FE_SRC_DIR}/op/flash_attn_ext.cpp"
     "${FE_SRC_DIR}/op/gated_delta_net.cpp"
     "${FE_SRC_DIR}/op/get_rows.cpp"
@@ -40,11 +45,16 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/op/rms_norm.cpp"
     "${FE_SRC_DIR}/op/rope.cpp"
     "${FE_SRC_DIR}/op/scale.cpp"
+    "${FE_SRC_DIR}/op/set.cpp"
     "${FE_SRC_DIR}/op/set_rows.cpp"
     "${FE_SRC_DIR}/op/softmax.cpp"
+    "${FE_SRC_DIR}/op/sqr.cpp"
     "${FE_SRC_DIR}/op/ssm_conv.cpp"
+    "${FE_SRC_DIR}/op/top_k.cpp"
+    "${FE_SRC_DIR}/op/tri.cpp"
     "${FE_SRC_DIR}/op/sum_rows.cpp"
     "${FE_SRC_DIR}/op/transpose.cpp"
+    "${FE_SRC_DIR}/op/unary_elu.cpp"
     "${FE_SRC_DIR}/op/unary_gelu.cpp"
     "${FE_SRC_DIR}/op/unary_silu.cpp"
     "${FE_SRC_DIR}/op/view.cpp"
@@ -54,6 +64,7 @@ set(FRONTEND_SRCS
 set(TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/test_dequant_vs_ggml.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_extensions.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_op_coverage.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_ops.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_weights.cpp"
 )
@@ -74,17 +85,24 @@ ov_add_test_target(
     INCLUDES
         "${CMAKE_CURRENT_SOURCE_DIR}/../src"
         "${CMAKE_CURRENT_SOURCE_DIR}/../include"
+        # frontend.cpp (compiled into the self-contained test binary) includes the native
+        # .gguf load path (get_path_from_any in openvino/frontend/common/path_util.hpp).
+        "${OpenVINO_SOURCE_DIR}/src/frontends/common/include"
+        "${OpenVINO_SOURCE_DIR}/src/frontends/common/dev_api"
     ADD_CLANG_FORMAT
     LABELS
         OV UNIT GGUF_FE
 )
 
-# Install the .npy reference data next to the test binary (found via getExecutableDirectory()).
+# Install the reference data next to the test binary (found via getExecutableDirectory()):
+# *.npy op/dequant references.
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/test_data"
         DESTINATION tests
         COMPONENT tests
         EXCLUDE_FROM_ALL
-        FILES_MATCHING PATTERN "*.npy")
+        FILES_MATCHING
+            PATTERN "*.npy"
+            PATTERN "manifest.txt")
 
 # Sources compiled into the binary: resolve the visibility macros to local definitions, not dllimport.
 target_compile_definitions(${TARGET_NAME} PRIVATE openvino_gguf_frontend_EXPORTS)

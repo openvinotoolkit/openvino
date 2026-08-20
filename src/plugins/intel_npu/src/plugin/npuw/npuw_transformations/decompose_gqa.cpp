@@ -5,6 +5,7 @@
 #include "decompose_gqa.hpp"
 
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/range.hpp"
@@ -57,15 +58,24 @@ public:
         const auto rotary_interleaved = node->get_rotary_interleaved();
         // TODO: add softcap support
 
-        auto Q = node->input_value(0);
-        auto K = node->input_value(1);
-        auto V = node->input_value(2);
-        auto past_key = node->input_value(3);
-        auto past_value = node->input_value(4);
-        auto seqlens_k = node->input_value(5);
-        auto total_sequence_length = node->input_value(6);
-        auto cos_cache = node->input_value(7);
-        auto sin_cache = node->input_value(8);
+        const auto has_input = [&](ov::op::internal::GroupQueryAttentionInputs input_pos) {
+            const auto pos = static_cast<size_t>(input_pos);
+            return pos < node->get_input_size() && !ov::util::is_empty_constant_tensor(node->input_value(pos));
+        };
+
+        const auto get_input = [&](ov::op::internal::GroupQueryAttentionInputs input_pos) -> ov::Output<ov::Node> {
+            const auto original_pos = static_cast<int64_t>(input_pos);
+            const bool exists = has_input(input_pos);
+            OPENVINO_ASSERT(exists, "Missing required GroupQueryAttention input at original position ", original_pos);
+            return node->input_value(static_cast<size_t>(original_pos));
+        };
+
+        auto Q = get_input(ov::op::internal::GroupQueryAttentionInputs::QUERY);
+        auto K = get_input(ov::op::internal::GroupQueryAttentionInputs::KEY);
+        auto V = get_input(ov::op::internal::GroupQueryAttentionInputs::VALUE);
+        auto past_key = get_input(ov::op::internal::GroupQueryAttentionInputs::PAST_KEY);
+        auto past_value = get_input(ov::op::internal::GroupQueryAttentionInputs::PAST_VALUE);
+        auto seqlens_k = get_input(ov::op::internal::GroupQueryAttentionInputs::SEQLENS_K);
 
         // The length of all tokens (past + current) is `seqlens_k` + 1.
         // current = Q.shape[2], past = `seqlens_k` + 1 - current
@@ -89,6 +99,8 @@ public:
         const auto curr_seqlen_scalar = register_new_node<v0::Squeeze>(current_seqlen);
 
         if (do_rotary) {
+            auto cos_cache = get_input(ov::op::internal::GroupQueryAttentionInputs::COS_CACHE);
+            auto sin_cache = get_input(ov::op::internal::GroupQueryAttentionInputs::SIN_CACHE);
             ov::Output<ov::Node> position_ids = register_new_node<v4::Range>(zero_without_shape,
                                                                              curr_seqlen_scalar,
                                                                              one_without_shape,

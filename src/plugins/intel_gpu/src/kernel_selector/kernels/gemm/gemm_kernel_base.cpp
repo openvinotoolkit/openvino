@@ -144,7 +144,7 @@ std::string GemmKernelBase::GetDimsOrder(const std::vector<int64_t>& order_idx) 
         return loc;
     };
 
-    std::string dims_order = "";
+    std::string dims_order;
     if (order_idx.size() == 2) {
         const std::vector<std::string> dims2 = {"y", "x"};
         dims_order = "b,f,w,z,"
@@ -333,7 +333,7 @@ bool GemmKernelBase::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    for (auto& fused_op : params.fused_ops) {
+    for (const auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
             DO_NOT_USE_THIS_KERNEL(p.layerID);
     }

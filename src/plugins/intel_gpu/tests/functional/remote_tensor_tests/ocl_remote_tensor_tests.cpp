@@ -2787,6 +2787,119 @@ INSTANTIATE_TEST_SUITE_P(copy_tests,
                                                                   ov::Coordinate{0, 1, 1, 0}, ov::Coordinate{4, 2, 2, 3}
                                                               })));
 
+namespace {
+// Sub-byte (i4) tensors can't be indexed per element, so fill/compare at byte granularity.
+void fill_bytes(ov::Tensor& tensor) {
+    auto* ptr = static_cast<uint8_t*>(tensor.data());
+    for (size_t i = 0; i < tensor.get_byte_size(); ++i) {
+        ptr[i] = static_cast<uint8_t>((i * 37 + 11) & 0xFF);
+    }
+}
+
+// Sub-byte copy is a flat whole-byte copy, so the padded tail nibble must round-trip byte-for-byte too.
+void expect_bytes_eq(const ov::Tensor& expected, const ov::Tensor& actual) {
+    ASSERT_EQ(expected.get_byte_size(), actual.get_byte_size());
+    const auto* e = static_cast<const uint8_t*>(expected.data());
+    const auto* a = static_cast<const uint8_t*>(actual.data());
+    for (size_t i = 0; i < expected.get_byte_size(); ++i) {
+        ASSERT_EQ(e[i], a[i]) << "byte mismatch at offset " << i;
+    }
+}
+}  // namespace
+
+using RemoteTensorSubByteParams = std::tuple<ov::element::Type, RemoteTensorSharingType, ov::Shape>;
+
+struct RemoteTensorSubByte : ::testing::TestWithParam<RemoteTensorSubByteParams> {
+    static std::string getTestCaseName(const testing::TestParamInfo<RemoteTensorSubByteParams>& obj) {
+        const auto& [type, sharing_type, shape] = obj.param;
+        std::ostringstream result;
+        result << "type=" << type.get_type_name() << "_sharing=" << sharing_type << "_shape=";
+        for (size_t i = 0; i < shape.size(); ++i) {
+            result << (i ? "x" : "") << shape[i];
+        }
+        return result.str();
+    }
+};
+
+TEST_P(RemoteTensorSubByte, smoke_CopyFrom) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    const auto& [type, sharing_type, shape] = GetParam();
+
+    auto core = ov::Core();
+    auto remote_context = core.get_default_context(ov::test::utils::DEVICE_GPU);
+    auto gpu_context = remote_context.as<ov::intel_gpu::ocl::ClContext>();
+
+    auto host_ref = ov::Tensor(type, shape);
+    fill_bytes(host_ref);
+
+    // host -> remote, then read back remote -> host
+    auto remote_dst = create_tensor(gpu_context, sharing_type, type, shape);
+    remote_dst.copy_from(host_ref);
+    ASSERT_EQ(remote_dst.get_shape(), shape);
+
+    auto host_out = ov::Tensor(type, shape);
+    remote_dst.copy_to(host_out);
+    expect_bytes_eq(host_ref, host_out);
+
+    // remote -> remote
+    auto remote_src = create_tensor(gpu_context, sharing_type, type, shape);
+    remote_src.copy_from(host_ref);
+
+    auto remote_dst2 = create_tensor(gpu_context, sharing_type, type, shape);
+    remote_dst2.copy_from(remote_src);
+    ASSERT_EQ(remote_dst2.get_shape(), shape);
+
+    auto host_out2 = ov::Tensor(type, shape);
+    remote_dst2.copy_to(host_out2);
+    expect_bytes_eq(host_ref, host_out2);
+}
+
+TEST_P(RemoteTensorSubByte, smoke_CopyTo) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    const auto& [type, sharing_type, shape] = GetParam();
+
+    auto core = ov::Core();
+    auto remote_context = core.get_default_context(ov::test::utils::DEVICE_GPU);
+    auto gpu_context = remote_context.as<ov::intel_gpu::ocl::ClContext>();
+
+    auto host_ref = ov::Tensor(type, shape);
+    fill_bytes(host_ref);
+
+    // remote -> remote via copy_to
+    auto remote_src = create_tensor(gpu_context, sharing_type, type, shape);
+    remote_src.copy_from(host_ref);
+
+    auto remote_dst = create_tensor(gpu_context, sharing_type, type, shape);
+    remote_src.copy_to(remote_dst);
+    ASSERT_EQ(remote_dst.get_shape(), shape);
+
+    auto host_out = ov::Tensor(type, shape);
+    remote_dst.copy_to(host_out);
+    expect_bytes_eq(host_ref, host_out);
+
+    // host -> remote via host.copy_to(remote)
+    auto remote_dst2 = create_tensor(gpu_context, sharing_type, type, shape);
+    host_ref.copy_to(remote_dst2);
+
+    auto host_out2 = ov::Tensor(type, shape);
+    remote_dst2.copy_to(host_out2);
+    expect_bytes_eq(host_ref, host_out2);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_copy_sub_byte,
+                         RemoteTensorSubByte,
+                         ::testing::Combine(::testing::Values(ov::element::i4, ov::element::u2),
+                                            ::testing::Values(RemoteTensorSharingType::PLUGIN_CL_TENSOR,
+                                                              RemoteTensorSharingType::PLUGIN_USM_DEVICE_TENSOR,
+                                                              RemoteTensorSharingType::PLUGIN_HOST_TENSOR),
+                                            ::testing::Values(ov::Shape{4, 16},
+                                                              ov::Shape{3, 5})),
+                         RemoteTensorSubByte::getTestCaseName);
+
 TEST(RemoteTensor, smoke_CanSetRoiRemoteTensor) {
 #if defined(ANDROID)
     GTEST_SKIP();

@@ -44,7 +44,7 @@ struct crop_impl : public typed_primitive_impl<crop> {
             stream.wait_for_events(events);
         }
 
-        auto params = instance.get_impl_params();
+        const auto* params = instance.get_impl_params();
         auto input_layout = params->input_layouts[0];
         auto input_offset = params->input_offsets[0];
         auto output_layout = params->output_layouts[0];

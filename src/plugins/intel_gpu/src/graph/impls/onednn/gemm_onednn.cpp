@@ -154,9 +154,7 @@ protected:
             size_t last_idx = transpose_order.size() - 1;
             if (static_cast<size_t>(transpose_order[last_idx]) != last_idx - 1)
                 return false;
-            if (static_cast<size_t>(transpose_order[last_idx - 1]) != last_idx)
-                return false;
-            return true;
+            return static_cast<size_t>(transpose_order[last_idx - 1]) == last_idx;
         };
 
         auto transpose_dims_and_format_tag = [](std::vector<int64_t> transpose_order,
@@ -288,14 +286,8 @@ protected:
                 bias_md,
                 out_md,
                 attr);
-        } else {
-            return std::make_shared<dnnl::matmul::primitive_desc>(
-                engine.get_onednn_engine(),
-                in0_md,
-                in1_md,
-                out_md,
-                attr);
         }
+        return std::make_shared<dnnl::matmul::primitive_desc>(engine.get_onednn_engine(), in0_md, in1_md, out_md, attr);
     }
 
 public:
@@ -441,7 +433,7 @@ public:
 
     static std::unique_ptr<primitive_impl> create(const gemm_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
-        auto& config = impl_params.prog->get_config();
+        const auto& config = impl_params.prog->get_config();
         auto attr = impl_params.attrs_onednn;
 
         if (impl_params.get_input_layout(0).count() == 0 ||
