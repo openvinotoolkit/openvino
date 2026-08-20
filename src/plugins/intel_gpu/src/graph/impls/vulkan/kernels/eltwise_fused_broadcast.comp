@@ -1,9 +1,0 @@
-#version 450
-
-#define ELTWISE_DENSE 1
-#define ELTWISE_BROADCAST_VECTOR 0
-#define ELTWISE_UNARY 0
-#define ELTWISE_SCALAR_CONSTANT 0
-#define ELTWISE_FUSED 1
-#define ELTWISE_FUSED_BROADCAST 1
-#include "eltwise_common.glsl"
