@@ -352,10 +352,7 @@ void paged_selective_ssm_typed(const DataT* A,
                                const PagedSelectiveSSMShape& shape,
                                float* state_scratch,
                                size_t scratch_head_dim,
-                               int32_t* block_owners,
                                const CpuParallelPtr& cpu_parallel) {
-    validate_paged_metadata(metadata, shape, block_owners);
-
     const auto& subsequence_begins = metadata.subsequence_begins;
     const auto& block_indices = metadata.block_indices;
     const auto& block_indices_begins = metadata.block_indices_begins;
@@ -486,7 +483,6 @@ void dispatch_paged_projection(const void* A,
                                const PagedSelectiveSSMShape& shape,
                                float* state_scratch,
                                size_t scratch_head_dim,
-                               int32_t* block_owners,
                                const CpuParallelPtr& cpu_parallel,
                                const float* converted_B,
                                const float* converted_C) {
@@ -502,7 +498,6 @@ void dispatch_paged_projection(const void* A,
                                   shape,
                                   state_scratch,
                                   scratch_head_dim,
-                                  block_owners,
                                   cpu_parallel);
     };
     if (converted_B != nullptr) {
@@ -665,13 +660,12 @@ void paged_selective_ssm(const void* A,
                          const ov::element::Type& index_precision,
                          float* state_scratch,
                          size_t scratch_head_dim,
-                         int32_t* block_owners,
+                         int32_t* metadata_validation_scratch,
                          const CpuParallelPtr& cpu_parallel,
                          const float* converted_B,
                          const float* converted_C) {
     validate_paged_selective_ssm_shape(shape);
     OPENVINO_ASSERT(scratch_head_dim > 0 && state_scratch != nullptr);
-    OPENVINO_ASSERT(shape.physical_block_count == 0 || block_owners != nullptr);
     OPENVINO_ASSERT(cpu_parallel != nullptr, "PagedSelectiveSSM requires a CPU parallel executor.");
     OPENVINO_ASSERT((converted_B == nullptr) == (converted_C == nullptr));
     checked_size_product({scratch_head_dim, shape.state_size}, "state scratch");
@@ -682,6 +676,9 @@ void paged_selective_ssm(const void* A,
                                               cache_interval,
                                               index_precision,
                                               shape);
+    if (metadata_validation_scratch != nullptr) {
+        validate_paged_metadata(metadata, shape, metadata_validation_scratch);
+    }
 #define OV_CPU_PAGED_SSM_CALL(DataT)                        \
     dispatch_paged_projection<DataT>(A,                     \
                                      dt,                    \
@@ -694,7 +691,6 @@ void paged_selective_ssm(const void* A,
                                      shape,                 \
                                      state_scratch,         \
                                      scratch_head_dim,      \
-                                     block_owners,          \
                                      cpu_parallel,          \
                                      converted_B,           \
                                      converted_C)

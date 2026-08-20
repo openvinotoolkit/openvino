@@ -33,7 +33,6 @@ private:
     size_t m_scratch_state_size = 0;
     size_t m_state_scratch_elements = 0;
     size_t m_projection_scratch_elements = 0;
-    size_t m_cached_physical_blocks = 0;
     size_t m_cached_projection_elements = 0;
 };
 

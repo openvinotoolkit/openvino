@@ -84,7 +84,7 @@ void paged_selective_ssm(const void* A,
                          const ov::element::Type& index_precision,
                          float* state_scratch,
                          size_t scratch_head_dim,
-                         int32_t* block_owners,
+                         int32_t* metadata_validation_scratch,
                          const CpuParallelPtr& cpu_parallel,
                          const float* converted_B = nullptr,
                          const float* converted_C = nullptr);

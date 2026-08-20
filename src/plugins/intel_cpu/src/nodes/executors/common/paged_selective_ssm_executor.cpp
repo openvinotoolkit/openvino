@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
-#include <cstdint>
 #include <memory>
 #include <utility>
 
@@ -93,9 +92,8 @@ bool PagedSelectiveSSMExecutor::update_scratchpad(const MemoryArgs& memory) {
                     subsequence_dims.size() == 1 && subsequence_dims[0] >= 1);
     const auto head_dim = x_dims[2];
     const auto state_size = state_dims[3];
-    const auto physical_blocks = state_dims[0];
     const node::kernel::PagedSelectiveSSMShape
-        shape{x_dims[0], x_dims[1], head_dim, B_dims[1], state_size, physical_blocks, 0, 0};
+        shape{x_dims[0], x_dims[1], head_dim, B_dims[1], state_size, state_dims[0], 0, 0};
     node::kernel::validate_paged_selective_ssm_shape(shape);
     const auto thread_count = static_cast<size_t>(m_context->getCpuParallel()->get_num_worker_threads());
     const auto sequence_count = subsequence_dims[0] - 1;
@@ -113,15 +111,14 @@ bool PagedSelectiveSSMExecutor::update_scratchpad(const MemoryArgs& memory) {
             : node::kernel::checked_size_product({size_t{2}, projection_elements}, "B/C projection scratch");
     if (m_scratch && m_scratch_head_dim == scratch_head_dim && m_scratch_state_size == state_size &&
         m_state_scratch_elements == state_scratch_elements &&
-        m_projection_scratch_elements == projection_scratch_elements && m_cached_physical_blocks == physical_blocks &&
+        m_projection_scratch_elements == projection_scratch_elements &&
         m_cached_projection_elements == projection_elements) {
         return true;
     }
 
-    static_assert(sizeof(float) == sizeof(int32_t) && alignof(float) == alignof(int32_t));
     const auto total_scratch_elements =
-        node::kernel::checked_size_sum({state_scratch_elements, projection_scratch_elements, physical_blocks},
-                                       "combined state, B/C projection, and block-owner scratch");
+        node::kernel::checked_size_sum({state_scratch_elements, projection_scratch_elements},
+                                       "combined state and B/C projection scratch");
     const auto scratch_desc =
         std::make_shared<CpuBlockedMemoryDesc>(ov::element::f32,
                                                ov::intel_cpu::Shape{std::max(size_t{1}, total_scratch_elements)});
@@ -130,7 +127,6 @@ bool PagedSelectiveSSMExecutor::update_scratchpad(const MemoryArgs& memory) {
     m_scratch_state_size = state_size;
     m_state_scratch_elements = state_scratch_elements;
     m_projection_scratch_elements = projection_scratch_elements;
-    m_cached_physical_blocks = physical_blocks;
     m_cached_projection_elements = projection_elements;
     return m_scratch != nullptr;
 }
@@ -171,7 +167,7 @@ void PagedSelectiveSSMExecutor::execute(const MemoryArgs& memory) {
     // The node prepares parameters when input shapes change. Keep the executor self-contained as well: direct users
     // and a changed worker count must refresh every scratch region before pointer offsets below are calculated.
     if (!m_scratch || m_scratch_state_size != state_dims[3] || m_scratch_head_dim != expected_scratch_head_dim ||
-        m_state_scratch_elements != expected_state_scratch_elements || m_cached_physical_blocks != state_dims[0] ||
+        m_state_scratch_elements != expected_state_scratch_elements ||
         m_projection_scratch_elements != expected_projection_scratch_elements ||
         m_cached_projection_elements != projection_elements) {
         OPENVINO_ASSERT(update_scratchpad(memory));
@@ -205,8 +201,6 @@ void PagedSelectiveSSMExecutor::execute(const MemoryArgs& memory) {
                                  projection_elements);
         }
     }
-    auto* block_owners =
-        reinterpret_cast<int32_t*>(state_scratch + m_state_scratch_elements + m_projection_scratch_elements);
     node::kernel::paged_selective_ssm(memory.at(ARG_PAGED_SSM_A)->getData(),
                                       memory.at(ARG_PAGED_SSM_DT)->getData(),
                                       memory.at(ARG_PAGED_SSM_B)->getData(),
@@ -224,7 +218,7 @@ void PagedSelectiveSSMExecutor::execute(const MemoryArgs& memory) {
                                       memory.at(ARG_PAGED_SSM_SUBSEQUENCE_BEGINS)->getDescPtr()->getPrecision(),
                                       state_scratch,
                                       m_scratch_head_dim,
-                                      block_owners,
+                                      nullptr,
                                       m_context->getCpuParallel(),
                                       converted_B,
                                       converted_C);
