@@ -18,6 +18,7 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "lazy_tensor.hpp"
+#include "llm_test_helpers.hpp"
 #include "model_builder.hpp"
 #include "moe_transformations/moe_transformation.hpp"
 #include "openvino/core/parallel.hpp"
@@ -31,8 +32,71 @@
 #include "weights_bank.hpp"
 
 using ov::test::npuw::ModelBuilder;
+using Gather = ov::npuw::Subgraph::Gather;
+using QuantUnpackGather = ov::npuw::Subgraph::QuantUnpackGather;
+using Stream = ov::npuw::s11n::Stream;
+using ov::test::npuw::MockSubCompiledModel;
+using ov::test::npuw::NullPlugin;
 
 namespace {
+
+std::shared_ptr<ov::Model> make_validation_model(std::size_t n_inputs) {
+    ov::ParameterVector parameters;
+    for (std::size_t i = 0; i < n_inputs; ++i) {
+        parameters.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1}));
+    }
+    return std::make_shared<ov::Model>(ov::ResultVector{}, parameters);
+}
+
+void expect_serialize_valid(const Gather& hg,
+                           const QuantUnpackGather& qug,
+                           std::size_t param_base,
+                           std::size_t closure_size,
+                           std::size_t n_model_inputs) {
+    auto writer = ov::npuw::CompiledModelDescTestAccessor::make();
+    auto plugin = std::make_shared<NullPlugin>();
+    if (n_model_inputs != 0) {
+        auto model = make_validation_model(n_model_inputs);
+        ov::npuw::CompiledModelDescTestAccessor::compiled_model(writer) =
+            ov::SoPtr<ov::ICompiledModel>{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+    }
+    ov::npuw::CompiledModelDescTestAccessor::host_gather(writer) = hg;
+    ov::npuw::CompiledModelDescTestAccessor::quant_unpack_gather(writer) = qug;
+    ov::npuw::CompiledModelDescTestAccessor::param_base(writer) = param_base;
+    auto& closure = ov::npuw::CompiledModelDescTestAccessor::closure(writer);
+    closure.get().closure.resize(closure_size);
+    closure.get().closure_uid.resize(closure_size, -1);
+    closure.get().is_remote.resize(closure_size, false);
+
+    std::stringstream ss;
+    auto stream = Stream::writer(ss);
+    writer.serialize(stream, {});
+}
+
+void expect_serialize_throws(const Gather& hg,
+                            const QuantUnpackGather& qug,
+                            std::size_t param_base,
+                            std::size_t closure_size,
+                            std::size_t n_model_inputs) {
+    auto writer = ov::npuw::CompiledModelDescTestAccessor::make();
+    auto plugin = std::make_shared<NullPlugin>();
+    if (n_model_inputs != 0) {
+        auto model = make_validation_model(n_model_inputs);
+        ov::npuw::CompiledModelDescTestAccessor::compiled_model(writer) =
+            ov::SoPtr<ov::ICompiledModel>{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+    }
+    ov::npuw::CompiledModelDescTestAccessor::host_gather(writer) = hg;
+    ov::npuw::CompiledModelDescTestAccessor::quant_unpack_gather(writer) = qug;
+    ov::npuw::CompiledModelDescTestAccessor::param_base(writer) = param_base;
+    auto& closure = ov::npuw::CompiledModelDescTestAccessor::closure(writer);
+    closure.get().closure.resize(closure_size);
+    closure.get().closure_uid.resize(closure_size, -1);
+    closure.get().is_remote.resize(closure_size, false);
+
+    std::stringstream ss;
+    auto stream = Stream::writer(ss);
+    writer.serialize(stream, {});
+}
 
 void expect_tensors_equal(const ov::Tensor& expected, const ov::Tensor& actual) {
     ASSERT_EQ(static_cast<bool>(expected), static_cast<bool>(actual));
@@ -1071,6 +1135,117 @@ TEST(SerializationTest, OVTypes_WeightsBank_cpu_roundtrip) {
 
     expect_tensors_equal(var.get(uid0, "CPU"), res.get(uid0, "CPU"));
     expect_tensors_equal(var.get(uid1, "CPU"), res.get(uid1, "CPU"));
+}
+
+TEST(SerializationTest, AllSentinelsPass) {
+    EXPECT_NO_THROW(expect_serialize_valid({-1, -1, -1}, {-1, -1, -1, -1, -1}, 0, 0, 0));
+}
+
+TEST(SerializationTest, AllSentinelsPassWithNonZeroInputCount) {
+    EXPECT_NO_THROW(expect_serialize_valid({-1, -1, -1}, {-1, -1, -1, -1, -1}, 2, 4, 8));
+}
+
+TEST(SerializationTest, ValidHostGatherIndicesPass) {
+    Gather hg{5, 3, 6};
+    EXPECT_NO_THROW(expect_serialize_valid(hg, {-1, -1, -1, -1, -1}, 2, 4, 8));
+}
+
+TEST(SerializationTest, ValidQuantUnpackGatherIndicesPass) {
+    QuantUnpackGather qug{0, 1, 2, 3, 4};
+    EXPECT_NO_THROW(expect_serialize_valid({-1, -1, -1}, qug, 0, 0, 8));
+}
+
+TEST(SerializationTest, HostGatherDstIdxExactlyAtBoundFails) {
+    Gather hg{8, -1, -1};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherDstIdxFarOOBFails) {
+    Gather hg{1000, -1, -1};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherDstIdxNegativeNonSentinelFails) {
+    Gather hg{-2, -1, -1};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherIdxIdxOOBFails) {
+    Gather hg{-1, -1, 8};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherSrcIdxBelowParamBaseFails) {
+    Gather hg{-1, 1, -1};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherSrcIdxExactlyAtClosureEndFails) {
+    Gather hg{-1, 6, -1};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherSrcIdxFarPastClosureFails) {
+    Gather hg{-1, 1000, -1};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherSrcIdxAtLastValidClosureSlotPasses) {
+    Gather hg{-1, 5, -1};
+    EXPECT_NO_THROW(expect_serialize_valid(hg, {-1, -1, -1, -1, -1}, 2, 4, 8));
+}
+
+TEST(SerializationTest, QuantUnpackGatherDstIdxOOBFails) {
+    QuantUnpackGather qug{8, 0, -1, -1, 1};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, QuantUnpackGatherSrcWIdxOOBFails) {
+    QuantUnpackGather qug{0, 8, -1, -1, 1};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, QuantUnpackGatherSrcZIdxOOBFails) {
+    QuantUnpackGather qug{0, 1, 8, -1, 2};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, QuantUnpackGatherSrcSIdxOOBFails) {
+    QuantUnpackGather qug{0, 1, -1, 8, 2};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, QuantUnpackGatherIdxIdxOOBFails) {
+    QuantUnpackGather qug{0, 1, -1, -1, 8};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, ParamBaseClosureSizeExceedsInputsFails) {
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, {-1, -1, -1, -1, -1}, 6, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, ParamBaseClosureSizeExactlyAtBoundPasses) {
+    EXPECT_NO_THROW(expect_serialize_valid({-1, -1, -1}, {-1, -1, -1, -1, -1}, 4, 4, 8));
+}
+
+TEST(SerializationTest, ParamBaseLargerThanInputsFails) {
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, {-1, -1, -1, -1, -1}, 9, 1, 8), ov::Exception);
+}
+
+TEST(SerializationTest, NoCompiledModelAllSentinelsPasses) {
+    EXPECT_NO_THROW(expect_serialize_valid({-1, -1, -1}, {-1, -1, -1, -1, -1}, 0, 0, 0));
+}
+
+TEST(SerializationTest, NoCompiledModelNonSentinelDstIdxFails) {
+    EXPECT_THROW(expect_serialize_throws({0, -1, -1}, {-1, -1, -1, -1, -1}, 0, 0, 0), ov::Exception);
+}
+
+TEST(SerializationTest, NoCompiledModelNonSentinelSrcIdxFails) {
+    EXPECT_THROW(expect_serialize_throws({-1, 0, -1}, {-1, -1, -1, -1, -1}, 0, 0, 0), ov::Exception);
+}
+
+TEST(SerializationTest, NoCompiledModelNonSentinelQuantDstIdxFails) {
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, {0, -1, -1, -1, -1}, 0, 0, 0), ov::Exception);
 }
 
 // TODO: add tests on CompiledModel and LLMCompiledModel once tests have access to any model to test on

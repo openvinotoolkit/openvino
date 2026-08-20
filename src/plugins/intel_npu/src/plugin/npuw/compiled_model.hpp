@@ -71,6 +71,7 @@ public:
 
 // Forward declarations
 class InferRequest;
+struct CompiledModelDescTestAccessor;
 
 namespace v1::subgraphs {
 class Context;
@@ -135,6 +136,7 @@ public:
 
 private:
     // FIXME: This class has many friends..
+    friend struct CompiledModelDescTestAccessor;
     friend class IBaseInferRequest;
     friend class JustInferRequest;
     friend class UnfoldInferRequest;
@@ -320,5 +322,26 @@ private:
 
     std::shared_future<void> m_eval_future;
 };
+
+struct CompiledModelDescTestAccessor {
+    static CompiledModel::CompiledModelDesc make() { return {}; }
+    static auto& compiled_model(CompiledModel::CompiledModelDesc& desc) { return desc.compiled_model; }
+    static auto& host_gather(CompiledModel::CompiledModelDesc& desc) { return desc.host_gather; }
+    static auto& quant_unpack_gather(CompiledModel::CompiledModelDesc& desc) { return desc.quant_unpack_gather; }
+    static auto& param_base(CompiledModel::CompiledModelDesc& desc) { return desc.param_base; }
+    static auto& closure(CompiledModel::CompiledModelDesc& desc) { return desc.closure; }
+};
+
+// Validates that routing indices deserialized from an ORC blob are in bounds.
+// Throws ov::Exception when an index would cause an out-of-bounds vector access
+// in bind_global_params / unpack_closure at inference time.
+// has_compiled_model: true when a compiled_model was loaded (enables input-bounds checks).
+void validate_orc_submodel_indices(const Subgraph::Gather& host_gather,
+                                   const Subgraph::QuantUnpackGather& quant_unpack_gather,
+                                   std::size_t param_base,
+                                   std::size_t closure_size,
+                                   bool has_compiled_model,
+                                   std::size_t n_model_inputs);
+
 }  // namespace npuw
 }  // namespace ov
