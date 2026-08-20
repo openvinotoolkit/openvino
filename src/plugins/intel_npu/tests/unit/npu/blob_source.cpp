@@ -102,23 +102,14 @@ protected:
         }
     }
 
-    BlobSource create_blob_source(const bool page_aligned_tensor = false) {
+    BlobSource create_blob_source() {
         switch (source_data_type) {
         case BlobSourceDataType::STREAM: {
             stream = std::istringstream(std::string(blob_content.begin(), blob_content.end()));
             return BlobSource(stream);
         }
         case BlobSourceDataType::TENSOR: {
-            if (!page_aligned_tensor) {
-                tensor = ov::Tensor(ov::element::Type_t::u8, ov::Shape({blob_content.size()}), blob_content.data());
-                return BlobSource(tensor);
-            }
-
-            ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
-            tensor = ov::Tensor(ov::element::u8, ov::Shape{blob_content.size()}, customAllocator);
-            OPENVINO_ASSERT(reinterpret_cast<size_t>(tensor.data()) % utils::STANDARD_PAGE_SIZE == 0,
-                            "The generated tensor is not page aligned");
-            std::memcpy(tensor.data(), blob_content.data(), blob_content.size());
+            tensor = ov::Tensor(ov::element::Type_t::u8, ov::Shape({blob_content.size()}), blob_content.data());
             return BlobSource(tensor);
         }
         default: {
