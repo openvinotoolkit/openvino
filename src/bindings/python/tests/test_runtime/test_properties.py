@@ -632,25 +632,18 @@ def test_properties_perf_curve_table():
     # String form is accepted and parsed to the same nested map.
     check("{CPU:{0:0,100:100}}", {"CPU": {0: 0.0, 100: 100.0}})
 
-    # The dict overload performs only Python-type shape checks (str device keys, dict curves,
-    # bool rejection, int/float discrimination). Semantic rules (empty curve, utilization range,
-    # finite non-negative scores, device-name whitelist) are owned by PerfCurveTableValidator and
-    # enforced when the value is set on the plugin via Core.set_property/compile_model.
-    with pytest.raises(RuntimeError):
-        intel_auto.perf_curve_table({"CPU": {0: "high"}})
+    # bool is accepted as int/float (bool is an int subclass in Python).
+    check({"CPU": {True: 1.0}}, {"CPU": {1: 1.0}})
+    check({"CPU": {10: True}}, {"CPU": {10: 1.0}})
 
-    # The outer dict[str, ...] shape is validated by pybind11 itself, so a non-string
-    # outer key fails argument dispatch with TypeError rather than reaching the custom
-    # converter's RuntimeError, consistent with devices_utilization_threshold above.
+    # Type mismatches are rejected by pybind11's overload dispatch with TypeError.
     with pytest.raises(TypeError) as e:
         intel_auto.perf_curve_table({23: {0: 1.0}})
     assert "incompatible function arguments" in str(e.value)
 
-    with pytest.raises(RuntimeError):
-        intel_auto.perf_curve_table({"CPU": {True: 1.0}})
-
-    with pytest.raises(RuntimeError):
-        intel_auto.perf_curve_table({"CPU": {0: True}})
+    with pytest.raises(TypeError) as e:
+        intel_auto.perf_curve_table({"CPU": {0: "high"}})
+    assert "incompatible function arguments" in str(e.value)
 
 
 def test_properties_perf_curve_table_set_property_roundtrip():

@@ -8,7 +8,6 @@
 #include <pybind11/stl/filesystem.h>
 
 #include <cmath>
-#include <limits>
 #include <map>
 #include <set>
 #include <string>
@@ -304,64 +303,6 @@ py::object from_ov_any(const ov::Any& any) {
     }
 }
 
-// Convert a Python dict to PerfCurveTable while validating the inner curve types.
-ov::intel_auto::PerfCurveTable py_object_to_perf_curve_table(const std::map<std::string, py::object>& py_obj) {
-    ov::intel_auto::PerfCurveTable perf_curve_table;
-    for (const auto& [device_key, curve_value] : py_obj) {
-        if (!py::isinstance<py::dict>(curve_value)) {
-            OPENVINO_THROW("The value type of ",
-                           ov::intel_auto::perf_curve_table.name(),
-                           " should be dict[str, dict[int, float]] with dict values");
-        }
-        std::map<unsigned, float> curve;
-        for (const auto& curve_item : py::cast<py::dict>(curve_value)) {
-            if (!py::isinstance<py::int_>(curve_item.first) || py::isinstance<py::bool_>(curve_item.first)) {
-                OPENVINO_THROW("The key type of ",
-                               ov::intel_auto::perf_curve_table.name(),
-                               " should be dict[str, dict[int, float]] with integer inner keys");
-            }
-            long long utilization = 0;
-            try {
-                utilization = py::cast<long long>(curve_item.first);
-            } catch (const py::cast_error&) {
-                // Rethrow as ov::Exception so invalid types surface as a consistent RuntimeError.
-                OPENVINO_THROW("The utilization key of ",
-                               ov::intel_auto::perf_curve_table.name(),
-                               " must be a Python integer");
-            }
-            // The map key is unsigned; reject negatives so they cannot silently wrap.
-            if (utilization < 0) {
-                OPENVINO_THROW("The utilization key of ",
-                               ov::intel_auto::perf_curve_table.name(),
-                               " must be a non-negative integer");
-            }
-            if (utilization > static_cast<long long>(std::numeric_limits<unsigned>::max())) {
-                OPENVINO_THROW("The utilization key of ",
-                               ov::intel_auto::perf_curve_table.name(),
-                               " is too large to fit into an unsigned integer");
-            }
-            // bool is implicitly castable to float (True/False -> 1.0/0.0); reject it explicitly.
-            if (py::isinstance<py::bool_>(curve_item.second)) {
-                OPENVINO_THROW("The value type of ",
-                               ov::intel_auto::perf_curve_table.name(),
-                               " should be dict[str, dict[int, float]] with float scores");
-            }
-            float score = 0.f;
-            try {
-                score = py::cast<float>(curve_item.second);
-            } catch (const py::cast_error&) {
-                // Rethrow as ov::Exception so invalid types surface as a consistent RuntimeError.
-                OPENVINO_THROW("The value type of ",
-                               ov::intel_auto::perf_curve_table.name(),
-                               " should be dict[str, dict[int, float]] with numeric float scores");
-            }
-            curve[static_cast<unsigned>(utilization)] = score;
-        }
-        perf_curve_table[device_key] = curve;
-    }
-    return perf_curve_table;
-}
-
 std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string, py::object>& properties) {
     std::map<std::string, ov::Any> properties_to_cpp;
     for (const auto& property : properties) {
@@ -428,8 +369,7 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
             properties_to_cpp[property.first] = thresholds;
         } else if (property.first == ov::intel_auto::perf_curve_table.name() &&
                    py::isinstance<py::dict>(property.second)) {
-            properties_to_cpp[property.first] =
-                py_object_to_perf_curve_table(property.second.cast<std::map<std::string, py::object>>());
+            properties_to_cpp[property.first] = property.second.cast<ov::intel_auto::PerfCurveTable>();
         } else {
             properties_to_cpp[property.first] = Common::utils::py_object_to_any(property.second);
         }
