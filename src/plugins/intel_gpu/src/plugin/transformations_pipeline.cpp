@@ -1695,9 +1695,15 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // under per-token INT8 dyn-quant on `linear_attn.out_proj`. Force gs=128 for
             // the whole model if a linear-attention block is detected.
             const bool use_gs128_for_linear_attention = is_hybrid_linear_attention_model(*func);
+            // MODE_LARGE_GS dispatch pads work-groups (Align()) and guards
+            // out-of-range blocks (is_valid_block) on L0, independent of
+            // non-uniform-work-group support; other backends still need the
+            // real device capability since they aren't padded this way.
+#ifdef OV_GPU_WITH_ZE_RT
+            const bool group_dyn_quan_allowed = true;
+#else
             const bool group_dyn_quan_allowed = m_context->get_engine().get_device_info().supports_non_uniform_work_group;
-            // WA: when platform does not support non-uniform-work-group, it may fail to run dynamic quantization for gs128.
-            // This is unlikely to happen. But this WA is added just in case.
+#endif
             const bool use_gs128_for_int8_per_token = m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe2
                 && group_dyn_quan_allowed;
 
@@ -1763,7 +1769,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 }
 
                 const bool is_grouped = adj_group_size != UINT64_MAX;
-                // It should be either per-token or hardware should support grouped dyn_quan(through non-uniform-work-group)
                 if (is_grouped && !group_dyn_quan_allowed) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
                                                                     " group_dyn_quan_allowed " << group_dyn_quan_allowed << std::endl;

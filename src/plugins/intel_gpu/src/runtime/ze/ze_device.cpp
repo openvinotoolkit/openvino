@@ -236,6 +236,9 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     info.supports_intel_subgroups_short = true;
     info.supports_intel_subgroups_char = true;
     info.supports_intel_required_subgroup_size = true;
+    // No ZE equivalent of OpenCL's non-uniform work-group extension; dispatch
+    // requires an exact groupCount*groupSize match. Was previously left unset (UB).
+    info.supports_non_uniform_work_group = false;
     // queue families correspond to ZE cmd queue ordinal and index
     info.supports_queue_families = true;
 
