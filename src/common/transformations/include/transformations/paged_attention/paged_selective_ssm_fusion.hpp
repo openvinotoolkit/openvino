@@ -17,48 +17,49 @@ namespace pass {
  * @ingroup ov_transformation_common_api
  * @brief Fuses SelectiveSSM into internal::PagedSelectiveSSM with paged attention.
  *
- * The stateful SelectiveSSM (Mamba2 selective state-space recurrence) keeps its recurrent
- * state in a Variable that is read through ReadValue (optionally routed through a Gather for
- * beam search). For continuous batching that state has to be managed through a paged block
+ * The stateful SelectiveSSM keeps its recurrent state in a Variable that is read through
+ * ReadValue. For continuous batching that state has to be managed through a paged block
  * table instead. This pass replaces the matched SelectiveSSM with internal::PagedSelectiveSSM,
  * wiring in the shared paged-attention scheduling parameters and a per-layer state table.
  *
- * For example, the following graph
+ * Graph before:
  *
- *             +------------------+
- *             | recurrent_state  |
- *             | (ReadValue)      |
- *             +------------------+
- *                      |
- *          +---+---+---+--+---+---+
- *          |   |   |   |   |   |
- *          v   v   v   v   v   v
- *    +------------------+
- *    | SelectiveSSM     |
- *    |  (internal op)   |
- *    +------------------+
- *             | |
- *      output0| |output1 (state)
- *             | |
- *             v v
- *           ... [optional Result/Assign for state writeback]
+ *                                      (ReadValue)
+ *                                 recurrent_state
+ *       A   dt   B   x   C                 |
+ *       |    |   |   |   |                 |
+ *       v    v   v   v   v                 v
+ *      +--------------------------------------+
+ *      |             SelectiveSSM             |
+ *      +--------------------------------------+
+ *              |                    |
+ *         out0 | y            state | out1
+ *              v                    v
+ *                                 Assign
  *
- * is transformed to:
+ * is transformed to
  *
- *    selective_ssm_state_table.N ------------+
- *    A, dt, B, x, C (flattened) -------------+------> internal::PagedSelectiveSSM
- *    subsequence_begins ---------------------+
- *    la.block_indices -----------------------+
- *    la.block_indices_begins ----------------+
- *    la.past_lens (num_processed_tokens) ----+
- *    la.cache_interval ----------------------+
- *                                            v
- *                                  +------------------+
- *                                  |Reshape for output|
- *                                  +------------------+
- *                                            |
- *                                            v
- *                                           ...
+ * After - PagedSelectiveSSM, recurrent state kept in a paged block table:
+ *
+ *     A                                  per-head decay rates [num_heads]
+ *     dt, B, x, C                        flattened [batch, len, ...] -> [tokens, ...]
+ *     selective_ssm_state_table.N        paged state table, updated in place
+ *     subsequence_begins                 per-sequence token spans
+ *     la.block_indices                   logical -> physical block rows
+ *     la.block_indices_begins            per-sequence block spans
+ *     la.past_lens                       num_processed_tokens
+ *     la.cache_interval                  state snapshot interval
+ *              |  (11 inputs)
+ *              v
+ *      +--------------------------------------+
+ *      |          PagedSelectiveSSM           |   (11 inputs, 1 output)
+ *      +--------------------------------------+
+ *              |
+ *         out0 | y
+ *              v
+ *           Reshape  -> restore [batch, len, num_heads, head_dim]
+ *              v
+ *             ...
  */
 class TRANSFORMATIONS_API PagedSelectiveSSMFusion : public ov::pass::MatcherPass {
 public:

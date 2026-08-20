@@ -22,11 +22,11 @@
 #include "transformations/paged_attention/eliminate_conv_padding_mask_gating.hpp"
 #include "transformations/paged_attention/paged_causal_conv1d_fusion.hpp"
 #include "transformations/paged_attention/paged_gated_delta_net_fusion.hpp"
+#include "transformations/paged_attention/paged_selective_ssm_fusion.hpp"
 #include "transformations/paged_attention/position_ids_replacer.hpp"
 #include "transformations/paged_attention/prev_sequence_length_pattern.hpp"
 #include "transformations/paged_attention/state_management_pattern.hpp"
 #include "transformations/paged_attention/total_sequence_length_pattern.hpp"
-#include "transformations/paged_attention/paged_selective_ssm_fusion.hpp"
 #include "transformations/utils/print_model.hpp"
 #include "transformations/utils/utils.hpp"
 
