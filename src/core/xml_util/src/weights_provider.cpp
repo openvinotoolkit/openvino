@@ -18,7 +18,7 @@ namespace {
 
 size_t get_mmap_region_threshold() {
     const auto page_size = ov::util::get_system_page_size();
-    return page_size > 0 ? static_cast<size_t>(page_size) : 4096;
+    return page_size > 0 ? static_cast<size_t>(page_size) : 1024 * 1024;
 }
 
 }  // namespace
