@@ -49,7 +49,7 @@ KERNEL (softmax_gpu_continuous_yxfb)(
     {
         tmp_vals[i] = native_exp(DECODE_INPUT0_COMPUTE_TYPE(input[LWS * i + global_id]) - max_value);
     }
-    tmp_vals[ITEMS_NUM] = global_id < LEFTOVERS ? native_exp(DECODE_INPUT0_COMPUTE_TYPE(input[LWS * ITEMS_NUM + global_id] - max_value)) : INPUT0_VAL_ZERO;
+    tmp_vals[ITEMS_NUM] = global_id < LEFTOVERS ? native_exp(DECODE_INPUT0_COMPUTE_TYPE(input[LWS * ITEMS_NUM + global_id]) - max_value) : INPUT0_VAL_ZERO;
 
     // accumulate all values;
     __local INPUT0_COMPUTE_TYPE partial_acc[LWS]; // all values accumulated;
