@@ -420,7 +420,7 @@ void RemoteTensorImpl::allocate() {
             // The plugin owns a read-only mapping (file-mmap case), so the buffer is imported as read-only.
 #ifdef OV_GPU_WITH_OCL_RT
             if (auto* ocl_engine = dynamic_cast<cldnn::ocl::ocl_engine*>(&engine)) {
-                m_memory_object = ocl_engine->create_hostbuffer_host_ro(m_va_mem.ptr,
+                m_memory_object = ocl_engine->create_hostbuffer_host_ro(static_cast<const void*>(m_va_mem.ptr),
                                                 buffer_size,
                                                 cldnn::allocation_type::cl_mem,
                                                 m_layout);
