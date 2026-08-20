@@ -264,6 +264,10 @@ bool Config::has(std::string key) const {
     return _impl.count(key) != 0;
 }
 
+void Config::remove(std::string key) {
+    _impl.erase(key);
+}
+
 void Config::update(const ConfigMap& options) {
     for (const auto& p : options) {
         _log.trace("Update option '%s' to value '%s'", p.first.c_str(), p.second.c_str());

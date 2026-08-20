@@ -489,6 +489,7 @@ public:
     bool has() const;
 
     bool has(std::string key) const;
+    void remove(std::string key);
 
     template <class Opt>
     typename Opt::ValueType get() const;

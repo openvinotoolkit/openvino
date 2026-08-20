@@ -294,7 +294,6 @@ std::vector<std::string> PluginCompilerAdapter::get_supported_options() const {
         --optionsSize;
     }
     if (optionsSize == 0) {
-        _logger.info("get_supported_options returned no options; returning an empty supported options vector.");
         return {};
     }
 
@@ -320,6 +319,9 @@ bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
     if (optionSupportCache) {
         const auto cachedSupport = _optionSupportCache->isOptionSupported(pluginOptionSupportKey, optname);
         if (cachedSupport.has_value()) {
+            _logger.debug("Option %s %s by PluginCompilerAdapter",
+                          optname.c_str(),
+                          cachedSupport.value() ? "is supported" : "is not supported");
             return cachedSupport.value();
         }
     }
@@ -329,11 +331,10 @@ bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
         _optionSupportCache->addSupportedOption(pluginOptionSupportKey, optname, supported);
     }
 
-    const char* valueForLog = optValue.has_value() ? optValue->c_str() : "null";
-    _logger.debug("Option %s %s `%s` by VCLCompilerImpl",
+    _logger.debug("Option %s with value '%s' %s by PluginCompilerAdapter",
                   optname.c_str(),
-                  supported ? "is supported" : "is not supported",
-                  valueForLog);
+                  optValue.has_value() ? optValue->c_str() : "null",
+                  supported ? "is supported" : "is not supported");
 
     return supported;
 }
