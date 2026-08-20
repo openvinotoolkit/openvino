@@ -662,7 +662,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
         return compiledModel;
     }
 
-    BlobSource blobSource(stream, _logger.level());
+    BlobSource blobSource(compiledBlob, _logger.level());
 
     try {
         return import_model(blobSource, localProperties);
