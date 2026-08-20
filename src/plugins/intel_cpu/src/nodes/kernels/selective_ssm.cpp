@@ -109,7 +109,7 @@ void selective_ssm_typed(const DataT* A,
             const auto state_elements = p_count * shape.state_size;
             copy_convert(local_state, recurrent_state + state_base, state_elements);
 
-            const float a_head = static_cast<float>(A[head]);
+            const auto a_head = static_cast<float>(A[head]);
             auto token_head = (batch * shape.sequence_length) * shape.num_heads + head;
             auto projection_base = ((batch * shape.sequence_length) * shape.num_groups + group) * shape.state_size;
             auto x_base = token_head * shape.head_dim + p_begin;
@@ -117,7 +117,7 @@ void selective_ssm_typed(const DataT* A,
             const auto x_stride = shape.num_heads * shape.head_dim;
 
             for (size_t token = 0; token < shape.sequence_length; ++token) {
-                const float delta = static_cast<float>(dt[token_head]);
+                const auto delta = static_cast<float>(dt[token_head]);
                 const float decay = std::exp(a_head * delta);
                 const auto* input_projection = B + projection_base;
                 const auto* output_projection = C + projection_base;
@@ -387,7 +387,7 @@ void paged_selective_ssm_typed(const DataT* A,
             const auto read_block = static_cast<size_t>(index_at(block_indices, logical_block_begin));
             const auto state_slice = head * head_stride + p_begin * shape.state_size;
             const auto* initial_state = recurrent_state_table + read_block * block_stride + state_slice;
-            const float a_head = static_cast<float>(A[head]);
+            const auto a_head = static_cast<float>(A[head]);
             const auto interval = index_at(cache_interval, sequence);
             const bool cache_enabled = interval > 0;
             auto token_head = token_begin * shape.num_heads + head;
@@ -403,7 +403,7 @@ void paged_selective_ssm_typed(const DataT* A,
                 cache_enabled ? static_cast<uint64_t>(index_at(num_processed_tokens, sequence)) % positive_interval : 0;
 
             for (size_t token = token_begin; token < token_end; ++token) {
-                const float delta = static_cast<float>(dt[token_head]);
+                const auto delta = static_cast<float>(dt[token_head]);
                 const float decay = std::exp(a_head * delta);
                 const auto* input_projection = B + projection_base;
                 const auto* output_projection = C + projection_base;
