@@ -188,20 +188,22 @@ void PagedSelectiveSSMExecutor::execute(const MemoryArgs& memory) {
     auto* state_scratch = m_scratch->getDataAs<float>();
     const float* converted_B = nullptr;
     const float* converted_C = nullptr;
-    if (precision != ov::element::f32 && projection_elements > 0) {
+    if (precision != ov::element::f32) {
         auto* projection_scratch = state_scratch + m_state_scratch_elements;
         converted_B = projection_scratch;
         converted_C = projection_scratch + projection_elements;
-        cpu_parallel_convert(memory.at(ARG_PAGED_SSM_B)->getData(),
-                             projection_scratch,
-                             precision,
-                             ov::element::f32,
-                             projection_elements);
-        cpu_parallel_convert(memory.at(ARG_PAGED_SSM_C)->getData(),
-                             projection_scratch + projection_elements,
-                             precision,
-                             ov::element::f32,
-                             projection_elements);
+        if (projection_elements > 0) {
+            cpu_parallel_convert(memory.at(ARG_PAGED_SSM_B)->getData(),
+                                 projection_scratch,
+                                 precision,
+                                 ov::element::f32,
+                                 projection_elements);
+            cpu_parallel_convert(memory.at(ARG_PAGED_SSM_C)->getData(),
+                                 projection_scratch + projection_elements,
+                                 precision,
+                                 ov::element::f32,
+                                 projection_elements);
+        }
     }
     auto* block_owners =
         reinterpret_cast<int32_t*>(state_scratch + m_state_scratch_elements + m_projection_scratch_elements);

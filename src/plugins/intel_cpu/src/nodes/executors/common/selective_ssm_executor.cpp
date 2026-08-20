@@ -75,7 +75,7 @@ bool SelectiveSSMExecutor::update_scratchpad(const MemoryArgs& memory) {
     const auto thread_count = static_cast<size_t>(m_context->getCpuParallel()->get_num_worker_threads());
     const auto outer_work = node::kernel::checked_size_product({x_dims[0], x_dims[2]}, "outer work items");
     const auto scratch_head_dim = node::kernel::get_scratch_head_dim(head_dim, state_size, outer_work, thread_count);
-    const auto needs_state_scratch = precision != ov::element::f32 && x_dims[1] > 1;
+    const auto needs_state_scratch = precision != ov::element::f32;
     const auto state_scratch_elements =
         needs_state_scratch
             ? node::kernel::checked_size_product({thread_count, scratch_head_dim, state_size}, "state scratch")
@@ -125,7 +125,7 @@ void SelectiveSSMExecutor::execute(const MemoryArgs& memory) {
     const auto expected_scratch_head_dim =
         node::kernel::get_scratch_head_dim(x_dims[3], state_dims[3], outer_work, thread_count);
     const auto expected_state_scratch_elements =
-        precision != ov::element::f32 && x_dims[1] > 1
+        precision != ov::element::f32
             ? node::kernel::checked_size_product({thread_count, expected_scratch_head_dim, state_dims[3]},
                                                  "state scratch")
             : size_t{0};
@@ -144,20 +144,22 @@ void SelectiveSSMExecutor::execute(const MemoryArgs& memory) {
     auto* state_scratch = m_scratch->getDataAs<float>();
     const float* converted_B = nullptr;
     const float* converted_C = nullptr;
-    if (precision != ov::element::f32 && projection_elements > 0) {
+    if (precision != ov::element::f32) {
         auto* projection_scratch = state_scratch + m_state_scratch_elements;
         converted_B = projection_scratch;
         converted_C = projection_scratch + projection_elements;
-        cpu_parallel_convert(memory.at(ARG_SSM_B)->getData(),
-                             projection_scratch,
-                             precision,
-                             ov::element::f32,
-                             projection_elements);
-        cpu_parallel_convert(memory.at(ARG_SSM_C)->getData(),
-                             projection_scratch + projection_elements,
-                             precision,
-                             ov::element::f32,
-                             projection_elements);
+        if (projection_elements > 0) {
+            cpu_parallel_convert(memory.at(ARG_SSM_B)->getData(),
+                                 projection_scratch,
+                                 precision,
+                                 ov::element::f32,
+                                 projection_elements);
+            cpu_parallel_convert(memory.at(ARG_SSM_C)->getData(),
+                                 projection_scratch + projection_elements,
+                                 precision,
+                                 ov::element::f32,
+                                 projection_elements);
+        }
     }
     node::kernel::selective_ssm(memory.at(ARG_SSM_A)->getData(),
                                 memory.at(ARG_SSM_DT)->getData(),

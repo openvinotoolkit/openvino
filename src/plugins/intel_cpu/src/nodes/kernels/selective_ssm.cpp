@@ -21,7 +21,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/util/math_util.hpp"
-#include "utils/cpp/bit_cast.hpp"
+#include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 
 namespace ov::intel_cpu::node::kernel {
@@ -30,111 +30,6 @@ namespace {
 // Bound the portable executor's FP32 recurrent-state scratch independently of the CPU cache topology.
 // Machine-specific executors may use a cache-aware tiling policy instead.
 constexpr size_t max_scratch_bytes_per_worker = 32 * 1024;
-
-template <typename T>
-inline float load(const T* ptr) {
-    return static_cast<float>(*ptr);
-}
-
-// Bulk conversions use cvt_copy below. In the recurrence, conversion is interleaved with arithmetic; keeping it
-// inline avoids both an out-of-line ov::float16 scalar call per element and a separate full-state conversion pass.
-template <>
-inline float load(const ov::float16* ptr) {
-    const auto value = bit_cast<uint16_t>(*ptr);
-    uint32_t exponent = 0x1FU & (value >> ov::float16::frac_size);
-    uint32_t float_exponent = exponent + 127U - ov::float16::exp_bias;
-    uint32_t fraction = value & 0x03FFU;
-    if (exponent == 0) {
-        if (fraction == 0) {
-            float_exponent = 0;
-        } else {
-            ++float_exponent;
-            while ((fraction & 0x0400U) == 0) {
-                --float_exponent;
-                fraction <<= 1U;
-            }
-            fraction &= 0x03FFU;
-        }
-    } else if (exponent == 0x1FU) {
-        float_exponent = 0xFFU;
-    }
-    fraction <<= 23U - ov::float16::frac_size;
-    const uint32_t bits = (static_cast<uint32_t>(value & 0x8000U) << 16U) | (float_exponent << 23U) | fraction;
-    return bit_cast<float>(bits);
-}
-
-template <>
-inline float load(const ov::bfloat16* ptr) {
-    const auto value = bit_cast<uint16_t>(*ptr);
-    const uint32_t bits = static_cast<uint32_t>(value) << 16U;
-    return bit_cast<float>(bits);
-}
-
-template <typename T>
-inline void store(T* ptr, float value) {
-    *ptr = static_cast<T>(value);
-}
-
-template <>
-inline void store(ov::float16* ptr, float value) {
-    const auto bits = bit_cast<uint32_t>(value);
-    constexpr uint32_t sign_mask = 0x80000000U;
-    constexpr uint32_t f32_exponent_mask = 0x7F800000U;
-    constexpr uint32_t f32_fraction_mask = 0x007FFFFFU;
-    constexpr uint32_t f16_exponent_mask = 0x7C000000U;
-    constexpr uint32_t f16_fraction_mask = 0x03FF0000U;
-    constexpr uint32_t half_round_mask = 0x0001FFFFU;
-    constexpr uint32_t normal_round_mask = 0x00007FFFU;
-    constexpr uint32_t even_round_bit = 0x00008000U;
-    constexpr uint32_t odd_round_value = 0x00018000U;
-
-    const uint32_t biased_exponent_f32 = bits & f32_exponent_mask;
-    uint32_t fraction = (bits & f32_fraction_mask) << 3U;
-    uint16_t result = 0;
-    if (biased_exponent_f32 == f32_exponent_mask) {
-        if (fraction != 0) {
-            fraction &= f16_fraction_mask;
-            if (fraction == 0) {
-                fraction = 0x00010000U;
-            }
-        }
-        result = static_cast<uint16_t>(((bits & sign_mask) | f16_exponent_mask | fraction) >> 16U);
-    } else if (biased_exponent_f32 == 0) {
-        result = static_cast<uint16_t>((bits & sign_mask) >> 16U);
-    } else {
-        auto biased_exponent_f16 = static_cast<int16_t>(static_cast<int32_t>(biased_exponent_f32 >> 23U) - 127 +
-                                                        static_cast<int32_t>(ov::float16::exp_bias));
-        if ((fraction & half_round_mask) == odd_round_value || (fraction & normal_round_mask) != 0) {
-            fraction += even_round_bit;
-            if ((fraction & f16_exponent_mask) != 0) {
-                fraction &= f16_exponent_mask;
-                ++biased_exponent_f16;
-            }
-        }
-        fraction &= f16_fraction_mask;
-        if (biased_exponent_f16 > 30) {
-            result = static_cast<uint16_t>(((bits & sign_mask) | f16_exponent_mask) >> 16U);
-        } else if (biased_exponent_f16 > 0) {
-            result = static_cast<uint16_t>(
-                ((bits & sign_mask) | (static_cast<uint32_t>(biased_exponent_f16) << 26U) | fraction) >> 16U);
-        } else {
-            fraction = 0x04000000U | ((bits & f32_fraction_mask) << 3U);
-            const uint32_t shift = biased_exponent_f16 < -30 ? 0U : (uint32_t{1} << (1 - biased_exponent_f16));
-            const uint32_t sticky = (fraction & (shift - 1U)) != 0 ? 1U : 0U;
-            if (1 + (-biased_exponent_f16) > 31) {
-                fraction = 0;
-            } else {
-                fraction >>= 1 + (-biased_exponent_f16);
-            }
-            fraction |= sticky;
-            if ((fraction & half_round_mask) == odd_round_value || (fraction & normal_round_mask) != 0) {
-                fraction += even_round_bit;
-            }
-            result = static_cast<uint16_t>(((bits & sign_mask) | fraction) >> 16U);
-        }
-    }
-    *ptr = ov::float16::from_bits(result);
-}
 
 template <typename DstT, typename SrcT>
 inline void copy_convert(DstT* dst, const SrcT* src, size_t count) {
@@ -147,178 +42,32 @@ inline void copy_convert(DstT* dst, const SrcT* src, size_t count) {
     }
 }
 
-struct PositionReductions {
-    float first;
-    float second;
-};
-
-template <size_t SliceCount, bool StoreState = true, typename StateOutT, typename StateInT, typename ProjectionT>
-inline PositionReductions update_state_and_reduce(StateOutT* first_state,
-                                                  StateOutT* second_state,
-                                                  const StateInT* first_input_state,
-                                                  const StateInT* second_input_state,
-                                                  const ProjectionT* B,
-                                                  const ProjectionT* C,
-                                                  float decay,
-                                                  float first_input_scale,
-                                                  float second_input_scale,
-                                                  size_t state_size) {
-    static_assert(SliceCount == 1 || SliceCount == 2, "Only the paired path and its single-slice tail are supported");
-
-    // For every contiguous p-slice, compute the recurrence and its C reduction in one state-memory pass:
-    //   state[p, n] = state[p, n] * decay + (x[p] * delta) * B[n]
-    //   output[p]   = sum_n(state[p, n] * C[n])
-    // SliceCount is known at compile time: two slices share each B/C load in the main path, while one slice handles
-    // an odd tail through the same implementation. The second pointers and scale are unused for that tail.
-
-    // Four independent sums break the reduction dependency chain. The explicit four-way unroll is a portable C++
-    // code-generation aid, not an ISA-specific vector width; specialized executors own explicit SIMD implementations.
-    float first_sum0 = 0.F;
-    float first_sum1 = 0.F;
-    float first_sum2 = 0.F;
-    float first_sum3 = 0.F;
-    float second_sum0 = 0.F;
-    float second_sum1 = 0.F;
-    float second_sum2 = 0.F;
-    float second_sum3 = 0.F;
-
-    constexpr size_t reduction_unroll = 4;
-    size_t n = 0;
-    for (; n + reduction_unroll <= state_size; n += reduction_unroll) {
-        const float b0 = load(B + n);
-        const float b1 = load(B + n + 1);
-        const float b2 = load(B + n + 2);
-        const float b3 = load(B + n + 3);
-        const float c0 = load(C + n);
-        const float c1 = load(C + n + 1);
-        const float c2 = load(C + n + 2);
-        const float c3 = load(C + n + 3);
-
-        const float first_updated0 = load(first_input_state + n) * decay + first_input_scale * b0;
-        const float first_updated1 = load(first_input_state + n + 1) * decay + first_input_scale * b1;
-        const float first_updated2 = load(first_input_state + n + 2) * decay + first_input_scale * b2;
-        const float first_updated3 = load(first_input_state + n + 3) * decay + first_input_scale * b3;
-        float second_updated0 = 0.F;
-        float second_updated1 = 0.F;
-        float second_updated2 = 0.F;
-        float second_updated3 = 0.F;
-        if constexpr (SliceCount == 2) {
-            second_updated0 = load(second_input_state + n) * decay + second_input_scale * b0;
-            second_updated1 = load(second_input_state + n + 1) * decay + second_input_scale * b1;
-            second_updated2 = load(second_input_state + n + 2) * decay + second_input_scale * b2;
-            second_updated3 = load(second_input_state + n + 3) * decay + second_input_scale * b3;
-        }
-
-        if constexpr (StoreState) {
-            store(first_state + n, first_updated0);
-            store(first_state + n + 1, first_updated1);
-            store(first_state + n + 2, first_updated2);
-            store(first_state + n + 3, first_updated3);
-            if constexpr (SliceCount == 2) {
-                store(second_state + n, second_updated0);
-                store(second_state + n + 1, second_updated1);
-                store(second_state + n + 2, second_updated2);
-                store(second_state + n + 3, second_updated3);
-            }
-        }
-
-        first_sum0 += first_updated0 * c0;
-        first_sum1 += first_updated1 * c1;
-        first_sum2 += first_updated2 * c2;
-        first_sum3 += first_updated3 * c3;
-        if constexpr (SliceCount == 2) {
-            second_sum0 += second_updated0 * c0;
-            second_sum1 += second_updated1 * c1;
-            second_sum2 += second_updated2 * c2;
-            second_sum3 += second_updated3 * c3;
-        }
+template <typename ProjectionT>
+inline float update_state_and_reduce(float* state,
+                                     const ProjectionT* input_projection,
+                                     const ProjectionT* output_projection,
+                                     float decay,
+                                     float input_scale,
+                                     size_t state_size) {
+    for (size_t n = 0; n < state_size; ++n) {
+        state[n] = state[n] * decay + static_cast<float>(input_projection[n]) * input_scale;
     }
 
-    float first_result = (first_sum0 + first_sum1) + (first_sum2 + first_sum3);
-    float second_result = (second_sum0 + second_sum1) + (second_sum2 + second_sum3);
-    for (; n < state_size; ++n) {
-        const float b_value = load(B + n);
-        const float c_value = load(C + n);
-        const float first_updated = load(first_input_state + n) * decay + first_input_scale * b_value;
-        float second_updated = 0.F;
-        if constexpr (SliceCount == 2) {
-            second_updated = load(second_input_state + n) * decay + second_input_scale * b_value;
-        }
-
-        if constexpr (StoreState) {
-            store(first_state + n, first_updated);
-            if constexpr (SliceCount == 2) {
-                store(second_state + n, second_updated);
-            }
-        }
-
-        first_result += first_updated * c_value;
-        if constexpr (SliceCount == 2) {
-            second_result += second_updated * c_value;
-        }
-    }
-    return {first_result, second_result};
-}
-
-// Process a block of head-dimension positions as pairs and one optional odd tail. SliceCount is compile-time inside
-// update_state_and_reduce, so pairs share B/C loads without adding a runtime branch to the recurrence.
-template <bool StoreState = true, typename StateOutT, typename StateInT, typename DataT, typename ProjectionT>
-inline void update_state_block_and_reduce(StateOutT* state,
-                                          const StateInT* input_state,
-                                          const DataT* x,
-                                          DataT* output,
-                                          const ProjectionT* B,
-                                          const ProjectionT* C,
-                                          float decay,
-                                          float delta,
-                                          size_t x_base,
-                                          size_t p_count,
-                                          size_t state_size) {
-    size_t p = 0;
-    for (; p + 1 < p_count; p += 2) {
-        StateOutT* first_state = nullptr;
-        StateOutT* second_state = nullptr;
-        if constexpr (StoreState) {
-            first_state = state + p * state_size;
-            second_state = first_state + state_size;
-        }
-        const auto* first_input_state = input_state + p * state_size;
-        const auto* second_input_state = first_input_state + state_size;
-        const float first_input_scale = load(x + x_base + p) * delta;
-        const float second_input_scale = load(x + x_base + p + 1) * delta;
-        const auto result = update_state_and_reduce<2, StoreState>(first_state,
-                                                                   second_state,
-                                                                   first_input_state,
-                                                                   second_input_state,
-                                                                   B,
-                                                                   C,
-                                                                   decay,
-                                                                   first_input_scale,
-                                                                   second_input_scale,
-                                                                   state_size);
-        store(output + x_base + p, result.first);
-        store(output + x_base + p + 1, result.second);
+    if constexpr (std::is_same_v<ProjectionT, float>) {
+        return ov::Extensions::Cpu::XARCH::dot_product(state,
+                                                       output_projection,
+                                                       state_size,
+                                                       nullptr,
+                                                       nullptr,
+                                                       nullptr,
+                                                       0);
     }
 
-    if (p < p_count) {
-        StateOutT* tail_state = nullptr;
-        if constexpr (StoreState) {
-            tail_state = state + p * state_size;
-        }
-        const float input_scale = load(x + x_base + p) * delta;
-        const auto* tail_input_state = input_state + p * state_size;
-        const auto result = update_state_and_reduce<1, StoreState>(tail_state,
-                                                                   tail_state,
-                                                                   tail_input_state,
-                                                                   tail_input_state,
-                                                                   B,
-                                                                   C,
-                                                                   decay,
-                                                                   input_scale,
-                                                                   0.F,
-                                                                   state_size);
-        store(output + x_base + p, result.first);
+    float result = 0.F;
+    for (size_t n = 0; n < state_size; ++n) {
+        result += state[n] * static_cast<float>(output_projection[n]);
     }
+    return result;
 }
 
 template <typename DataT, typename ProjectionT>
@@ -334,9 +83,9 @@ void selective_ssm_typed(const DataT* A,
                          float* state_scratch,
                          size_t scratch_head_dim,
                          const CpuParallelPtr& cpu_parallel) {
-    // BHS and HS are the recurrent-state strides between consecutive batches and heads, respectively.
-    const auto BHS = checked_size_product({shape.num_heads, shape.head_dim, shape.state_size}, "recurrent state batch");
-    const auto HS = checked_size_product({shape.head_dim, shape.state_size}, "recurrent state head");
+    const auto batch_state_stride =
+        checked_size_product({shape.num_heads, shape.head_dim, shape.state_size}, "recurrent state batch");
+    const auto head_state_stride = checked_size_product({shape.head_dim, shape.state_size}, "recurrent state head");
     const auto scratch_stride = checked_size_product({scratch_head_dim, shape.state_size}, "state scratch");
     const auto heads_per_group = shape.num_heads / shape.num_groups;
     const auto p_block_count = ov::util::ceil_div(shape.head_dim, scratch_head_dim);
@@ -347,7 +96,7 @@ void selective_ssm_typed(const DataT* A,
             const auto p_end = p_begin + std::min(scratch_head_dim, shape.head_dim - p_begin);
             const auto p_count = p_end - p_begin;
             const auto group = head / heads_per_group;
-            const auto state_base = batch * BHS + head * HS + p_begin * shape.state_size;
+            const auto state_base = batch * batch_state_stride + head * head_state_stride + p_begin * shape.state_size;
             float* local_state = nullptr;
             if constexpr (std::is_same_v<DataT, float>) {
                 // FP32 can use the final state as its working buffer. Lower precisions retain FP32 scratch to avoid
@@ -357,91 +106,40 @@ void selective_ssm_typed(const DataT* A,
                 local_state = state_scratch + static_cast<size_t>(parallel_get_thread_num()) * scratch_stride;
             }
 
-            if (shape.sequence_length == 0) {
-                auto* final_state = output_recurrent_state + state_base;
-                const auto* initial_state = recurrent_state + state_base;
-                if (final_state != initial_state) {
-                    std::memcpy(final_state, initial_state, p_count * shape.state_size * sizeof(DataT));
-                }
-                return;
-            }
+            const auto state_elements = p_count * shape.state_size;
+            copy_convert(local_state, recurrent_state + state_base, state_elements);
 
-            const float A_head = load(A + head);
+            const float a_head = static_cast<float>(A[head]);
             auto token_head = (batch * shape.sequence_length) * shape.num_heads + head;
             auto projection_base = ((batch * shape.sequence_length) * shape.num_groups + group) * shape.state_size;
             auto x_base = token_head * shape.head_dim + p_begin;
             const auto projection_stride = shape.num_groups * shape.state_size;
             const auto x_stride = shape.num_heads * shape.head_dim;
 
-            if (shape.sequence_length == 1) {
-                const float delta = load(dt + token_head);
-                const float decay = std::exp(A_head * delta);
-                const auto* B_token = B + projection_base;
-                const auto* C_token = C + projection_base;
-                // Decode has no intermediate FP32 state to preserve. Store the final state directly so the state is
-                // converted only once for low precisions and FP32 does not incur an otherwise redundant full copy.
-                // Element-wise update remains valid when input and output state alias.
-                update_state_block_and_reduce(output_recurrent_state + state_base,
-                                              recurrent_state + state_base,
-                                              x,
-                                              output,
-                                              B_token,
-                                              C_token,
-                                              decay,
-                                              delta,
-                                              x_base,
-                                              p_count,
-                                              shape.state_size);
-                return;
-            }
+            for (size_t token = 0; token < shape.sequence_length; ++token) {
+                const float delta = static_cast<float>(dt[token_head]);
+                const float decay = std::exp(a_head * delta);
+                const auto* input_projection = B + projection_base;
+                const auto* output_projection = C + projection_base;
+                for (size_t p = 0; p < p_count; ++p) {
+                    auto* state = local_state + p * shape.state_size;
+                    const float input_scale = static_cast<float>(x[x_base + p]) * delta;
+                    const float result = update_state_and_reduce(state,
+                                                                 input_projection,
+                                                                 output_projection,
+                                                                 decay,
+                                                                 input_scale,
+                                                                 shape.state_size);
+                    output[x_base + p] = static_cast<DataT>(result);
+                }
 
-            // Initialize the working state directly while processing the first token. Apart from removing a full
-            // state copy, keeping the first iteration out of the recurrent loop removes the first-token condition
-            // from longer sequences.
-            {
-                const float delta = load(dt + token_head);
-                const float decay = std::exp(A_head * delta);
-                const auto* B_token = B + projection_base;
-                const auto* C_token = C + projection_base;
-                update_state_block_and_reduce(local_state,
-                                              recurrent_state + state_base,
-                                              x,
-                                              output,
-                                              B_token,
-                                              C_token,
-                                              decay,
-                                              delta,
-                                              x_base,
-                                              p_count,
-                                              shape.state_size);
-            }
-
-            token_head += shape.num_heads;
-            projection_base += projection_stride;
-            x_base += x_stride;
-            for (size_t token = 1; token < shape.sequence_length; ++token) {
-                const float delta = load(dt + token_head);
-                const float decay = std::exp(A_head * delta);
-                const auto* B_token = B + projection_base;
-                const auto* C_token = C + projection_base;
-                update_state_block_and_reduce(local_state,
-                                              local_state,
-                                              x,
-                                              output,
-                                              B_token,
-                                              C_token,
-                                              decay,
-                                              delta,
-                                              x_base,
-                                              p_count,
-                                              shape.state_size);
                 token_head += shape.num_heads;
                 projection_base += projection_stride;
                 x_base += x_stride;
             }
 
             if constexpr (!std::is_same_v<DataT, float>) {
-                copy_convert(output_recurrent_state + state_base, local_state, p_count * shape.state_size);
+                copy_convert(output_recurrent_state + state_base, local_state, state_elements);
             }
         });
 }
@@ -471,7 +169,7 @@ PagedMetadata make_paged_metadata(const void* subsequence_begins,
                                   const void* cache_interval,
                                   const ov::element::Type& index_precision,
                                   const PagedSelectiveSSMShape& shape) {
-    OPENVINO_ASSERT(index_precision == ov::element::i32 || index_precision == ov::element::i64,
+    OPENVINO_ASSERT(any_of(index_precision, ov::element::i32, ov::element::i64),
                     "PagedSelectiveSSM supports only i32/i64 metadata, got ",
                     index_precision,
                     ".");
@@ -689,7 +387,7 @@ void paged_selective_ssm_typed(const DataT* A,
             const auto read_block = static_cast<size_t>(index_at(block_indices, logical_block_begin));
             const auto state_slice = head * head_stride + p_begin * shape.state_size;
             const auto* initial_state = recurrent_state_table + read_block * block_stride + state_slice;
-            const float A_head = load(A + head);
+            const float a_head = static_cast<float>(A[head]);
             const auto interval = index_at(cache_interval, sequence);
             const bool cache_enabled = interval > 0;
             auto token_head = token_begin * shape.num_heads + head;
@@ -697,71 +395,28 @@ void paged_selective_ssm_typed(const DataT* A,
             auto x_base = token_head * shape.head_dim + p_begin;
             const auto projection_stride = shape.num_groups * shape.state_size;
             const auto x_stride = shape.num_heads * shape.head_dim;
-
-            if (token_end - token_begin == 1) {
-                const float delta = load(dt + token_head);
-                const float decay = std::exp(A_head * delta);
-                const auto* B_token = B + projection_base;
-                const auto* C_token = C + projection_base;
-                if (cache_enabled) {
-                    const auto write_block = static_cast<size_t>(index_at(block_indices, logical_block_begin + 1));
-                    auto* state_destination = recurrent_state_table + write_block * block_stride + state_slice;
-                    update_state_block_and_reduce(state_destination,
-                                                  initial_state,
-                                                  x,
-                                                  output,
-                                                  B_token,
-                                                  C_token,
-                                                  decay,
-                                                  delta,
-                                                  x_base,
-                                                  p_count,
-                                                  shape.state_size);
-                } else {
-                    // With no cache destination and no following token, the updated state is dead. Compute only
-                    // the reduced output and avoid both the scratch write and the final state conversion.
-                    update_state_block_and_reduce<false>(static_cast<DataT*>(nullptr),
-                                                         initial_state,
-                                                         x,
-                                                         output,
-                                                         B_token,
-                                                         C_token,
-                                                         decay,
-                                                         delta,
-                                                         x_base,
-                                                         p_count,
-                                                         shape.state_size);
-                }
-                return;
-            }
-
             auto* local_state = state_scratch + static_cast<size_t>(parallel_get_thread_num()) * scratch_stride;
+            const auto state_elements = p_count * shape.state_size;
+            copy_convert(local_state, initial_state, state_elements);
             const uint64_t positive_interval = cache_enabled ? static_cast<uint64_t>(interval) : 1;
             const uint64_t cache_offset =
                 cache_enabled ? static_cast<uint64_t>(index_at(num_processed_tokens, sequence)) % positive_interval : 0;
 
             for (size_t token = token_begin; token < token_end; ++token) {
-                const float delta = load(dt + token_head);
-                const float decay = std::exp(A_head * delta);
-                const auto* B_token = B + projection_base;
-                const auto* C_token = C + projection_base;
-                const auto update_state = [&](const auto* input_state) {
-                    update_state_block_and_reduce(local_state,
-                                                  input_state,
-                                                  x,
-                                                  output,
-                                                  B_token,
-                                                  C_token,
-                                                  decay,
-                                                  delta,
-                                                  x_base,
-                                                  p_count,
-                                                  shape.state_size);
-                };
-                if (token == token_begin) {
-                    update_state(initial_state);
-                } else {
-                    update_state(local_state);
+                const float delta = static_cast<float>(dt[token_head]);
+                const float decay = std::exp(a_head * delta);
+                const auto* input_projection = B + projection_base;
+                const auto* output_projection = C + projection_base;
+                for (size_t p = 0; p < p_count; ++p) {
+                    auto* state = local_state + p * shape.state_size;
+                    const float input_scale = static_cast<float>(x[x_base + p]) * delta;
+                    const float result = update_state_and_reduce(state,
+                                                                 input_projection,
+                                                                 output_projection,
+                                                                 decay,
+                                                                 input_scale,
+                                                                 shape.state_size);
+                    output[x_base + p] = static_cast<DataT>(result);
                 }
 
                 const auto processed_tokens = static_cast<uint64_t>((token - token_begin) + 1);
@@ -773,7 +428,7 @@ void paged_selective_ssm_typed(const DataT* A,
                     const auto write_block =
                         static_cast<size_t>(index_at(block_indices, logical_block_begin + write_slot));
                     auto* snapshot = recurrent_state_table + write_block * block_stride + state_slice;
-                    copy_convert(snapshot, local_state, p_count * shape.state_size);
+                    copy_convert(snapshot, local_state, state_elements);
                 }
 
                 token_head += shape.num_heads;
@@ -798,25 +453,25 @@ void dispatch_selective_projection(const void* A,
                                    const CpuParallelPtr& cpu_parallel,
                                    const float* converted_B,
                                    const float* converted_C) {
-#define OV_CPU_SSM_CALL(ProjectionT, BData, CData)                   \
-    selective_ssm_typed(static_cast<const DataT*>(A),                \
-                        static_cast<const DataT*>(dt),               \
-                        static_cast<const ProjectionT*>(BData),      \
-                        static_cast<const DataT*>(x),                \
-                        static_cast<const ProjectionT*>(CData),      \
-                        static_cast<const DataT*>(recurrent_state),  \
-                        static_cast<DataT*>(output),                 \
-                        static_cast<DataT*>(output_recurrent_state), \
-                        shape,                                       \
-                        state_scratch,                               \
-                        scratch_head_dim,                            \
-                        cpu_parallel)
+    const auto dispatch = [&](const auto* B_data, const auto* C_data) {
+        selective_ssm_typed(static_cast<const DataT*>(A),
+                            static_cast<const DataT*>(dt),
+                            B_data,
+                            static_cast<const DataT*>(x),
+                            C_data,
+                            static_cast<const DataT*>(recurrent_state),
+                            static_cast<DataT*>(output),
+                            static_cast<DataT*>(output_recurrent_state),
+                            shape,
+                            state_scratch,
+                            scratch_head_dim,
+                            cpu_parallel);
+    };
     if (converted_B != nullptr) {
-        OV_CPU_SSM_CALL(float, converted_B, converted_C);
+        dispatch(converted_B, converted_C);
     } else {
-        OV_CPU_SSM_CALL(DataT, B, C);
+        dispatch(static_cast<const DataT*>(B), static_cast<const DataT*>(C));
     }
-#undef OV_CPU_SSM_CALL
 }
 
 template <typename DataT>
@@ -835,26 +490,26 @@ void dispatch_paged_projection(const void* A,
                                const CpuParallelPtr& cpu_parallel,
                                const float* converted_B,
                                const float* converted_C) {
-#define OV_CPU_PAGED_SSM_CALL(ProjectionT, BData, CData)                  \
-    paged_selective_ssm_typed(static_cast<const DataT*>(A),               \
-                              static_cast<const DataT*>(dt),              \
-                              static_cast<const ProjectionT*>(BData),     \
-                              static_cast<const DataT*>(x),               \
-                              static_cast<const ProjectionT*>(CData),     \
-                              static_cast<DataT*>(recurrent_state_table), \
-                              metadata,                                   \
-                              static_cast<DataT*>(output),                \
-                              shape,                                      \
-                              state_scratch,                              \
-                              scratch_head_dim,                           \
-                              block_owners,                               \
-                              cpu_parallel)
+    const auto dispatch = [&](const auto* B_data, const auto* C_data) {
+        paged_selective_ssm_typed(static_cast<const DataT*>(A),
+                                  static_cast<const DataT*>(dt),
+                                  B_data,
+                                  static_cast<const DataT*>(x),
+                                  C_data,
+                                  static_cast<DataT*>(recurrent_state_table),
+                                  metadata,
+                                  static_cast<DataT*>(output),
+                                  shape,
+                                  state_scratch,
+                                  scratch_head_dim,
+                                  block_owners,
+                                  cpu_parallel);
+    };
     if (converted_B != nullptr) {
-        OV_CPU_PAGED_SSM_CALL(float, converted_B, converted_C);
+        dispatch(converted_B, converted_C);
     } else {
-        OV_CPU_PAGED_SSM_CALL(DataT, B, C);
+        dispatch(static_cast<const DataT*>(B), static_cast<const DataT*>(C));
     }
-#undef OV_CPU_PAGED_SSM_CALL
 }
 
 }  // namespace
