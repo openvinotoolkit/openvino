@@ -40,6 +40,7 @@ std::shared_ptr<ov::AlignedBuffer> BufferWeightsProvider::make_region(size_t off
 }
 
 size_t BufferWeightsProvider::size() const {
+    OPENVINO_ASSERT(m_weights != nullptr, "Empty weights data in bin file or bin file cannot be found!");
     return m_weights->size();
 }
 
