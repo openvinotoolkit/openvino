@@ -37,18 +37,20 @@ EliminateConvPaddingMaskGating::EliminateConvPaddingMaskGating() {
     auto scale = pattern::optional<v1::Multiply>({convert, any_input()});
     auto shift = pattern::optional<v1::Add>({scale, any_input()});
 
-    // The mask's scale/shift are compile-time constants, so requiring the non-mask operand to be a
-    // runtime value uniquely selects the real gate and rejects the inner mask-scale Multiply, whose
-    // other operand is the constant scale.
-    auto hidden_states = any_input([](const ov::Output<ov::Node>& out) {
-        return ov::util::get_constant_from_source(out) == nullptr;
-    });
+    auto hidden_states = any_input();
     auto mul_gate = wrap_type<v1::Multiply>({hidden_states, shift});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
-        const auto gate = pm.at(mul_gate).get_node_shared_ptr();
-        gate->output(0).replace(pm.at(hidden_states));
+        const auto& gated = pm.at(hidden_states);
+        // The mask's scale/shift are compile-time constants, so the real gate is the branch that is not
+        // constant-foldable; this rejects the inner mask-scale Multiply, whose other operand is the constant scale.
+        // Checked here rather than in a pattern predicate to avoid running bound evaluation on every Multiply.
+        // (was observed to dramatically worsen the compile-time on large models if put in the pattern predicate)
+        if (ov::util::get_constant_from_source(gated) != nullptr) {
+            return false;
+        }
+        pm.at(mul_gate).get_node_shared_ptr()->output(0).replace(gated);
         return true;
     };
 
