@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 
-from workflow_rerun.log_analyzer import CI_DOCTOR_PATTERN_TICKET, LogAnalyzer
+from workflow_rerun.log_analyzer import CI_DOCTOR_PATTERN_TICKET, NO_CATEGORY, LogAnalyzer
 
 
 class LogAnalyzerTest(unittest.TestCase):
@@ -55,6 +55,7 @@ class LogAnalyzerTest(unittest.TestCase):
                 error_data['error_text'], 'Each error_data should have text'
             )
             self.assertTrue(error_data['ticket'], 'Each error_data should have ticket')
+            self.assertTrue(error_data['category'], 'Each error_data should have category')
 
         for log_file in analyzer._log_files:
             self.assertTrue(
@@ -98,6 +99,7 @@ class LogAnalyzerTest(unittest.TestCase):
         self.assertEqual(analyzer.found_error_ticket, 130955)
         self.assertEqual(analyzer.matched_error_text,
                          'Network is unreachable')
+        self.assertEqual(analyzer.matched_category, 'Network')
 
     def test_analyzer_wo_error(self) -> None:
         """
@@ -134,6 +136,11 @@ class LogAnalyzerTest(unittest.TestCase):
             CI_DOCTOR_PATTERN_TICKET,
             'Pattern-derived errors must carry the CI_DOCTOR_PATTERN_TICKET sentinel',
         )
+        self.assertEqual(
+            pattern_errors[0]['category'],
+            'Flaky Test',
+            'Pattern-derived errors must carry the pattern category',
+        )
 
     def test_analyzer_matches_pattern_search_string(self) -> None:
         """
@@ -149,6 +156,7 @@ class LogAnalyzerTest(unittest.TestCase):
         self.assertTrue(analyzer.found_matching_error)
         self.assertEqual(analyzer.found_error_ticket, CI_DOCTOR_PATTERN_TICKET)
         self.assertEqual(analyzer.matched_error_text, 'label empty or too long')
+        self.assertEqual(analyzer.matched_category, 'Flaky Test')
 
     def test_missing_patterns_dir_is_ignored(self) -> None:
         """
