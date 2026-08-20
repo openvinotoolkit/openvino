@@ -201,6 +201,7 @@ void FinalizerCallback(Napi::Env env, void* finalizeData, TsfnContext* context) 
     delete context;
 };
 
+namespace {
 void perform_inference_thread(TsfnContext* context) {
     std::exception_ptr stored_exception;
     try {
@@ -248,6 +249,7 @@ void perform_inference_thread(TsfnContext* context) {
     }
     context->tsfn.Release();
 }
+}  // namespace
 
 Napi::Value InferRequestWrap::infer_async(const Napi::CallbackInfo& info) {
     if (info.Length() != 1) {
