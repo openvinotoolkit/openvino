@@ -615,6 +615,14 @@ def test_properties_devices_utilization_threshold():
     assert "incompatible function arguments" in str(e.value)
 
 
+def test_properties_low_power_device():
+    assert intel_auto.low_power_device == "LOW_POWER_DEVICE"
+
+    property_tuple = intel_auto.low_power_device("NPU")
+    assert property_tuple[0] == "LOW_POWER_DEVICE"
+    assert property_tuple[1].value == "NPU"
+
+
 def test_properties_streams():
     # Test extra Num class
     assert streams.Num().to_integer() == -1
