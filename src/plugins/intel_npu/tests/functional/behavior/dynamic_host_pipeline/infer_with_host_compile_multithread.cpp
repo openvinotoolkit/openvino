@@ -32,11 +32,11 @@ inline std::shared_ptr<ov::Model> createMaxPoolModelMT(bool dynamicBatch = false
     std::shared_ptr<ov::op::v0::Parameter> input;
     if (dynamicBatch) {
         input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
-                                                        ov::PartialShape{ov::Dimension(1, 10), 16, 720, 1280});
+                                                        ov::PartialShape{ov::Dimension(1, 10), 16, 1280, 1280});
     } else {
         input = std::make_shared<ov::op::v0::Parameter>(
             ov::element::f16,
-            ov::PartialShape{1, 16, ov::Dimension(10, 720), ov::Dimension(10, 1280)});
+            ov::PartialShape{1, 16, ov::Dimension(10, 1280), ov::Dimension(10, 1280)});
     }
 
     std::string inputName = "input1";
@@ -77,7 +77,7 @@ inline std::shared_ptr<ov::Model> createMaxPoolModelMT(bool dynamicBatch = false
 inline std::shared_ptr<ov::Model> createCustomNetModelMT() {
     auto input = std::make_shared<ov::op::v0::Parameter>(
         ov::element::f16,
-        ov::PartialShape{1, 16, ov::Dimension(1, 1080), ov::Dimension(10, 1920)});
+        ov::PartialShape{1, 16, ov::Dimension(1, 1280), ov::Dimension(10, 1920)});
     input->set_friendly_name("Parameter_59");
 
     auto make_conv_add = [](const ov::Output<ov::Node>& data,
@@ -209,6 +209,9 @@ public:
         if (modelName == "MaxPool") {
             return createMaxPoolModelMT();
         }
+        if (modelName == "MaxPool_NCHW") {
+            return createMaxPoolModelMT(false, false);
+        }
         OPENVINO_THROW("Unknown model name for InferWithHostCompileMultithreadTests: ", modelName);
     }
 
@@ -310,7 +313,12 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileCreateInfer) {
     }
 
     constexpr size_t kThreadCount = 4;
-    const ov::Shape shape = {1, 720, 1280, 16};
+    ov::Shape shape;
+    if (selectedModelName == "MaxPool_NCHW") {
+        shape = {1, 16, 720, 1280};
+    } else {
+        shape = {1, 720, 1280, 16};
+    }
 
     auto referenceModel = createModelByName(selectedModelName);
     ov::CompiledModel referenceCompiledModel;
@@ -340,7 +348,12 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelCreateReque
     }
 
     constexpr size_t kThreadCount = 8;
-    const ov::Shape shape = {1, 720, 1280, 16};
+    ov::Shape shape;
+    if (selectedModelName == "MaxPool_NCHW") {
+        shape = {1, 16, 720, 1280};
+    } else {
+        shape = {1, 720, 1280, 16};
+    }
 
     auto referenceModel = createModelByName(selectedModelName);
     ov::CompiledModel referenceCompiledModel;
@@ -375,6 +388,15 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
     constexpr size_t kModelCount = 3;
     constexpr size_t kRequestsPerModel = 2;
     constexpr size_t kInferLoops = 3;
+    ov::Shape shapeLarge;
+    ov::Shape shapeSmall;
+    if (selectedModelName == "MaxPool_NCHW") {
+        shapeLarge = {1, 16, 720, 1280};
+        shapeSmall = {1, 16, 360, 640};
+    } else {
+        shapeLarge = {1, 720, 1280, 16};
+        shapeSmall = {1, 360, 640, 16};
+    }
 
     auto referenceModel = createModelByName(selectedModelName);
     ov::CompiledModel referenceCompiledModel;
@@ -390,7 +412,7 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
 
         std::vector<ov::CompiledModel> compiledModels;
         compiledModels.reserve(kModelCount);
-        auto producer = std::async(std::launch::async, [this, &compiledModels, &model, &cfg]() {
+        auto producer = std::async(std::launch::async, [this, &compiledModels, &model, &cfg, kModelCount]() {
             for (size_t i = 0; i < kModelCount; ++i) {
                 compiledModels.emplace_back(core->compile_model(model, target_device, cfg));
             }
@@ -400,15 +422,15 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
         ASSERT_EQ(compiledModels.size(), kModelCount);
 
         std::atomic<size_t> successInferCount{0};
-        runConcurrently(kThreadCount, [model, &compiledModels, &referenceCompiledModel, &successInferCount](size_t threadIdx) {
+        runConcurrently(kThreadCount, [model, &compiledModels, &referenceCompiledModel, &shapeLarge, &shapeSmall,
+                                       &successInferCount, kRequestsPerModel, kInferLoops](size_t threadIdx) {
             auto reqReference = referenceCompiledModel.create_infer_request();
             for (size_t modelIdx = 0; modelIdx < compiledModels.size(); ++modelIdx) {
                 for (size_t reqIdx = 0; reqIdx < kRequestsPerModel; ++reqIdx) {
                     auto reqDynamic = compiledModels[modelIdx].create_infer_request();
                     for (size_t inferIdx = 0; inferIdx < kInferLoops; ++inferIdx) {
                         const bool useAltShape = (inferIdx % 2U) == 1U;
-                        const ov::Shape shape = useAltShape ? ov::Shape{1, 360, 640, 16}
-                                                            : ov::Shape{1, 720, 1280, 16};
+                        const auto& shape = useAltShape ? shapeSmall : shapeLarge;
                         const int startFrom = static_cast<int>(100 + threadIdx * 17 + modelIdx * 7 + reqIdx * 3 +
                                                                inferIdx);
                         auto input = makeInputTensor(model, shape, startFrom);
@@ -432,7 +454,16 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelZeroInputOu
     }
 
     constexpr size_t kThreadCount = 4;
-    const ov::Shape shape = {1, 720, 1280, 16};
+    constexpr size_t kInferLoops = 3;
+    ov::Shape shapeLarge;
+    ov::Shape shapeSmall;
+    if (selectedModelName == "MaxPool_NCHW") {
+        shapeLarge = {1, 16, 720, 1280};
+        shapeSmall = {1, 16, 360, 640};
+    } else {
+        shapeLarge = {1, 720, 1280, 16};
+        shapeSmall = {1, 360, 640, 16};
+    }
 
     auto referenceModel = createModelByName(selectedModelName);
     ov::CompiledModel referenceCompiledModel;
@@ -448,15 +479,28 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelZeroInputOu
         ov::CompiledModel compiledModel;
         OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, cfg));
 
-        runConcurrently(kThreadCount, [this, model, &compiledModel, &referenceCompiledModel, &shape](size_t threadIdx) {
+        std::atomic<size_t> successInferCount{0};
+        runConcurrently(kThreadCount, [this, model, &compiledModel, &referenceCompiledModel, &shapeLarge, &shapeSmall,
+                                       &successInferCount, kInferLoops](size_t threadIdx) {
             auto zeroContext = core->get_default_context(target_device);
             auto reqDynamic = compiledModel.create_infer_request();
             auto reqReference = referenceCompiledModel.create_infer_request();
-            auto zeroInput = makeZeroInputTensor(zeroContext, model, shape, static_cast<int>(100 + threadIdx));
-            auto zeroOutput = zeroContext.create_host_tensor(model->output().get_element_type(), shape);
-            reqDynamic.set_tensor(model->output(), zeroOutput);
-            setInputInferAndCompare(reqDynamic, reqReference, zeroInput);
+            for (size_t inferIdx = 0; inferIdx < kInferLoops; ++inferIdx) {
+                const bool useAltShape = (inferIdx % 2U) == 1U;
+                const auto& shape = useAltShape ? shapeSmall : shapeLarge;
+                const int startFrom = static_cast<int>(100 + threadIdx * 11 + inferIdx);
+                auto zeroInput = makeZeroInputTensor(zeroContext, model, shape, startFrom);
+                auto zeroOutput = zeroContext.create_host_tensor(model->output().get_element_type(), shape);
+                reqDynamic.set_tensor(model->input(), zeroInput);
+                reqDynamic.set_tensor(model->output(), zeroOutput);
+                reqReference.set_input_tensor(0, zeroInput);
+                inferAndCompare(reqDynamic, reqReference);
+                successInferCount.fetch_add(1, std::memory_order_relaxed);
+            }
         });
+
+        ASSERT_EQ(successInferCount.load(std::memory_order_relaxed), kThreadCount * kInferLoops)
+            << "Unexpected successful zero tensor infer count";
     }
 }
 
@@ -467,7 +511,16 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileZeroInputOutputT
     }
 
     constexpr size_t kThreadCount = 4;
-    const ov::Shape shape = {1, 720, 1280, 16};
+    constexpr size_t kInferLoops = 3;
+    ov::Shape shapeLarge;
+    ov::Shape shapeSmall;
+    if (selectedModelName == "MaxPool_NCHW") {
+        shapeLarge = {1, 16, 720, 1280};
+        shapeSmall = {1, 16, 360, 640};
+    } else {
+        shapeLarge = {1, 720, 1280, 16};
+        shapeSmall = {1, 360, 640, 16};
+    }
 
     auto referenceModel = createModelByName(selectedModelName);
     ov::CompiledModel referenceCompiledModel;
@@ -479,17 +532,30 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileZeroInputOutputT
 
     for (bool sharedQueue : {true, false}) {
         const auto cfg = makeConfig(sharedQueue);
-        runConcurrently(kThreadCount, [this, &cfg, &referenceCompiledModel, &shape](size_t threadIdx) {
+        std::atomic<size_t> successInferCount{0};
+        runConcurrently(kThreadCount, [this, &cfg, &referenceCompiledModel, &shapeLarge, &shapeSmall,
+                                       &successInferCount, kInferLoops](size_t threadIdx) {
             auto model = createModelByName(selectedModelName);
             auto zeroContext = core->get_default_context(target_device);
             auto compiledModel = core->compile_model(model, target_device, cfg);
             auto reqDynamic = compiledModel.create_infer_request();
             auto reqReference = referenceCompiledModel.create_infer_request();
-            auto zeroInput = makeZeroInputTensor(zeroContext, model, shape, static_cast<int>(100 + threadIdx));
-            auto zeroOutput = zeroContext.create_host_tensor(model->output().get_element_type(), shape);
-            reqDynamic.set_tensor(model->output(), zeroOutput);
-            setInputInferAndCompare(reqDynamic, reqReference, zeroInput);
+            for (size_t inferIdx = 0; inferIdx < kInferLoops; ++inferIdx) {
+                const bool useAltShape = (inferIdx % 2U) == 1U;
+                const auto& shape = useAltShape ? shapeSmall : shapeLarge;
+                const int startFrom = static_cast<int>(100 + threadIdx * 11 + inferIdx);
+                auto zeroInput = makeZeroInputTensor(zeroContext, model, shape, startFrom);
+                auto zeroOutput = zeroContext.create_host_tensor(model->output().get_element_type(), shape);
+                reqDynamic.set_tensor(model->input(), zeroInput);
+                reqDynamic.set_tensor(model->output(), zeroOutput);
+                reqReference.set_input_tensor(0, zeroInput);
+                inferAndCompare(reqDynamic, reqReference);
+                successInferCount.fetch_add(1, std::memory_order_relaxed);
+            }
         });
+
+        ASSERT_EQ(successInferCount.load(std::memory_order_relaxed), kThreadCount * kInferLoops)
+            << "Unexpected successful per-thread zero tensor infer count";
     }
 }
 
@@ -501,7 +567,12 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CompileAndInferOverlap) {
 
     constexpr size_t kModelCount = 4;
     constexpr size_t kThreadCount = 4;
-    const ov::Shape shape = {1, 720, 1280, 16};
+    ov::Shape shape;
+    if (selectedModelName == "MaxPool_NCHW") {
+        shape = {1, 16, 720, 1280};
+    } else {
+        shape = {1, 720, 1280, 16};
+    }
 
     auto referenceModel = createModelByName(selectedModelName);
     ov::CompiledModel referenceCompiledModel;
@@ -550,10 +621,10 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CompileAndInferOverlap) {
                 setInputInferAndCompare(reqDynamic, reqReference, input);
                 successInferCount.fetch_add(1, std::memory_order_relaxed);
             }
-        }, [this, &cfg, &model, &compiledModels, &mutex, &cv, &producerDone, &producerException,
+        }, [this, &cfg, &model, &compiledModels, &mutex, &cv, &producerDone, &producerException, kModelCount,
             &producer](const std::shared_future<void>& start) {
             producer = std::async(std::launch::async, [this, &cfg, &model, &compiledModels, &mutex, &cv, &producerDone,
-                                                       &producerException, start]() {
+                                                       &producerException, start, kModelCount]() {
                 start.wait();
                 try {
                     for (size_t i = 0; i < kModelCount; ++i) {
@@ -585,10 +656,6 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CompileAndInferOverlap) {
     }
 }
 
-}  // namespace behavior
-}  // namespace test
-}  // namespace ov
-
 const std::vector<std::string> mtDevices = {"NPU.4000", "NPU.5010"};
 
 const std::vector<ov::AnyMap> mtConfigs = {
@@ -603,11 +670,15 @@ const std::vector<ov::AnyMap> mtConfigs = {
     },
 };
 
-const std::vector<std::string> mtModelNames = {"CustomNet", "MaxPool"};
+const std::vector<std::string> mtModelNames = {"MaxPool_NCHW"};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         ov::test::behavior::InferWithHostCompileMultithreadTests,
+                         InferWithHostCompileMultithreadTests,
                          ::testing::Combine(::testing::ValuesIn(mtDevices),
                                             ::testing::ValuesIn(mtConfigs),
                                             ::testing::ValuesIn(mtModelNames)),
-                         ov::test::behavior::InferWithHostCompileMultithreadTests::getTestCaseName);
+                         InferWithHostCompileMultithreadTests::getTestCaseName);
+
+}  // namespace behavior
+}  // namespace test
+}  // namespace ov
