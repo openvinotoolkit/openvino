@@ -584,16 +584,22 @@ TEST_P(IRFrontendMMapTests, read_model_get_weights_map) {
         ov::save_model(model, xmlFileName);
     }
 
-    const auto model = core.read_model(xmlFileName, binFileName, {ov::enable_mmap(GetParam())});
+    const auto is_mmap_enabled = GetParam();
+    const auto model = core.read_model(xmlFileName, binFileName, {ov::enable_mmap(is_mmap_enabled)});
 
     const auto wt_sources = ov::wsh::Extension::get_weight_sources(*model);
-    ASSERT_GE(wt_sources.size(), 1);
-
     const auto wt_map = ov::wsh::Extension::get_weight_registry(*model);
-    ASSERT_GE(wt_map.size(), 1);
-
-    const auto& wt_meta_map = wt_map.begin()->second;
-    EXPECT_EQ(wt_meta_map.size(), 2);
+    if (is_mmap_enabled) {
+        ASSERT_EQ(wt_sources.size(), 1);
+        ASSERT_EQ(wt_map.size(), 1);
+        EXPECT_EQ(wt_map.begin()->second.size(), 2);
+    } else {
+        ASSERT_EQ(wt_sources.size(), 2);
+        ASSERT_EQ(wt_map.size(), 2);
+        for (const auto& [key, wt_meta_map] : wt_map) {
+            EXPECT_EQ(wt_meta_map.size(), 1);
+        }
+    }
 }
 
 INSTANTIATE_TEST_SUITE_P(EnableMMapPropery, IRFrontendMMapTests, ::testing::Bool());
