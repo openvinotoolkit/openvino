@@ -27,11 +27,17 @@ if(ENABLE_TESTS)
     enable_testing()
 endif()
 
-# Keep GPU_RT_TYPE as the backwards-compatible spelling for a single default
-# runtime. GPU_RUNTIME_TYPES controls which runtimes are compiled into the GPU
-# plugin, while GPU_DEFAULT_RUNTIME controls the legacy/default selection.
+# GPU runtime options
+#
+# GPU_RUNTIME_TYPES selects the compiled runtimes. GPU_DEFAULT_RUNTIME selects
+# the default one. GPU_RT_TYPE remains as a backwards-compatible alias for the
+# default runtime.
 set(OV_GPU_SUPPORTED_RUNTIMES ZE OCL SYCL VULKAN)
-set(OV_GPU_DEFAULT_RT "OCL")
+if(APPLE OR ANDROID)
+    set(OV_GPU_DEFAULT_RT "VULKAN")
+else()
+    set(OV_GPU_DEFAULT_RT "OCL")
+endif()
 ov_option_enum(GPU_RT_TYPE
                "Legacy default GPU runtime. Supported values: OCL, SYCL, ZE, VULKAN (L0 is accepted as ZE alias)"
                ${OV_GPU_DEFAULT_RT}
@@ -49,26 +55,32 @@ set_property(CACHE GPU_DEFAULT_RUNTIME PROPERTY STRINGS ${OV_GPU_SUPPORTED_RUNTI
 list(APPEND OV_OPTIONS GPU_RUNTIME_TYPES GPU_DEFAULT_RUNTIME)
 set(OV_OPTIONS "${OV_OPTIONS}" CACHE INTERNAL "A list of OpenVINO cmake options")
 
-set(_ov_gpu_normalized_runtimes "")
-foreach(_ov_gpu_runtime IN LISTS GPU_RUNTIME_TYPES)
-    string(STRIP "${_ov_gpu_runtime}" _ov_gpu_runtime)
-    string(TOUPPER "${_ov_gpu_runtime}" _ov_gpu_runtime)
-    if(_ov_gpu_runtime STREQUAL "L0")
-        set(_ov_gpu_runtime "ZE")
-    endif()
+# Normalize the compiled runtime list before validating it.
+set(_ov_gpu_normalized_runtimes ${GPU_RUNTIME_TYPES})
+list(TRANSFORM _ov_gpu_normalized_runtimes STRIP)
+list(TRANSFORM _ov_gpu_normalized_runtimes TOUPPER)
+list(TRANSFORM _ov_gpu_normalized_runtimes REPLACE "^L0$" "ZE")
+list(REMOVE_DUPLICATES _ov_gpu_normalized_runtimes)
+
+if(NOT _ov_gpu_normalized_runtimes)
+    message(FATAL_ERROR "GPU_RUNTIME_TYPES must contain at least one runtime")
+endif()
+
+foreach(_ov_gpu_runtime IN LISTS _ov_gpu_normalized_runtimes)
     if(NOT _ov_gpu_runtime IN_LIST OV_GPU_SUPPORTED_RUNTIMES)
         message(FATAL_ERROR
             "Unsupported GPU runtime '${_ov_gpu_runtime}'. Supported values: ${OV_GPU_SUPPORTED_RUNTIMES}")
     endif()
-    list(APPEND _ov_gpu_normalized_runtimes "${_ov_gpu_runtime}")
 endforeach()
-list(REMOVE_DUPLICATES _ov_gpu_normalized_runtimes)
-if(NOT _ov_gpu_normalized_runtimes)
-    message(FATAL_ERROR "GPU_RUNTIME_TYPES must contain at least one runtime")
+
+if((APPLE OR ANDROID) AND "OCL" IN_LIST _ov_gpu_normalized_runtimes)
+    message(FATAL_ERROR "GPU OCL runtime is not supported on Apple or Android platforms")
 endif()
+
 set(GPU_RUNTIME_TYPES "${_ov_gpu_normalized_runtimes}" CACHE STRING
     "Semicolon-separated GPU runtimes compiled into the GPU plugin" FORCE)
 
+# Normalize and validate the default runtime.
 string(STRIP "${GPU_DEFAULT_RUNTIME}" GPU_DEFAULT_RUNTIME)
 string(TOUPPER "${GPU_DEFAULT_RUNTIME}" GPU_DEFAULT_RUNTIME)
 if(GPU_DEFAULT_RUNTIME STREQUAL "L0")
@@ -84,10 +96,9 @@ if(NOT GPU_DEFAULT_RUNTIME IN_LIST GPU_RUNTIME_TYPES)
 endif()
 set(GPU_DEFAULT_RUNTIME "${GPU_DEFAULT_RUNTIME}" CACHE STRING
     "Default GPU runtime; must be present in GPU_RUNTIME_TYPES" FORCE)
-# Downstream code not migrated to the list yet continues to observe the chosen
-# default through the legacy option.
 set(GPU_RT_TYPE "${GPU_DEFAULT_RUNTIME}" CACHE STRING "Legacy default GPU runtime" FORCE)
 
+# Expose one boolean for each runtime to keep downstream conditions simple.
 foreach(_ov_gpu_runtime IN LISTS OV_GPU_SUPPORTED_RUNTIMES)
     set(OV_GPU_RUNTIME_${_ov_gpu_runtime}_ENABLED OFF)
 endforeach()
@@ -102,10 +113,11 @@ else()
 endif()
 
 set(OV_GPU_PLATFORM_SUPPORTED OFF)
-if((X86_64 OR AARCH64) AND NOT WINDOWS_STORE AND NOT WINDOWS_PHONE)
-    if(NOT APPLE OR OV_GPU_RUNTIME_VULKAN_ENABLED)
-        set(OV_GPU_PLATFORM_SUPPORTED ON)
-    endif()
+if((X86_64 OR AARCH64) AND
+   (NOT APPLE OR OV_GPU_RUNTIME_VULKAN_ENABLED) AND
+   NOT WINDOWS_STORE AND
+   NOT WINDOWS_PHONE)
+    set(OV_GPU_PLATFORM_SUPPORTED ON)
 endif()
 
 ov_dependent_option (ENABLE_INTEL_GPU "GPU plugin for OpenVINO Runtime" ${ENABLE_INTEL_GPU_DEFAULT} "OV_GPU_PLATFORM_SUPPORTED" OFF)
@@ -121,7 +133,10 @@ elseif(OV_GPU_RUNTIME_SYCL_ENABLED)
     set(GPU_ONEDNN_RUNTIME "SYCL")
 endif()
 
-if (ANDROID OR MINGW OR NOT GPU_ONEDNN_RUNTIME OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0))
+if(ANDROID OR
+   MINGW OR
+   NOT GPU_ONEDNN_RUNTIME OR
+   (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0))
     # oneDNN doesn't support old compilers and Android builds for now, so we'll build GPU plugin without oneDNN
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT OFF)
 else()
