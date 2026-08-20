@@ -59,7 +59,7 @@ ParamsKey ScatterUpdateKernelRef::GetSupportedKey() const {
 static inline std::string GetOrderString(std::vector<std::string>& order) {
     std::string order_str = order[0];
     for (size_t i = 1; i < order.size(); i++) {
-        order_str += ", " + order[i];
+      order_str += ", " + order[i];
     }
 
     return order_str;
@@ -124,43 +124,64 @@ CommonDispatchData ScatterUpdateKernelRef::SetDefault(const scatter_update_param
         const size_t indices_size = params.inputs[1].LogicalSize();
         switch (rank) {
             case 4:
-                if (params.axis == ScatterUpdateAxis::BATCH) {
-                    dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * indices_size};
-                } else if (params.axis == ScatterUpdateAxis::FEATURE) {
-                    dispatchData.gws = {output.X().v, output.Y().v, indices_size * output.Batch().v};
-                } else if (params.axis == ScatterUpdateAxis::Y) {
-                     dispatchData.gws = {output.X().v, indices_size, output.Feature().v * output.Batch().v};
-                } else if (params.axis == ScatterUpdateAxis::X) {
-                     dispatchData.gws = {indices_size, output.Y().v, output.Feature().v * output.Batch().v};
-                }
+              if (params.axis == ScatterUpdateAxis::BATCH) {
+                dispatchData.gws = {output.X().v, output.Y().v,
+                                    output.Feature().v * indices_size};
+              } else if (params.axis == ScatterUpdateAxis::FEATURE) {
+                dispatchData.gws = {output.X().v, output.Y().v,
+                                    indices_size * output.Batch().v};
+              } else if (params.axis == ScatterUpdateAxis::Y) {
+                dispatchData.gws = {output.X().v, indices_size,
+                                    output.Feature().v * output.Batch().v};
+              } else if (params.axis == ScatterUpdateAxis::X) {
+                dispatchData.gws = {indices_size, output.Y().v,
+                                    output.Feature().v * output.Batch().v};
+              }
                 break;
             case 5:
-                if (params.axis == ScatterUpdateAxis::BATCH) {
-                    dispatchData.gws = {output.X().v * output.Y().v, output.Z().v, output.Feature().v * indices_size};
-                } else if (params.axis == ScatterUpdateAxis::FEATURE) {
-                    dispatchData.gws = {output.X().v * output.Y().v, output.Z().v, indices_size * output.Batch().v};
-                } else if (params.axis == ScatterUpdateAxis::Z) {
-                    dispatchData.gws = {output.X().v * output.Y().v, indices_size, output.Feature().v * output.Batch().v};
-                } else if (params.axis == ScatterUpdateAxis::Y) {
-                    dispatchData.gws = {output.X().v * indices_size, output.Z().v, output.Feature().v * output.Batch().v};
-                } else if (params.axis == ScatterUpdateAxis::X) {
-                    dispatchData.gws = {indices_size * output.Y().v, output.Z().v, output.Feature().v * output.Batch().v};
-                }
+              if (params.axis == ScatterUpdateAxis::BATCH) {
+                dispatchData.gws = {output.X().v * output.Y().v, output.Z().v,
+                                    output.Feature().v * indices_size};
+              } else if (params.axis == ScatterUpdateAxis::FEATURE) {
+                dispatchData.gws = {output.X().v * output.Y().v, output.Z().v,
+                                    indices_size * output.Batch().v};
+              } else if (params.axis == ScatterUpdateAxis::Z) {
+                dispatchData.gws = {output.X().v * output.Y().v, indices_size,
+                                    output.Feature().v * output.Batch().v};
+              } else if (params.axis == ScatterUpdateAxis::Y) {
+                dispatchData.gws = {output.X().v * indices_size, output.Z().v,
+                                    output.Feature().v * output.Batch().v};
+              } else if (params.axis == ScatterUpdateAxis::X) {
+                dispatchData.gws = {indices_size * output.Y().v, output.Z().v,
+                                    output.Feature().v * output.Batch().v};
+              }
                 break;
             case 6:
-                if (params.axis == ScatterUpdateAxis::BATCH) {
-                    dispatchData.gws = {output.X().v * output.Y().v, output.Z().v * output.W().v, output.Feature().v * indices_size};
-                } else if (params.axis == ScatterUpdateAxis::FEATURE) {
-                    dispatchData.gws = {output.X().v * output.Y().v, output.Z().v * output.W().v, indices_size * output.Batch().v};
-                } else if (params.axis == ScatterUpdateAxis::W) {
-                    dispatchData.gws = {output.X().v * output.Y().v, output.Z().v * indices_size, output.Feature().v * output.Batch().v};
-                } else if (params.axis == ScatterUpdateAxis::Z) {
-                    dispatchData.gws = {output.X().v * output.Y().v, indices_size * output.W().v, output.Feature().v * output.Batch().v};
-                } else if (params.axis == ScatterUpdateAxis::Y) {
-                    dispatchData.gws = {output.X().v * indices_size, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
-                } else if (params.axis == ScatterUpdateAxis::X) {
-                    dispatchData.gws = {indices_size * output.Y().v, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
-                }
+              if (params.axis == ScatterUpdateAxis::BATCH) {
+                dispatchData.gws = {output.X().v * output.Y().v,
+                                    output.Z().v * output.W().v,
+                                    output.Feature().v * indices_size};
+              } else if (params.axis == ScatterUpdateAxis::FEATURE) {
+                dispatchData.gws = {output.X().v * output.Y().v,
+                                    output.Z().v * output.W().v,
+                                    indices_size * output.Batch().v};
+              } else if (params.axis == ScatterUpdateAxis::W) {
+                dispatchData.gws = {output.X().v * output.Y().v,
+                                    output.Z().v * indices_size,
+                                    output.Feature().v * output.Batch().v};
+              } else if (params.axis == ScatterUpdateAxis::Z) {
+                dispatchData.gws = {output.X().v * output.Y().v,
+                                    indices_size * output.W().v,
+                                    output.Feature().v * output.Batch().v};
+              } else if (params.axis == ScatterUpdateAxis::Y) {
+                dispatchData.gws = {output.X().v * indices_size,
+                                    output.Z().v * output.W().v,
+                                    output.Feature().v * output.Batch().v};
+              } else if (params.axis == ScatterUpdateAxis::X) {
+                dispatchData.gws = {indices_size * output.Y().v,
+                                    output.Z().v * output.W().v,
+                                    output.Feature().v * output.Batch().v};
+              }
                break;
             default:
                throw std::runtime_error("Unsupported combination\n");
@@ -239,9 +260,9 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
             std::string def_pitch = "UPDATES_" + GetAxisName(dims, i) + "_PITCH" + "";
             std::string output_size_name;
             if (i == 0) {
-                output_size_name = "OUTPUT_FEATURE_NUM";
+              output_size_name = "OUTPUT_FEATURE_NUM";
             } else {
-                output_size_name = "OUTPUT_SIZE_" + GetAxisName(dims, i + 1);
+              output_size_name = "OUTPUT_SIZE_" + GetAxisName(dims, i + 1);
             }
             std::string src_pitch = "(UPDATES_" + GetAxisName(dims, i + 1) + "_PITCH * " + output_size_name + ")";
             jit.AddConstant(MakeJitConstant(def_pitch, src_pitch));
@@ -267,7 +288,7 @@ bool ScatterUpdateKernelRef::Validate(const Params& p) const {
 
     const scatter_update_params& params = static_cast<const scatter_update_params&>(p);
 
-    for (auto& fused_op : params.fused_ops) {
+    for (const auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
         }

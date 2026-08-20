@@ -188,7 +188,7 @@ JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params, con
     }
 
     assert(params.order.size() == in_idx.size());
-    for (auto& o : params.order) {
+    for (const auto& o : params.order) {
         permute_out_idx.push_back(in_idx[o]);
     }
 

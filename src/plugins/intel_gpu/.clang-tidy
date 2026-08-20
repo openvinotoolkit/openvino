@@ -19,6 +19,8 @@ Checks: >
   modernize-redundant-void-arg,
   readability-container-size-empty,
   readability-redundant-string-cstr,
+  readability-qualified-auto,
+  readability-else-after-return,
   readability-braces-around-statements,
   modernize-use-equals-default,
   modernize-use-equals-delete,

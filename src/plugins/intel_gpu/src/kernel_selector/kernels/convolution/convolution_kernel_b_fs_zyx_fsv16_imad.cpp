@@ -28,13 +28,13 @@ static size_t getOutBlock_X(const size_t output_size_x, const size_t stride_x, c
     size_t max_block_size = std::min((min_in_block_simds * simd - 1 - (filter_size_x - 1) * dilation_x) / stride_x + 1, output_size_x);
 
     if (output_size_x <= max_block_size) {
-        return output_size_x;
+      return output_size_x;
     }
 
     for (size_t block = 4; block <= max_block_size; ++block) {
-        if (output_size_x % block == 0) {
-            output_block_width = block;
-        }
+      if (output_size_x % block == 0) {
+        output_block_width = block;
+      }
     }
     if (output_block_width == 0 && output_size_x < max_block_size * 3) {
         size_t min_overhang = max_block_size;
@@ -107,8 +107,9 @@ Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params&
         bool split_exception_4 = params.outputs[0].X().v == 18 && params.outputs[0].Y().v == 18 && params.outputs[0].Z().v == 1
                                  && params.outputs[0].Feature().v == 64;
 
-        if (split_exception_1 || split_exception_2 || split_exception_3 || split_exception_4) {
-            max_slm_split = 2;
+        if (split_exception_1 || split_exception_2 || split_exception_3 ||
+            split_exception_4) {
+          max_slm_split = 2;
         }
     }
 
@@ -132,13 +133,13 @@ Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params&
         for (size_t split = 1; split <= max_slm_split; split *= 2) {
             for (size_t temp_block_features = simd; temp_block_features <= simd * 2; temp_block_features += simd) {
                 for (size_t d = 1; d < max_d; ++d) {
-                    if (d != 1 && ((params.outputs[0].Z().v % d) != 0u)) {
-                        continue;
-                    }
+                  if (d != 1 && ((params.outputs[0].Z().v % d) != 0u)) {
+                    continue;
+                  }
                     for (size_t h = 1; h < max_h; ++h) {
-                        if (h != 1 && ((params.outputs[0].Y().v % h) != 0u)) {
-                            continue;
-                        }
+                      if (h != 1 && ((params.outputs[0].Y().v % h) != 0u)) {
+                        continue;
+                      }
 
                         bool c_ifm_mul = CeilDiv(params.weights.IFM().v, fsv) % split == 0;
                         bool c_mul_f = temp_block_features == simd ? true : params.weights.OFM().v % temp_block_features == 0;
@@ -179,7 +180,7 @@ Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params&
                 }
             }
             if (split * fsv >= params.weights.IFM().v) {
-                break;
+              break;
             }
         }
     }
@@ -206,7 +207,7 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateBlockParamsRatio(const con
     float reg_pressure = EstimateRegPressure(params, block);
 
     // Estimate fb32 usage factor
-    auto& output = params.outputs[0];
+    const auto& output = params.outputs[0];
     float feature_block_32 = static_cast<float>(block.output_block_features == 32);
     float fb32_factor = -5.f;
     if (params.engineInfo.deviceType == dev_type::discrete_gpu && params.engineInfo.supports_imad) {
@@ -224,8 +225,10 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateBlockParamsRatio(const con
         // Exception for z != 1
         bool fb32_exception_z = output.X().v == output.Y().v && output.X().v % 28 == 0 && output.Z().v == 40 && output.Feature().v % 32 == 0;
 
-        if ((output.X().v == output.Y().v && output.Z().v == 1 && fb32_exceptions) || fb32_exception_z) {
-            fb32_factor = 1.f;
+        if ((output.X().v == output.Y().v && output.Z().v == 1 &&
+             fb32_exceptions) ||
+            fb32_exception_z) {
+          fb32_factor = 1.f;
         }
     } else if (occupancy_by_logic_size >= 2500.f) {
         fb32_factor = 0.5f;
@@ -312,9 +315,9 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateOccupancy(const convolutio
 }
 
 float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateSLMUsage(const convolution_params& params, const BlockParams& block) const {
-    if (block.feature_slm_split == 1) {
-        return 0.f;
-    }
+  if (block.feature_slm_split == 1) {
+    return 0.f;
+  }
 
     size_t slm_elements_per_work_group = block.output_block_width * block.output_block_height * block.output_block_depth *
                                          block.output_block_features * (block.feature_slm_split - 1);
@@ -323,7 +326,7 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateSLMUsage(const convolution
     // Check maxLocalMemSize limitations
     size_t max_slm_bytes_per_sub_slice = params.engineInfo.maxLocalMemSize;
     if (slm_bytes_per_work_group > max_slm_bytes_per_sub_slice) {
-        return 0.f;
+      return 0.f;
     }
 
     // Estimate work groups number
@@ -342,28 +345,31 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateSLMUsage(const convolution
     size_t max_sub_slices_per_device = params.engineInfo.computeUnitsCount / max_compute_units_per_sub_slice;
     size_t max_work_groups_per_device = max_sub_slices_per_device * max_work_groups_per_sub_slice;
     if (work_groups_number > max_work_groups_per_device * 100) {
-        return 0.f;
+      return 0.f;
     }
 
     // Estimate work groups number in sub slice
     size_t threads_per_work_group = block.feature_slm_split;
     size_t threads_per_sub_slice = max_threads_per_compute_unit * max_compute_units_per_sub_slice;
     size_t current_max_work_groups_per_sub_slice = threads_per_sub_slice / threads_per_work_group;
-    while (current_max_work_groups_per_sub_slice * slm_bytes_per_work_group > max_slm_bytes_per_sub_slice) {
-        current_max_work_groups_per_sub_slice--;
+    while (current_max_work_groups_per_sub_slice * slm_bytes_per_work_group >
+           max_slm_bytes_per_sub_slice) {
+      current_max_work_groups_per_sub_slice--;
     }
 
     // The best scenario for slm usage from the point of view of time spending is a case with 1 work group per sub slice
     // due to time isn't spent on waiting of synchronizations between work groups in sub slice
     if (current_max_work_groups_per_sub_slice == 1) {
-        return 1.0;
+      return 1.0;
     }
 
     // Estimate the size of the SLM memory used
     float max_slm_bytes_per_work_group = static_cast<float>(max_slm_bytes_per_sub_slice) / static_cast<float>(current_max_work_groups_per_sub_slice);
     max_slm_bytes_per_work_group = static_cast<float>(Align(static_cast<size_t>(max_slm_bytes_per_work_group), 1024));
-    if (max_slm_bytes_per_work_group * static_cast<float>(current_max_work_groups_per_sub_slice) > static_cast<float>(max_slm_bytes_per_sub_slice)) {
-        max_slm_bytes_per_work_group -= 1024.0;
+    if (max_slm_bytes_per_work_group *
+            static_cast<float>(current_max_work_groups_per_sub_slice) >
+        static_cast<float>(max_slm_bytes_per_sub_slice)) {
+      max_slm_bytes_per_work_group -= 1024.0;
     }
 
     return static_cast<float>(slm_bytes_per_work_group) / static_cast<float>(max_slm_bytes_per_work_group);
@@ -508,14 +514,14 @@ KernelsPriority Convolution_kernel_b_fs_zyx_fsv16_imad::GetKernelsPriority(const
     const auto& p = static_cast<const convolution_params&>(params);
 
     if (!p.is_shape_agnostic) {
-        if (static_cast<float>(p.weights.IFM().v) / static_cast<float>(Align(p.weights.IFM().v, fsv)) < 0.5f) {
-            return FORCE_PRIORITY_4;
-        } else {
-            return FORCE_PRIORITY_2;
-        }
-    } else {
+      if (static_cast<float>(p.weights.IFM().v) /
+              static_cast<float>(Align(p.weights.IFM().v, fsv)) <
+          0.5f) {
         return FORCE_PRIORITY_4;
+      }
+        return FORCE_PRIORITY_2;
     }
+    return FORCE_PRIORITY_4;
 }
 
 bool Convolution_kernel_b_fs_zyx_fsv16_imad::Validate(const Params& params) const {

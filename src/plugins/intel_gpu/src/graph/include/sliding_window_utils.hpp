@@ -89,18 +89,25 @@ inline tensor calc_sliding_window_output_range<swor_mode::all>(const tensor& inp
                                                                const ov::Strides& dilation,
                                                                bool sym_pad,
                                                                const tensor::value_type& degen_val) {
-    if (input_size.spatial[0] <= 0 || input_size.spatial[1] <= 0 || input_size.spatial[2] <= 0) {
-        throw std::invalid_argument("Input data spatial sizes must be positive (>= 1).");
-    }
-    if (size.spatial[0] <= 0 || size.spatial[1] <= 0 || size.spatial[2] <= 0) {
-        throw std::invalid_argument("Sliding window spatial sizes must be positive (>= 1).");
-    }
-    if (std::any_of(stride.begin(), stride.end(), [](size_t v) { return v <= 0; })) {
-        throw std::invalid_argument("Sliding window strides must be positive (>= 1).");
-    }
-    if (std::any_of(dilation.begin(), dilation.end(), [](size_t v) { return v <= 0; })) {
-        throw std::invalid_argument("Sliding window h/v input dialations must be positive (>= 1).");
-    }
+  if (input_size.spatial[0] <= 0 || input_size.spatial[1] <= 0 ||
+      input_size.spatial[2] <= 0) {
+    throw std::invalid_argument(
+        "Input data spatial sizes must be positive (>= 1).");
+  }
+  if (size.spatial[0] <= 0 || size.spatial[1] <= 0 || size.spatial[2] <= 0) {
+    throw std::invalid_argument(
+        "Sliding window spatial sizes must be positive (>= 1).");
+  }
+  if (std::any_of(stride.begin(), stride.end(),
+                  [](size_t v) { return v <= 0; })) {
+    throw std::invalid_argument(
+        "Sliding window strides must be positive (>= 1).");
+  }
+  if (std::any_of(dilation.begin(), dilation.end(),
+                  [](size_t v) { return v <= 0; })) {
+    throw std::invalid_argument(
+        "Sliding window h/v input dialations must be positive (>= 1).");
+  }
 
     auto off_factor = sym_pad ? -2 : -1;
     auto stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
@@ -150,18 +157,25 @@ inline tensor calc_sliding_window_output_range<swor_mode::exceed_once>(const ten
                                                                        const ov::Strides& dilation,
                                                                        bool sym_pad,
                                                                        const tensor::value_type& degen_val) {
-    if (input_size.spatial[0] <= 0 || input_size.spatial[1] <= 0 || input_size.spatial[2] <= 0) {
-        throw std::invalid_argument("Input data spatial sizes must be positive (>= 1).");
-    }
-    if (size.spatial[0] <= 0 || size.spatial[1] <= 0 || size.spatial[2] <= 0) {
-        throw std::invalid_argument("Sliding window spatial sizes must be positive (>= 1).");
-    }
-    if (std::any_of(stride.begin(), stride.end(), [](size_t v) { return v <= 0; })) {
-        throw std::invalid_argument("Sliding window strides must be positive (>= 1).");
-    }
-    if (std::any_of(dilation.begin(), dilation.end(), [](size_t v) { return v <= 0; })) {
-        throw std::invalid_argument("Sliding window h/v input dialations must be positive (>= 1).");
-    }
+  if (input_size.spatial[0] <= 0 || input_size.spatial[1] <= 0 ||
+      input_size.spatial[2] <= 0) {
+    throw std::invalid_argument(
+        "Input data spatial sizes must be positive (>= 1).");
+  }
+  if (size.spatial[0] <= 0 || size.spatial[1] <= 0 || size.spatial[2] <= 0) {
+    throw std::invalid_argument(
+        "Sliding window spatial sizes must be positive (>= 1).");
+  }
+  if (std::any_of(stride.begin(), stride.end(),
+                  [](size_t v) { return v <= 0; })) {
+    throw std::invalid_argument(
+        "Sliding window strides must be positive (>= 1).");
+  }
+  if (std::any_of(dilation.begin(), dilation.end(),
+                  [](size_t v) { return v <= 0; })) {
+    throw std::invalid_argument(
+        "Sliding window h/v input dialations must be positive (>= 1).");
+  }
 
     int64_t off_factor = sym_pad ? -2 : -1;
     int64_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
@@ -220,18 +234,25 @@ inline tensor calc_sliding_window_output_range<swor_mode::any>(const tensor& inp
                                                                const ov::Strides& dilation,
                                                                bool sym_pad,
                                                                const tensor::value_type& degen_val) {
-    if (input_size.spatial[0] <= 0 || input_size.spatial[1] <= 0 || input_size.spatial[2] <= 0) {
-        throw std::invalid_argument("Input data spatial sizes must be positive (>= 1).");
-    }
-    if (size.spatial[0] <= 0 || size.spatial[1] <= 0 || size.spatial[2] <= 0) {
-        throw std::invalid_argument("Sliding window spatial sizes must be positive (>= 1).");
-    }
-    if (std::any_of(stride.begin(), stride.end(), [](size_t v) { return v <= 0; })) {
-        throw std::invalid_argument("Sliding window h/v strides must be positive (>= 1).");
-    }
-    if (std::any_of(dilation.begin(), dilation.end(), [](size_t v) { return v <= 0; })) {
-        throw std::invalid_argument("Sliding window h/v input dialations must be positive (>= 1).");
-    }
+  if (input_size.spatial[0] <= 0 || input_size.spatial[1] <= 0 ||
+      input_size.spatial[2] <= 0) {
+    throw std::invalid_argument(
+        "Input data spatial sizes must be positive (>= 1).");
+  }
+  if (size.spatial[0] <= 0 || size.spatial[1] <= 0 || size.spatial[2] <= 0) {
+    throw std::invalid_argument(
+        "Sliding window spatial sizes must be positive (>= 1).");
+  }
+  if (std::any_of(stride.begin(), stride.end(),
+                  [](size_t v) { return v <= 0; })) {
+    throw std::invalid_argument(
+        "Sliding window h/v strides must be positive (>= 1).");
+  }
+  if (std::any_of(dilation.begin(), dilation.end(),
+                  [](size_t v) { return v <= 0; })) {
+    throw std::invalid_argument(
+        "Sliding window h/v input dialations must be positive (>= 1).");
+  }
 
     auto stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
     auto stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
@@ -344,18 +365,25 @@ inline tensor calc_sliding_window_needed_input_range(const tensor& output_size,
                                                      const ov::Strides& dilation = {1, 1, 1, 1},
                                                      bool sym_pad = true,
                                                      const tensor::value_type& degen_val = 0) {
-    if (output_size.spatial[0] <= 0 || output_size.spatial[1] <= 0 || output_size.spatial[2] <= 0) {
-        throw std::invalid_argument("Output data spatial sizes must be positive (>= 1).");
-    }
-    if (size.spatial[0] <= 0 || size.spatial[1] <= 0 || size.spatial[2] <= 0) {
-        throw std::invalid_argument("Sliding window spatial sizes must be positive (>= 1).");
-    }
-    if (std::any_of(stride.begin(), stride.end(), [](size_t v) { return v <= 0; })) {
-        throw std::invalid_argument("Sliding window h/v strides must be positive (>= 1).");
-    }
-    if (std::any_of(dilation.begin(), dilation.end(), [](size_t v) { return v <= 0; })) {
-        throw std::invalid_argument("Sliding window h/v input dialations must be positive (>= 1).");
-    }
+  if (output_size.spatial[0] <= 0 || output_size.spatial[1] <= 0 ||
+      output_size.spatial[2] <= 0) {
+    throw std::invalid_argument(
+        "Output data spatial sizes must be positive (>= 1).");
+  }
+  if (size.spatial[0] <= 0 || size.spatial[1] <= 0 || size.spatial[2] <= 0) {
+    throw std::invalid_argument(
+        "Sliding window spatial sizes must be positive (>= 1).");
+  }
+  if (std::any_of(stride.begin(), stride.end(),
+                  [](size_t v) { return v <= 0; })) {
+    throw std::invalid_argument(
+        "Sliding window h/v strides must be positive (>= 1).");
+  }
+  if (std::any_of(dilation.begin(), dilation.end(),
+                  [](size_t v) { return v <= 0; })) {
+    throw std::invalid_argument(
+        "Sliding window h/v input dialations must be positive (>= 1).");
+  }
 
     auto off_factor = sym_pad ? -2 : -1;
     auto stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
@@ -384,13 +412,13 @@ inline tensor calc_sliding_window_needed_input_range(const tensor& output_size,
         off_factor * pad_z + (output_size.spatial[2] - 1) * stride_z + wnd_ext_size.spatial[2];
 
     if (output_range_x <= 0) {
-        output_range_x = degen_val;
+      output_range_x = degen_val;
     }
     if (output_range_y <= 0) {
-        output_range_y = degen_val;
+      output_range_y = degen_val;
     }
     if (output_range_z <= 0) {
-        output_range_z = degen_val;
+      output_range_z = degen_val;
     }
 
     return {0,
@@ -454,24 +482,21 @@ inline padding calc_sliding_window_needed_input_padding(const layout& actual_inp
     auto spatial_rank = actual_input_layout.get_spatial_rank();
     OPENVINO_ASSERT(spatial_rank > 0 && spatial_rank <= 3);
     if (spatial_rank >= 3) {
-        return padding({actual_lpad[0], actual_lpad[1], actual_lpad[2], actual_lpad[3], actual_lpad[4]},
-                       {actual_upad[0],
-                        actual_upad[1],
-                        std::max(needed_upad.spatial[2], actual_upad[2]),
-                        std::max(needed_upad.spatial[1], actual_upad[3]),
-                        std::max(needed_upad.spatial[0], actual_upad[4])});
-    } else if (spatial_rank >= 2) {
-        return padding({actual_lpad[0], actual_lpad[1], actual_lpad[2], actual_lpad[3]},
-                       {actual_upad[0],
-                        actual_upad[1],
-                        std::max(needed_upad.spatial[1], actual_upad[2]),
-                        std::max(needed_upad.spatial[0], actual_upad[3])});
-    } else {
-        return padding({actual_lpad[0], actual_lpad[1], actual_lpad[2]},
-                       {actual_upad[0],
-                        actual_upad[1],
-                        std::max(needed_upad.spatial[0], actual_upad[2])});
+      return padding({actual_lpad[0], actual_lpad[1], actual_lpad[2],
+                      actual_lpad[3], actual_lpad[4]},
+                     {actual_upad[0], actual_upad[1],
+                      std::max(needed_upad.spatial[2], actual_upad[2]),
+                      std::max(needed_upad.spatial[1], actual_upad[3]),
+                      std::max(needed_upad.spatial[0], actual_upad[4])});
     }
+    if (spatial_rank >= 2) {
+      return padding(
+          {actual_lpad[0], actual_lpad[1], actual_lpad[2], actual_lpad[3]},
+          {actual_upad[0], actual_upad[1],
+           std::max(needed_upad.spatial[1], actual_upad[2]),
+           std::max(needed_upad.spatial[0], actual_upad[3])});
+    }
+    return padding({actual_lpad[0], actual_lpad[1], actual_lpad[2]}, {actual_upad[0], actual_upad[1], std::max(needed_upad.spatial[0], actual_upad[2])});
 }
 
 }  // namespace ov::intel_gpu

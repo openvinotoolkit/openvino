@@ -34,10 +34,10 @@ namespace {
 void try_reselect_impl_for_node(program_node* node) {
     bool can_select_impl = !node->is_type<data>() && (!node->is_type<mutable_data>() || !node->get_dependencies().empty());
     if (!can_select_impl) {
-        return;
+      return;
     }
 
-    auto selected_impl = node->get_selected_impl();
+    auto* selected_impl = node->get_selected_impl();
     bool has_selected_impl = selected_impl != nullptr;
     bool need_new_impl_selection = !has_selected_impl;
 
@@ -48,7 +48,7 @@ void try_reselect_impl_for_node(program_node* node) {
     }
 
     if (!need_new_impl_selection) {
-        return;
+      return;
     }
 
     // Refresh stale output layouts before building kernel params.
@@ -62,7 +62,7 @@ void try_reselect_impl_for_node(program_node* node) {
     auto params = node->get_kernel_impl_params();
     auto shape_type = ImplementationManager::get_shape_type(*params);
     if (shape_type == shape_types::dynamic_shape) {
-        return;
+      return;
     }
 
     auto selected_impl_manager = node->type()->choose_impl(*node, shape_type);
@@ -94,10 +94,10 @@ void try_reselect_impl_for_node(program_node* node) {
 // ToDo remove friendship relation from  program_node and program
 void propagate_constants::run(program& p) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::PropagateConstants");
-    for (auto& node : p.get_processing_order()) {
-        if (node->is_constant()) {
-            handle_constant(p, *node);
-        }
+    for (const auto& node : p.get_processing_order()) {
+      if (node->is_constant()) {
+        handle_constant(p, *node);
+      }
     }
 
     auto&& to_replace = calculate(p.get_engine(), p.get_config(), p.get_task_executor());
@@ -110,12 +110,13 @@ void propagate_constants::run(program& p) {
     // than removed (see next loop)
     auto proc_itr = p.get_processing_order().begin();
     while (proc_itr != p.get_processing_order().end()) {
-        auto& node = (*proc_itr++);
+        const auto& node = (*proc_itr++);
         if (!node->is_constant()) {
-            continue;
+          continue;
         }
-        if (has_non_const_user(*node) || (node->is_output() && !node->is_type<data>())) {
-            continue;
+        if (has_non_const_user(*node) ||
+            (node->is_output() && !node->is_type<data>())) {
+          continue;
         }
 
         auto& users = node->users;
@@ -166,9 +167,9 @@ void propagate_constants::run(program& p) {
         for (auto& dep : curr_node_deps) {
             auto dep_users = dep.first->get_users();
             for (auto& dep_user : dep_users) {
-                if (dep_user == &curr_node) {
-                    p.remove_connection(*dep.first, curr_node);
-                }
+              if (dep_user == &curr_node) {
+                p.remove_connection(*dep.first, curr_node);
+              }
             }
         }
 
@@ -191,18 +192,18 @@ void propagate_constants::run(program& p) {
         // Only users of constants that transitioned from dynamic to static need impl reselection.
         if (was_dynamic && !new_node.get_output_layout(false).is_dynamic()) {
             std::queue<program_node*> queue;
-            for (auto& user : new_node.get_users()) {
+            for (const auto& user : new_node.get_users()) {
                 queue.push(user);
             }
             while (!queue.empty()) {
                 auto* n = queue.front();
                 queue.pop();
                 if (reselection_targets.count(n) > 0) {
-                    continue;
+                  continue;
                 }
                 reselection_targets.insert(n);
                 if (!n->is_all_valid_output_layouts()) {
-                    for (auto& user : n->get_users()) {
+                    for (const auto& user : n->get_users()) {
                         queue.push(user);
                     }
                 }
@@ -219,13 +220,13 @@ void propagate_constants::run(program& p) {
 }
 
 bool propagate_constants::has_non_const_user(program_node& node) const {
-    if (!node.is_constant()) {
+  if (!node.is_constant()) {
+    return true;
+  }
+    for (const auto& user : node.get_users()) {
+      if (!user->is_constant()) {
         return true;
-    }
-    for (auto& user : node.get_users()) {
-        if (!user->is_constant()) {
-            return true;
-        }
+      }
     }
     return false;
 }
@@ -237,9 +238,9 @@ std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>>
 propagate_constants::calculate(engine& engine,
                                const ExecutionConfig& config,
                                std::shared_ptr<ov::threading::IStreamsExecutor> task_executor) {
-    if (!has_non_trivial_constants) {
-        return {};
-    }
+  if (!has_non_trivial_constants) {
+    return {};
+  }
 
     ExecutionConfig cf_config = config.clone();
     cf_config.set_property(ov::intel_gpu::optimize_data(false));
@@ -283,21 +284,21 @@ void propagate_constants::handle_constant(program& prog, program_node& node) {
     if (!node.is_type<data>()) {
         add_constant(prog, node);
         if (has_non_const_user(node)) {
-            const_outputs.push_back(node.id());
+          const_outputs.push_back(node.id());
         }
     }
 }
 
 void propagate_constants::add_constant(program& prog, program_node& node) {
-    if (node.is_type<data>()) {
-        return;
-    }
+  if (node.is_type<data>()) {
+    return;
+  }
     nodes.insert(prog.get_node_ptr(node.get_primitive()->id));
     has_non_trivial_constants = true;
 
     // if a node is either an endpoint or an output, always add it as an output
     if (node.is_endpoint() || node.is_output()) {
-        const_outputs.push_back(node.id());
+      const_outputs.push_back(node.id());
     }
 
     // if a non-tirivial constant has a trivial input, add this input as an input for our network
@@ -336,7 +337,7 @@ void propagate_constants::add_deps_to_tpl(program& prog, const std::vector<std::
     /   \
     A     B
     */
-    for (auto& dep : deps) {
+    for (const auto& dep : deps) {
         if (dep.first->is_type<data>()) {
             auto dep_ptr = prog.get_node_ptr(dep.first->get_primitive()->id);
             if (nodes.find(dep_ptr) == nodes.end()) {

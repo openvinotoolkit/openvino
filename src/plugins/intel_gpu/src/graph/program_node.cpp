@@ -33,9 +33,9 @@
 using namespace cldnn;
 
 static size_t get_shape_data_size(const layout& l) {
-    if (l.is_static()) {
-        return 0;
-    }
+  if (l.is_static()) {
+    return 0;
+  }
 
     size_t size = layout::max_rank(); // all dimensions are stored
     const auto& dynamic_pad = l.data_padding._dynamic_dims_mask;
@@ -64,12 +64,12 @@ program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
 }
 
 void program_node::replace_dependency(size_t idx, std::pair<program_node*, int32_t> new_dep, bool remove_if_dangling) {
-    if (idx >= dependencies.size()) {
-        return;
-    }
-    if (dependencies[idx].first == new_dep.first) {
-        return;
-    }
+  if (idx >= dependencies.size()) {
+    return;
+  }
+  if (dependencies[idx].first == new_dep.first) {
+    return;
+  }
 
     if (is_type<loop>()) {
         loop_node& loop = *this;
@@ -82,7 +82,7 @@ void program_node::replace_dependency(size_t idx, std::pair<program_node*, int32
     }
 
     if (remove_if_dangling) {
-        myprog.remove_if_dangling(*dependencies[idx].first);
+      myprog.remove_if_dangling(*dependencies[idx].first);
     }
 
     dependencies[idx].first = new_dep.first;
@@ -109,9 +109,9 @@ const ov::PartialShape& program_node::get_input_pshape(size_t idx) const {
 }
 
 ov::PartialShape program_node::get_output_pshape(size_t idx) const {
-    if (!is_valid_output_layout(idx)) {
-        return calc_output_layouts()[idx].get_partial_shape();
-    }
+  if (!is_valid_output_layout(idx)) {
+    return calc_output_layouts()[idx].get_partial_shape();
+  }
     return get_output_layout(idx).get_partial_shape();
 }
 
@@ -176,11 +176,11 @@ void program_node::replace_dependency(size_t idx, program_node& new_dep, bool re
 }
 
 void program_node::replace_dependency(program_node const& old_dep, std::pair<program_node*, int32_t> new_dep, bool remove_if_dangling) {
-    for (size_t i = 0; i < dependencies.size(); ++i) {
-        if (dependencies[i].first == &old_dep) {
-            return replace_dependency(i, new_dep, remove_if_dangling);
-        }
+  for (size_t i = 0; i < dependencies.size(); ++i) {
+    if (dependencies[i].first == &old_dep) {
+      return replace_dependency(i, new_dep, remove_if_dangling);
     }
+  }
 }
 
 void program_node::replace_dependency(program_node const& old_dep, program_node& new_dep, bool remove_if_dangling) {
@@ -189,14 +189,16 @@ void program_node::replace_dependency(program_node const& old_dep, program_node&
 
 std::vector<primitive_id> program_node::get_dependencies_ids() const {
     std::vector<primitive_id> dep_ids;
-    for (auto& dependency : dependencies) dep_ids.push_back(dependency.first->get_primitive()->id);
+    for (const auto &dependency : dependencies) {
+      dep_ids.push_back(dependency.first->get_primitive()->id);
+    }
     return dep_ids;
 }
 
 void program_node::remove_dependency(size_t idx) {
-    if (idx >= dependencies.size()) {
-        return;
-    }
+  if (idx >= dependencies.size()) {
+    return;
+  }
 
     dependencies[idx].first->users.remove(this);
     myprog.remove_if_dangling(*dependencies[idx].first);
@@ -249,7 +251,7 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 
     json_composite fused_nodes_info;
     size_t index = 0;
-    for (auto& fused_desc : get_fused_primitives()) {
+    for (const auto& fused_desc : get_fused_primitives()) {
         json_composite fused_node_info;
         fused_node_info.add("id", fused_desc.desc->id);
         std::vector<primitive_id> dep_ids;
@@ -268,11 +270,11 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     node_info->add("fused primitives", fused_nodes_info);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    auto& onednn_post_ops = get_fused_primitives_onednn();
+    const auto& onednn_post_ops = get_fused_primitives_onednn();
     if (!onednn_post_ops.empty()) {
         size_t post_op_index = 0;
         json_composite post_ops_info;
-        for (auto& fused_prim_desc : onednn_post_ops) {
+        for (const auto& fused_prim_desc : onednn_post_ops) {
             json_composite post_op_info;
             post_op_info.add("post op", onednn_post_op_type_to_str(fused_prim_desc.op_type));
             post_op_info.add("memory dependency", fused_prim_desc.mem_dep);
@@ -342,7 +344,7 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     node_info->add("implementation", impls);
 
     std::vector<std::string> dependant_shape_of_nodes_ids;
-    for (auto shape_of : dependant_shape_of_nodes) {
+    for (const auto* shape_of : dependant_shape_of_nodes) {
         dependant_shape_of_nodes_ids.push_back(shape_of->id());
     }
     node_info->add("dependant_shape_of_nodes_ids", dependant_shape_of_nodes_ids);
@@ -351,49 +353,48 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 }
 
 void program_node::remove_dependency(program_node& node) {
-    for (size_t i = 0; i < dependencies.size(); ++i) {
-        if (dependencies[i].first == &node) {
-            remove_dependency(i);
-        }
+  for (size_t i = 0; i < dependencies.size(); ++i) {
+    if (dependencies[i].first == &node) {
+      remove_dependency(i);
     }
+  }
 }
 
 size_t program_node::get_user_index(const program_node& node) const {
     size_t idx = 0;
-    for (auto& user : users) {
-        if (user == &node) {
-            return idx;
-        } else {
-            idx++;
-        }
+    for (const auto& user : users) {
+      if (user == &node) {
+        return idx;
+      }
+        idx++;
     }
 
     OPENVINO_THROW("[GPU] Search invalid user node" + node.id() + " node");
 }
 
 int32_t program_node::get_dependency_output_port(const program_node& node) const {
-    for (size_t i = 0; i < dependencies.size(); ++i) {
-        if (dependencies[i].first == &node) {
-            return dependencies[i].second;
-        }
+  for (size_t i = 0; i < dependencies.size(); ++i) {
+    if (dependencies[i].first == &node) {
+      return dependencies[i].second;
     }
+  }
 
     OPENVINO_THROW("[GPU] Search invalid dependency output port" + node.id() + " node");
 }
 size_t program_node::get_dependency_index(const program_node& node) const {
-    for (size_t i = 0; i < dependencies.size(); ++i) {
-        if (dependencies[i].first == &node) {
-            return i;
-        }
+  for (size_t i = 0; i < dependencies.size(); ++i) {
+    if (dependencies[i].first == &node) {
+      return i;
     }
+  }
 
     OPENVINO_THROW("[GPU] Search invalid dependency node" + node.id() + " node");
 }
 
 bool program_node::is_detached(bool whole_branch) {
-    if (!users.empty()) {
-        return false;
-    }
+  if (!users.empty()) {
+    return false;
+  }
     return whole_branch || dependencies.empty();
 }
 
@@ -418,7 +419,7 @@ std::vector<layout> program_node::calc_output_layouts() const {
     if (allow_new_shape_infer) {
         auto out_layouts = type()->calc_output_layouts(*this, *get_kernel_impl_params());
         if (!out_layouts.empty()) {
-            return out_layouts;
+          return out_layouts;
         }
     }
 
@@ -426,9 +427,9 @@ std::vector<layout> program_node::calc_output_layouts() const {
 }
 
 const layout& program_node::get_output_layout(bool invalidate_users_if_changed, size_t idx) {
-    if (valid_output_layouts[idx]) {
-        return output_layouts[idx];
-    }
+  if (valid_output_layouts[idx]) {
+    return output_layouts[idx];
+  }
 
     auto new_layouts = calc_output_layouts();
     set_output_layouts(new_layouts, invalidate_users_if_changed);
@@ -436,17 +437,18 @@ const layout& program_node::get_output_layout(bool invalidate_users_if_changed, 
 }
 
 const layout& program_node::get_output_layout(size_t idx) const {
-    if (!valid_output_layouts[idx]) {
-        throw std::runtime_error("Output layout not calculated for " + id() + " node");
-    }
+  if (!valid_output_layouts[idx]) {
+    throw std::runtime_error("Output layout not calculated for " + id() +
+                             " node");
+  }
 
     return output_layouts[idx];
 }
 
 const std::vector<layout>& program_node::get_output_layouts(bool invalidate_users_if_changed) {
-    if (is_all_valid_output_layouts()) {
-        return output_layouts;
-    }
+  if (is_all_valid_output_layouts()) {
+    return output_layouts;
+  }
 
     auto new_layouts = calc_output_layouts();
     set_output_layouts(new_layouts, invalidate_users_if_changed);
@@ -473,8 +475,9 @@ bool program_node::set_output_layout(layout& new_layout, bool invalidate_users_i
                                         " but output_layouts length is ", std::to_string(output_layouts.size()));
     new_layout.data_padding = output_layouts[idx].data_padding;
     bool changed = (new_layout != output_layouts[idx]);
-    if (changed && invalidate_users_if_changed) {  // output_layout has changed! invalidate users
-        invalidate_users();
+    if (changed && invalidate_users_if_changed) { // output_layout has changed!
+                                                  // invalidate users
+      invalidate_users();
     }
 
     output_layouts[idx] = new_layout;
@@ -506,30 +509,30 @@ bool program_node::recalc_output_layouts(bool invalidate_users_if_changed) {
 
 bool program_node::is_dynamic() const {
     for (const auto& input : get_dependencies()) {
-        if (input.first->is_dynamic_output_layout(input.second)) {
-            return true;
-        }
+      if (input.first->is_dynamic_output_layout(input.second)) {
+        return true;
+      }
     }
 
     for (size_t i = 0; i < output_layouts.size(); ++i) {
-        if (output_layouts[i].is_dynamic()) {
-            return true;
-        }
+      if (output_layouts[i].is_dynamic()) {
+        return true;
+      }
     }
     return false;
 }
 
 bool program_node::is_dynamic() {
-    for (auto& input : get_dependencies()) {
-        if (input.first->is_dynamic_output_layout(input.second)) {
-            return true;
-        }
+    for (const auto& input : get_dependencies()) {
+      if (input.first->is_dynamic_output_layout(input.second)) {
+        return true;
+      }
     }
 
     for (size_t i = 0; i < output_layouts.size(); ++i) {
-        if (output_layouts[i].is_dynamic()) {
-            return true;
-        }
+      if (output_layouts[i].is_dynamic()) {
+        return true;
+      }
     }
     return false;
 }
@@ -565,18 +568,17 @@ bool program_node::is_fused_dep(size_t dep_idx) const {
 }
 
 std::set<size_t> program_node::get_lockable_input_ids() const {
-    const auto impl = get_selected_impl();
+    auto* const impl = get_selected_impl();
     const bool has_cpu_impl = get_preferred_impl_type() == impl_types::cpu || ((impl != nullptr) && impl->is_cpu());
     if (has_cpu_impl && !is_type<shape_of>()) {
         std::set<size_t> dependencies_indexes;
         for (size_t i = 0; i < get_dependencies().size(); i++) {
-            dependencies_indexes.insert(i);
+          dependencies_indexes.insert(i);
         }
 
         return dependencies_indexes;
-    } else {
-        return {};
     }
+    return {};
 }
 
 std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
@@ -584,7 +586,7 @@ std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
     for (auto& i : get_shape_infer_dependencies()) {
         // Some primitives may have flexible count of deps (e.g. reshape), thus allow skipping some deps
         if (i >= get_dependencies().size()) {
-            continue;
+          continue;
         }
 
         // exclude fused dependency
@@ -602,12 +604,12 @@ std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
 }
 
 void program_node::invalidate_users() const {
-    for (auto& user : users) {
+    for (const auto& user : users) {
         for (size_t i = 0; i < user->valid_output_layouts.size(); ++i) {
             if (user->valid_output_layouts[i]) {
-                if (user->get_preferred_output_fmt() != format::any) {
-                    continue;
-                }
+              if (user->get_preferred_output_fmt() != format::any) {
+                continue;
+              }
                 user->valid_output_layouts[i] = false;
                 user->invalidate_users();
             }
@@ -620,21 +622,21 @@ void program_node::support_padding_all(bool support) {
 }
 
 bool program_node::is_padding_supported(int axis, int padding) const {
-    if (!support_padding(axis)) {
-        return false;
-    }
+  if (!support_padding(axis)) {
+    return false;
+  }
 
     auto fmt = output_layouts[0].format;
 
     // WA for known cases of padding not supported in implementations
     if (fmt == format::b_fs_yx_fsv16) {
-        if (axis == 0 || (axis == 1 && padding % 16 != 0)) {
-            return false;
-        }
+      if (axis == 0 || (axis == 1 && padding % 16 != 0)) {
+        return false;
+      }
     }
 
     if (fmt == format::fs_b_yx_fsv32 && (axis == 0)) {
-        return false;
+      return false;
     }
 
     auto block_sizes_dims = format::per_axis_block_size(fmt);
@@ -643,11 +645,11 @@ bool program_node::is_padding_supported(int axis, int padding) const {
         int block_size = block.second;
 
         if (axis != static_cast<int>(block_axis)) {
-            continue;
+          continue;
         }
 
         if (padding % block_size != 0) {
-            return false;
+          return false;
         }
     }
 
@@ -655,7 +657,7 @@ bool program_node::is_padding_supported(int axis, int padding) const {
 }
 
 bool program_node::is_padded_spatial(size_t idx) const {
-    auto& layout = get_output_layout(idx);
+    const auto& layout = get_output_layout(idx);
     const auto& lower_size = layout.data_padding._lower_size;
     const auto& upper_size = layout.data_padding._upper_size;
     return std::any_of(std::begin(lower_size) + 2, std::begin(lower_size) + 2 + layout.get_spatial_rank(),
@@ -670,9 +672,9 @@ void program_node::set_selected_impl(std::unique_ptr<primitive_impl> impl) {
 
 bool program_node::need_lockable_memory() const {
     bool need_lockable_mem = get_users().empty() || std::any_of(get_users().begin(), get_users().end(), [](const program_node* n) {
-        auto impl = n->get_selected_impl();
-        return impl ? impl->is_cpu() : n->get_preferred_impl_type() == impl_types::cpu;
-    });
+                                 auto* impl = n->get_selected_impl();
+                                 return impl ? impl->is_cpu() : n->get_preferred_impl_type() == impl_types::cpu;
+                             });
 
     return need_lockable_mem;
 }
@@ -683,17 +685,17 @@ void program_node::init_preferred_fmt(size_t dep_node, size_t user_node) {
 }
 
 void program_node::set_preferred_input_fmt(size_t idx, format::type type) {
-    if (idx >= preferred_input_fmts.size()) {
-        preferred_input_fmts.resize(idx+1, format::any);
-    }
+  if (idx >= preferred_input_fmts.size()) {
+    preferred_input_fmts.resize(idx + 1, format::any);
+  }
 
     preferred_input_fmts.at(idx) = type;
 }
 
 void program_node::set_preferred_output_fmt(size_t idx, format::type type) {
-    if (idx >= preferred_output_fmts.size()) {
-        preferred_output_fmts.resize(idx+1, format::any);
-    }
+  if (idx >= preferred_output_fmts.size()) {
+    preferred_output_fmts.resize(idx + 1, format::any);
+  }
 
     preferred_output_fmts.at(idx) = type;
 }
@@ -761,7 +763,7 @@ void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
     // fused_prims;
     {
         ob << fused_prims.size();
-        for (auto& f_desc : fused_prims) {
+        for (const auto& f_desc : fused_prims) {
             if (get_program().has_node(f_desc.desc->id)) {
                 ob << true;
                 ob << f_desc.desc->id;
@@ -830,12 +832,12 @@ void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
             }
 
             ob << f_desc.deps.size();
-            for (auto& dep : f_desc.deps) {
+            for (const auto& dep : f_desc.deps) {
                 ob << dep.first;
                 ob << dep.second;
             }
             ob << f_desc.fused_deps.size();
-            for (auto& f_dep : f_desc.fused_deps) {
+            for (const auto& f_dep : f_desc.fused_deps) {
                 ob << f_dep.first;
                 ob << f_dep.second;
             }
@@ -960,7 +962,7 @@ void program_node::load(cldnn::BinaryInputBuffer& ib) {
 
             std::string f_param_type_str;
             ib >> f_param_type_str;
-            auto f_param_type = cldnn::prim_map_storage::instance().get_type_id(f_param_type_str);
+            auto* f_param_type = cldnn::prim_map_storage::instance().get_type_id(f_param_type_str);
             if (f_param_type == activation::type_id()) {
                 ib >> exist_prim;
                 std::shared_ptr<activation> param_desc;
@@ -1275,12 +1277,14 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
     GPU_DEBUG_TRACE << " " << id() << ", num of post_ops " << p_ops.len() << std::endl;
     GPU_DEBUG_TRACE << " * p_ops: " << std::endl;
     for (int i = 0; i < p_ops.len(); i++) {
-        GPU_DEBUG_TRACE << "    " << i << ": " << static_cast<int>(p_ops.kind(i)) << std::endl;
+      GPU_DEBUG_TRACE << "    " << i << ": " << static_cast<int>(p_ops.kind(i))
+                      << std::endl;
     }
 
     GPU_DEBUG_TRACE << " * cur_post_ops: " << std::endl;
     for (size_t i = 0; i < cur_post_ops.size(); i++) {
-        GPU_DEBUG_TRACE << "    " << i << ": " << cur_post_ops[i].op_type << std::endl;
+      GPU_DEBUG_TRACE << "    " << i << ": " << cur_post_ops[i].op_type
+                      << std::endl;
     }
 
     remove_optimized_prefix(cur_post_ops);
@@ -1289,11 +1293,13 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
     GPU_DEBUG_TRACE << " " << id() << ", num of post_ops " << p_ops.len() << std::endl;
     GPU_DEBUG_TRACE << " * p_ops: " << std::endl;
     for (int i = 0; i < p_ops.len(); i++) {
-        GPU_DEBUG_TRACE << "    " << i << ": " << static_cast<int>(p_ops.kind(i)) << std::endl;
+      GPU_DEBUG_TRACE << "    " << i << ": " << static_cast<int>(p_ops.kind(i))
+                      << std::endl;
     }
     GPU_DEBUG_TRACE << " * cur_post_ops: " << std::endl;
     for (size_t i = 0; i < cur_post_ops.size(); i++) {
-        GPU_DEBUG_TRACE << "    " << i << ": " << cur_post_ops[i].op_type << std::endl;
+      GPU_DEBUG_TRACE << "    " << i << ": " << cur_post_ops[i].op_type
+                      << std::endl;
     }
     GPU_DEBUG_TRACE << "----------------------------------->>>>>>>>>>>>>" << std::endl;
 
@@ -1322,8 +1328,9 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
         // Ignore optimized operations for "previous" operation in our operation pair
         while (type_is_any_optimized(prev_type) && prev_post_op_idx < post_ops_size - 1) {
             prev_post_op_idx++;
-            if (prev_post_op_idx == cur_post_op_idx && cur_post_op_idx < post_ops_size - 1) {
-                cur_post_op_idx++;
+            if (prev_post_op_idx == cur_post_op_idx &&
+                cur_post_op_idx < post_ops_size - 1) {
+              cur_post_op_idx++;
             }
             prev_type = cur_post_ops[prev_post_op_idx].op_type;
             cur_type = cur_post_ops[cur_post_op_idx].op_type;
@@ -1436,7 +1443,9 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
                 if (bin_add_and_eltw || bin_mul_and_eltw) {
                     memory::ptr cur_bin_mem_ptr = cur_node.as<data>().get_attached_memory_ptr();
                     if (cur_bin_mem_ptr == nullptr) {
-                        throw std::runtime_error("OneDNN post-ops optimization error: nonexistent node for bin + eltw");
+                      throw std::runtime_error(
+                          "OneDNN post-ops optimization error: nonexistent "
+                          "node for bin + eltw");
                     }
 
                     // Update all binary coefficients
@@ -1481,7 +1490,9 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
                 if (eltw_and_bin_add || eltw_and_bin_mul) {
                     memory::ptr prev_bin_mem_ptr = prev_node.as<data>().get_attached_memory_ptr();
                     if (prev_bin_mem_ptr == nullptr) {
-                        throw std::runtime_error("OneDNN post-ops optimization error: nonexistent node for eltw + bin");
+                      throw std::runtime_error(
+                          "OneDNN post-ops optimization error: nonexistent "
+                          "node for eltw + bin");
                     }
 
                     // Update all binary coefficients
@@ -1517,7 +1528,9 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
                 if (beta == 0.f && prev_node.get_output_layout().data_type == data_types::f32) {
                     memory::ptr prev_scale_mem_ptr = prev_node.as<data>().get_attached_memory_ptr();
                     if (prev_scale_mem_ptr == nullptr) {
-                        throw std::runtime_error("OneDNN post-ops optimization error: nonexistent node for eltw + scale");
+                      throw std::runtime_error(
+                          "OneDNN post-ops optimization error: nonexistent "
+                          "node for eltw + scale");
                     }
 
                     // Update all scale coefficients
@@ -1560,7 +1573,8 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
 
     GPU_DEBUG_TRACE << ">>>>>>>>>>>>>-----------------------------------" << std::endl;
     for (size_t i = 0; i < cur_post_ops.size(); i++) {
-        GPU_DEBUG_TRACE << "    " << i << ": " << cur_post_ops[i].op_type << std::endl;
+      GPU_DEBUG_TRACE << "    " << i << ": " << cur_post_ops[i].op_type
+                      << std::endl;
     }
     GPU_DEBUG_TRACE << "------------------------------------------------" << std::endl;
 
@@ -1580,23 +1594,23 @@ void program_node::create_onednn_primitive_attributes(
 
     // Change scratchpad mode to user
     if (attrs->get_scratchpad_mode() == dnnl::scratchpad_mode::library) {
-        attrs->set_scratchpad_mode(dnnl::scratchpad_mode::user);
+      attrs->set_scratchpad_mode(dnnl::scratchpad_mode::user);
     }
 
     const auto& get_input_layout = [&](int32_t idx) -> cldnn::layout {
         if (impl_params != nullptr) {
             return impl_params->get_input_layout(idx);
-        } else {
-            return get_dependency(idx).get_output_layout();
         }
+        return get_dependency(idx).get_output_layout();
+
     };
 
     const auto& get_output_layout = [&]() -> cldnn::layout {
         if (impl_params != nullptr) {
             return impl_params->get_output_layout();
-        } else {
-            return this->get_output_layout();
         }
+        return this->get_output_layout();
+
     };
 
     // Add information about post-operation into the list, update indices
@@ -1619,7 +1633,7 @@ void program_node::create_onednn_primitive_attributes(
                                   type == onednn_post_op_type::sum;
 
         if (has_memory_buffers) {
-            memory_offset++;
+          memory_offset++;
         }
     };
 
@@ -1634,15 +1648,18 @@ void program_node::create_onednn_primitive_attributes(
 
     int32_t num_sum_post_ops = 0;
     for (size_t idx = 0; idx < cldnn_post_ops.size(); idx++) {
-        auto& desc = cldnn_post_ops[idx];
+        const auto& desc = cldnn_post_ops[idx];
         if (desc.is_type<activation>()) {
             auto fused_desc = desc.typed_desc<activation>();
             if (fused_desc->activation_function == cldnn::activation_func::relu_negative_slope
                 && fused_desc->additional_params_input.is_valid()) {
                 auto dep_idx = desc.outer_dep_start_idx;
                 auto prelu_mask = onednn::get_prelu_mask_from_layouts(get_output_layout, get_input_layout, dep_idx);
-                if (is_type<fully_connected>() && this->as<fully_connected>().get_primitive()->input_size > 2 && prelu_mask == 2) {
-                    prelu_mask = 4; // 3d fc has per_oc mask is 4
+                if (is_type<fully_connected>() &&
+                    this->as<fully_connected>().get_primitive()->input_size >
+                        2 &&
+                    prelu_mask == 2) {
+                  prelu_mask = 4; // 3d fc has per_oc mask is 4
                 }
                 post_ops.append_prelu(prelu_mask);
                 update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
@@ -1660,16 +1677,24 @@ void program_node::create_onednn_primitive_attributes(
             } else {
                 dnnl::algorithm alg = onednn::convert_activation_func(fused_desc->activation_function);
                 if (alg == dnnl::algorithm::undef) {
-                    OPENVINO_THROW("Activations that are undef algorithms must be converted to other activations before "
-                                   "pushing to post-op.");
+                  OPENVINO_THROW("Activations that are undef algorithms must "
+                                 "be converted to other activations before "
+                                 "pushing to post-op.");
                 }
                 // Usage of alpha and beta between cldnn::pow and dnnl::eltwise::pow is different : d = pow(src, a) / d = a * pow(src, b)
                 if (alg == dnnl::algorithm::eltwise_pow) {
-                    post_ops.append_eltwise(alg, 1.0f, fused_desc->additional_params.a);
-                } else if (alg == dnnl::algorithm::eltwise_hardswish) { // mapping val * min(max(0, val + 3), 6) / 6 to val * max(min(1, alpha * val + beta), 0)
-                    post_ops.append_eltwise(alg, 1/6.f, 0.5f);
+                  post_ops.append_eltwise(alg, 1.0f,
+                                          fused_desc->additional_params.a);
+                } else if (alg ==
+                           dnnl::algorithm::
+                               eltwise_hardswish) { // mapping val * min(max(0,
+                                                    // val + 3), 6) / 6 to val *
+                                                    // max(min(1, alpha * val +
+                                                    // beta), 0)
+                  post_ops.append_eltwise(alg, 1 / 6.f, 0.5f);
                 } else {
-                    post_ops.append_eltwise(alg, fused_desc->additional_params.a, fused_desc->additional_params.b);
+                  post_ops.append_eltwise(alg, fused_desc->additional_params.a,
+                                          fused_desc->additional_params.b);
                 }
 
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_act, empty_mem);

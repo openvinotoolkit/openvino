@@ -69,20 +69,18 @@ static std::shared_ptr<dnnl::deconvolution_forward::primitive_desc> get_deconvol
             pad_l,
             pad_r,
             attr);
-    } else {
-        return std::make_shared<dnnl::deconvolution_forward::primitive_desc>(
-            engine.get_onednn_engine(),
-            dnnl::prop_kind::forward_inference,
-            dnnl::algorithm::deconvolution_direct,
-            input_md,
-            weights_md,
-            output_md,
-            stride,
-            dilation,
-            pad_l,
-            pad_r,
-            attr);
     }
+    return std::make_shared<dnnl::deconvolution_forward::primitive_desc>(engine.get_onednn_engine(),
+                                                                         dnnl::prop_kind::forward_inference,
+                                                                         dnnl::algorithm::deconvolution_direct,
+                                                                         input_md,
+                                                                         weights_md,
+                                                                         output_md,
+                                                                         stride,
+                                                                         dilation,
+                                                                         pad_l,
+                                                                         pad_r,
+                                                                         attr);
 }
 
 struct deconvolution_onednn : typed_primitive_onednn_impl<deconvolution> {
@@ -215,7 +213,7 @@ public:
 
     static std::unique_ptr<primitive_impl> create(const deconvolution_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
-        auto& config = impl_params.prog->get_config();
+        const auto& config = impl_params.prog->get_config();
         auto attr = impl_params.attrs_onednn;
         auto prim_desc = get_deconvolution_primitive_descriptor(impl_params, *attr);
 

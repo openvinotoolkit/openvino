@@ -170,7 +170,7 @@ JitConstants ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetJitConstants(const conv
 ConvolutionKernelBase::DispatchData ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::SetDefault(const convolution_params& params,
                                                                                         int autoTuneIndex) const {
     DispatchData dispatchData;
-    auto& out = params.outputs[0];
+    const auto& out = params.outputs[0];
 
     auto autoTuneParam = GetAutoTuneParams(params, autoTuneIndex);
     auto lwg_depth = autoTuneParam.lwg_depth;
@@ -208,7 +208,7 @@ KernelsData ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetKernelsDataForAutoTune(c
     if (!Validate(params)) {
         return {};
     }
-    auto& conv_params = static_cast<const convolution_params&>(params);
+    const auto& conv_params = static_cast<const convolution_params&>(params);
 
     KernelsData res = {};
 

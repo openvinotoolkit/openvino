@@ -51,14 +51,14 @@ DeviceFeaturesKey FullyConnected_bf_tiled_dyn_b::get_required_device_features_ke
 size_t FullyConnected_bf_tiled_dyn_b::SelectTileB(size_t batch_size) {
     // For small batches, tile = batch (exact, no tail)
     if (batch_size <= 8) {
-        return batch_size;
+      return batch_size;
     }
 
     // Find largest exact divisor in [8..4] (no tail needed)
     for (size_t t = 8; t >= 4; --t) {
-        if (batch_size % t == 0) {
-            return t;
-        }
+      if (batch_size % t == 0) {
+        return t;
+      }
     }
 
     // No good exact divisor (primes, 2*prime, etc.):
@@ -67,33 +67,33 @@ size_t FullyConnected_bf_tiled_dyn_b::SelectTileB(size_t batch_size) {
 }
 
 bool FullyConnected_bf_tiled_dyn_b::IsBeneficial(const fully_connected_params& params) {
-    auto& weights = params.weights;
+    const auto& weights = params.weights;
     auto wt = weights.GetDType();
 
     // INT4 compressed, F16 input, shape_agnostic only
     if (wt != WeightsType::UINT4 && wt != WeightsType::INT4) {
-        return false;
+      return false;
     }
     if (!params.compressed) {
-        return false;
+      return false;
     }
     if (params.inputs[0].GetDType() != Datatype::F16) {
-        return false;
+      return false;
     }
     if (!params.is_shape_agnostic) {
-        return false;
+      return false;
     }
 
     // No SwiGLU support
     if (is_swiglu_fused(params)) {
-        return false;
+      return false;
     }
 
     // Only beneficial for imbalanced IFM/OFM with sufficient dimension size
     auto ifm = weights.IFM().v;
     auto ofm = weights.OFM().v;
     if (std::min(ifm, ofm) < simd) {
-        return false;
+      return false;
     }
     return 2 * ifm < ofm || ifm > 2 * ofm;
 }
@@ -103,10 +103,10 @@ bool FullyConnected_bf_tiled_dyn_b::Validate(const Params& params) const {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
-    auto& fc_params = static_cast<const fully_connected_params&>(params);
-    auto& input = fc_params.inputs[0];
-    auto& output = fc_params.outputs[0];
-    auto& weights = fc_params.weights;
+    const auto& fc_params = static_cast<const fully_connected_params&>(params);
+    const auto& input = fc_params.inputs[0];
+    const auto& output = fc_params.outputs[0];
+    const auto& weights = fc_params.weights;
 
     // Only INT4 compressed weights
     auto wt = weights.GetDType();
@@ -196,12 +196,13 @@ FullyConnected_bf_tiled_dyn_b::tune_params
 FullyConnected_bf_tiled_dyn_b::GetTuneParams(const fully_connected_params& params) const {
     // Same base config as static_b16 (optimized for INT4 on iGPU)
     if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
-        return tune_params(1, 1, 4, 1, 1, EXE_MODE_DEFAULT);
-    } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
-        return tune_params(2, 1, 2, 1, 1, EXE_MODE_DEFAULT);
-    } else {  // os_is_yx_osv32_isv2 (default)
-        return tune_params(2, 1, 4, 1, 1, EXE_MODE_DEFAULT);
+      return tune_params(1, 1, 4, 1, 1, EXE_MODE_DEFAULT);
     }
+    if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
+      return tune_params(2, 1, 2, 1, 1, EXE_MODE_DEFAULT);
+    }
+    // os_is_yx_osv32_isv2 (default)
+    return tune_params(2, 1, 4, 1, 1, EXE_MODE_DEFAULT);
 }
 
 FullyConnected_bf_tiled_dyn_b::DispatchData
@@ -272,7 +273,7 @@ JitConstants FullyConnected_bf_tiled_dyn_b::GetJitConstants(const fully_connecte
         jit.Merge(make_sub_byte_packed_type_jit_constant("INT4_PACKED_TYPE", weights_dt, tile_k_ofm));
         const size_t scale_group_size = get_scale_group_size(params);
         if (scale_group_size % simd == 0) {
-            add_decompress_scale_post_op = true;
+          add_decompress_scale_post_op = true;
         }
     }
 
@@ -298,7 +299,7 @@ JitConstants FullyConnected_bf_tiled_dyn_b::GetJitConstants(const fully_connecte
     }
 
     if (add_decompress_scale_post_op) {
-        jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
+      jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
     }
 
     jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 0));
@@ -367,7 +368,7 @@ JitConstants FullyConnected_bf_tiled_dyn_b::GetJitConstants(const fully_connecte
 }
 
 KernelsData FullyConnected_bf_tiled_dyn_b::GetKernelsData(const Params& params) const {
-    auto& fc_params = static_cast<const fully_connected_params&>(params);
+    const auto& fc_params = static_cast<const fully_connected_params&>(params);
     auto tparams = GetTuneParams(fc_params);
 
     // Determine optimal weight layout

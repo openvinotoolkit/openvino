@@ -98,9 +98,9 @@ protected:
             kernel_offset += _kernels_data[s].kernels.size();
         }
         for (size_t kd_idx = 0; kd_idx < _kernels_data[stage].kernels.size(); ++kd_idx) {
-            if (_kernels_data[stage].kernels[kd_idx].skip_execution) {
-                continue;
-            }
+          if (_kernels_data[stage].kernels[kd_idx].skip_execution) {
+            continue;
+          }
 
             size_t idx_final = kernel_offset + kd_idx;
             // If any user of the prim's users is CPU implementation or network's output, set prim as a output event (event won't be nullptr)
@@ -137,20 +137,22 @@ protected:
     bool need_indirect_load(const gemm_inst& inst) const {
         auto desc = inst.get_typed_desc<gemm>();
         if (!desc->indirect_a && !desc->indirect_b) {
-            return false;
+          return false;
         }
 
         const auto& params = *inst.get_impl_params();
         const auto indirect_axis = desc->indirect_axis;
-        if (params.input_layouts[get_beam_table_id(desc)].get_partial_shape()[indirect_axis].get_length() == 1) {
-            return false;
+        if (params.input_layouts[get_beam_table_id(desc)]
+                .get_partial_shape()[indirect_axis]
+                .get_length() == 1) {
+          return false;
         }
 
         const auto& deps = inst.dependencies();
 
         const auto& indirect_dep = deps[desc->indirect_a ? 0 : 1].first;
-        if (dynamic_cast<const kv_cache_inst*>(indirect_dep) == nullptr) {
-            return true;
+        if (dynamic_cast<const kv_cache_inst *>(indirect_dep) == nullptr) {
+          return true;
         }
 
         auto state_layout = indirect_dep->get_impl_params()->get_input_layout(0);
@@ -173,14 +175,13 @@ protected:
                 kernel.skip_execution = true;
             }
             return execute_stage(events, instance, indirect_gemm);
-        } else {
-            if (_kernels_data.size() == 2) {
-                for (auto& kernel : _kernels_data[indirect_gemm].kernels) {
-                    kernel.skip_execution = true;
-                }
-            }
-            return execute_stage(events, instance, default_gemm);
         }
+        if (_kernels_data.size() == 2) {
+            for (auto& kernel : _kernels_data[indirect_gemm].kernels) {
+                kernel.skip_execution = true;
+            }
+        }
+        return execute_stage(events, instance, default_gemm);
     }
 
 public:
@@ -219,13 +220,13 @@ public:
                         transposed_pshape[i + rank_diff] = pshape[rank_diff + order[i]];
                     }
                     return transposed_pshape;
-                } else {
-                    auto transposed_pshape = ov::PartialShape::dynamic(pshape.rank());
-                    for (size_t i = 0; i < order.size(); i++) {
-                        transposed_pshape[i] = pshape[order[i]];
-                    }
-                    return transposed_pshape;
                 }
+                auto transposed_pshape = ov::PartialShape::dynamic(pshape.rank());
+                for (size_t i = 0; i < order.size(); i++) {
+                    transposed_pshape[i] = pshape[order[i]];
+                }
+                return transposed_pshape;
+
             };
             size_t max_rank = input0_pshape.size();
             auto default_order = ov::intel_gpu::op::Gemm::default_order(max_rank);
@@ -257,8 +258,8 @@ public:
         }
 
         bool is_quantized = true;
-        for (auto& input : impl_param.input_layouts) {
-            is_quantized &= data_type_traits::is_quantized(input.data_type);
+        for (const auto &input : impl_param.input_layouts) {
+          is_quantized &= data_type_traits::is_quantized(input.data_type);
         }
 
         if (is_quantized) {
@@ -271,14 +272,16 @@ public:
         if ((primitive->indirect_a || primitive->indirect_b) && !indirect) {
             // Need to adjust regular gemm kernel offset to skip beam table input
             for (auto& fd : params.fused_ops) {
-                if (!fd.has_outer_dep()) {
-                    continue;
-                }
+              if (!fd.has_outer_dep()) {
+                continue;
+              }
                 auto& fused_op_inputs = fd.tensors;
                 for (auto& fused_input : fused_op_inputs) {
-                    if (fused_input.is_dynamic()) {
-                        fused_input.SetDynamicShapeOffset(fused_input.get_dynamic_shape_offset() + kernel_selector::DataTensor::max_rank());
-                    }
+                  if (fused_input.is_dynamic()) {
+                    fused_input.SetDynamicShapeOffset(
+                        fused_input.get_dynamic_shape_offset() +
+                        kernel_selector::DataTensor::max_rank());
+                  }
                 }
             }
             for (auto& out : params.outputs) {

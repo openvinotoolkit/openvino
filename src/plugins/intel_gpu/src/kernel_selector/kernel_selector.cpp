@@ -146,10 +146,10 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params, Ke
 }
 
 std::shared_ptr<KernelBase> kernel_selector_base::GetImplementation(std::string& kernel_name) const {
-    for (auto& impl : implementations) {
-        if (impl->GetName().compare(kernel_name) == 0) {
-            return impl;
-        }
+    for (const auto& impl : implementations) {
+      if (impl->GetName().compare(kernel_name) == 0) {
+        return impl;
+      }
     }
     return nullptr;
 }
@@ -168,19 +168,20 @@ KernelList kernel_selector_base::GetAllImplementations(const Params& params, Ker
     if (params.GetType() == kType) {
         ParamsKey requireKey = params.GetParamsKey();
         bool forceImplementation = !params.forceImplementation.empty();
-        for (auto& impl : implementations) {
+        for (const auto& impl : implementations) {
             const ParamsKey implKey = impl->GetSupportedKey();
             if (!implKey.Support(requireKey)) {
-                continue;
+              continue;
             }
 
             auto required_device_features_key = impl->get_required_device_features_key(params);
             if (!device_features_key.supports(required_device_features_key)) {
-                continue;
+              continue;
             }
 
-            if (forceImplementation && params.forceImplementation != impl->GetName()) {
-                continue;
+            if (forceImplementation &&
+                params.forceImplementation != impl->GetName()) {
+              continue;
             }
             sortedImpls.emplace(impl->GetKernelsPriority(params), impl);
         }

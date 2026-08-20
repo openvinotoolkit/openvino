@@ -55,7 +55,7 @@ KernelsData SwiGLUKernelBase::GetKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::SWIGLU);
 
     if (!Validate(params)) {
-        return {};
+      return {};
     }
 
     const swiglu_params& orgParams = static_cast<const swiglu_params&>(params);
@@ -100,11 +100,11 @@ Datatype SwiGLUKernelBase::GetAccumulatorType(const swiglu_params& params) const
     Datatype types[] = { Datatype::F32, Datatype::F16, Datatype::INT64, Datatype::INT32, Datatype::UINT32};
 
     for (Datatype type : types) {
-        for (auto& in : params.inputs) {
-            if (in.GetDType() == type) {
-                return type;
-            }
+      for (const auto &in : params.inputs) {
+        if (in.GetDType() == type) {
+          return type;
         }
+      }
     }
 
     return Datatype::F32;

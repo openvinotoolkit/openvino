@@ -17,7 +17,7 @@ bool ConvolutionKernelBase::Validate(const Params& p) const {
 
     const convolution_params& params = static_cast<const convolution_params&>(p);
 
-    for (auto& fused_op : params.fused_ops) {
+    for (const auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
@@ -73,10 +73,13 @@ JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& pa
         mem_consts.AddConstants({MakeJitConstant("DEFORMABLE_GROUPS", params.deformable_groups)});
         mem_consts.AddConstants({MakeJitConstant("DEFORMABLE_MODE", params.deformable_mode)});
         if (params.deformable_mask_enabled) {
-            mem_consts.AddConstants({MakeJitConstant("DEFORMABLE_MASK_ENABLED", params.deformable_mask_enabled)});
+          mem_consts.AddConstants({MakeJitConstant(
+              "DEFORMABLE_MASK_ENABLED", params.deformable_mask_enabled)});
         }
         if (params.bilinear_interpolation_pad) {
-            mem_consts.AddConstants({MakeJitConstant("BILINEAR_INTERPOLATION_PAD", params.bilinear_interpolation_pad)});
+          mem_consts.AddConstants(
+              {MakeJitConstant("BILINEAR_INTERPOLATION_PAD",
+                               params.bilinear_interpolation_pad)});
         }
     }
 
@@ -110,17 +113,17 @@ JitConstants ConvolutionKernelBase::GetJitConstantsWithLoopUnroll(const convolut
 }
 
 bool ConvolutionKernelBase::CheckWorkGroups(const ConvolutionKernelBase::DispatchData& dispatchData) {
-    if (dispatchData.gws.size() != 3 || dispatchData.lws.size() != 3) {
-        return false;
-    }
+  if (dispatchData.gws.size() != 3 || dispatchData.lws.size() != 3) {
+    return false;
+  }
 
     for (size_t i = 0; i < dispatchData.gws.size(); i++) {
-        if (dispatchData.gws[i] == 0 || dispatchData.lws[i] == 0) {
-            return false;
-        }
-        if ((dispatchData.gws[i] % dispatchData.lws[i]) != 0) {
-            return false;
-        }
+      if (dispatchData.gws[i] == 0 || dispatchData.lws[i] == 0) {
+        return false;
+      }
+      if ((dispatchData.gws[i] % dispatchData.lws[i]) != 0) {
+        return false;
+      }
     }
 
     return true;
@@ -209,14 +212,14 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
 
     if (NeedPaddedInput()) {
         if (newParams.has_dynamic_inputs()) {
-            if (!CheckConvolutionExplicitPaddings(newParams)) {
-                return {};
-            }
+          if (!CheckConvolutionExplicitPaddings(newParams)) {
+            return {};
+          }
         } else {
             kd.reorderInput = ConvolutionUpdateInputParams(newParams);
 
             if (kd.reorderInput && !newParams.allowInputReordering) {
-                return {};
+              return {};
             }
         }
     }
@@ -251,18 +254,22 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
     if (newParams.deformable_mode) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
         if (newParams.deformable_mask_enabled) {
-            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+          kernel.params.arguments.push_back(
+              {ArgumentDescriptor::Types::INPUT, 2});
         }
     }
 
     if (!newParams.weights_zero_points.empty()) {
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::WEIGHTS_ZERO_POINTS, 1});
+      kernel.params.arguments.push_back(
+          {ArgumentDescriptor::Types::WEIGHTS_ZERO_POINTS, 1});
     }
     if (!newParams.activations_zero_points.empty()) {
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::ACTIVATIONS_ZERO_POINTS, 1});
+      kernel.params.arguments.push_back(
+          {ArgumentDescriptor::Types::ACTIVATIONS_ZERO_POINTS, 1});
     }
     if (!newParams.compensation.empty()) {
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::COMPENSATION, 1});
+      kernel.params.arguments.push_back(
+          {ArgumentDescriptor::Types::COMPENSATION, 1});
     }
 
     uint32_t fused_deps_total = 0;
@@ -328,9 +335,9 @@ static DataTensor GetConvolutionBFYXPaddedTensor(const convolution_params& cp) {
 }
 
 bool CheckConvolutionExplicitPaddings(const convolution_params& conv_params) {
-    if (!conv_params.has_explicit_paddings) {
-        return false;
-    }
+  if (!conv_params.has_explicit_paddings) {
+    return false;
+  }
 
     bool proper_padding = true;
     proper_padding &= conv_params.padding_begin.x == conv_params.inputs[0].X().pad.before &&
@@ -348,7 +355,7 @@ bool ConvolutionCheckInput(const Params& p) {
     const convolution_params& params = static_cast<const convolution_params&>(p);
 
     if (params.has_dynamic_inputs()) {
-        return CheckConvolutionExplicitPaddings(params);
+      return CheckConvolutionExplicitPaddings(params);
     }
 
     const auto req_input = GetConvolutionBFYXPaddedTensor(params);
@@ -409,11 +416,11 @@ JitConstants ConvolutionKernelBase::GetFusedPrimitivesJitConstants(const convolu
 Datatype ConvolutionKernelBase::GetPackedType(Datatype dt, size_t pack_size) const {
     if (dt == Datatype::UINT8) {
         return pack_size == 4 ? Datatype::UINT32 : pack_size == 2 ? Datatype::UINT16 : dt;
-    } else if (dt == Datatype::INT8) {
-        return pack_size == 4 ?  Datatype::INT32 : pack_size == 2 ? Datatype::INT16 : dt;
-    } else {
-        return dt;
     }
+    if (dt == Datatype::INT8) {
+        return pack_size == 4 ?  Datatype::INT32 : pack_size == 2 ? Datatype::INT16 : dt;
+    }
+    return dt;
 }
 
 Datatype ConvolutionKernelBase::GetPackedInputType(const convolution_params& params) const {
@@ -430,23 +437,25 @@ Datatype ConvolutionKernelBase::GetActivationType(const convolution_params& para
 
     if (params.inputs[0].GetDType() == Datatype::UINT8 ||
         params.inputs[0].GetDType() == Datatype::INT8) {
-        quantized_inputs = true;
+      quantized_inputs = true;
     }
 
     if (params.weights.GetDType() == WeightsType::UINT8 ||
         params.weights.GetDType() == WeightsType::INT8) {
-        quantized_weights = true;
+      quantized_weights = true;
     }
 
-    if (params.quantization != QuantizationType::NONE || quantized_inputs || quantized_weights) {
-        return Datatype::F32;
+    if (params.quantization != QuantizationType::NONE || quantized_inputs ||
+        quantized_weights) {
+      return Datatype::F32;
     }
 
     if (params.outputs[0].GetDType() == Datatype::UINT8 ||
         params.outputs[0].GetDType() == Datatype::INT8) {
         if (params.inputs[0].GetDType() == Datatype::F32) {
             return Datatype::F32;
-        } else if (params.inputs[0].GetDType() == Datatype::F16) {
+        }
+        if (params.inputs[0].GetDType() == Datatype::F16) {
             return Datatype::F16;
         }
     }
@@ -455,31 +464,31 @@ Datatype ConvolutionKernelBase::GetActivationType(const convolution_params& para
 }
 
 Datatype ConvolutionKernelBase::GetAccumulatorType(const convolution_params& params) const {
-    if (params.quantization != QuantizationType::NONE) {
-        return Datatype::INT32;
-    }
+  if (params.quantization != QuantizationType::NONE) {
+    return Datatype::INT32;
+  }
 
     bool quantized_weights = false;
     bool quantized_inputs = false;
 
     if (params.inputs[0].GetDType() == Datatype::UINT8 ||
         params.inputs[0].GetDType() == Datatype::INT8) {
-        quantized_inputs = true;
+      quantized_inputs = true;
     }
 
     if (params.weights.GetDType() == WeightsType::UINT8 ||
         params.weights.GetDType() == WeightsType::INT8) {
-        quantized_weights = true;
+      quantized_weights = true;
     }
 
     // This case should be always false, because quantization type is not NONE
     if (quantized_inputs && quantized_weights) {
-        return Datatype::INT32;
+      return Datatype::INT32;
     }
 
     // If we either weights or input is quantized, then we use fp32 accumulator to avoid fp16 overflow
     if (quantized_inputs || quantized_weights) {
-        return Datatype::F32;
+      return Datatype::F32;
     }
 
     return params.inputs[0].GetDType();

@@ -58,11 +58,14 @@ static block_params get_out_block_size(const convolution_params& p) {
             total_threads *= 2;
         }
         return {7, 1, out_depth};
-    } else if (p.outputs[0].X().v == 14) {
+    }
+    if (p.outputs[0].X().v == 14) {
         return {7, 1, 8};
-    } else if (p.outputs[0].X().v == 28) {
+    }
+    if (p.outputs[0].X().v == 28) {
         return {7, 2, 4};
-    } else if (p.outputs[0].X().v == 56) {
+    }
+    if (p.outputs[0].X().v == 56) {
         return {8, 1, 8};
     }
 
@@ -154,16 +157,15 @@ JitConstants convolution_kernel_bfyx_1x1_opt::GetJitConstants(const convolution_
 WeightsLayout convolution_kernel_bfyx_1x1_opt::GetPreferredWeightsLayout(const convolution_params &cp) const {
     auto block = get_out_block_size(cp);
     if (block.out_depth == 8) {
-        return WeightsLayout::os_iyx_osv64;
+      return WeightsLayout::os_iyx_osv64;
     }
     if (block.out_depth == 4) {
-        return WeightsLayout::os_iyx_osv32;
+      return WeightsLayout::os_iyx_osv32;
     }
     if (block.out_depth == 2) {
-        return WeightsLayout::os_iyx_osv16;
-    } else {
-        return WeightsLayout::yxio;
+      return WeightsLayout::os_iyx_osv16;
     }
+    return WeightsLayout::yxio;
 }
 
 KernelsData convolution_kernel_bfyx_1x1_opt::GetKernelsData(const Params& params) const {

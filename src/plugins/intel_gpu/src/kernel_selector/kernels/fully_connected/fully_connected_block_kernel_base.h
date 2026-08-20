@@ -26,10 +26,9 @@ protected:
         auto batchSize = params.outputs[0].Batch().v;
         auto out_elements_count_per_batch = params.outputs[0].LogicalSize() / batchSize;
         if (out_elements_count_per_batch % 16 == 0) {
-            return 2;
-        } else {
-            return 1;
+          return 2;
         }
+        return 1;
     }
 };
 }  // namespace kernel_selector

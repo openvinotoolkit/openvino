@@ -23,10 +23,10 @@ static inline size_t GetOptimalLocalClassSize(std::vector<size_t> gws, const Eng
     const auto rest_lws = info.maxWorkGroupSize / splitNum;
     size_t lws_idx = 0;
     while (rest_lws < optimal_values[lws_idx]) {
-        lws_idx++;
+      lws_idx++;
     }
     while (globalClassNum % optimal_values[lws_idx]) {
-        lws_idx++;
+      lws_idx++;
     }
 
     return optimal_values[lws_idx];
@@ -60,12 +60,14 @@ Datatype NonMaxSuppressionKernelRef::GetAccumulatorType(const non_max_suppressio
     auto in_dt = params.inputs[0].GetDType();
     auto out_dt = params.outputs[0].GetDType();
 
-    auto smaller_fp_type = [](const Datatype& current, const Datatype& candidate) -> Datatype {
-        if (candidate != Datatype::F32 && candidate != Datatype::F16) {
-            return current;
-        }
+    auto smaller_fp_type = [](const Datatype &current,
+                              const Datatype &candidate) -> Datatype {
+      if (candidate != Datatype::F32 && candidate != Datatype::F16) {
+        return current;
+      }
 
-        return BytesPerElement(candidate) < BytesPerElement(current) ? candidate : current;
+      return BytesPerElement(candidate) < BytesPerElement(current) ? candidate
+                                                                   : current;
     };
 
     Datatype fp_type = Datatype::F32;
@@ -175,7 +177,7 @@ bool NonMaxSuppressionKernelRef::Validate(const Params& p) const {
 
     const non_max_suppression_params& params = static_cast<const non_max_suppression_params&>(p);
 
-    for (auto& fused_op : params.fused_ops) {
+    for (const auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
@@ -200,7 +202,8 @@ void NonMaxSuppressionKernelRef::SetKernelArguments(const non_max_suppression_pa
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2 });
         if (params.score_threshold_type == base_params::ArgType::Input) {
-            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexScoreThreshold() });
+          kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT,
+                                             params.GetIndexScoreThreshold()});
         }
         break;
 
@@ -216,16 +219,21 @@ void NonMaxSuppressionKernelRef::SetKernelArguments(const non_max_suppression_pa
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2 });
 
         if (params.num_select_per_class_type == base_params::ArgType::Input) {
-            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexNumSelectPerClass() });
+          kernel.params.arguments.push_back(
+              {ArgumentDescriptor::Types::INPUT,
+               params.GetIndexNumSelectPerClass()});
         }
         if (params.iou_threshold_type == base_params::ArgType::Input) {
-            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexIouThreshold() });
+          kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT,
+                                             params.GetIndexIouThreshold()});
         }
         if (params.score_threshold_type == base_params::ArgType::Input) {
-            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexScoreThreshold() });
+          kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT,
+                                             params.GetIndexScoreThreshold()});
         }
         if (params.soft_nms_sigma_type == base_params::ArgType::Input) {
-            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexSoftNmsSigma() });
+          kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT,
+                                             params.GetIndexSoftNmsSigma()});
         }
         break;
 

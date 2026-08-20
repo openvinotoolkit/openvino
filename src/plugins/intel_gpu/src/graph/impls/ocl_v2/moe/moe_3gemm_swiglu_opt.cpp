@@ -136,7 +136,7 @@ protected:
         jit.make("OUTPUT3_TYPE", "int");  // tokens_lens_per_expert
         jit.make("OUTPUT4_TYPE", "int");  // num_actual_used_experts
 
-        auto& config = desc->_config;
+        const auto& config = desc->_config;
         jit.make("NUM_EXPERTS_PER_TOKEN", config.top_k);
         jit.make("SET_TOKEN_LEN", 1);
         jit.make("OPTIONAL_SHAPE_INFO_ARG", "");
@@ -1673,7 +1673,7 @@ public:
         _hidden_size = static_cast<int>(cur_moe->_config.hidden_size);
         _intermediate_size = static_cast<int>(cur_moe->_config.inter_size);
 
-        auto rtp = static_cast<MoE3GemmRuntimeParams*>(m_rt_params.get());
+        auto* rtp = static_cast<MoE3GemmRuntimeParams*>(m_rt_params.get());
         const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
 
         event::ptr ret_event;
@@ -2136,9 +2136,8 @@ public:
             int num_k_groups = K / group_size;
             if (num_k_groups > 1) {
                 return dnnl::memory::desc({E, num_k_groups, N}, dt, dnnl::memory::format_tag::abc);
-            } else {
-                return dnnl::memory::desc({E, N}, dt, dnnl::memory::format_tag::ab);
             }
+            return dnnl::memory::desc({E, N}, dt, dnnl::memory::format_tag::ab);
         };
 
         auto gk = std::make_shared<grouped_onednn_kernel>();
@@ -2611,7 +2610,7 @@ public:
         const bool use_gpu_mask_gen = use_micro_gemm_prefill && use_gpu_mask_gen_prefill;
         if (!use_gpu_mask_gen) {
             // Wait for input events (topk produced upstream by MoERouterFused)
-            for (auto& ev : events) {
+            for (const auto& ev : events) {
                 if (ev) {
                     ev->wait();
                 }

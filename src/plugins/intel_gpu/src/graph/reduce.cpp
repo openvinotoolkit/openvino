@@ -32,7 +32,7 @@ static std::vector<uint16_t> convert_axes(std::vector<int64_t> axes, size_t rank
         }
 
         if (axis < 0) {
-            axis = axis + rank;
+          axis = axis + rank;
         }
 
         converted_axes.push_back(static_cast<uint16_t>(rank + 1 - axis));
@@ -62,26 +62,26 @@ layout reduce_inst::calc_output_layout(reduce_node const& node, kernel_impl_para
         for (size_t b_f_index = 0; b_f_index < 2; b_f_index++) {
             bool index_to_remove = std::find(reduce_axes.begin(), reduce_axes.end(), b_f_index) != reduce_axes.end();
             if (!index_to_remove) {
-                updated_dims.push_back(in_dims[b_f_index]);
+              updated_dims.push_back(in_dims[b_f_index]);
             }
         }
         for (size_t x_w_index = format_dim - 1; x_w_index >= 2; x_w_index--) {
             bool index_to_remove = std::find(reduce_axes.begin(), reduce_axes.end(), x_w_index) != reduce_axes.end();
             if (!index_to_remove) {
-                updated_dims.push_back(in_dims[x_w_index]);
+              updated_dims.push_back(in_dims[x_w_index]);
             }
         }
 
         if (input_format.dimension() == 4 && reduce_axes.size() == 1) {
-            updated_dims.push_back(1);
+          updated_dims.push_back(1);
         }
         if (updated_dims.size() > 2) {
-            std::reverse(updated_dims.begin() + 2, updated_dims.end());
+          std::reverse(updated_dims.begin() + 2, updated_dims.end());
         }
 
         // Fill updated dims to format_dim size
         while (updated_dims.size() < format_dim) {
-            updated_dims.push_back(1);
+          updated_dims.push_back(1);
         }
 
         in_dims = std::move(updated_dims);
@@ -97,20 +97,25 @@ layout reduce_inst::calc_output_layout(reduce_node const& node, kernel_impl_para
     }
 
     if (desc->output_data_types[0]) {
-        output_type = *desc->output_data_types[0];
+      output_type = *desc->output_data_types[0];
     }
 
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_output_element_type();
+      output_type = impl_param.get_output_element_type();
     }
 
     if (format_dim == 6) {
-        return layout{output_type, input_format, tensor(batch(in_dims[0]), feature(in_dims[1]), spatial(in_dims[2], in_dims[3], in_dims[4], in_dims[5]))};
-    } else if (format_dim == 5) {
-        return layout{output_type, input_format, tensor(batch(in_dims[0]), feature(in_dims[1]), spatial(in_dims[2], in_dims[3], in_dims[4]))};
-    } else {
-        return layout{output_type, input_format, tensor(batch(in_dims[0]), feature(in_dims[1]), spatial(in_dims[2], in_dims[3]))};
+      return layout{
+          output_type, input_format,
+          tensor(batch(in_dims[0]), feature(in_dims[1]),
+                 spatial(in_dims[2], in_dims[3], in_dims[4], in_dims[5]))};
     }
+    if (format_dim == 5) {
+      return layout{output_type, input_format,
+                    tensor(batch(in_dims[0]), feature(in_dims[1]),
+                           spatial(in_dims[2], in_dims[3], in_dims[4]))};
+    }
+    return layout{output_type, input_format, tensor(batch(in_dims[0]), feature(in_dims[1]), spatial(in_dims[2], in_dims[3]))};
 }
 
 template<typename ShapeType>
@@ -212,16 +217,17 @@ std::vector<layout> reduce_inst::calc_output_layouts(reduce_node const& /*node*/
     auto input_type = input0_layout.data_type;
     auto output_type = input_type;
     std::vector<reduce_mode> reduce_bool_modes = {reduce_mode::logical_and, reduce_mode::logical_or};
-    if (std::find(reduce_bool_modes.begin(), reduce_bool_modes.end(), mode) != reduce_bool_modes.end()) {
-        output_type = data_types::i8;
+    if (std::find(reduce_bool_modes.begin(), reduce_bool_modes.end(), mode) !=
+        reduce_bool_modes.end()) {
+      output_type = data_types::i8;
     } else if (input_type == data_types::i8 || input_type == data_types::u8) {
-        output_type = data_types::f32;
+      output_type = data_types::f32;
     }
 
     output_type = desc->output_data_types[0].value_or(output_type);
 
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_output_element_type();
+      output_type = impl_param.get_output_element_type();
     }
 
     auto output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());

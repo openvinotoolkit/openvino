@@ -37,7 +37,7 @@ namespace cldnn::ocl::utils {
 std::vector<cl::Event> get_cl_events(const std::vector<event::ptr>& events) {
     std::vector<cl::Event> cl_events;
     for (const auto& ev : events) {
-        if (auto ocl_base_ev = dynamic_cast<ocl_base_event*>(ev.get())) {
+        if (auto* ocl_base_ev = dynamic_cast<ocl_base_event*>(ev.get())) {
             if (ocl_base_ev->get().get() != nullptr) {
                 cl_events.push_back(ocl_base_ev->get());
             }
@@ -105,7 +105,7 @@ bool ocl_event::get_profiling_info_impl(std::list<instrumentation::profiling_int
         return true;
     }
 
-    for (auto& period : profiling_periods) {
+    for (const auto& period : profiling_periods) {
         cl_ulong start;
         cl_ulong end;
 
@@ -167,7 +167,7 @@ bool ocl_events::get_profiling_info_impl(std::list<instrumentation::profiling_in
             continue;
         }
 
-        for (auto& period : profiling_periods) {
+        for (const auto& period : profiling_periods) {
             cl_ulong ev_start;
             cl_ulong ev_end;
             try {
@@ -190,9 +190,9 @@ bool ocl_events::get_profiling_info_impl(std::list<instrumentation::profiling_in
                         if (!ev_duration_merged) {
                             ev_duration_merged = true;
                             break;
-                        } else {
-                            it = durations.erase(it);
                         }
+                        it = durations.erase(it);
+
                     } else {
                         if (!ev_duration_merged) {
                             duration.first = std::min(duration.first, ev_duration.first);
@@ -221,7 +221,7 @@ bool ocl_events::get_profiling_info_impl(std::list<instrumentation::profiling_in
         }
     }
 
-    for (auto& period : profiling_periods) {
+    for (const auto& period : profiling_periods) {
         auto& durations = all_durations[period.stage];
         if (durations.empty()) {
             auto zero_period = std::make_shared<instrumentation::profiling_period_basic>(std::chrono::nanoseconds(0));

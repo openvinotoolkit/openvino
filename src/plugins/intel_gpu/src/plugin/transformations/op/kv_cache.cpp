@@ -129,8 +129,8 @@ std::shared_ptr<Node> KVCache::clone_with_new_inputs(const ov::OutputVector& new
                                          m_variable,
                                          m_concat_axis,
                                          m_output_type);
-
-    } else if (new_args.size() == 3) {
+    }
+    if (new_args.size() == 3) {
         if (m_trim) {
             return std::make_shared<KVCache>(new_args.at(0),
                                              new_args.at(1),
@@ -138,16 +138,10 @@ std::shared_ptr<Node> KVCache::clone_with_new_inputs(const ov::OutputVector& new
                                              m_variable,
                                              m_concat_axis,
                                              m_output_type);
-        } else {
-            return std::make_shared<KVCache>(new_args.at(0),
-                                             new_args.at(1),
-                                             new_args.at(2),
-                                             m_variable,
-                                             m_concat_axis,
-                                             m_gather_axis,
-                                             m_output_type);
         }
-    } else if (new_args.size() == 4) {
+        return std::make_shared<KVCache>(new_args.at(0), new_args.at(1), new_args.at(2), m_variable, m_concat_axis, m_gather_axis, m_output_type);
+    }
+    if (new_args.size() == 4) {
         return std::make_shared<KVCache>(new_args.at(0),
                                          new_args.at(1),
                                          new_args.at(2),
@@ -156,7 +150,8 @@ std::shared_ptr<Node> KVCache::clone_with_new_inputs(const ov::OutputVector& new
                                          m_concat_axis,
                                          m_gather_axis,
                                          m_output_type);
-    } else if (new_args.size() == 5) {
+    }
+    if (new_args.size() == 5) {
         return std::make_shared<KVCache>(new_args.at(0),
                                          new_args.at(1),
                                          new_args.at(2),
@@ -165,9 +160,8 @@ std::shared_ptr<Node> KVCache::clone_with_new_inputs(const ov::OutputVector& new
                                          m_variable,
                                          m_concat_axis,
                                          m_output_type);
-    } else {
-        OPENVINO_ASSERT(false);
     }
+    OPENVINO_ASSERT(false);
 }
 
 std::vector<ov::PartialShape> shape_infer(const KVCache* op, const std::vector<ov::PartialShape>& input_shapes) {

@@ -18,21 +18,22 @@ namespace {
 void rebind_onednn_reuse_optimized_dst_if_needed(primitive_inst& inst) {
     auto output = inst.output_memory_ptr();
     if (!output) {
-        return;
+      return;
     }
 
     auto& engine = inst.get_network().get_engine();
     for (auto* user_inst : inst.get_user_insts()) {
         auto reused_eltwmem_idx = onednn_add_fusing_helpers::get_reused_eltwmem_idx(user_inst->get_node());
         if (reused_eltwmem_idx < 0) {
-            continue;
+          continue;
         }
 
         if (user_inst->dependencies().at(reused_eltwmem_idx).first != &inst) {
-            continue;
+          continue;
         }
-        if (engine.is_the_same_buffer(*user_inst->output_memory_ptr(), *output)) {
-            continue;
+        if (engine.is_the_same_buffer(*user_inst->output_memory_ptr(),
+                                      *output)) {
+          continue;
         }
         auto new_mem = engine.reinterpret_buffer(*output, user_inst->get_output_layout());
         user_inst->set_output_memory(new_mem, false);
@@ -94,7 +95,7 @@ static std::vector<layout> calc_output_layouts(resample_node const& /*node*/, co
         tensors.emplace(3, ov::Tensor(ov::element::i64, axes_shape, axes.data()));
     }
 
-    auto& memory_deps = impl_param.memory_deps;
+    const auto& memory_deps = impl_param.memory_deps;
     const auto ta = MemoryAccessor(&memory_deps, impl_param.get_stream(), ov::make_tensor_accessor(tensors));
 
     auto pads_begin = desc->pads_begin;
@@ -147,7 +148,7 @@ static std::vector<layout> calc_output_layouts(resample_node const& /*node*/, co
         tensors.emplace(2, ov::Tensor(ov::element::i64, axes_shape, axes.data()));
     }
 
-    auto& memory_deps = impl_param.memory_deps;
+    const auto& memory_deps = impl_param.memory_deps;
     const auto ta = MemoryAccessor(&memory_deps, impl_param.get_stream(), ov::make_tensor_accessor(tensors));
 
     auto pads_begin = desc->pads_begin;
@@ -165,11 +166,11 @@ template<typename ShapeType>
 std::vector<layout> resample_inst::calc_output_layouts(resample_node const& node, const kernel_impl_params& impl_param) {
     using Mode = ov::op::util::InterpolateBase::InterpolateMode;
     auto desc = impl_param.typed_desc<resample>();
-    if (desc->operation_type == Mode::BILINEAR_PILLOW || desc->operation_type == Mode::BICUBIC_PILLOW) {
-        return v11::calc_output_layouts<ShapeType>(node, impl_param);
-    } else {
-        return v4::calc_output_layouts<ShapeType>(node, impl_param);
+    if (desc->operation_type == Mode::BILINEAR_PILLOW ||
+        desc->operation_type == Mode::BICUBIC_PILLOW) {
+      return v11::calc_output_layouts<ShapeType>(node, impl_param);
     }
+    return v4::calc_output_layouts<ShapeType>(node, impl_param);
 }
 
 template std::vector<layout> resample_inst::calc_output_layouts<ov::PartialShape>(resample_node const& node, const kernel_impl_params& impl_param);
@@ -181,22 +182,27 @@ std::string resample_inst::to_string(resample_node const& node) {
     std::stringstream primitive_description;
 
     json_composite resample_info;
-    if (desc->operation_type == resample::InterpolateOp::InterpolateMode::NEAREST) {
-        resample_info.add("resample_type:", "nearest_neighbor");
-    } else if (desc->operation_type == resample::InterpolateOp::InterpolateMode::LINEAR) {
-        resample_info.add("resample_type:", "caffe_bilinear_interp");
-    } else if (desc->operation_type == resample::InterpolateOp::InterpolateMode::CUBIC) {
-        resample_info.add("resample_type:", "cubic");
-    } else if (desc->operation_type == resample::InterpolateOp::InterpolateMode::LINEAR_ONNX) {
-        resample_info.add("resample_type:", "linear_onnx");
+    if (desc->operation_type ==
+        resample::InterpolateOp::InterpolateMode::NEAREST) {
+      resample_info.add("resample_type:", "nearest_neighbor");
+    } else if (desc->operation_type ==
+               resample::InterpolateOp::InterpolateMode::LINEAR) {
+      resample_info.add("resample_type:", "caffe_bilinear_interp");
+    } else if (desc->operation_type ==
+               resample::InterpolateOp::InterpolateMode::CUBIC) {
+      resample_info.add("resample_type:", "cubic");
+    } else if (desc->operation_type ==
+               resample::InterpolateOp::InterpolateMode::LINEAR_ONNX) {
+      resample_info.add("resample_type:", "linear_onnx");
     } else {
-        resample_info.add("resample_type:", "not supported sample type");
+      resample_info.add("resample_type:", "not supported sample type");
     }
 
-    if (desc->shape_calc_mode == resample::InterpolateOp::ShapeCalcMode::SIZES) {
-        resample_info.add("shape_calculation_mode:", "sizes");
+    if (desc->shape_calc_mode ==
+        resample::InterpolateOp::ShapeCalcMode::SIZES) {
+      resample_info.add("shape_calculation_mode:", "sizes");
     } else {
-        resample_info.add("shape_calculation_mode:", "scales");
+      resample_info.add("shape_calculation_mode:", "scales");
     }
 
     if (desc->shape_calc_mode == resample::InterpolateOp::ShapeCalcMode::SCALES) {
@@ -207,37 +213,48 @@ std::string resample_inst::to_string(resample_node const& node) {
             delim = ", ";
             axesAndScalesDump += std::to_string(desc->axes[i]) + ": ";
             if (desc->scales.size() > i) {
-                axesAndScalesDump += std::to_string(desc->scales[i]);
+              axesAndScalesDump += std::to_string(desc->scales[i]);
             }
         }
         resample_info.add("scales:", axesAndScalesDump);
     }
 
-    if (desc->coord_trans_mode == resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL) {
-        resample_info.add("coordinate_transformation_mode:", "half_pixel");
-    } else if (desc->coord_trans_mode == resample::InterpolateOp::CoordinateTransformMode::PYTORCH_HALF_PIXEL) {
-        resample_info.add("coordinate_transformation_mode:", "pytorch_half_pixel");
-    } else if (desc->coord_trans_mode == resample::InterpolateOp::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN) {
-        resample_info.add("coordinate_transformation_mode:", "tf_half_pixel_for_nn");
-    } else if (desc->coord_trans_mode == resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS) {
-        resample_info.add("coordinate_transformation_mode:", "align_corners");
+    if (desc->coord_trans_mode ==
+        resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL) {
+      resample_info.add("coordinate_transformation_mode:", "half_pixel");
+    } else if (desc->coord_trans_mode ==
+               resample::InterpolateOp::CoordinateTransformMode::
+                   PYTORCH_HALF_PIXEL) {
+      resample_info.add("coordinate_transformation_mode:",
+                        "pytorch_half_pixel");
+    } else if (desc->coord_trans_mode ==
+               resample::InterpolateOp::CoordinateTransformMode::
+                   TF_HALF_PIXEL_FOR_NN) {
+      resample_info.add("coordinate_transformation_mode:",
+                        "tf_half_pixel_for_nn");
+    } else if (desc->coord_trans_mode ==
+               resample::InterpolateOp::CoordinateTransformMode::
+                   ALIGN_CORNERS) {
+      resample_info.add("coordinate_transformation_mode:", "align_corners");
     } else {
-        resample_info.add("coordinate_transformation_mode:", "asymmetric");
+      resample_info.add("coordinate_transformation_mode:", "asymmetric");
     }
 
-    if (desc->round_mode == resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR) {
-        resample_info.add("nearest_mode:", "round_prefer_floor");
+    if (desc->round_mode ==
+        resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR) {
+      resample_info.add("nearest_mode:", "round_prefer_floor");
     }
-    if (desc->round_mode == resample::InterpolateOp::NearestMode::ROUND_PREFER_CEIL) {
-        resample_info.add("nearest_mode:", "round_prefer_ceil");
+    if (desc->round_mode ==
+        resample::InterpolateOp::NearestMode::ROUND_PREFER_CEIL) {
+      resample_info.add("nearest_mode:", "round_prefer_ceil");
     }
     if (desc->round_mode == resample::InterpolateOp::NearestMode::FLOOR) {
-        resample_info.add("nearest_mode:", "floor");
+      resample_info.add("nearest_mode:", "floor");
     }
     if (desc->round_mode == resample::InterpolateOp::NearestMode::CEIL) {
-        resample_info.add("nearest_mode:", "ceil");
+      resample_info.add("nearest_mode:", "ceil");
     } else {
-        resample_info.add("nearest_mode:", "simple");
+      resample_info.add("nearest_mode:", "simple");
     }
 
     resample_info.add("output_size", desc->output_size);
@@ -260,14 +277,14 @@ void resample_inst::on_execute() {
 }
 
 void resample_inst::update_output_memory() {
-    if (!can_be_optimized() || _impl_params->is_dynamic()) {
-        return;
-    }
+  if (!can_be_optimized() || _impl_params->is_dynamic()) {
+    return;
+  }
 
     build_deps();
 
     if (input_memory_ptr() == nullptr) {
-        return;
+      return;
     }
 
     // compile time: resample's input/output memory is not the same

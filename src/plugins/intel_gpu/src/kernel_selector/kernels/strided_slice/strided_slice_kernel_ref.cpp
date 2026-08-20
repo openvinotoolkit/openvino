@@ -82,7 +82,7 @@ bool StridedSliceKernelRef::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    for (auto& fused_op : params.fused_ops) {
+    for (const auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
@@ -184,16 +184,17 @@ JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& 
         int dim_counter = 0;
 
         for (size_t i = 0; i < ellipsis_pos1; i++) {
-            dims_indexes.push_back(dim_counter++);
+          dims_indexes.push_back(dim_counter++);
         }
 
         for (size_t i = 0; i < skip_dims_num; i++) {
-            dims_indexes.push_back(-1);
+          dims_indexes.push_back(-1);
         }
 
         dim_counter++;
-        for (size_t i = 0; i < params.ellipsis_mask.size() - ellipsis_pos1 - 1; i++) {
-            dims_indexes.push_back(dim_counter++);
+        for (size_t i = 0; i < params.ellipsis_mask.size() - ellipsis_pos1 - 1;
+             i++) {
+          dims_indexes.push_back(dim_counter++);
         }
 
         OPENVINO_ASSERT(dims_indexes.size() == output_rank, "[GPU] Number of indexes is expected to match with output rank");
@@ -209,11 +210,11 @@ JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& 
         makeJitConstForParam(jit, "SHRINK", params.shrink_axis_mask);
         std::vector<std::string> bfwzyx_in_order;
         if (params.outputs[0].Dimentions() == 6) {
-            bfwzyx_in_order = {"batch", "feature", "w", "z", "y", "x"};
+          bfwzyx_in_order = {"batch", "feature", "w", "z", "y", "x"};
         } else if (params.outputs[0].Dimentions() == 5) {
-            bfwzyx_in_order = {"batch", "feature", "z", "y", "x"};
+          bfwzyx_in_order = {"batch", "feature", "z", "y", "x"};
         } else {
-            bfwzyx_in_order = {"batch", "feature", "y", "x"};
+          bfwzyx_in_order = {"batch", "feature", "y", "x"};
         }
 
         // Insert zeroes to indices order for shinked axes

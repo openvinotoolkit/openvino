@@ -14,15 +14,15 @@ size_t kernel_impl_params::hash() const {
         seed = desc->hash();
     }
     const size_t prime_number = 2654435761; // magic number to reduce hash collision rate.
-    for (auto& in : input_layouts) {
+    for (const auto& in : input_layouts) {
         seed = hash_combine(seed, in.hash() * prime_number);
     }
-    for (auto& out : output_layouts) {
+    for (const auto& out : output_layouts) {
         seed = hash_combine(seed, out.hash() * prime_number);
     }
 
     // hash for fused prims
-    for (auto& fd : fused_desc) {
+    for (const auto& fd : fused_desc) {
         seed = hash_combine(seed, fd.desc->hash());
     }
 

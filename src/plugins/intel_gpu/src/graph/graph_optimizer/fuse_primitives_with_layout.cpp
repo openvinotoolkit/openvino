@@ -26,7 +26,7 @@ void fuse_primitives_with_layout::run(program& p) {
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto node_itr = itr++;
-        auto& node = (*node_itr);
+        const auto& node = (*node_itr);
 
         if (node->is_output() || node->is_constant()) {
             continue;

@@ -57,17 +57,17 @@ struct data_type_traits {
     }
 
     static ov::element::Type max_type(ov::element::Type t1, ov::element::Type t2) {
-        if (t1.bitwidth() < t2.bitwidth()) {
-            return t2;
-        }
+      if (t1.bitwidth() < t2.bitwidth()) {
+        return t2;
+      }
 
-        if (t1.bitwidth() > t2.bitwidth()) {
-            return t1;
-        }
+      if (t1.bitwidth() > t2.bitwidth()) {
+        return t1;
+      }
 
-        if (t2.is_real()) {
-            return t2;
-        }
+      if (t2.is_real()) {
+        return t2;
+      }
 
         return t1;
     }
@@ -193,8 +193,9 @@ struct padding {
 
     friend bool operator<(const padding& lhs, const padding& rhs) {
         // Compare only actual padding size not _dynamic_dims_mask
-        if (lhs._lower_size < rhs._lower_size) { return true;
-        } else if (lhs._lower_size > rhs._lower_size) { return false;
+        if (lhs._lower_size < rhs._lower_size) return true;
+        if (lhs._lower_size > rhs._lower_size) {
+          return false;
         }
         return lhs._upper_size < rhs._upper_size;
     }
@@ -225,7 +226,8 @@ struct padding {
         ob << sizes;
         OPENVINO_ASSERT(sizes.size() == _dynamic_dims_mask.size(), "invalid size.");
         for (size_t i = 0; i < _dynamic_dims_mask.size(); i++) {
-            sizes[i] = static_cast<ov::Dimension::value_type>(_dynamic_dims_mask[i]);
+          sizes[i] =
+              static_cast<ov::Dimension::value_type>(_dynamic_dims_mask[i]);
         }
         ob << sizes;
     }
@@ -239,7 +241,7 @@ struct padding {
         ib >> sizes;
         OPENVINO_ASSERT(sizes.size() == _dynamic_dims_mask.size(), "invalid size.");
         for (size_t i = 0; i < _dynamic_dims_mask.size(); i++) {
-            _dynamic_dims_mask[i] = static_cast<bool>(sizes[i]);
+          _dynamic_dims_mask[i] = static_cast<bool>(sizes[i]);
         }
     }
 };
@@ -278,9 +280,9 @@ struct layout {
           format(cldnn::format::any) {}
 
     layout& operator=(const layout& other) {
-        if (this == &other) {
-            return *this;
-        }
+      if (this == &other) {
+        return *this;
+      }
         data_type = other.data_type;
         format = other.format;
         data_padding = other.data_padding;
@@ -306,15 +308,15 @@ struct layout {
     }
 
     friend bool operator<(const layout& lhs, const layout& rhs) {
-        if (lhs.data_type != rhs.data_type) {
-            return (lhs.data_type < rhs.data_type);
-        }
-        if (lhs.format != rhs.format) {
-            return (lhs.format < rhs.format);
-        }
-        if (lhs.count() < rhs.count()) {
-            return (lhs.count() < rhs.count());
-        }
+      if (lhs.data_type != rhs.data_type) {
+        return (lhs.data_type < rhs.data_type);
+      }
+      if (lhs.format != rhs.format) {
+        return (lhs.format < rhs.format);
+      }
+      if (lhs.count() < rhs.count()) {
+        return (lhs.count() < rhs.count());
+      }
         return (lhs.data_padding < rhs.data_padding);
     }
 
@@ -349,9 +351,8 @@ struct layout {
             auto desc_size = format.traits().desc_size;
             OPENVINO_ASSERT(desc_size > 0, "[GPU] Invalid layout descriptor size: ", desc_size);
             return desc_size > bytes_of_layout ? desc_size : bytes_of_layout;
-        } else {
-            return (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3;
         }
+        return (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3;
     }
 
     const cldnn::format& get_format() const;
@@ -392,9 +393,9 @@ struct layout {
 
     bool has_upper_bound() const {
         for (const auto& dim : size) {
-            if (dim.get_max_length() == -1) {
-                return false;
-            }
+          if (dim.get_max_length() == -1) {
+            return false;
+          }
         }
         return true;
     }
@@ -440,7 +441,7 @@ struct layout {
         }
 
         if (format == format::custom) {
-            for (auto& bs : format.traits().block_sizes) {
+            for (const auto& bs : format.traits().block_sizes) {
                 seed = hash_combine(seed, bs.first);
                 seed = hash_combine(seed, bs.second);
             }
@@ -489,7 +490,7 @@ inline ::std::ostream& operator<<(::std::ostream& os, const std::vector<layout>&
         ss << layouts[i].to_short_string();
 
         if (i + 1 != layouts.size()) {
-            ss << ", ";
+          ss << ", ";
         }
     }
     ss << "]";

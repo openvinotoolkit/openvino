@@ -101,7 +101,7 @@ JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_para
 }
 
 KernelsData FullyConnected_bfyx_Ref::GetKernelsData(const Params& params) const {
-    auto& fc_params = static_cast<const fully_connected_params&>(params);
+    const auto& fc_params = static_cast<const fully_connected_params&>(params);
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd = GetTunedKernelsDataByIndex(

@@ -120,7 +120,7 @@ std::size_t GetLastRow(const resample_params& params) {
 }
 
 DataTensor GetIntermediateBufferSize(const resample_params& params) {
-    auto& output = params.outputs[0];
+    const auto& output = params.outputs[0];
     auto layout = output.GetLayout();
     auto ybox_first = GetFirstRow(params);
     auto ybox_last = GetLastRow(params);
@@ -170,7 +170,7 @@ ResampleKernelBase::DispatchData ResampleKernelPilRef::SetDefaultForKernel(Kerne
         return dispatchData;
     }
     case ResampleKernelPilRef::eResampleHorizontal: {
-        auto& output = NeedVerticalPass(arg) ? GetIntermediateBufferSize(arg) : arg.outputs[0];
+        const auto& output = NeedVerticalPass(arg) ? GetIntermediateBufferSize(arg) : arg.outputs[0];
         auto in_layout = arg.inputs[0].GetLayout();
         auto out_layout = arg.outputs[0].GetLayout();
         std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },
@@ -187,7 +187,7 @@ ResampleKernelBase::DispatchData ResampleKernelPilRef::SetDefaultForKernel(Kerne
         return dispatchData;
     }
     case ResampleKernelPilRef::eResampleVertical: {
-        auto& output = arg.outputs[0];
+        const auto& output = arg.outputs[0];
         auto in_layout = arg.inputs[0].GetLayout();
         auto out_layout = arg.outputs[0].GetLayout();
         std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },

@@ -731,7 +731,7 @@ public:
     static cl_int acquire(cl_platform_id platform, cl_command_queue queue, const cl_mem& mem) {
         auto pfn = get_acquire(platform);
         if (pfn == nullptr) {
-            return CL_INVALID_OPERATION;
+          return CL_INVALID_OPERATION;
         }
         return pfn(queue, 1, &mem, 0, nullptr, nullptr);
     }
@@ -739,7 +739,7 @@ public:
     static cl_int release(cl_platform_id platform, cl_command_queue queue, const cl_mem& mem) {
         auto pfn = get_release(platform);
         if (pfn == nullptr) {
-            return CL_INVALID_OPERATION;
+          return CL_INVALID_OPERATION;
         }
         return pfn(queue, 1, &mem, 0, nullptr, nullptr);
     }
@@ -867,46 +867,47 @@ public:
         }
     }
 
-    void* allocate_host(const cl_mem_properties_intel *properties, size_t size, cl_uint alignment, cl_int* err_code_ret) const {\
-        if (!_host_mem_alloc_fn) {
-            throw std::runtime_error("[CLDNN] clHostMemAllocINTEL is nullptr");
-        }
+    void* allocate_host(const cl_mem_properties_intel *properties, size_t size, cl_uint alignment, cl_int* err_code_ret) const {
+      if (!_host_mem_alloc_fn) {
+        throw std::runtime_error("[CLDNN] clHostMemAllocINTEL is nullptr");
+      }
         return _host_mem_alloc_fn(_ctx.get(), properties, size, alignment, err_code_ret);
     }
 
     void* allocate_shared(const cl_mem_properties_intel *properties, size_t size, cl_uint alignment, cl_int* err_code_ret) const {
-        if (!_shared_mem_alloc_fn) {
-            throw std::runtime_error("[CLDNN] clSharedMemAllocINTEL is nullptr");
-        }
+      if (!_shared_mem_alloc_fn) {
+        throw std::runtime_error("[CLDNN] clSharedMemAllocINTEL is nullptr");
+      }
         return _shared_mem_alloc_fn(_ctx.get(), _device.get(), properties, size, alignment, err_code_ret);
     }
 
     void* allocate_device(const cl_mem_properties_intel *properties, size_t size, cl_uint alignment, cl_int* err_code_ret) const {
-        if (!_device_mem_alloc_fn) {
-            throw std::runtime_error("[CLDNN] clDeviceMemAllocINTEL is nullptr");
-        }
+      if (!_device_mem_alloc_fn) {
+        throw std::runtime_error("[CLDNN] clDeviceMemAllocINTEL is nullptr");
+      }
         return _device_mem_alloc_fn(_ctx.get(), _device.get(), properties, size, alignment, err_code_ret);
     }
 
     void free_mem(void* ptr) const {
-        if (!_mem_free_fn) {
-            throw std::runtime_error("[CLDNN] clMemFreeINTEL is nullptr");
-        }
+      if (!_mem_free_fn) {
+        throw std::runtime_error("[CLDNN] clMemFreeINTEL is nullptr");
+      }
         _mem_free_fn(_ctx.get(), ptr);
     }
 
     cl_int set_kernel_arg_mem_pointer(const cl::Kernel& kernel, uint32_t index, const void* ptr) const {
-        if (!_set_kernel_arg_mem_pointer_fn) {
-            throw std::runtime_error("[CLDNN] clSetKernelArgMemPointerINTEL is nullptr");
-        }
+      if (!_set_kernel_arg_mem_pointer_fn) {
+        throw std::runtime_error(
+            "[CLDNN] clSetKernelArgMemPointerINTEL is nullptr");
+      }
         return _set_kernel_arg_mem_pointer_fn(kernel.get(), index, ptr);
     }
 
     cl_int enqueue_memcpy(const cl::CommandQueue& cpp_queue, void *dst_ptr, const void *src_ptr,
                           size_t bytes_count, bool blocking = true, const std::vector<cl::Event>* wait_list = nullptr, cl::Event* ret_event = nullptr) const {
-        if (!_enqueue_memcpy_fn) {
-            throw std::runtime_error("[CLDNN] clEnqueueMemcpyINTEL is nullptr");
-        }
+      if (!_enqueue_memcpy_fn) {
+        throw std::runtime_error("[CLDNN] clEnqueueMemcpyINTEL is nullptr");
+      }
         cl_event tmp;
         cl_int err = _enqueue_memcpy_fn(
             cpp_queue.get(),
@@ -919,7 +920,7 @@ public:
             ret_event == nullptr ? nullptr : &tmp);
 
         if (ret_event != nullptr && err == CL_SUCCESS) {
-            *ret_event = tmp;
+          *ret_event = tmp;
         }
 
         return err;
@@ -928,9 +929,9 @@ public:
     cl_int enqueue_fill_mem(const cl::CommandQueue& cpp_queue, void *dst_ptr, const void* pattern,
                             size_t pattern_size, size_t bytes_count, const std::vector<cl::Event>* wait_list = nullptr,
                             cl::Event* ret_event = nullptr) const {
-        if (!_enqueue_mem_fill_fn) {
-            throw std::runtime_error("[CLDNN] clEnqueueMemFillINTEL is nullptr");
-        }
+      if (!_enqueue_mem_fill_fn) {
+        throw std::runtime_error("[CLDNN] clEnqueueMemFillINTEL is nullptr");
+      }
         cl_event tmp;
         cl_int err = _enqueue_mem_fill_fn(
             cpp_queue.get(),
@@ -943,7 +944,7 @@ public:
             ret_event == nullptr ? nullptr : &tmp);
 
         if (ret_event != nullptr && err == CL_SUCCESS) {
-            *ret_event = tmp;
+          *ret_event = tmp;
         }
 
         return err;
@@ -952,9 +953,9 @@ public:
     cl_int enqueue_set_mem(const cl::CommandQueue& cpp_queue, void* dst_ptr, cl_int value,
                            size_t bytes_count, const std::vector<cl::Event>* wait_list = nullptr,
                            cl::Event* ret_event = nullptr) const {
-        if (!_enqueue_memset_fn) {
-            throw std::runtime_error("[CLDNN] clEnqueueMemsetINTEL is nullptr");
-        }
+      if (!_enqueue_memset_fn) {
+        throw std::runtime_error("[CLDNN] clEnqueueMemsetINTEL is nullptr");
+      }
         cl_event tmp;
         cl_int err = _enqueue_memset_fn(
             cpp_queue.get(),
@@ -966,7 +967,7 @@ public:
             ret_event == nullptr ? nullptr : &tmp);
 
         if (ret_event != nullptr && err == CL_SUCCESS) {
-            *ret_event = tmp;
+          *ret_event = tmp;
         }
 
         return err;
@@ -1022,9 +1023,9 @@ public:
     void* ptr() { return _ptr; }
     void memFree() {
         try {
-            if (!_shared_memory) {
-                _usmHelper.free_mem(_ptr);
-            }
+          if (!_shared_memory) {
+            _usmHelper.free_mem(_ptr);
+          }
         } catch (...) {
             // Exception may happen only when clMemFreeINTEL function is unavailable, thus can't free memory properly
         }
@@ -1057,29 +1058,30 @@ public:
 
     void allocateHost(size_t size, const cl_mem_properties_intel* properties = nullptr) {
         cl_int error = CL_SUCCESS;
-        auto ptr = _usmHelper.allocate_host(properties, size, 0, &error);
+        auto* ptr = _usmHelper.allocate_host(properties, size, 0, &error);
         _check_error(size, ptr, error, "Host");
         _allocate(ptr);
     }
 
     void allocateShared(size_t size, const cl_mem_properties_intel* properties = nullptr) {
         cl_int error = CL_SUCCESS;
-        auto ptr = _usmHelper.allocate_shared(properties, size, 0, &error);
+        auto* ptr = _usmHelper.allocate_shared(properties, size, 0, &error);
         _check_error(size, ptr, error, "Shared");
         _allocate(ptr);
     }
 
     void allocateDevice(size_t size, const cl_mem_properties_intel* properties = nullptr) {
         cl_int error = CL_SUCCESS;
-        auto ptr = _usmHelper.allocate_device(properties, size, 0, &error);
+        auto* ptr = _usmHelper.allocate_device(properties, size, 0, &error);
         _check_error(size, ptr, error, "Device");
         _allocate(ptr);
     }
 
     void freeMem() {
-        if (!_usm_pointer) {
-            throw std::runtime_error("[CL ext] Can not free memory of empty UsmHolder");
-        }
+      if (!_usm_pointer) {
+        throw std::runtime_error(
+            "[CL ext] Can not free memory of empty UsmHolder");
+      }
         _usm_pointer->memFree();
     }
 
@@ -1099,10 +1101,9 @@ private:
             std::stringstream sout;
             sout << "[CL ext] Can not allocate " << size << " bytes for USM " << usm_type << ". ptr: " << ptr << ", error: " << error << std::endl;
             if (ptr == nullptr) {
-                throw std::runtime_error(sout.str());
-            } else {
-                detail::errHandler(error, sout.str().c_str());
+              throw std::runtime_error(sout.str());
             }
+            detail::errHandler(error, sout.str().c_str());
         }
     }
 };

@@ -247,9 +247,9 @@ MVNKernel_b_fs_yx_fsv16::MultiDispatchData MVNKernel_b_fs_yx_fsv16::SetDefaultFo
 }
 
 KernelsData MVNKernel_b_fs_yx_fsv16::GetMultiStageKernelsData(const mvn_params& params) const {
-    if (!Validate(params)) {
-        return {};
-    }
+  if (!Validate(params)) {
+    return {};
+  }
 
     constexpr size_t intermidiate_bytes = 4;
     const mvn_params& orgParams = static_cast<const mvn_params&>(params);
@@ -388,9 +388,9 @@ KernelsData MVNKernel_b_fs_yx_fsv16::GetMultiStageKernelsData(const mvn_params& 
 }
 
 KernelsData MVNKernel_b_fs_yx_fsv16::GetDynamicMultiStageKernelsData(const mvn_params& params) const {
-    if (!Validate(params)) {
-        return {};
-    }
+  if (!Validate(params)) {
+    return {};
+  }
 
     const mvn_params& orgParams = static_cast<const mvn_params&>(params);
     bool has_variance = params.mvnNormalizeVariance;
@@ -706,10 +706,9 @@ KernelsData MVNKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params) const 
     auto enough_items = items_num >= max_lws / simd * simd * pref_work_groups;
 
     if (enough_slm && enough_lws && enough_items) {
-        return GetMultiStageKernelsData(orgParams);
-    } else {
-        return GetCommonKernelsData(params);
+      return GetMultiStageKernelsData(orgParams);
     }
+    return GetCommonKernelsData(params);
 }
 
 KernelsPriority MVNKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& /*params*/) const {

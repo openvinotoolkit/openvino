@@ -42,55 +42,61 @@ SinkReshape::SinkReshape() {
                    ov::is_type<v4::HSwish>(node) || ov::is_type<v4::Mish>(node) || ov::is_type<v5::Round>(node) ||
                    ov::is_type<v4::Mish>(node) || ov::is_type<v5::Round>(node);
         };
-        auto supported_conv_eltwise_post_ops_for_fuse = [](const std::shared_ptr<const Node>& node) -> bool {
-            if (ov::is_type<v1::Add>(node) || ov::is_type<v1::Subtract>(node) || ov::is_type<v1::Multiply>(node) ||
-                ov::is_type<v1::Divide>(node)) {
-                return std::dynamic_pointer_cast<v0::Constant>(node->get_input_node_shared_ptr(1)) != nullptr;
-            }
-            return ov::is_type<v0::Exp>(node);
+        auto supported_conv_eltwise_post_ops_for_fuse =
+            [](const std::shared_ptr<const Node> &node) -> bool {
+          if (ov::is_type<v1::Add>(node) || ov::is_type<v1::Subtract>(node) ||
+              ov::is_type<v1::Multiply>(node) ||
+              ov::is_type<v1::Divide>(node)) {
+            return std::dynamic_pointer_cast<v0::Constant>(
+                       node->get_input_node_shared_ptr(1)) != nullptr;
+          }
+          return ov::is_type<v0::Exp>(node);
         };
         std::function<bool(const std::shared_ptr<ov::Node>&)> is_suitable_parent;
-        is_suitable_parent = [&](const std::shared_ptr<ov::Node>& node) -> bool {
-            if (node->get_users().size() != 1 || node->is_dynamic()) {
-                return false;
+        is_suitable_parent =
+            [&](const std::shared_ptr<ov::Node> &node) -> bool {
+          if (node->get_users().size() != 1 || node->is_dynamic()) {
+            return false;
+          }
+          if (ov::as_type_ptr<op::Convolution>(node)) {
+            return true;
+          }
+          for (size_t idx = 0; idx < node->get_input_size(); idx++) {
+            auto input = node->get_input_node_shared_ptr(idx);
+            if (ov::as_type_ptr<v0::Constant>(node)) {
+              continue;
             }
-            if (ov::as_type_ptr<op::Convolution>(node)) {
-                return true;
+            if (supported_conv_eltwise_post_ops_for_fuse(node)) {
+              return is_suitable_parent(input);
             }
-            for (size_t idx = 0; idx < node->get_input_size(); idx++) {
-                auto input = node->get_input_node_shared_ptr(idx);
-                if (ov::as_type_ptr<v0::Constant>(node)) {
-                    continue;
-                }
-                if (supported_conv_eltwise_post_ops_for_fuse(node)) {
-                    return is_suitable_parent(input);
-                } else if (supported_conv_act_post_ops_for_fuse(node)) {
-                    return is_suitable_parent(input);
-                }
-                return false;
+            if (supported_conv_act_post_ops_for_fuse(node)) {
+              return is_suitable_parent(input);
             }
             return false;
+          }
+          return false;
         };
         // reshape supported only in one case, if two consecutive input dims are merged into 1
-        auto is_suitable_reshape = [](const std::shared_ptr<ov::Node>& node) -> bool {
-            if (node->is_dynamic()) {
-                return false;
+        auto is_suitable_reshape =
+            [](const std::shared_ptr<ov::Node> &node) -> bool {
+          if (node->is_dynamic()) {
+            return false;
+          }
+          const auto &in_ps = node->get_input_partial_shape(0);
+          const auto &out_ps = node->get_output_partial_shape(0);
+          if (in_ps.size() - out_ps.size() != 1) {
+            return false;
+          }
+          size_t mismatch_count = 0;
+          for (size_t i = 0; i < out_ps.size(); ++i) {
+            if (i + mismatch_count >= in_ps.size()) {
+              return false;
             }
-            auto& in_ps = node->get_input_partial_shape(0);
-            auto& out_ps = node->get_output_partial_shape(0);
-            if (in_ps.size() - out_ps.size() != 1) {
-                return false;
+            if (out_ps[i] != in_ps[i + mismatch_count]) {
+              mismatch_count++;
             }
-            size_t mismatch_count = 0;
-            for (size_t i = 0; i < out_ps.size(); ++i) {
-                if (i + mismatch_count >= in_ps.size()) {
-                    return false;
-                }
-                if (out_ps[i] != in_ps[i + mismatch_count]) {
-                    mismatch_count++;
-                }
-            }
-            return mismatch_count == 1;
+          }
+          return mismatch_count == 1;
         };
         const auto reshape = ov::as_type_ptr<v1::Reshape>(output.get_node_shared_ptr());
         return is_suitable_reshape(reshape) && is_suitable_parent(reshape->get_input_node_shared_ptr(0));
@@ -119,9 +125,9 @@ SinkReshape::SinkReshape() {
             ov::Shape new_shape(transformed_order.size());
             const uint16_t merge_dim_idx = [&]() {
                 for (uint16_t i = 0; i < reshape_out_shape.size(); ++i) {
-                    if (reshape_in_shape[i] != reshape_out_shape[i]) {
-                        return i;
-                    }
+                  if (reshape_in_shape[i] != reshape_out_shape[i]) {
+                    return i;
+                  }
                 }
                 OPENVINO_THROW("same input/output for reshape node");
             }();
@@ -139,22 +145,22 @@ SinkReshape::SinkReshape() {
         };
 
         // allow tranposes which rotate feature dim to back to be taken as inner-most axis
-        auto check_transpose_order = [](std::vector<uint16_t>& order) -> bool {
-            if (order.size() <= 2) {
-                return false;
+        auto check_transpose_order = [](std::vector<uint16_t> &order) -> bool {
+          if (order.size() <= 2) {
+            return false;
+          }
+          if ((int32_t)order[order.size() - 2] != order.size() - 1) {
+            return false;
+          }
+          if ((int32_t)order[0] != 0) {
+            return false;
+          }
+          for (int32_t i = 2; i < (int32_t)order.size(); ++i) {
+            if ((int32_t)order[i - 1] != i) {
+              return false;
             }
-            if ((int32_t)order[order.size() - 2] != order.size() - 1) {
-                return false;
-            }
-            if ((int32_t)order[0] != 0) {
-                return false;
-            }
-            for (int32_t i = 2; i < (int32_t)order.size(); ++i) {
-                if ((int32_t)order[i - 1] != i) {
-                    return false;
-                }
-            }
-            return true;
+          }
+          return true;
         };
 
         auto transpose = std::dynamic_pointer_cast<v1::Transpose>(pattern_map.at(transpose_m).get_node_shared_ptr());

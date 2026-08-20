@@ -68,11 +68,11 @@ protected:
         args.inputs = { instance.input_memory_ptr(0) };
         size_t in_id = instance.bias_term() ? 3 : 2;
         if (desc->decompression_scale.is_valid()) {
-            args.inputs.push_back(instance.dep_memory_ptr(in_id++));
+          args.inputs.push_back(instance.dep_memory_ptr(in_id++));
         }
 
         if (desc->decompression_zero_point.is_valid()) {
-            args.inputs.push_back(instance.dep_memory_ptr(in_id));
+          args.inputs.push_back(instance.dep_memory_ptr(in_id));
         }
 
         return args;
@@ -89,9 +89,9 @@ public:
                     size_t total = std::accumulate(static_shape.begin(), static_shape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
                     auto dim = feature.is_static() ? feature.get_length() : static_cast<int64_t>(static_shape[rank - 1]);
                     return ov::PartialShape{ static_cast<int64_t>(total) / dim, dim };
-                } else {
-                    return ov::PartialShape{ ov::Dimension::dynamic(), feature };
                 }
+                return ov::PartialShape{ov::Dimension::dynamic(), feature};
+
             };
 
             auto input0_layout = input_layouts[0];
@@ -156,9 +156,9 @@ public:
         bool swiglu_fused = false;
         if (!updated_impl_param.fused_desc.empty()) {
             for (const auto& f : updated_impl_param.fused_desc) {
-                if (f.is_type<swiglu>()) {
-                    swiglu_fused = true;
-                }
+              if (f.is_type<swiglu>()) {
+                swiglu_fused = true;
+              }
             }
         }
 
@@ -200,12 +200,12 @@ public:
         }
 
         if (primitive->input_size != 3) {
-            params.outputs = { params.outputs[0].FlattenFeatureAndSpatials() };
+          params.outputs = {params.outputs[0].FlattenFeatureAndSpatials()};
         }
 
         bool is_quantized = true;
-        for (auto& input : impl_param.input_layouts) {
-            is_quantized &= data_type_traits::is_quantized(input.data_type);
+        for (const auto &input : impl_param.input_layouts) {
+          is_quantized &= data_type_traits::is_quantized(input.data_type);
         }
 
         if (is_quantized) {

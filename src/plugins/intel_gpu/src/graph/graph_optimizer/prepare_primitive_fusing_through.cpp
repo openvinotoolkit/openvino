@@ -30,32 +30,37 @@ void prepare_primitive_fusing_through::run(program& p) {
         //    - Eltwise with single scale value in constant buffer
         //    - Activation w/o additional buffers
         // 3. Paddings are not allowed for fused node
-        auto can_raise_up_through = [](program_node* node) {
-            if (!node->is_type<reshape>() && !node->is_type<reorder>()) {
-                return false;
-            }
+        auto can_raise_up_through = [](program_node *node) {
+          if (!node->is_type<reshape>() && !node->is_type<reorder>()) {
+            return false;
+          }
 
-            if (node->get_dependencies().empty()) {
-                return false;
-            }
+          if (node->get_dependencies().empty()) {
+            return false;
+          }
 
-            if (node->get_users().size() > 1) {
-                return false;
-            }
+          if (node->get_users().size() > 1) {
+            return false;
+          }
 
-            if (node->is_type<reorder>() &&
-                node->get_output_layout().data_type != node->get_input_layout(0).data_type) {
-                return false;
-            }
+          if (node->is_type<reorder>() &&
+              node->get_output_layout().data_type !=
+                  node->get_input_layout(0).data_type) {
+            return false;
+          }
 
-            // Not to fuse reshape after Reduce changing the order of un-reduced axes. It is expected to be optimized out.
-            if (node->is_type<reshape>() && node->get_dependencies().front().first->is_type<reduce>()) {
-                return false;
-            }
+          // Not to fuse reshape after Reduce changing the order of un-reduced
+          // axes. It is expected to be optimized out.
+          if (node->is_type<reshape>() &&
+              node->get_dependencies().front().first->is_type<reduce>()) {
+            return false;
+          }
 
-            // Not to raise up target node through reshape or reorder where the size of dimension is changed (e.g. Unsqueeze or Squeeze)
-            return (!node->is_type<reshape>() && !node->is_type<reorder>()) ||
-                node->get_output_pshape().size() == node->get_input_pshape(0).size();
+          // Not to raise up target node through reshape or reorder where the
+          // size of dimension is changed (e.g. Unsqueeze or Squeeze)
+          return (!node->is_type<reshape>() && !node->is_type<reorder>()) ||
+                 node->get_output_pshape().size() ==
+                     node->get_input_pshape(0).size();
         };
 
         std::vector<program_node*> pass_through;
@@ -74,17 +79,17 @@ void prepare_primitive_fusing_through::run(program& p) {
 
     auto node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {
-        auto node = (*node_itr++);
+        auto* node = (*node_itr++);
         cldnn::program_node* input_node;
 
         if (node->is_output() || node->is_constant()) {
-            continue;
+          continue;
         }
 
         if (node->is_type<activation>()) {
-            if (node->get_dependencies().size() > 1) {
-                continue;
-            }
+          if (node->get_dependencies().size() > 1) {
+            continue;
+          }
 
             input_node = &node->get_dependency(0);
         } else if (node->is_type<quantize>()) {
@@ -96,9 +101,9 @@ void prepare_primitive_fusing_through::run(program& p) {
 
             input_node = &node->get_dependency(0);
         } else if (node->is_type<eltwise>()) {
-            if (node->get_dependencies().size() != 2) {
-                continue;
-            }
+          if (node->get_dependencies().size() != 2) {
+            continue;
+          }
 
             size_t second_input_idx = 0;
             bool has_constant_input = false;
@@ -113,7 +118,7 @@ void prepare_primitive_fusing_through::run(program& p) {
             }
 
             if (!has_constant_input) {
-                continue;
+              continue;
             }
 
             input_node = &node->get_dependency(second_input_idx);
@@ -126,15 +131,15 @@ void prepare_primitive_fusing_through::run(program& p) {
         bool fused_node_has_multiple_users = fuse_through_order.back()->get_users().size() > 1;
 
         if (!use_fuse_through || fused_node_has_multiple_users) {
-            continue;
+          continue;
         }
 
         if (static_cast<bool>(node->get_output_layout().data_padding)) {
-            continue;
+          continue;
         }
 
-        auto new_prev = fuse_through_order[fuse_through_order.size() - 1];
-        auto new_next = fuse_through_order[fuse_through_order.size() - 2];
+        auto* new_prev = fuse_through_order[fuse_through_order.size() - 1];
+        auto* new_next = fuse_through_order[fuse_through_order.size() - 2];
 
         // For per-channel quantize, allow only when the fused target's output shape
         // matches the quantize's current input shape. This ensures per-channel
@@ -142,8 +147,9 @@ void prepare_primitive_fusing_through::run(program& p) {
         if (node->is_type<quantize>() && !node->as<quantize>().has_per_tensor_values()) {
             auto target_shape = new_prev->get_output_layout().get_partial_shape();
             auto current_input_shape = node->get_input_layout(0).get_partial_shape();
-            if ((target_shape != current_input_shape) || target_shape.is_dynamic() || current_input_shape.is_dynamic()) {
-                continue;
+            if ((target_shape != current_input_shape) ||
+                target_shape.is_dynamic() || current_input_shape.is_dynamic()) {
+              continue;
             }
         }
 
@@ -152,32 +158,32 @@ void prepare_primitive_fusing_through::run(program& p) {
             auto out_shape = new_prev->get_output_layout().get_partial_shape();  // new_prev's layout became node's new layout after fusing
             auto in_shape = node->get_dependency(1).get_output_layout().get_partial_shape();
             if (!broadcastable(in_shape, out_shape, true, true)) {
-                continue;
+              continue;
             }
         }
 
         if (new_prev->is_type<input_layout>() ||
             new_prev->is_type<mutable_data>() ||
             new_prev->is_type<quantize>()) {
-            continue;
+          continue;
         }
 
         std::vector<cldnn::program_node*> dependencies;
-        for (auto& dep : node->get_dependencies()) {
-            if (dep.first == input_node) {
-                continue;
-            }
+        for (const auto& dep : node->get_dependencies()) {
+          if (dep.first == input_node) {
+            continue;
+          }
             dependencies.push_back(dep.first);
         }
 
-        for (auto dep : dependencies) {
-            p.remove_connection(*dep, *node);
+        for (auto *dep : dependencies) {
+          p.remove_connection(*dep, *node);
         }
 
         p.move_node(*node, *new_prev, *new_next);
 
-        for (auto dep : dependencies) {
-            p.add_connection(*dep, *node);
+        for (auto *dep : dependencies) {
+          p.add_connection(*dep, *node);
         }
 
         // Update node's layout and keep original data type
@@ -189,7 +195,7 @@ void prepare_primitive_fusing_through::run(program& p) {
         // Update intermediate nodes
         auto node_itr = std::next(fuse_through_order.rbegin());
         while (node_itr != fuse_through_order.rend()) {
-            auto itermediate_node = *node_itr++;
+            auto* itermediate_node = *node_itr++;
 
             if (itermediate_node->is_type<reorder>()) {
                 // We can't modify reorder's output type directly, so replace old node with new one

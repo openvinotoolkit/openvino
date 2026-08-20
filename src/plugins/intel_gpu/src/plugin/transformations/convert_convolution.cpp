@@ -86,14 +86,25 @@ ov::Tensor get_compensation(std::shared_ptr<ov::Node> w, std::shared_ptr<ov::Nod
         wzp_tensor = ov::Tensor(wzp_const->get_element_type(), wzp_const->get_shape(), const_cast<void*>(wzp_const->get_data_ptr()));
     }
 
-    if (w_const->get_element_type() == ov::element::u8 && azp_const->get_element_type() == ov::element::u8) {
-        return get_compensation<uint8_t, uint8_t>(&w_tensor, &azp_tensor, wzp_const ? &wzp_tensor : nullptr, groups);
-    } else if (w_const->get_element_type() == ov::element::u8 && azp_const->get_element_type() == ov::element::i8) {
-        return get_compensation<uint8_t, int8_t>(&w_tensor, &azp_tensor, wzp_const ? &wzp_tensor : nullptr, groups);
-    } else if (w_const->get_element_type() == ov::element::i8 && azp_const->get_element_type() == ov::element::u8) {
-        return get_compensation<int8_t, uint8_t>(&w_tensor, &azp_tensor, wzp_const ? &wzp_tensor : nullptr, groups);
-    } else if (w_const->get_element_type() == ov::element::i8 && azp_const->get_element_type() == ov::element::i8) {
-        return get_compensation<int8_t, int8_t>(&w_tensor, &azp_tensor, wzp_const ? &wzp_tensor : nullptr, groups);
+    if (w_const->get_element_type() == ov::element::u8 &&
+        azp_const->get_element_type() == ov::element::u8) {
+      return get_compensation<uint8_t, uint8_t>(
+          &w_tensor, &azp_tensor, wzp_const ? &wzp_tensor : nullptr, groups);
+    }
+    if (w_const->get_element_type() == ov::element::u8 &&
+        azp_const->get_element_type() == ov::element::i8) {
+      return get_compensation<uint8_t, int8_t>(
+          &w_tensor, &azp_tensor, wzp_const ? &wzp_tensor : nullptr, groups);
+    }
+    if (w_const->get_element_type() == ov::element::i8 &&
+        azp_const->get_element_type() == ov::element::u8) {
+      return get_compensation<int8_t, uint8_t>(
+          &w_tensor, &azp_tensor, wzp_const ? &wzp_tensor : nullptr, groups);
+    }
+    if (w_const->get_element_type() == ov::element::i8 &&
+        azp_const->get_element_type() == ov::element::i8) {
+      return get_compensation<int8_t, int8_t>(
+          &w_tensor, &azp_tensor, wzp_const ? &wzp_tensor : nullptr, groups);
     }
 
     OPENVINO_THROW("[GPU] Unsupported element types combination for quantized weights and zero-points");
@@ -139,7 +150,7 @@ AsymmetricConvolutionMatcher::AsymmetricConvolutionMatcher() {
         if (auto grouped_conv = ov::as_type_ptr<ov::op::v1::GroupConvolution>(conv_node)) {
             auto weights_shape = grouped_conv->get_input_partial_shape(1);
             if (weights_shape[0].is_dynamic()) {
-                return false;
+              return false;
             }
             groups = weights_shape[0].get_length();
         }
@@ -204,7 +215,7 @@ ConvolutionMatcher::ConvolutionMatcher() {
         if (auto grouped_conv = ov::as_type_ptr<ov::op::v1::GroupConvolution>(conv_node)) {
             auto weights_shape = grouped_conv->get_input_partial_shape(1);
             if (weights_shape[0].is_dynamic()) {
-                return false;
+              return false;
             }
             groups = weights_shape[0].get_length();
         }

@@ -24,7 +24,7 @@ CommonDispatchData SetDefault(const experimental_detectron_prior_grid_generator_
 KernelsData ExperimentalDetectronPriorGridGeneratorKernelRef::GetKernelsData(const Params &params) const {
     KernelsData kernels_data;
     if (!Validate(params)) {
-        return kernels_data;
+      return kernels_data;
     }
     kernels_data.push_back(KernelData::Default<experimental_detectron_prior_grid_generator_params>(params));
     KernelData &kernel_data = kernels_data.front();
@@ -59,7 +59,7 @@ bool ExperimentalDetectronPriorGridGeneratorKernelRef::Validate(const Params &p)
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    auto &params = dynamic_cast<const experimental_detectron_prior_grid_generator_params&>(p);
+    const auto& params = dynamic_cast<const experimental_detectron_prior_grid_generator_params&>(p);
     if (params.inputs.size() != 1) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }

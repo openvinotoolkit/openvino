@@ -21,14 +21,14 @@ ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::ConvolutionKernel_b_fs_yx_fsv_16_32
 
     for (auto simd : simd_sizes) {
         for (size_t tile_x = 1; tile_x <= 32; ++tile_x) {
-            if (simd * tile_x > max_block_size) {
-                continue;
-            }
+          if (simd * tile_x > max_block_size) {
+            continue;
+          }
             for (size_t lws0 = 1; lws0 <= 32; ++lws0) {
                 for (size_t lws1 = 1; lws1 <= 32; ++lws1) {
-                    if (lws0 * lws1 * simd > max_lws_size) {
-                        continue;
-                    }
+                  if (lws0 * lws1 * simd > max_lws_size) {
+                    continue;
+                  }
                     for (auto exe_mode : exe_modes) {
                         all_tune_params.push_back(AutoTuneParams{ simd, tile_x, lws0, lws1, false, exe_mode });
                         all_tune_params.push_back(AutoTuneParams{ simd, tile_x, lws0, lws1, true, exe_mode });
@@ -112,11 +112,10 @@ bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::Validate(const Params& params)
 }
 
 WeightsLayout ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetPreferredWeightsLayout(const convolution_params& params) const {
-    if (params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16) {
-        return WeightsLayout::gs_oi_yxs_gsv16_yxsv4;
-    } else {
-        return WeightsLayout::gs_oi_yxs_gsv32_yxsv4;
-    }
+  if (params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16) {
+    return WeightsLayout::gs_oi_yxs_gsv16_yxsv4;
+  }
+    return WeightsLayout::gs_oi_yxs_gsv32_yxsv4;
 }
 
 ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::AutoTuneParams
@@ -125,7 +124,7 @@ ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetAutoTuneParams(const convolution
         return all_tune_params[index];
     }
 
-    auto& output = params.outputs[0];
+    const auto& output = params.outputs[0];
 
     size_t fsv = 32;
     if (output.GetLayout() == DataLayout::b_fs_yx_fsv16) {
@@ -178,11 +177,12 @@ ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetAutoTuneParams(const convolution
         size_t lws0 = 1;
         // First try to select optimal group size in y dimension as it provides most data reuse
         for (size_t c_lws1 = 4; c_lws1 <= 8; ++c_lws1) {
-            if (Pad(output.Y().v, c_lws1) < Pad(output.Y().v, lws1)) {
-                lws1 = c_lws1;
-            } else if (Pad(output.Y().v, c_lws1) == Pad(output.Y().v, lws1) && c_lws1 % 2 == 0) {
-                lws1 = c_lws1;
-            }
+          if (Pad(output.Y().v, c_lws1) < Pad(output.Y().v, lws1)) {
+            lws1 = c_lws1;
+          } else if (Pad(output.Y().v, c_lws1) == Pad(output.Y().v, lws1) &&
+                     c_lws1 % 2 == 0) {
+            lws1 = c_lws1;
+          }
         }
         // For best hw utilization work-group size should be multiple of 2, so if y isn't force it in x
         if (lws1 % 2 != 0) {
@@ -209,11 +209,11 @@ ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetAutoTuneParams(const convolution
         }
 
         if (tile_selected && CeilDiv(output.X().v, tile_x) == 2) {
-            lws0 = 2;
+          lws0 = 2;
         }
 
         if (tile_selected) {
-            try_to_select(16, tile_x, lws0, lws1, true, EXE_MODE_DEFAULT);
+          try_to_select(16, tile_x, lws0, lws1, true, EXE_MODE_DEFAULT);
         }
     }
 
@@ -244,7 +244,7 @@ bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::ValidateAutoTuneParams(const c
     bool valid_tune_params = true;
 
     if (!IsSIMDSizeSupported(params.engineInfo, tparams.simd)) {
-        return false;
+      return false;
     }
 
     auto total_lws = tparams.simd * tparams.lws0 * tparams.lws1;
@@ -278,7 +278,7 @@ bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::ValidateAutoTuneParams(const c
 ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::DispatchData
 ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::SetDefault(const convolution_params& params, int autoTuneIndex) const {
     DispatchData dispatchData;
-    auto& out = params.outputs[0];
+    const auto& out = params.outputs[0];
 
     auto tune_params = GetAutoTuneParams(params, autoTuneIndex);
 
@@ -409,7 +409,7 @@ KernelsData ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetTunedKernelsDataByIn
     auto convParams = static_cast<const convolution_params&>(params);
     auto tuneParams = GetAutoTuneParams(convParams, autoTuneIndex);
     if (!ValidateAutoTuneParams(convParams, tuneParams)) {
-        return {};
+      return {};
     }
     return GetCommonKernelsData(params, tuneParams.exeMode, autoTuneIndex);
 }

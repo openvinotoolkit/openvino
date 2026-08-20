@@ -13,6 +13,7 @@ namespace ov {
 namespace test {
 namespace npuw {
 struct LLMVariantSwitchTestAccess;
+struct LLMTrimKVCacheTestAccess;
 }  // namespace npuw
 }  // namespace test
 }  // namespace ov
@@ -69,6 +70,7 @@ public:
                      const std::shared_ptr<const ov::IPlugin>& plugin,
                      const bool serialized);
     LLMCompiledModel() = delete;
+    ~LLMCompiledModel() = default;
 
     void export_model(std::ostream& model) const override;
     static std::shared_ptr<LLMCompiledModel> import_model(std::istream& stream,
@@ -88,6 +90,7 @@ private:
     friend class LLMBlockKVCacheStrategy;
     friend class LLMContinuousKVCacheStrategy;
     friend struct ov::test::npuw::LLMVariantSwitchTestAccess;
+    friend struct ov::test::npuw::LLMTrimKVCacheTestAccess;
     friend class EncoderEmbeddingInferRequest;
 
     std::shared_ptr<ov::ISyncInferRequest> create_llm_infer_request();
@@ -135,6 +138,13 @@ private:
     uint64_t m_prefix_caching_block_size = 0;
     uint64_t m_prefix_caching_max_num_blocks = 0;
     uint64_t m_longrope_context_limit = 0;
+
+    // Continuous prefill support. Opted in via NPUW_LLM_ENABLE_CONTINUOUS_PREFILL and
+    // mutually exclusive with hash prefix caching, which fails compilation.
+    bool m_enable_continuous_prefill = false;
+    // Computes the NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED read-only property from
+    // compiled model state. Not serialized, recomputed identically after import.
+    bool compute_continuous_prefill_supported() const;
 
     // Friend declarations for PrefixCachingHelper to access protected members
     friend class PrefixCachingHelper;

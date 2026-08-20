@@ -58,11 +58,11 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv4_int8::SetDefa
 KernelsPriority ConvolutionKernel_b_fs_yx_fsv4_int8::GetKernelsPriority(const Params& params) const {
     const auto& p = static_cast<const convolution_params&>(params);
 
-    if (p.outputs[0].X().v > 512 && p.filterSize.x == 5 && p.filterSize.y == 5) {
-        return FORCE_PRIORITY_2;
-    } else {
-        return FORCE_PRIORITY_9;
+    if (p.outputs[0].X().v > 512 && p.filterSize.x == 5 &&
+        p.filterSize.y == 5) {
+      return FORCE_PRIORITY_2;
     }
+    return FORCE_PRIORITY_9;
 }
 
 bool ConvolutionKernel_b_fs_yx_fsv4_int8::Validate(const Params& p) const {

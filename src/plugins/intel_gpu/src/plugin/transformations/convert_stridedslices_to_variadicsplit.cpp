@@ -27,7 +27,7 @@ ConvertStridedSlicesToVariadicSplit::ConvertStridedSlicesToVariadicSplit() {
         for (const auto& user : fc ->get_users()) {
             const auto strided_slice = ov::as_type_ptr<ov::op::v1::StridedSlice>(user);
             if (!strided_slice) {
-                return false;
+              return false;
             }
             user_count++;
         }
@@ -56,14 +56,17 @@ ConvertStridedSlicesToVariadicSplit::ConvertStridedSlicesToVariadicSplit() {
                 };
                 const auto& input_ps = strided_slice_node->get_input_partial_shape(0);
                 const auto& output_ps = strided_slice_node->get_output_partial_shape(0);
-                if (!valid_ps(input_ps) || !valid_ps(output_ps) || input_ps.rank().get_length() != output_ps.rank().get_length()) {
-                    return false;
+                if (!valid_ps(input_ps) || !valid_ps(output_ps) ||
+                    input_ps.rank().get_length() !=
+                        output_ps.rank().get_length()) {
+                  return false;
                 }
 
-                auto& total_length = input_ps[input_ps.rank().get_length() - 1];
-                auto& split_length = output_ps[output_ps.rank().get_length() - 1];
-                if (total_length.get_length() / 3 != split_length.get_length()) {
-                    return false;
+                const auto& total_length = input_ps[input_ps.rank().get_length() - 1];
+                const auto& split_length = output_ps[output_ps.rank().get_length() - 1];
+                if (total_length.get_length() / 3 !=
+                    split_length.get_length()) {
+                  return false;
                 }
 
                 split_lengths.push_back(split_length.get_length());
@@ -80,29 +83,30 @@ ConvertStridedSlicesToVariadicSplit::ConvertStridedSlicesToVariadicSplit() {
                 }
 
                 end_offset += split_length.get_length();
-                auto check_mask = [](const std::vector<int64_t>& mask_to_check) -> bool {
-                    if (mask_to_check.back() != 0) {
-                        return false;
+                auto check_mask =
+                    [](const std::vector<int64_t> &mask_to_check) -> bool {
+                  if (mask_to_check.back() != 0) {
+                    return false;
+                  }
+                  for (size_t i = 0; i < mask_to_check.size() - 1; ++i) {
+                    if (!mask_to_check[i]) {
+                      return false;
                     }
-                    for (size_t i = 0; i < mask_to_check.size() - 1; ++i) {
-                        if (!mask_to_check[i]) {
-                            return false;
-                        }
-                    }
-                    return true;
+                  }
+                  return true;
                 };
                 auto begin_node = strided_slice_node->input_value(1);
                 if (const auto& begin_constant_node = ov::util::get_constant_from_source(begin_node)) {
                     auto values = begin_constant_node->cast_vector<int64_t>();
                     auto begin_mask = strided_slice_node->get_begin_mask();
                     if (values.size() != begin_mask.size()) {
-                        return false;
+                      return false;
                     }
                     if (!check_mask(begin_mask)) {
-                        return false;
+                      return false;
                     }
                     if (values.back() != begin_offset) {
-                        return false;
+                      return false;
                     }
                 } else {
                     return false;
@@ -115,13 +119,14 @@ ConvertStridedSlicesToVariadicSplit::ConvertStridedSlicesToVariadicSplit() {
                     auto values = end_constant_node->cast_vector<int64_t>();
                     auto end_mask = strided_slice_node->get_end_mask();
                     if (values.size() != end_mask.size()) {
-                        return false;
+                      return false;
                     }
                     if (!check_mask(end_mask)) {
-                        return false;
+                      return false;
                     }
-                    if ((values.back() != end_offset) && (values.back() != max_value)) {
-                        return false;
+                    if ((values.back() != end_offset) &&
+                        (values.back() != max_value)) {
+                      return false;
                     }
                 } else {
                     return false;

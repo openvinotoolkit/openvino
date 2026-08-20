@@ -22,11 +22,10 @@ public:
 
 protected:
     WeightsLayout GetPreferredWeightsLayout(const deconvolution_params& p) const override {
-        if (p.outputs[0].Dimentions() == 4) {
-            return WeightsLayout::is_os_yx_isv16_osv16;
-        } else {
-            return WeightsLayout::is_os_zyx_isv16_osv16;
-        }
+      if (p.outputs[0].Dimentions() == 4) {
+        return WeightsLayout::is_os_yx_isv16_osv16;
+      }
+        return WeightsLayout::is_os_zyx_isv16_osv16;
     }
     bool Validate(const Params& p) const override;
     CommonDispatchData SetDefault(const deconvolution_params& arg) const override;

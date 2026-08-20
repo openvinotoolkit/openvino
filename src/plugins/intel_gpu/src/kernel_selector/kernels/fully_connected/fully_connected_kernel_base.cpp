@@ -132,7 +132,7 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
     if (newParams.compressed) {
         inputs_count++;
         if (newParams.has_decompression_zp && !newParams.scalar_zp) {
-            inputs_count++;
+          inputs_count++;
         }
     }
 
@@ -187,7 +187,7 @@ bool FullyConnectedKernelBase::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    for (auto& fused_op : params.fused_ops) {
+    for (const auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
@@ -197,9 +197,9 @@ bool FullyConnectedKernelBase::Validate(const Params& p) const {
 }
 
 Datatype FullyConnectedKernelBase::GetAccumulatorType(const fully_connected_params& params) const {
-    if (params.quantization != QuantizationType::NONE) {
-        return Datatype::INT32;
-    }
+  if (params.quantization != QuantizationType::NONE) {
+    return Datatype::INT32;
+  }
 
     auto in_dt = params.inputs[0].GetDType();
     auto wei_dt = params.weights.GetDType();
@@ -209,12 +209,12 @@ Datatype FullyConnectedKernelBase::GetAccumulatorType(const fully_connected_para
 
     // This case should be always false, because quantization type is not NONE
     if (quantized_inputs && quantized_weights) {
-        return Datatype::INT32;
+      return Datatype::INT32;
     }
 
     // If we either weights or input is quantized, then we use fp32 accumulator to avoid fp16 overflow
     if ((quantized_inputs || quantized_weights) && !params.compressed) {
-        return Datatype::F32;
+      return Datatype::F32;
     }
 
     return in_dt;
@@ -228,15 +228,16 @@ Datatype FullyConnectedKernelBase::GetActivationType(const fully_connected_param
     auto quantized_inputs = in_dt == Datatype::UINT8 || in_dt == Datatype::INT8;
     auto quantized_weights = wei_dt == WeightsType::UINT8 || wei_dt == WeightsType::INT8;
 
-    if (params.quantization != QuantizationType::NONE || quantized_inputs || quantized_weights) {
-        return Datatype::F32;
+    if (params.quantization != QuantizationType::NONE || quantized_inputs ||
+        quantized_weights) {
+      return Datatype::F32;
     }
 
     auto output_is_int8 = out_dt == Datatype::UINT8 || out_dt == Datatype::INT8;
     auto input_is_fp = in_dt == Datatype::F32 || in_dt == Datatype::F16;
 
     if (output_is_int8 && input_is_fp) {
-        return in_dt;
+      return in_dt;
     }
 
     return GetUnitType(params);

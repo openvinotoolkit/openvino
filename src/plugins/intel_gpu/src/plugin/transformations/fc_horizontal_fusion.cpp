@@ -38,7 +38,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
     // i.e., eltwise((fc + swish), fc) => fused_fc + swiglu => fused_fc_swilgu
     // Onednn gemms are to be handled in a different way (TBD)
     if (fuse_mlp_swiglu) {
-        min_num_fcs_to_fuse = 2;
+      min_num_fcs_to_fuse = 2;
     }
     auto is_target_pattern = [min_num_fcs_to_fuse](const Output<Node>& output) {
         const int max_num_fcs_to_fuse = 3;
@@ -48,13 +48,17 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         // if it is not constant, the only allowed cases are Constant => convert
         // All FCs have same # of valid inputs (e.g., if one of the fc has zp, all fcs have zp)
         auto is_constant = [](const std::shared_ptr<ov::Node> node) {
-            if (ov::as_type_ptr<ov::op::v0::Constant>(node)) {
-                return true;
-            }
-            if (ov::as_type_ptr<ov::op::v0::Convert>(node) && ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0))) {
-                return true;
-            }
-            return ov::as_type_ptr<ov::op::v1::Transpose>(node) && ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0));
+          if (ov::as_type_ptr<ov::op::v0::Constant>(node)) {
+            return true;
+          }
+          if (ov::as_type_ptr<ov::op::v0::Convert>(node) &&
+              ov::as_type_ptr<ov::op::v0::Constant>(
+                  node->get_input_node_shared_ptr(0))) {
+            return true;
+          }
+          return ov::as_type_ptr<ov::op::v1::Transpose>(node) &&
+                 ov::as_type_ptr<ov::op::v0::Constant>(
+                     node->get_input_node_shared_ptr(0));
         };
         auto is_placeholder = [](const std::shared_ptr<ov::Node> node) {
             return ov::as_type_ptr<op::Placeholder>(node);
@@ -63,7 +67,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         const auto& fc = ov::as_type_ptr<op::FullyConnectedCompressed>(output.get_node_shared_ptr());
         const auto& input = fc->get_input_node_shared_ptr(0);
         if (!fc->get_input_partial_shape(0).is_dynamic()) {
-            return false;
+          return false;
         }
         size_t user_fc_count = 0;
         int32_t nodes_with_bias = 0;
@@ -71,7 +75,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         for (const auto& u : input->get_users()) {
             const auto& fc_user = ov::as_type_ptr<op::FullyConnectedCompressed>(u);
             if (!fc_user) {
-                continue;
+              continue;
             }
 
             // Skip horizontal fusion when the weight is not a constant. The fused-weight Concat
@@ -80,17 +84,17 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             // build, and may hit formats/types without a Concat implementation. Even when a Concat
             // impl exists, concatenating weights on every inference is pure overhead with no benefit.
             if (!is_constant(fc_user->get_input_node_shared_ptr(1))) {
-                return false;
+              return false;
             }
 
             auto num_inputs = fc_user->inputs().size();
             if (num_inputs >= 5) {
-                nodes_with_zp++;
+              nodes_with_zp++;
             }
             for (size_t i = 2; i < num_inputs; ++i) {
                 const auto& fc_input = fc_user->get_input_node_shared_ptr(i);
                 if (!is_constant(fc_input) && !is_placeholder(fc_input)) {
-                    return false;
+                  return false;
                 }
                 if (i == 2 && !is_placeholder(fc_input)) {
                     nodes_with_bias++;
@@ -124,49 +128,54 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                 fc_nodes_vec.push_back(fc_user);
                 weight_nodes.push_back(fc_user->get_input_node_shared_ptr(1));
                 if (!ov::as_type_ptr<op::Placeholder>(fc_user->get_input_node_shared_ptr(2))) {
-                    if (bias_rank == -1) {
-                        bias_rank = static_cast<int32_t>(fc_user->get_input_partial_shape(2).size());
-                    }
-                    if (bias_rank != static_cast<int32_t>(fc_user->get_input_partial_shape(2).size())) {
-                        return false;
-                    }
+                  if (bias_rank == -1) {
+                    bias_rank = static_cast<int32_t>(
+                        fc_user->get_input_partial_shape(2).size());
+                  }
+                  if (bias_rank !=
+                      static_cast<int32_t>(
+                          fc_user->get_input_partial_shape(2).size())) {
+                    return false;
+                  }
                     bias_nodes.push_back(fc_user->get_input_node_shared_ptr(2));
                 }
                 scale_nodes.push_back(fc_user->get_input_node_shared_ptr(3));
                 if (fc_user->inputs().size() > 4) {
-                    zp_nodes.push_back(fc_user->get_input_node_shared_ptr(4));
+                  zp_nodes.push_back(fc_user->get_input_node_shared_ptr(4));
                 }
             }
         }
-        // fc weight is already transposed to [N, K]
+        // Weight layout depends on transpose_b: [N, K] when transpose_b=true (default),
+        // [K, N] when transpose_b=false.
         const size_t weight_idx = 1;
         if (fc_nodes[0]->get_input_shape(weight_idx).size() != 2) {
-            return false;
+          return false;
         }
-        const size_t n_axis = 0;
-        const size_t k_axis = 1;
+        const bool transpose_b = fc_nodes[0]->get_transpose_b();
+        // n_axis is the output (N) dimension, k_axis the contraction (K) dimension.
+        const size_t n_axis = transpose_b ? 0 : 1;
+        const size_t k_axis = transpose_b ? 1 : 0;
         auto weight_dtype = fc_nodes[0]->get_input_element_type(weight_idx);
         auto k_size = fc_nodes[0]->get_input_shape(weight_idx)[k_axis];
-        const bool transpose_b = fc_nodes[0]->get_transpose_b();
         std::vector<int64_t> orig_n_sizes;
         // merge weights, scale, zp
         for (auto fc : fc_nodes) {
-            if (k_size != fc->get_input_shape(weight_idx)[k_axis]) {
-                return false;
-            }
-            if (weight_dtype != fc->get_input_element_type(weight_idx)) {
-                return false;
-            }
-            if (transpose_b != fc->get_transpose_b()) {
-                return false;
-            }
+          if (k_size != fc->get_input_shape(weight_idx)[k_axis]) {
+            return false;
+          }
+          if (weight_dtype != fc->get_input_element_type(weight_idx)) {
+            return false;
+          }
+          if (transpose_b != fc->get_transpose_b()) {
+            return false;
+          }
             orig_n_sizes.push_back(fc->get_input_shape(weight_idx)[n_axis]);
         }
         ov::OutputVector weight_nodes_as_output_vector;
         for (size_t i = 0; i < weight_nodes.size(); ++i) {
             weight_nodes_as_output_vector.push_back(weight_nodes[i]->output(0));
         }
-        auto fused_weight = std::make_shared<ov::op::v0::Concat>(weight_nodes_as_output_vector, 0);
+        auto fused_weight = std::make_shared<ov::op::v0::Concat>(weight_nodes_as_output_vector, transpose_b ? 0 : 1);
         fused_weight->set_friendly_name(weight_nodes[0]->get_friendly_name() + "_fused_weight");
         ov::copy_runtime_info(weight_nodes, fused_weight);
 
@@ -192,18 +201,20 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                     ov::is_type<ov::op::v0::Constant>(fc->get_users()[0]->inputs()[1].get_source_output().get_node())) {
                     auto bias_input1_shape = fc->get_users()[0]->get_input_partial_shape(1).get_shape();
                     if (bias_rank == -1) {
-                        bias_rank = static_cast<int32_t>(bias_input1_shape.size());
+                      bias_rank =
+                          static_cast<int32_t>(bias_input1_shape.size());
                     }
-                    if (bias_rank != static_cast<int32_t>(bias_input1_shape.size())) {
-                        break;
+                    if (bias_rank !=
+                        static_cast<int32_t>(bias_input1_shape.size())) {
+                      break;
                     }
                     size_t ndim_size = bias_input1_shape.back();
                     // allow only [1, 1, N] shape bias
-                    if (std::accumulate(bias_input1_shape.begin(),
-                                        bias_input1_shape.end(),
-                                        static_cast<size_t>(1),
-                                        std::multiplies<size_t>()) != ndim_size) {
-                        break;
+                    if (std::accumulate(
+                            bias_input1_shape.begin(), bias_input1_shape.end(),
+                            static_cast<size_t>(1),
+                            std::multiplies<size_t>()) != ndim_size) {
+                      break;
                     }
                     n_bias_users++;
                 }
@@ -274,7 +285,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                 for (size_t i = 1; i < zp_nodes.size(); ++i) {
                     bool current_is_scalar = (ov::shape_size(zp_nodes[i]->get_output_shape(0)) == 1);
                     if (!current_is_scalar) {
-                        return false;
+                      return false;
                     }
                     // validate all zp values are same
                     int32_t cur_zp_val = 0;
@@ -288,7 +299,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                         OPENVINO_THROW("Unsupported zp input node for FC horizontal fusion");
                     }
                     if (cur_zp_val != scalar_zp_val) {
-                        return false;
+                      return false;
                     }
                 }
             } else {
@@ -303,20 +314,13 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         // Create new fc with merged weights, bias, scale, zp
         std::shared_ptr<ov::Node> new_fc;
         if (fused_zps) {
-            new_fc = std::make_shared<op::FullyConnectedCompressed>(input_node,
-                                                                    fused_weight,
-                                                                    fused_bias,
-                                                                    fused_scale,
-                                                                    fused_zps,
-                                                                    fc_nodes[0]->get_output_type(),
-                                                                    transpose_b);
+          new_fc = std::make_shared<op::FullyConnectedCompressed>(
+              input_node, fused_weight, fused_bias, fused_scale, fused_zps,
+              fc_nodes[0]->get_output_type(), transpose_b);
         } else {
-            new_fc = std::make_shared<op::FullyConnectedCompressed>(input_node,
-                                                                    fused_weight,
-                                                                    fused_bias,
-                                                                    fused_scale,
-                                                                    fc_nodes[0]->get_output_type(),
-                                                                    transpose_b);
+          new_fc = std::make_shared<op::FullyConnectedCompressed>(
+              input_node, fused_weight, fused_bias, fused_scale,
+              fc_nodes[0]->get_output_type(), transpose_b);
         }
 
         auto new_fc_name = fc_nodes[0]->get_friendly_name() + "_fused_" + std::to_string(fc_nodes.size()) + "FCs";
@@ -351,15 +355,16 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         //      /      |      \                    |
         //    Mul     Mul     Mul            VariadicSplit
         //     |       |       |             |     |     |
-        const auto is_scalar_const = [](const ov::Output<ov::Node>& output) -> bool {
-            if (!ov::is_type<ov::op::v0::Constant>(output.get_node())) {
-                return false;
-            }
-            const auto shape = output.get_partial_shape();
-            if (shape.is_dynamic()) {
-                return false;
-            }
-            return ov::shape_size(shape.to_shape()) == 1;
+        const auto is_scalar_const =
+            [](const ov::Output<ov::Node> &output) -> bool {
+          if (!ov::is_type<ov::op::v0::Constant>(output.get_node())) {
+            return false;
+          }
+          const auto shape = output.get_partial_shape();
+          if (shape.is_dynamic()) {
+            return false;
+          }
+          return ov::shape_size(shape.to_shape()) == 1;
         };
 
         std::vector<float> const_values;
@@ -370,7 +375,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                 can_be_merged = false;
                 break;
             }
-            auto target_node = output.get_target_inputs().begin()->get_node();
+            auto* target_node = output.get_target_inputs().begin()->get_node();
             if (!ov::is_type<ov::op::v1::Multiply>(target_node)) {
                 can_be_merged = false;
                 break;
@@ -401,7 +406,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             ov::NodeVector fused_mul_nodes;
             output_split->input(0).replace_source_output(new_mul);
             for (auto& output : output_split->outputs()) {
-                auto target_node = output.get_target_inputs().begin()->get_node();
+                auto* target_node = output.get_target_inputs().begin()->get_node();
                 fused_mul_nodes.push_back(target_node->shared_from_this());
                 ov::replace_output_update_name(target_node->output(0), output);
             }

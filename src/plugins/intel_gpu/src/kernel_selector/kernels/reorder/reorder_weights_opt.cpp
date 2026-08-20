@@ -14,10 +14,18 @@ ParamsKey ReorderWeightsOpt::GetSupportedKey() const {
     k.EnableInputWeightsType(WeightsType::F16);
     k.EnableInputWeightsType(WeightsType::F32);
     k.EnableInputWeightsType(WeightsType::INT32);
+    k.EnableInputWeightsType(WeightsType::F8E4M3);
+    k.EnableInputWeightsType(WeightsType::F8E5M2);
+    k.EnableInputWeightsType(WeightsType::F4E2M1);
+    k.EnableInputWeightsType(WeightsType::F8E8M0);
     k.EnableOutputWeightsType(WeightsType::INT8);
     k.EnableOutputWeightsType(WeightsType::F16);
     k.EnableOutputWeightsType(WeightsType::F32);
     k.EnableOutputWeightsType(WeightsType::INT32);
+    k.EnableOutputWeightsType(WeightsType::F8E4M3);
+    k.EnableOutputWeightsType(WeightsType::F8E5M2);
+    k.EnableOutputWeightsType(WeightsType::F4E2M1);
+    k.EnableOutputWeightsType(WeightsType::F8E8M0);
     k.EnableInputWeightsLayout(WeightsLayout::oiyx);
     k.EnableInputWeightsLayout(WeightsLayout::ioyx);
     k.EnableInputWeightsLayout(WeightsLayout::oyxi);
@@ -82,15 +90,15 @@ DeviceFeaturesKey ReorderWeightsOpt::get_required_device_features_key(const Para
     }
 
     if (requires_blocked_read_write) {
-        k.requires_blocked_read_write();
+      k.requires_blocked_read_write();
     }
 
     if (requires_blocked_read_write_short) {
-        k.requires_blocked_read_write_short();
+      k.requires_blocked_read_write_short();
     }
 
     if (requires_blocked_read_write_char) {
-        k.requires_blocked_read_write_char();
+      k.requires_blocked_read_write_char();
     }
 
     k.requires_subgroups();
@@ -99,27 +107,39 @@ DeviceFeaturesKey ReorderWeightsOpt::get_required_device_features_key(const Para
 }
 
 static inline std::pair<size_t, size_t> GetSliceSizes(WeightsLayout l) {
-    if (l == WeightsLayout::os_is_yx_isv16_osv16 || l == WeightsLayout::os_is_zyx_isv16_osv16 ||
-        l == WeightsLayout::g_os_is_yx_isv16_osv16 || l == WeightsLayout::g_os_is_zyx_isv16_osv16 ||
-        l == WeightsLayout::is_os_zyx_isv16_osv16 || l == WeightsLayout::is_os_yx_isv16_osv16 ||
-        l == WeightsLayout::os_is_yx_osv16_isv16 || l == WeightsLayout::g_os_zyx_is_osv16_isv16 ||
-        l == WeightsLayout::g_is_os_yx_isv16_osv16 || l == WeightsLayout::g_is_os_zyx_isv16_osv16) {
-        return {16, 16};
-    } else if (l == WeightsLayout::os_iyx_osv16 || l == WeightsLayout::g_os_iyx_osv16) {
-        return {1, 16};
-    } else if (l == WeightsLayout::os_iyx_osv32 || l == WeightsLayout::g_os_iyx_osv32 || l == WeightsLayout::os_iyx_osv32__ai32) {
-        return {1, 32};
-    } else if (l == WeightsLayout::os_is_zyx_osv32_isv16 || l == WeightsLayout::g_os_zyx_is_osv32_isv16) {
-        return {16, 32};
-    } else if (l == WeightsLayout::os_is_zyx_osv64_isv16) {
-        return {16, 64};
-    } else if (l == WeightsLayout::g_os_zyx_is_osv16_isv32) {
-        return {32, 16};
-    } else if (l == WeightsLayout::g_os_zyx_is_osv32_isv32) {
-        return {32, 32};
-    } else {
-        return {1, 1};
-    }
+  if (l == WeightsLayout::os_is_yx_isv16_osv16 ||
+      l == WeightsLayout::os_is_zyx_isv16_osv16 ||
+      l == WeightsLayout::g_os_is_yx_isv16_osv16 ||
+      l == WeightsLayout::g_os_is_zyx_isv16_osv16 ||
+      l == WeightsLayout::is_os_zyx_isv16_osv16 ||
+      l == WeightsLayout::is_os_yx_isv16_osv16 ||
+      l == WeightsLayout::os_is_yx_osv16_isv16 ||
+      l == WeightsLayout::g_os_zyx_is_osv16_isv16 ||
+      l == WeightsLayout::g_is_os_yx_isv16_osv16 ||
+      l == WeightsLayout::g_is_os_zyx_isv16_osv16) {
+    return {16, 16};
+  }
+  if (l == WeightsLayout::os_iyx_osv16 || l == WeightsLayout::g_os_iyx_osv16) {
+    return {1, 16};
+  }
+  if (l == WeightsLayout::os_iyx_osv32 || l == WeightsLayout::g_os_iyx_osv32 ||
+      l == WeightsLayout::os_iyx_osv32__ai32) {
+    return {1, 32};
+  }
+  if (l == WeightsLayout::os_is_zyx_osv32_isv16 ||
+      l == WeightsLayout::g_os_zyx_is_osv32_isv16) {
+    return {16, 32};
+  }
+  if (l == WeightsLayout::os_is_zyx_osv64_isv16) {
+    return {16, 64};
+  }
+  if (l == WeightsLayout::g_os_zyx_is_osv16_isv32) {
+    return {32, 16};
+  }
+  if (l == WeightsLayout::g_os_zyx_is_osv32_isv32) {
+    return {32, 32};
+  }
+    return {1, 1};
 }
 
 static inline bool IsOsvFirst(WeightsLayout l) {
@@ -133,11 +153,11 @@ static inline bool IsOsvFirst(WeightsLayout l) {
 }
 
 static inline size_t GetOptimalSize(size_t val, std::vector<size_t> optimal_sizes) {
-    for (auto& s : optimal_sizes) {
-        if (val % s == 0) {
-            return s;
-        }
+  for (auto &s : optimal_sizes) {
+    if (val % s == 0) {
+      return s;
     }
+  }
     return 1;
 }
 
@@ -205,7 +225,7 @@ JitConstants ReorderWeightsOpt::GetJitConstants(const reorder_weights_params& pa
     jit.AddConstant(MakeJitConstant("OFM_BLOCK_SIZE", ofm_block));
 
     if (leftovers) {
-        jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", leftovers));
+      jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", leftovers));
     }
 
     // For blocked weight formats with OSV_FIRST (e.g., os_is_yx_isv16_osv16), when the
@@ -220,6 +240,15 @@ JitConstants ReorderWeightsOpt::GetJitConstants(const reorder_weights_params& pa
             jit.AddConstant(MakeJitConstant("IFM_PADDED_NUM", Align(output.IFM().v, isv_size)));
         }
     }
+
+    jit.AddConstant(MakeJitConstant("F8E5M2_INPUT", params.input.GetDType() == WeightsType::F8E5M2 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F8E4M3_INPUT", params.input.GetDType() == WeightsType::F8E4M3 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F4E2M1_INPUT", params.input.GetDType() == WeightsType::F4E2M1 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F8E8M0_INPUT", params.input.GetDType() == WeightsType::F8E8M0 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F8E5M2_OUTPUT", params.output.GetDType() == WeightsType::F8E5M2 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F8E4M3_OUTPUT", params.output.GetDType() == WeightsType::F8E4M3 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F4E2M1_OUTPUT", params.output.GetDType() == WeightsType::F4E2M1 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F8E8M0_OUTPUT", params.output.GetDType() == WeightsType::F8E8M0 ? 1 : 0));
 
     return jit;
 }

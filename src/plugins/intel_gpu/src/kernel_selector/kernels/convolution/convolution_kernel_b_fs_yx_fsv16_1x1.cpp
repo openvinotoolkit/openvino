@@ -28,22 +28,21 @@ ConvolutionKernel_b_fs_yx_fsv16_1x1::AutoTuneOption ConvolutionKernel_b_fs_yx_fs
 
         if (x == 1 && y == 1) {
             return { 1, EXE_MODE_DEFAULT };
-        } else if (x * f <= 256) {
-            if (x < 8 || x * f <= 128) {
-                return { 2, EXE_MODE_DEFAULT };
-            } else {
-                return { 4, EXE_MODE_DEFAULT };
-            }
-        } else if (x * f <= 1536) {
-            return { 4, EXE_MODE_DEFAULT };
-        } else {
-            return { 8, EXE_MODE_DEFAULT };
         }
-    } else {
-        // In shape agnostic kernel, the output shape can not be specified at build time,
-        // So we prepare 4 kernels(blockWith 1, 2, 4, 8) in advance and then use proper kernel at runtime when static shape comes.
-        return { 8, EXE_MODE_DEFAULT };
-    }
+        if (x * f <= 256) {
+          if (x < 8 || x * f <= 128) {
+            return {2, EXE_MODE_DEFAULT};
+          }
+            return {4, EXE_MODE_DEFAULT};
+        }
+        if (x * f <= 1536) {
+            return { 4, EXE_MODE_DEFAULT };
+        }
+        return {8, EXE_MODE_DEFAULT};
+
+    }  // In shape agnostic kernel, the output shape can not be specified at build time,
+    // So we prepare 4 kernels(blockWith 1, 2, 4, 8) in advance and then use proper kernel at runtime when static shape comes.
+    return {8, EXE_MODE_DEFAULT};
 }
 
 float ConvolutionKernel_b_fs_yx_fsv16_1x1::EstimateOccupancy(const convolution_params& params,
@@ -73,9 +72,10 @@ ConvolutionKernel_b_fs_yx_fsv16_1x1::ConvolutionTuningData ConvolutionKernel_b_f
             size_t ic_blocks = CeilDiv(input.Feature().v, tuning_data.feature_block_size);
             size_t max_slm_div_factor = params.engineInfo.maxWorkGroupSize / tuning_data.sub_group_size;
 
-            while (ic_blocks % (tuning_data.slm_div_factor * 2) == 0 && (tuning_data.slm_div_factor * 2 <= max_slm_div_factor) &&
-                EstimateOccupancy(params, tuning_data) < 4.0) {
-                tuning_data.slm_div_factor *= 2;
+            while (ic_blocks % (tuning_data.slm_div_factor * 2) == 0 &&
+                   (tuning_data.slm_div_factor * 2 <= max_slm_div_factor) &&
+                   EstimateOccupancy(params, tuning_data) < 4.0) {
+              tuning_data.slm_div_factor *= 2;
             }
         }
     }
@@ -153,15 +153,12 @@ KernelsPriority ConvolutionKernel_b_fs_yx_fsv16_1x1::GetKernelsPriority(const Pa
         if (out.Batch().v == 1) {
             if ((bBlockSizeX || bBlockSizeXY) && !bInputPad) {
                 return FORCE_PRIORITY_1;
-            } else {
-                return FORCE_PRIORITY_3;
             }
-        } else {
-            return FORCE_PRIORITY_7;
+            return FORCE_PRIORITY_3;
         }
-    } else {
-        return FORCE_PRIORITY_1;
+        return FORCE_PRIORITY_7;
     }
+    return FORCE_PRIORITY_1;
 }
 
 bool ConvolutionKernel_b_fs_yx_fsv16_1x1::Validate(const Params& p) const {
@@ -242,8 +239,8 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
         bool non_unit_fused_op_spatial = false;
 
         // Set padded_output to true when fused inputs have paddings to have correct blocked loads
-        for (auto& fused_op : params.fused_ops) {
-            for (auto& t : fused_op.tensors) {
+        for (const auto& fused_op : params.fused_ops) {
+            for (const auto& t : fused_op.tensors) {
                 if (t.PitchesDifferFromLogicalDims()) {
                     padded_output = true;
                 }
@@ -283,19 +280,15 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
         // In shape agnostic kernel, the fused shape cannot be specified at build time or run time.
         // Currently simply check whether fused_op is dynmaic. Need to further follow up like static behavior.
         bool non_unit_fused_op_spatial = false;
-        for (auto& fused_op : params.fused_ops) {
-            for (auto& t : fused_op.tensors) {
+        for (const auto& fused_op : params.fused_ops) {
+            for (const auto& t : fused_op.tensors) {
                 if (t.is_dynamic()) {
                     non_unit_fused_op_spatial = true;
                     break;
-                } else {
-                    if ((t.X().v > 1) ||
-                        (t.Y().v > 1) ||
-                        (t.Z().v > 1) ||
-                        (t.W().v > 1)) {
-                        non_unit_fused_op_spatial = true;
-                        break;
-                    }
+                }
+                if ((t.X().v > 1) || (t.Y().v > 1) || (t.Z().v > 1) || (t.W().v > 1)) {
+                    non_unit_fused_op_spatial = true;
+                    break;
                 }
             }
         }
@@ -343,14 +336,14 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
 
     if (NeedPaddedInput()) {
         if (newParams.has_dynamic_inputs()) {
-            if (!CheckConvolutionExplicitPaddings(newParams)) {
-                return {};
-            }
+          if (!CheckConvolutionExplicitPaddings(newParams)) {
+            return {};
+          }
         } else {
             kd.reorderInput = ConvolutionUpdateInputParams(newParams);
 
             if (kd.reorderInput && !newParams.allowInputReordering) {
-                return {};
+              return {};
             }
         }
     }
@@ -398,18 +391,22 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
         if (newParams.deformable_mode) {
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
             if (newParams.deformable_mask_enabled) {
-                kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+              kernel.params.arguments.push_back(
+                  {ArgumentDescriptor::Types::INPUT, 2});
             }
         }
 
         if (!newParams.weights_zero_points.empty()) {
-            kernel.params.arguments.push_back({ArgumentDescriptor::Types::WEIGHTS_ZERO_POINTS, 1});
+          kernel.params.arguments.push_back(
+              {ArgumentDescriptor::Types::WEIGHTS_ZERO_POINTS, 1});
         }
         if (!newParams.activations_zero_points.empty()) {
-            kernel.params.arguments.push_back({ArgumentDescriptor::Types::ACTIVATIONS_ZERO_POINTS, 1});
+          kernel.params.arguments.push_back(
+              {ArgumentDescriptor::Types::ACTIVATIONS_ZERO_POINTS, 1});
         }
         if (!newParams.compensation.empty()) {
-            kernel.params.arguments.push_back({ArgumentDescriptor::Types::COMPENSATION, 1});
+          kernel.params.arguments.push_back(
+              {ArgumentDescriptor::Types::COMPENSATION, 1});
         }
 
         uint32_t fused_deps_total = 0;

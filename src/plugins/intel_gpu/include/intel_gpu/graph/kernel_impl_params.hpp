@@ -143,23 +143,23 @@ struct kernel_impl_params final {
     bool has_fused_primitives() const { return !fused_desc.empty(); }
 
     ov::element::Type_t get_output_element_type() const {
-        if (fused_desc.empty()) {
-            return output_layouts[0].data_type;
-        }
+      if (fused_desc.empty()) {
+        return output_layouts[0].data_type;
+      }
         return fused_desc.back().output_layout.data_type;
     }
 
     bool is_dynamic() const {
-        for (auto& i : input_layouts) {
-            if (i.is_dynamic()) {
-                return true;
-            }
+      for (const auto &i : input_layouts) {
+        if (i.is_dynamic()) {
+          return true;
         }
-        for (auto& i : output_layouts) {
-            if (i.is_dynamic()) {
-                return true;
-            }
+      }
+      for (const auto &i : output_layouts) {
+        if (i.is_dynamic()) {
+          return true;
         }
+      }
         return false;
     }
 

@@ -137,9 +137,9 @@ std::string GemmKernelBase::GetDimsOrder(const std::vector<int64_t>& order_idx) 
     auto get_order_idx = [](std::vector<int64_t> order_idx, int64_t dim_idx) {
         int loc = 0;
         for (auto idx : order_idx) {
-            if (idx == dim_idx) {
-                break;
-            }
+          if (idx == dim_idx) {
+            break;
+          }
             loc += 1;
         }
         return loc;
@@ -334,7 +334,7 @@ bool GemmKernelBase::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    for (auto& fused_op : params.fused_ops) {
+    for (const auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
@@ -344,9 +344,9 @@ bool GemmKernelBase::Validate(const Params& p) const {
 }
 
 Datatype GemmKernelBase::GetActivationType(const gemm_params& params) const {
-    if (params.quantization != QuantizationType::NONE) {
-        return Datatype::F32;
-    }
+  if (params.quantization != QuantizationType::NONE) {
+    return Datatype::F32;
+  }
 
     return GetUnitType(params);
 }

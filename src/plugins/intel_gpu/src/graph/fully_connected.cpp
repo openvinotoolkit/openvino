@@ -141,14 +141,13 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
         if (supports_immad && desc->weights_rank == 3 && weights_pshape.size() == 4 &&
             weights_layout.batch() > 1 && weights_layout.spatial(1) == feature) {
             return calc_output_layouts<ov::PartialShape>(node, impl_param)[0];
-        } else {
-            weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
         }
+        weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
     }
 
     format output_format = get_preferred_format(node, impl_param);
 
-    auto& fused_prims = node.get_fused_primitives();
+    const auto& fused_prims = node.get_fused_primitives();
     for (const auto& f : fused_prims) {
         if (f.is_type<swiglu>()) {
             OPENVINO_ASSERT(fused_prims.size() == 1, "[GPU] Other operation is fused in addition to swiglu!");
@@ -175,10 +174,10 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
         }
 
         return layout(out_pshape, output_type, output_format);
-    } else {
-        if (desc->input_size > 5) {
-            input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
-        }
+    }
+    if (desc->input_size > 5) {
+        input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
+    }
 
         auto out_features = desc->weights_transposed ? weights_layout.batch() : weights_layout.feature();
         auto output_size = tensor(input_layout.batch(), out_features, 1, 1);
@@ -191,7 +190,6 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
         }
 
         return layout(output_type, output_format, output_size);
-    }
 }
 
 template<typename ShapeType>
@@ -218,7 +216,7 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
 
     std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&matmul_op, input_shapes);
     bool has_swiglu = false;
-    auto& fused_prims = node.get_fused_primitives();
+    const auto& fused_prims = node.get_fused_primitives();
     for (auto f : fused_prims) {
         if (f.is_type<swiglu>()) {
             has_swiglu = true;
@@ -275,7 +273,7 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
                                     orig_output_layout.data_padding._upper_size[1] == 0;
     }
 
-    for (auto& fused_desc : orig_impl_param.fused_desc) {
+    for (const auto& fused_desc : orig_impl_param.fused_desc) {
         if (fused_desc.has_outer_dep()) {
             auto fused_op_input_layout = orig_impl_param.input_layouts[fused_desc.outer_dep_start_idx];
             // Check fused desc's input is still dynamic, then do not fake alignment

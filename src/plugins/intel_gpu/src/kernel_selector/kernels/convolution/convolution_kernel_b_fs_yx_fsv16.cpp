@@ -39,22 +39,21 @@ ConvolutionKernel_b_fs_yx_fsv16::AutoTuneOption ConvolutionKernel_b_fs_yx_fsv16:
     auto x = cp.outputs[0].X().v;
     auto f = cp.outputs[0].Feature().v;
     if (x * f <= 256) {
-        if (x <= 8 || x * f <= 128) {
-            return { 2, EXE_MODE_DEFAULT };
-        } else {
-            return { 4, EXE_MODE_DEFAULT };
-        }
-    } else if (x * f <= 1536) {
-        return { 4, EXE_MODE_DEFAULT };
-    } else {
-        if (x >= 8  && x < 12 && x * f < 2600) {
-            return { 4, EXE_MODE_DEFAULT };
-        } else if (x < 12 && x * f < 8192) {
-            return { 8, EXE_MODE_DEFAULT };
-        } else {
-            return { 8, EXE_MODE_AGE_BASED };
-        }
+      if (x <= 8 || x * f <= 128) {
+        return {2, EXE_MODE_DEFAULT};
+      }
+        return {4, EXE_MODE_DEFAULT};
     }
+    if (x * f <= 1536) {
+        return { 4, EXE_MODE_DEFAULT };
+    }
+    if (x >= 8 && x < 12 && x * f < 2600) {
+      return {4, EXE_MODE_DEFAULT};
+    }
+    if (x < 12 && x * f < 8192) {
+      return {8, EXE_MODE_DEFAULT};
+    }
+    return {8, EXE_MODE_AGE_BASED};
 }
 
 float ConvolutionKernel_b_fs_yx_fsv16::EstimateOccupancy(const convolution_params& params,
@@ -84,11 +83,13 @@ ConvolutionKernel_b_fs_yx_fsv16::ConvolutionTuningData ConvolutionKernel_b_fs_yx
     bool slm_exception = params.outputs[0].X().v == 3 && params.outputs[0].Y().v == 3 && params.outputs[0].ElementSize() == 4
                          && params.outputs[0].Feature().v <= 512;
 
-    if (params.engineInfo.deviceType == dev_type::integrated_gpu && params.engineInfo.supports_imad && !slm_exception) {
-        while (ic_blocks % (tuning_data.slm_div_factor * 2) == 0 && (tuning_data.slm_div_factor * 2 <= max_slm_div_factor) &&
-               EstimateOccupancy(params, tuning_data) < 4.0) {
-            tuning_data.slm_div_factor *= 2;
-        }
+    if (params.engineInfo.deviceType == dev_type::integrated_gpu &&
+        params.engineInfo.supports_imad && !slm_exception) {
+      while (ic_blocks % (tuning_data.slm_div_factor * 2) == 0 &&
+             (tuning_data.slm_div_factor * 2 <= max_slm_div_factor) &&
+             EstimateOccupancy(params, tuning_data) < 4.0) {
+        tuning_data.slm_div_factor *= 2;
+      }
     }
 
     tuning_data.work_group_size = tuning_data.slm_div_factor * tuning_data.sub_group_size;
@@ -271,7 +272,7 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_
                                       (tuning_data.feature_block_size / inFeaturesPerGroup > 1);
 
     if (multipleGroupsInputPreload) {
-        jit.AddConstant(MakeJitConstant("MULTIPLE_GROUPS_INPUT_PRELOAD", 1));
+      jit.AddConstant(MakeJitConstant("MULTIPLE_GROUPS_INPUT_PRELOAD", 1));
     }
 
     jit.AddConstant(MakeJitConstant("OUTPUT_X_BLOCK_SIZE", blockWidth));

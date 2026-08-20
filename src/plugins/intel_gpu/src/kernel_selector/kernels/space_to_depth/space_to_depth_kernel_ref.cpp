@@ -35,7 +35,7 @@ bool SpaceToDepthKernelRef::Validate(const Params& p) const {
     }
 
     const space_to_depth_params& params = static_cast<const space_to_depth_params&>(p);
-    for (auto& fused_op : params.fused_ops) {
+    for (const auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
@@ -69,9 +69,9 @@ JitConstants SpaceToDepthKernelRef::GetJitConstants(const space_to_depth_params&
 
     jit.AddConstant(MakeJitConstant("BLOCK_SIZE", params.block_size));
     if (params.depth_mode == SpaceToDepthMode::BLOCKS_FIRST) {
-        jit.AddConstant(MakeJitConstant("BLOCKS_FIRST_MODE", true));
+      jit.AddConstant(MakeJitConstant("BLOCKS_FIRST_MODE", true));
     } else {
-        jit.AddConstant(MakeJitConstant("DEPTH_FIRST_MODE", true));
+      jit.AddConstant(MakeJitConstant("DEPTH_FIRST_MODE", true));
     }
 
     auto input = params.inputs[0];

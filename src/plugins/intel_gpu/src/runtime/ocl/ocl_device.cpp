@@ -129,18 +129,18 @@ int driver_dev_id() {
 
     auto id_itr = result.begin();
     while (id_itr != result.end()) {
-        if (std::find(unused_ids.begin(), unused_ids.end(), *id_itr) != unused_ids.end()) {
-            id_itr = result.erase(id_itr);
-        } else {
-            id_itr++;
-        }
+      if (std::find(unused_ids.begin(), unused_ids.end(), *id_itr) !=
+          unused_ids.end()) {
+        id_itr = result.erase(id_itr);
+      } else {
+        id_itr++;
+      }
     }
 
     if (result.empty()) {
-        return 0;
-    } else {
-        return result.back();
+      return 0;
     }
+    return result.back();
 }
 
 device_type get_device_type(const cl::Device& device) {
@@ -165,15 +165,13 @@ gfx_version parse_version(cl_uint gmdid) {
     if (gmd_id.architecture > 0 && gmd_id.architecture < 100) {
         // New format
         return { static_cast<uint16_t>(gmd_id.architecture), static_cast<uint8_t>(gmd_id.release), static_cast<uint8_t>(gmd_id.revision)};
-    } else {
-        // Old format
+    }  // Old format
         cl_uint ver = gmdid;
         uint16_t major = ver >> 16;
         uint8_t minor = (ver >> 8) & 0xFF;
         uint8_t revision = ver & 0xFF;
 
         return {major, minor, revision};
-    }
 }
 
 bool get_imad_support(const cl::Device& device) {
@@ -181,7 +179,7 @@ bool get_imad_support(const cl::Device& device) {
 
     if (dev_name.find("Gen12") != std::string::npos ||
         dev_name.find("Xe") != std::string::npos) {
-        return true;
+      return true;
     }
 
     if (get_device_type(device) == device_type::integrated_gpu) {
@@ -192,11 +190,12 @@ bool get_imad_support(const cl::Device& device) {
         };
         int dev_id = driver_dev_id();
         if (dev_id == 0) {
-            return false;
+          return false;
         }
 
-        if (std::find(imad_ids.begin(), imad_ids.end(), dev_id) != imad_ids.end()) {
-            return true;
+        if (std::find(imad_ids.begin(), imad_ids.end(), dev_id) !=
+            imad_ids.end()) {
+          return true;
         }
     } else {
         return true;
@@ -268,9 +267,9 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     auto query_device_bool = [&](cl_device_info param) -> bool {
         cl_bool value = CL_FALSE;
         try {
-            if (device.getInfo(param, &value) != CL_SUCCESS) {
-                return false;
-            }
+          if (device.getInfo(param, &value) != CL_SUCCESS) {
+            return false;
+          }
         } catch (const cl::Error&) {
             return false;
         }
@@ -458,14 +457,15 @@ ocl_device::ocl_device(const ocl_device::ptr other, bool initialize_ctx)
 }
 
 bool ocl_device::is_same(const device::ptr other) {
-    auto casted = downcast<ocl_device>(other.get());
+    auto* casted = downcast<ocl_device>(other.get());
     if (!casted) {
-        return false;
+      return false;
     }
 
     // Short path if cl_device is the same
-    if (_platform == casted->_platform && _device.get() && casted->_device.get() && _device == casted->_device) {
-        return true;
+    if (_platform == casted->_platform && _device.get() &&
+        casted->_device.get() && _device == casted->_device) {
+      return true;
     }
     return _info.is_same_device(casted->_info);
 }
@@ -479,9 +479,9 @@ void ocl_device::set_sub_device_idx(uint32_t idx) {
 }
 
 void ocl_device::initialize() {
-    if (_is_initialized) {
-        return;
-    }
+  if (_is_initialized) {
+    return;
+  }
 
     ocl::ocl_device_detector detector;
     auto device_map = detector.get_available_devices(nullptr, nullptr, 0, -1, false);
@@ -490,7 +490,7 @@ void ocl_device::initialize() {
     for (auto& device : device_map) {
         if (this->is_same(device.second)) {
             OPENVINO_ASSERT(!found, "[GPU] Multiple matching devices found for ", this->get_info().dev_name, ". Only one matching device is expected");
-            if (auto casted = downcast<ocl_device>(device.second.get())) {
+            if (auto* casted = downcast<ocl_device>(device.second.get())) {
                 auto& casted_device = casted->get_device();
                 if (casted->get_context().get() == nullptr) {
                     casted->set_context(cl::Context(casted_device));

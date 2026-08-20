@@ -239,15 +239,20 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
 
             if (loc == 0) {
                 return data_tensor.Batch().v;
-            } else if (loc == 1) {
+            }
+            if (loc == 1) {
                 return data_tensor.Feature().v;
-            } else if (loc == (rank - 1) && rank >= 3) {
+            }
+            if (loc == (rank - 1) && rank >= 3) {
                 return data_tensor.X().v;
-            } else if (loc == (rank - 2) && rank >= 4) {
+            }
+            if (loc == (rank - 2) && rank >= 4) {
                 return data_tensor.Y().v;
-            } else if (loc == (rank - 3) && rank >= 5) {
+            }
+            if (loc == (rank - 3) && rank >= 5) {
                 return data_tensor.Z().v;
-            } else if (loc == (rank - 4) && rank >= 6) {
+            }
+            if (loc == (rank - 4) && rank >= 6) {
                 return data_tensor.W().v;
             }
             OPENVINO_THROW("Target dimension is not found.");
@@ -470,7 +475,7 @@ bool GemmKernelTiledOpt::Validate(const Params& params) const {
 
     size_t num_inputs = (gmm_params.indirect_input0 || gmm_params.indirect_input1) ? gmm_params.inputs.size() - 1 : gmm_params.inputs.size();
     for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
-        auto& input = gmm_params.inputs[input_idx];
+        const auto& input = gmm_params.inputs[input_idx];
         if (!Tensor::SimpleLayout(input.GetLayout())) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
         }

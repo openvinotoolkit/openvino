@@ -96,6 +96,10 @@ CommonDispatchData PermuteKernel_xy_swap::SetDefault(const permute_params& param
     const auto& in = params.inputs[0];
     const size_t tile_size = PickTileSize(params);
     const size_t elems_per_dim = tile_size / kWgDim;
+    // Validate() rejects params with PickTileSize() == 0, and every tile candidate is a multiple of
+    // kWgDim, so elems_per_dim is always >= 1 here. Guard the invariant explicitly rather than
+    // dividing by a value a static analyzer cannot prove to be non-zero.
+    OPENVINO_ASSERT(elems_per_dim != 0, "[GPU] permute_xy_swap: invalid tile size ", tile_size, " for WG dim ", kWgDim);
     // One WG covers a TILE_SIZE x TILE_SIZE block; with WG = WG_DIM x WG_DIM,
     // each WI does ELEMS_PER_DIM^2 work, so GWS shrinks accordingly.
     dispatchData.gws = {in.X().v / elems_per_dim, in.Y().v / elems_per_dim, in.Batch().v * in.Feature().v};

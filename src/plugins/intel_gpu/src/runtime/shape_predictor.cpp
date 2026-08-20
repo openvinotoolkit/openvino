@@ -22,7 +22,7 @@ static ov::Shape operator+(const ov::Shape& s1, const ov::Shape& s2) {
 
     std::vector<size_t> result;
     for (size_t i = 0; i < s1.size(); i++) {
-        result.push_back(s1[i] + s2[i]);
+      result.push_back(s1[i] + s2[i]);
     }
 
     return result;
@@ -33,9 +33,9 @@ static ov::Shape operator-(const ov::Shape& s1, const ov::Shape& s2) {
 
     std::vector<size_t> result;
     for (size_t i = 0; i < s1.size(); i++) {
-        if (s1[i] < s2[i]) {
-            return std::vector<size_t>();
-        }
+      if (s1[i] < s2[i]) {
+        return std::vector<size_t>();
+      }
 
         result.push_back(s1[i] - s2[i]);
     }
@@ -46,7 +46,7 @@ static ov::Shape operator-(const ov::Shape& s1, const ov::Shape& s2) {
 void ShapePredictor::add_shape(const std::string& id, const ov::Shape& shape) {
     auto& shapes = _shapes_info[id];
     if (shapes.size() >= _max_deque_size) {
-        shapes.pop_front();
+      shapes.pop_front();
     }
 
     shapes.push_back(shape);
@@ -57,7 +57,7 @@ bool ShapePredictor::can_preallocate(size_t desired_buffer_size) {
     auto device_mem_usage = _engine->get_used_device_memory(cldnn::allocation_type::usm_device);
 
     if (desired_buffer_size > _engine->get_device_info().max_alloc_mem_size) {
-        return false;
+      return false;
     }
 
     return device_mem_usage + desired_buffer_size < _engine->get_device_info().max_global_mem_size * memory_threshold;
@@ -85,7 +85,7 @@ std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std
     // Save shape information and exit without pre-allocation suggestion if current
     // buffer can be reused
     if (can_reuse_buffer) {
-        return {false, {}};
+      return {false, {}};
     }
 
     // Avoid preallocation if spatial padded
@@ -122,7 +122,7 @@ std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std
         for (size_t i = 0; i < min_shapes_num - 1; ++i) {
             auto result = shapes[shapes_num - i - 1] - shapes[shapes_num - i - 2];
             if (result.empty()) {
-                break;
+              break;
             }
             diffs.push_back(result);
         }
@@ -135,7 +135,7 @@ std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std
         }
 
         if (can_use_iterations_preallocation) {
-            can_use_iterations_preallocation = !all_zeroes(diffs[0]);
+          can_use_iterations_preallocation = !all_zeroes(diffs[0]);
         }
 
         // Allow iterations preallocation only for per-dimension diff less than
@@ -151,11 +151,13 @@ std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std
 
             ov::Shape single_iter_shape;
             for (size_t i = 0; i < current_shape.size(); ++i) {
-                single_iter_shape.push_back(diffs[0][i] == 0 ? current_shape[i] : 1);
+              single_iter_shape.push_back(diffs[0][i] == 0 ? current_shape[i]
+                                                           : 1);
             }
 
-            if (ceil_div(ov::shape_size(single_iter_shape) * dt_bitwidth, 8) > _settings.max_per_iter_size) {
-                can_use_iterations_preallocation = false;
+            if (ceil_div(ov::shape_size(single_iter_shape) * dt_bitwidth, 8) >
+                _settings.max_per_iter_size) {
+              can_use_iterations_preallocation = false;
             }
         }
 
@@ -165,10 +167,11 @@ std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std
             auto preallocation_shape = diffs[0] * mul_shape;
             auto new_shape = current_shape + preallocation_shape;
             return {true, new_shape};
-        } else if (_settings.buffers_preallocation_ratio > 1.0f) {
-            if (format::is_blocked(layout.format)) {
-                return {false, {}};
-            }
+        }
+        if (_settings.buffers_preallocation_ratio > 1.0f) {
+          if (format::is_blocked(layout.format)) {
+            return {false, {}};
+          }
             // Apply percentage buffer preallocation
             auto current_shape_size = ov::shape_size(current_shape);
             ov::Shape new_shape_size(current_shape.size(), 1);
