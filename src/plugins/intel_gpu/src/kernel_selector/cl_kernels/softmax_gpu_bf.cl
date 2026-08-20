@@ -348,9 +348,9 @@ KERNEL (softmax_gpu_continuous_bfyx)(
 
     for (; input_idx < items_num; input_idx++)
     {
-        INPUT0_TYPE tmp = input[aligned_data_offset + get_sub_group_local_id() + input_idx * get_sub_group_size()];
-        output[aligned_data_offset + get_sub_group_local_id() + input_idx * get_sub_group_size()] = tmp;
-        my_maximum = max(my_maximum, DECODE_INPUT0_COMPUTE_TYPE(tmp));
+        INPUT0_COMPUTE_TYPE tmp = DECODE_INPUT0_COMPUTE_TYPE(input[aligned_data_offset + get_sub_group_local_id() + input_idx * get_sub_group_size()]);
+        output[aligned_data_offset + get_sub_group_local_id() + input_idx * get_sub_group_size()] = TO_OUTPUT_TYPE(tmp);
+        my_maximum = max(my_maximum, tmp);
     }
 
     if (in_data_set_idx < aligned_offset)
