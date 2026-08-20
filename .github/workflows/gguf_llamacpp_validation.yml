@@ -43,7 +43,7 @@ jobs:
     timeout-minutes: 180
     steps:
       - name: Checkout OpenVINO
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
 
@@ -51,7 +51,7 @@ jobs:
         run: sudo -E ./install_build_dependencies.sh
 
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.ccache
           key: gguf-llamacpp-ccache-${{ runner.os }}-${{ github.base_ref || github.ref_name }}-${{ github.sha }}
@@ -88,7 +88,7 @@ jobs:
           cmake --install build
 
       - name: Checkout llama.cpp
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ${{ env.LLAMA_CPP_REPO }}
           ref: ${{ inputs.llama_cpp_ref || env.LLAMA_CPP_REF }}
