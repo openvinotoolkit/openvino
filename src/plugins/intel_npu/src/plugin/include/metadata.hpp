@@ -36,14 +36,9 @@ public:
     void read(BlobSource& source);
 
     /**
-     * @brief Reads metadata from a blob source. The last position of the data cursor is not checked after reading.
-     */
-    virtual void read_unchecked(BlobSource& source) = 0;
-
-    /**
      * @brief Populates this object from a pre-parsed human-readable metadata attribute map.
      *
-     * @param attrs Parsed key-value attributes from the human-readable metadata string.
+     * @param textAttrs Parsed key-value attributes from the human-readable metadata string.
      * @note Layouts and encryption are intentionally omitted from the human-readable compatibility
      * string. They are internal implementation details that don't affect cross-version compatibility and would only add
      * noise for consumers.
@@ -117,20 +112,14 @@ public:
 
 protected:
     /**
+     * @brief Reads metadata from a blob source. The last position of the data cursor is not checked after reading.
+     */
+    virtual void read_unchecked(BlobSource& source) = 0;
+
+    /**
      * @brief Writes metadata to a stream. The footer (blob size & magic) is omitted.
      */
     virtual void write_without_footer(std::ostream& stream) = 0;
-
-    /**
-     * @brief Reads data from the source containing the binary metadata. The implementation depends on the type of
-     * source.
-     */
-    void read_data_from_source(char* destination, const size_t size);
-
-    /**
-     * @return The number of bytes until the cursor reaches the end of the source
-     */
-    size_t get_remaining_source_size() const;
 
     uint32_t _version;
     uint64_t _compilerPayloadSize;

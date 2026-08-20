@@ -29,9 +29,9 @@ ov::Tensor allocate_aligned_tensor(size_t blobSize) {
     return ov::Tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
 }
 
-constexpr std::string_view HANDLER_FACTOR_LOGGER_NAME = "blob_format_importer_factory";
+constexpr std::string_view HANDLER_FACTORY_LOGGER_NAME = "blob_format_importer_factory";
 constexpr std::string_view RAW_BLOB_HANDLER_LOGGER_NAME = "RawBlobImporter";
-constexpr std::string_view BLOB_V1_HADNLER_LOGGER_NAME = "BlobFormatV1Importer";
+constexpr std::string_view BLOB_V1_HANDLER_LOGGER_NAME = "BlobFormatV1Importer";
 
 constexpr std::string_view BLOB_COMPATIBILITY_SKIPPED_MESSAGE = "Blob compatibility check skipped.";
 constexpr std::string_view MISSING_METADATA_MESSAGE = "The blob is missing the NPU metadata!";
@@ -272,7 +272,7 @@ public:
                                   const FilteredConfig& config)
         : IBlobFormatImporter(original_model,
                               config,
-                              Logger(BLOB_V1_HADNLER_LOGGER_NAME.data(), config.get<LOG_LEVEL>())) {
+                              Logger(BLOB_V1_HANDLER_LOGGER_NAME.data(), config.get<LOG_LEVEL>())) {
         // Read only the metadata from the source and check if the blob is compatible. Load the blob into memory only if
         // it passes the compatibility checks.
         m_metadata = read_metadata_from(npu_formatted_blob);
@@ -491,7 +491,7 @@ std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
     const size_t input_size = npu_formatted_blob.get_remaining_size();
     OPENVINO_ASSERT(input_size > 0, EMPTY_BLOB_MESSAGE);
 
-    const Logger logger(HANDLER_FACTOR_LOGGER_NAME.data(), config.get<LOG_LEVEL>());
+    const Logger logger(HANDLER_FACTORY_LOGGER_NAME.data(), config.get<LOG_LEVEL>());
     if (is_raw_blob) {
         logger.info(BLOB_COMPATIBILITY_SKIPPED_MESSAGE.data());
 
@@ -502,14 +502,14 @@ std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
     // The V1 format is identified by some magic bytes at the end of the input
     OPENVINO_ASSERT(input_size >= MAGIC_BYTES.size(), BLOB_SIZE_SMALLER_THAN_MAGIC);
 
-    const size_t compiler_payload_beggining = npu_formatted_blob.tellg();
+    const size_t compiler_payload_beginning = npu_formatted_blob.tellg();
     npu_formatted_blob.seekg(-static_cast<int>(MAGIC_BYTES.size()), std::ios::end);
 
     std::string blob_magic_bytes(MAGIC_BYTES.size(), 0);
     npu_formatted_blob.read_into_buffer(blob_magic_bytes.data(), MAGIC_BYTES.size());
 
     OPENVINO_ASSERT(MAGIC_BYTES == blob_magic_bytes, MISSING_METADATA_MESSAGE);
-    npu_formatted_blob.seekg(compiler_payload_beggining, std::ios::beg);
+    npu_formatted_blob.seekg(compiler_payload_beginning, std::ios::beg);
 
     logger.debug("Creating a blob format v1 import handler using the factory");
     return std::make_unique<BlobFormatV1Importer>(npu_formatted_blob, original_model, config);
