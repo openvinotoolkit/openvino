@@ -4,6 +4,7 @@
 
 #include "attn_subgraph.hpp"
 
+#include <algorithm>
 #include <array>
 #include <limits>
 #include <sstream>
@@ -330,6 +331,7 @@ void ensure_hfa_requests(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
     const auto& pipeline = get_subgraph_pipeline(ctx, ctx.real_subgraph_idx);
     const auto* hfa = ov::npuw::attn::get_compiled_hfa(pipeline.context);
     OPENVINO_ASSERT(hfa != nullptr, "Missing compiled HFA state");
+    OPENVINO_ASSERT(hfa->is_valid(), "HFA configuration must be valid");
 
     auto& request = get_request(ctx);
     const bool is_piped = request.is_subrequest_pipelined(ctx.real_subgraph_idx);
@@ -342,7 +344,8 @@ void ensure_hfa_requests(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
         state.hfa_requests.pipeline_requests[HFARequestSet::FINAL_TILE] = state.base_pipeline_request;
     }
 
-    const size_t num_inputs = hfa->_compiled_tile_model->inputs().size();
+    const size_t num_inputs =
+        std::min(hfa->_compiled_tile_model->inputs().size(), hfa->_compiled_final_tile_model->inputs().size());
     for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
         const auto tile_input = hfa->_compiled_tile_model->inputs()[input_idx];
         const auto final_tile_input = hfa->_compiled_final_tile_model->inputs()[input_idx];
