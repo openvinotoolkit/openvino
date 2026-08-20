@@ -154,6 +154,7 @@ public:
     std::shared_ptr<ov::Model> get_model() const { return m_model; }
 
     ov::internal::WeightSharingCtxPtr get_weight_sharing_ctx() const { return m_weight_sharing_ctx; }
+    void register_shared_weight_source(std::shared_ptr<ov::AlignedBuffer> source);
 private:
     static factories_map_t factories_map;
     std::shared_ptr<cldnn::program> m_program;
@@ -173,6 +174,7 @@ private:
     bool m_is_inner_program = false;
     std::unordered_set<cldnn::primitive_id> remote_constant_ids;
     ov::internal::WeightSharingCtxPtr m_weight_sharing_ctx;
+    std::set<std::shared_ptr<ov::AlignedBuffer>> m_shared_weight_sources;
 
     void EnableQueryMode() { queryMode = true; }
     void DisableQueryMode() { queryMode = false; }
