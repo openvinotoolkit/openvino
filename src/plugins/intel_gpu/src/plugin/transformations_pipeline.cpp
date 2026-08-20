@@ -769,6 +769,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Keep GroupQueryAttention quantized-KV scales fp32 through the ConvertPrecision below
         // (the intact op requires fp32 scales; it is decomposed later in CommonOptimizations).
         manager.register_pass<ov::intel_gpu::KeepGQAKVScalePrecision>();
+        manager.register_pass<ov::intel_gpu::EliminateEmptySelectiveSSM>();
         manager.register_pass<ov::intel_gpu::PreserveSelectiveSSMPrecision>();
 
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
@@ -1791,6 +1792,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::EliminatePad>();
 
         manager.register_pass<ov::pass::ConstantsReduce>();
+
+        manager.register_pass<ov::intel_gpu::PreserveSingleSelectiveSSMOutput>();
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation

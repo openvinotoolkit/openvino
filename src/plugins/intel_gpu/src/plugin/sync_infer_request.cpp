@@ -548,7 +548,7 @@ void SyncInferRequest::wait() {
                     auto block_mem = block_it->second->memory();
                     auto* impl = usm_host_tensor->get_impl().get();
                     // Update the backing memory to match the block's current buffer and actual data size
-                    impl->set_memory(block_mem, block_mem->count());
+                    impl->set_memory(block_mem, output_memory->count());
                     need_reallocate = false;
                 } else if (usm_host_tensor && output_memory) {
                     need_reallocate = usm_host_tensor->get_impl()->get_original_memory()->size() < output_memory->size();
@@ -1086,7 +1086,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     } else {
         if (!is_remote_tensor_impl && !is_generic_remote) {
             const auto* src_ptr = static_cast<const uint8_t*>(user_tensor->data());
-            if (user_tensor->get_byte_size() != 0 && !same_host_mem(memory, src_ptr)) {
+            if (!same_host_mem(memory, src_ptr)) {
                 // WA: Set need_lockable_mem as a blocking argument
                 // The current input_layout (wait_for_events) does not provide proper synchronization for subsequent CPU implementations
                 // For IOQ, it creates an already set user event, leading to accessing memory that hasn't completed copying

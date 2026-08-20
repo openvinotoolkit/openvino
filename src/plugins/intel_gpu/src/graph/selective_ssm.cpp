@@ -5,6 +5,7 @@
 #include "openvino/op/selective_ssm.hpp"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "json_object.h"
@@ -60,6 +61,59 @@ std::string selective_ssm_inst::to_string(const selective_ssm_node& node) {
     node_info->add("selective_ssm_info", ssm_info);
     node_info->dump(primitive_description);
     return primitive_description.str();
+}
+
+void selective_ssm_inst::update_shape() {
+    parent::update_shape();
+    update_empty_sequence_output();
+}
+
+void selective_ssm_inst::on_execute() {
+    update_empty_sequence_output();
+}
+
+void selective_ssm_inst::update_empty_sequence_output() {
+    OPENVINO_ASSERT(_outputs.size() == 2, "selective_ssm must have 2 outputs");
+    const auto& sequence_output_layout = get_output_layout(0);
+    const bool empty_sequence = sequence_output_layout.is_static() && sequence_output_layout.count() == 0;
+
+    if (!empty_sequence) {
+        if (_state_output_aliased) {
+            _outputs[1] = std::move(_state_output_memory);
+            _max_output_layout_count[1] = _state_output_max_layout_count;
+            _state_output_max_layout_count = 0;
+            _state_output_aliased = false;
+            set_flag(ExecutionFlags::MEMORY_CHANGED);
+        }
+        return;
+    }
+
+    build_deps();
+    const auto state_input = input_memory_ptr(5);
+    OPENVINO_ASSERT(state_input != nullptr, "selective_ssm recurrent state input is not allocated");
+
+    // Dynamic zero-sized outputs are not allocated by the generic path. Keep a zero-sized view backed
+    // by a dummy allocation so optimized users of output 1 can observe that all outputs are available.
+    if (!_outputs[0]) {
+        auto dummy = _network.get_engine().allocate_memory(layout{{1}, data_types::u8, format::bfyx});
+        _outputs[0] = _network.get_engine().reinterpret_buffer(*dummy, sequence_output_layout);
+        _max_output_layout_count[0] = 0;
+        set_flag(ExecutionFlags::MEMORY_CHANGED);
+    }
+
+    if (!_state_output_aliased) {
+        _state_output_memory = _outputs[1];
+        _state_output_max_layout_count = _max_output_layout_count[1];
+        _state_output_aliased = true;
+    }
+
+    if (!_outputs[1] || !_network.get_engine().is_the_same_buffer(*_outputs[1], *state_input)) {
+        _outputs[1] = state_input;
+        _max_output_layout_count[1] = state_input->get_layout().get_linear_size();
+        set_flag(ExecutionFlags::MEMORY_CHANGED);
+    }
+
+    set_flag(ExecutionFlags::SKIP);
 }
 
 }  // namespace cldnn

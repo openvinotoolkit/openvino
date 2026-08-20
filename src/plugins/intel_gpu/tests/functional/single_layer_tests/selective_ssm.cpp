@@ -269,7 +269,7 @@ TEST(smoke_GPUSelectiveSSMIntegration, SelectiveSSMIndividualOutputs) {
     };
 
     const auto run_dynamic_sequence = [&](ov::Core& core, const std::string& device, size_t output_index) {
-        static constexpr std::array<size_t, 4> sequence_lengths{1, 9, 0, 3};
+        static constexpr std::array<size_t, 5> sequence_lengths{0, 1, 9, 0, 3};
         auto compiled_model = core.compile_model(make_model(sequence_lengths.front(), output_index, true), device);
         auto request = compiled_model.create_infer_request();
         for (const auto seq_len : sequence_lengths) {

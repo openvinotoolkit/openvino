@@ -36,6 +36,15 @@ public:
     static layout calc_output_layout(const selective_ssm_node& node, const kernel_impl_params& impl_params);
 
     static std::string to_string(const selective_ssm_node& node);
+
+private:
+    void on_execute() override;
+    void update_shape() override;
+    void update_empty_sequence_output();
+
+    memory::ptr _state_output_memory;
+    size_t _state_output_max_layout_count = 0;
+    bool _state_output_aliased = false;
 };
 
 using selective_ssm_inst = typed_primitive_inst<selective_ssm>;

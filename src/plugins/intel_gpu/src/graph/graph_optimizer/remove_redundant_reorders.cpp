@@ -287,10 +287,6 @@ void remove_redundant_reorders::run(program& p) {
             r_node.is_output() && (dep_node.is_output() || dep_node.is_type<input_layout>() ||
                 dep_node.can_be_optimized() || dep_node.get_users().size() != 1) : r_node.is_output();
 
-        // A network output refers to output port 0 of its primitive. Keep the result reorder when it
-        // exposes another port of a multi-output dependency.
-        no_output_optimization |= r_node.is_output() && r_node.get_dependency_with_port(0).second != 0;
-
         // Do not opt out result reorder of Loop body network
         no_output_optimization |= (r_node.get_program().is_body_program() && r_node.is_output());
 

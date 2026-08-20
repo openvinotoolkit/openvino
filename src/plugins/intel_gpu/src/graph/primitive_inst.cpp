@@ -719,9 +719,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
 
     const auto& users = get_user_insts();
-    // The output-sharing fast paths below handle output port 0 only.
-    const bool has_single_output = _outputs.size() == 1;
-    if (has_single_output && users.size() == 1 && users.front()->get_node().is_type<concatenation>() && users.front()->get_node().is_runtime_skippable()) {
+    if (users.size() == 1 && users.front()->get_node().is_type<concatenation>() && users.front()->get_node().is_runtime_skippable()) {
         auto* concat_inst = users.front();
         if (concat_inst->can_be_optimized()) {
             if (!concat_inst->_allocation_done_by_other) {
@@ -737,7 +735,8 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
             // In-place concat optimization is rejected now, but a previous execution with this optimization
             // may have the same memory aliased to its deps' outputs and itself's output. In this case, we
             // need to reallocate the memory for this node to avoid memory corruption.
-            GPU_DEBUG_TRACE_DETAIL << id() << ": reallocate memory for concat " << concat_inst->id() << " after rejected in-place concat" << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << id() << ": reallocate memory for concat " << concat_inst->id() 
+                                   << " after rejected in-place concat" << std::endl;
             clear_output_memory();
         }
     }
@@ -748,7 +747,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     const auto& actual_layouts = updated_params.output_layouts;
     OPENVINO_ASSERT(actual_layouts[0].is_static(), "[GPU] Can't realloc mem for dynamic layout");
 
-    if (has_single_output && users.size() == 1 && users.front()->get_node().is_type<reorder>() && users.front()->can_be_optimized()) {
+    if (users.size() == 1 && users.front()->get_node().is_type<reorder>() && users.front()->can_be_optimized()) {
         auto* reorder_inst = users.front();
         if (reorder_inst->is_output()
             && reorder_inst->output_memory_ptr()
@@ -775,7 +774,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     //   ComputeNode -> Reshape(opt) -> Reorder(opt) -> Result(opt, ext_block)
     {
         auto* cursor = this;
-        while (has_single_output && cursor->get_user_insts().size() == 1 && cursor->get_user_insts().front()->can_be_optimized()) {
+        while (cursor->get_user_insts().size() == 1 && cursor->get_user_insts().front()->can_be_optimized()) {
             auto* next = cursor->get_user_insts().front();
             if (next->is_output()) {
                 auto* ext_block = get_network().get_output_memory_block(next->id());
@@ -2157,23 +2156,17 @@ void primitive_inst::prepare_primitive() {
     }
     GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
 
-    const auto all_outputs_empty = [&]() {
-        return !_impl_params->output_layouts.empty() &&
-               std::all_of(_impl_params->output_layouts.begin(), _impl_params->output_layouts.end(), [](const layout& output_layout) {
-                   return output_layout.is_static() && output_layout.count() == 0;
-               });
-    };
-
     // If it is optimized out or skipped for zero dimension at the previous iteration,
     // Set this flag true to reset output memory in realloc_if_needed.
-    const bool prev_execution_skipped = can_be_optimized() || all_outputs_empty();
+    const bool prev_execution_skipped = can_be_optimized()
+                        || (_impl_params->output_layouts[0].is_static() && _impl_params->output_layouts[0].count() == 0);
     const auto orig_outputs = _outputs;
     if ((is_dynamic() || get_node().is_in_shape_of_subgraph()) && !has_inner_networks()) {
         do_runtime_in_place_concat();
         update_shape();
 
-        if (all_outputs_empty()) {
-            GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because all output data is empty " << std::endl;
+        if (_impl_params->output_layouts[0].count() == 0) {
+            GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because output data is empty " << std::endl;
             set_flag(ExecutionFlags::SKIP);
         }
 
