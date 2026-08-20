@@ -46,10 +46,7 @@ size_t BufferWeightsProvider::size() const {
 
 FileWeightsProvider::FileWeightsProvider(std::filesystem::path weights_path)
     : m_weights_path(std::move(weights_path)),
-      m_weights_size(ov::util::file_size(m_weights_path)) {
-    std::ifstream weights_stream(m_weights_path, std::ios::binary);
-    OPENVINO_ASSERT(weights_stream.is_open(), m_weights_path, " cannot be opened");
-}
+      m_weights_size(ov::util::file_size(m_weights_path)) {}
 
 std::shared_ptr<ov::AlignedBuffer> FileWeightsProvider::make_region(size_t offset, size_t size) {
     OPENVINO_ASSERT(offset <= m_weights_size && size <= m_weights_size - offset, "Incorrect weights in bin file!");
