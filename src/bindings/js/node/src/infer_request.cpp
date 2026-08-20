@@ -244,8 +244,8 @@ void perform_inference_thread(TsfnContext* context) {
     };
 
     const auto status = context->tsfn.BlockingCall(context, callback);
-    if (status != napi_ok) {
-        std::cerr << "Error: ThreadSafeFunction::BlockingCall failed in perform_inference_thread function\n";
+    if (status != napi_ok && status != napi_closing) {
+        std::cerr << "ThreadSafeFunction::BlockingCall failed with status " << status << '\n';
     }
     context->tsfn.Release();
 }
