@@ -244,8 +244,6 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
     REGISTER_OPTION(ENABLE_STRIDES_FOR);
     REGISTER_OPTION(SHARED_COMMON_QUEUE);
     REGISTER_OPTION(CACHE_ENCRYPTION_CALLBACKS);
-    REGISTER_OPTION(RUNTIME_REQUIREMENTS);
-    REGISTER_OPTION(COMPATIBILITY_CHECK);
     REGISTER_OPTION(MAX_TILES);
 
     if (backend) {
@@ -558,7 +556,7 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
     return it != _properties.end() && it->second.isPublic && it->second.isSupported(propertyArguments);
 }
 
-FilteredConfig PluginPropertyManager::deriveConfigForProperties(const ov::AnyMap& properties) {
+FilteredConfig PluginPropertyManager::deriveConfigForPropertiesForCompiler(const ov::AnyMap& properties) {
     auto [updatedConfig, logger] = [&]() {
         std::lock_guard<std::mutex> lock(_mutex);
         return std::make_tuple(_config, _logger);
@@ -697,6 +695,7 @@ void PluginPropertyManager::registerProperties() {
     register_property<LOG_LEVEL>(_config, _properties, true, ov::PropertyMutability::RW);
     register_property<MODEL_PRIORITY>(_config, _properties, true, ov::PropertyMutability::RW);
     register_property<NUM_STREAMS>(_config, _properties, true, ov::PropertyMutability::RW);
+    register_property<PERF_COUNT>(_config, _properties, true, ov::PropertyMutability::RW);
     register_property<PERFORMANCE_HINT>(_config, _properties, true, ov::PropertyMutability::RW);
     register_property<PERFORMANCE_HINT_NUM_REQUESTS>(_config, _properties, true, ov::PropertyMutability::RW);
     register_property<WEIGHTS_PATH>(_config, _properties, true, ov::PropertyMutability::RW);
@@ -707,7 +706,6 @@ void PluginPropertyManager::registerProperties() {
     register_property<DISABLE_VERSION_CHECK>(_config, _properties, false, ov::PropertyMutability::RW);
     register_property<EXPORT_RAW_BLOB>(_config, _properties, false, ov::PropertyMutability::RW);
     register_property<IMPORT_RAW_BLOB>(_config, _properties, false, ov::PropertyMutability::RW);
-    register_property<PERF_COUNT>(_config, _properties, false, ov::PropertyMutability::RW);
     register_property<PROFILING_TYPE>(_config, _properties, false, ov::PropertyMutability::RW);
     register_property<SHARED_COMMON_QUEUE>(_config, _properties, false, ov::PropertyMutability::RW);
 
@@ -831,10 +829,10 @@ void PluginPropertyManager::registerProperties() {
     register_property_with_custom_function(_properties, ov::hint::model.name(), true, ov::PropertyMutability::RO, [](const ov::AnyMap&) {
         return std::shared_ptr<const ov::Model>(nullptr);
     });
-    register_property_with_custom_function(_properties, ov::supported_properties.name(), true, ov::PropertyMutability::RO, [this](const ov::AnyMap&) {
+    register_property_with_custom_function(_properties, ov::supported_properties.name(), true, ov::PropertyMutability::RO, [this](const ov::AnyMap& arguments) {
         std::vector<ov::PropertyName> supportedProperties;
         for (auto& property : _properties) {
-            if (property.second.isPublic && property.second.isSupported(ov::AnyMap{})) {
+            if (property.second.isPublic && property.second.isSupported(arguments)) {
                 supportedProperties.emplace_back(ov::PropertyName(property.first, property.second.mutability));
             }
         }
@@ -847,11 +845,11 @@ void PluginPropertyManager::registerProperties() {
     register_property_with_custom_function(_properties, ov::internal::cache_header_alignment.name(), false, ov::PropertyMutability::RO, [](const ov::AnyMap&) {
         return utils::STANDARD_PAGE_SIZE;
     });
-    register_property_with_custom_function(_properties, ov::internal::caching_properties.name(), false, ov::PropertyMutability::RO, [this](const ov::AnyMap&) {
+    register_property_with_custom_function(_properties, ov::internal::caching_properties.name(), false, ov::PropertyMutability::RO, [this](const ov::AnyMap& arguments) {
         std::vector<ov::PropertyName> caching_props{};
         for (auto prop : cachingProperties) {
             const auto propertyIt = _properties.find(prop);
-            if (propertyIt != _properties.end() && propertyIt->second.isSupported(ov::AnyMap{})) {
+            if (propertyIt != _properties.end() && propertyIt->second.isSupported(arguments)) {
                 caching_props.emplace_back(prop);
             }
         }
@@ -905,7 +903,15 @@ void PluginPropertyManager::registerProperties() {
     register_property_with_support_and_custom_function(_properties, ov::device::luid.name(), _backend != nullptr && _backend->isLUIDExtSupported(), ov::PropertyMutability::RO, hasBackendAndValidDevice, [this, getDeviceId](const ov::AnyMap& arguments) {
         return utils::getDeviceLUID(_backend, getDeviceId(arguments));
     });
-    register_property_with_support_and_custom_function(_properties, ov::intel_npu::stepping.name(), true, ov::PropertyMutability::RO, hasBackendAndValidDevice, [this, getDeviceId](const ov::AnyMap& arguments) {
+
+    register_property_with_support_and_custom_function(_properties, ov::intel_npu::backend_name.name(), false, ov::PropertyMutability::RO, hasBackendPredicate, [this](const ov::AnyMap&) {
+        if (_backend == nullptr) {
+            OPENVINO_THROW("No available backend");
+        }
+        return _backend->getName();
+    });
+
+    register_property_with_support_and_custom_function<STEPPING>(_config, _properties, true, ov::PropertyMutability::RW, hasBackendAndValidDevice, [this, getDeviceId](const ov::AnyMap& arguments) {
         if (!_config.has<STEPPING>()) {
             try {
                 const auto specifiedDeviceName = getDeviceId(arguments);
@@ -916,7 +922,7 @@ void PluginPropertyManager::registerProperties() {
         }
         return _config.get<STEPPING>();
     });
-    register_property_with_support_and_custom_function(_properties, ov::intel_npu::max_tiles.name(), true, ov::PropertyMutability::RO, hasBackendAndValidDevice, [this, getDeviceId](const ov::AnyMap& arguments) {
+    register_property_with_support_and_custom_function<MAX_TILES>(_config, _properties, true, ov::PropertyMutability::RO, hasBackendAndValidDevice, [this, getDeviceId](const ov::AnyMap& arguments) {
         if (!_config.has<MAX_TILES>()) {
             try {
                 const auto specifiedDeviceName = getDeviceId(arguments);
@@ -927,14 +933,17 @@ void PluginPropertyManager::registerProperties() {
         }
         return _config.get<MAX_TILES>();
     });
-
-    register_property_with_support_and_custom_function(_properties, ov::intel_npu::backend_name.name(), false, ov::PropertyMutability::RO, hasBackendPredicate, [this](const ov::AnyMap&) {
-        if (_backend == nullptr) {
-            OPENVINO_THROW("No available backend");
-        }
-        return _backend->getName();
-    });
-
+    register_property_with_support_and_custom_function<TURBO>(_config, _properties, true, ov::PropertyMutability::RW,
+        [this, isCompilerOptionSupported, getCompilerTypeOrDefault](const ov::AnyMap& arguments) {  // support predicate
+            const auto compilerType = getCompilerTypeOrDefault(arguments);
+            if (compilerType.has_value() && isCompilerOptionSupported(ov::intel_npu::turbo.name(), compilerType.value())) {
+                return true;
+            }
+            return _backend != nullptr && _backend->isCommandQueueExtSupported();
+        },
+        [this](const ov::AnyMap&) { // value getter
+            return _config.get<TURBO>();
+        });
     register_property_with_support_and_custom_function<ENABLE_STRIDES_FOR>(_config, _properties, true, ov::PropertyMutability::RW,
         [this, isCompilerOptionSupported, getCompilerTypeOrDefault](const ov::AnyMap& arguments) {  // support predicate
             const auto compilerType = getCompilerTypeOrDefault(arguments);
@@ -955,22 +964,11 @@ void PluginPropertyManager::registerProperties() {
         [this](const ov::AnyMap&) { // value getter
             return _config.get<ENABLE_STRIDES_FOR>();
         });
-    register_property_with_support_and_custom_function<TURBO>(_config, _properties, true, ov::PropertyMutability::RW,
-        [this, isCompilerOptionSupported, getCompilerTypeOrDefault](const ov::AnyMap& arguments) {  // support predicate
-            const auto compilerType = getCompilerTypeOrDefault(arguments);
-            if (compilerType.has_value() && isCompilerOptionSupported(ov::intel_npu::turbo.name(), compilerType.value())) {
-                return true;
-            }
-            return _backend != nullptr && _backend->isCommandQueueExtSupported();
-        },
-        [this](const ov::AnyMap&) { // value getter
-            return _config.get<TURBO>();
-        });
     // clang-format on
 
-    register_property_with_support_and_custom_function(
+    register_property_with_support_and_custom_function<COMPILER_VERSION>(
+        _config,
         _properties,
-        ov::intel_npu::compiler_version.name(),
         true,
         ov::PropertyMutability::RO,
         [this,

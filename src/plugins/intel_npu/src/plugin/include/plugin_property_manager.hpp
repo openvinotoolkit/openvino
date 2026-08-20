@@ -33,7 +33,7 @@ public:
     ov::Any getProperty(const std::string& name, const ov::AnyMap& arguments = {});
     bool isPropertySupported(const std::string& name, const ov::AnyMap& arguments = {});
 
-    FilteredConfig deriveConfigForProperties(const ov::AnyMap& properties);
+    FilteredConfig deriveConfigForPropertiesForCompiler(const ov::AnyMap& properties);
 
     const FilteredConfig& getConfig() const {
         return _config;
