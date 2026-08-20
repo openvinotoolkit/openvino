@@ -256,8 +256,34 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
              // non-transposed kernel can regress by up to ~1.3x there). Restrict
              // the non-transposed path to XMX-capable GPUs (supports_immad) with
              // K >= 8192 and (M <= 512 or N <= 4096) to keep the wins while avoiding those regressions.
-             if (k >= 8192 && (m <= 512 || n <= 4096) &&
-                 matmul->get_input_element_type(0) == ov::element::f16 && !is_compressed_weight) {
+             const bool large_k_thin_output = k >= 8192 && (m <= 512 || n <= 4096);
+             const bool input_is_f16 = matmul->get_input_element_type(0) == ov::element::f16;
+
+             // Empirical benchdnn and model-level benchmarking showed that
+             // f16 matmuls with a medium reduction dimension and thin output
+             // dimensions can benefit from keeping weights non-transposed.
+             //
+             // This covers the visual MLP-down projection shape observed in
+             // VLA workloads:
+             //   M = 256, K = 3420, N = 1280.
+             //
+             // Keep the condition narrow to avoid changing broad FC behavior.
+             const bool medium_k_thin_output =
+                 input_is_f16 &&
+                 !is_compressed_weight &&
+                 k >= 2048 &&
+                 k < 8192 &&
+                 m >= 128 &&
+                 m <= 512 &&
+                 n >= 1024 &&
+                 n <= 4096 &&
+                 k > n;
+
+             if (large_k_thin_output && input_is_f16 && !is_compressed_weight) {
+                 is_small_matmul = false;
+             }
+
+             if (medium_k_thin_output) {
                  is_small_matmul = false;
              }
         }
