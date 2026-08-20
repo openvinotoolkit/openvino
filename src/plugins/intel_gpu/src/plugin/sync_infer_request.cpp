@@ -225,8 +225,6 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     } else {
         auto outputs = m_user_outputs.write();
         update_tensors_maps(port_index, *outputs, m_plugin_outputs, tensor);
-        ov::ISyncInferRequest::set_tensor(port, tensor);
-        return;
     }
 
     ov::ISyncInferRequest::set_tensor(port, tensor);
