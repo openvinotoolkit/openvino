@@ -19,6 +19,9 @@ namespace ov::frontend::gguf {
 
 // Element type of the zero-point constant for an asymmetric quantized weight. Both ingest
 // paths must agree on this: it decides whether the CPU folds the dequant into the MatMul.
+// Q4_K defaults to an integer (u8) zero-point (faster, lossy); set the environment variable
+// OV_GGUF_Q4_K_ZP_F16=1 to use a faithful f16 zero-point instead (llama.cpp's test-backend-ops
+// CI does this to meet its accuracy tolerance).
 ov::element::Type gguf_zero_point_type(const std::string& name, gguf_tensor_type qtype);
 
 // A lossy weight approximation the frontend deliberately makes, reported to the user once so a
