@@ -26,11 +26,19 @@ size_t get_stream_total_size(std::istream& stream) {
     OPENVINO_ASSERT(stream, STREAM_BAD_STATUS_MESSAGE);
 
     const std::streampos backupCursor = stream.tellg();
-    stream.seekg(0, std::ios_base::end);
-    const std::streampos streamEnd = stream.tellg();
-    stream.seekg(backupCursor, std::ios_base::beg);
+    OPENVINO_ASSERT(backupCursor != std::streampos(-1), STREAM_BAD_STATUS_MESSAGE);
 
-    return streamEnd;
+    stream.seekg(0, std::ios_base::end);
+    OPENVINO_ASSERT(stream, STREAM_BAD_STATUS_MESSAGE);
+
+    const std::streampos streamEnd = stream.tellg();
+    OPENVINO_ASSERT(streamEnd != std::streampos(-1), STREAM_BAD_STATUS_MESSAGE);
+    OPENVINO_ASSERT(streamEnd >= backupCursor, "Invalid stream size");
+
+    stream.seekg(backupCursor, std::ios_base::beg);
+    OPENVINO_ASSERT(stream, STREAM_BAD_STATUS_MESSAGE);
+
+    return static_cast<size_t>(streamEnd);
 }
 
 }  // namespace
@@ -150,7 +158,9 @@ size_t BlobSource::tellg() const {
             std::get_if<std::reference_wrapper<std::istream>>(&m_source)) {
         OPENVINO_ASSERT(stream->get(), STREAM_BAD_STATUS_MESSAGE);
 
-        return static_cast<size_t>(stream->get().tellg());
+        const std::streampos cursor = stream->get().tellg();
+        OPENVINO_ASSERT(cursor != std::streampos(-1), STREAM_BAD_STATUS_MESSAGE);
+        return static_cast<size_t>(cursor);
     }
 
     auto& [tensor, cursor] = std::get<std::pair<std::reference_wrapper<const ov::Tensor>, size_t>>(m_source);
