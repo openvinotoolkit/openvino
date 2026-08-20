@@ -20,16 +20,17 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 namespace {
 
 bool is_supported_data_precision(const ov::element::Type& precision) {
-    return precision == ov::element::f32 || precision == ov::element::f16 || precision == ov::element::bf16;
+    return any_of(precision, ov::element::f32, ov::element::f16, ov::element::bf16);
 }
 
 bool is_supported_index_precision(const ov::element::Type& precision) {
-    return precision == ov::element::i32 || precision == ov::element::i64;
+    return any_of(precision, ov::element::i32, ov::element::i64);
 }
 
 }  // namespace
