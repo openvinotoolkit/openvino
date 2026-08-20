@@ -37,22 +37,18 @@ ze_usm_resource import_dx_buffer(ze_engine* engine, shared_mem_params params) {
     #else
         auto ctx = engine->get_context();
         auto cl_ctx_handle = ctx.ocl_handle<ocl_resource_type::context>();
-        // TODO: make sure that handle is still valid when BufferDX goes out of scope.
         cl::BufferDX buffer(cl_ctx_handle, CL_MEM_READ_WRITE, params.mem);
-        // For directx we should take ownership
-        OPENVINO_ASSERT(clRetainMemObject(buffer()) == CL_SUCCESS, "Retain failed");
-        return ze_import_usm(buffer.get(), ctx);
+        OPENVINO_ASSERT(clRetainMemObject(buffer()) == CL_SUCCESS, "clRetainMemObject failed");
+        return ze_import_usm(buffer.get(), ctx, false);
     #endif
 }
 
 ze_image_resource import_media_buffer(ze_engine* engine, shared_mem_params params) {
     auto ctx = engine->get_context();
     auto cl_ctx_handle = ctx.ocl_handle<ocl_resource_type::context>();
-    // TODO: make sure that image handle is still valid when imageVA goes out of scope.
     cl::ImageVA image(cl_ctx_handle, CL_MEM_READ_WRITE, params.surface, params.plane);
-    // For directx we should take ownership
-    OPENVINO_ASSERT(clRetainMemObject(image()) == CL_SUCCESS, "Retain failed");
-    return ze_import_image(image.get());
+    OPENVINO_ASSERT(clRetainMemObject(image()) == CL_SUCCESS, "clRetainMemObject failed");
+    return ze_import_image(image.get(), false);
 }
 
 ze_usm_resource import_os_handle(ze_engine* engine, const layout& layout, ov::intel_gpu::os_handle_param external_handle) {
