@@ -2497,7 +2497,8 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::dump::subgraphs, NPUW_DUMP_SUBS),
                           BIND(npuw::dump::subgraphs_on_fail, NPUW_DUMP_SUBS_ON_FAIL),
                           BIND(npuw::dump::inputs_outputs, NPUW_DUMP_IO),
-                          BIND(npuw::dump::io_iters, NPUW_DUMP_IO_ITERS)
+                          BIND(npuw::dump::io_iters, NPUW_DUMP_IO_ITERS),
+                          BIND(npuw::dump::io_filter, NPUW_DUMP_IO_FILTER)
 #endif
     });
 #undef BIND

@@ -1818,6 +1818,10 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
 
                 auto new_param = std::make_shared<ov::op::v0::Parameter>(prod_output.get_element_type(),
                                                                          prod_output.get_partial_shape());
+                // The "npuw_closure_" prefix keeps the name out of the way of the existing
+                // name-based Parameter lookups (attention, pyramid, block KV cache).
+                new_param->set_friendly_name("npuw_closure_" + std::to_string(new_param_idx) + "_" +
+                                             input_node->get_friendly_name());
                 input_desc.replace_source_output(new_param);  // (n)/1/i/a
                 function._model->add_parameters({std::move(new_param)});
                 LOG_DEBUG("Register Parameter[" << new_param_idx << "] as input to " << iport.first << " / "

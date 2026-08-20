@@ -4,6 +4,8 @@
 
 #include "util.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include <intel_npu/config/config.hpp>
 #include <iomanip>
 #include <openvino/core/parallel.hpp>
@@ -59,6 +61,27 @@ bool ov::npuw::util::is_set(const std::size_t sub_idx,
     sub_inds = ::intel_npu ::OptionParser<std::vector<std::size_t>>::parse(str);
     if (std::find(sub_inds.begin(), sub_inds.end(), sub_idx) != sub_inds.end()) {
         return true;
+    }
+    return false;
+}
+
+bool ov::npuw::util::name_matches(const std::string& name, const std::string& filter) {
+    if (filter.empty()) {
+        return true;
+    }
+    const auto to_lower = [](std::string s) {
+        std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
+            return static_cast<char>(std::tolower(c));
+        });
+        return s;
+    };
+    const auto lname = to_lower(name);
+    std::stringstream ss(filter);
+    std::string token;
+    while (std::getline(ss, token, ',')) {
+        if (!token.empty() && lname.find(to_lower(token)) != std::string::npos) {
+            return true;
+        }
     }
     return false;
 }

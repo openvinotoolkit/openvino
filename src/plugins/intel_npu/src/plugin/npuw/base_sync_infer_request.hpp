@@ -224,6 +224,10 @@ protected:
     mutable std::optional<bool> m_iter_suffix_required;
     std::size_t m_run_iter = 0u;
 
+    // Narrows NPUW_DUMP_IO down to the ports (or whole subgraphs) matching NPUW_DUMP_IO_FILTER
+    bool port_matches_dump_filter(const std::string& submodel_path, const ov::Output<const ov::Node>& port) const;
+    mutable std::optional<std::string> m_dump_filter;
+
     bool needs_copy(std::size_t idx) const;
     bool needs_copy(std::size_t idx, std::size_t cidx) const;
     std::size_t next(std::size_t idx_base) const;
