@@ -26,10 +26,7 @@ protected:
         options = std::make_shared<OptionsDesc>();
         options->add<LOG_LEVEL>();
         options->add<COMPILE_LOG_LEVEL>();
-
         config = std::make_unique<FilteredConfig>(options);
-
-        config->enable(ov::log::level.name(), true);
     }
 
     static ze_graph_compiler_version_info_t modernCompilerVersion() {
