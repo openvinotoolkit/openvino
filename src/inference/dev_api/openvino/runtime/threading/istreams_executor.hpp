@@ -225,7 +225,8 @@ public:
         bool operator==(const Config& config) {
             if (_name == config._name && _streams == config._streams &&
                 _threads_per_stream == config._threads_per_stream &&
-                _thread_preferred_core_type == config._thread_preferred_core_type && _rank == config._rank) {
+                _thread_preferred_core_type == config._thread_preferred_core_type && _rank == config._rank &&
+                _inline_mode == config._inline_mode) {
                 return true;
             } else {
                 return false;
@@ -295,6 +296,19 @@ public:
      * @return true if inline execution is enabled (set via ov::intel_cpu::multi_app_thread_sync_execution)
      */
     virtual bool get_inline_mode() = 0;
+
+    /**
+     * @brief Whether a single synchronous task should run inline on the calling
+     *        thread instead of being dispatched through run_and_wait().
+     *
+     * Centralizes the inline-vs-dispatch policy in the executor so callers (for
+     * example the shared sync infer path) do not compose individual conditions.
+     * Implementations may override to add executor-specific conditions.
+     * @return true if the task should be executed inline on the calling thread
+     */
+    virtual bool run_inline() {
+        return get_inline_mode() || get_streams_num() <= 1;
+    }
 
     /**
      * @brief Execute the task in the current thread using streams executor configuration and constraints

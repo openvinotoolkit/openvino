@@ -24,9 +24,10 @@ struct ImmediateStreamsExecutor : public ov::threading::ITaskExecutor {
     explicit ImmediateStreamsExecutor(const std::shared_ptr<ov::threading::IStreamsExecutor>& streamsExecutor)
         : _streamsExecutor{streamsExecutor} {}
     void run(ov::threading::Task task) override {
-        // Respect plugin-provided inline execution mode so the sync path can stay on
-        // the calling app thread and avoid run_and_wait() worker dispatch.
-        if (_streamsExecutor->get_inline_mode() || _streamsExecutor->get_streams_num() <= 1) {
+        // The executor owns the inline-vs-dispatch policy; the sync path only asks
+        // whether to run inline on the calling app thread or hand the task to a
+        // worker stream via run_and_wait().
+        if (_streamsExecutor->run_inline()) {
             _streamsExecutor->execute(std::move(task));
         } else {
             std::vector<ov::threading::Task> tasks{std::move(task)};
