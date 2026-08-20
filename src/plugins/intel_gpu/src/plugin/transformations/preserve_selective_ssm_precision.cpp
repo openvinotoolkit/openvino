@@ -61,7 +61,7 @@ bool PreserveSingleSelectiveSSMOutput::run_on_model(const std::shared_ptr<ov::Mo
         output_view->set_friendly_name(selective_ssm->get_friendly_name() + "/output_view_" + std::to_string(output_index));
         output_view->output(0).get_tensor().set_names(output.get_names());
         ov::copy_runtime_info(selective_ssm, {output_shape, output_view});
-        for (auto& input : target_inputs) {
+        for (const auto& input : target_inputs) {
             input.replace_source_output(output_view);
         }
         changed = true;
