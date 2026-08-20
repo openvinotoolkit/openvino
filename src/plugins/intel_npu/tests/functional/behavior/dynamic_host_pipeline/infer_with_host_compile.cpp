@@ -814,7 +814,13 @@ TEST_P(InferWithHostCompileTests, SharedCommonQueue_BasicInferAndReuse) {
         auto& ctx = setupResult.context;
         const std::string tag = sharedQueue ? "shared" : "nonshared";
 
-        ov::Shape shape = {1, 720, 1280, 16};
+        ov::Shape shape;
+        if (selectedModelName == "MaxPool_NCHW") {
+            shape = {1, 16, 720, 1280};
+        }
+        else {
+            shape = {1, 720, 1280, 16};
+        }
         ov::Tensor t0 = ov::test::utils::create_and_fill_tensor(
                 model->input().get_element_type(), shape, 100, 0);
 
@@ -828,7 +834,13 @@ TEST_P(InferWithHostCompileTests, SharedCommonQueue_BasicInferAndReuse) {
         OV_ASSERT_NO_THROW(setInputInferAndCompare(model, ctx.reqDynamic, ctx.reqReference,
                                                    t1, tag + "_new_ptr"));
 
-        ov::Shape shape2 = {1, 360, 640, 16};
+        ov::Shape shape2;
+        if (selectedModelName == "MaxPool_NCHW") {
+            shape2 = {1, 16, 360, 640};
+        }
+        else {
+            shape2 = {1, 360, 640, 16};
+        }
         ov::Tensor t2 = ov::test::utils::create_and_fill_tensor(
                 model->input().get_element_type(), shape2, 50, 0);
         OV_ASSERT_NO_THROW(setInputInferAndCompare(model, ctx.reqDynamic, ctx.reqReference,
@@ -864,7 +876,13 @@ TEST_P(InferWithHostCompileTests, SharedCommonQueue_ZeroTensorInputOutputSet) {
         const std::string tag = sharedQueue ? "shared" : "nonshared";
 
         auto zeroContext = core->get_default_context(target_device);
-        ov::Shape shape = {1, 720, 1280, 16};
+        ov::Shape shape;
+        if (selectedModelName == "MaxPool_NCHW") {
+            shape = {1, 16, 720, 1280};
+        }
+        else {
+            shape = {1, 720, 1280, 16};
+        }
         ov::Tensor hostInput = ov::test::utils::create_and_fill_tensor(
                 model->input().get_element_type(), shape, 100, 0);
         OV_ASSERT_NO_THROW(setInputInferAndCompare(model, ctx.reqDynamic, ctx.reqReference,
@@ -884,7 +902,13 @@ TEST_P(InferWithHostCompileTests, SharedCommonQueue_ZeroTensorInputOutputSet) {
         OV_ASSERT_NO_THROW(inferAndCompare(model, ctx.reqDynamic, ctx.reqReference,
                                            tag + "_zero_output"));
 
-        ov::Shape shape2 = {1, 360, 640, 16};
+        ov::Shape shape2;
+        if (selectedModelName == "MaxPool_NCHW") {
+            shape2 = {1, 16, 360, 640};
+        }
+        else {
+            shape2 = {1, 360, 640, 16};
+        }
         auto zeroInput2 = zeroContext.create_host_tensor(model->input().get_element_type(), shape2);
         auto zeroInputSource2 = ov::test::utils::create_and_fill_tensor(
                 model->input().get_element_type(), shape2, 100, 2);
@@ -924,7 +948,13 @@ TEST_P(InferWithHostCompileTests, CompileTimeConfig_ModelPriority) {
                 GTEST_SKIP() << setupResult.message;
             }
 
-            ov::Shape shape = {1, 720, 1280, 16};
+            ov::Shape shape;
+            if (selectedModelName == "MaxPool_NCHW") {
+                shape = {1, 16, 720, 1280};
+            }
+            else {
+                shape = {1, 720, 1280, 16};
+            }
             ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(
                     model->input().get_element_type(), shape, 100, 0);
             OV_ASSERT_NO_THROW(setInputInferAndCompare(model,
@@ -967,7 +997,13 @@ TEST_P(InferWithHostCompileTests, CompileTimeConfig_WorkloadType) {
 
             auto reqDynamic = compiledModel.create_infer_request();
             auto reqRef = refModel.create_infer_request();
-            ov::Shape shape = {1, 720, 1280, 16};
+            ov::Shape shape;
+            if (selectedModelName == "MaxPool_NCHW") {
+                shape = {1, 16, 720, 1280};
+            }
+            else {
+                shape = {1, 720, 1280, 16};
+            }
             ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(
                     model->input().get_element_type(), shape, 100, 0);
             OV_ASSERT_NO_THROW(setInputInferAndCompare(model, reqDynamic, reqRef,
@@ -1007,7 +1043,13 @@ TEST_P(InferWithHostCompileTests, CompileTimeConfig_Turbo) {
 
             auto reqDynamic = compiledModel.create_infer_request();
             auto reqRef = refModel.create_infer_request();
-            ov::Shape shape = {1, 720, 1280, 16};
+            ov::Shape shape;
+            if (selectedModelName == "MaxPool_NCHW") {
+                shape = {1, 16, 720, 1280};
+            }
+            else {
+                shape = {1, 720, 1280, 16};
+            }
             ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(
                     model->input().get_element_type(), shape, 100, 0);
             OV_ASSERT_NO_THROW(reqDynamic.set_input_tensor(0, inTensor));
@@ -1069,7 +1111,13 @@ TEST_P(InferWithHostCompileTests, SetProperty_CombinedPriorityAndWorkload) {
 
         auto reqDynamic = compiledModel.create_infer_request();
         auto reqRef = refModel.create_infer_request();
-        ov::Shape shape = {1, 720, 1280, 16};
+        ov::Shape shape;
+        if (selectedModelName == "MaxPool_NCHW") {
+            shape = {1, 16, 720, 1280};
+        }
+        else {
+            shape = {1, 720, 1280, 16};
+        }
         ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(
                 model->input().get_element_type(), shape, 100, 0);
         OV_ASSERT_NO_THROW(setInputInferAndCompare(model, reqDynamic, reqRef,
@@ -1081,7 +1129,13 @@ TEST_P(InferWithHostCompileTests, SetProperty_CombinedPriorityAndWorkload) {
         OV_ASSERT_NO_THROW(inferAndCompare(model, reqDynamic, reqRef,
                                            "CombinedConfig_priority_high_workload_efficient"));
 
-        ov::Shape shape2 = {1, 360, 640, 16};
+        ov::Shape shape2;
+        if (selectedModelName == "MaxPool_NCHW") {
+            shape2 = {1, 16, 360, 640};
+        }
+        else {
+            shape2 = {1, 360, 640, 16};
+        }
         ov::Tensor inTensor2 = ov::test::utils::create_and_fill_tensor(
                 model->input().get_element_type(), shape2, 100, 1);
         OV_ASSERT_NO_THROW(setInputInferAndCompare(model, reqDynamic, reqRef,
@@ -1138,7 +1192,13 @@ TEST_P(InferWithHostCompileTests, SetProperty_ModelPriority_SingleCompiledModel)
     }
     auto& ctx = setupResult.context;
 
-    ov::Shape shape = {1, 720, 1280, 16};
+    ov::Shape shape;
+    if (selectedModelName == "MaxPool_NCHW") {
+        shape = {1, 16, 720, 1280};
+    }
+    else {
+        shape = {1, 720, 1280, 16};
+    }
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(
             model->input().get_element_type(), shape, 100, 0);
 
@@ -1223,7 +1283,13 @@ TEST_P(InferWithHostCompileTests, SetProperty_WorkloadType_SingleCompiledModel) 
     ov::InferRequest reqDynamic = compiledModel.create_infer_request();
     ov::InferRequest reqRef     = refModel.create_infer_request();
 
-    ov::Shape shape = {1, 720, 1280, 16};
+    ov::Shape shape;
+    if (selectedModelName == "MaxPool_NCHW") {
+        shape = {1, 16, 720, 1280};
+    }
+    else {
+        shape = {1, 720, 1280, 16};
+    }
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(
             model->input().get_element_type(), shape, 100, 0);
 
@@ -1289,7 +1355,13 @@ TEST_P(InferWithHostCompileTests, SetProperty_Turbo_SingleCompiledModel_Document
     ov::InferRequest reqDynamic = compiledModel.create_infer_request();
     ov::InferRequest reqRef     = refModel.create_infer_request();
 
-    ov::Shape shape = {1, 720, 1280, 16};
+    ov::Shape shape;
+    if (selectedModelName == "MaxPool_NCHW") {
+        shape = {1, 16, 720, 1280};
+    }
+    else {
+        shape = {1, 720, 1280, 16};
+    }
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(
             model->input().get_element_type(), shape, 100, 0);
 
@@ -1369,7 +1441,12 @@ TEST_P(InferWithHostCompileTests, SetProperty_Priority_BetweenTwoRequests) {
     ov::InferRequest reqB   = compiledModel.create_infer_request();
     ov::InferRequest reqRef = refModel.create_infer_request();
 
-    ov::Shape shape = {1, 720, 1280, 16};
+    ov::Shape shape;
+    if (selectedModelName == "MaxPool_NCHW") {
+        shape = {1, 16, 720, 1280};
+    } else {
+        shape = {1, 720, 1280, 16};
+    }
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(
             model->input().get_element_type(), shape, 100, 0);
 
@@ -1416,7 +1493,12 @@ TEST_P(InferWithHostCompileTests, SetProperty_ModelPriority_SingleCompiledModel_
     }
     auto& ctx = setupResult.context;
 
-    ov::Shape shape = {1, 720, 1280, 16};
+    ov::Shape shape;
+    if (selectedModelName == "MaxPool_NCHW") {
+        shape = {1, 16, 720, 1280};
+    } else {
+        shape = {1, 720, 1280, 16};
+    }
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(
             model->input().get_element_type(), shape, 100, 0);
 
@@ -1483,7 +1565,12 @@ TEST_P(InferWithHostCompileTests, SetProperty_WorkloadType_SingleCompiledModel_N
     ov::InferRequest reqDynamic = compiledModel.create_infer_request();
     ov::InferRequest reqRef = refModel.create_infer_request();
 
-    ov::Shape shape = {1, 720, 1280, 16};
+    ov::Shape shape;
+    if (selectedModelName == "MaxPool_NCHW") {
+        shape = {1, 16, 720, 1280};
+    } else {
+        shape = {1, 720, 1280, 16};
+    }
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(
             model->input().get_element_type(), shape, 100, 0);
 
@@ -1540,7 +1627,12 @@ TEST_P(InferWithHostCompileTests, SetProperty_Turbo_SingleCompiledModel_NonShare
     ov::InferRequest reqDynamic = compiledModel.create_infer_request();
     ov::InferRequest reqRef     = refModel.create_infer_request();
 
-    ov::Shape shape = {1, 720, 1280, 16};
+    ov::Shape shape;
+    if (selectedModelName == "MaxPool_NCHW") {
+        shape = {1, 16, 720, 1280};
+    } else {
+        shape = {1, 720, 1280, 16};
+    }
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(
             model->input().get_element_type(), shape, 100, 0);
 
@@ -1597,7 +1689,12 @@ TEST_P(InferWithHostCompileTests, SetProperty_Priority_BetweenTwoRequests_NonSha
     ov::InferRequest reqB   = compiledModel.create_infer_request();
     ov::InferRequest reqRef = refModel.create_infer_request();
 
-    ov::Shape shape = {1, 720, 1280, 16};
+    ov::Shape shape;
+    if (selectedModelName == "MaxPool_NCHW") {
+        shape = {1, 16, 720, 1280};
+    } else {
+        shape = {1, 720, 1280, 16};
+    }
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(
             model->input().get_element_type(), shape, 100, 0);
 
