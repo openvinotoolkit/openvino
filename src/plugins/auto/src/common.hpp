@@ -223,6 +223,7 @@ public:
     SoCompiledModel                                m_hw_compiled_model;
     std::string                                    m_model_precision;
     std::unordered_map<std::string, unsigned>      m_utilization_thresholds;
+    std::string                                    m_low_power_device;
     // hold the resource of static variable to avoid the unexpected destruction.
     std::shared_ptr<std::mutex>                                          m_mtx;
     std::shared_ptr<std::map<unsigned int, std::list<std::string>>>      m_priority_map;
