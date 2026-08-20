@@ -91,8 +91,10 @@ bool check_WRB(const shared_ptr<op_util::RNNCellBase>& cell_1, const shared_ptr<
 bool is_equal_clip(const shared_ptr<op_util::RNNCellBase>& cell_1, const shared_ptr<op_util::RNNCellBase>& cell_2) {
     const auto clip_1 = cell_1->get_clip();
     const auto clip_2 = cell_2->get_clip();
-    if (op_util::is_no_clip(clip_1) || op_util::is_no_clip(clip_2)) {
-        return op_util::is_no_clip(clip_1) && op_util::is_no_clip(clip_2);
+    const auto is_no_clip_1 = op_util::is_no_clip(clip_1);
+    const auto is_no_clip_2 = op_util::is_no_clip(clip_2);
+    if (is_no_clip_1 || is_no_clip_2) {
+        return is_no_clip_1 && is_no_clip_2;
     }
     return clip_1 == clip_2;
 }
