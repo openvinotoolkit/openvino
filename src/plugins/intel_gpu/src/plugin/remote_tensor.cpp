@@ -10,6 +10,10 @@
 #include "intel_gpu/runtime/memory_caps.hpp"
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
 
+#ifdef OV_GPU_WITH_OCL_RT
+#include "ocl/ocl_engine.hpp"
+#endif
+
 #include <cstdint>
 #include <memory>
 
@@ -414,10 +418,20 @@ void RemoteTensorImpl::allocate() {
         const auto buffer_size = m_va_mem.size > -1 ? m_va_mem.size : m_layout.bytes_count();
         if (m_mapped_memory && m_mapped_memory_read_only) {
             // The plugin owns a read-only mapping (file-mmap case), so the buffer is imported as read-only.
-            m_memory_object = engine.create_hostbuffer(static_cast<const void*>(m_va_mem.ptr),
-                                            buffer_size,
-                                            cldnn::allocation_type::cl_mem,
-                                            m_layout);
+#ifdef OV_GPU_WITH_OCL_RT
+            if (auto* ocl_engine = dynamic_cast<cldnn::ocl::ocl_engine*>(&engine)) {
+                m_memory_object = ocl_engine->create_hostbuffer_host_ro(m_va_mem.ptr,
+                                                buffer_size,
+                                                cldnn::allocation_type::cl_mem,
+                                                m_layout);
+            } else
+#endif
+            {
+                m_memory_object = engine.create_hostbuffer(static_cast<const void*>(m_va_mem.ptr),
+                                                buffer_size,
+                                                cldnn::allocation_type::cl_mem,
+                                                m_layout);
+            }
         } else {
             m_memory_object = engine.create_hostbuffer(m_va_mem.ptr,
                                             buffer_size,
