@@ -77,7 +77,7 @@ std::optional<float> parse_utilization_from_aiselector_json_impl(const std::stri
 
 }  // namespace
 
-// Calls into ClientApi.dll through the plain-C ABI (ClientApiC.h).
+// Calls into the statically linked IPF ClientApi through the plain-C ABI (ClientApiC.h).
 class TelemetryClient::Impl {
 public:
     Impl() {
