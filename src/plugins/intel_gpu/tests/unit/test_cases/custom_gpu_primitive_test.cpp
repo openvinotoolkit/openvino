@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "graph/include/primitive_inst.h"
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -209,6 +210,56 @@ void add_basic_in2x2x2x2_with_reorder()
     for (int i = 0; i < 16; i++)
     {
         ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
+}
+
+// custom_gpu_primitive_impl enqueues an OpenCL kernel, so it must not report itself as a
+// CPU impl: that places its own output, and every producer feeding it, in usm_host.
+TEST(custom_gpu_primitive_f32, impl_is_not_cpu_and_producer_stays_in_device_memory) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 4 } });
+
+    std::string kernel_code =
+        R"__krnl(
+            __kernel void copy_kernel(const __global float* input0, __global float* output)
+            {
+                const unsigned idx = get_global_id(0);
+                output[idx] = input0[idx];
+            }
+        )__krnl";
+    std::vector<custom_gpu_primitive::arg_desc> parameters = {
+        { custom_gpu_primitive::arg_input, 0 },
+        { custom_gpu_primitive::arg_output, 0 } };
+    layout output_layout = { data_types::f32, format::bfyx, { 1, 1, 4, 4 } };
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(eltwise("producer", { input_info("input"), input_info("input") }, eltwise_mode::sum));
+    topology.add(custom_gpu_primitive(
+        "user_kernel",
+        { input_info("producer") },
+        { kernel_code },
+        "copy_kernel",
+        parameters,
+        "-cl-mad-enable",
+        { output_layout },
+        { output_layout.count() }));
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    network.execute();
+
+    auto custom_inst = network.get_primitive("user_kernel");
+    ASSERT_NE(custom_inst->get_impl(), nullptr);
+    EXPECT_FALSE(custom_inst->get_impl()->is_cpu());
+    EXPECT_FALSE(custom_inst->get_impl()->requires_lockable_input());
+
+    if (engine.supports_allocation(allocation_type::usm_device)) {
+        auto producer_inst = network.get_primitive("producer");
+        ASSERT_NE(producer_inst->output_memory_ptr(), nullptr);
+        EXPECT_NE(producer_inst->output_memory_ptr()->get_allocation_type(),
+                  allocation_type::usm_host);
     }
 }
 

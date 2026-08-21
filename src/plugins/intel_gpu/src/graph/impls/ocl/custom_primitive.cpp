@@ -69,6 +69,12 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     using parent = typed_primitive_impl<custom_gpu_primitive>;
     using parent::parent;
 
+    // execute_impl only enqueues an OpenCL kernel, but this impl derives from the generic
+    // typed_primitive_impl rather than typed_primitive_impl_ocl, so without the override it
+    // inherits primitive_impl::is_cpu()'s true default and the allocator puts its output --
+    // and, through requires_lockable_input(), every producer feeding it -- in usm_host.
+    bool is_cpu() const override { return false; }
+
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::custom_gpu_primitive_impl)
 
     std::shared_ptr<kernel_selector::cl_kernel_data> cl_kernel;
