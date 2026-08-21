@@ -98,6 +98,7 @@ OP_CONVERTER(translate_exp);
 OP_CONVERTER(translate_expm1);
 OP_CONVERTER(translate_eye);
 OP_CONVERTER(translate_fake_quantize_per_channel_affine);
+OP_CONVERTER(translate_fake_quantize_learnable_per_channel_affine);
 OP_CONVERTER(translate_fake_quantize_per_tensor_affine);
 OP_CONVERTER(translate_fft_fft);
 OP_CONVERTER(translate_fft_fft2);
@@ -399,6 +400,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::__ixor__", op::inplace_op<op::translate_bitwise_xor>},
         {"aten::_convolution", op::translate_convolution},
         {"aten::_convolution_mode", op::translate_convolution_mode},
+        {"aten::_fake_quantize_learnable_per_channel_affine",
+         op::translate_fake_quantize_learnable_per_channel_affine},
         {"aten::_native_multi_head_attention", op::translate_native_multi_head_attention},
         {"aten::_pack_padded_sequence", op::translate_pack_padded_sequence},
         {"aten::_pad_packed_sequence", op::translate_pad_packed_sequence},
@@ -875,6 +878,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten._convolution.default", op::translate_convolution},
         {"aten._embedding_bag.default", op::translate_embedding_bag_fx},
         {"aten._embedding_bag_forward_only.default", op::translate_embedding_bag_fx},
+        {"aten._fake_quantize_learnable_per_channel_affine.default",
+         op::translate_fake_quantize_learnable_per_channel_affine},
         {"aten._fake_quantize_per_tensor_affine_cachemask_tensor_qparams.default",
          op::translate_fake_quantize_per_tensor_affine_fx},
         {"aten._grouped_mm.default", op::translate_grouped_mm},
