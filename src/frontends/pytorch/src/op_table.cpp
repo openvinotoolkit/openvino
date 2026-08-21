@@ -350,6 +350,7 @@ OP_CONVERTER(translate_repeat_fx);
 OP_CONVERTER(translate_rsub_fx);
 OP_CONVERTER(translate_scalar_tensor_fx);
 OP_CONVERTER(translate_scaled_dot_product_attention_fx);
+OP_CONVERTER(translate_openvino_paged_attention);
 OP_CONVERTER(translate_search_sorted);
 OP_CONVERTER(translate_select_scatter_fx);
 OP_CONVERTER(translate_slice_fx);
@@ -890,6 +891,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten._safe_softmax.default", op::translate_softmax_fx},
         {"aten._scaled_dot_product_flash_attention.default", op::translate_scaled_dot_product_attention_fx},
         {"aten._scaled_dot_product_flash_attention_for_cpu.default", op::translate_scaled_dot_product_attention_fx},
+        {"openvino.paged_attention.default", op::translate_openvino_paged_attention},
         {"aten._softmax.default", op::translate_softmax_fx},
         {"aten._to_copy.default", op::translate_to_fx},
         {"aten._transformer_encoder_layer_fwd.default", op::translate_transformer_encoder_layer_fwd},
@@ -1061,7 +1063,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.min.dim", op::translate_min_dim_fx},
         {"aten.minimum.default", op::translate_minimum},
         {"aten.mish.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Mish>},
-        {"aten.mm.default", op::translate_1to1_match_2_inputs<opset10::MatMul>},
+        {"aten.mm.default", op::translate_1to1_match_2_inputs_align_types<opset10::MatMul>},
         {"aten.mul.Scalar", op::translate_mul},
         {"aten.mul.Tensor", op::translate_mul},
         {"aten.mul_.Tensor", op::translate_mul},
