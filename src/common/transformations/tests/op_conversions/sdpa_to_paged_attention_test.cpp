@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include "../common_optimizations/ssm_test_models.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/abs.hpp"
@@ -17,6 +18,7 @@
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/einsum.hpp"
@@ -7390,6 +7392,31 @@ TEST(SDPAToPA_ActivationFakeQuantizeOnKV_PerChannel, NotTolerated) {
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::SDPAToPagedAttention>();
     OV_EXPECT_THROW(manager.run_passes(model), ov::Exception, ::testing::HasSubstr("undeclared parameters"));
+}
+
+// SDPAToPagedAttention must not silently leave stateful SSM nodes in the graph. SelectiveSSMFusion fuses
+// the loop-based SSM into a SelectiveSSM, but its plain-Parameter recurrent state (no Gather(ReadValue))
+// prevents PagedSelectiveSSMFusion from converting it, so the two fused counts diverge and the
+// transformation throws.
+TEST(SDPAToPA_SelectiveSSM_Unconvertible, StatefulSSMLeftInGraphThrows) {
+    auto model = make_single_layer_sdpa_model(/*fq_on_k=*/false, /*fq_on_v=*/false, /*gqa=*/false);
+
+    // plain_parameter_state=true keeps the fused SelectiveSSM unconvertible by PagedSelectiveSSMFusion.
+    auto ssm_model = ov::test::ssm::build_looped_ssm(/*num_heads=*/4,
+                                                     /*num_groups=*/2,
+                                                     /*head_dim=*/8,
+                                                     /*state_size=*/16,
+                                                     /*with_post_loop=*/false,
+                                                     /*break_body=*/false,
+                                                     /*plain_parameter_state=*/true);
+    model->add_parameters(ssm_model->get_parameters());
+    model->add_results(ssm_model->get_results());
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::SDPAToPagedAttention>();
+    OV_EXPECT_THROW(manager.run_passes(model),
+                    ov::Exception,
+                    ::testing::HasSubstr("Stateful SSM nodes cannot be left in the graph"));
 }
 
 /*
