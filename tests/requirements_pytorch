@@ -8,8 +8,8 @@ numpy==1.26.4; python_version < "3.12"
 numpy==2.1.1; python_version >= "3.12"
 
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.12.0
-torchvision==0.27.0
+torch==2.13.0
+torchvision==0.28.0
 
 pytest==7.0.1; python_version < '3.10'
 pytest==7.2.0; python_version >= '3.10'
