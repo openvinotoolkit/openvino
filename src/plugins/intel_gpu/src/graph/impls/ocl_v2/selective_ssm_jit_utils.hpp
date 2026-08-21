@@ -41,7 +41,7 @@ inline size_t get_head_dim_block(const size_t head_dim,
         return 0;
 
     const size_t state_iterations = cldnn::ceil_div(state_size, subgroup_size);
-    const size_t target = kind == device_kind::discrete ? (info.arch >= cldnn::gpu_arch::xe2 ? 8 : 4) : (info.arch >= cldnn::gpu_arch::xe2 ? 8 : 4);
+    const size_t target = kind == device_kind::discrete ? 4 : (info.arch >= cldnn::gpu_arch::xe2 ? 8 : 4);
     size_t block = std::min(head_dim, target);
     if (kind == device_kind::integrated) {
         // Bound the statically scalarized recurrence state to avoid private-memory spills.
