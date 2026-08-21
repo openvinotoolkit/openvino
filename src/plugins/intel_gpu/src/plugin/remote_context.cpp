@@ -303,7 +303,7 @@ void RemoteContextImpl::initialize() {
         GPU_DEBUG_INFO << "Initialize RemoteContext for " << m_device_name << " (" << m_device->get_info().dev_name << ")" << std::endl;
 
         m_device->initialize();  // Initialize associated device before use
-        m_engine = cldnn::engine::create(m_device);
+        m_engine = cldnn::engine::create(m_device->get_engine_type(), m_device->get_runtime_type(), m_device);
 
         init_properties();
 
