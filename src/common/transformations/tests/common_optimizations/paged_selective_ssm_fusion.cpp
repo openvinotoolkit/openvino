@@ -236,3 +236,16 @@ TEST_F(PagedSelectiveSSMFusionTest, FusePagedSSM) {
     const auto var_ids_to_remove = run_paged_selective_ssm_fusion(model);
     EXPECT_EQ(var_ids_to_remove.count("ssm_var_0"), 1u);
 }
+
+TEST(PagedSelectiveSSMFusionCount, ReportsConvertedCount) {
+    auto model = build_model_stateful();
+    PaParams pa_params{model->get_parameters()};
+    std::unordered_set<std::string> var_ids_to_remove;
+
+    ov::pass::Manager manager;
+    manager.set_per_pass_validation(false);
+    auto pass = manager.register_pass<ov::pass::PagedSelectiveSSMFusion>(pa_params, var_ids_to_remove);
+    manager.run_passes(model);
+
+    EXPECT_EQ(pass->get_fused_count(), 1u);
+}

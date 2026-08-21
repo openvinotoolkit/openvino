@@ -67,6 +67,11 @@ public:
     PagedSelectiveSSMFusion(ov::pass::paged_attention::PaParams& pa_params,
                             std::unordered_set<std::string>& var_ids_to_remove);
 
+    // Number of SelectiveSSM nodes converted to PagedSelectiveSSM once the pass has run.
+    size_t get_fused_count() const {
+        return m_layer_index;
+    }
+
 private:
     size_t m_layer_index = 0;
 };
