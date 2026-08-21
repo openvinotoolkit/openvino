@@ -3,7 +3,5 @@
 //
 
 #define SSM_JIT_KERNEL paged_selective_ssm_jit_discrete
-#define SSM_JIT_USE_SLM 1
 #include "paged_selective_ssm_jit_common.cl"
-#undef SSM_JIT_USE_SLM
 #undef SSM_JIT_KERNEL

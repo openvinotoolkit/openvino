@@ -22,6 +22,10 @@ using cldnn::selective_ssm;
 namespace {
 
 constexpr size_t max_jit_state_size = 512;
+// Larger Xe2 private state is profitable once recurrence work amortizes its scratch traffic.
+constexpr size_t max_xe2_extended_private_state_size = 256;
+constexpr size_t xe2_extended_private_min_sequence = 16;
+constexpr size_t xe2_extended_bf16_private_min_sequence = 8;
 
 bool is_plain_static_layout(const cldnn::layout& layout) {
     return layout.get_partial_shape().is_static() && layout.data_padding == cldnn::padding() && layout.count() <= std::numeric_limits<uint32_t>::max();
@@ -36,6 +40,21 @@ size_t get_private_values_budget(const size_t sequence_size, const cldnn::data_t
     const size_t short_sequence_limit = data_type == cldnn::data_types::f32 && supports_extended_f32_short_sequence ? 32 : 8;
     return sequence_size <= short_sequence_limit ? selective_ssm_jit::short_sequence_private_value_budget
                                                  : selective_ssm_jit::long_sequence_private_value_budget;
+}
+
+bool use_discrete_slm(const RuntimeParams& params) {
+    const auto& info = params.get_device_info();
+    const size_t state_size = params.get_input_layout(2).get_partial_shape()[3].get_length();
+    const size_t sequence_size = params.get_input_layout(3).get_partial_shape()[1].get_length();
+    const auto data_type = params.get_input_layout(3).data_type;
+    const size_t extended_private_min_sequence =
+        data_type == cldnn::data_types::bf16 ? xe2_extended_bf16_private_min_sequence : xe2_extended_private_min_sequence;
+    const bool supports_xe2_extended_private_state =
+        info.arch == cldnn::gpu_arch::xe2 && state_size <= max_xe2_extended_private_state_size && sequence_size >= extended_private_min_sequence;
+    // Xe HPG does not amortize the f32 private-state scratch cost for very short recurrences.
+    const bool prefer_slm_for_short_f32 = info.arch == cldnn::gpu_arch::xe_hpg && data_type == cldnn::data_types::f32 && sequence_size <= 4;
+    const bool supports_private_state = selective_ssm_jit::supports_common_discrete_private_state(info, state_size) || supports_xe2_extended_private_state;
+    return !supports_private_state || prefer_slm_for_short_f32;
 }
 
 template <selective_ssm_jit::device_kind Kind>
@@ -64,6 +83,8 @@ protected:
         jit.make("SSM_SUBGROUP_SIZE", subgroup_size);
         jit.make("SSM_HEAD_DIM_BLOCK", head_dim_block);
         jit.make("SSM_STATE_ITERATIONS", cldnn::ceil_div(state_size, subgroup_size));
+        if constexpr (Kind == selective_ssm_jit::device_kind::discrete)
+            jit.make("SSM_JIT_USE_SLM", use_discrete_slm(params));
         return jit;
     }
 
@@ -75,8 +96,10 @@ protected:
         for (uint32_t i = 0; i < params.output_layouts.size(); i++)
             args.push_back({ArgumentDescriptor::Types::OUTPUT, i});
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});
-        if constexpr (Kind == selective_ssm_jit::device_kind::discrete)
-            args.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, 0});
+        if constexpr (Kind == selective_ssm_jit::device_kind::discrete) {
+            if (use_discrete_slm(params))
+                args.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, 0});
+        }
         return args;
     }
 
@@ -102,8 +125,11 @@ protected:
             sequence_desc.t = cldnn::scalar_desc::Types::UINT32;
             sequence_desc.v.u32 = static_cast<uint32_t>(x_shape[1].get_length());
             kd.params.scalars.push_back(sequence_desc);
-            if constexpr (Kind == selective_ssm_jit::device_kind::discrete)
-                kd.params.local_memory_args = {head_dim_block * state_size * sizeof(float)};
+            kd.params.local_memory_args.clear();
+            if constexpr (Kind == selective_ssm_jit::device_kind::discrete) {
+                if (use_discrete_slm(params))
+                    kd.params.local_memory_args = {head_dim_block * state_size * sizeof(float)};
+            }
         }};
     }
 };

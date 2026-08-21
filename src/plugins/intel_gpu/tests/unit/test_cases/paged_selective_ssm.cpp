@@ -426,6 +426,11 @@ INSTANTIATE_TEST_SUITE_P(
         paged_selective_ssm_test_params{{3, 2}, {1, 2}, {2, 0}, 4, 2, 8, 8, ov::element::f16, ov::element::i32, false},
         paged_selective_ssm_test_params{{2, 1}, {0, 3}, {2, 1}, 2, 1, 4, 16, ov::element::f32, ov::element::i64, false},
         paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 4, 16, ov::element::bf16, ov::element::i32, false},
+        paged_selective_ssm_test_params{{8}, {0}, {8}, 64, 1, 64, 128, ov::element::f32, ov::element::i32, false},
+        paged_selective_ssm_test_params{{8}, {0}, {8}, 64, 1, 64, 128, ov::element::f16, ov::element::i32, false},
+        paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 4, 256, ov::element::f32, ov::element::i32, true, {}, false, true},
+        paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 4, 512, ov::element::f16, ov::element::i32, false},
+        paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 4, 512, ov::element::f32, ov::element::i32, false},
         paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 2, 513, ov::element::f32, ov::element::i32, false},
         paged_selective_ssm_test_params{{2, 3}, {1, 0}, {2, 3}, 4, 2, 4, 16, ov::element::f32, ov::element::i64, true},
         // Five page-aliasing cases from the published specification.

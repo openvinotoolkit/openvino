@@ -23,6 +23,9 @@ using cldnn::program_node;
 namespace {
 
 constexpr size_t max_jit_state_size = 512;
+// Paged recurrence amortizes wider Xe2 private state; f32 and bf16 retain SLM beyond 256 elements.
+constexpr size_t max_xe2_extended_private_state_size = 256;
+constexpr size_t max_xe2_f16_private_state_size = 512;
 
 bool has_supported_padding(const cldnn::layout& layout) {
     return layout.get_partial_shape().is_dynamic() || layout.data_padding == cldnn::padding();
@@ -44,6 +47,17 @@ size_t get_scratch_elements(const std::array<size_t, 4>& dimensions) {
         elements *= dimension;
     }
     return std::max<size_t>(elements, 1);
+}
+
+bool use_discrete_slm(const RuntimeParams& params) {
+    const auto& info = params.get_device_info();
+    const size_t state_size = params.get_input_layout(2).get_partial_shape()[2].get_length();
+    const auto data_type = params.get_input_layout(3).data_type;
+    const bool supports_xe2_extended_private_state =
+        info.arch == cldnn::gpu_arch::xe2 &&
+        (state_size <= max_xe2_extended_private_state_size || (data_type == cldnn::data_types::f16 && state_size <= max_xe2_f16_private_state_size));
+    const bool supports_private_state = selective_ssm_jit::supports_common_discrete_private_state(info, state_size) || supports_xe2_extended_private_state;
+    return !supports_private_state;
 }
 
 template <selective_ssm_jit::device_kind Kind>
@@ -76,6 +90,8 @@ protected:
         jit.make("SSM_SUBGROUP_SIZE", subgroup_size);
         jit.make("SSM_HEAD_DIM_BLOCK", head_dim_block);
         jit.make("SSM_STATE_ITERATIONS", cldnn::ceil_div(state_size, subgroup_size));
+        if constexpr (Kind == selective_ssm_jit::device_kind::discrete)
+            jit.make("SSM_JIT_USE_SLM", use_discrete_slm(params));
         return jit;
     }
 
@@ -86,8 +102,10 @@ protected:
         for (uint32_t i = 0; i < params.input_layouts.size(); i++)
             args.push_back({ArgumentDescriptor::Types::INPUT, i});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
-        if constexpr (Kind == selective_ssm_jit::device_kind::discrete)
-            args.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, 0});
+        if constexpr (Kind == selective_ssm_jit::device_kind::discrete) {
+            if (use_discrete_slm(params))
+                args.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, 0});
+        }
         return args;
     }
 
@@ -107,9 +125,11 @@ protected:
                                                                                 selective_ssm_jit::paged_private_value_budget);
 
             kd.params.workGroups.local = {subgroup_size, 1, 1};
-            if constexpr (Kind == selective_ssm_jit::device_kind::discrete)
-                kd.params.local_memory_args = {head_dim_block * state_size * sizeof(float)};
-
+            kd.params.local_memory_args.clear();
+            if constexpr (Kind == selective_ssm_jit::device_kind::discrete) {
+                if (use_discrete_slm(params))
+                    kd.params.local_memory_args = {head_dim_block * state_size * sizeof(float)};
+            }
             if (params.is_dynamic()) {
                 kd.params.workGroups.global = {subgroup_size, 1, 1};
                 return;
