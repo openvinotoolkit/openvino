@@ -5,6 +5,7 @@
 #include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+
 #include <memory>
 #include <mutex>
 #include <openvino/runtime/intel_npu/properties.hpp>
@@ -183,7 +184,7 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsValueIsReadableWhen
     compiledModel = {};
 }
 
-TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsNotSupportedForWS) {
+TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsSupportedForWS) {
     // Preparing the model for the test
     std::stringstream model_xml, model_bin;
     {
@@ -205,18 +206,108 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsNotSupportedForWS
                            {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
                             ov::intel_npu::platform(ov::intel_npu::Platform::standardize(
                                 ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU))),
-                            ov::enable_weightless(true)}));
+                            ov::enable_weightless(true),
+                            ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ONE_SHOT)}));
 
     std::vector<ov::PropertyName> properties;
-    // Test that RUNTIME_REQUIREMENTS is not supported for a weightless model
-    OV_EXPECT_THROW(auto requirements = compiledModel.get_property(ov::runtime_requirements),
-                    ov::Exception,
-                    testing::HasSubstr("Unsupported configuration key: RUNTIME_REQUIREMENTS"));
-
-    // Test that RUNTIME_REQUIREMENTS is not in the list of supported properties either
+    // Test that RUNTIME_REQUIREMENTS is supported for a weightless model
     OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
     auto it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
-    ASSERT_TRUE(it == properties.cend());
+    ASSERT_TRUE(it != properties.cend());
+    ASSERT_FALSE(it->is_mutable());
+
+    std::string requirements;
+    OV_ASSERT_NO_THROW(requirements = compiledModel.get_property(ov::runtime_requirements));
+    ASSERT_FALSE(requirements.empty());
+}
+
+TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsSupportedForWSIterative) {
+    // Preparing the model for the test
+    std::stringstream model_xml, model_bin;
+    {
+        // Serialize generated model into stringstream to later populate `WeightlessCacheAttribute` runtime
+        // information of constant nodes
+        auto model = ov::test::utils::make_conv_pool_relu();
+        ov::pass::Serialize serializer(model_xml, model_bin);
+        serializer.run_on_model(model);
+    }
+    auto model_bin_str = model_bin.str();
+    ov::Tensor model_weights(ov::element::u8, ov::Shape{model_bin_str.size()});
+    std::memcpy(model_weights.data<char>(), model_bin_str.data(), model_bin_str.size());
+    auto model = core.read_model(model_xml.str(), model_weights);
+
+    ov::CompiledModel compiledModel;
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(
+                           model,
+                           deviceName,
+                           {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
+                            ov::intel_npu::platform(ov::intel_npu::Platform::standardize(
+                                ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU))),
+                            ov::enable_weightless(true),
+                            ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE)}));
+
+    std::vector<ov::PropertyName> properties;
+    OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
+    auto it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
+    ASSERT_TRUE(it != properties.cend());
+
+    std::string requirements;
+    OV_ASSERT_NO_THROW(requirements = compiledModel.get_property(ov::runtime_requirements));
+    ASSERT_FALSE(requirements.empty());
+}
+
+TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsExportImportForWSIterative) {
+    // Preparing the model for the test
+    std::stringstream model_xml, model_bin;
+    {
+        // Serialize generated model into stringstream to later populate `WeightlessCacheAttribute` runtime
+        // information of constant nodes
+        auto model = ov::test::utils::make_conv_pool_relu();
+        ov::pass::Serialize serializer(model_xml, model_bin);
+        serializer.run_on_model(model);
+    }
+    auto model_bin_str = model_bin.str();
+    ov::Tensor model_weights(ov::element::u8, ov::Shape{model_bin_str.size()});
+    std::memcpy(model_weights.data<char>(), model_bin_str.data(), model_bin_str.size());
+    auto model = core.read_model(model_xml.str(), model_weights);
+
+    ov::CompiledModel compiledModel;
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(
+                           model,
+                           deviceName,
+                           {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
+                            ov::intel_npu::platform(ov::intel_npu::Platform::standardize(
+                                ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU))),
+                            ov::enable_weightless(true),
+                            ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE)}));
+
+    std::vector<ov::PropertyName> properties;
+    OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
+    auto it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
+    ASSERT_TRUE(it != properties.cend());
+
+    std::string reference_requirements;
+    OV_ASSERT_NO_THROW(reference_requirements = compiledModel.get_property(ov::runtime_requirements));
+    ASSERT_FALSE(reference_requirements.empty());
+
+    std::stringstream compiled_blob;
+    OV_ASSERT_NO_THROW(compiledModel.export_model(compiled_blob));
+
+    OV_ASSERT_NO_THROW(compiledModel = {});
+    // A weightless blob does not embed the weights, so the original model must be provided on import
+    OV_ASSERT_NO_THROW(compiledModel = core.import_model(compiled_blob, deviceName, {ov::hint::model(model)}));
+
+    OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
+    it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
+    ASSERT_TRUE(it != properties.cend());
+
+    std::string imported_requirements;
+    OV_ASSERT_NO_THROW(imported_requirements = compiledModel.get_property(ov::runtime_requirements));
+    ASSERT_FALSE(imported_requirements.empty());
+
+    // The equality must be guaranteed for a given openvino version
+    // If the blob was exported with a different OV version, requirements might differ
+    ASSERT_EQ(reference_requirements, imported_requirements);
 }
 
 TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsExportImport) {
@@ -245,6 +336,81 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsExportImport) {
     ASSERT_TRUE(it != properties.cend());
     std::string imported_requirements;
     OV_ASSERT_NO_THROW(imported_requirements = compiledModel.get_property(ov::runtime_requirements));
+
+    // The equality must be guaranteed for a given openvino version
+    // If the blob was exported with a different OV version, requirements might differ
+    ASSERT_EQ(reference_requirements, imported_requirements);
+}
+
+TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsExportImportForWSIterativeCID) {
+    // The compatibility descriptor on the compiler-in-driver path is only available when the driver
+    // graph API version is high enough. On older drivers it is expected to be absent.
+    const auto initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
+    const bool driverHandlesCompatibilityCheck =
+        initStructs != nullptr && initStructs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16);
+
+    // Preparing the model for the test
+    std::stringstream model_xml, model_bin;
+    {
+        // Serialize generated model into stringstream to later populate `WeightlessCacheAttribute` runtime
+        // information of constant nodes
+        auto model = ov::test::utils::make_conv_pool_relu();
+        ov::pass::Serialize serializer(model_xml, model_bin);
+        serializer.run_on_model(model);
+    }
+    auto model_bin_str = model_bin.str();
+    ov::Tensor model_weights(ov::element::u8, ov::Shape{model_bin_str.size()});
+    std::memcpy(model_weights.data<char>(), model_bin_str.data(), model_bin_str.size());
+    auto model = core.read_model(model_xml.str(), model_weights);
+
+    // Forcing CID as the current compiler type
+    // Check for the property in the supported properties list, since the driver may not support it.
+    std::vector<ov::PropertyName> supportedProperties;
+    OV_ASSERT_NO_THROW(supportedProperties =
+                           core.get_property(deviceName,
+                                             ov::supported_properties,
+                                             {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}));
+    if (find(supportedProperties.cbegin(), supportedProperties.cend(), ov::enable_weightless.name()) ==
+        supportedProperties.cend()) {
+        GTEST_SKIP() << "current driver does not support ENABLE_WEIGHTLESS";
+    }
+
+    ov::CompiledModel compiledModel;
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(
+                           model,
+                           deviceName,
+                           {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
+                            ov::intel_npu::bypass_umd_caching(true),
+                            ov::enable_weightless(true),
+                            ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE)}));
+
+    std::vector<ov::PropertyName> properties;
+    OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
+    auto it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
+    if (!driverHandlesCompatibilityCheck) {
+        ASSERT_TRUE(it == properties.cend());
+        return;
+    }
+    ASSERT_TRUE(it != properties.cend());
+
+    std::string reference_requirements;
+    OV_ASSERT_NO_THROW(reference_requirements = compiledModel.get_property(ov::runtime_requirements));
+    ASSERT_FALSE(reference_requirements.empty());
+
+    std::stringstream compiled_blob;
+    OV_ASSERT_NO_THROW(compiledModel.export_model(compiled_blob));
+
+    OV_ASSERT_NO_THROW(compiledModel = {});
+    // A weightless blob does not embed the weights, so the original model must be provided on import
+    OV_ASSERT_NO_THROW(compiledModel = core.import_model(compiled_blob, deviceName, {ov::hint::model(model)}));
+
+    OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
+    it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
+    ASSERT_TRUE(it != properties.cend());
+
+    std::string imported_requirements;
+    OV_ASSERT_NO_THROW(imported_requirements = compiledModel.get_property(ov::runtime_requirements));
+    ASSERT_FALSE(imported_requirements.empty());
 
     // The equality must be guaranteed for a given openvino version
     // If the blob was exported with a different OV version, requirements might differ
