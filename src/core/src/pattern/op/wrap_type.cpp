@@ -12,6 +12,11 @@
 bool ov::pass::pattern::op::WrapType::match_value(Matcher* matcher,
                                                   const Output<Node>& pattern_value,
                                                   const Output<Node>& graph_value) {
+    if (m_strict_output_index && pattern_value.get_index() != graph_value.get_index()) {
+        OPENVINO_LOG_WRAPTYPE2(matcher);
+        return false;
+    }
+
     if (std::none_of(m_wrapped_types.begin(), m_wrapped_types.end(), [&](const NodeTypeInfo& type_info) {
             return graph_value.get_node_shared_ptr()->get_type_info().is_castable(type_info);
         })) {
@@ -25,6 +30,14 @@ bool ov::pass::pattern::op::WrapType::match_value(Matcher* matcher,
     }
 
     auto& pattern_map = matcher->get_pattern_value_map();
+    // Opt-in: bind this node to a single physical producer across all edges. On a
+    // repeat visit the node is already validated, so skip re-matching its arguments.
+    if (m_strict_output_index) {
+        auto it = pattern_map.find(shared_from_this());
+        if (it != pattern_map.end()) {
+            return it->second.get_node() == graph_value.get_node();
+        }
+    }
     pattern_map[shared_from_this()] = graph_value;
     matcher->add_node(graph_value);
     OPENVINO_LOG_WRAPTYPE3(matcher, get_input_size());
