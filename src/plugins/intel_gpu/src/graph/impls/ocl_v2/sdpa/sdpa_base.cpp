@@ -174,6 +174,7 @@ sdpa_configuration SDPABase::get_sdpa_configuration(const kernel_impl_params& im
     }
 
     config.is_causal = desc->is_causal;
+    config.causal_lower_right = desc->causal_lower_right;
 
     if (desc->scale_val.has_value()) {
         config.has_const_scale_val = true;
@@ -223,6 +224,7 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
         auto data_inputs_num = get_data_inputs_num(*desc);
 
         jit.make("IS_CAUSAL", desc->is_causal);
+        jit.make("CAUSAL_MASK_LOWER_RIGHT", desc->causal_lower_right);
         if (desc->has_sink_input) {
             jit.make("SINK_DATA_T", to_ocl_type(params.input_layouts[5].data_type));
             jit.make("HAS_SINK_INPUT", 1);

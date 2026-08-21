@@ -235,10 +235,14 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(m.get_match_root());
+        auto gpu_sdpa = ov::as_type_ptr<op::SDPA>(m.get_match_root());
 
         if (!sdpa || transformation_callback(sdpa)) {
             return false;
         }
+
+        const auto causal_mask_alignment = gpu_sdpa ? gpu_sdpa->get_causal_mask_alignment()
+                                                    : op::SDPA::CausalMaskAlignment::UPPER_LEFT;
 
         auto order_q = op::SDPA::default_order(sdpa->get_input_partial_shape(0).size());
         auto order_k = op::SDPA::default_order(sdpa->get_input_partial_shape(1).size());

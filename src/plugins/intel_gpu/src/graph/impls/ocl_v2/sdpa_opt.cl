@@ -518,7 +518,11 @@ KERNEL(sdpa_opt)(
 
                         // Apply attention mask
 #if IS_CAUSAL
-                        if (start_partition_idx + seq_len > target_seq_idx + seq_idx)
+                        #if CAUSAL_MASK_LOWER_RIGHT
+                            if (start_partition_idx + seq_len > (SOURCE_SEQ_LEN - TARGET_SEQ_LEN) + target_seq_idx + seq_idx)
+                        #else
+                            if (start_partition_idx + seq_len > target_seq_idx + seq_idx)
+                        #endif
                             qk_val[seq_idx] += INPUT0_VAL_MIN;
 #elif !IS_CAUSAL && HAS_ATTN_MASK_INPUT
                         const uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0_idx, b1_idx, target_seq_idx + seq_idx, start_partition_idx + seq_len);
@@ -1036,6 +1040,7 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #if IS_CAUSAL
+    const uint causal_offset = CAUSAL_MASK_LOWER_RIGHT ? max(0, (int)SOURCE_SEQ_LEN - (int)TARGET_SEQ_LEN) : 0;
     if (target_seq_idx >= (uint)TARGET_SEQ_LEN) {
         unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
             mask_vec[i] = NAN;
@@ -1046,7 +1051,7 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
             if ((source_seq_idx + i > target_seq_idx) ||
                 (target_seq_idx >= SLIDING_WINDOW_SIZE && source_seq_idx + i < target_seq_idx - SLIDING_WINDOW_SIZE))
 #else
-            if (source_seq_idx + i > target_seq_idx)
+            if (source_seq_idx + i > target_seq_idx + causal_offset)
 #endif
                 mask_vec[i] = NAN;
         }
@@ -1355,7 +1360,11 @@ KERNEL(sdpa_opt)(
 #endif
 
 #if IS_CAUSAL
-    const SEQ_RANGE default_this_work_item_seq_range = {0, target_seq_idx + sglid, target_seq_idx + seq_idx_end};
+    const uint causal_offset = CAUSAL_MASK_LOWER_RIGHT ? max(0, (int)SOURCE_SEQ_LEN - (int)TARGET_SEQ_LEN) : 0;
+    const SEQ_RANGE default_this_work_item_seq_range = {
+        0,
+        target_seq_idx + sglid + causal_offset,
+        target_seq_idx + seq_idx_end + causal_offset};
     SEQ_RANGE this_work_item_seq_range_temp = default_this_work_item_seq_range;
 
     #if IS_PAGED_ATTENTION
