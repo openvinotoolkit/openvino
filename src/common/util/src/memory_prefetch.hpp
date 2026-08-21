@@ -147,15 +147,6 @@ inline AlignedRegion clamp_align_region(const void* data, size_t mapping_size, s
 inline constexpr size_t max_prefetch_threads = 8;
 
 /**
- * @brief Number of parallel chunks a @p size byte job should be split into: at least one, at most
- * @p max_chunks, targeting roughly one chunk per @p min_chunk bytes.
- */
-constexpr size_t split_chunk_count(size_t size, size_t min_chunk, size_t max_chunks) noexcept {
-    const size_t by_size = (min_chunk == 0) ? max_chunks : size / min_chunk;
-    return std::max<size_t>(1, std::min<size_t>(max_chunks, by_size));
-}
-
-/**
  * @brief Number of page-population jobs a @p size byte region is split into, honoring the shared
  * parallel-I/O minimum chunk size and the pool worker cap.
  */
