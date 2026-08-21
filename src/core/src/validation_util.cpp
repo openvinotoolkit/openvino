@@ -277,36 +277,6 @@ bool is_rank_compatible_any_of(const Rank& r, std::initializer_list<Rank> others
     });
 }
 
-void validate_input_rank_and_type(const Node* node,
-                                  size_t input_idx,
-                                  std::string_view input_name,
-                                  std::initializer_list<Rank> allowed_ranks,
-                                  const std::vector<element::Type>& allowed_types) {
-    const auto& rank = node->get_input_partial_shape(input_idx).rank();
-    const auto& type = node->get_input_element_type(input_idx);
-
-    NODE_VALIDATION_CHECK(node,
-                          rank.is_dynamic() || empty(allowed_ranks) || is_rank_compatible_any_of(rank, allowed_ranks),
-                          "Rank of `",
-                          input_name,
-                          "` input should be in [dynamic, ",
-                          ov::util::join(allowed_ranks),
-                          "] list, but it is ",
-                          rank,
-                          ".");
-
-    NODE_VALIDATION_CHECK(node,
-                          type.is_dynamic() || allowed_types.empty() ||
-                              std::find(allowed_types.begin(), allowed_types.end(), type) != allowed_types.end(),
-                          "Element type of `",
-                          input_name,
-                          "` input should be in [dynamic, ",
-                          ov::util::join(allowed_types),
-                          "] list, but it is ",
-                          type,
-                          ".");
-}
-
 bool evaluate_as_partial_shape(const ov::Output<ov::Node>& output, ov::PartialShape& pshape) {
     Tensor lb, ub;
     std::tie(lb, ub) = evaluate_both_bounds(output);
