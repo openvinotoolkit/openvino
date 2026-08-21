@@ -16,11 +16,11 @@
 #include "intel_npu/weights_pointer_attribute.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
+#include "transformations/op_conversions/group_query_attention_decomposition.hpp"
 #include "xml_serializer.hpp"
 
 namespace {
@@ -282,6 +282,23 @@ ov::intel_npu::ModelSerializerVersion determineModelSerializerVersion(
 
 namespace intel_npu::compiler_utils {
 
+void registerCompilerCompatibilityPasses(ov::pass::Manager& manager,
+                                         const uint32_t supportedOpset,
+                                         const ze_graph_compiler_version_info_t& compilerVersion,
+                                         Logger& logger) {
+    if (supportedOpset < 11) {
+        // Downgrade to opset10
+        manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
+        logger.info("Downgrade op for opset smaller than 11");
+    }
+    if ((compilerVersion.major < 7) || (compilerVersion.major == 7 && compilerVersion.minor <= 26)) {
+        manager.register_pass<ov::pass::EliminateIdentity>();
+    }
+    // Unconditional: the compiler's own copy of this pass can be stale in ways that aren't queryable at runtime.
+    // See this function's header doc for the rationale.
+    manager.register_pass<ov::pass::GroupQueryAttentionDecomposition>();
+}
+
 /**
  * @brief Interface to be used by the serialization algorithms.
  * @details The "VCL" serializer is meant to integrate an OV serializer and add any additional model metadata in order
@@ -314,14 +331,7 @@ protected:
         // It is possible some of these passes will modify WeightlessCacheAttributes. Therefore, we should run them
         // before storing these attributes.
         ov::pass::Manager manager(std::make_shared<ov::pass::PassConfig>(), "NPU:compiler_compatibility_passes");
-        if (_supportedOpset < 11) {
-            // Downgrade to opset10
-            manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
-            _logger.info("Downgrade op for opset smaller than 11");
-        }
-        if ((_compilerVersion.major < 7) || (_compilerVersion.major == 7 && _compilerVersion.minor <= 26)) {
-            manager.register_pass<ov::pass::EliminateIdentity>();
-        }
+        registerCompilerCompatibilityPasses(manager, _supportedOpset, _compilerVersion, _logger);
         manager.run_passes(model);
 
         // Step 2: store the WeightlessCacheAttributes if requested
