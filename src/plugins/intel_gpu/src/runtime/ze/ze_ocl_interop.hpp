@@ -52,6 +52,7 @@ struct ocl_image_args {
 /// All functions will either succeed and return a valid resource handle or throw an exception.
 class ze_ocl_interop {
 public:
+    static void set_driver_env_var();
     static ze_ocl_interop& get_instance() {
         static ze_ocl_interop instance;
         static std::once_flag init_flag;
