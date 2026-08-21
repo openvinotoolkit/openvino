@@ -790,6 +790,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             npudesc->compiler_ver >= ONEAPI_MAKE_VERSION(7, 29)) {
             m_cfg.update({{"NPUW_LLM_GENERATE_MOE_HINT", "DEVICE_ROUTED"}});
         }
+
+        // MoE models are not supposed to share the LM head into a third model unless the user opts in explicitly.
+        // The global default for NPUW_LLM_SHARED_HEAD is YES, so when the user does not set it we default MoE
+        // (non-Whisper) models to NO to keep the intended 2-model pipeline and avoid an unsupported 3-model config.
+        if (npuw_llm_props.find("NPUW_LLM_SHARED_HEAD") == npuw_llm_props.end() && !m_is_whisper) {
+            m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
+        }
     }
 
     // NB: PREFILL_HINT is now compatible with the PREFILL_CONFIG section, unlike for
