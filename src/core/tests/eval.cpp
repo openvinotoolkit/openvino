@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -44,6 +45,7 @@
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/negative.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/random_poisson.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_min.hpp"
 #include "openvino/op/relu.hpp"
@@ -4294,5 +4296,34 @@ TEST(eval, interpolate_padding_overflow) {
                                      {element::i64, Shape{1}}};
 
     OV_EXPECT_THROW(std::ignore = op->evaluate(outputs, inputs), ov::Exception, _);
+}
+
+TEST(eval, random_poisson_negative_rate) {
+    auto p = make_shared<Parameter>(element::f32, Shape{1});
+    auto in_vector = TensorVector{make_tensor<element::Type_t::f32>(Shape{1}, {-1.f})};
+
+    for (const auto alignment : {op::PhiloxAlignment::PYTORCH, op::PhiloxAlignment::TENSORFLOW}) {
+        auto op = make_shared<op::v17::RandomPoisson>(p, 150, 69, alignment);
+        auto model = make_shared<Model>(OutputVector{op}, ParameterVector{p});
+        auto out_vector = TensorVector{Tensor(element::f32, Shape{1})};
+        OV_EXPECT_THROW(std::ignore = model->evaluate(out_vector, in_vector),
+                        ov::Exception,
+                        HasSubstr("rates cannot be negative"));
+    }
+}
+
+TEST(eval, random_poisson_nan_rate) {
+    auto p = make_shared<Parameter>(element::f32, Shape{1});
+    auto in_vector =
+        TensorVector{make_tensor<element::Type_t::f32>(Shape{1}, {std::numeric_limits<float>::quiet_NaN()})};
+
+    for (const auto alignment : {op::PhiloxAlignment::PYTORCH, op::PhiloxAlignment::TENSORFLOW}) {
+        auto op = make_shared<op::v17::RandomPoisson>(p, 150, 69, alignment);
+        auto model = make_shared<Model>(OutputVector{op}, ParameterVector{p});
+        auto out_vector = TensorVector{Tensor(element::f32, Shape{1})};
+        OV_EXPECT_THROW(std::ignore = model->evaluate(out_vector, in_vector),
+                        ov::Exception,
+                        HasSubstr("rates cannot be NaN"));
+    }
 }
 }  // namespace ov::test
