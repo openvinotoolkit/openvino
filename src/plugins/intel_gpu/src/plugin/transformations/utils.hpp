@@ -18,9 +18,10 @@ std::shared_ptr<T> make_type_relaxed(const element::TypeVector& input_data_types
 }
 
 inline bool insert_converts_before_if_needed(const std::shared_ptr<ov::Node>& node,
-                                                                const ov::element::Type desired_et,
-                                                                size_t& input_idx,
-                                                                const std::vector<size_t>& skip_inputs = {}) {
+                                             const ov::element::Type desired_et,
+                                             size_t& input_idx,
+                                             const std::vector<size_t>& skip_inputs = {},
+                                             const ov::element::Type source_et = ov::element::f16) {
     bool is_changed = false;
     for (const auto& input : node->inputs()) {
         const auto& incoming_output = input.get_source_output();
@@ -28,6 +29,10 @@ inline bool insert_converts_before_if_needed(const std::shared_ptr<ov::Node>& no
         const auto input_et = incoming_output.get_element_type();
 
         if (input_et == desired_et)
+            continue;
+
+        // Only promote source_et inputs (default: f16); leave other types untouched
+        if (input_et != source_et)
             continue;
 
         if (std::find(skip_inputs.begin(), skip_inputs.end(), input.get_index()) != skip_inputs.end()) {
