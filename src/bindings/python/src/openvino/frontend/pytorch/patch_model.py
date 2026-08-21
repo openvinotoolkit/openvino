@@ -4,6 +4,8 @@
 
 # mypy: ignore-errors
 
+import contextlib
+import dataclasses
 import functools
 import logging
 import threading
@@ -583,6 +585,35 @@ def _get_16bit_extensions(patch_condition=None):
     except ImportError:
         pass
     return extensions, supported
+
+
+@contextlib.contextmanager
+def patched_dataclass_outputs(model: torch.nn.Module):
+    """Temporarily patch model.forward so a bare @dataclass output can be captured."""
+    orig_forward = model.forward
+
+    @functools.wraps(orig_forward)
+    def forward(*args, **kwargs):
+        return _dataclasses_to_tuples(orig_forward(*args, **kwargs))
+
+    model.forward = forward
+    try:
+        yield
+    finally:
+        model.forward = orig_forward
+
+
+def _dataclasses_to_tuples(value):
+    """Recursively convert dataclass instances found in ``value`` into tuples."""
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        return tuple(_dataclasses_to_tuples(getattr(value, f.name))
+                     for f in dataclasses.fields(value)
+                     if getattr(value, f.name) is not None)
+    if isinstance(value, (list, tuple)):
+        return type(value)(_dataclasses_to_tuples(v) for v in value)
+    if isinstance(value, dict):
+        return {k: _dataclasses_to_tuples(v) for k, v in value.items()}
+    return value
 
 
 def __make_16bit_traceable(model: torch.nn.Module,
