@@ -33,7 +33,7 @@ env:
   # ggml-openvino decoder/backend fixes this frontend snapshot requires. Bump alongside any
   # GGUF-frontend change that needs a matching llama.cpp-side update.
   LLAMA_CPP_REPO: mvafin/llama.cpp
-  LLAMA_CPP_REF: 3b7afbe33ee4f13cd9a27c191c740e9982c279b6
+  LLAMA_CPP_REF: 16fb7d9d326a3fe69a331ce5fbe7a679a1a281bb
   OV_INSTALL_DIR: ${{ github.workspace }}/ov_install
 
 jobs:

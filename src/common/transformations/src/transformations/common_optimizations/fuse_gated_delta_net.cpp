@@ -4,6 +4,7 @@
 
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -519,8 +520,41 @@ ov::pass::FuseGroupedQueryIntoGDN::FuseGroupedQueryIntoGDN() {
     register_matcher(m, callback);
 }
 
+namespace {
+// A Parameter can have non-empty target_inputs() yet still be practically dead: its only consumer
+// may not be reachable from any Result/Sink, e.g. after RemoveConcatSliceAfterLoop rewires a Loop's
+// consumers directly to it, bypassing (without disconnecting) whatever fed the bypassed subgraph.
+// get_ordered_ops() is rooted at the model's Results/Sinks -- unlike the Parameter list itself,
+// which it always includes regardless of connectivity -- so use it instead of target_inputs() to
+// tell a genuinely-live Parameter from one only nominally still wired up.
+std::unordered_set<const ov::Node*> live_parameters(const std::shared_ptr<ov::Model>& model) {
+    std::unordered_set<const ov::Node*> ordered_nodes;
+    for (const auto& node : model->get_ordered_ops()) {
+        ordered_nodes.insert(node.get());
+    }
+    std::unordered_set<const ov::Node*> live;
+    for (const auto& param : model->get_parameters()) {
+        const auto& targets = param->output(0).get_target_inputs();
+        const bool has_live_consumer =
+            std::any_of(targets.begin(), targets.end(), [&](const ov::Input<ov::Node>& in) {
+                return ordered_nodes.count(in.get_node()) != 0;
+            });
+        if (has_live_consumer) {
+            live.insert(param.get());
+        }
+    }
+    return live;
+}
+}  // namespace
+
 bool ov::pass::GatedDeltaNetFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(GatedDeltaNetFusion);
+    // Snapshot which Parameters are live before this pass runs, so the cleanup below only drops
+    // ones this pass itself orphaned (see the comment on it), not a Parameter some earlier,
+    // unrelated pass already left without a live consumer for its own reasons (e.g.
+    // GGUFMakeStateful drops the graph's use of an index input once the cache it fed becomes a
+    // Variable, but the input still belongs in the model's declared IO contract).
+    const auto live_before = live_parameters(model);
     ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
     symbolic_ctx_manager->register_pass<ov::pass::RemoveConcatSliceAfterLoop>();
@@ -529,5 +563,25 @@ bool ov::pass::GatedDeltaNetFusion::run_on_model(const std::shared_ptr<ov::Model
     symbolic_ctx_manager->register_pass<ov::pass::TransposeFuse>();
     symbolic_ctx_manager->register_pass<ov::pass::FuseL2NormIntoGDN>();
     symbolic_ctx_manager->register_pass<ov::pass::FuseGroupedQueryIntoGDN>();
-    return symbolic_optimizations.run_on_model(model);
+    const bool changed = symbolic_optimizations.run_on_model(model);
+
+    // RemoveConcatSliceAfterLoop bypasses the Concat/Slice/Reshape subgraph that used to sit
+    // between the Loop and its consumers, rewiring those consumers directly to the Loop's
+    // outputs. Any Parameter that fed only that now-bypassed subgraph (e.g. the active-window
+    // bookkeeping inputs the GGUF frontend adds for recurrent-state rollback: cache_rs_reset_*,
+    // seq_active_*, n_seq_active, rs_slot_begin_*) is left declared but with its consumer chain
+    // no longer reachable from any Result -- rewiring a node's outputs does not touch its own
+    // now-unused inputs. Drop only a Parameter that was live before this pass ran and is not live
+    // now, so every declared model input still has one, as plugins require, without touching a
+    // Parameter some other pass already left without a live consumer. Snapshot the parameter list
+    // first: remove_parameter() mutates the model's own list, so removing while iterating it
+    // directly would invalidate the iteration.
+    const auto live_after = live_parameters(model);
+    const auto parameters = model->get_parameters();
+    for (const auto& param : parameters) {
+        if (live_before.count(param.get()) && !live_after.count(param.get())) {
+            model->remove_parameter(param);
+        }
+    }
+    return changed;
 }

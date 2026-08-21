@@ -39,6 +39,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "pass/lower_set_rows_stateless.hpp"
+#include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/convert_convertlike.hpp"
@@ -136,6 +137,13 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     // consumer at translate time; a pass that ends up not consuming one leaves it dangling, which
     // later constant folding removes.
     std::set<ov::Node*> deferred_use_params;
+    // get_model_inputs() already folds in every entry get_model_extra_inputs() would yield (see
+    // the decoder.hpp contract): a decoder that tracks them separately still merges both into the
+    // map get_model_inputs() returns, so the same Parameter object shows up in both loops below.
+    // Skip re-adding an already-seen Parameter to `params`, or it ends up registered on the model
+    // twice under two different indices, and the second registration is never wired to a node in
+    // the translated graph.
+    std::set<ov::Node*> seen_params;
 
     for (const auto& it : gguf_model_decoder->get_model_inputs()) {
         // Not every decoder splits auxiliary inputs into get_model_extra_inputs(): one that still
@@ -144,13 +152,16 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
         // Parameter into `params`.
         if (auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(it.second)) {
             params.push_back(param);
+            seen_params.insert(param.get());
         }
         (*tensor_map)[it.first] = it.second;
     }
 
     for (const auto& it : gguf_model_decoder->get_model_extra_inputs()) {
         if (auto p = std::dynamic_pointer_cast<ov::op::v0::Parameter>(it.second)) {
-            params.push_back(p);
+            if (seen_params.insert(p.get()).second) {
+                params.push_back(p);
+            }
             deferred_use_params.insert(p.get());
         }
         (*tensor_map)[it.first] = it.second;
@@ -345,6 +356,17 @@ std::shared_ptr<Model> TranslateSession::apply_transformations(std::shared_ptr<M
     // StateManagementPattern, which admits no Convert between the KV-cache Concat and SDPA, and so
     // silently disables the PagedAttention backend for every GGUF model.
     manager.register_pass<ov::pass::EliminateConvert>();
+
+    // Fuse a standalone Loop-based Gated Delta Net recurrence into a single internal GatedDeltaNet
+    // op here, in the frontend, rather than leaving it to each plugin's own copy of this pass
+    // (e.g. the CPU plugin registers it in its PreLpt pipeline). GatedDeltaNetFusion can drop
+    // auxiliary bookkeeping Parameters (the active-window/cache-reset inputs used only to feed the
+    // Concat/Slice/Reshape it bypasses) that become disconnected once it runs. A plugin's
+    // compile_model() asserts that its transformations never change the model's input/output port
+    // count, so any such removal must happen here, before the model's "public" parameter list is
+    // handed off -- not inside a plugin's own transformation pipeline.
+    manager.register_pass<ov::pass::GatedDeltaNetFusion>();
+
     manager.run_passes(model);
     return model;
 }
