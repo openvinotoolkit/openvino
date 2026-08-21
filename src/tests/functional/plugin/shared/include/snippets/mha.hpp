@@ -97,6 +97,11 @@ protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
 };
 
+class MHAWithBroadcast : public MHA {
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
+};
+
 class MHASelect : public MHA {
 protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
