@@ -25,3 +25,29 @@
     <CompilerOptions options="-cl-mad-enable"/>
     <WorkSizes global="B*F*Y*X,1,1"/>
 </CustomLayer>
+
+<CustomLayer name="CustomOpTwoIn" type="SimpleGPU" version="1">
+    <Kernel entry="custom_kernel_two_inputs">
+        <Source filename="custom_op_two_inputs.cl"/>
+    </Kernel>
+    <Buffers>
+        <Tensor arg-index="0" type="input" port-index="0" format="BFYX"/>
+        <Tensor arg-index="1" type="input" port-index="1" format="BFYX"/>
+        <Tensor arg-index="2" type="output" port-index="0" format="BFYX"/>
+    </Buffers>
+    <CompilerOptions options="-cl-mad-enable"/>
+    <WorkSizes global="B*F*Y*X,1,1"/>
+</CustomLayer>
+
+<CustomLayer name="CustomOpTwoInFmt" type="SimpleGPU" version="1">
+    <Kernel entry="custom_kernel_second_port_copy">
+        <Source filename="custom_op_two_inputs_fmt.cl"/>
+    </Kernel>
+    <Buffers>
+        <Tensor arg-index="0" type="input" port-index="0" format="BFYX"/>
+        <Tensor arg-index="1" type="input" port-index="1" format="YXFB"/>
+        <Tensor arg-index="2" type="output" port-index="0" format="YXFB"/>
+    </Buffers>
+    <CompilerOptions options="-cl-mad-enable"/>
+    <WorkSizes global="B*F*Y*X,1,1"/>
+</CustomLayer>
