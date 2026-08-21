@@ -65,7 +65,7 @@ public:
      *
      * @param offset The amount of bytes the cursor will be moved.
      * @param reference "std::ios::beg", "std::ios::cur" and "std::ios::end" are the only supported values. These
-     * corespond to the beggining of the blob source, the current position of the cursor and the end of the source.
+     * correspond to the beginning of the blob source, the current position of the cursor and the end of the source.
      */
     void seekg(const int64_t offset, const std::ios_base::seekdir reference = std::ios::beg);
 
