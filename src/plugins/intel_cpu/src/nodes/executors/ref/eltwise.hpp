@@ -102,6 +102,19 @@ public:
     static bool isSupportedConfiguration(const EltwiseConfig& config);
 };
 
+template <typename T>
+constexpr bool supported_integer_power_ref_types_v = one_of_v<T, int64_t>;
+
+template <typename T, typename Enable = std::enable_if_t<supported_integer_power_ref_types_v<T>>>
+class IntegerPowerRefExecutor : public EltwiseRefBaseExecutor<T> {
+public:
+    IntegerPowerRefExecutor(const EltwiseRefKey& key);
+
+    void exec(const jit_eltwise_call_args_ptrs& args_ptrs,
+              const VectorDims& dims_out,
+              [[maybe_unused]] const CpuParallelPtr& cpu_parallel) override;
+};
+
 EltwiseExecutorPtr createEltwiseRefExecutor(const std::vector<VectorDims>& inDims,
                                             const VectorDims& outBlkDims,
                                             const ov::element::Type& outPrc,
