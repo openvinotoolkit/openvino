@@ -51,4 +51,5 @@ OV_GPU_PA_BY_CHANNEL_TOKEN_MAJOR=1 TEST_USE_SDPA_OCL=1 TEST_USE_SDPA_OCL_DECODE=
 
 
 
+python ~/work/openvino.genai/tools/llm_bench/benchmark.py -d GPU.1 -m  /mnt/models/ov-share-13.sclab.intel.com/cv_bench_cache/WW24_llm-optimum_2026.3.0-22130/phi-4-multimodal-instruct/pytorch/ov/OV_FP16-4BIT_DEFAULT -mc 1 -n 3 -ic 256 --apply_chat_template -lc "{\"ATTENTION_BACKEND\" : \"PA\"}" -pf /home/shingyuk/work/frameworks.ai.openvino.llm.prompts/32_1024/phi-4-multimodal-instruct.jsonl -t visual_text_gen --cb_config "{\"enable_prefix_caching\":true, \"max_num_batched_tokens\":256}"
 
