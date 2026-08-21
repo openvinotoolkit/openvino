@@ -80,7 +80,8 @@ The feature is disabled by default and gated twice:
   *definitions* are still included to the build though (`MLIROp` or `cldnn::mlir_primitive` header files) to
   avoid sudden broken includes.
 * at **runtime** by `ov::intel_gpu::enable_mlir` property (env variable `OV_GPU_ENABLE_MLIR`) which is also
-  `false` by default.
+  `false` by default. The option is `RELEASE_INTERNAL`, i.e. it is not settable via the public API -
+  only via the env variable or the GPU config file (`ov::intel_gpu::config_file`).
 
 ## Supported subgraphs
 

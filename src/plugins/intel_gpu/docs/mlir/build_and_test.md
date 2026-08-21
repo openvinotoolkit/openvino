@@ -37,7 +37,7 @@ cmake -S <openvino> -B <build> \
 ## 3. Run
 
 ```sh
-export OV_GPU_ENABLE_MLIR=1        # or ov::intel_gpu::enable_mlir(true) via the API
+export OV_GPU_ENABLE_MLIR=1        # or GPU_ENABLE_MLIR in the GPU config file
 ```
 
 ## Testing

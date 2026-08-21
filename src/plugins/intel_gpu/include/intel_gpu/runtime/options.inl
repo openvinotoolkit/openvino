@@ -34,7 +34,6 @@ OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, queue_throttle, ov::intel_gpu::hin
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, queue_priority, ov::hint::Priority::MEDIUM, "Low-level hint that controls queue priority property")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, enable_sdpa_optimization, true, "Enable/Disable fused SDPA primitive execution")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, enable_lora_operation, true, "Enable/Disable LoRA operation. The separate operation is less versatile, but has better performance")
-OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, enable_mlir, false, "Enable/Disable MLIR/Graph-Compiler execution for supported subgraphs. Requires ENABLE_GPU_MLIR=ON at build time")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, enable_large_allocations, false, "Allow buffer allocations that exceed the device max allocation size. Enabling this option may lead to performance degradation")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, enable_loop_unrolling, true, "Enable/Disable Loop/TensorIterator operation unrolling")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, disable_winograd_convolution, false, "Enable/Disable winograd convolution implementation if available")
@@ -58,6 +57,7 @@ OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, mem_pool_util_threshold, 0.5, "Minimum u
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, offload_ratio, 0, "Percentage (0-100) of model weights to offload to disk. Currently supported for MoE experts only.", [](size_t v) { return v <= 100; })
 OV_CONFIG_RELEASE_OPTION(ov, enable_weightless, false, "Enable/Disable weightless blob")
 
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_mlir, false, "Enable/Disable MLIR/Graph-Compiler execution for supported subgraphs. Requires ENABLE_GPU_MLIR=ON at build time")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_zero_copy_cache_load, false, "Enable/Disable zero-copy mode for model cache blob load")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, shape_predictor_settings, {10, 16 * 1024, 2, 1.1f}, "Preallocation settings")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, queue_type, QueueTypes::out_of_order, "Type of the queue that must be used for model execution. May be in-order or out-of-order")
