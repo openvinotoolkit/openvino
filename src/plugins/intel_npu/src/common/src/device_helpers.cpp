@@ -39,13 +39,13 @@ std::string utils::getCompilationPlatform(const std::string_view platform,
                                           const std::string_view deviceId,
                                           std::vector<std::string> availableDevicesNames) {
     // Platform parameter has a higher priority than deviceID
-    if (platform != ov::intel_npu::Platform::AUTO_DETECT) {
-        return ov::intel_npu::Platform::standardize(platform);
+    if (platform != ov::intel_npu::platforms::AUTO_DETECT) {
+        return ov::intel_npu::platforms::standardize(platform);
     }
 
     // Get compilation platform from deviceID
     if (!deviceId.empty()) {
-        return ov::intel_npu::Platform::standardize(utils::getPlatformByDeviceName(deviceId));
+        return ov::intel_npu::platforms::standardize(utils::getPlatformByDeviceName(deviceId));
     }
 
     // Automatic detection of compilation platform
@@ -53,7 +53,7 @@ std::string utils::getCompilationPlatform(const std::string_view platform,
         return std::string();
     }
 
-    return ov::intel_npu::Platform::standardize(utils::getPlatformByDeviceName(availableDevicesNames.at(0)));
+    return ov::intel_npu::platforms::standardize(utils::getPlatformByDeviceName(availableDevicesNames.at(0)));
 }
 
 std::shared_ptr<IDevice> utils::getDeviceById(const ov::SoPtr<IEngineBackend>& engineBackend,
@@ -212,7 +212,7 @@ uint32_t utils::getOptimalNumberOfInferRequestsInParallel(std::string_view platf
         return 1;
     }
 
-    return (platform == ov::intel_npu::Platform::NPU3720) ? 4 : 8;
+    return (platform == ov::intel_npu::platforms::NPU3720) ? 4 : 8;
 }
 
 }  // namespace intel_npu

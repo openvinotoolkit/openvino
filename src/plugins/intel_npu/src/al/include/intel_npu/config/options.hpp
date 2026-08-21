@@ -260,7 +260,7 @@ struct PLATFORM final : OptionBase<PLATFORM, std::string> {
     }
 
     static std::string defaultValue() {
-        return std::string(ov::intel_npu::Platform::AUTO_DETECT);
+        return std::string(ov::intel_npu::platforms::AUTO_DETECT);
     }
 
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD

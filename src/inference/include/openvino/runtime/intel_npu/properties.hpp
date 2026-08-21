@@ -58,7 +58,7 @@ inline std::ostream& operator<<(std::ostream& out, const CompilerType& fmt) {
     return out;
 }
 
-namespace Platform {
+namespace platforms {
 
 constexpr std::string_view AUTO_DETECT = "AUTO_DETECT";  // Auto detection
 constexpr std::string_view NPU3720 = "3720";             // NPU3720
@@ -89,7 +89,7 @@ inline std::string standardize(const std::string_view platform) {
     return std::string(platform);
 }
 
-}  // namespace Platform
+}  // namespace platforms
 
 /**
  * @brief [Only for NPU Plugin]
