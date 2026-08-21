@@ -95,6 +95,7 @@ public:
         int _sub_streams = 0;
         std::vector<int> _rank = {};
         bool _add_lock = true;
+        bool _inline_mode = false;  //!< Run inference inline on the calling thread (skip run_and_wait dispatch)
 
         /**
          * @brief Get and reserve cpu ids based on configuration and hardware information,
@@ -209,6 +210,12 @@ public:
         std::vector<int> get_rank() const {
             return _rank;
         }
+        bool get_inline_mode() const {
+            return _inline_mode;
+        }
+        void set_inline_mode(bool v) {
+            _inline_mode = v;
+        }
         StreamsMode get_sub_stream_mode() const {
             const auto proc_type_table = get_proc_type_table();
             int sockets = proc_type_table.size() > 1 ? static_cast<int>(proc_type_table.size()) - 1 : 1;
@@ -218,7 +225,8 @@ public:
         bool operator==(const Config& config) {
             if (_name == config._name && _streams == config._streams &&
                 _threads_per_stream == config._threads_per_stream &&
-                _thread_preferred_core_type == config._thread_preferred_core_type && _rank == config._rank) {
+                _thread_preferred_core_type == config._thread_preferred_core_type && _rank == config._rank &&
+                _inline_mode == config._inline_mode) {
                 return true;
             } else {
                 return false;
@@ -278,6 +286,29 @@ public:
      * @brief Reset cpu map table when user set enable_cpu_reservation = true
      */
     virtual void cpu_reset() = 0;
+
+    /**
+     * @brief Return whether sync inference should run inline on the calling thread
+     *
+     * The decision is owned by plugin configuration (for example
+     * ov::intel_cpu::multi_app_thread_sync_execution) and consumed here by the
+     * shared sync executor path.
+     * @return true if inline execution is enabled (set via ov::intel_cpu::multi_app_thread_sync_execution)
+     */
+    virtual bool get_inline_mode() = 0;
+
+    /**
+     * @brief Whether a single synchronous task should run inline on the calling
+     *        thread instead of being dispatched through run_and_wait().
+     *
+     * Centralizes the inline-vs-dispatch policy in the executor so callers (for
+     * example the shared sync infer path) do not compose individual conditions.
+     * Implementations may override to add executor-specific conditions.
+     * @return true if the task should be executed inline on the calling thread
+     */
+    virtual bool run_inline() {
+        return get_inline_mode() || get_streams_num() <= 1;
+    }
 
     /**
      * @brief Execute the task in the current thread using streams executor configuration and constraints
