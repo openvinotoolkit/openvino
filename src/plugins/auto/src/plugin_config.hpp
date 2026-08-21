@@ -11,6 +11,7 @@
 #include "utils/log_util.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include <algorithm>
+#include <cmath>
 #include <string>
 #include <map>
 #include <set>
@@ -24,6 +25,8 @@ public:
     using Ptr = std::shared_ptr<BaseValidator>;
     virtual ~BaseValidator() = default;
     virtual bool is_valid(const ov::Any& v) const = 0;
+    // Normalizes a validated value to its canonical typed Any (e.g. parses a string into a map).
+    virtual ov::Any convert(const ov::Any& v) const { return v; }
 };
 
 template<typename T>
@@ -74,6 +77,40 @@ public:
         } catch (const ov::Exception&) {
             return false;
         }
+    }
+
+    ov::Any convert(const ov::Any& v) const override {
+        return ov::Any(v.as<std::map<std::string, unsigned>>());
+    }
+};
+
+class PerfCurveTableValidator : public BaseValidator {
+public:
+    bool is_valid(const ov::Any& v) const override {
+        try {
+            const auto& table = v.as<std::map<std::string, std::map<unsigned, float>>>();
+            static const std::set<std::string> allowed_devices = {"CPU", "iGPU", "dGPU", "NPU"};
+            for (const auto& [device, curve] : table) {
+                if (allowed_devices.find(device) == allowed_devices.end()) {
+                    return false;
+                }
+                if (curve.empty()) {
+                    return false;
+                }
+                for (const auto& [utilization, score] : curve) {
+                    if (utilization > 100 || score < 0.f || !std::isfinite(score)) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        } catch (const ov::Exception&) {
+            return false;
+        }
+    }
+
+    ov::Any convert(const ov::Any& v) const override {
+        return ov::Any(v.as<std::map<std::string, std::map<unsigned, float>>>());
     }
 };
 
@@ -179,6 +216,9 @@ public:
                                 multi_supported_configKeys.begin(), multi_supported_configKeys.end(), ov::intel_auto::devices_utilization_threshold.name()),
                                 multi_supported_configKeys.end());
         multi_supported_configKeys.erase(std::remove(
+                                multi_supported_configKeys.begin(), multi_supported_configKeys.end(), ov::intel_auto::perf_curve_table.name()),
+                                multi_supported_configKeys.end());
+        multi_supported_configKeys.erase(std::remove(
                                 multi_supported_configKeys.begin(), multi_supported_configKeys.end(), ov::intel_auto::low_power_device.name()),
                                 multi_supported_configKeys.end());
         return plugin_name == "AUTO" ? supported_configKeys : multi_supported_configKeys;
@@ -199,6 +239,10 @@ public:
         multi_supported_properties.erase(std::remove(multi_supported_properties.begin(),
                                                      multi_supported_properties.end(),
                                                      ov::intel_auto::devices_utilization_threshold),
+                                         multi_supported_properties.end());
+        multi_supported_properties.erase(std::remove(multi_supported_properties.begin(),
+                                                     multi_supported_properties.end(),
+                                                     ov::intel_auto::perf_curve_table),
                                          multi_supported_properties.end());
         multi_supported_properties.erase(std::remove(multi_supported_properties.begin(),
                                                      multi_supported_properties.end(),
