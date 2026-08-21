@@ -347,7 +347,7 @@ struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_sele
         if (p.expected_impl != expected_ssm_impl::any) {
             const auto primitive = network->get_primitive("paged_selective_ssm");
             ASSERT_NE(primitive, nullptr);
-            const auto impl = primitive->get_impl();
+            auto* const impl = primitive->get_impl();
             ASSERT_NE(impl, nullptr);
             const bool is_jit = impl->get_kernel_name().find("jit_") != std::string::npos;
             EXPECT_EQ(is_jit, p.expected_impl == expected_ssm_impl::jit) << "selected implementation: " << impl->get_kernel_name();
