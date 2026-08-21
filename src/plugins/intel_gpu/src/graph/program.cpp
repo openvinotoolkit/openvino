@@ -635,8 +635,9 @@ void program::pre_optimize_graph(bool is_internal) {
 
         apply_opt_pass<reorder_transfer>();
 
-        apply_opt_pass<prepare_primitive_fusing>();
-        run_backend_graph_optimizations(*this);
+        if (!run_backend_fusion_optimizations(*this)) {
+            apply_opt_pass<prepare_primitive_fusing>();
+        }
 
         apply_opt_pass<select_preferred_formats>();
 

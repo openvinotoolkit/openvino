@@ -15,11 +15,14 @@ class backend_graph_optimizer {
 public:
     virtual ~backend_graph_optimizer() = default;
 
-    virtual void optimize(program& program) const = 0;
+    /// Returns true when the backend owns the primitive-fusion stage.
+    virtual bool optimize_fusions(program& program) const {
+        return false;
+    }
 };
 
 void register_backend_graph_optimizer(runtime_types runtime, const backend_graph_optimizer& optimizer);
-void run_backend_graph_optimizations(program& program);
+bool run_backend_fusion_optimizations(program& program);
 
 class backend_graph_optimizer_registration {
 public:

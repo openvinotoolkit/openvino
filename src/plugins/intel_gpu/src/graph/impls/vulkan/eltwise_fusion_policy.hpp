@@ -4,10 +4,7 @@
 
 #pragma once
 
-#include <cstdint>
-
 #include "activation_inst.h"
-#include "backend_fusion_policy.hpp"
 #include "eltwise_inst.h"
 #include "eltwise_shader_abi.hpp"
 #include "quantize_inst.h"
@@ -15,30 +12,22 @@
 
 namespace cldnn::vulkan {
 
-class eltwise_fusion_policy final : public backend_fusion_policy {
+class eltwise_fusion_policy final {
 public:
-    bool limits_program_to_simple_fusions() const noexcept override {
-        return true;
+    bool allows_activation(const program_node& producer, const program_node& consumer) const {
+        return supports_activation_fusion(producer, consumer);
     }
 
-    bool controls(fusion_kind kind) const noexcept override {
-        return kind == fusion_kind::activation || kind == fusion_kind::quantize || kind == fusion_kind::eltwise || kind == fusion_kind::terminal_reorder;
+    bool allows_quantize(const program_node& producer, const program_node& consumer) const {
+        return supports_quantize_fusion(producer, consumer);
     }
 
-    fusion_decision evaluate(const fusion_query& query) const override {
-        switch (query.kind) {
-        case fusion_kind::activation:
-            return evaluate_activation(query.producer, query.consumer);
-        case fusion_kind::quantize:
-            return evaluate_quantize(query.producer, query.consumer);
-        case fusion_kind::eltwise:
-            return query.peer == nullptr ? fusion_decision::reject : evaluate_eltwise(query.producer, *query.peer, query.consumer);
-        case fusion_kind::terminal_reorder:
-            return evaluate_terminal_reorder(query.producer, query.consumer);
-        case fusion_kind::reorder_elimination:
-            return evaluate_reorder_elimination(query.producer, query.consumer);
-        }
-        return fusion_decision::reject;
+    bool allows_eltwise(const program_node& producer, const program_node& peer, const program_node& consumer) const {
+        return supports_eltwise_fusion(producer, peer, consumer);
+    }
+
+    bool allows_reorder(const program_node& producer, const program_node& consumer) const {
+        return supports_reorder_fusion(producer, consumer);
     }
 
 private:
@@ -97,9 +86,9 @@ private:
         }
     }
 
-    static fusion_decision evaluate_activation(const program_node& producer, const program_node& consumer) {
+    static bool supports_activation_fusion(const program_node& producer, const program_node& consumer) {
         if (!consumer.is_type<activation>()) {
-            return fusion_decision::reject;
+            return false;
         }
         const auto& activation_node = consumer.as<activation>();
         const auto desc = activation_node.get_primitive();
@@ -107,12 +96,12 @@ private:
                                supports_activation(desc->activation_function) &&
                                activation_node.get_output_layout().data_type == producer.get_output_layout().data_type &&
                                supports_terminal_post_op(producer, activation_node.get_output_layout());
-        return supported ? fusion_decision::accept : fusion_decision::reject;
+        return supported;
     }
 
-    static fusion_decision evaluate_quantize(const program_node& producer, const program_node& consumer) {
+    static bool supports_quantize_fusion(const program_node& producer, const program_node& consumer) {
         if (!consumer.is_type<quantize>()) {
-            return fusion_decision::reject;
+            return false;
         }
         const auto& quantize_node = consumer.as<quantize>();
         const bool uses_output_range = quantize_node.get_per_tensor_output_range() && quantize_node.get_output_lo_val() < quantize_node.get_output_hi_val();
@@ -122,7 +111,7 @@ private:
         const bool supported = quantize_node.get_scale_shift_opt() && quantize_node.has_per_tensor_values() &&
                                (uses_output_range || !quantize_node.get_need_clamp()) && supported_output_type &&
                                supports_terminal_post_op(producer, quantize_node.get_output_layout());
-        return supported ? fusion_decision::accept : fusion_decision::reject;
+        return supported;
     }
 
     static bool is_numpy_broadcast_compatible(const layout& input_layout, const layout& target_layout) {
@@ -151,15 +140,13 @@ private:
         return scalar_size >= sizeof(uint32_t) || (output_layout.count() % packed_width == 0 && output_layout.get_linear_offset() % packed_width == 0);
     }
 
-    static fusion_decision evaluate_eltwise(const program_node& producer, const program_node& peer, const program_node& consumer) {
+    static bool supports_eltwise_fusion(const program_node& producer, const program_node& peer, const program_node& consumer) {
         if (!consumer.is_type<eltwise>()) {
-            return fusion_decision::reject;
+            return false;
         }
         const auto& consumer_primitive = consumer.as<eltwise>().get_primitive();
-        const bool supported_mode = consumer_primitive->mode == eltwise_mode::sum ||
-                                    consumer_primitive->mode == eltwise_mode::prod ||
-                                    consumer_primitive->mode == eltwise_mode::sub ||
-                                    consumer_primitive->mode == eltwise_mode::div;
+        const bool supported_mode = consumer_primitive->mode == eltwise_mode::sum || consumer_primitive->mode == eltwise_mode::prod ||
+                                    consumer_primitive->mode == eltwise_mode::sub || consumer_primitive->mode == eltwise_mode::div;
         const auto& producer_layout = producer.get_output_layout();
         const auto& peer_layout = peer.get_output_layout();
         const auto& output_layout = consumer.get_output_layout();
@@ -170,19 +157,19 @@ private:
             (!peer_is_broadcast || (consumer_primitive->broadcast_spec.m_type == ov::op::AutoBroadcastType::NUMPY &&
                                     data_type_traits::size_of(output_layout.data_type) >= sizeof(uint32_t) && producer.get_fused_primitives().empty() &&
                                     is_numpy_broadcast_compatible(peer_layout, output_layout)));
-        const bool supported = supported_mode && consumer_primitive->stride.empty() && !producer.is_output() &&
-                               producer.is_type<eltwise>() && (!producer.is_constant() || peer.is_constant()) &&
+        const bool supported = supported_mode && consumer_primitive->stride.empty() && !producer.is_output() && producer.is_type<eltwise>() &&
+                               (!producer.is_constant() || peer.is_constant()) &&
                                producer.get_fused_primitives().size() < eltwise_shader_abi::value(eltwise_shader_abi::limit::max_fused_chain_length) &&
                                producer.get_inputs_count() == 2 && layouts_are_static && has_dense_storage(producer_layout) && has_dense_storage(peer_layout) &&
                                has_dense_storage(output_layout) && supports_packed_output(output_layout) && peer_layout_supported &&
                                producer.get_input_layout(0).identical(output_layout) && producer.get_input_layout(1).identical(output_layout) &&
                                producer_layout.identical(output_layout);
-        return supported ? fusion_decision::accept : fusion_decision::reject;
+        return supported;
     }
 
-    static fusion_decision evaluate_terminal_reorder(const program_node& producer, const program_node& consumer) {
+    static bool supports_reorder_fusion(const program_node& producer, const program_node& consumer) {
         if (!consumer.is_type<reorder>()) {
-            return fusion_decision::reject;
+            return false;
         }
         const auto& reorder_node = consumer.as<reorder>();
         const auto input_type = producer.get_output_layout().data_type;
@@ -191,21 +178,7 @@ private:
                                (input_type == data_types::f16 || input_type == data_types::f32) &&
                                (output_type == data_types::f16 || output_type == data_types::f32) &&
                                supports_terminal_post_op(producer, reorder_node.get_output_layout());
-        return supported ? fusion_decision::accept : fusion_decision::reject;
-    }
-
-    static fusion_decision evaluate_reorder_elimination(const program_node& producer, const program_node& consumer) {
-        if (!producer.is_type<eltwise>()) {
-            return fusion_decision::defer_to_common;
-        }
-        if (producer.get_output_layout().data_type != consumer.get_output_layout().data_type) {
-            return supports_terminal_post_op(producer, consumer.get_output_layout()) ? fusion_decision::accept
-                                                                                     : fusion_decision::reject;
-        }
-        if (consumer.get_output_layout().is_dynamic()) {
-            return fusion_decision::accept;
-        }
-        return has_enough_work(producer, consumer.get_output_layout()) ? fusion_decision::accept : fusion_decision::reject;
+        return supported;
     }
 };
 

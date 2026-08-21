@@ -21,18 +21,17 @@ auto& registered_optimizers() {
 
 void register_backend_graph_optimizer(runtime_types runtime, const backend_graph_optimizer& optimizer) {
     auto& registered = registered_optimizers()[runtime];
-    OPENVINO_ASSERT(registered == nullptr || registered == &optimizer,
-                    "[GPU] A graph optimizer is already registered for runtime ",
-                    runtime);
+    OPENVINO_ASSERT(registered == nullptr || registered == &optimizer, "[GPU] A graph optimizer is already registered for runtime ", runtime);
     registered = &optimizer;
 }
 
-void run_backend_graph_optimizations(program& program) {
+bool run_backend_fusion_optimizations(program& program) {
     const auto& optimizers = registered_optimizers();
     const auto optimizer = optimizers.find(program.get_engine().runtime_type());
     if (optimizer != optimizers.end()) {
-        optimizer->second->optimize(program);
+        return optimizer->second->optimize_fusions(program);
     }
+    return false;
 }
 
 }  // namespace cldnn

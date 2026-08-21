@@ -45,7 +45,6 @@
 #include "group_normalization_inst.h"
 #include "lora_inst.h"
 #include "broadcast_inst.h"
-#include "backend_fusion_policy.hpp"
 #include <vector>
 #include <map>
 #include <list>
@@ -60,12 +59,6 @@
 using namespace cldnn;
 
 void prepare_primitive_fusing::run(program& p) {
-    const auto& fusion_policy = get_backend_fusion_policy(p.get_engine().runtime_type());
-    if (fusion_policy.limits_program_to_simple_fusions()) {
-        fuse_simple_primitives(p);
-        return;
-    }
-
     GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
         size_t value = GPU_DEBUG_VALUE_OR(p.get_config().get_disable_post_ops_fusions(), 0);
         switch (value) {
@@ -536,7 +529,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
     std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>> fusing_history;
 
     auto& lo = p.get_layout_optimizer();
-    const auto& fusion_policy = get_backend_fusion_policy(p.get_engine().runtime_type());
 
     const auto supports_immad = p.get_engine().get_device_info().supports_immad;
     auto itr = p.get_processing_order().begin();
@@ -791,16 +783,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto fuse_activation_f = [&](activation_node& activation_node) {
-            auto& input = activation_node.get_dependency(0);
-            const auto backend_decision = fusion_policy.evaluate(
-                {fusion_kind::activation, input, activation_node});
-            if (backend_decision != fusion_decision::defer_to_common) {
-                if (backend_decision == fusion_decision::accept) {
-                    p.fuse_nodes(input, activation_node, &fusing_history);
-                }
-                return;
-            }
-
             GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
                 GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 11)
                     return;
@@ -818,6 +800,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return;
             }
 
+            auto& input = activation_node.get_dependency(0);
             if (activation_node.get_dependencies().size() >= 3)
                 return;
 
@@ -944,16 +927,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto fuse_quantize_f = [&](quantize_node& quantize_node) {
-            auto& input = quantize_node.get_dependency(0);
-            const auto backend_decision = fusion_policy.evaluate(
-                {fusion_kind::quantize, input, quantize_node});
-            if (backend_decision != fusion_decision::defer_to_common) {
-                if (backend_decision == fusion_decision::accept) {
-                    p.fuse_nodes(input, quantize_node, &fusing_history);
-                }
-                return;
-            }
-
             GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
                 GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 12)
                     return;
@@ -1082,16 +1055,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             std::vector<bool> can_fuse_parents = { false, false };
 
             for (size_t i = 0; i < parents.size(); i++) {
-                const auto backend_decision = fusion_policy.evaluate(
-                    {fusion_kind::eltwise,
-                     *parents[i].first,
-                     node,
-                     parents[parents.size() - 1 - i].first});
-                if (backend_decision != fusion_decision::defer_to_common) {
-                    can_fuse_parents[i] = backend_decision == fusion_decision::accept;
-                    continue;
-                }
-
                 can_fuse_parents[i] = (parents[i].first->is_type<convolution>() &&
                                        conv_supports_fusings(parents[i].first->as<convolution>())) ||
                                       (parents[i].first->is_type<mvn>() &&
@@ -1138,9 +1101,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto parent1 = parents[0];
             auto parent2 = parents[1];
 
-            if (!fusion_policy.controls(fusion_kind::eltwise) &&
-                parent1.first->get_output_layout().is_static() &&
-                parent2.first->get_output_layout().is_static()) {
+            if (parent1.first->get_output_layout().is_static() && parent2.first->get_output_layout().is_static()) {
                 auto p1_raw_size = parent1.first->get_output_layout().get_tensor().sizes();
                 auto p2_raw_size = parent2.first->get_output_layout().get_tensor().sizes();
                 for (unsigned k = 0; k < p1_raw_size.size(); k++) {
@@ -1154,7 +1115,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                         can_fuse_parents[1] = false;
                     }
                 }
-            } else if (!fusion_policy.controls(fusion_kind::eltwise)) {
+            } else {
                 // In case of dynamic shapes we check that parent & peer shapes are compatible to allow merge
                 // This is required to avoid an issue when shape is partially defined and incorrectly propagated to further nodes
                 // which may ruin shape inference
@@ -1389,25 +1350,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             p.fuse_nodes(*fused_node, node, &fusing_history);
         };
 
-        auto fuse_reorder_f = [&](reorder_node& reorder_node) {
-            if (reorder_node.get_dependencies().size() != 1) {
-                return;
-            }
-            auto& input = reorder_node.get_dependency(0);
-            const auto backend_decision = fusion_policy.evaluate(
-                {fusion_kind::terminal_reorder, input, reorder_node});
-            if (backend_decision != fusion_decision::accept) {
-                return;
-            }
-            p.fuse_nodes(input, reorder_node, &fusing_history);
-        };
-
         // Debug config DISABLE_POST_OPS_FUSION=11 to 13 specify enabling only one of fusions activation, quantize and eltwise
-        program_helpers::do_for_types<activation, quantize, eltwise, reorder>(*node,
+        program_helpers::do_for_types<activation, quantize, eltwise>(*node,
                 fuse_activation_f,
                 fuse_quantize_f,
-                fuse_eltwise_f,
-                fuse_reorder_f);
+                fuse_eltwise_f);
     }
 
     // Need to update processing order to handle cases when peer node processing number is greater
