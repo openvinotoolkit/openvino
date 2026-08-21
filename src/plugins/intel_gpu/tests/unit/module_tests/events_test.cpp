@@ -19,6 +19,21 @@ TEST(user_event, can_create_as_complete) {
     ASSERT_NE(std::dynamic_pointer_cast<ocl::ocl_user_event>(user_ev), nullptr);
 }
 
+TEST(user_event, profiling_has_no_device_start_timestamp) {
+    auto& engine = get_test_engine();
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::enable_profiling(true));
+    auto stream = engine.create_stream(config);
+    auto user_ev = stream->create_user_event(true);
+    const auto profiling_info = user_ev->get_profiling_info();
+
+    ASSERT_EQ(profiling_info.size(), 2);
+    EXPECT_EQ(profiling_info[0].stage, instrumentation::profiling_stage::duration);
+    EXPECT_EQ(profiling_info[1].stage, instrumentation::profiling_stage::executing);
+    EXPECT_FALSE(profiling_info[0].is_valid_start);
+    EXPECT_FALSE(profiling_info[1].is_valid_start);
+}
+
 TEST(user_event, can_create_as_not_complete) {
     auto& stream = get_test_stream();
     auto user_ev = stream.create_user_event(false);
