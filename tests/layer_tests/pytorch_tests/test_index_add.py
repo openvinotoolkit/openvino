@@ -27,13 +27,21 @@ class TestIndexAdd(PytorchLayerTest):
 
             def forward(self, x: torch.Tensor):
                 index = self.index
-                if self.inplace:
-                    return x.index_add_(self.dim, index, self.src, alpha=self.alpha), x
+                if self.alpha is None:
+                    if self.inplace:
+                        return x.index_add_(self.dim, index, self.src), x
+                    else:
+                        return torch.index_add(x, self.dim, index, self.src), x
                 else:
-                    return torch.index_add(x, self.dim, index, self.src, alpha=self.alpha), x
+                    if self.inplace:
+                        return x.index_add_(self.dim, index, self.src, alpha=self.alpha), x
+                    else:
+                        return torch.index_add(x, self.dim, index, self.src, alpha=self.alpha), x
 
             def forward_out(self, x: torch.Tensor, out):
                 index = self.index
+                if self.alpha is None:
+                    return torch.index_add(x, self.dim, index, self.src, out=out), out
                 return torch.index_add(x, self.dim, index, self.src, out=out, alpha=self.alpha), out
 
         op_name = "aten::index_add_" if mode == "inplace" else "aten::index_add"
@@ -53,7 +61,7 @@ class TestIndexAdd(PytorchLayerTest):
     @pytest.mark.parametrize("src", [torch.tensor([[1, 2, 3], [4, 5, 6], [7, 8, 9]])])
     @pytest.mark.parametrize("dtype", ["int32", "int64", "float32", "float64"])
     @pytest.mark.parametrize("mode", ["inplace", "out", "default"])
-    @pytest.mark.parametrize("alpha", [1, -1, 0.5, 0.25])
+    @pytest.mark.parametrize("alpha", [None, 1, -1, 0.5, 0.25])
     def test_scatter_reduce(self, dim, index, src, dtype, mode, alpha, ie_device, precision, ir_version):
         if isinstance(src, torch.Tensor):
             src = src.to(getattr(torch, dtype))
