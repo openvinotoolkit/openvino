@@ -37,6 +37,7 @@
 #include "kv_cache_inst.h"
 #include "program_helpers.h"
 #include "program_dump_graph.h"
+#include "stateless_kv_inst.h"
 #include "to_string_utils.h"
 
 #include <algorithm>
@@ -367,6 +368,10 @@ void network::set_arguments() {
         if (!prim->is_dynamic()) {
             bool can_set_args = true;
             for (const auto& dep : prim->dependencies()) {
+                if (prim->is_output() && prim->type() == reorder::type_id() && dep.first->type() == stateless_kv::type_id()) {
+                    can_set_args = false;
+                    break;
+                }
                 // Skip set args for nodes with dynamic & optimized_out dependency
                 // This is needed to handle dynamic -> static cases like
                 // (dynamic) -> reshape -> (static) -> some_op
