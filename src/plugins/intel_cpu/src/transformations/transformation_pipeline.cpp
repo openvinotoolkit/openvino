@@ -145,6 +145,7 @@
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
 // CPU specific transformations
+#include "transformations/cpu_opset/common/pass/disable_bf16_comp_cumsum_sin_gen.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/ngram_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/permute_slice_n_interpolation.hpp"
@@ -594,6 +595,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::GatedDeltaNetFusion);
+    CPU_REGISTER_PASS_COMMON(manager, ov::intel_cpu::DisableBF16CompCumSumSinGen);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
     CPU_SET_CALLBACK_COMMON(
