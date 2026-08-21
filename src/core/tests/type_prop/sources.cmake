@@ -78,6 +78,7 @@ set(OV_CORE_TESTS_TYPE_PROP_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/floor.cpp
     ${CMAKE_CURRENT_LIST_DIR}/floor_mod.cpp
     ${CMAKE_CURRENT_LIST_DIR}/framework_node.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/fully_connected.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gated_delta_net.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gather.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gather_elements.cpp
