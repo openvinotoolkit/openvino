@@ -42,6 +42,24 @@ void clearMockPlugin(const std::shared_ptr<void>& m_so) {
     ASSERT_TRUE(m_so);
     ov::test::utils::make_std_function<void()>(m_so, "ClearTargets")();
 }
+
+// InjectPlugin stores a raw pointer to a test-local plugin in a mock_engine global, so it MUST be
+// cleared before the test returns - a fatal assertion that skips it leaves the next test a dangler.
+class InjectedMockPlugin {
+public:
+    InjectedMockPlugin(ov::Core& core, std::shared_ptr<ov::IPlugin>& plugin) {
+        mockPlugin(core, plugin, m_so);
+    }
+    InjectedMockPlugin(const InjectedMockPlugin&) = delete;
+    InjectedMockPlugin& operator=(const InjectedMockPlugin&) = delete;
+    ~InjectedMockPlugin() {
+        if (m_so)
+            ov::test::utils::make_std_function<void()>(m_so, "ClearTargets")();
+    }
+
+private:
+    std::shared_ptr<void> m_so;
+};
 }  // namespace
 
 TEST(RegisterPluginTests, getVersionforRegisteredPluginThrows) {
@@ -206,23 +224,25 @@ TEST_P(RegisterPluginTestP, registerNewPluginNoThrows) {
     core.unload_plugin(mock_plugin_name);
 }
 
-TEST(RegisterPluginTests, registerExistingPluginThrows) {
+// Registering a second library under an existing device name appends a dispatch-group candidate
+// instead of throwing, so that a device name can be served by more than one library.
+TEST(RegisterPluginTests, registerExistingPluginAppendsCandidate) {
     ov::Core core;
     auto plugin = std::make_shared<ov::test::utils::MockPlugin>();
     std::shared_ptr<ov::IPlugin> base_plugin = plugin;
-    std::shared_ptr<void> m_so;
-    mockPlugin(core, base_plugin, m_so);
+    InjectedMockPlugin injected(core, base_plugin);
 
+    const auto lib = ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                                        std::string("mock_engine") + OV_BUILD_POSTFIX);
     std::string mock_plugin_name{"MOCK_HARDWARE"};
-    OV_ASSERT_NO_THROW(
-        core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                                std::string("mock_engine") + OV_BUILD_POSTFIX),
-                             mock_plugin_name));
-    ASSERT_THROW(core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                                         std::string("mock_engine") + OV_BUILD_POSTFIX),
-                                      mock_plugin_name),
-                 ov::Exception);
-    clearMockPlugin(m_so);
+    OV_ASSERT_NO_THROW(core.register_plugin(lib, mock_plugin_name));
+    OV_ASSERT_NO_THROW(core.register_plugin(lib, mock_plugin_name));
+
+    // The name now has two candidates, and selection is by score - so every candidate must export
+    // the enumeration probe. mock_engine does not, which is a hard error naming the library.
+    OV_EXPECT_THROW(std::ignore = core.get_property(mock_plugin_name, ov::supported_properties),
+                    ov::Exception,
+                    ::testing::HasSubstr("does not export the device-enumeration probe"));
 }
 
 inline std::string getPluginFile() {
