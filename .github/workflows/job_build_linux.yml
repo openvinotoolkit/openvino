@@ -85,6 +85,11 @@ on:
         type: boolean
         required: false
         default: true
+      build-samples:
+        description: 'Whether to build OpenVINO C++/C samples and include them in the OpenVINO package'
+        type: boolean
+        required: false
+        default: false
 
 permissions: read-all
 
@@ -232,7 +237,7 @@ jobs:
       - name: CMake configure - OpenVINO
         run: eval cmake ${{ env.CMAKE_OPTIONS }} -S ${{ env.OPENVINO_REPO }} -B ${{ env. BUILD_DIR }}
         env:
-          CMAKE_OPTIONS: ${{ inputs.cmake-options }}
+          CMAKE_OPTIONS: ${{ inputs.cmake-options }} -DENABLE_SAMPLES=${{ inputs.build-samples && 'ON' || 'OFF' }}
 
       - name: Clean sccache stats
         run: ${SCCACHE_PATH} --zero-stats
@@ -248,6 +253,11 @@ jobs:
           cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_DIR}
           cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_TEST_DIR} --component tests
           cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${DEVELOPER_PACKAGE_DIR} --component developer_package
+
+      # Samples are built by the main build (ENABLE_SAMPLES=ON); install their binaries into the package
+      - name: Install OpenVINO samples
+        if: ${{ inputs.build-samples }}
+        run: cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_DIR} --component samples_bin
 
       - name: Install Python wheels for the main Python
         if: ${{ ! inputs.build-additional-python-packages }}
@@ -317,12 +327,14 @@ jobs:
           [[ "${OS}" == "ubuntu_24_04" || "${OS}" == "ubuntu_26_04" ]] && python_exec=/venv/bin/python3 || python_exec=/usr/bin/python3
           $python_exec -m pip install -U pip
           $python_exec -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
+          # Debian packages always ship the openvino-samples package, so enable samples regardless of build-samples
           cmake -UPython* -U_Python* -UPYTHON* \
                 -UTBB* \
                 -DENABLE_SYSTEM_TBB=ON \
                 -DENABLE_PYTHON_PACKAGING=ON \
                 -DENABLE_WHEEL=OFF \
                 -DENABLE_TESTS=OFF \
+                -DENABLE_SAMPLES=ON \
                 -DPython3_EXECUTABLE=$python_exec \
                 -DCPACK_GENERATOR=DEB \
                 ${BUILD_DIR}
@@ -374,12 +386,14 @@ jobs:
       - name: Build RPM packages
         if: ${{ inputs.build-rpm-packages }}
         run: |
+          # RPM packages always ship the openvino-samples package, so enable samples regardless of build-samples
           cmake -UTBB* \
                 -DCPACK_GENERATOR=RPM \
                 -DENABLE_SYSTEM_TBB=ON \
                 -DENABLE_PYTHON_PACKAGING=ON \
                 -DENABLE_WHEEL=OFF \
                 -DENABLE_TESTS=OFF \
+                -DENABLE_SAMPLES=ON \
                 ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel $(nproc) --target package -- --quiet
 
