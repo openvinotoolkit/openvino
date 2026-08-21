@@ -78,5 +78,19 @@ std::string serializeConfig(const FilteredConfig& config,
                             const ze_graph_compiler_version_info_t& compilerVersion,
                             const std::function<bool(const std::string&)>& isOptionSupportedByCompiler);
 
+/**
+ * @brief Checks if the model contains a GroupQueryAttention operator that marks its absent optional inputs with
+ * empty (zero-element) Constant placeholders.
+ * @details The operator carries its optional inputs (position_ids, attention_bias, head_sink, KV scales, ...) at fixed
+ * positions, so an absent one has to be represented by a placeholder. The OpenVINO frontends switched from a
+ * frontend-private "NullNode" to an empty Constant, but the compiler only recognizes the convention of the OpenVINO
+ * revision it was built against: an older compiler reads an empty Constant as a real tensor and lowers the operator
+ * against a zero-length input. Detecting the newer convention lets the plugin decompose the operator itself instead of
+ * relying on the compiler to interpret it.
+ * @param model The model to inspect, sub-graphs included.
+ * @return True if at least one such operator was found, false otherwise.
+ */
+bool hasGroupQueryAttentionWithEmptyOptionalInputs(const std::shared_ptr<const ov::Model>& model);
+
 }  // namespace compiler_utils
 }  // namespace intel_npu
