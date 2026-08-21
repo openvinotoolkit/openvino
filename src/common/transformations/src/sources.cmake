@@ -333,6 +333,7 @@ set(UTILS_SOURCES
 
 set(DECOMPOSITIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/decompositions/low_precision_dequantize.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/decompositions/paged_attention_decomposition.cpp
     ${CMAKE_CURRENT_LIST_DIR}/decompositions/rms_norm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/decompositions/rope.cpp
 )
