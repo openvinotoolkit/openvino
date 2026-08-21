@@ -56,6 +56,11 @@ public:
         const auto scale = node->get_scale();
         const auto do_rotary = node->get_do_rotary();
         const auto rotary_interleaved = node->get_rotary_interleaved();
+        const auto local_window_size = node->get_local_window_size();
+        const auto smooth_softmax = node->get_smooth_softmax();
+        // A sliding window is active for local_window_size >= 1; -1 disables it. sliding_window_cache (the
+        // physical rolling KV buffer) is intentionally NOT honored here: NPUW manages the KV cache statically
+        // on the host, so the window is applied as a mask over the full cache (same attention result).
         // TODO: add softcap support
 
         const auto has_input = [&](ov::op::internal::GroupQueryAttentionInputs input_pos) {
@@ -175,16 +180,99 @@ public:
             const auto padding_mask_vert = register_new_node<v3::Broadcast>(padding_len, padding_mask_vert_shape);
             const auto padding_mask = register_new_node<v1::GreaterEqual>(hori_range, padding_mask_vert);
             mask = register_new_node<v1::Select>(padding_mask, mask, minus_inf);
+            if (local_window_size >= 1) {
+                // Sliding window: prefill packs past+current in one right-aligned frame, so (vert - hori) is
+                // the true query-key distance. Mask keys older than the window: (q - k) >= local_window_size.
+                const auto window =
+                    register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {local_window_size}));
+                const auto distance = register_new_node<v1::Subtract>(vert_range, hori_range);
+                const auto too_old = register_new_node<v1::GreaterEqual>(distance, window);
+                mask = register_new_node<v1::Select>(too_old, minus_inf, mask);
+            }
         } else {
-            // kv cache model
-            const auto left_mask = register_new_node<v1::Less>(hori_range, seqlens_elemi64);     // first N
-            const auto righ_mask = register_new_node<v1::GreaterEqual>(hori_range, vert_range);  // last 1
-            const auto atte_mask = register_new_node<v1::LogicalOr>(left_mask, righ_mask);       // [1,1,1,..., 0,0,0,1]
+            // kv cache model. Valid keys are the resident past plus the current block: past occupies the
+            // real prefix [0, past_seqlen) (past_seqlen = seqlens_k + 1 - curr; the slots [past_seqlen,
+            // capacity) hold stale/garbage KV and must be masked), and the current tokens occupy the block
+            // [capacity, capacity + curr). Using seqlens_k / a single diagonal here is only correct for
+            // single-token decode (curr == 1); for a multi-token (speculative) step it would keep curr-1
+            // garbage past slots and drop earlier current tokens. Gate on past_seqlen and the whole current
+            // block; the causal triu above provides intra-current-block causality.
+            const auto left_mask = register_new_node<v1::Less>(hori_range, past_seqlen);              // resident past
+            const auto righ_mask = register_new_node<v1::GreaterEqual>(hori_range, past_k_node_len);  // current block
+            const auto atte_mask = register_new_node<v1::LogicalOr>(left_mask, righ_mask);
             mask = register_new_node<v1::Select>(atte_mask, mask, minus_inf);
+            if (local_window_size >= 1) {
+                // Sliding window (generate). The mask coordinates here are NOT the true absolute positions:
+                // past keys are left-aligned at slots [0, seqlens_k) (slot h holds absolute key h), the
+                // current tokens sit at the fixed capacity slots [C, C+curr) (slot h holds absolute key
+                // total-curr + (h-C)), and vert = C + i is the capacity slot, not the query position. So the
+                // window must be expressed in true absolute positions, computed per query row (correct for
+                // curr > 1 speculative decode, not just single-token decode):
+                //   q_abs(i)  = (total - curr) + i          , total = seqlens_k + 1
+                //   k_abs(h)  = h                            if h < seqlens_k   (past, left-aligned)
+                //             = (total - curr) + (h - C)     if h >= C          (current block)
+                //   mask (too old) iff q_abs - k_abs >= local_window_size
+                const auto total_len = register_new_node<v1::Add>(seqlens_elemi64, one);                // seqlens_k + 1
+                const auto past_base = register_new_node<v1::Subtract>(total_len, curr_seqlen_scalar);  // total - curr
+                // Per-row query absolute positions [curr, 1]: (total - curr) + [0, curr).
+                std::shared_ptr<ov::Node> q_abs = register_new_node<v4::Range>(zero_without_shape,
+                                                                               curr_seqlen_scalar,
+                                                                               one_without_shape,
+                                                                               ov::element::i64);
+                q_abs = register_new_node<v0::Unsqueeze>(q_abs, one);
+                q_abs = register_new_node<v1::Add>(q_abs, past_base);
+                // Per-slot key absolute positions [1, kv]: a past slot h (h < capacity C) holds abs key h;
+                // a current-block slot h (h >= C) holds abs key (total - curr) + (h - C). The past/current
+                // boundary is the capacity C (past_k_node_len), NOT seqlens_k: when the past overflows the
+                // capacity (seqlens_k >= C) a seqlens_k boundary would misclassify current-block slots as past.
+                const auto cur_kabs =
+                    register_new_node<v1::Add>(register_new_node<v1::Subtract>(hori_range, past_k_node_len), past_base);
+                const auto is_past = register_new_node<v1::Less>(hori_range, past_k_node_len);
+                const auto k_abs = register_new_node<v1::Select>(is_past, hori_range, cur_kabs);
+                const auto window =
+                    register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {local_window_size}));
+                const auto distance = register_new_node<v1::Subtract>(q_abs, k_abs);
+                const auto too_old = register_new_node<v1::GreaterEqual>(distance, window);
+                mask = register_new_node<v1::Select>(too_old, minus_inf, mask);
+            }
+        }
+
+        // head_sink (input 11) or smooth_softmax add an extra logit to the softmax denominator. SDPA models
+        // this with its sink input: a [1, num_heads, 1, 1] tensor included in the softmax then sliced out.
+        // head_sink provides a per-head value; plain smooth_softmax uses 0.
+        ov::Output<ov::Node> sink;
+        const bool has_head_sink = has_input(ov::op::internal::GroupQueryAttentionInputs::HEAD_SINK);
+        if (has_head_sink || smooth_softmax) {
+            const auto sink_shape =
+                register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, -1, 1, 1}));
+            if (has_head_sink) {
+                auto head_sink = get_input(ov::op::internal::GroupQueryAttentionInputs::HEAD_SINK);
+                if (head_sink.get_element_type() != T) {
+                    head_sink = register_new_node<v0::Convert>(head_sink, T);
+                }
+                sink = register_new_node<v1::Reshape>(head_sink, sink_shape, false);
+            } else {
+                const auto num_heads_1d =
+                    register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {num_heads}));
+                sink = register_new_node<v3::Broadcast>(
+                    register_new_node(v0::Constant::create(T, ov::Shape{}, {0})),
+                    register_new_node<v0::Concat>(ov::NodeVector{one, num_heads_1d, one, one}, 0));
+            }
         }
 
         std::shared_ptr<ov::Node> qga_output;
-        if (scale != 0.0f) {
+        if (sink.get_node_shared_ptr()) {
+            // SDPA's 6-input form requires an explicit scale; use the op scale or the default 1/sqrt(head_size).
+            ov::Output<ov::Node> scale_node;
+            if (scale != 0.0f) {
+                scale_node = register_new_node(v0::Constant::create(T, Shape{}, {scale}));
+            } else {
+                const auto head_size_t = register_new_node<v0::Convert>(head_size_node, T);
+                const auto neg_half = register_new_node(v0::Constant::create(T, Shape{}, {-0.5f}));
+                scale_node = register_new_node<v0::Squeeze>(register_new_node<v1::Power>(head_size_t, neg_half));
+            }
+            qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, scale_node, sink, false);
+        } else if (scale != 0.0f) {
             auto scale_node = register_new_node(v0::Constant::create(T, Shape{}, {scale}));
             qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, scale_node, false);
         } else {
