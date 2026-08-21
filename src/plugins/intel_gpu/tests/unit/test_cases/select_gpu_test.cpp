@@ -2827,7 +2827,7 @@ TEST(select_gpu_f16, select_basic_1x1x2x2_cached) {
 }
 
 TEST(select_gpu_bf16, select_basic_1x1x2x2_cached) {
-    test_bf16_select_basic_1x1x2x2<uint16_t>(true);
+    test_bf16_select_basic_1x1x2x2<ov::bfloat16>(true);
 }
 
 TEST(select_gpu_i8, select_basic_1x1x2x2_cached) {
