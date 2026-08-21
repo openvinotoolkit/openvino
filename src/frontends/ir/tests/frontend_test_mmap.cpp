@@ -40,7 +40,8 @@ protected:
     }
 };
 
-// TODO: Re-enable when FileWeightsProvider uses LazyBuffer instead of temporary per-region mmap.
+// TODO: Re-enable when FileWeightsProvider uses LazyBuffer instead of temporary per-region mmap. (CVS-190927,
+// CVS-190924)
 TEST_F(IRFrontendMMapTestsAdvanced, DISABLED_core_enable_mmap_property) {
     // Test checks that with  enabled `mmap` .bin file
     // isn't read into RAM on `read_model` stage.
