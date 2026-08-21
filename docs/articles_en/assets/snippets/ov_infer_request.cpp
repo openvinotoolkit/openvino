@@ -33,6 +33,8 @@ infer_request.wait_for(std::chrono::milliseconds(10));
 //! [wait_for]
 
 //! [set_callback]
+// Note: infer_request.wait()/wait_for() will not return until this callback
+// has finished executing.
 infer_request.set_callback([&](std::exception_ptr ex_ptr) { 
     if (!ex_ptr) {
         // all done. Output data can be processed.
