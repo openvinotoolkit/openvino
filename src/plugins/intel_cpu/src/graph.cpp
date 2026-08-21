@@ -250,30 +250,6 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
         }
     }
 
-    // Plugin transformations may disconnect a Parameter while keeping it in
-    // the model's public input list. Preserve such inputs in the execution
-    // graph with a stub consumer so infer requests can still allocate and bind
-    // their tensors by the original input index.
-    const auto& parameters = model->get_parameters();
-    for (size_t inputIndex = 0; inputIndex < inputNodes.size(); ++inputIndex) {
-        if (inputNodes[inputIndex]) {
-            continue;
-        }
-
-        const NodePtr inputNode = createNode(parameters[inputIndex]);
-        inputNodes[inputIndex] = inputNode;
-        AddNode(inputNode);
-
-        const std::string nodeName = "stub_0_" + inputNode->getName();
-        const NodePtr outputNode = std::make_shared<node::Input>(inputNode->outputShapes[0],
-                                                                 inputNode->getOriginalOutputPrecisionAtPort(0),
-                                                                 nodeName,
-                                                                 "Result",
-                                                                 m_context);
-        CreateEdge(inputNode, outputNode, 0, 0);
-        AddNode(outputNode);
-    }
-
     // Add stub output node for unused data
     for (const auto& unusedOutput : unusedOutputs) {
         auto parentNode = op2node[unusedOutput.get_node_shared_ptr()];
