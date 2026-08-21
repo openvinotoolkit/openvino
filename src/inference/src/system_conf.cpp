@@ -19,6 +19,11 @@
 #    include <sched.h>
 #endif
 
+#ifdef _WIN32
+#    define WIN32_LEAN_AND_MEAN
+#    include <windows.h>
+#endif
+
 #if !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && (defined(__arm__) || defined(__aarch64__))
 #    include <asm/hwcap.h> /* Get HWCAP bits from asm/hwcap.h */
 #    include <sys/auxv.h>

@@ -102,9 +102,9 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: ${{ inputs.python-version }}
-          use-pip-proxy: 'true'
+          use-pip-proxy: ${{ inputs.runner != 'windows-11-arm' }}
           set-pip-install-path: ${{ runner.os != 'macOS' }}
-          self-hosted-runner: ${{ runner.os != 'macOS' }}
+          self-hosted-runner: ${{ runner.os != 'macOS' && inputs.runner != 'windows-11-arm' }}
 
       - name: Install OpenVINO Python wheels
         uses: ./.github/actions/install_ov_wheels
@@ -113,12 +113,14 @@ jobs:
           wheels-to-install: 'openvino openvino_tokenizers'
 
       - name: Install Python Layer tests dependencies
+        # Disabled on Windows ARM64 because TensorFlow wheel is not available on PyPI for WOA
+        if: ${{ !(runner.os == 'Windows' && runner.arch == 'ARM64') }}
         run: |
           # tensorflow test requirements
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_tensorflow
 
       - name: TensorFlow 1 Layer Tests - TF FE
-        if: ${{ fromJSON(inputs.affected-components).TF_FE.test }}
+        if: ${{ fromJSON(inputs.affected-components).TF_FE.test && !(runner.os == 'Windows' && runner.arch == 'ARM64') }}
         run: |
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}/layer_tests/tensorflow_tests/ -v -n logical -m precommit  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
         env:
@@ -126,7 +128,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: TensorFlow 2 Layer Tests - TF FE
-        if: ${{ fromJSON(inputs.affected-components).TF_FE.test && runner.os != 'macOS' }} # Ticket: 123322
+        if: ${{ fromJSON(inputs.affected-components).TF_FE.test && runner.os != 'macOS' && !(runner.os == 'Windows' && runner.arch == 'ARM64') }} # Ticket: 123322
         run: |
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}/layer_tests/tensorflow2_keras_tests/ -v -n logical -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_fe.xml
         env:
