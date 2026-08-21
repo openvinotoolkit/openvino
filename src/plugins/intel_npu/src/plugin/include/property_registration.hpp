@@ -27,7 +27,7 @@ using PropertyMap = std::map<std::string, PropertyDescriptor>;
  * @brief Register a simple property backed directly by a config option.
  *
  * Use this when the property name maps to an option stored in the provided config and the getter is just
- * config.get<OptionType>(). The property is registered unconditionally, while runtime support is checked via
+ * config.get<OptionType>(). The descriptor is always registered, while runtime availability is gated by
  * config.hasOpt(propertyName).
  */
 template <typename OptionType>
@@ -51,8 +51,8 @@ inline void register_property(const FilteredConfig& config,
 /**
  * @brief Register a config-backed property with explicit getter function.
  *
- * Use this when a custom getter function is required. Visibility and mutability are taken from the option descriptor.
- * The property is available only if the underlying config option is available.
+ * Use this when a custom getter function is required. Visibility and mutability are provided explicitly by the caller.
+ * The descriptor is always registered, and runtime availability is gated by config.hasOpt(propertyName).
  */
 template <typename OptionType, typename Getter>
 inline void register_property_with_custom_function(const FilteredConfig& config,
@@ -74,8 +74,9 @@ inline void register_property_with_custom_function(const FilteredConfig& config,
 /**
  * @brief Register a config-backed property with support check.
  *
- * Registers a property that is always added to the descriptor but gated by an `isSupported` predicate at runtime.
- * Getter is config.get<OptionType>(). Use this when a property's availability depends on different runtime conditions.
+ * Registers the descriptor unconditionally, but exposes the property only when the supplied `isSupported` predicate
+ * returns true at runtime. Getter is config.get<OptionType>(). Use this when a property's availability depends on
+ * dynamic runtime conditions.
  */
 template <typename OptionType, typename IsSupportedFn>
 inline void register_property_with_support(const FilteredConfig& config,
@@ -97,8 +98,8 @@ inline void register_property_with_support(const FilteredConfig& config,
 /**
  * @brief Register a config-backed property with support check and custom getter.
  *
- * Registers a property that is always added to the descriptor but gated by an `isSupported` condition at runtime and a
- * custom getter function is required.
+ * Registers the descriptor unconditionally, but exposes the property only when the supplied `isSupported` predicate
+ * returns true at runtime. A custom getter function is required.
  */
 template <typename OptionType, typename IsSupportedFn, typename Getter>
 inline void register_property_with_support_and_custom_function(const FilteredConfig& config,
