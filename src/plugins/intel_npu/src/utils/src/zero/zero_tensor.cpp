@@ -95,6 +95,15 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
     // zero context.
     _logger.debug("ZeroTensor::ZeroTensor - get tensor from pool or import it");
     _mem_ref = zero_mem::import_standard_allocation_memory(_init_structs, _ptr, _bytes_capacity);
+
+    // Hardening: validate that the memory allocation is at least as large as required for this tensor.
+    // This catches cases where compiled port metadata might diverge from the host buffer size.
+    OPENVINO_ASSERT(_mem_ref && _mem_ref->size() >= _bytes_capacity,
+                         "Imported memory size (",
+                         _mem_ref ? _mem_ref->size() : 0,
+                         " bytes) is smaller than required tensor capacity (",
+                         _bytes_capacity,
+                         " bytes)");
 }
 
 // Note: Override data() members to not used OpenVINO library code to improve performance
