@@ -242,7 +242,7 @@ KERNEL (reorder_data)(
     IMAGE_WRITE(output, (int2)(x, y), colorRGBA);
 #else
     #if INPUT0_IS_FP && !OUTPUT_IS_FP
-    #if CONVERT_TRUNCATE
+    #if CONVERT_TRUNCATE && !defined(BOOLEAN_OUTPUT)
         #define __TO_OUTPUT_REORDER_TYPE(res) TO_OUTPUT_REORDER_TYPE(convert_long(res))
     #else
         #define __TO_OUTPUT_REORDER_TYPE(res) TO_OUTPUT_REORDER_TYPE_SAT(res)

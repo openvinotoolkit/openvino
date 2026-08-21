@@ -231,7 +231,11 @@ KERNEL(sdpa_ref)(
             OUTPUT_TYPE attn_mask_val = s > target_seq_idx ? OUTPUT_VAL_MIN : 0;
 #elif !IS_CAUSAL && HAS_ATTN_MASK_INPUT
             uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0, b1, target_seq_idx, s);
+#ifdef BOOLEAN_ATTN_MASK
+            OUTPUT_TYPE attn_mask_val = attn_mask[attn_mask_offset] ? OUTPUT_VAL_ZERO : OUTPUT_VAL_MIN;
+#else
             OUTPUT_TYPE attn_mask_val = attn_mask[attn_mask_offset];
+#endif
 #elif defined(STATIC_SCALAR_ATTN_MASK_VALUE)
             OUTPUT_TYPE attn_mask_val = TO_OUTPUT_TYPE(STATIC_SCALAR_ATTN_MASK_VALUE);
 #else

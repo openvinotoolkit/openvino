@@ -149,6 +149,8 @@ std::string toCLType(WeightsType wType) {
 
 std::string toCLType(Datatype dType) {
     switch (dType) {
+        case Datatype::BOOLEAN:
+            return GetTypeName<uint8_t>();
         case Datatype::INT4:
         case Datatype::INT8:
             return GetTypeName<int8_t>();
@@ -1461,6 +1463,23 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
     std::string to_vector_type_sat = "undefined";
     bool is_fp;
     switch (dataType) {
+        case Datatype::BOOLEAN:
+            type = "uchar";
+            max_val = "1";
+            min_val = "0";
+            val_one = "(uchar) 1";
+            val_zero = "(uchar) 0";
+            to_type = "convert_uchar((v) != 0)";
+            to_type_sat = "convert_uchar((v) != 0)";
+            to_vector_type = "CAT(convert_, MAKE_VECTOR_TYPE(uchar, size))((v) != 0)";
+            to_vector_type_sat = "CAT(convert_, MAKE_VECTOR_TYPE(uchar, size))((v) != 0)";
+            as_type = "as_uchar(v)";
+            max_func = "max";
+            min_func = "min";
+            abs_func = "abs";
+            type_size = "1";
+            is_fp = false;
+            break;
         case Datatype::INT8:
             type = "char";
             max_val = "CHAR_MAX";

@@ -8,6 +8,7 @@
 namespace kernel_selector {
 ParamsKey ReorderKernelRef::GetSupportedKey() const {
     ParamsKey k;
+    k.EnableInputDataType(Datatype::BOOLEAN);
     k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::UINT16);
@@ -40,6 +41,7 @@ ParamsKey ReorderKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F8E4M3);
     k.EnableOutputDataType(Datatype::F8E5M2);
     k.EnableOutputDataType(Datatype::F8E8M0);
+    k.EnableOutputDataType(Datatype::BOOLEAN);
     k.EnableSurfaceInputSupport();
     k.EnableDifferentTypes();
     k.EnableAllInputLayout();
@@ -55,6 +57,9 @@ JitConstants ReorderKernelRef::GetJitConstants(const reorder_params& params) con
     auto jit = ReorderKernelBase::GetJitConstants(params);
     if (params.truncate) {
         jit.AddConstant(MakeJitConstant("CONVERT_TRUNCATE", true));
+    }
+    if (params.outputs[0].GetDType() == Datatype::BOOLEAN) {
+        jit.AddConstant(MakeJitConstant("BOOLEAN_OUTPUT", true));
     }
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.inputs[0]));
 

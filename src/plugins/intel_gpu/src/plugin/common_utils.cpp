@@ -170,6 +170,7 @@ void convert_and_copy(const void* src_ptr, ov::element::Type src_et, void* dst_p
     CASE(ov::element::bf16, ov::element::f32, ov::bfloat16, float);
     CASE(ov::element::bf16, ov::element::f16, ov::bfloat16, ov::float16);
     CASE(ov::element::boolean, ov::element::u8, bool, uint8_t);
+    CASE(ov::element::u8, ov::element::boolean, uint8_t, bool);
 
     OPENVINO_THROW("[GPU] Unsupported element types combination for copy: ", src_et, " -> ", dst_et);
 }
@@ -181,7 +182,7 @@ namespace ov::intel_gpu {
 bool is_supported(ov::element::Type_t et) {
     switch (et) {
         case ov::element::Type_t::dynamic: return true;
-        case ov::element::Type_t::boolean: return true; // converted to u8
+        case ov::element::Type_t::boolean: return true;
         case ov::element::Type_t::bf16: return false;
         case ov::element::Type_t::f16: return true;
         case ov::element::Type_t::f32: return true;

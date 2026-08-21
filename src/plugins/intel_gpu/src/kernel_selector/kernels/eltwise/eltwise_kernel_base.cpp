@@ -121,6 +121,17 @@ static bool IsBitwiseMode(EltwiseMode mode) {
            mode == EltwiseMode::BITWISE_OR || mode == EltwiseMode::BITWISE_XOR;
 }
 
+static bool SupportsBooleanInput(EltwiseMode mode) {
+    return mode == EltwiseMode::EQ || mode == EltwiseMode::NE || mode == EltwiseMode::LT || mode == EltwiseMode::LE ||
+           mode == EltwiseMode::GT || mode == EltwiseMode::GE || mode == EltwiseMode::LOGIC_AND ||
+           mode == EltwiseMode::LOGIC_OR || mode == EltwiseMode::LOGIC_XOR;
+}
+
+static bool ProducesBooleanOutput(EltwiseMode mode) {
+    return SupportsBooleanInput(mode) || mode == EltwiseMode::IS_FINITE || mode == EltwiseMode::IS_INF ||
+           mode == EltwiseMode::IS_NAN;
+}
+
 Datatype EltwiseKernelBase::GetAccumulatorType(const eltwise_params &params) const {
     // NOTE: Workaround for not promoting shift operations. Not sure what should happen
     // if shift op is just one operation of other elementwise operations. My guess is that is should be promoted as
@@ -157,6 +168,17 @@ bool EltwiseKernelBase::Validate(const Params& p) const {
     const auto& operations = params.operations;
 
     if (operations.empty()) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+
+    const bool has_boolean_input = std::any_of(params.inputs.begin(), params.inputs.end(), [](const DataTensor& input) {
+        return input.GetDType() == Datatype::BOOLEAN;
+    });
+    const bool has_boolean_output = std::any_of(params.outputs.begin(), params.outputs.end(), [](const DataTensor& output) {
+        return output.GetDType() == Datatype::BOOLEAN;
+    });
+    if ((has_boolean_input && !SupportsBooleanInput(operations.front().mode)) ||
+        (has_boolean_output && !ProducesBooleanOutput(operations.back().mode))) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 

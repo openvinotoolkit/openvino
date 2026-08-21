@@ -72,6 +72,14 @@ bool ActivationKernelBase::Validate(const Params& p) const {
     }
     const activation_params& orgParams = static_cast<const activation_params&>(p);
 
+    const bool has_boolean_type = orgParams.inputs[0].GetDType() == Datatype::BOOLEAN ||
+                                  orgParams.outputs[0].GetDType() == Datatype::BOOLEAN;
+    if (has_boolean_type &&
+        (orgParams.activations[0].function != ActivationFunction::NOT ||
+         orgParams.inputs[0].GetDType() != orgParams.outputs[0].GetDType())) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+
     for (const auto& fused_op : orgParams.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
             DO_NOT_USE_THIS_KERNEL(p.layerID);
