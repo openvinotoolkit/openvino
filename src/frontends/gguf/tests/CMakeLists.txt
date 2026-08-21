@@ -17,6 +17,7 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/pass/adapt_to_genai.cpp"
     "${FE_SRC_DIR}/pass/lower_set_rows_stateless.cpp"
     "${FE_SRC_DIR}/pass/make_stateful.cpp"
+    "${FE_SRC_DIR}/pass/prune_orphaned_parameters.cpp"
     "${FE_SRC_DIR}/tokenizer_metadata.cpp"
     "${FE_SRC_DIR}/quant/gguf.cpp"
     "${FE_SRC_DIR}/quant/gguf_quants.cpp"

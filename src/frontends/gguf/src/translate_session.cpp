@@ -41,8 +41,8 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
-#include "openvino/pass/pass.hpp"
 #include "pass/lower_set_rows_stateless.hpp"
+#include "pass/prune_orphaned_parameters.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
@@ -109,90 +109,6 @@ void preprocess(TensorMap& tensor_map, GgufDecoder& gguf_model_decoder) {
     add_rope_sin_cos(tensor_map, gguf_model_decoder);
 }
 
-// A Parameter can have non-empty target_inputs() yet still be practically dead: its only consumer
-// may not be reachable from any Result/Sink, e.g. after GatedDeltaNetFusion's
-// RemoveConcatSliceAfterLoop rewires a Loop's consumers directly to it, bypassing (without
-// disconnecting) whatever fed the bypassed subgraph. get_ordered_ops() is rooted at the model's
-// Results/Sinks -- unlike the Parameter list itself, which it always includes regardless of
-// connectivity -- so use it instead of target_inputs() to tell a genuinely-live Parameter from one
-// only nominally still wired up.
-std::unordered_set<const ov::Node*> live_parameters(const std::shared_ptr<ov::Model>& model) {
-    std::unordered_set<const ov::Node*> ordered_nodes;
-    for (const auto& node : model->get_ordered_ops()) {
-        ordered_nodes.insert(node.get());
-    }
-    std::unordered_set<const ov::Node*> live;
-    for (const auto& param : model->get_parameters()) {
-        const auto& targets = param->output(0).get_target_inputs();
-        const bool has_live_consumer = std::any_of(targets.begin(), targets.end(), [&](const ov::Input<ov::Node>& in) {
-            return ordered_nodes.count(in.get_node()) != 0;
-        });
-        if (has_live_consumer) {
-            live.insert(param.get());
-        }
-    }
-    return live;
-}
-
-// Anonymous-namespace ModelPass helpers below implement get_type_info() by hand instead of using
-// OPENVINO_MODEL_PASS_RTTI: that macro marks get_type_info_static() with hidden visibility, which
-// gcc's -Werror=attributes rejects as a no-op on a type that already has internal linkage from the
-// enclosing anonymous namespace.
-class SnapshotLiveParameters : public ov::pass::ModelPass {
-public:
-    static const ov::DiscreteTypeInfo& get_type_info_static() {
-        static const ov::DiscreteTypeInfo type_info{"SnapshotLiveParameters", "0"};
-        return type_info;
-    }
-    const ov::DiscreteTypeInfo& get_type_info() const override {
-        return get_type_info_static();
-    }
-    explicit SnapshotLiveParameters(std::shared_ptr<std::unordered_set<const ov::Node*>> out) : m_out(std::move(out)) {}
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
-        *m_out = live_parameters(model);
-        return false;
-    }
-
-private:
-    std::shared_ptr<std::unordered_set<const ov::Node*>> m_out;
-};
-
-// Drops a Parameter that was live in the snapshot but is not live now, i.e. one orphaned by
-// whatever ran between the paired SnapshotLiveParameters and this pass. A Parameter some other,
-// earlier pass already left without a live consumer for its own reasons (e.g. GGUFMakeStateful
-// drops the graph's use of an index input once the cache it fed becomes a Variable, but the input
-// still belongs in the model's declared IO contract) is not in the snapshot as live, so it is left
-// alone.
-class PruneParametersOrphanedSince : public ov::pass::ModelPass {
-public:
-    static const ov::DiscreteTypeInfo& get_type_info_static() {
-        static const ov::DiscreteTypeInfo type_info{"PruneParametersOrphanedSince", "0"};
-        return type_info;
-    }
-    const ov::DiscreteTypeInfo& get_type_info() const override {
-        return get_type_info_static();
-    }
-    explicit PruneParametersOrphanedSince(std::shared_ptr<std::unordered_set<const ov::Node*>> live_before)
-        : m_live_before(std::move(live_before)) {}
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
-        const auto live_after = live_parameters(model);
-        // Snapshot the parameter list first: remove_parameter() mutates the model's own list, so
-        // removing while iterating it directly would invalidate the iteration.
-        const auto parameters = model->get_parameters();
-        bool changed = false;
-        for (const auto& param : parameters) {
-            if (m_live_before->count(param.get()) && !live_after.count(param.get())) {
-                model->remove_parameter(param);
-                changed = true;
-            }
-        }
-        return changed;
-    }
-
-private:
-    std::shared_ptr<std::unordered_set<const ov::Node*>> m_live_before;
-};
-
 }  // namespace
 
 TranslateSession::TranslateSession(const frontend::InputModel::Ptr& input_model,
@@ -225,12 +141,9 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     // consumer at translate time; a pass that ends up not consuming one leaves it dangling, which
     // later constant folding removes.
     std::set<ov::Node*> deferred_use_params;
-    // get_model_inputs() already folds in every entry get_model_extra_inputs() would yield (see
-    // the decoder.hpp contract): a decoder that tracks them separately still merges both into the
-    // map get_model_inputs() returns, so the same Parameter object shows up in both loops below.
-    // Skip re-adding an already-seen Parameter to `params`, or it ends up registered on the model
-    // twice under two different indices, and the second registration is never wired to a node in
-    // the translated graph.
+    // get_model_inputs() already folds in get_model_extra_inputs()'s entries (per the decoder.hpp
+    // contract), so the same Parameter can show up in both loops below; skip re-adding it or it
+    // ends up registered on the model twice, under two different indices.
     std::set<ov::Node*> seen_params;
 
     for (const auto& it : gguf_model_decoder->get_model_inputs()) {
@@ -368,12 +281,9 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
 
     resulting_model = apply_transformations(resulting_model);
 
-    // Auxiliary Parameters are retained until normalization because a
-    // transformation extension may create their only consumer. Drop any that
-    // are still disconnected from the model outputs afterwards. Checking only
-    // direct consumers is insufficient because an entire auxiliary subgraph
-    // may be dangling. Some plugins require every declared model input to have
-    // a corresponding execution-graph node.
+    // Auxiliary Parameters are kept through normalization in case a transformation extension
+    // creates their only consumer; drop any still disconnected afterwards (a plugin requires
+    // every declared model input to reach a node in the execution graph).
     std::set<ov::Node*> ordered_nodes;
     for (const auto& node : resulting_model->get_ordered_ops()) {
         ordered_nodes.insert(node.get());
@@ -445,33 +355,19 @@ std::shared_ptr<Model> TranslateSession::apply_transformations(std::shared_ptr<M
     // silently disables the PagedAttention backend for every GGUF model.
     manager.register_pass<ov::pass::EliminateConvert>();
 
-    // Fuse a standalone Loop-based Gated Delta Net recurrence into a single internal GatedDeltaNet
-    // op here, in the frontend, rather than leaving it to each plugin's own copy of this pass
-    // (e.g. the CPU plugin registers it in its PreLpt pipeline). GatedDeltaNetFusion can drop
-    // auxiliary bookkeeping Parameters (the active-window/cache-reset inputs used only to feed the
-    // Concat/Slice/Reshape it bypasses) that become disconnected once it runs. A plugin's
-    // compile_model() asserts that its transformations never change the model's input/output port
-    // count, so any such removal must happen here, before the model's "public" parameter list is
-    // handed off -- not inside a plugin's own transformation pipeline. Bracket the (unmodified,
-    // shared) pass with a snapshot/prune pair so only a Parameter GatedDeltaNetFusion itself
-    // orphans gets dropped, not one an earlier, unrelated pass already left without a live
-    // consumer for its own reasons.
-    //
-    // Only register this for a model that actually has a Loop: GatedDeltaNetFusion's own
-    // sub-matchers only ever fire on a Loop-based recurrence, but it also bundles TransposeFuse (to
-    // clean up a transpose FuseGDNLoop itself introduces), which is a generic canonicalization that
-    // can match an unrelated Transpose pair anywhere -- changing the graph structure of a model with
-    // no Gated Delta Net at all. Guarding on Loop presence keeps every other architecture's frontend
-    // output exactly as before.
+    // Fuse a standalone Loop-based Gated Delta Net recurrence here (not in a plugin, which can't
+    // remove a Parameter without violating its I/O port-count invariant), only for models with a
+    // Loop: GatedDeltaNetFusion also bundles TransposeFuse, a generic cleanup that would otherwise
+    // touch every architecture's op count.
     const auto ordered_ops = model->get_ordered_ops();
     const auto has_loop = std::any_of(ordered_ops.begin(), ordered_ops.end(), [](const std::shared_ptr<ov::Node>& node) {
         return ov::is_type<ov::op::v5::Loop>(node);
     });
     if (has_loop) {
         auto live_before_gdn = std::make_shared<std::unordered_set<const ov::Node*>>();
-        manager.register_pass<SnapshotLiveParameters>(live_before_gdn);
+        manager.register_pass<pass::SnapshotLiveParameters>(live_before_gdn);
         manager.register_pass<ov::pass::GatedDeltaNetFusion>();
-        manager.register_pass<PruneParametersOrphanedSince>(live_before_gdn);
+        manager.register_pass<pass::PruneParametersOrphanedSince>(live_before_gdn);
     }
 
     manager.run_passes(model);
