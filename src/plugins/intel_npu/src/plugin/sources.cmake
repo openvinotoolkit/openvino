@@ -156,6 +156,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/orc.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/orc.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/orc/schema_npuw.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pa_compiled_model.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pa_compiled_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/partitioning/online/compiler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/partitioning/online/compiler.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/partitioning/online/graph.cpp
