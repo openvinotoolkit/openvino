@@ -5,8 +5,23 @@ import platform
 
 import numpy as np
 import pytest
+import torch
 
 from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
+
+
+def _factory_supports_names_kwarg():
+    """The legacy named-tensor `names` kwarg was dropped from the zeros/ones/full
+    factory functions in a later PyTorch release; probe once so the *_with_names
+    parametrizations degrade to a skip instead of crashing with a TypeError."""
+    try:
+        torch.zeros((1,), names=None)
+        return True
+    except TypeError:
+        return False
+
+
+SUPPORTS_NAMES_KWARG = _factory_supports_names_kwarg()
 
 
 class TestFull(PytorchLayerTest):
@@ -95,6 +110,8 @@ class TestFull(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit_fx_backend
     def test_full_dtype(self, shape, value, dtype, with_names, ie_device, precision, ir_version):
+        if with_names and not SUPPORTS_NAMES_KWARG:
+            pytest.skip("torch.full no longer accepts a 'names' kwarg on this torch version")
         self._test(*self.create_model(shape, dtype=dtype, use_dtype=True, with_names=with_names), ie_device, precision,
                    ir_version, kwargs_to_prepare_input={'value': value})
 
@@ -104,6 +121,8 @@ class TestFull(PytorchLayerTest):
     @pytest.mark.parametrize("with_names", [skip_if_export(True), False])
     @pytest.mark.nightly
     def test_full_out(self, shape, value, dtype, with_names, ie_device, precision, ir_version):
+        if with_names and not SUPPORTS_NAMES_KWARG:
+            pytest.skip("torch.full no longer accepts a 'names' kwarg on this torch version")
         self._test(*self.create_model(shape, dtype=dtype, use_out=True, with_names=with_names), ie_device, precision,
                    ir_version, kwargs_to_prepare_input={'value': value})
 
@@ -490,6 +509,8 @@ class TestZerosAndOnes(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     @pytest.mark.precommit_torch_export
     def test_zeros_ones_with_dtype(self, op_type, shape, dtype, with_names, ie_device, precision, ir_version):
+        if with_names and not SUPPORTS_NAMES_KWARG:
+            pytest.skip(f"{op_type} no longer accepts a 'names' kwarg on this torch version")
         self._test(*self.create_model(op_type, dtype=dtype, with_dtype=True, with_names=with_names), ie_device,
                    precision,
                    ir_version, kwargs_to_prepare_input={'shape': shape})
@@ -500,6 +521,8 @@ class TestZerosAndOnes(PytorchLayerTest):
     @pytest.mark.parametrize("with_names", [skip_if_export(True), False])
     @pytest.mark.nightly
     def test_zeros_ones_with_out(self, op_type, shape, dtype, with_names, ie_device, precision, ir_version):
+        if with_names and not SUPPORTS_NAMES_KWARG:
+            pytest.skip(f"{op_type} no longer accepts a 'names' kwarg on this torch version")
         self._test(*self.create_model(op_type, dtype=dtype, with_out=True, with_names=with_names), ie_device, precision,
                    ir_version, kwargs_to_prepare_input={'shape': shape})
 
