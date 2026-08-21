@@ -619,6 +619,13 @@ TEST_P(BlobSourceDifferentBlobsContiguous, TrueIsContiguous) {
     ASSERT_TRUE(blob_source.is_contiguous());
 }
 
+using BlobSourceContiguous = testing::Test;
+
+TEST_F(BlobSourceContiguous, NotUnidimensionalTensorFails) {
+    const auto tensor = ov::Tensor(ov::element::Type_t::u8, ov::Shape({2, TEST_BUFFER.size() / 2}), TEST_BUFFER.data());
+    OV_EXPECT_THROW(BlobSource blob_source(tensor), ov::Exception, _);
+}
+
 INSTANTIATE_TEST_SUITE_P(UnitTests,
                          BlobSourceDifferentBlobsCommon,
                          testing::Combine(testing::ValuesIn(ALL_BLOB_CONTENT_TYPES),

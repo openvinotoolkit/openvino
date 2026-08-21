@@ -55,6 +55,8 @@ BlobSource::BlobSource(const ov::Tensor& source, const ov::log::Level log_level)
     : m_source(std::make_pair<>(std::cref(source), STARTING_CURSOR_POSITION)),
       m_size(source.get_byte_size()),
       m_logger(Logger(LOGGER_NAME.data(), log_level)) {
+    OPENVINO_ASSERT(source.get_shape().size() == 1 && source.get_shape().at(0) == source.get_byte_size(),
+                    "Only streams and unidimensional tensors are supported as blob sources");
     m_logger.debug("Initialized a BlobSource using a tensor object");
 }
 
