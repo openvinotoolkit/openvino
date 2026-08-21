@@ -444,6 +444,8 @@ INSTANTIATE_TEST_SUITE_P(
         paged_selective_ssm_test_params{{4, 2}, {3, 7}, {2, 3}, 4, 2, 3, 19, ov::element::f32, ov::element::i64, false, {true, false}, true, false, true},
         paged_selective_ssm_test_params{{3, 2}, {1, 0}, {2, 2}, 4, 2, 4, 16, ov::element::f16, ov::element::i32, true, {true, true}, true, false, false, 3},
         paged_selective_ssm_test_params{{32, 17, 5}, {3, 7, 1}, {4, 3, 2}, 8, 4, 16, 64, ov::element::f16, ov::element::i64, true},
+        // Exercise serialization of a dynamic-shape configuration eligible for the device-specific JIT kernels.
+        paged_selective_ssm_test_params{{32, 17, 5}, {3, 7, 1}, {4, 3, 2}, 8, 4, 16, 64, ov::element::f16, ov::element::i64, true, {}, false, true},
         paged_selective_ssm_test_params{{128}, {0}, {32}, 4, 2, 8, 32, ov::element::f16, ov::element::i32, false},
         paged_selective_ssm_test_params{{128}, {0}, {32}, 4, 2, 8, 32, ov::element::bf16, ov::element::i32, false},
         paged_selective_ssm_test_params{{128}, {0}, {128}, 1, 1, 1, 1, ov::element::f16, ov::element::i32, false, {}, false, false, false, 1, 0, true},

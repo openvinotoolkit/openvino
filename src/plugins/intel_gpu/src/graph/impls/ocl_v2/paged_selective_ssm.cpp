@@ -24,12 +24,16 @@ namespace {
 
 constexpr size_t max_jit_state_size = 512;
 
-bool is_plain_static_layout(const cldnn::layout& layout) {
-    return layout.get_partial_shape().is_static() && layout.data_padding == cldnn::padding() && layout.count() <= std::numeric_limits<uint32_t>::max();
+bool has_supported_padding(const cldnn::layout& layout) {
+    return layout.get_partial_shape().is_dynamic() || layout.data_padding == cldnn::padding();
 }
 
 bool has_static_rank(const ov::PartialShape& shape, const size_t rank) {
-    return shape.is_static() && shape.rank().is_static() && static_cast<size_t>(shape.rank().get_length()) == rank;
+    return shape.rank().is_static() && static_cast<size_t>(shape.rank().get_length()) == rank;
+}
+
+bool has_static_value(const ov::Dimension& dimension, const size_t value) {
+    return dimension.is_static() && static_cast<size_t>(dimension.get_length()) == value;
 }
 
 size_t get_scratch_elements(const std::array<size_t, 4>& dimensions) {
@@ -58,7 +62,8 @@ protected:
         const size_t subgroup_size = selective_ssm_jit::get_subgroup_size(params.get_device_info(), Kind);
         const size_t head_dim_block = selective_ssm_jit::get_head_dim_block(head_dim, state_size, subgroup_size, params.get_device_info(), Kind);
 
-        jit.make("SSM_TOKEN_COUNT", x_shape[0].get_length());
+        if (!params.is_dynamic())
+            jit.make("SSM_TOKEN_COUNT", x_shape[0].get_length());
         jit.make("SSM_NUM_HEADS", x_shape[1].get_length());
         jit.make("SSM_HEAD_DIM", head_dim);
         jit.make("SSM_NUM_GROUPS", B_shape[1].get_length());
@@ -70,8 +75,9 @@ protected:
     }
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
-        OPENVINO_ASSERT(!params.is_dynamic(), "PagedSelectiveSSM JIT kernel requires static shapes");
         Arguments args;
+        if (params.is_dynamic())
+            args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
         for (uint32_t i = 0; i < params.input_layouts.size(); i++)
             args.push_back({ArgumentDescriptor::Types::INPUT, i});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
@@ -82,21 +88,28 @@ protected:
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
         return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
-            OPENVINO_ASSERT(!params.is_dynamic(), "PagedSelectiveSSM JIT kernel requires static shapes");
             const auto& x_shape = params.get_input_layout(3).get_partial_shape();
             const auto& B_shape = params.get_input_layout(2).get_partial_shape();
-            const auto& seq_shape = params.get_input_layout(6).get_partial_shape();
             const size_t num_heads = x_shape[1].get_length();
             const size_t head_dim = x_shape[2].get_length();
             const size_t state_size = B_shape[2].get_length();
-            const size_t sequences = seq_shape[0].get_length() - 1;
             const size_t subgroup_size = selective_ssm_jit::get_subgroup_size(params.get_device_info(), Kind);
             const size_t head_dim_block = selective_ssm_jit::get_head_dim_block(head_dim, state_size, subgroup_size, params.get_device_info(), Kind);
 
-            kd.params.workGroups.global = {cldnn::ceil_div(head_dim, head_dim_block) * subgroup_size, num_heads, sequences};
             kd.params.workGroups.local = {subgroup_size, 1, 1};
             if constexpr (Kind == selective_ssm_jit::device_kind::discrete)
                 kd.params.local_memory_args = {head_dim_block * state_size * sizeof(float)};
+
+            if (params.is_dynamic()) {
+                kd.params.workGroups.global = {subgroup_size, 1, 1};
+                return;
+            }
+
+            const auto& seq_shape = params.get_input_layout(6).get_partial_shape();
+            const size_t sequences = seq_shape[0].get_length() > 0 ? seq_shape[0].get_length() - 1 : 0;
+            kd.params.workGroups.global = {std::max<size_t>(cldnn::ceil_div(head_dim, head_dim_block), 1) * subgroup_size,
+                                           std::max<size_t>(num_heads, 1),
+                                           std::max<size_t>(sequences, 1)};
         }};
     }
 };
@@ -297,10 +310,10 @@ bool validate_paged_selective_ssm_jit(const program_node& node, const selective_
         return false;
 
     for (size_t i = 0; i < node.get_dependencies().size(); i++) {
-        if (!is_plain_static_layout(node.get_input_layout(i)))
+        if (!has_supported_padding(node.get_input_layout(i)))
             return false;
     }
-    if (!is_plain_static_layout(node.get_output_layout(0)))
+    if (!has_supported_padding(node.get_output_layout(0)))
         return false;
 
     const auto& A_shape = node.get_input_layout(0).get_partial_shape();
@@ -322,23 +335,44 @@ bool validate_paged_selective_ssm_jit(const program_node& node, const selective_
         return false;
     }
 
-    const size_t tokens = x_shape[0].get_length();
+    if (!x_shape[1].is_static() || !x_shape[2].is_static() || !B_shape[1].is_static() || !B_shape[2].is_static())
+        return false;
+
     const size_t num_heads = x_shape[1].get_length();
     const size_t head_dim = x_shape[2].get_length();
     const size_t num_groups = B_shape[1].get_length();
     const size_t state_size = B_shape[2].get_length();
-    const size_t subsequences_count = subsequences_shape[0].get_length();
-    const size_t sequences = subsequences_count > 0 ? subsequences_count - 1 : 0;
-    if (tokens == 0 || num_heads == 0 || num_groups == 0 || head_dim == 0 || sequences == 0 || state_shape[0].get_length() == 0 ||
-        block_indices_shape[0].get_length() == 0 || state_size < subgroup_size || state_size > max_jit_state_size || num_heads % num_groups != 0) {
+    if (num_heads == 0 || num_heads > std::numeric_limits<uint32_t>::max() || num_groups == 0 || head_dim == 0 ||
+        head_dim > std::numeric_limits<uint32_t>::max() || state_size < subgroup_size || state_size > max_jit_state_size || num_heads % num_groups != 0) {
         return false;
     }
 
-    const bool shapes_match = A_shape[0] == num_heads && dt_shape[0] == tokens && dt_shape[1] == num_heads && B_shape[0] == tokens && C_shape == B_shape &&
-                              state_shape[1] == num_heads && state_shape[2] == head_dim && state_shape[3] == state_size &&
-                              static_cast<size_t>(block_begins_shape[0].get_length()) >= sequences + 1 &&
-                              static_cast<size_t>(processed_shape[0].get_length()) >= sequences &&
-                              static_cast<size_t>(interval_shape[0].get_length()) >= sequences && output_shape == x_shape;
+    const bool shapes_match =
+        has_static_value(A_shape[0], num_heads) && has_static_value(dt_shape[1], num_heads) && has_static_value(C_shape[1], num_groups) &&
+        has_static_value(C_shape[2], state_size) && has_static_value(state_shape[1], num_heads) && has_static_value(state_shape[2], head_dim) &&
+        has_static_value(state_shape[3], state_size) && has_static_value(output_shape[1], num_heads) && has_static_value(output_shape[2], head_dim) &&
+        dt_shape[0].compatible(x_shape[0]) && B_shape[0].compatible(x_shape[0]) && C_shape[0].compatible(x_shape[0]) && output_shape[0].compatible(x_shape[0]);
+    if (!shapes_match)
+        return false;
+
+    if (x_shape[0].is_static() && x_shape[0].get_length() == 0)
+        return false;
+    if (state_shape[0].is_static() && state_shape[0].get_length() == 0)
+        return false;
+    if (block_indices_shape[0].is_static() && block_indices_shape[0].get_length() == 0)
+        return false;
+    if (subsequences_shape[0].is_static()) {
+        const size_t subsequences_count = subsequences_shape[0].get_length();
+        if (subsequences_count < 2)
+            return false;
+        const size_t sequences = subsequences_count - 1;
+        if ((block_begins_shape[0].is_static() && static_cast<size_t>(block_begins_shape[0].get_length()) < subsequences_count) ||
+            (processed_shape[0].is_static() && static_cast<size_t>(processed_shape[0].get_length()) < sequences) ||
+            (interval_shape[0].is_static() && static_cast<size_t>(interval_shape[0].get_length()) < sequences)) {
+            return false;
+        }
+    }
+
     return shapes_match && selective_ssm_jit::get_head_dim_block(head_dim, state_size, subgroup_size, info, kind) != 0;
 }
 
