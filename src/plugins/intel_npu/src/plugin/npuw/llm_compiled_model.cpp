@@ -257,10 +257,16 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
         LOG_WARN(compiler_gate_support_msg << "unsupported");
     }
 
-    if (desc.arch == "5010" && desc.compiler_ver >= ONEAPI_MAKE_VERSION(8, 1)) {
-        // Flash attention tile with GQA is supported starting from compiler version 8.1 on NPU5010
-        desc.support_flash_attention_tile = true;
-    }
+    static constexpr std::array<std::string_view, 2> flash_attention_tile_supported_platforms = {
+        "5010",  // PTL
+        "6010"   // NVL
+    };
+    auto platform_supported = std::find(flash_attention_tile_supported_platforms.begin(),
+                                        flash_attention_tile_supported_platforms.end(),
+                                        desc.arch) != flash_attention_tile_supported_platforms.end();
+    auto compiler_version_supported = desc.compiler_ver >= ONEAPI_MAKE_VERSION(8, 1);
+    // Flash attention tile with GQA is supported starting from compiler version 8.1 on supported platforms
+    desc.support_flash_attention_tile = platform_supported && compiler_version_supported;
 
     return std::make_optional(std::move(desc));
 }
@@ -425,6 +431,33 @@ void split_llm_properties(const ov::AnyMap& properties, ov::AnyMap& llm_properti
         } else {
             other_properties.insert(*it);
         }
+    }
+}
+
+// Decide on using fused flash attention tile based on provided option and NPU capabilities.
+// If hardware supports and attention hint is set to HFA, then we can use fused flash attention implementation
+// automatically, unless user explicitly disables it via NPUW_ATTN_HFA_FUSED=NO option.
+void resolve_hfa_fused_attention(::intel_npu::Config& cfg,
+                                 ov::AnyMap& other_props,
+                                 const std::optional<NPUDesc>& npudesc) {
+    uint32_t max_prompt_len = align_to(cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
+    const auto prefill_attn_hint_provided = cfg.has<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>();
+    const auto hfa_fused_npu_supported = npudesc.has_value() && npudesc->support_flash_attention_tile;
+    const auto prompt_length_supported =
+        max_prompt_len >= 4096;  // HFA fused attention tile is optimal prompt length >= 4096
+
+    // If NPUW_LLM_PREFILL_ATTENTION_HINT was not provided, set HFA automatically
+    // when the hardware and prompt length favor the fused flash attention tile implementation
+    if (!prefill_attn_hint_provided && hfa_fused_npu_supported && prompt_length_supported) {
+        cfg.update({{"NPUW_LLM_PREFILL_ATTENTION_HINT", "HFA"}});
+        LOG_INFO("Auto-selected NPUW_LLM_PREFILL_ATTENTION_HINT to HFA");
+    }
+
+    const auto is_hfa =
+        cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>() == ::intel_npu::npuw::llm::AttentionHint::HFA;
+    if (other_props.count("NPUW_ATTN_HFA_FUSED") == 0 && is_hfa && hfa_fused_npu_supported) {
+        other_props["NPUW_ATTN_HFA_FUSED"] = "YES";
+        LOG_INFO("Set NPUW_ATTN_HFA_FUSED to YES");
     }
 }
 
@@ -755,16 +788,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     refine_dynamic_props(npuw_llm_props, npudesc);
     m_cfg.update(any_copy(npuw_llm_props));
 
-    // Decide on using fused flash attention tile based on provided option and NPU capabilities.
-    // If hardware supports and attention hint is set to HFA, then we can use fused flash attention implementation
-    // automatically, unless user explicitly disables it via NPUW_ATTN_HFA_FUSED=NO option.
-    const auto is_hfa =
-        m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>() == ::intel_npu::npuw::llm::AttentionHint::HFA;
-    const auto hfa_fused_npu_supported = npudesc.has_value() && npudesc->support_flash_attention_tile;
-    if (other_props.count("NPUW_ATTN_HFA_FUSED") == 0 && is_hfa && hfa_fused_npu_supported) {
-        other_props["NPUW_ATTN_HFA_FUSED"] = "YES";
-        LOG_INFO("Set NPUW_ATTN_HFA_FUSED to YES");
-    }
+    resolve_hfa_fused_attention(m_cfg, other_props, npudesc);
 
     m_is_whisper = m_cfg.get<::intel_npu::NPUW_WHISPER>();
     if (m_is_whisper) {
