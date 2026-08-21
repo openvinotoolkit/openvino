@@ -99,18 +99,14 @@ jobs:
         with:
           toolset: 14.42 # v2022
 
-      - name: Build cpp samples
-        run: $INSTALL_DIR/samples/cpp/build_samples.sh -i $INSTALL_DIR -b $BUILD_DIR/cpp_samples
-
+      # C++/C samples are built in the Build job and reused from openvino_package.
+      # This step only validates that the C++ samples still compile with Clang
       - name: Build cpp samples - Clang
         if: runner.os == 'Linux'
-        run: $INSTALL_DIR/samples/cpp/build_samples.sh -i $INSTALL_DIR -b $BUILD_DIR/cpp_samples_clang
+        run: $INSTALL_DIR/samples/cpp/build_samples.sh -b $BUILD_DIR/cpp_samples_clang
         env:
           CC: clang
           CXX: clang++
-
-      - name: Build c samples
-        run: $INSTALL_DIR/samples/c/build_samples.sh -i $INSTALL_DIR -b $BUILD_DIR/c_samples
 
       #
       # Tests
