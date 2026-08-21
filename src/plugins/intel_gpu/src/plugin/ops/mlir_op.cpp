@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef GRAPH_COMPILER
+#ifdef ENABLE_GPU_MLIR
 
 #include "intel_gpu/op/mlir_op.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
@@ -39,4 +39,4 @@ REGISTER_FACTORY_IMPL(internal, MLIR);
 
 }  // namespace ov::intel_gpu
 
-#endif  // GRAPH_COMPILER
+#endif  // ENABLE_GPU_MLIR

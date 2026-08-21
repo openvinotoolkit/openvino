@@ -3,10 +3,10 @@
 ## How to build and test
 
 MLIR and Graph Compiler are not added as third-party submodules, so a suitable LLVM & Graph Compiler have to be
-built manually and then passed to the OpenVINO build via `-DENABLE_GRAPH_COMPILER=ON` + `GraphCompiler_DIR` /
+built manually and then passed to the OpenVINO build via `-DENABLE_GPU_MLIR=ON` + `GraphCompiler_DIR` /
 `MLIR_DIR` / `LLVM_DIR`. At runtime the path is enabled with `OV_GPU_ENABLE_MLIR=1`
 (`ov::intel_gpu::enable_mlir`), and is tested by the `tests/functional/mlir_op` suites, which are only built
-when `ENABLE_GRAPH_COMPILER=ON`.
+when `ENABLE_GPU_MLIR=ON`.
 
 Full instructions: [How to build and test OV with MLIR support](./build_and_test.md).
 
@@ -75,7 +75,7 @@ whole `graph` library stays MLIR-free.
 ## Feature enabling
 
 The feature is disabled by default and gated twice:
-* at **build time** by `-DENABLE_GRAPH_COMPILER=ON` (default `OFF`) - when off, no MLIR related
+* at **build time** by `-DENABLE_GPU_MLIR=ON` (default `OFF`) - when off, no MLIR related
   *implementations* are compiled (no pattern matching/conversion/unit tests/inference logic). The MLIR-related
   *definitions* are still included to the build though (`MLIROp` or `cldnn::mlir_primitive` header files) to
   avoid sudden broken includes.

@@ -1,7 +1,7 @@
 name: Linux GPU MLIR / Graph Compiler ( Ubuntu 24.04 )
 
 # Validates the MLIR / Graph-Compiler paths of the GPU plugin:
-#   * one build with -DENABLE_GRAPH_COMPILER=ON (LLVM + Graph Compiler are built from source)
+#   * one build with -DENABLE_GPU_MLIR=ON (LLVM + Graph Compiler are built from source)
 #   * all GPU unit tests with MLIR disabled (OV_GPU_ENABLE_MLIR=0) - regression guard: a
 #     GC-enabled build must behave exactly like a stock GPU build when the feature is off
 #   * all MLIR functional tests with MLIR enabled (OV_GPU_ENABLE_MLIR=1)
@@ -267,7 +267,7 @@ jobs:
       - name: CMake configure - OpenVINO
         run: |
           cmake -S "${OPENVINO_REPO}" -B "${BUILD_DIR}" \
-            -DENABLE_GRAPH_COMPILER=ON \
+            -DENABLE_GPU_MLIR=ON \
             -DGraphCompiler_DIR="${GC_INSTALL_DIR}/lib/cmake/GraphCompiler" \
             -DMLIR_DIR="${LLVM_INSTALL_DIR}/lib/cmake/mlir" \
             -DLLVM_DIR="${LLVM_INSTALL_DIR}/lib/cmake/llvm" \

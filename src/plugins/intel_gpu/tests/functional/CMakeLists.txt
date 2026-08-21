@@ -13,9 +13,9 @@ endif()
 
 list(APPEND DEFINES TEST_CUSTOM_OP_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/custom_op/custom_op.xml")
 
-# Exclude MLIR tests if graph compiler is disabled
+# Exclude MLIR tests if MLIR support is disabled
 set(EXCLUDED_TEST_PATHS)
-if(NOT ENABLE_GRAPH_COMPILER)
+if(NOT ENABLE_GPU_MLIR)
     list(APPEND EXCLUDED_TEST_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/mlir_op")
 endif()
 

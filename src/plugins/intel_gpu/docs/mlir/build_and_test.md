@@ -27,7 +27,7 @@ export LLVM_INSTALL_DIR=$GRAPH_COMPILER_DIR/externals/llvm-project/build
 
 cmake -S <openvino> -B <build> \
   -DENABLE_INTEL_GPU=ON \
-  -DENABLE_GRAPH_COMPILER=ON \
+  -DENABLE_GPU_MLIR=ON \
   -DGraphCompiler_DIR="${GC_INSTALL_DIR}/lib/cmake/GraphCompiler" \
   -DMLIR_DIR="${LLVM_INSTALL_DIR}/lib/cmake/mlir" \
   -DLLVM_DIR="${LLVM_INSTALL_DIR}/lib/cmake/llvm" \
@@ -47,7 +47,7 @@ OV_GPU_ENABLE_MLIR=1 ./bin/intel64/Release/ov_gpu_func_tests --gtest_filter="*ml
 ```
 
 The MLIR path is tested via its own test suites located at `tests/functional/mlir_op` (the suites are **not**
-included to the regular build, they are only built with `ENABLE_GRAPH_COMPILER=ON`). The suites are mostly
+included to the regular build, they are only built with `ENABLE_GPU_MLIR=ON`). The suites are mostly
 copied from the usual OV tests (e.g. `functional/single_layer_tests/dynamic/scaled_dot_product_attention.cpp`
 -> `functional/mlir_op/sdpa.cpp`) but redefine the tests base class (to `MlirSubgraphTest`), sometimes include
 additional cases or change the accuracy thresholds that are suitable for the mlir implementations.

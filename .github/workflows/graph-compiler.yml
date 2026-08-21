@@ -33,7 +33,7 @@ jobs:
               -DGRAPH_COMPILER_REPO="$GC_REPO" \
               -DGRAPH_COMPILER_TAG="$GC_TAG" \
               -DENABLE_INTEL_GPU=ON \
-              -DENABLE_GRAPH_COMPILER=ON \
+              -DENABLE_GPU_MLIR=ON \
               -DENABLE_TESTS=ON \
               -DENABLE_ONEDNN_FOR_GPU=OFF \
               -DENABLE_INTEL_CPU=OFF \

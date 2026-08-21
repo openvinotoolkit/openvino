@@ -88,7 +88,7 @@ static constexpr Property<bool> disable_winograd_convolution{"GPU_DISABLE_WINOGR
  * When on, matching subgraphs (matmul, elementwise, SDPA, reduction, etc.)
  * are compiled through the MLIR/Graph-Compiler pipeline and executed as a
  * single fused GPU kernel via cldnn::mlir_primitive.
- * Requires the plugin to be built with -DENABLE_GRAPH_COMPILER=ON; setting
+ * Requires the plugin to be built with -DENABLE_GPU_MLIR=ON; setting
  * this to true on a plugin built without Graph Compiler support raises an
  * exception at compile_model() time.
  * @ingroup ov_runtime_ocl_gpu_prop_cpp_api

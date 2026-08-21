@@ -120,7 +120,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph
                                              openvino::reference
                                              gmock)
 
-if(ENABLE_GRAPH_COMPILER)
+if(ENABLE_GPU_MLIR)
     target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_plugin)
 endif()
 
