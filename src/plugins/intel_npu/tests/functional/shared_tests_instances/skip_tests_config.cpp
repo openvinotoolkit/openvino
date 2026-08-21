@@ -63,8 +63,8 @@ public:
 
         // Private device names may be registered via environment variables
         const std::string environmentDevice =
-            getTestsPlatformFromEnvironmentOr(ov::intel_npu::Platform::AUTO_DETECT.data());
-        const std::string standardizedEnvironmentDevice = ov::intel_npu::Platform::standardize(environmentDevice);
+            getTestsPlatformFromEnvironmentOr(ov::intel_npu::platforms::AUTO_DETECT.data());
+        const std::string standardizedEnvironmentDevice = ov::intel_npu::platforms::standardize(environmentDevice);
 
         if (std::all_of(_availableDevices.begin(), _availableDevices.end(), [&](const std::string& deviceName) {
                 return deviceName.find(standardizedEnvironmentDevice) == std::string::npos;
