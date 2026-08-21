@@ -604,6 +604,7 @@ FilteredConfig PluginPropertyManager::deriveConfigForPropertiesForCompiler(const
                     _logger.warning(
                         "Property '%s' is recognized as a compiler option, will not be used for current configuration.",
                         key.c_str());
+                    continue;
                 } else {
                     OPENVINO_THROW("[ NOT_FOUND ] Option '", key, "' is not supported for current configuration");
                 }
@@ -885,6 +886,17 @@ void PluginPropertyManager::registerProperties() {
         }
         return caching_props;
     });
+    register_property_with_custom_function<STEPPING>(_config, _properties, false, ov::PropertyMutability::RW, [this, getDeviceId](const ov::AnyMap& arguments) {
+        if (!_config.has<STEPPING>()) {
+            try {
+                const auto specifiedDeviceName = getDeviceId(arguments);
+                return static_cast<int64_t>(utils::getSteppingNumber(_backend, specifiedDeviceName));
+            } catch (...) {
+                _logger.warning("GetSteppingNumber failed to get value from device.");
+            }
+        }
+        return _config.get<STEPPING>();
+    });
 
 
     // Special case: this property is always registered because it's supported by the implementation,
@@ -995,18 +1007,6 @@ void PluginPropertyManager::registerProperties() {
         [this](const ov::AnyMap&) { // value getter
             return _config.get<ENABLE_STRIDES_FOR>();
         });
-
-    register_property_with_support_and_custom_function<STEPPING>(_config, _properties, false, ov::PropertyMutability::RW, hasBackendAndValidDevice, [this, getDeviceId](const ov::AnyMap& arguments) {
-        if (!_config.has<STEPPING>()) {
-            try {
-                const auto specifiedDeviceName = getDeviceId(arguments);
-                return static_cast<int64_t>(utils::getSteppingNumber(_backend, specifiedDeviceName));
-            } catch (...) {
-                _logger.warning("GetSteppingNumber failed to get value from device.");
-            }
-        }
-        return _config.get<STEPPING>();
-    });
     // clang-format on
 
     register_property_with_support_and_custom_function<COMPILER_VERSION>(

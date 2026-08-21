@@ -128,7 +128,7 @@ struct OptionBase {
 }; 
 ```
 
-### OptionsDesc
+### OptionDesc
 is storage for the registered options. This is the base map which stores the available OptionBase descriptors.
 This layer implements the option database manipulation functions: add/has/reset.
 The plugin property manager creates it once, registers the plugin options, and lets the backend add its compiler-specific options.
@@ -337,7 +337,7 @@ For compiled-model: src/plugins/intel_npu/src/plugin/src/compiled_model_property
 
 For properties without option, prefer a support-gated registration so the getter is only used when backend/runtime requirements are available:
 ```cpp
-    const auto has_backend = [this]() {
+    const auto has_backend = [this](const ov::AnyMap&) {
         return _backend != nullptr;
     };
 
