@@ -22,8 +22,12 @@
 #include "moe_transformations/moe_transformation.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "pyramid_attention.hpp"
@@ -637,6 +641,129 @@ TEST(SerializationTest, OVTypes_HostFlashAttention) {
     read(ss, res);
 
     expect_host_flash_attention_equal(var, res);
+}
+
+namespace {
+
+class HFAFakePlugin final : public ov::IPlugin {
+public:
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,
+                                                       const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected compile_model call");
+    }
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,
+                                                       const ov::AnyMap&,
+                                                       const ov::SoPtr<ov::IRemoteContext>&) const override {
+        OPENVINO_THROW("Unexpected compile_model(context) call");
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream&, const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected import_model(stream) call");
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream&,
+                                                      const ov::SoPtr<ov::IRemoteContext>&,
+                                                      const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected import_model(stream, context) call");
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor&, const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected import_model(blob) call");
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor&,
+                                                      const ov::SoPtr<ov::IRemoteContext>&,
+                                                      const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected import_model(blob, context) call");
+    }
+    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>&, const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected query_model call");
+    }
+    void set_property(const ov::AnyMap&) override {}
+    ov::Any get_property(const std::string& name, const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unsupported property: ", name);
+    }
+    bool is_property_supported(const std::string&, const ov::AnyMap&) const override {
+        return false;
+    }
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected create_context call");
+    }
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected get_default_context call");
+    }
+};
+
+class HFAFakeCompiledModel final : public ov::ICompiledModel {
+public:
+    HFAFakeCompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin)
+        : ov::ICompiledModel(model, plugin, nullptr, nullptr) {}
+
+    void export_model(std::ostream&) const override {}
+    std::shared_ptr<const ov::Model> get_runtime_model() const override {
+        OPENVINO_THROW("Unexpected get_runtime_model call");
+    }
+    void set_property(const ov::AnyMap&) override {}
+    ov::Any get_property(const std::string& name) const override {
+        OPENVINO_THROW("Unsupported property: ", name);
+    }
+    std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
+        OPENVINO_THROW("Unexpected create_sync_infer_request call");
+    }
+};
+
+// Model with a fixed number of Parameter inputs/Result outputs, used to stand in for the
+// compiled tile models that HostFlashAttention::is_valid() bound-checks against.
+std::shared_ptr<ov::Model> make_hfa_stub_model(std::size_t num_inputs, std::size_t num_outputs) {
+    ov::ParameterVector params;
+    ov::ResultVector results;
+    for (std::size_t i = 0; i < num_inputs; ++i) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1}));
+    }
+    for (std::size_t i = 0; i < num_outputs; ++i) {
+        auto add = std::make_shared<ov::op::v1::Add>(params.at(0), params.at(0));
+        results.push_back(std::make_shared<ov::op::v0::Result>(add));
+    }
+    return std::make_shared<ov::Model>(results, params);
+}
+
+ov::SoPtr<ov::ICompiledModel> make_hfa_fake_compiled_model(const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                           std::size_t num_inputs,
+                                                           std::size_t num_outputs) {
+    auto model = make_hfa_stub_model(num_inputs, num_outputs);
+    return ov::SoPtr<ov::ICompiledModel>(std::make_shared<HFAFakeCompiledModel>(model, plugin));
+}
+
+}  // namespace
+
+// Reproduces an attacker-controlled cache blob carrying an out-of-range tile input index:
+// the raw index round-trips through the s11n write()/read() path unchecked, and is_valid()
+// must reject it once attached to compiled models whose real input/output counts are known.
+TEST(SerializationTest, HostFlashAttention_OutOfRangeTileIndexRejectedAfterDeserialization) {
+    using namespace ov::npuw::s11n;
+
+    ov::npuw::compiled::HostFlashAttention var;
+    var._sdpa_attention_info._query_size = 8;
+    var._sdpa_attention_info._context_size = 32;
+    var._sdpa_attention_info._k_seq_dim = 1;
+    var._sdpa_attention_info._v_seq_dim = 2;
+    var._sdpa_attention_info._sdpa_indices = {0, {0}, {0}, 0, 0, 0};
+    // Only 3 inputs will exist on the compiled tile models below, so index 999 is out of range.
+    var._sdpa_attention_info._tile_input_indices = {999, 1, 2, 3, 0, 1, 2};
+    var._sdpa_attention_info._tile_output_indices = {0, 1, 2};
+    var._tile_size = 64;
+    var._can_use_tensor_view = true;
+
+    ov::npuw::compiled::HostFlashAttention res;
+    std::stringstream ss;
+    write(ss, var);
+    read(ss, res);
+
+    // The out-of-range index survives deserialization unchanged - no validation happens in
+    // the s11n layer itself.
+    EXPECT_EQ(res._sdpa_attention_info._tile_input_indices.q, static_cast<std::size_t>(999));
+
+    auto plugin = std::make_shared<HFAFakePlugin>();
+    res._compiled_tile_model = make_hfa_fake_compiled_model(plugin, /*num_inputs=*/3, /*num_outputs=*/3);
+    res._compiled_final_tile_model = make_hfa_fake_compiled_model(plugin, /*num_inputs=*/4, /*num_outputs=*/3);
+
+    EXPECT_FALSE(res.is_valid());
 }
 
 TEST(SerializationTest, OVTypes_MoEExperts) {
