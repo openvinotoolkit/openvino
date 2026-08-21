@@ -435,7 +435,7 @@ void prepare_quantization::remove_fake_reorders(program& p, reorder_node& reorde
 
     const auto& usr = reorder_node.get_users().front();
     auto &dep = reorder_node.get_dependency(0);
-    const bool is_reorder_node_non_fp = (reorder_node.get_output_layout().data_type != data_types::f32 && reorder_node.get_output_layout().data_type != data_types::f16 && reorder_node.get_output_layout().data_type != data_types::bf16);
+    const bool is_reorder_node_non_fp = !one_of(reorder_node.get_output_layout().data_type, {data_types::f32, data_types::f16, data_types::bf16});
     if (!usr->is_type<convolution>() || usr->get_input_layout(1).data_type != data_types::i8 ||
         !dep.is_input() ||
         dep.get_output_layout().data_type != data_types::u8 ||

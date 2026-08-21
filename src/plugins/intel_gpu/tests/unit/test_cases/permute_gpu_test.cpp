@@ -1916,10 +1916,10 @@ template<>
 void TiledPermuteTest::set_random_values<ov::bfloat16>(const cldnn::memory::ptr mem) const {
     // tests::set_random_values<ov::bfloat16>() is not supported
     std::mt19937 gen;
-    static std::uniform_int_distribution<int32_t> uid(std::numeric_limits<int8_t>::min(), std::numeric_limits<int8_t>::max());
+    static std::uniform_real_distribution<float> urd(std::numeric_limits<ov::bfloat16>::lowest(), std::numeric_limits<ov::bfloat16>::max());
     cldnn::mem_lock<ov::bfloat16> ptr(mem, get_test_stream());
     for (auto it = ptr.begin(); it != ptr.end(); ++it) {
-        *it = static_cast<ov::bfloat16>(static_cast<float>(uid(gen)));
+        *it = static_cast<ov::bfloat16>(urd(gen));
     }
 }
 
