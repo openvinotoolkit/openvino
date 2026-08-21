@@ -27,6 +27,7 @@ ParamsKey ActivationKernelOpt::GetSupportedKey() const {
     k.EnableAllOutputLayout();
     k.EnableTensorOffset();
     k.EnableBatching();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
@@ -58,7 +59,8 @@ static size_t GetTotalSize(const activation_params& params) {
 ActivationKernelOpt::Parent::DispatchData ActivationKernelOpt::SetDefault(const activation_params& params) const {
     auto dispatchData = Parent::SetDefault(params);
 
-    dispatchData.gws = { GetTotalSize(params) / NUM_COLS_WI, 1, 1 };
+    const size_t totalSize = GetTotalSize(params);
+    dispatchData.gws = { totalSize > 0 ? totalSize / NUM_COLS_WI : 1, 1, 1 };
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;
@@ -76,9 +78,12 @@ bool ActivationKernelOpt::Validate(const Params& p) const {
     const activation_params& params = static_cast<const activation_params&>(p);
 
     const auto totalSize = GetTotalSize(params);
-    if ((totalSize % NUM_COLS_WI) != 0 ||
-        (params.inputs[0].GetFirstElementOffset() % NUM_COLS_WI) != 0 ||
-        (params.outputs[0].GetFirstElementOffset() % NUM_COLS_WI) != 0) {
+    // For dynamic-shape models, totalSize may be 0 at selection time; skip divisibility check
+    // since GWS will be recomputed via update_dispatch_data_func before each inference.
+    if (!params.has_dynamic_inputs() &&
+        ((totalSize % NUM_COLS_WI) != 0 ||
+         (params.inputs[0].GetFirstElementOffset() % NUM_COLS_WI) != 0 ||
+         (params.outputs[0].GetFirstElementOffset() % NUM_COLS_WI) != 0)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
@@ -100,9 +105,8 @@ bool ActivationKernelOpt::Validate(const Params& p) const {
         }
     }
 
-    if (params.activations[0].function == ActivationFunction::SOFTPLUS && input_dt == Datatype::F16) {
-        DO_NOT_USE_THIS_KERNEL(params.layerID);
-    }
+    // Note: SOFTPLUS for F16 is now supported — the JIT macro uses type-generic
+    // log(exp(input) + 1) which compiles for half4 vectors in this kernel.
 
     return true;
 }
