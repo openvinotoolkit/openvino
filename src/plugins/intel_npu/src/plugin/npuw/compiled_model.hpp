@@ -137,6 +137,28 @@ public:
     void reconstruct_closure() override;
     void serialize(std::ostream& stream, const s11n::CompiledContext& ctx) const override;
 
+    using ToSubmodel = std::pair<size_t /* submodel_idx */
+                                 ,
+                                 size_t /* port_idx     */
+                                 >;
+    static const constexpr auto NO_LINK = ToSubmodel{-1, -1};
+
+    // What validate_import_routing_tables() needs to know about a single submodel.
+    struct SubmodelPorts {
+        std::optional<std::size_t> replaced_by;
+        // Unset for optimized-out submodels, which carry no compiled model to count ports on
+        std::optional<std::size_t> num_inputs;
+        std::optional<std::size_t> num_outputs;
+    };
+
+    // Rejects routing tables restored from an untrusted blob which refer to
+    // submodels or ports that do not exist.
+    static void validate_import_routing_tables(const std::vector<SubmodelPorts>& submodels,
+                                               const std::vector<ToSubmodel>& inputs_to_submodels_inputs,
+                                               const std::vector<ToSubmodel>& outputs_to_submodels_outputs,
+                                               const std::map<std::size_t, std::vector<ToSubmodel>>& param_subscribers,
+                                               const std::map<ToSubmodel, ToSubmodel>& submodels_input_to_prev_output);
+
 private:
     // FIXME: This class has many friends..
     friend class IBaseInferRequest;
@@ -220,12 +242,6 @@ private:
 
     std::string m_name;
     const bool m_loaded_from_cache;
-
-    using ToSubmodel = std::pair<size_t /* submodel_idx */
-                                 ,
-                                 size_t /* port_idx     */
-                                 >;
-    static const constexpr auto NO_LINK = ToSubmodel{-1, -1};
 
     // In the below vector, index == compiled model's input/output port idex.
     std::vector<ToSubmodel> m_inputs_to_submodels_inputs;

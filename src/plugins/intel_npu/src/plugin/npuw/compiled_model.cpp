@@ -1396,8 +1396,105 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         OPENVINO_THROW("Missing ORC weights bank container");
     }
 
+    std::vector<SubmodelPorts> submodel_ports;
+    submodel_ports.reserve(compiled->m_compiled_submodels.size());
+    for (const auto& desc : compiled->m_compiled_submodels) {
+        SubmodelPorts ports;
+        ports.replaced_by = desc.replaced_by;
+        if (desc.compiled_model) {
+            ports.num_inputs = desc.compiled_model->inputs().size();
+            ports.num_outputs = desc.compiled_model->outputs().size();
+        }
+        submodel_ports.push_back(std::move(ports));
+    }
+    validate_import_routing_tables(submodel_ports,
+                                   compiled->m_inputs_to_submodels_inputs,
+                                   compiled->m_outputs_to_submodels_outputs,
+                                   compiled->m_param_subscribers,
+                                   compiled->m_submodels_input_to_prev_output);
+
     compiled->implement_properties();
     return compiled;
+}
+
+void ov::npuw::CompiledModel::validate_import_routing_tables(
+    const std::vector<SubmodelPorts>& submodels,
+    const std::vector<ToSubmodel>& inputs_to_submodels_inputs,
+    const std::vector<ToSubmodel>& outputs_to_submodels_outputs,
+    const std::map<std::size_t, std::vector<ToSubmodel>>& param_subscribers,
+    const std::map<ToSubmodel, ToSubmodel>& submodels_input_to_prev_output) {
+    const auto num_submodels = submodels.size();
+
+    for (std::size_t idx = 0; idx < num_submodels; ++idx) {
+        const auto& replaced_by = submodels[idx].replaced_by;
+        if (replaced_by && replaced_by.value() >= num_submodels) {
+            OPENVINO_THROW("Imported NPUW model: submodel ",
+                           idx,
+                           " is replaced by submodel ",
+                           replaced_by.value(),
+                           " while only ",
+                           num_submodels,
+                           " submodel(s) are present");
+        }
+    }
+
+    // Port count is only known for submodels backed by a compiled model - the optimized-out
+    // ones may still be legally referenced by the tables but are never executed.
+    auto port_count = [&](std::size_t idx, bool is_input) -> std::optional<std::size_t> {
+        const auto real_idx = submodels[idx].replaced_by.value_or(idx);
+        if (real_idx >= num_submodels) {
+            return std::nullopt;
+        }
+        return is_input ? submodels[real_idx].num_inputs : submodels[real_idx].num_outputs;
+    };
+
+    auto check = [&](const char* what, const ToSubmodel& link, bool is_input, bool allow_no_link) {
+        if (link == NO_LINK) {
+            if (!allow_no_link) {
+                OPENVINO_THROW("Imported NPUW model: ", what, " is not linked to any submodel");
+            }
+            return;
+        }
+        if (link.first >= num_submodels) {
+            OPENVINO_THROW("Imported NPUW model: ",
+                           what,
+                           " refers to submodel ",
+                           link.first,
+                           " while only ",
+                           num_submodels,
+                           " submodel(s) are present");
+        }
+        const auto ports = port_count(link.first, is_input);
+        if (ports && link.second >= ports.value()) {
+            OPENVINO_THROW("Imported NPUW model: ",
+                           what,
+                           " refers to ",
+                           is_input ? "input" : "output",
+                           " port ",
+                           link.second,
+                           " of submodel ",
+                           link.first,
+                           " which has only ",
+                           ports.value(),
+                           " of them");
+        }
+    };
+
+    for (const auto& link : inputs_to_submodels_inputs) {
+        check("global input mapping", link, true, true);
+    }
+    for (const auto& link : outputs_to_submodels_outputs) {
+        check("global output mapping", link, false, false);
+    }
+    for (const auto& kvp : param_subscribers) {
+        for (const auto& link : kvp.second) {
+            check("parameter subscriber", link, true, false);
+        }
+    }
+    for (const auto& kvp : submodels_input_to_prev_output) {
+        check("submodel input link", kvp.first, true, false);
+        check("submodel output link", kvp.second, false, false);
+    }
 }
 
 void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& enc_ctx) const {
