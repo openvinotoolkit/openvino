@@ -27,6 +27,17 @@ Type extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
     return res.as<Type>();
 }
 
+
+ov::MmapMode to_util_mmap_mode(ov::intel_gpu::MmapMode access) {
+    switch (access) {
+    case ov::intel_gpu::MmapMode::READ:
+        return ov::MmapMode::READ;
+    case ov::intel_gpu::MmapMode::READ_WRITE:
+        return ov::MmapMode::READ_WRITE;
+    }
+    OPENVINO_THROW("[GPU] Unsupported file access mode");
+}
+
 ContextType get_default_context_type() {
     #ifdef OV_GPU_WITH_ZE_RT
         return ContextType::ZE;
@@ -191,7 +202,12 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
             tensor_type = TensorType::BT_CPU_VA;
             mem = extract_object(params, ov::intel_gpu::cpu_va);
             auto size = extract_object(params, ov::intel_gpu::cpu_va_size);
-            return { reuse_memory_from_cpu_va(type, shape, VirtualAddressMemory{mem, size}, tensor_type), nullptr };
+            // cpu_va_access is optional for backward compatibility with callers that build params manually
+            auto access = ov::intel_gpu::MmapMode::READ_WRITE;
+            if (auto it = params.find(ov::intel_gpu::cpu_va_access.name()); it != params.end()) {
+                access = it->second.as<ov::intel_gpu::MmapMode>();
+            }
+            return { reuse_memory_from_cpu_va(type, shape, VirtualAddressMemory{mem, size, access}, tensor_type), nullptr };
         } else if (ov::intel_gpu::SharedMemType::MMAPED_FILE == mem_type) {
             const auto fd = extract_object(params, ov::intel_gpu::file_descriptor);
             return { reuse_memory_from_file(type, shape, fd.path, fd.offset, fd.access), nullptr };
@@ -283,7 +299,7 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_file(con
                                                                    const ov::Shape& shape,
                                                                    const std::filesystem::path& file_path,
                                                                    size_t offset,
-                                                                   ov::intel_gpu::FileAccess access) {
+                                                                   ov::intel_gpu::MmapMode access) {
     const auto byte_size = ov::util::get_memory_size_safe(type, shape);
     OPENVINO_ASSERT(byte_size, "[GPU] Cannot calculate memory size for element type ", type, " and shape ", shape);
 
@@ -295,12 +311,8 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_file(con
                     alignment);
     // Memory-map the file. The mapping is retained inside the RemoteTensorImpl so it stays
     // alive for the whole tensor lifetime (GPU wraps the host pointer via CL_MEM_USE_HOST_PTR).
-    const bool read_only = access == ov::intel_gpu::FileAccess::READ;
-    auto mapped_memory = ov::load_mmap_object(file_path,
-                                              offset,
-                                              *byte_size,
-                                              /*no_placeholder=*/false,
-                                              read_only ? ov::MmapMode::READ : ov::MmapMode::READ_WRITE);
+    auto mapped_memory =
+        ov::load_mmap_object(file_path, offset, *byte_size, /*no_placeholder=*/false, to_util_mmap_mode(access));
 
     auto import_size = *byte_size;
     const auto cacheline_size = static_cast<size_t>(get_engine().get_device_info().cacheline_size.value_or(0));
@@ -316,9 +328,8 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_file(con
                                               0,
                                               0,
                                               ov::intel_gpu::SharedBufferHandle{},
-                                              VirtualAddressMemory{mapped_memory->data(), static_cast<int64_t>(import_size)},
-                                              mapped_memory,
-                                              read_only);
+                                              VirtualAddressMemory{mapped_memory->data(), static_cast<int64_t>(import_size), access},
+                                              mapped_memory);
 }
 
 std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::create_buffer(const ov::element::Type type, const ov::Shape& shape) {

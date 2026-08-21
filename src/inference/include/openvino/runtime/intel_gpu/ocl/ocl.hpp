@@ -334,7 +334,7 @@ public:
      * @brief This function is used to obtain a remote tensor object from a user-supplied VirtualAddressMemory
      * @param type Tensor element type
      * @param shape Tensor shape
-     * @param buff A VirtualAddressMemory object that contains cpu pointer and size(optional)
+     * @param buff A VirtualAddressMemory object that contains cpu pointer and size(optional) and access mode
      * @return A remote tensor instance
      */
     ClBufferTensor create_tensor(const element::Type type, const Shape& shape, VirtualAddressMemory buff) {
@@ -342,7 +342,8 @@ public:
 
         AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::CPU_VA},
                          {ov::intel_gpu::cpu_va.name(), static_cast<gpu_handle_param>(buff.ptr)},
-                         {ov::intel_gpu::cpu_va_size.name(), buff.size}};  // if -1 then use shape to get the size
+                         {ov::intel_gpu::cpu_va_size.name(), buff.size},  // if -1 then use shape to get the size
+                         {ov::intel_gpu::cpu_va_access.name(), buff.access}};
         return create_tensor(type, shape, params).as<ClBufferTensor>();
     }
 
@@ -355,7 +356,7 @@ public:
      * @param file_descriptor Descriptor with the path, offset and access mode of the file containing tensor data.
      * The offset must be a multiple of the system memory mapping alignment: the page size on Linux
      * (typically 4 KiB) and the allocation granularity on Windows (typically 64 KiB).
-     * FileAccess::READ_WRITE additionally requires the file to be writable by the calling process
+     * MmapMode::READ_WRITE additionally requires the file to be writable by the calling process
      * and makes the tensor writes visible in the file.
      * @return A remote tensor instance
      */

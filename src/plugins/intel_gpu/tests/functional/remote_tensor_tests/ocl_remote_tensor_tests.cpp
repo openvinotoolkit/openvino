@@ -3087,9 +3087,10 @@ TEST(GpuRemoteTensorFromCpu, smoke_allocAlignedCPUMemory) {
         auto remote_input_tensor = ctx.create_tensor(ov::element::f32,
                                                      shape,
                                                      ov::intel_gpu::VirtualAddressMemory(input_ptr));
-        auto remote_output_tensor = ctx.create_tensor(ov::element::f32,
-                                                      shape,
-                                                      ov::intel_gpu::VirtualAddressMemory(output_ptr));
+        auto remote_output_tensor = ctx.create_tensor(
+            ov::element::f32,
+            shape,
+            ov::intel_gpu::VirtualAddressMemory(output_ptr, -1, ov::intel_gpu::MmapMode::READ_WRITE));
 
         auto model = make_copy_model(shape);
         auto compiled = core.compile_model(model, ctx);
@@ -3168,10 +3169,8 @@ TEST_P(GpuRemoteTensorFromFile, smoke_mmapFileMemoryAsInput) {
     std::fill_n(static_cast<char*>(output_ptr), output_buffer_size, 0);
 
     {
-        auto remote_input_tensor = ctx.create_tensor(
-            ov::element::f32,
-            shape,
-            ov::intel_gpu::FileDescriptor{m_file_path, offset, ov::intel_gpu::FileAccess::READ});
+        auto remote_input_tensor =
+            ctx.create_tensor(ov::element::f32, shape, ov::intel_gpu::FileDescriptor{m_file_path, offset});
         ASSERT_TRUE(remote_input_tensor.is<ov::intel_gpu::ocl::ClBufferTensor>());
         auto remote_output_tensor =
             ctx.create_tensor(ov::element::f32,
@@ -3210,7 +3209,7 @@ TEST_P(GpuRemoteTensorFromFile, smoke_mmapFileMemoryAsOutput) {
         auto remote_output_tensor = ctx.create_tensor(
             ov::element::f32,
             shape,
-            ov::intel_gpu::FileDescriptor{m_file_path, offset, ov::intel_gpu::FileAccess::READ_WRITE});
+            ov::intel_gpu::FileDescriptor{m_file_path, offset, ov::intel_gpu::MmapMode::READ_WRITE});
 
         auto model = make_copy_model(shape);
         auto compiled = core.compile_model(model, ctx);

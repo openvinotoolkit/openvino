@@ -212,6 +212,16 @@ static constexpr Property<gpu_handle_param> mem_handle{"MEM_HANDLE"};
 static constexpr Property<os_handle_param> os_handle{"OS_HANDLE"};
 
 /**
+ * @brief Enum to define access mode of memory shared with the plugin (host virtual-address buffers,
+ * memory-mapped files, etc.)
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
+ */
+enum class MmapMode {
+    READ = 0,       //!< Tensor data is only read
+    READ_WRITE = 1  //!< Tensor data is also written back; requires writable memory (or a writable file)
+};
+
+/**
  * @brief This key identifies cpu pointer
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
@@ -222,6 +232,12 @@ static constexpr Property<void*> cpu_va{"CPU_VA"};
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 static constexpr Property<int64_t> cpu_va_size{"CPU_VA_SIZE"};
+
+/**
+ * @brief This key identifies access mode (read or read-write) of the memory pointed to by cpu_va
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
+ */
+static constexpr Property<MmapMode> cpu_va_access{"CPU_VA_ACCESS"};
 
 /**
  * @brief This key identifies video decoder surface handle
@@ -262,19 +278,14 @@ struct SharedBufferHandle {
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 struct VirtualAddressMemory {
-    explicit VirtualAddressMemory(void* ptr_, int64_t size_ = -1) : ptr(ptr_), size(size_) {}
+    explicit VirtualAddressMemory(void* ptr_, int64_t size_ = -1, MmapMode access_ = MmapMode::READ)
+        : ptr(ptr_),
+          size(size_),
+          access(access_) {}
 
     void* ptr = nullptr;
-    int64_t size = -1;  ///< Buffer size in bytes; -1 means "derive from tensor shape"
-};
-
-/**
- * @brief Enum to define how a memory-mapped file is accessed by the plugin
- * @ingroup ov_runtime_ocl_gpu_cpp_api
- */
-enum class FileAccess {
-    READ = 0,       //!< Tensor data is only read from the file
-    READ_WRITE = 1  //!< Tensor data is also written back to the file; requires a writable file
+    int64_t size = -1;                 ///< Buffer size in bytes; -1 means "derive from tensor shape"
+    MmapMode access = MmapMode::READ;  ///< Whether the plugin may only read this memory or also write to it
 };
 
 /**
@@ -286,16 +297,16 @@ enum class FileAccess {
 struct FileDescriptor {  // need to be merged with ov::intel_npu::FileDescriptor in future
     explicit FileDescriptor(const std::filesystem::path& file_path,
                             std::size_t offset_in_bytes = 0,
-                            FileAccess file_access = FileAccess::READ)
+                            MmapMode file_access = MmapMode::READ)
         : path(file_path),
           offset(offset_in_bytes),
           access(file_access) {
         OPENVINO_ASSERT(!file_path.empty(), "[GPU] Provided file path is empty.");
     }
 
-    std::filesystem::path path;            ///< File path
-    std::size_t offset = 0;                ///< Offset in bytes to read from the file
-    FileAccess access = FileAccess::READ;  ///< Access mode of the mapping
+    std::filesystem::path path;        ///< File path
+    std::size_t offset = 0;            ///< Offset in bytes to read from the file
+    MmapMode access = MmapMode::READ;  ///< Access mode of the mapping
 };
 
 /**

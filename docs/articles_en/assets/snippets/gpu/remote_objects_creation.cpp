@@ -75,7 +75,7 @@ int main() {
     // so the file must not be modified until the returned tensor is destroyed.
     ov::intel_gpu::FileDescriptor file_descriptor{"input.bin",
                                                   /*offset_in_bytes=*/0,
-                                                  ov::intel_gpu::FileAccess::READ};
+                                                  ov::intel_gpu::MmapMode::READ};
     auto remote_tensor = gpu_context.create_tensor(in_element_type, in_shape, file_descriptor);
     //! [wrap_file]
 }

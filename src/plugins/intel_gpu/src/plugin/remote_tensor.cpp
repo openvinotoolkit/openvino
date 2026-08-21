@@ -10,10 +10,6 @@
 #include "intel_gpu/runtime/memory_caps.hpp"
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
 
-#ifdef OV_GPU_WITH_OCL_RT
-#include "ocl/ocl_engine.hpp"
-#endif
-
 #include <cstdint>
 #include <memory>
 
@@ -27,10 +23,12 @@ struct std::hash<ov::intel_gpu::SharedBufferHandle> {
 template <>
 struct std::hash<ov::intel_gpu::VirtualAddressMemory> {
     size_t operator()(const ov::intel_gpu::VirtualAddressMemory& mem) const noexcept {
-        // Hash both pointer and size to distinguish different allocations
-        size_t h1 = std::hash<const void*>{}(mem.ptr);
-        size_t h2 = std::hash<int64_t>{}(mem.size);
-        return h1 ^ (h2 << 1);
+        // Hash pointer, size and access mode to distinguish different allocations/imports
+        size_t seed = 0;
+        seed = cldnn::hash_combine(seed, mem.ptr);
+        seed = cldnn::hash_combine(seed, mem.size);
+        seed = cldnn::hash_combine(seed, mem.access);
+        return seed;
     }
 };
 
@@ -177,8 +175,7 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
                                    uint32_t plane,
                                    ov::intel_gpu::SharedBufferHandle shared_buffer_handle,
                                    ov::intel_gpu::VirtualAddressMemory va_mem,
-                                   std::shared_ptr<ov::MappedMemory> mapped_memory,
-                                   bool mapped_memory_read_only)
+                                   std::shared_ptr<ov::MappedMemory> mapped_memory)
     : m_context(context)
     , m_element_type(element_type)
     , m_shape(shape)
@@ -189,8 +186,7 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
     , m_plane(plane)
     , m_shared_buffer_handle(shared_buffer_handle)
     , m_va_mem(va_mem)
-    , m_mapped_memory(std::move(mapped_memory))
-    , m_mapped_memory_read_only(mapped_memory_read_only) {
+    , m_mapped_memory(std::move(mapped_memory)) {
     update_hash();
     allocate();
 }
@@ -416,22 +412,13 @@ void RemoteTensorImpl::allocate() {
     }
     case TensorType::BT_CPU_VA: {
         const auto buffer_size = m_va_mem.size > -1 ? m_va_mem.size : m_layout.bytes_count();
-        if (m_mapped_memory && m_mapped_memory_read_only) {
-            // The plugin owns a read-only mapping (file-mmap case), so the buffer is imported as read-only.
-#ifdef OV_GPU_WITH_OCL_RT
-            if (auto* ocl_engine = dynamic_cast<cldnn::ocl::ocl_engine*>(&engine)) {
-                m_memory_object = ocl_engine->create_hostbuffer_host_ro(static_cast<const void*>(m_va_mem.ptr),
-                                                buffer_size,
-                                                cldnn::allocation_type::cl_mem,
-                                                m_layout);
-            } else
-#endif
-            {
-                m_memory_object = engine.create_hostbuffer(static_cast<const void*>(m_va_mem.ptr),
-                                                buffer_size,
-                                                cldnn::allocation_type::cl_mem,
-                                                m_layout);
-            }
+        if (m_va_mem.access == ov::intel_gpu::MmapMode::READ) {
+            // host_read_only is set for the file-mmap case, since the host side will never write it either.
+            m_memory_object = engine.create_hostbuffer(static_cast<const void*>(m_va_mem.ptr),
+                                            buffer_size,
+                                            cldnn::allocation_type::cl_mem,
+                                            m_layout,
+                                            /*host_read_only=*/m_mapped_memory != nullptr);
         } else {
             m_memory_object = engine.create_hostbuffer(m_va_mem.ptr,
                                             buffer_size,
