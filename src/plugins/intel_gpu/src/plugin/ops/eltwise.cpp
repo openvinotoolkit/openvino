@@ -34,6 +34,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/not_equal.hpp"
 #include "openvino/op/power.hpp"
+#include "openvino/core/symbol.hpp"
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/xor.hpp"
@@ -45,7 +46,8 @@ void CreateElementwiseOp(ProgramBuilder& p,
                          const std::shared_ptr<ov::Node>& op,
                          cldnn::eltwise_mode mode,
                          std::vector<float> coefficients,
-                         bool pythondiv) {
+                         bool pythondiv,
+                         bool inputs_equal_shape) {
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -95,12 +97,44 @@ void CreateElementwiseOp(ProgramBuilder& p,
                                       out_dt,
                                       op->get_autob(),
                                       pythondiv);
+    eltwisePrim.inputs_equal_shape = inputs_equal_shape;
 
     p.add_primitive(*op, eltwisePrim);
 }
 
+// Returns true only when both Add inputs are provably same-shape at compile time:
+//  - static dims must be equal, and
+//  - dynamic dims must carry matching ov::Symbol values.
+// A false result means "unknown", not "definitely different".
+static bool add_inputs_have_equal_shape(const ov::Node& op) {
+    if (op.get_input_size() < 2)
+        return false;
+    const auto& a = op.get_input_partial_shape(0);
+    const auto& b = op.get_input_partial_shape(1);
+    if (a.rank().is_dynamic() || b.rank().is_dynamic() || a.size() != b.size())
+        return false;
+    for (size_t i = 0; i < a.size(); ++i) {
+        const auto& da = a[i];
+        const auto& db = b[i];
+        // print whether two inputs are static or has symbol
+        // std::cout << "Input " << i << ": a is " << (da.is_static() ? "static" : (da.has_symbol() ? "symbol" : "dynamic"))
+        //           << ", b is " << (db.is_static() ? "static" : (db.has_symbol() ? "symbol" : "dynamic")) << "  ";
+        if (da.is_static() && db.is_static()) {
+            if (da.get_length() != db.get_length())
+                return false;
+        } else if (!(da.has_symbol() && db.has_symbol() &&
+                     ov::symbol::are_equal(da.get_symbol(), db.get_symbol()))) {
+            // std::cout << "different" << std::endl;
+            return false;
+        }
+    }
+    // std::cout << "same" << std::endl;
+    return true;
+}
+
 static void CreateAddOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::Add>& op) {
-    CreateElementwiseOp(p, op, cldnn::eltwise_mode::sum);
+    const bool equal_shape = add_inputs_have_equal_shape(*op);
+    CreateElementwiseOp(p, op, cldnn::eltwise_mode::sum, /*coefficients=*/{}, /*pythondiv=*/true, equal_shape);
 }
 
 static void CreateMultiplyOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::Multiply>& op) {
