@@ -267,12 +267,14 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         // arbitrary one get_any_name() returns.
         for (const auto& p : req->get_compiled_model()->inputs()) {
             for (const auto& name : p.get_names()) {
-                in_ports.emplace(name, p);
+                auto res = in_ports.emplace(name, p);
+                OPENVINO_ASSERT(res.second, "Duplicate generate input tensor name across ports: ", name);
             }
         }
         for (const auto& p : req->get_compiled_model()->outputs()) {
             for (const auto& name : p.get_names()) {
-                out_ports.emplace(name, p);
+                auto res = out_ports.emplace(name, p);
+                OPENVINO_ASSERT(res.second, "Duplicate generate output tensor name across ports: ", name);
             }
         }
         m_generate_variant_in_ports.emplace(req, std::move(in_ports));
@@ -300,12 +302,14 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     // the arbitrary alias get_any_name() would pick for the matching prefill port.
     for (const auto& input_port : m_prefill_request->get_compiled_model()->inputs()) {
         for (const auto& name : input_port.get_names()) {
-            m_prefill_in_ports.emplace(name, input_port);
+            auto res = m_prefill_in_ports.emplace(name, input_port);
+            OPENVINO_ASSERT(res.second, "Duplicate prefill input tensor name across ports: ", name);
         }
     }
     for (const auto& output_port : m_prefill_request->get_compiled_model()->outputs()) {
         for (const auto& name : output_port.get_names()) {
-            m_prefill_out_ports.emplace(name, output_port);
+            auto res = m_prefill_out_ports.emplace(name, output_port);
+            OPENVINO_ASSERT(res.second, "Duplicate prefill output tensor name across ports: ", name);
         }
     }
 
