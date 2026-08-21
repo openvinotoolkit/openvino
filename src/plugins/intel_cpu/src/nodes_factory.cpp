@@ -250,7 +250,6 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(SegmentMax, Type::SegmentMax);
     INTEL_CPU_NODE(LoRA, Type::LoRA);
     INTEL_CPU_NODE(GatherMatmul, Type::GatherMatmul);
-    INTEL_CPU_NODE(GroupedMatMul, Type::GroupedMatMul);
     INTEL_CPU_NODE(GatedDeltaNet, Type::GatedDeltaNet);
     INTEL_CPU_NODE(PagedGatedDeltaNet, Type::PagedGatedDeltaNet);
     INTEL_CPU_NODE(SelectiveSSM, Type::SelectiveSSM);
@@ -259,6 +258,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
 #if defined(OPENVINO_ARCH_X86_64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(GridSample, Type::GridSample);
+    INTEL_CPU_NODE(GroupedMatMul, Type::GroupedMatMul);
     INTEL_CPU_NODE(Interaction, Type::Interaction);
     INTEL_CPU_NODE(LLMMLP, Type::LLMMLP);
     INTEL_CPU_NODE(QKVProjection, Type::QKVProjection);

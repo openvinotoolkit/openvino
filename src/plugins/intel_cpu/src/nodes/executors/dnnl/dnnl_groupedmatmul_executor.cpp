@@ -9,7 +9,6 @@
 #include <cstring>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
-#include <oneapi/dnnl/dnnl_common.hpp>
 #include <tuple>
 #include <vector>
 

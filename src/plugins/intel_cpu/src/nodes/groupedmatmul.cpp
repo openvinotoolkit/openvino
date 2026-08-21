@@ -35,6 +35,7 @@
 #include "ov_ops/grouped_matmul_compressed.hpp"
 #include "shape_inference/custom/groupedmatmul.hpp"
 #include "transformations/utils/utils.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -56,7 +57,6 @@ size_t firstOptionalPort(const ov::Node& op) {
 
 bool GroupedMatMul::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                          std::string& errorMessage) noexcept {
-#ifdef OPENVINO_ARCH_X86_64
     try {
         const bool isCompressed = ov::is_type<ov::op::internal::GroupedMatMulCompressed>(op);
         if (!isCompressed && !ov::is_type<ov::op::v17::GroupedMatMul>(op)) {
@@ -95,10 +95,6 @@ bool GroupedMatMul::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
         return false;
     }
     return true;
-#else
-    errorMessage = "GroupedMatMul is only implemented for x64";
-    return false;
-#endif
 }
 
 bool GroupedMatMul::isSupportedCompressedOperation([[maybe_unused]] const std::shared_ptr<ov::Node>& op,

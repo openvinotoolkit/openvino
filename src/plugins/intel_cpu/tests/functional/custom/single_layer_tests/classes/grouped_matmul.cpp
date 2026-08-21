@@ -110,6 +110,11 @@ TEST_P(GroupedMatMulLayerCPUTest, CompareWithRefs) {
     check_results();
 }
 
+// The suites are instantiated in instances/x64 only, which is excluded from the non-x64 builds while
+// this file is always compiled. gtest >= 1.11 flags a suite with no instantiation as a failure unless
+// it is explicitly allowed.
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(GroupedMatMulLayerCPUTest);
+
 // ---- GroupedMatMulCompressedLayerCPUTest ------------------------------------------------------
 
 std::string GroupedMatMulCompressedLayerCPUTest::getTestCaseName(
@@ -224,6 +229,8 @@ TEST_P(GroupedMatMulCompressedLayerCPUTest, CompareWithRefs) {
     run();
     check_results();
 }
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(GroupedMatMulCompressedLayerCPUTest);
 
 }  // namespace test
 }  // namespace ov
