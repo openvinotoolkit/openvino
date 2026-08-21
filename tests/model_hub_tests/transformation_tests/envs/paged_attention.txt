@@ -1,0 +1,5 @@
+# gemma4 architecture is only recognized starting with a much newer transformers
+# release than the common transformation-test stack (envs/requirements.txt, transformers<4.52),
+# so this test uses its own isolated set of versions.
+transformers==5.5.4
+optimum-intel==2.1.0
