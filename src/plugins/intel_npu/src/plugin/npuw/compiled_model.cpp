@@ -940,6 +940,22 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
         host_gather.idx_idx & quant_unpack_gather.dst_idx & quant_unpack_gather.src_w_idx &
         quant_unpack_gather.src_z_idx & quant_unpack_gather.src_s_idx & quant_unpack_gather.idx_idx & spatial;
 
+    if (stream.input() && spatial && compiled_model) {
+        std::vector<ov::Shape> input_shapes;
+        input_shapes.reserve(compiled_model->inputs().size());
+        for (const auto& input : compiled_model->inputs()) {
+            input_shapes.push_back(input.get_shape());
+        }
+
+        std::vector<ov::Shape> output_shapes;
+        output_shapes.reserve(compiled_model->outputs().size());
+        for (const auto& output : compiled_model->outputs()) {
+            output_shapes.push_back(output.get_shape());
+        }
+
+        ov::npuw::orc::validate_spatial(*spatial, input_shapes, output_shapes, param_base);
+    }
+
     // Function calls share pipeline.context with their function body at runtime.
     // There is no need to serialize the compiled moe/attn state for each call –
     // doing so would re-import NPU blobs for every repeated layer (one per call),

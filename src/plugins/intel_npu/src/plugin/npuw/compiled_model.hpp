@@ -138,6 +138,7 @@ private:
     friend class IBaseInferRequest;
     friend class JustInferRequest;
     friend class UnfoldInferRequest;
+    friend class CompiledModelDescAccess;
     friend class MemAccessSim;
     friend class FuncMemMgr;
     friend class LLMCompiledModel;
