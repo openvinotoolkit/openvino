@@ -148,6 +148,20 @@ SDPAPattern::SDPAPattern()
                 return false;
             }
 
+            // The attention tiling fully unrolls the head size dimension, so a large head size
+            // multiplies kernel size and register pressure. Past this limit the generated kernel
+            // spills heavily and loses to the native SDPA implementations both in compile time and
+            // in execution time, so leave those nodes alone.
+            constexpr int64_t max_head_size = 128;
+            const auto& q_head_size = q_shape[q_rank - 1];
+            const auto& v_head_size = v_shape[q_rank - 1];
+            if (q_head_size.get_min_length() > max_head_size || v_head_size.get_min_length() > max_head_size) {
+                OPENVINO_MLIR_DEBUG_PRINT("SDPAPattern: rejected " << node->get_friendly_name()
+                                          << " — head size " << q_head_size << "/" << v_head_size
+                                          << " exceeds the limit of " << max_head_size);
+                return false;
+            }
+
             // Causal attention is not supported
             if (node->get_causal()) {
                 OPENVINO_MLIR_DEBUG_PRINT("SDPAPattern: rejected " << node->get_friendly_name()
