@@ -50,6 +50,10 @@ OutputVector translate_chunk(const NodeContext& context) {
         return {context.mark_node(make_list_construct({input}))};
     }
 
+    // Normalise negative dim values.
+    auto rank = std::get<1>(get_shape_rank(context, input, true));
+    dim = normalize_axis(context, dim, rank);
+
     // Build a VariadicSplit: the first (num_outputs - 1) chunks have equal size
     // (= ceil(dim_size / num_chunks)) and the last chunk receives the remainder.
     auto zero_1d = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
