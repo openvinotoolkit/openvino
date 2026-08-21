@@ -86,19 +86,6 @@ bool check_WRB(const shared_ptr<op_util::RNNCellBase>& cell_1, const shared_ptr<
     return is_equal;
 }
 
-// `clip == 0` and `clip == inf` both mean "no clipping" (see ov::op::util::is_no_clip), so cells carrying either
-// value are interchangeable and may be fused.
-bool is_equal_clip(const shared_ptr<op_util::RNNCellBase>& cell_1, const shared_ptr<op_util::RNNCellBase>& cell_2) {
-    const auto clip_1 = cell_1->get_clip();
-    const auto clip_2 = cell_2->get_clip();
-    const auto is_no_clip_1 = op_util::is_no_clip(clip_1);
-    const auto is_no_clip_2 = op_util::is_no_clip(clip_2);
-    if (is_no_clip_1 || is_no_clip_2) {
-        return is_no_clip_1 && is_no_clip_2;
-    }
-    return clip_1 == clip_2;
-}
-
 bool is_equal_cells(const shared_ptr<op_util::RNNCellBase>& cell_1, const shared_ptr<op_util::RNNCellBase>& cell_2) {
     bool is_equal = true;
     auto gru_cell_1 = ov::as_type_ptr<v3::GRUCell>(cell_1);
@@ -110,7 +97,8 @@ bool is_equal_cells(const shared_ptr<op_util::RNNCellBase>& cell_1, const shared
                cell_1->get_hidden_size() == cell_2->get_hidden_size() &&
                cell_1->get_activations() == cell_2->get_activations() &&
                cell_1->get_activations_alpha() == cell_2->get_activations_alpha() &&
-               cell_1->get_activations_beta() == cell_2->get_activations_beta() && is_equal_clip(cell_1, cell_2) &&
+               cell_1->get_activations_beta() == cell_2->get_activations_beta() &&
+               op_util::are_clips_equal(cell_1->get_clip(), cell_2->get_clip()) &&
                check_WRB(cell_1, cell_2);
     return is_equal;
 }

@@ -34,6 +34,24 @@ inline bool is_no_clip(float clip) {
     return clip <= 0.f || std::isinf(clip);
 }
 
+/// \brief      Tells whether two RNN `clip` attribute values are equivalent for RNN transformation matching.
+///
+/// \note       All values reported by is_no_clip() are equivalent. Other values must match exactly. In particular,
+///             NaN is not equal to any value, including itself.
+///
+/// \param[in]  lhs  First `clip` attribute value.
+/// \param[in]  rhs  Second `clip` attribute value.
+///
+/// \return     True if both values are equivalent for matching.
+inline bool are_clips_equal(float lhs, float rhs) {
+    const bool lhs_is_no_clip = is_no_clip(lhs);
+    const bool rhs_is_no_clip = is_no_clip(rhs);
+    if (lhs_is_no_clip || rhs_is_no_clip) {
+        return lhs_is_no_clip && rhs_is_no_clip;
+    }
+    return lhs == rhs;
+}
+
 /// \brief      Tells whether an RNN `clip` attribute value asks for an actual Clamp.
 ///
 /// \note       Only a finite positive `clip` yields usable bounds `[-clip, clip]`. `0`, negative values and
