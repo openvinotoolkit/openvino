@@ -16,6 +16,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "metadata.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 
 namespace {
 

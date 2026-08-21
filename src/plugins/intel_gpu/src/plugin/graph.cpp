@@ -79,11 +79,11 @@ std::optional<std::chrono::microseconds> extract_start_time_from_intervals(
 
 namespace ov::intel_gpu {
 
-Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id)
+Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id, ov::internal::WeightSharingCtxPtr weight_sharing_ctx)
     : m_context(context)
     , m_config(config)
     , m_stream_id(stream_id) {
-    auto program_builder = std::make_shared<ProgramBuilder>(model, get_engine(), config);
+    auto program_builder = std::make_shared<ProgramBuilder>(model, get_engine(), config, weight_sharing_ctx);
     m_config = program_builder->get_config();
 
     build(program_builder->get_compiled_program());

@@ -11,6 +11,7 @@
 #include "intel_npu/common/icompiled_model.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
@@ -34,7 +35,8 @@ public:
                   const std::shared_ptr<IDevice>& device,
                   const std::shared_ptr<IGraph>& graph,
                   const FilteredConfig& config,
-                  const std::optional<int64_t>& batchSize);
+                  const std::optional<int64_t>& batchSize,
+                  ov::internal::WeightSharingCtxPtr weightSharingContext = nullptr);
 
     CompiledModel(const CompiledModel&) = delete;
 
@@ -76,6 +78,8 @@ private:
     mutable std::once_flag _streamExecutorsInitFlag;
 
     std::optional<int64_t> _batchSize;
+
+    ov::internal::WeightSharingCtxPtr _weightSharingContext;
 };
 
 }  //  namespace intel_npu

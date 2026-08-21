@@ -39,6 +39,7 @@
 #include "openvino/runtime/plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/core/version.hpp"
 #include "common_utils/parallel_mem_streambuf.hpp"
 #include "openvino/runtime/weightless_properties_utils.hpp"
 #include "openvino/util/file_util.hpp"
@@ -57,6 +58,22 @@ using Time = std::chrono::high_resolution_clock;
 thread_local const size_t* g_current_tensor_base = nullptr;
 
 namespace ov::intel_gpu {
+
+namespace {
+
+ov::internal::WeightSharingCtxPtr extract_weight_sharing_context(ov::AnyMap& config) {
+    const auto property_name = ov::internal::model_sharing_context.name();
+    const auto property_it = config.find(property_name);
+    if (property_it == config.end()) {
+        return nullptr;
+    }
+
+    auto ctx = property_it->second.as<ov::internal::WeightSharingCtxPtr>();
+    config.erase(property_it);
+    return ctx;
+}
+
+}  // namespace
 
 #define FACTORY_DECLARATION(op_version, op_name) \
     void __register ## _ ## op_name ## _ ## op_version();
@@ -268,14 +285,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
 
     ExecutionConfig config = m_configs_map.at(device_id);
-    config.set_user_property(orig_config, OptionVisibility::RELEASE);
+    auto user_config = orig_config;
+    auto weight_sharing_context = extract_weight_sharing_context(user_config);
+    config.set_user_property(user_config, OptionVisibility::RELEASE);
 
     auto transformed_model = clone_and_transform_model(model, config, context);
 
     config.finalize(context.get(), transformed_model.get());
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model::CreateCompiledModel");
-        return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context, config);
+        return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context, config, weight_sharing_context);
     }
 }
 
@@ -291,13 +310,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
 
     ExecutionConfig config = m_configs_map.at(device_id);
-    config.set_user_property(orig_config, OptionVisibility::RELEASE);
+    auto user_config = orig_config;
+    auto weight_sharing_context = extract_weight_sharing_context(user_config);
+    config.set_user_property(user_config, OptionVisibility::RELEASE);
 
     auto transformed_model = clone_and_transform_model(model, config, context_impl);
 
     config.finalize(context_impl.get(), transformed_model.get());
 
-    return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context_impl, config);
+    return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context_impl, config, weight_sharing_context);
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
@@ -420,6 +441,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
         _orig_config.erase(blob_it);
     }
 
+    auto weight_sharing_context = extract_weight_sharing_context(_orig_config);
+
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(_orig_config, OptionVisibility::RELEASE);
 
@@ -460,7 +483,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
         }
     }
 
-    return std::make_shared<CompiledModel>(ib, shared_from_this(), context_impl, config, loaded_from_cache);
+    return std::make_shared<CompiledModel>(ib, shared_from_this(), context_impl, config, loaded_from_cache, weight_sharing_context);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
@@ -825,7 +848,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() const 
             ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::query_model_ratio.name(), PropertyMutability::RW},
             ov::PropertyName{ov::internal::caching_with_mmap.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::internal::cache_header_alignment.name(), PropertyMutability::RO}};
+            ov::PropertyName{ov::internal::cache_header_alignment.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::model_sharing_context.name(), ov::PropertyMutability::RW}};
     return supported_internal_properties;
 }
 

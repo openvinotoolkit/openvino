@@ -28,12 +28,14 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<IDevice>& device,
                              const std::shared_ptr<IGraph>& graph,
                              const FilteredConfig& config,
-                             const std::optional<int64_t>& batchSize)
+                             const std::optional<int64_t>& batchSize,
+                             ov::internal::WeightSharingCtxPtr weightSharingContext)
     : ICompiledModel(model, plugin, nullptr, nullptr),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
       _graph(graph),
-      _batchSize(batchSize) {
+      _batchSize(batchSize),
+      _weightSharingContext(std::move(weightSharingContext)) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
 
     // Support for specific properties might depend on the characteristics of the compiled model.
@@ -220,6 +222,12 @@ void CompiledModel::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
+    if (name == ov::internal::model_sharing_context.name()) {
+        _logger.debug("WeightSharingCtxPtr handoff succeeded for compiled model '%s'.",
+                      _graph->get_metadata().name.c_str());
+        return ov::Any(_weightSharingContext);
+    }
+
     return _propertiesManager->getProperty(name);
 }
 
