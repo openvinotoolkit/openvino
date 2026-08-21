@@ -26,6 +26,7 @@
 #include "npuw_transformations/reshape_sliced_head_to_static.hpp"
 #include "npuw_transformations/reshape_to_static.hpp"
 #include "npuw_transformations/right_align_mask_slice_for_conv.hpp"
+#include "npuw_transformations/slice_last_token_prefill.hpp"
 #include "npuw_transformations/slice_out_embeds.hpp"
 #include "npuw_transformations/split_kvcache_into_blocks.hpp"
 #include "openvino/op/convert.hpp"
@@ -1019,13 +1020,21 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
 
     if (lm_head_model) {
-        LOG_DEBUG("Shared LM head: slice the prefill output");
-        // KVCache model is already reshaped to [1, max_generation_token_len, embed size],
-        // so only apply slice to the Prefill model:
-        ov::npuw::SliceOutEmbeds(axes.batch, m_kvcache_desc.max_generation_token_len).run_on_model(prefill_model);
         LOG_DEBUG("Make LM head model with static shapes");
         ov::npuw::ReshapeSlicedHeadToStatic(axes.batch, m_kvcache_desc.max_generation_token_len)
             .run_on_model(lm_head_model);
+    }
+
+    // SliceLastTokenPrefill slices Q at the last SDPA input, saving attention + FFN compute
+    // for the first N-K tokens in the last transformer layer (K = max_generation_token_len).
+    // Falls back to SliceOutEmbeds (output-only slice) when disabled or pattern not matched.
+    LOG_DEBUG("5.0, slice last token(s) at last SDPA for prefill model");
+    const bool slice_applied = m_cfg.get<::intel_npu::NPUW_LLM_SLICE_PREFILL_LAST_TOKENS>() &&
+                               ov::npuw::SliceLastTokenPrefill(axes.batch, m_kvcache_desc.max_generation_token_len)
+                                   .run_on_model(prefill_model);
+    if (!slice_applied && lm_head_model) {
+        LOG_DEBUG("5.0, falling back to SliceOutEmbeds");
+        ov::npuw::SliceOutEmbeds(axes.batch, m_kvcache_desc.max_generation_token_len).run_on_model(prefill_model);
     }
 
     LOG_DEBUG("5.1, decompose GroupQueryAttention OP");
@@ -1899,6 +1908,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::max_prompt_len, NPUW_LLM_MAX_PROMPT_LEN, get),
                           BIND(npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN, get),
                           BIND(npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS, get),
+                          BIND(npuw::llm::slice_prefill_last_tokens, NPUW_LLM_SLICE_PREFILL_LAST_TOKENS, get),
                           BIND(npuw::llm::optimize_fp8, NPUW_LLM_OPTIMIZE_FP8, get),
                           BIND(npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE, get),
                           BIND(npuw::llm::enable_block_based_kv_cache, NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE, get),
