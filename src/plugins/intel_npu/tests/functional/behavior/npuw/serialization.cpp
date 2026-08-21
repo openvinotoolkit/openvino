@@ -4,9 +4,13 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <cstring>
 #include <map>
+#include <vector>
 
 #include "npuw/test_engine/models/model_builder.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
@@ -31,11 +35,20 @@ std::shared_ptr<ov::Model> build_chunked_prefill_model() {
     auto cfg = make_llm_config();
     cfg.num_kv_heads = 2;
     cfg.force_gqa_broadcast = true;
+    cfg.use_kv_cache = true;
 
     ModelBuilder mb;
     auto model = mb.build_llm(cfg);
-    ov::pass::StatefulToStateless().run_on_model(model);
-    model = model->clone();
+    std::string input_names;
+    bool has_beam_idx = false;
+    for (const auto& input : model->inputs()) {
+        if (!input_names.empty()) {
+            input_names += ", ";
+        }
+        input_names += input.get_any_name();
+        has_beam_idx = has_beam_idx || input.get_names().count("beam_idx") > 0;
+    }
+    OPENVINO_ASSERT(has_beam_idx, "Synthetic LLM model has no beam_idx input. Inputs: ", input_names);
 
     constexpr std::size_t kSeq = 8;
     constexpr std::size_t kPast = 8;
@@ -101,6 +114,41 @@ void skip_if_no_npu(ov::Core& core) {
     if (std::find(devices.begin(), devices.end(), "NPU") == devices.end()) {
         GTEST_SKIP() << "No available devices.";
     }
+}
+
+ov::Tensor make_serialization_input(const ov::Output<const ov::Node>& input) {
+    ov::Tensor tensor(input.get_element_type(), input.get_shape());
+    if (input.get_element_type() == ov::element::i64) {
+        std::fill_n(tensor.data<int64_t>(), tensor.get_size(), 0);
+    } else if (input.get_element_type() == ov::element::i32) {
+        std::fill_n(tensor.data<int32_t>(), tensor.get_size(), 0);
+    } else if (input.get_element_type() == ov::element::f32) {
+        std::fill_n(tensor.data<float>(), tensor.get_size(), 0.1f);
+    } else if (input.get_element_type() == ov::element::f16) {
+        std::fill_n(tensor.data<ov::float16>(), tensor.get_size(), ov::float16(0.1f));
+    } else {
+        std::memset(tensor.data(), 0, tensor.get_byte_size());
+    }
+    return tensor;
+}
+
+std::vector<ov::Tensor> infer_and_copy_outputs(ov::CompiledModel& compiled,
+                                               const std::vector<ov::Tensor>& inputs) {
+    auto request = compiled.create_infer_request();
+    for (std::size_t idx = 0; idx < compiled.inputs().size(); ++idx) {
+        request.set_tensor(compiled.inputs()[idx], inputs[idx]);
+    }
+    request.infer();
+
+    std::vector<ov::Tensor> outputs;
+    outputs.reserve(compiled.outputs().size());
+    for (const auto& output : compiled.outputs()) {
+        auto source = request.get_tensor(output);
+        ov::Tensor copy(source.get_element_type(), source.get_shape());
+        source.copy_to(copy);
+        outputs.push_back(std::move(copy));
+    }
+    return outputs;
 }
 
 }  // namespace
@@ -204,13 +252,26 @@ TEST(SerializationTestNPUW, LLMSharedHeadExportImportWithAsymmetricVocabInput) {
                          {"NPUW_HOST_GATHER", "NO"},
                          {"CACHE_MODE", "OPTIMIZE_SPEED"}};
 
-    auto compiled = ov_core.compile_model(model, "NPU", config);
+    std::vector<ov::Tensor> inputs;
+    std::vector<ov::Tensor> expected_outputs;
     std::stringstream blob;
-    ASSERT_NO_THROW(compiled.export_model(blob));
+    {
+        auto compiled = ov_core.compile_model(model, "NPU", config);
+        for (const auto& input : compiled.inputs()) {
+            inputs.push_back(make_serialization_input(input));
+        }
+        ASSERT_EQ(inputs.size(), compiled.inputs().size());
+        expected_outputs = infer_and_copy_outputs(compiled, inputs);
+        ASSERT_NO_THROW(compiled.export_model(blob));
+    }
     ASSERT_FALSE(blob.str().empty());
 
     auto imported = ov_core.import_model(blob, "NPU", config);
-    ASSERT_NO_THROW(imported.create_infer_request());
+    auto actual_outputs = infer_and_copy_outputs(imported, inputs);
+    ASSERT_EQ(expected_outputs.size(), actual_outputs.size());
+    for (std::size_t idx = 0; idx < expected_outputs.size(); ++idx) {
+        EXPECT_NO_THROW(ov::test::utils::compare(expected_outputs[idx], actual_outputs[idx], actual_outputs[idx].get_element_type()));
+    }
 }
 
 TEST(SerializationTestNPUW, CompiledModelPhase0CompatibilityRejectsCpuPinnedSubgraphExport) {
