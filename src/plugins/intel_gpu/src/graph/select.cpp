@@ -85,8 +85,9 @@ select_inst::typed_primitive_inst(network& network, select_node const& node) : p
 
     if (dep0_out_layout.is_dynamic() ||
         dep1_out_layout.is_dynamic() ||
-        dep2_out_layout.is_dynamic())
+        dep2_out_layout.is_dynamic()) {
         return;
+    }
 
     CLDNN_ERROR_LESS_THAN(node.id(),
                                 "Number of inputs",

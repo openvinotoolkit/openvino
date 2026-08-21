@@ -27,11 +27,13 @@ FullyConnectedPerLayerScaling::FullyConnectedPerLayerScaling(float scale_factor)
     auto fc_compressed_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{fc_compressed_wo_zp_m, fc_compressed_w_zp_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
-        if (scale_factor == 0.f || scale_factor == 1.f)
+        if (scale_factor == 0.f || scale_factor == 1.f) {
             return false;
+        }
         auto fc = ov::as_type_ptr<op::FullyConnectedCompressed>(m.get_match_root());
-        if (!fc || transformation_callback(fc))
+        if (!fc || transformation_callback(fc)) {
             return false;
+        }
 
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& data = pattern_map.at(data_m).get_node_shared_ptr();

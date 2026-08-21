@@ -28,8 +28,9 @@ namespace ocl {
 namespace {
 kernel_selector::concat_axis convert_axis(int64_t axis, size_t rank) {
     auto cldnn_axis = axis >= 0 ? axis : axis + static_cast<int64_t>(rank);
-    if (cldnn_axis >= static_cast<int64_t>(rank))
+    if (cldnn_axis >= static_cast<int64_t>(rank)) {
         OPENVINO_THROW("kv_cache axis exceeds number of dimensions");
+    }
 
     // Difference in dimension ordering between OV and GPU plugin,
     // reverse spatial dimensions after batch and feature.
@@ -523,8 +524,9 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         // asymmetric quantization (u4 range 0..15) regardless of the original quantization mode.
         const auto kv_cache_dt = impl_param.get_program().get_config().get_kv_cache_precision();
         params.is_int4_compressed = ov::element::Type(kv_cache_dt).bitwidth() == 4;
-        if (params.is_int4_compressed)
+        if (params.is_int4_compressed) {
             params.use_asymmetric_quantization = true;
+        }
 
         const auto& past_kv_cache_shape = impl_param.input_layouts[0].get_partial_shape();
         params.axis_offset = past_kv_cache_shape[primitive->concat_axis].is_static() ? past_kv_cache_shape[primitive->concat_axis].get_length() : 0;

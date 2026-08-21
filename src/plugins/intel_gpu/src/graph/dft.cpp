@@ -61,8 +61,9 @@ std::vector<layout> dft_inst::calc_output_layouts(dft_node const& /*node*/, kern
         input1_layout.get<ShapeType>()
     };
 
-    if (impl_param.input_layouts.size() == 3)
+    if (impl_param.input_layouts.size() == 3) {
         input_shapes.push_back(impl_param.get_input_layout(2).get<ShapeType>());
+    }
 
     std::vector<ShapeType> output_shapes = {ShapeType()};
     std::unordered_map<size_t, ov::Tensor> const_data;

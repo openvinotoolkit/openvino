@@ -14,9 +14,11 @@ static const std::vector<size_t> optimal_x_sizes = { 16, 8, 4, 2, 1 };
 static const std::vector<size_t> optimal_feature_sizes = { 16, 8, 1 };
 
 static size_t GetOptimalSize(size_t val, std::vector<size_t> optimal_sizes) {
-    for (auto& s : optimal_sizes)
-        if (val % s == 0)
+    for (auto& s : optimal_sizes) {
+        if (val % s == 0) {
             return s;
+        }
+    }
     return 1;
 }
 

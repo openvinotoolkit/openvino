@@ -69,8 +69,9 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
                 m_external_queue = extract_object(params, ov::intel_gpu::ocl_queue);
             }
 
-            if (params.find(ov::intel_gpu::ocl_context_device_id.name()) != params.end())
+            if (params.find(ov::intel_gpu::ocl_context_device_id.name()) != params.end()) {
                 ctx_device_id = extract_object(params, ov::intel_gpu::ocl_context_device_id);
+            }
         } else if (ctx_type == ov::intel_gpu::ContextType::VA_SHARED) {
             m_va_display = extract_object(params, ov::intel_gpu::va_device);
             OPENVINO_ASSERT(m_va_display != nullptr, "[GPU] Can't create shared VA/DX context as user handle is nullptr! Params:\n", params);
@@ -227,8 +228,9 @@ const std::string& RemoteContextImpl::get_device_name() const {
 
 cldnn::memory::ptr RemoteContextImpl::try_get_cached_memory(size_t hash) {
     std::lock_guard<std::mutex> lock(m_cache_mutex);
-    if (m_memory_cache.has(hash))
+    if (m_memory_cache.has(hash)) {
         return m_memory_cache.get(hash);
+    }
 
     return nullptr;
 }

@@ -7,40 +7,38 @@
 #include <set>
 
 #include "intel_gpu/op/gemm.hpp"
-#include "ov_ops/rotary_positional_embeddings.hpp"
-
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/cos.hpp"
-#include "openvino/op/sin.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/swish.hpp"
-#include "openvino/op/gelu.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/cos.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_nd.hpp"
-#include "openvino/op/strided_slice.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/broadcast.hpp"
+#include "openvino/op/gelu.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/sin.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/swish.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
-#include "ov_ops/rms.hpp"
-#include "ov_ops/rotary_positional_embeddings.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/utils/utils.hpp"
-#include "openvino/core/graph_util.hpp"
-#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
+#include "ov_ops/rms.hpp"
+#include "ov_ops/rotary_positional_embeddings.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
+#include "transformations/utils/utils.hpp"
 #include "utils.hpp"
 
 namespace ov::intel_gpu {
@@ -92,18 +90,20 @@ IncreasePositionIdsPrecisionForRoPE::IncreasePositionIdsPrecisionForRoPE() {
         auto sin_node = ov::as_type_ptr<ov::op::v0::Sin>(pattern_map.at(sin).get_node_shared_ptr());
         auto rope_node = pattern_map.at(rope).get_node_shared_ptr();
 
-        if (!matmul_node || transformation_callback(matmul_node))
+        if (!matmul_node || transformation_callback(matmul_node)) {
             return false;
+        }
 
         const auto desired_et = ov::element::f32;
         const auto original_et = matmul_node->get_output_element_type(0);
-        if (original_et == desired_et)
+        if (original_et == desired_et) {
             return false;
+        }
 
         // Step 1: Ensure MatMul inputs are f32
         size_t input_idx = 0;
         bool is_changed = insert_converts_before_if_needed(matmul_node, desired_et, input_idx);
-        
+
         // Step 2: Insert restore converts only if RoPE expects non-f32 precision.
         if (is_changed) {
             size_t output_idx = 0;
@@ -160,18 +160,21 @@ IncreasePositionIdsPrecisionForQwen25VL::IncreasePositionIdsPrecisionForQwen25VL
         auto sin_node = ov::as_type_ptr<ov::op::v0::Sin>(pattern_map.at(sin).get_node_shared_ptr());
         auto cos_node = ov::as_type_ptr<ov::op::v0::Cos>(pattern_map.at(cos).get_node_shared_ptr());
 
-        if (!convert_node || !matmul_node || transformation_callback(convert_node))
+        if (!convert_node || !matmul_node || transformation_callback(convert_node)) {
             return false;
+        }
 
         const auto desired_et = ov::element::f32;
         const auto original_et = convert_node->get_output_element_type(0);
-        if (original_et == desired_et)
+        if (original_et == desired_et) {
             return false;
+        }
 
         // Check if input is integer type (position_ids should be i32 or i64)
         auto input_et = convert_node->input_value(0).get_element_type();
-        if (!input_et.is_integral())
+        if (!input_et.is_integral()) {
             return false;
+        }
 
         // 1. Change Convert output from f16 to f32 (position_ids path)
         auto new_convert = std::make_shared<ov::op::v0::Convert>(convert_node->input_value(0), desired_et);
@@ -236,18 +239,21 @@ IncreasePositionIdsPrecisionForQwen3VL::IncreasePositionIdsPrecisionForQwen3VL()
         auto broadcast_node = pattern_map.at(broadcast_freq).get_node_shared_ptr();
         auto matmul_node = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(matmul).get_node_shared_ptr());
 
-        if (!convert_node || !matmul_node || transformation_callback(convert_node))
+        if (!convert_node || !matmul_node || transformation_callback(convert_node)) {
             return false;
+        }
 
         const auto desired_et = ov::element::f32;
         const auto original_et = convert_node->get_output_element_type(0);
-        if (original_et == desired_et)
+        if (original_et == desired_et) {
             return false;
+        }
 
         // Verify input is integer type (position_ids should be i32 or i64)
         auto input_et = convert_node->input_value(0).get_element_type();
-        if (!input_et.is_integral())
+        if (!input_et.is_integral()) {
             return false;
+        }
 
         // Walk forward from MatMul to find Sin and Cos nodes through the
         // Reshape -> Gather -> ScatterNDUpdate -> Reshape -> Concat chain.
@@ -266,12 +272,14 @@ IncreasePositionIdsPrecisionForQwen3VL::IncreasePositionIdsPrecisionForQwen3VL()
             stack.pop_back();
 
             for (auto& output : current->outputs()) {
-                if (!output.get_element_type().is_real())
+                if (!output.get_element_type().is_real()) {
                     continue;
+                }
                 for (const auto& target_input : output.get_target_inputs()) {
                     auto consumer = target_input.get_node()->shared_from_this();
-                    if (!visited.insert(consumer.get()).second)
+                    if (!visited.insert(consumer.get()).second) {
                         continue;
+                    }
                     nodes_visited++;
 
                     if (auto sin_ptr = ov::as_type_ptr<ov::op::v0::Sin>(consumer)) {
@@ -285,8 +293,9 @@ IncreasePositionIdsPrecisionForQwen3VL::IncreasePositionIdsPrecisionForQwen3VL()
             }
         }
 
-        if (!sin_node || !cos_node)
+        if (!sin_node || !cos_node) {
             return false;
+        }
 
         // 1. Change Convert output from f16 to f32 (position_ids path)
         auto new_convert = std::make_shared<ov::op::v0::Convert>(convert_node->input_value(0), desired_et);
@@ -373,11 +382,10 @@ IncreasePositionIdsPrecisionForLtxVideo::IncreasePositionIdsPrecisionForLtxVideo
     auto cos_concat = std::make_shared<Or>(OutputVector{cos_concat_m1, cos_concat_m2});
 
     // RoPE: input 0 = x, input 1 = cos_concat, input 2 = sin_concat
-    auto rope = wrap_type<ov::op::internal::RoPE>({any_input(), cos_concat, sin_concat},
-        [](const ov::Output<ov::Node>& output) {
-            auto node = ov::as_type_ptr<ov::op::internal::RoPE>(output.get_node_shared_ptr());
-            return node && node->get_config().is_ltx_video;
-        });
+    auto rope = wrap_type<ov::op::internal::RoPE>({any_input(), cos_concat, sin_concat}, [](const ov::Output<ov::Node>& output) {
+        auto node = ov::as_type_ptr<ov::op::internal::RoPE>(output.get_node_shared_ptr());
+        return node && node->get_config().is_ltx_video;
+    });
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -389,8 +397,9 @@ IncreasePositionIdsPrecisionForLtxVideo::IncreasePositionIdsPrecisionForLtxVideo
 
         const auto desired_et = ov::element::f32;
         const auto original_et = mul_node->get_output_element_type(0);
-        if (original_et == desired_et)
+        if (original_et == desired_et) {
             return false;
+        }
 
         size_t input_idx = 0;
         bool is_changed = insert_converts_before_if_needed(mul_node, desired_et, input_idx);
@@ -458,21 +467,24 @@ IncreasePositionIdsPrecisionForGPTOSS::IncreasePositionIdsPrecisionForGPTOSS() {
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        if (transformation_callback(rope_qk))
+        if (transformation_callback(rope_qk)) {
             return false;
+        }
 
         auto rope_node = ov::as_type_ptr<ov::op::internal::RoPE>(pattern_map.at(rope_qk).get_node_shared_ptr());
 
         auto matmul_node = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(matmul_freq_pos_id).get_node_shared_ptr());
         auto mul_node1 = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(mul_sin_scale).get_node_shared_ptr());
         auto mul_node2 = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(mul_cos_scale).get_node_shared_ptr());
-        if (!rope_node || !matmul_node || !mul_node1 || !mul_node2)
+        if (!rope_node || !matmul_node || !mul_node1 || !mul_node2) {
             return false;
+        }
 
         const auto desired_et = ov::element::f32;
         const auto original_et = rope_node->get_output_element_type(0);
-        if (original_et == desired_et)
+        if (original_et == desired_et) {
             return false;
+        }
 
         size_t idx = 0;
         insert_converts_before_if_needed(matmul_node, desired_et, idx);
@@ -498,21 +510,20 @@ IncreasePositionIdsPrecisionForDirectMatMulSinCos::IncreasePositionIdsPrecisionF
         auto sin_node = ov::as_type_ptr<ov::op::v0::Sin>(pattern_map.at(sin).get_node_shared_ptr());
         std::vector<std::shared_ptr<ov::op::v0::Cos>> cos_nodes;
 
-        if (!matmul_node || !sin_node || transformation_callback(matmul_node))
+        if (!matmul_node || !sin_node || transformation_callback(matmul_node)) {
             return false;
+        }
 
         auto reaches_position_ids = [](ov::Output<ov::Node> output) {
             std::set<ov::Node*> visited;
             while (visited.insert(output.get_node()).second) {
                 const auto node = output.get_node_shared_ptr();
                 if (const auto parameter = ov::as_type_ptr<ov::op::v0::Parameter>(node)) {
-                    return parameter->get_friendly_name() == "position_ids" ||
-                           parameter->output(0).get_names().count("position_ids") != 0;
+                    return parameter->get_friendly_name() == "position_ids" || parameter->output(0).get_names().count("position_ids") != 0;
                 }
 
-                if (ov::is_type<ov::op::v0::Convert>(node) || ov::is_type<ov::op::v1::Reshape>(node) ||
-                    ov::is_type<ov::op::v0::Squeeze>(node) || ov::is_type<ov::op::v0::Unsqueeze>(node) ||
-                    ov::is_type<ov::op::v8::Gather>(node)) {
+                if (ov::is_type<ov::op::v0::Convert>(node) || ov::is_type<ov::op::v1::Reshape>(node) || ov::is_type<ov::op::v0::Squeeze>(node) ||
+                    ov::is_type<ov::op::v0::Unsqueeze>(node) || ov::is_type<ov::op::v8::Gather>(node)) {
                     output = node->input_value(0);
                     continue;
                 }
@@ -527,28 +538,28 @@ IncreasePositionIdsPrecisionForDirectMatMulSinCos::IncreasePositionIdsPrecisionF
             while (visited.insert(position_ids_path.get_node()).second) {
                 const auto node = position_ids_path.get_node_shared_ptr();
                 if (const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node)) {
-                    if (convert->input_value(0).get_element_type().is_integral() &&
-                        reaches_position_ids(convert->input_value(0))) {
+                    if (convert->input_value(0).get_element_type().is_integral() && reaches_position_ids(convert->input_value(0))) {
                         position_ids_convert_node = convert;
                         break;
                     }
                 }
 
-                if (ov::is_type<ov::op::v0::Convert>(node) || ov::is_type<ov::op::v1::Reshape>(node) ||
-                    ov::is_type<ov::op::v0::Squeeze>(node) || ov::is_type<ov::op::v0::Unsqueeze>(node) ||
-                    ov::is_type<ov::op::v8::Gather>(node)) {
+                if (ov::is_type<ov::op::v0::Convert>(node) || ov::is_type<ov::op::v1::Reshape>(node) || ov::is_type<ov::op::v0::Squeeze>(node) ||
+                    ov::is_type<ov::op::v0::Unsqueeze>(node) || ov::is_type<ov::op::v8::Gather>(node)) {
                     position_ids_path = node->input_value(0);
                     continue;
                 }
                 break;
             }
 
-            if (position_ids_convert_node)
+            if (position_ids_convert_node) {
                 break;
+            }
         }
 
-        if (!position_ids_convert_node)
+        if (!position_ids_convert_node) {
             return false;
+        }
 
         for (const auto& user : matmul_node->get_users()) {
             if (auto cos_node = ov::as_type_ptr<ov::op::v0::Cos>(user)) {
@@ -560,32 +571,36 @@ IncreasePositionIdsPrecisionForDirectMatMulSinCos::IncreasePositionIdsPrecisionF
 
         const auto desired_et = ov::element::f32;
         const auto original_et = matmul_node->get_output_element_type(0);
-        if (cos_nodes.empty() || original_et == desired_et)
+        if (cos_nodes.empty() || original_et == desired_et) {
             return false;
+        }
 
         size_t input_idx = 0;
-        if (!insert_converts_before_if_needed(matmul_node, desired_et, input_idx))
+        if (!insert_converts_before_if_needed(matmul_node, desired_et, input_idx)) {
             return false;
+        }
 
         auto promote_output = [&](const std::shared_ptr<ov::Node>& node) {
-            if (auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node))
+            if (auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node)) {
                 type_relaxed->set_overridden_output_type(desired_et);
+            }
             node->validate_and_infer_types();
         };
         promote_output(matmul_node);
         promote_output(sin_node);
-        for (const auto& cos_node : cos_nodes)
+        for (const auto& cos_node : cos_nodes) {
             promote_output(cos_node);
+        }
 
         size_t output_idx = 0;
-        for (const auto& cos_node : cos_nodes)
+        for (const auto& cos_node : cos_nodes) {
             insert_converts_after_if_needed(cos_node, original_et, output_idx);
+        }
         insert_converts_after_if_needed(sin_node, original_et, output_idx);
         return true;
     };
 
-    auto m =
-        std::make_shared<ov::pass::pattern::Matcher>(sin, "IncreasePositionIdsPrecisionForDirectMatMulSinCos");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(sin, "IncreasePositionIdsPrecisionForDirectMatMulSinCos");
     this->register_matcher(m, callback);
 }
 
@@ -623,8 +638,9 @@ DisableFP16ComForGPTOSSROPEPattern::DisableFP16ComForGPTOSSROPEPattern() {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto sin_node = ov::as_type_ptr<ov::op::v0::Sin>(pattern_map.at(sin).get_node_shared_ptr());
-        if (!sin_node || transformation_callback(sin_node))
+        if (!sin_node || transformation_callback(sin_node)) {
             return false;
+        }
         auto freq_const_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(freq_const).get_node_shared_ptr());
         ov::disable_conversion(freq_const_node, element::f16);
         return true;

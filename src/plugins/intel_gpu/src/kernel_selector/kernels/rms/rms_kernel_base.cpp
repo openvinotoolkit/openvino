@@ -7,13 +7,15 @@
 
 namespace kernel_selector {
 bool RMSKernelBase::Validate(const Params& p) const {
-    if (!KernelBaseOpenCL::Validate(p))
+    if (!KernelBaseOpenCL::Validate(p)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     const rms_params& params = static_cast<const rms_params&>(p);
     auto supported_dyn_layouts = { DataLayout::bfyx, DataLayout::bfzyx };
-    if (params.has_dynamic_tensors() && (!layout_is_one_of(params.inputs, supported_dyn_layouts) || !layout_is_one_of(params.outputs, supported_dyn_layouts)))
+    if (params.has_dynamic_tensors() && (!layout_is_one_of(params.inputs, supported_dyn_layouts) || !layout_is_one_of(params.outputs, supported_dyn_layouts))) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
@@ -89,8 +91,9 @@ void RMSKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
 KernelsData RMSKernelBase::GetCommonKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::RMS);
 
-    if (!Validate(params))
+    if (!Validate(params)) {
         return {};
+    }
 
     const rms_params& orgParams = static_cast<const rms_params&>(params);
     auto dispatchData = SetDefault(orgParams);

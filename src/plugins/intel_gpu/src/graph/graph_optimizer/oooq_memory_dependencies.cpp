@@ -35,8 +35,9 @@ public:
             uint64_t thatval = myval | that.storage[i];
             bool local_change = myval != thatval;
             changed |= local_change;
-            if (local_change)
+            if (local_change) {
                 storage[i] = thatval;
+            }
         }
         return changed;
     }

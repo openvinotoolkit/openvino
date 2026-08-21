@@ -35,8 +35,9 @@ static void getOutBlock_WH(size_t output_size,
         size_t block_size = 0;
 
         for (size_t i = min_horisontal_block_size; i <= max_posible_tile_size; i++) {
-            if (output_size % i == 0)
+            if (output_size % i == 0) {
                 block_size = i;
+            }
         }
 
         if (block_size != 0) {
@@ -46,10 +47,11 @@ static void getOutBlock_WH(size_t output_size,
         }
     }
 
-    if (output_block_w <= 4)
+    if (output_block_w <= 4) {
         output_block_h = output_block_w;
-    else
+    } else {
         output_block_h = 1;
+    }
 }
 
 namespace kernel_selector {
@@ -112,10 +114,11 @@ JitConstants ConvolutionKernel_imad::GetJitConstants(const convolution_params& p
     const auto& weights = params.weights;
 
     size_t in_fsv = 4;
-    if (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv4)
+    if (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv4) {
         in_fsv = 4;
-    else if (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16)
+    } else if (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16) {
         in_fsv = 16;
+    }
 
     mem_consts.AddConstants({
         MakeJitConstant("_ID", RoundUp(input.Feature().v, in_fsv)),
@@ -190,29 +193,35 @@ bool ConvolutionKernel_imad::Validate(const Params& params) const {
 
     const auto& conv_params = static_cast<const convolution_params&>(params);
     if (conv_params.groups > 1 && conv_params.weights.IFM().v % 4 != 0 &&
-        conv_params.inputs[0].GetLayout() != DataLayout::b_fs_yx_fsv16)
+        conv_params.inputs[0].GetLayout() != DataLayout::b_fs_yx_fsv16) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     size_t min_block_size_x = (conv_params.weights.X().v - 1) * conv_params.dilation.x + 1;
-    if (min_block_size_x > SIMD_SIZE)
+    if (min_block_size_x > SIMD_SIZE) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS) {
         if ((conv_params.activations_zero_points.empty() || conv_params.weights_zero_points.empty()) &&
-            (conv_params.compensation.empty()))
+            (conv_params.compensation.empty())) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA) {
         if ((conv_params.activations_zero_points.empty()) &&
-            (conv_params.compensation.empty()))
+            (conv_params.compensation.empty())) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
-        if (conv_params.weights_zero_points.empty())
+        if (conv_params.weights_zero_points.empty()) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     } else {
         if (!conv_params.activations_zero_points.empty() ||
             !conv_params.weights_zero_points.empty() ||
-            !conv_params.compensation.empty())
+            !conv_params.compensation.empty()) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     }
 
     return true;

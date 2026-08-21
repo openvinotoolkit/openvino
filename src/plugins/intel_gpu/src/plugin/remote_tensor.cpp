@@ -35,8 +35,9 @@ namespace ov::intel_gpu {
 namespace {
 static ov::Strides calculate_strides(const ov::Shape& shape, const ov::element::Type& element_type) {
     ov::Strides strides{};
-    if (element_type.bitwidth() < 8)
+    if (element_type.bitwidth() < 8) {
         return strides;
+    }
 
     if (!shape.empty()) {
         strides.resize(shape.size());
@@ -364,8 +365,9 @@ void RemoteTensorImpl::allocate() {
     // Allocate with non-empty shape and then reinterprete with original shape
     auto shape_copy = m_shape;
     for (auto &i : shape_copy) {
-        if (i == 0)
+        if (i == 0) {
             i = 1;
+        }
     }
 
     m_layout.set_partial_shape(shape_copy);
@@ -439,8 +441,9 @@ void RemoteTensorImpl::allocate() {
     update_properties();
     update_strides();
 
-    if (enable_caching)
+    if (enable_caching) {
         context->add_to_cache(m_hash, m_memory_object);
+    }
 }
 
 const std::string& RemoteTensorImpl::get_device_name() const {

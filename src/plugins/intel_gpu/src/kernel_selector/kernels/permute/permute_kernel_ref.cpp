@@ -151,14 +151,16 @@ CommonDispatchData PermuteKernelRef::SetDefault(const permute_params& params) co
 }
 
 bool PermuteKernelRef::Validate(const Params& p) const {
-    if (!Parent::Validate(p)) DO_NOT_USE_THIS_KERNEL(p.layerID);
+    if (!Parent::Validate(p)) { DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     const permute_params& params = static_cast<const permute_params&>(p);
 
     auto in_rank = params.inputs[0].GetDims().size();
     auto out_rank = params.outputs[0].GetDims().size();
-    if (in_rank != out_rank && (in_rank > 6 || out_rank > 6))
+    if (in_rank != out_rank && (in_rank > 6 || out_rank > 6)) {
        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }

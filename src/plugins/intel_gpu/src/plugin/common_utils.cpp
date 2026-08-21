@@ -62,8 +62,9 @@ static inline void convert_and_copy_padded_source_fast(const src_t* src, dst_t* 
                             int64_t element_sizes[6] = {b, f, x, y, z, w};
                             size_t offset = element_sizes[axes_map[0]];
 
-                            for (size_t i = 1; i < map_len; i++)
+                            for (size_t i = 1; i < map_len; i++) {
                                 offset = offset * padded_sizes[i] + element_sizes[axes_map[i]];
+                            }
 
                             *dst++ = static_cast<dst_t>(src[offset]);
                         }
@@ -99,8 +100,9 @@ void convert_and_copy_padded_source(const src_t* src, dst_t* dst, layout& layout
 template <typename src_t, typename dst_t>
 void convert_and_copy_no_pad(const src_t* src, dst_t* dst, size_t size) {
     OPENVINO_ASSERT(src && dst, "[GPU] Src or Dst ptr is null");
-    for (size_t i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++) {
         dst[i] = static_cast<dst_t>(src[i]);
+    }
 }
 
 template <typename src_t, typename dst_t>
@@ -123,8 +125,9 @@ void convert_and_copy_transposed(const src_t* src, dst_t* dst, ov::Shape shape) 
 
 void convert_and_copy(const void* src_ptr, ov::element::Type src_et, void* dst_ptr, ov::element::Type dst_et,
                       size_t size, cldnn::layout layout, bool transpose = false) {
-    if (size == 0)
+    if (size == 0) {
         return;
+    }
 
     if (src_et == dst_et && !layout.data_padding && !transpose) {
         std::memcpy(dst_ptr, src_ptr, size * src_et.size());
@@ -213,13 +216,15 @@ bool is_supported(ov::element::Type_t et) {
 
 bool data_types_are_supported(const ov::Node* node) {
     for (size_t i = 0; i < node->get_input_size(); i++) {
-        if (!is_supported(node->get_input_element_type(i)))
+        if (!is_supported(node->get_input_element_type(i))) {
             return false;
+        }
     }
 
     for (size_t i = 0; i < node->get_output_size(); i++) {
-        if (!is_supported(node->get_output_element_type(i)))
+        if (!is_supported(node->get_output_element_type(i))) {
             return false;
+        }
     }
 
     return true;
@@ -338,8 +343,9 @@ std::vector<cldnn::optional_data_type> get_output_data_types(const ov::Node* op,
     std::vector<cldnn::optional_data_type> output_data_types;
     for (size_t i = 0; i < op->get_output_size(); i++) {
         auto type = op->get_output_element_type(i);
-        if (precision_map.find(type) != precision_map.end())
+        if (precision_map.find(type) != precision_map.end()) {
             type = precision_map.at(type);
+        }
         output_data_types.push_back(cldnn::element_type_to_data_type(type));
     }
     return output_data_types;

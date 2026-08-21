@@ -58,17 +58,21 @@ ParamsKey ReduceKernelSimpleToScalar::GetSupportedKey() const {
 bool ReduceKernelSimpleToScalar::Validate(const Params& p) const {
     const reduce_params& params = static_cast<const reduce_params&>(p);
 
-    if (params.inputs.size() != 1 || params.outputs.size() != 1)
+    if (params.inputs.size() != 1 || params.outputs.size() != 1) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
-    if (!params.inputs[0].SimpleLayout() || !params.outputs[0].SimpleLayout())
+    if (!params.inputs[0].SimpleLayout() || !params.outputs[0].SimpleLayout()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
-    if (params.inputs[0].LogicalSize() < params.engineInfo.maxWorkGroupSize)
+    if (params.inputs[0].LogicalSize() < params.engineInfo.maxWorkGroupSize) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
-    if (params.outputs[0].LogicalSize() != 1)
+    if (params.outputs[0].LogicalSize() != 1) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     std::set<ReduceMode> supported_modes = {
         ReduceMode::SUM,
@@ -78,8 +82,9 @@ bool ReduceKernelSimpleToScalar::Validate(const Params& p) const {
         ReduceMode::MEAN,
     };
 
-    if (supported_modes.find(params.reduceMode) == supported_modes.end())
+    if (supported_modes.find(params.reduceMode) == supported_modes.end()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     const auto& in_dims = params.inputs[0].GetDims();
     const auto& out_dims = params.outputs[0].GetDims();
@@ -90,8 +95,9 @@ bool ReduceKernelSimpleToScalar::Validate(const Params& p) const {
             return d.pad.before > 0 || d.pad.after > 0;
         }) > 0;
 
-    if (has_padding)
+    if (has_padding) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }

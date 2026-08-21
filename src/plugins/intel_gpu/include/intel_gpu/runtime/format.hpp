@@ -297,8 +297,9 @@ struct format {
     }
     /// @brief Checks if @p format is weights format
     static bool is_weights_format(const format& fmt) {
-        if (fmt == format::custom)
+        if (fmt == format::custom) {
             return true;
+        }
         const auto internal_order = fmt.traits().internal_order;
         const auto weights_chars = { "o", "i" };
         for (const auto& c : weights_chars) {
@@ -325,8 +326,9 @@ struct format {
             auto c = o_order[i];
             auto pos = i_order.find(c);
 
-            if (pos == std::string::npos)
+            if (pos == std::string::npos) {
                 OPENVINO_THROW("Unknown coord type: " + std::to_string(c));
+            }
 
             i_dims.push_back(pos);
         }
@@ -395,8 +397,9 @@ struct format {
     /// @brief Transforms dimension from internal order to external order
     size_t internal_to_external(size_t idx) const {
         auto index = order().find_first_of(internal_order()[idx]);
-        if (index == std::string::npos)
+        if (index == std::string::npos) {
             throw std::invalid_argument("Internal dimension index does not map to external index.");
+        }
         return index;
     }
 

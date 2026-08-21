@@ -52,8 +52,9 @@ static void CreateMatMulOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::
     };
 
     auto canTransposeInputs = [&] (const std::array<ov::PartialShape, 2>& shapes, bool transA, bool transB, ov::element::Type type) -> bool {
-        if (!transA && !transB)
+        if (!transA && !transB) {
             return false;
+        }
 
         // dynamic shapes and 1D tensors are not transposed
         if (shapes[0].is_dynamic() || shapes[1].is_dynamic()) {
@@ -64,8 +65,9 @@ static void CreateMatMulOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::
             // until we have an essential solution, i.e., fixing the gemm_tiled_opt kernel to support unaligned shape.
             return p.get_engine().get_device_info().dev_type == cldnn::device_type::integrated_gpu;
         }
-        if (shapes[0].size() < 2 || shapes[1].size() < 2)
+        if (shapes[0].size() < 2 || shapes[1].size() < 2) {
             return false;
+        }
 
         // don't transpose inputs if they're aligned to 16
         bool inputsAligned = std::all_of(shapes[0].rbegin(), shapes[0].rbegin() + 2,

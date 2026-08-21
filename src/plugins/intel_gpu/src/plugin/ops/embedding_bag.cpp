@@ -27,8 +27,9 @@ static void CreateEmbeddingBagOffsetsSumOp(ProgramBuilder& p, const std::shared_
         OPENVINO_ASSERT(index_node != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
         float val;
-        if (ov::shape_size(index_node->get_output_shape(0)) != 1 || !ov::op::util::get_single_value(index_node, val))
+        if (ov::shape_size(index_node->get_output_shape(0)) != 1 || !ov::op::util::get_single_value(index_node, val)) {
              OPENVINO_THROW("Unsupported parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+        }
 
         defaultIndex = static_cast<int32_t>(val);
         inputs.erase(inputs.begin() + 3); // Remove "default_index"
@@ -111,8 +112,9 @@ static void CreateEmbeddingSegmentsSumOp(ProgramBuilder& p, const std::shared_pt
         OPENVINO_ASSERT(index_node != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
         float val;
-        if (ov::shape_size(index_node->get_output_shape(0)) != 1 || !ov::op::util::get_single_value(index_node, val))
+        if (ov::shape_size(index_node->get_output_shape(0)) != 1 || !ov::op::util::get_single_value(index_node, val)) {
             OPENVINO_THROW("Unsupported parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+        }
 
         defaultIndex = static_cast<int32_t>(val);
         inputs.erase(inputs.begin() + 4); // Remove "default_index"

@@ -34,11 +34,13 @@ static void CreateReduceOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& o
 
     std::vector<int64_t> axes = axes_constant->cast_vector<int64_t>();
     for (size_t i = 0; i < axes.size(); i++) {
-        if (axes[i] < 0)
+        if (axes[i] < 0) {
             axes[i] += rank;
+        }
 
-        if (axes[i] >= static_cast<int64_t>(rank) || axes[i] < 0)
+        if (axes[i] >= static_cast<int64_t>(rank) || axes[i] < 0) {
             OPENVINO_THROW("[GPU] Unsupported axis value in ", op->get_friendly_name(), " (", axes[i], ")");
+        }
     }
 
     auto reducePrim = cldnn::reduce(layerName,
@@ -78,12 +80,13 @@ static void CreateReduceOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& o
     cldnn::format out_format = cldnn::format::any;
     auto out_dt = cldnn::element_type_to_data_type(op->get_output_element_type(0));
     if (!keep_dims && rank > 4) {
-        if (rank - axes.size() == 6)
+        if (rank - axes.size() == 6) {
             out_format = cldnn::format::bfwzyx;
-        else if (rank - axes.size() == 5)
+        } else if (rank - axes.size() == 5) {
             out_format = cldnn::format::bfzyx;
-        else if (rank - axes.size() <= 4)
+        } else if (rank - axes.size() <= 4) {
             out_format = cldnn::format::bfyx;
+        }
 
         auto reorder_prim = cldnn::reorder(reorderLayerName,
                                            cldnn::input_info(resultLayerName),

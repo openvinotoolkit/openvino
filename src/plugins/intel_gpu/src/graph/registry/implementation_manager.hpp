@@ -43,8 +43,9 @@ public:
     std::unique_ptr<primitive_impl> create(const program_node& node, const kernel_impl_params& params) const;
     std::unique_ptr<primitive_impl> create(const kernel_impl_params& params) const;
     bool validate(const program_node& node) const {
-        if (!validate_impl(node))
+        if (!validate_impl(node)) {
             return false;
+        }
         if (m_vf) {
             return m_vf(node);
         }

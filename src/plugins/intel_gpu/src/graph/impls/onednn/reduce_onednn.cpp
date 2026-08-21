@@ -19,8 +19,9 @@ static void reorder_unreduced_axis_no_fusion(const kernel_impl_params& impl_para
         if (output_layout.get_partial_shape().size() < input_layout.get_partial_shape().size()) {
             output_layout.format = format::adjust_to_rank(output_layout.format, input_layout.get_partial_shape().size());
             auto new_p_shape = input_layout.get_partial_shape();
-            for (auto axis : axes)
+            for (auto axis : axes) {
                 new_p_shape[axis] = 1;
+            }
             output_layout.set_partial_shape(new_p_shape);
         }
     } else {
@@ -30,10 +31,11 @@ static void reorder_unreduced_axis_no_fusion(const kernel_impl_params& impl_para
         size_t num_others = num_dims - num_spatial;
 
         for (size_t idx = 0; idx < axes.size(); idx++) {
-            if (axes[idx] < static_cast<int64_t>(num_others))
+            if (axes[idx] < static_cast<int64_t>(num_others)) {
                 in_dims[axes[idx]] = 1;
-            else
+            } else {
                 in_dims[(num_dims - axes[idx] - 1 + num_others)] = 1;
+            }
         }
 
         auto output_tensor = output_layout.get_tensor();

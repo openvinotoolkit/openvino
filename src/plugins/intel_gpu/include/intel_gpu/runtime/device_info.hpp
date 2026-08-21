@@ -161,27 +161,33 @@ struct device_info {
         // Relying solely on the UUID is not reliable in all the cases (particularly on legacy platforms),
         // where the UUID may be missing or incorrectly generated
         // Therefore, we also validate other attributes
-        if (uuid.uuid != other.uuid.uuid)
+        if (uuid.uuid != other.uuid.uuid) {
             return false;
+        }
 
-        if (pci_info != other.pci_info)
+        if (pci_info != other.pci_info) {
             return false;
+        }
 
-        if (sub_device_idx != other.sub_device_idx)
+        if (sub_device_idx != other.sub_device_idx) {
             return false;
+        }
 
         if (vendor_id != other.vendor_id ||
             dev_name != other.dev_name ||
-            driver_version != other.driver_version)
+            driver_version != other.driver_version) {
             return false;
+        }
 
         if (dev_type != other.dev_type ||
             gfx_ver != other.gfx_ver ||
-            arch != other.arch)
+            arch != other.arch) {
             return false;
+        }
 
-        if (ip_version != other.ip_version || device_id != other.device_id)
+        if (ip_version != other.ip_version || device_id != other.device_id) {
             return false;
+        }
 
         return execution_units_count == other.execution_units_count && max_global_mem_size == other.max_global_mem_size;
     }

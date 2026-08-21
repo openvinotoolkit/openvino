@@ -343,8 +343,9 @@ public:
         if (prim->activations_zero_points.is_valid()) {
             auto& a_zp = impl_params->get_program().get_node_ptr(prim->id)->as<convolution>().activations_zero_points().as<data>();
             memory::ptr s32_mem = onednn::convert_zp_data_to_s32(a_zp.get_attached_memory_ptr());
-            if (s32_mem != nullptr)
+            if (s32_mem != nullptr) {
                 a_zp.attach_memory(s32_mem, false);
+            }
         }
         bool has_wzp = prim->weights_zero_points.is_valid();
         if (has_wzp) {
@@ -415,8 +416,9 @@ in_out_fmts_t ConvolutionImplementationManager::query_formats(const program_node
     auto prim_desc = get_convolution_primitive_descriptor(*node.get_kernel_impl_params(), dnnl::primitive_attr(), dnnl::memory::format_tag::any);
 
     for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
-        if (node.get_dependency(idx).is_constant())
+        if (node.get_dependency(idx).is_constant()) {
             continue;
+        }
 
         // Conv or deconv gets a preferred format for its data input based on source memory description
         // But an input format for fused post-ops should be same with an output format of conv/deconv
@@ -434,8 +436,9 @@ in_out_fmts_t ConvolutionImplementationManager::query_formats(const program_node
         }
 
         // WA: Avoid b_fs_yx_fsv2 because Onednn tag aBcd2b is not declared.
-        if (src_fmt == format::b_fs_yx_fsv2)
+        if (src_fmt == format::b_fs_yx_fsv2) {
             src_fmt = format::byxf;
+        }
 
         // WA: shallow convolution needs to set input format by bfyx.
         //     onednn recommended byxf for input format. It will insert reorder before shallow conv.
@@ -474,8 +477,9 @@ in_out_fmts_t ConvolutionImplementationManager::query_formats(const program_node
     }
 
     // WA: Avoid b_fs_yx_fsv2 because Onednn tag aBcd2b is not declared.
-    if (out_fmts[0] == format::b_fs_yx_fsv2)
+    if (out_fmts[0] == format::b_fs_yx_fsv2) {
         out_fmts[0] = format::byxf;
+    }
 
     // Errata: Best impl for shallow input conv with zero-point ops is ocl:xe_lp.
     if (in_fmts[0] == format::bfyx) {

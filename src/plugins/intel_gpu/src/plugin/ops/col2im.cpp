@@ -28,10 +28,12 @@ static void CreateCol2ImOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v15:
     ov::CoordinateDiff padding_begin;
     ov::CoordinateDiff padding_end;
 
-    for (auto p : op->get_pads_begin())
+    for (auto p : op->get_pads_begin()) {
         padding_begin.push_back(p);
-    for (auto p : op->get_pads_end())
+    }
+    for (auto p : op->get_pads_end()) {
         padding_end.push_back(p);
+    }
 
     auto output_shape_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     auto vec_output_shape = output_shape_const->cast_vector<size_t>();

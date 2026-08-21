@@ -35,8 +35,9 @@ size_t get_vec_size(const RuntimeParams& params) {
 
     // Some models use f32 precision for input1 (cos) and input2 (sin) for better accuracy.
     // If input0 is not f32, we set vec_size as 1 for simple type conversion.
-    if (input1.data_type == ov::element::f32 && input.data_type != input1.data_type)
+    if (input1.data_type == ov::element::f32 && input.data_type != input1.data_type) {
         vec_size = 1;
+    }
 
     if (desc->config.is_qwen) {
         auto count = desc->config.head_cnt * std::max(desc->config.rotary_ndims / 2ul, desc->config.head_size - desc->config.rotary_ndims);
@@ -192,8 +193,9 @@ protected:
                         size_t lws = 1;
                         while (((val + 1) <= max_workgroup_size) && (gws >= (val + 1))) {
                             val += 1;
-                            if (gws % val == 0)
+                            if (gws % val == 0) {
                                 lws = val;
+                            }
                         }
                         return lws;
                     };

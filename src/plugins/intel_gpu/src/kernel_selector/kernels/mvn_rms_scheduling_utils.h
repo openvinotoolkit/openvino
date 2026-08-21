@@ -22,8 +22,9 @@ public:
     // Accepts forms like "(a*b*c)" where each factor is a non-negative decimal integer.
     // Returns false on malformed input or overflow.
     static bool TryFoldMulExpression(const std::string& expression, size_t& folded_value) {
-        if (expression.size() < 3 || expression.front() != '(' || expression.back() != ')')
+        if (expression.size() < 3 || expression.front() != '(' || expression.back() != ')') {
             return false;
+        }
 
         const size_t max_size_t = std::numeric_limits<size_t>::max();
         const size_t end = expression.size() - 1;
@@ -31,26 +32,31 @@ public:
         size_t result = 1;
 
         while (pos < end) {
-            if (!std::isdigit(static_cast<unsigned char>(expression[pos])))
+            if (!std::isdigit(static_cast<unsigned char>(expression[pos]))) {
                 return false;
+            }
 
             size_t factor = 0;
             while (pos < end && std::isdigit(static_cast<unsigned char>(expression[pos]))) {
                 const size_t digit = static_cast<size_t>(expression[pos] - '0');
-                if (factor > (max_size_t - digit) / 10)
+                if (factor > (max_size_t - digit) / 10) {
                     return false;
+                }
                 factor = factor * 10 + digit;
                 ++pos;
             }
 
-            if (factor != 0 && result > max_size_t / factor)
+            if (factor != 0 && result > max_size_t / factor) {
                 return false;
+            }
             result *= factor;
 
-            if (pos == end)
+            if (pos == end) {
                 break;
-            if (expression[pos] != '*')
+            }
+            if (expression[pos] != '*') {
                 return false;
+            }
             ++pos;
         }
 

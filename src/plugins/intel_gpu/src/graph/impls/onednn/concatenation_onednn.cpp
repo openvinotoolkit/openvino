@@ -3,13 +3,13 @@
 //
 
 #include "concatenation_onednn.hpp"
+
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+
 #include "concatenation_inst.h"
 #include "primitive_onednn_base.h"
 #include "registry/implementation_manager.hpp"
-
-#include <oneapi/dnnl/dnnl.hpp>
-
-#include <memory>
 namespace cldnn {
 namespace onednn {
 
@@ -54,9 +54,9 @@ protected:
     }
 
     static std::shared_ptr<dnnl::concat::primitive_desc> get_concatenation_primitive_descriptor(const kernel_impl_params& impl_params,
-                                                                                      cldnn::engine& engine,
-                                                                                      const dnnl::primitive_attr& attr,
-                                                                                      const int64_t axis) {
+                                                                                                cldnn::engine& engine,
+                                                                                                const dnnl::primitive_attr& attr,
+                                                                                                const int64_t axis) {
         std::vector<dnnl::memory::desc> input_mds;
         for (size_t i = 0; i < impl_params.input_layouts.size(); i++) {
             auto input_layout = impl_params.get_input_layout(i);
@@ -67,12 +67,7 @@ protected:
         auto output_layout = impl_params.get_output_layout();
         output_md = onednn::layout_to_memory_desc(output_layout, false, output_layout.format.is_blocked());
 
-        return std::make_shared<dnnl::concat::primitive_desc>(
-            engine.get_onednn_engine(),
-            output_md,
-            static_cast<int>(axis),
-            input_mds,
-            attr);
+        return std::make_shared<dnnl::concat::primitive_desc>(engine.get_onednn_engine(), output_md, static_cast<int>(axis), input_mds, attr);
     }
 
 public:
@@ -128,8 +123,9 @@ public:
     static std::unique_ptr<primitive_impl> create(const concatenation_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         const auto& config = impl_params.prog->get_config();
-        if (impl_params.can_be_optimized())
+        if (impl_params.can_be_optimized()) {
             return std::make_unique<concatenation_onednn>(engine, config);
+        }
         auto prim = impl_params.typed_desc<concatenation>();
         auto attr = impl_params.attrs_onednn;
         auto prim_desc = get_concatenation_primitive_descriptor(impl_params, impl_params.prog->get_engine(), *attr, prim->axis);

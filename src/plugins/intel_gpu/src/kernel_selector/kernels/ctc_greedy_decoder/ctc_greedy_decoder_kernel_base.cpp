@@ -44,8 +44,9 @@ CTCGreedyDecoderKernelBase::DispatchData CTCGreedyDecoderKernelBase::SetDefault(
 KernelsData CTCGreedyDecoderKernelBase::GetCommonKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::CTC_GREEDY_DECODER);
 
-    if (!Validate(params))
+    if (!Validate(params)) {
         return {};
+    }
 
     const ctc_greedy_decoder_params& orgParams = static_cast<const ctc_greedy_decoder_params&>(params);
 

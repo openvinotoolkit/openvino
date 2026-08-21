@@ -60,33 +60,39 @@ void mark_shape_of_subgraphs::look_for_shape_of_subgraph(program_node& node) {
     }
 
     // Node should have at least one dependency marked as a part of shape_of subgraph
-    if (!has_shape_of_subgraph_dep || !can_execute_in_subgraph)
+    if (!has_shape_of_subgraph_dep || !can_execute_in_subgraph) {
         return;
+    }
 
-    if (!can_mark_node(node))
+    if (!can_mark_node(node)) {
         return;
+    }
 
     mark_node(node);
 }
 
 bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
-    if (node.has_fused_primitives())
+    if (node.has_fused_primitives()) {
         return false;
+    }
 
     // read_value, convolution, fully_connected, and gemm may have initializers that are part of a shape_of sub-graph,
     // but these nodes themselves are not considered part of such sub-graph
-    if (node.is_type<read_value>() || node.is_type<convolution>() || node.is_type<fully_connected>() || node.is_type<gemm>())
+    if (node.is_type<read_value>() || node.is_type<convolution>() || node.is_type<fully_connected>() || node.is_type<gemm>()) {
         return false;
+    }
 
     // CPU implementation does not support float data types for mask and mixed types for data inputs, so check them
     // before including it into shape_of sub-graph
     if (node.is_type<select>() &&
         (data_type_traits::is_floating_point(node.get_input_layout(0).data_type) ||
-         node.get_input_layout(1).data_type != node.get_input_layout(2).data_type))
+         node.get_input_layout(1).data_type != node.get_input_layout(2).data_type)) {
         return false;
+    }
 
-    if (node.is_type<reshape>())
+    if (node.is_type<reshape>()) {
         return true;
+    }
 
     // Exclude eltwise with boolean mode types since CPU reference implementation
     // couldn't save result in int8 data type (as it requested by GPU plugin,
@@ -94,16 +100,18 @@ bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
     if (node.is_type<eltwise>()) {
         const auto& eltwise_node = node.as<eltwise>();
         auto eltwise_mode = eltwise_node.get_primitive()->mode;
-        if (eltwise::eltwise_bool_modes.find(eltwise_mode) != eltwise::eltwise_bool_modes.end())
+        if (eltwise::eltwise_bool_modes.find(eltwise_mode) != eltwise::eltwise_bool_modes.end()) {
             return false;
+        }
     }
 
     // Exclude gather_compressed primitive because gather_cpu_impl doesn't support it.
     if (node.is_type<gather>()) {
         const auto& gather_node = node.as<gather>();
         auto gather_compressed_weight_mode = gather_node.get_primitive()->compressed_weights;
-        if (gather_compressed_weight_mode)
+        if (gather_compressed_weight_mode) {
             return false;
+        }
     }
 
     // Exclude stride_slice primitive if it's input is big const ternsor, else CPU reference implementation
@@ -116,8 +124,9 @@ bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
     // skip mark_node for broadcast node if dependency nodes are data and shape_of
     const auto& dependencies = node.get_dependencies();
     if (node.is_type<broadcast>() && dependencies.size() == 2) {
-        if (dependencies[0].first->is_type<data>() && dependencies[1].first->is_type<shape_of>() && (dependencies[1].first->get_users().size() == 1))
+        if (dependencies[0].first->is_type<data>() && dependencies[1].first->is_type<shape_of>() && (dependencies[1].first->get_users().size() == 1)) {
             return false;
+        }
     }
 
     return true;
@@ -128,8 +137,9 @@ void mark_shape_of_subgraphs::mark_node(program_node& node) {
 
     // If current node has shape_of type add it to dependant shape_of nodes for
     // correct dependency propagation for users
-    if (is_shape_of_subgraph_root(node))
+    if (is_shape_of_subgraph_root(node)) {
         node.add_dependant_shape_of_node(&node);
+    }
 
     // Add parent shape_of nodes from other dependencies if there are any
     for (auto dep : node.get_dependencies()) {

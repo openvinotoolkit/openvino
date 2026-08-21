@@ -37,8 +37,9 @@ ConvertBinaryConvolutionToConvolution::ConvertBinaryConvolutionToConvolution() {
 
     auto binary_fq = [](const Output<Node>& node) {
         auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node.get_node_shared_ptr());
-        if (!fq)
+        if (!fq) {
             return false;
+        }
 
         return fq->get_levels() == 2;
     };

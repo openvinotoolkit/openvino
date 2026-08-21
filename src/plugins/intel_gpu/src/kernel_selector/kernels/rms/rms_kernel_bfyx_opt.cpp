@@ -60,8 +60,9 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
         }
     }
 
-    if (has_padding)
+    if (has_padding) {
         jit.AddConstant(MakeJitConstant("HAS_PADDING", 1));
+    }
 
     if (params.has_dynamic_tensors()) {
         const auto& input = params.inputs[0];
@@ -212,8 +213,9 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
 }
 
 bool RMSKernelBfyxOpt::Validate(const Params& p) const {
-    if (!Parent::Validate(p))
+    if (!Parent::Validate(p)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     const rms_params& params = static_cast<const rms_params&>(p);
     if (params.elementwise_affine) {
