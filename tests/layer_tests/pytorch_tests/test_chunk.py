@@ -218,6 +218,7 @@ class TestChunkNegativeDim(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_chunk_negative_dim(self, input_shape, dim, ie_device, precision, ir_version):
         self.input_shape = input_shape
         self._test(aten_chunk_neg_dim_3(dim),

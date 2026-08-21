@@ -37,5 +37,6 @@ class TestUnbind(PytorchLayerTest):
     @pytest.mark.parametrize(("dim"), [-1, -2, -3, -4])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_unbind_negative_dim(self, dim, ie_device, precision, ir_version):
         self._test(*self.create_model(dim), ie_device, precision, ir_version)
