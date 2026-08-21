@@ -104,6 +104,7 @@
 #include "plugin/transformations/keep_gqa_kv_scale_precision.hpp"
 #include "plugin/transformations/keep_moe_3gemm_const_precision.hpp"
 #include "plugin/transformations/keep_xattention_threshold_precision.hpp"
+#include "plugin/transformations/preserve_selective_ssm_precision.hpp"
 #include "plugin/transformations/kv_cache_compression.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
@@ -117,7 +118,7 @@
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/sdpa_transpose_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
-#include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
+#include "plugin/transformations/expand_broadcast_reshape_sdpa_fusion.hpp"
 #include "plugin/transformations/disable_fp16_comp_rms.hpp"
 #include "plugin/transformations/swiglu_fusion_with_clamp.hpp"
 #include "plugin/transformations/disable_fp16_comp_cumsum_sin_gen.hpp"
@@ -771,6 +772,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Keep GroupQueryAttention quantized-KV scales fp32 through the ConvertPrecision below
         // (the intact op requires fp32 scales; it is decomposed later in CommonOptimizations).
         manager.register_pass<ov::intel_gpu::KeepGQAKVScalePrecision>();
+        manager.register_pass<ov::intel_gpu::EliminateEmptySelectiveSSM>();
+        manager.register_pass<ov::intel_gpu::PreserveSelectiveSSMPrecision>();
 
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
                                                           empty_fuse_map,
@@ -1663,7 +1666,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (!device_info.supports_immad) {
             manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeMatmulFusion>();
         }
-        manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeSDPAFusion>();
+        manager.register_pass<ov::intel_gpu::ExpandBroadcastReshapeSDPAFusion>();
 
         manager.register_pass<ov::pass::GLUFusion>();
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
@@ -1814,6 +1817,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 "Rebuild OpenVINO with -DENABLE_GRAPH_COMPILER=ON to enable MLIR execution.");
 #endif
         }
+        manager.register_pass<ov::intel_gpu::PreserveSingleSelectiveSSMOutput>();
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation
