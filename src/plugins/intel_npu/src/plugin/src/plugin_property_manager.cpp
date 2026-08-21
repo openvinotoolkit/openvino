@@ -211,7 +211,6 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
     REGISTER_OPTION(EXECUTION_MODE_HINT);
     REGISTER_OPTION(PERFORMANCE_HINT_NUM_REQUESTS);
     REGISTER_OPTION(INFERENCE_PRECISION_HINT);
-    REGISTER_OPTION(MODEL_PRIORITY);
     REGISTER_OPTION(COMPILATION_MODE_PARAMS);
     REGISTER_OPTION(DMA_ENGINES);
     REGISTER_OPTION(TILES);
@@ -247,6 +246,8 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
     REGISTER_OPTION(MAX_TILES);
 
     if (backend) {
+        REGISTER_OPTION(MODEL_PRIORITY);
+
         if (backend->isCommandQueueExtSupported()) {
             REGISTER_OPTION(WORKLOAD_TYPE);
         }
