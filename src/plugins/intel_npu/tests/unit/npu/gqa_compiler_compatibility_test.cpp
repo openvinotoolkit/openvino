@@ -4,26 +4,29 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <limits>
 #include <memory>
 #include <vector>
 
+#include "intel_npu/utils/logger/logger.hpp"
 #include "model_serializer.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/op_conversions/group_query_attention_decomposition.hpp"
 
-// These tests cover the compiler-compatibility check that decides whether the plugin has to lower
-// GroupQueryAttention itself instead of leaving it to the compiler. A compiler older than the empty-Constant
-// convention for absent optional inputs misreads such a placeholder as a real tensor, so a model carrying one
-// must be decomposed before it is serialized.
+// registerCompilerCompatibilityPasses() decomposes GroupQueryAttention unconditionally, since a stale compiler
+// can't be detected at runtime (see model_serializer.hpp). These tests check it fires wherever the operator is,
+// including inside sub-graphs, and leaves everything else untouched.
 namespace {
 
 using namespace ov::op;
-using intel_npu::compiler_utils::hasGroupQueryAttentionWithEmptyOptionalInputs;
+using intel_npu::Logger;
+using intel_npu::compiler_utils::registerCompilerCompatibilityPasses;
 
 constexpr int64_t NUM_HEADS = 24;
 constexpr int64_t KV_NUM_HEADS = 8;
@@ -32,18 +35,44 @@ constexpr int64_t SEQ_LEN = 128;
 constexpr int64_t CACHE_LEN = 1024;
 constexpr int64_t HALF_ROTARY_DIM = HEAD_SIZE / 2;
 
+// A high, opset-agnostic compiler version and supported-opset so only the GQA pass is under test: the other two
+// compatibility passes stay disabled (see registerCompilerCompatibilityPasses's own gates).
+ze_graph_compiler_version_info_t modernCompilerVersion() {
+    return {/*major=*/99, /*minor=*/0};
+}
+
+size_t countGQA(const std::shared_ptr<ov::Model>& model) {
+    size_t count = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (ov::is_type<internal::GroupQueryAttention>(node)) {
+            ++count;
+        }
+    }
+    return count;
+}
+
+void applyCompatibilityPasses(const std::shared_ptr<ov::Model>& model) {
+    Logger logger("GQACompilerCompatibilityTest", ov::log::Level::NO);
+    ov::pass::Manager manager;
+    registerCompilerCompatibilityPasses(manager,
+                                        /*supportedOpset=*/std::numeric_limits<uint32_t>::max(),
+                                        modernCompilerVersion(),
+                                        logger);
+    manager.run_passes(model);
+}
+
+std::shared_ptr<v0::Constant> makeEmptyPlaceholder() {
+    return v0::Constant::create(ov::element::dynamic, ov::Shape{0}, {});
+}
+
 enum class Optionals {
     None,        // only the 9 inputs the operator actually uses: minimal arity, no placeholders
     Trailing,    // the 7 absent optional inputs appended as placeholders (what the ONNX frontend emits)
     InteriorGap  // a real head_sink at its fixed position, so the placeholders before it cannot be dropped
 };
 
-std::shared_ptr<v0::Constant> makeEmptyPlaceholder() {
-    return v0::Constant::create(ov::element::dynamic, ov::Shape{0}, {});
-}
-
 /// All shapes are static: the NPU only compiles static-shaped graphs.
-std::shared_ptr<ov::Model> makeGQAModel(const Optionals optionals) {
+std::shared_ptr<ov::Model> makeGQAModel(const Optionals optionals, const int64_t localWindowSize = -1) {
     const auto query = std::make_shared<v0::Parameter>(ov::element::f16, ov::Shape{1, NUM_HEADS, SEQ_LEN, HEAD_SIZE});
     const auto key = std::make_shared<v0::Parameter>(ov::element::f16, ov::Shape{1, KV_NUM_HEADS, SEQ_LEN, HEAD_SIZE});
     const auto value =
@@ -82,7 +111,7 @@ std::shared_ptr<ov::Model> makeGQAModel(const Optionals optionals) {
                                                                      0,      // kv_cache_bit_width
                                                                      internal::GroupQueryAttentionQuantType::NONE,
                                                                      internal::GroupQueryAttentionQuantType::NONE,
-                                                                     -1,     // local_window_size
+                                                                     localWindowSize,
                                                                      false,  // sliding_window_cache
                                                                      false   // smooth_softmax
     );
@@ -92,50 +121,38 @@ std::shared_ptr<ov::Model> makeGQAModel(const Optionals optionals) {
         ov::ParameterVector{query, key, value, pastKey, pastValue, seqLensK, totalSeqLen});
 }
 
-size_t countGQA(const std::shared_ptr<ov::Model>& model) {
-    size_t count = 0;
-    for (const auto& node : model->get_ordered_ops()) {
-        if (ov::is_type<internal::GroupQueryAttention>(node)) {
-            ++count;
-        }
-    }
-    return count;
-}
-
-void decompose(const std::shared_ptr<ov::Model>& model) {
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::GroupQueryAttentionDecomposition>();
-    manager.run_passes(model);
-}
-
-TEST(GQACompilerCompatibility, TrailingPlaceholdersAreDetectedAndLoweredByThePlugin) {
+TEST(GQACompilerCompatibility, TrailingPlaceholdersAreDecomposed) {
     const auto model = makeGQAModel(Optionals::Trailing);
     ASSERT_EQ(countGQA(model), 1u);
-    EXPECT_TRUE(hasGroupQueryAttentionWithEmptyOptionalInputs(model));
 
-    decompose(model);
+    applyCompatibilityPasses(model);
     EXPECT_EQ(countGQA(model), 0u);
     EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
 }
 
-TEST(GQACompilerCompatibility, InteriorPlaceholderIsDetectedAndLoweredByThePlugin) {
+TEST(GQACompilerCompatibility, InteriorPlaceholderIsDecomposed) {
     const auto model = makeGQAModel(Optionals::InteriorGap);
-    EXPECT_TRUE(hasGroupQueryAttentionWithEmptyOptionalInputs(model));
+    ASSERT_EQ(countGQA(model), 1u);
 
-    decompose(model);
+    applyCompatibilityPasses(model);
     EXPECT_EQ(countGQA(model), 0u);
     EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
 }
 
-TEST(GQACompilerCompatibility, MinimalArityIsLeftToTheCompiler) {
-    const auto model = makeGQAModel(Optionals::None);
-    EXPECT_FALSE(hasGroupQueryAttentionWithEmptyOptionalInputs(model));
-    EXPECT_EQ(countGQA(model), 1u);
+// No placeholders here (e.g. a sliding-window export) - still must decompose, since a stale compiler would just
+// ignore local_window_size and silently compute full causal attention instead of failing to compile.
+TEST(GQACompilerCompatibility, MinimalArityWithNoPlaceholdersIsAlsoDecomposed) {
+    const auto model = makeGQAModel(Optionals::None, /*localWindowSize=*/32);
+    ASSERT_EQ(countGQA(model), 1u);
+
+    applyCompatibilityPasses(model);
+    EXPECT_EQ(countGQA(model), 0u);
+    EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
 }
 
-TEST(GQACompilerCompatibility, PlaceholderInsideSubGraphIsDetected) {
-    const auto thenBody = makeGQAModel(Optionals::Trailing);
-    const auto elseBody = makeGQAModel(Optionals::Trailing);
+TEST(GQACompilerCompatibility, GroupQueryAttentionInsideSubGraphIsDecomposed) {
+    const auto thenBody = makeGQAModel(Optionals::None);
+    const auto elseBody = makeGQAModel(Optionals::None);
 
     ov::ParameterVector outerParameters;
     for (const auto& parameter : thenBody->get_parameters()) {
@@ -155,8 +172,32 @@ TEST(GQACompilerCompatibility, PlaceholderInsideSubGraphIsDetected) {
     }
 
     const auto model = std::make_shared<ov::Model>(ifOp->outputs(), outerParameters);
-    EXPECT_EQ(countGQA(model), 0u) << "the operator lives in the sub-graphs, not in the top-level model";
-    EXPECT_TRUE(hasGroupQueryAttentionWithEmptyOptionalInputs(model));
+    ASSERT_EQ(countGQA(model), 0u) << "the operator lives in the sub-graphs, not in the top-level model";
+    ASSERT_EQ(countGQA(thenBody), 1u);
+    ASSERT_EQ(countGQA(elseBody), 1u);
+
+    applyCompatibilityPasses(model);
+    EXPECT_EQ(countGQA(thenBody), 0u);
+    EXPECT_EQ(countGQA(elseBody), 0u);
+}
+
+TEST(GQACompilerCompatibility, ModelWithoutGroupQueryAttentionIsLeftAlone) {
+    const auto input = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 8, 8});
+    const auto weights = v0::Constant::create(ov::element::f32, ov::Shape{3, 3, 1, 1}, std::vector<float>(9, 1.f));
+    const auto convolution = std::make_shared<v1::Convolution>(input,
+                                                               weights,
+                                                               ov::Strides{1, 1},
+                                                               ov::CoordinateDiff{0, 0},
+                                                               ov::CoordinateDiff{0, 0},
+                                                               ov::Strides{1, 1});
+    const auto model = std::make_shared<ov::Model>(convolution->outputs(), ov::ParameterVector{input});
+
+    applyCompatibilityPasses(model);
+
+    const auto ops = model->get_ordered_ops();
+    EXPECT_TRUE(std::any_of(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& node) {
+        return ov::is_type<v1::Convolution>(node);
+    }));
 }
 
 }  // namespace

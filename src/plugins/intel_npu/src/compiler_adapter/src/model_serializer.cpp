@@ -15,10 +15,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/weights_pointer_attribute.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/group_query_attention.hpp"
-#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/hash.hpp"
@@ -285,26 +282,21 @@ ov::intel_npu::ModelSerializerVersion determineModelSerializerVersion(
 
 namespace intel_npu::compiler_utils {
 
-bool hasGroupQueryAttentionWithEmptyOptionalInputs(const std::shared_ptr<const ov::Model>& model) {
-    for (const auto& node : model->get_ordered_ops()) {
-        if (ov::is_type<ov::op::internal::GroupQueryAttention>(node)) {
-            for (const auto& input : node->inputs()) {
-                if (ov::util::is_empty_constant_tensor(input.get_source_output())) {
-                    return true;
-                }
-            }
-        }
-
-        if (const auto multiSubGraphOp = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
-            for (size_t bodyIndex = 0; bodyIndex < multiSubGraphOp->get_internal_subgraphs_size(); ++bodyIndex) {
-                if (hasGroupQueryAttentionWithEmptyOptionalInputs(multiSubGraphOp->get_function(bodyIndex))) {
-                    return true;
-                }
-            }
-        }
+void registerCompilerCompatibilityPasses(ov::pass::Manager& manager,
+                                         const uint32_t supportedOpset,
+                                         const ze_graph_compiler_version_info_t& compilerVersion,
+                                         Logger& logger) {
+    if (supportedOpset < 11) {
+        // Downgrade to opset10
+        manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
+        logger.info("Downgrade op for opset smaller than 11");
     }
-
-    return false;
+    if ((compilerVersion.major < 7) || (compilerVersion.major == 7 && compilerVersion.minor <= 26)) {
+        manager.register_pass<ov::pass::EliminateIdentity>();
+    }
+    // Unconditional: the compiler's own copy of this pass can be stale in ways that aren't queryable at runtime.
+    // See this function's header doc for the rationale.
+    manager.register_pass<ov::pass::GroupQueryAttentionDecomposition>();
 }
 
 /**
@@ -339,25 +331,7 @@ protected:
         // It is possible some of these passes will modify WeightlessCacheAttributes. Therefore, we should run them
         // before storing these attributes.
         ov::pass::Manager manager(std::make_shared<ov::pass::PassConfig>(), "NPU:compiler_compatibility_passes");
-        if (_supportedOpset < 11) {
-            // Downgrade to opset10
-            manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
-            _logger.info("Downgrade op for opset smaller than 11");
-        }
-        if ((_compilerVersion.major < 7) || (_compilerVersion.major == 7 && _compilerVersion.minor <= 26)) {
-            manager.register_pass<ov::pass::EliminateIdentity>();
-        }
-        // The compiler runs its own copy of the GroupQueryAttention decomposition, built against the OpenVINO
-        // revision the compiler was released with. That copy can only lower the operator correctly if it shares the
-        // convention used to mark absent optional inputs; a compiler older than the empty-Constant convention reads
-        // such a placeholder as a real tensor (e.g. an absent position_ids becomes a zero-length RoPE gather) and
-        // fails to compile. Decompose here instead, where the OpenVINO revision that produced the operator is the
-        // one interpreting it - the compiler's own pass then has nothing left to match. Operators without
-        // placeholders keep their existing path and stay owned by the compiler.
-        if (hasGroupQueryAttentionWithEmptyOptionalInputs(model)) {
-            _logger.info("Decomposing GroupQueryAttention with empty optional inputs before compilation");
-            manager.register_pass<ov::pass::GroupQueryAttentionDecomposition>();
-        }
+        registerCompilerCompatibilityPasses(manager, _supportedOpset, _compilerVersion, _logger);
         manager.run_passes(model);
 
         // Step 2: store the WeightlessCacheAttributes if requested
