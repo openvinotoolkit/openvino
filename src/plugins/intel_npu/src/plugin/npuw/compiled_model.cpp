@@ -1381,28 +1381,40 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
 void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_ptr<CompiledModel>& compiled) {
     const auto num_submodels = compiled->m_compiled_submodels.size();
 
-    const auto ensure_submodel_index =
-        [&](const char* table_name, std::size_t owner_idx, const char* field_name, const auto& link) {
-            if (link == CompiledModel::NO_LINK) {
+    // The NO_LINK sentinel is only meaningful for global inputs (a Parameter may be unused by
+    // any submodel). Every other table is dereferenced without checking for it, so accepting the
+    // sentinel there would turn a malformed blob into an out-of-bounds access at infer-request time.
+    const auto ensure_submodel_index = [&](const char* table_name,
+                                           std::size_t owner_idx,
+                                           const char* field_name,
+                                           const auto& link,
+                                           bool allow_no_link) {
+        if (link == CompiledModel::NO_LINK) {
+            if (allow_no_link) {
                 return;
             }
-            if (link.first >= num_submodels) {
-                OPENVINO_THROW("Invalid ",
-                               table_name,
-                               "[",
-                               owner_idx,
-                               "] ",
-                               field_name,
-                               " submodel index ",
-                               link.first,
-                               " (submodel count: ",
-                               num_submodels,
-                               ")");
-            }
-        };
+            OPENVINO_THROW("Invalid ", table_name, "[", owner_idx, "] ", field_name, " link: NO_LINK is not allowed");
+        }
+        if (link.first >= num_submodels) {
+            OPENVINO_THROW("Invalid ",
+                           table_name,
+                           "[",
+                           owner_idx,
+                           "] ",
+                           field_name,
+                           " submodel index ",
+                           link.first,
+                           " (submodel count: ",
+                           num_submodels,
+                           ")");
+        }
+    };
 
-    const auto ensure_input_port_index = [&](const char* table_name, std::size_t owner_idx, const auto& link) {
-        ensure_submodel_index(table_name, owner_idx, "input", link);
+    const auto ensure_input_port_index = [&](const char* table_name,
+                                             std::size_t owner_idx,
+                                             const auto& link,
+                                             bool allow_no_link) {
+        ensure_submodel_index(table_name, owner_idx, "input", link, allow_no_link);
         if (link == CompiledModel::NO_LINK) {
             return;
         }
@@ -1422,8 +1434,11 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
         }
     };
 
-    const auto ensure_output_port_index = [&](const char* table_name, std::size_t owner_idx, const auto& link) {
-        ensure_submodel_index(table_name, owner_idx, "output", link);
+    const auto ensure_output_port_index = [&](const char* table_name,
+                                              std::size_t owner_idx,
+                                              const auto& link,
+                                              bool allow_no_link) {
+        ensure_submodel_index(table_name, owner_idx, "output", link, allow_no_link);
         if (link == CompiledModel::NO_LINK) {
             return;
         }
@@ -1473,11 +1488,14 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
     }
 
     for (std::size_t idx = 0u; idx < compiled->m_inputs_to_submodels_inputs.size(); ++idx) {
-        ensure_input_port_index("m_inputs_to_submodels_inputs", idx, compiled->m_inputs_to_submodels_inputs[idx]);
+        ensure_input_port_index("m_inputs_to_submodels_inputs", idx, compiled->m_inputs_to_submodels_inputs[idx], true);
     }
 
     for (std::size_t idx = 0u; idx < compiled->m_outputs_to_submodels_outputs.size(); ++idx) {
-        ensure_output_port_index("m_outputs_to_submodels_outputs", idx, compiled->m_outputs_to_submodels_outputs[idx]);
+        ensure_output_port_index("m_outputs_to_submodels_outputs",
+                                 idx,
+                                 compiled->m_outputs_to_submodels_outputs[idx],
+                                 false);
     }
 
     for (const auto& kvp : compiled->m_param_subscribers) {
@@ -1490,14 +1508,14 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
                            ")");
         }
         for (const auto& link_to : kvp.second) {
-            ensure_input_port_index("m_param_subscribers", input_idx, link_to);
+            ensure_input_port_index("m_param_subscribers", input_idx, link_to, false);
         }
     }
 
     std::size_t routing_idx = 0u;
     for (const auto& kvp : compiled->m_submodels_input_to_prev_output) {
-        ensure_input_port_index("m_submodels_input_to_prev_output", routing_idx, kvp.first);
-        ensure_output_port_index("m_submodels_input_to_prev_output", routing_idx, kvp.second);
+        ensure_input_port_index("m_submodels_input_to_prev_output", routing_idx, kvp.first, false);
+        ensure_output_port_index("m_submodels_input_to_prev_output", routing_idx, kvp.second, false);
         ++routing_idx;
     }
 }

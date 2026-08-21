@@ -4,7 +4,6 @@
 
 #include <gtest/gtest.h>
 
-#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -136,9 +135,6 @@ std::shared_ptr<TestPlugin> make_test_plugin() {
 
 std::shared_ptr<ov::npuw::CompiledModel> make_compiled_model_with_input_link(
     const std::pair<std::size_t, std::size_t>& input_link) {
-    using Link = std::pair<std::size_t, std::size_t>;
-    const Link no_link{std::numeric_limits<std::size_t>::max(), std::numeric_limits<std::size_t>::max()};
-
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
     param->output(0).get_tensor().set_names({"input"});
     auto res = std::make_shared<ov::op::v0::Result>(param);
@@ -149,7 +145,7 @@ std::shared_ptr<ov::npuw::CompiledModel> make_compiled_model_with_input_link(
     auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, true);
 
     compiled->m_inputs_to_submodels_inputs = {input_link};
-    compiled->m_outputs_to_submodels_outputs = {no_link};
+    compiled->m_outputs_to_submodels_outputs = {{0u, 0u}};
     compiled->m_param_subscribers.clear();
     compiled->m_submodels_input_to_prev_output.clear();
     compiled->m_dev_list.clear();
@@ -183,10 +179,9 @@ void expect_validation_throw_contains(const std::shared_ptr<ov::npuw::CompiledMo
     }
 }
 
-TEST(CompiledModelOrcImportValidationTest, AcceptsNoLinkInputRoutingWithoutSubmodels) {
-    const auto no_link = std::pair<std::size_t, std::size_t>{std::numeric_limits<std::size_t>::max(),
-                                                             std::numeric_limits<std::size_t>::max()};
-    auto compiled = make_compiled_model_with_input_link(no_link);
+TEST(CompiledModelOrcImportValidationTest, AcceptsNoLinkInputRouting) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
 
     ASSERT_NE(compiled, nullptr);
     EXPECT_NO_THROW(ov::npuw::CompiledModel::validate_import_routing_tables(compiled));
@@ -219,6 +214,14 @@ TEST(CompiledModelOrcImportValidationTest, RejectsOutputPortIndexOutOfRange) {
     expect_validation_throw_contains(compiled, "m_outputs_to_submodels_outputs[0] output port index 1");
 }
 
+TEST(CompiledModelOrcImportValidationTest, RejectsNoLinkOutputRouting) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
+    compiled->m_outputs_to_submodels_outputs = {ov::npuw::CompiledModel::NO_LINK};
+
+    expect_validation_throw_contains(compiled, "m_outputs_to_submodels_outputs[0] output link: NO_LINK is not allowed");
+}
+
 TEST(CompiledModelOrcImportValidationTest, RejectsReplacedByOutOfRange) {
     auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
     compiled->m_compiled_submodels.emplace_back();
@@ -243,9 +246,85 @@ TEST(CompiledModelOrcImportValidationTest, RejectsOutputsTableSizeMismatch) {
 
 TEST(CompiledModelOrcImportValidationTest, RejectsParamSubscribersKeyOutOfRange) {
     auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
-    compiled->m_param_subscribers = {{1u, {ov::npuw::CompiledModel::NO_LINK}}};
+    add_fake_submodel(compiled);
+    compiled->m_param_subscribers = {{1u, {{0u, 0u}}}};
 
     expect_validation_throw_contains(compiled, "Invalid m_param_subscribers key 1");
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsNoLinkParamSubscriberEntry) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
+    compiled->m_param_subscribers = {{0u, {ov::npuw::CompiledModel::NO_LINK}}};
+
+    expect_validation_throw_contains(compiled, "m_param_subscribers[0] input link: NO_LINK is not allowed");
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsParamSubscribersPortOutOfRange) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
+    compiled->m_param_subscribers = {{0u, {{0u, 1u}}}};
+
+    expect_validation_throw_contains(compiled, "m_param_subscribers[0] input port index 1");
+}
+
+TEST(CompiledModelOrcImportValidationTest, AcceptsValidPrevOutputRouting) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
+    add_fake_submodel(compiled);
+    compiled->m_submodels_input_to_prev_output = {{{1u, 0u}, {0u, 0u}}};
+
+    EXPECT_NO_THROW(ov::npuw::CompiledModel::validate_import_routing_tables(compiled));
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsPrevOutputConsumerSubmodelOutOfRange) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
+    compiled->m_submodels_input_to_prev_output = {{{7u, 0u}, {0u, 0u}}};
+
+    expect_validation_throw_contains(compiled, "m_submodels_input_to_prev_output[0] input submodel index 7");
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsPrevOutputConsumerPortOutOfRange) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
+    compiled->m_submodels_input_to_prev_output = {{{0u, 5u}, {0u, 0u}}};
+
+    expect_validation_throw_contains(compiled, "m_submodels_input_to_prev_output[0] input port index 5");
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsPrevOutputProducerSubmodelOutOfRange) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
+    compiled->m_submodels_input_to_prev_output = {{{0u, 0u}, {9u, 0u}}};
+
+    expect_validation_throw_contains(compiled, "m_submodels_input_to_prev_output[0] output submodel index 9");
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsPrevOutputProducerPortOutOfRange) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
+    compiled->m_submodels_input_to_prev_output = {{{0u, 0u}, {0u, 3u}}};
+
+    expect_validation_throw_contains(compiled, "m_submodels_input_to_prev_output[0] output port index 3");
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsNoLinkPrevOutputConsumer) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
+    compiled->m_submodels_input_to_prev_output = {{ov::npuw::CompiledModel::NO_LINK, {0u, 0u}}};
+
+    expect_validation_throw_contains(compiled,
+                                     "m_submodels_input_to_prev_output[0] input link: NO_LINK is not allowed");
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsNoLinkPrevOutputProducer) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
+    compiled->m_submodels_input_to_prev_output = {{{0u, 0u}, ov::npuw::CompiledModel::NO_LINK}};
+
+    expect_validation_throw_contains(compiled,
+                                     "m_submodels_input_to_prev_output[0] output link: NO_LINK is not allowed");
 }
 
 }  // namespace
