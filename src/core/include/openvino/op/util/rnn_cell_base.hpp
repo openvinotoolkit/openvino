@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cmath>
 #include <cstddef>
 #include <memory>
 #include <string>
@@ -16,6 +17,55 @@
 namespace ov {
 namespace op {
 namespace util {
+/// \brief      Tells whether an RNN `clip` attribute value is a valid request to disable clipping.
+///
+/// \note       Per the RNN/GRU/LSTM specs the default `clip` is *infinity*, which means "clipping is not applied";
+///             OpenVINO ops additionally treat `clip == 0` as no clipping (see RNNCellBase::clip), so both values
+///             must be handled identically. A negative `clip` cannot describe bounds `[-clip, clip]` either, so it
+///             is reported as no clipping too - this matches the long-standing `clip > 0` checks in the
+///             decomposition passes. `NaN` is not a valid clip value and is deliberately *not* reported here, so
+///             that support gates reject the op instead of assuming it needs no clipping; use requires_clip() to
+///             decide whether a Clamp has to be created.
+///
+/// \param[in]  clip  Value of the `clip` attribute.
+///
+/// \return     True if `clip` validly expresses "no clipping".
+inline bool is_no_clip(float clip) {
+    return clip <= 0.f || std::isinf(clip);
+}
+
+/// \brief      Tells whether two RNN `clip` attribute values are equivalent for RNN transformation matching.
+///
+/// \note       All values reported by is_no_clip() are equivalent. Other values must match exactly. In particular,
+///             NaN is not equal to any value, including itself.
+///
+/// \param[in]  lhs  First `clip` attribute value.
+/// \param[in]  rhs  Second `clip` attribute value.
+///
+/// \return     True if both values are equivalent for matching.
+inline bool are_clips_equal(float lhs, float rhs) {
+    const bool lhs_is_no_clip = is_no_clip(lhs);
+    const bool rhs_is_no_clip = is_no_clip(rhs);
+    if (lhs_is_no_clip || rhs_is_no_clip) {
+        return lhs_is_no_clip && rhs_is_no_clip;
+    }
+    return lhs == rhs;
+}
+
+/// \brief      Tells whether an RNN `clip` attribute value asks for an actual Clamp.
+///
+/// \note       Only a finite positive `clip` yields usable bounds `[-clip, clip]`. `0`, negative values and
+///             infinity all mean "no clipping" (see is_no_clip), and `NaN` is invalid - none of them may produce a
+///             Clamp, because `Clamp` rejects `min > max` and both `NaN` and a negative `clip` would trip that
+///             check instead of simply skipping the clipping.
+///
+/// \param[in]  clip  Value of the `clip` attribute.
+///
+/// \return     True if a Clamp with bounds `[-clip, clip]` has to be applied.
+inline bool requires_clip(float clip) {
+    return clip > 0.f && !std::isinf(clip);
+}
+
 enum class LSTMWeightsFormat {
     FICO,  // IE
     ICOF,  // PyTorch

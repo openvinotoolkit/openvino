@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
+#include "openvino/op/lstm_cell.hpp"
 
-#include "lstm_cell_inst.h"
 #include "lstm/lstm_cell_and_seq_kernel_selector.h"
 #include "lstm/lstm_kernel_base.h"
-#include "openvino/op/lstm_cell.hpp"
 #include "lstm_cell.hpp"
+#include "lstm_cell_inst.h"
+#include "openvino/op/util/rnn_cell_base.hpp"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -57,12 +58,15 @@ public:
             }
         }
 
-        if (primitive->clip > 0.0f) {
-            params.activations.emplace_back(get_kernel_selector_activation_param(activation_func::clamp), -primitive->clip, primitive->clip);
+        // Only a finite positive clip yields usable bounds; 0, inf and NaN must all leave the kernel unclamped,
+        // so normalize them to 0 instead of forwarding a value the clamp activation cannot express.
+        const float clip = ov::op::util::requires_clip(primitive->clip) ? primitive->clip : 0.0f;
+        if (clip > 0.0f) {
+            params.activations.emplace_back(get_kernel_selector_activation_param(activation_func::clamp), -clip, clip);
         }
 
         params.SetOffsetOrder(static_cast<int32_t>(primitive->offset_order));
-        params.clip = primitive->clip;
+        params.clip = clip;
         params.direction = primitive->direction;
 
         return params;

@@ -313,7 +313,8 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
 
         auto rnnCellBase = ov::as_type_ptr<const ov::op::util::RNNCellBase>(op);
         if (rnnCellBase) {
-            if (rnnCellBase->get_clip() != 0.F) {
+            // clip == 0 and clip == inf both mean "no clipping"; only a finite clip is unsupported
+            if (!ov::op::util::is_no_clip(rnnCellBase->get_clip())) {
                 errorMessage = "Clipping is not supported for RNN primitive.";
                 return false;
             }
