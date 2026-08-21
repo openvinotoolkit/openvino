@@ -147,7 +147,6 @@ void vulkan_device::initialize_info() {
     _info.supports_counter_based_events = false;
     _info.supports_leo = false;
 
-    _backend_capabilities.legacy_device_info_adapter = false;
     _backend_capabilities.fp16 = {true, gpu_arithmetic_support::emulated};
     _backend_capabilities.fp32 = {true, gpu_arithmetic_support::native};
     _backend_capabilities.fp64 = {features.shaderFloat64 == VK_TRUE,
@@ -297,8 +296,6 @@ void vulkan_device::initialize() {
     _backend_capabilities.int8 = {true, gpu_arithmetic_support::emulated};
     _backend_capabilities.synchronization.synchronization2 = true;
     _backend_capabilities.synchronization.timeline_semaphores = true;
-    _backend_capabilities.execution_tier = gpu_execution_tier::optimized;
-
     VkPhysicalDevice8BitStorageFeatures enabled_storage8{};
     enabled_storage8.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES;
     enabled_storage8.storageBuffer8BitAccess = VK_TRUE;

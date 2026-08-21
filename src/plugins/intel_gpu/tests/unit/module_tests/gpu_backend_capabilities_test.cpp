@@ -14,7 +14,6 @@ constexpr uint32_t tested_tensor_rank_limit = 8;
 
 TEST(gpu_backend_capabilities, separates_storage_native_arithmetic_and_emulation) {
     gpu_backend_capabilities capabilities;
-    capabilities.legacy_device_info_adapter = false;
     capabilities.fp16 = {true, gpu_arithmetic_support::emulated};
     capabilities.fp32 = {true, gpu_arithmetic_support::native};
 
@@ -41,7 +40,6 @@ TEST(gpu_backend_capabilities, exposes_backend_neutral_layout_classes) {
 
 TEST(gpu_backend_capabilities, prevents_portable_backends_from_inheriting_blocked_layout_policy) {
     gpu_backend_capabilities capabilities;
-    capabilities.legacy_device_info_adapter = false;
     capabilities.layouts.dense_buffers = true;
     capabilities.layouts.strided_buffers = true;
 
@@ -50,11 +48,9 @@ TEST(gpu_backend_capabilities, prevents_portable_backends_from_inheriting_blocke
     EXPECT_FALSE(capabilities.layouts.supports(gpu_layout_kind::blocked_buffer));
 }
 
-TEST(gpu_backend_capabilities, keeps_legacy_backends_on_compatibility_adapter) {
+TEST(gpu_backend_capabilities, defaults_to_native_cached_kernel_artifacts) {
     const gpu_backend_capabilities capabilities;
 
-    EXPECT_TRUE(capabilities.legacy_device_info_adapter);
-    EXPECT_EQ(capabilities.execution_tier, gpu_execution_tier::legacy);
     EXPECT_EQ(capabilities.kernel_cache.artifact, gpu_cached_kernel_artifact::native_device_binary);
 }
 

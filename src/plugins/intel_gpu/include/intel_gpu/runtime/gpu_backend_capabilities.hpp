@@ -81,15 +81,8 @@ struct gpu_kernel_cache_capabilities {
     uint32_t artifact_schema_version = current_artifact_schema_version;
 };
 
-enum class gpu_execution_tier : uint8_t {
-    legacy,
-    portable,
-    optimized,
-};
-
 /// Backend-neutral capabilities selected once during device initialization.
 struct gpu_backend_capabilities {
-    bool legacy_device_info_adapter = true;
     gpu_numeric_capability fp16;
     gpu_numeric_capability fp32;
     gpu_numeric_capability fp64;
@@ -104,7 +97,6 @@ struct gpu_backend_capabilities {
     gpu_kernel_cache_capabilities kernel_cache;
     gpu_layout_capabilities layouts;
     bool persistent_pipeline_cache = false;
-    gpu_execution_tier execution_tier = gpu_execution_tier::legacy;
 };
 
 }  // namespace cldnn

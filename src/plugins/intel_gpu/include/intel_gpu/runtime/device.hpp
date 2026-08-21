@@ -23,13 +23,10 @@ struct device {
 public:
     using ptr = std::shared_ptr<device>;
     virtual const device_info& get_info() const = 0;
-    virtual const gpu_backend_capabilities& get_backend_capabilities() const noexcept {
-        static const gpu_backend_capabilities legacy_capabilities;
-        return legacy_capabilities;
-    }
+    virtual const gpu_backend_capabilities& get_backend_capabilities() const noexcept = 0;
     virtual memory_capabilities get_mem_caps() const = 0;
-    virtual engine_types get_engine_type() const { return get_default_engine_type(); }
-    virtual runtime_types get_runtime_type() const { return get_default_runtime_type(); }
+    virtual engine_types get_engine_type() const = 0;
+    virtual runtime_types get_runtime_type() const = 0;
 
     virtual void initialize() = 0;
     virtual bool is_initialized() const = 0;
