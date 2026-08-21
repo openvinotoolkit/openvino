@@ -189,15 +189,41 @@ inline bool block2d_surface_fixup_ok(size_t row_bytes) {
     return block2d_width_pitch_ok(row_bytes);
 }
 
-// block2d_surface_fixup_ok() plus the no-padding precondition.
+// Whether `ch` carries no padding at all -- neither a static amount nor a dynamic (shape_info)
+// one. Indexed exactly the way ocl_v2/utils/jitter.cpp reads the same arrays when it emits
+// *_PAD_BEFORE_SIZE_* / the pitches, so the two cannot disagree about which array slot an axis
+// owns. An axis the format does not have cannot be padded, hence the `true`.
+inline bool axis_unpadded(const layout& l, ChannelName ch) {
+    const auto rank = l.get_partial_shape().size();
+    const int idx = get_channel_index(ch, rank, format::is_weights_format(l.format), format::is_grouped(l.format));
+    if (idx < 0 || idx >= static_cast<int>(rank))
+        return true;
+    const auto& pad = l.data_padding;
+    return pad._lower_size.at(idx) == 0 && pad._upper_size.at(idx) == 0 && !pad._dynamic_dims_mask[idx];
+}
+
+// block2d_surface_fixup_ok() plus the precondition that padding cannot invalidate it.
 //
-// Unlike the % 64 tier above (whose padding check is currently disabled), this one MUST reject
-// padded layouts rather than inherit that gap: padding is folded into the pitch and the base by the
-// kernel and is invisible in row_bytes, so it is exactly what breaks the "pitch is an integer
-// multiple of row_bytes" premise the relaxation rests on. Widening the eligible head sizes must not
-// also widen a pre-existing hazard.
+// The relaxation above rests on "the pitch is an integer multiple of row_bytes", and padding is
+// folded into the pitch and the base by the kernel, invisible in row_bytes. But only ONE axis can
+// actually break that premise: the innermost (X / head-dim) one, because for a simple data format
+// every OV pitch is a product of padded dims and therefore an integer multiple of
+// X_PITCH == padded_x. With X unpadded, X_PITCH == head_size, so the pitch stays n * row_bytes and
+// the rule holds for ANY padding on the batch / head / sequence axes -- which is what a Q/K/V that
+// is a crop view of one fused QKV tensor has (phi-4-multimodal's SigLIP tower: dynamic pad on the
+// heads axis, X_PITCH 1, Y_PITCH 72, so the pitch is always a multiple of 144 B). The base ends up
+// misaligned by a multiple of 16 and the in-kernel BLOCK2D_KV_BASE_FIXUP repairs it, exactly as
+// sdpa_micro's block2d_load always has -- which is why micro could use 2D block IO on this layout
+// while sdpa_ocl fell back to the per-lane scalar gather and ran 7.5x slower.
+//
+// Structured as "old predicate first, then the widened one" so this is a strict superset: every
+// configuration that already passed keeps byte-identical codegen.
 inline bool block2d_layout_fixup_ok(const layout& l, size_t row_bytes) {
-    return block2d_surface_fixup_ok(row_bytes) && !l.data_padding && !l.data_padding.is_dynamic();
+    if (!block2d_surface_fixup_ok(row_bytes))
+        return false;
+    if (!l.data_padding && !l.data_padding.is_dynamic())
+        return true;
+    return format::is_simple_data_format(l.format) && axis_unpadded(l, ChannelName::X);
 }
 
 // Paged-attention CACHE PAGE surfaces, where the base rule needs no fixup at all and the old % 64
@@ -393,6 +419,14 @@ sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max) {
                         config.kq_sg_per_wg_queries,
                         ") admits no valid S*V split for d_max=",
                         d_max);
+        std::cout << "[new config] config.kq_sg_tile_keys=" << config.kq_sg_tile_keys
+                  << " config.kq_sg_tile_queries=" << config.kq_sg_tile_queries
+                  << " config.kq_sg_per_wg_keys=" << config.kq_sg_per_wg_keys
+                  << " config.kq_sg_per_wg_queries=" << config.kq_sg_per_wg_queries
+                  << " config.sv_sg_tile_values=" << config.sv_sg_tile_values
+                  << " config.sv_sg_tile_scores=" << config.sv_sg_tile_scores
+                  << " config.sv_sg_per_wg_values=" << config.sv_sg_per_wg_values
+                  << " config.sv_sg_per_wg_scores=" << config.sv_sg_per_wg_scores << std::endl;
     }
 
     return config;
