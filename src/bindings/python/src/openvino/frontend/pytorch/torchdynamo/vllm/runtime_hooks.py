@@ -17,6 +17,7 @@ from .side_channel import _bind_paged_attention_side_channel
 _fastinfer_port_cache = {}
 _fastinfer_bound_ids = {}   # id(req) -> [[val_id, ov_tensor_ref], ...] per port
 _fastinfer_out_cache = {}   # id(req) -> {out_port: numpy_view}
+_fastinfer_out_static = {}  # id(compiled) -> bool: output views are reusable
 
 
 # Sentinel returned by run_pa_infer to signal "skip this infer; use eager".
@@ -131,9 +132,11 @@ def infer_with_pa(req, compiled, call_kwargs):
 
     When OV_FAST_INFER=1 is set, this uses a per-request cache that skips
     ``set_tensor`` for ports whose value id has not changed since the last
-    call, and reuses the output-view numpy dict across calls (both are safe
-    under ``share_inputs=True`` / ``share_outputs=True``). Falls back to the
-    dict-based ``req.infer(call_kwargs, ...)`` path on any error.
+    call, and reuses the output-view numpy dict across calls -- the latter only
+    for models whose outputs are statically shaped, since a dynamic output is
+    re-allocated per call and its cached view would report the first call's
+    shape. Falls back to the dict-based ``req.infer(call_kwargs, ...)`` path on
+    any error.
 
     When OV_FAST_INFER is unset (default), this is a thin wrapper around
     ``req.infer(call_kwargs, share_inputs=True, share_outputs=True)`` so the
@@ -167,6 +170,20 @@ def infer_with_pa(req, compiled, call_kwargs):
             _slot[0] = _val_id
             _slot[1] = _t  # keep alive
         req.infer()
+        # The cached views are numpy arrays over the request's output buffers,
+        # so they carry the shape and address those buffers had when the dict
+        # was built. That only stays true while the output shapes cannot
+        # change. A model with dynamic outputs re-infers (and may re-allocate)
+        # its output tensors on every call, so reusing the views hands the
+        # caller the *first* call's shape forever -- seen as a 26-row
+        # hidden_states for a 6-token prefill once one compiled model started
+        # serving every prefill length, which vLLM then indexes out of bounds.
+        _static_out = _fastinfer_out_static.get(_pc_key)
+        if _static_out is None:
+            _static_out = all(o.get_partial_shape().is_static for o in compiled.outputs)
+            _fastinfer_out_static[_pc_key] = _static_out
+        if not _static_out:
+            return {out: req.get_tensor(out).data for out in compiled.outputs}
         _out = _fastinfer_out_cache.get(_req_key)
         if _out is None:
             _out = {out: req.get_tensor(out).data for out in compiled.outputs}

@@ -103,11 +103,21 @@ def _patch_cpu_model_runner():
         # DYNAMIC_QUANTIZATION_GROUP_SIZE=32). Individual flags can be
         # overridden by adding them explicitly to `options`.
         options = {"aot_autograd": True, "vllm": True}
+        # dynamic=None (torch's default), not False: every distinct prefill
+        # token count is a dynamo guard failure under False, costing a ~5.4 s
+        # retrace plus a ~14 s OV compile_model, which recurs forever under a
+        # varying request mix. None specializes the first shape, then
+        # automatic_dynamic_shapes makes the varying dim symbolic on the 2nd
+        # distinct length and stops retracing. Preferred over dynamic=True
+        # because it marks only the dims that actually varied rather than all
+        # of them: ~5% over the static graph in steady state vs True's ~1.7x.
+        # See vllm/docs/dynamic_shapes.md for the measurements and for the
+        # frontend/backend fixes the symbolic graph depends on.
         compiled = torch.compile(
             self.model.forward,
             backend="openvino",
             fullgraph=False,
-            dynamic=False,
+            dynamic=None,
             options=options,
         )
         self.model.forward = compiled
