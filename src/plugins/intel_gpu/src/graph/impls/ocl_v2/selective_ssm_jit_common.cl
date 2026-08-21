@@ -5,12 +5,7 @@
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/bf16_utils.cl"
-
-#if INPUT0_IS_FP
-#    define SSM_TO_FLOAT(v) convert_float(v)
-#else
-#    define SSM_TO_FLOAT(v) _convert_as_bfloat16_float(v)
-#endif
+#include "selective_ssm_jit_storage.cl"
 
 #define SSM_DT_INDEX(token) (((b * SSM_SEQUENCE_SIZE + (token)) * SSM_NUM_HEADS) + h)
 #define SSM_B_INDEX(token, state_element) \
@@ -21,11 +16,6 @@
 #define SSM_OUTPUT_INDEX(token, p) SSM_X_INDEX(token, p)
 #define SSM_STATE_INDEX(p, state_element) \
     (((((b * SSM_NUM_HEADS + h) * SSM_HEAD_DIM + (p)) * SSM_STATE_SIZE) + (state_element)))
-#if SSM_JIT_USE_SLM
-#    define SSM_STATE_AT(p_offset, step, state_element) slm_state[(p_offset) * SSM_STATE_SIZE + (state_element)]
-#else
-#    define SSM_STATE_AT(p_offset, step, state_element) private_state[p_offset][step]
-#endif
 
 REQD_SUB_GROUP_SIZE(SSM_SUBGROUP_SIZE)
 KERNEL(SSM_JIT_KERNEL)(const __global INPUT0_TYPE* A,
@@ -52,17 +42,10 @@ KERNEL(SSM_JIT_KERNEL)(const __global INPUT0_TYPE* A,
     float private_state[SSM_HEAD_DIM_BLOCK][SSM_STATE_ITERATIONS];
 #endif
 
-#pragma unroll
-    for (uint p_offset = 0; p_offset < SSM_HEAD_DIM_BLOCK; ++p_offset) {
-        const uint p = p_base + p_offset;
-#pragma unroll
-        for (uint step = 0; step < SSM_STATE_ITERATIONS; ++step) {
-            const uint state_element = step * SSM_SUBGROUP_SIZE + lane;
-            if (p < SSM_HEAD_DIM && state_element < SSM_STATE_SIZE)
-                SSM_STATE_AT(p_offset, step, state_element) =
-                    SSM_TO_FLOAT(initial_state[SSM_STATE_INDEX(p, state_element)]);
-        }
-    }
+#define SSM_JIT_LOAD_STATE(p, state_element) \
+    SSM_TO_FLOAT(initial_state[SSM_STATE_INDEX(p, state_element)])
+#include "selective_ssm_jit_load_state.cl"
+#undef SSM_JIT_LOAD_STATE
 
     for (uint token = 0; token < sequence_size; ++token) {
 #define SSM_TOKEN_INDEX token
@@ -70,17 +53,10 @@ KERNEL(SSM_JIT_KERNEL)(const __global INPUT0_TYPE* A,
 #undef SSM_TOKEN_INDEX
     }
 
-#pragma unroll
-    for (uint p_offset = 0; p_offset < SSM_HEAD_DIM_BLOCK; ++p_offset) {
-        const uint p = p_base + p_offset;
-#pragma unroll
-        for (uint step = 0; step < SSM_STATE_ITERATIONS; ++step) {
-            const uint state_element = step * SSM_SUBGROUP_SIZE + lane;
-            if (p < SSM_HEAD_DIM && state_element < SSM_STATE_SIZE)
-                output_state[SSM_STATE_INDEX(p, state_element)] =
-                    TO_OUTPUT1_TYPE(SSM_STATE_AT(p_offset, step, state_element));
-        }
-    }
+#define SSM_JIT_STORE_STATE(p, state_element, value) \
+    output_state[SSM_STATE_INDEX(p, state_element)] = TO_OUTPUT1_TYPE(value)
+#include "selective_ssm_jit_store_state.cl"
+#undef SSM_JIT_STORE_STATE
 }
 
 #undef SSM_TO_FLOAT

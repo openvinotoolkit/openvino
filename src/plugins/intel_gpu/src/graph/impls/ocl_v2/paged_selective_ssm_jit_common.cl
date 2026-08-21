@@ -5,12 +5,7 @@
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/bf16_utils.cl"
-
-#if INPUT0_IS_FP
-#    define SSM_TO_FLOAT(v) convert_float(v)
-#else
-#    define SSM_TO_FLOAT(v) _convert_as_bfloat16_float(v)
-#endif
+#include "selective_ssm_jit_storage.cl"
 
 #if IS_DYNAMIC
 #    define SSM_RUNTIME_INDEX(value) ((size_t)(value))
@@ -43,12 +38,6 @@
 #    define SSM_PROCESSED_INDEX(index) (index)
 #    define SSM_INTERVAL_INDEX(index) (index)
 #endif
-#if SSM_JIT_USE_SLM
-#    define SSM_STATE_AT(p_offset, step, state_element) slm_state[(p_offset) * SSM_STATE_SIZE + (state_element)]
-#else
-#    define SSM_STATE_AT(p_offset, step, state_element) private_state[p_offset][step]
-#endif
-
 REQD_SUB_GROUP_SIZE(SSM_SUBGROUP_SIZE)
 KERNEL(SSM_JIT_KERNEL)(OPTIONAL_SHAPE_INFO_ARG
                        const __global INPUT0_TYPE* A,
@@ -155,18 +144,10 @@ KERNEL(SSM_JIT_KERNEL)(OPTIONAL_SHAPE_INFO_ARG
     float private_state[SSM_HEAD_DIM_BLOCK][SSM_STATE_ITERATIONS];
 #endif
 
-#pragma unroll
-    for (uint p_offset = 0; p_offset < SSM_HEAD_DIM_BLOCK; ++p_offset) {
-        const uint p = p_base + p_offset;
-#pragma unroll
-        for (uint step = 0; step < SSM_STATE_ITERATIONS; ++step) {
-            const uint state_element = step * SSM_SUBGROUP_SIZE + lane;
-            if (p < SSM_HEAD_DIM && state_element < SSM_STATE_SIZE) {
-                SSM_STATE_AT(p_offset, step, state_element) =
-                    SSM_TO_FLOAT(recurrent_state_table[SSM_STATE_INDEX((uint)first_block, p, state_element)]);
-            }
-        }
-    }
+#define SSM_JIT_LOAD_STATE(p, state_element) \
+    SSM_TO_FLOAT(recurrent_state_table[SSM_STATE_INDEX((uint)first_block, p, state_element)])
+#include "selective_ssm_jit_load_state.cl"
+#undef SSM_JIT_LOAD_STATE
 
     for (long token = token_begin; token < token_end; ++token) {
 #if IS_DYNAMIC
@@ -186,18 +167,10 @@ KERNEL(SSM_JIT_KERNEL)(OPTIONAL_SHAPE_INFO_ARG
                 if (block_position < (ulong)block_end && block_position < (ulong)INPUT7_BATCH_NUM) {
                     const long block_id = (long)block_indices[SSM_BLOCK_INDEX((size_t)block_position)];
                     if (block_id >= 0 && (ulong)block_id < (ulong)INPUT5_BATCH_NUM) {
-#pragma unroll
-                        for (uint p_offset = 0; p_offset < SSM_HEAD_DIM_BLOCK; ++p_offset) {
-                            const uint p = p_base + p_offset;
-#pragma unroll
-                            for (uint step = 0; step < SSM_STATE_ITERATIONS; ++step) {
-                                const uint state_element = step * SSM_SUBGROUP_SIZE + lane;
-                                if (p < SSM_HEAD_DIM && state_element < SSM_STATE_SIZE) {
-                                    recurrent_state_table[SSM_STATE_INDEX((uint)block_id, p, state_element)] =
-                                        TO_INPUT5_TYPE(SSM_STATE_AT(p_offset, step, state_element));
-                                }
-                            }
-                        }
+#define SSM_JIT_STORE_STATE(p, state_element, value) \
+    recurrent_state_table[SSM_STATE_INDEX((uint)block_id, p, state_element)] = TO_INPUT5_TYPE(value)
+#include "selective_ssm_jit_store_state.cl"
+#undef SSM_JIT_STORE_STATE
                     }
                 }
                 if (at_boundary)
