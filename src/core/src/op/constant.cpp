@@ -301,15 +301,14 @@ void Constant::set_unused_bits(void* buffer) const {
             constexpr size_t storage_unit_byte_size = 1;
             reinterpret_cast<uint8_t*>(buffer)[byte_size - storage_unit_byte_size] &= 0x0FU;
         } else if (element::is_split_bit_type(m_element_type)) {
-            constexpr size_t storage_unit_byte_size = 3;
-            const auto num_values = (24U / m_element_type.bitwidth());
-            const auto not_aligned_elements = num_elements % num_values;
-            const uint16_t not_used_upper_mask = ~(0xffff >> (not_aligned_elements * (16U / num_values)));
-
-            auto ptr = reinterpret_cast<uint8_t*>(buffer) + (byte_size - storage_unit_byte_size);
-            ptr[0] &= not_used_upper_mask >> 8U;
-            ptr[1] &= not_used_upper_mask & 0x00ff;
-            ptr[2] &= ~(0xff >> (not_aligned_elements * (8U / num_values)));
+            // Linear LSB-first bit-stream: mask off the unused tail bits of the last partial byte.
+            // Any fully-unused trailing bytes are already excluded from the allocation.
+            const auto used_bits = num_elements * m_element_type.bitwidth();
+            const auto tail_bits = used_bits % 8;
+            if (tail_bits != 0) {
+                const uint8_t used_bits_mask = static_cast<uint8_t>(0xffU >> (8 - tail_bits));
+                reinterpret_cast<uint8_t*>(buffer)[byte_size - 1] &= used_bits_mask;
+            }
         }
     }
 }
