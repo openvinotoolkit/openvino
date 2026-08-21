@@ -14,6 +14,10 @@ namespace ov::intel_gpu::ocl::selective_ssm_jit {
 
 enum class device_kind { integrated, discrete };
 
+inline constexpr size_t short_sequence_private_value_budget = 12;
+inline constexpr size_t long_sequence_private_value_budget = 24;
+inline constexpr size_t paged_private_value_budget = 48;
+
 inline bool supports_simd_size(const cldnn::device_info& info, const size_t simd_size) {
     return std::find(info.supported_simd_sizes.begin(), info.supported_simd_sizes.end(), simd_size) != info.supported_simd_sizes.end();
 }
@@ -36,7 +40,8 @@ inline size_t get_head_dim_block(const size_t head_dim,
                                  const size_t state_size,
                                  const size_t subgroup_size,
                                  const cldnn::device_info& info,
-                                 const device_kind kind) {
+                                 const device_kind kind,
+                                 const size_t max_private_values) {
     if (head_dim == 0 || state_size == 0 || subgroup_size == 0)
         return 0;
 
@@ -44,10 +49,10 @@ inline size_t get_head_dim_block(const size_t head_dim,
     const size_t target = kind == device_kind::discrete ? 4 : (info.arch >= cldnn::gpu_arch::xe2 ? 8 : 4);
     size_t block = std::min(head_dim, target);
     if (kind == device_kind::integrated) {
-        // Bound the statically scalarized recurrence state to avoid private-memory spills.
-        while (block > 1 && block * state_iterations > 64)
+        // Bound the scalarized recurrence state together with the two per-head-dimension temporaries.
+        while (block > 1 && block * (state_iterations + 2) > max_private_values)
             --block;
-        return block * state_iterations <= 64 ? block : 0;
+        return block * (state_iterations + 2) <= max_private_values ? block : 0;
     }
     const size_t local_capacity = info.max_local_mem_size / sizeof(float);
     while (block > 1 && block * state_size > local_capacity)

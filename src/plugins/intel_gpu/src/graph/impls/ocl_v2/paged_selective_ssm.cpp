@@ -60,7 +60,12 @@ protected:
         const size_t state_size = B_shape[2].get_length();
         const size_t head_dim = x_shape[2].get_length();
         const size_t subgroup_size = selective_ssm_jit::get_subgroup_size(params.get_device_info(), Kind);
-        const size_t head_dim_block = selective_ssm_jit::get_head_dim_block(head_dim, state_size, subgroup_size, params.get_device_info(), Kind);
+        const size_t head_dim_block = selective_ssm_jit::get_head_dim_block(head_dim,
+                                                                            state_size,
+                                                                            subgroup_size,
+                                                                            params.get_device_info(),
+                                                                            Kind,
+                                                                            selective_ssm_jit::paged_private_value_budget);
 
         if (!params.is_dynamic())
             jit.make("SSM_TOKEN_COUNT", x_shape[0].get_length());
@@ -94,7 +99,12 @@ protected:
             const size_t head_dim = x_shape[2].get_length();
             const size_t state_size = B_shape[2].get_length();
             const size_t subgroup_size = selective_ssm_jit::get_subgroup_size(params.get_device_info(), Kind);
-            const size_t head_dim_block = selective_ssm_jit::get_head_dim_block(head_dim, state_size, subgroup_size, params.get_device_info(), Kind);
+            const size_t head_dim_block = selective_ssm_jit::get_head_dim_block(head_dim,
+                                                                                state_size,
+                                                                                subgroup_size,
+                                                                                params.get_device_info(),
+                                                                                Kind,
+                                                                                selective_ssm_jit::paged_private_value_budget);
 
             kd.params.workGroups.local = {subgroup_size, 1, 1};
             if constexpr (Kind == selective_ssm_jit::device_kind::discrete)
@@ -373,7 +383,8 @@ bool validate_paged_selective_ssm_jit(const program_node& node, const selective_
         }
     }
 
-    return shapes_match && selective_ssm_jit::get_head_dim_block(head_dim, state_size, subgroup_size, info, kind) != 0;
+    return shapes_match &&
+           selective_ssm_jit::get_head_dim_block(head_dim, state_size, subgroup_size, info, kind, selective_ssm_jit::paged_private_value_budget) != 0;
 }
 
 std::unique_ptr<primitive_impl> PagedSelectiveSSMOpt::create_impl(const program_node& node, const RuntimeParams& params) const {

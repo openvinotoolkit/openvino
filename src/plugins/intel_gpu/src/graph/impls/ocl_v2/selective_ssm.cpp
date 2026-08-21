@@ -31,6 +31,13 @@ bool has_static_rank(const ov::PartialShape& shape, const size_t rank) {
     return shape.is_static() && shape.rank().is_static() && static_cast<size_t>(shape.rank().get_length()) == rank;
 }
 
+size_t get_private_values_budget(const size_t sequence_size, const cldnn::data_types data_type, const cldnn::device_info& info) {
+    const bool supports_extended_f32_short_sequence = info.gfx_ver.major > 12 || (info.gfx_ver.major == 12 && info.gfx_ver.minor >= 70);
+    const size_t short_sequence_limit = data_type == cldnn::data_types::f32 && supports_extended_f32_short_sequence ? 32 : 8;
+    return sequence_size <= short_sequence_limit ? selective_ssm_jit::short_sequence_private_value_budget
+                                                 : selective_ssm_jit::long_sequence_private_value_budget;
+}
+
 template <selective_ssm_jit::device_kind Kind>
 class SelectiveSSMJitGenerator : public KernelGenerator {
 public:
@@ -45,7 +52,9 @@ protected:
         const size_t state_size = B_shape[3].get_length();
         const size_t head_dim = x_shape[3].get_length();
         const size_t subgroup_size = selective_ssm_jit::get_subgroup_size(params.get_device_info(), Kind);
-        const size_t head_dim_block = selective_ssm_jit::get_head_dim_block(head_dim, state_size, subgroup_size, params.get_device_info(), Kind);
+        const size_t private_values_budget = get_private_values_budget(x_shape[1].get_length(), params.get_input_layout(3).data_type, params.get_device_info());
+        const size_t head_dim_block =
+            selective_ssm_jit::get_head_dim_block(head_dim, state_size, subgroup_size, params.get_device_info(), Kind, private_values_budget);
 
         jit.make("SSM_SEQUENCE_SIZE", x_shape[1].get_length());
         jit.make("SSM_NUM_HEADS", x_shape[2].get_length());
@@ -81,7 +90,10 @@ protected:
             const size_t head_dim = x_shape[3].get_length();
             const size_t state_size = B_shape[3].get_length();
             const size_t subgroup_size = selective_ssm_jit::get_subgroup_size(params.get_device_info(), Kind);
-            const size_t head_dim_block = selective_ssm_jit::get_head_dim_block(head_dim, state_size, subgroup_size, params.get_device_info(), Kind);
+            const size_t private_values_budget =
+                get_private_values_budget(x_shape[1].get_length(), params.get_input_layout(3).data_type, params.get_device_info());
+            const size_t head_dim_block =
+                selective_ssm_jit::get_head_dim_block(head_dim, state_size, subgroup_size, params.get_device_info(), Kind, private_values_budget);
 
             kd.params.workGroups.global = {cldnn::ceil_div(head_dim, head_dim_block) * subgroup_size, num_heads, batch};
             kd.params.workGroups.local = {subgroup_size, 1, 1};
@@ -325,7 +337,8 @@ bool validate_selective_ssm_jit(const program_node& node, const selective_ssm_ji
     const bool shapes_match = A_shape[0] == num_heads && dt_shape[0] == batch && dt_shape[1] == sequence && dt_shape[2] == num_heads && B_shape[0] == batch &&
                               B_shape[1] == sequence && C_shape == B_shape && state_shape[0] == batch && state_shape[1] == num_heads &&
                               state_shape[2] == head_dim && state_shape[3] == state_size && output_shape == x_shape && output_state_shape == state_shape;
-    return shapes_match && selective_ssm_jit::get_head_dim_block(head_dim, state_size, subgroup_size, info, kind) != 0;
+    const size_t private_values_budget = get_private_values_budget(sequence, node.get_input_layout(3).data_type, info);
+    return shapes_match && selective_ssm_jit::get_head_dim_block(head_dim, state_size, subgroup_size, info, kind, private_values_budget) != 0;
 }
 
 std::unique_ptr<primitive_impl> SelectiveSSMOpt::create_impl(const program_node& node, const RuntimeParams& params) const {
