@@ -132,6 +132,12 @@ private:
     std::vector<std::shared_ptr<ov::npuw::ICompiledModel_v0>> m_generate_compiled_variants;
     std::vector<uint32_t> m_kvcache_sizes;  // Corresponding KV cache sizes for each variant
 
+    // Multiple prefill models with different static chunk sizes (e.g. 256, 512, 1024), used to
+    // right-size the partial (tail) prefill chunk when NPUW_LLM_PREFILL_PYRAMID is enabled.
+    // The last element is always the base chunk size (m_prefill_chunk_size) and aliases m_prefill_compiled.
+    std::vector<std::shared_ptr<ov::npuw::ICompiledModel_v0>> m_prefill_compiled_variants;
+    std::vector<uint32_t> m_prefill_chunk_sizes;  // Corresponding prefill chunk sizes for each variant
+
     // Support LoRA
     uint32_t m_max_lora_rank = 32;
 
@@ -170,6 +176,11 @@ private:
     void compile_generate_model_variants(const std::vector<std::shared_ptr<ov::Model>>& generate_model_variants,
                                          const std::shared_ptr<const ov::IPlugin>& plugin,
                                          const ov::AnyMap& generate_config);
+
+    // Compile multiple prefill model variants with different chunk sizes
+    void compile_prefill_model_variants(const std::vector<std::shared_ptr<ov::Model>>& prefill_model_variants,
+                                        const std::shared_ptr<const ov::IPlugin>& plugin,
+                                        const ov::AnyMap& prefill_config);
 
     bool m_is_eagle = false;
 };

@@ -279,15 +279,9 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     m_kvcache_in_ports = m_generate_variant_in_ports.at(m_kvcache_request);
     m_kvcache_out_ports = m_generate_variant_out_ports.at(m_kvcache_request);
 
-    m_prefill_base_request = compiled_model->m_prefill_compiled->create_base_infer_request();
-    m_prefill_request = compiled_model->m_prefill_compiled->wrap_async_infer_request(m_prefill_base_request);
-
-    for (const auto& input_port : m_prefill_request->get_compiled_model()->inputs()) {
-        m_prefill_in_ports.emplace(input_port.get_any_name(), input_port);
-    }
-    for (const auto& output_port : m_prefill_request->get_compiled_model()->outputs()) {
-        m_prefill_out_ports.emplace(output_port.get_any_name(), output_port);
-    }
+    // Create prefill request variants (one per compiled chunk size). Sets m_prefill_request/
+    // m_prefill_base_request/m_prefill_in_ports/m_prefill_out_ports to the base (largest) variant.
+    create_prefill_request_variants(compiled_model);
 
     for (const auto& input_port : m_kvcache_request->get_compiled_model()->inputs()) {
         const auto& all_names = input_port.get_names();
@@ -345,8 +339,13 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         OPENVINO_ASSERT(m_lm_head_request);
         const ov::Output<const ov::Node> lm_head_embed_port = m_lm_head_request->get_inputs()[0];
         m_lm_head_logits_port = m_lm_head_request->get_outputs()[0];
-        m_prefill_request->set_tensor(m_prefill_out_ports.at(layer_names::output_embeds),
-                                      m_lm_head_request->get_tensor(lm_head_embed_port));
+        // Wire output_embeds of every prefill variant to the shared LM head input tensor. All prefill
+        // variants slice to [1, max_generation_token_len, embed], so the tensor shape is identical.
+        for (auto& prefill_req : m_prefill_requests) {
+            const auto& variant_out_ports = m_prefill_variant_out_ports.at(prefill_req);
+            prefill_req->set_tensor(variant_out_ports.at(layer_names::output_embeds),
+                                    m_lm_head_request->get_tensor(lm_head_embed_port));
+        }
 
         // Set output_embeds tensor for all generate variants
         for (auto& generate_req : m_generate_requests) {
@@ -494,6 +493,109 @@ std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::LLMInferRequest::select_genera
     return m_generate_requests.back();
 }
 
+void ov::npuw::LLMInferRequest::create_prefill_request_variants(
+    const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model) {
+    const auto& variants = compiled_model->m_prefill_compiled_variants;
+    OPENVINO_ASSERT(!variants.empty(), "No compiled prefill variants available!");
+
+    m_prefill_requests.reserve(variants.size());
+    m_prefill_base_requests.reserve(variants.size());
+
+    // Each prefill variant gets its own set of tensors. Past KV tensors are intentionally NOT shared
+    // across variants: their seq dimension is (max_prompt_size - chunk_size), which differs per variant.
+    for (size_t i = 0; i < variants.size(); ++i) {
+        auto base_req = variants[i]->create_base_infer_request();
+        auto async_req = variants[i]->wrap_async_infer_request(base_req);
+        m_prefill_base_requests.push_back(base_req);
+        m_prefill_requests.push_back(async_req);
+
+        PortsMap variant_in_ports;
+        PortsMap variant_out_ports;
+        for (const auto& input_port : async_req->get_compiled_model()->inputs()) {
+            variant_in_ports.emplace(input_port.get_any_name(), input_port);
+        }
+        for (const auto& output_port : async_req->get_compiled_model()->outputs()) {
+            variant_out_ports.emplace(output_port.get_any_name(), output_port);
+        }
+        m_prefill_variant_in_ports.emplace(async_req, std::move(variant_in_ports));
+        m_prefill_variant_out_ports.emplace(async_req, std::move(variant_out_ports));
+    }
+
+    // Default the active prefill request to the base (largest) variant for backward compatibility.
+    m_prefill_request = m_prefill_requests.back();
+    m_prefill_base_request = m_prefill_base_requests.back();
+    m_prefill_in_ports = m_prefill_variant_in_ports.at(m_prefill_request);
+    m_prefill_out_ports = m_prefill_variant_out_ports.at(m_prefill_request);
+}
+
+size_t ov::npuw::LLMInferRequest::select_prefill_variant_index(int64_t tail_length) {
+    const auto& sizes = m_npuw_llm_compiled_model->m_prefill_chunk_sizes;
+    // sizes are ascending; the last one is the base chunk size.
+    for (size_t i = 0; i < sizes.size(); ++i) {
+        if (tail_length <= static_cast<int64_t>(sizes[i])) {
+            return i;
+        }
+    }
+    return sizes.size() - 1;
+}
+
+void ov::npuw::LLMInferRequest::prepare_prefill_tail_variant(
+    const std::shared_ptr<ov::IAsyncInferRequest>& tail_req,
+    size_t tail_index,
+    uint32_t num_stored) {
+    namespace uu = ov::npuw::util;
+    auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
+
+    // Base (largest) variant currently holds the accumulated prefill state from the full chunks.
+    auto base_req = m_prefill_requests.back();
+    const auto& base_in = m_prefill_variant_in_ports.at(base_req);
+    const auto& tail_in = m_prefill_variant_in_ports.at(tail_req);
+
+    // Attention mask: zero the tail mask entirely, then copy the accumulated past region [0, num_stored).
+    // The current-chunk region is populated later by the regular prepare-chunk logic.
+    auto tail_attn = tail_req->get_tensor(tail_in.at(layer_names::attention_mask));
+    uu::fill_tensor<int64_t>(tail_attn, 0);
+    if (num_stored > 0) {
+        auto base_attn = base_req->get_tensor(base_in.at(layer_names::attention_mask));
+        std::copy_n(base_attn->data<int64_t>(), num_stored, tail_attn->data<int64_t>());
+    }
+
+    // Zero position_ids and per_layer_inputs padding on the tail variant.
+    uu::fill_tensor<int64_t>(tail_req->get_tensor(tail_in.at(layer_names::position_ids)), 0);
+    if (auto it = tail_in.find(layer_names::per_layer_inputs); it != tail_in.end()) {
+        uu::fill_tensor_bytes(tail_req->get_tensor(it->second), 0u);
+    }
+
+    // Propagate the longrope scalar (set on the base variant by process_longrope) to the tail variant.
+    if (auto tail_lr = tail_in.find(layer_names::longrope_input); tail_lr != tail_in.end()) {
+        auto base_lr = base_in.at(layer_names::longrope_input);
+        tail_req->get_tensor(tail_lr->second)->data<int64_t>()[0] =
+            base_req->get_tensor(base_lr)->data<int64_t>()[0];
+    }
+
+    // Past KV: zero the tail past inputs, then copy the accumulated [0, num_stored) tokens from the
+    // base variant (stride-correct copy along the KV seq dimension).
+    for (const auto& kv_name : m_kvcache_past_names) {
+        auto tail_past = tail_req->get_tensor(tail_in.at(kv_name));
+        uu::fill_tensor_bytes(tail_past, 0u);
+        if (num_stored > 0) {
+            auto base_past = base_req->get_tensor(base_in.at(kv_name));
+            const bool is_value_tensor = kv_name.find("value") != std::string::npos;
+            const uint32_t kv_dim =
+                (is_value_tensor && kvcache_desc.v_tensors_transposed_pre) ? 3u : kvcache_desc.dim;
+            auto base_slice = uu::make_tensor_slice(base_past, kv_dim, 0u, num_stored);
+            auto tail_slice = uu::make_tensor_slice(tail_past, kv_dim, 0u, num_stored);
+            uu::copy_tensor_by_dim(base_slice, tail_slice, kv_dim, kv_dim);
+        }
+    }
+
+    // Switch the active prefill request/ports to the tail variant.
+    m_prefill_request = tail_req;
+    m_prefill_base_request = m_prefill_base_requests[tail_index];
+    m_prefill_in_ports = tail_in;
+    m_prefill_out_ports = m_prefill_variant_out_ports.at(tail_req);
+}
+
 void ov::npuw::LLMInferRequest::apply_lora() {
     uint32_t max_low_rank_dim_size = m_npuw_llm_compiled_model->m_max_lora_rank;
 
@@ -585,6 +687,13 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation() {
 void ov::npuw::LLMInferRequest::zero_prefill_staging() {
     namespace uu = ov::npuw::util;
 
+    // Reset the active prefill request to the base (largest) variant. A previous conversation may have
+    // switched it to a smaller tail variant for its last chunk.
+    m_prefill_request = m_prefill_requests.back();
+    m_prefill_base_request = m_prefill_base_requests.back();
+    m_prefill_in_ports = m_prefill_variant_in_ports.at(m_prefill_request);
+    m_prefill_out_ports = m_prefill_variant_out_ports.at(m_prefill_request);
+
     uu::fill_tensor_bytes(m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name)), 0u);
     if (auto type_ids_port = m_prefill_in_ports.find(layer_names::token_type_ids);
         type_ids_port != m_prefill_in_ports.end()) {
@@ -659,7 +768,6 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
         const auto& pre_kv_dim = kv_dim(kvcache_desc.v_tensors_transposed_pre);
         const auto& gen_kv_dim = kv_dim(kvcache_desc.v_tensors_transposed_gen);
 
-        const auto prefill_chunk_size = m_npuw_llm_compiled_model->m_prefill_chunk_size;
         const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
         if (use_chunk_prefill) {
             // The chunk prefilled KV results are divided into two parts:
@@ -702,11 +810,14 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
             }
 
             // Copy part 2 KV results
+            // NB: derive the present seq length from the actual output tensor rather than the base
+            // chunk size, so a smaller tail prefill variant (NPUW_LLM_PREFILL_PYRAMID) is handled too.
+            const uint32_t present_seq_len = static_cast<uint32_t>(prefill_out_tensor->get_shape()[pre_kv_dim]);
             auto prefill_present_kv_chunk =
                 uu::make_tensor_slice(prefill_out_tensor,
                                       pre_kv_dim,
-                                      static_cast<uint32_t>(prefill_chunk_size - m_tokens_in_present_chunk),
-                                      static_cast<uint32_t>(prefill_chunk_size));
+                                      present_seq_len - static_cast<uint32_t>(m_tokens_in_present_chunk),
+                                      present_seq_len);
 
             auto kvcache_last_kv_chunk = uu::make_tensor_slice(kvcache_in_tensor,
                                                                gen_kv_dim,
@@ -907,7 +1018,10 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
     const auto input_ids_elem_size = input_ids->get_element_type().size();
     auto input_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
-    const uint64_t chunk_prompt_len = m_npuw_llm_compiled_model->m_prefill_chunk_size;
+    const uint64_t base_chunk_len = m_npuw_llm_compiled_model->m_prefill_chunk_size;
+    // Active chunk size of the current prefill variant. Equals base_chunk_len for all full chunks and
+    // may shrink for the partial (tail) chunk when NPUW_LLM_PREFILL_PYRAMID selects a smaller variant.
+    uint64_t chunk_prompt_len = base_chunk_len;
 
     // DeepStack (Qwen3-VL): the deepstack injection is scattered per chunk inside the loop
     // below, the same way attention_mask / input_ids are sliced for the current chunk.
@@ -931,6 +1045,12 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
     }
 
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
+
+    // Enable tail-chunk right-sizing only when multiple prefill variants exist and no feature that
+    // keeps extra prefill-request state (prefix caching, Eagle3, linear cache, LoRA) is active.
+    const bool prefill_pyramid_active =
+        m_prefill_requests.size() > 1 && !m_npuw_llm_compiled_model->m_enable_prefix_caching &&
+        !m_eagle3_ext.is_eagle3_model() && m_lincache_past_names.empty() && m_variableStates.empty();
 
     uint64_t remaining_prompts = input_prompt_len;
 
@@ -956,7 +1076,26 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
         // The last chunk may not be completely filled if the actual length of the prompts is not evenly divisible by
         // the chunk size
-        auto current_prompts_len = std::min(remaining_prompts, chunk_prompt_len);
+        auto current_prompts_len = std::min(remaining_prompts, base_chunk_len);
+
+        // Right-size the partial (tail) chunk: if this is the last chunk and it is shorter than the base
+        // chunk, run it on the smallest prefill variant that can hold it. This reduces TTFT because the
+        // padded compute per chunk scales with the (static) chunk size.
+        const bool is_tail_chunk = remaining_prompts <= base_chunk_len;
+        if (prefill_pyramid_active && is_tail_chunk && current_prompts_len < base_chunk_len) {
+            const size_t tail_index = select_prefill_variant_index(static_cast<int64_t>(current_prompts_len));
+            auto tail_req = m_prefill_requests[tail_index];
+            if (tail_req != m_prefill_requests.back()) {
+                LOG_DEBUG("Prefill tail chunk of " << current_prompts_len << " tokens uses variant chunk size "
+                                                   << m_npuw_llm_compiled_model->m_prefill_chunk_sizes[tail_index]);
+                prepare_prefill_tail_variant(tail_req, tail_index, kvcache_desc.num_stored_tokens);
+                // Re-fetch the active tensors and chunk size for the switched-in tail variant.
+                chunk_prompt_len = m_npuw_llm_compiled_model->m_prefill_chunk_sizes[tail_index];
+                input_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
+                attn_mask_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask));
+                pos_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
+            }
+        }
 
         m_llm_profile["1/prefill:3a.prepare_chunk"].record([&]() {
             // Handle first chunk with prefix caching: populate attention mask for restored cache
