@@ -199,9 +199,8 @@ OutputVector translate_view(const NodeContext & context) {
         ov::Output<ov::Node> result = input;
         if (slice.size() == 3) {
             const int64_t axis = slice[0], start = slice[1], len = slice[2];
-            const auto decoder_input_shape = context.get_input_shape(0);
-            if (decoder_input_shape.rank().is_static() && decoder_input_shape[axis].is_static() &&
-                start >= decoder_input_shape[axis].get_length()) {
+            if (axis >= 0 && static_cast<size_t>(axis) < input_ggml_shape.size() &&
+                start >= static_cast<int64_t>(input_ggml_shape[axis])) {
                 // A one-past-end recurrent cache view represents an empty
                 // slot-reorder destination. Its CPY consumer is routed to the
                 // cache base, so no standalone slice is needed.

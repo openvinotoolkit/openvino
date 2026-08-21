@@ -53,20 +53,15 @@ using namespace ov::op;
 namespace {
 
 void add_sliced_mask(TensorMap& tensor_map) {
-    // Slice the full attention mask down to the current token window for the attention ops.
-    // For static (fixed-shape) models the slice bounds are constants, so this folds to a
-    // fixed-size slice -- there is no separate static pass-through branch.
+    // Publish the decoder's runtime-sized attention mask under the shared name
+    // consumed by the attention translators.
     auto create_sliced_mask = [&](const std::string& mask_name, const std::string& sliced_name) {
-        if ((tensor_map.find(mask_name) != tensor_map.end()) &&
-            (tensor_map.find("token_len_per_seq") != tensor_map.end())) {
-            auto token_len_per_seq = tensor_map.at("token_len_per_seq").get_node_shared_ptr();
+        if (tensor_map.find(mask_name) != tensor_map.end()) {
             auto mask = tensor_map.at(mask_name).get_node_shared_ptr();
-            auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
-            auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
-            auto two = ov::op::v0::Constant::create(ov::element::i64, {1}, {2});
+            // The decoder binds the mask with its current runtime shape, so its
+            // token axis already is the active token window.
             std::shared_ptr<ov::Node> mask_sliced =
-                std::make_shared<ov::op::v8::Slice>(mask, zero, token_len_per_seq, one, two);
-            mask_sliced = std::make_shared<ov::op::v0::Convert>(mask_sliced, ov::element::f16);
+                std::make_shared<ov::op::v0::Convert>(mask, ov::element::f16);
             mask_sliced->set_friendly_name(sliced_name);
             tensor_map.insert({sliced_name, mask_sliced->output(0)});
         }
@@ -273,6 +268,23 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     }
 
     resulting_model = apply_transformations(resulting_model);
+
+    // Auxiliary Parameters are retained until normalization because a
+    // transformation extension may create their only consumer. Drop any that
+    // are still disconnected from the model outputs afterwards. Checking only
+    // direct consumers is insufficient because an entire auxiliary subgraph
+    // may be dangling. Some plugins require every declared model input to have
+    // a corresponding execution-graph node.
+    std::set<ov::Node*> ordered_nodes;
+    for (const auto& node : resulting_model->get_ordered_ops()) {
+        ordered_nodes.insert(node.get());
+    }
+    const auto transformed_params = resulting_model->get_parameters();
+    for (const auto& param : transformed_params) {
+        if (ordered_nodes.count(param.get()) == 0) {
+            resulting_model->remove_parameter(param);
+        }
+    }
 
     // Attach GGUF tokenizer metadata (the file's tokenizer.* keys) to the model's rt_info as a
     // non-serializable attribute, so a downstream consumer (OpenVINO GenAI) can build the

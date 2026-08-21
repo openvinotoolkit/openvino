@@ -115,13 +115,6 @@ jobs:
           source ${{ env.OV_INSTALL_DIR }}/setupvars.sh
           # test-llama-archs needs an arch fixture this frontend snapshot doesn't carry; excluded
           # to match llama.cpp's own upstream CI (see ci/run.sh) until that lands separately.
-          #
-          # test-recurrent-state-rollback and test-thread-safety are excluded: both segfault deep
-          # inside libopenvino_intel_cpu_plugin.so's CPUStreamsExecutor, reproducing identically on
-          # this branch both with and without the GGUF-frontend changes this workflow validates
-          # (bisected against the pre-master-merge branch tip and against an older openvino master
-          # snapshot). This is a pre-existing, unrelated CPU-plugin regression, tracked separately;
-          # remove this exclusion once it is fixed.
           ctest --test-dir llama.cpp/build -L main \
-            -E "test-opt|test-llama-archs|test-recurrent-state-rollback|test-thread-safety" \
+            -E "test-opt|test-llama-archs" \
             --output-on-failure --timeout 2000
