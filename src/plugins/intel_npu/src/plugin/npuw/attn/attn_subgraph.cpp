@@ -556,9 +556,9 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                      !get_request(ctx).attention_no_copy();
                                 if (do_copy && ov::shape_size(shape) > 0) {
                                     const auto& dst = ctx.target_request->get_tensor(iport);
-                                    dst->set_shape(shape);
                                     NPUW_ASSERT(dst._ptr && "target request returned null tensor for KV param port — "
                                                             "request may be uninitialized");
+                                    dst->set_shape(shape);
                                     view->copy_to(dst._ptr);
                                 } else if (do_copy && ov::shape_size(shape) == 0) {
                                     ctx.target_request->get_tensor(iport)->set_shape(shape);
@@ -754,10 +754,10 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                 ctx.target_request->set_tensor(mask_iport, view);
                             } else {
                                 const auto& dst = ctx.target_request->get_tensor(mask_iport);
-                                dst->set_shape(view->get_shape());
                                 NPUW_ASSERT(
                                     dst._ptr &&
                                     "target request returned null tensor for mask port — request may be uninitialized");
+                                dst->set_shape(view->get_shape());
                                 view->copy_to(dst._ptr);
                             }
                         };
