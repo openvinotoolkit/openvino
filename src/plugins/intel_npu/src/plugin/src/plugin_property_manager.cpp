@@ -565,14 +565,14 @@ FilteredConfig PluginPropertyManager::deriveConfigForPropertiesForCompiler(const
     if (properties.find(ov::hint::enable_cpu_pinning.name()) != properties.end()) {
         logCpuPinningDeprecationWarning(logger);
     }
-    auto pluginProperties = properties;
-    exclude_model_ptr_from_map(pluginProperties);
+    auto localProperties = properties;
+    exclude_model_ptr_from_map(localProperties);
 
-    if (pluginProperties.find(ov::intel_npu::compiler_type.name()) == pluginProperties.end()) {
+    if (localProperties.find(ov::intel_npu::compiler_type.name()) == localProperties.end()) {
         updatedConfig.remove(ov::intel_npu::compiler_type.name());
     }
 
-    const std::map<std::string, std::string> rawConfig = any_copy(pluginProperties);
+    const std::map<std::string, std::string> rawConfig = any_copy(localProperties);
     std::map<std::string, std::string> cfgsToSet;
     ov::AnyMap specialCfgsToSet;
     for (const auto& [key, value] : rawConfig) {
@@ -580,8 +580,8 @@ FilteredConfig PluginPropertyManager::deriveConfigForPropertiesForCompiler(const
             // not a known config key
             bool isSupported = false;
             try {
-                const auto compilerTypeIt = pluginProperties.find(ov::intel_npu::compiler_type.name());
-                if (compilerTypeIt != pluginProperties.end()) {
+                const auto compilerTypeIt = localProperties.find(ov::intel_npu::compiler_type.name());
+                if (compilerTypeIt != localProperties.end()) {
                     isSupported = _compilerOptionSupportHelper->isOptionSupported(
                         COMPILER_TYPE::parse(compilerTypeIt->second.as<std::string>()),
                         key);
@@ -596,21 +596,22 @@ FilteredConfig PluginPropertyManager::deriveConfigForPropertiesForCompiler(const
             updatedConfig.addOrUpdateInternal(key, value);
         } else {
             const auto descriptorIt = _properties.find(key);
-            if (descriptorIt != _properties.end() && !descriptorIt->second.isSupported(pluginProperties)) {
+            if (descriptorIt != _properties.end() && !descriptorIt->second.isSupported(localProperties)) {
                 const bool isCompileTimeProperty = _config.getOpt(key).mode() == OptionMode::CompileTime;
                 const bool hasCompilerArgument =
-                    pluginProperties.find(ov::intel_npu::compiler_type.name()) != pluginProperties.end();
+                    localProperties.find(ov::intel_npu::compiler_type.name()) != localProperties.end();
                 if (isCompileTimeProperty && !hasCompilerArgument) {
                     _logger.warning(
                         "Property '%s' is recognized as a compiler option, will not be used for current configuration.",
                         key.c_str());
+                    continue;
                 } else {
                     OPENVINO_THROW("[ NOT_FOUND ] Option '", key, "' is not supported for current configuration");
                 }
             }
 
             if (key == ov::cache_encryption_callbacks.name()) {
-                specialCfgsToSet.emplace(key, pluginProperties.at(key));
+                specialCfgsToSet.emplace(key, localProperties.at(key));
             } else {
                 cfgsToSet.emplace(key, value);
             }
@@ -885,6 +886,17 @@ void PluginPropertyManager::registerProperties() {
         }
         return caching_props;
     });
+    register_property_with_custom_function<STEPPING>(_config, _properties, false, ov::PropertyMutability::RW, [this, getDeviceId](const ov::AnyMap& arguments) {
+        if (!_config.has<STEPPING>()) {
+            try {
+                const auto specifiedDeviceName = getDeviceId(arguments);
+                return static_cast<int64_t>(utils::getSteppingNumber(_backend, specifiedDeviceName));
+            } catch (...) {
+                _logger.warning("GetSteppingNumber failed to get value from device.");
+            }
+        }
+        return _config.get<STEPPING>();
+    });
 
 
     // Special case: this property is always registered because it's supported by the implementation,
@@ -995,18 +1007,6 @@ void PluginPropertyManager::registerProperties() {
         [this](const ov::AnyMap&) { // value getter
             return _config.get<ENABLE_STRIDES_FOR>();
         });
-
-    register_property_with_support_and_custom_function<STEPPING>(_config, _properties, false, ov::PropertyMutability::RW, hasBackendAndValidDevice, [this, getDeviceId](const ov::AnyMap& arguments) {
-        if (!_config.has<STEPPING>()) {
-            try {
-                const auto specifiedDeviceName = getDeviceId(arguments);
-                return static_cast<int64_t>(utils::getSteppingNumber(_backend, specifiedDeviceName));
-            } catch (...) {
-                _logger.warning("GetSteppingNumber failed to get value from device.");
-            }
-        }
-        return _config.get<STEPPING>();
-    });
     // clang-format on
 
     register_property_with_support_and_custom_function<COMPILER_VERSION>(
