@@ -1939,7 +1939,7 @@ void test_bf16_select_basic_1x1x2x2(bool is_caching_test) {
 }
 
 TEST(select_gpu_bf16, select_basic_1x1x2x2) {
-    test_bf16_select_basic_1x1x2x2<uint16_t>(false);
+    test_bf16_select_basic_1x1x2x2<ov::bfloat16>(false);
 }
 
 TEST(select_gpu_bf16, select_basic_mask_f32_1x1x2x2) {
