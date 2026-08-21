@@ -4,6 +4,14 @@
 
 #include "include/fetch_utils.cl"
 
+// Clamp f16 INF to prevent NaN in RMS (INF * rsqrt(INF) = INF*0 = NaN).
+#if INPUT0_TYPE_SIZE == 2
+#define FP16_MAX_FINITE 65504.0f
+#define RMS_CLAMP(val) clamp((val), (ACCUMULATOR_TYPE)(-FP16_MAX_FINITE), (ACCUMULATOR_TYPE)(FP16_MAX_FINITE))
+#else
+#define RMS_CLAMP(val) (val)
+#endif
+
 #if NORMALIZE_BATCH
     #define NORM_SIZE INPUT0_BATCH_NUM
     #define NORM_INDEX b
@@ -50,7 +58,7 @@ KERNEL(rms_gpu_ref)(
             for (uint n = 0; n < NORM_SIZE; n++) {
                 NORM_INDEX = n;
                 const uint input_idx = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, 0, z, y, x);
-                const ACCUMULATOR_TYPE value = TO_ACCUMULATOR_TYPE(input[input_idx]);
+                const ACCUMULATOR_TYPE value = RMS_CLAMP(TO_ACCUMULATOR_TYPE(input[input_idx]));
                 rms += value * value;
             }
 
@@ -61,11 +69,12 @@ KERNEL(rms_gpu_ref)(
                 NORM_INDEX = n;
                 const uint input_idx = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, 0, z, y, x);
                 const uint output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, 0, z, y, x);
+                const ACCUMULATOR_TYPE input_val = RMS_CLAMP(TO_ACCUMULATOR_TYPE(input[input_idx]));
 #if ELEMENTWISE_AFFINE
                 const uint gamma_idx = INPUT1_OFFSET + (INPUT1_LENGTH == 1 ? 0 : n);
-                OUTPUT_TYPE result = TO_OUTPUT_TYPE(rms) * TO_OUTPUT_TYPE(input[input_idx]) * TO_OUTPUT_TYPE(gamma[gamma_idx]);
+                OUTPUT_TYPE result = TO_OUTPUT_TYPE(rms) * TO_OUTPUT_TYPE(input_val) * TO_OUTPUT_TYPE(gamma[gamma_idx]);
 #else
-                OUTPUT_TYPE result = TO_OUTPUT_TYPE(rms) * TO_OUTPUT_TYPE(input[input_idx]);
+                OUTPUT_TYPE result = TO_OUTPUT_TYPE(rms) * TO_OUTPUT_TYPE(input_val);
 #endif
                 #if HAS_FUSED_OPS
                     FUSED_OPS;
@@ -79,3 +88,4 @@ KERNEL(rms_gpu_ref)(
 
 #undef NORM_SIZE
 #undef NORM_INDEX
+#undef RMS_CLAMP

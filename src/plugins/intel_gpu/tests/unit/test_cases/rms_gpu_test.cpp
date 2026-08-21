@@ -801,3 +801,60 @@ TEST(rms_gpu_test, in_place_crop_rms_spatial_split) {
         ASSERT_NEAR(out1[i], ref1[i], 1e-4f) << "Branch 1 mismatch at index=" << i;
     }
 }
+
+TEST(rms_gpu_test, rms_f16_inf_input_no_nan) {
+    auto& engine = get_test_engine();
+
+    const int N = 16;
+    auto input = engine.allocate_memory({ov::PartialShape{1, 1, N}, data_types::f16, format::bfyx});
+    auto gamma = engine.allocate_memory({ov::PartialShape{1, N}, data_types::f16, format::bfyx});
+
+    std::vector<ov::float16> input_data(N, ov::float16(1.0f));
+    input_data[0] = ov::float16::from_bits(0x7C00);  // +INF
+    input_data[1] = ov::float16::from_bits(0xFC00);  // -INF
+    set_values(input, input_data);
+
+    std::vector<ov::float16> gamma_data(N, ov::float16(1.0f));
+    set_values(gamma, gamma_data);
+
+    // Compute reference: clamp INF to 65504 before squaring (same as kernel fix)
+    constexpr float FP16_MAX = 65504.0f;
+    constexpr float epsilon = 1e-6f;
+    std::vector<float> ref(N);
+    float sum_sq = 0.0f;
+    for (int i = 0; i < N; ++i) {
+        float v = static_cast<float>(input_data[i]);
+        float clamped = std::max(-FP16_MAX, std::min(v, FP16_MAX));
+        sum_sq += clamped * clamped;
+    }
+    float rms_factor = 1.0f / std::sqrt(sum_sq / N + epsilon);
+    for (int i = 0; i < N; ++i) {
+        float v = static_cast<float>(input_data[i]);
+        float clamped = std::max(-FP16_MAX, std::min(v, FP16_MAX));
+        ref[i] = rms_factor * clamped * static_cast<float>(gamma_data[i]);
+    }
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("gamma", gamma->get_layout()));
+    topology.add(rms("rms", input_info("input"), input_info("gamma"), epsilon));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::hint::inference_precision(ov::element::f16));
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input);
+    network.set_input_data("gamma", gamma);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "rms");
+
+    auto output = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    for (int i = 0; i < N; ++i) {
+        float val = static_cast<float>(output_ptr[i]);
+        ASSERT_NEAR(val, ref[i], 1e-3f) << " index=" << i;
+    }
+}
