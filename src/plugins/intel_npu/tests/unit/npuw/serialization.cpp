@@ -34,6 +34,48 @@ using ov::test::npuw::ModelBuilder;
 
 namespace {
 
+class SerializationNullPlugin final : public ov::IPlugin {
+public:
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,
+                                                      const ov::AnyMap&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,
+                                                      const ov::AnyMap&,
+                                                      const ov::SoPtr<ov::IRemoteContext>&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream&, const ov::AnyMap&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream&,
+                                                     const ov::SoPtr<ov::IRemoteContext>&,
+                                                     const ov::AnyMap&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor&, const ov::AnyMap&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor&,
+                                                     const ov::SoPtr<ov::IRemoteContext>&,
+                                                     const ov::AnyMap&) const override {
+        return {};
+    }
+    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>&, const ov::AnyMap&) const override {
+        return {};
+    }
+    void set_property(const ov::AnyMap&) override {}
+    ov::Any get_property(const std::string&, const ov::AnyMap&) const override {
+        return {};
+    }
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap&) const override {
+        return {};
+    }
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap&) const override {
+        return {};
+    }
+};
+
 void expect_tensors_equal(const ov::Tensor& expected, const ov::Tensor& actual) {
     ASSERT_EQ(static_cast<bool>(expected), static_cast<bool>(actual));
     if (!expected) {
@@ -182,6 +224,42 @@ void expect_lazy_tensor_transform_types_equal(const ov::npuw::weights::LazyTenso
 }
 
 }  // namespace
+
+namespace ov::npuw {
+class CompiledModelDescSerializationAccess {
+public:
+    static void deserialize_desc(ov::npuw::s11n::Stream& stream, const ov::npuw::s11n::WeightsContext& ctx) {
+        CompiledModel::CompiledModelDesc desc;
+        desc.serialize(stream, ctx);
+    }
+
+    static std::shared_ptr<CompiledModel> make_serialized_compiled_model() {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+        auto output = std::make_shared<ov::op::v0::Result>(input);
+        auto model = std::make_shared<ov::Model>(ov::ResultVector{output}, ov::ParameterVector{input}, "test_model");
+        auto plugin = std::make_shared<SerializationNullPlugin>();
+        return std::make_shared<CompiledModel>(model, plugin, true);
+    }
+
+    static CompiledModel::CompiledModelDesc& append_submodel(CompiledModel& model) {
+        model.m_compiled_submodels.emplace_back();
+        return model.m_compiled_submodels.back();
+    }
+
+    static void run_reconstruct_closure(CompiledModel& model) {
+        model.reconstruct_closure();
+    }
+
+    static void set_weights_bank(CompiledModel& model, std::shared_ptr<ov::npuw::weights::Bank> bank) {
+        model.m_weights_bank = std::move(bank);
+    }
+
+    static void run_finalize_and_wait(CompiledModel& model) {
+        model.finalize_weights_bank();
+        model.m_eval_future.get();
+    }
+};
+}  // namespace ov::npuw
 
 // FIXME: parametrize all the tests below
 
@@ -1095,6 +1173,139 @@ TEST(SerializationTest, OVTypes_WeightsBank_cpu_roundtrip) {
 
     expect_tensors_equal(var.get(uid0, "CPU"), res.get(uid0, "CPU"));
     expect_tensors_equal(var.get(uid1, "CPU"), res.get(uid1, "CPU"));
+}
+
+TEST(SerializationTest, CompiledModelDescDeserializeRejectsMismatchedClosureMetadata) {
+    using namespace ov::npuw::s11n;
+
+    std::stringstream ss;
+
+    // Keep this a function call node so no compiled attn/moe state is expected in stream.
+    write(ss, std::optional<std::size_t>{0});
+    write(ss, std::size_t{0});
+    write(ss, false);
+
+    write(ss, std::size_t{0});
+    write(ss, std::size_t{0});
+    write(ss, std::size_t{0});
+
+    write(ss, std::size_t{0});
+    write(ss, std::size_t{0});
+    write(ss, std::size_t{0});
+    write(ss, std::size_t{0});
+    write(ss, std::size_t{0});
+
+    write(ss, std::optional<ov::npuw::compiled::Spatial>{});
+
+    // Root cause: metadata vectors are decoded first, then closure_size is decoded independently.
+    write(ss, std::vector<bool>{false});
+    write(ss, std::vector<int64_t>{-1});
+
+    // Non-weightless path for minimal payload.
+    write(ss, std::vector<ov::Tensor>{});
+    write(ss, std::vector<ov::Tensor>{});
+    write(ss, std::size_t{2});
+    write(ss, std::vector<std::size_t>{});
+
+    WeightsContext ctx(/*is_weightless=*/false, {});
+    auto input_stream = Stream::reader(ss);
+
+    EXPECT_THROW(ov::npuw::CompiledModelDescSerializationAccess::deserialize_desc(input_stream, ctx), ov::Exception);
+}
+
+TEST(SerializationTest, CompiledModelDescDeserializeWeightlessRejectsMismatchedClosureMetadata) {
+    using namespace ov::npuw::s11n;
+
+    std::stringstream ss;
+
+    write(ss, std::optional<std::size_t>{0});
+    write(ss, std::size_t{0});
+    write(ss, false);
+
+    write(ss, std::size_t{0});
+    write(ss, std::size_t{0});
+    write(ss, std::size_t{0});
+
+    write(ss, std::size_t{0});
+    write(ss, std::size_t{0});
+    write(ss, std::size_t{0});
+    write(ss, std::size_t{0});
+    write(ss, std::size_t{0});
+
+    write(ss, std::optional<ov::npuw::compiled::Spatial>{});
+
+    // Keep closure_uid length aligned with closure_size to avoid unrelated OOB behavior
+    // when validation is disabled; only is_remote is intentionally mismatched.
+    write(ss, std::vector<bool>{false});
+    write(ss, std::vector<int64_t>{-1, -1});
+
+    // Weightless branch still reads scales/zerops before closure_size.
+    write(ss, std::vector<ov::Tensor>{});
+    write(ss, std::vector<ov::Tensor>{});
+    write(ss, std::size_t{2});
+    write(ss, std::vector<std::size_t>{});
+    write(ss, std::vector<ov::Tensor>{});
+    write(ss, std::vector<std::size_t>{});
+    write(ss, std::vector<ov::npuw::weights::LazyTensor>{});
+
+    WeightsContext ctx(/*is_weightless=*/true, {});
+    auto input_stream = Stream::reader(ss);
+
+    EXPECT_THROW(ov::npuw::CompiledModelDescSerializationAccess::deserialize_desc(input_stream, ctx), ov::Exception);
+}
+
+TEST(SerializationTest, ReconstructClosureRejectsMismatchedClosureMetadata) {
+    auto compiled = ov::npuw::CompiledModelDescSerializationAccess::make_serialized_compiled_model();
+    auto& submodel = ov::npuw::CompiledModelDescSerializationAccess::append_submodel(*compiled);
+
+    submodel.replaced_by = 0;
+    auto& closure = submodel.closure.get();
+    closure.closure.resize(1);
+    closure.closure[0] = ov::Tensor(ov::element::f32, ov::Shape{1});
+    closure.is_remote.resize(2, false);
+    closure.closure_uid.resize(2, -1);
+
+    EXPECT_THROW(ov::npuw::CompiledModelDescSerializationAccess::run_reconstruct_closure(*compiled), ov::Exception);
+}
+
+TEST(SerializationTest, FinalizeWeightsBankRejectsMismatchedLazyClosureMetadata) {
+    auto compiled = ov::npuw::CompiledModelDescSerializationAccess::make_serialized_compiled_model();
+    auto& submodel = ov::npuw::CompiledModelDescSerializationAccess::append_submodel(*compiled);
+
+    submodel.replaced_by = 0;
+    auto& closure = submodel.closure.get();
+    closure.closure.resize(1);
+    closure.closure[0] = ov::Tensor(ov::element::f32, ov::Shape{1});
+    closure.is_remote.resize(2, false);
+    closure.closure_uid.resize(1, -1);
+    submodel.lazy_closure.resize(1);
+
+    ov::npuw::CompiledModelDescSerializationAccess::set_weights_bank(
+        *compiled,
+        std::make_shared<ov::npuw::weights::Bank>(nullptr, "CPU", "test-bank"));
+
+    EXPECT_THROW(ov::npuw::CompiledModelDescSerializationAccess::run_finalize_and_wait(*compiled), ov::Exception);
+}
+
+TEST(SerializationTest, FinalizeWeightsBankRejectsMismatchedClosureAndLazyClosureMetadata) {
+    auto compiled = ov::npuw::CompiledModelDescSerializationAccess::make_serialized_compiled_model();
+    auto& submodel = ov::npuw::CompiledModelDescSerializationAccess::append_submodel(*compiled);
+
+    submodel.replaced_by = 0;
+    submodel.lazy_closure.resize(1);
+
+    auto& closure = submodel.closure.get();
+    closure.closure.resize(2);
+    closure.closure[0] = ov::Tensor(ov::element::f32, ov::Shape{1});
+    closure.closure[1] = ov::Tensor(ov::element::f32, ov::Shape{1});
+    closure.is_remote.resize(2, false);
+    closure.closure_uid.resize(2, -1);
+
+    ov::npuw::CompiledModelDescSerializationAccess::set_weights_bank(
+        *compiled,
+        std::make_shared<ov::npuw::weights::Bank>(nullptr, "CPU", "test-bank"));
+
+    EXPECT_THROW(ov::npuw::CompiledModelDescSerializationAccess::run_finalize_and_wait(*compiled), ov::Exception);
 }
 
 // TODO: add tests on CompiledModel and LLMCompiledModel once tests have access to any model to test on
