@@ -164,6 +164,7 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_continued_prefill_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/stored_tokens_state_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_infer_request_variant_switch_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_infer_request_port_names_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_trim_kvcache_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/lincache_utils_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/model_builder_lora_test.cpp
