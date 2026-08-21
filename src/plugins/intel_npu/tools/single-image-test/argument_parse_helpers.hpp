@@ -6,6 +6,7 @@
 
 #include <limits>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -19,6 +20,7 @@ namespace metric_defaults {
     constexpr double rrmse_loss_threshold = std::numeric_limits<double>::max();
     constexpr double nrmse_loss_threshold = 0.02;
     constexpr double l2norm_threshold     = 1.0;
+    constexpr double l2norm_dequant_zp    = 0.0;
     constexpr double overlap_threshold    = 0.50;
     constexpr double map_threshold        = 0.50;
     constexpr double confidence_threshold = 1e-4;
@@ -87,6 +89,8 @@ DECLARE_string(nrmse_loss_threshold);
 DECLARE_string(nrmse_prefill_seq_len_axis);
 DECLARE_string(nrmse_prefill_seq_len_size);
 DECLARE_string(l2norm_threshold);
+DECLARE_string(l2norm_dequant_scale);
+DECLARE_string(l2norm_dequant_zp);
 DECLARE_string(overlap_threshold);
 DECLARE_string(map_threshold);
 DECLARE_string(confidence_threshold);
@@ -116,5 +120,21 @@ using PerLayerValueMap = std::map<std::string, double>;
 
 PerLayerValueMap parsePerLayerValues(const std::string& str, double defaultValue);
 double getValueForLayer(const PerLayerValueMap& valueMap, const std::string& layerName);
+
+/**
+ * @brief Checks whether a per-layer value map represents a single global value that applies to every
+ *        layer (as opposed to an explicit per-layer specification with a wildcard fallback default).
+ * @param valueMap Map produced by parsePerLayerValues
+ * @return true if the map only contains the wildcard entry
+ */
+bool isGlobalValue(const PerLayerValueMap& valueMap);
+
+/**
+ * @brief Get the explicit value set for a specific layer, ignoring the wildcard fallback.
+ * @param valueMap Map of layer name to value (as produced by parsePerLayerValues)
+ * @param layerName Name of the layer
+ * @return The explicitly configured value for the layer, or std::nullopt if the layer has no explicit entry
+ */
+std::optional<double> getExplicitValueForLayer(const PerLayerValueMap& valueMap, const std::string& layerName);
 
 }  // namespace utils
