@@ -17,6 +17,7 @@ enum class device_kind { integrated, discrete };
 inline constexpr size_t short_sequence_private_value_budget = 12;
 inline constexpr size_t long_sequence_private_value_budget = 24;
 inline constexpr size_t paged_private_value_budget = 48;
+inline constexpr size_t default_discrete_head_dim_block = 4;
 // With block 4, cap the private recurrence state at 32 values on SIMD16 and 16 values on SIMD32.
 inline constexpr size_t max_common_discrete_private_state_size = 128;
 
@@ -48,12 +49,13 @@ inline size_t get_head_dim_block(const size_t head_dim,
                                  const size_t subgroup_size,
                                  const cldnn::device_info& info,
                                  const device_kind kind,
-                                 const size_t max_private_values) {
+                                 const size_t max_private_values,
+                                 const size_t discrete_target = default_discrete_head_dim_block) {
     if (head_dim == 0 || state_size == 0 || subgroup_size == 0)
         return 0;
 
     const size_t state_iterations = cldnn::ceil_div(state_size, subgroup_size);
-    const size_t target = kind == device_kind::discrete ? 4 : (info.arch >= cldnn::gpu_arch::xe2 ? 8 : 4);
+    const size_t target = kind == device_kind::discrete ? discrete_target : (info.arch >= cldnn::gpu_arch::xe2 ? 8 : 4);
     size_t block = std::min(head_dim, target);
     if (kind == device_kind::integrated) {
         // Bound the scalarized recurrence state together with the two per-head-dimension temporaries.

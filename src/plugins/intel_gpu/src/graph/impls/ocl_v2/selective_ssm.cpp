@@ -26,6 +26,8 @@ constexpr size_t max_jit_state_size = 512;
 constexpr size_t max_xe2_extended_private_state_size = 256;
 constexpr size_t xe2_extended_private_min_sequence = 16;
 constexpr size_t xe2_extended_bf16_private_min_sequence = 8;
+constexpr size_t xe2_short_sequence_head_dim_block = 2;
+constexpr size_t xe2_short_sequence_limit = 1;
 
 bool is_plain_static_layout(const cldnn::layout& layout) {
     return layout.get_partial_shape().is_static() && layout.data_padding == cldnn::padding() && layout.count() <= std::numeric_limits<uint32_t>::max();
@@ -57,6 +59,16 @@ bool use_discrete_slm(const RuntimeParams& params) {
     return !supports_private_state || prefer_slm_for_short_f32;
 }
 
+size_t get_discrete_head_dim_target(const RuntimeParams& params) {
+    const auto& info = params.get_device_info();
+    if (info.dev_type != cldnn::device_type::discrete_gpu)
+        return selective_ssm_jit::default_discrete_head_dim_block;
+
+    const size_t sequence_size = params.get_input_layout(3).get_partial_shape()[1].get_length();
+    const bool use_short_sequence_block = info.arch == cldnn::gpu_arch::xe2 && !use_discrete_slm(params) && sequence_size <= xe2_short_sequence_limit;
+    return use_short_sequence_block ? xe2_short_sequence_head_dim_block : selective_ssm_jit::default_discrete_head_dim_block;
+}
+
 template <selective_ssm_jit::device_kind Kind>
 class SelectiveSSMJitGenerator : public KernelGenerator {
 public:
@@ -72,8 +84,9 @@ protected:
         const size_t head_dim = x_shape[3].get_length();
         const size_t subgroup_size = selective_ssm_jit::get_subgroup_size(params.get_device_info(), Kind);
         const size_t private_values_budget = get_private_values_budget(x_shape[1].get_length(), params.get_input_layout(3).data_type, params.get_device_info());
+        const size_t discrete_target = get_discrete_head_dim_target(params);
         const size_t head_dim_block =
-            selective_ssm_jit::get_head_dim_block(head_dim, state_size, subgroup_size, params.get_device_info(), Kind, private_values_budget);
+            selective_ssm_jit::get_head_dim_block(head_dim, state_size, subgroup_size, params.get_device_info(), Kind, private_values_budget, discrete_target);
 
         jit.make("SSM_SEQUENCE_SIZE", x_shape[1].get_length());
         jit.make("SSM_NUM_HEADS", x_shape[2].get_length());
@@ -115,8 +128,14 @@ protected:
             const size_t subgroup_size = selective_ssm_jit::get_subgroup_size(params.get_device_info(), Kind);
             const size_t private_values_budget =
                 get_private_values_budget(x_shape[1].get_length(), params.get_input_layout(3).data_type, params.get_device_info());
-            const size_t head_dim_block =
-                selective_ssm_jit::get_head_dim_block(head_dim, state_size, subgroup_size, params.get_device_info(), Kind, private_values_budget);
+            const size_t discrete_target = get_discrete_head_dim_target(params);
+            const size_t head_dim_block = selective_ssm_jit::get_head_dim_block(head_dim,
+                                                                                state_size,
+                                                                                subgroup_size,
+                                                                                params.get_device_info(),
+                                                                                Kind,
+                                                                                private_values_budget,
+                                                                                discrete_target);
 
             kd.params.workGroups.global = {cldnn::ceil_div(head_dim, head_dim_block) * subgroup_size, num_heads, batch};
             kd.params.workGroups.local = {subgroup_size, 1, 1};
