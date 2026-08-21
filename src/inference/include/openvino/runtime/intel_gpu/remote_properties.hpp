@@ -216,10 +216,36 @@ static constexpr Property<os_handle_param> os_handle{"OS_HANDLE"};
  * memory-mapped files, etc.)
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
-enum class MmapMode {
+enum class AccessMode {
     READ = 0,       //!< Tensor data is only read
     READ_WRITE = 1  //!< Tensor data is also written back; requires writable memory (or a writable file)
 };
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const AccessMode& access_mode) {
+    switch (access_mode) {
+    case AccessMode::READ:
+        return os << "READ";
+    case AccessMode::READ_WRITE:
+        return os << "READ_WRITE";
+    default:
+        OPENVINO_THROW("Unsupported access mode");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, AccessMode& access_mode) {
+    std::string str;
+    is >> str;
+    if (str == "READ") {
+        access_mode = AccessMode::READ;
+    } else if (str == "READ_WRITE") {
+        access_mode = AccessMode::READ_WRITE;
+    } else {
+        OPENVINO_THROW("Unsupported access mode: ", str);
+    }
+    return is;
+}
+/** @endcond */
 
 /**
  * @brief This key identifies cpu pointer
@@ -237,7 +263,7 @@ static constexpr Property<int64_t> cpu_va_size{"CPU_VA_SIZE"};
  * @brief This key identifies access mode (read or read-write) of the memory pointed to by cpu_va
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
-static constexpr Property<MmapMode> cpu_va_access{"CPU_VA_ACCESS"};
+static constexpr Property<AccessMode> cpu_va_access{"CPU_VA_ACCESS"};
 
 /**
  * @brief This key identifies video decoder surface handle
@@ -278,14 +304,14 @@ struct SharedBufferHandle {
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 struct VirtualAddressMemory {
-    explicit VirtualAddressMemory(void* ptr_, int64_t size_ = -1, MmapMode access_ = MmapMode::READ)
+    explicit VirtualAddressMemory(void* ptr_, int64_t size_ = -1, AccessMode access_ = AccessMode::READ_WRITE)
         : ptr(ptr_),
           size(size_),
           access(access_) {}
 
     void* ptr = nullptr;
-    int64_t size = -1;                 ///< Buffer size in bytes; -1 means "derive from tensor shape"
-    MmapMode access = MmapMode::READ;  ///< Whether the plugin may only read this memory or also write to it
+    int64_t size = -1;                           ///< Buffer size in bytes; -1 means "derive from tensor shape"
+    AccessMode access = AccessMode::READ_WRITE;  ///< Whether the plugin may only read this memory or also write to it
 };
 
 /**
@@ -297,16 +323,16 @@ struct VirtualAddressMemory {
 struct FileDescriptor {  // need to be merged with ov::intel_npu::FileDescriptor in future
     explicit FileDescriptor(const std::filesystem::path& file_path,
                             std::size_t offset_in_bytes = 0,
-                            MmapMode file_access = MmapMode::READ)
+                            AccessMode file_access = AccessMode::READ)
         : path(file_path),
           offset(offset_in_bytes),
           access(file_access) {
         OPENVINO_ASSERT(!file_path.empty(), "[GPU] Provided file path is empty.");
     }
 
-    std::filesystem::path path;        ///< File path
-    std::size_t offset = 0;            ///< Offset in bytes to read from the file
-    MmapMode access = MmapMode::READ;  ///< Access mode of the mapping
+    std::filesystem::path path;            ///< File path
+    std::size_t offset = 0;                ///< Offset in bytes to read from the file
+    AccessMode access = AccessMode::READ;  ///< Access mode of the mapping
 };
 
 /**

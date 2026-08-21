@@ -3084,13 +3084,13 @@ TEST(GpuRemoteTensorFromCpu, smoke_allocAlignedCPUMemory) {
     std::fill_n(static_cast<float*>(output_ptr), element_count, 0.0f);
 
     {
-        auto remote_input_tensor = ctx.create_tensor(ov::element::f32,
-                                                     shape,
-                                                     ov::intel_gpu::VirtualAddressMemory(input_ptr));
-        auto remote_output_tensor = ctx.create_tensor(
+        auto remote_input_tensor = ctx.create_tensor(
             ov::element::f32,
             shape,
-            ov::intel_gpu::VirtualAddressMemory(output_ptr, -1, ov::intel_gpu::MmapMode::READ_WRITE));
+            ov::intel_gpu::VirtualAddressMemory(input_ptr, -1, ov::intel_gpu::AccessMode::READ));
+        auto remote_output_tensor = ctx.create_tensor(ov::element::f32,
+                                                      shape,
+                                                      ov::intel_gpu::VirtualAddressMemory(output_ptr));
 
         auto model = make_copy_model(shape);
         auto compiled = core.compile_model(model, ctx);
@@ -3209,7 +3209,7 @@ TEST_P(GpuRemoteTensorFromFile, smoke_mmapFileMemoryAsOutput) {
         auto remote_output_tensor = ctx.create_tensor(
             ov::element::f32,
             shape,
-            ov::intel_gpu::FileDescriptor{m_file_path, offset, ov::intel_gpu::MmapMode::READ_WRITE});
+            ov::intel_gpu::FileDescriptor{m_file_path, offset, ov::intel_gpu::AccessMode::READ_WRITE});
 
         auto model = make_copy_model(shape);
         auto compiled = core.compile_model(model, ctx);

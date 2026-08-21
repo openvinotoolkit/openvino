@@ -284,8 +284,8 @@ For more details, see the code snippets below:
             :sync: file
 
             Use this overload to wrap tensor data stored in a file. The access mode is declared in the
-            descriptor: ``MmapMode::READ`` maps the file read-only and may only be used as an inference
-            input, while ``MmapMode::READ_WRITE`` requires a writable file, may be used as an inference
+            descriptor: ``AccessMode::READ`` maps the file read-only and may only be used as an inference
+            input, while ``AccessMode::READ_WRITE`` requires a writable file, may be used as an inference
             output, and makes changes done through the tensor visible in the file. The plugin keeps the
             mapping alive for the whole lifetime of the created remote tensor, so the file must not
             otherwise be modified until the tensor is destroyed.

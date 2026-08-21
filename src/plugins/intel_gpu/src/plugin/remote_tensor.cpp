@@ -412,7 +412,7 @@ void RemoteTensorImpl::allocate() {
     }
     case TensorType::BT_CPU_VA: {
         const auto buffer_size = m_va_mem.size > -1 ? m_va_mem.size : m_layout.bytes_count();
-        if (m_va_mem.access == ov::intel_gpu::MmapMode::READ) {
+        if (m_va_mem.access == ov::intel_gpu::AccessMode::READ) {
             // host_read_only is set for the file-mmap case, since the host side will never write it either.
             m_memory_object = engine.create_hostbuffer(static_cast<const void*>(m_va_mem.ptr),
                                             buffer_size,

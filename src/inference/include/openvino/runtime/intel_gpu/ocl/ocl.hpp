@@ -356,7 +356,7 @@ public:
      * @param file_descriptor Descriptor with the path, offset and access mode of the file containing tensor data.
      * The offset must be a multiple of the system memory mapping alignment: the page size on Linux
      * (typically 4 KiB) and the allocation granularity on Windows (typically 64 KiB).
-     * MmapMode::READ_WRITE additionally requires the file to be writable by the calling process
+     * AccessMode::READ_WRITE additionally requires the file to be writable by the calling process
      * and makes the tensor writes visible in the file.
      * @return A remote tensor instance
      */

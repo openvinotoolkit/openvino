@@ -28,11 +28,11 @@ Type extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
 }
 
 
-ov::MmapMode to_util_mmap_mode(ov::intel_gpu::MmapMode access) {
+ov::MmapMode to_util_mmap_mode(ov::intel_gpu::AccessMode access) {
     switch (access) {
-    case ov::intel_gpu::MmapMode::READ:
+    case ov::intel_gpu::AccessMode::READ:
         return ov::MmapMode::READ;
-    case ov::intel_gpu::MmapMode::READ_WRITE:
+    case ov::intel_gpu::AccessMode::READ_WRITE:
         return ov::MmapMode::READ_WRITE;
     }
     OPENVINO_THROW("[GPU] Unsupported file access mode");
@@ -203,9 +203,9 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
             mem = extract_object(params, ov::intel_gpu::cpu_va);
             auto size = extract_object(params, ov::intel_gpu::cpu_va_size);
             // cpu_va_access is optional for backward compatibility with callers that build params manually
-            auto access = ov::intel_gpu::MmapMode::READ_WRITE;
+            auto access = ov::intel_gpu::AccessMode::READ_WRITE;
             if (auto it = params.find(ov::intel_gpu::cpu_va_access.name()); it != params.end()) {
-                access = it->second.as<ov::intel_gpu::MmapMode>();
+                access = it->second.as<ov::intel_gpu::AccessMode>();
             }
             return { reuse_memory_from_cpu_va(type, shape, VirtualAddressMemory{mem, size, access}, tensor_type), nullptr };
         } else if (ov::intel_gpu::SharedMemType::MMAPED_FILE == mem_type) {
@@ -299,7 +299,7 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_file(con
                                                                    const ov::Shape& shape,
                                                                    const std::filesystem::path& file_path,
                                                                    size_t offset,
-                                                                   ov::intel_gpu::MmapMode access) {
+                                                                   ov::intel_gpu::AccessMode access) {
     const auto byte_size = ov::util::get_memory_size_safe(type, shape);
     OPENVINO_ASSERT(byte_size, "[GPU] Cannot calculate memory size for element type ", type, " and shape ", shape);
 
