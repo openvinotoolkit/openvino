@@ -19,6 +19,7 @@
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/math_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 
 namespace ov {
@@ -279,29 +280,33 @@ ov::Tensor extract_tensor_data(const gguf_tensor& tensor, const std::shared_ptr<
     return ov::Tensor(view, mmap);
 }
 
-// Fetch a metadata value as an ov::Tensor, failing with the KEY NAME on either failure mode:
-// the key is absent, or it is present but not stored as a scalar tensor. A bare metadata.at(key)
-// / std::get<ov::Tensor> would throw std::out_of_range / std::bad_variant_access with no context.
+// Fetch a metadata value as an ov::Tensor of the expected element type, failing with the KEY NAME
+// on any failure mode: the key is absent, it is present but not a scalar tensor, or its element
+// type doesn't match (so a caller can't read past a smaller-than-expected stored type, e.g. a
+// 1-byte BOOL where a 4-byte scalar is expected).
 static const ov::Tensor& metadata_scalar_tensor(const std::unordered_map<std::string, GGUFMetaData>& metadata,
-                                                 const std::string& key) {
+                                                 const std::string& key,
+                                                 const ov::element::Type& expected_type) {
     auto it = metadata.find(key);
     OPENVINO_ASSERT(it != metadata.end(), "[GGUF] required metadata key is missing: '", key, "'");
     const auto* tensor = std::get_if<ov::Tensor>(&it->second);
-    OPENVINO_ASSERT(tensor && tensor->data(),
+    OPENVINO_ASSERT(tensor && tensor->data() && tensor->get_element_type() == expected_type,
                     "[GGUF] metadata key '",
                     key,
-                    "' is not a scalar numeric value as expected");
+                    "' is not a ",
+                    expected_type,
+                    " scalar as expected");
     return *tensor;
 }
 
 float metadata_to_float(const std::unordered_map<std::string, GGUFMetaData>& metadata, const std::string& key) {
-    const auto& tensor = metadata_scalar_tensor(metadata, key);
+    const auto& tensor = metadata_scalar_tensor(metadata, key, ov::element::f32);
     return *(tensor.data<ov::element_type_traits<ov::element::f32>::value_type>());
 }
 
 int metadata_to_int(const std::unordered_map<std::string, GGUFMetaData>& metadata, const std::string& key) {
-    const auto& tensor = metadata_scalar_tensor(metadata, key);
     // GGUF stores these counts as u32; reinterpret as i32 (values fit comfortably).
+    const auto& tensor = metadata_scalar_tensor(metadata, key, ov::element::u32);
     return static_cast<int>(*(tensor.data<ov::element_type_traits<ov::element::u32>::value_type>()));
 }
 
@@ -330,11 +335,7 @@ bool metadata_to_bool_or(const std::unordered_map<std::string, GGUFMetaData>& me
     if (!metadata.count(key)) {
         return default_value;
     }
-    const auto& tensor = metadata_scalar_tensor(metadata, key);
-    OPENVINO_ASSERT(tensor.get_element_type() == ov::element::boolean,
-                    "[GGUF] metadata key '",
-                    key,
-                    "' is not a boolean value as expected");
+    const auto& tensor = metadata_scalar_tensor(metadata, key, ov::element::boolean);
     return *(tensor.data<ov::element_type_traits<ov::element::boolean>::value_type>()) != 0;
 }
 
@@ -398,6 +399,13 @@ GGUFLoad get_gguf_data(const std::string& file) {
         uint64_t dim[4] = {1, 1, 1, 1};
         uint64_t offset = 0;
     };
+    // A minimal tensor-info record (0-length name, ndim=0) is 8 (name len) + 4 (ndim) + 4 (type) +
+    // 8 (offset) = 24 bytes; bound the file-controlled `tensor_count` by that before sizing the
+    // vector, so a tiny malformed file can't request an effectively unbounded allocation.
+    OPENVINO_ASSERT(tensor_count <= cur.remaining() / 24,
+                    "[load_gguf] tensor count ",
+                    tensor_count,
+                    " overflows the remaining file size");
     std::vector<TensorInfo> infos(tensor_count);
     for (uint64_t i = 0; i < tensor_count; i++) {
         TensorInfo& ti = infos[i];
@@ -421,27 +429,41 @@ GGUFLoad get_gguf_data(const std::string& file) {
     // Symmetric types (Q4_0, Q8_0, Q5_0, Q6_K): zp_bytes = 0.
     // Asymmetric types (Q4_1, Q4_K): zp u4 packed (same count as scales, half the bytes).
     // Asymmetric Q5_K: zp u8 (one byte per sub-block, same count as scales).
-    auto quant_sizes = [](const TensorInfo& ti) -> std::tuple<size_t, size_t, size_t> {
+    //
+    // Every dim comes straight from the file, so shape products (and the total below) use
+    // ov::util::mul_overflow/add_overflow instead of raw `*=`/`+=`: wrapped products could
+    // otherwise under-size quant_buf while the fill functions still write the real,
+    // attacker-controlled shape into it.
+    auto size_prod = [](const ov::Shape& s) -> size_t {
+        size_t result = 1;
+        for (auto d : s) {
+            size_t next = 0;
+            OPENVINO_ASSERT(!ov::util::mul_overflow(result, static_cast<size_t>(d), next),
+                            "[load_gguf] tensor element count overflows size_t");
+            result = next;
+        }
+        return result;
+    };
+    auto quant_sizes = [&size_prod](const TensorInfo& ti) -> std::tuple<size_t, size_t, size_t> {
         auto shape = [&]() {
             ov::Shape s;
             for (int i = static_cast<int>(ti.ndim) - 1; i >= 0; --i)
                 s.push_back(ti.dim[i]);
             return s;
         }();
+        OPENVINO_ASSERT(!shape.empty(), "[load_gguf] tensor '", ti.name, "' is quantized but has rank 0");
 
         if (ti.type == GGUF_TYPE_Q8_K) {
             // Q8_K: 256 i8 weights + f32 scale + 16 i16 bsums (ignored) per block.
-            size_t nelems = 1;
-            for (auto d : shape) nelems *= d;
+            const size_t nelems = size_prod(shape);
             const size_t n_blocks = nelems / 256;
             return {nelems, n_blocks * sizeof(float), 0};  // w_bytes, s_bytes(f32), no zp
         }
 
         if (ti.type == GGUF_TYPE_MXFP4) {
-            size_t nelems = 1;
-            for (auto d : shape)
-                nelems *= d;
+            const size_t nelems = size_prod(shape);
             const size_t cols = shape.back();
+            OPENVINO_ASSERT(cols != 0, "[load_gguf] tensor '", ti.name, "' has a zero-sized dimension");
             const size_t groups = cols / 32;
             size_t rows = nelems / cols;
             const size_t w_bytes = (nelems + 1) / 2;  // f4e2m1: 4-bit
@@ -449,18 +471,14 @@ GGUFLoad get_gguf_data(const std::string& file) {
             return {w_bytes, s_bytes, 0};
         }
 
-        size_t w_nelems = 1;
-        for (auto d : shape)
-            w_nelems *= d;
+        const size_t w_nelems = size_prod(shape);
 
         // Q2_K: u2 (4 per byte), 16 sub-blocks of 16 per super-block.
         if (ti.type == GGUF_TYPE_Q2_K) {
             const size_t w_bytes = (w_nelems + 3) / 4;  // u2: 4 values per byte
             auto scale_shape = shape;
             scale_shape.back() /= 16;
-            size_t s_nelems = 1;
-            for (auto d : scale_shape)
-                s_nelems *= d;
+            const size_t s_nelems = size_prod(scale_shape);
             return {w_bytes, s_nelems * sizeof(uint16_t), s_nelems};  // zp: u8 per sub-block
         }
 
@@ -469,9 +487,7 @@ GGUFLoad get_gguf_data(const std::string& file) {
             const size_t w_bytes = (w_nelems + 3) / 4;  // u2: 4 values per byte
             auto scale_shape = shape;
             scale_shape.back() /= 64;
-            size_t s_nelems = 1;
-            for (auto d : scale_shape)
-                s_nelems *= d;
+            const size_t s_nelems = size_prod(scale_shape);
             return {w_bytes, s_nelems * sizeof(uint16_t), s_nelems};  // zp: u8 per block
         }
 
@@ -480,9 +496,7 @@ GGUFLoad get_gguf_data(const std::string& file) {
             const size_t w_bytes = (w_nelems + 1) / 2;  // i4: 2 values per byte
             auto scale_shape = shape;
             scale_shape.back() /= 16;
-            size_t s_nelems = 1;
-            for (auto d : scale_shape)
-                s_nelems *= d;
+            const size_t s_nelems = size_prod(scale_shape);
             return {w_bytes, s_nelems * sizeof(uint16_t), 0};  // symmetric: no zp
         }
 
@@ -505,9 +519,7 @@ GGUFLoad get_gguf_data(const std::string& file) {
 
         auto scale_shape = shape;
         scale_shape.back() /= weights_per_block;
-        size_t s_nelems = 1;
-        for (auto d : scale_shape)
-            s_nelems *= d;
+        const size_t s_nelems = size_prod(scale_shape);
         const size_t s_bytes = s_nelems * sizeof(uint16_t);
 
         // Zero-point bytes:
@@ -534,7 +546,10 @@ GGUFLoad get_gguf_data(const std::string& file) {
         if (!is_quant)
             continue;
         auto [wb, sb, bb] = quant_sizes(ti);
-        total_quant_bytes += wb + sb + bb;
+        size_t sum = 0;
+        OPENVINO_ASSERT(!ov::util::add_overflow(wb, sb, sum) && !ov::util::add_overflow(sum, bb, sum) &&
+                            !ov::util::add_overflow(total_quant_bytes, sum, total_quant_bytes),
+                        "[load_gguf] total quantized buffer size overflows size_t");
     }
 
     // Single allocation for all repacked quantized data (IR-frontend AlignedBuffer pattern).

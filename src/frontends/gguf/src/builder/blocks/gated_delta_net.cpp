@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "builder/blocks/common.hpp"
+#include "openvino/core/except.hpp"
 
 namespace ov {
 namespace frontend {
@@ -26,6 +27,12 @@ std::string gated_delta_net(GraphEmitter& e,
     const int64_t S = cfg.ssm_state_size;             // head_k_dim == head_v_dim
     const int64_t H_k = cfg.ssm_group_count;          // num_k_heads
     const int64_t H_v = cfg.ssm_dt_rank;              // num_v_heads
+    OPENVINO_ASSERT(H_v > 0 && cfg.ssm_inner_size % H_v == 0,
+                    "[GGUF] Gated-DeltaNet: ssm_inner_size (",
+                    cfg.ssm_inner_size,
+                    ") is not evenly divisible by ssm_time_step_rank (",
+                    H_v,
+                    ")");
     const int64_t head_v = cfg.ssm_inner_size / H_v;  // head_v_dim
     const int64_t key_dim = S * H_k;
     const int64_t value_dim = head_v * H_v;
