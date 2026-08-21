@@ -16,6 +16,7 @@
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/compute_hash.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
@@ -450,6 +451,67 @@ TEST_F(CustomIRTest, parse_weightless_cache_attribute_oob_throws) {
 
     // .bin is ~20 bytes; injected size (~68 GB) must be rejected before any dereference
     EXPECT_THROW(ov::Core().read_model(m_out_xml_path, m_out_bin_path), ov::Exception);
+}
+
+// Tests for ConstantWriter's deduplication size guard against hash collisions between different-sized buffers.
+
+// Precomputed collision: kLarge starts with kSmall and both share the same compute_hash. Valid only for
+// the x86-64 CRC-64 hash, so the tests are x86-64 only and assert the collision to catch hash changes.
+#if defined(OPENVINO_ARCH_X86_64)
+namespace {
+constexpr uint8_t kSmall[] = {0x07, 0x18, 0x29, 0x3a, 0x4b, 0x5c, 0x6d, 0x7e,
+                              0x8f, 0xa0, 0xb1, 0xc2, 0xd3, 0xe4, 0xf5, 0x06};
+constexpr uint8_t kLarge[] = {0x07, 0x18, 0x29, 0x3a, 0x4b, 0x5c, 0x6d, 0x7e, 0x8f, 0xa0, 0xb1, 0xc2,
+                              0xd3, 0xe4, 0xf5, 0x06, 0x2b, 0xa4, 0x34, 0x82, 0x0b, 0x04, 0xb1, 0x2a};
+}  // namespace
+
+TEST(ConstantWriterDedup, size_mismatch_is_not_deduplicated) {
+    const std::vector<char> small(kSmall, kSmall + sizeof(kSmall));
+    const std::vector<char> large(kLarge, kLarge + sizeof(kLarge));
+    ASSERT_EQ(ov::runtime::compute_hash(small.data(), small.size()),
+              ov::runtime::compute_hash(large.data(), large.size()))
+        << "hardcoded buffers no longer collide; regenerate them for the current compute_hash";
+
+    std::stringstream bin;
+    ov::util::ConstantWriter writer(bin, /*enable_compression=*/true);
+    size_t new_size = 0;
+    const auto off_large = writer.write(large.data(), large.size(), new_size);
+    const auto off_small = writer.write(small.data(), small.size(), new_size);
+
+    EXPECT_NE(off_small, off_large) << "a shorter constant must not be deduplicated onto a longer colliding one";
+    EXPECT_EQ(static_cast<size_t>(bin.tellp()), large.size() + small.size()) << "both constants must be written";
+}
+
+TEST(ConstantWriterDedup, hash_collision_with_larger_current_buffer_no_oob) {
+    const std::vector<char> small(kSmall, kSmall + sizeof(kSmall));
+    const std::vector<char> large(kLarge, kLarge + sizeof(kLarge));
+    ASSERT_EQ(ov::runtime::compute_hash(small.data(), small.size()),
+              ov::runtime::compute_hash(large.data(), large.size()))
+        << "hardcoded buffers no longer collide; regenerate them for the current compute_hash";
+
+    std::stringstream bin;
+    ov::util::ConstantWriter writer(bin, /*enable_compression=*/true);
+    size_t new_size = 0;
+    const auto off_small = writer.write(small.data(), small.size(), new_size);
+    const auto off_large = writer.write(large.data(), large.size(), new_size);
+
+    EXPECT_NE(off_large, off_small) << "a longer constant must not be deduplicated onto a shorter colliding one";
+    EXPECT_EQ(static_cast<size_t>(bin.tellp()), small.size() + large.size()) << "both constants must be written";
+}
+#endif  // OPENVINO_ARCH_X86_64
+
+TEST(ConstantWriterDedup, identical_constants_are_deduplicated) {
+    const std::vector<char> a(128, char{0x3C});
+    const std::vector<char> b(128, char{0x3C});
+
+    std::stringstream bin;
+    ov::util::ConstantWriter writer(bin, /*enable_compression=*/true);
+    size_t new_size = 0;
+    const auto off_a = writer.write(a.data(), a.size(), new_size);
+    const auto off_b = writer.write(b.data(), b.size(), new_size);
+
+    EXPECT_EQ(off_a, off_b) << "identical constants must still be deduplicated";
+    EXPECT_EQ(static_cast<size_t>(bin.tellp()), a.size()) << "duplicate constant must not be re-written";
 }
 
 TEST(StrToContainer, FloatVectorWithInfAndNan) {
