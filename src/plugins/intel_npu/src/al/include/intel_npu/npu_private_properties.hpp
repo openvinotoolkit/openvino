@@ -43,50 +43,6 @@ inline std::string standardize(const std::string_view platform) {
 }  // namespace Platform
 
 /**
- * @enum ColorFormat
- * @brief Extra information about input color format for preprocessing
- * @note Configuration API v 2.0
- */
-enum ColorFormat : uint32_t {
-    RAW = 0u,  ///< Plain blob (default), no extra color processing required
-    RGB,       ///< RGB color format
-    BGR,       ///< BGR color format, default in DLDT
-    RGBX,      ///< RGBX color format with X ignored during inference
-    BGRX,      ///< BGRX color format with X ignored during inference
-};
-
-/**
- * @brief Prints a string representation of ov::intel_npu::ColorFormat to a stream
- * @param out An output stream to send to
- * @param fmt A color format value to print to a stream
- * @return A reference to the `out` stream
- * @note Configuration API v 2.0
- */
-inline std::ostream& operator<<(std::ostream& out, const ColorFormat& fmt) {
-    switch (fmt) {
-    case ColorFormat::RAW: {
-        out << "RAW";
-    } break;
-    case ColorFormat::RGB: {
-        out << "RGB";
-    } break;
-    case ColorFormat::BGR: {
-        out << "BGR";
-    } break;
-    case ColorFormat::RGBX: {
-        out << "RGBX";
-    } break;
-    case ColorFormat::BGRX: {
-        out << "BGRX";
-    } break;
-    default:
-        out << static_cast<uint32_t>(fmt);
-        break;
-    }
-    return out;
-}
-
-/**
  * @brief [Only for NPU Plugin]
  * Type: String. Default is "AUTO".
  * This option is added for enabling batching on plugin.
