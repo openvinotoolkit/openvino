@@ -35,7 +35,7 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::HardcodedPositionIdsMatcher");
     explicit HardcodedPositionIdsMatcher(ov::ParameterVector& new_params) {
         // The oldest exports shared one Range between RoPE, Causal Mask and the Gated Short
-        // Convolution Block, and offset it inside Range itself:
+        // Convolution Block indexing, and offset it inside Range itself:
         //
         //                                          -> Convert -> RoPE
         //                                         |
@@ -70,14 +70,15 @@ public:
         auto sin = opp::wrap_type<ov::op::v0::Sin>(concat);
 
         ov::pass::MultiMatcher::Callback callback = [=, &new_params](const auto& m) {
-            // NOTE: Range that mimics `position_ids` is consumed by RoPE operation as well as by Causal Mask creation
-            //       (LessEqual operation) and Gated Short Convolution Block's ScattedNDUpdate operation.
+            // NOTE: Range that mimics `position_ids` is consumed by RoPE operation, but might as well be used for
+            //       Causal Mask creation (via LessEqual, ex.: transformers==5.0.0) and Gated Short Convolution Block's
+            //       ScatterNDUpdate operation (ex.: transformers==4.57.6). The rewrite below only rewires the RoPE
+            //       path and ScatterNDUpdate path (if exists) to use new `position_ids` parameter.
             //       For static shapes case, it is not right to use actual `position_ids` for the second argument of
-            //       LessEqual operation (=Q range), because causal triangular mask will only allow positions from
-            //       the left till the real current positions in the sequence (inclusively), while our current items
-            //       are lied at the right end of the static `input_ids` after a window of padding.
-            //       Thus, the Range is preserved for Causal Mask creation, while added `position_ids` parameter is
-            //       used only for RoPE and ScatterNDUpdate in Gated Short Convolution Block.
+            //       LessEqual operation (=Q range) in creation of the causal mask. This setup will only allow positions
+            //       from the left till the real current positions in the sequence (inclusively), while our current
+            //       items are lied at the right end of the static `input_ids` after a whole window of padding. Thus,
+            //       the Range should be preserved for Causal Mask creation.
             auto& pattern_to_output = m.at(cos).front();
 
             auto range_node = pattern_to_output.at(range).get_node_shared_ptr();
@@ -95,7 +96,7 @@ public:
             convert_node->input(0).replace_source_output(unsqueeze1_node_copy->output(0));
 
             // FIXME: For Gated Short Convolution Block, there is ScatterNDUpdate that also consumes generated
-            // positions.
+            // positions in old IRs.
             //        It seems to right to use the newly created `position_ids` for it as well, however, real tests show
             //        no difference against usage of hardcoded QRange: both are similarly accurate.
             auto position_ids_squeezed = std::make_shared<ov::op::v0::Squeeze>(
@@ -104,8 +105,7 @@ public:
             OPENVINO_ASSERT(range_node->get_output_size() == 1, "Range node should have exactly one output");
             auto range_consumers = range_node->get_output_target_inputs(0);
             for (auto&& consumer : range_consumers) {
-                // Only the Clamp path is rewired: the Range is preserved for Causal Mask creation,
-                // and newer models have no Clamp to begin with.
+                // Only the Clamp path is remained to rewire.
                 if (consumer.get_node()->get_type_name() == std::string("Clamp")) {
                     consumer.replace_source_output(position_ids_squeezed->output(0));
                 }
