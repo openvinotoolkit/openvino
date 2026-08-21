@@ -555,24 +555,34 @@ TEST_F(TPDeviceCoordinatorTest, AllReduceAcrossWiderWorlds) {
 
         const size_t bytes = elements * sizeof(ov::float16);
         std::vector<void*> ins(ranks), outs(ranks);
-        float expected = 0.0f;
         for (int r = 0; r < ranks; ++r) {
             ins[r] = rs[r].alloc(bytes);
             outs[r] = rs[r].alloc(bytes);
-            // A distinct value per rank, so a rank missing from the sum is
-            // visible in the total rather than hidden by equal operands.
-            const float value = static_cast<float>(r + 1);
-            expected += value;
-            std::vector<ov::float16> host(elements, ov::float16(value));
-            rs[r].copy_from_host(ins[r], host.data(), bytes);
         }
 
-        run_collective(*coord, 0, ins, outs, elements, ov::element::f16);
+        // Several iterations on the same collective slot: the funnel clears
+        // its recv/reduce/bcast events from the recorded command lists, and a
+        // reset that lands in the wrong list only shows up from the second
+        // call on, when a stale signal lets a wait through early.
+        for (int k = 0; k < 5; ++k) {
+            SCOPED_TRACE("iteration " + std::to_string(k));
+            float expected = 0.0f;
+            for (int r = 0; r < ranks; ++r) {
+                // A distinct value per rank, so a rank missing from the sum is
+                // visible in the total rather than hidden by equal operands.
+                const float value = static_cast<float>(r + 1 + k);
+                expected += value;
+                std::vector<ov::float16> host(elements, ov::float16(value));
+                rs[r].copy_from_host(ins[r], host.data(), bytes);
+            }
 
-        for (int r = 0; r < ranks; ++r) {
-            std::vector<ov::float16> host(elements);
-            rs[r].copy_to_host(host.data(), outs[r], bytes);
-            EXPECT_EQ(count_mismatches(host, expected, f16_tolerance), 0u) << "rank " << r;
+            run_collective(*coord, 0, ins, outs, elements, ov::element::f16);
+
+            for (int r = 0; r < ranks; ++r) {
+                std::vector<ov::float16> host(elements);
+                rs[r].copy_to_host(host.data(), outs[r], bytes);
+                EXPECT_EQ(count_mismatches(host, expected, f16_tolerance), 0u) << "rank " << r;
+            }
         }
 
         for (int r = 0; r < ranks; ++r) {

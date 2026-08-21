@@ -165,6 +165,11 @@ private:
         ze_event_handle_t           ev_reduce{nullptr};
         std::vector<ze_event_handle_t> ev_bcast;    // [N-1]
 
+        // Ring schedule: one event per (step, rank), signaled by the rank's
+        // outgoing copy at that step and waited on by its successor.  Laid
+        // out as [step * N + rank] over 2*(N-1) steps.
+        std::vector<ze_event_handle_t> ev_ring;
+
         // Optional device-side timestamp probes (N=2 path).
         // ts_pool is a separate KERNEL_TIMESTAMP pool (timestamp events
         // require their own pool flag).  ev_ts_copy[r] is signaled by
@@ -196,15 +201,24 @@ private:
         }
     };
 
-    // Device-USM staging shared by all collective plans.  For TP=2 there
-    // is one allocation on each rank device.  For N>2, allocations[0]
-    // contains N-1 packed worker contributions on rank 0; other entries are
-    // null.  Collectives are synchronous and outer InferRequests are
-    // serialized, so only one plan uses the arena at a time.
+    // Device-USM staging shared by all collective plans.
+    //
+    //   * TP=2 direct exchange: one payload-sized allocation per rank.
+    //   * Ring (N>2): N chunk slots per rank, so every step of the
+    //     reduce-scatter lands in a slot of its own and no cross-rank
+    //     back-pressure is needed between steps.  Total per rank is one
+    //     payload, the same order as TP=2 -- unlike the funnel, which piled
+    //     (N-1) payloads onto rank 0 alone.
+    //   * Funnel (N>2 fallback): allocations[0] holds N-1 packed worker
+    //     contributions on rank 0; other entries are null.
+    //
+    // Collectives are synchronous and outer InferRequests are serialized, so
+    // only one plan uses the arena at a time.
     struct ScratchArena {
         std::vector<void*> allocations;              // [N]
         std::vector<std::size_t> bytes_per_rank;      // [N]
         std::size_t payload_capacity_bytes{0};
+        std::size_t chunk_capacity_bytes{0};          // ring: stride between slots
         std::size_t total_allocated_bytes{0};
         uint64_t generation{0};
         uint64_t growth_count{0};
@@ -247,42 +261,65 @@ private:
                     Plan& plan);
     void record_plan(Plan& plan);
 
+    /// Records the ring schedule: N-1 reduce-scatter steps followed by N-1
+    /// all-gather steps, every rank sending only to its successor.  Each link
+    /// carries 2*(N-1)/N of the payload instead of the funnel's (N-1) copies
+    /// in and out of rank 0, so the cost per link stops growing with N.
+    void record_ring_plan(Plan& plan);
+
+    /// Element range of ring chunk `chunk` within a payload of `n` elements.
+    /// Chunks differ by at most one element, which keeps every one of them
+    /// non-empty and removes the need to signal skipped steps.
+    void ring_chunk(std::size_t n, int chunk, std::size_t& offset, std::size_t& count) const;
+
+    /// Staging slot for `chunk` on `rank` inside the ring arena.
+    void* ring_slot(int rank, int chunk) const;
+
     /// Creates the plan's per-rank command lists if it has none.  Called at
     /// setup so the cost does not land on the first inference, and again from
     /// build_plan for safety.  No-op on the immediate path.
     void ensure_plan_lists(Plan& plan);
 
-    /// True when ev_recv is reset by a command appended to the tail of the
-    /// recorded command list instead of by zeEventHostReset in execute_plan.
-    /// The host reset is two driver round-trips on every collective (64 per
-    /// model step) and measured ~7% of a continuous-batching step; the
-    /// device-side reset costs a command-processor slot that the queue drain
-    /// already pays for.  Restricted to the recorded N=2 path: the immediate
-    /// path records nothing, and profiling reads kernel timestamps back from
-    /// ev_recv after the sync, which a device-side reset would have wiped.
+    /// True when the collective's events are cleared by commands appended to
+    /// the tail of the recorded command lists instead of by zeEventHostReset
+    /// in execute_plan.  The host reset is one driver round-trip per event on
+    /// every collective (64 per model step); the device-side reset is one
+    /// command-processor slot on a list that is already being drained.  The
+    /// saving grows with the world size: N=2 has 2 events, the N>2 funnel has
+    /// 2*(N-1)+1.  Excluded are the immediate path, which records nothing, and
+    /// profiling, which reads kernel timestamps back from those same events
+    /// after the sync and would find them wiped.  TP_DEVICE_EVENT_RESET=0
+    /// forces the host reset back on so the two can be compared in one build.
     bool use_device_event_reset() const {
-        return m_world_size == 2 && !m_use_immediate && !m_profiling_enabled;
+        return m_device_event_reset && !m_use_immediate && !m_profiling_enabled;
     }
 
     bool ensure_scratch_capacity(std::size_t payload_bytes);
     void destroy_scratch();
     void* scratch_buffer(int index) const;
 
-    // Per-call host-side breakdown of execute_plan() (N=2 path).
+    // Per-call host-side breakdown of execute_plan().  Shaped so it stays
+    // meaningful for any world size: the per-rank sync times are folded into
+    // "the first queue we waited on" and "everything after it" instead of a
+    // per-rank vector that would allocate on a path taken 64 times per step.
     struct ExecStats {
-        std::chrono::nanoseconds reset{};       // time spent resetting events
-        std::chrono::nanoseconds submit{};      // both ExecuteCommandLists calls
-        std::chrono::nanoseconds sync_a{};      // first  zeCommandQueueSynchronize
-        std::chrono::nanoseconds sync_b{};      // second zeCommandQueueSynchronize
+        std::chrono::nanoseconds reset{};       // time spent resetting events on the host
+        std::chrono::nanoseconds submit{};      // all ExecuteCommandLists calls
+        std::chrono::nanoseconds sync_first{};  // first zeCommandQueueSynchronize
+        std::chrono::nanoseconds sync_rest{};   // sum of the remaining ones
         // Device-side durations queried via kernel timestamps after sync.
-        // Per rank we time the memcpy and the reduce kernel; aggregated as
-        // max across ranks (slower side defines the critical path).
-        std::chrono::nanoseconds dev_copy{};    // max(rank0, rank1) memcpy
-        std::chrono::nanoseconds dev_kernel{};  // max(rank0, rank1) reduce kernel
+        // Aggregated along the critical path: concurrent transfers are folded
+        // with max, sequential phases are added.
+        std::chrono::nanoseconds dev_copy{};    // cross-device memcpy
+        std::chrono::nanoseconds dev_kernel{};  // reduce kernel(s)
         std::chrono::nanoseconds dev_ts_query{};// time spent in zeEventQueryKernelTimestamp
-        // Bytes transferred per rank by the cross-device memcpy (n*elem_bytes).
-        // On N=2 both ranks transfer the same amount; we report it once.
+        // Payload of a single cross-device transfer (n*elem_bytes).  Used for
+        // per-link bandwidth, which is what the hardware limit is expressed in.
         std::size_t              copy_bytes{0};
+        // Every byte that crosses a device boundary during the collective.
+        // N=2 moves 2*payload (one transfer each way); the N>2 funnel moves
+        // 2*(N-1)*payload, all of it through rank 0's links.
+        std::size_t              copy_bytes_total{0};
     };
 
     void execute_plan(Plan& plan, ExecStats* stats = nullptr);
@@ -319,6 +356,24 @@ private:
     // this is set, and their values must survive until execute_plan reads
     // them back, which forbids the device-side event reset.
     bool                            m_profiling_enabled{false};
+
+    // Latched TP_DEVICE_EVENT_RESET.  On by default; exists so the host and
+    // device reset schemes can be compared without a rebuild.
+    bool                            m_device_event_reset{true};
+
+    // Ring instead of the rank-0 funnel for N>2.  Latched at construction
+    // because it decides the scratch layout.  TP_RING=0 restores the funnel.
+    bool                            m_use_ring{false};
+
+    // Whether the ring's command lists are created with
+    // ZE_COMMAND_LIST_FLAG_IN_ORDER.  In-order execution would express the
+    // ring's linear chain for free, but combining it with the explicit
+    // cross-device events the ring needs makes queues intermittently fail to
+    // drain -- reproduced as a 5 s timeout on one rank's queue while the
+    // barrier variant passed in the same session.  Default is therefore the
+    // explicit barriers; TP_RING_IN_ORDER=1 re-enables the flag for
+    // experiments once the driver behaviour is understood.
+    bool                            m_ring_in_order{false};
 
     std::vector<RankState>          m_ranks;        // [N]
 
