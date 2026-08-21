@@ -14,6 +14,7 @@
 #include <tuple>
 #include <vector>
 
+#include "cache/runtime_requirements.hpp"
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/utils.hpp"
@@ -781,8 +782,9 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
             const auto& requirements = it->second.as<std::string>();
             if (!requirements.empty()) {
                 // Same compatibility policy as the import_model() guard (single source of truth).
-                return CompiledModel::is_runtime_requirements_compatible(requirements, *device) ? ov::CompatibilityCheck::SUPPORTED
-                                                                                                : ov::CompatibilityCheck::UNSUPPORTED;
+                return cache::is_runtime_requirements_compatible(requirements, *device)
+                           ? ov::CompatibilityCheck::SUPPORTED
+                           : ov::CompatibilityCheck::UNSUPPORTED;
             }
         }
         return ov::CompatibilityCheck::NOT_APPLICABLE;

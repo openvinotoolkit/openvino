@@ -51,9 +51,9 @@ TEST_F(CompatibilityStringGPU, RuntimeRequirementsIsSupportedAndNonEmpty) {
     std::cout << "[ INFO     ] GPU ov::runtime_requirements = " << requirements << std::endl;
 }
 
-// The compatibility property continues to accept the exact legacy v1 descriptor for the
-// selected device, while newly compiled models advertise the backend-tagged v2 schema.
-TEST_F(CompatibilityStringGPU, LegacyV1RequirementsRemainCompatible) {
+// A legacy descriptor lacks the backend and kernel-artifact identity required by v2 and must
+// trigger recompilation instead of allowing a potentially incompatible compiled model.
+TEST_F(CompatibilityStringGPU, LegacyV1RequirementsRequireRecompile) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::Core core;
     auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU);
@@ -63,11 +63,13 @@ TEST_F(CompatibilityStringGPU, LegacyV1RequirementsRemainCompatible) {
     const auto desc_pos = current.find(";desc=");
     ASSERT_NE(runtime_pos, std::string::npos);
     ASSERT_NE(desc_pos, std::string::npos);
-    const auto legacy =
-        std::string{"meta=1.0"} + current.substr(std::string{"meta=2.0"}.size(), runtime_pos - std::string{"meta=2.0"}.size()) + current.substr(desc_pos);
+    auto legacy = current.substr(0, runtime_pos) + current.substr(desc_pos);
+    legacy.replace(0, std::string{"meta=2.0"}.size(), "meta=1.0");
 
-    EXPECT_EQ(core.get_property(ov::test::utils::DEVICE_GPU, ov::compatibility_check, {{ov::runtime_requirements.name(), legacy}}),
-              ov::CompatibilityCheck::SUPPORTED);
+    EXPECT_EQ(core.get_property(ov::test::utils::DEVICE_GPU,
+                                ov::compatibility_check,
+                                {{ov::runtime_requirements.name(), legacy}}),
+              ov::CompatibilityCheck::UNSUPPORTED);
 }
 
 // The plugin advertises compatibility_check among its supported properties.
@@ -159,7 +161,7 @@ TEST_F(CompatibilityStringGPU, DescriptorBlockIsMagicGuardedInBlob) {
     OV_ASSERT_NO_THROW(compiled_model.export_model(blob));
     const std::string data = blob.str();
 
-    // Must match CompiledModel::runtime_requirements_magic ("OVEP_RRQ").
+    // Must match cache::runtime_requirements_magic ("OVEP_RRQ").
     constexpr uint64_t expected_magic = 0x4F5645505F525251ULL;
     ASSERT_GE(data.size(), sizeof(ov::CacheMode) + sizeof(expected_magic));
 
