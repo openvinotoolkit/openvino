@@ -206,11 +206,15 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
             return false;
         }
 
+        const auto weightsType = op->input(WEIGHTS).get_element_type();
         const bool hasWeightZeroPoints = op->get_input_size() > WEIGHT_ZERO_POINTS &&
                                          op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::dynamic;
 
+        if (weightsType == ov::element::u4 && !hasWeightZeroPoints) {
+            return false;
+        }
+
         if (hasWeightZeroPoints) {
-            const auto weightsType = op->input(WEIGHTS).get_element_type();
             const auto zeroPointsType = op->input(WEIGHT_ZERO_POINTS).get_element_type();
             // KleidiAI supports asymmetric INT4 only for group-wise u4.
             if (weightsType != ov::element::u4 || zeroPointsType != ov::element::u4 || !isGroupWise) {
