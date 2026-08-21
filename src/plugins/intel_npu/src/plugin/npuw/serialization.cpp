@@ -98,8 +98,8 @@ void ov::npuw::orc::validate_spatial(const ov::npuw::compiled::Spatial& spatial,
             OPENVINO_THROW("Invalid NPUW spatial metadata: out_dim is out of range for output ", out_idx);
         }
 
-        if (output_shape[spatial.out_dim] < spatial.range) {
-            OPENVINO_THROW("Invalid NPUW spatial metadata: range exceeds output ", out_idx, " shape");
+        if (output_shape[spatial.out_dim] < spatial.nway) {
+            OPENVINO_THROW("Invalid NPUW spatial metadata: nway exceeds output ", out_idx, " shape");
         }
     }
 
@@ -117,8 +117,8 @@ void ov::npuw::orc::validate_spatial(const ov::npuw::compiled::Spatial& spatial,
             OPENVINO_THROW("Invalid NPUW spatial metadata: param dim is out of range");
         }
 
-        if (input_shape[param.dim] < spatial.range) {
-            OPENVINO_THROW("Invalid NPUW spatial metadata: range exceeds input shape");
+        if (input_shape[param.dim] < spatial.nway) {
+            OPENVINO_THROW("Invalid NPUW spatial metadata: nway exceeds input shape");
         }
     }
 }

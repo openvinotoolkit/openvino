@@ -400,6 +400,57 @@ TEST(SerializationTest, CompiledModelDescImportRejectsInvalidSpatialMetadata) {
     EXPECT_THROW(target_desc.serialize(reader, weights_context, std::nullopt, &submodel_ctx), ov::Exception);
 }
 
+TEST(SerializationTest, CompiledModelDescImportAcceptsSpatialPortsReshapedToNway) {
+    auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 8});
+    auto result = std::make_shared<ov::op::v0::Result>(parameter);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{parameter}, "spatial");
+
+    auto plugin = std::make_shared<ov::test::npuw::NullPlugin>();
+    auto core = std::make_shared<testing::NiceMock<ov::MockICore>>();
+    plugin->set_core(core);
+
+    auto compiled_model = std::make_shared<ov::test::npuw::MockSubCompiledModel>(model, plugin, ov::AnyMap{});
+    ON_CALL(
+        *core,
+        import_model(testing::A<std::istream&>(), testing::A<const std::string&>(), testing::A<const ov::AnyMap&>()))
+        .WillByDefault([compiled_model](std::istream&, const std::string&, const ov::AnyMap&) {
+            return compiled_model;
+        });
+
+    ov::npuw::CompiledModelDescAccess::Desc source_desc;
+    source_desc.compiled_model = compiled_model;
+    source_desc.param_base = 1u;
+    source_desc.spatial.emplace();
+    source_desc.spatial->params = {{0u, 0u}};
+    source_desc.spatial->range = 8u;
+    source_desc.spatial->nway = 4u;
+    source_desc.spatial->out_dim = 0u;
+    source_desc.spatial->nway_iters = 2u;
+    source_desc.spatial->tail_size = 0u;
+
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    auto writer = ov::npuw::s11n::Stream::writer(buffer);
+    ov::npuw::s11n::WeightsContext weights_context;
+    source_desc.serialize(writer, weights_context, 0u);
+
+    buffer.seekg(0);
+
+    ov::npuw::CompiledModelDescAccess::Desc target_desc;
+    target_desc.compiled_model = compiled_model;
+    ov::npuw::s11n::SubmodelDeserializeCtx submodel_ctx(
+        plugin,
+        target_desc.compiled_model,
+        [](std::size_t) {
+            return std::string("CPU");
+        },
+        [](const std::string&) {
+            return ov::AnyMap{};
+        });
+
+    auto reader = ov::npuw::s11n::Stream::reader(buffer);
+    EXPECT_NO_THROW(target_desc.serialize(reader, weights_context, std::nullopt, &submodel_ctx));
+}
+
 TEST(SerializationTest, UtilViewRejectsOffsetLenBeyondExtent) {
     auto src = ov::get_tensor_impl(ov::Tensor(ov::element::f32, ov::Shape{128}));
     EXPECT_THROW(ov::npuw::util::view(src, 0u, 100u, 64u), ov::Exception);
