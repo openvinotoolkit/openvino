@@ -189,6 +189,19 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
     for (size_t i = 0; i < op->get_output_size(); i++) {
         auto dims = op->get_output_partial_shape(i);
 
+        // format="ANY" on an output means "inherit the first input's format", which is
+        // resolved later in custom_gpu_primitive_inst::calc_output_layout. Build it with
+        // the shape-based layout ctor: the tensor-based one stores a format::any layout's
+        // sizes in raw internal order at full internal rank rather than the shape's own
+        // order, which silently transposes the WorkSizes resolution and the shape that
+        // downstream nodes see.
+        if (outputFormats[i] == cldnn::format::any) {
+            outputLayouts[i] = cldnn::layout(dims,
+                                             cldnn::element_type_to_data_type(op->get_output_element_type(i)),
+                                             outputFormats[i]);
+            continue;
+        }
+
         constexpr size_t kDynamic = std::numeric_limits<size_t>::max();
         size_t N = (dims.size() > 0) ? dims[0].is_dynamic() ? kDynamic : dims[0].get_length() : 1;
         size_t C = (dims.size() > 1) ? dims[1].is_dynamic() ? kDynamic : dims[1].get_length() : 1;
