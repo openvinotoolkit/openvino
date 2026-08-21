@@ -102,11 +102,11 @@
 #include "eltwise_fused_dense_restrict_spirv.hpp"
 #include "eltwise_fused_dense_spirv.hpp"
 #include "eltwise_fused_post_op_spirv.hpp"
-#include "eltwise_fusion_policy.hpp"
 #include "eltwise_scalar_constant_spirv.hpp"
 #include "eltwise_shader_abi.hpp"
 #include "eltwise_spirv.hpp"
 #include "eltwise_unary_spirv.hpp"
+#include "graph_optimizer/vulkan_graph_optimizer.hpp"
 #include "common_utils/gpu_kernel_lifecycle.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "openvino/core/except.hpp"
@@ -120,11 +120,12 @@ namespace cldnn {
 namespace vulkan {
 namespace {
 
-namespace shader_abi = eltwise_shader_abi;
+[[maybe_unused]] const bool graph_optimizer_registered = [] {
+    register_graph_optimizer();
+    return true;
+}();
 
-const eltwise_fusion_policy registered_fusion_policy;
-const backend_fusion_policy_registration fusion_policy_registration{runtime_types::vulkan,
-                                                                    registered_fusion_policy};
+namespace shader_abi = eltwise_shader_abi;
 
 constexpr uint32_t max_rank = 8;
 constexpr uint32_t header_words = shader_abi::index(shader_abi::metadata_field::count);

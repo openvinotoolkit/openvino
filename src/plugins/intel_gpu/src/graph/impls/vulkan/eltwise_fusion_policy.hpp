@@ -25,10 +25,6 @@ public:
         return kind == fusion_kind::activation || kind == fusion_kind::quantize || kind == fusion_kind::eltwise || kind == fusion_kind::terminal_reorder;
     }
 
-    bool can_consider_output(const program_node& node) const override {
-        return node.is_type<eltwise>() || node.is_type<activation>() || node.is_type<quantize>() || node.is_type<reorder>();
-    }
-
     fusion_decision evaluate(const fusion_query& query) const override {
         switch (query.kind) {
         case fusion_kind::activation:
@@ -43,10 +39,6 @@ public:
             return evaluate_reorder_elimination(query.producer, query.consumer);
         }
         return fusion_decision::reject;
-    }
-
-    bool preserves_consumer_output(const program_node& consumer) const override {
-        return consumer.is_output();
     }
 
 private:
@@ -164,6 +156,10 @@ private:
             return fusion_decision::reject;
         }
         const auto& consumer_primitive = consumer.as<eltwise>().get_primitive();
+        const bool supported_mode = consumer_primitive->mode == eltwise_mode::sum ||
+                                    consumer_primitive->mode == eltwise_mode::prod ||
+                                    consumer_primitive->mode == eltwise_mode::sub ||
+                                    consumer_primitive->mode == eltwise_mode::div;
         const auto& producer_layout = producer.get_output_layout();
         const auto& peer_layout = peer.get_output_layout();
         const auto& output_layout = consumer.get_output_layout();
@@ -174,7 +170,8 @@ private:
             (!peer_is_broadcast || (consumer_primitive->broadcast_spec.m_type == ov::op::AutoBroadcastType::NUMPY &&
                                     data_type_traits::size_of(output_layout.data_type) >= sizeof(uint32_t) && producer.get_fused_primitives().empty() &&
                                     is_numpy_broadcast_compatible(peer_layout, output_layout)));
-        const bool supported = !producer.is_output() && producer.is_type<eltwise>() &&
+        const bool supported = supported_mode && consumer_primitive->stride.empty() && !producer.is_output() &&
+                               producer.is_type<eltwise>() && (!producer.is_constant() || peer.is_constant()) &&
                                producer.get_fused_primitives().size() < eltwise_shader_abi::value(eltwise_shader_abi::limit::max_fused_chain_length) &&
                                producer.get_inputs_count() == 2 && layouts_are_static && has_dense_storage(producer_layout) && has_dense_storage(peer_layout) &&
                                has_dense_storage(output_layout) && supports_packed_output(output_layout) && peer_layout_supported &&

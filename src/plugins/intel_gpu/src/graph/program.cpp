@@ -22,6 +22,7 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/graph/program.hpp"
+#include "backend_graph_optimizer.hpp"
 
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/adaptive_pooling.hpp"
@@ -635,6 +636,7 @@ void program::pre_optimize_graph(bool is_internal) {
         apply_opt_pass<reorder_transfer>();
 
         apply_opt_pass<prepare_primitive_fusing>();
+        run_backend_graph_optimizations(*this);
 
         apply_opt_pass<select_preferred_formats>();
 
@@ -1110,6 +1112,33 @@ void program::swap_names(program_node& node1, program_node& node2) {
     std::swap(node1.desc->id, node2.desc->id);
 }
 
+void program::transfer_output_identity(program_node& output_node, program_node& replacement_node) {
+    if (!output_node.is_output()) {
+        throw std::invalid_argument("Output identity can only be transferred from an output node");
+    }
+    if (replacement_node.is_output()) {
+        throw std::invalid_argument("Output identity cannot replace another program output");
+    }
+
+    const auto output = std::find(outputs.begin(), outputs.end(), &output_node);
+    if (output == outputs.end()) {
+        throw std::runtime_error("Output node is missing from the program output list");
+    }
+
+    const auto origin_op_name = output_node.desc->origin_op_name;
+    const auto origin_op_type_name = output_node.desc->origin_op_type_name;
+    const auto user_mark = output_node.user_mark;
+
+    output_node.set_output(false);
+    replacement_node.set_output(true);
+    *output = &replacement_node;
+    swap_names(replacement_node, output_node);
+
+    replacement_node.desc->origin_op_name = origin_op_name;
+    replacement_node.desc->origin_op_type_name = origin_op_type_name;
+    replacement_node.user_mark = user_mark;
+}
+
 void program::replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling) {
     return replace_all_usages(old_node, std::make_pair(&new_node, 0), remove_if_dangling);
 }
@@ -1284,26 +1313,9 @@ bool program::move_node(program_node& node,
 
 void program::fuse_nodes(program_node &fused_node,
                          program_node &peer_node,
-                         std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>>* fusing_history,
-                         bool preserve_peer_output) {
-    const bool transfer_peer_output = preserve_peer_output && peer_node.is_output();
-    if (preserve_peer_output && !transfer_peer_output) {
-        throw std::invalid_argument("Output-preserving fusion requires peer_node to be an output");
-    }
-    if (transfer_peer_output && fused_node.is_output()) {
-        throw std::invalid_argument("Output-preserving fusion cannot replace a separate fused_node output");
-    }
-
-    const auto fused_node_id = fused_node.id();
-    const auto peer_node_id = peer_node.id();
+                         std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>>* fusing_history) {
     auto peer_layout = peer_node.get_output_layout();
-    auto peer_primitive = peer_node.get_primitive();
-    if (transfer_peer_output) {
-        auto peer_primitive_copy = peer_primitive->clone();
-        peer_primitive_copy->id = fused_node_id;
-        peer_primitive = std::move(peer_primitive_copy);
-    }
-    fused_primitive_desc local_desc(peer_primitive);
+    fused_primitive_desc local_desc(peer_node.get_primitive());
     local_desc.f_param = get_node_ptr(peer_node.id())->get_fuse_params();
     local_desc.total_num_deps = peer_node.get_dependencies().size();
     local_desc.input_layout = peer_node.get_input_layout(0);
@@ -1379,11 +1391,7 @@ void program::fuse_nodes(program_node &fused_node,
     if (peer_node.has_fused_primitives()) {
         fused_node.add_fused_primitives(peer_node.get_fused_primitives());
     }
-    if (transfer_peer_output) {
-        add_optimized_primitive_info(fused_node_id, { peer_node_id });
-    } else {
-        add_optimized_primitive_info(peer_node_id, { fused_node_id });
-    }
+    add_optimized_primitive_info(peer_node.id(), { fused_node.id() });
 
     for (auto& user : peer_node.users) {
         size_t dep_idx = 0;
@@ -1406,30 +1414,6 @@ void program::fuse_nodes(program_node &fused_node,
     fused_node.merge_output_padding(needed_padding);
     fused_node.set_output_layout(peer_layout, false);
     fused_node.recalc_output_layout(true);
-
-    if (transfer_peer_output) {
-        auto output_it = std::find(outputs.begin(), outputs.end(), &peer_node);
-        if (output_it == outputs.end()) {
-            throw std::runtime_error("Output-preserving fusion could not find peer_node in program outputs");
-        }
-
-        const auto peer_origin_op_name = peer_node.desc->origin_op_name;
-        const auto peer_origin_op_type_name = peer_node.desc->origin_op_type_name;
-        const auto peer_user_mark = peer_node.user_mark;
-
-        peer_node.set_output(false);
-        fused_node.set_output(true);
-        *output_it = &fused_node;
-        swap_names(fused_node, peer_node);
-
-        fused_node.desc->origin_op_name = peer_origin_op_name;
-        fused_node.desc->origin_op_type_name = peer_origin_op_type_name;
-        fused_node.user_mark = peer_user_mark;
-
-        if (!remove_if_dangling(peer_node)) {
-            throw std::runtime_error("Output-preserving fusion left peer_node connected");
-        }
-    }
 }
 
 void program::remove_nodes(std::vector<program_node*>& to_remove) {

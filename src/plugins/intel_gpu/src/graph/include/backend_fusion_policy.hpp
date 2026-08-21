@@ -47,16 +47,8 @@ public:
         return false;
     }
 
-    virtual bool can_consider_output(const program_node& node) const {
-        return false;
-    }
-
     virtual fusion_decision evaluate(const fusion_query& query) const {
         return fusion_decision::defer_to_common;
-    }
-
-    virtual bool preserves_consumer_output(const program_node& consumer) const {
-        return false;
     }
 };
 

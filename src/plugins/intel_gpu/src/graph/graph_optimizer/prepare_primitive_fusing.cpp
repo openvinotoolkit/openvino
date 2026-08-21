@@ -544,8 +544,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         auto node_itr = itr++;
         const auto& node = (*node_itr);
 
-        const bool can_fuse_output = node->is_output() && fusion_policy.can_consider_output(*node);
-        if ((node->is_output() && !can_fuse_output) || node->is_constant())
+        if (node->is_output() || node->is_constant())
             continue;
 
         auto is_grouped_conv = [](convolution_node& node) -> bool {
@@ -797,10 +796,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 {fusion_kind::activation, input, activation_node});
             if (backend_decision != fusion_decision::defer_to_common) {
                 if (backend_decision == fusion_decision::accept) {
-                    p.fuse_nodes(input,
-                                 activation_node,
-                                 &fusing_history,
-                                 fusion_policy.preserves_consumer_output(activation_node));
+                    p.fuse_nodes(input, activation_node, &fusing_history);
                 }
                 return;
             }
@@ -953,10 +949,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 {fusion_kind::quantize, input, quantize_node});
             if (backend_decision != fusion_decision::defer_to_common) {
                 if (backend_decision == fusion_decision::accept) {
-                    p.fuse_nodes(input,
-                                 quantize_node,
-                                 &fusing_history,
-                                 fusion_policy.preserves_consumer_output(quantize_node));
+                    p.fuse_nodes(input, quantize_node, &fusing_history);
                 }
                 return;
             }
@@ -1079,7 +1072,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 eltwise_mode::div
             };
 
-            if ((node.is_output() && !fusion_policy.can_consider_output(node)) || node.get_inputs_count() != 2 ||
+            if (node.is_output() || node.get_inputs_count() != 2 ||
                 std::find(supported_modes.begin(), supported_modes.end(), prim->mode) == supported_modes.end() ||
                 !prim->stride.empty())
                 return;
@@ -1393,10 +1386,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 recalc_processing_order = true;
             }
 
-            p.fuse_nodes(*fused_node,
-                         node,
-                         &fusing_history,
-                         fusion_policy.preserves_consumer_output(node));
+            p.fuse_nodes(*fused_node, node, &fusing_history);
         };
 
         auto fuse_reorder_f = [&](reorder_node& reorder_node) {
@@ -1409,10 +1399,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (backend_decision != fusion_decision::accept) {
                 return;
             }
-            p.fuse_nodes(input,
-                         reorder_node,
-                         &fusing_history,
-                         fusion_policy.preserves_consumer_output(reorder_node));
+            p.fuse_nodes(input, reorder_node, &fusing_history);
         };
 
         // Debug config DISABLE_POST_OPS_FUSION=11 to 13 specify enabling only one of fusions activation, quantize and eltwise
