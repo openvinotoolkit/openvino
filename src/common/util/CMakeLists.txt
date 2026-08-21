@@ -9,6 +9,7 @@ set(UTIL_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 set(WIN32_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/os.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/parallel_io.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/win_demand_pager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/win_file_util.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/win_io.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/win_memory.cpp
@@ -18,6 +19,7 @@ set(WIN32_SOURCES
 )
 
 set(UNIX_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/lin_demand_pager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/lin_file_util.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/lin_io.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/lin_memory.cpp
@@ -42,6 +44,7 @@ target_sources(${TARGET_NAME}
         ${UTIL_INCLUDE_DIR}/openvino/util/common_util.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/const_string.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/cpp_version.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/demand_pager.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/env_util.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/file_path.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/file_util.hpp

@@ -35,13 +35,6 @@ public:
     LazyBuffer& operator=(const LazyBuffer&) = delete;
 
     /**
-     * @brief Gets aligned pointer to reserved buffer without loading data into it.
-     */
-    void* get_reserved_ptr() const noexcept {
-        return m_aligned_buffer;
-    }
-
-    /**
      * @brief Evicts the buffer from memory. After this call, next call to hint_prefetch() will load the file content
      * again.
      */
@@ -58,8 +51,15 @@ protected:
     void hint_evict(size_t offset, size_t size) noexcept override;
 
 private:
+    /// Reads m_byte_size bytes of the file region into destination.
+    void read_file_data(char* destination) const;
+
     std::filesystem::path m_file_path;
     size_t m_offset{0};
+    /// Page-rounded size of the reservation backing m_aligned_buffer (m_byte_size stays the requested size).
+    size_t m_mapped_size{0};
+    /// Set when the reservation is served by the page fault handler, so it can be evicted and reloaded on demand.
+    bool m_delegated{false};
 
     mutable std::atomic<bool> m_loaded{false};
     mutable std::mutex m_loading;

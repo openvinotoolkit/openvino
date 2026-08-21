@@ -40,25 +40,20 @@ public:
         return m_byte_size;
     }
     void* get_ptr(size_t offset) const {
-        hint_prefetch();
         return m_aligned_buffer + offset;
     }
     void* get_ptr() {
-        hint_prefetch();
         return m_aligned_buffer;
     }
     const void* get_ptr() const {
-        hint_prefetch();
         return m_aligned_buffer;
     }
     template <typename T>
     T* get_ptr() {
-        hint_prefetch();
         return reinterpret_cast<T*>(m_aligned_buffer);
     }
     template <typename T>
     const T* get_ptr() const {
-        hint_prefetch();
         return reinterpret_cast<const T*>(m_aligned_buffer);
     }
 

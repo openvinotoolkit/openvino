@@ -8,9 +8,12 @@
 
 #include <fstream>
 #include <string_view>
+#include <thread>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
+#include "openvino/util/demand_pager.hpp"
+#include "openvino/util/mmap_object.hpp"
 
 using namespace testing;
 
@@ -44,6 +47,15 @@ protected:
         fs.seekp(offset);
         fs.write(data.data(), data.size());
         ASSERT_TRUE(fs.good());
+    }
+
+    /**
+     * @brief A single cached probe: constructing a DemandPager on Linux opens a userfaultfd and spawns a fault-handling
+     * thread, so this should not be done once per test.
+     */
+    static bool is_fault_delegation_available() {
+        static const bool available = util::DemandPager{}.is_available();
+        return available;
     }
 };
 
@@ -83,6 +95,11 @@ TEST_F(LazyBufferTest, read_file) {
 }
 
 TEST_F(LazyBufferTest, load_on_first_get_ptr) {
+    if (!is_fault_delegation_available()) {
+        GTEST_SKIP() << "Fault delegation is unavailable on this platform/kernel: LazyBuffer populates the region up "
+                        "front, so lazy-load semantics cannot be observed.";
+    }
+
     write_test_data(128);
 
     constexpr size_t offset = 37;
@@ -110,6 +127,11 @@ TEST_F(LazyBufferTest, load_on_first_get_ptr) {
 }
 
 TEST_F(LazyBufferTest, evict_and_reload) {
+    if (!is_fault_delegation_available()) {
+        GTEST_SKIP() << "Fault delegation is unavailable on this platform/kernel: hint_evict() is a no-op without it, "
+                        "so reload semantics cannot be observed.";
+    }
+
     write_test_data(128);
 
     constexpr size_t offset = 31;
@@ -125,18 +147,147 @@ TEST_F(LazyBufferTest, evict_and_reload) {
     ASSERT_NE(first_ptr, nullptr);
     ASSERT_THAT(first_rewrite, ElementsAreArray(first_ptr, size));
 
-    // After evict(), get_ptr() should load the same file content again
     buffer->hint_evict();
     ASSERT_NO_THROW((first_ptr = buffer->get_ptr<char>()));
     ASSERT_NE(first_ptr, nullptr);
     ASSERT_THAT(first_rewrite, ElementsAreArray(first_ptr, size));
 
-    // After evict(), get_ptr() should load the file content again and reflect the second overwrite.
     buffer->hint_evict();
     overwrite_test_data(offset, second_rewrite);
     char* second_ptr = nullptr;
     ASSERT_NO_THROW((second_ptr = buffer->get_ptr<char>()));
     ASSERT_EQ(second_ptr, first_ptr);
     EXPECT_THAT(second_rewrite, ElementsAreArray(second_ptr, size));
+}
+
+TEST_F(LazyBufferTest, move_constructor_unloaded) {
+    write_test_data(128);
+    constexpr size_t offset = 10;
+    constexpr size_t size = 50;
+
+    LazyBuffer source{m_file_path, offset, size};
+    const auto src_buf_ptr = source.get_ptr<char>();
+
+    LazyBuffer dest{std::move(source)};
+
+    ASSERT_EQ(dest.size(), size);
+    const auto dest_buf_ptr = dest.get_ptr<char>();
+    ASSERT_EQ(dest_buf_ptr, src_buf_ptr);
+    EXPECT_THAT(std::string_view(dest_buf_ptr, size), ElementsAreArray(m_test_data.data() + offset, size));
+}
+
+TEST_F(LazyBufferTest, move_constructor_loaded) {
+    write_test_data(128);
+    constexpr size_t offset = 5;
+    constexpr size_t size = 30;
+
+    LazyBuffer source{m_file_path, offset, size};
+    const auto src_buf_ptr = source.get_ptr<char>();
+    const std::vector<char> expected(src_buf_ptr, src_buf_ptr + size);
+
+    // Overwrite file after prefetch; moved object should serve cached data, not re-read
+    overwrite_test_data(offset, std::vector<char>(size, '\xFF'));
+
+    LazyBuffer dest{std::move(source)};
+
+    ASSERT_EQ(dest.size(), size);
+    const auto dest_buf_ptr = dest.get_ptr<char>();
+    ASSERT_EQ(dest_buf_ptr, src_buf_ptr);
+    EXPECT_THAT(std::string_view(dest_buf_ptr, size), ElementsAreArray(expected));
+}
+
+TEST_F(LazyBufferTest, move_assignment_unloaded) {
+    write_test_data(128);
+    constexpr size_t offset = 20;
+    constexpr size_t size = 40;
+
+    LazyBuffer source{m_file_path, offset, size};
+    const auto src_buf_ptr = source.get_ptr<char>();
+
+    LazyBuffer dest{m_file_path, 0, 5};
+    dest = std::move(source);
+
+    ASSERT_EQ(dest.size(), size);
+    const auto dest_buf_ptr = dest.get_ptr<char>();
+    ASSERT_EQ(dest_buf_ptr, src_buf_ptr);
+    EXPECT_THAT(std::string_view(dest_buf_ptr, size), ElementsAreArray(m_test_data.data() + offset, size));
+}
+
+TEST_F(LazyBufferTest, move_assignment_loaded) {
+    write_test_data(128);
+    constexpr size_t offset = 15;
+    constexpr size_t size = 20;
+
+    LazyBuffer source{m_file_path, offset, size};
+
+    const auto src_buf_ptr = source.get_ptr<char>();
+    const std::vector<char> expected(src_buf_ptr, src_buf_ptr + size);
+
+    // Overwrite file after prefetch; dest should keep cached data, not re-read
+    overwrite_test_data(offset, std::vector<char>(size, '\xFF'));
+
+    LazyBuffer dest{m_file_path, 0, 5};
+    dest = std::move(source);
+
+    ASSERT_EQ(dest.size(), size);
+    const auto dest_buf_ptr = dest.get_ptr<char>();
+    ASSERT_EQ(dest_buf_ptr, src_buf_ptr);
+    EXPECT_THAT(std::string_view(dest_buf_ptr, size), ElementsAreArray(expected));
+}
+
+TEST_F(LazyBufferTest, move_assignment_evict_and_reload) {
+    write_test_data(128);
+    constexpr size_t offset = 10;
+    constexpr size_t size = 30;
+
+    LazyBuffer source{m_file_path, offset, size};
+    LazyBuffer dest{m_file_path, 0, 5};
+    dest = std::move(source);
+
+    ASSERT_NO_THROW(dest.hint_prefetch());
+    dest.hint_evict();
+
+    const auto data_ptr = dest.get_ptr<char>();
+    EXPECT_THAT(std::string_view(data_ptr, size), ElementsAreArray(m_test_data.data() + offset, size));
+}
+
+TEST_F(LazyBufferTest, move_assignment_self_no_op) {
+    write_test_data(64);
+
+    LazyBuffer buf{m_file_path, 0, 64};
+    const auto src_buf_ptr = buf.get_ptr<char>();
+    const auto buf_size = buf.size();
+
+    auto& buf_ref = buf;
+    buf = std::move(buf_ref);
+
+    EXPECT_EQ(buf.get_ptr<char>(), src_buf_ptr);
+    EXPECT_EQ(buf.size(), buf_size);
+}
+
+TEST_F(LazyBufferTest, concurrent_faults_on_distinct_pages) {
+    constexpr size_t num_threads = 8;
+    const auto size = static_cast<size_t>(util::get_system_page_size()) * num_threads;
+    write_test_data(size);
+
+    LazyBuffer buffer{m_file_path, 0, size};
+    auto* const data_ptr = buffer.get_ptr<char>();
+
+    // Every thread first touches a different page, so the faults race on a single unloaded buffer.
+    const auto stride = size / num_threads;
+    std::vector<std::thread> readers;
+    std::vector<std::vector<char>> observed(num_threads);
+    for (size_t i = 0; i < num_threads; ++i) {
+        readers.emplace_back([&, i] {
+            observed[i].assign(data_ptr + i * stride, data_ptr + (i + 1) * stride);
+        });
+    }
+    for (auto& reader : readers) {
+        reader.join();
+    }
+
+    for (size_t i = 0; i < num_threads; ++i) {
+        EXPECT_THAT(observed[i], ElementsAreArray(m_test_data.data() + i * stride, stride)) << "thread " << i;
+    }
 }
 }  // namespace ov::test
