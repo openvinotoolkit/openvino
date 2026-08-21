@@ -226,6 +226,14 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                 converted_zero_points = std::make_shared<v0::Constant>(a.get_element_type(),
                                                                        casted_zp_shape,
                                                                        zero_points_const->get_data_ptr());
+                // Preserve the original zero_point name on the repacked Constant (as done for B) so weight
+                // sharing / weights-as-input can still identify it by name.
+                if (const auto casted_zp_const =
+                        ov::as_type_ptr<v0::Constant>(converted_zero_points.get_node_shared_ptr())) {
+                    casted_zp_const->set_friendly_name(zero_points_const->get_friendly_name());
+                    casted_zp_const->get_output_tensor(0).set_names(
+                        zero_points_const->get_output_tensor(0).get_names());
+                }
             } else if (zero_points.get_element_type() == ov::element::u8) {
                 // for alignment, n_blocks_per_col might not aligned to num_per_byte
                 uint64_t num_per_byte = 8 / bits;
@@ -246,6 +254,12 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                                                                              static_cast<int32_t>(n_blocks_per_col));
                     converted_zero_points =
                         std::make_shared<v8::Slice>(converted_zero_points, zero, num_elements, one, axis);
+                } else {
+                    // Aligned (no Slice): preserve the original zero_point name on the repacked Constant (as
+                    // done for B) so weight sharing can promote it. The packed Constant keeps the source uint8
+                    // byte count, so the promoted input's tensor matches the external weight at runtime.
+                    casted_zp_org->set_friendly_name(zero_points_const->get_friendly_name());
+                    casted_zp_org->get_output_tensor(0).set_names(zero_points_const->get_output_tensor(0).get_names());
                 }
             } else {
                 FRONT_END_THROW("Unexpected zero point type");
