@@ -43,9 +43,6 @@ ConstantWriter::FilePosition ConstantWriter::write(const char* ptr,
         const auto found = m_hash_to_file_positions.equal_range(hash);
         // iterate over all matches of the key in the multimap
         for (auto it = found.first; it != found.second; ++it) {
-            // The size guard is required for correctness, not just as an optimization: a hash collision
-            // between buffers of different lengths must never lead to a memcmp that reads past the shorter
-            // (cached) buffer. Buffers of different byte-length are never the same constant anyway.
             if (it->second.size == size && memcmp(ptr, it->second.ptr, size) == 0) {
                 return it->second.offset;
             }
@@ -80,8 +77,6 @@ ConstantWriter::FilePosition ConstantWriter::write(const std::vector<std::string
         const HashValue hash = ov::runtime::compute_hash(tmp.data(), new_size);
         const auto found = m_hash_to_file_positions.equal_range(hash);
         for (auto it = found.first; it != found.second; ++it) {
-            // The size guard prevents an out-of-bounds memcmp when a hash collision occurs between
-            // buffers of different lengths.
             if (it->second.size == new_size && memcmp(tmp.data(), it->second.ptr, new_size) == 0) {
                 return it->second.offset;
             }

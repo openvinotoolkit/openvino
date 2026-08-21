@@ -453,87 +453,24 @@ TEST_F(CustomIRTest, parse_weightless_cache_attribute_oob_throws) {
     EXPECT_THROW(ov::Core().read_model(m_out_xml_path, m_out_bin_path), ov::Exception);
 }
 
-// Regression tests for the size guard in the constant deduplication cache of ov::util::ConstantWriter.
-//
-// The cache is keyed by ov::runtime::compute_hash and confirms a candidate match with memcmp. Before the
-// fix the cache stored only {offset, ptr} without the buffer length, so on a hash collision between
-// buffers of different sizes the memcmp used the current buffer's size against the cached pointer. When
-// the current buffer was larger this read past the end of the smaller cached allocation; when it was
-// smaller it could incorrectly deduplicate a short buffer onto a longer one whose prefix matched.
-//
-// These tests construct a genuine cross-size hash collision in the same way as the reported issue. The
-// CRC-64 used by the cache is affine over GF(2), so the last 8 bytes of the larger buffer can be solved
-// to match a target hash. When the hash is not affine on the current build or CPU (for example the
-// non-JIT scalar fallback), the construction fails and the test is skipped rather than passing vacuously.
+// Tests for ConstantWriter's deduplication size guard against hash collisions between different-sized buffers.
+
+// Precomputed collision: kLarge starts with kSmall and both share the same compute_hash. Valid only for
+// the x86-64 CRC-64 hash, so the tests are x86-64 only and assert the collision to catch hash changes.
+#if defined(OPENVINO_ARCH_X86_64)
 namespace {
-// Solves the last 8 bytes of `buf` so that ov::runtime::compute_hash(buf) == target. Returns true only
-// when a solution exists and has been verified against the real hash. Requires buf.size() >= 8.
-bool forge_tail_to_match_hash(std::vector<char>& buf, size_t target) {
-    constexpr int TAIL_BITS = 64;
-    constexpr int HASH_BITS = static_cast<int>(sizeof(size_t) * 8);
-    char* tail = buf.data() + buf.size() - 8;
-    const auto set_tail = [&](uint64_t v) {
-        std::memcpy(tail, &v, sizeof(v));
-    };
-
-    set_tail(0);
-    const size_t base = ov::runtime::compute_hash(buf.data(), buf.size());
-
-    // column[i] is the effect on the hash of flipping bit i of the 8-byte tail (valid only when affine).
-    size_t column[TAIL_BITS];
-    for (int i = 0; i < TAIL_BITS; ++i) {
-        set_tail(uint64_t{1} << i);
-        column[i] = ov::runtime::compute_hash(buf.data(), buf.size()) ^ base;
-    }
-
-    // Gaussian elimination over GF(2): find a set of tail bits whose columns XOR to (target ^ base).
-    size_t basis_vec[64] = {0};
-    uint64_t basis_sel[64] = {0};
-    for (int i = 0; i < TAIL_BITS; ++i) {
-        size_t v = column[i];
-        uint64_t sel = uint64_t{1} << i;
-        for (int b = HASH_BITS - 1; b >= 0; --b) {
-            if (!((v >> b) & 1))
-                continue;
-            if (!basis_vec[b]) {
-                basis_vec[b] = v;
-                basis_sel[b] = sel;
-                break;
-            }
-            v ^= basis_vec[b];
-            sel ^= basis_sel[b];
-        }
-    }
-    size_t residual = target ^ base;
-    uint64_t solution = 0;
-    for (int b = HASH_BITS - 1; b >= 0; --b) {
-        if (!((residual >> b) & 1))
-            continue;
-        if (!basis_vec[b])
-            return false;  // target is outside the column space -> no solution
-        residual ^= basis_vec[b];
-        solution ^= basis_sel[b];
-    }
-    set_tail(solution);
-    return ov::runtime::compute_hash(buf.data(), buf.size()) == target;
-}
+constexpr uint8_t kSmall[] = {0x07, 0x18, 0x29, 0x3a, 0x4b, 0x5c, 0x6d, 0x7e,
+                              0x8f, 0xa0, 0xb1, 0xc2, 0xd3, 0xe4, 0xf5, 0x06};
+constexpr uint8_t kLarge[] = {0x07, 0x18, 0x29, 0x3a, 0x4b, 0x5c, 0x6d, 0x7e, 0x8f, 0xa0, 0xb1, 0xc2,
+                              0xd3, 0xe4, 0xf5, 0x06, 0x2b, 0xa4, 0x34, 0x82, 0x0b, 0x04, 0xb1, 0x2a};
 }  // namespace
 
-// The cached buffer is larger than the colliding one, and the smaller buffer equals the larger buffer's
-// prefix. Without the fix the memcmp over the smaller size matches and the shorter buffer is incorrectly
-// deduplicated onto the larger buffer's offset. With the fix the size guard rejects the match and both
-// buffers are written. This case fails deterministically without the fix and does not require ASAN.
 TEST(ConstantWriterDedup, size_mismatch_is_not_deduplicated) {
-    std::vector<char> small(64);
-    for (size_t i = 0; i < small.size(); ++i)
-        small[i] = static_cast<char>(0x11 * i + 7);
-    const size_t small_hash = ov::runtime::compute_hash(small.data(), small.size());
-
-    std::vector<char> large(4096, char{0x00});
-    std::memcpy(large.data(), small.data(), small.size());  // make the smaller buffer a prefix of the larger one
-    if (!forge_tail_to_match_hash(large, small_hash))
-        GTEST_SKIP() << "compute_hash is not affine on this platform; cannot forge a collision";
-    ASSERT_EQ(ov::runtime::compute_hash(large.data(), large.size()), small_hash);
+    const std::vector<char> small(kSmall, kSmall + sizeof(kSmall));
+    const std::vector<char> large(kLarge, kLarge + sizeof(kLarge));
+    ASSERT_EQ(ov::runtime::compute_hash(small.data(), small.size()),
+              ov::runtime::compute_hash(large.data(), large.size()))
+        << "hardcoded buffers no longer collide; regenerate them for the current compute_hash";
 
     std::stringstream bin;
     ov::util::ConstantWriter writer(bin, /*enable_compression=*/true);
@@ -545,21 +482,12 @@ TEST(ConstantWriterDedup, size_mismatch_is_not_deduplicated) {
     EXPECT_EQ(static_cast<size_t>(bin.tellp()), large.size() + small.size()) << "both constants must be written";
 }
 
-// The cached buffer is smaller than the colliding one. Without the fix the memcmp over the larger size
-// reads past the end of the 64-byte cached allocation, which is an out-of-bounds read detected by
-// AddressSanitizer. With the fix the size guard short-circuits before the memcmp, so nothing is read
-// past the smaller buffer.
 TEST(ConstantWriterDedup, hash_collision_with_larger_current_buffer_no_oob) {
-    std::vector<char> small(64);
-    for (size_t i = 0; i < small.size(); ++i)
-        small[i] = static_cast<char>(0x07 * i + 3);
-    const size_t small_hash = ov::runtime::compute_hash(small.data(), small.size());
-
-    std::vector<char> large(4096, char{0x00});
-    std::memcpy(large.data(), small.data(), small.size());  // make the smaller buffer a prefix of the larger one
-    if (!forge_tail_to_match_hash(large, small_hash))
-        GTEST_SKIP() << "compute_hash is not affine on this platform; cannot forge a collision";
-    ASSERT_EQ(ov::runtime::compute_hash(large.data(), large.size()), small_hash);
+    const std::vector<char> small(kSmall, kSmall + sizeof(kSmall));
+    const std::vector<char> large(kLarge, kLarge + sizeof(kLarge));
+    ASSERT_EQ(ov::runtime::compute_hash(small.data(), small.size()),
+              ov::runtime::compute_hash(large.data(), large.size()))
+        << "hardcoded buffers no longer collide; regenerate them for the current compute_hash";
 
     std::stringstream bin;
     ov::util::ConstantWriter writer(bin, /*enable_compression=*/true);
@@ -570,9 +498,8 @@ TEST(ConstantWriterDedup, hash_collision_with_larger_current_buffer_no_oob) {
     EXPECT_NE(off_large, off_small) << "a longer constant must not be deduplicated onto a shorter colliding one";
     EXPECT_EQ(static_cast<size_t>(bin.tellp()), small.size() + large.size()) << "both constants must be written";
 }
+#endif  // OPENVINO_ARCH_X86_64
 
-// The size guard must not disable legitimate deduplication. Two identical buffers of the same size and
-// content share the same hash and must still collapse to a single offset, with the duplicate not rewritten.
 TEST(ConstantWriterDedup, identical_constants_are_deduplicated) {
     const std::vector<char> a(128, char{0x3C});
     const std::vector<char> b(128, char{0x3C});
