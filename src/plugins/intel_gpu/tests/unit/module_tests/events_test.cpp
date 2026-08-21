@@ -20,8 +20,11 @@ TEST(user_event, can_create_as_complete) {
 }
 
 TEST(user_event, profiling_has_no_device_start_timestamp) {
-    auto& stream = get_test_stream();
-    auto user_ev = stream.create_user_event(true);
+    auto& engine = get_test_engine();
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::enable_profiling(true));
+    auto stream = engine.create_stream(config);
+    auto user_ev = stream->create_user_event(true);
     const auto profiling_info = user_ev->get_profiling_info();
 
     ASSERT_EQ(profiling_info.size(), 2);
