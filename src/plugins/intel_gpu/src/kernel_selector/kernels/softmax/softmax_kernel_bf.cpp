@@ -4,6 +4,7 @@
 
 #include "softmax_kernel_bf.h"
 #include "kernel_selector_utils.h"
+#include "common_tools.h"
 #include <algorithm>
 
 namespace kernel_selector {
@@ -44,7 +45,7 @@ SoftmaxKernel_bf::Parent::DispatchData SoftmaxKernel_bf::SetDefault(const softma
     dispatchData.normIndex = 0;
 
     // We have two units of data per work item in current implementation.
-    auto local_mem_per_wi = 2 * BytesPerElement(params.inputs[0].GetDType());
+    auto local_mem_per_wi = 2 * BytesPerElement(GetComputeDatatype(params.inputs[0].GetDType()));
     // Combining device execution and local memory restrictions to compute maximum possible LWS.
     auto max_lws = std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);
     if (!params.has_dynamic_tensors()) {
