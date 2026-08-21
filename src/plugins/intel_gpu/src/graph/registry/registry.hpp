@@ -18,11 +18,7 @@
     #define OV_GPU_WITH_SYCL 0
 #endif
 
-#ifdef OV_GPU_WITH_SYCL_RT
-#define OV_GPU_WITH_OCL 0
-#else
 #define OV_GPU_WITH_OCL 1
-#endif
 #define OV_GPU_WITH_COMMON 1
 #define OV_GPU_WITH_CPU 1
 #ifdef ENABLE_CM_FOR_GPU
