@@ -58,7 +58,7 @@ KERNEL (mvn_gpu_bfyx_opt)(
 #endif
     float my_sum = 0.f;
     for (uint i = 0; i < iters_num; ++i) {
-        float v = (float)input[my_data_offset + i * workers_per_data_set];
+        float v = DECODE_INPUT0_COMPUTE_TYPE(input[my_data_offset + i * workers_per_data_set]);
 #if !MVN_REREAD_INPUT
         data[i] = v;
 #endif
@@ -72,11 +72,11 @@ KERNEL (mvn_gpu_bfyx_opt)(
     for (uint i = 0; i < iters_num; ++i) {
         uint iteration_in_data_set_offset = i * workers_per_data_set;
 #if MVN_REREAD_INPUT
-        float v = (float)input[my_data_offset + iteration_in_data_set_offset];
+        float v = DECODE_INPUT0_COMPUTE_TYPE(input[my_data_offset + iteration_in_data_set_offset]);
 #else
         float v = data[i];
 #endif
-        ACTIVATION_TYPE result = TO_ACTIVATION_TYPE(v) - TO_ACTIVATION_TYPE(my_sum_mean);
+        float result = v - my_sum_mean;
 #   if HAS_FUSED_OPS
         FUSED_OPS;
         output[my_data_offset + iteration_in_data_set_offset] = FUSED_OPS_RESULT;
@@ -92,7 +92,7 @@ KERNEL (mvn_gpu_bfyx_opt)(
     for (uint i = 0; i < iters_num; ++i) {
         uint iteration_in_data_set_offset = i * workers_per_data_set;
 #if MVN_REREAD_INPUT
-        float v = (float)input[my_data_offset + iteration_in_data_set_offset];
+        float v = DECODE_INPUT0_COMPUTE_TYPE(input[my_data_offset + iteration_in_data_set_offset]);
 #else
         float v = data[i];
 #endif
@@ -113,11 +113,11 @@ KERNEL (mvn_gpu_bfyx_opt)(
     for (uint i = 0; i < iters_num; ++i) {
         uint iteration_in_data_set_offset = i * workers_per_data_set;
 #if MVN_REREAD_INPUT
-        float v = (float)input[my_data_offset + iteration_in_data_set_offset];
+        float v = DECODE_INPUT0_COMPUTE_TYPE(input[my_data_offset + iteration_in_data_set_offset]);
 #else
         float v = data[i];
 #endif
-        ACTIVATION_TYPE result = (TO_ACTIVATION_TYPE(v) - TO_ACTIVATION_TYPE(my_sum_mean)) * TO_ACTIVATION_TYPE(my_inv);
+        float result = (v - my_sum_mean) * my_inv;
 #   if HAS_FUSED_OPS
         FUSED_OPS;
         output[my_data_offset + iteration_in_data_set_offset] = FUSED_OPS_RESULT;

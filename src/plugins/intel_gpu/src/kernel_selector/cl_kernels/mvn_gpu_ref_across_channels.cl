@@ -35,12 +35,12 @@ KERNEL (mvn_gpu_ref_across_channels)(
 #   elif INPUT0_DIMS == 5
                     input_idx = INPUT0_GET_INDEX(b, f, z, y, x);
 #   endif
-                    mean += (float)input[input_idx];
+                    mean += DECODE_INPUT0_COMPUTE_TYPE(input[input_idx]);
                 }
             }
         }
 #elif INPUT0_SIMPLE
-                    mean += (float)input[input_idx];
+                    mean += DECODE_INPUT0_COMPUTE_TYPE(input[input_idx]);
                     input_idx += INPUT0_X_PITCH;
                 }
                 input_idx += INPUT0_Y_PITCH - INPUT0_SIZE_X*INPUT0_X_PITCH;
@@ -74,7 +74,7 @@ KERNEL (mvn_gpu_ref_across_channels)(
                     output_idx = OUTPUT_GET_INDEX(b, f, z, y, x);
 #   endif
 
-                    ACTIVATION_TYPE result = TO_ACTIVATION_TYPE(input[input_idx]) - TO_ACTIVATION_TYPE(mean);
+                    float result = DECODE_INPUT0_COMPUTE_TYPE(input[input_idx]) - mean;
 #   if HAS_FUSED_OPS
                     FUSED_OPS;
                     output[output_idx] = FUSED_OPS_RESULT;
@@ -85,7 +85,7 @@ KERNEL (mvn_gpu_ref_across_channels)(
             }
         }
 #elif INPUT0_SIMPLE && OUTPUT_SIMPLE
-                    ACTIVATION_TYPE result = TO_ACTIVATION_TYPE(input[input_idx]) - TO_ACTIVATION_TYPE(mean);
+                    float result = DECODE_INPUT0_COMPUTE_TYPE(input[input_idx]) - mean;
 #   if HAS_FUSED_OPS
                     FUSED_OPS;
                     output[output_idx] = FUSED_OPS_RESULT;
@@ -125,13 +125,13 @@ KERNEL (mvn_gpu_ref_across_channels)(
 #   elif INPUT0_DIMS == 5
                     input_idx = INPUT0_GET_INDEX(b, f, z, y, x);
 #   endif
-                    float res = (float)input[input_idx] - mean;
+                    float res = DECODE_INPUT0_COMPUTE_TYPE(input[input_idx]) - mean;
                     variance = fma(res, res, variance);
                 }
             }
         }
 #elif INPUT0_SIMPLE
-                    float res = (float)input[input_idx] - mean;
+                    float res = DECODE_INPUT0_COMPUTE_TYPE(input[input_idx]) - mean;
                     variance = fma(res, res, variance);
                     input_idx += INPUT0_X_PITCH;
                 }
@@ -169,7 +169,7 @@ KERNEL (mvn_gpu_ref_across_channels)(
                     output_idx = OUTPUT_GET_INDEX(b, f, z, y, x);
 #   endif
 
-                    ACTIVATION_TYPE result = (TO_ACTIVATION_TYPE(input[input_idx]) - TO_ACTIVATION_TYPE(mean)) * TO_ACTIVATION_TYPE(variance);
+                    float result = (DECODE_INPUT0_COMPUTE_TYPE(input[input_idx]) - mean) * variance;
 #   if HAS_FUSED_OPS
                     FUSED_OPS;
                     output[output_idx] = FUSED_OPS_RESULT;
@@ -180,7 +180,7 @@ KERNEL (mvn_gpu_ref_across_channels)(
             }
         }
 #elif INPUT0_SIMPLE && OUTPUT_SIMPLE
-                    ACTIVATION_TYPE result = (TO_ACTIVATION_TYPE(input[input_idx]) - TO_ACTIVATION_TYPE(mean)) * TO_ACTIVATION_TYPE(variance);
+                    float result = (DECODE_INPUT0_COMPUTE_TYPE(input[input_idx]) - mean) * variance;
 #   if HAS_FUSED_OPS
                     FUSED_OPS;
                     output[output_idx] = FUSED_OPS_RESULT;

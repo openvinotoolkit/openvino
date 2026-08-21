@@ -20,11 +20,13 @@ ParamsKey MVNKernel_b_fs_yx_fsv16::GetSupportedKey() const {
 
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
 
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
 
@@ -115,6 +117,7 @@ Datatype MVNKernel_b_fs_yx_fsv16::GetAccumulatorType(const mvn_params& params) c
     switch (input_dt) {
         case Datatype::F32:
         case Datatype::F16:
+        case Datatype::BF16:
             return Datatype::F32;
         case Datatype::INT8:
         case Datatype::UINT8:
