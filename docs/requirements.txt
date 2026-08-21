@@ -9,7 +9,7 @@ cmake>=3.26
 colorama==0.4.6
 Cython==3.2.9
 docutils==0.21.2
-idna==3.18
+idna==3.19
 imagesize==2.0.0
 importlib-metadata>=4.8.0,<10.0.0
 iniconfig==2.1.0
