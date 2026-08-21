@@ -290,10 +290,10 @@ void pre_load_transform(const std::shared_ptr<ov::Model>& model, const ov::AnyMa
 }
 }  // anonymous namespace
 
-void validate_closure_metadata_sizes(std::size_t closure_size,
-                                     std::size_t lazy_closure_size,
-                                     std::size_t is_remote_size,
-                                     std::size_t closure_uid_size) {
+static void validate_closure_metadata_sizes(std::size_t closure_size,
+                                            std::size_t lazy_closure_size,
+                                            std::size_t is_remote_size,
+                                            std::size_t closure_uid_size) {
     NPUW_ASSERT(lazy_closure_size == closure_size);
     NPUW_ASSERT(is_remote_size == closure_size);
     NPUW_ASSERT(closure_uid_size == closure_size);
