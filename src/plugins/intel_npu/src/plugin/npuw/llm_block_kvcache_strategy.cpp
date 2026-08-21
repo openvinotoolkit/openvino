@@ -328,7 +328,10 @@ void LLMBlockKVCacheStrategy::on_reset(uint32_t next_prompt_length) {
             std::find(m_req.m_generate_requests.begin(), m_req.m_generate_requests.end(), m_req.m_kvcache_request);
         if (it != m_req.m_generate_requests.end()) {
             const size_t idx = static_cast<size_t>(std::distance(m_req.m_generate_requests.begin(), it));
-            m_req.m_generate_base_requests[idx]->propagate_params_to_subrequests();
+            // The base request is absent when a test factory builds plain sub-requests.
+            if (m_req.m_generate_base_requests[idx]) {
+                m_req.m_generate_base_requests[idx]->propagate_params_to_subrequests();
+            }
         }
     }
 
@@ -550,7 +553,10 @@ void LLMBlockKVCacheStrategy::continue_prefill(uint32_t keep, uint32_t delta_len
         set_dummy_tensors_to_request(generate_request, m_gen_classified_in_ports.at(generate_request), m_dummy_tensors);
     }
     for (const auto& base_req : m_req.m_generate_base_requests) {
-        base_req->propagate_params_to_subrequests();
+        // The base request is absent when a test factory builds plain sub-requests.
+        if (base_req) {
+            base_req->propagate_params_to_subrequests();
+        }
     }
 
     // Truncate the managers. Stale bytes beyond the retained prefix are inert once no

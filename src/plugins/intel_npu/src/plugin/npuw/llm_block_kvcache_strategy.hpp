@@ -17,6 +17,14 @@
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace ov {
+namespace test {
+namespace npuw {
+struct LLMContinuedPrefillTestAccess;
+}  // namespace npuw
+}  // namespace test
+}  // namespace ov
+
+namespace ov {
 namespace npuw {
 
 class LLMInferRequest;  // forward declaration — avoids circular include
@@ -128,6 +136,8 @@ public:
     void continue_prefill(uint32_t keep, uint32_t delta_len) override;
 
 private:
+    friend struct ov::test::npuw::LLMContinuedPrefillTestAccess;
+
     // -------------------------------------------------------------------------
     // Private helper structs (used only during initialize())
     // -------------------------------------------------------------------------
