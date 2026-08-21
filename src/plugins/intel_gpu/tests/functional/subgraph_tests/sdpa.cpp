@@ -19,6 +19,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/split.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/opsets/opset13_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
@@ -106,6 +107,88 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 // Validate that non-PA SDPA with f16/bf16 K/V inputs is not incorrectly blocked
+// Q/K/V as crop views of one fused QKV tensor, split on the HEAD axis, with a head size that is
+// not a multiple of 64 and a full 2D [query x key] mask -- the phi-4-multimodal SigLIP vision
+// tower shape (16 heads x 72, mask [1,1,s,s]).
+//
+// Split on axis 2 of [b, s, 3H, D] makes each output an in-place view carrying padding on the head
+// axis, so the per-head row pitch becomes (H + pad) * D rather than D. That is the one layout class
+// the 2D-block-IO host gates used to reject outright (block2d_layout_fixup_ok in sdpa_gen_ocl.cpp
+// refused every padded layout), which dropped sdpa_ocl onto a per-lane scalar gather and made it
+// 7.5x slower than sdpa_micro. Nothing else in the suite builds a padded Q/K/V view at
+// head_size % 64 != 0, so without this case that gate has no coverage.
+//
+// The Transpose([0,2,1,3]) is folded into the SDPA's transpose orders by TransposeSDPAFusion, which
+// is what leaves the head axis INNER to the sequence axis in memory -- the arrangement that makes
+// the padding multiply into the row pitch. phi-4 hits this with dynamic (shape_info) padding; a
+// static shape here takes the same host-gate branch.
+//
+// sdpa_ocl is the default backend (sdpa_opt.cpp: `env == nullptr ? true`), so this covers it as
+// written; TEST_USE_SDPA_OCL=0 runs the same case through sdpa_micro for an A/B.
+class SDPASplitHeadsPaddedView : virtual public ov::test::SubgraphBaseStaticTest {
+protected:
+    static constexpr size_t batch = 1;
+    static constexpr size_t seq_len = 256;   // 2 key tiles of 128, 8 query tiles of 32
+    static constexpr size_t num_heads = 16;
+    static constexpr size_t head_size = 72;  // 144 B row: % 16 == 0 but % 64 != 0
+
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        {
+            auto capabilities = core->get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
+            if (std::find(capabilities.cbegin(), capabilities.cend(), ov::intel_gpu::capability::HW_MATMUL) == capabilities.cend())
+                GTEST_SKIP();
+        }
+        inType = ov::element::f16;
+
+        const auto qkv = std::make_shared<ov::op::v0::Parameter>(inType, ov::Shape{batch, seq_len, 3 * num_heads, head_size});
+        const auto split_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, std::vector<int64_t>{2});
+        const auto split = std::make_shared<ov::op::v1::Split>(qkv, split_axis, 3);
+
+        // [b, s, H, D] -> [b, H, s, D]
+        const auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 2, 1, 3});
+        const auto q = std::make_shared<ov::op::v1::Transpose>(split->output(0), order);
+        const auto k = std::make_shared<ov::op::v1::Transpose>(split->output(1), order);
+        const auto v = std::make_shared<ov::op::v1::Transpose>(split->output(2), order);
+
+        // MSK_D2 > 1 && MSK_D3 > 1 -> the full 2D mask path (MASK_KIND 2).
+        const auto mask = std::make_shared<ov::op::v0::Parameter>(inType, ov::Shape{1, 1, seq_len, seq_len});
+
+        auto sdpa = std::make_shared<ov::opset13::ScaledDotProductAttention>(q, k, v, mask, false);
+        sdpa->set_friendly_name("sdpa");
+
+        auto output = std::make_shared<ov::op::v0::Result>(sdpa->output(0));
+        function = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{qkv, mask}, "sdpa_split_heads_padded_view");
+
+        functionRefs = function->clone();
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
+        manager.run_passes(functionRefs);
+
+        // Looser than the 8-token SDPA case above: this softmaxes over 256 keys in f16.
+        abs_threshold = 0.02;
+        rel_threshold = 0.02;
+    }
+
+    // Same tight range SDPAFusion uses -- keeps the f16 softmax over 256 keys well conditioned, so
+    // a real regression is not lost in accumulated rounding.
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto& params = function->get_parameters();
+        for (size_t i = 0; i < params.size(); ++i) {
+            inputs.insert({params[i],
+                           ov::test::utils::create_and_fill_tensor(inType,
+                                                                  targetInputStaticShapes[i],
+                                                                  ov::test::utils::InputGenerateData(0, 8, 32, 1))});
+        }
+    }
+};
+
+TEST_F(SDPASplitHeadsPaddedView, smoke_Inference) {
+    run();
+}
+
+// Validate that non-PA SDPA with f16 K/V inputs is not incorrectly blocked
 // from using micro kernel when KV_CACHE_PRECISION is globally set to u4.
 // This simulates a Vision Encoder SDPA node running alongside a PA-based LLM
 // that uses INT4 KV cache. The global config should not affect the Vision Encoder path.
