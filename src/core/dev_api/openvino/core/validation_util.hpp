@@ -90,21 +90,6 @@ OPENVINO_API std::vector<PartialShape> get_node_input_partial_shapes(const ov::N
 /// \return True if rank compatible to any of others, otherwise false.
 OPENVINO_API bool is_rank_compatible_any_of(const Rank& r, std::initializer_list<Rank> others);
 
-/// \brief Validate rank and element type for a node input against allowed whitelists.
-///
-/// \param node          Node that owns the input.
-/// \param input_idx     Input index to validate.
-/// \param input_name    Human-readable input name used in validation messages.
-/// \param allowed_ranks Rank whitelist. Empty list means any rank is accepted.
-/// \param allowed_types Element type whitelist. Empty list means any type is accepted.
-///
-/// @throws ov::NodeValidationFailure If the input rank or element type is not allowed.
-OPENVINO_API void validate_input_rank_and_type(const Node* node,
-                                               size_t input_idx,
-                                               std::string_view input_name,
-                                               std::initializer_list<Rank> allowed_ranks,
-                                               const std::vector<element::Type>& allowed_types);
-
 /// \brief Evaluates lower and upper value estimations for the output tensor. Estimation would be represented as partial
 /// shape object using Dimension(min, max) for each element.
 ///
