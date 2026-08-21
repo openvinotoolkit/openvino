@@ -29,8 +29,7 @@ void FilteredConfig::update(const ConfigMap& options) {
 
     for (const auto& p : options) {
         log.trace("Update option '%s' to value '%s'", p.first.c_str(), p.second.c_str());
-
-        if (isAvailable(p.first)) {
+        if (_desc->has(p.first)) {
             const auto opt = _desc->get(p.first);
             _impl[opt.key().data()] = opt.validateAndParseFromString(p.second);
         } else {
@@ -44,52 +43,12 @@ void FilteredConfig::updateAny(const ov::AnyMap& options) {
 
     for (const auto& p : options) {
         log.trace("Update option '%s' to given 'ov::Any' value", p.first.c_str());
-
-        if (isAvailable(p.first)) {
+        if (_desc->has(p.first)) {
             const auto opt = _desc->get(p.first);
             _impl[opt.key().data()] = opt.validateAndParseFromAny(p.second);
         } else {
             OPENVINO_THROW("[ NOT_FOUND ] Option '" + p.first + "' is not supported for current configuration");
         }
-    }
-}
-
-bool FilteredConfig::isAvailable(std::string key) const {
-    // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
-    // to enable those for OV Core to query.
-    if (key.find("NPUW") != key.npos) {
-        return true;  // always available
-    }
-    auto it = _enabled.find(key);
-    if (it != _enabled.end() && hasOpt(key)) {
-        return it->second;
-    }
-    // if doesn't exist = not available
-    return false;
-}
-
-void FilteredConfig::enable(std::string key, bool enabled) {
-    // we insert for all cases - no need to check if exists
-    _enabled[key] = enabled;
-}
-
-void FilteredConfig::enableAll() {
-    _desc->walk([&](const details::OptionConcept& opt) {
-        enable(opt.key().data(), true);
-    });
-}
-
-void FilteredConfig::enableRuntimeOptions() {
-    _desc->walk([&](const details::OptionConcept& opt) {
-        if (opt.mode() == OptionMode::RunTime) {
-            enable(opt.key().data(), true);
-        }
-    });
-}
-
-void FilteredConfig::walkEnables(std::function<void(const std::string&)> cb) const {
-    for (const auto& itr : _enabled) {
-        cb(itr.first);
     }
 }
 
@@ -107,8 +66,12 @@ void FilteredConfig::addOrUpdateInternal(std::string key, std::string value) {
     } else {
         // manual insert
         log.trace("Store internal compiler option %s: %s", key.c_str(), value.c_str());
-        _internal_compiler_configs.insert(std::make_pair(key, value));  // insert new
+        _internal_compiler_configs.emplace(key, std::move(value));
     }
+}
+
+bool FilteredConfig::hasInternal(std::string_view key) const {
+    return _internal_compiler_configs.count(std::string(key)) != 0;
 }
 
 std::string FilteredConfig::getInternal(std::string key) const {
@@ -118,31 +81,27 @@ std::string FilteredConfig::getInternal(std::string key) const {
     return _internal_compiler_configs.at(key);
 }
 
-std::string FilteredConfig::toStringForCompilerInternal() const {
+std::string FilteredConfig::toStringForCompiler(const std::function<bool(std::string_view)>& isSupported) const {
     std::stringstream resultStream;
+    bool hasSerializedValue = false;
 
-    for (auto it = _internal_compiler_configs.cbegin(); it != _internal_compiler_configs.cend(); ++it) {
-        resultStream << " " << it->first << "=\"" << it->second << "\"";
+    for (const auto& [key, value] : _impl) {
+        if (_desc->has(key) && _desc->get(key).mode() != OptionMode::RunTime && isSupported(key)) {
+            if (hasSerializedValue) {
+                resultStream << " ";
+            }
+            resultStream << key << "=\"" << value->toString() << "\"";
+            hasSerializedValue = true;
+        }
     }
 
-    return resultStream.str();
-}
-
-std::string FilteredConfig::toStringForCompiler() const {
-    std::stringstream resultStream;
-    for (auto it = _impl.cbegin(); it != _impl.cend(); ++it) {
-        const auto& key = it->first;
-
-        // Only include available configs which options have OptionMode::Compile or OptionMode::Both
-        if (isAvailable(key.data())) {
-            if (_desc->has(key)) {
-                if (_desc->get(key).mode() != OptionMode::RunTime) {
-                    resultStream << key << "=\"" << it->second->toString() << "\"";
-                    if (std::next(it) != _impl.end()) {
-                        resultStream << " ";
-                    }
-                }
+    for (const auto& [key, value] : _internal_compiler_configs) {
+        if (isSupported(key)) {
+            if (hasSerializedValue) {
+                resultStream << " ";
             }
+            resultStream << key << "=\"" << value << "\"";
+            hasSerializedValue = true;
         }
     }
 

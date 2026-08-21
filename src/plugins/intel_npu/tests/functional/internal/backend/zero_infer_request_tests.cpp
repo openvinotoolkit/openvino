@@ -160,11 +160,8 @@ public:
         options->add<::intel_npu::MODEL_SERIALIZER_VERSION>();
         npu_config = std::make_unique<::intel_npu::FilteredConfig>(options);
         ::intel_npu::Config::ConfigMap configMap;
-        npu_config->enable(::intel_npu::PLATFORM::key().data(), true);
-        npu_config->enable(::intel_npu::MODEL_SERIALIZER_VERSION::key().data(), true);
         for (const auto& [propertyName, propertyValue] : configuration) {
             configMap[propertyName] = propertyValue.as<std::string>();
-            npu_config->enable(propertyName, true);
         }
         npu_config->update(configMap);
 
@@ -223,8 +220,6 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
         npu_config->update({{::intel_npu::MODEL_SERIALIZER_VERSION::key().data(),
                              ::intel_npu::MODEL_SERIALIZER_VERSION::toString(
                                  ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY)}});
-    } else {
-        npu_config->enable(::intel_npu::MODEL_SERIALIZER_VERSION::key().data(), false);
     }
 
     // logic for batch
@@ -235,10 +230,10 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
         std::optional<ov::Dimension> originalBatch = std::nullopt;
         auto [batchedModel, successfullyDebatched] = intel_npu::batch_helpers::handlePluginBatching(
             ov_model,
-            *npu_config,
             [&](ov::intel_npu::BatchMode mode) {
                 npu_config->update({{::intel_npu::BATCH_MODE::key().data(), ::intel_npu::BATCH_MODE::toString(mode)}});
             },
+            std::make_optional(npu_config->get<::intel_npu::BATCH_MODE>()),
             originalBatch,
             ::intel_npu::Logger::global());
         OPENVINO_ASSERT(successfullyDebatched, "Couldn't debatch test model!");

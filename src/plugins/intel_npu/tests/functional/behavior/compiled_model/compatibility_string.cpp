@@ -5,6 +5,7 @@
 #include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+
 #include <memory>
 #include <mutex>
 #include <openvino/runtime/intel_npu/properties.hpp>
@@ -289,12 +290,6 @@ TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckIsReadOnly) {
     OV_ASSERT_NO_THROW(
         core.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)));
 
-    // Determine at runtime whether the driver version is sufficient to handle the
-    // compatibility check without falling back to PluginCompilerAdapter.
-    const auto initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
-    const bool driverHandlesCompatibilityCheck =
-        initStructs != nullptr && initStructs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16);
-
     auto original_level = core.get_property(deviceName, ov::log::level);
     OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(ov::log::Level::INFO)));
     {
@@ -305,13 +300,10 @@ TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckIsReadOnly) {
     }
     OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(original_level)));
 
+    // DriverCompilerAdapter and PluginCompilerAdapter should not be initialized at all in such a scenario, checking
+    // that the corresponding message is not present in the log
     ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
-
-    if (driverHandlesCompatibilityCheck) {
-        ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
-    } else {
-        ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
-    }
+    ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
 }
 
 TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckUsesPluginCompilerFallbackForOlderDriver) {
@@ -341,6 +333,8 @@ TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckUsesPluginCompiler
     }
     OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(original_level)));
 
+    // DriverCompilerAdapter should not be initialized at all in such a scenario, checking that the corresponding
+    // message is not present in the log
     ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
 
     if (driverHandlesCompatibilityCheck) {

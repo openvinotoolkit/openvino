@@ -46,8 +46,6 @@ namespace behavior {
 class PropertiesManagerTests : public ov::test::behavior::OVPluginTestBase,
                                public testing::WithParamInterface<ConfigParams> {
 protected:
-    std::shared_ptr<::intel_npu::OptionsDesc> options = std::make_shared<::intel_npu::OptionsDesc>();
-    ::intel_npu::FilteredConfig npu_config = ::intel_npu::FilteredConfig(options);
     ov::SoPtr<::intel_npu::IEngineBackend> backend;
     std::unique_ptr<::intel_npu::PluginPropertyManager> propertiesManager;
 
@@ -80,116 +78,14 @@ public:
 
         backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
 
-        options->reset();
-
-#define REGISTER_OPTION(OPT_TYPE)                             \
-    do {                                                      \
-        auto dummyopt = details::makeOptionModel<OPT_TYPE>(); \
-        std::string o_name = dummyopt.key().data();           \
-        options->add<OPT_TYPE>();                             \
-        npu_config.enable(std::move(o_name), false);          \
-    } while (0)
-        REGISTER_OPTION(LOG_LEVEL);
-        REGISTER_OPTION(COMPILE_LOG_LEVEL);
-        REGISTER_OPTION(CACHE_DIR);
-        REGISTER_OPTION(CACHE_MODE);
-        REGISTER_OPTION(COMPILED_BLOB);
-        REGISTER_OPTION(DEVICE_ID);
-        REGISTER_OPTION(NUM_STREAMS);
-        REGISTER_OPTION(PERF_COUNT);
-        REGISTER_OPTION(LOADED_FROM_CACHE);
-        REGISTER_OPTION(COMPILATION_NUM_THREADS);
-        REGISTER_OPTION(PERFORMANCE_HINT);
-        REGISTER_OPTION(EXECUTION_MODE_HINT);
-        REGISTER_OPTION(PERFORMANCE_HINT_NUM_REQUESTS);
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        REGISTER_OPTION(ENABLE_CPU_PINNING);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-        REGISTER_OPTION(INFERENCE_PRECISION_HINT);
-        REGISTER_OPTION(MODEL_PRIORITY);
-        REGISTER_OPTION(COMPILATION_MODE_PARAMS);
-        REGISTER_OPTION(DMA_ENGINES);
-        REGISTER_OPTION(TILES);
-        REGISTER_OPTION(COMPILATION_MODE);
-        REGISTER_OPTION(COMPILER_TYPE);
-        REGISTER_OPTION(PLATFORM);
-        REGISTER_OPTION(CREATE_EXECUTOR);
-        REGISTER_OPTION(DYNAMIC_SHAPE_TO_STATIC);
-        REGISTER_OPTION(PROFILING_TYPE);
-        REGISTER_OPTION(BACKEND_COMPILATION_PARAMS);
-        REGISTER_OPTION(BATCH_MODE);
-        REGISTER_OPTION(BYPASS_UMD_CACHING);
-        REGISTER_OPTION(DEFER_WEIGHTS_LOAD);
-        REGISTER_OPTION(WEIGHTS_PATH);
-        REGISTER_OPTION(RUN_INFERENCES_SEQUENTIALLY);
-        REGISTER_OPTION(COMPILER_DYNAMIC_QUANTIZATION);
-        REGISTER_OPTION(QDQ_OPTIMIZATION);
-        REGISTER_OPTION(QDQ_OPTIMIZATION_AGGRESSIVE);
-        REGISTER_OPTION(STEPPING);
-        REGISTER_OPTION(DISABLE_VERSION_CHECK);
-        REGISTER_OPTION(EXPORT_RAW_BLOB);
-        REGISTER_OPTION(IMPORT_RAW_BLOB);
-        REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
-        REGISTER_OPTION(TURBO);
-        REGISTER_OPTION(SEPARATE_WEIGHTS_VERSION);
-        REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
-        REGISTER_OPTION(MODEL_SERIALIZER_VERSION);
-        REGISTER_OPTION(ENABLE_STRIDES_FOR);
-        REGISTER_OPTION(SHARED_COMMON_QUEUE);
-
-        if (backend) {
-            REGISTER_OPTION(MAX_TILES);
-
-            if (backend->isCommandQueueExtSupported()) {
-                REGISTER_OPTION(WORKLOAD_TYPE);
-            }
-            if (backend->isContextExtSupported()) {
-                REGISTER_OPTION(DISABLE_IDLE_MEMORY_PRUNING);
-            }
-        }
-
-        for_each_exposed_npuw_option([&](auto tag) {
-            using Opt = typename decltype(tag)::type;
-            REGISTER_OPTION(Opt);
-        });
-
-        npu_config.enableRuntimeOptions();
-
-        // Special cases - options with OptionMode::Both must be enabled for the plugin even if the compiler does not
-        // support them, because they may be used by the plugin itself or by the driver.
-        // We still check compiler support to decide whether these options should be removed from the config string.
-
-        // NPU_TURBO might be supported by the driver
-        if (backend && backend->isCommandQueueExtSupported()) {
-            npu_config.enable(ov::intel_npu::turbo.name(), true);
-        }
-
-        // LOG_LEVEL, PERFORMANCE_HINT and PERF_COUNT are needed by runtime options
-        npu_config.enable(ov::log::level.name(), true);
-        npu_config.enable(ov::hint::performance_mode.name(), true);
-        npu_config.enable(ov::enable_profiling.name(), true);
-
-        if (npu_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN && backend != nullptr) {
-            auto device = backend->getDevice();
-            if (device) {
-                auto platformName = device->getName();
-                CompilerAdapterFactory compilerFactory;
-                auto compileType = compilerFactory.determineAppropriateCompilerTypeBasedOnPlatform(platformName);
-                if (compileType == ov::intel_npu::CompilerType::DRIVER) {
-                    npu_config.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compileType)}});
-                }
-            }
-        }
-
         propertiesManager = std::make_unique<PluginPropertyManager>(
-            npu_config,
             backend,
             std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend, CompilerAdapterFactory()),
             ::intel_npu::Logger::global());
     }
 
     void TearDown() override {
-        APIBaseTest::TearDown();
+        OVPluginTestBase::TearDown();
     }
 };
 
@@ -350,6 +246,43 @@ TEST_P(CompatibilityCheckTests, ExpectTurboPropertyAndCompatibilityCheckAreSuppo
     }
 }
 
+TEST_P(CompatibilityCheckTests, ExpectCompilerPropertyIsNotSupported) {
+    std::string logs;
+    std::mutex logs_mutex;
+    bool isSupported = true;
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    {
+        utils::LogCallbackGuard log_callback_guard(log_cb);
+        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
+        propertiesManager->setProperty({{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}});
+        isSupported = propertiesManager->isPropertySupported("DUMMY_PROPERTY");
+    }
+
+    ASSERT_FALSE(isSupported);
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+    ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+
+    logs.clear();
+
+    {
+        utils::LogCallbackGuard log_callback_guard(log_cb);
+        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
+        propertiesManager->setProperty({{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}});
+        isSupported = propertiesManager->isPropertySupported("DUMMY_PROPERTY");
+    }
+
+    ASSERT_FALSE(isSupported);
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+    ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+}
+
 using ExpectLoadingCompilerPropertySupported = PropertiesManagerTests;
 
 TEST_P(ExpectLoadingCompilerPropertySupported, ExpectCompilerPropertyIsSupported) {
@@ -376,32 +309,6 @@ TEST_P(ExpectLoadingCompilerPropertySupported, ExpectCompilerPropertyIsSupported
     ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
 }
 
-using ExpectLoadingCompilerPropertyNotSupported = PropertiesManagerTests;
-
-TEST_P(ExpectLoadingCompilerPropertyNotSupported, ExpectCompilerPropertyIsNotSupported) {
-    std::string logs;
-    std::mutex logs_mutex;
-    bool isSupported = true;
-
-    // Keep this std::function alive while logging is active.
-    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
-        std::lock_guard<std::mutex> lock(logs_mutex);
-        logs.append(msg);
-        logs.push_back('\n');
-    };
-
-    {
-        utils::LogCallbackGuard log_callback_guard(log_cb);
-        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
-        propertiesManager->setProperty({{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}});
-        isSupported = propertiesManager->isPropertySupported(configuration);
-    }
-
-    ASSERT_FALSE(isSupported);
-    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
-    ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
-}
-
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
@@ -412,7 +319,6 @@ const std::vector<std::string> supported_configs = {{ov::hint::performance_mode.
                                                     {ov::cache_dir.name()},
                                                     {ov::intel_npu::driver_version.name()}};
 const std::vector<std::string> supported_compiler_configs = {{ov::intel_npu::qdq_optimization.name()}};
-const std::vector<std::string> unsupported_compiler_configs = {{"DUMMY_PROPERTY"}};
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                          PropertiesManagerTests,
@@ -430,12 +336,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          ExpectLoadingCompilerPropertySupported,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(supported_compiler_configs)),
-                         PropertiesManagerTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
-                         ExpectLoadingCompilerPropertyNotSupported,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(unsupported_compiler_configs)),
                          PropertiesManagerTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
