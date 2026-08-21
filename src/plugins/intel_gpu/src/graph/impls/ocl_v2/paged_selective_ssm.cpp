@@ -22,6 +22,16 @@ using cldnn::program_node;
 
 namespace {
 
+constexpr size_t max_jit_state_size = 512;
+
+bool is_plain_static_layout(const cldnn::layout& layout) {
+    return layout.get_partial_shape().is_static() && layout.data_padding == cldnn::padding() && layout.count() <= std::numeric_limits<uint32_t>::max();
+}
+
+bool has_static_rank(const ov::PartialShape& shape, const size_t rank) {
+    return shape.is_static() && shape.rank().is_static() && static_cast<size_t>(shape.rank().get_length()) == rank;
+}
+
 size_t get_scratch_elements(const std::array<size_t, 4>& dimensions) {
     size_t elements = 1;
     for (const size_t dimension : dimensions) {
@@ -31,6 +41,65 @@ size_t get_scratch_elements(const std::array<size_t, 4>& dimensions) {
     }
     return std::max<size_t>(elements, 1);
 }
+
+template <selective_ssm_jit::device_kind Kind>
+class PagedSelectiveSSMJitGenerator : public KernelGenerator {
+public:
+    PagedSelectiveSSMJitGenerator()
+        : KernelGenerator(Kind == selective_ssm_jit::device_kind::integrated ? "paged_selective_ssm_jit_integrated" : "paged_selective_ssm_jit_discrete") {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = KernelGenerator::get_jit_constants(params);
+        const auto& x_shape = params.get_input_layout(3).get_partial_shape();
+        const auto& B_shape = params.get_input_layout(2).get_partial_shape();
+        const size_t state_size = B_shape[2].get_length();
+        const size_t head_dim = x_shape[2].get_length();
+        const size_t subgroup_size = selective_ssm_jit::get_subgroup_size(params.get_device_info(), Kind);
+        const size_t head_dim_block = selective_ssm_jit::get_head_dim_block(head_dim, state_size, subgroup_size, params.get_device_info(), Kind);
+
+        jit.make("SSM_TOKEN_COUNT", x_shape[0].get_length());
+        jit.make("SSM_NUM_HEADS", x_shape[1].get_length());
+        jit.make("SSM_HEAD_DIM", head_dim);
+        jit.make("SSM_NUM_GROUPS", B_shape[1].get_length());
+        jit.make("SSM_STATE_SIZE", state_size);
+        jit.make("SSM_SUBGROUP_SIZE", subgroup_size);
+        jit.make("SSM_HEAD_DIM_BLOCK", head_dim_block);
+        jit.make("SSM_STATE_ITERATIONS", cldnn::ceil_div(state_size, subgroup_size));
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        OPENVINO_ASSERT(!params.is_dynamic(), "PagedSelectiveSSM JIT kernel requires static shapes");
+        Arguments args;
+        for (uint32_t i = 0; i < params.input_layouts.size(); i++)
+            args.push_back({ArgumentDescriptor::Types::INPUT, i});
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+        if constexpr (Kind == selective_ssm_jit::device_kind::discrete)
+            args.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, 0});
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
+            OPENVINO_ASSERT(!params.is_dynamic(), "PagedSelectiveSSM JIT kernel requires static shapes");
+            const auto& x_shape = params.get_input_layout(3).get_partial_shape();
+            const auto& B_shape = params.get_input_layout(2).get_partial_shape();
+            const auto& seq_shape = params.get_input_layout(6).get_partial_shape();
+            const size_t num_heads = x_shape[1].get_length();
+            const size_t head_dim = x_shape[2].get_length();
+            const size_t state_size = B_shape[2].get_length();
+            const size_t sequences = seq_shape[0].get_length() - 1;
+            const size_t subgroup_size = selective_ssm_jit::get_subgroup_size(params.get_device_info(), Kind);
+            const size_t head_dim_block = selective_ssm_jit::get_head_dim_block(head_dim, state_size, subgroup_size, params.get_device_info(), Kind);
+
+            kd.params.workGroups.global = {cldnn::ceil_div(head_dim, head_dim_block) * subgroup_size, num_heads, sequences};
+            kd.params.workGroups.local = {subgroup_size, 1, 1};
+            if constexpr (Kind == selective_ssm_jit::device_kind::discrete)
+                kd.params.local_memory_args = {head_dim_block * state_size * sizeof(float)};
+        }};
+    }
+};
 
 class PagedSelectiveSSMOptGenerator : public KernelGenerator {
 public:
@@ -184,14 +253,113 @@ public:
     }
 };
 
+class PagedSelectiveSSMJitIntegratedImpl : public PrimitiveImplOCL {
+public:
+    DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::PagedSelectiveSSMJitIntegratedImpl)
+
+    Stage::Ptr paged_selective_ssm = make_stage<PagedSelectiveSSMJitGenerator<selective_ssm_jit::device_kind::integrated>>();
+
+    PagedSelectiveSSMJitIntegratedImpl() : PrimitiveImplOCL(PagedSelectiveSSMJitIntegrated::get_type_info_static()) {}
+    PagedSelectiveSSMJitIntegratedImpl(const program_node&, const RuntimeParams& params) : PagedSelectiveSSMJitIntegratedImpl() {
+        add_stage(paged_selective_ssm, params);
+    }
+
+    [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
+        return make_deep_copy<PagedSelectiveSSMJitIntegratedImpl>(this);
+    }
+};
+
+class PagedSelectiveSSMJitDiscreteImpl : public PrimitiveImplOCL {
+public:
+    DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::PagedSelectiveSSMJitDiscreteImpl)
+
+    Stage::Ptr paged_selective_ssm = make_stage<PagedSelectiveSSMJitGenerator<selective_ssm_jit::device_kind::discrete>>();
+
+    PagedSelectiveSSMJitDiscreteImpl() : PrimitiveImplOCL(PagedSelectiveSSMJitDiscrete::get_type_info_static()) {}
+    PagedSelectiveSSMJitDiscreteImpl(const program_node&, const RuntimeParams& params) : PagedSelectiveSSMJitDiscreteImpl() {
+        add_stage(paged_selective_ssm, params);
+    }
+
+    [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
+        return make_deep_copy<PagedSelectiveSSMJitDiscreteImpl>(this);
+    }
+};
+
 }  // namespace
+
+bool validate_paged_selective_ssm_jit(const program_node& node, const selective_ssm_jit::device_kind kind) {
+    const auto& info = node.get_program().get_engine().get_device_info();
+    if (!selective_ssm_jit::matches_device_kind(info, kind))
+        return false;
+
+    const size_t subgroup_size = selective_ssm_jit::get_subgroup_size(info, kind);
+    if (subgroup_size == 0)
+        return false;
+
+    for (size_t i = 0; i < node.get_dependencies().size(); i++) {
+        if (!is_plain_static_layout(node.get_input_layout(i)))
+            return false;
+    }
+    if (!is_plain_static_layout(node.get_output_layout(0)))
+        return false;
+
+    const auto& A_shape = node.get_input_layout(0).get_partial_shape();
+    const auto& dt_shape = node.get_input_layout(1).get_partial_shape();
+    const auto& B_shape = node.get_input_layout(2).get_partial_shape();
+    const auto& x_shape = node.get_input_layout(3).get_partial_shape();
+    const auto& C_shape = node.get_input_layout(4).get_partial_shape();
+    const auto& state_shape = node.get_input_layout(5).get_partial_shape();
+    const auto& subsequences_shape = node.get_input_layout(6).get_partial_shape();
+    const auto& block_indices_shape = node.get_input_layout(7).get_partial_shape();
+    const auto& block_begins_shape = node.get_input_layout(8).get_partial_shape();
+    const auto& processed_shape = node.get_input_layout(9).get_partial_shape();
+    const auto& interval_shape = node.get_input_layout(10).get_partial_shape();
+    const auto& output_shape = node.get_output_layout(0).get_partial_shape();
+    if (!has_static_rank(A_shape, 1) || !has_static_rank(dt_shape, 2) || !has_static_rank(B_shape, 3) || !has_static_rank(x_shape, 3) ||
+        !has_static_rank(C_shape, 3) || !has_static_rank(state_shape, 4) || !has_static_rank(subsequences_shape, 1) ||
+        !has_static_rank(block_indices_shape, 1) || !has_static_rank(block_begins_shape, 1) || !has_static_rank(processed_shape, 1) ||
+        !has_static_rank(interval_shape, 1) || !has_static_rank(output_shape, 3)) {
+        return false;
+    }
+
+    const size_t tokens = x_shape[0].get_length();
+    const size_t num_heads = x_shape[1].get_length();
+    const size_t head_dim = x_shape[2].get_length();
+    const size_t num_groups = B_shape[1].get_length();
+    const size_t state_size = B_shape[2].get_length();
+    const size_t subsequences_count = subsequences_shape[0].get_length();
+    const size_t sequences = subsequences_count > 0 ? subsequences_count - 1 : 0;
+    if (tokens == 0 || num_heads == 0 || num_groups == 0 || head_dim == 0 || sequences == 0 || state_shape[0].get_length() == 0 ||
+        block_indices_shape[0].get_length() == 0 || state_size < subgroup_size || state_size > max_jit_state_size || num_heads % num_groups != 0) {
+        return false;
+    }
+
+    const bool shapes_match = A_shape[0] == num_heads && dt_shape[0] == tokens && dt_shape[1] == num_heads && B_shape[0] == tokens && C_shape == B_shape &&
+                              state_shape[1] == num_heads && state_shape[2] == head_dim && state_shape[3] == state_size &&
+                              static_cast<size_t>(block_begins_shape[0].get_length()) >= sequences + 1 &&
+                              static_cast<size_t>(processed_shape[0].get_length()) >= sequences &&
+                              static_cast<size_t>(interval_shape[0].get_length()) >= sequences && output_shape == x_shape;
+    return shapes_match && selective_ssm_jit::get_head_dim_block(head_dim, state_size, subgroup_size, info, kind) != 0;
+}
 
 std::unique_ptr<primitive_impl> PagedSelectiveSSMOpt::create_impl(const program_node& node, const RuntimeParams& params) const {
     assert(node.is_type<paged_selective_ssm>());
     return std::make_unique<PagedSelectiveSSMOptImpl>(node, params);
 }
 
+std::unique_ptr<primitive_impl> PagedSelectiveSSMJitIntegrated::create_impl(const program_node& node, const RuntimeParams& params) const {
+    assert(node.is_type<paged_selective_ssm>());
+    return std::make_unique<PagedSelectiveSSMJitIntegratedImpl>(node, params);
+}
+
+std::unique_ptr<primitive_impl> PagedSelectiveSSMJitDiscrete::create_impl(const program_node& node, const RuntimeParams& params) const {
+    assert(node.is_type<paged_selective_ssm>());
+    return std::make_unique<PagedSelectiveSSMJitDiscreteImpl>(node, params);
+}
+
 }  // namespace ov::intel_gpu::ocl
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::paged_selective_ssm)
 BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::PagedSelectiveSSMOptImpl)
+BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::PagedSelectiveSSMJitIntegratedImpl)
+BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::PagedSelectiveSSMJitDiscreteImpl)

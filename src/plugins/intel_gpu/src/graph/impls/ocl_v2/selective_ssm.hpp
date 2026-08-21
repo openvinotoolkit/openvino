@@ -11,8 +11,11 @@
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"
 #include "selective_ssm_inst.h"
+#include "selective_ssm_jit_utils.hpp"
 
 namespace ov::intel_gpu::ocl {
+
+bool validate_selective_ssm_jit(const cldnn::program_node& node, selective_ssm_jit::device_kind kind);
 
 struct SelectiveSSMOpt : public cldnn::ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("ocl::selective_ssm::opt")
@@ -49,6 +52,28 @@ struct SelectiveSSMOpt : public cldnn::ImplementationManager {
             }
         }
         return true;
+    }
+};
+
+struct SelectiveSSMJitIntegrated : public SelectiveSSMOpt {
+    OV_GPU_PRIMITIVE_IMPL("ocl::selective_ssm::jit_integrated")
+    explicit SelectiveSSMJitIntegrated(cldnn::shape_types shape_type, cldnn::ValidateFunc vf = nullptr) : SelectiveSSMOpt(shape_type, std::move(vf)) {}
+
+    [[nodiscard]] std::unique_ptr<cldnn::primitive_impl> create_impl(const cldnn::program_node& node, const RuntimeParams& params) const override;
+
+    [[nodiscard]] bool validate_impl(const cldnn::program_node& node) const override {
+        return SelectiveSSMOpt::validate_impl(node) && validate_selective_ssm_jit(node, selective_ssm_jit::device_kind::integrated);
+    }
+};
+
+struct SelectiveSSMJitDiscrete : public SelectiveSSMOpt {
+    OV_GPU_PRIMITIVE_IMPL("ocl::selective_ssm::jit_discrete")
+    explicit SelectiveSSMJitDiscrete(cldnn::shape_types shape_type, cldnn::ValidateFunc vf = nullptr) : SelectiveSSMOpt(shape_type, std::move(vf)) {}
+
+    [[nodiscard]] std::unique_ptr<cldnn::primitive_impl> create_impl(const cldnn::program_node& node, const RuntimeParams& params) const override;
+
+    [[nodiscard]] bool validate_impl(const cldnn::program_node& node) const override {
+        return SelectiveSSMOpt::validate_impl(node) && validate_selective_ssm_jit(node, selective_ssm_jit::device_kind::discrete);
     }
 };
 
