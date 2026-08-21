@@ -167,6 +167,47 @@ TEST_F(WeightShareExtensionTest, get_constant_origin_desc_no_wl_set) {
     ASSERT_FALSE(weight_sharing::Extension::get_constant_origin(c).has_value());
 }
 
+TEST_F(WeightShareExtensionTest, get_constant_origin_from_descriptor) {
+    // A Constant whose buffer carries a descriptor resolves its origin from the
+    // descriptor alone (source id + offset), with no WeightlessCacheAttribute.
+    auto buffer = std::make_shared<ov::AlignedBuffer>(4000);
+    auto wt_buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+        buffer->get_ptr<char>() + 100,
+        buffer->size() - 100,
+        buffer,
+        ov::create_base_descriptor(7, 0, buffer));
+    auto c = Constant(element::f32, Shape{975}, wt_buffer);
+
+    const auto origin = weight_sharing::Extension::get_constant_origin(c);
+    ASSERT_TRUE(origin.has_value());
+    EXPECT_EQ(origin->m_id, 7);                  // descriptor id == weight source id
+    EXPECT_EQ(origin->m_offset, 100);            // descriptor offset (ptr arithmetic)
+    EXPECT_EQ(origin->m_size, 4000 - 100);       // size from the Constant
+    EXPECT_EQ(origin->m_type, element::f32);     // dtype from the Constant
+}
+
+TEST_F(WeightShareExtensionTest, get_constant_origin_descriptor_precedes_wl) {
+    // When both a descriptor and a WeightlessCacheAttribute are present, the
+    // descriptor identity wins (the WLCA is only a transitional fallback).
+    auto buffer = std::make_shared<ov::AlignedBuffer>(4000);
+    auto wt_buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+        buffer->get_ptr<char>() + 100,
+        buffer->size() - 100,
+        buffer,
+        ov::create_base_descriptor(7, 0, buffer));
+    auto c = Constant(element::f32, Shape{975}, wt_buffer);
+    // Deliberately-divergent WLCA offset to prove the descriptor path is taken.
+    c.get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+        ov::WeightlessCacheAttribute{32, 999, element::f64};
+
+    const auto origin = weight_sharing::Extension::get_constant_origin(c);
+    ASSERT_TRUE(origin.has_value());
+    EXPECT_EQ(origin->m_id, 7);
+    EXPECT_EQ(origin->m_offset, 100);  // descriptor offset, not the WLCA's 999
+    EXPECT_EQ(origin->m_size, 4000 - 100);
+    EXPECT_EQ(origin->m_type, element::f32);
+}
+
 TEST_F(WeightShareExtensionTest, set_mapped_weight_buffer) {
     const auto weights_path = test_dir / "weights.bin";
     create_test_weights_file(weights_path);
