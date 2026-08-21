@@ -821,7 +821,18 @@ bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared
     // or vice versa. This would lead to worse performance. Consider adding this check to LLMCompiledModel
     // as well, since there we have uncut model.
     // Head or tail
-    const bool pattern_matched = ctx.found_host_gather_quant() || !to_keep.empty();
+    const bool found_runtime_quant_gather = ctx.found_host_gather_quant();
+    const bool preserved_const_matmul = !to_keep.empty();
+    const bool pattern_matched = found_runtime_quant_gather || preserved_const_matmul;
+    LOG_VERB("Quantized host-gather decision for "
+             << model->get_friendly_name() << ": runtime_gather=" << (found_runtime_quant_gather ? "YES" : "NO")
+             << ", preserved_const_matmul=" << (preserved_const_matmul ? "YES" : "NO")
+             << ", preserved_constants=" << to_keep.size());
+    for (const auto& constant : to_keep) {
+        LOG_VERB("Quantized host-gather preserved Constant: " << constant->get_friendly_name() << " shape="
+                                                               << constant->get_shape() << " type="
+                                                               << constant->get_element_type());
+    }
 
     // Check the compiler version
     const auto npu_devices = get_plugin()->get_core()->get_property("NPU", ov::available_devices);

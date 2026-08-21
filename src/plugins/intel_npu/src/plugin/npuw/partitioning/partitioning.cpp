@@ -1593,7 +1593,8 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
 
 void Partitioner::saveTailDictConstants(const std::string& func_name) {
     if (!part_ctx.use_host_gather_quant) {
-        // No need to preserve as constants
+        LOG_DEBUG("Tail dictionary constant preservation skipped for "
+                  << func_name << ": use_host_gather_quant=NO");
         return;
     }
 
@@ -1624,7 +1625,9 @@ void Partitioner::saveTailDictConstants(const std::string& func_name) {
     rewr.run_on_model(model_group.front());
 
     for (auto&& const_to_keep : to_keep) {
-        LOG_DEBUG("[KEEP] " << const_to_keep);
+        LOG_VERB("Tail dictionary preserved Constant: " << const_to_keep->get_friendly_name() << " shape="
+                                                          << const_to_keep->get_shape() << " type="
+                                                          << const_to_keep->get_element_type());
         func_group.consts_to_keep.insert(const_to_keep);
     }
     LOG_VERB("Done");

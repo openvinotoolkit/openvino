@@ -187,6 +187,25 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, SharedHeadEnabledBuildsPrefillGenerat
     EXPECT_EQ(recorder.count_contains("_kv"), 1u);
 }
 
+TEST_F(LLMCompiledModelFactoryOptionsTest, SharedHeadDisablesHostGatherOnlyForHeadStage) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    const ov::AnyMap props = { {"NPUW_LLM_SHARED_HEAD", "YES"},
+                               {"NPUW_LLM_ASYM_VOCAB_AS_INPUT", "YES"},
+                               {"NPUW_HOST_GATHER", "YES"} };
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(), props, recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_call(recorder, "_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+    const auto& lm_head = require_call(recorder, "_lm_head");
+
+    expect_prop(prefill.props, "NPUW_HOST_GATHER", "YES");
+    expect_prop(generate.props, "NPUW_HOST_GATHER", "YES");
+    expect_prop(lm_head.props, "NPUW_HOST_GATHER", "NO");
+}
+
 TEST_F(LLMCompiledModelFactoryOptionsTest, GeneratePyramidBuildsExpectedGenerateStageCount) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;

@@ -189,6 +189,30 @@ TEST(SerializationTestNPUW, CompiledModelPhase0CompatibilityExportSucceedsWithSt
     EXPECT_NO_THROW(compiled.export_model(blob));
 }
 
+TEST(SerializationTestNPUW, LLMSharedHeadExportImportWithAsymmetricVocabInput) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    ov::Core ov_core;
+    skip_if_no_npu(ov_core);
+
+    auto model = build_chunked_prefill_model();
+    ov::AnyMap config = {{"NPU_USE_NPUW", "YES"},
+                         {"NPUW_LLM", "YES"},
+                         {"NPUW_DEVICES", "NPU"},
+                         {"NPUW_LLM_SHARED_HEAD", "YES"},
+                         {"NPUW_LLM_ASYM_VOCAB_AS_INPUT", "YES"},
+                         {"NPUW_HOST_GATHER", "NO"},
+                         {"CACHE_MODE", "OPTIMIZE_SPEED"}};
+
+    auto compiled = ov_core.compile_model(model, "NPU", config);
+    std::stringstream blob;
+    ASSERT_NO_THROW(compiled.export_model(blob));
+    ASSERT_FALSE(blob.str().empty());
+
+    auto imported = ov_core.import_model(blob, "NPU", config);
+    ASSERT_NO_THROW(imported.create_infer_request());
+}
+
 TEST(SerializationTestNPUW, CompiledModelPhase0CompatibilityRejectsCpuPinnedSubgraphExport) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
