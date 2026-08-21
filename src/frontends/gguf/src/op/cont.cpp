@@ -53,6 +53,7 @@ OutputVector translate_cont(const NodeContext & context) {
         if (!tgt.empty()) {
             auto tgt_node = ov::op::v0::Constant::create(ov::element::i64, {tgt.size()}, tgt);
             res = std::make_shared<ov::op::v1::Reshape>(input, tgt_node, false);
+            res.get_node_shared_ptr()->set_friendly_name("cont_reshape_" + context.get_name());
             return rename_outputs_with_suffix({res}, context.get_name());
         }
         res = input;
