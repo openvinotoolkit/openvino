@@ -184,7 +184,6 @@ jobs:
     uses: ./.github/workflows/job_llm_accuracy_tests.yml
     with:
       runner: '["aks-linux-4-cores-16gb"]'
-      runner-group: 'aks'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}
       device: 'CPU'
       test-suffix: 'CPU'
