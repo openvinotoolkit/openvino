@@ -1263,7 +1263,7 @@ TEST(SerializationTest, FinalizeWeightsBankRejectsMismatchedLazyClosureMetadata)
     EXPECT_THROW(ov::npuw::CompiledModelDescSerializationAccess::run_finalize_and_wait(*compiled), ov::Exception);
 }
 
-TEST(SerializationTest, FinalizeWeightsBankRejectsMismatchedResolvedClosureMetadata) {
+TEST(SerializationTest, FinalizeWeightsBankRejectsMismatchedClosureAndLazyClosureMetadata) {
     auto compiled = ov::npuw::CompiledModelDescSerializationAccess::make_serialized_compiled_model();
     auto& submodel = ov::npuw::CompiledModelDescSerializationAccess::append_submodel(*compiled);
 
@@ -1271,9 +1271,10 @@ TEST(SerializationTest, FinalizeWeightsBankRejectsMismatchedResolvedClosureMetad
     submodel.lazy_closure.resize(1);
 
     auto& closure = submodel.closure.get();
-    closure.closure.resize(1);
+    closure.closure.resize(2);
     closure.closure[0] = ov::Tensor(ov::element::f32, ov::Shape{1});
-    closure.is_remote.resize(1, false);
+    closure.closure[1] = ov::Tensor(ov::element::f32, ov::Shape{1});
+    closure.is_remote.resize(2, false);
     closure.closure_uid.resize(2, -1);
 
     ov::npuw::CompiledModelDescSerializationAccess::set_weights_bank(
