@@ -336,7 +336,13 @@ void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_
                 *dst_ptr_f = std::max(src_f[0], src_f[1]);
                 break;
             case Algorithm::EltwiseMinimum:
-                *dst_ptr_f = std::min(src_f[0], src_f[1]);
+                if (std::isnan(static_cast<float>(src_f[0]))) {
+                    *dst_ptr_f = src_f[0];
+                } else if (std::isnan(static_cast<float>(src_f[1]))) {
+                    *dst_ptr_f = src_f[1];
+                } else {
+                    *dst_ptr_f = std::min(src_f[0], src_f[1]);
+                }
                 break;
             case Algorithm::EltwiseExp:
                 *dst_ptr_f = expf(src_f[0]);
