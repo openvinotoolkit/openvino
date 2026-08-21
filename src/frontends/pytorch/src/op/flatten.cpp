@@ -56,18 +56,19 @@ OutputVector translate_flatten(const NodeContext& context) {
         }
 
         if (start_known && end_known) {
+            // A scalar (rank-0) input is always flattened to a 1-D tensor.
+            if (rank == 0) {
+                auto neg1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
+                return {context.mark_node(std::make_shared<v1::Reshape>(x, neg1, false))};
+            }
             // Normalise negative values.
             if (start_dim < 0)
                 start_dim += rank;
             if (end_dim < 0)
                 end_dim += rank;
-            start_dim = std::max<int64_t>(0, std::min(start_dim, rank - 1));
-            end_dim = std::max<int64_t>(0, std::min(end_dim, rank - 1));
-
-            if (start_dim > end_dim) {
-                // Degenerate case – nothing to flatten.
-                return {x};
-            }
+            PYTORCH_OP_CONVERSION_CHECK(
+                start_dim >= 0 && start_dim < rank && end_dim >= 0 && end_dim < rank && start_dim <= end_dim,
+                "aten::flatten: start_dim and end_dim are out of the valid range for the input rank.");
 
             // Build the target shape using constant-index Slice operations so
             // that the Concat output has a statically known length (and therefore
