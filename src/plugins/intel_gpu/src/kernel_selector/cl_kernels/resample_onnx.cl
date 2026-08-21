@@ -193,7 +193,7 @@ KERNEL (resample_onnx)(__global INPUT0_TYPE* input,
         int safe_x1 = clamp(in_x1, 0, (int)INPUT0_SIZE_X - 1);
         int safe_x2 = clamp(in_x2, 0, (int)INPUT0_SIZE_X - 1);
   #if OUTPUT_DIMS == 5
-        acc_vec_t top_left     = tlOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, safe_y1, safe_x1))));
+        acc_vec_t top_left     = tlOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, safe_y1, safe_x1))));
         acc_vec_t top_right    = trOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, safe_y1, safe_x2))));
         acc_vec_t bottom_left  = blOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, safe_y2, safe_x1))));
         acc_vec_t bottom_right = brOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, safe_y2, safe_x2))));
