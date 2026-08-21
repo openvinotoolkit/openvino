@@ -10,6 +10,7 @@
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/pass/serialize.hpp"
 
+#include "cache/config_import.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/map_serializer.hpp"
@@ -131,7 +132,7 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context
         }
     }
 
-    IstreamAttributeVisitor<cldnn::BinaryInputBuffer> visitor(ib);
+    cache::ConfigImportAttributeVisitor visitor(ib);
     m_config.visit_attributes(visitor);
     m_config.set_user_property(config.get_user_properties()); // Copy user properties if those were modified on import call
     m_config.set_user_property({ov::hint::model(std::shared_ptr<const ov::Model>(nullptr))});
