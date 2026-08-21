@@ -948,6 +948,75 @@ def test_make_16bit_traceable_no_16bit_activation_cast(dtype):
         f"Expected a {ov_dtype} weight constant, got {const_dtypes}"
 
 
+def test_dataclasses_to_tuples():
+    """_dataclasses_to_tuples recursively converts dataclasses to tuples,
+    drops None fields, and leaves other containers/values untouched."""
+    import dataclasses
+    from openvino.frontend.pytorch.patch_model import _dataclasses_to_tuples
+
+    @dataclasses.dataclass
+    class Inner:
+        a: torch.Tensor
+        b: torch.Tensor = None
+
+    @dataclasses.dataclass
+    class Outer:
+        inner: Inner
+        c: torch.Tensor = None
+
+    t1, t2, t3 = torch.tensor(1), torch.tensor(2), torch.tensor(3)
+
+    # Plain values and non-dataclass containers pass through unchanged
+    assert _dataclasses_to_tuples(t1) is t1
+    assert _dataclasses_to_tuples(None) is None
+    assert _dataclasses_to_tuples(42) == 42
+
+    # None fields are dropped, non-None fields become tuple entries
+    assert _dataclasses_to_tuples(Inner(a=t1, b=None)) == (t1,)
+    assert _dataclasses_to_tuples(Inner(a=t1, b=t2)) == (t1, t2)
+
+    # Nested dataclasses are converted recursively
+    assert _dataclasses_to_tuples(Outer(inner=Inner(a=t1, b=t2), c=None)) == ((t1, t2),)
+
+    # Dataclasses inside lists/tuples/dicts are converted, container type kept
+    assert _dataclasses_to_tuples([Inner(a=t1, b=None)]) == [(t1,)]
+    assert _dataclasses_to_tuples((Inner(a=t1, b=None),)) == ((t1,),)
+    assert _dataclasses_to_tuples({"x": Inner(a=t1, b=t3)}) == {"x": (t1, t3)}
+
+
+def test_patched_dataclass_outputs():
+    """patched_dataclass_outputs temporarily converts a bare @dataclass model
+    output into a tuple, and restores the original forward on exit."""
+    import dataclasses
+    from openvino.frontend.pytorch.patch_model import patched_dataclass_outputs
+
+    @dataclasses.dataclass
+    class Output:
+        first: torch.Tensor
+        second: torch.Tensor = None
+
+    class Model(torch.nn.Module):
+        def forward(self, x):
+            return Output(first=x + 1, second=None)
+
+    model = Model()
+    orig_forward = model.forward
+    x = torch.tensor([1.0, 2.0])
+
+    with patched_dataclass_outputs(model):
+        assert model.forward != orig_forward
+        result = model(x)
+        assert isinstance(result, tuple) and len(result) == 1
+        assert torch.equal(result[0], x + 1)
+
+    # Original forward (and its dataclass output) is restored after exit.
+    assert model.forward == orig_forward
+    restored = model(x)
+    assert dataclasses.is_dataclass(restored)
+    assert torch.equal(restored.first, x + 1)
+    assert restored.second is None
+
+
 def verify_model(model, example_input, expected_ops):
     import numpy as np
     import openvino as ov
