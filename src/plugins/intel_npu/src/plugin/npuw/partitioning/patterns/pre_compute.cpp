@@ -203,7 +203,8 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi::LongRopePatternPhi() : matc
                                    const std::shared_ptr<ov::Node>& inv_freq_short,
                                    const std::shared_ptr<ov::Node>& inv_freq_long) {
         auto red_max = opp::wrap_type<ov::op::v1::ReduceMax>({position_ids, MakeConstant()});
-        auto add = opp::wrap_type<ov::op::v1::Add>({red_max, MakeConstant()});
+        auto cond_offset = MakeConstant();
+        auto add = opp::wrap_type<ov::op::v1::Add>({red_max, cond_offset});
         auto context_limit = MakeConstant();
         // max(position_ids) + 1 <= original_max_position_embeddings
         auto leq = opp::wrap_type<ov::op::v1::LessEqual>({add, context_limit});
@@ -216,7 +217,7 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi::LongRopePatternPhi() : matc
         auto unsqueeze = opp::optional<ov::op::v0::Unsqueeze>({select, MakeConstant()});
         auto unsqueeze_1 = opp::optional<ov::op::v0::Unsqueeze>({unsqueeze, MakeConstant()});
 
-        return std::make_tuple(unsqueeze_1, leq, red_max, context_limit);
+        return std::make_tuple(unsqueeze_1, leq, red_max, context_limit, cond_offset);
     };
 
     auto position_ids = opp::wrap_type<ov::op::v0::Parameter>();
@@ -229,6 +230,7 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi::LongRopePatternPhi() : matc
     auto cond = std::get<1>(select_cond_max_pos_id);
     auto max_pos_id = std::get<2>(select_cond_max_pos_id);
     auto context_limit = std::get<3>(select_cond_max_pos_id);
+    auto cond_offset = std::get<4>(select_cond_max_pos_id);
 
     auto shape_of = opp::wrap_type<ov::op::v3::ShapeOf>({opp::any_input()});
     auto gather = opp::wrap_type<ov::op::v8::Gather>({shape_of, opp::any_input(), opp::any_input()});
@@ -252,6 +254,7 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi::LongRopePatternPhi() : matc
         this->matched_inv_freq = map_sin.at(inv_freq_short).get_node_shared_ptr();
         this->matched_inv_freq_long = map_sin.at(inv_freq_long).get_node_shared_ptr();
         this->matched_context_limit = map_sin.at(context_limit).get_node_shared_ptr();
+        this->matched_cond_offset = map_sin.at(cond_offset).get_node_shared_ptr();
         this->matched_cond = map_sin.at(cond).get_node_shared_ptr();
         this->max_pos_id = map_sin.at(max_pos_id).get_node_shared_ptr();
 
@@ -277,7 +280,8 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5::LongRopePatternPhi_v5() 
                                    const std::shared_ptr<ov::Node>& multiply_const,
                                    const std::shared_ptr<ov::Node>& power_const) {
         auto red_max = opp::wrap_type<ov::op::v1::ReduceMax>({position_ids, MakeConstant()});
-        auto add = opp::wrap_type<ov::op::v1::Add>({red_max, MakeConstant()});
+        auto cond_offset = MakeConstant();
+        auto add = opp::wrap_type<ov::op::v1::Add>({red_max, cond_offset});
         auto context_limit = MakeConstant();
         // max(position_ids) + 1 > original_max_position_embeddings
         auto greater = opp::wrap_type<ov::op::v1::Greater>({add, context_limit});
@@ -292,7 +296,7 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5::LongRopePatternPhi_v5() 
         auto unsqueeze = opp::optional<ov::op::v0::Unsqueeze>({power, MakeConstant()});
         auto unsqueeze_1 = opp::optional<ov::op::v0::Unsqueeze>({unsqueeze, MakeConstant()});
 
-        return std::make_tuple(unsqueeze_1, greater, red_max, context_limit);
+        return std::make_tuple(unsqueeze_1, greater, red_max, context_limit, cond_offset);
     };
 
     auto position_ids = opp::wrap_type<ov::op::v0::Parameter>();
@@ -309,6 +313,7 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5::LongRopePatternPhi_v5() 
     auto cond = std::get<1>(select_cond_max_pos_id);
     auto max_pos_id = std::get<2>(select_cond_max_pos_id);
     auto context_limit = std::get<3>(select_cond_max_pos_id);
+    auto cond_offset = std::get<4>(select_cond_max_pos_id);
 
     auto shape_of = opp::wrap_type<ov::op::v3::ShapeOf>({opp::any_input()});
     auto gather = opp::wrap_type<ov::op::v8::Gather>({shape_of, opp::any_input(), opp::any_input()});
@@ -332,6 +337,7 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5::LongRopePatternPhi_v5() 
         this->matched_short_factor = map_sin.at(short_factor).get_node_shared_ptr();
         this->matched_long_factor = map_sin.at(long_factor).get_node_shared_ptr();
         this->matched_context_limit = map_sin.at(context_limit).get_node_shared_ptr();
+        this->matched_cond_offset = map_sin.at(cond_offset).get_node_shared_ptr();
         this->matched_multiply_const = map_sin.at(multiply_const).get_node_shared_ptr();
         this->matched_power_const = map_sin.at(power_const).get_node_shared_ptr();
         this->matched_cond = map_sin.at(cond).get_node_shared_ptr();
@@ -360,11 +366,26 @@ uint64_t read_context_limit(const std::shared_ptr<ov::Node>& limit_node) {
     return static_cast<uint64_t>(limit_values.front());
 }
 
+// The regime switch is re-evaluated on the host as max(position_ids) >= context_limit,
+// which only reproduces the graph's `max(position_ids) + offset` comparison for an
+// offset of exactly 1. The matchers accept any constant there, so refuse to rewrite a
+// model whose offset differs rather than silently binding the wrong coefficients.
+void check_cond_offset(const std::shared_ptr<ov::Node>& offset_node) {
+    auto offset_const = ov::as_type_ptr<ov::op::v0::Constant>(offset_node);
+    OPENVINO_ASSERT(offset_const, "Invalid LongRoPE match, expected a constant position-id offset");
+
+    const auto offset_values = offset_const->cast_vector<int64_t>();
+    OPENVINO_ASSERT(offset_values.size() == 1 && offset_values.front() == 1,
+                    "Unsupported LongRoPE model: the short/long factor switch is only supported in its "
+                    "max(position_ids) + 1 vs original_max_position_embeddings form");
+}
+
 template <typename PatternT>
 std::optional<uint64_t> extract_context_limit(const std::shared_ptr<ov::Model>& model) {
     auto long_rope = std::make_shared<PatternT>();
     std::optional<uint64_t> context_limit;
     long_rope->transform_cb = [&]() {
+        check_cond_offset(long_rope->matched_cond_offset);
         const auto matched_limit = read_context_limit(long_rope->matched_context_limit);
         if (context_limit.has_value()) {
             OPENVINO_ASSERT(context_limit.value() == matched_limit,
@@ -434,6 +455,7 @@ ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32
         if (lr_cos_param) {
             return;  // one cos/sin cache per model
         }
+        check_cond_offset(long_rpe->matched_cond_offset);
         // Unlike v5, here the matched constants already are the inverse frequencies.
         make_lut_inputs(long_rpe.get(),
                         ov::as_type_ptr<ov::op::v0::Constant>(long_rpe->matched_inv_freq)->cast_vector<float>(),
@@ -447,6 +469,7 @@ ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32
         if (lr_cos_param) {
             return;  // one cos/sin cache per model
         }
+        check_cond_offset(long_rpe_v5->matched_cond_offset);
         auto inv_freq = calculate_freq(long_rpe_v5->matched_short_factor,
                                        long_rpe_v5->matched_long_factor,
                                        long_rpe_v5->matched_multiply_const,

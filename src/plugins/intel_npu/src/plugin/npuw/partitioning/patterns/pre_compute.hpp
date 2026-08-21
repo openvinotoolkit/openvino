@@ -45,6 +45,8 @@ class LongRopePatternDesc : public RopePatternDesc {
 public:
     std::shared_ptr<ov::Node> matched_inv_freq_long;
     std::shared_ptr<ov::Node> matched_context_limit;
+    // The constant added to max(position_ids) before comparing against the context limit.
+    std::shared_ptr<ov::Node> matched_cond_offset;
     std::shared_ptr<ov::Node> matched_cond;
     std::shared_ptr<ov::Node> max_pos_id;
 };
@@ -54,6 +56,8 @@ public:
     std::shared_ptr<ov::Node> matched_short_factor;
     std::shared_ptr<ov::Node> matched_long_factor;
     std::shared_ptr<ov::Node> matched_context_limit;
+    // The constant added to max(position_ids) before comparing against the context limit.
+    std::shared_ptr<ov::Node> matched_cond_offset;
     std::shared_ptr<ov::Node> matched_cond;
     std::shared_ptr<ov::Node> max_pos_id;
     std::shared_ptr<ov::Node> matched_multiply_const;

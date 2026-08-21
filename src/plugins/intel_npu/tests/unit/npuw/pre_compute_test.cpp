@@ -7,19 +7,23 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cstring>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
 #include "openvino/core/except.hpp"
 #include "openvino/op/ops.hpp"
+#include "orc.hpp"
 
 namespace {
 
 std::shared_ptr<ov::Model> make_longrope_v5_model(const std::vector<float>& short_factor_values,
                                                   const std::vector<float>& long_factor_values,
                                                   const std::vector<float>& multiply_values,
-                                                  const std::vector<float>& power_values) {
+                                                  const std::vector<float>& power_values,
+                                                  int32_t cond_offset = 1) {
     auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4, 2});
     auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2, 1});
 
@@ -33,8 +37,8 @@ std::shared_ptr<ov::Model> make_longrope_v5_model(const std::vector<float>& shor
 
     auto reduce_axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1});
     auto red_max = std::make_shared<ov::op::v1::ReduceMax>(position_ids, reduce_axes, false);
-    auto one_i32 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {1});
-    auto add = std::make_shared<ov::op::v1::Add>(red_max, one_i32);
+    auto offset_i32 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {cond_offset});
+    auto add = std::make_shared<ov::op::v1::Add>(red_max, offset_i32);
     auto max_pos = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {4});
     auto greater = std::make_shared<ov::op::v1::Greater>(add, max_pos);
 
@@ -82,7 +86,8 @@ std::shared_ptr<ov::Model> make_longrope_v5_model(const std::vector<float>& shor
 // max(position_ids) + 1 <= original_max_position_embeddings.
 std::shared_ptr<ov::Model> make_longrope_phi_model(const std::vector<float>& inv_freq_short_values,
                                                    const std::vector<float>& inv_freq_long_values,
-                                                   int32_t context_limit) {
+                                                   int32_t context_limit,
+                                                   int32_t cond_offset = 1) {
     auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4, 2});
     auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2, 1});
 
@@ -93,8 +98,8 @@ std::shared_ptr<ov::Model> make_longrope_phi_model(const std::vector<float>& inv
 
     auto reduce_axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1});
     auto red_max = std::make_shared<ov::op::v1::ReduceMax>(position_ids, reduce_axes, false);
-    auto one_i32 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {1});
-    auto add = std::make_shared<ov::op::v1::Add>(red_max, one_i32);
+    auto offset_i32 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {cond_offset});
+    auto add = std::make_shared<ov::op::v1::Add>(red_max, offset_i32);
     auto limit = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {context_limit});
     auto leq = std::make_shared<ov::op::v1::LessEqual>(add, limit);
 
@@ -286,6 +291,83 @@ TEST(PreComputeTest, LongRopeCosSinTableLayout) {
     ASSERT_TRUE(tables.is_valid());
     EXPECT_EQ(tables.cos.get_shape(), (ov::Shape{1, 8, 4}));
     EXPECT_EQ(tables.cos_rows(5, true).data<ov::float16>(), tables.cos_rows(5, false).data<ov::float16>());
+}
+
+// The host re-evaluates the regime as max(position_ids) >= context_limit, which only
+// matches the graph when the compared sum adds exactly 1. Anything else must be
+// refused instead of silently binding the wrong coefficients.
+TEST(PreComputeTest, RopeCacheRejectsUnexpectedConditionOffset) {
+    namespace pc = ov::npuw::patterns::pre_compute;
+
+    auto v5 = make_longrope_v5_model({1.0f, 2.0f}, {4.0f, 5.0f}, {0.5f, 1.0f}, {2.0f}, /*cond_offset=*/2);
+    EXPECT_THROW(pc::extract_longrope_context_limit(v5), ov::AssertFailure);
+    EXPECT_THROW(pc::RopeCache(/*max_prompt_len=*/16).run_on_model(v5), ov::AssertFailure);
+
+    auto phi = make_longrope_phi_model({0.5f, 0.25f}, {0.1f, 0.05f}, /*context_limit=*/4096, /*cond_offset=*/0);
+    EXPECT_THROW(pc::extract_longrope_context_limit(phi), ov::AssertFailure);
+    EXPECT_THROW(pc::RopeCache(/*max_prompt_len=*/16).run_on_model(phi), ov::AssertFailure);
+}
+
+// The npuw_lr_cos/npuw_lr_sin inputs of an imported blob are bound to tables that are
+// regenerated from the serialized metadata, so a round trip must reproduce them exactly.
+TEST(PreComputeTest, LongRopeCosSinSerializationRoundTrip) {
+    using ov::npuw::orc::Stream;
+
+    for (bool has_long : {true, false}) {
+        ov::npuw::patterns::pre_compute::LongRopeCosSin src;
+        src.max_len = 12;
+        src.rotary_ndims = 4;
+        src.has_long = has_long;
+        src.inv_freq_short = {0.5f, 0.25f};
+        src.inv_freq_long = {0.1f, 0.05f};
+        src.rebuild_tables();
+        ASSERT_TRUE(src.is_valid());
+
+        std::stringstream ss;
+        auto writer = Stream::writer(ss);
+        writer& src;
+
+        ov::npuw::patterns::pre_compute::LongRopeCosSin dst;
+        auto reader = Stream::reader(ss);
+        reader& dst;
+
+        EXPECT_EQ(dst.max_len, src.max_len);
+        EXPECT_EQ(dst.rotary_ndims, src.rotary_ndims);
+        EXPECT_EQ(dst.has_long, src.has_long);
+        EXPECT_EQ(dst.inv_freq_short, src.inv_freq_short);
+        EXPECT_EQ(dst.inv_freq_long, src.inv_freq_long);
+
+        // serialize() rebuilds the tensors on read - they must come back byte-identical.
+        ASSERT_TRUE(dst.is_valid()) << "imported tables must be usable without re-running RopeCache";
+        ASSERT_EQ(dst.cos.get_shape(), src.cos.get_shape());
+        ASSERT_EQ(dst.sin.get_shape(), src.sin.get_shape());
+        EXPECT_EQ(std::memcmp(dst.cos.data(), src.cos.data(), src.cos.get_byte_size()), 0);
+        EXPECT_EQ(std::memcmp(dst.sin.data(), src.sin.data(), src.sin.get_byte_size()), 0);
+
+        EXPECT_EQ(dst.cos_rows(5, true).get_shape(), (ov::Shape{1, 5, 4}));
+        EXPECT_EQ(dst.cos_rows(5, true).data<ov::float16>() == dst.cos_rows(5, false).data<ov::float16>(), !has_long);
+    }
+}
+
+// A model with no LongRoPE leaves the tables empty; that must survive a round trip too,
+// and must not fabricate tensors on import.
+TEST(PreComputeTest, LongRopeCosSinSerializationRoundTripEmpty) {
+    using ov::npuw::orc::Stream;
+
+    ov::npuw::patterns::pre_compute::LongRopeCosSin src;
+    std::stringstream ss;
+    auto writer = Stream::writer(ss);
+    writer& src;
+
+    ov::npuw::patterns::pre_compute::LongRopeCosSin dst;
+    dst.max_len = 7;  // must be overwritten by the read
+    auto reader = Stream::reader(ss);
+    reader& dst;
+
+    EXPECT_EQ(dst.max_len, 0u);
+    EXPECT_EQ(dst.rotary_ndims, 0u);
+    EXPECT_FALSE(dst.has_long);
+    EXPECT_FALSE(dst.is_valid());
 }
 
 TEST(PreComputeTest, RopeCacheThrowsOnMismatchedFactorSizesInLongRopeV5) {
