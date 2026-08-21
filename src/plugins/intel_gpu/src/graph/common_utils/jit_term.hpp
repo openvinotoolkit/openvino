@@ -339,7 +339,7 @@ inline JitTerm for_loop(const JitTerm& init, const JitTerm& condition, const Jit
     const JitTerm _for("for");
     return _for(JitTerm::concat("; ", init, condition, expression));
 }
-inline JitTerm operator"" _jit(const char* str, size_t /*unused*/) {
+inline JitTerm operator""_jit(const char* str, size_t /*unused*/) {
     return JitTerm{str};
 }
 

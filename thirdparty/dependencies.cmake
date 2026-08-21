@@ -530,7 +530,18 @@ if(ENABLE_SNAPPY_COMPRESSION)
                 ov_add_compiler_flags(/WX-)
             endif()
 
+            if(WIN32 AND MSVC AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+                set(ov_snappy_saved_cxx_compiler_id "${CMAKE_CXX_COMPILER_ID}")
+                set(CMAKE_CXX_COMPILER_ID "MSVC")
+            endif()
+
             add_subdirectory(thirdparty/snappy EXCLUDE_FROM_ALL)
+
+            if(DEFINED ov_snappy_saved_cxx_compiler_id)
+                set(CMAKE_CXX_COMPILER_ID "${ov_snappy_saved_cxx_compiler_id}")
+                unset(ov_snappy_saved_cxx_compiler_id)
+            endif()
+
             # need to create alias openvino::snappy
             add_library(openvino::snappy ALIAS snappy)
 
