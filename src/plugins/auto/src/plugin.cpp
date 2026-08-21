@@ -493,6 +493,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     if (!perf_curve_table.empty()) {
         auto_s_context->m_selection_policy.perf_curve_table = perf_curve_table;
     }
+    auto low_power_device = load_config.get_property(ov::intel_auto::low_power_device);
+    if (!low_power_device.empty()) {
+        auto_s_context->m_low_power_device = low_power_device;
+    }
     auto_s_context->m_startup_fallback = load_config.get_property(ov::intel_auto::enable_startup_fallback);
     auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
     // in case of mismatching shape conflict when AUTO creates the infer requests for actual device with reshaped model
@@ -599,6 +603,13 @@ std::optional<float> Plugin::get_device_utilization(const std::string& device_na
         LOG_DEBUG_TAG("[IPF] Device %s utilization query failed/unavailable", device_name.c_str());
     }
     return result;
+}
+
+std::optional<bool> Plugin::get_low_power_mode() {
+    std::call_once(m_telemetry_client_init_once, [this]() {
+        m_telemetry_client = std::make_unique<device_monitor::TelemetryClient>();
+    });
+    return m_telemetry_client->is_low_power_mode();
 }
 
 std::list<DeviceInformation> Plugin::get_valid_device(const std::vector<DeviceInformation>& meta_devices,
@@ -709,7 +720,8 @@ Plugin::DeviceKey Plugin::resolve_device_key(const std::string& device_name) con
 DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& meta_devices,
                                         const std::string& model_precision,
                                         unsigned int priority,
-                                        const DeviceSelectionPolicy& selection_policy) {
+                                        const DeviceSelectionPolicy& selection_policy,
+                                        const std::string& low_power_device) {
     OV_ITT_SCOPED_TASK(itt::domains::AutoPlugin, "Plugin::SelectDevice");
 
     const auto& utilization_thresholds = selection_policy.utilization_thresholds;
@@ -777,10 +789,26 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
         }
         return std::nullopt;
     };
+    // low_power_device (driven by IPF/DTT OnEpoGearChanged) takes precedence over
+    // devices_utilization_threshold whenever the platform is in low power mode.
+    auto find_low_power_device = [&]() -> DeviceInformation* {
+        if (low_power_device.empty()) {
+            return nullptr;
+        }
+        auto it = std::find_if(valid_devices.begin(), valid_devices.end(), [&](const DeviceInformation& device) {
+            return device.device_name == low_power_device;
+        });
+        if (it == valid_devices.end() || !get_low_power_mode().value_or(false)) {
+            return nullptr;
+        }
+        return &(*it);
+    };
     if (valid_devices.empty()) {
         // after remove higher priority device,but the available devices is null,
         // so select the last device of all available Devices.
         ptr_select_device = &last_device;
+    } else if (auto* low_power_selected = find_low_power_device()) {
+        ptr_select_device = low_power_selected;
     } else {
         // When both properties are configured, apply utilization thresholds first.
         if (!utilization_thresholds.empty()) {

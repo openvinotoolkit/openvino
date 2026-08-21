@@ -7,12 +7,12 @@
 #include <functional>
 #include <map>
 #include <memory>
-#include "openvino/frontend/input_model.hpp"
 #include <string>
 #include <vector>
 
 #include "openvino/frontend/gguf/decoder.hpp"
 #include "openvino/frontend/gguf/visibility.hpp"
+#include "openvino/frontend/input_model.hpp"
 
 namespace ov::frontend::gguf {
 
@@ -35,6 +35,11 @@ public:
     std::vector<std::string> get_model_output_names() const;
     RopeConfig get_rope_config() const;
     void visit_subgraph(const std::function<void(std::shared_ptr<GgufDecoder>)>& node_visitor) const;
+
+    // The underlying node-scoped decoder. TranslateSession uses it for the remaining model-scope
+    // questions that are only relevant on the native .gguf builder / stateful path (weights,
+    // extra inputs, KV param/result pairs, is_stateful / is_static, tokenizer metadata).
+    const std::shared_ptr<GgufDecoder>& get_model_decoder() const;
 
 private:
     std::shared_ptr<GgufDecoder> m_decoder;

@@ -61,7 +61,8 @@ public:
     select_device(const std::vector<DeviceInformation>& meta_devices,
                   const std::string& model_precision = "FP32",
                   unsigned int priority = 0,
-                  const DeviceSelectionPolicy& selection_policy = {});
+                  const DeviceSelectionPolicy& selection_policy = {},
+                  const std::string& low_power_device = {});
     MOCKTESTMACRO std::list<DeviceInformation> sort_device_by_perf_curve(
         const std::list<DeviceInformation>& valid_devices,
         const ov::intel_auto::PerfCurveTable& perf_curve_table,
@@ -82,6 +83,9 @@ public:
                                                              const ov::AnyMap& properties) const override;
     MOCKTESTMACRO std::optional<float> get_device_utilization(const std::string& device_name,
                                                               const std::string& device_type = "");
+
+    // Whether the platform is currently in low power mode; see device_monitor::TelemetryClient.
+    MOCKTESTMACRO std::optional<bool> get_low_power_mode();
 
     std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
                                                              const ov::AnyMap& properties) const override;

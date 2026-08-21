@@ -361,6 +361,7 @@ void regmodule_properties(py::module m) {
     m_intel_auto.def("perf_curve_table", [](const std::map<std::string, std::map<unsigned, float>>& value) {
         return ov::intel_auto::perf_curve_table(value);
     });
+    wrap_property_RW(m_intel_auto, ov::intel_auto::low_power_device, "low_power_device");
 
     // Submodule npu
     py::module m_intel_npu =

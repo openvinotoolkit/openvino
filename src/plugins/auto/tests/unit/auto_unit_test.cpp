@@ -121,8 +121,9 @@ ov::mock_auto_plugin::tests::BaseTest::BaseTest(const MODELTYPE modelType) {
         .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
                               const std::string& netPrecision,
                               unsigned int priority,
-                              const ov::auto_plugin::DeviceSelectionPolicy& selection_policy) {
-            return plugin->Plugin::select_device(metaDevices, netPrecision, priority, selection_policy);
+                              const ov::auto_plugin::DeviceSelectionPolicy& selection_policy,
+                              const std::string& low_power_device) {
+            return plugin->Plugin::select_device(metaDevices, netPrecision, priority, selection_policy, low_power_device);
         });
 
     ON_CALL(*plugin, sort_device_by_perf_curve)

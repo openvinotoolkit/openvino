@@ -19,10 +19,10 @@
 #    include "emitters/plugin/aarch64/jit_emitter.hpp"
 #    include "emitters/snippets/common/jit_segfault_detector_emitter_base.hpp"
 #    include "verbose.hpp"
-#    include "xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h"
-#    include "xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_gen.h"
-#    include "xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_label.h"
-#    include "xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h"
+#    include "xbyak_aarch64/xbyak_aarch64_adr.h"
+#    include "xbyak_aarch64/xbyak_aarch64_gen.h"
+#    include "xbyak_aarch64/xbyak_aarch64_label.h"
+#    include "xbyak_aarch64/xbyak_aarch64_reg.h"
 
 using namespace dnnl::impl::cpu::aarch64;
 using namespace Xbyak_aarch64;

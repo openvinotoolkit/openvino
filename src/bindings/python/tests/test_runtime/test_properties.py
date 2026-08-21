@@ -676,6 +676,14 @@ def test_properties_perf_curve_table_set_property_roundtrip():
         core.set_property("AUTO", {"PERF_CURVE_TABLE": "not-a-valid-table"})       # unparsable string
 
 
+def test_properties_low_power_device():
+    assert intel_auto.low_power_device == "LOW_POWER_DEVICE"
+
+    property_tuple = intel_auto.low_power_device("NPU")
+    assert property_tuple[0] == "LOW_POWER_DEVICE"
+    assert property_tuple[1].value == "NPU"
+
+
 def test_properties_streams():
     # Test extra Num class
     assert streams.Num().to_integer() == -1
