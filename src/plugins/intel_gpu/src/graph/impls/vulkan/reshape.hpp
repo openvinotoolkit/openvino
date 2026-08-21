@@ -20,6 +20,7 @@ struct ReshapeImplementationManager : public ImplementationManager {
 
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
     bool validate_impl(const program_node& node) const override;
+    in_out_fmts_t query_formats(const program_node&) const override { return {}; }
 };
 
 }  // namespace vulkan
