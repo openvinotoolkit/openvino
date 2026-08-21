@@ -134,12 +134,19 @@ std::unordered_set<const ov::Node*> live_parameters(const std::shared_ptr<ov::Mo
     return live;
 }
 
-// Snapshots which Parameters are live (see live_parameters()) into `out` -- to be paired with a
-// later PruneParametersOrphanedSince using the same snapshot, bracketing whatever pass in between
-// is expected to orphan some of them.
+// Anonymous-namespace ModelPass helpers below implement get_type_info() by hand instead of using
+// OPENVINO_MODEL_PASS_RTTI: that macro marks get_type_info_static() with hidden visibility, which
+// gcc's -Werror=attributes rejects as a no-op on a type that already has internal linkage from the
+// enclosing anonymous namespace.
 class SnapshotLiveParameters : public ov::pass::ModelPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("SnapshotLiveParameters");
+    static const ov::DiscreteTypeInfo& get_type_info_static() {
+        static const ov::DiscreteTypeInfo type_info{"SnapshotLiveParameters", "0"};
+        return type_info;
+    }
+    const ov::DiscreteTypeInfo& get_type_info() const override {
+        return get_type_info_static();
+    }
     explicit SnapshotLiveParameters(std::shared_ptr<std::unordered_set<const ov::Node*>> out) : m_out(std::move(out)) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
         *m_out = live_parameters(model);
@@ -158,7 +165,13 @@ private:
 // alone.
 class PruneParametersOrphanedSince : public ov::pass::ModelPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("PruneParametersOrphanedSince");
+    static const ov::DiscreteTypeInfo& get_type_info_static() {
+        static const ov::DiscreteTypeInfo type_info{"PruneParametersOrphanedSince", "0"};
+        return type_info;
+    }
+    const ov::DiscreteTypeInfo& get_type_info() const override {
+        return get_type_info_static();
+    }
     explicit PruneParametersOrphanedSince(std::shared_ptr<std::unordered_set<const ov::Node*>> live_before)
         : m_live_before(std::move(live_before)) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
