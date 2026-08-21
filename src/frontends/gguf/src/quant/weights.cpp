@@ -806,14 +806,6 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
     }
 
     switch (qtype) {
-    case GGUF_TYPE_MXFP4: {
-        ov::Tensor weights(ov::element::f4e2m1, ov::Shape{rows, cols});
-        ov::Tensor scales(ov::element::f8e8m0, ov::Shape{rows, sub_blocks_per_row(32)});
-        gguf_fill_mxfp4(tensor, weights, scales);
-        w[base + ".weight"] = weights;
-        w[base + ".scales"] = scales;
-        break;
-    }
     case GGUF_TYPE_Q4_0: {
         ov::Tensor weights(ov::element::u32, ov::Shape{rows, cols / 8});
         ov::Tensor scales(ov::element::f16, ov::Shape{rows, sub_blocks_per_row(32)});
