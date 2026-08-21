@@ -84,7 +84,6 @@ public:
 class TRANSFORMATIONS_API FuseSSMLoop : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("FuseSSMLoop");
-    // fused_count is incremented once per Loop replaced with SelectiveSSM.
     FuseSSMLoop(size_t& fused_count);
 };
 
