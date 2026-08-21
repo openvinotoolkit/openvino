@@ -11,6 +11,7 @@
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -179,7 +180,18 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
             OPENVINO_ASSERT(outputDescriptor.relatedDescriptorIndex.has_value(),
                             "The link between state descriptors is missing, state name: ",
                             outputDescriptor.nameFromCompiler);
-            _levelZeroOutputTensors.at(ioIndex) = get_level_zero_input(*outputDescriptor.relatedDescriptorIndex);
+            const auto& aliasedInput = get_level_zero_input(*outputDescriptor.relatedDescriptorIndex);
+            // The shared buffer is sized from the state input. Aliasing it to a state output that needs more bytes
+            // would let the device write past the allocation, so reject an undersized buffer here.
+            const auto requiredBytes =
+                ov::util::get_memory_size_safe(outputDescriptor.precision,
+                                               outputDescriptor.shapeFromCompiler.get_max_shape());
+            OPENVINO_ASSERT(
+                aliasedInput != nullptr && requiredBytes.has_value() && aliasedInput->get_byte_size() >= *requiredBytes,
+                "State output '",
+                outputDescriptor.nameFromCompiler,
+                "' would alias an undersized Level Zero buffer.");
+            _levelZeroOutputTensors.at(ioIndex) = aliasedInput;
             _userOutputTensors.at(ioIndex) = _levelZeroOutputTensors.at(ioIndex);
 
             ++ioIndex;
