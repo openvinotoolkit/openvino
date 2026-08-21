@@ -1580,14 +1580,7 @@ ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence::FuseLSTMSequencesToBidir
             return false;
         if (lstm_forward->get_activations() != lstm_reverse->get_activations())
             return false;
-        // `clip == 0` and `clip == inf` both mean "no clipping" (see ov::op::util::is_no_clip), so the two directions
-        // still match when one carries 0 and the other inf.
-        const auto clip_forward = lstm_forward->get_clip();
-        const auto clip_reverse = lstm_reverse->get_clip();
-        if (op_util::is_no_clip(clip_forward) || op_util::is_no_clip(clip_reverse)) {
-            if (!op_util::is_no_clip(clip_forward) || !op_util::is_no_clip(clip_reverse))
-                return false;
-        } else if (clip_forward != clip_reverse) {
+        if (!op_util::are_clips_equal(lstm_forward->get_clip(), lstm_reverse->get_clip())) {
             return false;
         }
 
