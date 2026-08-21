@@ -46,7 +46,6 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- E###### -->
     <skip_config>
         <message>Data type u1 not supported by NPU</message>
         <filters>
