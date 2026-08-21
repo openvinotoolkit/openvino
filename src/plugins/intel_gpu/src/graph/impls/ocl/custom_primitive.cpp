@@ -69,6 +69,12 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     using parent = typed_primitive_impl<custom_gpu_primitive>;
     using parent::parent;
 
+    // execute_impl only enqueues an OpenCL kernel, but this impl derives from the generic
+    // typed_primitive_impl rather than typed_primitive_impl_ocl, so without the override it
+    // inherits primitive_impl::is_cpu()'s true default and the allocator puts its output --
+    // and, through requires_lockable_input(), every producer feeding it -- in usm_host.
+    bool is_cpu() const override { return false; }
+
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::custom_gpu_primitive_impl)
 
     std::shared_ptr<kernel_selector::cl_kernel_data> cl_kernel;
@@ -305,7 +311,7 @@ static void add_layout_to_jit(kernel_selector::jit_constants& mem_consts, const 
     // #define INPUT0_OFFSET 0
     auto offset =
         (pitches[0] * l.data_padding._lower_size[0]) + (pitches[1] * l.data_padding._lower_size[1]) +
-        (pitches[2] * l.data_padding._lower_size[3]) + (pitches[3] * l.data_padding._lower_size[2]);
+        (pitches[2] * l.data_padding._lower_size[2]) + (pitches[3] * l.data_padding._lower_size[3]);
     mem_consts.AddConstant(kernel_selector::MakeJitConstant(name + "_OFFSET", std::to_string(offset)));
 }
 
