@@ -71,11 +71,6 @@
 - 'src/frontends/common/include/openvino/frontend/extension.hpp'
 - 'src/frontends/common/include/openvino/frontend/extension/**/*'
 
-'category: GGUF FE':
-- 'src/frontends/gguf/**/*'
-- 'tests/model_hub_tests/gguf/**/*'
-- 'tests/requirements_gguf'
-
 'category: GPU':
 - 'src/plugins/intel_gpu/**/*'
 - 'thirdparty/ocl/**/*'
@@ -103,9 +98,6 @@
 - 'src/inference/**/*'
 - 'src/cmake/**/*'
 
-'category: GGUF FE':
-- 'src/frontends/gguf/**/*'
-
 'category: IR FE':
 - 'src/frontends/ir/**/*'
 
@@ -115,6 +107,11 @@
 'category: OVC':
 - 'tools/ovc/**/*'
 - 'tests/layer_tests/ovc_python_api_tests/**/*'
+
+'category: GGUF FE':
+- 'src/frontends/gguf/**/*'
+- 'tests/model_hub_tests/gguf/**/*'
+- 'tests/requirements_gguf'
 
 'category: ONNX FE':
 - 'src/frontends/onnx/**/*'
