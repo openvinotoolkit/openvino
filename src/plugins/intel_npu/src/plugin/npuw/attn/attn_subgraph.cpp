@@ -187,8 +187,8 @@ void ensure_hfa_selector(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
     OPENVINO_ASSERT(hfa != nullptr, "Missing compiled HFA state");
 
     auto& request = get_request(ctx);
-    const size_t query_size = hfa->_sdpa_attention_info._query_size;
-    state.hfa_selector = runtime::host_flash_attention::PositionIDs::find(query_size, request);
+    const size_t original_query_length = hfa->_sdpa_attention_info._query_size;
+    state.hfa_selector = runtime::host_flash_attention::PositionIDs::find(original_query_length, request);
     if (!state.hfa_selector) {
         OPENVINO_THROW("HFA dynamic capability is enabled, but no run-time features were found.");
     }
