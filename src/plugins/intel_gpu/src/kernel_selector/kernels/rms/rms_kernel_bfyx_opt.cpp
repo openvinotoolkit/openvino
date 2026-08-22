@@ -54,6 +54,12 @@ DeviceFeaturesKey RMSKernelBfyxOpt::get_required_device_features_key(const Param
 JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, DispatchData dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
 
+    bool gamma_is_scalar = false;
+    if (params.elementwise_affine && !params.inputs[1].is_dynamic()) {
+        gamma_is_scalar = params.inputs[1].LogicalSize() == 1;
+    }
+    jit.AddConstant(MakeJitConstant("RMS_GAMMA_IS_SCALAR", gamma_is_scalar));
+
     // Check for any padding (dynamic or static) on input dimensions.
     // The flat addressing path (data_idx * data_size) assumes contiguous memory,
     // which breaks when padding introduces gaps between slices (e.g., from in-place crop).
@@ -110,7 +116,6 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
             MakeJitConstant("STACK_SIZE", dispatchData.itemsNum + 1)
         });
     }
-    jit.AddConstant(MakeJitConstant("INPUT_RANK", params.ov_input_rank));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subgroup_size));
     jit.AddConstant(MakeJitConstant("SUBGROUP_BLOCK_SIZE", dispatchData.subgroupBlockSize));
     if (!params.fused_ops.empty()) {
@@ -210,7 +215,7 @@ bool RMSKernelBfyxOpt::Validate(const Params& p) const {
 
         if (!gamma.is_dynamic()) {
             size_t data_size = gamma.LogicalSize();
-            if (data_size < subgroup_size) {
+            if (data_size != 1 && data_size < subgroup_size) {
                 DO_NOT_USE_THIS_KERNEL(p.layerID);
             }
         }
