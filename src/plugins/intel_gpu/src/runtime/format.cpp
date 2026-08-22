@@ -255,7 +255,7 @@ format format::adjust_to_rank(format fmt, size_t new_rank) {
     // Skip special formats as order + blocking desc may be not enough to properly match them
     OPENVINO_ASSERT(is_adjustable(fmt), "Format ", fmt, " is not adjustable");
 
-    auto align_order = [](std::vector<size_t>& order, size_t current_rank, size_t new_rank) {
+    auto align_order = [](auto& order, size_t current_rank, size_t new_rank) {
         auto max_element_it = std::max_element(order.begin(), order.end());
         for (size_t i = current_rank; i < new_rank; i++) {
             max_element_it = std::next(max_element_it);
@@ -311,7 +311,7 @@ const std::vector<std::pair<size_t, int>> format::per_axis_block_size(format fmt
     return sizes_for_dims;
 }
 
-format format::find_format(const std::vector<size_t>& order,
+format format::find_format(const std::vector<uint64_t>& order,
                            const std::vector<std::pair<size_t, int>>& block_sizes,
                            bool is_weights,
                            bool is_grouped,

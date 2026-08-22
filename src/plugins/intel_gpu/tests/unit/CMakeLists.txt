@@ -86,16 +86,6 @@ if (NOT OV_GPU_RUNTIME_VULKAN_ENABLED)
     endforeach()
 endif()
 
-# These shared Pad/Border tests rely on int64_t matching CoordinateDiff::value_type,
-# which is not true with Apple libc++. Keep the test sources unchanged and run them
-# on the Linux and Android Vulkan targets until the upstream test API is portable.
-if(APPLE AND OV_GPU_RUNTIME_VULKAN_ENABLED)
-    list(REMOVE_ITEM SOURCES_MAIN
-        "${CMAKE_CURRENT_SOURCE_DIR}/shape_infer/pad_si_test.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/test_cases/border_gpu_test.cpp"
-    )
-endif()
-
 if (NOT ENABLE_ONEDNN_FOR_GPU)
     set(EXCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn/")
     foreach (SOURCE_FILE IN LISTS SOURCES_MAIN)

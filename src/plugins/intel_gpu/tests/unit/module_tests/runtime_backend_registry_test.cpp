@@ -29,7 +29,7 @@ TEST(runtime_backend_registry, tagged_device_identity_round_trips_for_every_back
     }
 }
 
-TEST(runtime_backend_registry, public_identity_preserves_legacy_default_runtime_ids) {
+TEST(runtime_backend_registry, public_identity_preserves_established_default_runtime_ids) {
     const auto default_runtime = runtime_backend_registry::default_backend().runtime_type;
     for (const auto& backend : runtime_backend_registry::compiled_backends()) {
         const auto public_id = runtime_backend_registry::make_public_device_id(backend.runtime_type, "0.1");
@@ -41,12 +41,13 @@ TEST(runtime_backend_registry, public_identity_preserves_legacy_default_runtime_
     }
 }
 
-TEST(runtime_backend_registry, rejects_legacy_or_incomplete_tagged_identity) {
+TEST(runtime_backend_registry, rejects_older_or_incomplete_tagged_identity) {
     runtime_types runtime_type = get_default_runtime_type();
     std::string backend_device_id;
 
     EXPECT_FALSE(runtime_backend_registry::parse_device_id("0", runtime_type, backend_device_id));
-    EXPECT_FALSE(runtime_backend_registry::parse_device_id("vulkan_", runtime_type, backend_device_id));
+    const auto incomplete_tag = std::string(runtime_backend_registry::default_backend().name) + "_";
+    EXPECT_FALSE(runtime_backend_registry::parse_device_id(incomplete_tag, runtime_type, backend_device_id));
     EXPECT_FALSE(runtime_backend_registry::parse_device_id("_0", runtime_type, backend_device_id));
     EXPECT_FALSE(runtime_backend_registry::parse_device_id("unknown_0", runtime_type, backend_device_id));
 }

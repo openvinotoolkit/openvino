@@ -2,25 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "backend_implementation_registry.hpp"
 #include "registry.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
 #include "primitive_inst.h"
-
-#ifdef OV_GPU_WITH_VULKAN_RT
-    #include "impls/vulkan/reshape.hpp"
-#endif
 
 namespace ov::intel_gpu {
 
 using namespace cldnn;
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<reshape>::get_implementations() {
-    static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
-#ifdef OV_GPU_WITH_VULKAN_RT
-        std::make_shared<vulkan::ReshapeImplementationManager>(shape_types::static_shape),
-#endif
+    static const auto impls = compose_backend_implementations<reshape>({
         OV_GPU_GET_INSTANCE_OCL(reshape, shape_types::static_shape)
-    };
+    });
 
     return impls;
 }

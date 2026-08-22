@@ -850,7 +850,7 @@ vulkan_buffer::vulkan_buffer(vulkan_engine* engine,
                              vulkan_buffer_region::ptr region,
                              VkDeviceSize view_offset,
                              std::shared_ptr<MemoryTracker> memory_tracker)
-    : memory(engine, layout, allocation_type::vulkan_buffer, std::move(memory_tracker)),
+    : memory(engine, layout, allocation_type::device_buffer, std::move(memory_tracker)),
       _region(std::move(region)),
       _view_offset(view_offset) {
     OPENVINO_ASSERT(_region != nullptr && _view_offset <= _region->get_size() && _bytes_count <= _region->get_size() - _view_offset,

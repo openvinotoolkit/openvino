@@ -18,6 +18,8 @@
 #include "openvino/core/except.hpp"
 #include "registry/implementation_map.hpp"
 #include "reorder_convert_spirv.hpp"
+#include "vulkan_shader_abi.hpp"
+#include "vulkan/vulkan_stream.hpp"
 
 namespace cldnn {
 namespace vulkan {
@@ -224,7 +226,10 @@ struct reorder_convert_impl : typed_primitive_impl<reorder> {
         descriptor.workGroups.local = {select_local_work_group_size(element_count, instance.get_network().get_engine().get_device_info().max_work_group_size),
                                        1,
                                        1};
-        descriptor.specialize_local_size_x = true;
+        const vulkan_specialization_constants specialization_constants = {
+            {cldnn::vulkan::shader_abi::index(cldnn::vulkan::shader_abi::specialization_id::local_size_x),
+             static_cast<uint32_t>(descriptor.workGroups.local.front())},
+        };
         descriptor.arguments = {
             {argument_desc::Types::INPUT, 0},
             {argument_desc::Types::OUTPUT, 0},
@@ -235,7 +240,13 @@ struct reorder_convert_impl : typed_primitive_impl<reorder> {
         arguments.inputs = {instance.input_memory_ptr(0)};
         arguments.outputs = {instance.output_memory_ptr(0)};
         arguments.intermediates = {metadata_memory};
-        return stream.enqueue_kernel(*_kernels.front(), descriptor, arguments, events, instance.needs_completion_event());
+        auto& vulkan_dispatch_stream = dynamic_cast<vulkan_stream&>(stream);
+        return vulkan_dispatch_stream.enqueue_kernel(*_kernels.front(),
+                                                     descriptor,
+                                                     arguments,
+                                                     specialization_constants,
+                                                     events,
+                                                     instance.needs_completion_event());
     }
 
 private:
@@ -252,12 +263,6 @@ bool ReorderImplementationManager::validate_impl(const program_node& node) const
     if (node.get_program().get_engine().runtime_type() != runtime_types::vulkan) {
         return false;
     }
-    const auto& layout_capabilities =
-        node.get_program().get_engine().get_device()->get_backend_capabilities().layouts;
-    if (!layout_capabilities.supports(gpu_layout_kind::dense_buffer)) {
-        return false;
-    }
-
     const auto& input_layout = node.get_input_layout(0);
     const auto& output_layout = node.get_output_layout(0);
     if (!is_supported_data_type(input_layout.data_type) || !is_supported_data_type(output_layout.data_type) ||

@@ -36,7 +36,7 @@ struct format_traits {
     /// @brief Number of groups in a format.
     size_t group_num;
     /// @brief Dimensions order. Default {0, 1, 2, ... rank }
-    std::vector<size_t> _order;
+    std::vector<uint64_t> _order;
     /// @brief Dimensions changing order from rare to often.
     std::string order;
     /// @brief Dimensions order for internal storage.
@@ -341,7 +341,7 @@ struct format {
 
     static const std::vector<std::pair<size_t, int>> per_axis_block_size(format fmt);
 
-    static format find_format(const std::vector<size_t>& order,
+    static format find_format(const std::vector<uint64_t>& order,
                               const std::vector<std::pair<size_t, int>>& block_sizes,
                               bool is_weights = false,
                               bool is_grouped = false,
@@ -371,7 +371,7 @@ struct format {
     /// @brief Returns number of group dimensions.
     size_t group_num() const { return traits().group_num; }
     /// @brief Returns an order of dimensions.
-    const std::vector<size_t>& dims_order() const { return traits()._order; }
+    const std::vector<uint64_t>& dims_order() const { return traits()._order; }
     /// @brief Returns an order of dimensions in form of string.
     const std::string& order() const { return traits().order; }
     /// @brief Returns an internal orders of dimensions form of string.

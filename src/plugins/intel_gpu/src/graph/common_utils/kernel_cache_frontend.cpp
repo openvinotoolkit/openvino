@@ -70,7 +70,7 @@ public:
         return kernel.options;
     }
 
-    static void expand_includes(kernels_cache::batch_program& program, kernel_cache_frontend_diagnostics& diagnostics) {
+    static void expand_includes(kernels_cache::batch_program& program) {
         const auto find_and_remove_includes = [](const std::string& code, std::vector<std::string>& required_headers) {
             const std::regex include_regex(R"(#include\s+\"([^\"]+)\")");
             std::string processed_kernel;
@@ -103,7 +103,6 @@ public:
                     continue;
                 }
                 all_headers.push_front(header);
-                ++diagnostics.source_header_expansions;
                 std::string_view header_code;
 #if defined(OV_GPU_WITH_OCL_RT) || defined(OV_GPU_WITH_ZE_RT) || defined(OV_GPU_WITH_SYCL_RT)
 #    ifdef ENABLE_CM_FOR_GPU
@@ -148,24 +147,16 @@ public:
 
 }  // namespace
 
-kernel_cache_frontend_diagnostics kernel_cache_frontend::prepare(const kernels_cache::kernels_code& pending,
-                                                                 const kernel_cache_frontend_context& context,
-                                                                 std::vector<kernels_cache::batch_program>& batches) {
+void kernel_cache_frontend::prepare(const kernels_cache::kernels_code& pending,
+                                    const kernel_cache_frontend_context& context,
+                                    std::vector<kernels_cache::batch_program>& batches) {
     OPENVINO_ASSERT(context.batch_headers != nullptr, "[GPU] Kernel cache frontend requires a batch-header registry");
     std::map<std::string, std::tuple<int32_t, std::vector<kernels_cache::batch_program>>> program_buckets;
-    kernel_cache_frontend_diagnostics diagnostics;
-
     for (const auto& item : pending) {
         const auto& code = item.second;
         for (size_t kernel_part_index = 0; kernel_part_index < code.kernel_strings.size(); ++kernel_part_index) {
             const auto& kernel = code.kernel_strings[kernel_part_index];
             const bool is_spirv = kernel->language == kernel_language::SPIRV;
-            if (is_spirv) {
-                ++diagnostics.precompiled_kernel_count;
-            } else {
-                ++diagnostics.source_kernel_count;
-            }
-
             std::string full_code = kernel->jit + kernel->str + kernel->undefs;
             const std::string entry_point = kernel->entry_point;
             std::string options = is_spirv ? precompiled_spirv_frontend::normalize_options(*kernel) : source_kernel_frontend::normalize_options(*kernel);
@@ -213,7 +204,7 @@ kernel_cache_frontend_diagnostics kernel_cache_frontend::prepare(const kernels_c
         for (auto& batch : bucket_batches) {
             const bool source_requires_includes = batch.language == kernel_language::OCLC_V2 || batch.language == kernel_language::CM;
             if (source_requires_includes) {
-                source_kernel_frontend::expand_includes(batch, diagnostics);
+                source_kernel_frontend::expand_includes(batch);
             }
 
             std::string full_code = options + " " + context.driver_version + context.device_name;
@@ -229,7 +220,6 @@ kernel_cache_frontend_diagnostics kernel_cache_frontend::prepare(const kernels_c
         }
     }
 
-    return diagnostics;
 }
 
 }  // namespace cldnn

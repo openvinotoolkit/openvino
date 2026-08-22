@@ -712,17 +712,14 @@ void primitive_inst::realloc_intermediates() {
         return;
 
     GPU_DEBUG_CODE(std::string memalloc_info);
-    const auto backend_alignment =
-        static_cast<size_t>(get_network().get_engine().get_device_info().sub_buffer_base_alignment.value_or(1));
     for (size_t i = 0; i < buffer_descs.size(); ++i) {
-        buffer_descs[i].validate(backend_alignment);
         auto need_lockable = buffer_descs[i].m_lockable;
         auto alloc_type = i < _intermediates_memory.size() && _intermediates_memory[i]
                               ? _intermediates_memory[i]->get_allocation_type()
                               : allocation_type::unknown;
         bool can_reuse = true;
         can_reuse &= alloc_type != allocation_type::unknown &&
-                     buffer_descs[i].can_reuse_allocation(_max_intermediates_memory_sizes[i]);
+                     buffer_descs[i].m_layout.bytes_count() <= _max_intermediates_memory_sizes[i];
         can_reuse &= (need_lockable && alloc_type != cldnn::allocation_type::usm_device) ||
                         (!need_lockable && alloc_type != cldnn::allocation_type::usm_host);
 
@@ -2671,10 +2668,7 @@ void primitive_inst::allocate_internal_buffers(bool reset) {
     // allocate intermediate memory for the updated layout of buffer
     std::vector<memory::ptr> intermediates_memory(buffer_descs.size());
     _max_intermediates_memory_sizes.resize(buffer_descs.size());
-    const auto backend_alignment =
-        static_cast<size_t>(get_network().get_engine().get_device_info().sub_buffer_base_alignment.value_or(1));
     for (size_t i = 0; i < buffer_descs.size(); ++i) {
-        buffer_descs[i].validate(backend_alignment);
         if (buffer_descs[i].m_layout.get_linear_size() == 0)
             continue;
         intermediates_memory[i] =

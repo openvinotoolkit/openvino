@@ -25,7 +25,6 @@ namespace vulkan {
 namespace {
 
 constexpr uint32_t spirv_magic = 0x07230203;
-constexpr uint32_t local_size_specialization_id = 0;
 constexpr uint32_t persistent_cache_format_version = 1;
 constexpr uint64_t max_persistent_cache_payload_bytes = 256ULL * 1024ULL * 1024ULL;
 constexpr std::array<uint8_t, 8> persistent_cache_magic{'O', 'V', 'V', 'K', 'P', 'C', '0', '1'};
@@ -398,18 +397,12 @@ std::shared_ptr<const vulkan_shader_state> vulkan_pipeline_cache::get_or_create_
 std::shared_ptr<const vulkan_pipeline_state> vulkan_pipeline_cache::get_or_create_pipeline(const std::shared_ptr<const vulkan_shader_state>& shader,
                                                                                            uint32_t descriptor_count,
                                                                                            uint32_t push_constants_size,
-                                                                                           uint32_t specialized_local_size_x,
-                                                                                           const specialization_constants_desc& specialization_constants) {
+                                                                                           const vulkan_specialization_constants& specialization_constants) {
     OPENVINO_ASSERT(shader != nullptr && shader->module != VK_NULL_HANDLE, "[GPU][Vulkan] Cannot create a pipeline for a null shader");
 
     specialization_key constants;
-    constants.reserve(specialization_constants.size() + (specialized_local_size_x == 0 ? 0 : 1));
-    if (specialized_local_size_x != 0) {
-        constants.emplace_back(local_size_specialization_id, specialized_local_size_x);
-    }
+    constants.reserve(specialization_constants.size());
     for (const auto& constant : specialization_constants) {
-        OPENVINO_ASSERT(constant.id != local_size_specialization_id || specialized_local_size_x == 0,
-                        "[GPU][Vulkan] Specialization constant id 0 is reserved for the local work-group size");
         constants.emplace_back(constant.id, constant.value);
     }
     std::sort(constants.begin(), constants.end());

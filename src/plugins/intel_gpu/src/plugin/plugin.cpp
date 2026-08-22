@@ -103,14 +103,14 @@ std::string Plugin::resolve_device_id(const std::string& device_id) const {
     cldnn::runtime_types parsed_runtime;
     std::string backend_device_id;
     if (cldnn::runtime_backend_registry::parse_device_id(device_id, parsed_runtime, backend_device_id)) {
-        // The default runtime keeps the legacy public ID, while an explicit
+        // The default runtime keeps the established public ID, while an explicit
         // runtime-tagged spelling remains a valid alias.
         const auto public_id = cldnn::runtime_backend_registry::make_public_device_id(parsed_runtime, backend_device_id);
         if (m_device_map.count(public_id) != 0) {
             return public_id;
         }
     } else {
-        // If the configured default backend has no device, keep the legacy
+        // If the configured default backend has no device, keep the established
         // numeric alias on the selected available fallback backend.
         cldnn::runtime_types selected_runtime;
         std::string selected_backend_device_id;

@@ -32,8 +32,7 @@ public:
 
     std::shared_ptr<const vulkan_pipeline_state> get_or_create_pipeline(uint32_t descriptor_count,
                                                                         uint32_t push_constants_size,
-                                                                        uint32_t specialized_local_size_x = 0,
-                                                                        const specialization_constants_desc& specialization_constants = {});
+                                                                        const vulkan_specialization_constants& specialization_constants = {});
 
 private:
     struct shared_state;

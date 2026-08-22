@@ -36,7 +36,7 @@ public:
 }  // namespace
 
 TEST(kernel_artifact, formats_have_distinct_semantics) {
-    constexpr std::array formats{KernelFormat::SOURCE, KernelFormat::NATIVE_BIN, KernelFormat::SPIRV, KernelFormat::DRIVER_PIPELINE_CACHE};
+    constexpr std::array formats{KernelFormat::SOURCE, KernelFormat::NATIVE_BIN, KernelFormat::SPIRV};
 
     for (size_t lhs = 0; lhs < formats.size(); ++lhs) {
         for (size_t rhs = lhs + 1; rhs < formats.size(); ++rhs) {
@@ -45,7 +45,7 @@ TEST(kernel_artifact, formats_have_distinct_semantics) {
     }
 }
 
-TEST(kernel_artifact, legacy_builder_adapter_preserves_build_inputs) {
+TEST(kernel_artifact, source_builder_adapter_preserves_build_inputs) {
     const std::array<uint32_t, 2> payload{0x07230203, 0};
     kernel_artifact artifact;
     artifact.payload = payload.data();
@@ -53,10 +53,6 @@ TEST(kernel_artifact, legacy_builder_adapter_preserves_build_inputs) {
     artifact.format = KernelFormat::SPIRV;
     artifact.entry_point = "main";
     artifact.build_options = "-DTEST=1";
-    artifact.stable_id = 42;
-    artifact.backend_environment = "test-device:test-driver";
-    artifact.specialization_constants.push_back({7, 16});
-    artifact.serialization.portable = true;
 
     recording_kernel_builder builder;
     std::vector<kernel::ptr> kernels;
@@ -67,9 +63,4 @@ TEST(kernel_artifact, legacy_builder_adapter_preserves_build_inputs) {
     EXPECT_EQ(builder.format, KernelFormat::SPIRV);
     EXPECT_EQ(builder.build_options, artifact.build_options);
     EXPECT_EQ(artifact.entry_point, "main");
-    EXPECT_EQ(artifact.stable_id, 42u);
-    ASSERT_EQ(artifact.specialization_constants.size(), 1u);
-    EXPECT_EQ(artifact.specialization_constants.front().id, 7u);
-    EXPECT_EQ(artifact.serialization.version, kernel_artifact_serialization_info::current_version);
-    EXPECT_TRUE(artifact.serialization.portable);
 }

@@ -204,7 +204,8 @@ std::vector<tensor::value_type> layout::get_ordered_dims() const {
 }
 
 std::vector<size_t> layout::get_dims_order() const {
-    return format.dims_order();
+    const auto& order = format.dims_order();
+    return {order.begin(), order.end()};
 }
 
 std::string layout::to_string() const {

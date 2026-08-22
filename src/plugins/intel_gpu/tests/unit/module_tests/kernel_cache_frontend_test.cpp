@@ -52,11 +52,8 @@ TEST(kernel_cache_frontend, precompiled_spirv_bypasses_source_processing) {
     const auto context = make_context(headers);
     std::vector<kernels_cache::batch_program> batches;
 
-    const auto diagnostics = kernel_cache_frontend::prepare(pending, context, batches);
+    kernel_cache_frontend::prepare(pending, context, batches);
 
-    EXPECT_EQ(diagnostics.precompiled_kernel_count, 1u);
-    EXPECT_EQ(diagnostics.source_kernel_count, 0u);
-    EXPECT_EQ(diagnostics.source_header_expansions, 0u);
     ASSERT_EQ(batches.size(), 1u);
     EXPECT_EQ(batches[0].language, kernel_language::SPIRV);
     EXPECT_EQ(batches[0].source, kernels_cache::source_code{spirv_payload});
@@ -74,10 +71,8 @@ TEST(kernel_cache_frontend, source_frontend_preserves_batch_option_normalization
     const auto context = make_context(headers);
     std::vector<kernels_cache::batch_program> batches;
 
-    const auto diagnostics = kernel_cache_frontend::prepare(pending, context, batches);
+    kernel_cache_frontend::prepare(pending, context, batches);
 
-    EXPECT_EQ(diagnostics.precompiled_kernel_count, 0u);
-    EXPECT_EQ(diagnostics.source_kernel_count, 1u);
     ASSERT_EQ(batches.size(), 1u);
     EXPECT_EQ(batches[0].language, kernel_language::OCLC);
     EXPECT_EQ(batches[0].options, "-DFIRST=1 -DSECOND=2 ");

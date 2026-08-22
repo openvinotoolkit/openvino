@@ -1499,16 +1499,22 @@ void vulkan_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& d
     auto* vk_kernel = dynamic_cast<vulkan_kernel*>(&kernel);
     OPENVINO_ASSERT(vk_kernel != nullptr, "[GPU][Vulkan] Cannot bind arguments to a kernel from another backend");
     const auto prepared = prepare_arguments(descriptor, data);
-    const auto specialized_local_size_x = descriptor.specialize_local_size_x ? static_cast<uint32_t>(descriptor.workGroups.local.at(0)) : 0U;
     vk_kernel->get_or_create_pipeline(static_cast<uint32_t>(prepared.buffer_infos.size()),
-                                      static_cast<uint32_t>(prepared.push_constants.size()),
-                                      specialized_local_size_x,
-                                      descriptor.specialization_constants);
+                                      static_cast<uint32_t>(prepared.push_constants.size()));
 }
 
 event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
                                          const kernel_arguments_desc& descriptor,
                                          const kernel_arguments_data& data,
+                                         const std::vector<event::ptr>& dependencies,
+                                         bool is_output_event) {
+    return enqueue_kernel(kernel, descriptor, data, {}, dependencies, is_output_event);
+}
+
+event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
+                                         const kernel_arguments_desc& descriptor,
+                                         const kernel_arguments_data& data,
+                                         const vulkan_specialization_constants& specialization_constants,
                                          const std::vector<event::ptr>& dependencies,
                                          bool is_output_event) {
     for (const auto& dependency : dependencies) {
@@ -1528,11 +1534,9 @@ event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
     auto* vk_kernel = dynamic_cast<vulkan_kernel*>(&kernel);
     OPENVINO_ASSERT(vk_kernel != nullptr, "[GPU][Vulkan] Cannot dispatch a kernel from another backend");
     auto prepared = prepare_arguments(descriptor, data);
-    const auto specialized_local_size_x = descriptor.specialize_local_size_x ? static_cast<uint32_t>(descriptor.workGroups.local.at(0)) : 0U;
     const auto pipeline = vk_kernel->get_or_create_pipeline(static_cast<uint32_t>(prepared.buffer_infos.size()),
                                                             static_cast<uint32_t>(prepared.push_constants.size()),
-                                                            specialized_local_size_x,
-                                                            descriptor.specialization_constants);
+                                                            specialization_constants);
 
     OPENVINO_ASSERT(descriptor.workGroups.global.size() == 3 && descriptor.workGroups.local.size() == 3,
                     "[GPU][Vulkan] Compute dispatch requires three-dimensional global and local work-group sizes");

@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "common_utils/gpu_kernel_lifecycle.hpp"
-#include "common_utils/gpu_local_memory.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "openvino/core/except.hpp"
 
@@ -30,7 +29,6 @@ struct gpu_dispatch_plan {
     size_t kernel_index = 0;
     gpu_dispatch_dependency_policy dependency = gpu_dispatch_dependency_policy::previous;
     bool skip_execution = false;
-    gpu_local_memory_contract local_memory;
 };
 
 /// A per-dispatch, non-owning descriptor paired with invocation-specific resources.
@@ -139,7 +137,7 @@ public:
                 return command_stream.aggregate_events(external_dependencies, external_dependencies.size() > 1);
             }
             // Completion was already requested from each selected dispatch. Do not replace those
-            // backend events with an output marker: an in-order OCL stream may represent such a
+            // backend events with an output marker: an in-order stream may represent such a
             // marker as an already-completed user event.
             return command_stream.aggregate_events(_event_scratch, _event_scratch.size() > 1);
         }

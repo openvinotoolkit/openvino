@@ -23,12 +23,6 @@ struct kernel_cache_frontend_context {
     const std::map<std::string, std::string>* batch_headers = nullptr;
 };
 
-struct kernel_cache_frontend_diagnostics {
-    size_t source_kernel_count = 0;
-    size_t precompiled_kernel_count = 0;
-    size_t source_header_expansions = 0;
-};
-
 /// Converts pending kernel descriptions into compiler/artifact batches.
 ///
 /// Source preprocessing is isolated behind an OCLC/CM policy. Precompiled
@@ -36,9 +30,9 @@ struct kernel_cache_frontend_diagnostics {
 /// normalization, or OpenCL source-dump policy.
 class kernel_cache_frontend final {
 public:
-    static kernel_cache_frontend_diagnostics prepare(const kernels_cache::kernels_code& pending,
-                                                     const kernel_cache_frontend_context& context,
-                                                     std::vector<kernels_cache::batch_program>& batches);
+    static void prepare(const kernels_cache::kernels_code& pending,
+                        const kernel_cache_frontend_context& context,
+                        std::vector<kernels_cache::batch_program>& batches);
 };
 
 }  // namespace cldnn

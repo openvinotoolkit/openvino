@@ -31,7 +31,6 @@ enum class TensorType {
     BT_IMG_SHARED,
     BT_SURF_SHARED,
     BT_DX_BUF_SHARED,
-    BT_VULKAN_BUF_SHARED,
 };
 
 #define TensorValue(val) static_cast<cldnn::tensor::value_type>(val)

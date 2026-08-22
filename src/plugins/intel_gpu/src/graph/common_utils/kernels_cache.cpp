@@ -72,9 +72,6 @@ cldnn::KernelFormat to_kernel_format(cldnn::gpu_cached_kernel_artifact artifact)
 namespace cldnn {
 std::mutex kernels_cache::_mutex;
 
-static_assert(kernel_artifact_serialization_info::current_version == gpu_kernel_cache_capabilities::current_artifact_schema_version,
-              "Kernel artifact and cache capability schemas must advance together");
-
 std::string kernels_cache::get_cache_path() const {
     auto path = ov::util::path_to_string(_config.get_cache_dir());
     if (path.empty()) {
@@ -114,7 +111,6 @@ kernels_cache::kernels_cache(engine& engine,
                              std::shared_ptr<ov::threading::ITaskExecutor> task_executor,
                              const std::map<std::string, std::string>& batch_headers)
     : _device(engine.get_device())
-    , _backend_environment(_device->get_info().dev_name + ":" + _device->get_info().driver_version)
     , _builder(engine.create_kernel_builder())
     , _task_executor(task_executor)
     , _config(config)
@@ -180,9 +176,6 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
         artifact.format = format;
         artifact.entry_point = entry_point;
         artifact.build_options = build_options;
-        artifact.stable_id = batch.hash_value;
-        artifact.backend_environment = _backend_environment;
-        artifact.serialization.portable = format == KernelFormat::SOURCE || format == KernelFormat::SPIRV;
         return artifact;
     };
     if (!precompiled.empty()) {
@@ -456,15 +449,11 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
 
         for (auto& precompiled_kernel : precompiled_kernels) {
             std::vector<kernel::ptr> kernels;
-            kernel_artifact artifact;
-            artifact.payload = precompiled_kernel.second.data();
-            artifact.payload_size = precompiled_kernel.second.size();
-            artifact.format = cached_kernel_format;
-            artifact.entry_point = artifact.format == KernelFormat::SPIRV ? "main" : "";
-            artifact.stable_id = precompiled_kernel.first;
-            artifact.backend_environment = _backend_environment;
-            artifact.serialization.portable = artifact.format == KernelFormat::SPIRV;
-            _builder->build_kernels(artifact, kernels);
+            _builder->build_kernels(precompiled_kernel.second.data(),
+                                    precompiled_kernel.second.size(),
+                                    cached_kernel_format,
+                                    "",
+                                    kernels);
             for (auto& k : kernels) {
                 const auto& entry_point = k->get_id();
                 std::string cached_kernel_id = entry_point + "@" + std::to_string(precompiled_kernel.first);

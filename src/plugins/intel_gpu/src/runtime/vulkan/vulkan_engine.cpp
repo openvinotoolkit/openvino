@@ -24,7 +24,7 @@ memory_ptr wrap_imported_buffer(vulkan_engine& engine, const layout& layout, vul
     if (tracking_address == nullptr) {
         tracking_address = region.get();
     }
-    auto tracker = std::make_shared<MemoryTracker>(nullptr, tracking_address, layout.bytes_count(), allocation_type::vulkan_buffer);
+    auto tracker = std::make_shared<MemoryTracker>(nullptr, tracking_address, layout.bytes_count(), allocation_type::device_buffer);
     return std::make_shared<vulkan_buffer>(&engine, layout, std::move(region), 0, std::move(tracker));
 }
 
@@ -97,7 +97,7 @@ std::shared_ptr<vulkan_device> vulkan_engine::get_vulkan_device_object() const {
 memory_ptr vulkan_engine::allocate_memory(const layout& layout, allocation_type type, bool reset) {
     OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(), "[GPU][Vulkan] Cannot allocate an unbounded dynamic layout");
     OPENVINO_ASSERT(!layout.format.is_image(), "[GPU][Vulkan] Image allocations are not supported");
-    OPENVINO_ASSERT(type == allocation_type::vulkan_buffer, "[GPU][Vulkan] Unsupported allocation type: ", type);
+    OPENVINO_ASSERT(type == allocation_type::device_buffer, "[GPU][Vulkan] Unsupported allocation type: ", type);
     check_allocatable(layout, type);
 
     auto region = allocate_buffer_region(layout.bytes_count());
@@ -107,7 +107,7 @@ memory_ptr vulkan_engine::allocate_memory(const layout& layout, allocation_type 
     } else {
         tracking_address = region.get();
     }
-    auto memory_tracker = std::make_shared<MemoryTracker>(this, tracking_address, layout.bytes_count(), allocation_type::vulkan_buffer);
+    auto memory_tracker = std::make_shared<MemoryTracker>(this, tracking_address, layout.bytes_count(), allocation_type::device_buffer);
     auto result = std::make_shared<vulkan_buffer>(this, layout, std::move(region), 0, std::move(memory_tracker));
     if (reset || result->is_memory_reset_needed(layout)) {
         result->fill(get_service_stream());
@@ -130,7 +130,8 @@ memory_ptr vulkan_engine::create_subbuffer(const memory& memory, const layout& l
 }
 
 memory_ptr vulkan_engine::create_hostbuffer(void* address, size_t size, allocation_type type, const layout layout) {
-    OPENVINO_ASSERT(type == allocation_type::vulkan_buffer, "[GPU][Vulkan] Host pointer import requires vulkan_buffer allocation type");
+    OPENVINO_ASSERT(type == allocation_type::device_buffer,
+                    "[GPU][Vulkan] Host pointer import requires the backend-owned device buffer allocation type");
     auto region = import_vulkan_host_buffer(*this, address, size, layout.bytes_count());
     return wrap_imported_buffer(*this, layout, std::move(region), address);
 }

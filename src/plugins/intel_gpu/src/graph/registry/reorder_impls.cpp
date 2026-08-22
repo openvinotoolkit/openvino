@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "backend_implementation_registry.hpp"
 #include "predicates.hpp"
 #include "registry.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
@@ -14,10 +15,6 @@
 #if OV_GPU_WITH_OCL
     #include "impls/ocl/reorder.hpp"
 #endif
-#ifdef OV_GPU_WITH_VULKAN_RT
-    #include "impls/vulkan/reorder.hpp"
-#endif
-
 namespace ov::intel_gpu {
 
 using namespace cldnn;
@@ -42,11 +39,7 @@ static std::vector<format> supported_dyn_formats = {
 };
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<reorder>::get_implementations() {
-    static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
-#ifdef OV_GPU_WITH_VULKAN_RT
-        std::make_shared<vulkan::ReorderImplementationManager>(shape_types::static_shape, not_in_shape_flow()),
-        std::make_shared<vulkan::ReorderImplementationManager>(shape_types::dynamic_shape, not_in_shape_flow()),
-#endif
+    static const auto impls = compose_backend_implementations<reorder>({
         OV_GPU_CREATE_INSTANCE_ONEDNN(onednn::ReorderImplementationManager, shape_types::static_shape, not_in_shape_flow())
         OV_GPU_CREATE_INSTANCE_OCL(ocl::ReorderImplementationManager, shape_types::static_shape, not_in_shape_flow())
         OV_GPU_CREATE_INSTANCE_OCL(ocl::ReorderImplementationManager, shape_types::dynamic_shape,
@@ -62,7 +55,7 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<reord
             })
         OV_GPU_GET_INSTANCE_CPU(reorder, shape_types::static_shape, in_shape_flow())
         OV_GPU_GET_INSTANCE_CPU(reorder, shape_types::dynamic_shape, in_shape_flow())
-    };
+    });
 
     return impls;
 }

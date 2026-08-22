@@ -2,7 +2,11 @@
 #extension GL_EXT_shader_8bit_storage : require
 #extension GL_GOOGLE_include_directive : require
 
-layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
+#define VULKAN_SHADER_SPECIALIZATION_ID(name, code) const uint specialization_##name##_id = code;
+#include "../vulkan_shader_abi.inc"
+#undef VULKAN_SHADER_SPECIALIZATION_ID
+
+layout(local_size_x_id = specialization_local_size_x_id, local_size_y = 1, local_size_z = 1) in;
 
 layout(set = 0, binding = 0) readonly buffer Input {
     uint8_t values[];

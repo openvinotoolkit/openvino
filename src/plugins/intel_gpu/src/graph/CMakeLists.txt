@@ -4,10 +4,6 @@
 
 set(TARGET_NAME "openvino_intel_gpu_graph")
 
-if(OV_GPU_RUNTIME_VULKAN_ENABLED)
-    find_package(Vulkan 1.3 REQUIRED)
-endif()
-
 if(ENABLE_CM_FOR_GPU)
     add_compile_definitions(ENABLE_CM_FOR_GPU)
 endif()
@@ -166,6 +162,9 @@ target_compile_options(${TARGET_NAME} PRIVATE ${COMMON_COMPILE_OPTIONS})
 
 ov_set_threading_interface_for(${TARGET_NAME})
 ov_gpu_set_runtime_definitions_for(${TARGET_NAME})
+if(OV_GPU_RUNTIME_VULKAN_ENABLED)
+    target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_OPTIONAL_IMPLEMENTATION_PROVIDER=1)
+endif()
 if(ENABLE_ONEDNN_FOR_GPU)
     ov_gpu_set_opencl_api_version_for(${TARGET_NAME})
 endif()

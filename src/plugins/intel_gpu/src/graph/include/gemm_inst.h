@@ -6,6 +6,7 @@
 #include "intel_gpu/primitives/gemm.hpp"
 #include "primitive_inst.h"
 
+#include <algorithm>
 #include <string>
 
 namespace cldnn {
@@ -54,7 +55,10 @@ public:
 
         for (const auto& cand_format : gemm_in_format_white_list) {
             const auto cand_format_order = format::traits(static_cast<format::type>(cand_format))._order;
-            if (cand_format_order == target_permute_order) {
+            if (std::equal(cand_format_order.begin(),
+                           cand_format_order.end(),
+                           target_permute_order.begin(),
+                           target_permute_order.end())) {
                 fmt = cand_format;
                 return true;
             }
@@ -72,7 +76,10 @@ public:
 
         for (const auto& cand_format : gemm_out_format_white_list) {
             const auto cand_format_order = format::traits(static_cast<format::type>(cand_format))._order;
-            if (cand_format_order == target_order) {
+            if (std::equal(cand_format_order.begin(),
+                           cand_format_order.end(),
+                           target_order.begin(),
+                           target_order.end())) {
                 fmt = cand_format;
                 return true;
             }

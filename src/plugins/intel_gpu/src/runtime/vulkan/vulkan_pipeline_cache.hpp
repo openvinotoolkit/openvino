@@ -15,10 +15,15 @@
 #include <utility>
 #include <vector>
 
-#include "intel_gpu/runtime/kernel_args.hpp"
-
 namespace cldnn {
 namespace vulkan {
+
+struct vulkan_specialization_constant {
+    uint32_t id = 0;
+    uint32_t value = 0;
+};
+
+using vulkan_specialization_constants = std::vector<vulkan_specialization_constant>;
 
 struct vulkan_shader_state {
     uint64_t identity = 0;
@@ -47,8 +52,7 @@ public:
     std::shared_ptr<const vulkan_pipeline_state> get_or_create_pipeline(const std::shared_ptr<const vulkan_shader_state>& shader,
                                                                         uint32_t descriptor_count,
                                                                         uint32_t push_constants_size,
-                                                                        uint32_t specialized_local_size_x,
-                                                                        const specialization_constants_desc& specialization_constants);
+                                                                        const vulkan_specialization_constants& specialization_constants);
 
 private:
     using shader_key = std::pair<std::string, std::vector<uint8_t>>;

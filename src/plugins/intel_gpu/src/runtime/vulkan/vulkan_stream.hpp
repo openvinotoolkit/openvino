@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "intel_gpu/runtime/stream.hpp"
+#include "vulkan_pipeline_cache.hpp"
 
 namespace cldnn {
 namespace vulkan {
@@ -33,6 +34,12 @@ public:
                               const kernel_arguments_data& data,
                               const std::vector<event::ptr>& dependencies,
                               bool is_output_event = false) override;
+    event::ptr enqueue_kernel(kernel& kernel,
+                              const kernel_arguments_desc& descriptor,
+                              const kernel_arguments_data& data,
+                              const vulkan_specialization_constants& specialization_constants,
+                              const std::vector<event::ptr>& dependencies,
+                              bool is_output_event = false);
     event::ptr enqueue_marker(const std::vector<event::ptr>& dependencies, bool is_output_event = false) override;
     void enqueue_barrier() override;
     event::ptr group_events(const std::vector<event::ptr>& dependencies) override;

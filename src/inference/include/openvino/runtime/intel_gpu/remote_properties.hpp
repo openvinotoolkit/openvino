@@ -31,7 +31,7 @@ enum class ContextType {
     OCL = 0,        //!< Pure OpenCL context
     VA_SHARED = 1,  //!< Context shared with a video decoding device
     ZE = 2,         //!< Pure Level Zero context
-    VULKAN = 3,     //!< Pure Vulkan context
+    NATIVE = 3,     //!< Runtime-native context without an OpenCL or Level Zero interop handle
 };
 
 /** @cond INTERNAL */
@@ -43,8 +43,8 @@ inline std::ostream& operator<<(std::ostream& os, const ContextType& context_typ
         return os << "VA_SHARED";
     case ContextType::ZE:
         return os << "ZE";
-    case ContextType::VULKAN:
-        return os << "VULKAN";
+    case ContextType::NATIVE:
+        return os << "NATIVE";
     default:
         OPENVINO_THROW("Unsupported context type");
     }
@@ -59,8 +59,8 @@ inline std::istream& operator>>(std::istream& is, ContextType& context_type) {
         context_type = ContextType::VA_SHARED;
     } else if (str == "ZE") {
         context_type = ContextType::ZE;
-    } else if (str == "VULKAN") {
-        context_type = ContextType::VULKAN;
+    } else if (str == "NATIVE") {
+        context_type = ContextType::NATIVE;
     } else {
         OPENVINO_THROW("Unsupported context type: ", str);
     }

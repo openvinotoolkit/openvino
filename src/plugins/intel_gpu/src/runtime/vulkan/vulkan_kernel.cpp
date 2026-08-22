@@ -54,8 +54,7 @@ std::string vulkan_kernel::get_build_log() const {
 
 std::shared_ptr<const vulkan_pipeline_state> vulkan_kernel::get_or_create_pipeline(uint32_t descriptor_count,
                                                                                    uint32_t push_constants_size,
-                                                                                   uint32_t specialized_local_size_x,
-                                                                                   const specialization_constants_desc& specialization_constants) {
+                                                                                   const vulkan_specialization_constants& specialization_constants) {
     OPENVINO_ASSERT(push_constants_size <= _state->device_owner->get_max_push_constants_size(),
                     "[GPU][Vulkan] Requested ",
                     push_constants_size,
@@ -64,7 +63,6 @@ std::shared_ptr<const vulkan_pipeline_state> vulkan_kernel::get_or_create_pipeli
     return _state->device_owner->get_pipeline_cache().get_or_create_pipeline(_state->shader,
                                                                              descriptor_count,
                                                                              push_constants_size,
-                                                                             specialized_local_size_x,
                                                                              specialization_constants);
 }
 

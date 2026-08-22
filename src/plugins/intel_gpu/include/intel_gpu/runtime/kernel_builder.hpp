@@ -5,9 +5,6 @@
 #pragma once
 
 #include "kernel.hpp"
-#include "kernel_args.hpp"
-
-#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -16,18 +13,9 @@ namespace cldnn {
 
 /// @brief Defines possible kernel formats
 enum class KernelFormat {
-    SOURCE,                ///< backend source code
-    NATIVE_BIN,            ///< device-native executable binary
-    SPIRV,                 ///< portable SPIR-V module
-    DRIVER_PIPELINE_CACHE, ///< opaque driver pipeline-cache data; never an executable module
-};
-
-/// @brief Serialization contract attached to a kernel artifact.
-struct kernel_artifact_serialization_info {
-    static constexpr uint32_t current_version = 1;
-
-    uint32_t version = current_version;
-    bool portable = false;
+    SOURCE,     ///< backend source code
+    NATIVE_BIN, ///< device-native executable binary
+    SPIRV,      ///< portable SPIR-V module
 };
 
 /// @brief Immutable, non-owning description passed to a backend kernel builder.
@@ -41,10 +29,6 @@ struct kernel_artifact {
     KernelFormat format = KernelFormat::SOURCE;
     std::string entry_point;
     std::string build_options;
-    uint64_t stable_id = 0;
-    std::string backend_environment;
-    specialization_constants_desc specialization_constants;
-    kernel_artifact_serialization_info serialization;
 };
 
 /// @brief Interface for building the GPU kernels. Implementations must be thread-safe to support case where multiple threads use single builder.

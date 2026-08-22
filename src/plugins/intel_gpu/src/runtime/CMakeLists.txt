@@ -49,10 +49,6 @@ if(OV_GPU_RUNTIME_SYCL_ENABLED)
     list(APPEND SYCL_SOURCES ${LIBRARY_SOURCES_SYCL})
 endif()
 
-if(OV_GPU_RUNTIME_VULKAN_ENABLED)
-    find_package(Vulkan 1.3 REQUIRED)
-endif()
-
 list(REMOVE_DUPLICATES SYCL_SOURCES)
 
 function(ov_gpu_configure_runtime_target TARGET)
@@ -122,6 +118,13 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 ov_gpu_configure_runtime_target(${TARGET_NAME})
+
+if(OV_GPU_RUNTIME_VULKAN_ENABLED)
+    target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_OPTIONAL_RUNTIME_PROVIDER=1)
+endif()
+if(GPU_DEFAULT_RUNTIME STREQUAL "VULKAN")
+    target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_DEFAULT_OPTIONAL_RUNTIME=1)
+endif()
 
 # Object-library link dependencies do not propagate when their objects are
 # collected into this static archive. Keep the backend loader after the archive

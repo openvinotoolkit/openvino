@@ -118,7 +118,7 @@ private:
     gpu_backend_capabilities _backend_capabilities{};
 
     device_info _info{};
-    memory_capabilities _mem_caps{{allocation_type::vulkan_buffer}};
+    memory_capabilities _mem_caps{{allocation_type::device_buffer}};
     mutable std::mutex _init_mutex;
     std::mutex _queue_mutex;
     std::unique_ptr<vulkan_pipeline_cache> _pipeline_cache;

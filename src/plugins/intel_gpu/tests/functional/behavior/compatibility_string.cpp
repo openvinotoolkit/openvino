@@ -51,9 +51,9 @@ TEST_F(CompatibilityStringGPU, RuntimeRequirementsIsSupportedAndNonEmpty) {
     std::cout << "[ INFO     ] GPU ov::runtime_requirements = " << requirements << std::endl;
 }
 
-// A legacy descriptor lacks the backend and kernel-artifact identity required by v2 and must
+// An older descriptor lacks the backend and kernel-artifact identity required by v2 and must
 // trigger recompilation instead of allowing a potentially incompatible compiled model.
-TEST_F(CompatibilityStringGPU, LegacyV1RequirementsRequireRecompile) {
+TEST_F(CompatibilityStringGPU, OlderV1RequirementsRequireRecompile) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::Core core;
     auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU);
@@ -63,12 +63,12 @@ TEST_F(CompatibilityStringGPU, LegacyV1RequirementsRequireRecompile) {
     const auto desc_pos = current.find(";desc=");
     ASSERT_NE(runtime_pos, std::string::npos);
     ASSERT_NE(desc_pos, std::string::npos);
-    auto legacy = current.substr(0, runtime_pos) + current.substr(desc_pos);
-    legacy.replace(0, std::string{"meta=2.0"}.size(), "meta=1.0");
+    auto older_requirements = current.substr(0, runtime_pos) + current.substr(desc_pos);
+    older_requirements.replace(0, std::string{"meta=2.0"}.size(), "meta=1.0");
 
     EXPECT_EQ(core.get_property(ov::test::utils::DEVICE_GPU,
                                 ov::compatibility_check,
-                                {{ov::runtime_requirements.name(), legacy}}),
+                                {{ov::runtime_requirements.name(), older_requirements}}),
               ov::CompatibilityCheck::UNSUPPORTED);
 }
 

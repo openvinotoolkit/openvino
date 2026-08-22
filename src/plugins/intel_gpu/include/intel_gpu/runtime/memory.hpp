@@ -60,11 +60,9 @@ struct memory {
     size_t count() const { return _layout.count(); }
     /// @brief Return internal params for specified runtime type
     virtual shared_mem_params get_internal_params(runtime_types rt_type) const = 0;
-    /// @brief Return internal params for the runtime that owns this allocation.
-    ///
-    /// The runtime is taken from the allocation's engine, not from the build-time
-    /// default, so combined-backend plugins cannot reinterpret Vulkan memory as OCL.
-    virtual shared_mem_params get_internal_params() const;
+    shared_mem_params get_internal_params() const {
+        return get_internal_params(get_default_runtime_type());
+    }
     virtual bool is_allocated_by(const engine& engine) const { return &engine == _engine && _type != allocation_type::unknown; }
     engine* get_engine() const { return _engine; }
     const layout& get_layout() const { return _layout; }
@@ -165,18 +163,6 @@ struct simple_attached_memory : memory {
         0,
 #endif
         0}; };
-    shared_mem_params get_internal_params() const override {
-        return {shared_mem_type::shared_mem_empty,
-                nullptr,
-                nullptr,
-                nullptr,
-#ifdef _WIN32
-                nullptr,
-#else
-                0,
-#endif
-                0};
-    }
 
     event::ptr copy_from(stream& stream, const void* src_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) override {
         OPENVINO_NOT_IMPLEMENTED;

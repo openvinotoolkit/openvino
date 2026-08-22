@@ -10,9 +10,7 @@
 
 
 // DirectX / VA wrappers are part of the public OpenCL interoperability API.
-// Preserve the legacy public-header behavior when no backend composition is
-// specified, but keep their C++ OpenCL ownership out of Vulkan-only builds.
-#if defined(OV_GPU_WITH_OCL_RT) || (!defined(OV_GPU_WITH_ZE_RT) && !defined(OV_GPU_WITH_VULKAN_RT))
+#ifdef OV_GPU_WITH_OCL_RT
 #ifdef _WIN32
 # include <openvino/runtime/intel_gpu/ocl/dx.hpp>
 #else

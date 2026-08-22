@@ -9,6 +9,25 @@
 
 #include "openvino/core/except.hpp"
 
+#ifdef OV_GPU_WITH_OPTIONAL_RUNTIME_PROVIDER
+#    include "runtime_backend_provider.hpp"
+#endif
+
+#ifdef OV_GPU_WITH_OCL_RT
+#    include "ocl/ocl_device_detector.hpp"
+#    include "ocl/ocl_engine_factory.hpp"
+#endif
+
+#ifdef OV_GPU_WITH_ZE_RT
+#    include "ze/ze_device_detector.hpp"
+#    include "ze/ze_engine_factory.hpp"
+#endif
+
+#ifdef OV_GPU_WITH_SYCL_RT
+#    include "sycl/sycl_device_detector.hpp"
+#    include "sycl/sycl_engine_factory.hpp"
+#endif
+
 namespace cldnn {
 namespace {
 
@@ -20,11 +39,30 @@ const char* runtime_name(runtime_types runtime_type) {
         return "ze";
     case runtime_types::sycl:
         return "sycl";
-    case runtime_types::vulkan:
-        return "vulkan";
     default:
-        OPENVINO_THROW("[GPU] Unknown runtime type");
+        break;
     }
+#ifdef OV_GPU_WITH_OPTIONAL_RUNTIME_PROVIDER
+    const auto& optional_backend = backend_extensions::get_compiled_runtime_backend();
+    if (runtime_type == optional_backend.runtime_type) {
+        return optional_backend.name;
+    }
+#endif
+    OPENVINO_THROW("[GPU] Unknown runtime type");
+}
+
+runtime_types compiled_default_runtime_type() {
+#ifdef OV_GPU_DEFAULT_ZE_RT
+    return runtime_types::ze;
+#elif defined(OV_GPU_DEFAULT_OCL_RT)
+    return runtime_types::ocl;
+#elif defined(OV_GPU_DEFAULT_SYCL_RT)
+    return runtime_types::sycl;
+#elif defined(OV_GPU_DEFAULT_OPTIONAL_RUNTIME)
+    return backend_extensions::get_compiled_runtime_backend().runtime_type;
+#else
+#    error "Expected an OpenVINO default GPU runtime macro to be defined"
+#endif
 }
 
 }  // namespace
@@ -33,18 +71,18 @@ const std::vector<runtime_backend_descriptor>& runtime_backend_registry::compile
     static const std::vector<runtime_backend_descriptor> backends = [] {
         std::vector<runtime_backend_descriptor> result;
 #ifdef OV_GPU_WITH_OCL_RT
-        result.push_back({engine_types::ocl, runtime_types::ocl, "ocl"});
+        result.push_back({engine_types::ocl, runtime_types::ocl, "ocl", runtime_interop_kind::opencl});
 #endif
 #ifdef OV_GPU_WITH_ZE_RT
-        result.push_back({engine_types::ze, runtime_types::ze, "ze"});
+        result.push_back({engine_types::ze, runtime_types::ze, "ze", runtime_interop_kind::level_zero});
 #endif
 #ifdef OV_GPU_WITH_SYCL_RT
-        result.push_back({engine_types::sycl, runtime_types::sycl, "sycl"});
+        result.push_back({engine_types::sycl, runtime_types::sycl, "sycl", runtime_interop_kind::opencl});
 #endif
-#ifdef OV_GPU_WITH_VULKAN_RT
-        result.push_back({engine_types::vulkan, runtime_types::vulkan, "vulkan"});
+#ifdef OV_GPU_WITH_OPTIONAL_RUNTIME_PROVIDER
+        result.push_back(backend_extensions::get_compiled_runtime_backend());
 #endif
-        const auto default_runtime = get_default_runtime_type();
+        const auto default_runtime = compiled_default_runtime_type();
         const auto default_it = std::find_if(result.begin(), result.end(), [default_runtime](const auto& backend) {
             return backend.runtime_type == default_runtime;
         });
@@ -68,6 +106,96 @@ const runtime_backend_descriptor& runtime_backend_registry::get(runtime_types ru
     });
     OPENVINO_ASSERT(it != backends.end(), "[GPU] Requested runtime is not compiled into the plugin: ", runtime_name(runtime_type));
     return *it;
+}
+
+std::map<std::string, std::shared_ptr<device>> runtime_backend_registry::query_devices(engine_types engine_type,
+                                                                                       runtime_types runtime_type,
+                                                                                       void* user_context,
+                                                                                       void* user_device,
+                                                                                       int context_device_id,
+                                                                                       int target_tile_id,
+                                                                                       bool initialize_devices) {
+    switch (runtime_type) {
+#ifdef OV_GPU_WITH_OCL_RT
+    case runtime_types::ocl: {
+        OPENVINO_ASSERT(engine_type == engine_types::ocl || engine_type == engine_types::sycl);
+        ocl::ocl_device_detector detector;
+        return detector.get_available_devices(user_context,
+                                              user_device,
+                                              context_device_id,
+                                              target_tile_id,
+                                              initialize_devices);
+    }
+#endif
+#ifdef OV_GPU_WITH_ZE_RT
+    case runtime_types::ze: {
+        OPENVINO_ASSERT(engine_type == engine_types::ze);
+        ze::ze_device_detector detector;
+        return detector.get_available_devices(user_context,
+                                              user_device,
+                                              context_device_id,
+                                              target_tile_id,
+                                              initialize_devices);
+    }
+#endif
+#ifdef OV_GPU_WITH_SYCL_RT
+    case runtime_types::sycl: {
+        OPENVINO_ASSERT(engine_type == engine_types::sycl);
+        sycl::sycl_device_detector detector;
+        return detector.get_available_devices(user_context,
+                                               user_device,
+                                               context_device_id,
+                                               target_tile_id);
+    }
+#endif
+    default:
+        break;
+    }
+#ifdef OV_GPU_WITH_OPTIONAL_RUNTIME_PROVIDER
+    const auto& optional_backend = backend_extensions::get_compiled_runtime_backend();
+    if (runtime_type == optional_backend.runtime_type) {
+        return backend_extensions::query_compiled_runtime_devices(engine_type,
+                                                                   runtime_type,
+                                                                   user_context,
+                                                                   user_device,
+                                                                   context_device_id,
+                                                                   target_tile_id,
+                                                                   initialize_devices);
+    }
+#endif
+    OPENVINO_THROW("[GPU] Unsupported engine/runtime types in device query");
+}
+
+std::shared_ptr<engine> runtime_backend_registry::create_engine(engine_types engine_type,
+                                                                runtime_types runtime_type,
+                                                                const std::shared_ptr<device>& device) {
+    switch (engine_type) {
+#ifdef OV_GPU_WITH_SYCL_RT
+    case engine_types::sycl:
+        return sycl::create_sycl_engine(device, runtime_type);
+#endif
+#ifdef OV_GPU_WITH_OCL_RT
+#    ifdef OV_GPU_WITH_SYCL
+    case engine_types::sycl:
+        return ocl::create_sycl_engine(device, runtime_type);
+#    endif
+    case engine_types::ocl:
+        return ocl::create_ocl_engine(device, runtime_type);
+#endif
+#ifdef OV_GPU_WITH_ZE_RT
+    case engine_types::ze:
+        return ze::create_ze_engine(device, runtime_type);
+#endif
+    default:
+        break;
+    }
+#ifdef OV_GPU_WITH_OPTIONAL_RUNTIME_PROVIDER
+    const auto& optional_backend = backend_extensions::get_compiled_runtime_backend();
+    if (engine_type == optional_backend.engine_type) {
+        return backend_extensions::create_compiled_runtime_engine(engine_type, runtime_type, device);
+    }
+#endif
+    OPENVINO_THROW("[GPU] Unsupported engine type");
 }
 
 std::string runtime_backend_registry::make_device_id(runtime_types runtime_type, const std::string& backend_device_id) {

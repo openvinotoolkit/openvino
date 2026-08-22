@@ -10,11 +10,13 @@
 #include <cstdint>
 #include <vector>
 
-#include "common_utils/gpu_execution_plan.hpp"
+#include "common_utils/gpu_kernel_lifecycle.hpp"
 #include "foundation_stage_local_spirv.hpp"
 #include "foundation_stage_output_spirv.hpp"
 #include "intel_gpu/runtime/kernel_builder.hpp"
 #include "test_utils.h"
+#include "vulkan/vulkan_shader_abi.hpp"
+#include "vulkan/vulkan_stream.hpp"
 
 using namespace cldnn;
 using namespace cldnn::vulkan;
@@ -28,7 +30,6 @@ kernel::ptr build_spirv_kernel(engine& target_engine, const uint32_t* spirv, siz
     artifact.payload_size = spirv_size;
     artifact.format = KernelFormat::SPIRV;
     artifact.entry_point = "main";
-    artifact.serialization.portable = true;
 
     std::vector<kernel::ptr> kernels;
     target_engine.create_kernel_builder()->build_kernels(artifact, kernels);
@@ -36,12 +37,41 @@ kernel::ptr build_spirv_kernel(engine& target_engine, const uint32_t* spirv, siz
     return kernels.front();
 }
 
+event::ptr execute_foundation_stages(vulkan_stream& command_stream,
+                                     const gpu_kernel_lifecycle& lifecycle,
+                                     const kernel_arguments_desc& local_stage,
+                                     const kernel_arguments_data& local_stage_data,
+                                     const kernel_arguments_desc& output_stage,
+                                     const kernel_arguments_data& output_stage_data,
+                                     size_t local_size) {
+    const vulkan_specialization_constants local_specialization = {
+        {shader_abi::index(shader_abi::specialization_id::local_size_x), static_cast<uint32_t>(local_size)},
+        {shader_abi::index(shader_abi::specialization_id::foundation_local_memory_words), static_cast<uint32_t>(local_size)},
+    };
+    const vulkan_specialization_constants output_specialization = {
+        {shader_abi::index(shader_abi::specialization_id::local_size_x), static_cast<uint32_t>(local_size)},
+    };
+
+    auto local_completion = command_stream.enqueue_kernel(*lifecycle.at(0),
+                                                          local_stage,
+                                                          local_stage_data,
+                                                          local_specialization,
+                                                          {},
+                                                          true);
+    std::vector<event::ptr> dependencies = {local_completion};
+    return command_stream.enqueue_kernel(*lifecycle.at(1),
+                                         output_stage,
+                                         output_stage_data,
+                                         output_specialization,
+                                         dependencies,
+                                         true);
+}
+
 }  // namespace
 
 TEST(vulkan_execution_plan, two_stage_dispatch_uses_internal_and_local_memory) {
     constexpr size_t element_count = 256;
     constexpr size_t local_size = 64;
-    constexpr uint64_t local_memory_bytes = local_size * sizeof(float);
 
     auto target_engine = create_test_engine(engine_types::vulkan, runtime_types::vulkan);
     auto profiling_config = get_test_default_config(*target_engine);
@@ -62,36 +92,32 @@ TEST(vulkan_execution_plan, two_stage_dispatch_uses_internal_and_local_memory) {
     lifecycle.emplace_back(build_spirv_kernel(*target_engine, foundation_stage_local_spirv, sizeof(foundation_stage_local_spirv)));
     lifecycle.emplace_back(build_spirv_kernel(*target_engine, foundation_stage_output_spirv, sizeof(foundation_stage_output_spirv)));
 
-    gpu_execution_plan plan(2, {true, true});
-    plan[0].local_memory.add({local_memory_bytes, sizeof(float), gpu_local_memory_mapping::specialization_constant, 1, false});
-
     kernel_arguments_desc local_stage;
     local_stage.workGroups.global = {element_count, 1, 1};
     local_stage.workGroups.local = {local_size, 1, 1};
-    local_stage.specialize_local_size_x = true;
     local_stage.arguments = {{argument_desc::Types::INPUT, 0}, {argument_desc::Types::INTERNAL_BUFFER, 0}};
-    local_memory_args_desc local_stage_backend_arguments;
-    plan[0].local_memory.materialize(local_stage, local_stage_backend_arguments, target_engine->get_device_info().max_local_mem_size);
 
     kernel_arguments_desc output_stage;
     output_stage.workGroups.global = {element_count, 1, 1};
     output_stage.workGroups.local = {local_size, 1, 1};
-    output_stage.specialize_local_size_x = true;
     output_stage.arguments = {{argument_desc::Types::INTERNAL_BUFFER, 0}, {argument_desc::Types::OUTPUT, 0}};
 
     kernel_arguments_data local_stage_data;
     local_stage_data.inputs = {input};
     local_stage_data.intermediates = {intermediate};
-    local_stage_data.local_memory_args = &local_stage_backend_arguments;
 
     kernel_arguments_data output_stage_data;
     output_stage_data.intermediates = {intermediate};
     output_stage_data.outputs = {output};
 
-    const std::vector<gpu_dispatch_binding> bindings = {{&local_stage, std::move(local_stage_data)}, {&output_stage, std::move(output_stage_data)}};
-    auto completion = plan.execute(*command_stream, lifecycle, {}, true, [&](size_t dispatch_index) {
-        return bindings.at(dispatch_index);
-    });
+    auto& vulkan_command_stream = dynamic_cast<vulkan_stream&>(*command_stream);
+    auto completion = execute_foundation_stages(vulkan_command_stream,
+                                                lifecycle,
+                                                local_stage,
+                                                local_stage_data,
+                                                output_stage,
+                                                output_stage_data,
+                                                local_size);
     ASSERT_NE(completion, nullptr);
     completion->wait();
 
@@ -113,7 +139,6 @@ TEST(vulkan_execution_plan, two_stage_dispatch_uses_internal_and_local_memory) {
 
 TEST(vulkan_execution_plan, transient_slots_survive_pool_reset_tuning_transitions) {
     constexpr size_t local_size = 64;
-    constexpr uint64_t local_memory_bytes = local_size * sizeof(float);
 
     auto target_engine = create_test_engine(engine_types::vulkan, runtime_types::vulkan);
     auto command_stream = target_engine->create_stream(get_test_default_config(*target_engine));
@@ -121,9 +146,6 @@ TEST(vulkan_execution_plan, transient_slots_survive_pool_reset_tuning_transition
     gpu_kernel_lifecycle lifecycle;
     lifecycle.emplace_back(build_spirv_kernel(*target_engine, foundation_stage_local_spirv, sizeof(foundation_stage_local_spirv)));
     lifecycle.emplace_back(build_spirv_kernel(*target_engine, foundation_stage_output_spirv, sizeof(foundation_stage_output_spirv)));
-
-    gpu_execution_plan plan(2, {true, false});
-    plan[0].local_memory.add({local_memory_bytes, sizeof(float), gpu_local_memory_mapping::specialization_constant, 1, false});
 
     struct workload {
         size_t element_count;
@@ -154,30 +176,29 @@ TEST(vulkan_execution_plan, transient_slots_survive_pool_reset_tuning_transition
         kernel_arguments_desc local_stage;
         local_stage.workGroups.global = {current.element_count, 1, 1};
         local_stage.workGroups.local = {local_size, 1, 1};
-        local_stage.specialize_local_size_x = true;
         local_stage.arguments = {{argument_desc::Types::INPUT, 0}, {argument_desc::Types::INTERNAL_BUFFER, 0}};
-        local_memory_args_desc local_stage_backend_arguments;
-        plan[0].local_memory.materialize(local_stage, local_stage_backend_arguments, target_engine->get_device_info().max_local_mem_size);
 
         kernel_arguments_desc output_stage;
         output_stage.workGroups.global = {current.element_count, 1, 1};
         output_stage.workGroups.local = {local_size, 1, 1};
-        output_stage.specialize_local_size_x = true;
         output_stage.arguments = {{argument_desc::Types::INTERNAL_BUFFER, 0}, {argument_desc::Types::OUTPUT, 0}};
 
         kernel_arguments_data local_stage_data;
         local_stage_data.inputs = {current.input};
         local_stage_data.intermediates = {current.intermediate};
-        local_stage_data.local_memory_args = &local_stage_backend_arguments;
 
         kernel_arguments_data output_stage_data;
         output_stage_data.intermediates = {current.intermediate};
         output_stage_data.outputs = {current.output};
 
-        const std::vector<gpu_dispatch_binding> bindings = {{&local_stage, std::move(local_stage_data)}, {&output_stage, std::move(output_stage_data)}};
-        auto completion = plan.execute(*command_stream, lifecycle, {}, true, [&](size_t dispatch_index) {
-            return bindings.at(dispatch_index);
-        });
+        auto& vulkan_command_stream = dynamic_cast<vulkan_stream&>(*command_stream);
+        auto completion = execute_foundation_stages(vulkan_command_stream,
+                                                    lifecycle,
+                                                    local_stage,
+                                                    local_stage_data,
+                                                    output_stage,
+                                                    output_stage_data,
+                                                    local_size);
         ASSERT_NE(completion, nullptr);
         completion->wait();
 

@@ -6,7 +6,6 @@ if(NOT OV_GPU_RUNTIME_VULKAN_ENABLED)
     return()
 endif()
 
-find_package(Vulkan 1.3 REQUIRED)
 find_host_program(OV_GPU_GLSLC_EXECUTABLE NAMES glslc REQUIRED)
 find_host_program(OV_GPU_SPIRV_OPT_EXECUTABLE NAMES spirv-opt REQUIRED)
 find_host_program(OV_GPU_SPIRV_VAL_EXECUTABLE NAMES spirv-val REQUIRED)
@@ -71,13 +70,16 @@ foreach(shader_name IN ITEMS foundation_stage_local foundation_stage_output)
         NAME "${shader_name}"
         SOURCE "${VULKAN_KERNEL_DIR}/${shader_name}.comp"
         DESCRIPTION "kernels/${shader_name}.comp"
+        DEPENDENCIES "${CMAKE_CURRENT_SOURCE_DIR}/vulkan_shader_abi.inc"
     )
 endforeach()
 add_vulkan_shader(
     NAME reorder_convert
     SOURCE "${VULKAN_KERNEL_DIR}/reorder_convert.comp"
     DESCRIPTION "kernels/reorder_convert.comp"
-    DEPENDENCIES "${CMAKE_CURRENT_SOURCE_DIR}/eltwise_shader_abi.inc"
+    DEPENDENCIES
+        "${CMAKE_CURRENT_SOURCE_DIR}/eltwise_shader_abi.inc"
+        "${CMAKE_CURRENT_SOURCE_DIR}/vulkan_shader_abi.inc"
 )
 
 # Eltwise owns its source modules and complete generated-variant registry.

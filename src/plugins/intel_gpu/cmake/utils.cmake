@@ -11,7 +11,8 @@ function(ov_gpu_set_runtime_definitions_for TARGET_NAME)
         elseif(GPU_RUNTIME STREQUAL "SYCL")
             target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_SYCL_RT=1)
         elseif(GPU_RUNTIME STREQUAL "VULKAN")
-            target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_VULKAN_RT=1)
+            # The optional runtime provider macro is private to the runtime
+            # composition target and is attached in src/runtime/CMakeLists.txt.
         else()
             message(FATAL_ERROR "Invalid GPU runtime type: `${GPU_RUNTIME}`")
         endif()
@@ -24,7 +25,7 @@ function(ov_gpu_set_runtime_definitions_for TARGET_NAME)
     elseif(GPU_DEFAULT_RUNTIME STREQUAL "SYCL")
         target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_DEFAULT_SYCL_RT=1)
     elseif(GPU_DEFAULT_RUNTIME STREQUAL "VULKAN")
-        target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_DEFAULT_VULKAN_RT=1)
+        # The optional default is private to the runtime composition target.
     else()
         message(FATAL_ERROR "Invalid default GPU runtime type: `${GPU_DEFAULT_RUNTIME}`")
     endif()
