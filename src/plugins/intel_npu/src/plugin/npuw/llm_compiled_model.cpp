@@ -929,11 +929,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg);
 
-    // Detect attention mask type before the SDPA subgraph is isolated by partitioning.
-    // Mask-skipping optimization on HFA regular tiles will be enabled depending on the mask type.
-    ov::npuw::DetectAttentionMask detect_mask;
-    detect_mask.run_on_model(kvcache_model);
-    const auto mask_info = detect_mask.get_mask_info();
+    // Detect attention mask kind before the SDPA subgraph is isolated by partitioning,
+    // annotating each SDPA node's rt_info. HostFlashAttention reads this per-node to
+    // decide whether the regular-tile mask-skipping optimization is safe for that layer.
+    ov::npuw::DetectAttentionMask().run_on_model(kvcache_model);
+    ov::npuw::log_detected_masks(kvcache_model);
 
     if (!m_is_whisper) {
         LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
@@ -1114,12 +1114,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
 
     if (prefill_attn_hfa) {
-        prefill_config[ov::intel_npu::npuw::partitioning::attn_hfa_mask_skipping.name()] =
-            mask_info.mask_type == ov::npuw::MaskInfo::MaskType::Causal ||
-                    (mask_info.mask_type == ov::npuw::MaskInfo::MaskType::SlidingWindow &&
-                     mask_info.window_size >= max_prompt_len)
-                ? "YES"
-                : "NO";
+        // Enable the mask-skipping optimization by default; the actual per-layer
+        // decision (safe only for Causal, or SlidingWindow whose window already
+        // covers the full context) is made independently for each SDPA subgraph in
+        // HostFlashAttention::from(), based on the rt_info DetectAttentionMask wrote
+        // above. Setting this to "NO" here (or via user-supplied config, which
+        // overrides this below) acts as a master kill switch disabling the
+        // optimization outright.
+        prefill_config[ov::intel_npu::npuw::partitioning::attn_hfa_mask_skipping.name()] = "YES";
     }
 
     // NB: GENERATE_HINT is only applicable for default generate config!
@@ -1799,24 +1801,34 @@ bool ov::npuw::LLMCompiledModel::compute_continuous_prefill_supported() const {
             }
         }
     }
-    // Position ids must form a single linear sequence: 3-D M-RoPE cannot be validated
-    // as a contiguous continuation and is excluded statically. A read-only property
-    // must never throw, so a dynamic rank is treated as unsupported rather than
-    // queried through PartialShape::size(), which asserts a static rank.
+    // The request-level API must carry position ids: the prefill submodel gains them
+    // from AddPositionIdsParam even when the original model has none, and a
+    // synthesized sequence cannot express a continuation start.
+    if (!ov::npuw::util::find_port_by_name(inputs(), ov::npuw::LLMInferRequest::layer_names::position_ids)
+             .has_value()) {
+        return false;
+    }
+    // Position ids must be the exact [batch, seq] sequence the runtime validation
+    // accepts: 3-D M-RoPE cannot be validated as a contiguous continuation. A
+    // read-only property must never throw, so a dynamic rank is treated as
+    // unsupported rather than queried through PartialShape::size(), which asserts
+    // a static rank.
     const auto position_ids_port =
         ov::npuw::util::find_port_by_name(prefill_inputs, ov::npuw::LLMInferRequest::layer_names::position_ids);
     if (!position_ids_port.has_value()) {
         return false;
     }
     const auto& position_ids_rank = position_ids_port.value().get_partial_shape().rank();
-    if (position_ids_rank.is_dynamic() || position_ids_rank.get_length() >= 3) {
+    if (position_ids_rank.is_dynamic() || position_ids_rank.get_length() != 2) {
         return false;
     }
-    // Every static exclusion above passed, but this change carries the protocol only:
-    // nothing attaches the coordinator to the variable state yet, so a proposal would
-    // throw. A capability the request cannot honour must never be advertised, so the
-    // answer stays false until the delta prefill path lands and lifts this.
-    return false;
+    if (m_is_block_kv_cache) {
+        // Only the contiguous strategy can plan a continuation so far, and the block
+        // strategy would raise from the base class in preflight. Block support lands
+        // in the follow-up change.
+        return false;
+    }
+    return true;
 }
 
 ov::Any ov::npuw::LLMCompiledModel::get_property(const std::string& name) const {
