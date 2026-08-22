@@ -452,7 +452,11 @@ KERNEL(rope_opt)(
     const uint p = ((uint)get_global_id(2) * VEC_SIZE) / HALF_ROTARY_NDIMS;
     const uint r = 2 * (((uint)get_global_id(2) * VEC_SIZE) % HALF_ROTARY_NDIMS);
 
+#ifdef ENABLE_TRANSPOSE
+    uint input_idx = INPUT0_GET_INDEX(b, p, h, 0);
+#else
     uint input_idx = INPUT0_GET_INDEX(b, h, p, 0);
+#endif
 
     uint cos_sin_b = b < INPUT1_BATCH_NUM ? b : 0;
     uint cos_sin_h = h < INPUT1_FEATURE_NUM ? h : 0;

@@ -151,6 +151,10 @@ void set_custom_rt_info(const pugi::xml_node& rt_attrs, ov::AnyMap& rt_info, boo
         }
     }
 }
+
+bool is_valid_weights_range(size_t weights_size, size_t offset, size_t size) {
+    return offset <= weights_size && size <= weights_size - offset;
+}
 }  // namespace
 
 struct GenericLayerParams {
@@ -426,8 +430,10 @@ ov::Any XmlDeserializer::parse_weightless_cache_attribute(const pugi::xml_node& 
         const auto offset = data_node.attribute("offset");
         const auto element_type = data_node.attribute("element_type");
         if (size && offset && element_type) {
-            wl_attr = ov::WeightlessCacheAttribute(static_cast<size_t>(pugixml::get_uint64_attr(data_node, "size")),
-                                                   static_cast<size_t>(pugixml::get_uint64_attr(data_node, "offset")),
+            const auto original_size = static_cast<size_t>(pugixml::get_uint64_attr(data_node, "size"));
+            const auto bin_offset = static_cast<size_t>(pugixml::get_uint64_attr(data_node, "offset"));
+            wl_attr = ov::WeightlessCacheAttribute(original_size,
+                                                   bin_offset,
                                                    ov::element::Type(pugixml::get_str_attr(data_node, "element_type")));
         }
     }
@@ -825,8 +831,7 @@ void XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<void
 
             if (!m_weights)
                 OPENVINO_THROW("Empty weights data in bin file or bin file cannot be found!");
-            if (m_weights->size() < offset + size)
-                OPENVINO_THROW("Incorrect weights in bin file!");
+            OPENVINO_ASSERT(is_valid_weights_range(m_weights->size(), offset, size), "Incorrect weights in bin file!");
             char* data = m_weights->get_ptr<char>() + offset;
             auto buffer =
                 ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(data, size);
@@ -892,7 +897,7 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
 
     const auto size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
     const auto offset = static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset"));
-    OPENVINO_ASSERT(m_weights->size() >= offset + size, "Incorrect weights in bin file!");
+    OPENVINO_ASSERT(is_valid_weights_range(m_weights->size(), offset, size), "Incorrect weights in bin file!");
 
     char* data = m_weights->get_ptr<char>() + offset;
 
