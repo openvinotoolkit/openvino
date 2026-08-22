@@ -359,8 +359,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_sink, paged_attention_test, ::tes
     with_sinks(paged_attention_test_params{ {{1, 515}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
     with_sinks(paged_attention_test_params{ {{1, 515}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
 
-    /* MIXED: 2nd token + 1st token + part of a 1st token in one batch. sdpa_ocl reads the K/V CACHE
-       here, and past_len is arbitrary, so the causal bound and the sink seed interact */
+    /* MIXED: 2nd token + 1st token + part of a 1st token in one batch. past_len is arbitrary AND
+       differs per subsequence, so the causal bound and the sink seed interact -- and, since
+       PA_CUR_KV_F16, so does the point where sdpa_ocl switches from the K/V CACHE to the raw f16 K/V:
+       these are the cases where BOTH sides of that split run in one dispatch. */
     with_sinks(paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
     with_sinks(paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 8, 2, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
     /* MIXED: i8 cache, both quant modes */

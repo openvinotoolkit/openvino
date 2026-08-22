@@ -10,11 +10,14 @@
 // clang-format on
 #include "paged_attention_opt.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <iostream>
 #include <memory>
+#include <sstream>
 #include <utility>
 
 #include "../primitive_ocl_base.hpp"
@@ -1607,6 +1610,43 @@ public:
         auto stage = get_paged_attention_stage(params);
         rt_params->max_context_len = get_max_context_len(params);
         rt_params->stage = stage;
+
+        // Diagnostic: what the stage classifier actually saw. Two things are worth reading out.
+        //
+        // (1) past_lens[0] against the query length, which is what decides how much of a MIXED
+        //     kernel's key range is CACHED context versus this iteration's NEW tokens -- i.e. how much
+        //     sdpa_ocl's PA_CUR_KV_F16 split can win (and how much sdpa_micro was already winning by
+        //     doing the same split).
+        // (2) past_lens_shape[0] against mem_lock::size(). get_paged_attention_stage() scans the
+        //     LATTER, which is _mem->size()/sizeof(T) -- the ALLOCATED element count, not the logical
+        //     sequence count -- so if they differ, a stale entry past the last real sequence can turn
+        //     a plain prefill (every real past_len == 0) into a MIXED dispatch.
+        // Delete once the MIXED-stage tuning is done.
+        if (std::getenv("SDPA_OCL_TRACE_STAGE") != nullptr && !params.is_dynamic()) {
+            static const char* const kStageName[] = {"GENERATE", "PREFILL", "MIXED", "UNKNOWN"};
+            const auto& q_ps = params.get_input_layout(PagedAttentionInputIdx::QUERY).get_partial_shape();
+            const auto& pl_ps = params.get_input_layout(PagedAttentionInputIdx::PAST_LENS).get_partial_shape();
+            std::ostringstream os;
+            os << "[pa_stage] " << kStageName[static_cast<size_t>(stage)] << " q_tokens=" << q_ps[0] << " max_context_len=" << rt_params->max_context_len
+               << " past_lens_shape=" << pl_ps[0];
+            const auto& mem_deps = params.memory_deps;
+            if (mem_deps.count(PagedAttentionInputIdx::PAST_LENS) != 0) {
+                mem_lock<int32_t, mem_lock_type::read> pl(mem_deps.at(PagedAttentionInputIdx::PAST_LENS), *params.strm);
+                os << " past_lens_alloc=" << pl.size() << " past_lens=[";
+                for (size_t i = 0; i < std::min<size_t>(pl.size(), 8); i++)
+                    os << (i ? "," : "") << pl[i];
+                os << (pl.size() > 8 ? ",...]" : "]");
+            }
+            if (mem_deps.count(PagedAttentionInputIdx::SUBSEQUENCE_BEGINS) != 0) {
+                mem_lock<int32_t, mem_lock_type::read> sb(mem_deps.at(PagedAttentionInputIdx::SUBSEQUENCE_BEGINS), *params.strm);
+                os << " subseq_len=[";
+                for (size_t i = 0; i + 1 < std::min<size_t>(sb.size(), 9); i++)
+                    os << (i ? "," : "") << (sb[i + 1] - sb[i]);
+                os << "]";
+            }
+            std::cerr << os.str() << std::endl;
+        }
+
         rt_params->partition_size = get_partitioning_size(params, desc->v_head_size, rt_params->stage);
 
         auto effective_context_len = rt_params->max_context_len;
