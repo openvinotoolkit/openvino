@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <map>
 #include <vector>
@@ -151,6 +152,28 @@ std::vector<ov::Tensor> infer_and_copy_outputs(ov::CompiledModel& compiled,
     return outputs;
 }
 
+void compare_serialization_outputs(const ov::Tensor& expected, const ov::Tensor& actual) {
+    ASSERT_EQ(expected.get_element_type(), actual.get_element_type());
+    ASSERT_EQ(expected.get_shape(), actual.get_shape());
+
+    if (expected.get_element_type() == ov::element::f32) {
+        const auto* expected_data = expected.data<const float>();
+        const auto* actual_data = actual.data<const float>();
+        for (std::size_t idx = 0; idx < expected.get_size(); ++idx) {
+            EXPECT_NEAR(expected_data[idx], actual_data[idx], 1e-3f) << "Tensor element index: " << idx;
+        }
+    } else if (expected.get_element_type() == ov::element::f16) {
+        const auto* expected_data = expected.data<const ov::float16>();
+        const auto* actual_data = actual.data<const ov::float16>();
+        for (std::size_t idx = 0; idx < expected.get_size(); ++idx) {
+            EXPECT_NEAR(static_cast<float>(expected_data[idx]), static_cast<float>(actual_data[idx]), 1e-2f)
+                << "Tensor element index: " << idx;
+        }
+    } else {
+        EXPECT_EQ(std::memcmp(expected.data(), actual.data(), expected.get_byte_size()), 0);
+    }
+}
+
 }  // namespace
 
 // FIXME: parametrize all the tests below
@@ -270,7 +293,7 @@ TEST(SerializationTestNPUW, LLMSharedHeadExportImportWithAsymmetricVocabInput) {
     auto actual_outputs = infer_and_copy_outputs(imported, inputs);
     ASSERT_EQ(expected_outputs.size(), actual_outputs.size());
     for (std::size_t idx = 0; idx < expected_outputs.size(); ++idx) {
-        EXPECT_NO_THROW(ov::test::utils::compare(expected_outputs[idx], actual_outputs[idx], actual_outputs[idx].get_element_type()));
+        compare_serialization_outputs(expected_outputs[idx], actual_outputs[idx]);
     }
 }
 

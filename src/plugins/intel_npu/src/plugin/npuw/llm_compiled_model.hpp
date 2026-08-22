@@ -20,6 +20,8 @@ struct LLMVariantSwitchTestAccess;
 namespace ov {
 namespace npuw {
 
+bool apply_matmul_first_vocab(const std::shared_ptr<ov::Model>& model);
+
 class LLMInferRequest;
 class WhisperInferRequest;
 class LLMBlockKVCacheStrategy;
