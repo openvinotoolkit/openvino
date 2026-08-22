@@ -309,7 +309,27 @@ sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max) {
         //                                                              loads per unit work, still lost)
         // So ~4096 is the sweet spot, and any further traffic cut has to keep the subgroup count.
         // Same lesson as SDPA_OCL_256GRF, which is a 70% REGRESSION here for the same reason.
-        config.kq_sg_tile_queries = 32;
+        //
+        // RE-TUNED after PA_CUR_KV_F16: the WG key tile drops from 128 to 64 (kq_sg_per_wg_keys 8 -> 4,
+        // with kq_sg_per_wg_queries 4 - kq_sg_tile_queries 16 keeping the query tile at 64). Measured on
+        // llama-3.2-1b (u4 cache, PA MIXED, past_len 32, 1059-token prompt): 171,440 -> 151,545 ns/call,
+        // against sdpa_micro's 147,825.
+        //
+        // Why a narrower KEY tile helps now, when the reasoning above says traffic cuts do not: it is not
+        // a traffic cut. PA_CUR_KV_F16 splits the key range at past_len, so ONE k0 tile per query block
+        // straddles the split and its cache-side subgroups are ~2.2x slower than its Kc-side ones -- and
+        // the KQ stage ends in a workgroup barrier, so the whole tile costs what the slowest subgroup
+        // costs. The idle scales with (pages_per_tile - cached_pages), so halving the tile halves it.
+        //
+        // Crucially this is ORTHOGONAL to both findings above, which is why it does not contradict them:
+        // wg_queries stays 64 and sg_per_wg stays 16, so the subgroup count is unchanged at ~4096. The
+        // sweep confirmed that moving either of those still loses, and badly -- sg_per_wg 8 spills at
+        // runtime (512 B at wgK 64, 11,776 B at wgK 128 -> 372,628 ns) even though ocloc reported no
+        // spill for any of them.
+        // TODO re-confirm on gpt-oss-20b, which is where the 632/398/428 numbers above came from.
+        config.kq_sg_tile_queries = 16;
+        config.kq_sg_per_wg_keys = 4;
+        config.kq_sg_per_wg_queries = 4;
         config.sv_sg_tile_values = 16;
         config.sv_sg_tile_scores = 16;
         config.sv_sg_per_wg_values = 4;
@@ -947,6 +967,70 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // axis, so both operands adopt the permuted labelling instead and Q pays for it once, in the SLM
     // staging. See the PA_K_U4_CHANNEL block in sdpa_ocl.cl.
     jit.make("IS_PA_K_U4", pa_u4_by_channel_tm ? 1 : 0);
+    // Paged-attention MIXED: read the keys at/above past_len -- this iteration's NEW tokens -- from the
+    // raw f16 K/V inputs (the kernel's Kc/Vc) instead of from the cache pages they were just written
+    // to. Both are correct; the cache costs a page read plus a nibble/byte extract, a zero-point
+    // subtract and a scale multiply per element, which at head 64 is ~250 extra instructions per
+    // subgroup per k0 tile against ~256 cycles of dpas in the same tile. sdpa_micro's MIXED kernel has
+    // always split its key loop this way (ugemm_kq on the pages below past_len, ugemm_kcq on Kc above
+    // it), and that -- not the tiling, the SLM or the causal bound, which all match -- is the 2.09x it
+    // won by on llama-3.2-1b's 1059-token prefill (309 us vs 148 us per call, 2.6 ms of the 2.4 ms
+    // first-token regression).
+    //
+    // Gated on the RAW K/V layouts (input_layouts 1/2), NOT on K/V above: those are the CACHE layouts
+    // for this variant (see the m_is_prefill ternary where they are bound), so they say nothing about
+    // the tensors Kc/Vc point at. Same two-tier alignment split and the same predicates as kv_2d.
+    int pa_cur_kv_f16 = 0;
+    bool pa_cur_aligned = false;
+    if (config.is_paged_attention && !m_is_prefill) {
+        const auto& K_cur = params.input_layouts[1];
+        const auto& V_cur = params.input_layouts[2];
+        const auto ldk_cur = k_head_size * ov::element::Type(K_cur.data_type).size();
+        const auto ldv_cur = v_head_size * ov::element::Type(V_cur.data_type).size();
+        // Kc/Vc are declared `const global QRY_DATA_T *` in the kernel, so the contract is not "f16" but
+        // "the same 2-byte float type Q is", which is what every load below reinterprets them as.
+        const bool f16_in = K_cur.data_type == Q.data_type && V_cur.data_type == Q.data_type && ov::element::Type(Q.data_type).size() == 2;
+        pa_cur_aligned = block2d_layout_ok(K_cur, ldk_cur) && block2d_layout_ok(V_cur, ldv_cur);
+        const bool fixup_ok = block2d_layout_fixup_ok(K_cur, ldk_cur) && block2d_layout_fixup_ok(V_cur, ldv_cur);
+        pa_cur_kv_f16 = f16_in && (pa_cur_aligned || fixup_ok);
+        // NOTE u4's extra precondition is deliberately NOT checked here. Its K read addresses Kc as a
+        // DWORD surface (see the PA_K_U4 branch at the K load in sdpa_ocl.cl), which needs this head's
+        // first channel to be an EVEN number of halves from the surface origin -- and that parity comes
+        // out of subsequence_begin * ldk + b0_kv * head_size + the feature padding, which is a runtime
+        // value whenever the padding is dynamic. Gating it here would mean rejecting every dynamically
+        // padded K, i.e. every u4 MIXED case the unit suite has, so the kernel tests the parity itself
+        // and falls back to the cache read when it fails (kc_dword_ok in sdpa_ocl.cl).
+        //
+        // Bisection/attribution toggle. =0 restores the pre-change kernel exactly (verified: the ocloc
+        // ISA for PA_CUR_KV_F16=0 is metric-identical to HEAD's), which is what makes the perf A/B
+        // single-variable inside ONE build -- ref vs dev across builds is not, because the u4
+        // BY_CHANNEL K page is d-major on master and token-major here.
+        // Deliberately inside this branch: Kc/Vc are only in the kernel signature for the PA non-prefill
+        // variant, so letting the env force the flag on elsewhere would be a compile error, not a sweep.
+        if (const char* env = std::getenv("SDPA_OCL_PA_CUR_F16"))
+            pa_cur_kv_f16 = std::atoi(env);
+    }
+    jit.make("PA_CUR_KV_F16", pa_cur_kv_f16);
+    // Performance/correctness bisection controls. GRAN=0 keeps each k0 tile on one source by
+    // rounding the split to the WG key tile; GRAN=1 uses the finer cache-page split. SIDE is a
+    // bitmask: bit 0 enables Kc and bit 1 enables Vc, with a cleared bit pinning that side to cache.
+    int pa_cur_gran = 0;
+    if (const char* env = std::getenv("SDPA_OCL_PA_CUR_GRAN"))
+        pa_cur_gran = std::atoi(env);
+    jit.make("PA_CUR_KV_GRAN", pa_cur_gran);
+    int pa_cur_side = 3;
+    if (const char* env = std::getenv("SDPA_OCL_PA_CUR_SIDE"))
+        pa_cur_side = std::atoi(env);
+    jit.make("PA_CUR_KV_SIDE", pa_cur_side);
+    // Same rule as BLOCK2D_KV_BASE_FIXUP: derived from the alignment, not from fixup_ok, and computed
+    // after the override so forcing the toggle on cannot turn the fixup off.
+    //
+    // Forced ON for u4 even on the "already aligned" tier, because that tier's premise -- base =
+    // m * row_bytes with row_bytes % 64 == 0 -- stops holding once the layout carries feature padding
+    // (block2d_layout_ok no longer rejects that). The fixup is a no-op when the base really is aligned
+    // (prem == 0), and it is what gives the kernel a 64B- and therefore 4B-aligned surface origin plus a
+    // meaningful KcD_x0 for the dword read's parity test.
+    jit.make("BLOCK2D_KV_CUR_BASE_FIXUP", (pa_cur_kv_f16 && (!pa_cur_aligned || pa_u4_by_channel_tm)) ? 1 : 0);
     // Data-row pitch of a cache page, in elements of the cache dtype. Only jitted for u4 -- the .cl
     // defaults both to HEAD_SIZE, so f16 and i8 preprocess to exactly what they did before.
     //   K: exactly k_head_size/2, NOT aligned up. 16*(h/2) + 4*h == 12*h is what makes the token-major
