@@ -65,6 +65,15 @@ float __builtin_IB_atomic_max_local_f32(__local float *, float);
 #  error "sdpa_ocl.cl: DKS_ACTIVE must cover at least one depth tile"
 #endif
 
+// Reading the new tokens' K/V from Kc/Vc needs pointers that only exist in the paged-attention
+// non-prefill signature, so fold that precondition into the host flag here rather than repeating it at
+// each of the five sites below. The host already scopes SDPA_OCL_PA_CUR_F16 to that variant; this makes
+// the kernel independent of that invariant, so a stray define is a no-op instead of a build failure.
+#if !(IS_PAGED_ATTENTION && !IS_PREFILL)
+#  undef PA_CUR_KV_F16
+#  define PA_CUR_KV_F16 0
+#endif
+
 // Mask-kind predicates. When the host proved the mask shape at compile time
 // (MASK_KIND in {0,1,2}) these fold to compile-time constants so IGC drops the
 // dead mask branches; MASK_KIND == -1 keeps the original runtime MSK_D2/MSK_D3
@@ -259,6 +268,16 @@ float __builtin_IB_atomic_max_local_f32(__local float *, float);
 #  if (PA_V_ROW_ELEMS % SUBGROUP_SIZE) != 0
 // PA_V_U4_COL folds whole 16-wide byte-column groups, which assumes the split point is one.
 #    error "sdpa_ocl.cl: u4 needs PA_V_ROW_ELEMS to be a multiple of SUBGROUP_SIZE"
+#  endif
+#  if PA_CUR_KV_F16
+// The Kc read for u4 uses intel_sub_group_2d_block_read_32b_8r16x1c, whose 8r16x1c geometry is
+// hard-coded to exactly one DPAS row-block of keys (8) and one 32-channel u4 window (16 dwords).
+#    if DPAS_ROWS != 8
+#      error "sdpa_ocl.cl: the u4 Kc dword read is 8r; DPAS_ROWS must be 8"
+#    endif
+#    if DPAS_K != 16 || SUBGROUP_SIZE != 16
+#      error "sdpa_ocl.cl: the u4 Kc dword read is 16 dwords wide; DPAS_K and SUBGROUP_SIZE must be 16"
+#    endif
 #  endif
 #endif
 
@@ -499,6 +518,14 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         V += (size_t)subsequence_begin * ldv + b0_kv * HEAD_SIZE + INPUT2_PAD_BEFORE_FEATURE_NUM;
     #else
         const uint base_block_index = block_indices_begins[gws_mapping];
+        #if PA_CUR_KV_F16
+            // Kc/Vc are this iteration's raw f16 K/V -- the same tensors the PREFILL variant gets as
+            // K/V -- so they take the same bump as the IS_PREFILL branch above. Row index into them is
+            // (key - past_len): they hold only the q NEW tokens of the flattened batch, while `key`
+            // counts from the start of the CACHED context.
+            Kc += (size_t)subsequence_begin * ldk + b0_kv * HEAD_SIZE + INPUT1_PAD_BEFORE_FEATURE_NUM;
+            Vc += (size_t)subsequence_begin * ldv + b0_kv * HEAD_SIZE + INPUT2_PAD_BEFORE_FEATURE_NUM;
+        #endif
     #endif
     #if BIDIR_MASK
         // Workgroup-uniform, so every branch on it below is uniform too: no divergence, and the
@@ -546,6 +573,49 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     const int KD_w = d * (int)sizeof(KEY_DATA_T), KD_h = k, KD_p = (int)ldk * (int)sizeof(KEY_DATA_T);
     const int VD_w = d * (int)sizeof(VAL_DATA_T), VD_h = k, VD_p = (int)ldv * (int)sizeof(VAL_DATA_T);
     const int AD_w = d * (int)sizeof(half), AD_h = q, AD_p = (int)lda * (int)sizeof(half);
+
+#if PA_CUR_KV_F16
+    // Surfaces for the NEW-token half of the key range. Deliberately NOT KD_*/VD_*: those describe the
+    // CACHE for this variant, whose element type is uchar for a compressed cache and whose height is k.
+    // Kc/Vc are always f16 and only q rows tall -- rows past q are hardware zero-filled, which is the
+    // same OOB behaviour the `key < k` masking already assumes, so no extra guard is needed.
+    const int KcD_w = d * (int)sizeof(half), KcD_h = q, KcD_p = (int)ldk * (int)sizeof(half);
+    const int VcD_w = d * (int)sizeof(half), VcD_h = q, VcD_p = (int)ldv * (int)sizeof(half);
+    const global half *Kc_b2d = (const global half *)Kc;
+    const global half *Vc_b2d = (const global half *)Vc;
+    int KcD_w_b2d = KcD_w, VcD_w_b2d = VcD_w;
+    int KcD_x0 = 0, VcD_x0 = 0;
+    #if BLOCK2D_KV_CUR_BASE_FIXUP
+    // Same repair as BLOCK2D_KV_BASE_FIXUP below, and needed for the same reason: b0_kv * HEAD_SIZE is
+    // a whole number of rows but not necessarily of 64 B, and INPUT1/INPUT2_PAD_BEFORE_FEATURE_NUM can
+    // be dynamic (a Q/K/V that is a crop view of one fused QKV tensor), so the base is not provably
+    // 64B-aligned. Round down, widen, shift x.
+    {
+        const uint kc_prem = (uint)(as_long(Kc_b2d) & 63);
+        const uint vc_prem = (uint)(as_long(Vc_b2d) & 63);
+        Kc_b2d = (const global half *)((const global char *)Kc_b2d - kc_prem);
+        Vc_b2d = (const global half *)((const global char *)Vc_b2d - vc_prem);
+        KcD_w_b2d = KcD_w + (int)kc_prem;
+        VcD_w_b2d = VcD_w + (int)vc_prem;
+        KcD_x0 = (int)(kc_prem / sizeof(half));
+        VcD_x0 = (int)(vc_prem / sizeof(half));
+    }
+    #endif
+    #if IS_PA_K_U4
+    // The u4 K read below addresses Kc as a DWORD surface (see the PA_K_U4 branch at the K load), so its
+    // x shift is in dwords, not halves. Two things have to hold for that to be exact:
+    //   - the surface ORIGIN must be 4B-aligned. It is: the host forces BLOCK2D_KV_CUR_BASE_FIXUP on for
+    //     u4, which rounds the base down to 64 B.
+    //   - this head's first channel must be an EVEN number of halves from that origin, or a dword would
+    //     straddle the (2c, 2c+1) channel pair the permuted depth axis is built on.
+    // The second one is a RUNTIME property -- it comes out of subsequence_begin * ldk +
+    // b0_kv * HEAD_SIZE + the feature padding, and the padding can be dynamic -- so it is tested here
+    // rather than in the host gate. When it fails, from_cache below is forced true for every tile and
+    // the kernel behaves exactly as it did before this path existed: correct, just slower.
+    const int KcD_x0_dw = KcD_x0 / 2;
+    const bool kc_dword_ok = ((KcD_x0 & 1) == 0);
+    #endif
+#endif
 
 #if USE_2D_BLOCK_IO_KV
     // 2D block IO surface origin for the f16 K/V loads.
@@ -886,10 +956,67 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     }
 #endif
 
+#if PA_CUR_KV_F16
+    // Where the paged cache stops being the right place to read K/V from.
+    //
+    // The cache holds the whole key range (pa_kv_cache_update runs before this stage), so reading
+    // everything from it is CORRECT -- it is just expensive: a compressed page costs a page read plus
+    // a nibble/byte extract, a zero-point subtract and a scale multiply per element, ~250 extra
+    // instructions per subgroup per k0 tile at head 64, against ~256 cycles of dpas in the same tile.
+    // The keys at or above past_len are this iteration's NEW tokens, which are ALSO sitting in Kc/Vc
+    // as exact f16, where a plain 2D block read hands the dpas its operand with no dequant at all.
+    // sdpa_micro's MIXED kernel has always split its key loop this way (ugemm_kq on the pages below
+    // past_len, ugemm_kcq on Kc above it) and that -- not the tiling, the SLM or the causal bound,
+    // which all match -- is the whole 2.09x it won by on llama-3.2-1b's 1059-token prefill.
+    //
+    // Rounded up to the CACHE PAGE, which is the finest granularity that stays exact: a page is 16
+    // consecutive keys and is written as a unit, so the page holding past_len is the only one that can
+    // mix cached and new tokens, and it has to come from the cache (which holds both). Every page below
+    // this bound is wholly cached, every page at or above it is wholly new.
+    //
+    // The page, NOT kq_wg_tile_keys, because the decision is made per page on both sides: a subgroup's K
+    // tile is key_base = k0 + kq_sg_tile_keys * sg_i_kq, and one S*V cp block is
+    // k0 + SUBGROUP_SIZE * cp -- both page-aligned, both exactly one page wide at the default tiling.
+    // Rounding to the 128-key WG tile instead would drag up to kq_wg_tile_keys - 1 new tokens onto the
+    // dequant path per query block, which at the measured past_len of 32 was 96 wasted keys x 17 query
+    // blocks: 875 page-units of work against the 753 this bound gives (~171 us vs ~148 us).
+    //
+    // past_len == 0 collapses this to 0 and the cache path disappears entirely, which is what a
+    // MIXED-stage dispatch of a plain prefill reduces to.
+    //
+#if PA_CUR_KV_GRAN
+    const int pa_key_end =
+        ((past_len + PAGED_ATTENTION_BLOCK_SIZE - 1) / PAGED_ATTENTION_BLOCK_SIZE) * PAGED_ATTENTION_BLOCK_SIZE;
+#else
+    const int pa_key_end = min(((past_len + kq_wg_tile_keys - 1) / kq_wg_tile_keys) * kq_wg_tile_keys, causal_k);
+#endif
+#endif
+
     for (int k0 = window_k0_begin; k0 < causal_k; k0 += kq_wg_tile_keys) {
         const int key_base = k0 + sg_i0_kq;
         const bool first = (k0 == window_k0_begin);
         const bool last = (k0 + kq_wg_tile_keys >= causal_k);
+#if IS_PAGED_ATTENTION && !IS_PREFILL
+    #if PA_CUR_KV_F16
+        // Where THIS SUBGROUP's K tile comes from. Per tile, not per k0 iteration: key_base is
+        // page-aligned, so `key_base < pa_key_end` is true exactly when the tile's first key is cached,
+        // and a tile that straddles the bound (only possible if kq_sg_tile_keys exceeds the page) then
+        // takes the cache for all of its keys -- correct, since the cache holds the new tokens too.
+        //
+        // Subgroup-uniform (past_len, k0, sg_i0_kq and the Kc base parity are all uniform), so every
+        // branch on it is uniform and costs an untaken jump, not divergence. That is why this is one loop
+        // with two load paths rather than sdpa_micro's two loops -- the body is ~700 lines and
+        // duplicating it would double the compile time and the instruction footprint for no gain.
+        #if IS_PA_K_U4
+        const bool from_cache = ((PA_CUR_KV_SIDE & 1) == 0) || (key_base < pa_key_end) || !kc_dword_ok;
+        #else
+        const bool from_cache = ((PA_CUR_KV_SIDE & 1) == 0) || (key_base < pa_key_end);
+        #endif
+    #else
+        // Folds away, so every `if (from_cache)` guard below collapses back to its pre-change form.
+        const bool from_cache = true;
+    #endif
+#endif
 
         float8 S_tile[kq_key_blocks][kq_query_blocks];
         #pragma unroll
@@ -939,12 +1066,17 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         // mb_key0 >= k implies no key in the block would have been read anyway -- equivalent, and
         // it keeps the lookup inside block_indices[] for this subsequence (key_base can run past k
         // in the final k0 tile, where an unguarded load would index past the allocated blocks).
+        // Every hoist from here to the end of this block feeds the CACHE read only, so all of them are
+        // under `if (from_cache)`: on a PA_CUR_KV_F16 tile the page lookup, the scale/zp fetch and the
+        // whole-page read are all dead work, and the branch is workgroup-uniform.
         uint k_page[kq_key_blocks];
-        #pragma unroll
-        for (int mb = 0; mb < kq_key_blocks; ++mb) {
-            const int mb_key0 = key_base + mb * DPAS_ROWS;
-            k_page[mb] = (mb_key0 < k) ? block_indices[base_block_index + mb_key0 / PAGED_ATTENTION_BLOCK_SIZE]
-                                       : 0u;
+        if (from_cache) {
+            #pragma unroll
+            for (int mb = 0; mb < kq_key_blocks; ++mb) {
+                const int mb_key0 = key_base + mb * DPAS_ROWS;
+                k_page[mb] = (mb_key0 < k) ? block_indices[base_block_index + mb_key0 / PAGED_ATTENTION_BLOCK_SIZE]
+                                           : 0u;
+            }
         }
 
     #if IS_PA_K_BY_CHANNEL
@@ -980,6 +1112,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         //    range-expansion guard provides for any page holding at least one written token.
         half k_pa_sc_ch[kq_sg_tile_keys / SUBGROUP_SIZE][DKS_ACTIVE];
         half k_pa_zp_ch[kq_sg_tile_keys / SUBGROUP_SIZE][DKS_ACTIVE];
+        if (from_cache) {
         #pragma unroll
         for (int kg = 0; kg < kq_sg_tile_keys / SUBGROUP_SIZE; ++kg) {
             const global uint *k_comp_ch = (const global uint *)(
@@ -1032,6 +1165,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             }
         #endif
         }
+        }
     #elif IS_PA_KV_COMPRESSED
         // Same hoist, applied to the i8 cache's per-key scale/zp. They live in the two trailing f16
         // arrays of the page and are indexed by TOKEN only -- independent of db (the head-dim chunk)
@@ -1056,6 +1190,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         // product is 0 for any finite quantized byte.
         half k_pa_sc_lane[kq_sg_tile_keys / SUBGROUP_SIZE];
         half k_pa_zp_lane[kq_sg_tile_keys / SUBGROUP_SIZE];
+        if (from_cache) {
         #pragma unroll
         for (int kg = 0; kg < kq_sg_tile_keys / SUBGROUP_SIZE; ++kg) {
             const global half *k_comp = (const global half *)(
@@ -1065,6 +1200,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             const bool sc_valid = (key_base + kg * SUBGROUP_SIZE + (int)lane) < k;
             k_pa_sc_lane[kg] = sc_valid ? k_comp[lane] : (half)0.0h;
             k_pa_zp_lane[kg] = sc_valid ? k_comp[PAGED_ATTENTION_BLOCK_SIZE + lane] : (half)0.0h;
+        }
         }
     #endif
 
@@ -1077,6 +1213,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         // Live state is PA_PAGE_READS * 16 bytes per lane: 32 at head 64. It stays small because the
         // host gate only fires where block2d could not, which for u4 means a row of 16 or 32 bytes.
         uchar16 k_pg[kq_sg_tile_keys / SUBGROUP_SIZE][PA_PAGE_READS(PA_K_ROW_ELEMS)];
+        if (from_cache) {
         #pragma unroll
         for (int kg = 0; kg < kq_sg_tile_keys / SUBGROUP_SIZE; ++kg) {
             // Same page as the comp loop above, and page-aligned for the same reason: key_base is a
@@ -1089,6 +1226,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             #pragma unroll
             for (int r = 0; r < PA_PAGE_READS(PA_K_ROW_ELEMS); ++r)
                 k_pg[kg][r] = intel_sub_group_block_read_uc16(k_pg_base + r * PA_PAGE_RD_BYTES);
+        }
         }
     #endif
 #endif
@@ -1105,6 +1243,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 
             ushort8 k_raw[kq_key_blocks];
 #if IS_PAGED_ATTENTION && !IS_PREFILL
+            if (from_cache) {
     #if USE_2D_BLOCK_IO_K_PA
             // Token-major K cache: a (block, kv_head) page is a
             // [PAGED_ATTENTION_BLOCK_SIZE keys x HEAD_SIZE head dims] ROW-MAJOR tile -- exactly the
@@ -1370,6 +1509,53 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                         k_raw[mb][key_offset] = as_ushort(K[mb_page_base + (size_t)tok * PA_K_TOKEN_STRIDE]);
                     }
                 }
+            }
+    #endif
+            }
+    #if PA_CUR_KV_F16
+            else {
+        #if IS_PA_K_U4
+                // The u4 cache forces a PERMUTED dpas depth axis -- tile db wants lane L to hold
+                // channel PA_K_U4_WIN(db) + 2*L + PA_K_U4_PAR(db), because a page byte IS a channel
+                // pair -- and Q_slm is staged to match. A 16b block read cannot produce that stride-2
+                // gather, so read Kc as a DWORD surface instead: channels (win + 2L) and (win + 2L + 1)
+                // are ADJACENT halves, i.e. exactly one dword at dword-column win/2 + L, so a plain 32b
+                // read lands the pair in lane L and the parity is a half-select. Same reinterpretation
+                // the Q staging already does (transpose_32b at x = u4_win/2); the surface width/pitch
+                // stay in BYTES, only x is in dwords.
+                //
+                // 8 rows == one mb (DPAS_ROWS keys), 16 dwords == 64 B, both inside the plain read's
+                // limits. Per db this reads the window twice (once per parity) and uses half of each,
+                // which is 2x L1 traffic on a tile that is already in cache -- and still ~4x fewer
+                // instructions than the page path's nibble extract + zp subtract + scale multiply.
+                //
+                // This keeps the permutation confined to a dword half-select, so neither the tuned
+                // cache path above nor the Q_slm layout changes at all.
+                #pragma unroll
+                for (int mb = 0; mb < kq_key_blocks; ++mb) {
+                    uint kw[DPAS_ROWS];
+                    intel_sub_group_2d_block_read_32b_8r16x1c(
+                        (global void *)Kc_b2d, KcD_w_b2d, KcD_h, KcD_p,
+                        (int2)(KcD_x0_dw + PA_K_U4_WIN(db) / 2,
+                               key_base + mb * DPAS_ROWS - past_len),
+                        (private uint *)&kw[0]);
+                    #pragma unroll
+                    for (int key_offset = 0; key_offset < DPAS_ROWS; ++key_offset)
+                        k_raw[mb][key_offset] = PA_K_U4_PAR(db) ? (ushort)(kw[key_offset] >> 16)
+                                                               : (ushort)kw[key_offset];
+                }
+        #else
+                // f16 / i8 cache: no depth permutation, so this is the plain-SDPA [key, head] read
+                // verbatim, just pointed at Kc with a (key - past_len) row origin. Rows past q read as
+                // zero, which is what the `key < k` masking already assumes.
+                #pragma unroll
+                for (int kg = 0; kg < kq_sg_tile_keys / SUBGROUP_SIZE; ++kg) {
+                    intel_sub_group_2d_block_read_16b_16r16x1c(
+                        (global void *)Kc_b2d, KcD_w_b2d, KcD_h, KcD_p,
+                        (int2)(KcD_x0 + db * DPAS_K, key_base + kg * SUBGROUP_SIZE - past_len),
+                        (private ushort *)&k_raw[kg * (SUBGROUP_SIZE / DPAS_ROWS)]);
+                }
+        #endif
             }
     #endif
 #elif USE_2D_BLOCK_IO_K_I8
@@ -1685,9 +1871,23 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 const int rel_query = sg_i0_sv + r * 8 - sg_j0_kq;
                 const int alpha_qb = rel_query / SUBGROUP_SIZE;
                 const int alpha_lane0 = rel_query - alpha_qb * SUBGROUP_SIZE;
+                // alpha_qb is a RUNTIME value (sg_i0_sv and sg_j0_kq come from sg_ij), so reading
+                // alpha[alpha_qb] directly is a dynamically indexed private array -- and IGC answers
+                // that by putting the whole array in scratch. Measured on the llama-3.2-1b MIXED
+                // kernel: `private memory size 128` (== kq_query_blocks floats x 16 lanes x 4 B, which
+                // is the TPM=128 cliloader reports) plus 2 scratch stores and 2 scratch loads INSIDE
+                // the k0 loop, i.e. per iteration.
+                //
+                // kq_query_blocks is a compile-time constant, so pick the element with a select chain
+                // instead. Same value, no dynamic index, array stays in GRF. The subgroup broadcast's
+                // lane argument stays runtime -- that is an indirect register move, not scratch.
+                float alpha_sel = alpha[0];
+                #pragma unroll
+                for (int t = 1; t < kq_query_blocks; ++t)
+                    alpha_sel = (t == alpha_qb) ? alpha[t] : alpha_sel;
                 #pragma unroll
                 for (int rr = 0; rr < 8; ++rr)
-                    av[rr] = sub_group_broadcast(alpha[alpha_qb], alpha_lane0 + rr);
+                    av[rr] = sub_group_broadcast(alpha_sel, alpha_lane0 + rr);
                 #pragma unroll
                 for (int cd = 0; cd < sv_value_blocks; ++cd)
                     A_tile[r][cd] *= av;
@@ -1701,8 +1901,31 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             // consecutive cp blocks (see below). Unpaired, the def-use pattern is unchanged.
             uint vt[8 * sv_value_blocks];
         #endif
+#if IS_PAGED_ATTENTION && !IS_PREFILL && PA_CUR_KV_F16 && PA_CUR_KV_GRAN
+        // Keep the Vc collective read out of the cp-varying source branch. On BMG, both the
+        // transform and ordinary 2D reads produce wrong results when early unrolled cp copies take
+        // the cache arm and later copies take the Vc arm, although either arm alone is correct.
+        // Only the one tile crossing pa_key_end takes this workaround. Uniform Vc tiles retain the
+        // faster transform read below, and cache-only tiles do not touch Vc.
+        const bool v_mixed_source_tile = ((PA_CUR_KV_SIDE & 2) != 0) &&
+                         (k0 < pa_key_end) &&
+                         (k0 + sv_key_blocks * SUBGROUP_SIZE > pa_key_end);
+#endif
         #pragma unroll
         for (int cp = 0; cp < sv_key_blocks; ++cp) {
+#if IS_PAGED_ATTENTION && !IS_PREFILL
+    #if PA_CUR_KV_F16
+            // The V side needs its OWN cache/Vc decision: the K one is keyed on key_base, which comes
+            // from the KQ key split (sg_i0_kq), while here the keys come from cp -- a different mapping
+            // over the same k0 tile, so reusing the K flag would read the wrong source for most
+            // subgroups. One cp block is exactly one cache page and cp_key0 is page-aligned, so this
+            // test is exact for the same reason the K one is.
+            const bool v_from_cache = ((PA_CUR_KV_SIDE & 2) == 0) ||
+                                      ((k0 + cp * SUBGROUP_SIZE) < pa_key_end);
+    #else
+            const bool v_from_cache = true;
+    #endif
+#endif
             #if USE_2D_BLOCK_IO_V_I8
                 // One _8b_32r16x1c read covers a fixed 16 value columns, while a subgroup owns
                 // sv_sg_tile_values == sv_value_blocks * SUBGROUP_SIZE of them, so issue one read
@@ -1799,27 +2022,48 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 // The writer stores 1/scale, so the value read back is already the multiplier.
                 // Scale is folded into pA (lane=key, so no broadcast needed); zp stays on the V side.
                 // OOB keys get scale 0, which zeroes their contribution regardless of the V bytes.
-                const int vs_key_pa = k0 + cp * SUBGROUP_SIZE + lane;
-                const size_t vs_page_pa =
-                    (size_t)((vs_key_pa < k) ? block_indices[base_block_index +
-                                                             vs_key_pa / PAGED_ATTENTION_BLOCK_SIZE]
-                                             : 0u) *
-                        KV_HEADS_NUM * PAGED_ATTENTION_BLOCK_SIZE * ADJUSTED_V_HEAD_SIZE +
-                    (size_t)b0_kv * PAGED_ATTENTION_BLOCK_SIZE * ADJUSTED_V_HEAD_SIZE;
-                const global half *v_comp_pa =
-                    (const global half *)(V + vs_page_pa + PA_V_COMP_OFF);
-                const int vs_tok_pa = vs_key_pa % PAGED_ATTENTION_BLOCK_SIZE;
-                const half vs_c_pa = (vs_key_pa < k) ? v_comp_pa[vs_tok_pa] : (half)0.0f;
-                const half v_zp_c = (vs_key_pa < k) ? v_comp_pa[PAGED_ATTENTION_BLOCK_SIZE + vs_tok_pa]
-                                                    : (half)0.0f;
+                // Cache-only: a PA_CUR_KV_F16 tile reads V from Vc, which is plain f16 with no scale and
+                // no zero point, so neither the page comp fetch nor the pA fold may happen there.
+                // v_zp_c stays in scope (the dequant below references it) and is left at 0.
+                half v_zp_c = (half)0.0f;
+                if (v_from_cache) {
+                    const int vs_key_pa = k0 + cp * SUBGROUP_SIZE + lane;
+                    const size_t vs_page_pa =
+                        (size_t)((vs_key_pa < k) ? block_indices[base_block_index +
+                                                                 vs_key_pa / PAGED_ATTENTION_BLOCK_SIZE]
+                                                 : 0u) *
+                            KV_HEADS_NUM * PAGED_ATTENTION_BLOCK_SIZE * ADJUSTED_V_HEAD_SIZE +
+                        (size_t)b0_kv * PAGED_ATTENTION_BLOCK_SIZE * ADJUSTED_V_HEAD_SIZE;
+                    const global half *v_comp_pa =
+                        (const global half *)(V + vs_page_pa + PA_V_COMP_OFF);
+                    const int vs_tok_pa = vs_key_pa % PAGED_ATTENTION_BLOCK_SIZE;
+                    const half vs_c_pa = (vs_key_pa < k) ? v_comp_pa[vs_tok_pa] : (half)0.0f;
+                    v_zp_c = (vs_key_pa < k) ? v_comp_pa[PAGED_ATTENTION_BLOCK_SIZE + vs_tok_pa]
+                                             : (half)0.0f;
 
-                #pragma unroll
-                for (int r = 0; r < sv_score_blocks; ++r)
-                    pA[r] = as_short8(as_half8(pA[r]) * vs_c_pa);
+                    #pragma unroll
+                    for (int r = 0; r < sv_score_blocks; ++r)
+                        pA[r] = as_short8(as_half8(pA[r]) * vs_c_pa);
+                }
             #endif
 
             int8 vb[sv_value_blocks];
+#if IS_PAGED_ATTENTION && !IS_PREFILL && PA_CUR_KV_F16 && PA_CUR_KV_GRAN
+            if (v_mixed_source_tile) {
+                // Cache-side cps in the crossing tile read row zero and then overwrite vb below.
+                // Current-token cps use their real Vc row. Both coordinates are subgroup-uniform.
+                const int vc_row = max(k0 + cp * SUBGROUP_SIZE - past_len, 0);
+                #pragma unroll
+                for (int cd = 0; cd < sv_value_blocks; ++cd) {
+                    intel_sub_group_2d_block_read_16b_16r16x1c(
+                        (global void *)Vc_b2d, VcD_w_b2d, VcD_h, VcD_p,
+                        (int2)(VcD_x0 + sg_j0_sv + cd * SUBGROUP_SIZE, vc_row),
+                        (private ushort *)&vb[cd]);
+                }
+            }
+#endif
             #if IS_PAGED_ATTENTION && !IS_PREFILL
+            if (v_from_cache) {
                 // One cp block is exactly SUBGROUP_SIZE (== DPAS_K == PAGED_ATTENTION_BLOCK_SIZE)
                 // consecutive keys starting at k0 + cp * SUBGROUP_SIZE, and k0 is a multiple of
                 // kq_wg_tile_keys, so the block coincides with ONE cache page. The page lookup is
@@ -2097,6 +2341,23 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     }
                 }
                 #endif
+            }
+            #if PA_CUR_KV_F16
+                #if PA_CUR_KV_GRAN
+            else if (!v_mixed_source_tile) {
+                #else
+            else {
+                #endif
+                #pragma unroll
+                for (int cd = 0; cd < sv_value_blocks; ++cd) {
+                    intel_sub_group_2d_block_read_transform_16b_16r16x1c(
+                        (global void *)Vc_b2d, VcD_w_b2d, VcD_h, VcD_p,
+                        (int2)(VcD_x0 + sg_j0_sv + cd * SUBGROUP_SIZE,
+                               k0 + cp * SUBGROUP_SIZE - past_len),
+                        (private uint *)&vb[cd]);
+                }
+            }
+            #endif
             #elif USE_2D_BLOCK_IO_V_I8
                 // int8 V via 8-bit VNNI-transform read: one coalesced read gives a 32-key x
                 // 16-value tile (lane=value, each uint packs 4 consecutive keys as bytes). We
