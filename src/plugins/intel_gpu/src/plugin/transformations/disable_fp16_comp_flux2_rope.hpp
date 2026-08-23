@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <unordered_set>
-
 #include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov::intel_gpu {
@@ -21,9 +19,6 @@ class DisableFP16CompFlux2RoPEPattern : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("DisableFP16CompFlux2RoPEPattern");
     DisableFP16CompFlux2RoPEPattern();
-
-private:
-    std::unordered_set<ov::Node*> m_visited;
 };
 
 }  // namespace ov::intel_gpu

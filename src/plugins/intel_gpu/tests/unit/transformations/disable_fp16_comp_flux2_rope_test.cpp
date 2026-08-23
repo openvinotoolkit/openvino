@@ -55,7 +55,8 @@ void run_test(const std::shared_ptr<ov::Model>& model,
 
 // Builds a cos/sin table subgraph: Add(param, const) -> Cos|Sin, so the backward
 // walk has a non-trivial chain to mark (the Add), with Param/Const skipped.
-std::shared_ptr<ov::Node> make_table(bool use_sin, const std::string& prefix) {
+std::shared_ptr<ov::Node> make_table(bool use_sin) {
+    const std::string prefix = use_sin ? "sin" : "cos";
     auto param = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 8, 4, 16});
     auto bias = v0::Constant::create(ov::element::f32, ov::Shape{1, 8, 4, 16}, {0.5f});
     auto add = std::make_shared<v1::Add>(param, bias);
@@ -70,7 +71,7 @@ std::shared_ptr<ov::Node> make_table(bool use_sin, const std::string& prefix) {
 }
 
 // Full decomposed FLUX.2 RoPE application: y = x * cos + rotate_half(x) * sin.
-std::shared_ptr<ov::Model> create_rope_model(ov::ParameterVector& params_out) {
+std::shared_ptr<ov::Model> create_rope_model() {
     auto x = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 8, 4, 16});
 
     // rotate_half(x)
@@ -84,8 +85,8 @@ std::shared_ptr<ov::Model> create_rope_model(ov::ParameterVector& params_out) {
     auto x3_shape = v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 8, 4, 16});
     auto x3 = std::make_shared<v1::Reshape>(x2, x3_shape, false);
 
-    auto cos_tab = make_table(/*use_sin=*/false, "cos");
-    auto sin_tab = make_table(/*use_sin=*/true, "sin");
+    auto cos_tab = make_table(/*use_sin=*/false);
+    auto sin_tab = make_table(/*use_sin=*/true);
 
     auto y1 = std::make_shared<v1::Multiply>(x, cos_tab);
     y1->set_friendly_name("y1");
@@ -95,13 +96,13 @@ std::shared_ptr<ov::Model> create_rope_model(ov::ParameterVector& params_out) {
     result->set_friendly_name("result");
 
     // Collect every parameter feeding the graph.
-    params_out = {x};
+    ov::ParameterVector params = {x};
     for (const auto& tab : {cos_tab, sin_tab}) {
         auto p = ov::as_type_ptr<v0::Parameter>(tab->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(0));
-        if (p)
-            params_out.push_back(p);
+        if (p)  
+            params.push_back(p);
     }
-    return std::make_shared<ov::Model>(ov::OutputVector{result}, params_out);
+    return std::make_shared<ov::Model>(ov::OutputVector{result}, params);
 }
 
 }  // namespace
@@ -109,8 +110,7 @@ std::shared_ptr<ov::Model> create_rope_model(ov::ParameterVector& params_out) {
 // The cos/sin tables (and their producer chains) must be kept in FP32, while the
 // activation path (x, the multiplies, the add) must not be marked.
 TEST(TransformationTests, DisableFP16CompFlux2RoPE_Positive) {
-    ov::ParameterVector params;
-    auto model = create_rope_model(params);
+    auto model = create_rope_model();
     run_test(model,
              {{"cos", true},
               {"cos_src", true},

@@ -4,6 +4,8 @@
 
 #include "disable_fp16_comp_flux2_rope.hpp"
 
+#include <unordered_set>
+
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
@@ -26,18 +28,9 @@ namespace ov::intel_gpu {
 
 namespace {
 
-void mark_path_from_output(ov::Node* root, std::unordered_set<ov::Node*>& visited, const std::function<bool(ov::Node*)>& skip_node_predicate) {
-    if (!root || visited.count(root))
-        return;
-    auto visit_func = [](ov::Node* node) {
-        ov::disable_conversion(node->shared_from_this(), ov::element::f16);
-    };
-    op_util::visit_path(root, visited, visit_func, skip_node_predicate);
-}
-
 auto skip_node_predicate() {
     return [](ov::Node* node) -> bool {
-        return ov::is_type<v0::Constant>(node) || ov::is_type<v0::Parameter>(node) || ov::is_type<op_util::ShapeOfBase>(node);
+        return ov::is_type_any_of<v0::Constant, v0::Parameter, op_util::ShapeOfBase>(node);
     };
 }
 
@@ -87,9 +80,17 @@ DisableFP16CompFlux2RoPEPattern::DisableFP16CompFlux2RoPEPattern() {
         if (transformation_callback(m.get_match_root()))
             return false;
         const auto& pattern_map = m.get_pattern_value_map();
+        auto cos_node = pattern_map.at(t_cos).get_node();
+        auto sin_node = pattern_map.at(t_sin).get_node();
+        auto visit_func = [](ov::Node* node) {
+            ov::disable_conversion(node->shared_from_this(), ov::element::f16);
+        };
         const auto skip_pred = skip_node_predicate();
-        mark_path_from_output(pattern_map.at(t_cos).get_node(), m_visited, skip_pred);
-        mark_path_from_output(pattern_map.at(t_sin).get_node(), m_visited, skip_pred);
+        std::unordered_set<ov::Node*> visited;
+        if (!visited.count(cos_node))
+            op_util::visit_path(cos_node, visited, visit_func, skip_pred);
+        if (!visited.count(sin_node))
+            op_util::visit_path(sin_node, visited, visit_func, skip_pred);
         return false;
     };
 
