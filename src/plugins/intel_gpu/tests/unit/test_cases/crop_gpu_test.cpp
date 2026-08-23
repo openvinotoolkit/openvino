@@ -1492,6 +1492,93 @@ TEST(crop_gpu, basic_in1x176x52x52_crop_b_fs_yx_fsv16) {
     }
 }
 
+namespace {
+void run_static_ref_zeros_dirty_feature_padding_fsv16(format output_format,
+                                                      const padding& output_padding,
+                                                      size_t feature_pad_before,
+                                                      size_t feature_pad_after,
+                                                      size_t spatial_size) {
+    constexpr size_t input_feature_count = 170;
+    constexpr size_t output_feature_count = 85;
+    constexpr size_t feature_block_size = 16;
+    const bool is_5d = output_format == format::b_fs_zyx_fsv16;
+    const size_t depth_size = is_5d ? 2 : 1;
+    const size_t padded_feature_count = feature_pad_before + output_feature_count + feature_pad_after;
+    const size_t physical_feature_count = (padded_feature_count + feature_block_size - 1) / feature_block_size * feature_block_size;
+
+    auto& engine = get_test_engine();
+    const auto input_size =
+        is_5d ? tensor(1, input_feature_count, spatial_size, spatial_size, depth_size) : tensor(1, input_feature_count, spatial_size, spatial_size);
+    const layout input_layout{data_types::f16, output_format, input_size};
+    auto input = engine.allocate_memory(input_layout);
+    set_values(input, std::vector<ov::float16>(input_layout.get_linear_size(), ov::float16(1.0f)));
+
+    const auto output_size =
+        is_5d ? tensor(1, output_feature_count, spatial_size, spatial_size, depth_size) : tensor(1, output_feature_count, spatial_size, spatial_size);
+    const auto offsets = is_5d ? tensor(0, output_feature_count, 0, 0, 0) : tensor(0, output_feature_count, 0, 0);
+    auto crop_primitive = crop("crop", input_info("input"), output_size, offsets);
+    crop_primitive.output_paddings = {output_padding};
+    topology topology(cldnn::input_layout("input", input_layout), crop_primitive);
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"crop", {output_format, "generic_eltwise_ref", impl_types::ocl}},
+    }));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto crop_inst = network.get_primitive("crop");
+    ASSERT_NE(crop_inst->get_impl(), nullptr);
+    ASSERT_NE(network.get_primitive_info("crop").find("generic_eltwise_ref"), std::string::npos);
+
+    auto crop_output = crop_inst->output_memory_ptr();
+    ASSERT_NE(crop_output, nullptr);
+    ASSERT_EQ(crop_output->get_layout().get_linear_size(), physical_feature_count * depth_size * spatial_size * spatial_size);
+    set_values(crop_output,
+               std::vector<ov::float16>(crop_output->get_layout().get_linear_size(), ov::float16(7.0f)));
+
+    auto outputs = network.execute();
+    auto output = outputs.at("crop").get_memory();
+    ASSERT_TRUE(engine.is_the_same_buffer(*crop_output, *output));
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    const auto get_offset = [&](size_t physical_feature, size_t z, size_t y, size_t x) {
+        return (((physical_feature / feature_block_size * depth_size + z) * spatial_size + y) * spatial_size + x) * feature_block_size +
+               physical_feature % feature_block_size;
+    };
+
+    for (size_t z = 0; z < depth_size; ++z) {
+        for (size_t y = 0; y < spatial_size; ++y) {
+            for (size_t x = 0; x < spatial_size; ++x) {
+                for (size_t physical_feature = 0; physical_feature < physical_feature_count; ++physical_feature) {
+                    ov::float16 expected = ov::float16(7.0f);
+                    if (physical_feature >= feature_pad_before && physical_feature < feature_pad_before + output_feature_count) {
+                        expected = ov::float16(1.0f);
+                    } else if (physical_feature >= padded_feature_count) {
+                        expected = ov::float16(0.0f);
+                    }
+                    ASSERT_EQ(output_ptr[get_offset(physical_feature, z, y, x)], expected)
+                        << "physical feature " << physical_feature << ", z " << z << ", y " << y << ", x " << x;
+                }
+            }
+        }
+    }
+}
+}  // namespace
+
+TEST(crop_gpu, static_ref_zeros_dirty_feature_padding_fsv16) {
+    run_static_ref_zeros_dirty_feature_padding_fsv16(format::b_fs_yx_fsv16, padding{}, 0, 0, 80);
+}
+
+TEST(crop_gpu, static_ref_zeros_dirty_feature_padding_with_explicit_padding_fsv16) {
+    run_static_ref_zeros_dirty_feature_padding_fsv16(format::b_fs_yx_fsv16, padding({0, 1, 0, 0}, {0, 2, 0, 0}), 1, 2, 4);
+}
+
+TEST(crop_gpu, static_ref_zeros_dirty_feature_padding_zyx_fsv16) {
+    run_static_ref_zeros_dirty_feature_padding_fsv16(format::b_fs_zyx_fsv16, padding{}, 0, 0, 4);
+}
+
 TEST(crop_gpu, dynamic_in1x4x1x1_split) {
     auto& engine = get_test_engine();
 

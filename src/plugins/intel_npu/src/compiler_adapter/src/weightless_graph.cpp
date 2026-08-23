@@ -32,6 +32,8 @@ namespace {
 
 constexpr uint8_t MAIN_SCHEDULE_INDEX = 0;
 constexpr std::string_view WEIGHTS_IR_EXTENSION = ".bin";
+constexpr std::string_view WEIGHTS_ONNX_EXTENSION = ".data";
+constexpr std::string_view WEIGHTS_ONNX_PROXY_EXTENSION = ".data_proxy";
 constexpr std::string_view ONNX_EXTENSION = ".onnx";
 
 constexpr std::string_view CONSTANT_OVERFLOW_MESSAGE = "Overflow while computing byte size for constant: ";
@@ -136,12 +138,13 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> extract_consta
         if (ext == ONNX_EXTENSION) {
             const auto model = core->read_model(weightsPath, weightsPath, {});
             return get_all_constants_in_topological_order(model);
-        } else if (ext == WEIGHTS_IR_EXTENSION) {
+        } else if (ext == WEIGHTS_IR_EXTENSION || ext == WEIGHTS_ONNX_EXTENSION ||
+                   ext == WEIGHTS_ONNX_PROXY_EXTENSION) {
             return get_all_constants_memory_mapped(weightsPath, initNetworkMetadata);
         } else {
             OPENVINO_THROW("Invalid path to the weights: ",
                            weightsPath,
-                           ". A \".bin\" or \".onnx\" extension was expected.");
+                           ". A \".bin\", \".data\", \".data_proxy\" or \".onnx\" extension was expected.");
         }
     }
 
@@ -269,22 +272,12 @@ WeightlessGraph::WeightlessGraph(
             std::move(mainBlob),
             config,
             /* compatibilityDescriptor = */ std::nullopt,
-            blobIsPersistent,
-            /* calledFromWeightlessGraph = */ true),
+            blobIsPersistent),
       _initsGraphDesc(initGraphDesc),
       _initBlobs(std::move(initBlobs)),
       _initsMetadata(std::move(initMetadata)),
       _constants(extract_constants_map(std::move(weightsSource), _initsMetadata)),
-      _wgLogger("WeightlessGraph", config.get<LOG_LEVEL>()) {
-    _wgLogger.info("The current compiled model is a weightless one");
-
-    if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
-        _wgLogger.info("Graph initialize is deferred from the \"WeightlessGraph\" constructor");
-        return;
-    }
-
-    initialize(config);
-}
+      _wgLogger("WeightlessGraph", config.get<LOG_LEVEL>()) {}
 
 std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::export_blob(std::ostream& stream) const {
     if (_blobIsReleased) {
