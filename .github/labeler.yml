@@ -103,9 +103,6 @@
 - 'src/inference/**/*'
 - 'src/cmake/**/*'
 
-'category: GGUF FE':
-- 'src/frontends/gguf/**/*'
-
 'category: IR FE':
 - 'src/frontends/ir/**/*'
 
