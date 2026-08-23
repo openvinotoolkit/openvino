@@ -12,14 +12,14 @@
 #include <utility>
 #include <vector>
 
-#include "eltwise_shader_abi.hpp"
 #include "common_utils/gpu_kernel_lifecycle.hpp"
+#include "eltwise_shader_abi.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "openvino/core/except.hpp"
 #include "registry/implementation_map.hpp"
 #include "reorder_convert_spirv.hpp"
-#include "vulkan_shader_abi.hpp"
 #include "vulkan/vulkan_stream.hpp"
+#include "vulkan_shader_abi.hpp"
 
 namespace cldnn {
 namespace vulkan {
@@ -241,12 +241,8 @@ struct reorder_convert_impl : typed_primitive_impl<reorder> {
         arguments.outputs = {instance.output_memory_ptr(0)};
         arguments.intermediates = {metadata_memory};
         auto& vulkan_dispatch_stream = dynamic_cast<vulkan_stream&>(stream);
-        return vulkan_dispatch_stream.enqueue_kernel(*_kernels.front(),
-                                                     descriptor,
-                                                     arguments,
-                                                     specialization_constants,
-                                                     events,
-                                                     instance.needs_completion_event());
+        return vulkan_dispatch_stream
+            .enqueue_kernel(*_kernels.front(), descriptor, arguments, specialization_constants, events, instance.needs_completion_event());
     }
 
 private:
@@ -266,18 +262,16 @@ bool ReorderImplementationManager::validate_impl(const program_node& node) const
     const auto& input_layout = node.get_input_layout(0);
     const auto& output_layout = node.get_output_layout(0);
     if (!is_supported_data_type(input_layout.data_type) || !is_supported_data_type(output_layout.data_type) ||
-        !is_copy_compatible_format(input_layout.format) || !is_copy_compatible_format(output_layout.format) ||
-        static_cast<bool>(input_layout.data_padding) || static_cast<bool>(output_layout.data_padding)) {
+        !is_copy_compatible_format(input_layout.format) || !is_copy_compatible_format(output_layout.format) || static_cast<bool>(input_layout.data_padding) ||
+        static_cast<bool>(output_layout.data_padding)) {
         return false;
     }
 
     if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
-        return input_layout.is_dynamic() && output_layout.is_dynamic() &&
-               input_layout.get_partial_shape().same_scheme(output_layout.get_partial_shape());
+        return input_layout.is_dynamic() && output_layout.is_dynamic() && input_layout.get_partial_shape().same_scheme(output_layout.get_partial_shape());
     }
 
-    if (input_layout.get_linear_offset() != 0 || output_layout.get_linear_offset() != 0 ||
-        input_layout.count() != output_layout.count()) {
+    if (input_layout.get_linear_offset() != 0 || output_layout.get_linear_offset() != 0 || input_layout.count() != output_layout.count()) {
         return false;
     }
 

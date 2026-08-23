@@ -49,11 +49,7 @@ uint32_t make_fill_pattern(unsigned char pattern) {
 class vulkan_bad_alloc final : public std::bad_alloc {
 public:
     vulkan_bad_alloc(const char* operation, VkResult result) noexcept {
-        std::snprintf(_message,
-                      sizeof(_message),
-                      "[GPU][Vulkan] %s failed with VkResult %d",
-                      operation,
-                      static_cast<int>(result));
+        std::snprintf(_message, sizeof(_message), "[GPU][Vulkan] %s failed with VkResult %d", operation, static_cast<int>(result));
     }
 
     const char* what() const noexcept override {
@@ -431,7 +427,7 @@ vulkan_buffer_region::ptr import_vulkan_os_buffer(vulkan_engine& engine, intptr_
     const auto& capabilities = engine.get_vulkan_device_object()->get_external_memory_capabilities();
     OPENVINO_ASSERT(capabilities.supports(VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT), "[GPU][Vulkan] DMA-BUF import is unavailable for this device");
     const auto source_fd = static_cast<int>(external_handle);
-    struct stat source_status{};
+    struct stat source_status {};
     OPENVINO_ASSERT(fstat(source_fd, &source_status) == 0 && source_status.st_size > 0, "[GPU][Vulkan] Failed to query DMA-BUF allocation size");
     const auto allocation_size = static_cast<VkDeviceSize>(source_status.st_size);
     OPENVINO_ASSERT(allocation_size >= buffer_size, "[GPU][Vulkan] DMA-BUF allocation is smaller than the tensor: ", allocation_size, " < ", buffer_size);

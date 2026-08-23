@@ -182,19 +182,14 @@ constexpr uint32_t index(tensor_index tensor) {
 
 constexpr uint32_t all_infinities_mask = value(infinity_flag::negative) | value(infinity_flag::positive);
 
-constexpr bool post_op_fusion_has_enough_work(uint64_t element_count,
-                                              uint64_t max_work_group_size,
-                                              uint64_t subgroup_size) {
-    const auto subgroup_lane_granularity =
-        static_cast<uint64_t>(value(limit::post_op_fusion_subgroup_lane_granularity));
+constexpr bool post_op_fusion_has_enough_work(uint64_t element_count, uint64_t max_work_group_size, uint64_t subgroup_size) {
+    const auto subgroup_lane_granularity = static_cast<uint64_t>(value(limit::post_op_fusion_subgroup_lane_granularity));
     const auto stage_count = static_cast<uint64_t>(value(limit::post_op_fusion_stage_count));
     const auto normalized_subgroup_size = subgroup_size == 0 ? subgroup_lane_granularity : subgroup_size;
-    const auto subgroup_scale =
-        (normalized_subgroup_size - 1) / subgroup_lane_granularity + 1;
+    const auto subgroup_scale = (normalized_subgroup_size - 1) / subgroup_lane_granularity + 1;
     const auto normalized_work_group_size = max_work_group_size == 0 ? uint64_t{1} : max_work_group_size;
     if (subgroup_scale > std::numeric_limits<uint64_t>::max() / stage_count ||
-        normalized_work_group_size >
-            std::numeric_limits<uint64_t>::max() / (subgroup_scale * stage_count)) {
+        normalized_work_group_size > std::numeric_limits<uint64_t>::max() / (subgroup_scale * stage_count)) {
         return false;
     }
     return element_count >= normalized_work_group_size * subgroup_scale * stage_count;

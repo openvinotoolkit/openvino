@@ -2,18 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "custom_gpu_primitive_inst.h"
-#include "jitter.h"
-#include "intel_gpu/graph/serialization/map_serializer.hpp"
-
 #include <map>
-#include <sstream>
-#include <vector>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <utility>
+#include <vector>
+
+#include "custom_gpu_primitive_inst.h"
+#include "intel_gpu/graph/serialization/map_serializer.hpp"
+#include "jitter.h"
+#include "primitive_base.hpp"
 
 namespace kernel_selector {
 using jit_constants = kernel_selector::JitConstants;

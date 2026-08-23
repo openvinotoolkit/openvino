@@ -37,9 +37,7 @@ public:
                                                                         int context_device_id,
                                                                         int target_tile_id,
                                                                         bool initialize_devices);
-    static std::shared_ptr<engine> create_engine(engine_types engine_type,
-                                                 runtime_types runtime_type,
-                                                 const std::shared_ptr<device>& device);
+    static std::shared_ptr<engine> create_engine(engine_types engine_type, runtime_types runtime_type, const std::shared_ptr<device>& device);
 
     static std::string make_device_id(runtime_types runtime_type, const std::string& backend_device_id);
     static std::string make_public_device_id(runtime_types runtime_type, const std::string& backend_device_id);

@@ -60,10 +60,7 @@ std::shared_ptr<const vulkan_pipeline_state> vulkan_kernel::get_or_create_pipeli
                     push_constants_size,
                     " push-constant bytes, but the device limit is ",
                     _state->device_owner->get_max_push_constants_size());
-    return _state->device_owner->get_pipeline_cache().get_or_create_pipeline(_state->shader,
-                                                                             descriptor_count,
-                                                                             push_constants_size,
-                                                                             specialization_constants);
+    return _state->device_owner->get_pipeline_cache().get_or_create_pipeline(_state->shader, descriptor_count, push_constants_size, specialization_constants);
 }
 
 }  // namespace vulkan

@@ -23,8 +23,12 @@ public:
         return capabilities;
     }
     memory_capabilities get_mem_caps() const override { return _mem_caps; }
-    engine_types get_engine_type() const override { return engine_types::ze; }
-    runtime_types get_runtime_type() const override { return runtime_types::ze; }
+    engine_types get_engine_type() const override {
+        return engine_types::ze;
+    }
+    runtime_types get_runtime_type() const override {
+        return runtime_types::ze;
+    }
 
     void initialize() override;
     bool is_initialized() const override;

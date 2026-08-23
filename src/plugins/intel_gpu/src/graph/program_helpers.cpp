@@ -31,9 +31,8 @@ std::optional<size_t> program_helpers::get_in_place_input_idx(const program_node
         const auto& dependency = node.get_dependency(input_idx);
         const auto& users = dependency.get_users();
         const bool dead_after_node = users.size() == 1 && users.front() == &node;
-        if (!dead_after_node || dependency.is_dynamic() || dependency.is_input() || dependency.is_output() ||
-            dependency.is_constant() || dependency.can_be_optimized() || !dependency.can_share_buffer() ||
-            dependency.get_output_layouts().size() != 1) {
+        if (!dead_after_node || dependency.is_dynamic() || dependency.is_input() || dependency.is_output() || dependency.is_constant() ||
+            dependency.can_be_optimized() || !dependency.can_share_buffer() || dependency.get_output_layouts().size() != 1) {
             continue;
         }
 

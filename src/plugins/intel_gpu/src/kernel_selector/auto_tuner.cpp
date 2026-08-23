@@ -33,9 +33,9 @@
 #include <unistd.h>
 #include <climits>
 #include <dlfcn.h>
-#ifdef __linux__
-#include <link.h>
-#endif
+#    ifdef __linux__
+#        include <link.h>
+#    endif
 #endif
 
 #if __cplusplus > 201703L

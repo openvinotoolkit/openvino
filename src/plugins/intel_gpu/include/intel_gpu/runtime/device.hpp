@@ -4,13 +4,13 @@
 
 #pragma once
 
+#include <memory>
+
 #include "device_info.hpp"
 #include "engine_configuration.hpp"
 #include "gpu_backend_capabilities.hpp"
-#include "memory_caps.hpp"
 #include "layout.hpp"
-
-#include <memory>
+#include "memory_caps.hpp"
 
 namespace cldnn {
 

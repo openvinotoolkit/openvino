@@ -4,18 +4,18 @@
 
 #pragma once
 
-#include "program_node.h"
-#include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/graph/program.hpp"
-#include "data_inst.h"
-#include "eltwise_inst.h"
-#include "convolution_inst.h"
-
-#include <string>
-#include <vector>
-#include <utility>
 #include <iostream>
 #include <optional>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "convolution_inst.h"
+#include "data_inst.h"
+#include "eltwise_inst.h"
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "program_node.h"
 
 namespace cldnn {
 struct program_helpers {

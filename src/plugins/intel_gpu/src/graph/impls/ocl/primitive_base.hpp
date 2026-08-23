@@ -4,33 +4,32 @@
 
 #pragma once
 
+#include <list>
+#include <utility>
+#include <vector>
+
+#include "broadcast_inst.h"
+#include "common_utils/gpu_execution_plan.hpp"
+#include "common_utils/gpu_kernel_lifecycle.hpp"
+#include "common_utils/kernel_selector_helper.h"
+#include "concatenation_inst.h"
+#include "gather_inst.h"
 #include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/cl_kernel_data_serializer.hpp"
 #include "intel_gpu/graph/serialization/helpers.hpp"
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
-#include "intel_gpu/graph/program.hpp"
-
+#include "permute_inst.h"
 #include "primitive_inst.h"
-#include "common_utils/gpu_execution_plan.hpp"
-#include "common_utils/gpu_kernel_lifecycle.hpp"
-#include "common_utils/kernel_selector_helper.h"
 #include "register.hpp"
 #include "registry/implementation_map.hpp"
-#include "concatenation_inst.h"
-#include "gather_inst.h"
-#include "permute_inst.h"
-#include "strided_slice_inst.h"
-#include "broadcast_inst.h"
-#include "scatter_update_inst.h"
 #include "scatter_elements_update_inst.h"
 #include "scatter_nd_update_inst.h"
-
-#include <vector>
-#include <list>
-#include <utility>
+#include "scatter_update_inst.h"
+#include "strided_slice_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -61,9 +60,9 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     typed_primitive_impl_ocl() : _kernel_data({}), _execution_plan({}) {}
 
     typed_primitive_impl_ocl(const typed_primitive_impl_ocl<PType>& other)
-    : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name, other._is_dynamic)
-    , _kernel_data(other._kernel_data)
-    , _execution_plan(other._execution_plan) {
+        : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name, other._is_dynamic),
+          _kernel_data(other._kernel_data),
+          _execution_plan(other._execution_plan) {
         _kernels.clone_from(other._kernels, other.can_share_kernels);
         rebuild_execution_plan();
         this->can_reuse_memory = _kernel_data.can_reuse_memory;

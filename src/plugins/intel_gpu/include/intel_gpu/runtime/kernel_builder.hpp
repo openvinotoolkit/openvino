@@ -13,9 +13,9 @@ namespace cldnn {
 
 /// @brief Defines possible kernel formats
 enum class KernelFormat {
-    SOURCE,     ///< backend source code
-    NATIVE_BIN, ///< device-native executable binary
-    SPIRV,      ///< portable SPIR-V module
+    SOURCE,      ///< backend source code
+    NATIVE_BIN,  ///< device-native executable binary
+    SPIRV,       ///< portable SPIR-V module
 };
 
 /// @brief Immutable, non-owning description passed to a backend kernel builder.
@@ -42,11 +42,7 @@ public:
     /// Backends may override this adapter when metadata such as an explicit
     /// entry point is part of their module-creation contract.
     virtual void build_kernels(const kernel_artifact& artifact, std::vector<kernel::ptr>& out) const {
-        build_kernels(artifact.payload,
-                      artifact.payload_size,
-                      artifact.format,
-                      artifact.build_options,
-                      out);
+        build_kernels(artifact.payload, artifact.payload_size, artifact.format, artifact.build_options, out);
     }
 };
 

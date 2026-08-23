@@ -28,18 +28,14 @@ void vulkan_kernel_builder::build_kernels(const void* source,
     build_kernels(artifact, output);
 }
 
-void vulkan_kernel_builder::build_kernels(const kernel_artifact& artifact,
-                                          std::vector<kernel::ptr>& output) const {
-    OPENVINO_ASSERT(artifact.format == KernelFormat::SPIRV,
-                    "[GPU][Vulkan] Vulkan kernels must be tagged as SPIR-V artifacts");
-    OPENVINO_ASSERT(artifact.payload != nullptr && artifact.payload_size > 0,
-                    "[GPU][Vulkan] Cannot build an empty SPIR-V kernel");
+void vulkan_kernel_builder::build_kernels(const kernel_artifact& artifact, std::vector<kernel::ptr>& output) const {
+    OPENVINO_ASSERT(artifact.format == KernelFormat::SPIRV, "[GPU][Vulkan] Vulkan kernels must be tagged as SPIR-V artifacts");
+    OPENVINO_ASSERT(artifact.payload != nullptr && artifact.payload_size > 0, "[GPU][Vulkan] Cannot build an empty SPIR-V kernel");
 
     std::vector<uint8_t> binary(artifact.payload_size);
     std::memcpy(binary.data(), artifact.payload, artifact.payload_size);
-    output.push_back(std::make_shared<vulkan_kernel>(_engine.get_vulkan_device_object(),
-                                                     std::move(binary),
-                                                     artifact.entry_point.empty() ? "main" : artifact.entry_point));
+    output.push_back(
+        std::make_shared<vulkan_kernel>(_engine.get_vulkan_device_object(), std::move(binary), artifact.entry_point.empty() ? "main" : artifact.entry_point));
 }
 
 }  // namespace vulkan

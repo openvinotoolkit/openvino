@@ -2,68 +2,67 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <sstream>
-#include <exception>
-
-#include "intel_gpu/graph/kernel_impl_params.hpp"
-#include "intel_gpu/primitives/implementation_desc.hpp"
-#include "intel_gpu/runtime/stream.hpp"
-#include "program_helpers.h"
 #include "primitive_inst.h"
-#include "data_inst.h"
-#include "mutable_data_inst.h"
-#include "input_layout_inst.h"
+
+#include <algorithm>
+#include <exception>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <vector>
+
 #include "arg_max_min_inst.h"
-#include "fully_connected_inst.h"
+#include "assign_inst.h"
+#include "broadcast_inst.h"
+#include "condition_inst.h"
 #include "convolution_inst.h"
 #include "crop_inst.h"
-#include "pooling_inst.h"
-#include "permute_inst.h"
-#include "resample_inst.h"
-#include "non_max_suppression_inst.h"
-#include "reshape_inst.h"
-#include "reorder_inst.h"
-#include "eltwise_inst.h"
-#include "loop_inst.h"
+#include "data_inst.h"
 #include "deconvolution_inst.h"
-#include "shape_of_inst.h"
-#include "softmax_inst.h"
-#include "strided_slice_inst.h"
-#include "scatter_elements_update_inst.h"
-#include "scatter_nd_update_inst.h"
-#include "scatter_update_inst.h"
-#include "gemm_inst.h"
-#include "assign_inst.h"
-#include "read_value_inst.h"
-#include "kv_cache_inst.h"
-#include "condition_inst.h"
-#include "paged_attention_inst.h"
-#include "gather_inst.h"
-#include "broadcast_inst.h"
 #include "dynamic_quantize_inst.h"
-#include "swiglu_inst.h"
+#include "eltwise_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
-#include "lora_inst.h"
-#include "registry/implementation_manager.hpp"
-#include "registry/registry.hpp"
+#include "fully_connected_inst.h"
+#include "gather_inst.h"
+#include "gemm_inst.h"
 #include "graph_optimizer/prepare_buffer_fusing.h"
-
+#include "input_layout_inst.h"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/multi_tensor_variable_state.hpp"
 #include "intel_gpu/plugin/output_memory_block.hpp"
-#include "intel_gpu/graph/network.hpp"
-#include "intel_gpu/graph/serialization/set_serializer.hpp"
+#include "intel_gpu/primitives/implementation_desc.hpp"
+#include "intel_gpu/runtime/compilation_context.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
-#include "intel_gpu/runtime/compilation_context.hpp"
+#include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/tensor_accessor.hpp"
-
 #include "json_object.h"
-#include <string>
-#include <vector>
-#include <memory>
-#include <algorithm>
+#include "kv_cache_inst.h"
+#include "loop_inst.h"
+#include "lora_inst.h"
+#include "mutable_data_inst.h"
+#include "non_max_suppression_inst.h"
+#include "paged_attention_inst.h"
+#include "permute_inst.h"
+#include "pooling_inst.h"
+#include "program_helpers.h"
+#include "read_value_inst.h"
+#include "registry/implementation_manager.hpp"
+#include "registry/registry.hpp"
+#include "reorder_inst.h"
+#include "resample_inst.h"
+#include "reshape_inst.h"
+#include "scatter_elements_update_inst.h"
+#include "scatter_nd_update_inst.h"
+#include "scatter_update_inst.h"
+#include "shape_of_inst.h"
+#include "softmax_inst.h"
+#include "strided_slice_inst.h"
+#include "swiglu_inst.h"
 #include "utils.hpp"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -194,10 +193,7 @@ static memory::ptr get_memory_from_pool(engine& _engine,
     return pool.get_memory(layout, type, reset);
 }
 
-static memory::ptr get_in_place_output_memory(network& network,
-                                              const program_node& node,
-                                              size_t in_place_input_idx,
-                                              bool use_memory_pool) {
+static memory::ptr get_in_place_output_memory(network& network, const program_node& node, size_t in_place_input_idx, bool use_memory_pool) {
     const auto& input_node = node.get_dependency(in_place_input_idx);
     const auto& input_inst = network.get_primitive(input_node.id());
     OPENVINO_ASSERT(input_inst->outputs_allocated(), "[GPU] In-place input memory was not allocated for ", node.id());
@@ -209,9 +205,7 @@ static memory::ptr get_in_place_output_memory(network& network,
     }
 
     auto reduced_dependencies = node.get_memory_dependencies();
-    reduced_dependencies.erase(std::remove(reduced_dependencies.begin(),
-                                           reduced_dependencies.end(),
-                                           static_cast<uint32_t>(input_node.get_unique_id())),
+    reduced_dependencies.erase(std::remove(reduced_dependencies.begin(), reduced_dependencies.end(), static_cast<uint32_t>(input_node.get_unique_id())),
                                reduced_dependencies.end());
     const memory_restricter<uint32_t> restrictions(&reduced_dependencies);
     return get_memory_from_pool(engine,
@@ -714,12 +708,10 @@ void primitive_inst::realloc_intermediates() {
     GPU_DEBUG_CODE(std::string memalloc_info);
     for (size_t i = 0; i < buffer_descs.size(); ++i) {
         auto need_lockable = buffer_descs[i].m_lockable;
-        auto alloc_type = i < _intermediates_memory.size() && _intermediates_memory[i]
-                              ? _intermediates_memory[i]->get_allocation_type()
-                              : allocation_type::unknown;
+        auto alloc_type =
+            i < _intermediates_memory.size() && _intermediates_memory[i] ? _intermediates_memory[i]->get_allocation_type() : allocation_type::unknown;
         bool can_reuse = true;
-        can_reuse &= alloc_type != allocation_type::unknown &&
-                     buffer_descs[i].m_layout.bytes_count() <= _max_intermediates_memory_sizes[i];
+        can_reuse &= alloc_type != allocation_type::unknown && buffer_descs[i].m_layout.bytes_count() <= _max_intermediates_memory_sizes[i];
         can_reuse &= (need_lockable && alloc_type != cldnn::allocation_type::usm_device) ||
                         (!need_lockable && alloc_type != cldnn::allocation_type::usm_host);
 
@@ -2555,9 +2547,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
                         throw;
                     }
                     try {
-                        GPU_DEBUG_TRACE_DETAIL << node.id()
-                                               << ": retry output allocation by reusing a dead dense input"
-                                               << std::endl;
+                        GPU_DEBUG_TRACE_DETAIL << node.id() << ": retry output allocation by reusing a dead dense input" << std::endl;
                         _outputs.push_back(get_in_place_output_memory(_network, node, *in_place_input_idx, true));
                     } catch (...) {
                         std::rethrow_exception(allocation_error);
@@ -2669,8 +2659,7 @@ void primitive_inst::allocate_internal_buffers(bool reset) {
     for (size_t i = 0; i < buffer_descs.size(); ++i) {
         if (buffer_descs[i].m_layout.get_linear_size() == 0)
             continue;
-        intermediates_memory[i] =
-            allocate_internal_buffer(buffer_descs[i].m_layout, i, reset, buffer_descs[i].m_lockable, buffer_descs[i].m_shareable);
+        intermediates_memory[i] = allocate_internal_buffer(buffer_descs[i].m_layout, i, reset, buffer_descs[i].m_lockable, buffer_descs[i].m_shareable);
         _max_intermediates_memory_sizes[i] = intermediates_memory[i]->size();
     }
     _intermediates_memory = intermediates_memory;

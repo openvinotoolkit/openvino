@@ -444,9 +444,9 @@ const std::string& RemoteTensorImpl::get_device_name() const {
 }
 
 bool RemoteTensorImpl::is_shared() const noexcept {
-    return m_mem_type == TensorType::BT_BUF_SHARED || m_mem_type == TensorType::BT_BUF_SHARED_FROM_HANDLE ||
-           m_mem_type == TensorType::BT_CPU_VA || m_mem_type == TensorType::BT_USM_SHARED || m_mem_type == TensorType::BT_IMG_SHARED ||
-           m_mem_type == TensorType::BT_SURF_SHARED || m_mem_type == TensorType::BT_DX_BUF_SHARED;
+    return m_mem_type == TensorType::BT_BUF_SHARED || m_mem_type == TensorType::BT_BUF_SHARED_FROM_HANDLE || m_mem_type == TensorType::BT_CPU_VA ||
+           m_mem_type == TensorType::BT_USM_SHARED || m_mem_type == TensorType::BT_IMG_SHARED || m_mem_type == TensorType::BT_SURF_SHARED ||
+           m_mem_type == TensorType::BT_DX_BUF_SHARED;
 }
 
 bool RemoteTensorImpl::supports_caching() const {
@@ -547,8 +547,7 @@ void RemoteTensorImpl::update_properties() {
             };
             return;
         default:
-            OPENVINO_THROW("[GPU] Unsupported remote tensor memory type for a context without native interop properties: ",
-                           static_cast<int>(m_mem_type));
+            OPENVINO_THROW("[GPU] Unsupported remote tensor memory type for a context without native interop properties: ", static_cast<int>(m_mem_type));
         }
     }
 

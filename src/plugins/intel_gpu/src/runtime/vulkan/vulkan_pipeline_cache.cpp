@@ -124,9 +124,7 @@ persistent_cache_identity query_persistent_cache_identity(VkPhysicalDevice physi
     if (vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &extension_count, nullptr) == VK_SUCCESS) {
         std::vector<VkExtensionProperties> extensions(extension_count);
         const auto result =
-            extension_count == 0
-                ? VK_SUCCESS
-                : vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &extension_count, extensions.data());
+            extension_count == 0 ? VK_SUCCESS : vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &extension_count, extensions.data());
         if (result == VK_SUCCESS) {
             identity.portability_subset = static_cast<uint32_t>(std::any_of(extensions.begin(), extensions.end(), [](const auto& extension) {
                 return std::strcmp(extension.extensionName, "VK_KHR_portability_subset") == 0;
@@ -138,8 +136,8 @@ persistent_cache_identity query_persistent_cache_identity(VkPhysicalDevice physi
 
 std::vector<uint8_t> serialize_identity(const persistent_cache_identity& identity) {
     std::vector<uint8_t> bytes;
-    bytes.reserve(persistent_cache_magic.size() + sizeof(uint32_t) * 8 + sizeof(uint64_t) +
-                  identity.build_identity.size() + identity.conformance_version.size() + VK_UUID_SIZE * 3);
+    bytes.reserve(persistent_cache_magic.size() + sizeof(uint32_t) * 8 + sizeof(uint64_t) + identity.build_identity.size() +
+                  identity.conformance_version.size() + VK_UUID_SIZE * 3);
     append_bytes(bytes, persistent_cache_magic);
     append_value(bytes, persistent_cache_format_version);
     append_value(bytes, identity.vendor_id);
@@ -174,10 +172,9 @@ std::filesystem::path make_persistent_cache_path(const persistent_cache_identity
     }
 
     std::ostringstream filename;
-    filename << "openvino-vulkan-" << std::hex << identity.vendor_id << '-' << identity.device_id << '-'
-             << identity.driver_version << '-' << identity.build_identity_hash << '-'
-             << hex_bytes(identity.device_uuid) << '-'
-             << hex_bytes(identity.driver_uuid) << '-' << hex_bytes(identity.pipeline_cache_uuid) << ".bin";
+    filename << "openvino-vulkan-" << std::hex << identity.vendor_id << '-' << identity.device_id << '-' << identity.driver_version << '-'
+             << identity.build_identity_hash << '-' << hex_bytes(identity.device_uuid) << '-' << hex_bytes(identity.driver_uuid) << '-'
+             << hex_bytes(identity.pipeline_cache_uuid) << ".bin";
     return std::filesystem::path(directory) / filename.str();
 }
 
@@ -196,17 +193,13 @@ std::vector<uint8_t> read_cache_file(const std::filesystem::path& path) {
     return stream ? bytes : std::vector<uint8_t>{};
 }
 
-bool extract_cache_payload(const std::vector<uint8_t>& file,
-                           const std::vector<uint8_t>& expected_header,
-                           std::vector<uint8_t>& payload) {
-    if (file.size() < expected_header.size() + sizeof(uint64_t) ||
-        !std::equal(expected_header.begin(), expected_header.end(), file.begin())) {
+bool extract_cache_payload(const std::vector<uint8_t>& file, const std::vector<uint8_t>& expected_header, std::vector<uint8_t>& payload) {
+    if (file.size() < expected_header.size() + sizeof(uint64_t) || !std::equal(expected_header.begin(), expected_header.end(), file.begin())) {
         return false;
     }
     size_t offset = expected_header.size();
     uint64_t payload_size = 0;
-    if (!read_value(file, offset, payload_size) || payload_size > max_persistent_cache_payload_bytes ||
-        payload_size != file.size() - offset) {
+    if (!read_value(file, offset, payload_size) || payload_size > max_persistent_cache_payload_bytes || payload_size != file.size() - offset) {
         return false;
     }
     payload.assign(file.begin() + static_cast<std::ptrdiff_t>(offset), file.end());
@@ -220,9 +213,7 @@ bool vulkan_pipeline_cache::pipeline_key::operator<(const pipeline_key& other) c
            std::tie(other.shader_identity, other.descriptor_count, other.push_constants_size, other.specialization_constants);
 }
 
-vulkan_pipeline_cache::vulkan_pipeline_cache(VkDevice device, VkPhysicalDevice physical_device)
-    : _device(device),
-      _diagnostics_enabled(diagnostics_enabled()) {
+vulkan_pipeline_cache::vulkan_pipeline_cache(VkDevice device, VkPhysicalDevice physical_device) : _device(device), _diagnostics_enabled(diagnostics_enabled()) {
     OPENVINO_ASSERT(_device != VK_NULL_HANDLE && physical_device != VK_NULL_HANDLE,
                     "[GPU][Vulkan] Cannot create a pipeline cache for a null logical or physical device");
 
@@ -292,14 +283,11 @@ vulkan_pipeline_cache::~vulkan_pipeline_cache() {
     }
 
     if (_diagnostics_enabled) {
-        std::clog << "[GPU][Vulkan][Cache] shader_hits=" << _shader_hits << " shader_misses=" << _shader_misses
-                  << " pipeline_hits=" << _pipeline_hits << " pipeline_misses=" << _pipeline_misses
-                  << " shader_create_ms=" << static_cast<double>(_shader_creation_nanoseconds) / 1'000'000.0
+        std::clog << "[GPU][Vulkan][Cache] shader_hits=" << _shader_hits << " shader_misses=" << _shader_misses << " pipeline_hits=" << _pipeline_hits
+                  << " pipeline_misses=" << _pipeline_misses << " shader_create_ms=" << static_cast<double>(_shader_creation_nanoseconds) / 1'000'000.0
                   << " pipeline_create_ms=" << static_cast<double>(_pipeline_creation_nanoseconds) / 1'000'000.0
-                  << " persistent_enabled=" << _persistent_cache_enabled
-                  << " persistent_loaded_bytes=" << _persistent_cache_loaded_bytes
-                  << " persistent_saved_bytes=" << _persistent_cache_saved_bytes
-                  << " persistent_rejected=" << _persistent_cache_rejected
+                  << " persistent_enabled=" << _persistent_cache_enabled << " persistent_loaded_bytes=" << _persistent_cache_loaded_bytes
+                  << " persistent_saved_bytes=" << _persistent_cache_saved_bytes << " persistent_rejected=" << _persistent_cache_rejected
                   << " persistent_path=\"" << _persistent_cache_path.string() << "\"" << std::endl;
     }
 }
@@ -316,8 +304,7 @@ void vulkan_pipeline_cache::save_persistent_cache() noexcept {
             return;
         }
         std::vector<uint8_t> payload(payload_size);
-        if (vkGetPipelineCacheData(_device, _driver_cache, &payload_size, payload.data()) != VK_SUCCESS ||
-            payload_size > payload.size()) {
+        if (vkGetPipelineCacheData(_device, _driver_cache, &payload_size, payload.data()) != VK_SUCCESS || payload_size > payload.size()) {
             return;
         }
         payload.resize(payload_size);
@@ -326,8 +313,8 @@ void vulkan_pipeline_cache::save_persistent_cache() noexcept {
         append_value(file, static_cast<uint64_t>(payload.size()));
         file.insert(file.end(), payload.begin(), payload.end());
 
-        const auto unique_suffix = std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + '-' +
-                                   std::to_string(reinterpret_cast<uintptr_t>(this));
+        const auto unique_suffix =
+            std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + '-' + std::to_string(reinterpret_cast<uintptr_t>(this));
         auto temporary_path = _persistent_cache_path;
         temporary_path += ".tmp." + unique_suffix;
         {

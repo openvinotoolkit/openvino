@@ -24,11 +24,11 @@
 #include "openvino/util/pp.hpp"
 
 #if defined(__linux__) || defined(__APPLE__)
-# include <dlfcn.h>
+#    include <dlfcn.h>
 #endif
 
 #if defined(OPENVINO_GNU_LIBC) && !defined(__ANDROID__)
-#include <malloc.h>
+#    include <malloc.h>
 #endif
 
 

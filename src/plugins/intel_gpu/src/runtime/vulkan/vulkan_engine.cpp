@@ -130,8 +130,7 @@ memory_ptr vulkan_engine::create_subbuffer(const memory& memory, const layout& l
 }
 
 memory_ptr vulkan_engine::create_hostbuffer(void* address, size_t size, allocation_type type, const layout layout) {
-    OPENVINO_ASSERT(type == allocation_type::device_buffer,
-                    "[GPU][Vulkan] Host pointer import requires the backend-owned device buffer allocation type");
+    OPENVINO_ASSERT(type == allocation_type::device_buffer, "[GPU][Vulkan] Host pointer import requires the backend-owned device buffer allocation type");
     auto region = import_vulkan_host_buffer(*this, address, size, layout.bytes_count());
     return wrap_imported_buffer(*this, layout, std::move(region), address);
 }

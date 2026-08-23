@@ -219,7 +219,6 @@ void kernel_cache_frontend::prepare(const kernels_cache::kernels_code& pending,
             batches.push_back(batch);
         }
     }
-
 }
 
 }  // namespace cldnn

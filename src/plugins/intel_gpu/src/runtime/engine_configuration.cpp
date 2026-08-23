@@ -3,6 +3,7 @@
 //
 
 #include "intel_gpu/runtime/engine_configuration.hpp"
+
 #include "intel_gpu/runtime/runtime_backend_registry.hpp"
 
 namespace cldnn {

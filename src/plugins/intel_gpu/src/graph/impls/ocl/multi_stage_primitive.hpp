@@ -4,29 +4,28 @@
 
 #pragma once
 
+#include <list>
+#include <utility>
+#include <vector>
+
+#include "common_utils/gpu_kernel_lifecycle.hpp"
+#include "common_utils/kernel_selector_helper.h"
+#include "concatenation_inst.h"
+#include "gather_inst.h"
 #include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/cl_kernel_data_serializer.hpp"
 #include "intel_gpu/graph/serialization/helpers.hpp"
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
-#include "intel_gpu/graph/program.hpp"
-
 #include "kernel_selector_common.h"
 #include "openvino/core/except.hpp"
+#include "permute_inst.h"
 #include "primitive_inst.h"
-#include "common_utils/gpu_kernel_lifecycle.hpp"
-#include "common_utils/kernel_selector_helper.h"
 #include "register.hpp"
 #include "registry/implementation_map.hpp"
-#include "concatenation_inst.h"
-#include "gather_inst.h"
-#include "permute_inst.h"
-
-#include <vector>
-#include <list>
-#include <utility>
 
 namespace cldnn {
 namespace ocl {
@@ -106,9 +105,13 @@ protected:
                     return acc + kd.kernels.size();
                 });
             _kernels.initialize(kernels_cache, params);
-            OPENVINO_ASSERT(total_kernels == _kernels.size(), "[GPU] Mismatch between number of expected and actually compiled kernels.\n",
-                                                                      "Expected: ", total_kernels, "\n"
-                                                                      "Got: ", _kernels.size());
+            OPENVINO_ASSERT(total_kernels == _kernels.size(),
+                            "[GPU] Mismatch between number of expected and actually compiled kernels.\n",
+                            "Expected: ",
+                            total_kernels,
+                            "\n"
+                            "Got: ",
+                            _kernels.size());
             kernel_dump_info.set_batch_hash(std::to_string(kernels_cache.get_kernel_batch_hash(params)));
         }
         this->can_share_kernels = kernels_cache.get_kernels_reuse();

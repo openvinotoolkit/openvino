@@ -274,8 +274,7 @@ void vulkan_device::initialize() {
                     "[GPU][Vulkan] The common Eltwise byte-address ABI requires storageBuffer8BitAccess");
     OPENVINO_ASSERT(available_synchronization2.synchronization2 == VK_TRUE, "[GPU][Vulkan] Exact buffer hazard tracking requires Vulkan 1.3 synchronization2");
     OPENVINO_ASSERT(available_timeline.timelineSemaphore == VK_TRUE, "[GPU][Vulkan] Asynchronous batch completion requires Vulkan timeline semaphores");
-    OPENVINO_ASSERT(available_maintenance4.maintenance4 == VK_TRUE,
-                    "[GPU][Vulkan] Dynamic local work-group specialization requires Vulkan 1.3 maintenance4");
+    OPENVINO_ASSERT(available_maintenance4.maintenance4 == VK_TRUE, "[GPU][Vulkan] Dynamic local work-group specialization requires Vulkan 1.3 maintenance4");
 
     VkPhysicalDevice8BitStorageFeatures enabled_storage8{};
     enabled_storage8.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES;

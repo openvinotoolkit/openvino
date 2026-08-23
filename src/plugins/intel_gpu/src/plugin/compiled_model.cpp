@@ -2,20 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/runtime/iplugin.hpp"
-#include "openvino/runtime/intel_gpu/properties.hpp"
-#include "openvino/runtime/internal_properties.hpp"
-#include "openvino/runtime/plugin_config.hpp"
+#include "intel_gpu/plugin/compiled_model.hpp"
+
+#include <sys/types.h>
+
+#include <sstream>
 
 #include "cache/runtime_requirements.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
-#include "intel_gpu/runtime/itt.hpp"
-#include "intel_gpu/plugin/graph.hpp"
-#include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/async_infer_request.hpp"
-
-#include <sstream>
-#include <sys/types.h>
+#include "intel_gpu/plugin/graph.hpp"
+#include "intel_gpu/runtime/itt.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
+#include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/plugin_config.hpp"
 
 namespace ov::intel_gpu {
 

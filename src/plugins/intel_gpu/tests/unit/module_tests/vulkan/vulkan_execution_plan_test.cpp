@@ -52,19 +52,9 @@ event::ptr execute_foundation_stages(vulkan_stream& command_stream,
         {shader_abi::index(shader_abi::specialization_id::local_size_x), static_cast<uint32_t>(local_size)},
     };
 
-    auto local_completion = command_stream.enqueue_kernel(*lifecycle.at(0),
-                                                          local_stage,
-                                                          local_stage_data,
-                                                          local_specialization,
-                                                          {},
-                                                          true);
+    auto local_completion = command_stream.enqueue_kernel(*lifecycle.at(0), local_stage, local_stage_data, local_specialization, {}, true);
     std::vector<event::ptr> dependencies = {local_completion};
-    return command_stream.enqueue_kernel(*lifecycle.at(1),
-                                         output_stage,
-                                         output_stage_data,
-                                         output_specialization,
-                                         dependencies,
-                                         true);
+    return command_stream.enqueue_kernel(*lifecycle.at(1), output_stage, output_stage_data, output_specialization, dependencies, true);
 }
 
 }  // namespace
@@ -111,13 +101,7 @@ TEST(vulkan_execution_plan, two_stage_dispatch_uses_internal_and_local_memory) {
     output_stage_data.outputs = {output};
 
     auto& vulkan_command_stream = dynamic_cast<vulkan_stream&>(*command_stream);
-    auto completion = execute_foundation_stages(vulkan_command_stream,
-                                                lifecycle,
-                                                local_stage,
-                                                local_stage_data,
-                                                output_stage,
-                                                output_stage_data,
-                                                local_size);
+    auto completion = execute_foundation_stages(vulkan_command_stream, lifecycle, local_stage, local_stage_data, output_stage, output_stage_data, local_size);
     ASSERT_NE(completion, nullptr);
     completion->wait();
 
@@ -192,13 +176,8 @@ TEST(vulkan_execution_plan, transient_slots_survive_pool_reset_tuning_transition
         output_stage_data.outputs = {current.output};
 
         auto& vulkan_command_stream = dynamic_cast<vulkan_stream&>(*command_stream);
-        auto completion = execute_foundation_stages(vulkan_command_stream,
-                                                    lifecycle,
-                                                    local_stage,
-                                                    local_stage_data,
-                                                    output_stage,
-                                                    output_stage_data,
-                                                    local_size);
+        auto completion =
+            execute_foundation_stages(vulkan_command_stream, lifecycle, local_stage, local_stage_data, output_stage, output_stage_data, local_size);
         ASSERT_NE(completion, nullptr);
         completion->wait();
 

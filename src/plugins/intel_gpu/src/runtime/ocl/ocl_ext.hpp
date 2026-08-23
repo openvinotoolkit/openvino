@@ -14,7 +14,7 @@
 // The Khronos C++ wrapper includes Apple's framework header on macOS. Preload
 // the matching Khronos C header so its common guard keeps C and C++ API levels
 // consistent in combined-runtime builds.
-#include <CL/opencl.h>
+#    include <CL/opencl.h>
 #endif
 
 #ifdef OV_GPU_USE_OPENCL_HPP

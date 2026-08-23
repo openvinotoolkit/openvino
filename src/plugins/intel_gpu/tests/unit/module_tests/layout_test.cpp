@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
 #include "intel_gpu/runtime/layout.hpp"
+
 #include "common_utils/kernel_selector_helper.h"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;

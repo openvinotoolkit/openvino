@@ -6,8 +6,7 @@
 
 namespace ov::intel_gpu {
 
-const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& backend_implementation_registry::get(
-    std::type_index primitive_type) {
+const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& backend_implementation_registry::get(std::type_index primitive_type) {
 #ifdef OV_GPU_WITH_OPTIONAL_IMPLEMENTATION_PROVIDER
     return backend_extensions::get_compiled_implementations(primitive_type);
 #else

@@ -32,8 +32,7 @@ template <typename Primitive>
 std::vector<std::shared_ptr<cldnn::ImplementationManager>> compose_backend_implementations(
     std::initializer_list<std::shared_ptr<cldnn::ImplementationManager>> common_implementations) {
     const auto& backend_implementations = backend_implementation_registry::get(typeid(Primitive));
-    std::vector<std::shared_ptr<cldnn::ImplementationManager>> result(backend_implementations.begin(),
-                                                                      backend_implementations.end());
+    std::vector<std::shared_ptr<cldnn::ImplementationManager>> result(backend_implementations.begin(), backend_implementations.end());
     result.insert(result.end(), common_implementations.begin(), common_implementations.end());
     return result;
 }

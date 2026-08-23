@@ -21,7 +21,9 @@ inline std::ostream& operator<<(std::ostream& os, const engine_types& type) {
     case engine_types::ocl: os << "ocl"; break;
     case engine_types::sycl: os << "sycl"; break;
     case engine_types::ze: os << "ze"; break;
-    case engine_types::vulkan: os << "vulkan"; break;
+    case engine_types::vulkan:
+        os << "vulkan";
+        break;
     default: os << "unknown"; break;
     }
 
@@ -41,7 +43,9 @@ inline std::ostream& operator<<(std::ostream& os, const runtime_types& type) {
     case runtime_types::ocl: os << "ocl"; break;
     case runtime_types::sycl: os << "sycl"; break;
     case runtime_types::ze: os << "ze"; break;
-    case runtime_types::vulkan: os << "vulkan"; break;
+    case runtime_types::vulkan:
+        os << "vulkan";
+        break;
     default: os << "unknown"; break;
     }
 
@@ -63,7 +67,9 @@ inline std::ostream& operator<<(std::ostream& os, const backend_types& type) {
     case backend_types::hip: os << "hip"; break;
     case backend_types::ocl: os << "ocl"; break;
     case backend_types::ze: os << "ze"; break;
-    case backend_types::vulkan: os << "vulkan"; break;
+    case backend_types::vulkan:
+        os << "vulkan";
+        break;
     default: os << "unknown"; break;
     }
 

@@ -3,19 +3,20 @@
 //
 
 #include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/runtime/event.hpp"
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/stream.hpp"
-#include "intel_gpu/runtime/device_query.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
-#include "intel_gpu/runtime/runtime_backend_registry.hpp"
 
-#include <string>
-#include <vector>
+#include <algorithm>
 #include <memory>
 #include <set>
 #include <stdexcept>
-#include <algorithm>
+#include <string>
+#include <vector>
+
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/device_query.hpp"
+#include "intel_gpu/runtime/event.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/runtime_backend_registry.hpp"
+#include "intel_gpu/runtime/stream.hpp"
 
 #if defined(_WIN32)
 # ifndef NOMINMAX

@@ -43,7 +43,7 @@ std::vector<std::vector<ov::Shape>> numpyBroadcastPowerShapes = {
 };
 
 const std::vector<std::vector<ov::test::InputShape>> dynamicRepeatedShapes = {
-        {{{-1, 4, -1, -1}, {{1, 4, 8, 8}, {1, 4, 15, 7}, {3, 4, 1, 16}, {1, 4, 0, 16}, {1, 4, 8, 8}}}},
+    {{{-1, 4, -1, -1}, {{1, 4, 8, 8}, {1, 4, 15, 7}, {3, 4, 1, 16}, {1, 4, 0, 16}, {1, 4, 8, 8}}}},
 };
 
 std::vector<ov::test::ElementType> netPrecisions = {

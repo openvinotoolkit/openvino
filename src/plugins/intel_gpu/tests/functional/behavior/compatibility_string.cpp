@@ -66,9 +66,7 @@ TEST_F(CompatibilityStringGPU, OlderV1RequirementsRequireRecompile) {
     auto older_requirements = current.substr(0, runtime_pos) + current.substr(desc_pos);
     older_requirements.replace(0, std::string{"meta=2.0"}.size(), "meta=1.0");
 
-    EXPECT_EQ(core.get_property(ov::test::utils::DEVICE_GPU,
-                                ov::compatibility_check,
-                                {{ov::runtime_requirements.name(), older_requirements}}),
+    EXPECT_EQ(core.get_property(ov::test::utils::DEVICE_GPU, ov::compatibility_check, {{ov::runtime_requirements.name(), older_requirements}}),
               ov::CompatibilityCheck::UNSUPPORTED);
 }
 

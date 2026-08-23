@@ -158,9 +158,7 @@ std::map<std::string, std::shared_ptr<device>> runtime_backend_registry::query_d
     OPENVINO_THROW("[GPU] Unsupported engine/runtime types in device query");
 }
 
-std::shared_ptr<engine> runtime_backend_registry::create_engine(engine_types engine_type,
-                                                                runtime_types runtime_type,
-                                                                const std::shared_ptr<device>& device) {
+std::shared_ptr<engine> runtime_backend_registry::create_engine(engine_types engine_type, runtime_types runtime_type, const std::shared_ptr<device>& device) {
     switch (engine_type) {
 #ifdef OV_GPU_WITH_SYCL_RT
     case engine_types::sycl:

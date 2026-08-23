@@ -23,8 +23,8 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #ifdef OV_GPU_WITH_OCL_RT
-#include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
-#include "openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp"
+#    include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
+#    include "openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp"
 #endif
 
 namespace {
