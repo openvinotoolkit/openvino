@@ -72,10 +72,9 @@ ov::intel_cpu::FallbackUnsupportedLPConvToFP16::FallbackUnsupportedLPConvToFP16(
             return false;
         }
 
-        const bool zero_point_fused = conv->get_rt_info().count(
-            ov::intel_cpu::ExtractConvActivationZeroPoint::rt_info_key) > 0;
-        const bool has_subtract =
-            !zero_point_fused && ov::is_type<ov::op::v1::Subtract>(conv->get_input_node_ptr(0));
+        const bool zero_point_fused =
+            conv->get_rt_info().count(ov::intel_cpu::ExtractConvActivationZeroPoint::rt_info_key) > 0;
+        const bool has_subtract = !zero_point_fused && ov::is_type<ov::op::v1::Subtract>(conv->get_input_node_ptr(0));
         if (!has_subtract && fake_quantize->get_output_element_type(0) == conv->get_input_element_type(0)) {
             return false;
         }

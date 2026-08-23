@@ -39,7 +39,8 @@ namespace ov::intel_cpu {
 ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
                                                const MemoryArgs& memory,
                                                [[maybe_unused]] const ExecutorContext::CPtr& context)
-    : srcZeroPoint(attrs.inputZeroPoint), weightScale(attrs.dqScales) {
+    : srcZeroPoint(attrs.inputZeroPoint),
+      weightScale(attrs.dqScales) {
     aclTensorAttrs.hasLayoutTypeNHWC = memory.at(ARG_SRC)->getDescPtr()->hasLayoutType(LayoutType::nspc);
 
     MemoryDescPtr srcMemPtr = memory.at(ARG_SRC_0)->getDescPtr();

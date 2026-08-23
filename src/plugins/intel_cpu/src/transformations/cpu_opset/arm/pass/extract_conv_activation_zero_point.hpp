@@ -12,7 +12,7 @@ class ExtractConvActivationZeroPoint : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ExtractConvActivationZeroPoint");
     ExtractConvActivationZeroPoint();
-    
+
     static constexpr const char* rt_info_key = "activation_zero_point";
 };
 
