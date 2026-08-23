@@ -24,9 +24,9 @@ std::string gated_delta_net(GraphEmitter& e,
     auto& graph = *e.graph();
 
     const int64_t d_conv = cfg.ssm_conv_kernel;
-    const int64_t S = cfg.ssm_state_size;             // head_k_dim == head_v_dim
-    const int64_t H_k = cfg.ssm_group_count;          // num_k_heads
-    const int64_t H_v = cfg.ssm_dt_rank;              // num_v_heads
+    const int64_t S = cfg.ssm_state_size;     // head_k_dim == head_v_dim
+    const int64_t H_k = cfg.ssm_group_count;  // num_k_heads
+    const int64_t H_v = cfg.ssm_dt_rank;      // num_v_heads
     OPENVINO_ASSERT(H_v > 0 && cfg.ssm_inner_size % H_v == 0,
                     "[GGUF] Gated-DeltaNet: ssm_inner_size (",
                     cfg.ssm_inner_size,

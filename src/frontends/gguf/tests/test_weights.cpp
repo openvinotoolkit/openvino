@@ -203,8 +203,8 @@ TEST(GGUFWeightUnsupported, Q8KIsNotAStoredWeight) {
 // make_weight_node must dequantize those too. f4e2m1 nibble -> value mirrors kF4E2M1 in
 // test_ops.cpp; scale byte 127 -> e8m0 exponent 0 -> 2^0 = 1.0.
 TEST(GGUFWeight, Mxfp4TwoDim) {
-    static const float kF4E2M1[16] = {0.0f, 0.5f, 1.0f, 1.5f, 2.0f, 3.0f, 4.0f, 6.0f,
-                                      -0.0f, -0.5f, -1.0f, -1.5f, -2.0f, -3.0f, -4.0f, -6.0f};
+    static const float kF4E2M1[16] =
+        {0.0f, 0.5f, 1.0f, 1.5f, 2.0f, 3.0f, 4.0f, 6.0f, -0.0f, -0.5f, -1.0f, -1.5f, -2.0f, -3.0f, -4.0f, -6.0f};
     // 1 row, 1 block (32 cols): byte0 = e8m0 scale, bytes1..16 = nibble-packed codes (low nibble
     // = element i, high nibble = element i+16, for i in [0,16)).
     ov::Tensor data(ov::element::u8, ov::Shape{17});
