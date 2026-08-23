@@ -16,17 +16,10 @@ namespace cldnn {
 class engine;
 struct device;
 
-enum class runtime_interop_kind {
-    opencl,
-    level_zero,
-    native,
-};
-
 struct runtime_backend_descriptor {
     engine_types engine_type;
     runtime_types runtime_type;
     const char* name;
-    runtime_interop_kind interop_kind;
 };
 
 /// Describes the runtimes compiled into this Intel GPU plugin binary. Runtime

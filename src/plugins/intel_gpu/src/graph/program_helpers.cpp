@@ -13,12 +13,12 @@
 
 namespace cldnn {
 std::optional<size_t> program_helpers::get_in_place_input_idx(const program_node& node) {
-    const auto impl = node.get_selected_impl();
+    auto* const impl = node.get_selected_impl();
     if (impl == nullptr || !impl->can_reuse_memory || node.is_dynamic() || node.get_output_layouts().size() != 1) {
         return std::nullopt;
     }
 
-    const auto& output_layout = node.get_output_layout(false);
+    const auto& output_layout = node.get_output_layout();
     if (output_layout.is_dynamic() || output_layout.count() == 0) {
         return std::nullopt;
     }

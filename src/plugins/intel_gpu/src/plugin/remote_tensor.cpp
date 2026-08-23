@@ -509,7 +509,18 @@ std::shared_ptr<RemoteContextImpl> RemoteTensorImpl::get_context() const {
 
 void RemoteTensorImpl::update_properties() {
     OPENVINO_ASSERT(is_allocated(), "[GPU] Can't initialize RemoteTensorImpl parameters as memory was not allocated");
-    const auto params = m_memory_object->get_internal_params(m_context->get_engine().runtime_type());
+    const auto& context_properties = m_context->get_property();
+    const auto context_type_it = context_properties.find(ov::intel_gpu::context_type.name());
+    OPENVINO_ASSERT(context_type_it != context_properties.end(), "[GPU] Could not find context type in RemoteContext properties");
+
+    const auto context_type = context_type_it->second.as<ContextType>();
+    auto interop_runtime = m_context->get_engine().runtime_type();
+    if (context_type == ContextType::OCL || context_type == ContextType::VA_SHARED) {
+        interop_runtime = cldnn::runtime_types::ocl;
+    } else if (context_type == ContextType::ZE) {
+        interop_runtime = cldnn::runtime_types::ze;
+    }
+    const auto params = m_memory_object->get_internal_params(interop_runtime);
 
     if (params.mem_type == cldnn::shared_mem_type::shared_mem_empty) {
         switch (m_mem_type) {

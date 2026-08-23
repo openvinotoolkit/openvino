@@ -23,4 +23,10 @@ ov_gpu_add_backend_target(
         EXCLUDED_SOURCE_PATHS ${EXCLUDED_SOURCE_PATHS}
 )
 
+# The loader-free OpenCL::NewHeaders interface used by the graph points to the
+# vendored current headers, which already declare these extension traits.
+target_compile_definitions(${TARGET_NAME} PRIVATE
+    OV_GPU_OPENCL_HPP_HAS_UUID
+    OV_GPU_OPENCL_HPP_HAS_BUS_INFO)
+
 add_sycl_to_target(TARGET ${TARGET_NAME})

@@ -87,19 +87,26 @@ if(OV_GPU_RUNTIME_OCL_ENABLED OR OV_GPU_RUNTIME_ZE_ENABLED)
     ov_gpu_configure_runtime_target(openvino_intel_gpu_runtime_ocl_obj)
     ov_gpu_set_opencl_api_version_for(openvino_intel_gpu_runtime_ocl_obj)
     target_link_libraries(openvino_intel_gpu_runtime_ocl_obj PRIVATE OpenCL::OpenCL)
+    if(OV_GPU_RUNTIME_ZE_ENABLED)
+        target_link_libraries(openvino_intel_gpu_runtime_ocl_obj PRIVATE openvino::zero_loader)
+    endif()
     list(APPEND RUNTIME_BACKEND_OBJECTS $<TARGET_OBJECTS:openvino_intel_gpu_runtime_ocl_obj>)
 endif()
 
 if(OV_GPU_RUNTIME_ZE_ENABLED)
     add_library(openvino_intel_gpu_runtime_ze_obj OBJECT ${LIBRARY_SOURCES_ZE})
     ov_gpu_configure_runtime_target(openvino_intel_gpu_runtime_ze_obj)
-    target_link_libraries(openvino_intel_gpu_runtime_ze_obj PRIVATE openvino::zero_loader)
+    ov_gpu_set_opencl_api_version_for(openvino_intel_gpu_runtime_ze_obj)
+    target_link_libraries(openvino_intel_gpu_runtime_ze_obj PRIVATE
+        OpenCL::OpenCL
+        openvino::zero_loader)
     list(APPEND RUNTIME_BACKEND_OBJECTS $<TARGET_OBJECTS:openvino_intel_gpu_runtime_ze_obj>)
 endif()
 
 if(OV_GPU_RUNTIME_SYCL_ENABLED)
     add_library(openvino_intel_gpu_runtime_sycl_obj OBJECT ${LIBRARY_SOURCES_SYCL})
     ov_gpu_configure_runtime_target(openvino_intel_gpu_runtime_sycl_obj)
+    target_link_libraries(openvino_intel_gpu_runtime_sycl_obj PRIVATE LevelZero::Headers)
     add_sycl_to_target(TARGET openvino_intel_gpu_runtime_sycl_obj SOURCES ${LIBRARY_SOURCES_SYCL})
     list(APPEND RUNTIME_BACKEND_OBJECTS $<TARGET_OBJECTS:openvino_intel_gpu_runtime_sycl_obj>)
 endif()
@@ -119,16 +126,28 @@ endif()
 
 ov_gpu_configure_runtime_target(${TARGET_NAME})
 
+# Keep Vulkan backend-selection macros on the single composition source that
+# consumes them. Other runtime and GPU sources receive no Vulkan preprocessor state.
 if(OV_GPU_RUNTIME_VULKAN_ENABLED)
-    target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_OPTIONAL_RUNTIME_PROVIDER=1)
+    set_property(SOURCE runtime_backend_registry.cpp APPEND PROPERTY
+        COMPILE_DEFINITIONS OV_GPU_WITH_VULKAN_RT=1)
 endif()
 if(GPU_DEFAULT_RUNTIME STREQUAL "VULKAN")
-    target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_DEFAULT_OPTIONAL_RUNTIME=1)
+    set_property(SOURCE runtime_backend_registry.cpp APPEND PROPERTY
+        COMPILE_DEFINITIONS OV_GPU_DEFAULT_VULKAN_RT=1)
 endif()
 
 # Object-library link dependencies do not propagate when their objects are
 # collected into this static archive. Keep the backend loader after the archive
 # on final link lines so linkers using --as-needed retain the runtime dependency.
+if(OV_GPU_RUNTIME_ZE_ENABLED)
+    # The ZE runtime owns OpenCL interoperability code and calls the OpenCL
+    # loader even when ZE is the selected execution backend. Keep both loaders
+    # in the archive link interface so static-link ordering follows the runtime.
+    target_link_libraries(${TARGET_NAME} PRIVATE
+        OpenCL::OpenCL
+        openvino::zero_loader)
+endif()
 if(OV_GPU_RUNTIME_VULKAN_ENABLED)
     target_link_libraries(${TARGET_NAME} PRIVATE Vulkan::Vulkan)
 endif()

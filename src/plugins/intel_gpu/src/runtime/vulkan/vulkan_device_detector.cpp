@@ -87,7 +87,7 @@ std::map<std::string, device::ptr> vulkan_device_detector::get_available_devices
     }
 
     std::vector<device::ptr> devices;
-    for (const auto physical_device : physical_devices) {
+    for (const VkPhysicalDevice physical_device : physical_devices) {
         VkPhysicalDeviceProperties properties{};
         vkGetPhysicalDeviceProperties(physical_device, &properties);
         if (!is_supported_gpu(properties)) {

@@ -151,7 +151,7 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
                 dump_file << s;
         }
     }
-    const auto cache_extension = batch.language == kernel_language::SPIRV ? ".spv_cache" : ".cl_cache";
+    const auto* const cache_extension = batch.language == kernel_language::SPIRV ? ".spv_cache" : ".cl_cache";
     std::string cached_bin_name = get_cache_path() + std::to_string(batch.hash_value) + cache_extension;
     ///////////////////////////////////////////////////////////////////////////////////
     std::vector<uint8_t> precompiled;

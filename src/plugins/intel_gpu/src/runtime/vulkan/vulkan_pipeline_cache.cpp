@@ -128,9 +128,9 @@ persistent_cache_identity query_persistent_cache_identity(VkPhysicalDevice physi
                 ? VK_SUCCESS
                 : vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &extension_count, extensions.data());
         if (result == VK_SUCCESS) {
-            identity.portability_subset = std::any_of(extensions.begin(), extensions.end(), [](const auto& extension) {
+            identity.portability_subset = static_cast<uint32_t>(std::any_of(extensions.begin(), extensions.end(), [](const auto& extension) {
                 return std::strcmp(extension.extensionName, "VK_KHR_portability_subset") == 0;
-            });
+            }));
         }
     }
     return identity;

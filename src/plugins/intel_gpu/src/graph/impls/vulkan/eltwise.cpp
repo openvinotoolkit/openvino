@@ -672,7 +672,7 @@ std::optional<scalar_constant> get_scalar_constant(const program_node& node) {
     for (uint32_t input_index = shader_abi::index(shader_abi::tensor_index::input0); input_index <= shader_abi::index(shader_abi::tensor_index::input1);
          ++input_index) {
         const auto& dependency = node.get_dependency(input_index);
-        const auto& input_layout = dependency.get_output_layout(false);
+        const auto& input_layout = dependency.get_output_layout();
         if (!dependency.is_type<data>() || !dependency.is_constant() || input_layout.is_dynamic() || input_layout.count() != 1 ||
             input_layout.get_linear_offset() != 0 || !has_dense_storage(input_layout)) {
             continue;
@@ -1242,10 +1242,10 @@ uint32_t select_generic_elements_per_invocation(kernel_kind kind,
         if (!has_aligned_offset(output_layout, candidate)) {
             return false;
         }
-        return !(is_plain_dense_kernel(kind) || is_fused_kernel(kind) || is_fused_post_op_kernel(kind)) ||
+        const bool requires_aligned_inputs = is_plain_dense_kernel(kind) || is_fused_kernel(kind) || is_fused_post_op_kernel(kind);
+        return !requires_aligned_inputs ||
                (has_aligned_offset(input0_layout, candidate) && has_aligned_offset(input1_layout, candidate) &&
-                (fused_input_layout == nullptr || is_fused_broadcast_kernel(kind) ||
-                 has_aligned_offset(*fused_input_layout, candidate)));
+                (fused_input_layout == nullptr || is_fused_broadcast_kernel(kind) || has_aligned_offset(*fused_input_layout, candidate)));
     };
     constexpr std::array candidates{maximum_scalar_batch_width, balanced_scalar_batch_width, division_scalar_batch_width, scalar_batch_width};
     for (const auto candidate : candidates) {

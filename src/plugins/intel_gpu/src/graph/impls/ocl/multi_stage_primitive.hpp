@@ -40,12 +40,9 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
     gpu_kernel_lifecycle _kernels;
     mutable KernelDumpInfo kernel_dump_info;
 
-    multi_stage_primitive() : _kernels_data({}), _kernels({}) {}
+    multi_stage_primitive() : _kernels_data({}) {}
 
-    multi_stage_primitive(const multi_stage_primitive<PType>& other)
-        : typed_primitive_impl<PType>()
-        , _kernels_data(other._kernels_data)
-        , _kernels({}) {
+    multi_stage_primitive(const multi_stage_primitive<PType>& other) : typed_primitive_impl<PType>(), _kernels_data(other._kernels_data) {
         _kernels.clone_from(other._kernels, other.can_share_kernels);
         this->can_reuse_memory = other.can_reuse_memory;
         this->can_share_kernels = other.can_share_kernels;

@@ -76,7 +76,7 @@ bool transition_foreign_buffer_ownership(const std::shared_ptr<vulkan_device>& d
         return false;
     }
 
-    const auto device = device_owner->get_device();
+    const VkDevice device = device_owner->get_device();
     const auto queue_family = device_owner->get_compute_queue_family();
     std::lock_guard<std::mutex> lock(device_owner->get_queue_mutex());
 

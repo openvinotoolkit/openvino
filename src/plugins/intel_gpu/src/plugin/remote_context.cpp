@@ -9,7 +9,6 @@
 #include "intel_gpu/plugin/usm_host_tensor.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
-#include "intel_gpu/runtime/runtime_backend_registry.hpp"
 #include <memory>
 
 namespace ov::intel_gpu {
@@ -24,16 +23,14 @@ Type extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
     return res.as<Type>();
 }
 
-ContextType get_context_type(cldnn::runtime_types runtime_type) {
-    switch (cldnn::runtime_backend_registry::get(runtime_type).interop_kind) {
-    case cldnn::runtime_interop_kind::opencl:
+ContextType get_context_type(cldnn::backend_types backend_type) {
+    switch (backend_type) {
+    case cldnn::backend_types::ocl:
         return ContextType::OCL;
-    case cldnn::runtime_interop_kind::level_zero:
+    case cldnn::backend_types::ze:
         return ContextType::ZE;
-    case cldnn::runtime_interop_kind::native:
-        return ContextType::NATIVE;
     default:
-        OPENVINO_THROW("[GPU] Selected runtime does not define a public remote context type");
+        return ContextType::NATIVE;
     }
 }
 
@@ -43,13 +40,6 @@ RemoteContextImpl::RemoteContextImpl(const std::string& device_name, std::vector
     : m_device_name(device_name) {
     OPENVINO_ASSERT(devices.size() == 1, "[GPU] Currently context can be created for single device only");
     m_device = devices.front();
-    m_type = get_context_type(m_device->get_runtime_type());
-    const auto &info = m_device->get_info();
-    if (m_type == ContextType::ZE && info.supports_leo) {
-        m_type = ContextType::OCL;
-        GPU_DEBUG_INFO << "Enabled Level Zero - OpenCL interoperability for "
-            << m_device_name << " (" << info.dev_name << ")" << std::endl;
-    }
 
     if (initialize_ctx) {
         initialize();
@@ -60,10 +50,10 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
     gpu_handle_param context_id = nullptr;
     int ctx_device_id = 0;
     int target_tile_id = -1;
-    m_type = get_context_type(cldnn::get_default_runtime_type());
 
     if (!params.empty()) {
         auto ctx_type = extract_object(params, ov::intel_gpu::context_type);
+        m_has_explicit_context_type = true;
 
         if (ctx_type == ov::intel_gpu::ContextType::OCL) {
             context_id = extract_object(params, ov::intel_gpu::ocl_context);
@@ -299,6 +289,15 @@ void RemoteContextImpl::initialize() {
 
         m_device->initialize();  // Initialize associated device before use
         m_engine = cldnn::engine::create(m_device->get_engine_type(), m_device->get_runtime_type(), m_device);
+
+        if (!m_has_explicit_context_type) {
+            m_type = get_context_type(m_engine->backend_type());
+            const auto& info = m_device->get_info();
+            if (m_device->get_runtime_type() == cldnn::runtime_types::ze && m_type == ContextType::ZE && info.supports_leo) {
+                m_type = ContextType::OCL;
+                GPU_DEBUG_INFO << "Enabled Level Zero - OpenCL interoperability for " << m_device_name << " (" << info.dev_name << ")" << std::endl;
+            }
+        }
 
         init_properties();
 

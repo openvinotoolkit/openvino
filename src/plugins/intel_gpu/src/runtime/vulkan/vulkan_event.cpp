@@ -166,7 +166,7 @@ bool vulkan_submission_state::is_complete() {
 }
 
 bool vulkan_submission_state::belongs_to(VkDevice device, VkQueue queue) const {
-    const auto submission_device = _timeline != nullptr ? _timeline->device() : _device;
+    const VkDevice submission_device = _timeline != nullptr ? _timeline->device() : _device;
     return submission_device == device && _queue == queue;
 }
 

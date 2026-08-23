@@ -542,7 +542,7 @@ struct vulkan_stream::resource_state {
         VkSubmitInfo submit_info{};
         submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         const auto completion_value = active_submission_uses_timeline ? next_completion_value++ : 0;
-        const auto completion_semaphore = completion_timeline->semaphore();
+        const VkSemaphore completion_semaphore = completion_timeline->semaphore();
         VkTimelineSemaphoreSubmitInfo timeline_info{};
         timeline_info.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
         timeline_info.signalSemaphoreValueCount = 1;
@@ -612,7 +612,7 @@ struct vulkan_stream::resource_state {
             return cached->second;
         }
         if (descriptor_cache.size() < max_cached_descriptor_sets) {
-            const auto descriptor_set = allocate_cached_descriptor_set(pipeline.descriptor_set_layout, descriptor_count);
+            const VkDescriptorSet descriptor_set = allocate_cached_descriptor_set(pipeline.descriptor_set_layout, descriptor_count);
             update_descriptor_set(descriptor_set, prepared.buffer_infos);
             descriptor_cache.emplace(std::move(key), descriptor_set);
             descriptor_is_immutable = true;
@@ -1559,7 +1559,7 @@ event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
         _resources->get_or_begin_batch(checked_u32(prepared.buffer_infos.size(), "descriptor count"), local_invocations, mutable_descriptor_required);
 
     bool descriptor_is_immutable = false;
-    const auto descriptor_set = _resources->get_or_update_descriptor_set(resources, *pipeline, prepared, descriptor_is_immutable);
+    const VkDescriptorSet descriptor_set = _resources->get_or_update_descriptor_set(resources, *pipeline, prepared, descriptor_is_immutable);
     _resources->record_buffer_hazards(resources, prepared, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
     if (_resources->direct_recording_is_active()) {
         _resources->record_immediate_dispatch(resources, *pipeline, descriptor_set, prepared, group_counts);

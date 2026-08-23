@@ -86,7 +86,6 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     custom_gpu_primitive_impl(const custom_gpu_primitive_impl& other)
     : parent(other.get_kernel_name())
     , cl_kernel(other.cl_kernel)
-    , _kernels({})
     , size_expr_map(other.size_expr_map) {
         _kernels.clone_from(other._kernels, other.can_share_kernels);
     }

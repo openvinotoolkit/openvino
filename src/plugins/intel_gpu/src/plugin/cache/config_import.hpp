@@ -16,7 +16,7 @@ public:
     explicit ConfigImportAttributeVisitor(cldnn::BinaryInputBuffer& input) : ov::IstreamAttributeVisitor<cldnn::BinaryInputBuffer>(input), m_input(input) {}
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
-        if (auto option_adapter = ov::as_type<ov::AttributeAdapter<ov::ConfigOptionBase*>>(&adapter)) {
+        if (auto* option_adapter = ov::as_type<ov::AttributeAdapter<ov::ConfigOptionBase*>>(&adapter)) {
             auto* option = option_adapter->get();
             if (option->get_visibility() == ov::OptionVisibility::RELEASE || option->get_visibility() == ov::OptionVisibility::RELEASE_INTERNAL) {
                 std::string serialized_value;

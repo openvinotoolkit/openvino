@@ -50,6 +50,9 @@ endif()
 if(OV_GPU_RUNTIME_ZE_ENABLED)
     # Onednn needs ZE headers
     list(APPEND COMMON_LINK_LIBRARIES openvino::zero_loader)
+elseif(OV_GPU_RUNTIME_SYCL_ENABLED)
+    # oneDNN SYCL adapters expose Level Zero interoperability types in headers.
+    list(APPEND COMMON_LINK_LIBRARIES LevelZero::Headers)
 endif()
 
 define_property(GLOBAL PROPERTY EXTRA_LINK_LIBRARIES_GLOBAL BRIEF_DOCS "All link libs" FULL_DOCS "Link libraries collection from all backends")

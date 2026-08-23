@@ -58,12 +58,11 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
 
     mutable KernelDumpInfo kernel_dump_info;
 
-    typed_primitive_impl_ocl() : _kernel_data({}), _kernels({}), _execution_plan({}) {}
+    typed_primitive_impl_ocl() : _kernel_data({}), _execution_plan({}) {}
 
     typed_primitive_impl_ocl(const typed_primitive_impl_ocl<PType>& other)
     : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name, other._is_dynamic)
     , _kernel_data(other._kernel_data)
-    , _kernels({})
     , _execution_plan(other._execution_plan) {
         _kernels.clone_from(other._kernels, other.can_share_kernels);
         rebuild_execution_plan();
