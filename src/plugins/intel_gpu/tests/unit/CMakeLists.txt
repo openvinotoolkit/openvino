@@ -86,6 +86,23 @@ if (NOT OV_GPU_RUNTIME_VULKAN_ENABLED)
     endforeach()
 endif()
 
+# These sources validate implementations shared by OCL, ZE, and SYCL and
+# directly use the OCL-owned kernel-selector helper. Keep them out of a
+# Vulkan-only test binary instead of compiling the OCL helper into that build.
+set(SOURCES_WITH_OCL_IMPLS
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_cases/gated_delta_net.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_cases/pa_kv_reorder_gpu_test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_cases/paged_attention_gpu_test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_cases/paged_attention_token_type_gpu_test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_cases/vlsdpa_gpu_test.cpp"
+)
+
+if(NOT TARGET openvino_intel_gpu_ocl_obj)
+    foreach(SOURCE_FILE IN LISTS SOURCES_WITH_OCL_IMPLS)
+        list(REMOVE_ITEM SOURCES_MAIN ${SOURCE_FILE})
+    endforeach()
+endif()
+
 if (NOT ENABLE_ONEDNN_FOR_GPU)
     set(EXCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn/")
     foreach (SOURCE_FILE IN LISTS SOURCES_MAIN)
@@ -110,6 +127,9 @@ set(SOURCES_ALL
 
 add_executable(${TARGET_NAME} ${SOURCES_ALL})
 target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER="")
+if(TARGET openvino_intel_gpu_ocl_obj)
+    target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_OCL_IMPLS=1)
+endif()
 
 ov_set_threading_interface_for(${TARGET_NAME})
 ov_gpu_set_runtime_interface_for(${TARGET_NAME})

@@ -3,6 +3,11 @@
 //
 
 #pragma once
+#include <memory>
+#include <optional>
+#include <string>
+#include <vector>
+
 #include "common_utils/kernels_cache.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/graph/network.hpp"
@@ -13,8 +18,13 @@
 #include "intel_gpu/graph/serialization/polymorphic_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
+#include "intel_gpu/graph/serialization/weights_reorder_params.hpp"
+#include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
+#include "intel_gpu/primitives/quantize.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/lru_cache.hpp"
@@ -26,13 +36,6 @@
 #include "openvino/core/partial_shape.hpp"
 #include "primitive_type.h"
 #include "program_node.h"
-
-// TODO: add generic interface for weights_reorder_params and get rid of this dependency
-#include <memory>
-#include <string>
-#include <vector>
-
-#include "common_utils/kernel_selector_helper.h"
 
 namespace cldnn {
 
@@ -66,6 +69,9 @@ struct primitive_impl {
     virtual void set_arguments(primitive_inst& instance, kernel_arguments_data& args) = 0;
     virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
     const std::string& get_kernel_name() const { return _kernel_name; }
+    virtual std::optional<format> get_preferred_input_format(size_t input_index) const {
+        return std::nullopt;
+    }
 
     // class typed_primitive_gpu_impl override this with return false;
     virtual bool is_cpu() const { return true; }

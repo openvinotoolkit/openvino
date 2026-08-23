@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "common_utils/shape_utils.hpp"
 #include "intel_gpu/graph/fused_primitive_desc.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/graph/program.hpp"
@@ -218,68 +219,11 @@ inline kernel_selector::eltwise_mode convert_to_eltwise_mode(eltwise_mode mode) 
     }
 }
 
-inline ov::PartialShape extend_shape_to_rank_from_end(ov::PartialShape pshape, size_t rank = 4) {
-    if (pshape.size() >= rank) {
-        return pshape;
-    }
-    pshape.insert(pshape.end(), rank - pshape.size(), ov::Dimension(1));
-    return pshape;
-}
-
-inline ov::PartialShape extend_shape_to_rank_from_begin(const ov::PartialShape& pshape, size_t rank = 4) {
-    if (pshape.size() >= rank) {
-        return pshape;
-    }
-    ov::PartialShape extended_pshape(std::vector<int64_t>(rank - pshape.size(), 1));
-    extended_pshape.insert(extended_pshape.end(), pshape.begin(), pshape.end());
-    return extended_pshape;
-}
-
 inline bool broadcastable(const ov::PartialShape& first_pshape,
                           const ov::PartialShape& second_pshape,
                           bool use_new_shape_infer,
                           bool first_to_second_only = false) {
-    if (first_pshape.is_dynamic() || second_pshape.is_dynamic()) {
-        return false;
-    }
-    if (first_to_second_only) {
-        if (first_pshape.size() > second_pshape.size()) {
-            return false;
-        }
-    } else {
-        if (first_pshape.size() != second_pshape.size() && use_new_shape_infer) {
-            return false;
-        }
-    }
-    size_t min_size = std::min(first_pshape.size(), second_pshape.size());
-
-    for (size_t i = 0; i < min_size; ++i) {
-        if (first_pshape[i] != 1 && (first_to_second_only || second_pshape[i] != 1) && first_pshape[i] != second_pshape[i]) {
-            return false;
-        }
-    }
-    return true;
-}
-
-inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& impl_params) {
-    auto updated_impl_params = impl_params;
-    bool use_new_shape_infer = impl_params.prog->is_new_shape_infer();
-
-    for (auto& fd : updated_impl_params.fused_desc) {
-        if (fd.is_type<eltwise>() && fd.total_num_deps == 2 && fd.has_outer_dep()) {
-            if (updated_impl_params.input_layouts.size() > size_t(fd.outer_dep_start_idx)) {
-                const auto& out_pshape = updated_impl_params.output_layouts[0].get_partial_shape();
-
-                auto& dep_layout = updated_impl_params.input_layouts[fd.outer_dep_start_idx];
-                const auto& dep_shape = dep_layout.get_partial_shape();
-
-                if (!broadcastable(dep_shape, out_pshape, use_new_shape_infer)) {
-                    dep_layout.set_partial_shape(extend_shape_to_rank_from_begin(dep_shape, out_pshape.size()));
-                }
-            }
-        }
-    }
-    return updated_impl_params;
+    return shapes_are_broadcastable(first_pshape, second_pshape, use_new_shape_infer, first_to_second_only);
 }
 
 inline std::shared_ptr<WeightsReorderParams> create_weights_reorder_params(const kernel_selector::WeightsReorderParams& params) {

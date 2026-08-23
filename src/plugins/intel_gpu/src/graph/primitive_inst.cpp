@@ -11,9 +11,11 @@
 #include <string>
 #include <vector>
 
+#include "activation_inst.h"
 #include "arg_max_min_inst.h"
 #include "assign_inst.h"
 #include "broadcast_inst.h"
+#include "common_utils/shape_utils.hpp"
 #include "condition_inst.h"
 #include "convolution_inst.h"
 #include "crop_inst.h"

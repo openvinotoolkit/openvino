@@ -4,7 +4,10 @@
 
 set(TARGET_NAME "openvino_intel_gpu_graph")
 
-if(ENABLE_CM_FOR_GPU)
+set(OV_GPU_CM_IMPLS_ENABLED OFF)
+if(ENABLE_CM_FOR_GPU AND
+   (OV_GPU_RUNTIME_OCL_ENABLED OR OV_GPU_RUNTIME_ZE_ENABLED OR OV_GPU_RUNTIME_SYCL_ENABLED))
+    set(OV_GPU_CM_IMPLS_ENABLED ON)
     add_compile_definitions(ENABLE_CM_FOR_GPU)
 endif()
 
@@ -128,7 +131,7 @@ add_test(NAME TestOCLCodePreprocessing
          WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 foreach(IMPL_TYPE IN LISTS AVAILABLE_IMPL_TYPES)
-    if(IMPL_TYPE STREQUAL "cm" AND NOT ENABLE_CM_FOR_GPU)
+    if(IMPL_TYPE STREQUAL "cm" AND NOT OV_GPU_CM_IMPLS_ENABLED)
         continue()
     endif()
     add_subdirectory(impls/${IMPL_TYPE})

@@ -11,7 +11,6 @@
 #include "broadcast_inst.h"
 #include "common_utils/gpu_execution_plan.hpp"
 #include "common_utils/gpu_kernel_lifecycle.hpp"
-#include "common_utils/kernel_selector_helper.h"
 #include "concatenation_inst.h"
 #include "gather_inst.h"
 #include "intel_gpu/graph/network.hpp"
@@ -22,6 +21,7 @@
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
+#include "kernel_selector_helper.h"
 #include "permute_inst.h"
 #include "primitive_inst.h"
 #include "register.hpp"
@@ -78,6 +78,14 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     }
 
     bool is_cpu() const override { return false; }
+
+    std::optional<format> get_preferred_input_format(size_t input_index) const override {
+        const auto* params = dynamic_cast<const kernel_selector::base_params*>(_kernel_data.params.get());
+        if (params == nullptr || input_index >= params->inputs.size()) {
+            return std::nullopt;
+        }
+        return from_data_layout(params->inputs[input_index].GetLayout());
+    }
 
     // Cache blob format:
     //     [ kernel_selector::kernel_data ]

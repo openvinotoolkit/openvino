@@ -11,7 +11,7 @@
 #include <utility>
 #include <vector>
 
-#include "common_utils/kernel_selector_helper.h"
+#include "impls/ocl/kernel_selector_helper.h"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/runtime/file_util.hpp"

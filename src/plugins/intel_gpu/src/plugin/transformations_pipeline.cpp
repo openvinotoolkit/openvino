@@ -427,14 +427,38 @@ static bool should_decompose_sdpa_for_memory_size(size_t max_size,
     return false;
 }
 
+#ifdef OV_GPU_WITH_OCL_IMPLS
 namespace cldnn {
 extern bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config);
 extern bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config);
 }  // namespace cldnn
+#endif
 
 namespace ov::intel_gpu {
 
 namespace {
+#ifdef OV_GPU_WITH_OCL_IMPLS
+bool supports_ocl_backend_features(const cldnn::engine& engine) {
+    return engine.backend_type() == cldnn::backend_types::ocl || engine.backend_type() == cldnn::backend_types::ze;
+}
+#endif
+
+bool supports_cm_jit(cldnn::engine& engine, const cldnn::ExecutionConfig& config) {
+#ifdef OV_GPU_WITH_OCL_IMPLS
+    return supports_ocl_backend_features(engine) && cldnn::check_cm_jit_support(engine, config);
+#else
+    return false;
+#endif
+}
+
+bool supports_microkernels(cldnn::engine& engine, const cldnn::ExecutionConfig& config) {
+#ifdef OV_GPU_WITH_OCL_IMPLS
+    return supports_ocl_backend_features(engine) && cldnn::query_microkernels_supported(engine, config);
+#else
+    return false;
+#endif
+}
+
 // Detect whether the model contains a linear-attention (Mamba2 / Gated DeltaNet)
 // block. Such hybrid-attention models have an SSM gated output whose activation
 // has a wide dynamic range and is unstable under per-token INT8 dyn-quant; we
@@ -604,7 +628,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     }
 #endif
 
-                    if (!check_cm_jit_support(engine, config)) {
+                    if (!supports_cm_jit(engine, config)) {
                         OPENVINO_WARN("SDPAToVLSDPA optimization for QWenVL model unavailable: IGC version incompatible with CM kernel. "
                                     "Update IGC and ensure clangFEWrapper for CM is available (check CM_FE_DIR or LD_LIBRARY_PATH on Linux).");
                         return true;
@@ -811,7 +835,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         }
 #endif
 
-                        if (!check_cm_jit_support(engine, config)) {
+                        if (!supports_cm_jit(engine, config)) {
                             OPENVINO_WARN("XAttention optimization unavailable: IGC version incompatible with CM kernel. "
                                         "Update IGC and ensure clangFEWrapper for CM is available (check CM_FE_DIR or LD_LIBRARY_PATH on Linux).");
                             return false;
@@ -964,7 +988,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
              }
 
             const auto head_size = static_cast<uint64_t>(query_ps[query_ps.size() - 1].get_length());
-            if (device_info.supports_immad && cldnn::query_microkernels_supported(m_context->get_engine(), config) && head_size <= 256)
+            if (device_info.supports_immad && supports_microkernels(m_context->get_engine(), config) && head_size <= 256)
                 return true;
 
             // - Head size should be 128 for any model type; or should be in the range of 64 to 512 for stateful LLMs because of performance
@@ -1016,7 +1040,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     const auto &lstm_seq = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(node);
 
                     auto &engine = m_context->get_engine();
-                    if (!cldnn::check_cm_jit_support(engine, config) || engine.get_device_info().arch != cldnn::gpu_arch::xe2 || !config.get_use_cm()) {
+                    if (!supports_cm_jit(engine, config) || engine.get_device_info().arch != cldnn::gpu_arch::xe2 || !config.get_use_cm()) {
                         return false;
                     }
 

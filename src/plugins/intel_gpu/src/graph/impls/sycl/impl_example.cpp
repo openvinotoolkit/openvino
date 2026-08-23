@@ -6,8 +6,8 @@
 
 #include <memory>
 
-#include "common_utils/kernel_selector_helper.h"
 #include "fully_connected_inst.h"
+#include "impls/ocl/kernel_selector_helper.h"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "ocl/ocl_event.hpp"
 #include "ocl/sycl_engine.hpp"

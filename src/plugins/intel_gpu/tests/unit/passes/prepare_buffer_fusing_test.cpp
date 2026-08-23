@@ -13,7 +13,9 @@
 #include "fully_connected_inst.h"
 #include "gather_inst.h"
 #include "gemm_inst.h"
-#include "graph/common_utils/kernel_selector_helper.h"
+#ifdef OV_GPU_WITH_OCL_IMPLS
+#    include "graph/impls/ocl/kernel_selector_helper.h"
+#endif
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/primitives/implementation_desc.hpp"
@@ -3119,10 +3121,14 @@ TEST(prepare_buffer_fusing, in_place_crop_split_axis1_three_crops_eltwise_consum
 TEST(prepare_buffer_fusing, in_place_crop_split_axis1_three_crops_vlsdpa_consumer) {
     auto& engine = get_test_engine();
 
+#ifdef OV_GPU_WITH_OCL_IMPLS
     ExecutionConfig check_config = get_test_default_config(engine);
     if (!engine.get_device_info().supports_immad ||
         !cldnn::check_cm_jit_support(engine, check_config))
         GTEST_SKIP() << "vl_sdpa CM kernel not available on this device";
+#else
+    GTEST_SKIP() << "vl_sdpa CM implementation is not compiled";
+#endif
 
     tests::random_generator rg(GET_SUITE_NAME);
 

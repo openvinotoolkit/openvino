@@ -147,6 +147,15 @@ ov_add_plugin(NAME ${TARGET_NAME}
               # Libraries not created via ov_add_plugin call ov_apply_clang_tidy() directly.
               ADD_CLANG_TIDY)
 
+# The transformation pipeline contains a few feature probes for the Intel
+# kernel implementations shared by OCL, ZE, and SYCL. Keep their availability
+# macro local to that composition source so Vulkan-only plugin code has no OCL
+# symbol dependency.
+if(OV_GPU_RUNTIME_OCL_ENABLED OR OV_GPU_RUNTIME_ZE_ENABLED OR OV_GPU_RUNTIME_SYCL_ENABLED)
+    set_property(SOURCE src/plugin/transformations_pipeline.cpp APPEND PROPERTY
+        COMPILE_DEFINITIONS OV_GPU_WITH_OCL_IMPLS=1)
+endif()
+
 set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "openvino_gpu_plugin")
 
 target_compile_options(${TARGET_NAME} PRIVATE

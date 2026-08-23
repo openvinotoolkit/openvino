@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+#include <memory>
+#include <stdexcept>
+#include <vector>
 
-#include "pass_manager.h"
-#include "program_node.h"
+#include "activation_inst.h"
+#include "assign_inst.h"
 #include "convert_color_inst.h"
 #include "fully_connected_inst.h"
 #include "gated_mlp_inst.h"
-#include "assign_inst.h"
 #include "mvn_inst.h"
-
-#include <algorithm>
-#include <memory>
-#include <vector>
-#include <stdexcept>
+#include "pass_manager.h"
+#include "program_node.h"
 
 using namespace cldnn;
 

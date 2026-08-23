@@ -100,7 +100,9 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
 
                 // Need to update input format in case of fusing weights constant with transpose
                 format input_fmt = prev_node.get_input_layout().format;
-                updated_input_layout.format = from_weights_layout(to_weights_layout(input_fmt, false));
+                auto input_layout_for_weights = updated_input_layout;
+                input_layout_for_weights.format = input_fmt;
+                updated_input_layout.format = input_layout_for_weights.convert_to_weights_layout(false).format;
 
                 weights_reorder_params->set_input_layout(updated_input_layout);
 #ifdef ENABLE_ONEDNN_FOR_GPU

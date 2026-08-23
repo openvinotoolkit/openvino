@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "common_utils/gpu_kernel_lifecycle.hpp"
-#include "common_utils/kernel_selector_helper.h"
 #include "concatenation_inst.h"
 #include "gather_inst.h"
 #include "intel_gpu/graph/network.hpp"
@@ -21,6 +20,7 @@
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "kernel_selector_common.h"
+#include "kernel_selector_helper.h"
 #include "openvino/core/except.hpp"
 #include "permute_inst.h"
 #include "primitive_inst.h"
