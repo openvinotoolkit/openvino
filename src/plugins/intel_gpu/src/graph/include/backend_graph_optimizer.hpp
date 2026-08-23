@@ -15,7 +15,8 @@ class backend_graph_optimizer {
 public:
     virtual ~backend_graph_optimizer() = default;
 
-    /// Returns true when the backend owns the primitive-fusion stage.
+    /// Returns true when the backend owns the implementation-specific fusion stage.
+    /// Backend-neutral graph cleanup is always performed before this extension point.
     virtual bool optimize_fusions(program& program) const {
         return false;
     }
