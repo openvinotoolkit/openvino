@@ -218,6 +218,10 @@ jobs:
         run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/developer_package.tar.gz
         working-directory: ${{ env.DEVELOPER_PACKAGE_DIR }}/developer_package
 
+      # Samples are built by the main build (ENABLE_SAMPLES=ON); install their binaries into the package
+      - name: Install OpenVINO samples
+        run: cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -DCOMPONENT=samples_bin -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+
       - name: Pack Artifacts
         run: |
           pushd ${{ env.INSTALL_DIR }}
