@@ -24,6 +24,7 @@
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
+#include "intel_gpu/runtime/runtime_backend_registry.hpp"
 #include "low_precision/add.hpp"
 #include "low_precision/concat.hpp"
 #include "low_precision/convolution.hpp"
@@ -802,7 +803,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                           convert_input_output_precision,
                                                           store_original_precision_as_rt_attribute);
 
-        if (m_context->get_engine().get_device()->get_backend_capabilities().operations.direct_divide) {
+        const auto& operation_lowering = cldnn::runtime_backend_registry::get(m_context->get_engine().runtime_type()).operation_lowering;
+        if (operation_lowering.direct_divide) {
             // Keep Divide intact when the selected backend executes it directly
             // and does not require the Power-based decomposition.
             pass_config->disable<ov::pass::ConvertDivide>();

@@ -146,7 +146,6 @@ void vulkan_device::initialize_info() {
     _info.supports_counter_based_events = false;
     _info.supports_leo = false;
 
-    _backend_capabilities.operations = {true, true};
     _backend_capabilities.kernel_cache.artifact = gpu_cached_kernel_artifact::spirv;
 
     if (_info.supports_khr_subgroups) {

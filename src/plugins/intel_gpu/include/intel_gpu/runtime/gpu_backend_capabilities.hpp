@@ -8,11 +8,6 @@
 
 namespace cldnn {
 
-struct gpu_operation_capabilities {
-    bool direct_divide = false;
-    bool direct_binary_power = false;
-};
-
 enum class gpu_cached_kernel_artifact : uint8_t {
     native_device_binary,
     spirv,
@@ -27,7 +22,6 @@ struct gpu_kernel_cache_capabilities {
 
 /// Backend-neutral capabilities selected once during device initialization.
 struct gpu_backend_capabilities {
-    gpu_operation_capabilities operations;
     gpu_kernel_cache_capabilities kernel_cache;
 };
 

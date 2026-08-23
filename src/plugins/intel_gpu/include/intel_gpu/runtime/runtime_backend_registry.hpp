@@ -16,10 +16,16 @@ namespace cldnn {
 class engine;
 struct device;
 
+struct gpu_operation_lowering_capabilities {
+    bool direct_divide = false;
+    bool direct_binary_power = false;
+};
+
 struct runtime_backend_descriptor {
     engine_types engine_type;
     runtime_types runtime_type;
     const char* name;
+    gpu_operation_lowering_capabilities operation_lowering;
 };
 
 /// Describes the runtimes compiled into this Intel GPU plugin binary. Runtime
