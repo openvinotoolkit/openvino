@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
@@ -21,11 +22,24 @@ struct gpu_operation_lowering_capabilities {
     bool direct_binary_power = false;
 };
 
+enum class gpu_cached_kernel_artifact : uint8_t {
+    native_device_binary,
+    spirv,
+};
+
+struct gpu_kernel_cache_policy {
+    static constexpr uint32_t current_artifact_schema_version = 1;
+
+    gpu_cached_kernel_artifact artifact = gpu_cached_kernel_artifact::native_device_binary;
+    uint32_t artifact_schema_version = current_artifact_schema_version;
+};
+
 struct runtime_backend_descriptor {
     engine_types engine_type;
     runtime_types runtime_type;
     const char* name;
     gpu_operation_lowering_capabilities operation_lowering;
+    gpu_kernel_cache_policy kernel_cache;
 };
 
 /// Describes the runtimes compiled into this Intel GPU plugin binary. Runtime

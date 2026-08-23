@@ -44,10 +44,6 @@ public:
         return _info;
     }
 
-    const gpu_backend_capabilities& get_backend_capabilities() const noexcept override {
-        return _backend_capabilities;
-    }
-
     memory_capabilities get_mem_caps() const override {
         return _mem_caps;
     }
@@ -115,7 +111,6 @@ private:
     uint32_t _max_memory_allocation_count = 1;
     VkDeviceSize _non_coherent_atom_size = 1;
     vulkan_external_memory_capabilities _external_memory_capabilities{};
-    gpu_backend_capabilities _backend_capabilities{};
 
     device_info _info{};
     memory_capabilities _mem_caps{{allocation_type::device_buffer}};

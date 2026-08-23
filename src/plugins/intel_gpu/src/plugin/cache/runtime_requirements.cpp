@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "intel_gpu/runtime/device.hpp"
+#include "intel_gpu/runtime/runtime_backend_registry.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/version.hpp"
 
@@ -14,7 +15,8 @@ namespace ov::intel_gpu::cache {
 
 std::string build_runtime_requirements(const cldnn::device& device) {
     const auto& info = device.get_info();
-    const auto artifact = device.get_backend_capabilities().kernel_cache.artifact;
+    const auto& kernel_cache = cldnn::runtime_backend_registry::get(device.get_runtime_type()).kernel_cache;
+    const auto artifact = kernel_cache.artifact;
     const char* artifact_name = nullptr;
     switch (artifact) {
     case cldnn::gpu_cached_kernel_artifact::native_device_binary:
@@ -31,7 +33,7 @@ std::string build_runtime_requirements(const cldnn::device& device) {
     descriptor << ";ov=" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH;
     descriptor << ";runtime=" << device.get_runtime_type();
     descriptor << ";kernel_artifact=" << artifact_name;
-    descriptor << ";artifact_schema=" << device.get_backend_capabilities().kernel_cache.artifact_schema_version;
+    descriptor << ";artifact_schema=" << kernel_cache.artifact_schema_version;
     descriptor << ";desc=[driver=" << info.driver_version;
     descriptor << ";ip=" << info.gfx_ver.major << "." << static_cast<uint32_t>(info.gfx_ver.minor) << ".";
     descriptor << static_cast<uint32_t>(info.gfx_ver.revision);

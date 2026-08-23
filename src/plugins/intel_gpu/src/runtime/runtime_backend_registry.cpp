@@ -71,19 +71,21 @@ const std::vector<runtime_backend_descriptor>& runtime_backend_registry::compile
     static const std::vector<runtime_backend_descriptor> backends = [] {
         std::vector<runtime_backend_descriptor> result;
 #ifdef OV_GPU_WITH_OCL_RT
-        result.push_back({engine_types::ocl, runtime_types::ocl, "ocl", {}});
+        result.push_back({engine_types::ocl, runtime_types::ocl, "ocl", {}, {}});
 #endif
 #ifdef OV_GPU_WITH_ZE_RT
-        result.push_back({engine_types::ze, runtime_types::ze, "ze", {}});
+        result.push_back({engine_types::ze, runtime_types::ze, "ze", {}, {}});
 #endif
 #ifdef OV_GPU_WITH_SYCL_RT
-        result.push_back({engine_types::sycl, runtime_types::sycl, "sycl", {}});
+        result.push_back({engine_types::sycl, runtime_types::sycl, "sycl", {}, {}});
 #endif
 #ifdef OV_GPU_WITH_VULKAN_RT
         gpu_operation_lowering_capabilities vulkan_operation_lowering;
         vulkan_operation_lowering.direct_divide = true;
         vulkan_operation_lowering.direct_binary_power = true;
-        result.push_back({engine_types::vulkan, runtime_types::vulkan, "vulkan", vulkan_operation_lowering});
+        gpu_kernel_cache_policy vulkan_kernel_cache;
+        vulkan_kernel_cache.artifact = gpu_cached_kernel_artifact::spirv;
+        result.push_back({engine_types::vulkan, runtime_types::vulkan, "vulkan", vulkan_operation_lowering, vulkan_kernel_cache});
 #endif
         const auto default_runtime = compiled_default_runtime_type();
         const auto default_it = std::find_if(result.begin(), result.end(), [default_runtime](const auto& backend) {

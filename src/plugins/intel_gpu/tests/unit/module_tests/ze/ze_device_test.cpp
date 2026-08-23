@@ -34,10 +34,6 @@ public:
     const device_info& get_info() const override {
         return _info;
     }
-    const gpu_backend_capabilities& get_backend_capabilities() const noexcept override {
-        static const gpu_backend_capabilities capabilities;
-        return capabilities;
-    }
     memory_capabilities get_mem_caps() const override {
         return _mem_caps;
     }

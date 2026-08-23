@@ -17,10 +17,6 @@ public:
     sycl_device(const ::sycl::device dev, const ::sycl::context& ctx, const ::sycl::platform& platform);
 
     const device_info& get_info() const override { return _info; }
-    const gpu_backend_capabilities& get_backend_capabilities() const noexcept override {
-        static const gpu_backend_capabilities capabilities;
-        return capabilities;
-    }
     memory_capabilities get_mem_caps() const override { return _mem_caps; }
     engine_types get_engine_type() const override {
         return engine_types::sycl;

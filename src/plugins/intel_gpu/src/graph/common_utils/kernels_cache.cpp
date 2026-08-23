@@ -13,6 +13,7 @@
 #include "intel_gpu/runtime/file_util.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/kernel_args.hpp"
+#include "intel_gpu/runtime/runtime_backend_registry.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "kernel_cache_frontend.hpp"
 #include "openvino/util/pp.hpp"
@@ -408,7 +409,7 @@ void kernels_cache::save(BinaryOutputBuffer& ob) const {
 
 void kernels_cache::load(BinaryInputBuffer& ib) {
     std::unordered_map<uint32_t, std::vector<unsigned char>> precompiled_kernels;
-    const auto cached_kernel_format = to_kernel_format(_device->get_backend_capabilities().kernel_cache.artifact);
+    const auto cached_kernel_format = to_kernel_format(runtime_backend_registry::get(_device->get_runtime_type()).kernel_cache.artifact);
 
     size_t num_cached_binaries;
     ib >> num_cached_binaries;
