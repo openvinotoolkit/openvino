@@ -1079,14 +1079,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             .run_on_model(lm_head_model);
     }
 
-    LOG_DEBUG("5.1, decompose GroupQueryAttention OP");
-    for (auto& prefill_variant : prefill_model_variants) {
-        ov::npuw::DecomposeGQA(true).run_on_model(prefill_variant);
-    }
-    for (auto& model_variant : generate_model_variants) {
-        ov::npuw::DecomposeGQA(false).run_on_model(model_variant);
-    }
-
     const auto prefill_attn_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>();
     const auto generate_attn_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT>();
     const bool prefill_attn_dyn = prefill_attn_hint == ::intel_npu::npuw::llm::AttentionHint::DYNAMIC;
