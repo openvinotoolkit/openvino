@@ -245,6 +245,7 @@ TEST_F(PagedSelectiveSSMFusionTest, FusePagedSSM) {
         });
     ASSERT_NE(state_table, parameters.end());
     EXPECT_TRUE(ov::is_keep_const_precision(*state_table));
+    EXPECT_EQ(state_table->get_output_element_type(0), ov::element::dynamic);
 }
 
 TEST(PagedSelectiveSSMFusionCount, ReportsConvertedCount) {
