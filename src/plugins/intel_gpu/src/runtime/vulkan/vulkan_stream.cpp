@@ -25,6 +25,7 @@
 #include "vulkan_engine.hpp"
 #include "vulkan_event.hpp"
 #include "vulkan_kernel.hpp"
+#include "vulkan_kernel_arguments.hpp"
 #include "vulkan_memory.hpp"
 
 namespace cldnn {
@@ -47,91 +48,6 @@ uint64_t next_stream_id() {
 
 void check_vk_result(VkResult result, const char* operation) {
     OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] ", operation, " failed with VkResult ", static_cast<int>(result));
-}
-
-memory::cptr get_argument_memory(const argument_desc& descriptor, const kernel_arguments_data& data) {
-    switch (descriptor.t) {
-    case argument_desc::Types::INPUT:
-        return data.inputs.at(descriptor.index);
-    case argument_desc::Types::OUTPUT:
-        return data.outputs.at(descriptor.index);
-    case argument_desc::Types::WEIGHTS:
-        return data.weights;
-    case argument_desc::Types::BIAS:
-        return data.bias;
-    case argument_desc::Types::SCALE_TABLE:
-        return data.scale_table;
-    case argument_desc::Types::SLOPE:
-        return data.slope;
-    case argument_desc::Types::INTERNAL_BUFFER:
-        return data.intermediates.at(descriptor.index);
-    case argument_desc::Types::CELL:
-        return data.cell;
-    case argument_desc::Types::WEIGHTS_ZERO_POINTS:
-        return data.weights_zero_points;
-    case argument_desc::Types::ACTIVATIONS_ZERO_POINTS:
-        return data.activations_zero_points;
-    case argument_desc::Types::COMPENSATION:
-        return data.compensation;
-    case argument_desc::Types::INPUT_OF_FUSED_PRIMITIVE:
-        return data.fused_op_inputs.at(descriptor.index);
-    case argument_desc::Types::SHAPE_INFO:
-        return data.shape_info;
-    case argument_desc::Types::SCALAR:
-    case argument_desc::Types::LOCAL_MEMORY_SIZE:
-        return nullptr;
-    }
-    OPENVINO_THROW("[GPU][Vulkan] Unknown kernel argument type");
-}
-
-std::vector<uint8_t> pack_push_constants(const scalars_desc& scalars) {
-    std::vector<uint8_t> result;
-    result.reserve(scalars.size() * sizeof(uint32_t));
-    for (const auto& scalar : scalars) {
-        OPENVINO_ASSERT(scalar.t == scalar_desc::Types::UINT32 || scalar.t == scalar_desc::Types::INT32 || scalar.t == scalar_desc::Types::FLOAT32,
-                        "[GPU][Vulkan] Only 32-bit scalar push constants are currently supported");
-        const auto* bytes = reinterpret_cast<const uint8_t*>(&scalar.v.u32);
-        result.insert(result.end(), bytes, bytes + sizeof(uint32_t));
-    }
-    return result;
-}
-
-struct prepared_arguments {
-    std::vector<VkDescriptorBufferInfo> buffer_infos;
-    std::vector<vulkan_buffer_allocation::ptr> allocations;
-    std::vector<VkAccessFlags2> accesses;
-    std::vector<memory::cptr> memories;
-    std::vector<uint8_t> push_constants;
-};
-
-VkAccessFlags2 get_shader_access(argument_desc::Types type) {
-    if (type == argument_desc::Types::OUTPUT) {
-        return VK_ACCESS_2_SHADER_WRITE_BIT;
-    }
-    if (type == argument_desc::Types::INTERNAL_BUFFER) {
-        return VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT;
-    }
-    return VK_ACCESS_2_SHADER_READ_BIT;
-}
-
-prepared_arguments prepare_arguments(const kernel_arguments_desc& descriptor, const kernel_arguments_data& data) {
-    prepared_arguments prepared;
-    for (const auto& argument : descriptor.arguments) {
-        auto memory = get_argument_memory(argument, data);
-        if (memory == nullptr) {
-            continue;
-        }
-
-        const auto* buffer = dynamic_cast<const vulkan_buffer*>(memory.get());
-        OPENVINO_ASSERT(buffer != nullptr, "[GPU][Vulkan] Kernel argument is not backed by a Vulkan buffer");
-        OPENVINO_ASSERT(buffer->size() > 0, "[GPU][Vulkan] Zero-sized storage buffer arguments are not supported");
-        prepared.buffer_infos.push_back({buffer->get_buffer(), buffer->get_offset(), buffer->size()});
-        prepared.allocations.push_back(buffer->get_allocation());
-        prepared.accesses.push_back(get_shader_access(argument.t));
-        prepared.memories.push_back(std::move(memory));
-    }
-    prepared.push_constants = pack_push_constants(descriptor.scalars);
-    return prepared;
 }
 
 uint32_t checked_u32(size_t value, const char* description) {
@@ -378,11 +294,11 @@ struct vulkan_stream::resource_state {
         return slot;
     }
 
-    bool descriptor_batch_boundary_required(const prepared_arguments& prepared) const {
+    bool descriptor_batch_boundary_required(const vulkan_prepared_arguments& prepared) const {
         return descriptor_cache.size() >= max_cached_descriptor_sets && descriptor_cache.find(make_descriptor_key(prepared)) == descriptor_cache.end();
     }
 
-    void retain_dispatch(slot& slot, const prepared_arguments& prepared, std::shared_ptr<const void> kernel_lifetime) {
+    void retain_dispatch(slot& slot, const vulkan_prepared_arguments& prepared, std::shared_ptr<const void> kernel_lifetime) {
         OPENVINO_ASSERT(recording_slot == &slot && slot.submission == nullptr, "[GPU][Vulkan] Dispatch resources do not belong to the active command batch");
         slot.retained_memories.insert(slot.retained_memories.end(), prepared.memories.begin(), prepared.memories.end());
         slot.retained_kernels.push_back(std::move(kernel_lifetime));
@@ -390,7 +306,7 @@ struct vulkan_stream::resource_state {
         ++dispatches;
     }
 
-    void record_buffer_hazards(slot& slot, const prepared_arguments& prepared, VkPipelineStageFlags2 stages) {
+    void record_buffer_hazards(slot& slot, const vulkan_prepared_arguments& prepared, VkPipelineStageFlags2 stages) {
         OPENVINO_ASSERT(recording_slot == &slot && slot.submission == nullptr, "[GPU][Vulkan] Buffer hazards must be recorded in the active command batch");
         OPENVINO_ASSERT(prepared.buffer_infos.size() == prepared.allocations.size() && prepared.buffer_infos.size() == prepared.accesses.size(),
                         "[GPU][Vulkan] Prepared buffer access metadata is inconsistent");
@@ -427,7 +343,7 @@ struct vulkan_stream::resource_state {
     void record_dispatch(slot& slot,
                          std::shared_ptr<const vulkan_pipeline_state> pipeline,
                          VkDescriptorSet descriptor_set,
-                         prepared_arguments& prepared,
+                         vulkan_prepared_arguments& prepared,
                          const std::array<uint32_t, 3>& group_counts,
                          bool descriptor_is_immutable) {
         OPENVINO_ASSERT(recording_slot == &slot && slot.submission == nullptr, "[GPU][Vulkan] Dispatch does not belong to the active command batch");
@@ -447,7 +363,7 @@ struct vulkan_stream::resource_state {
     void record_immediate_dispatch(slot& slot,
                                    const vulkan_pipeline_state& pipeline,
                                    VkDescriptorSet descriptor_set,
-                                   const prepared_arguments& prepared,
+                                   const vulkan_prepared_arguments& prepared,
                                    const std::array<uint32_t, 3>& group_counts) const {
         OPENVINO_ASSERT(recording_slot == &slot && active_direct_recording, "[GPU][Vulkan] Immediate dispatch requires an active direct-recording batch");
         record_synchronization(slot.command_buffer, current_external_dependency_barrier, hazard_barrier_scratch.data(), hazard_barrier_scratch.size());
@@ -461,7 +377,7 @@ struct vulkan_stream::resource_state {
                                                                 VkDeviceSize size,
                                                                 std::vector<std::shared_ptr<const void>> lifetimes) {
         OPENVINO_ASSERT(source != nullptr && destination != nullptr, "[GPU][Vulkan] Buffer copy allocation is null");
-        prepared_arguments prepared;
+        vulkan_prepared_arguments prepared;
         prepared.buffer_infos = {{source->buffer, source_offset, size}, {destination->buffer, destination_offset, size}};
         prepared.allocations = {source, destination};
         prepared.accesses = {VK_ACCESS_2_TRANSFER_READ_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT};
@@ -486,7 +402,7 @@ struct vulkan_stream::resource_state {
                                                                 uint32_t pattern,
                                                                 std::shared_ptr<const void> lifetime) {
         OPENVINO_ASSERT(destination != nullptr, "[GPU][Vulkan] Buffer fill allocation is null");
-        prepared_arguments prepared;
+        vulkan_prepared_arguments prepared;
         prepared.buffer_infos = {{destination->buffer, destination_offset, size}};
         prepared.allocations = {destination};
         prepared.accesses = {VK_ACCESS_2_TRANSFER_WRITE_BIT};
@@ -599,7 +515,7 @@ struct vulkan_stream::resource_state {
 
     VkDescriptorSet get_or_update_descriptor_set(slot& slot,
                                                  const vulkan_pipeline_state& pipeline,
-                                                 const prepared_arguments& prepared,
+                                                 const vulkan_prepared_arguments& prepared,
                                                  bool& descriptor_is_immutable) {
         const auto descriptor_count = checked_u32(prepared.buffer_infos.size(), "descriptor count");
         OPENVINO_ASSERT(descriptor_count == pipeline.descriptor_count, "[GPU][Vulkan] Descriptor resources do not match the selected pipeline");
@@ -1213,7 +1129,7 @@ private:
         return std::min<size_t>({work_group_capacity, subgroup_capacity, max_retained_dispatches_per_batch});
     }
 
-    static descriptor_key make_descriptor_key(const prepared_arguments& prepared) {
+    static descriptor_key make_descriptor_key(const vulkan_prepared_arguments& prepared) {
         descriptor_key key;
         key.buffer_infos = prepared.buffer_infos;
         key.allocations.reserve(prepared.allocations.size());
@@ -1449,7 +1365,7 @@ private:
         vkCmdWriteTimestamp2(slot.command_buffer, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, slot.profiling_query_pool, 1);
     }
 
-    slot& begin_transfer(const prepared_arguments& prepared) {
+    slot& begin_transfer(const vulkan_prepared_arguments& prepared) {
         flush();
         auto& slot = acquire(0, false);
         recording_slot = &slot;
@@ -1498,7 +1414,7 @@ void vulkan_stream::wait() {
 void vulkan_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& descriptor, const kernel_arguments_data& data) {
     auto* vk_kernel = dynamic_cast<vulkan_kernel*>(&kernel);
     OPENVINO_ASSERT(vk_kernel != nullptr, "[GPU][Vulkan] Cannot bind arguments to a kernel from another backend");
-    const auto prepared = prepare_arguments(descriptor, data);
+    const auto prepared = prepare_vulkan_arguments(descriptor, data);
     vk_kernel->get_or_create_pipeline(static_cast<uint32_t>(prepared.buffer_infos.size()), static_cast<uint32_t>(prepared.push_constants.size()));
 }
 
@@ -1532,7 +1448,7 @@ event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
 
     auto* vk_kernel = dynamic_cast<vulkan_kernel*>(&kernel);
     OPENVINO_ASSERT(vk_kernel != nullptr, "[GPU][Vulkan] Cannot dispatch a kernel from another backend");
-    auto prepared = prepare_arguments(descriptor, data);
+    auto prepared = prepare_vulkan_arguments(descriptor, data);
     const auto pipeline = vk_kernel->get_or_create_pipeline(static_cast<uint32_t>(prepared.buffer_infos.size()),
                                                             static_cast<uint32_t>(prepared.push_constants.size()),
                                                             specialization_constants);
