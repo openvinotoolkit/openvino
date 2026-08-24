@@ -8,13 +8,11 @@
 #include <array>
 #include <chrono>
 #include <cstdint>
-#include <cstring>
 #include <memory>
 #include <optional>
 #include <utility>
 #include <vector>
 
-#include "activation_inst.h"
 #include "common_utils/gpu_execution_plan.hpp"
 #include "common_utils/gpu_kernel_lifecycle.hpp"
 #include "eltwise/fusion_analysis.hpp"
@@ -22,12 +20,12 @@
 #include "eltwise/kernel_kind.hpp"
 #include "eltwise/kernel_selection.hpp"
 #include "eltwise/local_size_tuner.hpp"
+#include "eltwise/metadata_builder.hpp"
 #include "eltwise/operation_semantics.hpp"
 #include "eltwise_shader_abi.hpp"
 #include "graph_optimizer/vulkan_graph_optimizer.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "openvino/core/except.hpp"
-#include "quantize_inst.h"
 #include "registry/implementation_map.hpp"
 #include "shader_scalar_type.hpp"
 #include "vulkan/vulkan_engine.hpp"
@@ -47,28 +45,6 @@ namespace {
 namespace shader_abi = eltwise_shader_abi;
 using namespace eltwise_detail;
 
-constexpr uint32_t max_rank = 8;
-constexpr uint32_t header_words = shader_abi::index(shader_abi::metadata_field::count);
-constexpr uint32_t tensor_words = max_rank * 2 + 1;
-constexpr uint32_t tensor_count = shader_abi::index(shader_abi::tensor_index::count);
-constexpr uint32_t fused_metadata_base = header_words + tensor_count * tensor_words;
-constexpr uint32_t min_multi_stage_fused_chain_length = 2;
-constexpr uint32_t max_fused_chain_length = shader_abi::value(shader_abi::limit::max_fused_chain_length);
-constexpr uint32_t fused_metadata_words = shader_abi::index(shader_abi::fused_metadata_field::count);
-constexpr uint32_t regular_fast_divisor_metadata_base = fused_metadata_base + fused_metadata_words;
-constexpr uint32_t regular_metadata_words = regular_fast_divisor_metadata_base + max_rank;
-constexpr uint32_t fused_chain_metadata_base = fused_metadata_base + max_fused_chain_length * fused_metadata_words;
-constexpr uint32_t fused_chain_fast_divisor_metadata_base = fused_chain_metadata_base + shader_abi::index(shader_abi::fused_chain_metadata_field::count);
-constexpr uint32_t fused_chain_metadata_words = fused_chain_fast_divisor_metadata_base + max_rank;
-constexpr uint32_t fused_broadcast_metadata_base = fused_chain_metadata_words;
-constexpr uint32_t fused_broadcast_metadata_words = fused_broadcast_metadata_base + tensor_words;
-constexpr uint32_t post_op_metadata_base = fused_broadcast_metadata_words;
-constexpr uint32_t post_op_metadata_words = post_op_metadata_base + shader_abi::index(shader_abi::post_op_metadata_field::count);
-constexpr uint32_t metadata_words = post_op_metadata_words;
-constexpr uint32_t dense_push_constant_words = shader_abi::index(shader_abi::dense_metadata_field::count);
-constexpr uint32_t fused_dense_push_constant_words = dense_push_constant_words + shader_abi::index(shader_abi::fused_dense_metadata_field::count);
-constexpr uint32_t dense_push_constant_bytes = dense_push_constant_words * sizeof(uint32_t);
-constexpr uint32_t fused_dense_push_constant_bytes = fused_dense_push_constant_words * sizeof(uint32_t);
 constexpr uint32_t broadcast_vector_width = 4;
 constexpr uint32_t broadcast_vector_min_elements = 256;
 constexpr uint32_t maximum_scalar_batch_width = 8;
@@ -76,13 +52,6 @@ constexpr uint32_t balanced_scalar_batch_width = 4;
 constexpr uint32_t division_scalar_batch_width = 2;
 constexpr uint32_t scalar_batch_width = 1;
 constexpr uint32_t scalar_elements_per_subgroup_budget = portable_local_work_group_size_limit;
-
-uint32_t float_bits(float value) {
-    uint32_t result = 0;
-    static_assert(sizeof(result) == sizeof(value));
-    std::memcpy(&result, &value, sizeof(result));
-    return result;
-}
 
 uint32_t operation_batch_width_limit(eltwise_mode mode, data_types type, kernel_kind kind, const device_info& info) {
     switch (mode) {
@@ -193,152 +162,6 @@ bool can_use_broadcast_vector_kernel(const layout& output_layout) {
     return output_layout.count() % broadcast_vector_width == 0;
 }
 
-void write_tensor_metadata_at(std::array<uint32_t, metadata_words>& metadata, uint32_t base, const layout& tensor_layout, uint32_t output_rank) {
-    const auto shape = tensor_layout.get_shape();
-    const auto pitches = tensor_layout.get_pitches();
-    OPENVINO_ASSERT(shape.size() <= pitches.size() && shape.size() <= output_rank, "[GPU][Vulkan] Eltwise received an invalid tensor rank");
-
-    const auto leading_dimensions = output_rank - checked_u32(shape.size(), "rank");
-    for (uint32_t axis = 0; axis < max_rank; ++axis) {
-        metadata[base + axis] = 1;
-        metadata[base + max_rank + axis] = 0;
-    }
-    for (uint32_t axis = 0; axis < shape.size(); ++axis) {
-        const auto output_axis = leading_dimensions + axis;
-        metadata[base + output_axis] = checked_u32(shape[axis], "dimension");
-        metadata[base + max_rank + output_axis] = checked_u32(pitches[axis], "pitch");
-    }
-    metadata[base + max_rank * 2] = checked_u32(tensor_layout.get_linear_offset(), "base offset");
-}
-
-void write_tensor_metadata(std::array<uint32_t, metadata_words>& metadata, shader_abi::tensor_index tensor, const layout& tensor_layout, uint32_t output_rank) {
-    write_tensor_metadata_at(metadata, header_words + shader_abi::index(tensor) * tensor_words, tensor_layout, output_rank);
-}
-
-bool collapsed_tensor_axis(const std::array<uint32_t, metadata_words>& metadata,
-                           uint32_t base,
-                           uint32_t axis,
-                           uint32_t output_left_dimension,
-                           uint32_t output_right_dimension,
-                           uint32_t& collapsed_dimension,
-                           uint32_t& collapsed_pitch) {
-    const auto left_dimension = metadata[base + axis];
-    const auto right_dimension = metadata[base + axis + 1];
-    const auto left_pitch = metadata[base + max_rank + axis];
-    const auto right_pitch = metadata[base + max_rank + axis + 1];
-
-    if (output_left_dimension == 1) {
-        collapsed_dimension = right_dimension;
-        collapsed_pitch = right_pitch;
-        return true;
-    }
-    if (output_right_dimension == 1) {
-        collapsed_dimension = left_dimension;
-        collapsed_pitch = left_pitch;
-        return true;
-    }
-    if (left_dimension == 1 && right_dimension == 1) {
-        collapsed_dimension = 1;
-        collapsed_pitch = 0;
-        return true;
-    }
-    if (left_dimension == output_left_dimension && right_dimension == output_right_dimension &&
-        static_cast<uint64_t>(left_pitch) == static_cast<uint64_t>(right_pitch) * right_dimension) {
-        collapsed_dimension = checked_u32(static_cast<uint64_t>(left_dimension) * right_dimension, "collapsed dimension");
-        collapsed_pitch = right_pitch;
-        return true;
-    }
-    return false;
-}
-
-uint32_t collapse_metadata_dimensions(std::array<uint32_t, metadata_words>& metadata, uint32_t rank, std::optional<uint32_t> extra_tensor_base = std::nullopt) {
-    if (rank < 2) {
-        return rank;
-    }
-
-    for (int32_t axis = static_cast<int32_t>(rank) - 2; axis >= 0; --axis) {
-        const auto output_base = header_words + shader_abi::index(shader_abi::tensor_index::output) * tensor_words;
-        const auto output_left_dimension = metadata[output_base + static_cast<uint32_t>(axis)];
-        const auto output_right_dimension = metadata[output_base + static_cast<uint32_t>(axis) + 1];
-        std::array<uint32_t, tensor_count + 1> tensor_bases{};
-        for (uint32_t tensor = 0; tensor < tensor_count; ++tensor) {
-            tensor_bases[tensor] = header_words + tensor * tensor_words;
-        }
-        const auto active_tensor_count = tensor_count + (extra_tensor_base.has_value() ? 1U : 0U);
-        if (extra_tensor_base.has_value()) {
-            tensor_bases[tensor_count] = *extra_tensor_base;
-        }
-        std::array<uint32_t, tensor_count + 1> collapsed_dimensions{};
-        std::array<uint32_t, tensor_count + 1> collapsed_pitches{};
-        bool can_collapse = true;
-        for (uint32_t tensor = 0; tensor < active_tensor_count; ++tensor) {
-            can_collapse &= collapsed_tensor_axis(metadata,
-                                                  tensor_bases[tensor],
-                                                  static_cast<uint32_t>(axis),
-                                                  output_left_dimension,
-                                                  output_right_dimension,
-                                                  collapsed_dimensions[tensor],
-                                                  collapsed_pitches[tensor]);
-        }
-        if (!can_collapse) {
-            continue;
-        }
-
-        for (uint32_t tensor = 0; tensor < active_tensor_count; ++tensor) {
-            const auto base = tensor_bases[tensor];
-            metadata[base + static_cast<uint32_t>(axis)] = collapsed_dimensions[tensor];
-            metadata[base + max_rank + static_cast<uint32_t>(axis)] = collapsed_pitches[tensor];
-            for (uint32_t shifted_axis = static_cast<uint32_t>(axis) + 1; shifted_axis + 1 < rank; ++shifted_axis) {
-                metadata[base + shifted_axis] = metadata[base + shifted_axis + 1];
-                metadata[base + max_rank + shifted_axis] = metadata[base + max_rank + shifted_axis + 1];
-            }
-            metadata[base + rank - 1] = 1;
-            metadata[base + max_rank + rank - 1] = 0;
-        }
-        --rank;
-    }
-    return rank;
-}
-
-uint32_t fast_divisor_reciprocal(uint32_t divisor) {
-    OPENVINO_ASSERT(divisor != 0, "[GPU][Vulkan] Eltwise broadcast divisor must be non-zero");
-    if (divisor == 1) {
-        return 0;
-    }
-    return static_cast<uint32_t>((uint64_t{1} << 32) / divisor);
-}
-
-void write_fast_divisor_metadata(std::array<uint32_t, metadata_words>& metadata, bool fused_chain) {
-    const auto rank = metadata[shader_abi::index(shader_abi::metadata_field::rank)];
-    const auto output_base = header_words + shader_abi::index(shader_abi::tensor_index::output) * tensor_words;
-    const auto metadata_base = fused_chain ? fused_chain_fast_divisor_metadata_base : regular_fast_divisor_metadata_base;
-    for (uint32_t axis = 0; axis < max_rank; ++axis) {
-        const auto dimension = axis < rank ? metadata[output_base + axis] : 1U;
-        metadata[metadata_base + axis] = fast_divisor_reciprocal(dimension);
-    }
-}
-
-uint32_t active_broadcast_axes(const std::array<uint32_t, metadata_words>& metadata, shader_abi::tensor_index tensor) {
-    const auto rank = metadata[shader_abi::index(shader_abi::metadata_field::rank)];
-    const auto base = header_words + shader_abi::index(tensor) * tensor_words;
-    uint32_t axes = 0;
-    for (uint32_t axis = 0; axis < rank; ++axis) {
-        if (metadata[base + axis] != 1 && metadata[base + max_rank + axis] != 0) {
-            axes |= 1U << axis;
-        }
-    }
-    return axes;
-}
-
-uint32_t collapsed_broadcast_rank(const layout& input0_layout, const layout& input1_layout, const layout& output_layout) {
-    const auto output_rank = checked_u32(output_layout.get_shape().size(), "output rank");
-    std::array<uint32_t, metadata_words> metadata{};
-    write_tensor_metadata(metadata, shader_abi::tensor_index::input0, input0_layout, output_rank);
-    write_tensor_metadata(metadata, shader_abi::tensor_index::input1, input1_layout, output_rank);
-    write_tensor_metadata(metadata, shader_abi::tensor_index::output, output_layout, output_rank);
-    return collapse_metadata_dimensions(metadata, output_rank);
-}
-
 bool should_use_fast_broadcast_kernel(const layout& input0_layout,
                                       const layout& input1_layout,
                                       const layout& output_layout,
@@ -349,148 +172,10 @@ bool should_use_fast_broadcast_kernel(const layout& input0_layout,
     }
     const auto subgroup_size = info.supported_simd_sizes.front();
     const auto subgroup_slots = std::max<uint64_t>(info.max_work_group_size / subgroup_size, 1);
-    const auto rank = collapsed_broadcast_rank(input0_layout, input1_layout, output_layout);
+    const auto rank = EltwiseMetadata::collapsed_broadcast_rank(input0_layout, input1_layout, output_layout);
     const auto coordinate_schedule_pressure = static_cast<uint64_t>(rank) * subgroup_slots;
     const auto invocation_count = (output_layout.count() + elements_per_invocation - 1) / elements_per_invocation;
     return coordinate_schedule_pressure <= portable_local_work_group_size_limit && invocation_count >= subgroup_size;
-}
-
-std::array<uint32_t, metadata_words> make_metadata(const eltwise_inst& instance,
-                                                   const std::optional<scalar_constant>& scalar,
-                                                   const std::optional<fused_eltwise_chain>& fused,
-                                                   const std::optional<fused_post_op_info>& post_op) {
-    const auto desc = instance.get_typed_desc<eltwise>();
-    const auto base_input_count = is_unary_mode(desc->mode) ? 1U : 2U;
-    const auto fused_input_count = fused.has_value() ? fused->size() : 0U;
-    OPENVINO_ASSERT(instance.inputs_memory_count() == base_input_count && instance.get_fused_mem_count() == fused_input_count,
-                    "[GPU][Vulkan] Eltwise received an unexpected regular or fused input count");
-    const auto& input0_layout = instance.get_input_layout(0);
-    const auto& input1_layout = base_input_count == 1 ? input0_layout : instance.get_input_layout(1);
-    const auto& output_layout = instance.get_output_layout(0);
-    OPENVINO_ASSERT(!input0_layout.is_dynamic() && !input1_layout.is_dynamic() && !output_layout.is_dynamic(),
-                    "[GPU][Vulkan] Eltwise execution requires resolved runtime layouts");
-    const auto output_rank = checked_u32(output_layout.get_shape().size(), "output rank");
-    OPENVINO_ASSERT(output_rank <= max_rank, "[GPU][Vulkan] Eltwise supports tensors with rank up to ", max_rank);
-
-    std::array<uint32_t, metadata_words> metadata{};
-    metadata[shader_abi::index(shader_abi::metadata_field::element_count)] = checked_u32(output_layout.count(), "element count");
-    metadata[shader_abi::index(shader_abi::metadata_field::mode)] = shader_abi::value(shader_mode_code(desc->mode));
-    metadata[shader_abi::index(shader_abi::metadata_field::rank)] = output_rank;
-    const auto scalar_tensor_index =
-        scalar.has_value() && scalar->input_index == shader_abi::tensor_index::input0 ? shader_abi::tensor_index::input1 : shader_abi::tensor_index::input0;
-    const auto& scalar_tensor_layout = scalar_tensor_index == shader_abi::tensor_index::input0 ? input0_layout : input1_layout;
-    metadata[shader_abi::index(shader_abi::metadata_field::flags)] =
-        ((scalar.has_value() ? can_use_scalar_linear_storage(scalar_tensor_layout, output_layout)
-                             : can_use_linear_storage(input0_layout, input1_layout, output_layout))
-             ? shader_abi::value(shader_abi::storage_flag::linear)
-             : 0U) |
-        (output_elements_per_invocation(output_layout) > 1 ? shader_abi::value(shader_abi::storage_flag::packed_output) : 0U) |
-        (scalar.has_value() && scalar->input_index == shader_abi::tensor_index::input0 ? shader_abi::value(shader_abi::storage_flag::scalar_constant_input0)
-                                                                                       : 0U) |
-        (fused.has_value() && fused->size() == 1 && fused->front().broadcast_input &&
-                 instance.get_input_layout(fused->front().external_dependency_index).count() == 1
-             ? shader_abi::value(shader_abi::storage_flag::fused_scalar_input)
-             : 0U);
-    metadata[shader_abi::index(shader_abi::metadata_field::input0_type)] = shader_abi::value(to_shader_scalar_type(input0_layout.data_type));
-    metadata[shader_abi::index(shader_abi::metadata_field::input1_type)] = shader_abi::value(to_shader_scalar_type(input1_layout.data_type));
-    metadata[shader_abi::index(shader_abi::metadata_field::output_type)] = shader_abi::value(to_shader_scalar_type(output_layout.data_type));
-    metadata[shader_abi::index(shader_abi::metadata_field::python_division)] = desc->m_pythondiv ? 1U : 0U;
-    metadata[shader_abi::index(shader_abi::metadata_field::infinity_detection)] =
-        desc->mode == eltwise_mode::is_inf && desc->coefficients.size() == 2
-            ? (desc->coefficients[0] != 0.0f ? shader_abi::value(shader_abi::infinity_flag::negative) : 0U) |
-                  (desc->coefficients[1] != 0.0f ? shader_abi::value(shader_abi::infinity_flag::positive) : 0U)
-            : shader_abi::all_infinities_mask;
-    metadata[shader_abi::index(shader_abi::metadata_field::input_count)] = base_input_count;
-    metadata[shader_abi::index(shader_abi::metadata_field::input0_coefficient)] = float_bits(desc->coefficients.empty() ? 1.0f : desc->coefficients[0]);
-    metadata[shader_abi::index(shader_abi::metadata_field::input1_coefficient)] = float_bits(desc->coefficients.empty() ? 1.0f : desc->coefficients[1]);
-    write_tensor_metadata(metadata, shader_abi::tensor_index::input0, input0_layout, output_rank);
-    write_tensor_metadata(metadata, shader_abi::tensor_index::input1, input1_layout, output_rank);
-    write_tensor_metadata(metadata, shader_abi::tensor_index::output, output_layout, output_rank);
-    std::optional<uint32_t> extra_tensor_base;
-    if (fused.has_value() && fused->size() == 1 && fused->front().broadcast_input) {
-        write_tensor_metadata_at(metadata, fused_broadcast_metadata_base, instance.get_input_layout(fused->front().external_dependency_index), output_rank);
-        extra_tensor_base = fused_broadcast_metadata_base;
-    }
-    metadata[shader_abi::index(shader_abi::metadata_field::rank)] = collapse_metadata_dimensions(metadata, output_rank, extra_tensor_base);
-    write_fast_divisor_metadata(metadata, fused.has_value() && fused->size() > 1);
-    if (scalar.has_value()) {
-        const auto scalar_metadata_base = header_words + shader_abi::index(scalar->input_index) * tensor_words;
-        metadata[scalar_metadata_base] = scalar->bits[0];
-        metadata[scalar_metadata_base + max_rank] = scalar->bits[1];
-    }
-    if (fused.has_value()) {
-        metadata[fused_chain_metadata_base + shader_abi::index(shader_abi::fused_chain_metadata_field::chain_length)] =
-            checked_u32(fused->size(), "fused Eltwise chain length");
-        for (size_t stage = 0; stage < fused->size(); ++stage) {
-            const auto& fused_stage = fused->at(stage);
-            const auto fused_desc = fused_stage.descriptor->typed_desc<eltwise>();
-            const auto& fused_input_layout = instance.get_input_layout(fused_stage.external_dependency_index);
-            const auto stage_metadata_base = fused_metadata_base + stage * fused_metadata_words;
-            metadata[stage_metadata_base + shader_abi::index(shader_abi::fused_metadata_field::mode)] = shader_abi::value(shader_mode_code(fused_desc->mode));
-            metadata[stage_metadata_base + shader_abi::index(shader_abi::fused_metadata_field::input_type)] =
-                shader_abi::value(to_shader_scalar_type(fused_input_layout.data_type));
-            metadata[stage_metadata_base + shader_abi::index(shader_abi::fused_metadata_field::input_position)] =
-                shader_abi::value(fused_stage.external_position);
-            metadata[stage_metadata_base + shader_abi::index(shader_abi::fused_metadata_field::python_division)] = fused_desc->m_pythondiv ? 1U : 0U;
-            metadata[stage_metadata_base + shader_abi::index(shader_abi::fused_metadata_field::input0_coefficient)] =
-                float_bits(fused_desc->coefficients.empty() ? 1.0f : fused_desc->coefficients[0]);
-            metadata[stage_metadata_base + shader_abi::index(shader_abi::fused_metadata_field::input1_coefficient)] =
-                float_bits(fused_desc->coefficients.empty() ? 1.0f : fused_desc->coefficients[1]);
-            metadata[stage_metadata_base + shader_abi::index(shader_abi::fused_metadata_field::input_offset)] =
-                checked_u32(fused_input_layout.get_linear_offset(), "fused input base offset");
-        }
-    }
-    if (post_op.has_value()) {
-        const auto write_post_value = [&](shader_abi::post_op_metadata_field field, float value) {
-            metadata[post_op_metadata_base + shader_abi::index(field)] = float_bits(value);
-        };
-        if (post_op->kind == shader_abi::post_op_kind::activation) {
-            const auto params = post_op->descriptor->get_typed_fuse_params<ActivationFuseParams>();
-            write_post_value(shader_abi::post_op_metadata_field::parameter_a, params->_desc->additional_params.a);
-            write_post_value(shader_abi::post_op_metadata_field::parameter_b, params->_desc->additional_params.b);
-        } else if (post_op->kind == shader_abi::post_op_kind::quantize) {
-            const auto params = post_op->descriptor->get_typed_fuse_params<QuantizeFuseParams>();
-            write_post_value(shader_abi::post_op_metadata_field::input_low, params->_in_lo);
-            write_post_value(shader_abi::post_op_metadata_field::input_high, params->_in_hi);
-            write_post_value(shader_abi::post_op_metadata_field::input_scale, params->_in_scale);
-            write_post_value(shader_abi::post_op_metadata_field::input_shift, params->_in_shift);
-            write_post_value(shader_abi::post_op_metadata_field::output_low, params->_out_lo);
-            write_post_value(shader_abi::post_op_metadata_field::output_high, params->_out_hi);
-            write_post_value(shader_abi::post_op_metadata_field::output_scale, params->_out_scale);
-            write_post_value(shader_abi::post_op_metadata_field::output_shift, params->_out_shift);
-        }
-    }
-    return metadata;
-}
-
-void append_u32_scalar(scalars_desc& scalars, uint32_t value) {
-    scalar_desc scalar{};
-    scalar.t = scalar_desc::Types::UINT32;
-    scalar.v.u32 = value;
-    scalars.push_back(scalar);
-}
-
-scalars_desc make_dense_push_constants(const std::array<uint32_t, metadata_words>& metadata, bool fused) {
-    scalars_desc result;
-    result.reserve(fused ? fused_dense_push_constant_words : dense_push_constant_words);
-    const auto tensor_offset = [&metadata](shader_abi::tensor_index tensor) {
-        return metadata[header_words + shader_abi::index(tensor) * tensor_words + max_rank * 2];
-    };
-    append_u32_scalar(result, metadata[shader_abi::index(shader_abi::metadata_field::element_count)]);
-    append_u32_scalar(result, tensor_offset(shader_abi::tensor_index::input0));
-    append_u32_scalar(result, tensor_offset(shader_abi::tensor_index::input1));
-    append_u32_scalar(result, tensor_offset(shader_abi::tensor_index::output));
-    append_u32_scalar(result, metadata[shader_abi::index(shader_abi::metadata_field::python_division)]);
-    append_u32_scalar(result, metadata[shader_abi::index(shader_abi::metadata_field::infinity_detection)]);
-    append_u32_scalar(result, metadata[shader_abi::index(shader_abi::metadata_field::input0_coefficient)]);
-    append_u32_scalar(result, metadata[shader_abi::index(shader_abi::metadata_field::input1_coefficient)]);
-    if (fused) {
-        append_u32_scalar(result, metadata[fused_metadata_base + shader_abi::index(shader_abi::fused_metadata_field::input_offset)]);
-        append_u32_scalar(result, metadata[fused_metadata_base + shader_abi::index(shader_abi::fused_metadata_field::python_division)]);
-        append_u32_scalar(result, metadata[fused_metadata_base + shader_abi::index(shader_abi::fused_metadata_field::input0_coefficient)]);
-        append_u32_scalar(result, metadata[fused_metadata_base + shader_abi::index(shader_abi::fused_metadata_field::input1_coefficient)]);
-    }
-    return result;
 }
 
 bool output_is_disjoint_from_reads(const memory::cptr& output, const std::vector<memory::cptr>& reads) {
@@ -584,12 +269,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         if (uses_dense_push_constants(_kernel_kind)) {
             return {};
         }
-        const auto buffer_words =
-            is_fused_post_op_kernel(_kernel_kind)
-                ? post_op_metadata_words
-                : (is_fused_broadcast_kernel(_kernel_kind) ? fused_broadcast_metadata_words
-                                                           : (is_fused_chain_kernel(_kernel_kind) ? fused_chain_metadata_words : regular_metadata_words));
-        return {BufferDescriptor(buffer_words, ov::element::u32, true, false)};
+        return {BufferDescriptor(EltwiseMetadata::buffer_word_count(_kernel_kind), ov::element::u32, true, false)};
     }
 
     void init_kernels(const kernels_cache& cache, const kernel_impl_params& params) override {
@@ -647,8 +327,8 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         OPENVINO_ASSERT(!use_single_fused_kernel || fused->size() == 1, "[GPU][Vulkan] Single-stage fused Eltwise kernel received a longer chain");
         OPENVINO_ASSERT(!use_fused_broadcast_kernel || fused->front().broadcast_input,
                         "[GPU][Vulkan] Fused broadcast Eltwise kernel received a dense external input");
-        OPENVINO_ASSERT(!use_fused_chain_kernel || (fused->size() >= min_multi_stage_fused_chain_length && fused->size() <= max_fused_chain_length &&
-                                                    fused->size() == _fused_chain_length),
+        OPENVINO_ASSERT(!use_fused_chain_kernel || (fused->size() >= EltwiseMetadata::minimum_multi_stage_fused_chain_length &&
+                                                    fused->size() <= EltwiseMetadata::maximum_fused_chain_length && fused->size() == _fused_chain_length),
                         "[GPU][Vulkan] Fused Eltwise chain kernel received an unsupported chain length");
         OPENVINO_ASSERT(use_fused_chain_kernel || _fused_chain_length == 0, "[GPU][Vulkan] Non-chain Eltwise kernel received fixed chain metadata");
         OPENVINO_ASSERT(instance.inputs_memory_count() == base_input_count && instance.get_fused_mem_count() == (fused.has_value() ? fused->size() : 0U),
@@ -657,7 +337,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
                         "[GPU][Vulkan] Eltwise metadata resources do not match the selected kernel ABI");
 
         auto& stream = instance.get_network().get_stream();
-        const auto metadata = make_metadata(instance, _scalar_constant, fused, post_op);
+        const auto metadata = EltwiseMetadata::build(instance, _scalar_constant, fused, post_op);
         memory::ptr metadata_memory;
         if (!use_dense_push_constants) {
             metadata_memory = instance.get_intermediates_memories().front();
@@ -765,29 +445,28 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
             specialization_constants.push_back(
                 {shader_abi::index(shader_abi::specialization_id::broadcast_rank), metadata[shader_abi::index(shader_abi::metadata_field::rank)]});
             specialization_constants.push_back(
-                {shader_abi::index(shader_abi::specialization_id::broadcast_input0_axes), active_broadcast_axes(metadata, shader_abi::tensor_index::input0)});
+                {shader_abi::index(shader_abi::specialization_id::broadcast_input0_axes), metadata.active_broadcast_axes(shader_abi::tensor_index::input0)});
             specialization_constants.push_back(
-                {shader_abi::index(shader_abi::specialization_id::broadcast_input1_axes), active_broadcast_axes(metadata, shader_abi::tensor_index::input1)});
+                {shader_abi::index(shader_abi::specialization_id::broadcast_input1_axes), metadata.active_broadcast_axes(shader_abi::tensor_index::input1)});
             specialization_constants.push_back(
-                {shader_abi::index(shader_abi::specialization_id::broadcast_output_axes), active_broadcast_axes(metadata, shader_abi::tensor_index::output)});
+                {shader_abi::index(shader_abi::specialization_id::broadcast_output_axes), metadata.active_broadcast_axes(shader_abi::tensor_index::output)});
         }
         if (use_single_fused_kernel) {
-            specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::fused_mode),
-                                                metadata[fused_metadata_base + shader_abi::index(shader_abi::fused_metadata_field::mode)]});
+            specialization_constants.push_back(
+                {shader_abi::index(shader_abi::specialization_id::fused_mode), metadata.fused_stage_value(0, shader_abi::fused_metadata_field::mode)});
             specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::fused_input_type),
-                                                metadata[fused_metadata_base + shader_abi::index(shader_abi::fused_metadata_field::input_type)]});
+                                                metadata.fused_stage_value(0, shader_abi::fused_metadata_field::input_type)});
             specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::fused_input_position),
-                                                metadata[fused_metadata_base + shader_abi::index(shader_abi::fused_metadata_field::input_position)]});
+                                                metadata.fused_stage_value(0, shader_abi::fused_metadata_field::input_position)});
         } else if (use_fused_chain_kernel) {
             for (size_t stage = 0; stage < fused->size(); ++stage) {
                 const auto stage_index = checked_u32(stage, "fused specialization stage");
-                const auto stage_metadata_base = fused_metadata_base + stage * fused_metadata_words;
                 specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::fused_chain_mode_base) + stage_index,
-                                                    metadata[stage_metadata_base + shader_abi::index(shader_abi::fused_metadata_field::mode)]});
+                                                    metadata.fused_stage_value(stage, shader_abi::fused_metadata_field::mode)});
                 specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::fused_chain_input_type_base) + stage_index,
-                                                    metadata[stage_metadata_base + shader_abi::index(shader_abi::fused_metadata_field::input_type)]});
+                                                    metadata.fused_stage_value(stage, shader_abi::fused_metadata_field::input_type)});
                 specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::fused_chain_input_position_base) + stage_index,
-                                                    metadata[stage_metadata_base + shader_abi::index(shader_abi::fused_metadata_field::input_position)]});
+                                                    metadata.fused_stage_value(stage, shader_abi::fused_metadata_field::input_position)});
             }
         }
         if (use_fused_post_op_kernel) {
@@ -798,7 +477,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
             specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::post_quantize_flags), post_op->quantize_flags});
         }
         if (use_dense_push_constants) {
-            descriptor.scalars = make_dense_push_constants(metadata, is_single_fused_dense_kernel(_kernel_kind));
+            descriptor.scalars = metadata.make_dense_push_constants(is_single_fused_dense_kernel(_kernel_kind));
         }
         descriptor.arguments = {{argument_desc::Types::INPUT, 0}};
         if (use_scalar_constant_kernel) {
@@ -811,7 +490,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         if (use_single_fused_kernel) {
             descriptor.arguments.push_back({argument_desc::Types::INPUT_OF_FUSED_PRIMITIVE, 0});
         } else if (use_fused_chain_kernel) {
-            for (size_t stage = 0; stage < max_fused_chain_length; ++stage) {
+            for (size_t stage = 0; stage < EltwiseMetadata::maximum_fused_chain_length; ++stage) {
                 descriptor.arguments.push_back({argument_desc::Types::INPUT_OF_FUSED_PRIMITIVE, static_cast<uint32_t>(std::min(stage, fused->size() - 1))});
             }
         }
@@ -898,7 +577,7 @@ private:
     std::shared_ptr<LocalSizeTuner> _local_size_tuner;
     gpu_kernel_lifecycle _kernels;
     gpu_execution_plan _execution_plan;
-    std::array<uint32_t, metadata_words> _cached_metadata{};
+    EltwiseMetadata _cached_metadata;
     bool _metadata_initialized = false;
 };
 
@@ -926,7 +605,8 @@ bool EltwiseImplementationManager::validate_impl(const program_node& node) const
 
     for (size_t index = 0; index < expected_inputs; ++index) {
         const auto& input_layout = node.get_input_layout(index);
-        if (!is_supported_shader_scalar_type(input_layout.data_type) || !is_supported_format(input_layout.format.value) || input_layout.get_rank() > max_rank) {
+        if (!is_supported_shader_scalar_type(input_layout.data_type) || !is_supported_format(input_layout.format.value) ||
+            input_layout.get_rank() > EltwiseMetadata::maximum_rank) {
             return false;
         }
         if (is_bitwise_mode(desc->mode) && !is_integer_shader_scalar_type(input_layout.data_type)) {
@@ -937,7 +617,8 @@ bool EltwiseImplementationManager::validate_impl(const program_node& node) const
         }
     }
     const auto& output_layout = node.get_output_layout(0);
-    return is_supported_shader_scalar_type(output_layout.data_type) && is_supported_format(output_layout.format.value) && output_layout.get_rank() <= max_rank;
+    return is_supported_shader_scalar_type(output_layout.data_type) && is_supported_format(output_layout.format.value) &&
+           output_layout.get_rank() <= EltwiseMetadata::maximum_rank;
 }
 
 std::unique_ptr<primitive_impl> EltwiseImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
@@ -957,7 +638,7 @@ std::unique_ptr<primitive_impl> EltwiseImplementationManager::create_impl(const 
     kernel_kind kind = kernel_kind::broadcast_scalar;
     std::optional<scalar_constant> scalar;
     const auto fused_chain_length =
-        fused.has_value() && fused->size() >= min_multi_stage_fused_chain_length ? checked_u32(fused->size(), "fused chain length") : 0U;
+        fused.has_value() && fused->size() >= EltwiseMetadata::minimum_multi_stage_fused_chain_length ? checked_u32(fused->size(), "fused chain length") : 0U;
     if (post_op.has_value()) {
         kind = kernel_kind::fused_post_op;
     } else if (fused.has_value()) {
@@ -969,7 +650,7 @@ std::unique_ptr<primitive_impl> EltwiseImplementationManager::create_impl(const 
             if (vector_width == dense_vector_width::vec4 && can_use_f32_no_tail_kernel(params.get_output_layout(0), vector_width, device_info)) {
                 kind = kernel_kind::fused_dense_chain_f32_vec4_no_tail;
             }
-        } else if (!fused->front().broadcast_input && max_push_constants_size >= fused_dense_push_constant_bytes) {
+        } else if (!fused->front().broadcast_input && max_push_constants_size >= EltwiseMetadata::dense_push_constant_bytes(true)) {
             const auto& fused_input_layout = params.get_input_layout(fused->front().external_dependency_index);
             const auto packed_width = select_packed_dense_width(input0_layout, input1_layout, params.get_output_layout(0), &fused_input_layout, device_info);
             if (packed_width != packed_dense_width::none) {
@@ -993,7 +674,7 @@ std::unique_ptr<primitive_impl> EltwiseImplementationManager::create_impl(const 
         } else if (can_use_dense_kernel(input0_layout, input1_layout, output_layout) ||
                    can_use_packed_dense_kernel(input0_layout, input1_layout, output_layout, nullptr)) {
             kind = can_use_dense_kernel(input0_layout, input1_layout, output_layout) ? kernel_kind::dense : kernel_kind::broadcast_scalar;
-            if (max_push_constants_size >= dense_push_constant_bytes) {
+            if (max_push_constants_size >= EltwiseMetadata::dense_push_constant_bytes(false)) {
                 const auto packed_width = select_packed_dense_width(input0_layout, input1_layout, output_layout, nullptr, device_info);
                 if (packed_width != packed_dense_width::none) {
                     kind = select_packed_dense_kernel_kind(packed_width, output_layout.data_type, false);
