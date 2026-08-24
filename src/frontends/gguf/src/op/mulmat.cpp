@@ -89,6 +89,11 @@ OutputVector translate_mulmat(const NodeContext & context) {
 
     res = std::make_shared<ov::op::v0::MatMul>(A, B, false, transpose_b);
 
+    const auto output_type = context.get_output_type();
+    if (res.get_element_type() != output_type) {
+        res = std::make_shared<ov::op::v0::Convert>(res, output_type);
+    }
+
     return rename_outputs_with_suffix({res}, context.get_name());
 }
 
