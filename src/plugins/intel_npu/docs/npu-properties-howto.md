@@ -131,14 +131,15 @@ struct OptionBase {
 ### OptionDesc
 is storage for the registered options. This is the base map which stores the available OptionBase descriptors.
 This layer implements the option database manipulation functions: add/has/reset.
-The plugin property manager creates it once, registers the plugin options, and lets the backend add its compiler-specific options.
+The plugin creates it once, registers the plugin options, and lets the backend add its compiler-specific options before
+passing the finalized descriptor to the plugin property manager.
 
 ### Config
 is the highlevel configuration "database" which implements the mapping between OptionBase and templatized OptionValue.
 Maps and stores the user-defined values for each entry in OptionsDesc layer.
 Implements the top level configuration manipulation functions:
 get/update/has/getString/toString/fromString and handles typecasts, typeverification, parsing and conversions.
-```` Note: This layer is initialized once in the plugin property manager from the finalized OptionsDesc. ````
+```` Note: This layer is initialized once in the plugin from the finalized OptionsDesc and passed to the plugin property manager. ````
 
 ### FilteredConfig
 is a derivative class of Config, used only by NPU Plugin, which implements additional filtering layers atop of the base config,
@@ -147,10 +148,10 @@ such as enabling/disabling keys based on their availability/support on the curre
 
 The initialization order is:
 1. `Plugin` creates a small temporary `OptionsDesc`/`FilteredConfig` containing only `LOG_LEVEL` so the logger can be initialized from the environment.
-2. `PluginPropertyManager` creates the complete `OptionsDesc` and registers all plugin options.
+2. `Plugin` creates the complete `OptionsDesc` and registers all plugin options.
 3. The backend adds its options through `backend->registerOptions(*options)`.
-4. The manager constructs its `FilteredConfig` from the finalized descriptor and parses environment variables.
-5. The manager resolves the effective compiler type and registers property descriptors.
+4. `Plugin` constructs the `FilteredConfig` from the finalized descriptor, parses environment variables, and passes it to `PluginPropertyManager`.
+5. `PluginPropertyManager` resolves the effective compiler type and registers property descriptors.
 
 ### Properties
 is the top level class and serves as the NPU Plugin's interface to OpenVino and the application layer.
@@ -259,13 +260,15 @@ If any is missing, the default function will be used for its call, as defined in
 (see class **OptionBase** in `src/plugins/intel_npu/src/al/include/intel_npu/config/config.hpp` or Class Hierarchy section above)
 
 ## Step 3. Register the new option
-Third step is to register the new option in the plugin property manager:
-**src/plugins/intel_npu/src/plugin/src/plugin_property_manager.cpp > function register_options(...)**
+Third step is to register the new option in the plugin:
+**src/plugins/intel_npu/src/plugin/src/plugin.cpp > function register_options(...)**
 ```cpp
     REGISTER_OPTION(EXAMPLE_PROPERTY);
 ``` 
 Notes:  
-The manager registers the option in `OptionsDesc` before constructing its `FilteredConfig`. The backend options are registered immediately afterward, and environment variables are parsed on the completed configuration.
+The plugin registers the option in `OptionsDesc` before the backend adds its compiler-specific options. The plugin then
+constructs `FilteredConfig` from the completed descriptor, parses environment variables, and passes the configuration to
+`PluginPropertyManager`.
 
 ## Step 4. Link the new property to the new option
 Fourth step is to create and register the Property (which is basically the interface to this configuration option) for both Plugin and CompiledModel (if needed) 
@@ -513,7 +516,9 @@ Example:
 ## SC.3 Register options and gate availability with support checks
 Register normal options in `OptionsDesc` even when their runtime or compiler support is conditional. Backend-dependent options may be registered conditionally when the option cannot exist without the required backend capability. Gate property support through the appropriate support predicate.
 
-The plugin property manager builds the complete configuration and registers backend options through `backend->registerOptions(*options)`. Backend-dependent options can use support predicates such as `hasBackendPredicate` or a compiler support query.
+The plugin builds the complete configuration in `plugin.cpp` and registers backend options through
+`backend->registerOptions(*options)`. Backend-dependent options can use support predicates such as
+`hasBackendPredicate` or a compiler support query.
 
 For example, `WORKLOAD_TYPE` remains registered when the backend is present, while its availability is controlled by the backend capability used during option registration.
 Implementation point:
@@ -524,7 +529,8 @@ Example:
         options.add<WORKLOAD_TYPE>();
     }
 ```
-The logger configuration is initialized separately in `Plugin` with only `LOG_LEVEL`; the complete configuration is owned by `PluginPropertyManager`.
+The logger configuration is initialized separately in `Plugin` with only `LOG_LEVEL`; the complete configuration is built
+and finalized by `Plugin` before being passed to `PluginPropertyManager`.
 
 NPUW options exposed by `for_each_exposed_npuw_option` are registered with `register_npuw_property`. These properties are
 private, read-write config-backed properties and should not be registered individually. Cached NPUW options are included
@@ -534,9 +540,7 @@ in the compiler cache-property list through `for_each_cached_npuw_option`.
 Before compiler serialization in `compiler_adapter/src/model_serializer.cpp`, use the predicate-based overload of
 `FilteredConfig::toStringForCompiler(...)`:
 ```cpp
-content += config.toStringForCompiler([&isOptionSupportedByCompiler](std::string_view key) {
-    return isOptionSupportedByCompiler != nullptr && isOptionSupportedByCompiler(std::string(key));
-});
+content += config.toStringForCompiler(isOptionSupportedByCompiler);
 ```
 This traverses compile-time and `Both` options from the normal configuration and all internal compiler options. Only keys for which the predicate returns `true` are serialized. Runtime-only options are skipped, and unsupported options are not sent to the compiler.
 

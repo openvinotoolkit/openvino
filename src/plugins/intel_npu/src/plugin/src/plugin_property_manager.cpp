@@ -19,56 +19,6 @@
 
 namespace {
 
-const std::vector<ov::PropertyName> cachingProperties = [] {
-    std::vector<ov::PropertyName> properties = {
-        ov::cache_mode.name(),
-        ov::enable_profiling.name(),
-        ov::device::architecture.name(),
-        ov::hint::execution_mode.name(),
-        ov::hint::inference_precision.name(),
-        ov::hint::performance_mode.name(),
-        ov::intel_npu::batch_compiler_mode_settings.name(),
-        ov::intel_npu::batch_mode.name(),
-        ov::intel_npu::compilation_mode.name(),
-        ov::intel_npu::compilation_mode_params.name(),
-        ov::intel_npu::compiler_dynamic_quantization.name(),
-        ov::intel_npu::compiler_type.name(),
-        ov::intel_npu::dma_engines.name(),
-        ov::intel_npu::driver_version.name(),
-        ov::intel_npu::dynamic_shape_to_static.name(),
-        ov::intel_npu::enable_strides_for.name(),
-        ov::intel_npu::max_tiles.name(),
-        ov::intel_npu::stepping.name(),
-        ov::intel_npu::tiles.name(),
-        ov::intel_npu::turbo.name(),
-        ov::intel_npu::qdq_optimization.name(),
-        ov::intel_npu::qdq_optimization_aggressive.name(),
-    };
-    intel_npu::for_each_cached_npuw_option([&](auto tag) {
-        using Opt = typename decltype(tag)::type;
-        properties.emplace_back(std::string{Opt::key()});
-    });
-    return properties;
-}();
-
-const std::vector<ov::PropertyName> internalSupportedProperties = {ov::internal::caching_properties.name(),
-                                                                   ov::internal::caching_with_mmap.name(),
-                                                                   ov::internal::cache_header_alignment.name()};
-
-constexpr uint32_t maxNumOfOptimalInferRequests = 8u;
-
-const std::vector<std::string> optimizationCapabilities = {
-    ov::device::capability::FP16,
-    ov::device::capability::INT8,
-    ov::device::capability::EXPORT_IMPORT,
-};
-
-// Provides a hint for a range for number of async infer requests (bottom bound, upper bound, step)
-const std::tuple<uint32_t, uint32_t, uint32_t> rangeForAsyncInferRequests{1u, maxNumOfOptimalInferRequests, 1u};
-
-// Provides information about a range for streams (bottom bound, upper bound)
-const std::tuple<uint32_t, uint32_t> rangeForStreams{0u, maxNumOfOptimalInferRequests};
-
 std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     std::map<std::string, std::string> result;
     for (auto&& value : params) {
@@ -190,127 +140,21 @@ ov::CompatibilityCheck validateCompatibilityDescriptor(const ov::SoPtr<intel_npu
     }
 }
 
-void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel_npu::OptionsDesc& options) {
-    using namespace intel_npu;
-#define REGISTER_OPTION(OPT_TYPE) \
-    do {                          \
-        options.add<OPT_TYPE>();  \
-    } while (0)
-
-    REGISTER_OPTION(LOG_LEVEL);
-    REGISTER_OPTION(COMPILE_LOG_LEVEL);
-    REGISTER_OPTION(CACHE_DIR);
-    REGISTER_OPTION(CACHE_MODE);
-    REGISTER_OPTION(COMPILED_BLOB);
-    REGISTER_OPTION(DEVICE_ID);
-    REGISTER_OPTION(NUM_STREAMS);
-    REGISTER_OPTION(PERF_COUNT);
-    REGISTER_OPTION(LOADED_FROM_CACHE);
-    REGISTER_OPTION(COMPILATION_NUM_THREADS);
-    REGISTER_OPTION(PERFORMANCE_HINT);
-    REGISTER_OPTION(EXECUTION_MODE_HINT);
-    REGISTER_OPTION(PERFORMANCE_HINT_NUM_REQUESTS);
-    REGISTER_OPTION(INFERENCE_PRECISION_HINT);
-    REGISTER_OPTION(COMPILATION_MODE_PARAMS);
-    REGISTER_OPTION(DMA_ENGINES);
-    REGISTER_OPTION(TILES);
-    REGISTER_OPTION(COMPILATION_MODE);
-    REGISTER_OPTION(COMPILER_TYPE);
-    REGISTER_OPTION(COMPILER_VERSION);
-    REGISTER_OPTION(PLATFORM);
-    REGISTER_OPTION(CREATE_EXECUTOR);
-    REGISTER_OPTION(DYNAMIC_SHAPE_TO_STATIC);
-    REGISTER_OPTION(PROFILING_TYPE);
-    REGISTER_OPTION(BACKEND_COMPILATION_PARAMS);
-    REGISTER_OPTION(BATCH_MODE);
-    REGISTER_OPTION(BYPASS_UMD_CACHING);
-    REGISTER_OPTION(DEFER_WEIGHTS_LOAD);
-    REGISTER_OPTION(WEIGHTS_PATH);
-    REGISTER_OPTION(RUN_INFERENCES_SEQUENTIALLY);
-    REGISTER_OPTION(COMPILER_DYNAMIC_QUANTIZATION);
-    REGISTER_OPTION(QDQ_OPTIMIZATION);
-    REGISTER_OPTION(QDQ_OPTIMIZATION_AGGRESSIVE);
-    REGISTER_OPTION(STEPPING);
-    REGISTER_OPTION(DISABLE_VERSION_CHECK);
-    REGISTER_OPTION(EXPORT_RAW_BLOB);
-    REGISTER_OPTION(IMPORT_RAW_BLOB);
-    REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
-    REGISTER_OPTION(TURBO);
-    REGISTER_OPTION(ENABLE_WEIGHTLESS);
-    REGISTER_OPTION(SEPARATE_WEIGHTS_VERSION);
-    REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
-    REGISTER_OPTION(MODEL_SERIALIZER_VERSION);
-    REGISTER_OPTION(ENABLE_STRIDES_FOR);
-    REGISTER_OPTION(SHARED_COMMON_QUEUE);
-    REGISTER_OPTION(CACHE_ENCRYPTION_CALLBACKS);
-    REGISTER_OPTION(MAX_TILES);
-
-    if (backend) {
-        REGISTER_OPTION(MODEL_PRIORITY);
-
-        if (backend->isCommandQueueExtSupported()) {
-            REGISTER_OPTION(WORKLOAD_TYPE);
-        }
-        if (backend->isContextExtSupported()) {
-            REGISTER_OPTION(DISABLE_IDLE_MEMORY_PRUNING);
-        }
-    }
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    REGISTER_OPTION(ENABLE_CPU_PINNING);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
-    // NPUW properties are requested by OV Core during caching and
-    // have no effect on the NPU plugin. But we still need to enable
-    // those for OV Core to query. Note: do this last to not filter
-    // them out. register npuw caching properties
-    for_each_exposed_npuw_option([&](auto tag) {
-        using Opt = typename decltype(tag)::type;
-        REGISTER_OPTION(Opt);
-    });
-}
-
-intel_npu::FilteredConfig create_config(const ov::SoPtr<intel_npu::IEngineBackend>& backend) {
-    auto options = std::make_shared<intel_npu::OptionsDesc>();
-    register_options(backend, *options);
-
-    if (backend) {
-        backend->registerOptions(*options);
-    }
-
-    return intel_npu::FilteredConfig(options);
-}
-
 }  // namespace
 
 namespace intel_npu {
 
-PluginPropertyManager::PluginPropertyManager(const ov::SoPtr<IEngineBackend>& backend,
+PluginPropertyManager::PluginPropertyManager(const FilteredConfig& config,
+                                             const ov::SoPtr<IEngineBackend>& backend,
                                              const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper,
                                              Logger& logger)
-    : _config(create_config(backend)),
+    : _config(config),
       _backend(backend),
       _compilerOptionSupportHelper(optionSupportHelper),
       _logger(logger) {
     if (_backend == nullptr) {
         _logger.info("No backend is available. Backend/device-dependent properties will be unavailable.");
     }
-
-    // parse again env_variables to update registered configs which have env vars set
-    _config.parseEnvVars();
-
-    if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN && _backend != nullptr) {
-        auto device = _backend->getDevice();
-        if (device) {
-            auto platformName = device->getName();
-            CompilerAdapterFactory compilerFactory;
-            auto compileType = compilerFactory.determineAppropriateCompilerTypeBasedOnPlatform(platformName);
-            if (compileType == ov::intel_npu::CompilerType::DRIVER) {
-                _config.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compileType)}});
-            }
-        }
-    }
-
     registerProperties();
 }
 
@@ -846,13 +690,15 @@ void PluginPropertyManager::registerProperties() {
         return std::vector<std::string>{"NPU"};
     });
     register_property_with_custom_function(_properties, ov::device::capabilities.name(), true, ov::PropertyMutability::RO, [](const ov::AnyMap&) {
-        return optimizationCapabilities;
+        return std::vector<std::string>{ov::device::capability::FP16,
+                                        ov::device::capability::INT8,
+                                        ov::device::capability::EXPORT_IMPORT};
     });
     register_property_with_custom_function(_properties, ov::range_for_async_infer_requests.name(), true, ov::PropertyMutability::RO, [](const ov::AnyMap&) {
-        return rangeForAsyncInferRequests;
+        return std::tuple<uint32_t, uint32_t, uint32_t>{1u, 8u, 1u};
     });
     register_property_with_custom_function(_properties, ov::range_for_streams.name(), true, ov::PropertyMutability::RO, [](const ov::AnyMap&) {
-        return rangeForStreams;
+        return std::tuple<uint32_t, uint32_t>{0u, 8u};
     });
     register_property_with_custom_function(_properties, ov::available_devices.name(), true, ov::PropertyMutability::RO, [this](const ov::AnyMap&) {
         return _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames();
@@ -871,14 +717,16 @@ void PluginPropertyManager::registerProperties() {
     });
 
     register_property_with_custom_function(_properties, ov::internal::supported_properties.name(), false, ov::PropertyMutability::RO, [](const ov::AnyMap&) {
-        return internalSupportedProperties;
+        return std::vector<ov::PropertyName>{ov::internal::caching_properties.name(),
+                                             ov::internal::caching_with_mmap.name(),
+                                             ov::internal::cache_header_alignment.name()};
     });
     register_property_with_custom_function(_properties, ov::internal::cache_header_alignment.name(), false, ov::PropertyMutability::RO, [](const ov::AnyMap&) {
         return utils::STANDARD_PAGE_SIZE;
     });
     register_property_with_custom_function(_properties, ov::internal::caching_properties.name(), false, ov::PropertyMutability::RO, [this](const ov::AnyMap& arguments) {
         std::vector<ov::PropertyName> caching_props{};
-        for (auto prop : cachingProperties) {
+        for (auto prop : _cachingProperties) {
             const auto propertyIt = _properties.find(prop);
             if (propertyIt != _properties.end() && propertyIt->second.isSupported(arguments)) {
                 caching_props.emplace_back(prop);

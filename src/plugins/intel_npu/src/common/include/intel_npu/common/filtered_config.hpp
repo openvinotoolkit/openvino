@@ -96,7 +96,7 @@ public:
      * @param isSupported Predicate used to filter compile-time and internal compiler options.
      * @return A string containing the supported configuration keys and values.
      */
-    std::string toStringForCompiler(const std::function<bool(std::string_view)>& isSupported) const;
+    std::string toStringForCompiler(const std::function<bool(const std::string&)>& isSupported) const;
 
 private:
     ConfigMap _internal_compiler_configs;  ///< Map to store internal (hidden) configurations used for compiler.

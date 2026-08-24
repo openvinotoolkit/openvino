@@ -733,9 +733,7 @@ std::string serializeConfig(const FilteredConfig& originalConfig,
 
     std::string content = {};
 
-    content += config.toStringForCompiler([&isOptionSupportedByCompiler](std::string_view key) {
-        return isOptionSupportedByCompiler != nullptr && isOptionSupportedByCompiler(std::string(key));
-    });
+    content += config.toStringForCompiler(isOptionSupportedByCompiler);
 
     logger.debug("Original content of config: %s", content.c_str());
 
