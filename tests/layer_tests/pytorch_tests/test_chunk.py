@@ -208,13 +208,11 @@ class TestChunkNegativeDim(PytorchLayerTest):
         return (self.random.rand(*self.input_shape),)
 
     @pytest.mark.parametrize("input_shape,dim", [
-        # 3D tensor; last dim has size 12 so chunks of 4
-        ((4, 6, 12), -1),
-        ((4, 6, 12), -3),
-        # 4D tensor; various negative dims
-        ((2, 4, 6, 9), -1),
-        ((2, 4, 6, 9), -2),
-        ((2, 4, 6, 9), -4),
+        # The chunked dimension must be divisible into exactly 3 chunks to match
+        # the 3-way unpack in aten_chunk_neg_dim_3.
+        ((4, 6, 12), -1),   # dim=2, size=12 -> [4,4,4]
+        ((2, 4, 6, 9), -1),  # dim=3, size=9  -> [3,3,3]
+        ((2, 4, 6, 9), -2),  # dim=2, size=6  -> [2,2,2]
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
