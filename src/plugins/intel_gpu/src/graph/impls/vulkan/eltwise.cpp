@@ -6,15 +6,11 @@
 
 #include <algorithm>
 #include <array>
-#include <atomic>
 #include <chrono>
 #include <cstdint>
-#include <cstdlib>
 #include <cstring>
-#include <iostream>
 #include <limits>
 #include <memory>
-#include <mutex>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -25,6 +21,7 @@
 #include "data_inst.h"
 #include "eltwise/kernel_catalog.hpp"
 #include "eltwise/kernel_kind.hpp"
+#include "eltwise/local_size_tuner.hpp"
 #include "eltwise_shader_abi.hpp"
 #include "graph_optimizer/vulkan_graph_optimizer.hpp"
 #include "intel_gpu/runtime/stream.hpp"
@@ -71,16 +68,13 @@ constexpr uint32_t dense_push_constant_words = shader_abi::index(shader_abi::den
 constexpr uint32_t fused_dense_push_constant_words = dense_push_constant_words + shader_abi::index(shader_abi::fused_dense_metadata_field::count);
 constexpr uint32_t dense_push_constant_bytes = dense_push_constant_words * sizeof(uint32_t);
 constexpr uint32_t fused_dense_push_constant_bytes = fused_dense_push_constant_words * sizeof(uint32_t);
-constexpr uint32_t portable_max_local_work_group_size = 128;
 constexpr uint32_t broadcast_vector_width = 4;
 constexpr uint32_t broadcast_vector_min_elements = 256;
 constexpr uint32_t maximum_scalar_batch_width = 8;
 constexpr uint32_t balanced_scalar_batch_width = 4;
 constexpr uint32_t division_scalar_batch_width = 2;
 constexpr uint32_t scalar_batch_width = 1;
-constexpr uint32_t scalar_elements_per_subgroup_budget = portable_max_local_work_group_size;
-constexpr size_t local_size_tuning_samples_per_candidate = 3;
-constexpr size_t local_size_stabilization_inferences = 20;
+constexpr uint32_t scalar_elements_per_subgroup_budget = portable_local_work_group_size_limit;
 
 struct scalar_constant {
     shader_abi::tensor_index input_index = shader_abi::tensor_index::input1;
@@ -233,155 +227,6 @@ uint32_t checked_u32(size_t value, const char* description) {
     return static_cast<uint32_t>(value);
 }
 
-uint32_t select_local_work_group_size(uint32_t element_count, uint64_t device_max_work_group_size) {
-    const auto limit = static_cast<uint32_t>(std::min<uint64_t>(portable_max_local_work_group_size, device_max_work_group_size));
-    OPENVINO_ASSERT(limit > 0, "[GPU][Vulkan] Device reports a zero maximum work-group size");
-
-    uint32_t local_size = 1;
-    while (local_size < element_count && local_size <= limit / 2) {
-        local_size *= 2;
-    }
-    return local_size;
-}
-
-struct local_size_tuning_state {
-    std::mutex mutex;
-    std::atomic<uint32_t> cached_selected{0};
-    uint32_t invocation_count = 0;
-    uint32_t fallback = 1;
-    uint32_t selected = 1;
-    std::vector<uint32_t> candidates;
-    std::vector<std::vector<uint64_t>> samples;
-    size_t fallback_observations = 0;
-    bool prewarmed = false;
-    bool decided = false;
-};
-
-struct local_size_tuning_action {
-    uint32_t local_size = 1;
-    size_t candidate_index = 0;
-    bool prewarm = false;
-    bool measure = false;
-};
-
-std::vector<uint32_t> make_local_size_candidates(uint32_t invocation_count, const device_info& info, bool require_exact_divisibility) {
-    const auto fallback = select_local_work_group_size(invocation_count, info.max_work_group_size);
-    std::vector<uint32_t> candidates{fallback};
-    if (info.supported_simd_sizes.empty() || info.supported_simd_sizes.front() == 0) {
-        return candidates;
-    }
-
-    const auto limit = static_cast<uint32_t>(std::min<uint64_t>(info.max_work_group_size, std::numeric_limits<uint32_t>::max()));
-    const auto subgroup_size = info.supported_simd_sizes.front();
-    const auto add_candidate = [&](uint32_t candidate) {
-        if (candidate >= subgroup_size && candidate % subgroup_size == 0 && candidate <= limit && candidate <= invocation_count &&
-            (!require_exact_divisibility || invocation_count % candidate == 0)) {
-            candidates.push_back(candidate);
-        }
-    };
-    if (subgroup_size <= fallback / 2) {
-        const auto midpoint = (fallback / 2 / subgroup_size) * subgroup_size;
-        add_candidate(midpoint);
-    }
-    if (fallback <= limit / 2) {
-        const auto expanded = ((fallback * 2 + subgroup_size - 1) / subgroup_size) * subgroup_size;
-        add_candidate(expanded);
-    }
-    std::sort(candidates.begin(), candidates.end());
-    candidates.erase(std::unique(candidates.begin(), candidates.end()), candidates.end());
-    return candidates;
-}
-
-uint64_t median_local_size_sample(std::vector<uint64_t> samples) {
-    const auto middle = samples.begin() + samples.size() / 2;
-    std::nth_element(samples.begin(), middle, samples.end());
-    return *middle;
-}
-
-bool local_size_diagnostics_enabled() {
-    const auto* value = std::getenv("OV_GPU_VULKAN_LOCAL_SIZE_STATS");
-    return value != nullptr && value[0] != '\0' && std::string(value) != "0";
-}
-
-void initialize_local_size_tuning(local_size_tuning_state& state, uint32_t invocation_count, const device_info& info, bool require_exact_divisibility) {
-    state.invocation_count = invocation_count;
-    state.fallback = select_local_work_group_size(invocation_count, info.max_work_group_size);
-    state.selected = state.fallback;
-    state.candidates = make_local_size_candidates(invocation_count, info, require_exact_divisibility);
-    state.samples.assign(state.candidates.size(), {});
-    state.fallback_observations = 0;
-    state.prewarmed = false;
-    state.decided = state.candidates.size() == 1;
-    state.cached_selected.store(state.decided ? state.fallback : 0, std::memory_order_release);
-}
-
-void decide_local_size(local_size_tuning_state& state) {
-    const auto fallback_it = std::find(state.candidates.begin(), state.candidates.end(), state.fallback);
-    OPENVINO_ASSERT(fallback_it != state.candidates.end(), "[GPU][Vulkan] Eltwise local-size candidates lost the portable fallback");
-    const auto fallback_index = static_cast<size_t>(std::distance(state.candidates.begin(), fallback_it));
-    auto best_index = fallback_index;
-    auto best_median = median_local_size_sample(state.samples[fallback_index]);
-    for (size_t index = 0; index < state.candidates.size(); ++index) {
-        const auto candidate_median = median_local_size_sample(state.samples[index]);
-        if (candidate_median < best_median) {
-            best_index = index;
-            best_median = candidate_median;
-        }
-    }
-
-    if (best_index != fallback_index) {
-        const auto best_max = *std::max_element(state.samples[best_index].begin(), state.samples[best_index].end());
-        const auto fallback_min = *std::min_element(state.samples[fallback_index].begin(), state.samples[fallback_index].end());
-        if (best_max >= fallback_min) {
-            best_index = fallback_index;
-        }
-    }
-    state.selected = state.candidates[best_index];
-    state.decided = true;
-    state.cached_selected.store(state.selected, std::memory_order_release);
-
-    if (local_size_diagnostics_enabled()) {
-        std::clog << "[GPU][Vulkan][EltwiseLocalSize] invocations=" << state.invocation_count << " fallback=" << state.fallback
-                  << " selected=" << state.selected;
-        for (size_t index = 0; index < state.candidates.size(); ++index) {
-            std::clog << " candidate_" << state.candidates[index] << "_median_ns=" << median_local_size_sample(state.samples[index]);
-        }
-        std::clog << std::endl;
-    }
-}
-
-local_size_tuning_action next_local_size_action(local_size_tuning_state& state,
-                                                uint32_t invocation_count,
-                                                const device_info& info,
-                                                bool require_exact_divisibility) {
-    if (state.invocation_count != invocation_count || state.candidates.empty()) {
-        initialize_local_size_tuning(state, invocation_count, info, require_exact_divisibility);
-    }
-    if (state.decided) {
-        return {state.selected, 0, false, false};
-    }
-    if (state.fallback_observations < local_size_stabilization_inferences) {
-        ++state.fallback_observations;
-        return {state.fallback, 0, false, false};
-    }
-    if (!state.prewarmed) {
-        return {state.fallback, 0, true, false};
-    }
-
-    size_t total_samples = 0;
-    for (const auto& candidate_samples : state.samples) {
-        total_samples += candidate_samples.size();
-    }
-    const auto sample_round = total_samples / state.candidates.size();
-    if (sample_round == local_size_tuning_samples_per_candidate) {
-        decide_local_size(state);
-        return {state.selected, 0, false, false};
-    }
-    const auto position = total_samples % state.candidates.size();
-    const auto candidate_index = sample_round % 2 == 0 ? position : state.candidates.size() - position - 1;
-    return {state.candidates[candidate_index], candidate_index, false, true};
-}
-
 bool has_dense_storage(const layout& tensor_layout) {
     return !static_cast<bool>(tensor_layout.data_padding) &&
            tensor_layout.bytes_count() == tensor_layout.count() * data_type_traits::size_of(tensor_layout.data_type);
@@ -467,7 +312,7 @@ packed_dense_width select_packed_dense_width(const layout& input0_layout,
     }
     const auto width = packed_width_for_type(output_layout.data_type);
     const auto logical_elements_per_subgroup = static_cast<uint64_t>(info.supported_simd_sizes.front()) * value(width);
-    if (logical_elements_per_subgroup > portable_max_local_work_group_size) {
+    if (logical_elements_per_subgroup > portable_local_work_group_size_limit) {
         return packed_dense_width::none;
     }
     const auto invocation_count = output_layout.count() / value(width);
@@ -545,7 +390,7 @@ bool can_use_f32_no_tail_kernel(const layout& output_layout, dense_vector_width 
     }
     const auto invocation_count = checked_u32(output_layout.count() / vector_width, "F32 vector invocation count");
     const auto max_work_group_size = std::max<uint64_t>(info.max_work_group_size, 1);
-    const auto local_size = select_local_work_group_size(invocation_count, max_work_group_size);
+    const auto local_size = select_portable_local_work_group_size(invocation_count, max_work_group_size);
     if (invocation_count % local_size != 0) {
         return false;
     }
@@ -850,7 +695,7 @@ uint32_t operation_batch_width_limit(eltwise_mode mode, data_types type, kernel_
             return scalar_batch_width;
         }
         if (is_broadcast_vector_kernel(kind) && info.max_work_group_size != 0) {
-            const auto capability_width = std::max<uint64_t>(info.max_work_group_size / portable_max_local_work_group_size, scalar_batch_width);
+            const auto capability_width = std::max<uint64_t>(info.max_work_group_size / portable_local_work_group_size_limit, scalar_batch_width);
             return static_cast<uint32_t>(std::min<uint64_t>(capability_width, balanced_scalar_batch_width));
         }
         return division_scalar_batch_width;
@@ -1106,7 +951,7 @@ bool should_use_fast_broadcast_kernel(const layout& input0_layout,
     const auto rank = collapsed_broadcast_rank(input0_layout, input1_layout, output_layout);
     const auto coordinate_schedule_pressure = static_cast<uint64_t>(rank) * subgroup_slots;
     const auto invocation_count = (output_layout.count() + elements_per_invocation - 1) / elements_per_invocation;
-    return coordinate_schedule_pressure <= portable_max_local_work_group_size && invocation_count >= subgroup_size;
+    return coordinate_schedule_pressure <= portable_local_work_group_size_limit && invocation_count >= subgroup_size;
 }
 
 std::array<uint32_t, metadata_words> make_metadata(const eltwise_inst& instance,
@@ -1286,13 +1131,13 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
           _scalar_constant(std::move(scalar)),
           _elements_per_invocation(elements_per_invocation),
           _fused_chain_length(fused_chain_length),
-          _local_size_tuning(std::make_shared<local_size_tuning_state>()),
+          _local_size_tuner(std::make_shared<LocalSizeTuner>()),
           _execution_plan(1) {}
 
     std::unique_ptr<primitive_impl> clone() const override {
         auto result = std::make_unique<eltwise_impl>(*this);
         result->_metadata_initialized = false;
-        result->_local_size_tuning = std::make_shared<local_size_tuning_state>();
+        result->_local_size_tuner = std::make_shared<LocalSizeTuner>();
         return result;
     }
 
@@ -1491,26 +1336,18 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
                         "[GPU][Vulkan] Fast broadcast Eltwise runtime layouts no longer satisfy the compiled kernel contract");
         const auto invocation_count = (element_count + elements_per_invocation - 1) / elements_per_invocation;
         const auto& device_info = instance.get_network().get_engine().get_device_info();
-        local_size_tuning_action local_size_action;
-        std::unique_lock<std::mutex> local_size_tuning_lock;
+        std::optional<LocalSizeTuner::Selection> local_size_selection;
+        uint32_t local_size = 1;
         if (_elements_per_invocation != 0) {
-            const auto cached_local_size = _local_size_tuning->cached_selected.load(std::memory_order_acquire);
-            if (cached_local_size != 0) {
-                local_size_action.local_size = cached_local_size;
-            } else {
-                local_size_tuning_lock = std::unique_lock<std::mutex>(_local_size_tuning->mutex);
-                local_size_action = next_local_size_action(*_local_size_tuning, invocation_count, device_info, is_no_tail_kernel(_kernel_kind));
-                if (!local_size_action.prewarm && !local_size_action.measure) {
-                    local_size_tuning_lock.unlock();
-                }
-            }
+            local_size_selection.emplace(_local_size_tuner->select(invocation_count, device_info, is_no_tail_kernel(_kernel_kind)));
+            local_size = local_size_selection->local_size();
         } else {
-            local_size_action.local_size = select_local_work_group_size(invocation_count, device_info.max_work_group_size);
+            local_size = select_portable_local_work_group_size(invocation_count, device_info.max_work_group_size);
         }
         descriptor.workGroups.global = {invocation_count, 1, 1};
-        descriptor.workGroups.local = {local_size_action.local_size, 1, 1};
+        descriptor.workGroups.local = {local_size, 1, 1};
         vulkan_specialization_constants specialization_constants = {
-            {cldnn::vulkan::shader_abi::index(cldnn::vulkan::shader_abi::specialization_id::local_size_x), local_size_action.local_size},
+            {cldnn::vulkan::shader_abi::index(cldnn::vulkan::shader_abi::specialization_id::local_size_x), local_size},
             {shader_abi::index(shader_abi::specialization_id::mode), metadata[shader_abi::index(shader_abi::metadata_field::mode)]},
             {shader_abi::index(shader_abi::specialization_id::input0_type), metadata[shader_abi::index(shader_abi::metadata_field::input0_type)]},
             {shader_abi::index(shader_abi::specialization_id::input1_type), metadata[shader_abi::index(shader_abi::metadata_field::input1_type)]},
@@ -1610,16 +1447,14 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         const size_t selected_kernel_index = use_restricted_kernel ? 1 : 0;
         _execution_plan[0].kernel_index = selected_kernel_index;
         auto& selected_kernel = *_kernels.at(selected_kernel_index);
-        if (local_size_action.prewarm) {
-            for (const auto candidate : _local_size_tuning->candidates) {
+        if (local_size_selection.has_value() && local_size_selection->requires_prewarm()) {
+            for (const auto candidate : local_size_selection->candidates()) {
                 descriptor.workGroups.local[0] = candidate;
                 stream.set_arguments(selected_kernel, descriptor, arguments);
             }
-            _local_size_tuning->prewarmed = true;
-            local_size_tuning_lock.unlock();
-            descriptor.workGroups.local[0] = _local_size_tuning->fallback;
+            descriptor.workGroups.local[0] = local_size_selection->complete_prewarm();
         }
-        if (local_size_action.measure) {
+        if (local_size_selection.has_value() && local_size_selection->requires_measurement()) {
             stream.finish();
             const auto start = std::chrono::steady_clock::now();
             auto& vulkan_dispatch_stream = dynamic_cast<vulkan_stream&>(stream);
@@ -1627,9 +1462,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
             OPENVINO_ASSERT(measured_event != nullptr, "[GPU][Vulkan] Eltwise local-size measurement did not produce a completion event");
             measured_event->wait();
             const auto elapsed = std::chrono::steady_clock::now() - start;
-            _local_size_tuning->samples[local_size_action.candidate_index].push_back(
-                static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed).count()));
-            local_size_tuning_lock.unlock();
+            local_size_selection->complete_measurement(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed).count()));
             return measured_event;
         }
         auto& vulkan_dispatch_stream = dynamic_cast<vulkan_stream&>(stream);
@@ -1658,7 +1491,7 @@ private:
     std::optional<scalar_constant> _scalar_constant;
     uint32_t _elements_per_invocation = 0;
     uint32_t _fused_chain_length = 0;
-    std::shared_ptr<local_size_tuning_state> _local_size_tuning;
+    std::shared_ptr<LocalSizeTuner> _local_size_tuner;
     gpu_kernel_lifecycle _kernels;
     gpu_execution_plan _execution_plan;
     std::array<uint32_t, metadata_words> _cached_metadata{};
