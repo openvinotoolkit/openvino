@@ -22,6 +22,7 @@
 #include "eltwise/kernel_catalog.hpp"
 #include "eltwise/kernel_kind.hpp"
 #include "eltwise/local_size_tuner.hpp"
+#include "eltwise/operation_semantics.hpp"
 #include "eltwise_shader_abi.hpp"
 #include "graph_optimizer/vulkan_graph_optimizer.hpp"
 #include "intel_gpu/runtime/stream.hpp"
@@ -81,90 +82,6 @@ struct scalar_constant {
     shader_abi::tensor_index input_index = shader_abi::tensor_index::input1;
     std::array<uint32_t, 2> bits{};
 };
-
-bool is_supported_mode(eltwise_mode mode) {
-    return one_of(mode, {eltwise_mode::sum,        eltwise_mode::sub,         eltwise_mode::max,          eltwise_mode::prod,       eltwise_mode::div,
-                         eltwise_mode::min,        eltwise_mode::pow,         eltwise_mode::squared_diff, eltwise_mode::mod,        eltwise_mode::eq,
-                         eltwise_mode::ne,         eltwise_mode::lt,          eltwise_mode::le,           eltwise_mode::gt,         eltwise_mode::ge,
-                         eltwise_mode::logic_and,  eltwise_mode::logic_or,    eltwise_mode::logic_xor,    eltwise_mode::floor_mod,  eltwise_mode::is_finite,
-                         eltwise_mode::is_inf,     eltwise_mode::is_nan,      eltwise_mode::right_shift,  eltwise_mode::left_shift, eltwise_mode::bitwise_and,
-                         eltwise_mode::bitwise_or, eltwise_mode::bitwise_xor, eltwise_mode::atan2});
-}
-
-bool is_unary_mode(eltwise_mode mode) {
-    return one_of(mode, {eltwise_mode::is_finite, eltwise_mode::is_inf, eltwise_mode::is_nan});
-}
-
-bool is_fused_mode(eltwise_mode mode) {
-    return one_of(mode, {eltwise_mode::sum, eltwise_mode::prod, eltwise_mode::sub, eltwise_mode::div});
-}
-
-bool is_bitwise_mode(eltwise_mode mode) {
-    return one_of(mode, {eltwise_mode::right_shift, eltwise_mode::left_shift, eltwise_mode::bitwise_and, eltwise_mode::bitwise_or, eltwise_mode::bitwise_xor});
-}
-
-shader_abi::mode shader_mode_code(eltwise_mode mode) {
-    switch (mode) {
-    case eltwise_mode::sum:
-        return shader_abi::mode::sum;
-    case eltwise_mode::sub:
-        return shader_abi::mode::sub;
-    case eltwise_mode::max:
-        return shader_abi::mode::max;
-    case eltwise_mode::prod:
-        return shader_abi::mode::prod;
-    case eltwise_mode::div:
-        return shader_abi::mode::div;
-    case eltwise_mode::min:
-        return shader_abi::mode::min;
-    case eltwise_mode::pow:
-        return shader_abi::mode::pow;
-    case eltwise_mode::squared_diff:
-        return shader_abi::mode::squared_diff;
-    case eltwise_mode::mod:
-        return shader_abi::mode::mod;
-    case eltwise_mode::eq:
-        return shader_abi::mode::eq;
-    case eltwise_mode::ne:
-        return shader_abi::mode::ne;
-    case eltwise_mode::lt:
-        return shader_abi::mode::lt;
-    case eltwise_mode::le:
-        return shader_abi::mode::le;
-    case eltwise_mode::gt:
-        return shader_abi::mode::gt;
-    case eltwise_mode::ge:
-        return shader_abi::mode::ge;
-    case eltwise_mode::logic_and:
-        return shader_abi::mode::logic_and;
-    case eltwise_mode::logic_or:
-        return shader_abi::mode::logic_or;
-    case eltwise_mode::logic_xor:
-        return shader_abi::mode::logic_xor;
-    case eltwise_mode::floor_mod:
-        return shader_abi::mode::floor_mod;
-    case eltwise_mode::is_finite:
-        return shader_abi::mode::is_finite;
-    case eltwise_mode::is_inf:
-        return shader_abi::mode::is_inf;
-    case eltwise_mode::is_nan:
-        return shader_abi::mode::is_nan;
-    case eltwise_mode::right_shift:
-        return shader_abi::mode::right_shift;
-    case eltwise_mode::left_shift:
-        return shader_abi::mode::left_shift;
-    case eltwise_mode::bitwise_and:
-        return shader_abi::mode::bitwise_and;
-    case eltwise_mode::bitwise_or:
-        return shader_abi::mode::bitwise_or;
-    case eltwise_mode::bitwise_xor:
-        return shader_abi::mode::bitwise_xor;
-    case eltwise_mode::atan2:
-        return shader_abi::mode::atan2;
-    default:
-        OPENVINO_THROW("[GPU][Vulkan] Unsupported Eltwise shader mode");
-    }
-}
 
 uint32_t float_bits(float value) {
     uint32_t result = 0;
