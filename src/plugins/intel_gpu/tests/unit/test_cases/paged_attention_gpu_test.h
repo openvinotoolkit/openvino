@@ -1840,12 +1840,14 @@ public:
         } else {
             if (pam.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
                 if (pam.is_int4_kv_cache()) {
-                    // INT4 BY_CHANNEL: [num_blocks, kv_heads, k_head_size, block_size/2+4] u8
-                    // block_size dim is packed: 2 u4 tokens per byte.
-                    // Comp at [d, packed_block..packed_block+3]: 2 fp16 = inv_scale, zp per head dim.
+                    // INT4 BY_CHANNEL has the same page size in both layouts:
+                    //   d-major     packs two tokens per byte and keeps comp inline per channel;
+                    //   token-major packs two channels per byte and keeps comp in a trailing array.
                     cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
                     const int packed_block = pam.block_size / 2;
                     const int adj_block_size = packed_block + 4;  // block_size/2 + sizeof(fp16)*2
+                    const int packed_head_size = pam.k_head_size / 2;
+                    const bool k_tm = pam.k_cache_token_major();
 
                     for (int block_idx = 0; block_idx < num_blocks; block_idx++) {
                         const int physical_block = pam.block_indices[blocks_start + block_idx];
@@ -1857,16 +1859,22 @@ public:
 
                             for (int d = 0; d < pam.k_head_size; d++) {
                                 // Read inv_scale and zp from comp region
-                                const size_t comp_byte_off = cache_base + static_cast<size_t>(d) * adj_block_size + packed_block;
+                                const size_t comp_byte_off =
+                                    k_tm ? cache_base + static_cast<size_t>(packed_head_size) * pam.block_size +
+                                               4 * static_cast<size_t>(d)
+                                         : cache_base + static_cast<size_t>(d) * adj_block_size + packed_block;
                                 const ov::float16* comp = reinterpret_cast<const ov::float16*>(&cache_ptr[comp_byte_off]);
                                 float inv_scale = static_cast<float>(comp[0]);
                                 float zp_val = static_cast<float>(comp[1]);
 
                                 for (int token_offset = 0; token_offset < tokens_in_block; token_offset++) {
                                     const int token_idx = block_idx * pam.block_size + token_offset;
-                                    const size_t byte_off = cache_base + static_cast<size_t>(d) * adj_block_size + token_offset / 2;
+                                    const size_t byte_off =
+                                        k_tm ? cache_base + static_cast<size_t>(token_offset) * packed_head_size + d / 2
+                                             : cache_base + static_cast<size_t>(d) * adj_block_size + token_offset / 2;
                                     uint8_t packed_byte = cache_ptr[byte_off];
-                                    uint8_t q = (token_offset % 2 == 0) ? (packed_byte & 0xFu) : ((packed_byte >> 4) & 0xFu);
+                                    const int nibble_idx = k_tm ? d % 2 : token_offset % 2;
+                                    uint8_t q = nibble_idx == 0 ? (packed_byte & 0xFu) : ((packed_byte >> 4) & 0xFu);
                                     float dq = (static_cast<float>(q) - zp_val) * inv_scale;
                                     const size_t out_base =
                                         static_cast<size_t>(head_idx) * total_tokens * pam.k_head_size + static_cast<size_t>(token_idx) * pam.k_head_size;
@@ -2139,12 +2147,14 @@ public:
             for (size_t head = 0; head < static_cast<size_t>(p.num_kv_heads); ++head) {
                 const size_t block_head_offset =
                     (static_cast<size_t>(physical_block) * p.num_kv_heads + head) * p.k_head_size * adjusted_block_size;
-                // Token-major BY_CHANNEL (i8 only) moves the pairs out of the columns and into a
-                // trailing per-channel array; see paged_attention::k_by_channel_token_major_for().
-                const bool k_tm = !is_int4 && pam->k_cache_token_major();
+                // Token-major BY_CHANNEL moves the pairs out of the columns and into a trailing
+                // per-channel array. INT4 packs two channels per data byte, while INT8 stores one.
+                const bool k_tm = pam->k_cache_token_major();
+                const size_t token_major_data_bytes =
+                    static_cast<size_t>(p.block_size) * (is_int4 ? p.k_head_size / 2 : p.k_head_size);
                 for (size_t dim = 0; dim < static_cast<size_t>(p.k_head_size); ++dim) {
                     const size_t scale_offset =
-                        k_tm ? block_head_offset + static_cast<size_t>(p.k_head_size) * p.block_size + 4 * dim
+                        k_tm ? block_head_offset + token_major_data_bytes + 4 * dim
                              : block_head_offset + dim * adjusted_block_size + quantized_values;
                     ov::float16 stored_inv_scale;
                     std::memcpy(&stored_inv_scale, cache_bytes.data() + scale_offset, sizeof(stored_inv_scale));

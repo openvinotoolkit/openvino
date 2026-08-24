@@ -1197,13 +1197,22 @@ protected:
         if (is_kv_compressed) {
             auto scales_zp_size = get_element_size(original_cache_dt) * 2;  // scale + zp;
             const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
+            const auto k_cache_precision =
+                data_type_traits::is_i4_u4(kv_cache_dt)
+                    ? kv_cache_dt
+                    : ov::element::Type(params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].data_type);
+            const bool k_by_channel_token_major =
+                !desc->has_xattention &&
+                cldnn::paged_attention::k_by_channel_token_major_for(k_cache_precision, is_key_by_channel);
+            jit.make("IS_KEY_BY_CHANNEL_TOKEN_MAJOR", k_by_channel_token_major ? 1 : 0);
             if (data_type_traits::is_i4_u4(kv_cache_dt)) {
                 jit.add(make_uint4_kv_cache_jit_constants(params));
+                jit.make("U4_ELEMS_PER_BYTE", u4_elems_per_byte);
                 jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
-                // INT4 BY_CHANNEL: dim order {0,1,2,3}, scales embedded per-token in head dim
+                // INT4 BY_CHANNEL: packed data plus one f16 scale/zp pair per channel.
                 jit.make("IS_KEY_BY_CHANNEL", 1);
                 jit.make("ADJUSTED_HEAD_SIZE", desc->k_head_size);
-                jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
+                jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size / u4_elems_per_byte + scales_zp_size);
                 jit.make("NUM_K_HEAD_SIZE_PARTITIONS", get_num_k_head_size_partitions(desc->is_key_by_channel, desc->k_head_size));
                 jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size + scales_zp_size);
             } else if (is_key_by_channel) {
@@ -1214,6 +1223,7 @@ protected:
                 jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
             }
         } else {
+            jit.make("IS_KEY_BY_CHANNEL_TOKEN_MAJOR", 0);
             jit.make("ADJUSTED_HEAD_SIZE", desc->k_head_size);
             jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
         }
