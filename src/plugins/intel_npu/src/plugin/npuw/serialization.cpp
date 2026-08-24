@@ -81,12 +81,14 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::Attention::Par
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguous& var) {
-    stream & var.query_size & var.full_context_size & var._context_lengths & var._attention_infos;
+    stream & var.query_size & var.full_context_size & var._context_lengths & var._attention_infos &
+        var.global_mask_idx & var._data_left_aligned;
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionBlock& var) {
     stream & var.query_size & var.full_context_size & var._context_lengths & var._attention_infos &
-        var.past_key_block_global_param_indices & var.past_value_block_global_param_indices;
+        var.past_key_block_global_param_indices & var.past_value_block_global_param_indices & var.global_mask_idx &
+        var._data_left_aligned;
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttention& var) {
@@ -108,12 +110,18 @@ std::shared_ptr<ov::npuw::compiled::PyramidAttention> ov::npuw::orc::make_pyrami
         NPUW_ASSERT(tag == 1u && "Unknown PyramidAttention serialization tag");
         auto obj = std::make_shared<ov::npuw::compiled::PyramidAttentionBlock>();
         serialize(stream, *obj);
+        // Rebuild the O(1) membership sets — not serialized directly, derived from the
+        // (serialized) ordered global block index vectors.
+        obj->_key_block_global_set = std::unordered_set<size_t>(obj->past_key_block_global_param_indices.begin(),
+                                                                obj->past_key_block_global_param_indices.end());
+        obj->_value_block_global_set = std::unordered_set<size_t>(obj->past_value_block_global_param_indices.begin(),
+                                                                  obj->past_value_block_global_param_indices.end());
         return obj;
     }
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguousInfo& var) {
-    stream & var.params & var.mask_idx & var.query_size & var.context_length;
+    stream & var.params & var.mask_idx_local & var.query_size & var.context_length;
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguousInfo::Param& var) {
@@ -121,8 +129,8 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttenti
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionBlockInfo& var) {
-    stream & var.mask_idx & var.query_size & var.context_length & var.past_key_block_port_map &
-        var.past_value_block_port_map & var.past_key_block_port_set & var.past_value_block_port_set;
+    stream & var.mask_idx_local & var.query_size & var.context_length & var.param_port_map &
+        var.past_key_block_port_set & var.past_value_block_port_set;
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::HostFlashAttention& var) {
