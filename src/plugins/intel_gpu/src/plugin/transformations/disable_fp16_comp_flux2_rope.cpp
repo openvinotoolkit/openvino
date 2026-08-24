@@ -80,8 +80,8 @@ DisableFP16CompFlux2RoPEPattern::DisableFP16CompFlux2RoPEPattern() {
         if (transformation_callback(m.get_match_root()))
             return false;
         const auto& pattern_map = m.get_pattern_value_map();
-        auto cos_node = pattern_map.at(t_cos).get_node();
-        auto sin_node = pattern_map.at(t_sin).get_node();
+        auto* cos_node = pattern_map.at(t_cos).get_node();
+        auto* sin_node = pattern_map.at(t_sin).get_node();
         auto visit_func = [](ov::Node* node) {
             ov::disable_conversion(node->shared_from_this(), ov::element::f16);
         };
