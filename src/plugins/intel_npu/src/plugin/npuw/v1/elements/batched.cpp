@@ -5,9 +5,11 @@
 #include "batched.hpp"
 
 #include <algorithm>
+#include <memory>
 #include <utility>
 
 #include "../../llm_compiled_model.hpp"
+#include "../../llm_lora_states.hpp"
 #include "../../logging.hpp"
 #include "../../serialization.hpp"
 #include "../../util.hpp"
@@ -196,8 +198,17 @@ void ov::npuw::batched::InferRequest::infer() {
     // Unroll row by row: reset the inner variable state so each row is scored as an
     // independent prompt, bind the row's [1, ...] view of every batched input, run
     // the batch-1 inner request, and write the row's outputs into row `row` of the
-    // [N, ...] public output tensors.
-    const auto inner_states = m_inner->query_state();
+    // [N, ...] public output tensors. LoRA adapter states are kept out of the reset
+    // set: they carry the adapter weights, not per-prompt data, so they must survive
+    // the row loop, and their reset() throws by design.
+    auto inner_states = m_inner->query_state();
+    inner_states.erase(std::remove_if(inner_states.begin(),
+                                      inner_states.end(),
+                                      [](const ov::SoPtr<ov::IVariableState>& state) {
+                                          return std::dynamic_pointer_cast<ov::npuw::VariableState>(state._ptr) !=
+                                                 nullptr;
+                                      }),
+                       inner_states.end());
     for (std::size_t row = 0; row < batch; ++row) {
         m_profile["2.bind_row"].record([&]() {
             for (const auto& state : inner_states) {
