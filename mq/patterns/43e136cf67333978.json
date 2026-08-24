@@ -2,12 +2,13 @@
   "schema_version": "1.0",
   "signature": "Actual function call count doesnt match EXPECT_CALL import_model Expected called times Actual called times unsatisfied and active|Flaky Test",
   "signature_hash": "43e136cf67333978",
-  "title": "CachingTest LoadMultiWithConfig_race import_model call count mismatch on Windows",
+  "title": "CachingTest LoadMultiWithConfig_race flaky failure on Windows",
   "category": "Flaky Test",
-  "count": 7,
+  "count": 8,
   "first_seen": "2026-07-13T10:41:15Z",
-  "last_seen": "2026-08-04T17:46:16Z",
+  "last_seen": "2026-08-24T22:00:50Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/32773741534",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30928353875",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30904967401",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30891410624",
@@ -17,6 +18,7 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/29234771303"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37500",
     "https://github.com/openvinotoolkit/openvino/pull/37197",
     "https://github.com/openvinotoolkit/openvino/pull/36684",
     "https://github.com/openvinotoolkit/openvino/pull/37187",
@@ -25,9 +27,7 @@
     "https://github.com/openvinotoolkit/openvino/pull/36488"
   ],
   "recent_timestamps": [
-    "2026-08-04T17:46:16Z",
-    "2026-08-04T13:10:23Z",
-    "2026-08-04T10:07:00Z"
+    "2026-08-24T22:00:50Z"
   ],
   "rerun_search_string": "Actual function call count doesnt match EXPECT_CALL import_model Expected called times Actual called times unsatisfied and active"
 }

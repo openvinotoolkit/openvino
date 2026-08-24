@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-24-22-00-50-000-32773741534",
+  "timestamp": "2026-08-24T22:00:50Z",
+  "run_id": "32773741534",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32773741534",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37500",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37500",
+  "author": "wangw-1991",
+  "category": "Flaky Test",
+  "title": "CachingTest LoadMultiWithConfig_race flaky failure on Windows",
+  "signature": "CachingTest LoadMultiWithConfig_race flaky failure on Windows|Flaky Test",
+  "signature_hash": "43e136cf67333978",
+  "confidence": "High",
+  "failed_jobs": [
+    "C++ unit tests / C++ unit tests"
+  ],
+  "key_errors": [
+    "[  FAILED  ] CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache, where GetParam() = ((4-byte object <02-00 00-00>, \"ByModelName\", false), \"testCache\")"
+  ],
+  "root_cause": "The CachingTest.LoadMultiWithConfig_race test is a well-known intermittent race-condition test in the OpenVINO caching test suite. It exercises concurrent model loading with caching enabled and has a history of sporadic failures on Windows runners. This is the 8th recorded occurrence (7 prior). The specific test variant ByModelName_testCache exercises the ByModelName cache strategy under concurrent load. No code changes in PR #37500 (NPUW LLMInferRequest port map fix) touch the caching subsystem.",
+  "reproduction_steps": "Run: ov_inference_functional_tests --gtest_filter=CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache on a Windows runner under concurrent load",
+  "recommended_actions": [
+    "Re-run the failed job - this is a known flaky test that typically passes on retry",
+    "Consider disabling or marking CachingTest/CachingTest.LoadMultiWithConfig_race as flaky in the test suite",
+    "Track the issue with a dedicated JIRA ticket to fix the race condition root cause"
+  ],
+  "prevention_strategies": "Add test retry logic for known-flaky race-condition tests. Alternatively, stabilize the race by using mock synchronization primitives with deterministic ordering in CachingTest.LoadMultiWithConfig_race.",
+  "historical_context": "This exact test has failed 7 times previously (first seen 2026-07-13, last seen 2026-08-04) with pattern hash 43e136cf67333978. Previous runs: 30928353875, 30904967401, 30891410624, 30540715415, 29813410817, 29341562536, 29234771303."
+}
