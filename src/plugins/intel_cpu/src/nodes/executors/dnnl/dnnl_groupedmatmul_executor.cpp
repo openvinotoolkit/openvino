@@ -12,7 +12,6 @@
 #include <tuple>
 #include <vector>
 
-#include "nodes/common/blocked_desc_creator.h"
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <cpu/x64/cpu_isa_traits.hpp>
 #endif
@@ -38,7 +37,6 @@ using dnnl_utils::addBatchDim;
 using dnnl_utils::InnerProduct;
 using dnnl_utils::InnerProductKey;
 using dnnl_utils::makeBiasMd;
-using dnnl_utils::normalizeM;
 
 namespace {
 
@@ -102,11 +100,6 @@ GroupedMatMulDnnlExecutor::GroupedMatMulDnnlExecutor([[maybe_unused]] const Grou
                     memory.at(ARG_DST)->getDesc().getPrecision(),
                     " must match the source precision ",
                     src_precision);
-#ifdef OPENVINO_ARCH_X86_64
-    m_bf16AmxMode =
-        (src_precision == ov::element::bf16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx));
-#endif
-
     m_isBatched = srcMemory->getShape().getRank() == 3;
 
     const auto& weiDims = weightsMemory->getShape().getStaticDims();
@@ -130,13 +123,17 @@ GroupedMatMulDnnlExecutor::GroupedMatMulDnnlExecutor([[maybe_unused]] const Grou
     const auto& eng = context->getEngine();
     const auto threadPool = context->getThreadPool();
     auto cache = context->getRuntimeCache();
-    std::tie(m_gemvImpl, std::ignore) = cache->getOrCreate(key, [&eng, &threadPool](const InnerProductKey& k) {
+    // The single-row primitive is created up front with format_tag::any so that oneDNN picks the
+    // weights layout; the weights are packed into that layout once below, and every other row count
+    // is then created against the resulting concrete descriptor.
+    InnerProductPtr refImpl;
+    std::tie(refImpl, std::ignore) = cache->getOrCreate(key, [&eng, &threadPool](const InnerProductKey& k) {
         return std::make_shared<InnerProduct>(eng, threadPool, k);
     });
 
     // Repack weights: convert from [G, N, K] to [G, (packed_N, K)] format expected by oneDNN
     auto gemvWeightsDesc =
-        MemoryDescUtils::convertToBlockedMemoryDesc(DnnlExtensionUtils::makeDescriptor(m_gemvImpl->get_weights_md()));
+        MemoryDescUtils::convertToBlockedMemoryDesc(DnnlExtensionUtils::makeDescriptor(refImpl->get_weights_md()));
 
     auto targetWeightsDesc = addBatchDim(gemvWeightsDesc, weiDims[0]);
     auto srcWeightsDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weightsMemory->getDescPtr());
@@ -152,7 +149,7 @@ GroupedMatMulDnnlExecutor::GroupedMatMulDnnlExecutor([[maybe_unused]] const Grou
 
     if (scalesMem && !scale_shape.empty()) {
         auto expectedScaleMemDesc =
-            MemoryDescUtils::convertToDnnlMemoryDesc(DnnlExtensionUtils::makeDescriptor(m_gemvImpl->get_scale_md()));
+            MemoryDescUtils::convertToDnnlMemoryDesc(DnnlExtensionUtils::makeDescriptor(refImpl->get_scale_md()));
         const auto& scDims = scalesMem->getShape().getStaticDims();
         expectedScaleMemDesc =
             addBatchDim(MemoryDescUtils::convertToBlockedMemoryDesc(expectedScaleMemDesc), scDims[0]);
@@ -166,7 +163,7 @@ GroupedMatMulDnnlExecutor::GroupedMatMulDnnlExecutor([[maybe_unused]] const Grou
 
     if (zpMem && !zp_shape.empty()) {
         auto expectedZpMemDesc =
-            MemoryDescUtils::convertToDnnlMemoryDesc(DnnlExtensionUtils::makeDescriptor(m_gemvImpl->get_zp_md()));
+            MemoryDescUtils::convertToDnnlMemoryDesc(DnnlExtensionUtils::makeDescriptor(refImpl->get_zp_md()));
         const auto& zpDims = zpMem->getShape().getStaticDims();
         expectedZpMemDesc = addBatchDim(MemoryDescUtils::convertToBlockedMemoryDesc(expectedZpMemDesc), zpDims[0]);
         if (expectedZpMemDesc->isCompatible(zpMem->getDesc())) {
@@ -177,64 +174,46 @@ GroupedMatMulDnnlExecutor::GroupedMatMulDnnlExecutor([[maybe_unused]] const Grou
         }
     }
 
-    m_implType = m_gemvImpl->get_impl_type();
+    // A single row count has to be reported; use the reference primitive's. The per-group primitives
+    // are all inner_product over the same weights, so the implementation family does not change.
+    m_implType = refImpl->get_impl_type();
+
+    m_srcDataType = DnnlExtensionUtils::ElementTypeToDataType(src_precision);
+    m_K = K;
+    m_keyTemplate = InnerProductKey{{}, refImpl->get_weights_md(), key.bias_md, scale_shape, zp_shape};
 }
 
-bool GroupedMatMulDnnlExecutor::update(const MemoryArgs& memory) {
-    if (!m_bf16AmxMode) {
-        return true;
-    }
+// oneDNN's inner_product bakes M into its primitive descriptor (src/common/inner_product.cpp rejects
+// DNNL_RUNTIME_DIM_VAL outright), while a group's row count is offsets tensor *data*. The primitives
+// therefore cannot be built any earlier than the point where that data is valid, which is execute():
+//
+//  * update()/prepareParams() runs from Graph::InferDynamic's update phase, which covers a whole
+//    block of nodes before any of them execute, so the offsets buffer still holds the previous
+//    inference's routing. Getting fresh data there would require declaring an output-shape data
+//    dependency on the offsets port to force a sync point - the output shape [T, N] does not actually
+//    depend on those values, and it would cost a barrier on every inference.
+//  * Node::needPrepareParams() is inputShapesModified(), so prepareParams is skipped entirely when
+//    routing changes at a constant token count - which is every decode step.
+//
+// Creation is one-time per distinct row count; steady state is a cache lookup. The runtime cache is
+// keyed on the descriptors rather than on the data, so every GroupedMatMul layer with the same expert
+// dimensions shares a primitive for a given row count.
+GroupedMatMulDnnlExecutor::InnerProductPtr GroupedMatMulDnnlExecutor::implFor(Dim rows) {
+    auto key = m_keyTemplate;
+    key.src_md =
+        dnnl::memory::desc({static_cast<dnnl::memory::dim>(rows), m_K}, m_srcDataType, dnnl::memory::format_tag::ab);
 
-    const auto& srcMem = memory.at(ARG_SRC);
-    const auto& srcShape = srcMem->getStaticDims();
-    // Upper bound of the rows a single group may own: M for the 3D x 3D form (exact), the whole token
-    // count for the 2D x 3D form (the offsets are only known at execute time).
-    const Dim maxRowsPerGroup = m_isBatched ? srcShape[1] : srcShape[0];
-    if (Dim{1} == maxRowsPerGroup) {
-        // A single row per group: GEMV directly on the src buffer, no temporary needed
-        return true;
-    }
-
-    // @todo the padded GEMM runs the full normalizeM(maxRowsPerGroup) rows for every group,
-    // even when a group owns just a few rows. Mirrors GatherMatmulDnnlExecutor. Since the rows are
-    // contiguous here, a per-group normalizeM(rows) primitive looked up in the runtime cache would
-    // avoid the padding waste entirely.
-    const Dim M = normalizeM(maxRowsPerGroup);
-    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-    const auto srcPrc = srcMem->getDesc().getPrecision();
-
-    const auto& dstMem = memory.at(ARG_DST);
-    const auto& dstShape = dstMem->getStaticDims();
-    const Dim K = srcShape.back();
-    const Dim N = dstShape.back();
-
-    m_tmpInputDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({M, K}));
-    m_tmpOutputDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({M, N}));
-
-    const size_t srcSize = rnd_up(m_tmpInputDesc->getCurrentMemSize(), 64);
-    const size_t totalSize = srcSize + m_tmpOutputDesc->getCurrentMemSize();
-    auto scratchPadDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::u8, Shape({totalSize}));
-    m_tmpInpBuffer = m_context->getScratchPad()->createScratchPadMem(scratchPadDesc);
-
-    OPENVINO_ASSERT(m_gemvImpl, "GEMV implementation is not created");
-
-    dnnl::memory::desc src_md({static_cast<dnnl::memory::dim>(M), static_cast<dnnl::memory::dim>(K)},
-                              DnnlExtensionUtils::ElementTypeToDataType(srcPrc),
-                              dnnl::memory::format_tag::ab);
-    // Reuse the weights layout the GEMV primitive settled on so that a single repack serves both
-    auto weights_md = m_gemvImpl->get_weights_md();
-
-    InnerProductKey key{src_md,
-                        weights_md,
-                        makeBiasMd(static_cast<dnnl::memory::dim>(weights_md.get_dims()[0]), memory.at(ARG_BIAS)),
-                        perGroupShape(m_scalesMemory),
-                        perGroupShape(m_zpMemory)};
     const auto& eng = m_context->getEngine();
     const auto threadPool = m_context->getThreadPool();
-    auto cache = m_context->getRuntimeCache();
-    std::tie(m_gemmImpl, std::ignore) = cache->getOrCreate(key, [&eng, &threadPool](const InnerProductKey& k) {
+    auto [impl, _] = m_context->getRuntimeCache()->getOrCreate(key, [&eng, &threadPool](const InnerProductKey& k) {
         return std::make_shared<InnerProduct>(eng, threadPool, k);
     });
+    return impl;
+}
+
+bool GroupedMatMulDnnlExecutor::update([[maybe_unused]] const MemoryArgs& memory) {
+    // Nothing to prepare: the per-group primitives depend on the offsets tensor contents, which are
+    // not valid yet at this point (see implFor).
     return true;
 }
 
@@ -279,18 +258,6 @@ void GroupedMatMulDnnlExecutor::execute(const MemoryArgs& memory) {
     }
 
     const auto element_size = srcMem->getDesc().getPrecision().size();
-    const bool usePaddedGemm = m_bf16AmxMode && m_gemmImpl;
-
-    uint8_t* tmp_input_ptr = nullptr;
-    uint8_t* tmp_output_ptr = nullptr;
-    size_t tmp_rows = 0;
-    if (usePaddedGemm) {
-        OPENVINO_ASSERT(m_tmpInpBuffer && m_tmpInputDesc && m_tmpOutputDesc,
-                        "GroupedMatMul: temporary input/output memory is not created");
-        tmp_input_ptr = m_tmpInpBuffer->getDataAs<uint8_t>();
-        tmp_output_ptr = tmp_input_ptr + rnd_up(m_tmpInputDesc->getCurrentMemSize(), 64);
-        tmp_rows = m_tmpInputDesc->getShape().getStaticDims()[0];
-    }
 
     // Row range owned by group g. The 2D x 3D offsets are cumulative exclusive end boundaries; the
     // 3D x 3D form gives every group its own M rows, indexed within the group.
@@ -319,20 +286,9 @@ void GroupedMatMulDnnlExecutor::execute(const MemoryArgs& memory) {
         auto* scale = scale_offset(g);
         auto* zp = zp_offset(g);
 
-        if (usePaddedGemm && rows > 1) {
-            // Rows are contiguous, so gathering them degenerates into a single block copy
-            std::memcpy(tmp_input_ptr, src_at(g, start), rows * K * element_size);
-            std::memset(tmp_input_ptr + rows * K * element_size, 0, (tmp_rows - rows) * K * element_size);
-
-            m_gemmImpl->exec(tmp_input_ptr, tmp_output_ptr, wei, nullptr, scale, zp);
-
-            std::memcpy(dst_at(g, start), tmp_output_ptr, rows * N * element_size);
-        } else {
-            OPENVINO_ASSERT(m_gemvImpl, "GEMV implementation is not created");
-            for (size_t row = start; row < end; row++) {
-                m_gemvImpl->exec(src_at(g, row), dst_at(g, row), wei, nullptr, scale, zp);
-            }
-        }
+        // Both the source and the destination rows of the group are contiguous, so the primitive
+        // runs straight on them; GroupedMatMul-17 has no bias input.
+        implFor(rows)->exec(src_at(g, start), dst_at(g, start), wei, nullptr, scale, zp);
     }
 
     // offsets[G-1] is allowed to be smaller than the token count; the rows past the last group are

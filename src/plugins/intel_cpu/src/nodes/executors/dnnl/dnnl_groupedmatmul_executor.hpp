@@ -4,8 +4,10 @@
 
 #pragma once
 
+#include <oneapi/dnnl/dnnl.hpp>
+
 #include "cpu_memory.h"
-#include "memory_desc/cpu_memory_desc.h"
+#include "cpu_types.h"
 #include "nodes/executors/dnnl/dnnl_inner_product_gemm.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/groupedmatmul_config.hpp"
@@ -14,9 +16,6 @@
 
 namespace ov::intel_cpu {
 
-// Executes GroupedMatMul-17 (and its compressed flavour) as a loop of oneDNN inner_product calls,
-// one per group. CPU oneDNN has no grouped gemm primitive, but unlike GatherMatmul the rows of each
-// group are guaranteed contiguous, so the rows are addressed in place instead of being gathered.
 class GroupedMatMulDnnlExecutor : public Executor {
 public:
     static bool supports(const GroupedMatMulConfig& config);
@@ -32,23 +31,23 @@ public:
 private:
     using InnerProductPtr = dnnl_utils::InnerProductPtr;
 
+    // The inner_product for a group of `rows` rows, taken from the runtime cache and created on
+    // first use. See the comment on the definition for why this happens during execute().
+    InnerProductPtr implFor(Dim rows);
+
     ExecutorContext::CPtr m_context;
 
     MemoryPtr m_weightsMemory;
     MemoryPtr m_scalesMemory;
     MemoryPtr m_zpMemory;
 
-    InnerProductPtr m_gemvImpl;
-    InnerProductPtr m_gemmImpl;
-
-    MemoryPtr m_tmpInpBuffer;
-    MemoryDescPtr m_tmpInputDesc;
-    MemoryDescPtr m_tmpOutputDesc;
+    dnnl_utils::InnerProductKey m_keyTemplate;
+    dnnl::memory::data_type m_srcDataType = dnnl::memory::data_type::undef;
+    dnnl::memory::dim m_K = 0;
 
     // true for the 3D x 3D form: mat_a is [G, M, K] and every group owns exactly M rows.
     // false for the 2D x 3D form: mat_a is [T, K] and the row ranges come from the offsets input.
     bool m_isBatched = false;
-    bool m_bf16AmxMode = false;
     impl_desc_type m_implType = impl_desc_type::unknown;
 };
 
