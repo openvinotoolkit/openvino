@@ -2,22 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "node_context.hpp"
-#include "op_table.hpp"
-#include "utils.hpp"
-
 #include <cstdint>
 #include <memory>
 #include <vector>
+
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
 namespace gguf {
 namespace op {
 
-OutputVector translate_cont(const NodeContext & context) {
+OutputVector translate_cont(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
 
     int op_case = context.get_attribute<int>("op_case", 0);
