@@ -34,8 +34,10 @@ OutputVector translate_flatten(const NodeContext& context) {
     if (x_pshape.rank().is_static()) {
         const int64_t rank = x_pshape.rank().get_length();
 
-        int64_t start_dim = 0, end_dim = rank - 1;
-        bool start_known = false, end_known = false;
+        int64_t start_dim = 0;
+        int64_t end_dim = rank - 1;
+        bool start_known = false;
+        bool end_known = false;
 
         if (!context.input_is_none(1)) {
             if (const auto c = ov::util::get_constant_from_source(context.get_input(1))) {
