@@ -663,14 +663,14 @@ bool hasLoadableExt(const std::string& network_path) {
     });
 }
 
-std::string cleanName(std::string&& name) {
+std::string cleanName(std::string name) {
     std::replace_if(
             name.begin(), name.end(),
             [](unsigned char c) {
                 return !std::isalnum(c);
             },
             '_');
-    return std::move(name);
+    return name;
 }
 
 ov::Tensor loadImages(const ov::element::Type& precision, const ov::Shape& shape, const ov::Layout& layout,
