@@ -7,6 +7,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -47,6 +48,9 @@ public:
 private:
     void registerProperties();
     bool isPropertyRegistered(const std::string& propertyName) const;
+    std::optional<ov::intel_npu::CompilerType> resolveCompilerType(ov::intel_npu::CompilerType compilerType,
+                                                                    const std::string& deviceId,
+                                                                    const std::string& platform) const;
 
     FilteredConfig _config;
 
