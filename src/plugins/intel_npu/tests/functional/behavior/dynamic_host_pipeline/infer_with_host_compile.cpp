@@ -77,10 +77,10 @@ inline std::shared_ptr<ov::Model> createMaxPoolModel(bool dynamicBatch = false, 
     return model;
 }
 
-inline std::shared_ptr<ov::Model> createCustomNetModel() {
-    auto input = std::make_shared<ov::op::v0::Parameter>(
-        ov::element::f16,
-        ov::PartialShape{1, 16, ov::Dimension(1, 1080), ov::Dimension(10, 1920)});
+inline std::shared_ptr<ov::Model> createCustomNetModel(bool dynamicBatch = false) {
+    const ov::Dimension batchDimension = dynamicBatch ? ov::Dimension(1, 10) : ov::Dimension(1);
+    const ov::PartialShape inputShape{batchDimension, 16, ov::Dimension(1, 1080), ov::Dimension(10, 1920)};
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, inputShape);
     input->set_friendly_name("Parameter_59");
 
     auto make_conv_add = [](const ov::Output<ov::Node>& data,
@@ -341,6 +341,9 @@ bool InferWithHostCompileTests::logContains(const ScopedLogCapture& logCapture, 
 std::shared_ptr<ov::Model> InferWithHostCompileTests::createModelByName(const std::string& modelName) {
     if (modelName == "CustomNet") {
         return createCustomNetModel();
+    }
+    if (modelName == "CustomNet_DynBatch") {
+        return createCustomNetModel(true);
     }
     if (modelName == "MaxPool") {
         return createMaxPoolModel();
@@ -681,6 +684,76 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
         << logCapture.str();
 }
 
+TEST_P(InferWithHostCompileTests, DynamicBatchUsesOneVMExecution) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+    // MaxPool dynamic models contain operators that are not yet supported by the dynamic pipeline.
+    // CustomNet_DynBatch is used to verify aggregation of N=1 tensors into one N=2 VM execution.
+    if (selectedModelName != "CustomNet_DynBatch") {
+        GTEST_SKIP() << "Only applies to the dynamic-batch model";
+    }
+
+    auto model = createModelByName(selectedModelName);
+    ScopedLogCapture logCapture;
+
+    core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
+    auto setupResult = prepareRuntimeCompareContext(model);
+    if (setupResult.status == RuntimeCompareStatus::fail) {
+        FAIL() << setupResult.message;
+    }
+    if (setupResult.status == RuntimeCompareStatus::skip) {
+        GTEST_SKIP() << setupResult.message;
+    }
+    auto& testContext = setupResult.context;
+
+    ov::InferRequest reqDynamic1 = testContext.compiledModel.create_infer_request();
+    ov::InferRequest reqReference1 = testContext.referenceCompiledModel.create_infer_request();
+
+    // A single N=2 tensor must execute as one dynamic VM inference.
+    const ov::Shape batchShape = {2, 720, 1280, 16};
+    auto fullBatchTensor =
+        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), batchShape, 100, 0);
+    setInputInferAndCompare(model,
+                            reqDynamic1,
+                            reqReference1,
+                            fullBatchTensor,
+                            "DynamicBatchUsesOneVMExecution_full_batch");
+    ASSERT_EQ(reqDynamic1.get_tensor(model->output()).get_shape(), batchShape);
+
+    const auto countVMExecutions = [](const std::string& log) {
+        constexpr std::string_view marker = "Start to execute graph with runtime engine";
+        size_t count = 0;
+        size_t position = 0;
+        while ((position = log.find(marker, position)) != std::string::npos) {
+            ++count;
+            position += marker.size();
+        }
+        return count;
+    };
+    ASSERT_EQ(countVMExecutions(logCapture.str()), 1u) << logCapture.str();
+
+    logCapture.clear();
+    // Two N=1 tensors must be aggregated into one N=2 inference rather than executed separately.
+    const ov::Shape singleBatchShape = {1, 720, 1280, 16};
+    std::vector<ov::Tensor> tensorBatch;
+    tensorBatch.push_back(
+        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), singleBatchShape, 100, 0));
+    tensorBatch.push_back(
+        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), singleBatchShape, 100, 100));
+    OV_ASSERT_NO_THROW(reqDynamic1.set_tensors(testContext.compiledModel.input(), tensorBatch));
+    OV_ASSERT_NO_THROW(reqReference1.set_tensors(testContext.referenceCompiledModel.input(), tensorBatch));
+    OV_ASSERT_NO_THROW(reqDynamic1.infer());
+    OV_ASSERT_NO_THROW(reqReference1.infer());
+    ASSERT_EQ(reqDynamic1.get_tensor(model->output()).get_shape(), batchShape);
+    ov::test::utils::compare(reqReference1.get_tensor(model->output()),
+                             reqDynamic1.get_tensor(model->output()),
+                             model->output().get_element_type());
+
+    ASSERT_EQ(countVMExecutions(logCapture.str()), 1u) << logCapture.str();
+}
+
 using InferWithDefaultHostCompileTests = InferWithHostCompileTests;
 
 inline bool isByteCodeBlob(const std::string& blob) {
@@ -705,7 +778,7 @@ TEST_P(InferWithDefaultHostCompileTests, CompileDynamicModelWithNoHostCompileMod
     auto model = createModelByName(selectedModelName);
 
     ov::CompiledModel compiledModel;
-    // Compilation shall pass since load of npu_mlir_runtime is deffered with NPU_CREATE_EXECUTOR=0
+    // Compilation shall pass since load of openvino_intel_npu_mlir_runtime is deffered with NPU_CREATE_EXECUTOR=0
     OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
 
     std::stringstream modelStream;
@@ -752,10 +825,22 @@ const std::vector<ov::AnyMap> configs = {
         {"NPU_COMPILER_TYPE", "PLUGIN"},
         {"NPU_COMPILATION_MODE", "HostCompile_Interpreter"},
     },
+    {
+        {"NPU_COMPILER_TYPE", "PLUGIN"},
+        {"NPU_COMPILATION_MODE", "HostCompile_Interpreter"},
+        {"NPU_CREATE_EXECUTOR", "0"},
+        {"NPU_BATCH_MODE", "PLUGIN"},
+    },
+    {
+        {"NPU_COMPILER_TYPE", "PLUGIN"},
+        {"NPU_COMPILATION_MODE", "HostCompile_Interpreter"},
+        {"NPU_BATCH_MODE", "PLUGIN"},
+    },
 };
 
-// Ensure the added test model's input and output shapes are identical and accept concrete NHWC shapes for reuse shape in tests.
-const std::vector<std::string> modelNames = {"CustomNet", "MaxPool"};
+// Ensure the added test model's input and output shapes are identical and accept concrete NHWC shapes for reuse shape
+// in tests.
+const std::vector<std::string> modelNames = {"CustomNet", "CustomNet_DynBatch", "MaxPool"};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          InferWithHostCompileTests,
@@ -768,7 +853,12 @@ const std::vector<ov::AnyMap> defaultHostCompileconfigs = {
     {
         {"NPU_COMPILER_TYPE", "PLUGIN"},
         {"NPU_CREATE_EXECUTOR", "0"},
-    }
+    },
+    {
+        {"NPU_COMPILER_TYPE", "PLUGIN"},
+        {"NPU_CREATE_EXECUTOR", "0"},
+        {"NPU_BATCH_MODE", "PLUGIN"},
+    },
 };
 
 const std::vector<std::string> defaultHCModelNames = {"MaxPool_NCHW", "MaxPool_NCHW_DynBatch"};

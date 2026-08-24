@@ -19,9 +19,10 @@ using namespace ov;
 using namespace ov::frontend;
 
 namespace {
-// Frontends for direct linkage only: loadable, but never listed by available_front_ends() nor
-// auto-selected by load_by_model / load_by_framework. A manager-side list (not a plugin-info flag)
-// keeps the public FrontEndPluginInfo struct / ABI unchanged.
+// Hidden frontends are absent from available_front_ends() and skipped by load_by_model, so they
+// are never picked up implicitly (notably by core.read_model), but stay loadable on explicit
+// request via load_by_framework(). Kept manager-side to leave FrontEndPluginInfo's ABI unchanged.
+// "gguf" is listed because reading GGUF through core.read_model is not supported yet.
 bool is_hidden_frontend(const std::string& name) {
     static const std::set<std::string> hidden_frontends = {"gguf"};
     return hidden_frontends.count(name) != 0;
@@ -71,10 +72,7 @@ public:
         // Load plugins until we found the right one
         for (auto& plugin : m_plugins) {
             OPENVINO_ASSERT(plugin.load(), "Cannot load frontend ", plugin.get_name_from_file());
-            // Hidden frontends are not selectable by name through the generic API.
-            if (is_hidden_frontend(plugin.get_creator().m_name)) {
-                continue;
-            }
+            // Not filtered by is_hidden_frontend: asking for a frontend by name is explicit.
             if (plugin.get_creator().m_name == framework) {
                 return make_frontend(plugin);
             }
