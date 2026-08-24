@@ -462,6 +462,12 @@ bool is_hybrid_linear_attention_model(const ov::Model& model) {
     }
     return false;
 }
+
+// Whether f16 rounding must be preserved at Math op boundaries
+bool should_preserve_math_f16_rounding(const ov::element::Type& requested_infer_precision, bool model_has_f16) {
+    return requested_infer_precision == ov::element::f16 ||
+           (requested_infer_precision == ov::element::dynamic && model_has_f16);
+}
 }  // namespace
 
 bool TransformationsPipeline::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
@@ -570,6 +576,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     };
     const auto fallback_precision = ov::element::f32;
     auto infer_precision = config.get_inference_precision();
+    const auto requested_infer_precision = infer_precision;
     if (infer_precision != ov::element::dynamic && !fp_precision_supported(infer_precision)) {
         infer_precision = fallback_precision;
     }
@@ -757,9 +764,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             return true;
         };
 
-        // Only preserve f16 rounding at Math op boundaries when the graph is actually executed in f16.
-        // For explicit f32 or bf16 inference the default ConvertPrecision behavior is kept, otherwise the
-        // f16->f32 conversion would reintroduce f16 rounding even though full f32 inference was requested
+        // Only preserve f16 rounding at Math op boundaries when f16 execution was requested (explicitly, or
+        // implicitly via a model that already contains f16)
         auto model_has_f16 = [&]() {
             for (const auto& op : func->get_ops()) {
                 for (const auto& output : op->outputs()) {
@@ -770,9 +776,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
             return false;
         };
+
         const bool preserve_math_f16_rounding =
-            infer_precision == ov::element::f16 ||
-            (infer_precision == ov::element::dynamic && model_has_f16());
+            should_preserve_math_f16_rounding(requested_infer_precision, model_has_f16());
 
         type_to_fuse_map fp_type_to_fuse = {};
         if (preserve_math_f16_rounding) {

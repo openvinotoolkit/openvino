@@ -180,4 +180,22 @@ TEST(XAttentionTransformPipelineTest, NormalizesByTokenFp16RtInfoToCompressedCac
     EXPECT_EQ(value_shape[3].get_length(), 68);
 }
 
+// Covers the case where the device lacks native fp16 support: an explicit f16 request is
+// normalized to f32 elsewhere in the pipeline, but rounding preservation must still be
+// decided from the originally requested precision, not that normalized value.
+TEST(PreserveMathF16RoundingTest, ExplicitF16RequestPreservedRegardlessOfDeviceFallback) {
+    EXPECT_TRUE(ov::intel_gpu::should_preserve_math_f16_rounding(ov::element::f16, /*model_has_f16=*/false));
+    EXPECT_TRUE(ov::intel_gpu::should_preserve_math_f16_rounding(ov::element::f16, /*model_has_f16=*/true));
+}
+
+TEST(PreserveMathF16RoundingTest, ExplicitNonF16RequestNeverPreserved) {
+    EXPECT_FALSE(ov::intel_gpu::should_preserve_math_f16_rounding(ov::element::f32, /*model_has_f16=*/true));
+    EXPECT_FALSE(ov::intel_gpu::should_preserve_math_f16_rounding(ov::element::bf16, /*model_has_f16=*/true));
+}
+
+TEST(PreserveMathF16RoundingTest, DynamicRequestFollowsModelContent) {
+    EXPECT_TRUE(ov::intel_gpu::should_preserve_math_f16_rounding(ov::element::dynamic, /*model_has_f16=*/true));
+    EXPECT_FALSE(ov::intel_gpu::should_preserve_math_f16_rounding(ov::element::dynamic, /*model_has_f16=*/false));
+}
+
 }  // namespace ov::test::intel_gpu
