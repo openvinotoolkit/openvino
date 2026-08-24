@@ -1298,11 +1298,11 @@ void BinaryConvolution::executeOptimized(const uint8_t* src,
 
         // Padding-overflow math must be signed: with size_t, nstl::max(0, ...) can no longer clamp
         // the negative t_pad - ij / ij - t_pad cases and underflows, corrupting the convolution.
-        const int ij = static_cast<int>(oh * jcp.stride_h);
-        const int i_t_overflow =
+        const auto ij = static_cast<int>(oh * jcp.stride_h);
+        const auto i_t_overflow =
             nstl::min(static_cast<int>(jcp.kh),
                       div_up(nstl::max(0, static_cast<int>(jcp.t_pad) - ij), static_cast<int>(jcp.dilate_h) + 1));
-        const int i_b_overflow =
+        const auto i_b_overflow =
             nstl::min(static_cast<int>(jcp.kh),
                       div_up(nstl::max(static_cast<int>(jcp.ih),
                                        ij + (static_cast<int>(jcp.kh) - 1) * (static_cast<int>(jcp.dilate_h) + 1) -
@@ -1313,7 +1313,7 @@ void BinaryConvolution::executeOptimized(const uint8_t* src,
         const size_t _oc = g * jcp.nb_oc + ocb;
         const size_t _ic = g * jcp.nb_ic;
 
-        const int ih =
+        const auto ih =
             nstl::max(ij - static_cast<int>(jcp.t_pad) + i_t_overflow * (static_cast<int>(jcp.dilate_h) + 1), 0);
         par_conv.src = &src[(n * s_str[0] + _ic * jcp.ic_block * s_str[1] + static_cast<size_t>(ih) * s_str[2]) / nbits];
 
@@ -1323,7 +1323,7 @@ void BinaryConvolution::executeOptimized(const uint8_t* src,
             par_conv.dst = &dst_f32[n * d_str[0] + _oc * jcp.oc_block * d_str[1] + oh * d_str[2]];
         }
 
-        const int wh = jcp.exclude_pad ? i_t_overflow : 0;
+        const auto wh = jcp.exclude_pad ? i_t_overflow : 0;
         par_conv.filt = &weights[(ocb * w_str[0] + static_cast<size_t>(wh) * w_str[2]) / nbits];
 
         par_conv.oc_work = nstl::min((ocb + ocb_num) * jcp.oc_block, jcp.oc) - ocb * jcp.oc_block;
