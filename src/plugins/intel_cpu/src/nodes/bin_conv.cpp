@@ -1315,7 +1315,8 @@ void BinaryConvolution::executeOptimized(const uint8_t* src,
 
         const auto ih =
             nstl::max(ij - static_cast<int>(jcp.t_pad) + i_t_overflow * (static_cast<int>(jcp.dilate_h) + 1), 0);
-        par_conv.src = &src[(n * s_str[0] + _ic * jcp.ic_block * s_str[1] + static_cast<size_t>(ih) * s_str[2]) / nbits];
+        par_conv.src =
+            &src[(n * s_str[0] + _ic * jcp.ic_block * s_str[1] + static_cast<size_t>(ih) * s_str[2]) / nbits];
 
         if (jcp.with_binarization) {
             par_conv.dst = &dst[(n * d_str[0] + _oc * jcp.oc_block * d_str[1] + oh * d_str[2]) / nbits];
