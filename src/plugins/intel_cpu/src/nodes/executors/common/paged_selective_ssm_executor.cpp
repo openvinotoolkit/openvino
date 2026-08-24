@@ -24,6 +24,8 @@
 namespace ov::intel_cpu {
 namespace {
 
+static_assert(sizeof(float) == sizeof(int32_t));
+
 bool is_supported_data_precision(const ov::element::Type& precision) {
     return any_of(precision, ov::element::f32, ov::element::f16, ov::element::bf16);
 }
@@ -92,9 +94,6 @@ bool PagedSelectiveSSMExecutor::update_scratchpad(const MemoryArgs& memory) {
                     subsequence_dims.size() == 1 && subsequence_dims[0] >= 1);
     const auto head_dim = x_dims[2];
     const auto state_size = state_dims[3];
-    const node::kernel::PagedSelectiveSSMShape
-        shape{x_dims[0], x_dims[1], head_dim, B_dims[1], state_size, state_dims[0], 0, 0};
-    node::kernel::validate_paged_selective_ssm_shape(shape);
     const auto thread_count = static_cast<size_t>(m_context->getCpuParallel()->get_num_worker_threads());
     const auto sequence_count = subsequence_dims[0] - 1;
     const auto outer_work = node::kernel::checked_size_product({sequence_count, x_dims[1]}, "outer work items");
@@ -109,16 +108,18 @@ bool PagedSelectiveSSMExecutor::update_scratchpad(const MemoryArgs& memory) {
         precision == ov::element::f32
             ? size_t{0}
             : node::kernel::checked_size_product({size_t{2}, projection_elements}, "B/C projection scratch");
+    const auto metadata_scratch_elements = state_dims[0];
     if (m_scratch && m_scratch_head_dim == scratch_head_dim && m_scratch_state_size == state_size &&
         m_state_scratch_elements == state_scratch_elements &&
         m_projection_scratch_elements == projection_scratch_elements &&
+        m_metadata_scratch_elements == metadata_scratch_elements &&
         m_cached_projection_elements == projection_elements) {
         return true;
     }
 
     const auto total_scratch_elements =
-        node::kernel::checked_size_sum({state_scratch_elements, projection_scratch_elements},
-                                       "combined state and B/C projection scratch");
+        node::kernel::checked_size_sum({state_scratch_elements, projection_scratch_elements, metadata_scratch_elements},
+                                       "combined state, projection, and metadata scratch");
     const auto scratch_desc =
         std::make_shared<CpuBlockedMemoryDesc>(ov::element::f32,
                                                ov::intel_cpu::Shape{std::max(size_t{1}, total_scratch_elements)});
@@ -127,6 +128,7 @@ bool PagedSelectiveSSMExecutor::update_scratchpad(const MemoryArgs& memory) {
     m_scratch_state_size = state_size;
     m_state_scratch_elements = state_scratch_elements;
     m_projection_scratch_elements = projection_scratch_elements;
+    m_metadata_scratch_elements = metadata_scratch_elements;
     m_cached_projection_elements = projection_elements;
     return m_scratch != nullptr;
 }
@@ -160,6 +162,7 @@ void PagedSelectiveSSMExecutor::execute(const MemoryArgs& memory) {
         precision == ov::element::f32
             ? size_t{0}
             : node::kernel::checked_size_product({size_t{2}, projection_elements}, "B/C projection scratch");
+    const auto expected_metadata_scratch_elements = state_dims[0];
     OPENVINO_ASSERT(block_begins_dims.size() == 1 && processed_dims.size() == 1 && interval_dims.size() == 1 &&
                         block_begins_dims[0] == sequence_count + 1 && processed_dims[0] == sequence_count &&
                         interval_dims[0] == sequence_count,
@@ -169,6 +172,7 @@ void PagedSelectiveSSMExecutor::execute(const MemoryArgs& memory) {
     if (!m_scratch || m_scratch_state_size != state_dims[3] || m_scratch_head_dim != expected_scratch_head_dim ||
         m_state_scratch_elements != expected_state_scratch_elements ||
         m_projection_scratch_elements != expected_projection_scratch_elements ||
+        m_metadata_scratch_elements != expected_metadata_scratch_elements ||
         m_cached_projection_elements != projection_elements) {
         OPENVINO_ASSERT(update_scratchpad(memory));
     }
@@ -182,6 +186,8 @@ void PagedSelectiveSSMExecutor::execute(const MemoryArgs& memory) {
                                                      block_indices_dims[0],
                                                      sequence_count};
     auto* state_scratch = m_scratch->getDataAs<float>();
+    auto* metadata_validation_scratch =
+        reinterpret_cast<int32_t*>(state_scratch + m_state_scratch_elements + m_projection_scratch_elements);
     const float* converted_B = nullptr;
     const float* converted_C = nullptr;
     if (precision != ov::element::f32) {
@@ -218,7 +224,7 @@ void PagedSelectiveSSMExecutor::execute(const MemoryArgs& memory) {
                                       memory.at(ARG_PAGED_SSM_SUBSEQUENCE_BEGINS)->getDescPtr()->getPrecision(),
                                       state_scratch,
                                       m_scratch_head_dim,
-                                      nullptr,
+                                      metadata_validation_scratch,
                                       m_context->getCpuParallel(),
                                       converted_B,
                                       converted_C);

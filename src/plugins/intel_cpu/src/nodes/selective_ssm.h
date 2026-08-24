@@ -42,7 +42,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& error_message) noexcept;
 
 private:
-    void bind_memory_arguments();
+    void bindMemoryArguments();
     SelectiveSSMAttrs m_attrs;
     ExecutorFactoryPtr<SelectiveSSMAttrs> m_factory;
     ExecutorPtr m_executor;

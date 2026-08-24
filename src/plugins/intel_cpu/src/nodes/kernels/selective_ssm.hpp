@@ -36,10 +36,6 @@ size_t checked_size_product(std::initializer_list<size_t> dimensions, const char
 
 size_t checked_size_sum(std::initializer_list<size_t> values, const char* buffer_name);
 
-void validate_selective_ssm_shape(const SelectiveSSMShape& shape);
-
-void validate_paged_selective_ssm_shape(const PagedSelectiveSSMShape& shape);
-
 size_t get_scratch_head_dim(size_t head_dim, size_t state_size, size_t outer_work_items, size_t thread_count);
 
 void selective_ssm(const void* A,
@@ -57,15 +53,6 @@ void selective_ssm(const void* A,
                    const CpuParallelPtr& cpu_parallel,
                    const float* converted_B = nullptr,
                    const float* converted_C = nullptr);
-
-void validate_paged_selective_ssm_metadata(const void* subsequence_begins,
-                                           const void* block_indices,
-                                           const void* block_indices_begins,
-                                           const void* num_processed_tokens,
-                                           const void* cache_interval,
-                                           const PagedSelectiveSSMShape& shape,
-                                           const ov::element::Type& index_precision,
-                                           int32_t* block_owners);
 
 void paged_selective_ssm(const void* A,
                          const void* dt,

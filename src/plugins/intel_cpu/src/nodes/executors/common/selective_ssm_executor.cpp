@@ -70,8 +70,6 @@ bool SelectiveSSMExecutor::update_scratchpad(const MemoryArgs& memory) {
     OPENVINO_ASSERT(x_dims.size() == 4 && B_dims.size() == 4 && state_dims.size() == 4);
     const auto head_dim = x_dims[3];
     const auto state_size = state_dims[3];
-    const node::kernel::SelectiveSSMShape shape{x_dims[0], x_dims[1], x_dims[2], head_dim, B_dims[2], state_size};
-    node::kernel::validate_selective_ssm_shape(shape);
     const auto thread_count = static_cast<size_t>(m_context->getCpuParallel()->get_num_worker_threads());
     const auto outer_work = node::kernel::checked_size_product({x_dims[0], x_dims[2]}, "outer work items");
     const auto scratch_head_dim = node::kernel::get_scratch_head_dim(head_dim, state_size, outer_work, thread_count);

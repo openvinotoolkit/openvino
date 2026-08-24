@@ -123,6 +123,7 @@ set(COMMON_OPTIMIZATIONS_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/pack_multi_head_attention.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/pad_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/prelu_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/preserve_selective_ssm_precision.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/pull_through_reduce.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/pull_transpose_through_fq.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/push_constant_to_subgraph.hpp

@@ -106,7 +106,7 @@ void PagedSelectiveSSM::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void PagedSelectiveSSM::bind_memory_arguments() {
+void PagedSelectiveSSM::bindMemoryArguments() {
     for (const auto& [arg_id, port_id] : input_port_bindings) {
         m_memory[arg_id] = getSrcMemoryAtPort(port_id);
     }
@@ -114,7 +114,7 @@ void PagedSelectiveSSM::bind_memory_arguments() {
 }
 
 void PagedSelectiveSSM::createPrimitive() {
-    bind_memory_arguments();
+    bindMemoryArguments();
 
     m_executor = m_factory->make(m_memory);
     Node::createPrimitive();
@@ -122,14 +122,14 @@ void PagedSelectiveSSM::createPrimitive() {
 }
 
 void PagedSelectiveSSM::prepareParams() {
-    bind_memory_arguments();
+    bindMemoryArguments();
 
     m_executor->update(m_memory);
     getSelectedPrimitiveDescriptor()->setImplementationType(m_executor->implType());
 }
 
 void PagedSelectiveSSM::execute([[maybe_unused]] const dnnl::stream& strm) {
-    bind_memory_arguments();
+    bindMemoryArguments();
 
     m_executor->execute(m_memory);
 }

@@ -88,6 +88,7 @@
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/fuse_moe_shared_expert.hpp"
 #include "transformations/common_optimizations/moe_op_fusion.hpp"
+#include "transformations/common_optimizations/preserve_selective_ssm_precision.hpp"
 #include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
 #include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
 #include "plugin/transformations/decompose_reduce_scalar_output.hpp"
@@ -770,7 +771,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // (the intact op requires fp32 scales; it is decomposed later in CommonOptimizations).
         manager.register_pass<ov::intel_gpu::KeepGQAKVScalePrecision>();
         manager.register_pass<ov::intel_gpu::EliminateEmptySelectiveSSM>();
-        manager.register_pass<ov::intel_gpu::PreserveSelectiveSSMPrecision>();
+        manager.register_pass<ov::pass::PreserveSelectiveSSMPrecision>();
 
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
                                                           empty_fuse_map,

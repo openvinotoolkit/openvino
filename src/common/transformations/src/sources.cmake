@@ -85,6 +85,7 @@ set(COMMON_OPTIMIZATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/pack_multi_head_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/pad_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/prelu_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/preserve_selective_ssm_precision.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/pull_through_reduce.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/pull_transpose_through_fq.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/push_constant_to_subgraph.cpp

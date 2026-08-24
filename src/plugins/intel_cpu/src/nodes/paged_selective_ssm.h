@@ -40,7 +40,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& error_message) noexcept;
 
 private:
-    void bind_memory_arguments();
+    void bindMemoryArguments();
     PagedSelectiveSSMAttrs m_attrs;
     ExecutorFactoryPtr<PagedSelectiveSSMAttrs> m_factory;
     ExecutorPtr m_executor;

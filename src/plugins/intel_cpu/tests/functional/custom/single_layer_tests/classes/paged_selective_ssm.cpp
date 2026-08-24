@@ -17,6 +17,7 @@
 #include "openvino/op/paged_selective_ssm.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/runtime/core.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -139,6 +140,41 @@ ov::Tensor make_index_tensor(const std::vector<int32_t>& values, const ov::eleme
         });
     }
     return tensor;
+}
+
+ov::Tensor make_f32_tensor(const ov::Shape& shape, const std::vector<float>& values) {
+    ov::Tensor tensor(ov::element::f32, shape);
+    OPENVINO_ASSERT(tensor.get_size() == values.size());
+    std::copy(values.begin(), values.end(), tensor.data<float>());
+    return tensor;
+}
+
+std::shared_ptr<ov::Model> make_paged_validation_model() {
+    auto A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+    auto dt = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1});
+    auto B = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 1});
+    auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 1});
+    auto C = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 1});
+    auto state = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 1, 1, 1});
+    auto subsequences = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2});
+    auto blocks = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2});
+    auto block_begins = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2});
+    auto processed = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+    auto intervals = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+    const ov::ParameterVector
+        parameters{A, dt, B, x, C, state, subsequences, blocks, block_begins, processed, intervals};
+    const auto ssm = std::make_shared<ov::op::internal::PagedSelectiveSSM>(A,
+                                                                           dt,
+                                                                           B,
+                                                                           x,
+                                                                           C,
+                                                                           state,
+                                                                           subsequences,
+                                                                           blocks,
+                                                                           block_begins,
+                                                                           processed,
+                                                                           intervals);
+    return std::make_shared<ov::Model>(ssm->outputs(), parameters);
 }
 
 template <typename T, typename IndexT>
@@ -589,6 +625,45 @@ TEST_P(PagedSelectiveSSMLayerTest, Inference) {
     const auto runtime_model = compiledModel.get_runtime_model();
     CheckNumberOfNodesWithType(runtime_model, {"PagedSelectiveSSM"}, 1);
     CheckNumberOfNodesWithType(runtime_model, {"Loop"}, 0);
+}
+
+TEST(PagedSelectiveSSMFunctionalTest, RejectsMalformedMetadataBeforeExecution) {
+    struct MetadataCase {
+        const char* name;
+        std::vector<int32_t> subsequences;
+        std::vector<int32_t> blocks;
+        std::vector<int32_t> block_begins;
+        std::vector<int32_t> processed;
+        std::vector<int32_t> intervals;
+    };
+
+    const std::vector<MetadataCase> cases{
+        {"negative sequence offset", {-1, 1}, {0, 1}, {0, 2}, {0}, {1}},
+        {"wrong final sequence offset", {0, 0}, {0, 1}, {0, 2}, {0}, {1}},
+        {"negative block index", {0, 1}, {-1, 1}, {0, 2}, {0}, {1}},
+        {"out of range block index", {0, 1}, {0, 2}, {0, 2}, {0}, {1}},
+        {"negative processed token count", {0, 1}, {0, 1}, {0, 2}, {-1}, {1}},
+        {"insufficient writable blocks", {0, 1}, {0, 1}, {0, 1}, {0}, {1}},
+    };
+
+    ov::Core core;
+    auto compiled_model = core.compile_model(make_paged_validation_model(), "CPU");
+    for (const auto& test_case : cases) {
+        SCOPED_TRACE(test_case.name);
+        auto request = compiled_model.create_infer_request();
+        request.set_input_tensor(0, make_f32_tensor({1}, {-0.2F}));
+        request.set_input_tensor(1, make_f32_tensor({1, 1}, {0.1F}));
+        request.set_input_tensor(2, make_f32_tensor({1, 1, 1}, {0.2F}));
+        request.set_input_tensor(3, make_f32_tensor({1, 1, 1}, {0.3F}));
+        request.set_input_tensor(4, make_f32_tensor({1, 1, 1}, {0.4F}));
+        request.set_input_tensor(5, make_f32_tensor({2, 1, 1, 1}, {0.F, 0.F}));
+        request.set_input_tensor(6, make_index_tensor(test_case.subsequences, ov::element::i32));
+        request.set_input_tensor(7, make_index_tensor(test_case.blocks, ov::element::i32));
+        request.set_input_tensor(8, make_index_tensor(test_case.block_begins, ov::element::i32));
+        request.set_input_tensor(9, make_index_tensor(test_case.processed, ov::element::i32));
+        request.set_input_tensor(10, make_index_tensor(test_case.intervals, ov::element::i32));
+        EXPECT_THROW(request.infer(), ov::Exception);
+    }
 }
 
 }  // namespace ov::test
