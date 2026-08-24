@@ -81,12 +81,7 @@ void LocalSizeTuner::Selection::complete_measurement(uint64_t elapsed_nanosecond
     _lock.unlock();
 }
 
-LocalSizeTuner::Selection LocalSizeTuner::select(uint32_t invocation_count, const device_info& info, bool require_exact_divisibility) {
-    const auto cached_local_size = _cached_selected.load(std::memory_order_acquire);
-    if (cached_local_size != 0) {
-        return Selection(*this, {cached_local_size, 0, false, false}, {});
-    }
-
+LocalSizeTuner::Selection LocalSizeTuner::select_uncached(uint32_t invocation_count, const device_info& info, bool require_exact_divisibility) {
     std::unique_lock lock(_mutex);
     auto selected_action = next_action(invocation_count, info, require_exact_divisibility);
     if (!selected_action.prewarm && !selected_action.measure) {

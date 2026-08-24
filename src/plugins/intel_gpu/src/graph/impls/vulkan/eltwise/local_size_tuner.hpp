@@ -51,7 +51,11 @@ public:
         std::unique_lock<std::mutex> _lock;
     };
 
-    Selection select(uint32_t invocation_count, const device_info& info, bool require_exact_divisibility);
+    uint32_t cached_local_size() const {
+        return _cached_selected.load(std::memory_order_acquire);
+    }
+
+    Selection select_uncached(uint32_t invocation_count, const device_info& info, bool require_exact_divisibility);
 
 private:
     void initialize(uint32_t invocation_count, const device_info& info, bool require_exact_divisibility);

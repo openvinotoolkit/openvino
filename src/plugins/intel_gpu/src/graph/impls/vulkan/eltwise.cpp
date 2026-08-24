@@ -1339,8 +1339,11 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         std::optional<LocalSizeTuner::Selection> local_size_selection;
         uint32_t local_size = 1;
         if (_elements_per_invocation != 0) {
-            local_size_selection.emplace(_local_size_tuner->select(invocation_count, device_info, is_no_tail_kernel(_kernel_kind)));
-            local_size = local_size_selection->local_size();
+            local_size = _local_size_tuner->cached_local_size();
+            if (local_size == 0) {
+                local_size_selection.emplace(_local_size_tuner->select_uncached(invocation_count, device_info, is_no_tail_kernel(_kernel_kind)));
+                local_size = local_size_selection->local_size();
+            }
         } else {
             local_size = select_portable_local_work_group_size(invocation_count, device_info.max_work_group_size);
         }
