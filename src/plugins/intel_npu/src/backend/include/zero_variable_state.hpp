@@ -87,6 +87,11 @@ private:
     size_t _tensor_index;
     size_t _related_tensor_index;
 
+    // Byte size of the state buffer allocated for the model. A tensor set through set_state must be at least this
+    // large: the state input and its state output share this buffer, so a smaller one would let the device write
+    // past it through the state output.
+    size_t _required_byte_size;
+
     std::shared_ptr<ZeroTensor> _zero_state;
 
     bool _is_state_updated = false;

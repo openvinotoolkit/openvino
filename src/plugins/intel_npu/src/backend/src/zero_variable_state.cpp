@@ -8,6 +8,7 @@
 #include "intel_npu/utils/zero/zero_host_tensor.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
+#include "openvino/core/except.hpp"
 
 namespace intel_npu {
 
@@ -20,6 +21,7 @@ ZeroVariableState::ZeroVariableState(const std::shared_ptr<ZeroInitStructsHolder
       _init_structs(init_structs),
       _tensor_index(tensor_index),
       _related_tensor_index(related_tensor_index),
+      _required_byte_size(zero_tensor != nullptr ? zero_tensor->get_byte_size() : 0),
       _zero_state(zero_tensor),
       _logger("ZeroVariableState", Logger::global().level()) {
     m_state = _zero_state;
@@ -31,6 +33,13 @@ void ZeroVariableState::set_state(const ov::SoPtr<ov::ITensor>& new_state) {
         _logger.debug("ZeroVariableState::set_state - got the same state, do nothing");
         return;
     }
+
+    // The state input and its state output share one Level Zero buffer, sized for the model's state. A smaller
+    // tensor would later let the device write past that buffer through the state output, so reject it here.
+    OPENVINO_ASSERT(new_state._ptr != nullptr && new_state->get_byte_size() >= _required_byte_size,
+                    "The tensor set for state '",
+                    get_name(),
+                    "' is smaller than the model's state requires.");
 
     m_state = new_state;
     _is_state_updated = true;
