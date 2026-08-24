@@ -4,9 +4,7 @@
 
 #include "infer_request_utils.hpp"
 
-#include <algorithm>
 #include <limits>
-#include <string>
 
 #include "logging.hpp"
 #include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
@@ -154,6 +152,121 @@ void ov::npuw::util::copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor,
     }
 }
 
+void ov::npuw::util::write_swa_kv_slice_circular(ov::SoPtr<ov::ITensor> dst_tensor,
+                                                 ov::SoPtr<ov::ITensor> src_new_kv,
+                                                 uint32_t dst_kv_dim,
+                                                 uint32_t src_kv_dim,
+                                                 uint32_t num_stored_tokens_before,
+                                                 uint32_t num_new_tokens) {
+    const uint32_t capacity = static_cast<uint32_t>(dst_tensor->get_shape()[dst_kv_dim]);
+    const uint32_t old_total = num_stored_tokens_before;
+    const uint32_t new_total = old_total + num_new_tokens;
+    const uint32_t new_valid = std::min(new_total, capacity);
+
+    // Clamp by source length as well: source may already be capacity-limited.
+    const uint32_t src_len = static_cast<uint32_t>(src_new_kv->get_shape()[src_kv_dim]);
+    const uint32_t tokens_to_write = std::min({num_new_tokens, new_valid, src_len});
+
+    if (tokens_to_write == 0) {
+        return;
+    }
+    const uint32_t first_new_abs_pos = num_stored_tokens_before + (num_new_tokens - tokens_to_write);
+    const uint32_t dst_start = first_new_abs_pos % capacity;
+
+    auto src_slice = (src_len > tokens_to_write)
+                         ? ov::npuw::util::make_tensor_slice(src_new_kv, src_kv_dim, src_len - tokens_to_write, src_len)
+                         : src_new_kv;
+
+    if (dst_start + tokens_to_write <= capacity) {
+        auto dst_slice =
+            ov::npuw::util::make_tensor_slice(dst_tensor, dst_kv_dim, dst_start, dst_start + tokens_to_write);
+        ov::npuw::util::copy_tensor_by_dim(src_slice, dst_slice, src_kv_dim, dst_kv_dim);
+    } else {
+        const uint32_t first_leg_len = capacity - dst_start;
+        const uint32_t second_leg_len = tokens_to_write - first_leg_len;
+
+        auto src_first_leg = ov::npuw::util::make_tensor_slice(src_slice, src_kv_dim, 0u, first_leg_len);
+        auto dst_first_leg = ov::npuw::util::make_tensor_slice(dst_tensor, dst_kv_dim, dst_start, capacity);
+        ov::npuw::util::copy_tensor_by_dim(src_first_leg, dst_first_leg, src_kv_dim, dst_kv_dim);
+
+        auto src_second_leg = ov::npuw::util::make_tensor_slice(src_slice, src_kv_dim, first_leg_len, tokens_to_write);
+        auto dst_second_leg = ov::npuw::util::make_tensor_slice(dst_tensor, dst_kv_dim, 0u, second_leg_len);
+        ov::npuw::util::copy_tensor_by_dim(src_second_leg, dst_second_leg, src_kv_dim, dst_kv_dim);
+    }
+}
+
+void ov::npuw::util::write_swa_kv_slice_left_aligned(ov::SoPtr<ov::ITensor> dst_tensor,
+                                                     ov::SoPtr<ov::ITensor> src_new_kv,
+                                                     uint32_t dst_kv_dim,
+                                                     uint32_t src_kv_dim,
+                                                     uint32_t num_stored_tokens_before,
+                                                     uint32_t num_new_tokens) {
+    const uint32_t capacity = static_cast<uint32_t>(dst_tensor->get_shape()[dst_kv_dim]);
+    const uint32_t old_total = num_stored_tokens_before;
+    const uint32_t new_total = old_total + num_new_tokens;
+    const uint32_t old_valid = std::min(old_total, capacity);
+    const uint32_t new_valid = std::min(new_total, capacity);
+
+    // Clamp against source length too. Some source tensors can hold fewer tokens
+    // than num_new_tokens when they were capacity-limited earlier.
+    const uint32_t src_len = static_cast<uint32_t>(src_new_kv->get_shape()[src_kv_dim]);
+    const uint32_t tokens_to_write = std::min({num_new_tokens, new_valid, src_len});
+
+    const uint32_t keep = new_valid - tokens_to_write;
+    const bool needs_shift = (keep > 0 && keep < old_valid);
+
+    if (needs_shift && dst_kv_dim == 3u) {
+        // Transposed-V (dim=3) partial-slice shifts degrade into many small remote
+        // transfers. Use a full-buffer round-trip to keep
+        // transfer count low and improve stability on remote tensors.
+        LOG_DEBUG("[SWA] Bulk-shifting KV buffer (dim=3): keeping last " << keep << " of " << old_valid
+                                                                         << " old token(s), capacity=" << capacity);
+        auto whole_tmp =
+            ov::npuw::util::allocMem(dst_tensor->get_element_type(), dst_tensor->get_shape(), "CPU", nullptr);
+        dst_tensor->copy_to(whole_tmp._ptr);  // single bulk contiguous transfer
+
+        auto old_tail_cpu = ov::npuw::util::make_tensor_slice(whole_tmp, dst_kv_dim, old_valid - keep, old_valid);
+        auto shift_tmp =
+            ov::npuw::util::allocMem(dst_tensor->get_element_type(), old_tail_cpu->get_shape(), "CPU", nullptr);
+        old_tail_cpu->copy_to(shift_tmp._ptr);  // CPU-to-CPU, cheap regardless of iteration count
+        auto dst_front_cpu = ov::npuw::util::make_tensor_slice(whole_tmp, dst_kv_dim, 0u, keep);
+        ov::npuw::util::copy_tensor_by_dim(shift_tmp, dst_front_cpu, dst_kv_dim, dst_kv_dim);  // CPU-to-CPU
+
+        if (tokens_to_write > 0) {
+            auto src_slice =
+                (src_len > tokens_to_write)
+                    ? ov::npuw::util::make_tensor_slice(src_new_kv, src_kv_dim, src_len - tokens_to_write, src_len)
+                    : src_new_kv;
+            auto dst_back_cpu = ov::npuw::util::make_tensor_slice(whole_tmp, dst_kv_dim, keep, keep + tokens_to_write);
+            ov::npuw::util::copy_tensor_by_dim(src_slice, dst_back_cpu, src_kv_dim, dst_kv_dim);
+        }
+
+        whole_tmp->copy_to(dst_tensor._ptr);  // single bulk contiguous transfer back
+        return;
+    }
+
+    if (needs_shift) {
+        // Window saturated: move the surviving old tail to the front.
+        // Use a temporary buffer to avoid overlapping in-place copy.
+        LOG_DEBUG("[SWA] Shifting KV buffer: keeping last "
+                  << keep << " of " << old_valid << " old token(s), dim=" << dst_kv_dim << ", capacity=" << capacity);
+        auto old_tail = ov::npuw::util::make_tensor_slice(dst_tensor, dst_kv_dim, old_valid - keep, old_valid);
+        auto tmp = ov::npuw::util::allocMem(dst_tensor->get_element_type(), old_tail->get_shape(), "CPU", nullptr);
+        old_tail->copy_to(tmp._ptr);
+        auto dst_front = ov::npuw::util::make_tensor_slice(dst_tensor, dst_kv_dim, 0u, keep);
+        ov::npuw::util::copy_tensor_by_dim(tmp, dst_front, dst_kv_dim, dst_kv_dim);
+    }
+
+    if (tokens_to_write == 0) {
+        return;
+    }
+    auto src_slice = (src_len > tokens_to_write)
+                         ? ov::npuw::util::make_tensor_slice(src_new_kv, src_kv_dim, src_len - tokens_to_write, src_len)
+                         : src_new_kv;
+    auto dst_back = ov::npuw::util::make_tensor_slice(dst_tensor, dst_kv_dim, keep, keep + tokens_to_write);
+    ov::npuw::util::copy_tensor_by_dim(src_slice, dst_back, src_kv_dim, dst_kv_dim);
+}
+
 std::optional<ov::Output<const ov::Node>> ov::npuw::util::find_port_by_name(
     const std::vector<ov::Output<const ov::Node>>& ports,
     const std::string& name) {
@@ -290,139 +403,4 @@ void ov::npuw::util::copy_per_layer_inputs_chunk_to_right(const ov::SoPtr<ov::IT
     std::copy_n(reinterpret_cast<const uint8_t*>(src->data()) + offset_bytes,
                 chunk_bytes,
                 reinterpret_cast<uint8_t*>(dst->data()) + dst->get_byte_size() - chunk_bytes);
-}
-
-void ov::npuw::util::fill_causal_sliding_mask(ov::SoPtr<ov::ITensor> mask_tensor,
-                                              uint32_t num_stored_tokens_before,
-                                              uint32_t num_real_new_tokens,
-                                              uint32_t window_size) {
-    OPENVINO_ASSERT(mask_tensor->get_element_type() == ov::element::f32,
-                    "Attention mask tensor is expected to be f32, got: ",
-                    mask_tensor->get_element_type());
-    const auto& shape = mask_tensor->get_shape();
-    OPENVINO_ASSERT(shape.size() >= 2, "Attention mask tensor rank must be >= 2, got shape: ", shape);
-    const uint32_t row_dim = static_cast<uint32_t>(shape[shape.size() - 2]);
-    const uint32_t col_dim = static_cast<uint32_t>(shape[shape.size() - 1]);
-    OPENVINO_ASSERT(col_dim >= row_dim,
-                    "Attention mask's key axis (",
-                    col_dim,
-                    ") must be >= its query axis (",
-                    row_dim,
-                    ")");
-    OPENVINO_ASSERT(num_real_new_tokens <= row_dim,
-                    "num_real_new_tokens (",
-                    num_real_new_tokens,
-                    ") exceeds the mask's query axis (",
-                    row_dim,
-                    ")");
-    const uint32_t past_width = col_dim - row_dim;
-    const uint32_t row_pad = row_dim - num_real_new_tokens;  // rows/current-cols < row_pad are pad.
-    const uint32_t P = num_stored_tokens_before;
-
-    constexpr float kAttend = 0.0f;
-    // For NPU execution - use fp16 lowest value to represent masked positions
-    float kMasked = static_cast<float>(std::numeric_limits<ov::float16>::lowest());
-
-    float* data = mask_tensor->data<float>();
-
-    for (uint32_t row = 0; row < row_dim; ++row) {
-        float* row_ptr = data + static_cast<size_t>(row) * col_dim;
-
-        // Past columns: c in [0, past_width). The past K/V buffer is maintained by
-        // write_kv_slice_sliding(..., SlidingBufferLayout::Circular): physical slot c always
-        // holds whichever absolute token position last landed there via `p % past_width` - no
-        // data is ever shifted (see kv_cache_sliding_window_manager.hpp). While the window has
-        // not yet saturated (P < past_width), writes fill physical slots strictly in arrival
-        // order 0, 1, 2, ... - so the valid prefix is LEFT-aligned at [0, P) (column c holds
-        // absolute position c), and columns >= P are still-uninitialized garbage. Once
-        // P >= past_width (saturated at least once), every physical slot has been written at
-        // least once (all valid), but which absolute position slot c currently holds depends on
-        // how far the wrap-around write cursor `r = P % past_width` has progressed: slots >= r
-        // hold the most recently *completed* lap (abs = P - r + c - past_width), slots < r hold
-        // the lap currently in progress (abs = P - r + c).
-        const int64_t row_local = static_cast<int64_t>(row) - static_cast<int64_t>(row_pad);
-        const int64_t q = static_cast<int64_t>(P) + row_local;  // this row's own absolute position
-        const uint32_t r = P % past_width;
-        for (uint32_t c = 0; c < past_width; ++c) {
-            bool valid;
-            int64_t abs_pos;
-            if (P >= past_width) {
-                valid = true;
-                abs_pos = (c < r) ? (static_cast<int64_t>(P) - r + c)
-                                  : (static_cast<int64_t>(P) - r + c - past_width);
-            } else {
-                valid = c < P;
-                abs_pos = c;
-            }
-            const bool causal = abs_pos <= q;
-            const bool window_ok = (q - abs_pos) < static_cast<int64_t>(window_size);
-            const bool attend = valid && causal && window_ok;
-            row_ptr[c] = attend ? kAttend : kMasked;
-        }
-
-        // Current-chunk diagonal columns: local_c in [0, row_dim), mapped to c = past_width +
-        // local_c. Both axes share the same row_pad right-alignment offset, so it cancels
-        // identically in both the causal and window comparisons below - raw indices suffice.
-        for (uint32_t local_c = 0; local_c < row_dim; ++local_c) {
-            const bool valid_key = local_c >= row_pad;
-            const bool causal = local_c <= row;
-            const bool window_ok = causal && (row - local_c) < window_size;
-            const bool attend = valid_key && causal && window_ok;
-            row_ptr[past_width + local_c] = attend ? kAttend : kMasked;
-        }
-    }
-}
-
-void ov::npuw::util::overlay_vision_bidirectional_mask(ov::SoPtr<ov::ITensor> mask_tensor,
-                                                        const int64_t* token_type_ids_real,
-                                                        uint32_t num_real_new_tokens) {
-    if (num_real_new_tokens == 0) {
-        return;
-    }
-    OPENVINO_ASSERT(mask_tensor->get_element_type() == ov::element::f32,
-                    "Attention mask tensor is expected to be f32, got: ",
-                    mask_tensor->get_element_type());
-    const auto& shape = mask_tensor->get_shape();
-    OPENVINO_ASSERT(shape.size() >= 2, "Attention mask tensor rank must be >= 2, got shape: ", shape);
-    const uint32_t row_dim = static_cast<uint32_t>(shape[shape.size() - 2]);
-    const uint32_t col_dim = static_cast<uint32_t>(shape[shape.size() - 1]);
-    OPENVINO_ASSERT(num_real_new_tokens <= row_dim,
-                    "num_real_new_tokens (",
-                    num_real_new_tokens,
-                    ") exceeds the mask's query axis (",
-                    row_dim,
-                    ")");
-    const uint32_t past_width = col_dim - row_dim;
-    const uint32_t row_pad = row_dim - num_real_new_tokens;
-
-    // Assign each real token a group id: bumped every time a new contiguous run of
-    // token_type_ids == 1 starts; -1 ("no group") for text tokens (token_type_ids == 0).
-    std::vector<int32_t> group_id(num_real_new_tokens, -1);
-    int32_t current_group = -1;
-    bool in_run = false;
-    for (uint32_t i = 0; i < num_real_new_tokens; ++i) {
-        if (token_type_ids_real[i] == 1) {
-            if (!in_run) {
-                ++current_group;
-                in_run = true;
-            }
-            group_id[i] = current_group;
-        } else {
-            in_run = false;
-        }
-    }
-
-    constexpr float kAttend = 0.0f;
-    float* data = mask_tensor->data<float>();
-    for (uint32_t i = 0; i < num_real_new_tokens; ++i) {
-        if (group_id[i] < 0) {
-            continue;
-        }
-        float* row_ptr = data + static_cast<size_t>(row_pad + i) * col_dim;
-        for (uint32_t j = 0; j < num_real_new_tokens; ++j) {
-            if (group_id[j] == group_id[i]) {
-                row_ptr[past_width + row_pad + j] = kAttend;
-            }
-        }
-    }
 }

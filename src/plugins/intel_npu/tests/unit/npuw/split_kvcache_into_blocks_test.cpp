@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include "kv_cache_sliding_window_manager.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/parameter.hpp"
@@ -288,6 +289,61 @@ TEST_F(SplitKVCacheIntoBlocksTest, MultipleKVParameters) {
 
     EXPECT_EQ(key_blocks, expected_blocks);
     EXPECT_EQ(value_blocks, expected_blocks);
+}
+
+TEST_F(SplitKVCacheIntoBlocksTest, SkipsSwaTaggedParameter) {
+    // Test: a KV cache parameter pre-tagged with NPUW_KV_CACHE_SLIDING_RT_KEY (as
+    // PatchSlidingWindowKVCache would do for a Sliding Window Attention layer) is left as a
+    // single, unsplit parameter, while an untagged KV cache parameter in the same model is
+    // split into blocks as usual.
+    const uint32_t block_size = 16;
+    const uint32_t expected_blocks = 64 / block_size;  // 4 blocks for the non-sliding layer
+
+    // Layer 0: sliding (SWA) — tagged, must remain untouched.
+    auto sliding_key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 32, 64, 128});
+    sliding_key->set_friendly_name("past_key_values.0.key");
+    sliding_key->get_rt_info()[ov::npuw::util::NPUW_KV_CACHE_SLIDING_RT_KEY] = true;
+
+    // Layer 1: regular (non-sliding) — untagged, must be split into blocks.
+    auto plain_key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 32, 64, 128});
+    plain_key->set_friendly_name("past_key_values.1.key");
+
+    auto new_k0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 32, 1, 128});
+    auto new_k1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 32, 1, 128});
+
+    auto concat0 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{sliding_key, new_k0}, 2);
+    auto concat1 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{plain_key, new_k1}, 2);
+
+    auto result0 = std::make_shared<ov::op::v0::Result>(concat0);
+    auto result1 = std::make_shared<ov::op::v0::Result>(concat1);
+
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result0, result1},
+                                             ov::ParameterVector{sliding_key, plain_key, new_k0, new_k1});
+
+    ov::pass::Manager manager;
+    manager.register_pass<SplitKVCacheIntoBlocks>(block_size, true);
+    manager.run_passes(model);
+
+    // The sliding-tagged parameter must still be present, unsplit, with its original shape.
+    bool found_sliding_param = false;
+    for (const auto& param : model->get_parameters()) {
+        if (param->get_friendly_name() == "past_key_values.0.key") {
+            found_sliding_param = true;
+            EXPECT_EQ(param->get_shape(), ov::Shape({1, 32, 64, 128}));
+        }
+        // No block should ever be derived from the sliding-tagged parameter.
+        EXPECT_EQ(param->get_friendly_name().find("past_key_values.0.key_block_"), std::string::npos);
+    }
+    EXPECT_TRUE(found_sliding_param);
+
+    // The plain (untagged) parameter must have been split into the expected number of blocks.
+    size_t plain_blocks = 0;
+    for (const auto& param : model->get_parameters()) {
+        if (param->get_friendly_name().find("past_key_values.1.key_block_") != std::string::npos) {
+            plain_blocks++;
+        }
+    }
+    EXPECT_EQ(plain_blocks, expected_blocks);
 }
 
 TEST_F(SplitKVCacheIntoBlocksTest, TailBlockHandling) {

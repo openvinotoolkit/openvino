@@ -4,11 +4,10 @@
 
 #pragma once
 
-#include <map>
 #include <memory>
 
 #include "compiled_model.hpp"
-#include "npuw_transformations/detect_causal_mask.hpp"
+#include "kv_cache_sliding_window_manager.hpp"
 #include "npuw_transformations/kv_axes_position.hpp"
 #include "partitioning/patterns/pre_compute.hpp"
 
@@ -170,22 +169,15 @@ private:
     // routed to the dedicated KV/RoPE-free encoder embedding path.
     bool m_is_encoder_embedding = false;
 
-    // Sliding Window Attention (SWA) support: per-layer KV-cache window capping for
-    // hybrid sliding/full-attention models (e.g. Gemma4). Both fields are derived entirely
-    // from the model graph itself (DetectAttentionMask's per-layer result) - there is no
-    // config option to override or cross-check against. They ARE separately serialized (the
-    // original graph isn't available after deserialize()).
-    uint32_t m_swa_window_size = 0;            // 0 == Sliding Window Attention disabled
-    std::vector<bool> m_swa_layer_is_sliding;  // per-layer flag, indexed by decoder layer id
-
-    // Thin wrapper storing ov::npuw::util::derive_swa_layout()'s result (see
-    // llm_compiled_model_utils.hpp) on the instance. The actual derivation from
-    // get_layer_mask_annotations()'s per-layer result is a pure function kept there so it can be
-    // unit-tested independently of LLMCompiledModel construction.
-    void detect_swa_layout(const std::map<size_t, int64_t>& layer_mask_annotations);
+    // Sliding Window Attention (SWA) support: per-layer KV-cache window capping for hybrid
+    // sliding/full-attention models (e.g. Gemma4).
+    ov::npuw::util::SwaLayout m_swa_layout;
 
     // True if SWA is enabled and layer_idx is configured as a sliding-window layer.
     bool is_swa_layer(size_t layer_idx) const;
+
+    // True if `name` is a contiguous (non-block-split) past-KV parameter belonging to an SWA layer.
+    bool is_swa_past_key_values_name(const std::string& name) const;
 
     // Create generate model variants with different sizes
     std::vector<std::shared_ptr<ov::Model>> create_generate_model_variants(

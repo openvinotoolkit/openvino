@@ -4,7 +4,6 @@
 
 #include "attn_subgraph.hpp"
 
-#include <algorithm>
 #include <array>
 #include <limits>
 #include <sstream>
@@ -918,24 +917,19 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         auto attention_mask_tensor = hfa_inputs.at(sdpa_in.attention_mask);
                         auto present_value_tensor = hfa_inputs.at(sdpa_in.present_value);
 
-                        // `total_kv_length` decides how many past KV tiles get processed. It must be BOTH:
+                        // `total_kv_length` bounds how many past KV tiles get processed. It must be BOTH:
                         // (a) no larger than what THIS layer's bound tensors can actually supply
-                        //     (`block_sum`, the sum of `past_key_blocks`' + present tile's live shapes) - this
-                        //     is what matters for a sliding-window layer, whose past KV blocks are capped at
-                        //     `window_size` independent of how long the conversation has run. Using the raw
-                        //     global position here would compute MORE tiles than the layer can supply once the
-                        //     conversation exceeds the window (confirmed via a real crash: `NPUW: Assertion
-                        //     past_kv_tiles == 0 ... failed` on a 4K generate variant, once the conversation ran
-                        //     long enough to exceed a 1024-token sliding window).
+                        //     (`block_sum`, the sum of `past_key_blocks`' + present tile's live shapes) -
+                        //     required for a sliding-window layer, whose past KV blocks are capped at
+                        //     `window_size` independent of conversation length. Using the raw global
+                        //     position here would compute more tiles than the layer can supply once the
+                        //     conversation exceeds the window.
                         // (b) no larger than the conversation's actual valid length
-                        //     (`state.hfa_selector->context_length()`, the ABSOLUTE position in the whole
-                        //     conversation shared by all layers) - this is what matters for a GLOBAL (non-SWA)
-                        //     layer: block capacity is allocated at block granularity, so `block_sum` can be
-                        //     larger than the conversation's real valid length (e.g. a partially-filled last
-                        //     block still reports its full/rounded-up capacity via `get_shape()`). Using
-                        //     `block_sum` alone in that case computes tiles for KV positions that aren't valid
-                        //     yet - unnecessary work that regresses performance vs. the pre-SWA code, which used
-                        //     `context_length()` exclusively and therefore never over-counted for global layers.
+                        //     (`state.hfa_selector->context_length()`, the ABSOLUTE position shared by
+                        //     all layers) - required for a GLOBAL (non-SWA) layer: block capacity is
+                        //     allocated at block granularity, so `block_sum` can exceed the conversation's
+                        //     real valid length (e.g. a partially-filled last block still reports its
+                        //     rounded-up capacity via `get_shape()`).
                         //
                         // `total_kv_length = min(context_length(), block_sum)` satisfies both at once, with no
                         // per-layer/SWA-vs-global special-casing needed:

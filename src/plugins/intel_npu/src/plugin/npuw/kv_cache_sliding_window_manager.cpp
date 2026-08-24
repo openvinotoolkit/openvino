@@ -5,128 +5,288 @@
 #include "kv_cache_sliding_window_manager.hpp"
 
 #include <algorithm>
+#include <limits>
+#include <vector>
 
-#include "infer_request_utils.hpp"
+#include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
+#include "npuw_transformations/detect_causal_mask.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/itensor.hpp"
 #include "util.hpp"
 
-void ov::npuw::util::write_kv_slice_sliding(ov::SoPtr<ov::ITensor> dst_tensor,
-                                            ov::SoPtr<ov::ITensor> src_new_kv,
-                                            uint32_t dst_kv_dim,
-                                            uint32_t src_kv_dim,
-                                            uint32_t num_stored_tokens_before,
-                                            uint32_t num_new_tokens,
-                                            SlidingBufferLayout layout) {
-    const uint32_t capacity = static_cast<uint32_t>(dst_tensor->get_shape()[dst_kv_dim]);
-    const uint32_t old_total = num_stored_tokens_before;
-    const uint32_t new_total = old_total + num_new_tokens;
-    const uint32_t old_valid = std::min(old_total, capacity);
-    const uint32_t new_valid = std::min(new_total, capacity);
+namespace {
 
-    // Clamp against the source's own length too: a source tensor may legitimately hold
-    // fewer valid tokens than `num_new_tokens` claims (e.g. when re-using another
-    // layer's already-capacity-limited past buffer as a source, see the header comment).
-    const uint32_t src_len = static_cast<uint32_t>(src_new_kv->get_shape()[src_kv_dim]);
-    const uint32_t tokens_to_write = std::min({num_new_tokens, new_valid, src_len});
+struct MaskView {
+    uint32_t row_dim = 0;
+    uint32_t col_dim = 0;
+    uint32_t past_width = 0;
+    uint32_t row_pad = 0;
+    float* data = nullptr;
+};
 
-    if (layout == SlidingBufferLayout::Circular) {
-        // No shift, ever: token at absolute position p always lives at physical index
-        // (p % capacity). See SlidingBufferLayout's doc comment in the header for why
-        // this is safe. Skip the leading tokens of this call that would be immediately
-        // overwritten later in the very same call (mirrors the LeftAligned clamp above).
-        if (tokens_to_write == 0) {
-            return;
+MaskView get_mask_view(const ov::SoPtr<ov::ITensor>& mask_tensor,
+                       uint32_t num_real_new_tokens,
+                       const char* caller_name) {
+    OPENVINO_ASSERT(mask_tensor->get_element_type() == ov::element::f32,
+                    caller_name,
+                    ": Attention mask tensor is expected to be f32, got: ",
+                    mask_tensor->get_element_type());
+    const auto& shape = mask_tensor->get_shape();
+    OPENVINO_ASSERT(shape.size() >= 2, caller_name, ": Attention mask tensor rank must be >= 2, got shape: ", shape);
+
+    const uint32_t row_dim = static_cast<uint32_t>(shape[shape.size() - 2]);
+    const uint32_t col_dim = static_cast<uint32_t>(shape[shape.size() - 1]);
+    OPENVINO_ASSERT(col_dim >= row_dim,
+                    caller_name,
+                    ": attention mask key axis (",
+                    col_dim,
+                    ") must be >= query axis (",
+                    row_dim,
+                    ")");
+    OPENVINO_ASSERT(num_real_new_tokens <= row_dim,
+                    caller_name,
+                    ": num_real_new_tokens (",
+                    num_real_new_tokens,
+                    ") exceeds query axis (",
+                    row_dim,
+                    ")");
+
+    MaskView mv;
+    mv.row_dim = row_dim;
+    mv.col_dim = col_dim;
+    mv.past_width = col_dim - row_dim;
+    mv.row_pad = row_dim - num_real_new_tokens;
+    mv.data = mask_tensor->data<float>();
+    return mv;
+}
+
+}  // namespace
+
+ov::npuw::util::SwaLayout ov::npuw::util::detect_swa_layout(const std::shared_ptr<ov::Model>& model) {
+    // Read back per-layer SDPA mask annotations (see NPUW_SDPA_MASK_RT_KEY).
+    // Missing entries are treated as full/causal layers.
+    std::vector<int64_t> layer_mask_annotations;
+    std::vector<bool> layer_has_annotation;
+    size_t num_annotated_layers = 0;
+
+    for (const auto& node : model->get_ordered_ops()) {
+        auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(node);
+        if (!sdpa) {
+            continue;
         }
-        const uint32_t first_new_abs_pos = num_stored_tokens_before + (num_new_tokens - tokens_to_write);
-        const uint32_t dst_start = first_new_abs_pos % capacity;
+        size_t layer_idx = 0;
+        if (!try_parse_self_attn_layer_idx(sdpa->get_friendly_name(), layer_idx)) {
+            continue;
+        }
+        const auto& rt_info = sdpa->get_rt_info();
+        const auto it = rt_info.find(ov::npuw::NPUW_SDPA_MASK_RT_KEY);
+        if (it == rt_info.end()) {
+            continue;
+        }
 
-        auto src_slice = (src_len > tokens_to_write)
-                             ? ov::npuw::util::make_tensor_slice(src_new_kv, src_kv_dim, src_len - tokens_to_write, src_len)
-                             : src_new_kv;
+        const int64_t encoded = it->second.as<int64_t>();
+        if (layer_idx >= layer_mask_annotations.size()) {
+            layer_mask_annotations.resize(layer_idx + 1, 0);
+            layer_has_annotation.resize(layer_idx + 1, false);
+        }
 
-        if (dst_start + tokens_to_write <= capacity) {
-            // Single contiguous write - also covers the not-yet-saturated warm-up
-            // phase, where dst_start == first_new_abs_pos, i.e. a plain append.
-            auto dst_slice =
-                ov::npuw::util::make_tensor_slice(dst_tensor, dst_kv_dim, dst_start, dst_start + tokens_to_write);
-            ov::npuw::util::copy_tensor_by_dim(src_slice, dst_slice, src_kv_dim, dst_kv_dim);
+        if (layer_has_annotation[layer_idx]) {
+            OPENVINO_ASSERT(layer_mask_annotations[layer_idx] == encoded,
+                            "NPUW SWA: conflicting SDPA mask annotations for layer ",
+                            layer_idx,
+                            " (",
+                            layer_mask_annotations[layer_idx],
+                            " vs ",
+                            encoded,
+                            ").");
         } else {
-            // Wraps past the end of the buffer: split into two contiguous legs.
-            const uint32_t first_leg_len = capacity - dst_start;
-            const uint32_t second_leg_len = tokens_to_write - first_leg_len;
-
-            auto src_first_leg = ov::npuw::util::make_tensor_slice(src_slice, src_kv_dim, 0u, first_leg_len);
-            auto dst_first_leg = ov::npuw::util::make_tensor_slice(dst_tensor, dst_kv_dim, dst_start, capacity);
-            ov::npuw::util::copy_tensor_by_dim(src_first_leg, dst_first_leg, src_kv_dim, dst_kv_dim);
-
-            auto src_second_leg =
-                ov::npuw::util::make_tensor_slice(src_slice, src_kv_dim, first_leg_len, tokens_to_write);
-            auto dst_second_leg = ov::npuw::util::make_tensor_slice(dst_tensor, dst_kv_dim, 0u, second_leg_len);
-            ov::npuw::util::copy_tensor_by_dim(src_second_leg, dst_second_leg, src_kv_dim, dst_kv_dim);
+            layer_mask_annotations[layer_idx] = encoded;
+            layer_has_annotation[layer_idx] = true;
+            ++num_annotated_layers;
         }
-        return;
     }
 
-    const uint32_t keep = new_valid - tokens_to_write;
-    const bool needs_shift = (keep > 0 && keep < old_valid);
+    SwaLayout layout;
 
-    if (needs_shift && dst_kv_dim == 3u) {
-        // Transposed-V layout (dst_kv_dim == 3): a partial-slice shift touches only
-        // `old_valid` of the `capacity` columns, but a dim-3 slice of a [1,C,H,W] tensor
-        // is non-contiguous, so both the read (old_tail->copy_to) and the write
-        // (copy_tensor_by_dim -> copy_columns_by_row_chunks) legs degrade into C*H
-        // individual small (per-token) memory transactions. When dst_tensor lives in
-        // NPU-resident remote memory, per-transaction latency (not bytes moved)
-        // dominates, and C*H can be in the thousands - this is the empirically
-        // dominant cost of the sliding-window KV update (~600ms/step on real HW).
-        //
-        // Since the *whole* (unsliced) buffer is fully contiguous, round-trip it as a
-        // single big contiguous transfer instead: one bulk device->CPU copy, a cheap
-        // in-CPU-memory shift (regular DRAM, C*H iterations here are negligible), then
-        // one bulk CPU->device copy back. This trades "only move what changed" for
-        // "always move `capacity` columns, but in O(1) device-memory transactions".
-        LOG_DEBUG("[SWA] Bulk-shifting KV buffer (dim=3): keeping last "
-                  << keep << " of " << old_valid << " old token(s), capacity=" << capacity);
-        auto whole_tmp = ov::npuw::util::allocMem(dst_tensor->get_element_type(), dst_tensor->get_shape(), "CPU", nullptr);
-        dst_tensor->copy_to(whole_tmp._ptr);  // single bulk contiguous transfer
+    if (num_annotated_layers == 0) {
+        LOG_DEBUG("[SWA] No per-layer mask annotations found; Sliding Window Attention is disabled.");
+        return layout;
+    }
 
-        auto old_tail_cpu = ov::npuw::util::make_tensor_slice(whole_tmp, dst_kv_dim, old_valid - keep, old_valid);
-        auto shift_tmp = ov::npuw::util::allocMem(dst_tensor->get_element_type(), old_tail_cpu->get_shape(), "CPU", nullptr);
-        old_tail_cpu->copy_to(shift_tmp._ptr);  // CPU-to-CPU, cheap regardless of iteration count
-        auto dst_front_cpu = ov::npuw::util::make_tensor_slice(whole_tmp, dst_kv_dim, 0u, keep);
-        ov::npuw::util::copy_tensor_by_dim(shift_tmp, dst_front_cpu, dst_kv_dim, dst_kv_dim);  // CPU-to-CPU
+    // Layers absent from the annotation set are treated as full-attention.
+    const size_t num_layers = layer_mask_annotations.size();
 
-        if (tokens_to_write > 0) {
-            auto src_slice = (src_len > tokens_to_write)
-                                 ? ov::npuw::util::make_tensor_slice(src_new_kv, src_kv_dim, src_len - tokens_to_write, src_len)
-                                 : src_new_kv;
-            auto dst_back_cpu = ov::npuw::util::make_tensor_slice(whole_tmp, dst_kv_dim, keep, keep + tokens_to_write);
-            ov::npuw::util::copy_tensor_by_dim(src_slice, dst_back_cpu, src_kv_dim, dst_kv_dim);
+    std::vector<bool> layer_is_sliding(num_layers, false);
+    int64_t detected_window = 0;
+    bool has_detected_window = false;
+    bool has_sliding = false;
+    bool has_full = false;
+
+    for (size_t layer_idx = 0; layer_idx < num_layers; ++layer_idx) {
+        if (layer_has_annotation[layer_idx] && layer_mask_annotations[layer_idx] >= 0) {
+            const int64_t encoded = layer_mask_annotations[layer_idx];
+            layer_is_sliding[layer_idx] = true;
+            has_sliding = true;
+            if (!has_detected_window) {
+                detected_window = encoded;
+                has_detected_window = true;
+            } else {
+                OPENVINO_ASSERT(detected_window == encoded,
+                                "NPUW SWA: inconsistent sliding-window sizes detected across layers (",
+                                detected_window,
+                                " vs ",
+                                encoded,
+                                "). Only a single, uniform window size is currently supported.");
+            }
+        } else {
+            has_full = true;
+        }
+    }
+
+    // Only enable the hybrid SWA pipeline for a genuine hybrid model: at least one sliding-window
+    // layer AND at least one full/causal-attention layer. A model where every layer is uniformly
+    // sliding (or uniformly full attention) doesn't need per-layer KV-cache window capping.
+    if (!has_sliding || !has_full) {
+        LOG_DEBUG("[SWA] Not a genuine hybrid model (has_sliding=" << has_sliding << ", has_full=" << has_full
+                                                                   << "); Sliding Window Attention support disabled.");
+        return layout;
+    }
+
+    OPENVINO_ASSERT(has_detected_window && detected_window > 0,
+                    "NPUW SWA: invalid sliding window size detected: ",
+                    detected_window);
+
+    layout.window_size = static_cast<uint32_t>(detected_window);
+    layout.layer_is_sliding = std::move(layer_is_sliding);
+
+    std::string pattern;
+    pattern.reserve(layout.layer_is_sliding.size());
+    size_t num_sliding = 0;
+    for (const bool is_sliding : layout.layer_is_sliding) {
+        pattern.push_back(is_sliding ? 'S' : 'F');
+        num_sliding += is_sliding ? 1 : 0;
+    }
+    LOG_INFO("[SWA] Sliding Window Attention is ENABLED: window_size="
+             << layout.window_size << ", " << layout.layer_is_sliding.size() << " layers total, " << num_sliding
+             << " sliding-window layer(s).");
+    LOG_DEBUG("[SWA] Layer pattern (S=sliding, F=full attention): " << pattern);
+
+    return layout;
+}
+
+void ov::npuw::util::fill_causal_sliding_mask(ov::SoPtr<ov::ITensor> mask_tensor,
+                                              uint32_t num_stored_tokens_before,
+                                              uint32_t num_real_new_tokens,
+                                              uint32_t window_size) {
+    const auto mask_view = get_mask_view(mask_tensor, num_real_new_tokens, "fill_causal_sliding_mask");
+    OPENVINO_ASSERT(window_size > 0, "fill_causal_sliding_mask: window_size must be > 0");
+    OPENVINO_ASSERT(mask_view.past_width > 0,
+                    "fill_causal_sliding_mask: past_width is zero; sliding-window mask expects non-zero past width");
+
+    const uint32_t P = num_stored_tokens_before;
+
+    constexpr float kAttend = 0.0f;
+    const float kMasked = static_cast<float>(std::numeric_limits<ov::float16>::lowest());
+
+    for (uint32_t row = 0; row < mask_view.row_dim; ++row) {
+        float* row_ptr = mask_view.data + static_cast<size_t>(row) * mask_view.col_dim;
+
+        // Past columns: c in [0, past_width). The past K/V buffer is maintained by
+        // write_swa_kv_slice_circular(): physical slot c always holds whichever absolute
+        // token position last landed there via `p % past_width` - no data is ever shifted.
+        // While the window has
+        // not yet saturated (P < past_width), writes fill physical slots strictly in arrival
+        // order 0, 1, 2, ... - so the valid prefix is LEFT-aligned at [0, P) (column c holds
+        // absolute position c), and columns >= P are still-uninitialized garbage. Once
+        // P >= past_width (saturated at least once), every physical slot has been written at
+        // least once (all valid), but which absolute position slot c currently holds depends on
+        // how far the wrap-around write cursor `r = P % past_width` has progressed: slots >= r
+        // hold the most recently *completed* lap (abs = P - r + c - past_width), slots < r hold
+        // the lap currently in progress (abs = P - r + c).
+        const int64_t row_local = static_cast<int64_t>(row) - static_cast<int64_t>(mask_view.row_pad);
+        const int64_t q = static_cast<int64_t>(P) + row_local;  // this row's own absolute position
+        const uint32_t r = P % mask_view.past_width;
+        for (uint32_t c = 0; c < mask_view.past_width; ++c) {
+            bool valid;
+            int64_t abs_pos;
+            if (P >= mask_view.past_width) {
+                valid = true;
+                abs_pos = (c < r) ? (static_cast<int64_t>(P) - r + c)
+                                  : (static_cast<int64_t>(P) - r + c - mask_view.past_width);
+            } else {
+                valid = c < P;
+                abs_pos = c;
+            }
+            const bool causal = abs_pos <= q;
+            const bool window_ok = (q - abs_pos) < static_cast<int64_t>(window_size);
+            const bool attend = valid && causal && window_ok;
+            row_ptr[c] = attend ? kAttend : kMasked;
         }
 
-        whole_tmp->copy_to(dst_tensor._ptr);  // single bulk contiguous transfer back
+        // Current-chunk diagonal columns: local_c in [0, row_dim), mapped to c = past_width +
+        // local_c. Both axes share the same row_pad right-alignment offset, so it cancels
+        // identically in both the causal and window comparisons below - raw indices suffice.
+        for (uint32_t local_c = 0; local_c < mask_view.row_dim; ++local_c) {
+            const bool valid_key = local_c >= mask_view.row_pad;
+            const bool causal = local_c <= row;
+            const bool window_ok = causal && (row - local_c) < window_size;
+            const bool attend = valid_key && causal && window_ok;
+            row_ptr[mask_view.past_width + local_c] = attend ? kAttend : kMasked;
+        }
+    }
+}
+
+void ov::npuw::util::fill_attention_masks(const std::shared_ptr<ov::IAsyncInferRequest>& request,
+                                          const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
+                                          uint32_t num_stored_tokens_before,
+                                          uint32_t num_real_new_tokens,
+                                          uint32_t window_size,
+                                          const int64_t* token_type_ids_real) {
+    const auto it = in_ports.find(ov::npuw::util::kSlidingWindowAttentionMaskParamName);
+    if (it == in_ports.end()) {
         return;
     }
-
-    if (needs_shift) {
-        // Sliding window is (re)saturated: shift the surviving tail of the old content to
-        // the front of the buffer. A temporary CPU snapshot is used because dst and the
-        // "old" region alias the same tensor, making a direct in-place copy unsafe.
-        LOG_DEBUG("[SWA] Shifting KV buffer: keeping last " << keep << " of " << old_valid << " old token(s), dim="
-                                                             << dst_kv_dim << ", capacity=" << capacity);
-        auto old_tail = ov::npuw::util::make_tensor_slice(dst_tensor, dst_kv_dim, old_valid - keep, old_valid);
-        auto tmp = ov::npuw::util::allocMem(dst_tensor->get_element_type(), old_tail->get_shape(), "CPU", nullptr);
-        old_tail->copy_to(tmp._ptr);
-        auto dst_front = ov::npuw::util::make_tensor_slice(dst_tensor, dst_kv_dim, 0u, keep);
-        ov::npuw::util::copy_tensor_by_dim(tmp, dst_front, dst_kv_dim, dst_kv_dim);
+    auto mask_tensor = request->get_tensor(it->second);
+    fill_causal_sliding_mask(mask_tensor, num_stored_tokens_before, num_real_new_tokens, window_size);
+    if (token_type_ids_real != nullptr) {
+        overlay_vision_bidirectional_mask(mask_tensor, token_type_ids_real, num_real_new_tokens);
     }
+}
 
-    if (tokens_to_write == 0) {
+void ov::npuw::util::overlay_vision_bidirectional_mask(ov::SoPtr<ov::ITensor> mask_tensor,
+                                                       const int64_t* token_type_ids_real,
+                                                       uint32_t num_real_new_tokens) {
+    if (num_real_new_tokens == 0) {
         return;
     }
-    auto src_slice = (src_len > tokens_to_write)
-                         ? ov::npuw::util::make_tensor_slice(src_new_kv, src_kv_dim, src_len - tokens_to_write, src_len)
-                         : src_new_kv;
-    auto dst_back = ov::npuw::util::make_tensor_slice(dst_tensor, dst_kv_dim, keep, keep + tokens_to_write);
-    ov::npuw::util::copy_tensor_by_dim(src_slice, dst_back, src_kv_dim, dst_kv_dim);
+    OPENVINO_ASSERT(token_type_ids_real != nullptr,
+                    "overlay_vision_bidirectional_mask: token_type_ids_real must not be null");
+
+    const auto mask_view = get_mask_view(mask_tensor, num_real_new_tokens, "overlay_vision_bidirectional_mask");
+
+    constexpr float kAttend = 0.0f;
+    auto apply_vision_run = [&](uint32_t run_start, uint32_t run_end) {
+        const uint32_t run_len = run_end - run_start;
+        const uint32_t col_start = mask_view.past_width + mask_view.row_pad + run_start;
+        for (uint32_t i = run_start; i < run_end; ++i) {
+            float* row_ptr = mask_view.data + static_cast<size_t>(mask_view.row_pad + i) * mask_view.col_dim;
+            std::fill_n(row_ptr + col_start, run_len, kAttend);
+        }
+    };
+
+    uint32_t i = 0;
+    while (i < num_real_new_tokens) {
+        if (token_type_ids_real[i] != 1) {
+            ++i;
+            continue;
+        }
+        const uint32_t run_start = i;
+        while (i < num_real_new_tokens && token_type_ids_real[i] == 1) {
+            ++i;
+        }
+        apply_vision_run(run_start, i);
+    }
 }

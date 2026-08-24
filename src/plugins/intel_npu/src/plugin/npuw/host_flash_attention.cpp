@@ -1109,7 +1109,6 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
                                                     << ", present_kv=" << present_kv_dtype << ", q=" << q_dtype);
 
     // Per-SDPA mask-skipping decision
-    //
     // DetectAttentionMask (run earlier on the original SDPA node) may have annotated
     // this subgraph's Add(QK, mask) node with its mask kind, carried here via
     // copy_runtime_info() during SDPA decomposition. Per NPUW_SDPA_MASK_RT_KEY's
@@ -1152,7 +1151,6 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
             LOG_DEBUG("No per-SDPA mask annotation (Unknown) → mask skipping DISABLED for this ATTN subgraph");
         }
     }
-
     auto tile_model = create_hfa_tile_model(q_shape_static,
                                             block_kv_dtype,  // state_dtype
                                             block_kv_dtype,  // kv_tile_dtype (past blocks)

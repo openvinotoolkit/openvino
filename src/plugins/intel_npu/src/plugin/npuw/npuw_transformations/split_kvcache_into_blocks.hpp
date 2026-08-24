@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <vector>
-
 #include "openvino/pass/pass.hpp"
 
 namespace ov {
@@ -57,26 +55,17 @@ public:
      *
      * @param block_size Number of tokens per block (default: 1024 for efficiency)
      * @param v_transposed Whether V tensor is transposed (true: [B,H,D,S], false: [B,H,S,D])
-     * @param layer_is_sliding Per-layer flag (indexed by decoder layer id) marking Sliding
-     *        Window Attention layers. Parameters belonging to a sliding layer are left
-     *        untouched (never split into blocks) — SWA layers manage their own KV cache via
-     *        a separate, orthogonal mechanism (see LLMInferRequest::copy_swa_kvcache() /
-     *        update_swa_kvcache_for()), independent of whether the rest of the model uses
-     *        block-based or continuous KV cache. Empty by default (no layer excluded).
      *
      * The number of blocks is automatically calculated from the original past_key shape.
      * If the sequence length is not evenly divisible by block_size, a tail block is created.
      */
-    explicit SplitKVCacheIntoBlocks(uint32_t block_size = 1024,
-                                    bool v_transposed = true,
-                                    std::vector<bool> layer_is_sliding = {});
+    explicit SplitKVCacheIntoBlocks(uint32_t block_size = 1024, bool v_transposed = true);
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:
     uint32_t m_block_size;
     bool m_v_transposed;
-    std::vector<bool> m_layer_is_sliding;
 };
 
 }  // namespace pass

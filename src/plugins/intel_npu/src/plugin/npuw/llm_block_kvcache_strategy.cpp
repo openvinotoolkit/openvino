@@ -32,7 +32,7 @@ ov::npuw::BlockParamKind classify_block_param(const std::string& name) {
     if (!is_key && !is_value) {
         return ov::npuw::BlockParamKind::Skip;
     }
-    if (uu::isPastKeyValuesKeyContiguous(name).has_value() || uu::isPastKeyValuesValueContiguous(name).has_value()) {
+    if (uu::isPastKeyValuesContiguous(name).has_value()) {
         return ov::npuw::BlockParamKind::Skip;
     }
     if (name.find("block_tail") != std::string::npos) {
@@ -871,9 +871,6 @@ void LLMBlockKVCacheStrategy::copy_outputs_to_blocks(const std::shared_ptr<ov::I
         auto& layer_managers = it->second;
         auto& block_manager = is_key ? layer_managers.key_manager : layer_managers.value_manager;
         if (!block_manager) {
-            // SWA layers are excluded from block splitting (see split_kvcache_into_blocks.hpp)
-            // and therefore never get a block manager here - they are updated separately via
-            // LLMInferRequest::update_swa_kvcache_for().
             continue;
         }
         const uint32_t kv_dim = (!is_key && v_transposed) ? 3u : kvcache_desc.dim;

@@ -38,10 +38,8 @@ bool starts_with(const std::string& str, const std::string& prefix);
 
 std::string fmt(std::size_t number, std::size_t total);
 
-// Matches e.g. "...layers.5.self_attn..." -> layer index 5. Shared convention used to key
-// per-decoder-layer results (e.g. DetectAttentionMask's per-SDPA rt_info, consumed by
-// detect_causal_mask.cpp/get_layer_mask_annotations() and patch_sliding_window_kvcache.cpp)
-// by decoder layer index, parsed from a node's friendly_name.
+// Parse decoder layer index from names like "...layers.5.self_attn...".
+// This shared index is used to key per-layer metadata across SWA-related passes.
 bool try_parse_self_attn_layer_idx(const std::string& text, size_t& out_idx);
 
 // Matches the three DynamicQuantize decomposition implementations declared in
@@ -339,6 +337,8 @@ private:
 std::optional<int> isPastKeyValuesKeyContiguous(const std::string& str);
 // Matches only the contiguous (non-block-split) past value param. Returns the layer index if matched.
 std::optional<int> isPastKeyValuesValueContiguous(const std::string& str);
+// Matches a contiguous (non-block-split) past key or value param; returns layer index if matched.
+std::optional<int> isPastKeyValuesContiguous(const std::string& str);
 
 // Backward compatibility: Alias for isPastKeyValuesKeyContiguous
 inline std::optional<int> isPastKeyValuesKey(const std::string& str) {

@@ -39,11 +39,6 @@ enum class BlockParamKind {
 };
 
 /// @brief Pair of key/value block managers for one transformer layer.
-///
-/// NB: Sliding Window Attention (SWA) layers never appear here at all - they are excluded
-/// from block splitting (see npuw_transformations/split_kvcache_into_blocks.hpp) and manage
-/// their own KV cache via a separate, strategy-independent mechanism (see
-/// LLMInferRequest::copy_swa_kvcache() / update_swa_kvcache_for()).
 struct LayerBlockManagers {
     std::unique_ptr<KVCacheBlockManager> key_manager;
     std::unique_ptr<KVCacheBlockManager> value_manager;

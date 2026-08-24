@@ -1030,6 +1030,13 @@ std::optional<int> ov::npuw::util::isPastKeyValuesValueContiguous(const std::str
     return std::nullopt;
 }
 
+std::optional<int> ov::npuw::util::isPastKeyValuesContiguous(const std::string& str) {
+    // A name is either a "key" or a "value" past-KV param, never both, so check the other
+    // only if the first didn't match.
+    auto layer_idx = isPastKeyValuesKeyContiguous(str);
+    return layer_idx.has_value() ? layer_idx : isPastKeyValuesValueContiguous(str);
+}
+
 std::optional<int> ov::npuw::util::isPresentKeyValuesKey(const std::string& str) {
     std::regex pattern(R"(present\.(\d+)(?:\.[^.]+)*\.key)");
     std::smatch match;

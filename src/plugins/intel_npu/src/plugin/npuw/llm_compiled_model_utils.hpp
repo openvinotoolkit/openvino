@@ -3,11 +3,8 @@
 //
 
 #pragma once
-#include <cstdint>
-#include <map>
 #include <memory>
 #include <optional>
-#include <vector>
 
 #include "openvino/openvino.hpp"
 
@@ -30,6 +27,7 @@ public:
 constexpr const char* kVisualPosMasksParamName = "visual_pos_masks";
 constexpr const char* kDeepstackVisualEmbedsParamName = "deepstack_visual_embeds";
 constexpr const char* kTokenTypeIdsParamName = "token_type_ids";
+constexpr const char* kSlidingWindowAttentionMaskParamName = "sliding_window_attention_mask";
 
 bool has_input(const std::shared_ptr<ov::Model>& model, const std::string& name);
 
@@ -58,23 +56,6 @@ void validate_encoder_embedding_model(const std::shared_ptr<ov::Model>& model);
 // uses a different positional scheme). The static sequence length must not exceed this, or the
 // position embedding (clamped to the table) won't broadcast against the token embedding.
 std::optional<uint32_t> get_max_position_embeddings(const std::shared_ptr<ov::Model>& model);
-
-// Sliding Window Attention (SWA) layout derived from DetectAttentionMask's per-layer rt_info
-// annotations (see get_layer_mask_annotations() in npuw_transformations/detect_causal_mask.hpp).
-struct SwaLayout {
-    uint32_t window_size = 0;            // 0 == Sliding Window Attention disabled
-    std::vector<bool> layer_is_sliding;  // per-layer flag, indexed by decoder layer id
-};
-
-// Derives the KV-cache-layout implications of get_layer_mask_annotations()'s per-layer
-// annotations (key absent -> Unknown/full-attention, value < 0 -> Causal, value >= 0 ->
-// SlidingWindow(value)). Only enables the hybrid SWA KV-cache pipeline for a genuine hybrid
-// model (at least one sliding-window layer AND at least one full-attention layer); a model
-// where every layer is uniformly sliding or uniformly full attention returns window_size == 0
-// (disabled), since it doesn't need per-layer KV-cache window capping.
-// Throws (OPENVINO_ASSERT) if sliding-window layers disagree on window size - only a single,
-// uniform window size is currently supported.
-SwaLayout derive_swa_layout(const std::map<size_t, int64_t>& layer_mask_annotations);
 
 // clang-format off
 }  // namespace ov
