@@ -16,6 +16,18 @@
 
 namespace ov::npuw::batched {
 
+// The scoring tags that request the wrap (NPUW_TEXT_RERANK / NPUW_TEXT_EMBED).
+// The wrapper records them so the public compiled model reports them truthfully
+// via get_property(), and they ride the batched blob header so import restores
+// them without any property being re-supplied.
+struct ScoringTags {
+    bool text_rerank = false;
+    bool text_embed = false;
+};
+
+// Extract the scoring tags from the compile properties.
+ScoringTags scoring_tags(const ov::AnyMap& properties);
+
 // True when the compile properties tag the model for batched single-shot scoring
 // (NPUW_TEXT_RERANK / NPUW_TEXT_EMBED) -- currently the text rerank and text
 // embedding pipelines. The compile entry point uses this to decide the wrap
@@ -41,9 +53,10 @@ bool requested(const ov::AnyMap& properties);
 // valid for autoregressive generation, where state must persist across calls.
 //
 // It is applied at npuw::ICompiledModel::create() on compilation, and the wrap is
-// part of the serialized blob. export_model() writes a batched header in front of
-// the complete inner blob, so the plugin's NPUW import dispatch reconstructs the
-// wrapper from the indicator alone, with no entry point deciding anything.
+// part of the serialized blob. export_model() writes a batched header (indicator,
+// versions and the scoring tags) in front of the complete inner blob, so the
+// plugin's NPUW import dispatch reconstructs the wrapper from the header alone,
+// with no entry point deciding anything.
 class CompiledModel final : public ov::npuw::ICompiledModel {
 public:
     // Deserializes a blob written by export_model(). Consumes the batched header,
@@ -53,7 +66,8 @@ public:
                                                                   const ov::AnyMap& properties);
 
     CompiledModel(const std::shared_ptr<ov::npuw::ICompiledModel>& inner,
-                  const std::shared_ptr<const ov::IPlugin>& plugin);
+                  const std::shared_ptr<const ov::IPlugin>& plugin,
+                  const ScoringTags& tags);
 
     // The wrapper adds no I/O of its own -- it exposes the inner model's ports.
     const std::vector<ov::Output<const ov::Node>>& inputs() const override;
@@ -63,6 +77,9 @@ public:
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
 
     void set_property(const ov::AnyMap& properties) override;
+
+    // Answers the scoring tags from the wrapper's own record; everything else is
+    // forwarded to the inner model.
     ov::Any get_property(const std::string& name) const override;
 
     void release_memory() override;
@@ -71,6 +88,7 @@ public:
 
 private:
     std::shared_ptr<ov::npuw::ICompiledModel> m_inner;
+    ScoringTags m_tags;
 };
 
 // Sync infer request that unrolls a batched inference over the single-sequence
