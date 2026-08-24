@@ -18,21 +18,7 @@
 
 namespace ov::test {
 
-//   ┌──────────┐
-//   │ Param f16│
-//   └────┬─────┘
-//        │ f16
-//   ┌────┴─────┐
-//   │   Cos    │
-//   └────┬─────┘
-//        │ f16
-//   ┌────┴─────┐
-//   │  Floor   │
-//   └────┬─────┘
-//        │ f16
-//   ┌────┴─────┐
-//   │  Result  │
-//   └──────────┘
+// Graph: Parameter(f16) -> Cos -> Floor -> Result
 
 class CosFloorF16Test : public SubgraphBaseStaticTest {
 public:
@@ -49,7 +35,7 @@ public:
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
-        // 6.27734375 is close to 2*pi, so cos(6.27734375) ≈ 0.99998 in f32.
+        // 6.27734375 is close to 2*pi, so cos(6.27734375) is about 0.99998 in f32
         // When rounded to f16, this becomes exactly 1.0,
         // so floor(1.0) should be 1.0, not 0.0.
         auto tensor = ov::Tensor(ov::element::f16, targetInputStaticShapes[0]);

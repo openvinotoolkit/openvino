@@ -20,21 +20,7 @@
 
 namespace {
 
-//   ┌──────────┐
-//   │ Param f16│
-//   └────┬─────┘
-//        │ f16
-//   ┌────┴─────┐
-//   │   Cos    │
-//   └────┬─────┘
-//        │ f16
-//   ┌────┴─────┐
-//   │  Floor   │
-//   └────┬─────┘
-//        │ f16
-//   ┌────┴─────┐
-//   │  Result  │
-//   └──────────┘
+// Graph: Parameter(f16) -> Cos -> Floor -> Result
 
 class CosFloorF16GPUTest : public ov::test::SubgraphBaseStaticTest {
 public:
