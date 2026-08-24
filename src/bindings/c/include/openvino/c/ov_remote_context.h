@@ -38,7 +38,7 @@ ov_remote_context_create_tensor(const ov_remote_context_t* context,
                                 ...);
 
 /**
- * @brief Allocates a remote tensor using an array of ov_property_t string key/value pairs.
+ * @brief Allocates a remote tensor using an array of ov_property_t key/value pairs.
  * Non-variadic alternative to ov_remote_context_create_tensor(), compatible with all FFI callers.
  * @ingroup ov_remote_context_c_api
  * @param context        A pointer to the ov_remote_context_t instance.

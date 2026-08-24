@@ -452,9 +452,8 @@ ov_core_create_context(const ov_core_t* core,
                        ...);
 
 /**
- * @brief Creates a new remote shared context using an array of ov_property_t string key/value pairs.
+ * @brief Creates a new remote shared context using an array of ov_property_t key/value pairs.
  * Non-variadic alternative to ov_core_create_context(), compatible with all FFI callers.
- * Note: GPU pointer-valued properties (handles, OCL context/queue) require the variadic ov_core_create_context().
  * @ingroup ov_core_c_api
  * @param core           A pointer to the ov_core_t instance.
  * @param device_name    Device name to identify a plugin.

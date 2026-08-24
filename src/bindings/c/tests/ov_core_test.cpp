@@ -679,7 +679,9 @@ TEST_P(ov_core_test, ov_core_compile_model_from_file_props_with_encryption) {
 
     char* optimization_capabilites = NULL;
     ov_core_get_property(core, device_name.c_str(), "OPTIMIZATION_CAPABILITIES", &optimization_capabilites);
-    if (std::string(optimization_capabilites).find("EXPORT_IMPORT") == std::string::npos) {
+    bool supports_export_import = std::string(optimization_capabilites).find("EXPORT_IMPORT") != std::string::npos;
+    ov_free(optimization_capabilites);
+    if (!supports_export_import) {
         GTEST_SKIP() << "Skip this test, cause no EXPORT_IMPORT supported";
     }
 
@@ -723,7 +725,9 @@ TEST_P(ov_core_test, ov_core_compile_model_props_with_encryption) {
 
     char* optimization_capabilites = NULL;
     ov_core_get_property(core, device_name.c_str(), "OPTIMIZATION_CAPABILITIES", &optimization_capabilites);
-    if (std::string(optimization_capabilites).find("EXPORT_IMPORT") == std::string::npos) {
+    bool supports_export_import = std::string(optimization_capabilites).find("EXPORT_IMPORT") != std::string::npos;
+    ov_free(optimization_capabilites);
+    if (!supports_export_import) {
         GTEST_SKIP() << "Skip this test, cause no EXPORT_IMPORT supported";
     }
 

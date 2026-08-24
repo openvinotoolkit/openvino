@@ -267,14 +267,14 @@ ov_property_key_intel_gpu_config_file;
  *       {ov_property_key_num_streams,           "4"},
  *       {ov_property_key_cache_encryption_callbacks, &cb},           // struct pointer → const void*
  *   };
- *   ov_core_compile_model_from_file_props(core, "model.xml", "CPU", props, 3, &cm);
+ *   ov_core_compile_model_from_file_props(core, "model.xml", "CPU", 3, props, &cm);
  *
  *   // GPU context with a raw OCL handle (any pointer → const void*):
  *   ov_property_t ctx_props[] = {
  *       {ov_property_key_intel_gpu_context_type, "OCL"},
  *       {ov_property_key_intel_gpu_ocl_context,  ocl_context_ptr},
  *   };
- *   ov_core_create_context_props(core, "GPU", ctx_props, 2, &ctx);
+ *   ov_core_create_context_props(core, "GPU", 2, ctx_props, &ctx);
  * @endcode
  */
 typedef struct {

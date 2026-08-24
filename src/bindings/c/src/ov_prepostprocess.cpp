@@ -350,6 +350,9 @@ ov_status_e ov_preprocess_input_tensor_info_set_color_format_with_subnames(
     try {
         std::vector<std::string> names = {};
         for (size_t i = 0; i < sub_names_size; i++) {
+            if (!sub_names[i]) {
+                return ov_status_e::INVALID_C_PARAM;
+            }
             names.emplace_back(sub_names[i]);
         }
         preprocess_input_tensor_info->object->set_color_format(GET_OV_COLOR_FARMAT(colorFormat), names);
