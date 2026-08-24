@@ -27,8 +27,13 @@ public:
 
     void* get_handle() const override;
 
-    bool is_dynamic() const override {
-        return true;
+    GraphKind get_kind() const override {
+        return GraphKind::Dynamic;
+    }
+
+    // HostCompile has no fixed plugin-side batch size; return nullopt for the shared import path.
+    const std::optional<std::size_t> get_batch_size() const override {
+        return std::nullopt;
     }
 
     ~DynamicGraph() override;
@@ -40,10 +45,6 @@ public:
     CommandQueueDesc get_command_queue_desc() const override;
     void set_workload_type(const ov::WorkloadType workloadType) override;
     void set_model_priority(const ov::hint::Priority modelPriority) override;
-
-    void set_batch_size(std::size_t batch) override;
-
-    const std::optional<std::size_t> get_batch_size() const override;
 
     uint32_t get_unique_id() override;
     void set_last_submitted_id(uint32_t id_index) override;
@@ -59,8 +60,6 @@ private:
     void initialize_impl(const FilteredConfig& config) override;
 
     bool release_blob(const FilteredConfig& config);
-    std::optional<size_t> determine_batch_size();
-
     void initialize_engine();
     void create_execution_engine();
     void prepare_metadata();
@@ -87,12 +86,6 @@ private:
 
     uint32_t _uniqueId = 0;
     uint32_t _lastSubmittedId = 0;
-
-    /**
-     * @brief The batch size used by the corresponding model.
-     * @details The attribute contains a value only if the plugin performs the batches splitting operation.
-     */
-    std::optional<std::size_t> _batchSize = std::nullopt;
 
     Logger _logger;
 

@@ -1,11 +1,12 @@
 # type: ignore
 from __future__ import annotations
+import collections.abc
 import openvino._pyopenvino
 import typing
 """
 openvino.properties.intel_auto submodule that simulates ov::intel_auto
 """
-__all__: list[str] = ['SchedulePolicy', 'device_bind_buffer', 'enable_runtime_fallback', 'enable_startup_fallback', 'schedule_policy']
+__all__: list[str] = ['SchedulePolicy', 'device_bind_buffer', 'devices_utilization_threshold', 'enable_runtime_fallback', 'enable_startup_fallback', 'schedule_policy']
 class SchedulePolicy:
     """
     Members:
@@ -59,6 +60,12 @@ def device_bind_buffer() -> str:
     ...
 @typing.overload
 def device_bind_buffer(arg0: bool) -> tuple[str, openvino._pyopenvino.OVAny]:
+    ...
+@typing.overload
+def devices_utilization_threshold() -> str:
+    ...
+@typing.overload
+def devices_utilization_threshold(arg0: collections.abc.Mapping[str, typing.SupportsInt | typing.SupportsIndex]) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...
 @typing.overload
 def enable_runtime_fallback() -> str:
