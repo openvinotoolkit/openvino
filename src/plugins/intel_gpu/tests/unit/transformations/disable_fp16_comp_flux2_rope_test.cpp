@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "plugin/transformations/disable_fp16_comp_flux2_rope.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <string>
-#include <unordered_map>
-
 #include <openvino/core/model.hpp>
 #include <openvino/pass/manager.hpp>
+#include <string>
 #include <transformations/rt_info/disable_precision_conversion.hpp>
+#include <unordered_map>
 
-#include "plugin/transformations/disable_fp16_comp_flux2_rope.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -33,8 +33,7 @@ namespace v1 = ov::op::v1;
 namespace {
 
 // Runs the pass and asserts the FP16-conversion-disabled state of each named node.
-void run_test(const std::shared_ptr<ov::Model>& model,
-              const std::unordered_map<std::string, bool>& expected_fp16_disabled_status) {
+void run_test(const std::shared_ptr<ov::Model>& model, const std::unordered_map<std::string, bool>& expected_fp16_disabled_status) {
     ov::pass::Manager manager;
     manager.register_pass<DisableFP16CompFlux2RoPEPattern>();
     manager.run_passes(model);
@@ -44,11 +43,9 @@ void run_test(const std::shared_ptr<ov::Model>& model,
         if (it == expected_fp16_disabled_status.end())
             continue;
         if (it->second) {
-            ASSERT_TRUE(ov::is_conversion_disabled(op, ov::element::f16))
-                << "FP16 conversion should be disabled for node: " << op->get_friendly_name();
+            ASSERT_TRUE(ov::is_conversion_disabled(op, ov::element::f16)) << "FP16 conversion should be disabled for node: " << op->get_friendly_name();
         } else {
-            ASSERT_FALSE(ov::is_conversion_disabled(op, ov::element::f16))
-                << "FP16 conversion is unexpectedly disabled for node: " << op->get_friendly_name();
+            ASSERT_FALSE(ov::is_conversion_disabled(op, ov::element::f16)) << "FP16 conversion is unexpectedly disabled for node: " << op->get_friendly_name();
         }
     }
 }
@@ -99,7 +96,7 @@ std::shared_ptr<ov::Model> create_rope_model() {
     ov::ParameterVector params = {x};
     for (const auto& tab : {cos_tab, sin_tab}) {
         auto p = ov::as_type_ptr<v0::Parameter>(tab->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(0));
-        if (p)  
+        if (p)
             params.push_back(p);
     }
     return std::make_shared<ov::Model>(ov::OutputVector{result}, params);
@@ -111,14 +108,7 @@ std::shared_ptr<ov::Model> create_rope_model() {
 // activation path (x, the multiplies, the add) must not be marked.
 TEST(TransformationTests, DisableFP16CompFlux2RoPE_Positive) {
     auto model = create_rope_model();
-    run_test(model,
-             {{"cos", true},
-              {"cos_src", true},
-              {"sin", true},
-              {"sin_src", true},
-              {"y1", false},
-              {"y2", false},
-              {"result", false}});
+    run_test(model, {{"cos", true}, {"cos_src", true}, {"sin", true}, {"sin_src", true}, {"y1", false}, {"y2", false}, {"result", false}});
 }
 
 // A standalone MatMul -> Cos that is not part of a RoPE application must not be marked.
