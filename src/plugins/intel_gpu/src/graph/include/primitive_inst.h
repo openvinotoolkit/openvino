@@ -91,6 +91,8 @@ struct primitive_impl {
     virtual void reset_kernels_source() {}
     virtual std::vector<kernel::ptr> get_kernels() const { return {}; }
     // Input indices whose allocations may hold this primitive's output when graph liveness and layouts permit it.
+    // An empty list keeps the ordinary output-allocation path; eligible implementations opt into the memory-pressure
+    // retry and the explicit no-pool in-place policy by returning candidates.
     virtual std::vector<size_t> get_in_place_input_indices() const {
         return {};
     }

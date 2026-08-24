@@ -2540,14 +2540,13 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
                 for (const auto& user : node.get_users())
                     if (user->is_type<mutable_data>())
                         _outputs[0] = user->as<mutable_data>().get_attached_memory_ptr();
+            } else if (!in_place_input_idx.has_value()) {
+                _outputs = allocate_outputs();
             } else {
                 try {
                     _outputs = allocate_outputs();
                 } catch (const std::bad_alloc&) {
                     const auto allocation_error = std::current_exception();
-                    if (!in_place_input_idx.has_value() || !node.get_program().get_config().get_enable_memory_pool()) {
-                        throw;
-                    }
                     try {
                         GPU_DEBUG_TRACE_DETAIL << node.id() << ": retry output allocation by reusing a dead dense input" << std::endl;
                         _outputs.push_back(get_in_place_output_memory(_network, node, *in_place_input_idx, true));
