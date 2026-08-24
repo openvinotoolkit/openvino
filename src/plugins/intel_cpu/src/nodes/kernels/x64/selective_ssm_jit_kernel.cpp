@@ -121,6 +121,13 @@ void jit_selective_ssm_kernel<isa>::load_data_scalar(const Vmm& destination, siz
             return;
         }
     }
+    if (m_jcp.data_precision == ov::element::f16) {
+        const Xbyak::Xmm destination_xmm(destination.getIdx());
+        movzx(rax.cvt32(), word[reg_x + offset]);
+        vmovd(destination_xmm, rax.cvt32());
+        vcvtph2ps(destination_xmm, destination_xmm);
+        return;
+    }
     load(destination, reg_x, m_jcp.data_precision, 1, offset);
 }
 
@@ -144,7 +151,50 @@ void jit_selective_ssm_kernel<isa>::store_data_scalar(const Vmm& source, size_t 
             return;
         }
     }
+    if (m_jcp.data_precision == ov::element::f16) {
+        const Xbyak::Xmm source_xmm(source.getIdx());
+        vcvtps2ph(source_xmm, source_xmm, 0x4);
+        uni_vpextrw(word[reg_output + offset], source_xmm, 0);
+        return;
+    }
     store(reg_output, source, m_jcp.data_precision, 1, offset);
+}
+
+template <cpu_isa_t isa>
+void jit_selective_ssm_kernel<isa>::prepare_f16_row_scales(size_t rows) {
+    const Xbyak::Xmm packed_scales(vmm_input_projection.getIdx());
+    const Xbyak::Xmm delta(accumulator_vmm(0).getIdx());
+    if (rows == 2) {
+        uni_vmovd(packed_scales, dword[reg_x]);
+    } else {
+        uni_vmovq(packed_scales, qword[reg_x]);
+    }
+    vcvtph2ps(packed_scales, packed_scales);
+    vbroadcastss(delta, ptr[reg_args + GET_OFF(delta)]);
+    vmulps(packed_scales, packed_scales, delta);
+
+    for (size_t row = 0; row < rows; ++row) {
+        const Xbyak::Xmm scale(input_scale_vmm(row).getIdx());
+        vpermilps(scale, packed_scales, static_cast<uint8_t>(row * 0x55U));
+    }
+}
+
+template <cpu_isa_t isa>
+void jit_selective_ssm_kernel<isa>::store_f16_row_tile(size_t rows) {
+    const Xbyak::Xmm packed_output(state_vmm(0).getIdx());
+    const Xbyak::Xmm packed_output_high(state_vmm(1).getIdx());
+    vunpcklps(packed_output, Xbyak::Xmm(accumulator_vmm(0).getIdx()), Xbyak::Xmm(accumulator_vmm(1).getIdx()));
+    if (rows == 4) {
+        vunpcklps(packed_output_high, Xbyak::Xmm(accumulator_vmm(2).getIdx()), Xbyak::Xmm(accumulator_vmm(3).getIdx()));
+        vshufps(packed_output, packed_output, packed_output_high, 0x44);
+    }
+    vcvtps2ph(packed_output, packed_output, 0x4);
+
+    if (rows == 2) {
+        uni_vmovd(dword[reg_output], packed_output);
+    } else {
+        uni_vmovq(qword[reg_output], packed_output);
+    }
 }
 
 template <cpu_isa_t isa>
@@ -281,11 +331,17 @@ void jit_selective_ssm_kernel<isa>::emit_row_tile(size_t rows) {
     const auto full_vectors = m_jcp.state_size / vector_size;
     const auto tail = m_jcp.state_size % vector_size;
 
+    const bool use_packed_f16 = m_jcp.data_precision == ov::element::f16 && rows > 1 && isa != avx512_core_fp16;
+    if (use_packed_f16) {
+        prepare_f16_row_scales(rows);
+    }
     for (size_t row = 0; row < rows; ++row) {
         const auto scale = input_scale_vmm(row);
         const auto accumulator = accumulator_vmm(row);
-        load_data_scalar(scale, row * data_size);
-        vmulss(Xbyak::Xmm(scale.getIdx()), Xbyak::Xmm(scale.getIdx()), ptr[reg_args + GET_OFF(delta)]);
+        if (!use_packed_f16) {
+            load_data_scalar(scale, row * data_size);
+            vmulss(Xbyak::Xmm(scale.getIdx()), Xbyak::Xmm(scale.getIdx()), ptr[reg_args + GET_OFF(delta)]);
+        }
         vbroadcastss(scale, Xbyak::Xmm(scale.getIdx()));
         uni_vpxor(accumulator, accumulator, accumulator);
     }
@@ -305,7 +361,12 @@ void jit_selective_ssm_kernel<isa>::emit_row_tile(size_t rows) {
     for (size_t row = 0; row < rows; ++row) {
         const auto accumulator = accumulator_vmm(row);
         reduce_to_scalar(accumulator);
-        store_data_scalar(accumulator, row * data_size);
+        if (!use_packed_f16) {
+            store_data_scalar(accumulator, row * data_size);
+        }
+    }
+    if (use_packed_f16) {
+        store_f16_row_tile(rows);
     }
 }
 
@@ -346,8 +407,7 @@ void jit_selective_ssm_kernel<isa>::generate() {
     Xbyak::Label tail_loop;
     Xbyak::Label end;
 
-    const size_t active_row_tile =
-        (isa & zmm_bit) == 0 && m_jcp.state_mode == jit_selective_ssm_state_mode::in_place ? 2 : max_row_tile;
+    constexpr size_t active_row_tile = max_row_tile;
     cmp(reg_rows, active_row_tile);
     jb(tail_loop, T_NEAR);
     align(16);
