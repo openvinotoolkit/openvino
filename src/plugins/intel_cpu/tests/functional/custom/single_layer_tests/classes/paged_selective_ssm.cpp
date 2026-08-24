@@ -21,6 +21,7 @@
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 
 namespace {
 
@@ -412,6 +413,10 @@ void PagedSelectiveSSMLayerTest::SetUp() {
     auto p_C = std::make_shared<ov::op::v0::Parameter>(data_type, ov::PartialShape{-1, num_groups, state_size});
     auto p_state =
         std::make_shared<ov::op::v0::Parameter>(data_type, ov::PartialShape{-1, num_heads, head_dim, state_size});
+    // The state table is mutable, and PagedSelectiveSSM requires one type for the complete data group.
+    for (const auto& parameter : {p_A, p_dt, p_B, p_x, p_C, p_state}) {
+        ov::enable_keep_const_precision(parameter);
+    }
     auto p_subseq = std::make_shared<ov::op::v0::Parameter>(index_type, ov::PartialShape{-1});
     auto p_blocks = std::make_shared<ov::op::v0::Parameter>(index_type, ov::PartialShape{-1});
     auto p_block_begins = std::make_shared<ov::op::v0::Parameter>(index_type, ov::PartialShape{-1});
