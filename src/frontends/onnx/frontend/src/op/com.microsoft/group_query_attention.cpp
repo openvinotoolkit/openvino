@@ -11,6 +11,7 @@
 #include "exceptions.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -30,13 +31,14 @@ using ov::frontend::onnx::attention::get_dimensions;
 namespace opset_1 {
 ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     constexpr size_t inputs_count_min = 7;   // Taken from ONNX spec
-    constexpr size_t inputs_count_max = 14;  // Taken from ONNX spec
+    constexpr size_t inputs_count_max = 16;  // Taken from ONNX spec
 
     // Minimum required inputs basing on the spec and ONNX Runtime code: 7
     // 0: packed QKV (mandatory)
     // 3-4: possibly null (if unused)
     // 5: seqlens_k (mandatory)
     // 6: total_sequence_length (mandatory in the spec)
+    // 12-13: k_scale/v_scale (required when the KV cache is quantized)
     common::default_op_checks(node, inputs_count_min, inputs_count_max);
 
     const auto onnx_op_inputs = node.get_ov_inputs();
@@ -45,6 +47,85 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     const auto scale = node.get_attribute_value<float>("scale", 0.0f);
     const auto do_rotary = node.get_attribute_value<int64_t>("do_rotary", 0);
     const auto rotary_interleaved = node.get_attribute_value<int64_t>("rotary_interleaved", 0);
+    // Quantized KV cache attributes (com.microsoft spec). Default to the unquantized (float KV) behavior.
+    const auto kv_cache_bit_width = node.get_attribute_value<int64_t>("kv_cache_bit_width", 0);
+    const auto parse_quant_type = [&](const std::string& quant_type_name) {
+        using QuantType = ov::op::internal::GroupQueryAttentionQuantType;
+        if (quant_type_name == "NONE") {
+            return QuantType::NONE;
+        }
+        if (quant_type_name == "PER_TENSOR") {
+            return QuantType::PER_TENSOR;
+        }
+        if (quant_type_name == "PER_CHANNEL") {
+            return QuantType::PER_CHANNEL;
+        }
+        FRONT_END_GENERAL_CHECK(false, "GroupQueryAttention: unsupported quant type '", quant_type_name, "'.");
+        return QuantType::NONE;
+    };
+    const auto k_quant_type = parse_quant_type(node.get_attribute_value<std::string>("k_quant_type", "NONE"));
+    const auto v_quant_type = parse_quant_type(node.get_attribute_value<std::string>("v_quant_type", "NONE"));
+    // Sliding-window / softcap / smooth-softmax attributes (com.microsoft spec). Default to no-op values,
+    // matching the ONNX Runtime defaults (local_window_size = -1 disables the window).
+    const auto local_window_size = node.get_attribute_value<int64_t>("local_window_size", -1);
+    const auto sliding_window_cache = node.get_attribute_value<int64_t>("sliding_window_cache", 0);
+    const auto softcap = node.get_attribute_value<float>("softcap", 0.0f);
+    const auto smooth_softmax = node.get_attribute_value<int64_t>("smooth_softmax", 0);
+    const auto qk_output = node.get_attribute_value<int64_t>("qk_output", 0);
+
+    // Reject spec inputs whose semantics are not implemented by the OpenVINO decomposition.
+    FRONT_END_OP_CONVERSION_CHECK(
+        !common::is_input_valid(onnx_op_inputs, 14) && !common::is_input_valid(onnx_op_inputs, 15),
+        "GroupQueryAttention: q_norm_weight/k_norm_weight (QK-Norm) inputs are not "
+        "supported.");
+
+    // Reject spec attributes whose semantics are not implemented by the OpenVINO decomposition.
+    // local_window_size == -1 disables the window; a value >= 1 selects a sliding window. A window of
+    // size 0 is an empty attention (every query masks all keys) and is not a valid ONNX Runtime config.
+    FRONT_END_OP_CONVERSION_CHECK(local_window_size == -1 || local_window_size >= 1,
+                                  "GroupQueryAttention: local_window_size must be -1 (disabled) or >= 1, got ",
+                                  local_window_size,
+                                  ".");
+    // A windowed KV cache requires a real sliding window (local_window_size > 0), matching the ONNX
+    // Runtime precondition. The staging regime (prompt longer than the buffer) and batch > 1 are not
+    // handled by this decomposition; the decode / fitting-prefill path is.
+    if (sliding_window_cache != 0) {
+        FRONT_END_OP_CONVERSION_CHECK(local_window_size >= 1,
+                                      "GroupQueryAttention: sliding_window_cache=1 requires local_window_size >= 1.");
+        FRONT_END_OP_CONVERSION_CHECK(
+            common::is_input_valid(onnx_op_inputs, 3) && common::is_input_valid(onnx_op_inputs, 4),
+            "GroupQueryAttention: sliding_window_cache=1 requires past_key and past_value.");
+        // Only single-token decode (sequence_length == 1) is supported for the windowed cache: it always
+        // stays within the window and matches ONNX Runtime exactly. Any multi-token step is the staging
+        // regime (ORT runs it against a temporary larger buffer), which this decomposition does not model
+        // and would otherwise either crash or silently diverge. Reject a static sequence_length > 1.
+        const auto& q_ps = onnx_op_inputs[0].get_partial_shape();
+        if (q_ps.rank().is_static() && q_ps.rank().get_length() == 3 && q_ps[1].is_static()) {
+            FRONT_END_OP_CONVERSION_CHECK(q_ps[1].get_length() == 1,
+                                          "GroupQueryAttention: sliding_window_cache=1 is only supported for "
+                                          "single-token decode (sequence_length == 1), got sequence_length = ",
+                                          q_ps[1].get_length(),
+                                          " (multi-token staging regime is not supported).");
+        }
+        // The windowed cache-end arithmetic uses gap = capacity - local_window_size + 1, which must be >= 1;
+        // with capacity < local_window_size it would divide by zero (or a negative gap) at inference. The ONNX
+        // Runtime precondition is the same: a cache capacity of at least local_window_size. Enforce it here
+        // whenever the past_key capacity (dim 2) is static; a dynamic capacity is clamped in the pass.
+        const auto& past_key_ps = onnx_op_inputs[3].get_partial_shape();
+        if (past_key_ps.rank().is_static() && past_key_ps.rank().get_length() == 4 && past_key_ps[2].is_static()) {
+            FRONT_END_OP_CONVERSION_CHECK(past_key_ps[2].get_length() >= local_window_size,
+                                          "GroupQueryAttention: sliding_window_cache=1 requires a past_key/past_value "
+                                          "cache capacity (dim 2) of at least local_window_size (",
+                                          local_window_size,
+                                          "), got capacity = ",
+                                          past_key_ps[2].get_length(),
+                                          ".");
+        }
+    }
+    FRONT_END_OP_CONVERSION_CHECK(softcap == 0.0f, "GroupQueryAttention: softcap is not supported.");
+    // qk_output (spec: emit the QxK' matrix before/after softmax as a 4th `output_qk` output) is not
+    // produced by this decomposition. Reject a non-default value rather than silently dropping the output.
+    FRONT_END_OP_CONVERSION_CHECK(qk_output == 0, "GroupQueryAttention: qk_output is not supported.");
 
     if (0 != do_rotary) {
         constexpr size_t cos_cache_index = 7;
@@ -77,6 +158,11 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     const auto hidden_size_node = detail::get_dimensions(q_shape_node, {2});
 
     OutputVector ov_op_inputs;
+
+    const auto make_empty_optional_input = []() {
+        return v0::Constant::create(ov::element::dynamic, ov::Shape{0}, {})->output(0);
+    };
+
     if (ov::op::util::is_null(K) && ov::op::util::is_null(V)) {
         auto total_num_heads_node =
             v0::Constant::create(ov::element::i64, ov::Shape{1}, {num_heads + kv_num_heads + kv_num_heads});
@@ -120,8 +206,18 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         ov_op_inputs.push_back(std::move(V));
     }
 
-    for (size_t i = ov_op_inputs.size(); i < onnx_op_inputs.size(); ++i) {
-        ov_op_inputs.push_back(onnx_op_inputs[i]);
+    FRONT_END_OP_CONVERSION_CHECK(
+        common::is_input_valid(onnx_op_inputs, 3) && common::is_input_valid(onnx_op_inputs, 4),
+        "GroupQueryAttention: past_key (input 3) and past_value (input 4) must be provided as tensors");
+    // Process optional inputs: use a zero-sized Constant placeholder for missing optional ONNX inputs.
+    // Note: When the ONNX's input index changed, the corresponding index in the GroupQueryAttentionInputs enum must
+    // also be updated and  may need mapping the index manually.
+    for (size_t i = ov_op_inputs.size(); i < inputs_count_max; ++i) {
+        if (i < onnx_op_inputs.size() && !ov::op::util::is_null(onnx_op_inputs[i])) {
+            ov_op_inputs.push_back(onnx_op_inputs[i]);
+        } else {
+            ov_op_inputs.push_back(make_empty_optional_input());
+        }
     }
 
     return std::make_shared<internal::GroupQueryAttention>(ov_op_inputs,
@@ -129,7 +225,13 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
                                                            kv_num_heads,
                                                            scale,
                                                            do_rotary,
-                                                           rotary_interleaved)
+                                                           rotary_interleaved,
+                                                           kv_cache_bit_width,
+                                                           k_quant_type,
+                                                           v_quant_type,
+                                                           local_window_size,
+                                                           sliding_window_cache != 0,
+                                                           smooth_softmax != 0)
         ->outputs();
 }
 

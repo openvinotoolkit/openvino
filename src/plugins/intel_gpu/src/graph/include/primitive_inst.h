@@ -81,6 +81,13 @@ struct primitive_impl {
     // class typed_primitive_gpu_impl override this with return false;
     virtual bool is_cpu() const { return true; }
     virtual bool is_onednn() const { return false; }
+
+    // Whether this impl needs its inputs to be in host-accessible (lockable) memory.
+    // Defaults to is_cpu(), because CPU impls typically read/write tensor data from the host.
+    // Impls whose execute path only performs GPU-side USM operations (e.g. an enqueue_memcpy
+    // between USM buffers) or that never touch tensor data (e.g. shape_of) should override
+    // this to return false so their input producers are not forced to allocate lockable memory.
+    virtual bool requires_lockable_input() const { return is_cpu(); }
     virtual void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) = 0;
     virtual void init_by_cached_kernels(const kernels_cache&, std::vector<std::string>& cached_kernel_ids) {}
     virtual std::vector<std::string> get_cached_kernel_ids(const kernels_cache&) { return {}; }
@@ -254,7 +261,7 @@ public:
     const std::vector<primitive_inst*>& get_user_insts() const { return _users; }
     void init_users() {
         std::vector<primitive_id> users;
-        for (auto u : get_users()) {
+        for (const auto* u : get_users()) {
             users.push_back(u->id());
         }
         _users = get_network().get_primitives(users);
@@ -377,6 +384,8 @@ public:
     bool all_dependencies_cpu_impl() const;
 
 protected:
+    friend class PrimitiveInstTestHelper;
+
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
 
     network& _network;
@@ -618,11 +627,9 @@ private:
                 return false;
         }
 
-        if (typ_node.template have_user_with_type<concatenation>() && typ_node.get_users().size() == 1 &&
-            typ_node.get_users().front()->can_be_optimized()) {  // check if the only user is concat
-            return false;
-        }
-        return true;
+        // check if the only user is concat
+        return !(typ_node.template have_user_with_type<concatenation>() && typ_node.get_users().size() == 1 &&
+                 typ_node.get_users().front()->can_be_optimized());
     }
 };
 

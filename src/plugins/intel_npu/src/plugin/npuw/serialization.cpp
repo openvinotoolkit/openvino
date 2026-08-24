@@ -134,6 +134,20 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::HostFlashAtten
         info._tile_input_indices.acc & info._tile_input_indices.max & info._tile_input_indices.d &
         info._tile_output_indices.acc & info._tile_output_indices.max & info._tile_output_indices.d & var._tile_size &
         var._can_use_tensor_view;
+    if (stream.input()) {
+        // Port indices are model-specific but must fit in a sane range; SIZE_MAX indicates a corrupted blob.
+        constexpr std::size_t kMaxPortIndex = static_cast<std::size_t>(std::numeric_limits<uint16_t>::max());
+        OPENVINO_ASSERT(
+            info._tile_input_indices.q <= kMaxPortIndex && info._tile_input_indices.k <= kMaxPortIndex &&
+                info._tile_input_indices.v <= kMaxPortIndex && info._tile_input_indices.mask <= kMaxPortIndex &&
+                info._tile_input_indices.acc <= kMaxPortIndex && info._tile_input_indices.max <= kMaxPortIndex &&
+                info._tile_input_indices.d <= kMaxPortIndex,
+            "HFA tile input index out of range in deserialized blob");
+        OPENVINO_ASSERT(info._tile_output_indices.acc <= kMaxPortIndex &&
+                            info._tile_output_indices.max <= kMaxPortIndex &&
+                            info._tile_output_indices.d <= kMaxPortIndex,
+                        "HFA tile output index out of range in deserialized blob");
+    }
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::MoEExperts& var) {
@@ -361,7 +375,12 @@ void ov::npuw::orc::serialize_weightless(Stream& stream,
             serialize(stream, offset);
             ov::Tensor t(type, shape);
 
+            OPENVINO_ASSERT(byte_size == t.get_byte_size(), "[NPU] ORC weight byte_size does not match tensor shape");
+
             if (ctx.weights) {
+                const auto wsz = ctx.weights->size();
+                OPENVINO_ASSERT(offset <= wsz && byte_size <= wsz - offset,
+                                "[NPU] ORC weight offset/size out of range");
                 if (ctx.bf16_consts.find({offset, byte_size}) != ctx.bf16_consts.end()) {
                     NPUW_ASSERT(type == ov::element::f16);
                     // Read original bf16 weight

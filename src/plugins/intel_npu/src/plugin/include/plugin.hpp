@@ -9,11 +9,15 @@
 #include <string>
 
 #include "backends_registry.hpp"
+<<<<<<< HEAD
 #include "intel_npu/common/cre.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
+=======
+#include "blob_source.hpp"
+#include "compiler_option_support_helper.hpp"
+>>>>>>> upstream/master
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "metadata.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "plugin_property_manager.hpp"
@@ -67,6 +71,7 @@ private:
     void update_log_level(const ov::AnyMap& properties) const;
 
     /**
+<<<<<<< HEAD
      * @brief Parses the compiled model found within the stream and tensor and returns a wrapper over the L0 handle that
      * can be used for running predictions.
      * @details The binary data corresponding to the compiled model is made of NPU plugin metadata, the schedule of
@@ -78,6 +83,14 @@ private:
      * @return A compiled model
      */
     std::shared_ptr<ov::ICompiledModel> parse(const ov::Tensor& tensorBig, const ov::AnyMap& properties) const;
+=======
+     * @brief Looks for "DISABLE_VERSION_CHECK" and "IMPORT_RAW_BLOB" to determine whether or not the blob to be
+     * imported should be treated as a "raw" one (i.e. the whole blob is a compiler main schedule).
+     */
+    bool should_import_raw_blob(const ov::AnyMap& properties) const;
+
+    std::shared_ptr<ov::ICompiledModel> import_model(BlobSource& blobSource, ov::AnyMap& properties) const;
+>>>>>>> upstream/master
 
     std::unique_ptr<BackendsRegistry> _backendsRegistry;
 
@@ -87,6 +100,7 @@ private:
 
     mutable Logger _logger;
     std::unique_ptr<PluginPropertyManager> _propertiesManager;
+    std::shared_ptr<CompilerOptionSupportHelper> _compilerOptionSupportHelper;
 
     static std::atomic<int> _compiledModelLoadCounter;
 };

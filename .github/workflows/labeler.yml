@@ -32,7 +32,8 @@ jobs:
           sparse-checkout: '.github'
 
       - name: Install deps
-        run: pip3 install PyGithub==2.2.0
+        working-directory: ${{ github.workspace }}/.github/scripts/external_pr_labeller
+        run: pip3 install -r requirements.txt
 
       - name: Dump GitHub context
         env:
@@ -43,5 +44,5 @@ jobs:
         env:
           GITHUB_TOKEN: "${{ secrets.EXTERNAL_LABELLER_TOKEN }}"
         run: |
-          python3 ${{ github.workspace }}/.github/scripts/external_pr_labeller.py \
+          python3 ${{ github.workspace }}/.github/scripts/external_pr_labeller/external_pr_labeller.py \
           --repository-name ${GITHUB_REPOSITORY} --pr-number ${{ github.event.number }}

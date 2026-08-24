@@ -13,7 +13,7 @@ namespace util {
 /// \brief Base class for color conversion operation from NV12 to RGB/BGR format.
 ///    Input:
 ///        - Operation expects input shape in NHWC layout.
-///        - Input NV12 image can be represented in a two ways:
+///        - Input NV12 image can be represented in two ways:
 ///            a) Single plane: NV12 height dimension is 1.5x bigger than image height. 'C' dimension shall be 1
 ///            b) Two separate planes: Y and UV. In this case
 ///               b1) Y plane has height same as image height. 'C' dimension equals to 1

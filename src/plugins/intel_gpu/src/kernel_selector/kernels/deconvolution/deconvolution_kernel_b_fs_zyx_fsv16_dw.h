@@ -14,7 +14,7 @@ public:
     using Parent = DeconvolutionKernelBase;
 
     DeconvolutionKernel_b_fs_zyx_fsv16_dw() : DeconvolutionKernelBase("deconvolution_gpu_b_fs_zyx_fsv16_dw") {}
-    virtual ~DeconvolutionKernel_b_fs_zyx_fsv16_dw() {}
+    ~DeconvolutionKernel_b_fs_zyx_fsv16_dw() override = default;
     ParamsKey GetSupportedKey() const override;
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
@@ -22,8 +22,7 @@ protected:
     WeightsLayout GetPreferredWeightsLayout(const deconvolution_params& p) const override {
         if (p.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16)
             return WeightsLayout::gs_oiyx_gsv16;
-        else
-            return WeightsLayout::gs_oizyx_gsv16;
+        return WeightsLayout::gs_oizyx_gsv16;
     }
     bool Validate(const Params& p) const override;
     CommonDispatchData SetDefault(const deconvolution_params& arg) const override;

@@ -8,7 +8,7 @@
 
 #include <mutex>
 
-#include "intel_npu/common/idynamic_graph.hpp"
+#include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/network_metadata.hpp"
 #include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
@@ -16,8 +16,9 @@
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
-class DynamicGraph final : public IDynamicGraph {
+class DynamicGraph final : public IGraph {
 public:
+<<<<<<< HEAD
     struct MemRefTypeImpl {
         npu_vm_runtime_mem_ref_handle_t _memRef;
         bool _ptrUpdated = false;
@@ -148,20 +149,25 @@ public:
         virtual ~Impl(){};
     };
 
+=======
+>>>>>>> upstream/master
     DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                  ov::Tensor blob,
-                 bool blobAllocatedByPlugin,
-                 const FilteredConfig& config);
+                 const FilteredConfig& config,
+                 BlobType blobType = BlobType::LLVM);
 
     uint64_t export_main_blob(std::ostream& stream) const override;
 
-    void set_argument_value(uint32_t argi, const void* argv) const override;
+    void* get_handle() const override;
 
-    void set_argument_value_with_strides(uint32_t id,
-                                         const void* data,
-                                         const std::vector<size_t>& strides) const override;
+    GraphKind get_kind() const override {
+        return GraphKind::Dynamic;
+    }
 
-    ze_graph_handle_t get_handle() const override;
+    // HostCompile has no fixed plugin-side batch size; return nullopt for the shared import path.
+    const std::optional<std::size_t> get_batch_size() const override {
+        return std::nullopt;
+    }
 
     ~DynamicGraph() override;
 
@@ -173,39 +179,23 @@ public:
     void set_workload_type(const ov::WorkloadType workloadType) override;
     void set_model_priority(const ov::hint::Priority modelPriority) override;
 
-    void set_batch_size(std::size_t batch) override;
-
-    const std::optional<std::size_t> get_batch_size() const override;
-
     uint32_t get_unique_id() override;
     void set_last_submitted_id(uint32_t id_index) override;
     uint32_t get_last_submitted_id() const override;
-
-    void execute(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                 GraphArguments& args,
-                 std::vector<ze_command_list_handle_t>& commandLists,
-                 ze_command_queue_handle_t commandQueue,
-                 ze_fence_handle_t inferenceFence,
-                 ze_event_handle_t event,
-                 ze_graph_profiling_pool_handle_t profiling) override;
-
-    void getBinding(GraphArguments& args) override;
-
-    uint64_t get_num_subgraphs() const override;
-
-    void predict_output_shape(GraphArguments& args,
-                              std::vector<MemRefType>& inputDescriptors,
-                              std::vector<MemRefType>& outputDescriptors) override;
 
     std::optional<bool> is_profiling_blob() const override;
 
     std::optional<std::string_view> get_compatibility_descriptor() const override;
 
+    BlobType get_blob_type() const override;
+
 private:
     void initialize_impl(const FilteredConfig& config) override;
 
     bool release_blob(const FilteredConfig& config);
-    std::optional<size_t> determine_batch_size();
+    void initialize_engine();
+    void create_execution_engine();
+    void prepare_metadata();
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
@@ -216,17 +206,12 @@ private:
     std::optional<ov::WorkloadType> _workloadType = std::nullopt;
     std::shared_ptr<CommandQueue> _commandQueue = nullptr;
 
-    /**
-     * @brief Stores the number of subgraphs for dynamic models
-     * @note the number of subgraphs will be one for static models
-     */
-    uint64_t _num_of_subgraphs = 1;
-
     mutable std::mutex _commandQueueDescMutex;
     CommandQueueDesc _commandQueueDesc;
     std::vector<std::shared_ptr<Event>> _lastSubmittedEvent;
 
     std::optional<ov::Tensor> _blob;
+    BlobType _blobType = BlobType::LLVM;
 
     // In the case of the import path, the blob is released after graph initialization so it can not be any longer
     // exported
@@ -235,15 +220,11 @@ private:
     uint32_t _uniqueId = 0;
     uint32_t _lastSubmittedId = 0;
 
-    /**
-     * @brief The batch size used by the corresponding model.
-     * @details The attribute contains a value only if the plugin performs the batches splitting operation.
-     */
-    std::optional<std::size_t> _batchSize = std::nullopt;
-
     Logger _logger;
 
-    std::unique_ptr<Impl> _impl;
+    npu_vm_runtime_handle_t _engine = nullptr;
+    npu_vm_runtime_properties_t _engineProperties{};
+    bool _engineInitialized = false;
 };
 
 }  // namespace intel_npu

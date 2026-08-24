@@ -52,7 +52,9 @@ known_domains = {
     "MICROSOFT_DOMAIN":"com.microsoft",
     "PYTORCH_ATEN_DOMAIN":"org.pytorch.aten",
     "MMDEPLOY_DOMAIN":"mmdeploy",
-    "AIONNX_ML_DOMAIN":"ai.onnx.ml"
+    "AIONNX_ML_DOMAIN":"ai.onnx.ml",
+    "AIONNX_DOMAIN":"",
+    "AIONNX_CONTRIB_DOMAIN":"ai.onnx.contrib"
 }
 
 hdr = ""

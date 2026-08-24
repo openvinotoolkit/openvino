@@ -45,10 +45,24 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
     _propertiesManager = std::make_unique<CompiledModelPropertyManager>(localConfig, _graph, _batchSize, _logger);
 
+<<<<<<< HEAD
     OV_ITT_TASK_CHAIN(COMPILED_MODEL,
                       itt::domains::NPUPlugin,
                       "CompiledModel::CompiledModel",
                       "register the IOLayoutsSection");
+=======
+    OPENVINO_ASSERT(_graph != nullptr, "Invalid graph handle! Failed to initialize compiled model!");
+    _logger.info("The current compiled model is a %s one", to_string(_graph->get_kind()));
+
+    // Immediate-init path: when weights load is not deferred, initialize the graph now.
+    // The deferred path (CREATE_EXECUTOR off or DEFER_WEIGHTS_LOAD on) is handled in create_infer_request().
+    const FilteredConfig& modelConfig = _propertiesManager->getConfig();
+    if (modelConfig.get<CREATE_EXECUTOR>() && !modelConfig.get<DEFER_WEIGHTS_LOAD>()) {
+        _graph->initialize(modelConfig);
+    } else {
+        _logger.info("Graph initialize is deferred; weights will be loaded on the first infer request creation.");
+    }
+>>>>>>> upstream/master
 
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
 }
@@ -104,6 +118,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
             }  // -1x blob size when deallocating temporary stringstream
             encryptedBlobStr =
                 _propertiesManager->getConfig().get<CACHE_ENCRYPTION_CALLBACKS>().encrypt(tmpBlobStr);  // +2x blob size
+<<<<<<< HEAD
             uint64_t blobSizeAfterEncryption = encryptedBlobStr.size();
             if (blobSizeAfterEncryption % utils::STANDARD_PAGE_SIZE != 0) {
                 _logger.warning("Encrypted blob size %" PRIu64
@@ -111,12 +126,50 @@ void CompiledModel::export_model(std::ostream& stream) const {
                                 "won't be applied",
                                 blobSizeAfterEncryption);
             }
+=======
+            blobSizeAfterEncryption = encryptedBlobStr.size();
+>>>>>>> upstream/master
         }  // -1x blob size when deallocating temporary blob string
         stream.write(encryptedBlobStr.c_str(), encryptedBlobStr.size());
     }  // -1x blob size when deallocating encrypted blob string
     else {
         //  Write blob directly to user's output stream
+<<<<<<< HEAD
         _blobWriter->write_to(stream);
+=======
+        std::tie(blobSizesBeforeVersioning, initBlobSizes) = _graph->export_blob(stream);
+    }
+
+    if (!_propertiesManager->getConfig().get<EXPORT_RAW_BLOB>()) {
+        std::optional<std::vector<ov::Layout>> inputLayouts = std::vector<ov::Layout>();
+        std::optional<std::vector<ov::Layout>> outputLayouts = std::vector<ov::Layout>();
+
+        for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
+            inputLayouts->push_back(
+                std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
+        }
+        for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
+            outputLayouts->push_back(
+                std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
+        }
+
+        std::optional<uint32_t> compilerVersion = std::nullopt;
+        if (_propertiesManager->getConfig().has(ov::intel_npu::compiler_version.name())) {
+            compilerVersion = _propertiesManager->getConfig().get<COMPILER_VERSION>();
+        }
+
+        Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning,
+                                           CURRENT_OPENVINO_VERSION,
+                                           initBlobSizes,
+                                           _batchSize,
+                                           inputLayouts,
+                                           outputLayouts,
+                                           compilerVersion,
+                                           blobSizeAfterEncryption,
+                                           _graph->get_compatibility_descriptor(),
+                                           _graph->get_blob_type())
+            .write(stream);
+>>>>>>> upstream/master
     }
 }
 

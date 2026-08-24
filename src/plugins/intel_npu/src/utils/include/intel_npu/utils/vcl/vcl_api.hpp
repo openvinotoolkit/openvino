@@ -28,7 +28,8 @@ namespace intel_npu {
     vcl_symbol_statement(vclProfilingDestroy)               \
     vcl_symbol_statement(vclProfilingGetProperties)         \
     vcl_symbol_statement(vclLogHandleGetString)             \
-    vcl_symbol_statement(vclAllocatedExecutableCreate3)     \
+    vcl_symbol_statement(vclAllocatedExecutableCreate4)     \
+    vcl_symbol_statement(vclExecutableGetCompatibilityString) \
     vcl_symbol_statement(vclGetCompilerSupportedOptions)    \
     vcl_symbol_statement(vclGetCompilerIsOptionSupported)   \
 
@@ -37,8 +38,7 @@ namespace intel_npu {
 #define vcl_weak_symbols_list()                             \
     vcl_symbol_statement(vclAllocatedExecutableCreate)     \
     vcl_symbol_statement(vclAllocatedExecutableCreate2)     \
-    vcl_symbol_statement(vclAllocatedExecutableCreateWSOneShot)
-// clang-format on
+    vcl_symbol_statement(vclAllocatedExecutableCreateWSOneShot2)  // clang-format on
 
 class VCLApi {
 public:

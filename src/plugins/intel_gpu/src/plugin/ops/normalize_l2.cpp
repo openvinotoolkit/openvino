@@ -23,7 +23,7 @@ static void CreateNormalizeL2Op(ProgramBuilder& p, const std::shared_ptr<ov::op:
     OPENVINO_ASSERT(const_axis != nullptr, "[GPU] Unsupported axis node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
     auto axis = const_axis->cast_vector<size_t>();
-    bool across_spatial = !(axis.size() == 1 && axis[0] == 1);
+    bool across_spatial = axis.size() != 1 || axis[0] != 1;
     float eps = op->get_eps();
 
     // WA for OVC outputting %.6f
@@ -36,7 +36,7 @@ static void CreateNormalizeL2Op(ProgramBuilder& p, const std::shared_ptr<ov::op:
     cldnn::layout constLayout = cldnn::layout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), cldnn::format::bfyx, cldnn::tensor{1});
     auto mem = p.get_engine().allocate_memory(constLayout, false);
     cldnn::mem_lock<int8_t> tmpPointer{mem, p.get_engine().get_service_stream()};
-    auto buf = tmpPointer.data();
+    auto* buf = tmpPointer.data();
     auto bufSize = scale->get_output_tensor(0).size();
 
     if (bufSize != constLayout.bytes_count())

@@ -21,18 +21,23 @@
 
 #pragma once
 
-#include <xbyak/xbyak.h>
-
 #include <cassert>
-#include <common/utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
 
-#include "cpu/x64/jit_generator.hpp"
-#include "emitters/plugin/x64/jit_conversion_emitters.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/visibility.hpp"
+
+#if defined(OPENVINO_ARCH_X86_64)
+#    include <xbyak/xbyak.h>
+
+#    include <common/utils.hpp>
+#    include <cpu/x64/cpu_isa_traits.hpp>
+
+#    include "cpu/x64/jit_generator.hpp"
+#    include "emitters/plugin/x64/jit_conversion_emitters.hpp"
+#endif
 
 namespace ov::intel_cpu {
 
@@ -125,6 +130,8 @@ protected:
     const bool is_real16_to_f32 = false;
     const bool is_f32_to_bf16 = false;
 };
+
+#if defined(OPENVINO_ARCH_X86_64)
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 struct jitUniGatherKernel : public jitGatherKernelBase, public dnnl::impl::cpu::x64::jit_generator_t {
@@ -235,5 +242,7 @@ protected:
     size_t dstStep = 0;
     std::unique_ptr<jit_convert_saturation_emitter> convert_emitter = nullptr;
 };
+
+#endif  // OPENVINO_ARCH_X86_64
 
 }  // namespace ov::intel_cpu

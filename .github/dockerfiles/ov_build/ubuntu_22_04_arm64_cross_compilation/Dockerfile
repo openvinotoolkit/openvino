@@ -123,7 +123,6 @@ RUN cd Python-3.11.3 && make distclean && \
     make -j4 && make altinstall
 
 ENV PATH="$SCCACHE_HOME:$PATH"
-ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 
 # Use Python 3.11 as default
 # Using venv here because other methods to switch the default Python break both system and wheels build
@@ -143,7 +142,7 @@ ENV PATH="$NVM_DIR/versions/node/v${NODE_VERSION}/bin/:${PATH}"
 
 # Install doxygen
 ENV DOXYGEN_HOME="/opt/doxygen"
-ENV DOXYGEN_VERSION='1.9.6'
+ENV DOXYGEN_VERSION='1.18.0'
 RUN mkdir -p ${DOXYGEN_HOME} && cd ${DOXYGEN_HOME} && wget https://www.doxygen.nl/files/doxygen-$DOXYGEN_VERSION.linux.bin.tar.gz && \
     tar -I pigz -xf doxygen-$DOXYGEN_VERSION.linux.bin.tar.gz && \
     rm -f doxygen-$DOXYGEN_VERSION.linux.bin.tar.gz
