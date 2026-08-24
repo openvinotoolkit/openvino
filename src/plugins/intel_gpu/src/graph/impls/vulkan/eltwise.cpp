@@ -14,6 +14,7 @@
 
 #include "common_utils/gpu_execution_plan.hpp"
 #include "common_utils/gpu_kernel_lifecycle.hpp"
+#include "eltwise/dispatch_builder.hpp"
 #include "eltwise/fusion_analysis.hpp"
 #include "eltwise/kernel_catalog.hpp"
 #include "eltwise/kernel_kind.hpp"
@@ -28,9 +29,7 @@
 #include "registry/implementation_map.hpp"
 #include "shader_scalar_type.hpp"
 #include "vulkan/vulkan_engine.hpp"
-#include "vulkan/vulkan_memory.hpp"
 #include "vulkan/vulkan_stream.hpp"
-#include "vulkan_shader_abi.hpp"
 
 namespace cldnn {
 namespace vulkan {
@@ -43,31 +42,6 @@ namespace {
 
 namespace shader_abi = eltwise_shader_abi;
 using namespace eltwise_detail;
-
-bool output_is_disjoint_from_reads(const memory::cptr& output, const std::vector<memory::cptr>& reads) {
-    const auto* output_buffer = output == nullptr ? nullptr : dynamic_cast<const vulkan_buffer*>(output.get());
-    if (output_buffer == nullptr) {
-        return false;
-    }
-
-    const auto output_begin = output_buffer->get_offset();
-    const auto output_end = output_begin + output_buffer->size();
-    for (const auto& read : reads) {
-        const auto* read_buffer = read == nullptr ? nullptr : dynamic_cast<const vulkan_buffer*>(read.get());
-        if (read_buffer == nullptr) {
-            return false;
-        }
-        if (output_buffer->get_allocation() != read_buffer->get_allocation()) {
-            continue;
-        }
-        const auto read_begin = read_buffer->get_offset();
-        const auto read_end = read_begin + read_buffer->size();
-        if (std::max(output_begin, read_begin) < std::min(output_end, read_end)) {
-            return false;
-        }
-    }
-    return true;
-}
 
 struct eltwise_impl : typed_primitive_impl<eltwise> {
     using parent = typed_primitive_impl<eltwise>;
@@ -214,18 +188,14 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
             }
         }
 
-        kernel_arguments_desc descriptor;
-        descriptor.layerID = instance.id();
         const auto element_count = metadata[shader_abi::index(shader_abi::metadata_field::element_count)];
         const auto& input0_layout = instance.get_input_layout(0);
         const auto& input1_layout = base_input_count == 1 ? input0_layout : instance.get_input_layout(1);
         const auto& output_layout = instance.get_output_layout(0);
-        const bool use_dense_kernel = is_plain_dense_kernel(_kernel_kind) || use_fused_kernel || use_fused_post_op_kernel;
         const auto* fused_input_layout = use_fused_kernel ? &instance.get_input_layout(fused->front().external_dependency_index) : nullptr;
         const auto selected_dense_vector_width = get_dense_vector_width(_kernel_kind);
         const bool use_broadcast_vector_kernel = is_broadcast_vector_kernel(_kernel_kind);
         const bool use_fast_broadcast_kernel = is_fast_broadcast_kernel(_kernel_kind);
-        const bool use_unary_kernel = _kernel_kind == kernel_kind::unary;
         const bool use_scalar_constant_kernel = _kernel_kind == kernel_kind::scalar_constant;
         OPENVINO_ASSERT(use_scalar_constant_kernel == _scalar_constant.has_value(),
                         "[GPU][Vulkan] Scalar Eltwise kernel and constant metadata are inconsistent");
@@ -294,108 +264,21 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         } else {
             local_size = select_portable_local_work_group_size(invocation_count, device_info.max_work_group_size);
         }
-        descriptor.workGroups.global = {invocation_count, 1, 1};
-        descriptor.workGroups.local = {local_size, 1, 1};
-        vulkan_specialization_constants specialization_constants = {
-            {cldnn::vulkan::shader_abi::index(cldnn::vulkan::shader_abi::specialization_id::local_size_x), local_size},
-            {shader_abi::index(shader_abi::specialization_id::mode), metadata[shader_abi::index(shader_abi::metadata_field::mode)]},
-            {shader_abi::index(shader_abi::specialization_id::input0_type), metadata[shader_abi::index(shader_abi::metadata_field::input0_type)]},
-            {shader_abi::index(shader_abi::specialization_id::input1_type), metadata[shader_abi::index(shader_abi::metadata_field::input1_type)]},
-            {shader_abi::index(shader_abi::specialization_id::output_type), metadata[shader_abi::index(shader_abi::metadata_field::output_type)]},
-            {shader_abi::index(shader_abi::specialization_id::storage_flags), metadata[shader_abi::index(shader_abi::metadata_field::flags)]},
-        };
-        if (use_dense_kernel || use_broadcast_vector_kernel || use_scalar_constant_kernel) {
-            specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::elements_per_invocation), elements_per_invocation});
-        }
-        if (use_fast_broadcast_kernel) {
-            specialization_constants.push_back(
-                {shader_abi::index(shader_abi::specialization_id::broadcast_rank), metadata[shader_abi::index(shader_abi::metadata_field::rank)]});
-            specialization_constants.push_back(
-                {shader_abi::index(shader_abi::specialization_id::broadcast_input0_axes), metadata.active_broadcast_axes(shader_abi::tensor_index::input0)});
-            specialization_constants.push_back(
-                {shader_abi::index(shader_abi::specialization_id::broadcast_input1_axes), metadata.active_broadcast_axes(shader_abi::tensor_index::input1)});
-            specialization_constants.push_back(
-                {shader_abi::index(shader_abi::specialization_id::broadcast_output_axes), metadata.active_broadcast_axes(shader_abi::tensor_index::output)});
-        }
-        if (use_single_fused_kernel) {
-            specialization_constants.push_back(
-                {shader_abi::index(shader_abi::specialization_id::fused_mode), metadata.fused_stage_value(0, shader_abi::fused_metadata_field::mode)});
-            specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::fused_input_type),
-                                                metadata.fused_stage_value(0, shader_abi::fused_metadata_field::input_type)});
-            specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::fused_input_position),
-                                                metadata.fused_stage_value(0, shader_abi::fused_metadata_field::input_position)});
-        } else if (use_fused_chain_kernel) {
-            for (size_t stage = 0; stage < fused->size(); ++stage) {
-                const auto stage_index = checked_u32(stage, "fused specialization stage");
-                specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::fused_chain_mode_base) + stage_index,
-                                                    metadata.fused_stage_value(stage, shader_abi::fused_metadata_field::mode)});
-                specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::fused_chain_input_type_base) + stage_index,
-                                                    metadata.fused_stage_value(stage, shader_abi::fused_metadata_field::input_type)});
-                specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::fused_chain_input_position_base) + stage_index,
-                                                    metadata.fused_stage_value(stage, shader_abi::fused_metadata_field::input_position)});
-            }
-        }
-        if (use_fused_post_op_kernel) {
-            specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::base_output_type),
-                                                shader_abi::value(to_shader_scalar_type(post_op->descriptor->input_layout.data_type))});
-            specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::post_op_kind), shader_abi::value(post_op->kind)});
-            specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::post_activation), shader_abi::value(post_op->activation)});
-            specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::post_quantize_flags), post_op->quantize_flags});
-        }
-        if (use_dense_push_constants) {
-            descriptor.scalars = metadata.make_dense_push_constants(is_single_fused_dense_kernel(_kernel_kind));
-        }
-        descriptor.arguments = {{argument_desc::Types::INPUT, 0}};
-        if (use_scalar_constant_kernel) {
-            descriptor.arguments.front().index = _scalar_constant->input_index == shader_abi::tensor_index::input0
-                                                     ? shader_abi::index(shader_abi::tensor_index::input1)
-                                                     : shader_abi::index(shader_abi::tensor_index::input0);
-        } else if (!use_unary_kernel) {
-            descriptor.arguments.push_back({argument_desc::Types::INPUT, 1});
-        }
-        if (use_single_fused_kernel) {
-            descriptor.arguments.push_back({argument_desc::Types::INPUT_OF_FUSED_PRIMITIVE, 0});
-        } else if (use_fused_chain_kernel) {
-            for (size_t stage = 0; stage < EltwiseMetadata::maximum_fused_chain_length; ++stage) {
-                descriptor.arguments.push_back({argument_desc::Types::INPUT_OF_FUSED_PRIMITIVE, static_cast<uint32_t>(std::min(stage, fused->size() - 1))});
-            }
-        }
-        descriptor.arguments.push_back({argument_desc::Types::OUTPUT, 0});
-        if (!use_dense_push_constants) {
-            descriptor.arguments.push_back({argument_desc::Types::INTERNAL_BUFFER, 0});
-        }
-        if (!use_dense_kernel) {
-            descriptor.arguments.push_back({argument_desc::Types::OUTPUT, 0});
-        }
-
-        kernel_arguments_data arguments;
-        for (size_t input_index = 0; input_index < base_input_count; ++input_index) {
-            arguments.inputs.push_back(instance.input_memory_ptr(input_index));
-        }
-        if (use_fused_kernel) {
-            for (size_t stage = 0; stage < fused->size(); ++stage) {
-                arguments.fused_op_inputs.push_back(instance.fused_memory(stage));
-            }
-        }
-        arguments.outputs = {instance.output_memory_ptr(0)};
-        if (!use_dense_push_constants) {
-            arguments.intermediates = {metadata_memory};
-        }
-        std::vector<memory::cptr> read_memories;
-        if (use_scalar_constant_kernel) {
-            const auto tensor_input_index = _scalar_constant->input_index == shader_abi::tensor_index::input0
-                                                ? shader_abi::index(shader_abi::tensor_index::input1)
-                                                : shader_abi::index(shader_abi::tensor_index::input0);
-            read_memories.push_back(arguments.inputs.at(tensor_input_index));
-        } else {
-            read_memories.insert(read_memories.end(), arguments.inputs.begin(), arguments.inputs.end());
-        }
-        read_memories.insert(read_memories.end(), arguments.fused_op_inputs.begin(), arguments.fused_op_inputs.end());
-        read_memories.insert(read_memories.end(), arguments.intermediates.begin(), arguments.intermediates.end());
-        const auto use_restricted_kernel = _kernels.size() == 2 && output_is_disjoint_from_reads(arguments.outputs.front(), read_memories);
-        const size_t selected_kernel_index = use_restricted_kernel ? 1 : 0;
-        _execution_plan[0].kernel_index = selected_kernel_index;
-        auto& selected_kernel = *_kernels.at(selected_kernel_index);
+        auto dispatch = EltwiseDispatch::build(instance,
+                                               _kernel_kind,
+                                               _scalar_constant,
+                                               fused,
+                                               post_op,
+                                               metadata,
+                                               std::move(metadata_memory),
+                                               elements_per_invocation,
+                                               local_size,
+                                               _kernels.size() == 2);
+        auto& descriptor = dispatch.descriptor();
+        auto& arguments = dispatch.arguments();
+        const auto& specialization_constants = dispatch.specialization_constants();
+        _execution_plan[0].kernel_index = dispatch.kernel_index();
+        auto& selected_kernel = *_kernels.at(dispatch.kernel_index());
         if (local_size_selection.has_value() && local_size_selection->requires_prewarm()) {
             for (const auto candidate : local_size_selection->candidates()) {
                 descriptor.workGroups.local[0] = candidate;
@@ -421,7 +304,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
             events,
             instance.needs_completion_event(),
             [&](size_t) {
-                return gpu_dispatch_binding{&descriptor, std::move(arguments)};
+                return gpu_dispatch_binding{&descriptor, dispatch.take_arguments()};
             },
             [&](size_t,
                 kernel& selected_kernel,
