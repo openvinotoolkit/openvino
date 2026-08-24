@@ -4,6 +4,7 @@
 
 #include "openvino/op/split.hpp"
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
@@ -63,6 +64,12 @@ OutputVector translate_chunk(const NodeContext& context) {
     auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
     // Gather the size of the split dimension.
     auto dim_size = context.mark_node(std::make_shared<v8::Gather>(input_shape, dim, zero_sc));
+
+    // When chunks is a compile-time constant, fail fast on non-positive values instead of dividing by zero.
+    if (const auto chunks_const = ov::util::get_constant_from_source(chunks)) {
+        PYTORCH_OP_CONVERSION_CHECK(chunks_const->cast_vector<int64_t>()[0] > 0,
+                                    "aten::chunk: chunks must be a positive integer.");
+    }
 
     // chunk_size = ceil(dim_size / num_chunks)
     auto init_chunk_size = context.mark_node(std::make_shared<v1::Divide>(dim_size, chunks, true));
