@@ -219,6 +219,26 @@ void jit_selective_ssm_kernel<isa>::emit_bf16_subnormal_store(const Vmm& source,
 }
 
 template <cpu_isa_t isa>
+void jit_selective_ssm_kernel<isa>::store_avx2_bf16_full_vector(const Vmm& source, size_t offset) {
+    if constexpr (isa == avx2) {
+        const Xbyak::Ymm rounded(vmm_reduce_tmp0.getIdx());
+        const Xbyak::Ymm rounding_bit(source.getIdx());
+        uni_vmovups(rounded, source);
+        uni_vpslld(rounding_bit, rounding_bit, 15);
+        uni_vpsrld(rounding_bit, rounding_bit, 31);
+        uni_vpslld(rounding_bit, rounding_bit, 15);
+        uni_vpaddd(rounded, rounded, rounding_bit);
+        uni_vpsrld(rounded, rounded, 16);
+
+        const Xbyak::Xmm rounded_low(rounded.getIdx());
+        const Xbyak::Xmm rounded_high(rounding_bit.getIdx());
+        vextracti128(rounded_high, rounded, 1);
+        vpackusdw(rounded_low, rounded_low, rounded_high);
+        vmovups(ptr[reg_output_state + offset], rounded_low);
+    }
+}
+
+template <cpu_isa_t isa>
 void jit_selective_ssm_kernel<isa>::store_state(const Vmm& source, int element_count, size_t offset) {
     if (m_jcp.state_precision == ov::element::f32) {
         const auto& destination =
@@ -232,7 +252,14 @@ void jit_selective_ssm_kernel<isa>::store_state(const Vmm& source, int element_c
     }
 
     if constexpr (isa == avx2) {
-        store(reg_output_state, source, m_jcp.state_precision, element_count, offset);
+        if (m_jcp.state_mode == jit_selective_ssm_state_mode::separate &&
+            static_cast<size_t>(element_count) == vector_size) {
+            // The caller has already accumulated the output, so the state register is dead and can hold the rounding
+            // bit. This avoids the spills and constant-table setup required by the generic BF16 store emitter.
+            store_avx2_bf16_full_vector(source, offset);
+        } else {
+            store(reg_output_state, source, m_jcp.state_precision, element_count, offset);
+        }
         return;
     }
 
@@ -315,11 +342,18 @@ void jit_selective_ssm_kernel<isa>::emit_state_vector(size_t rows,
         }
         // output[p] = sum_n(state[p, n] * C[n])
         vfmadd231ps(accumulator_vmm(row), state, vmm_output_projection);
+        if constexpr (isa == avx2) {
+            if (m_jcp.state_mode == jit_selective_ssm_state_mode::separate) {
+                emit_store(row);
+            }
+        }
     }
 
-    if (m_jcp.state_mode == jit_selective_ssm_state_mode::separate) {
-        for (size_t row = 0; row < rows; ++row) {
-            emit_store(row);
+    if constexpr (isa != avx2) {
+        if (m_jcp.state_mode == jit_selective_ssm_state_mode::separate) {
+            for (size_t row = 0; row < rows; ++row) {
+                emit_store(row);
+            }
         }
     }
 }
