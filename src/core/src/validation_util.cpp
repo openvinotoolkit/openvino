@@ -164,6 +164,11 @@ std::shared_ptr<Constant> get_constant_from_source(const ov::Output<ov::Node>& s
     }
 }
 
+bool is_empty_constant_tensor(const Output<Node>& source) {
+    const auto constant = ov::as_type_ptr<Constant>(source.get_node_shared_ptr());
+    return constant != nullptr && ov::shape_size(constant->get_shape()) == 0;
+}
+
 template <class T>
 Tensor make_tensor_of_max_value(const element::Type_t et) {
     Tensor t{et, Shape{}};

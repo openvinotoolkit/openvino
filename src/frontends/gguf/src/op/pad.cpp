@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/pad.hpp"
+
 #include <array>
 #include <cstdint>
-#include "openvino/frontend/exception.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/pad.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/shape_of.hpp"
 #include <vector>
 
 #include "node_context.hpp"
 #include "op_table.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -68,8 +69,14 @@ OutputVector translate_pad(const NodeContext& context) {
 
     auto pad_params = context.get_attribute<std::vector<int32_t>>("pad_params");
     FRONT_END_CHECK_IMPLEMENTED(pad_params.size() >= 8, "PAD requires 8 pad extents");
-    const std::array<int32_t, 8> pads = {pad_params[0], pad_params[1], pad_params[2], pad_params[3],
-                                         pad_params[4], pad_params[5], pad_params[6], pad_params[7]};
+    const std::array<int32_t, 8> pads = {pad_params[0],
+                                         pad_params[1],
+                                         pad_params[2],
+                                         pad_params[3],
+                                         pad_params[4],
+                                         pad_params[5],
+                                         pad_params[6],
+                                         pad_params[7]};
     const bool circular = context.get_attribute<bool>("pad_circular", false);
 
     if (circular) {
