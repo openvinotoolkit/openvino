@@ -29,6 +29,7 @@
 #include "quantize_inst.h"
 #include "registry/implementation_map.hpp"
 #include "reorder_inst.h"
+#include "shader_scalar_type.hpp"
 #include "vulkan/vulkan_engine.hpp"
 #include "vulkan/vulkan_memory.hpp"
 #include "vulkan/vulkan_stream.hpp"
@@ -102,25 +103,6 @@ bool is_bitwise_mode(eltwise_mode mode) {
     return one_of(mode, {eltwise_mode::right_shift, eltwise_mode::left_shift, eltwise_mode::bitwise_and, eltwise_mode::bitwise_or, eltwise_mode::bitwise_xor});
 }
 
-bool is_supported_data_type(data_types type) {
-    return one_of(type,
-                  {data_types::f16,
-                   data_types::f32,
-                   data_types::i8,
-                   data_types::u8,
-                   data_types::i16,
-                   data_types::u16,
-                   data_types::i32,
-                   data_types::u32,
-                   data_types::i64,
-                   data_types::boolean});
-}
-
-bool is_integer_data_type(data_types type) {
-    return one_of(type,
-                  {data_types::i8, data_types::u8, data_types::i16, data_types::u16, data_types::i32, data_types::u32, data_types::i64, data_types::boolean});
-}
-
 shader_abi::mode shader_mode_code(eltwise_mode mode) {
     switch (mode) {
     case eltwise_mode::sum:
@@ -181,33 +163,6 @@ shader_abi::mode shader_mode_code(eltwise_mode mode) {
         return shader_abi::mode::atan2;
     default:
         OPENVINO_THROW("[GPU][Vulkan] Unsupported Eltwise shader mode");
-    }
-}
-
-shader_abi::scalar_type scalar_type_code(data_types type) {
-    switch (type) {
-    case data_types::f16:
-        return shader_abi::scalar_type::f16;
-    case data_types::f32:
-        return shader_abi::scalar_type::f32;
-    case data_types::i8:
-        return shader_abi::scalar_type::i8;
-    case data_types::u8:
-        return shader_abi::scalar_type::u8;
-    case data_types::i16:
-        return shader_abi::scalar_type::i16;
-    case data_types::u16:
-        return shader_abi::scalar_type::u16;
-    case data_types::i32:
-        return shader_abi::scalar_type::i32;
-    case data_types::u32:
-        return shader_abi::scalar_type::u32;
-    case data_types::i64:
-        return shader_abi::scalar_type::i64;
-    case data_types::boolean:
-        return shader_abi::scalar_type::boolean;
-    default:
-        OPENVINO_THROW("[GPU][Vulkan] Unsupported Eltwise scalar type ", ov::element::Type(type).get_type_name());
     }
 }
 
@@ -534,7 +489,7 @@ std::optional<fused_post_op_info> get_supported_fused_post_op(const program_node
     const auto& output_layout = fused.output_layout;
     if (!fused.deps.empty() || fused.total_num_deps != 1 || !same_dense_geometry(input_layout, output_layout) ||
         !output_layout.identical(node.get_output_layout(0)) || !one_of(input_layout.data_type, {data_types::f16, data_types::f32}) ||
-        !is_supported_data_type(output_layout.data_type) || !is_supported_format(output_layout.format.value) || output_layout.get_rank() > max_rank) {
+        !is_supported_shader_scalar_type(output_layout.data_type) || !is_supported_format(output_layout.format.value) || output_layout.get_rank() > max_rank) {
         return std::nullopt;
     }
 
@@ -664,7 +619,7 @@ std::optional<fused_eltwise_chain> get_supported_fused_eltwise_chain(const progr
         }
         const auto& input_layout = node.get_input_layout(external_dependency_index);
         const bool broadcast_input = !input_layout.identical(output_layout);
-        if (input_layout.is_dynamic() || !has_dense_storage(input_layout) || !is_supported_data_type(input_layout.data_type) ||
+        if (input_layout.is_dynamic() || !has_dense_storage(input_layout) || !is_supported_shader_scalar_type(input_layout.data_type) ||
             !is_supported_format(input_layout.format.value) || input_layout.get_rank() > max_rank ||
             (broadcast_input && (fused_primitives.size() != 1 || data_type_traits::size_of(output_layout.data_type) < sizeof(uint32_t) ||
                                  !is_numpy_broadcast_compatible(input_layout, output_layout)))) {
@@ -990,9 +945,9 @@ std::array<uint32_t, metadata_words> make_metadata(const eltwise_inst& instance,
                  instance.get_input_layout(fused->front().external_dependency_index).count() == 1
              ? shader_abi::value(shader_abi::storage_flag::fused_scalar_input)
              : 0U);
-    metadata[shader_abi::index(shader_abi::metadata_field::input0_type)] = shader_abi::value(scalar_type_code(input0_layout.data_type));
-    metadata[shader_abi::index(shader_abi::metadata_field::input1_type)] = shader_abi::value(scalar_type_code(input1_layout.data_type));
-    metadata[shader_abi::index(shader_abi::metadata_field::output_type)] = shader_abi::value(scalar_type_code(output_layout.data_type));
+    metadata[shader_abi::index(shader_abi::metadata_field::input0_type)] = shader_abi::value(to_shader_scalar_type(input0_layout.data_type));
+    metadata[shader_abi::index(shader_abi::metadata_field::input1_type)] = shader_abi::value(to_shader_scalar_type(input1_layout.data_type));
+    metadata[shader_abi::index(shader_abi::metadata_field::output_type)] = shader_abi::value(to_shader_scalar_type(output_layout.data_type));
     metadata[shader_abi::index(shader_abi::metadata_field::python_division)] = desc->m_pythondiv ? 1U : 0U;
     metadata[shader_abi::index(shader_abi::metadata_field::infinity_detection)] =
         desc->mode == eltwise_mode::is_inf && desc->coefficients.size() == 2
@@ -1027,7 +982,7 @@ std::array<uint32_t, metadata_words> make_metadata(const eltwise_inst& instance,
             const auto stage_metadata_base = fused_metadata_base + stage * fused_metadata_words;
             metadata[stage_metadata_base + shader_abi::index(shader_abi::fused_metadata_field::mode)] = shader_abi::value(shader_mode_code(fused_desc->mode));
             metadata[stage_metadata_base + shader_abi::index(shader_abi::fused_metadata_field::input_type)] =
-                shader_abi::value(scalar_type_code(fused_input_layout.data_type));
+                shader_abi::value(to_shader_scalar_type(fused_input_layout.data_type));
             metadata[stage_metadata_base + shader_abi::index(shader_abi::fused_metadata_field::input_position)] =
                 shader_abi::value(fused_stage.external_position);
             metadata[stage_metadata_base + shader_abi::index(shader_abi::fused_metadata_field::python_division)] = fused_desc->m_pythondiv ? 1U : 0U;
@@ -1391,7 +1346,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         }
         if (use_fused_post_op_kernel) {
             specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::base_output_type),
-                                                shader_abi::value(scalar_type_code(post_op->descriptor->input_layout.data_type))});
+                                                shader_abi::value(to_shader_scalar_type(post_op->descriptor->input_layout.data_type))});
             specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::post_op_kind), shader_abi::value(post_op->kind)});
             specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::post_activation), shader_abi::value(post_op->activation)});
             specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::post_quantize_flags), post_op->quantize_flags});
@@ -1525,10 +1480,10 @@ bool EltwiseImplementationManager::validate_impl(const program_node& node) const
 
     for (size_t index = 0; index < expected_inputs; ++index) {
         const auto& input_layout = node.get_input_layout(index);
-        if (!is_supported_data_type(input_layout.data_type) || !is_supported_format(input_layout.format.value) || input_layout.get_rank() > max_rank) {
+        if (!is_supported_shader_scalar_type(input_layout.data_type) || !is_supported_format(input_layout.format.value) || input_layout.get_rank() > max_rank) {
             return false;
         }
-        if (is_bitwise_mode(desc->mode) && !is_integer_data_type(input_layout.data_type)) {
+        if (is_bitwise_mode(desc->mode) && !is_integer_shader_scalar_type(input_layout.data_type)) {
             return false;
         }
         if ((desc->mode == eltwise_mode::atan2 || is_unary_mode(desc->mode)) && !data_type_traits::is_floating_point(input_layout.data_type)) {
@@ -1536,7 +1491,7 @@ bool EltwiseImplementationManager::validate_impl(const program_node& node) const
         }
     }
     const auto& output_layout = node.get_output_layout(0);
-    return is_supported_data_type(output_layout.data_type) && is_supported_format(output_layout.format.value) && output_layout.get_rank() <= max_rank;
+    return is_supported_shader_scalar_type(output_layout.data_type) && is_supported_format(output_layout.format.value) && output_layout.get_rank() <= max_rank;
 }
 
 std::unique_ptr<primitive_impl> EltwiseImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {

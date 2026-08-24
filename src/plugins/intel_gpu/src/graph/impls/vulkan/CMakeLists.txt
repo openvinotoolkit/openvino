@@ -78,7 +78,6 @@ add_vulkan_shader(
     SOURCE "${VULKAN_KERNEL_DIR}/reorder_convert.comp"
     DESCRIPTION "kernels/reorder_convert.comp"
     DEPENDENCIES
-        "${CMAKE_CURRENT_SOURCE_DIR}/eltwise_shader_abi.inc"
         "${CMAKE_CURRENT_SOURCE_DIR}/vulkan_shader_abi.inc"
 )
 

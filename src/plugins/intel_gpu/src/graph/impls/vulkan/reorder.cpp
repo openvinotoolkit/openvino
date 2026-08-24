@@ -13,19 +13,17 @@
 #include <vector>
 
 #include "common_utils/gpu_execution_plan.hpp"
-#include "eltwise_shader_abi.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "openvino/core/except.hpp"
 #include "registry/implementation_map.hpp"
 #include "reorder_convert_spirv.hpp"
+#include "shader_scalar_type.hpp"
 #include "vulkan/vulkan_stream.hpp"
 #include "vulkan_shader_abi.hpp"
 
 namespace cldnn {
 namespace vulkan {
 namespace {
-
-namespace shader_abi = eltwise_shader_abi;
 
 enum class metadata_field : size_t {
     element_count,
@@ -43,47 +41,6 @@ constexpr uint32_t portable_max_local_work_group_size = 128;
 
 bool is_copy_compatible_format(format fmt) {
     return fmt == format::any || format::is_default_format(fmt);
-}
-
-bool is_supported_data_type(data_types type) {
-    return one_of(type,
-                  {data_types::f16,
-                   data_types::f32,
-                   data_types::i8,
-                   data_types::u8,
-                   data_types::i16,
-                   data_types::u16,
-                   data_types::i32,
-                   data_types::u32,
-                   data_types::i64,
-                   data_types::boolean});
-}
-
-shader_abi::scalar_type scalar_type_code(data_types type) {
-    switch (type) {
-    case data_types::f16:
-        return shader_abi::scalar_type::f16;
-    case data_types::f32:
-        return shader_abi::scalar_type::f32;
-    case data_types::i8:
-        return shader_abi::scalar_type::i8;
-    case data_types::u8:
-        return shader_abi::scalar_type::u8;
-    case data_types::i16:
-        return shader_abi::scalar_type::i16;
-    case data_types::u16:
-        return shader_abi::scalar_type::u16;
-    case data_types::i32:
-        return shader_abi::scalar_type::i32;
-    case data_types::u32:
-        return shader_abi::scalar_type::u32;
-    case data_types::i64:
-        return shader_abi::scalar_type::i64;
-    case data_types::boolean:
-        return shader_abi::scalar_type::boolean;
-    default:
-        OPENVINO_THROW("[GPU][Vulkan] Unsupported Reorder scalar type ", ov::element::Type(type).get_type_name());
-    }
 }
 
 uint32_t checked_u32(size_t value, const char* description) {
@@ -110,8 +67,8 @@ std::array<uint32_t, metadata_words> make_metadata(const reorder_inst& instance)
 
     std::array<uint32_t, metadata_words> metadata{};
     metadata[metadata_index(metadata_field::element_count)] = checked_u32(output_layout.count(), "element count");
-    metadata[metadata_index(metadata_field::input_type)] = shader_abi::value(scalar_type_code(input_layout.data_type));
-    metadata[metadata_index(metadata_field::output_type)] = shader_abi::value(scalar_type_code(output_layout.data_type));
+    metadata[metadata_index(metadata_field::input_type)] = shader_abi::value(to_shader_scalar_type(input_layout.data_type));
+    metadata[metadata_index(metadata_field::output_type)] = shader_abi::value(to_shader_scalar_type(output_layout.data_type));
     return metadata;
 }
 
@@ -277,7 +234,7 @@ bool ReorderImplementationManager::validate_impl(const program_node& node) const
     }
     const auto& input_layout = node.get_input_layout(0);
     const auto& output_layout = node.get_output_layout(0);
-    if (!is_supported_data_type(input_layout.data_type) || !is_supported_data_type(output_layout.data_type) ||
+    if (!is_supported_shader_scalar_type(input_layout.data_type) || !is_supported_shader_scalar_type(output_layout.data_type) ||
         !is_copy_compatible_format(input_layout.format) || !is_copy_compatible_format(output_layout.format) || static_cast<bool>(input_layout.data_padding) ||
         static_cast<bool>(output_layout.data_padding)) {
         return false;

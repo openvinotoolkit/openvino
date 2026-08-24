@@ -8,6 +8,8 @@
 #include <cstdint>
 #include <limits>
 
+#include "vulkan_shader_abi.hpp"
+
 namespace cldnn::vulkan::eltwise_shader_abi {
 
 enum class limit : uint32_t {
@@ -22,11 +24,7 @@ enum class mode : uint32_t {
 #undef ELTWISE_SHADER_MODE
 };
 
-enum class scalar_type : uint32_t {
-#define ELTWISE_SHADER_SCALAR_TYPE(name, code) name = code,
-#include "eltwise_shader_abi.inc"
-#undef ELTWISE_SHADER_SCALAR_TYPE
-};
+using scalar_type = shader_abi::scalar_type;
 
 enum class metadata_field : size_t {
 #define ELTWISE_SHADER_METADATA_FIELD(name, code) name = code,
@@ -121,7 +119,7 @@ constexpr uint32_t value(limit value) {
 }
 
 constexpr uint32_t value(scalar_type value) {
-    return static_cast<uint32_t>(value);
+    return shader_abi::value(value);
 }
 
 constexpr uint32_t value(storage_flag value) {

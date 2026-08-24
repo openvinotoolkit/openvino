@@ -20,9 +20,9 @@ layout(set = 0, binding = 2) readonly buffer Metadata {
     uint values[];
 } metadata;
 
-#define ELTWISE_SHADER_SCALAR_TYPE(name, code) const uint type_##name = code;
-#include "../eltwise_shader_abi.inc"
-#undef ELTWISE_SHADER_SCALAR_TYPE
+#define VULKAN_SHADER_SCALAR_TYPE(name, code) const uint type_##name = code;
+#include "../vulkan_shader_abi.inc"
+#undef VULKAN_SHADER_SCALAR_TYPE
 
 const uint metadata_element_count = 0;
 const uint metadata_input_type = 1;

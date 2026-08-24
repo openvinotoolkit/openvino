@@ -24,6 +24,7 @@ set(ELTWISE_SHADER_MODULES
     "${VULKAN_ELTWISE_KERNEL_DIR}/dispatch_f32_vector.glsl"
     "${VULKAN_ELTWISE_KERNEL_DIR}/dispatch_scalar.glsl"
     "${CMAKE_CURRENT_SOURCE_DIR}/eltwise_shader_abi.inc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/vulkan_shader_abi.inc"
 )
 
 function(add_eltwise_shader_variant)
