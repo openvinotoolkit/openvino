@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 180,
+  "total": 181,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1766,6 +1766,15 @@
       "category": "Flaky Test",
       "signature_hash": "9ccdd0e30ddfa489",
       "pr_number": "37499"
+    },
+    {
+      "investigation_id": "2026-08-24-18-30-00-000-32760116542",
+      "run_id": "32760116542",
+      "timestamp": "2026-08-24T18:30:00Z",
+      "title": "Android workflow build fails - first attempt failure logs unavailable, second attempt auto-started",
+      "category": "Infrastructure",
+      "signature_hash": "c7e85bdd0ab7e140",
+      "pr_number": "37600"
     }
   ]
 }

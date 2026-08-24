@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "android workflow build step failure logs unavailable|Infrastructure",
+  "signature_hash": "c7e85bdd0ab7e140",
+  "title": "Android workflow build fails - first attempt failure logs unavailable, second attempt auto-started",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-08-24T18:30:00Z",
+  "last_seen": "2026-08-24T18:30:00Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/32760116542"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37600"
+  ],
+  "recent_timestamps": [
+    "2026-08-24T18:30:00Z"
+  ],
+  "rerun_search_string": null
+}

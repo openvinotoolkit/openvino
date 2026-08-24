@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-24-18-30-00-000-32760116542",
+  "timestamp": "2026-08-24T18:30:00Z",
+  "run_id": "32760116542",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32760116542",
+  "workflow_name": "Android",
+  "pr_number": "37600",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37600",
+  "author": "olpipi",
+  "category": "Infrastructure",
+  "title": "Android workflow build fails - first attempt failure logs unavailable, second attempt auto-started",
+  "signature": "android workflow build step failure logs unavailable|Infrastructure",
+  "signature_hash": "c7e85bdd0ab7e140",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "Build arm64",
+      "conclusion": "failure",
+      "symptom": "First attempt failed with no accessible logs; second attempt (run_attempt=2) auto-started and is in progress"
+    }
+  ],
+  "key_errors": [
+    "No failed job logs captured from run attempt 1",
+    "run_attempt: 2 indicates attempt 1 failed before logs were collected",
+    "Build arm64 job on attempt 2 was in_progress at investigation time"
+  ],
+  "root_cause": "The Android workflow's first run attempt failed before job logs could be captured, which is a hallmark of transient runner infrastructure issues (e.g., runner startup failure, Docker pull timeout, resource exhaustion). The CI system automatically re-ran the failed jobs (run_attempt=2), which reached the 'CMake - build OpenVINO' step before this investigation ran. The PR itself (revert of allocator fix) changes only src/core/src/runtime/allocator.cpp and a test file \u2014 neither of which should affect Android compilation. The failure is almost certainly unrelated to the PR code changes.",
+  "reproduction_steps": "N/A - infrastructure transient failure not reproducible locally",
+  "recommended_actions": [
+    "Wait for run_attempt 2 to complete \u2014 if it succeeds, the original failure was transient",
+    "If attempt 2 also fails, look for Android-specific CMake or link errors in the logs",
+    "No code changes needed if attempt 2 passes"
+  ],
+  "prevention_strategies": "Transient runner failures are infrastructure-level and cannot be fully prevented. The automatic retry mechanism (run_attempt=2) already handles this scenario.",
+  "historical_context": "A similar pattern was observed for RISC-V builds (pattern eb524e8027ac9d8f). Android CMake configure has also been a recurring issue (pattern 9ff022172665aa06, 20 occurrences) but that pattern involves MODULE_LIBRARY linking errors, which would produce log evidence \u2014 not the same issue."
+}
