@@ -81,7 +81,7 @@ MVNKernelBase::DispatchData MVNKernel_b_fs_yx_fsv16::SetDefault(const mvn_params
     auto slm_per_sg = fsv * 4;
     auto max_slm = params.engineInfo.maxLocalMemSize;
     auto max_sgs = max_slm / slm_per_sg;
-    auto max_lws = std::min(max_wg, max_sgs * simd);
+    const size_t max_lws = static_cast<size_t>(std::min(max_wg, max_sgs * simd));
 
     if (params.has_dynamic_tensors()) {
         // Fixed LWS for shape-agnostic compilation (basic single-workgroup mode).
@@ -185,7 +185,7 @@ MVNKernel_b_fs_yx_fsv16::MultiDispatchData MVNKernel_b_fs_yx_fsv16::SetDefaultFo
     auto slm_per_sg = fsv * 4;
     auto max_slm = params.engineInfo.maxLocalMemSize;
     auto max_sgs = max_slm / slm_per_sg;
-    auto max_lws = std::min(max_wg, max_sgs * simd);
+    const size_t max_lws = static_cast<size_t>(std::min(max_wg, max_sgs * simd));
 
     size_t lws;
     if (params.has_dynamic_tensors()) {
@@ -615,7 +615,7 @@ void MVNKernel_b_fs_yx_fsv16::GetUpdateDispatchDataFunc(KernelData& kd) const {
             auto slm_per_sg = local_fsv * 4;
             auto max_slm = prim_params.engineInfo.maxLocalMemSize;
             auto max_sgs = max_slm / slm_per_sg;
-            auto max_lws = std::min(max_wg, max_sgs * local_simd);
+            const size_t max_lws = static_cast<size_t>(std::min(max_wg, max_sgs * local_simd));
 
             // Runtime decision: use multi-stage when spatial size is large enough
             bool enough_slm = max_lws / local_simd * local_simd * slm_per_sg <= max_slm;

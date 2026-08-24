@@ -160,7 +160,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32
     dispatchData.cldnnStyle.blockHeight = tuneOptions.blockHeight;
     dispatchData.cldnnStyle.prefetch = tuneOptions.prefetch;
 
-    const size_t max_lws = std::max((size_t)1, cp.engineInfo.maxWorkGroupSize / sub_group_size);
+    const size_t max_lws = std::max<size_t>(1, cp.engineInfo.maxWorkGroupSize / sub_group_size);
     dispatchData.gws[0] = Align(cp.outputs[0].Feature().v, 32) / 2;
     dispatchData.gws[1] = CeilDiv(cp.outputs[0].X().v, dispatchData.cldnnStyle.blockWidth);
     dispatchData.gws[2] = cp.outputs[0].Batch().v * CeilDiv(cp.outputs[0].Y().v, dispatchData.cldnnStyle.blockHeight) * cp.outputs[0].Z().v;

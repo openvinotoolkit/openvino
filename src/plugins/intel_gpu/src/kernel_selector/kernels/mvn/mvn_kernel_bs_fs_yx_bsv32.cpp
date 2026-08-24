@@ -136,7 +136,7 @@ MVNKernel_bs_fs_yx_bsv32::MultiDispatchData MVNKernel_bs_fs_yx_bsv32::SetDefault
     auto max_slm = params.engineInfo.maxLocalMemSize;
     auto max_sgs = max_slm / slm_per_sg;
 
-    auto max_lws = std::min(max_wg, max_sgs * simd);
+    const size_t max_lws = static_cast<size_t>(std::min(max_wg, max_sgs * simd));
     auto lws = std::max(std::min(items_num, max_lws) / simd, (size_t)1) * simd;
 
     // TODO Check if larger number of work-groups does not provide benefit
