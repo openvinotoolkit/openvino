@@ -7,8 +7,9 @@
 #include <memory>
 #include <unordered_map>
 
+#include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
-#include "openvino/op/broadcast.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -16,6 +17,7 @@
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/less_eq.hpp"
 #include "openvino/op/logical_and.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/read_value.hpp"
@@ -29,6 +31,10 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace ov {
@@ -46,6 +52,83 @@ constexpr float NEG_INF = -65504.0f;
 std::shared_ptr<ov::op::v0::Constant> const_i64(const std::vector<int64_t>& values) {
     return ov::op::v0::Constant::create(ov::element::i64, ov::Shape{values.size()}, values);
 }
+
+// translate_get_rows's embedding-table lookup restores ggml's rank-4 form with a fixed
+// Unsqueeze(axis=0), pinning the residual stream's leading axis to a literal 1 regardless of
+// backend -- correct for SDPA, but wrong once SDPAToPagedAttention rewrites input_ids to rank-1
+// [tokens]: PagedAttentionExtension needs Q/K/V's leading axis to become the real token count, not
+// stay 1. That translator is shared with llama.cpp's own raw cgraph decoder (which never runs
+// SDPAToPagedAttention and must keep the old, literal-1 layout), so this fix is genai-side only:
+// move "embd"'s (the token embedding, root of the residual stream) restored axis from 0 to 1. Axis
+// 1, not 0, because attention's own "merge heads back" reshape (op_case 2 in reshape.cpp) already
+// puts a literal 1 there and infers axis 2 from whatever is left, so the two must agree on which
+// axis holds the placeholder for their sum (ffn_inp) to broadcast correctly; inserting at axis 1
+// also leaves the pre-PA layout numerically unchanged (indices' own leading axis is already 1
+// there), and still gives Q/K/V's leading axis room to become the real token count post-PA.
+class FixEmbdAxis : public ov::pass::MatcherPass {
+public:
+    FixEmbdAxis() {
+        auto is_embd = [](const ov::Output<ov::Node>& output) -> bool {
+            const auto& name = output.get_node()->get_friendly_name();
+            return name.size() > 5 && name.compare(name.size() - 5, 5, "_embd") == 0;
+        };
+        auto p_unsqueeze = ov::pass::pattern::wrap_type<ov::op::v0::Unsqueeze>(is_embd);
+
+        ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
+            auto unsqueeze = m.get_match_root();
+            auto res = unsqueeze->input_value(0);  // Gather's output, rank 3
+            auto fixed = make_shared<ov::op::v0::Unsqueeze>(res, const_i64({1}));
+            fixed->set_friendly_name(unsqueeze->get_friendly_name());
+            ov::copy_runtime_info(unsqueeze, fixed);
+            unsqueeze->output(0).replace(fixed->output(0));
+            return true;
+        };
+        register_matcher(std::make_shared<ov::pass::pattern::Matcher>(p_unsqueeze, "gguf::FixEmbdAxis"), callback);
+    }
+};
+
+// inp_out_ids row-selection (attn_out_g/inpSA_g/...) squeezes both leading axes down to a flat
+// [tokens, hidden] before gathering, assuming the residual stream's leading axis was always 1;
+// now that FixEmbdAxis makes it backend-dependent too, flatten activation and indices to canonical
+// [rows, hidden] / [rows, 1] first (Reshape never reorders memory) and gather with a plain
+// (non-batched) axis-0 Gather, which is correct either way. Must run before inp_out_ids's own
+// value gets replaced (see run_on_model), while it still structurally identifies this call site.
+class FixInpOutIdsRowSelect : public ov::pass::MatcherPass {
+public:
+    FixInpOutIdsRowSelect() {
+        using ov::pass::pattern::any_input;
+        using ov::pass::pattern::wrap_type;
+
+        auto p_inp_out_ids = wrap_type<ov::op::v0::Parameter>([](const ov::Output<ov::Node>& output) -> bool {
+            return output.get_names().count("inp_out_ids") != 0;
+        });
+        auto p_indices_squeeze = wrap_type<ov::op::v0::Squeeze>({p_inp_out_ids, any_input()});
+        auto p_data_squeeze = wrap_type<ov::op::v0::Squeeze>({any_input(), any_input()});
+        auto p_gather = wrap_type<ov::op::v8::Gather>({p_data_squeeze, p_indices_squeeze, any_input()});
+        auto p_unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({p_gather, any_input()});
+
+        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+            const auto& pm = m.get_pattern_value_map();
+            auto unsqueeze = m.get_match_root();
+            auto data_squeeze = pm.at(p_data_squeeze).get_node_shared_ptr();
+            auto indices_squeeze = pm.at(p_indices_squeeze).get_node_shared_ptr();
+
+            auto data = data_squeeze->input_value(0);  // the original, un-squeezed activation
+            const int64_t hidden = data.get_partial_shape()[3].get_length();
+            auto data_flat = make_shared<ov::op::v1::Reshape>(data, const_i64({-1, hidden}), false);
+            auto indices_flat =
+                make_shared<ov::op::v1::Reshape>(indices_squeeze->input_value(0), const_i64({-1, 1}), false);
+            auto fixed_res = make_shared<ov::op::v8::Gather>(data_flat, indices_flat, const_i64({0}));
+            auto fixed_unsqueeze = make_shared<ov::op::v0::Unsqueeze>(fixed_res, const_i64({0}));
+            fixed_unsqueeze->set_friendly_name(unsqueeze->get_friendly_name());
+            ov::copy_runtime_info(unsqueeze, fixed_unsqueeze);
+            unsqueeze->output(0).replace(fixed_unsqueeze->output(0));
+            return true;
+        };
+        register_matcher(std::make_shared<ov::pass::pattern::Matcher>(p_unsqueeze, "gguf::FixInpOutIdsRowSelect"),
+                         callback);
+    }
+};
 
 // Find a Parameter whose output tensor names (or friendly name) match `name`.
 std::shared_ptr<ov::op::v0::Parameter> find_param(const std::shared_ptr<ov::Model>& model, const std::string& name) {
@@ -101,6 +184,13 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         return false;
     }
 
+    // Must run before inp_out_ids's value is replaced below, while these patterns can still
+    // structurally identify "embd" and the inp_out_ids-rooted row-selection call sites.
+    ov::pass::Manager self_correcting_axis_manager;
+    self_correcting_axis_manager.register_pass<FixInpOutIdsRowSelect>();
+    self_correcting_axis_manager.register_pass<FixEmbdAxis>();
+    self_correcting_axis_manager.run_passes(model);
+
     // ---- new genai inputs: input_ids / attention_mask / position_ids [b, seq] i64 ----
     auto input_ids = make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
     name_output(input_ids, "input_ids");
@@ -142,10 +232,9 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
     // ACTIVATION-like inputs (inp_pos): consumed by make_sin_cos, which transposes {0,3,1,2} to put
     // the token axis at 1, yielding cos/sin [batch, tokens, 1, n_rot/2] that broadcast against the
-    // roped activation. inp_pos must inherit position_ids' own (backend-dependent) leading dim via
-    // special_zero, mirroring Q/K/V's self-correcting token axis (see translate_get_rows):
-    //   SDPA: position_ids [batch, seq], dim 0 is 1        -> inp_pos [1,1,1,tokens]
-    //   PA  : position_ids rewritten to [tokens, 1]        -> inp_pos [tokens,1,1,1]
+    // roped [batch, heads, tokens, head_size]. special_zero's 0 copies dim 0 and -1 absorbs the rest.
+    //   SDPA: [1,1,1,tokens] -> cos/sin [1,tokens,1,half]
+    //   PA  : [tokens,1,1,1] -> cos/sin [tokens,1,1,half], which broadcasts against [tokens,H,1,S]
     const auto shape_keep0_1_1_rest = const_i64({0, 1, 1, -1});
 
     auto tokens_i32 = make_shared<ov::op::v0::Convert>(input_ids, ov::element::i32);
@@ -230,14 +319,42 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     }
 
     // inp_out_ids selects which rows the output head runs on. Emit the LAST row only: genai reads
-    // just the final token's logits, avoiding an extra (tokens - 1) x hidden x vocab matmul per
-    // prefill. get_rows flattens the activation and this index to canonical [rows, hidden] /
-    // [rows] shapes first (see translate_get_rows), so "seq_len - 1" is the last row's index under
-    // both backends -- no per-backend branching needed.
+    // just the final token's logits, so projecting every prompt position to vocab costs an extra
+    // (tokens - 1) x hidden x vocab matmul per prefill.
+    //
+    // FixInpOutIdsRowSelect (above) already rewrote get_rows' original per-batch-row Gather into a
+    // flat, global one over [batch*seq, hidden], so the index this parameter carries must be a
+    // GLOBAL row index too: batch_index * seq_dim + (seq_dim - 1). Default ids_shape is [1, tokens]
+    // (batch_dim=1), giving the single global index tokens - 1. Under SDPAToPagedAttention it is
+    // [tokens, 1] (batch_dim=tokens, seq_dim=1), giving indices [0, 1, .., tokens - 1] -- the
+    // identity that layout needs, since it already carries one token per row.
     if (auto inp_out_ids = find_param(model, "inp_out_ids")) {
-        auto last_index = make_shared<ov::op::v0::Convert>(make_shared<ov::op::v1::Subtract>(seq_len, const_i64({1})),
-                                                           ov::element::i32);  // [1]: seq_len - 1
-        auto out_ids = make_shared<ov::op::v1::Reshape>(last_index, const_i64({1, 1, 1, 1}), false);
+        auto batch_dim =
+            make_shared<ov::op::v8::Gather>(ids_shape, const_i64({0}), const_i64({0}));             // [1]: ids_shape[0]
+        auto seq_dim = make_shared<ov::op::v8::Gather>(ids_shape, const_i64({1}), const_i64({0}));  // [1]: ids_shape[1]
+        auto seq_dim_i32 = make_shared<ov::op::v0::Convert>(seq_dim, ov::element::i32);
+        auto last_index = make_shared<ov::op::v1::Subtract>(
+            seq_dim_i32,
+            ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1}));  // [1]: seq_dim - 1
+        auto batch_dim_scalar =
+            make_shared<ov::op::v0::Squeeze>(make_shared<ov::op::v0::Convert>(batch_dim, ov::element::i32),
+                                             const_i64({0}));
+        auto zero_i32 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
+        auto one_i32 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {1});
+        auto row_ids = make_shared<ov::op::v4::Range>(zero_i32,
+                                                      batch_dim_scalar,
+                                                      one_i32,
+                                                      ov::element::i32);  // [batch_dim]: 0 .. batch_dim - 1
+        auto global_index = make_shared<ov::op::v1::Add>(make_shared<ov::op::v1::Multiply>(row_ids, seq_dim_i32),
+                                                         last_index);  // [batch_dim]
+        auto out_grid = make_shared<ov::op::v1::Reshape>(
+            global_index,
+            make_shared<ov::op::v0::Concat>(ov::OutputVector{batch_dim, const_i64({1})}, 0),
+            false);  // [batch, 1]
+        auto out_ids = make_shared<ov::op::v1::Reshape>(
+            out_grid,
+            make_shared<ov::op::v0::Concat>(ov::OutputVector{const_i64({1, 1}), batch_dim, const_i64({1})}, 0),
+            false);
         inp_out_ids->output(0).replace(out_ids->output(0));
     }
 
