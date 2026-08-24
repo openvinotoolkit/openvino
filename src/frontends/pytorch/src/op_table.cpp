@@ -793,7 +793,6 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::triu", op::translate_triu},
         {"aten::type_as", op::translate_type_as},
         {"aten::unbind", op::translate_unbind},
-        {"aten::unbind.int", op::translate_unbind},
         {"aten::unflatten", op::translate_unflatten},
         {"aten::unfold", op::translate_unfold},
         {"aten::unsafe_chunk", op::translate_chunk},
