@@ -44,9 +44,7 @@ jobs:
   LLM_Accuracy_Tests:
     name: LLM accuracy ${{ inputs.device }} tests
     timeout-minutes: ${{ inputs.timeout-minutes }}
-    runs-on:
-      group: ${{ inputs.runner-group }}
-      labels: ${{ fromJSON(inputs.runner) }}
+    runs-on: ${{ fromJSON(inputs.runner) }}
     container:
       image: ${{ inputs.image }}
       volumes:
