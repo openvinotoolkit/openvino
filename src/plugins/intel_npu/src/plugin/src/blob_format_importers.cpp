@@ -29,12 +29,7 @@ ov::Tensor allocate_aligned_tensor(size_t blobSize) {
     return ov::Tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
 }
 
-constexpr std::string_view HANDLER_FACTORY_LOGGER_NAME = "blob_format_importer_factory";
-constexpr std::string_view RAW_BLOB_HANDLER_LOGGER_NAME = "RawBlobImporter";
-constexpr std::string_view BLOB_V1_HANDLER_LOGGER_NAME = "BlobFormatV1Importer";
-
 constexpr std::string_view BLOB_COMPATIBILITY_SKIPPED_MESSAGE = "Blob compatibility check skipped.";
-constexpr std::string_view MISSING_METADATA_MESSAGE = "The blob is missing the NPU metadata!";
 constexpr std::string_view EMPTY_BLOB_MESSAGE = "The blob provided for import is empty";
 constexpr std::string_view BLOB_SIZE_SMALLER_THAN_MAGIC =
     "Received a blob for import that is not a raw one and its size is smaller than the size of the magic bytes";
@@ -179,9 +174,7 @@ public:
     explicit RawBlobImporter(BlobSource& compiler_main_schedule,
                              const std::shared_ptr<const ov::Model>& original_model,
                              const FilteredConfig& config)
-        : IBlobFormatImporter(original_model,
-                              config,
-                              Logger(RAW_BLOB_HANDLER_LOGGER_NAME.data(), config.get<LOG_LEVEL>())) {
+        : IBlobFormatImporter(original_model, config, Logger("RawBlobImporter", config.get<LOG_LEVEL>())) {
         const size_t blob_size = compiler_main_schedule.get_remaining_size();
         OPENVINO_ASSERT(blob_size > 0, EMPTY_BLOB_MESSAGE);
 
@@ -270,9 +263,141 @@ public:
     explicit BlobFormatV1Importer(BlobSource& npu_formatted_blob,
                                   const std::shared_ptr<const ov::Model>& original_model,
                                   const FilteredConfig& config)
-        : IBlobFormatImporter(original_model,
-                              config,
-                              Logger(BLOB_V1_HANDLER_LOGGER_NAME.data(), config.get<LOG_LEVEL>())) {
+        : IBlobFormatImporter(original_model, config, Logger("BlobFormatV1Importer", config.get<LOG_LEVEL>())) {
+        // Read only the metadata from the source and check if the blob is compatible. Load the blob into memory only if
+        // it passes the compatibility checks.
+        m_metadata = read_metadata_from(npu_formatted_blob);
+
+        const size_t compiler_payload_size = m_metadata->get_compiler_payload_size();
+        OPENVINO_ASSERT(compiler_payload_size > 0, EMPTY_COMPILER_PAYLOAD_MESSAGE);
+
+        if (!npu_formatted_blob.is_contiguous()) {
+            m_compiler_payload = allocate_aligned_tensor(compiler_payload_size);
+            npu_formatted_blob.read_into_buffer(m_compiler_payload.data(), compiler_payload_size);
+
+            m_logger.info(NEW_PAGE_ALIGNED_BUFFER_MESSAGE.data());
+        } else {
+            // ROI tensor to skip the NPU plugin metadata
+            m_compiler_payload = npu_formatted_blob.create_roi_tensor(compiler_payload_size);
+        }
+
+        register_compiler_version();
+    }
+
+private:
+    /**
+     * @brief Decrypts the whole compiler payload (main schedule + init schedules if applicable) if:
+     *   1. A decryption callback was provided and
+     *   2. The metadata indicates the blob was encrypted.
+     * @throws ov::AssertFailure if the blob was encrypted but no decryption callback was provided.
+     */
+    void decrypt_schedules() override {
+        const bool is_payload_encrypted = m_metadata->is_encrypted_blob().value_or(false);
+        const bool is_null_decryption = !(m_config.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
+                                          m_config.get<CACHE_ENCRYPTION_CALLBACKS>().decrypt != nullptr);
+        if (!is_payload_encrypted) {
+            m_logger.debug("The compiler payload is NOT encrypted");
+            return;
+        }
+        OPENVINO_ASSERT(!is_null_decryption, "Blob is encrypted, but no decryption callback was provided!");
+
+        m_logger.debug(DECRYPTING_PAYLOAD_MESSAGE.data());
+        decrypt_payload(m_compiler_payload, m_config.get<CACHE_ENCRYPTION_CALLBACKS>(), m_logger);
+    }
+
+    ov::Tensor extract_main_schedule() const override {
+        const uint64_t main_size = m_metadata->get_main_schedule_size();
+
+        return ov::Tensor(m_compiler_payload, ov::Coordinate{0}, ov::Coordinate{main_size});
+    }
+
+    std::optional<std::vector<ov::Tensor>> extract_init_schedules() const override {
+        const std::optional<std::vector<uint64_t>> init_sizes = m_metadata->get_init_sizes();
+        if (!init_sizes.has_value()) {
+            return std::nullopt;
+        }
+
+        std::vector<ov::Tensor> init_schedules;
+        size_t cursor_position = m_metadata->get_main_schedule_size();
+
+        m_logger.debug("Extracting %zu init schedules", init_sizes->size());
+
+        for (const uint64_t init_size : init_sizes.value()) {
+            m_logger.debug("Init size: %llu", init_size);
+
+            init_schedules.push_back(ov::Tensor(m_compiler_payload,
+                                                ov::Coordinate{cursor_position},
+                                                ov::Coordinate{cursor_position + init_size}));
+            cursor_position += init_size;
+        }
+
+        return init_schedules;
+    }
+
+    std::optional<int> extract_batch_size() const override {
+        const std::optional<int64_t> batch_size = m_metadata->get_batch_size();
+        if (batch_size.has_value()) {
+            m_logger.debug("Extracted batch size: %d", batch_size.value());
+            return std::make_optional<int>(static_cast<int>(batch_size.value()));
+        }
+        return std::nullopt;
+    }
+
+    std::optional<std::pair<std::vector<ov::Layout>, std::vector<ov::Layout>>> extract_layouts() const override {
+        std::optional<std::vector<ov::Layout>> input_layouts = m_metadata->get_input_layouts();
+        if (!input_layouts.has_value()) {
+            return std::nullopt;
+        }
+        std::optional<std::vector<ov::Layout>> output_layouts = m_metadata->get_output_layouts();
+        OPENVINO_ASSERT(output_layouts.has_value(),
+                        "The metadata version received at import supports input layouts, but it doesn't support output "
+                        "layouts. Either both or none should be supported");
+
+        return std::make_pair<>(input_layouts.value(), output_layouts.value());
+    }
+
+    std::optional<std::string> extract_compiler_compatibility_descriptor() const override {
+        const std::optional<std::string_view> compatibility_descriptor = m_metadata->get_compatibility_descriptor();
+        // Convert the descriptor to an owning string before the metadata is potentially destroyed
+        return compatibility_descriptor.has_value()
+                   ? std::make_optional<>(std::string(compatibility_descriptor.value()))
+                   : std::nullopt;
+    }
+
+    std::optional<BlobType> extract_blob_type() const override {
+        return m_metadata->get_blob_type();
+    }
+
+    /**
+     * @brief Registers the compiler version inside the configuration attribute if the version is found within the
+     * metadata.
+     */
+    void register_compiler_version() {
+        std::optional<uint32_t> compiler_version = m_metadata->get_compiler_version();
+        if (compiler_version.has_value()) {
+            m_config.update({{ov::intel_npu::compiler_version.name(), std::to_string(compiler_version.value())}});
+            m_logger.debug("Imported model was compiled with compiler version: %u.%u",
+                           ONEAPI_VERSION_MAJOR(compiler_version.value()),
+                           ONEAPI_VERSION_MINOR(compiler_version.value()));
+        }
+    }
+
+    /**
+     * @brief The whole compiler payload. Init schedules include if weights separation was used.
+     */
+    ov::Tensor m_compiler_payload;
+    std::unique_ptr<MetadataBase> m_metadata;
+};
+
+/**
+ * @brief Class used to import a blob that follows the "V2" format: header + sections + manifest (HSM)
+ */
+class BlobFormatV2Importer : public IBlobFormatImporter {
+public:
+    explicit BlobFormatV2Importer(BlobSource& npu_formatted_blob,
+                                  const std::shared_ptr<const ov::Model>& original_model,
+                                  const FilteredConfig& config)
+        : IBlobFormatImporter(original_model, config, Logger("BlobFormatV2Importer", config.get<LOG_LEVEL>())) {
         // Read only the metadata from the source and check if the blob is compatible. Load the blob into memory only if
         // it passes the compatibility checks.
         m_metadata = read_metadata_from(npu_formatted_blob);
@@ -491,7 +616,7 @@ std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
     const size_t input_size = npu_formatted_blob.get_remaining_size();
     OPENVINO_ASSERT(input_size > 0, EMPTY_BLOB_MESSAGE);
 
-    const Logger logger(HANDLER_FACTORY_LOGGER_NAME.data(), config.get<LOG_LEVEL>());
+    const Logger logger("blob_format_importer_factory", config.get<LOG_LEVEL>());
     if (is_raw_blob) {
         logger.info(BLOB_COMPATIBILITY_SKIPPED_MESSAGE.data());
 
@@ -499,17 +624,27 @@ std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
         return std::make_unique<RawBlobImporter>(npu_formatted_blob, original_model, config);
     }
 
-    // The V1 format is identified by some magic bytes at the end of the input
+    // The V2 format is identified by some magic bytes at the beginning of the input
     OPENVINO_ASSERT(input_size >= MAGIC_BYTES.size(), BLOB_SIZE_SMALLER_THAN_MAGIC);
-
-    const size_t compiler_payload_beginning = npu_formatted_blob.tellg();
-    npu_formatted_blob.seekg(-static_cast<int>(MAGIC_BYTES.size()), std::ios::end);
+    const size_t npu_region_start = npu_formatted_blob.tellg();
 
     std::string blob_magic_bytes(MAGIC_BYTES.size(), 0);
     npu_formatted_blob.read_into_buffer(blob_magic_bytes.data(), MAGIC_BYTES.size());
 
-    OPENVINO_ASSERT(MAGIC_BYTES == blob_magic_bytes, MISSING_METADATA_MESSAGE);
-    npu_formatted_blob.seekg(compiler_payload_beginning, std::ios::beg);
+    if (MAGIC_BYTES == blob_magic_bytes) {
+        npu_formatted_blob.seekg(npu_region_start, std::ios::beg);
+
+        logger.debug("Creating a blob format v2 import handler using the factory");
+        return std::make_unique<BlobFormatV2Importer>(npu_formatted_blob, original_model, config);
+    }
+
+    // The V1 format is identified by some magic bytes at the end of the input
+    npu_formatted_blob.seekg(-static_cast<int>(MAGIC_BYTES.size()), std::ios::end);
+
+    npu_formatted_blob.read_into_buffer(blob_magic_bytes.data(), MAGIC_BYTES.size());
+    OPENVINO_ASSERT(MAGIC_BYTES == blob_magic_bytes, "Invalid blob format");
+
+    npu_formatted_blob.seekg(npu_region_start, std::ios::beg);
 
     logger.debug("Creating a blob format v1 import handler using the factory");
     return std::make_unique<BlobFormatV1Importer>(npu_formatted_blob, original_model, config);
