@@ -75,6 +75,10 @@ namespace ov {
 namespace test {
 namespace utils {
 
+std::shared_ptr<ov::op::v0::Parameter> create_param(ov::element::Type et,
+                                                    const ov::PartialShape& shape,
+                                                    const std::string& name = "");
+
 ov::TensorVector infer_on_template(const std::shared_ptr<ov::Model>& model, const ov::TensorVector& input_tensors);
 
 ov::TensorVector infer_on_template(const std::shared_ptr<ov::Model>& model,
