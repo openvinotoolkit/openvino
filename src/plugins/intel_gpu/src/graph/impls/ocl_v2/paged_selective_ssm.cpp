@@ -27,8 +27,8 @@ constexpr size_t max_jit_state_size = 512;
 constexpr size_t max_xe2_extended_private_state_size = 256;
 constexpr size_t max_xe2_f16_private_state_size = 512;
 
-bool has_supported_padding(const cldnn::layout& layout) {
-    return layout.get_partial_shape().is_dynamic() || layout.data_padding == cldnn::padding();
+bool has_supported_indexing(const cldnn::layout& layout) {
+    return layout.get_partial_shape().is_dynamic() || (layout.data_padding == cldnn::padding() && layout.count() <= std::numeric_limits<uint32_t>::max());
 }
 
 bool has_static_rank(const ov::PartialShape& shape, const size_t rank) {
@@ -340,10 +340,10 @@ bool validate_paged_selective_ssm_jit(const program_node& node, const selective_
         return false;
 
     for (size_t i = 0; i < node.get_dependencies().size(); i++) {
-        if (!has_supported_padding(node.get_input_layout(i)))
+        if (!has_supported_indexing(node.get_input_layout(i)))
             return false;
     }
-    if (!has_supported_padding(node.get_output_layout(0)))
+    if (!has_supported_indexing(node.get_output_layout(0)))
         return false;
 
     const auto& A_shape = node.get_input_layout(0).get_partial_shape();
