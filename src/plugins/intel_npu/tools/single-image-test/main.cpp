@@ -2394,7 +2394,7 @@ static ov::Shape parseDataShape(const std::string& dataShapeStr) {
     return ov::Shape(dataShape);
 }
 
-std::string getRefBlobFilePath(const std::string& netFileName, const std::vector<std::string>& refFiles,
+std::string getRefBlobFilePath(const std::string& blobNamePrefix, const std::vector<std::string>& refFiles,
                                size_t numberOfTestCase, size_t outputInd) {
     std::string blobFileFullPath;
     if (!refFiles.empty() && !FLAGS_ref_dir.empty()) {
@@ -2408,7 +2408,7 @@ std::string getRefBlobFilePath(const std::string& netFileName, const std::vector
     } else {
         // Case 3: Reference directory provided only
         std::ostringstream ostr;
-        ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
+        ostr << blobNamePrefix << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
         const auto blobFileName = ostr.str();
 
         std::filesystem::path fullPath = FLAGS_ref_dir;
@@ -2723,6 +2723,9 @@ static int runSingleImageTest() {
             netFileName = cleanName(FLAGS_network.substr(startPos, endPos - startPos));
         }
 
+        const std::string blobNamePrefix =
+                FLAGS_blob_name_prefix.empty() ? netFileName : cleanName(FLAGS_blob_name_prefix);
+
         for (size_t numberOfTestCase = 0; numberOfTestCase < inputFilesPerCase.size(); ++numberOfTestCase) {
             const auto inputsInfo = compiledModel.inputs();
             const auto outputsInfo = compiledModel.outputs();
@@ -2778,7 +2781,7 @@ static int runSingleImageTest() {
                                 : loadInput(precision, dataShape, inputLayout, inputFiles[inputInd], FLAGS_color_format,
                                             inputBinPrecisionForOneInfer[numberOfTestCase][inputInd]);
                 std::ostringstream ostr;
-                ostr << netFileName << "_input_" << inputInd << "_case_" << numberOfTestCase << ".blob";
+                ostr << blobNamePrefix << "_input_" << inputInd << "_case_" << numberOfTestCase << ".blob";
                 const auto blobFileName = ostr.str();
 
                 std::cout << "Dump input #" << inputInd << "_case_" << numberOfTestCase << " to " << blobFileName
@@ -2815,7 +2818,7 @@ static int runSingleImageTest() {
                     const ov::Shape& shape = tensor.get_shape();
 
                     std::string blobFileFullPath =
-                        getRefBlobFilePath(netFileName, refFiles, numberOfTestCase, outputInd);
+                        getRefBlobFilePath(blobNamePrefix, refFiles, numberOfTestCase, outputInd);
 
                     std::cout << "Load reference output #" << outputInd << " from " << blobFileFullPath << " as "
                               << precision << std::endl;
@@ -2836,7 +2839,7 @@ static int runSingleImageTest() {
                 for (const auto& out : compiledModel.outputs()) {
                     const auto& tensor = outputTensors.at(out.get_any_name());
                     std::ostringstream ostr;
-                    ostr << netFileName << "_kmb_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
+                    ostr << blobNamePrefix << "_kmb_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
                     const auto blobFileName = ostr.str();
 
                     std::cout << "Dump device output #" << outputInd << "_case_" << numberOfTestCase << " to "
@@ -2970,7 +2973,7 @@ static int runSingleImageTest() {
                 for (const auto& out : compiledModel.outputs()) {
                     const auto& tensor = outputTensors.at(out.get_any_name());
                     std::ostringstream ostr;
-                    ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
+                    ostr << blobNamePrefix << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
                     const auto blobFileName = ostr.str();
 
                     std::cout << "Dump reference output #" << outputInd << " to " << blobFileName << std::endl;
