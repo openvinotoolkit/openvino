@@ -65,10 +65,8 @@ OutputVector translate_flatten(const NodeContext& context) {
                 return {context.mark_node(std::make_shared<v1::Reshape>(x, neg1, false))};
             }
             // Normalise negative values.
-            if (start_dim < 0)
-                start_dim += rank;
-            if (end_dim < 0)
-                end_dim += rank;
+            start_dim = ov::util::normalize(start_dim, rank);
+            end_dim = ov::util::normalize(end_dim, rank);
             PYTORCH_OP_CONVERSION_CHECK(
                 start_dim >= 0 && start_dim < rank && end_dim >= 0 && end_dim < rank && start_dim <= end_dim,
                 "aten::flatten: start_dim and end_dim are out of the valid range for the input rank.");
