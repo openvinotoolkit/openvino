@@ -3,14 +3,9 @@ on:
   workflow_call:
     inputs:
       runner:
-        description: 'Machine on which the tests would run'
+        description: 'Runner on which to run the job. JSON string: either an array of labels (e.g. ''["aks-linux-4-cores-16gb"]'') or an object with group and labels (e.g. ''{"group": "Intel-GPU", "labels": ["self-hosted", "igpu", "Linux"]}'')'
         type: string
         required: true
-      runner-group:
-        description: 'Runner group on which to run the job'
-        type: string
-        required: false
-        default: 'GitHub Actions'
       image:
         description: 'Docker image to use for the job'
         type: string
