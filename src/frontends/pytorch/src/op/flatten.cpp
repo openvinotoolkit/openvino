@@ -25,6 +25,11 @@ OutputVector translate_flatten(const NodeContext& context) {
     auto x = context.get_input(0);
     auto x_pshape = x.get_partial_shape();
 
+    auto zero = v0::Constant::create(element::i32, Shape{1}, {0});
+    auto one = v0::Constant::create(element::i32, Shape{1}, {1});
+    auto int_max = v0::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>::max()});
+    auto neg_1_const = v0::Constant::create(element::i32, Shape{1}, {-1});
+
     // Fast-path: when the input rank is statically known and the start/end
     // dimension arguments are compile-time constants we can build the reshape
     // target shape with constant Slice indices.  This guarantees that the
@@ -61,7 +66,7 @@ OutputVector translate_flatten(const NodeContext& context) {
         if (start_known && end_known) {
             // A scalar (rank-0) input is always flattened to a 1-D tensor.
             if (rank == 0) {
-                auto neg1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
+                auto neg1 = context.mark_node(neg_1_const);
                 return {context.mark_node(std::make_shared<v1::Reshape>(x, neg1, false))};
             }
             // Normalise negative values.
@@ -75,14 +80,14 @@ OutputVector translate_flatten(const NodeContext& context) {
             // that the Concat output has a statically known length (and therefore
             // the Reshape output has a statically known rank).
             auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(x, element::i32));
-            auto step1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
-            auto neg1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
+            auto step1 = context.mark_node(one);
+            auto neg1 = context.mark_node(neg_1_const);
 
             OutputVector parts;
 
             // Dimensions before start_dim (unchanged).
             if (start_dim > 0) {
-                auto s = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
+                auto s = context.mark_node(zero);
                 auto e = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {start_dim}));
                 parts.push_back(context.mark_node(std::make_shared<v8::Slice>(shape, s, e, step1)));
             }
@@ -129,12 +134,8 @@ OutputVector translate_flatten(const NodeContext& context) {
     end_dim_node = normalize_axis(context, end_dim_node, rank);
     // Slice shape from begin and end, then concat with -1, if slice return empty tensor concat should still be able to
     // work with it
-    auto zero = v0::Constant::create(element::i32, Shape{1}, {0});
-    auto one = v0::Constant::create(element::i32, Shape{1}, {1});
-    auto int_max = v0::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>::max()});
     auto start_dim_u = std::make_shared<v0::Unsqueeze>(start_dim_node, zero);
     auto slice_begin = std::make_shared<v8::Slice>(shape, zero, start_dim_u, one);
-    auto neg_1_const = v0::Constant::create(element::i32, Shape{1}, {-1});
     auto end_dim_u = std::make_shared<v0::Unsqueeze>(end_dim_node, zero);
     auto end_dim_next = std::make_shared<v1::Add>(end_dim_u, one);
     auto slice_end = std::make_shared<v8::Slice>(shape, end_dim_next, int_max, one);
