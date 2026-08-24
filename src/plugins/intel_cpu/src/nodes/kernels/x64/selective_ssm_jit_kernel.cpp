@@ -224,9 +224,9 @@ void jit_selective_ssm_kernel<isa>::store_avx2_bf16_full_vector(const Vmm& sourc
         const Xbyak::Ymm rounded(vmm_reduce_tmp0.getIdx());
         const Xbyak::Ymm rounding_bit(source.getIdx());
         uni_vmovups(rounded, source);
-        uni_vpslld(rounding_bit, rounding_bit, 15);
-        uni_vpsrld(rounding_bit, rounding_bit, 31);
-        uni_vpslld(rounding_bit, rounding_bit, 15);
+        // Compute ((bits >> 16) & 1) << 15. The word shift discards every bit except the retained BF16 LSB.
+        uni_vpsrld(rounding_bit, rounding_bit, 16);
+        vpsllw(rounding_bit, rounding_bit, 15);
         uni_vpaddd(rounded, rounded, rounding_bit);
         uni_vpsrld(rounded, rounded, 16);
 
