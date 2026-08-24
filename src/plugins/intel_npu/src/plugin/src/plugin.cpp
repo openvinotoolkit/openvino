@@ -20,7 +20,6 @@
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/itt.hpp"
-#include "intel_npu/common/supported_section_type_evaluator.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
@@ -137,22 +136,6 @@ std::shared_ptr<const ov::Model> get_model_ptr_from_map(const ov::AnyMap& proper
     }
 
     return nullptr;
-}
-
-/**
- * @brief Registers all blob sections readers known to the plugin.
- * @note The CRE & OffsetsTable sections should have been already registered (e.g. in the BlobReader ctor) since
- * these sections are a core part of the format.
- */
-void register_known_sections(const std::shared_ptr<BlobReader>& blobReader) {
-    blobReader->register_reader(PredefinedSectionType::ELF_MAIN_SCHEDULE, ELFMainScheduleSection::read);
-    blobReader->register_reader(PredefinedSectionType::ELF_INIT_SCHEDULES, ELFInitSchedulesSection::read);
-    blobReader->register_reader(PredefinedSectionType::BATCH_SIZE, BatchSizeSection::read);
-    blobReader->register_reader(PredefinedSectionType::IO_LAYOUTS, IOLayoutsSection::read);
-
-    for (const SectionType type : DEFAULT_SUPPORTED_SECTION_TYPES) {
-        blobReader->register_section_type_evaluator(std::make_shared<SupportedSectionTypeEvaluator>(type));
-    }
 }
 
 void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredConfig& config) {

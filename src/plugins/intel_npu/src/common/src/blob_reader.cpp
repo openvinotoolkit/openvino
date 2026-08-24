@@ -50,7 +50,7 @@ void BlobReader::register_section_type_instance_evaluate_fn(const SectionType ty
     m_logger.debug("Registered a section type instance evaluation function for section type %lu", type);
 }
 
-std::shared_ptr<ISection> BlobReader::retrieve_section(const SectionID& id) {
+std::shared_ptr<ISection> BlobReader::retrieve_section(const SectionID& id) const {
     auto type_search_result = m_parsed_sections.find(id.type);
     if (type_search_result != m_parsed_sections.end()) {
         auto instance_search_result = type_search_result->second.find(id.type_instance);
@@ -61,12 +61,12 @@ std::shared_ptr<ISection> BlobReader::retrieve_section(const SectionID& id) {
     return nullptr;
 }
 
-std::shared_ptr<ISection> BlobReader::retrieve_first_section(const SectionType section_type) {
+std::shared_ptr<ISection> BlobReader::retrieve_first_section(const SectionType section_type) const {
     return retrieve_section(SectionID(section_type, FIRST_INSTANCE_ID));
 }
 
 std::optional<std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>
-BlobReader::retrieve_sections_same_type(const SectionType type) {
+BlobReader::retrieve_sections_same_type(const SectionType type) const {
     auto type_search_result = m_parsed_sections.find(type);
     if (type_search_result != m_parsed_sections.end()) {
         return type_search_result->second;
@@ -75,7 +75,7 @@ BlobReader::retrieve_sections_same_type(const SectionType type) {
 }
 
 std::unordered_map<SectionID, SectionInstanceEvaluator> BlobReader::build_section_type_instance_evaluators(
-    const ov::Tensor& source,
+    BlobSource& source,
     const OffsetsTable& offsets_table,
     const size_t npu_region_size) const {
     std::unordered_map<SectionID, SectionInstanceEvaluator> instance_evaluators;
@@ -101,7 +101,7 @@ std::unordered_map<SectionID, SectionInstanceEvaluator> BlobReader::build_sectio
 }
 
 void BlobReader::parse_section(const SectionID section_id,
-                               const ov::Tensor& source,
+                               BlobSource& source,
                                size_t cursor,
                                const size_t section_length,
                                const size_t npu_region_size,
@@ -115,7 +115,7 @@ void BlobReader::parse_section(const SectionID section_id,
     }
 }
 
-void BlobReader::read(const ov::Tensor& source) {
+void BlobReader::read(BlobSource& source) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BlobReader::read");
     m_logger.debug("Starting to parse a blob");
 
@@ -312,11 +312,11 @@ void BlobReader::read(const ov::Tensor& source) {
         offsets_table.get_number_of_entries());
 }
 
-size_t BlobReader::get_npu_region_size(std::istream& stream) {
-    const auto cursor_before_reading = stream.tellg();
-
+size_t BlobReader::get_npu_region_size(BlobSource& npu_formatted_blob) {
+    const size_t cursor_before_reading = npu_formatted_blob.tellg();
+    // TODO check size before reading
     std::string magic_bytes(MAGIC_BYTES.size(), 0);
-    stream.read(const_cast<char*>(magic_bytes.c_str()), MAGIC_BYTES.size());
+    npu_formatted_blob.read_into_buffer(const_cast<char*>(magic_bytes.c_str()), MAGIC_BYTES.size());
     OPENVINO_ASSERT(magic_bytes == MAGIC_BYTES,
                     "Invalid magic bytes. Found: ",
                     magic_bytes,
@@ -324,7 +324,7 @@ size_t BlobReader::get_npu_region_size(std::istream& stream) {
                     MAGIC_BYTES);
 
     uint32_t format_version;
-    stream.read(reinterpret_cast<char*>(&format_version), sizeof(format_version));
+    npu_formatted_blob.read_into_buffer(reinterpret_cast<char*>(&format_version), sizeof(format_version));
     OPENVINO_ASSERT(format_version == FORMAT_VERSION,
                     "Invalid blob format version. Found: ",
                     format_version,
@@ -332,35 +332,8 @@ size_t BlobReader::get_npu_region_size(std::istream& stream) {
                     FORMAT_VERSION);
 
     uint64_t npu_region_size;
-    stream.read(reinterpret_cast<char*>(&npu_region_size), sizeof(npu_region_size));
-    stream.seekg(cursor_before_reading);
-
-    return npu_region_size;
-}
-
-size_t BlobReader::get_npu_region_size(const ov::Tensor& tensor) {
-    std::string magic_bytes(MAGIC_BYTES.size(), 0);
-    std::memcpy(const_cast<char*>(magic_bytes.c_str()), tensor.data<const char>(), MAGIC_BYTES.size());
-    OPENVINO_ASSERT(magic_bytes == MAGIC_BYTES,
-                    "Invalid magic bytes. Found: ",
-                    magic_bytes,
-                    ". Expected: ",
-                    MAGIC_BYTES);
-
-    uint32_t format_version;
-    std::memcpy(reinterpret_cast<char*>(&format_version),
-                tensor.data<const char>() + MAGIC_BYTES.size(),
-                sizeof(format_version));
-    OPENVINO_ASSERT(format_version == FORMAT_VERSION,
-                    "Invalid blob format version. Found: ",
-                    format_version,
-                    ". Expected: ",
-                    FORMAT_VERSION);
-
-    uint64_t npu_region_size;
-    std::memcpy(reinterpret_cast<char*>(&npu_region_size),
-                tensor.data<const char>() + MAGIC_BYTES.size() + sizeof(FORMAT_VERSION),
-                sizeof(npu_region_size));
+    npu_formatted_blob.read_into_buffer(reinterpret_cast<char*>(&npu_region_size), sizeof(npu_region_size));
+    npu_formatted_blob.seekg(cursor_before_reading);
 
     return npu_region_size;
 }

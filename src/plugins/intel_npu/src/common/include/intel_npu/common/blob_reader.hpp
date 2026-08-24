@@ -10,6 +10,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "blob_source.hpp"
 #include "cre.hpp"
 #include "intel_npu/common/blob_reader_interface.hpp"
 #include "intel_npu/common/isection_type_evaluator.hpp"
@@ -44,7 +45,7 @@ public:
     /**
      * @brief Parses the given compiled model using all section readers registered so far.
      */
-    void read(const ov::Tensor& source);
+    void read(BlobSource& source);
 
     /**
      * @brief Register a new section reader for the given section type.
@@ -60,7 +61,7 @@ public:
      * @brief Retrieve a parsed section.
      * @note This should be called only after "read" was invoked.
      */
-    std::shared_ptr<ISection> retrieve_section(const SectionID& id);
+    std::shared_ptr<ISection> retrieve_section(const SectionID& id) const;
 
     /**
      * @brief Retrieve the first parsed section of the given type.
@@ -68,26 +69,20 @@ public:
      * @note This function exists only for convenience. Most section types will typically have a single instance inside
      * a compiled model.
      */
-    std::shared_ptr<ISection> retrieve_first_section(const SectionType section_type);
+    std::shared_ptr<ISection> retrieve_first_section(const SectionType section_type) const;
 
     /**
      * @brief Retrieves all parsed sections of the given type.
      * @note This should be called only after "read" was invoked.
      */
     std::optional<std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>> retrieve_sections_same_type(
-        const SectionType type);
+        const SectionType type) const;
 
     /**
-     * @brief Extracts the size of the NPU blob region from the given stream.
+     * @brief Extracts the size of the NPU blob region from the given blob source.
      * @details This number is a field found at the beginning of the NPU blob region.
      */
-    static size_t get_npu_region_size(std::istream& stream);
-
-    /**
-     * @brief Extracts the size of the NPU blob region from the given tensor.
-     * @details This number is a field found at the beginning of the NPU blob region.
-     */
-    static size_t get_npu_region_size(const ov::Tensor& tensor);
+    static size_t get_npu_region_size(BlobSource& npu_formatted_blob);
 
 private:
     friend class BlobWriter;
@@ -99,12 +94,12 @@ private:
      * evaluation.
      */
     std::unordered_map<SectionID, SectionInstanceEvaluator> build_section_type_instance_evaluators(
-        const ov::Tensor& source,
+        BlobSource& source,
         const OffsetsTable& offsets_table,
         const size_t npu_region_size) const;
 
     void parse_section(const SectionID section_id,
-                       const ov::Tensor& source,
+                       BlobSource& source,
                        size_t cursor,
                        const size_t section_length,
                        const size_t npu_region_size,

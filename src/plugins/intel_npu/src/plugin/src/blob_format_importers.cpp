@@ -4,11 +4,18 @@
 
 #include "blob_format_importers.hpp"
 
+#include "batch_size_section.hpp"
+#include "compiler_schedules_sections.hpp"
+#include "intel_npu/common/blob_reader.hpp"
+#include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
+#include "intel_npu/common/isection.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/common/parser_factory.hpp"
+#include "intel_npu/common/supported_section_type_evaluator.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "io_layouts_section.hpp"
 #include "metadata.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/constant.hpp"
@@ -398,27 +405,31 @@ public:
                                   const std::shared_ptr<const ov::Model>& original_model,
                                   const FilteredConfig& config)
         : IBlobFormatImporter(original_model, config, Logger("BlobFormatV2Importer", config.get<LOG_LEVEL>())) {
-        // Read only the metadata from the source and check if the blob is compatible. Load the blob into memory only if
-        // it passes the compatibility checks.
-        m_metadata = read_metadata_from(npu_formatted_blob);
+        size_t blobSize = BlobReader::get_npu_region_size(npu_formatted_blob);
 
-        const size_t compiler_payload_size = m_metadata->get_compiler_payload_size();
-        OPENVINO_ASSERT(compiler_payload_size > 0, EMPTY_COMPILER_PAYLOAD_MESSAGE);
+        auto blobReader = std::make_shared<BlobReader>(m_logger.level());
+        register_known_sections();
 
-        if (!npu_formatted_blob.is_contiguous()) {
-            m_compiler_payload = allocate_aligned_tensor(compiler_payload_size);
-            npu_formatted_blob.read_into_buffer(m_compiler_payload.data(), compiler_payload_size);
-
-            m_logger.info(NEW_PAGE_ALIGNED_BUFFER_MESSAGE.data());
-        } else {
-            // ROI tensor to skip the NPU plugin metadata
-            m_compiler_payload = npu_formatted_blob.create_roi_tensor(compiler_payload_size);
-        }
-
-        register_compiler_version();
+        blobReader->read(npu_formatted_blob);
     }
 
 private:
+    /**
+     * @brief Registers all blob sections readers known to the plugin.
+     * @note The CRE & OffsetsTable sections should have been already registered (e.g. in the BlobReader ctor) since
+     * these sections are a core part of the format.
+     */
+    void register_known_sections() {
+        m_blob_reader.register_reader(PredefinedSectionType::ELF_MAIN_SCHEDULE, ELFMainScheduleSection::read);
+        m_blob_reader.register_reader(PredefinedSectionType::ELF_INIT_SCHEDULES, ELFInitSchedulesSection::read);
+        m_blob_reader.register_reader(PredefinedSectionType::BATCH_SIZE, BatchSizeSection::read);
+        m_blob_reader.register_reader(PredefinedSectionType::IO_LAYOUTS, IOLayoutsSection::read);
+
+        for (const SectionType type : DEFAULT_SUPPORTED_SECTION_TYPES) {
+            m_blob_reader.register_section_type_evaluator(std::make_shared<SupportedSectionTypeEvaluator>(type));
+        }
+    }
+
     /**
      * @brief Decrypts the whole compiler payload (main schedule + init schedules if applicable) if:
      *   1. A decryption callback was provided and
@@ -426,101 +437,46 @@ private:
      * @throws ov::AssertFailure if the blob was encrypted but no decryption callback was provided.
      */
     void decrypt_schedules() override {
-        const bool is_payload_encrypted = m_metadata->is_encrypted_blob().value_or(false);
-        const bool is_null_decryption = !(m_config.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
-                                          m_config.get<CACHE_ENCRYPTION_CALLBACKS>().decrypt != nullptr);
-        if (!is_payload_encrypted) {
-            m_logger.debug("The compiler payload is NOT encrypted");
-            return;
-        }
-        OPENVINO_ASSERT(!is_null_decryption, "Blob is encrypted, but no decryption callback was provided!");
-
-        m_logger.debug(DECRYPTING_PAYLOAD_MESSAGE.data());
-        decrypt_payload(m_compiler_payload, m_config.get<CACHE_ENCRYPTION_CALLBACKS>(), m_logger);
+        // TODO section for encrypted payload flag
     }
 
     ov::Tensor extract_main_schedule() const override {
-        const uint64_t main_size = m_metadata->get_main_schedule_size();
+        const auto main_schedule_section = std::dynamic_pointer_cast<ELFMainScheduleSection>(
+            m_blob_reader.retrieve_first_section(PredefinedSectionType::ELF_MAIN_SCHEDULE));
 
-        return ov::Tensor(m_compiler_payload, ov::Coordinate{0}, ov::Coordinate{main_size});
+        return main_schedule_section->get_schedule();
     }
 
     std::optional<std::vector<ov::Tensor>> extract_init_schedules() const override {
-        const std::optional<std::vector<uint64_t>> init_sizes = m_metadata->get_init_sizes();
-        if (!init_sizes.has_value()) {
-            return std::nullopt;
-        }
+        const auto init_schedules_section = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
+            m_blob_reader.retrieve_first_section(PredefinedSectionType::ELF_INIT_SCHEDULES));
 
-        std::vector<ov::Tensor> init_schedules;
-        size_t cursor_position = m_metadata->get_main_schedule_size();
-
-        m_logger.debug("Extracting %zu init schedules", init_sizes->size());
-
-        for (const uint64_t init_size : init_sizes.value()) {
-            m_logger.debug("Init size: %llu", init_size);
-
-            init_schedules.push_back(ov::Tensor(m_compiler_payload,
-                                                ov::Coordinate{cursor_position},
-                                                ov::Coordinate{cursor_position + init_size}));
-            cursor_position += init_size;
-        }
-
-        return init_schedules;
+        return init_schedules_section->get_schedules();
     }
 
     std::optional<int> extract_batch_size() const override {
-        const std::optional<int64_t> batch_size = m_metadata->get_batch_size();
-        if (batch_size.has_value()) {
-            m_logger.debug("Extracted batch size: %d", batch_size.value());
-            return std::make_optional<int>(static_cast<int>(batch_size.value()));
-        }
-        return std::nullopt;
+        const auto batch_size_section = std::dynamic_pointer_cast<BatchSizeSection>(
+            m_blob_reader.retrieve_first_section(PredefinedSectionType::BATCH_SIZE));
+
+        return batch_size_section->get_batch_size();
     }
 
     std::optional<std::pair<std::vector<ov::Layout>, std::vector<ov::Layout>>> extract_layouts() const override {
-        std::optional<std::vector<ov::Layout>> input_layouts = m_metadata->get_input_layouts();
-        if (!input_layouts.has_value()) {
-            return std::nullopt;
-        }
-        std::optional<std::vector<ov::Layout>> output_layouts = m_metadata->get_output_layouts();
-        OPENVINO_ASSERT(output_layouts.has_value(),
-                        "The metadata version received at import supports input layouts, but it doesn't support output "
-                        "layouts. Either both or none should be supported");
+        const auto io_layouts_section = std::dynamic_pointer_cast<IOLayoutsSection>(
+            m_blob_reader.retrieve_first_section(PredefinedSectionType::IO_LAYOUTS));
 
-        return std::make_pair<>(input_layouts.value(), output_layouts.value());
+        return std::make_pair<>(io_layouts_section->get_input_layouts(), io_layouts_section->get_output_layouts());
     }
 
     std::optional<std::string> extract_compiler_compatibility_descriptor() const override {
-        const std::optional<std::string_view> compatibility_descriptor = m_metadata->get_compatibility_descriptor();
-        // Convert the descriptor to an owning string before the metadata is potentially destroyed
-        return compatibility_descriptor.has_value()
-                   ? std::make_optional<>(std::string(compatibility_descriptor.value()))
-                   : std::nullopt;
+        // TODO finish the compat string section
     }
 
     std::optional<BlobType> extract_blob_type() const override {
-        return m_metadata->get_blob_type();
+        // TODO determine blob type
     }
 
-    /**
-     * @brief Registers the compiler version inside the configuration attribute if the version is found within the
-     * metadata.
-     */
-    void register_compiler_version() {
-        std::optional<uint32_t> compiler_version = m_metadata->get_compiler_version();
-        if (compiler_version.has_value()) {
-            m_config.update({{ov::intel_npu::compiler_version.name(), std::to_string(compiler_version.value())}});
-            m_logger.debug("Imported model was compiled with compiler version: %u.%u",
-                           ONEAPI_VERSION_MAJOR(compiler_version.value()),
-                           ONEAPI_VERSION_MINOR(compiler_version.value()));
-        }
-    }
-
-    /**
-     * @brief The whole compiler payload. Init schedules include if weights separation was used.
-     */
-    ov::Tensor m_compiler_payload;
-    std::unique_ptr<MetadataBase> m_metadata;
+    BlobReader m_blob_reader;
 };
 
 }  // namespace
