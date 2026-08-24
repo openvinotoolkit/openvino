@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -18,7 +17,7 @@
 
 namespace intel_npu {
 
-class CompiledModelPropertyManager final {
+class CompiledModelPropertyManager final : private PropertyRegistrationBase {
 public:
     CompiledModelPropertyManager(const FilteredConfig& config,
                                  const std::shared_ptr<IGraph>& graph,
@@ -40,8 +39,6 @@ private:
     std::shared_ptr<IGraph> _graph;
     std::optional<int64_t> _batchSize;
     Logger& _logger;
-
-    std::map<std::string, PropertyDescriptor> _properties;
 
     mutable std::mutex _mutex;
 };
