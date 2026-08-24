@@ -31,8 +31,9 @@ TEST(PreserveSelectiveSSMPrecisionTest, MarksSelectiveSSMAndAllInputs) {
     const auto ssm = std::make_shared<ov::op::internal::SelectiveSSM>(A, dt, B, x, C, state);
     const auto model = std::make_shared<ov::Model>(ssm->outputs(), parameters);
 
-    PreserveSelectiveSSMPrecision pass;
-    EXPECT_FALSE(pass.run_on_model(model));
+    ov::pass::Manager manager;
+    manager.register_pass<PreserveSelectiveSSMPrecision>();
+    manager.run_passes(model);
 
     expect_conversion_disabled(ssm);
     for (const auto& parameter : parameters) {
