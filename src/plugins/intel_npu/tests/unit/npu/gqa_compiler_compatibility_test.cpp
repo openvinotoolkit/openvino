@@ -9,7 +9,6 @@
 #include <memory>
 #include <vector>
 
-#include "intel_npu/utils/logger/logger.hpp"
 #include "model_serializer.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/constant.hpp"
@@ -17,16 +16,14 @@
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/pass/manager.hpp"
 
-// registerCompilerCompatibilityPasses() decomposes GroupQueryAttention unconditionally, since a stale compiler
-// can't be detected at runtime (see model_serializer.hpp). These tests check it fires wherever the operator is,
+// serializeIR()'s common pipeline decomposes GroupQueryAttention unconditionally, since a stale compiler
+// can't be detected at runtime (see model_serializer.cpp). These tests check it fires wherever the operator is,
 // including inside sub-graphs, and leaves everything else untouched.
 namespace {
 
 using namespace ov::op;
-using intel_npu::Logger;
-using intel_npu::compiler_utils::registerCompilerCompatibilityPasses;
+using intel_npu::compiler_utils::serializeIR;
 
 constexpr int64_t NUM_HEADS = 24;
 constexpr int64_t KV_NUM_HEADS = 8;
@@ -36,7 +33,7 @@ constexpr int64_t CACHE_LEN = 1024;
 constexpr int64_t HALF_ROTARY_DIM = HEAD_SIZE / 2;
 
 // A high, opset-agnostic compiler version and supported-opset so only the GQA pass is under test: the other two
-// compatibility passes stay disabled (see registerCompilerCompatibilityPasses's own gates).
+// compatibility passes stay disabled (see run_common_pipeline's own gates in model_serializer.cpp).
 ze_graph_compiler_version_info_t modernCompilerVersion() {
     return {/*major=*/99, /*minor=*/0};
 }
@@ -52,13 +49,16 @@ size_t countGQA(const std::shared_ptr<ov::Model>& model) {
 }
 
 void applyCompatibilityPasses(const std::shared_ptr<ov::Model>& model) {
-    Logger logger("GQACompilerCompatibilityTest", ov::log::Level::NO);
-    ov::pass::Manager manager;
-    registerCompilerCompatibilityPasses(manager,
-                                        /*supportedOpset=*/std::numeric_limits<uint32_t>::max(),
-                                        modernCompilerVersion(),
-                                        logger);
-    manager.run_passes(model);
+    const auto isOptionValueSupportedByCompiler = [](const std::string&, const std::optional<std::string>&) {
+        return true;
+    };
+    // ALL_WEIGHTS_COPY sidesteps the AUTO-version compiler-support query; this test only cares about the
+    // decomposition side effect serializeIR's common pipeline has on "model", not the returned buffer.
+    serializeIR(model,
+                modernCompilerVersion(),
+                /*supportedOpsetVersion=*/std::numeric_limits<uint32_t>::max(),
+                ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY,
+                isOptionValueSupportedByCompiler);
 }
 
 std::shared_ptr<v0::Constant> makeEmptyPlaceholder() {
