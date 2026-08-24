@@ -63,6 +63,8 @@ private:
     void clear_inactive_lanes(const Vmm& value, size_t active_lanes);
     void load_data_scalar(const Vmm& destination, size_t offset);
     void store_data_scalar(const Vmm& source, size_t offset);
+    void prepare_f16_row_scales(size_t rows);
+    void store_f16_row_tile(size_t rows);
     void store_state(const Vmm& source, int element_count, size_t offset);
     void emit_bf16_subnormal_store(const Vmm& source, int element_count, size_t offset);
     void load(const Vmm& destination,
