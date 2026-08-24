@@ -23,6 +23,7 @@
 #include "common_utils/gpu_execution_plan.hpp"
 #include "common_utils/gpu_kernel_lifecycle.hpp"
 #include "data_inst.h"
+#include "eltwise/kernel_kind.hpp"
 #include "eltwise_broadcast_f32_eq_spirv.hpp"
 #include "eltwise_broadcast_fast_f32_eq_spirv.hpp"
 #include "eltwise_broadcast_fast_spirv.hpp"
@@ -129,6 +130,7 @@ namespace {
 }();
 
 namespace shader_abi = eltwise_shader_abi;
+using namespace eltwise_detail;
 
 constexpr uint32_t max_rank = 8;
 constexpr uint32_t header_words = shader_abi::index(shader_abi::metadata_field::count);
@@ -162,205 +164,6 @@ constexpr uint32_t scalar_batch_width = 1;
 constexpr uint32_t scalar_elements_per_subgroup_budget = portable_max_local_work_group_size;
 constexpr size_t local_size_tuning_samples_per_candidate = 3;
 constexpr size_t local_size_stabilization_inferences = 20;
-
-enum class kernel_kind : uint8_t {
-    dense,
-    broadcast_scalar,
-    broadcast_vector,
-    unary,
-    scalar_constant,
-    fused_dense,
-    dense_push_constants,
-    fused_dense_push_constants,
-    dense_f32_vec2_push_constants,
-    dense_f32_vec4_push_constants,
-    fused_dense_f32_vec2_push_constants,
-    fused_dense_f32_vec4_push_constants,
-    dense_f32_vec2_no_tail_push_constants,
-    dense_f32_vec4_no_tail_push_constants,
-    fused_dense_f32_vec2_no_tail_push_constants,
-    fused_dense_f32_vec4_no_tail_push_constants,
-    dense_packed_8bit_push_constants,
-    dense_packed_16bit_push_constants,
-    fused_dense_packed_8bit_push_constants,
-    fused_dense_packed_16bit_push_constants,
-    dense_packed_f16_push_constants,
-    fused_dense_packed_f16_push_constants,
-    broadcast_fast_scalar,
-    broadcast_fast_vector,
-    dense_f32_sum_push_constants,
-    dense_f32_div_push_constants,
-    dense_i64_sum_push_constants,
-    dense_i64_div_push_constants,
-    broadcast_f32_eq,
-    broadcast_fast_f32_eq,
-    fused_dense_chain,
-    fused_dense_chain_f32_vec4_no_tail,
-    fused_broadcast,
-    fused_post_op,
-};
-
-enum class dense_vector_width : uint32_t {
-    scalar = 1,
-    vec2 = 2,
-    vec4 = 4,
-};
-
-enum class packed_dense_width : uint32_t {
-    none = 0,
-    two_16bit_elements = 2,
-    four_8bit_elements = 4,
-};
-
-constexpr uint32_t value(dense_vector_width width) {
-    return static_cast<uint32_t>(width);
-}
-
-bool is_f32_vector_kernel(kernel_kind kind) {
-    return one_of(kind,
-                  {kernel_kind::dense_f32_vec2_push_constants,
-                   kernel_kind::dense_f32_vec4_push_constants,
-                   kernel_kind::fused_dense_f32_vec2_push_constants,
-                   kernel_kind::fused_dense_f32_vec4_push_constants,
-                   kernel_kind::dense_f32_vec2_no_tail_push_constants,
-                   kernel_kind::dense_f32_vec4_no_tail_push_constants,
-                   kernel_kind::fused_dense_f32_vec2_no_tail_push_constants,
-                   kernel_kind::fused_dense_f32_vec4_no_tail_push_constants,
-                   kernel_kind::fused_dense_chain_f32_vec4_no_tail});
-}
-
-bool is_no_tail_kernel(kernel_kind kind) {
-    return one_of(kind,
-                  {kernel_kind::dense_f32_vec2_no_tail_push_constants,
-                   kernel_kind::dense_f32_vec4_no_tail_push_constants,
-                   kernel_kind::fused_dense_f32_vec2_no_tail_push_constants,
-                   kernel_kind::fused_dense_f32_vec4_no_tail_push_constants,
-                   kernel_kind::fused_dense_chain_f32_vec4_no_tail});
-}
-
-bool is_packed_dense_kernel(kernel_kind kind) {
-    return one_of(kind,
-                  {kernel_kind::dense_packed_8bit_push_constants,
-                   kernel_kind::dense_packed_16bit_push_constants,
-                   kernel_kind::fused_dense_packed_8bit_push_constants,
-                   kernel_kind::fused_dense_packed_16bit_push_constants,
-                   kernel_kind::dense_packed_f16_push_constants,
-                   kernel_kind::fused_dense_packed_f16_push_constants});
-}
-
-bool uses_dense_push_constants(kernel_kind kind) {
-    return one_of(kind,
-                  {kernel_kind::dense_push_constants,
-                   kernel_kind::fused_dense_push_constants,
-                   kernel_kind::dense_f32_sum_push_constants,
-                   kernel_kind::dense_f32_div_push_constants,
-                   kernel_kind::dense_i64_sum_push_constants,
-                   kernel_kind::dense_i64_div_push_constants}) ||
-           (is_f32_vector_kernel(kind) && kind != kernel_kind::fused_dense_chain_f32_vec4_no_tail) || is_packed_dense_kernel(kind);
-}
-
-bool is_broadcast_vector_kernel(kernel_kind kind) {
-    return one_of(kind, {kernel_kind::broadcast_vector, kernel_kind::broadcast_fast_vector});
-}
-
-bool is_fast_broadcast_kernel(kernel_kind kind) {
-    return one_of(kind, {kernel_kind::broadcast_fast_scalar, kernel_kind::broadcast_fast_vector, kernel_kind::broadcast_fast_f32_eq});
-}
-
-bool is_plain_dense_kernel(kernel_kind kind) {
-    return one_of(kind,
-                  {kernel_kind::dense,
-                   kernel_kind::dense_push_constants,
-                   kernel_kind::dense_f32_sum_push_constants,
-                   kernel_kind::dense_f32_div_push_constants,
-                   kernel_kind::dense_i64_sum_push_constants,
-                   kernel_kind::dense_i64_div_push_constants,
-                   kernel_kind::dense_f32_vec2_push_constants,
-                   kernel_kind::dense_f32_vec4_push_constants,
-                   kernel_kind::dense_f32_vec2_no_tail_push_constants,
-                   kernel_kind::dense_f32_vec4_no_tail_push_constants,
-                   kernel_kind::dense_packed_8bit_push_constants,
-                   kernel_kind::dense_packed_16bit_push_constants,
-                   kernel_kind::dense_packed_f16_push_constants});
-}
-
-bool is_single_fused_dense_kernel(kernel_kind kind) {
-    return one_of(kind,
-                  {kernel_kind::fused_dense,
-                   kernel_kind::fused_dense_push_constants,
-                   kernel_kind::fused_dense_f32_vec2_push_constants,
-                   kernel_kind::fused_dense_f32_vec4_push_constants,
-                   kernel_kind::fused_dense_f32_vec2_no_tail_push_constants,
-                   kernel_kind::fused_dense_f32_vec4_no_tail_push_constants,
-                   kernel_kind::fused_dense_packed_8bit_push_constants,
-                   kernel_kind::fused_dense_packed_16bit_push_constants,
-                   kernel_kind::fused_dense_packed_f16_push_constants});
-}
-
-bool is_fused_broadcast_kernel(kernel_kind kind) {
-    return kind == kernel_kind::fused_broadcast;
-}
-
-bool is_fused_post_op_kernel(kernel_kind kind) {
-    return kind == kernel_kind::fused_post_op;
-}
-
-bool is_single_fused_kernel(kernel_kind kind) {
-    return is_single_fused_dense_kernel(kind) || is_fused_broadcast_kernel(kind);
-}
-
-bool is_fused_chain_kernel(kernel_kind kind) {
-    return one_of(kind, {kernel_kind::fused_dense_chain, kernel_kind::fused_dense_chain_f32_vec4_no_tail});
-}
-
-bool is_fused_dense_kernel(kernel_kind kind) {
-    return is_single_fused_dense_kernel(kind) || is_fused_chain_kernel(kind);
-}
-
-bool is_fused_kernel(kernel_kind kind) {
-    return is_fused_dense_kernel(kind) || is_fused_broadcast_kernel(kind);
-}
-
-bool supports_restricted_output(kernel_kind kind) {
-    return is_plain_dense_kernel(kind) || is_fused_dense_kernel(kind);
-}
-
-dense_vector_width get_dense_vector_width(kernel_kind kind) {
-    if (one_of(kind,
-               {kernel_kind::dense_f32_vec4_push_constants,
-                kernel_kind::fused_dense_f32_vec4_push_constants,
-                kernel_kind::dense_f32_vec4_no_tail_push_constants,
-                kernel_kind::fused_dense_f32_vec4_no_tail_push_constants,
-                kernel_kind::fused_dense_chain_f32_vec4_no_tail})) {
-        return dense_vector_width::vec4;
-    }
-    if (one_of(kind,
-               {kernel_kind::dense_f32_vec2_push_constants,
-                kernel_kind::fused_dense_f32_vec2_push_constants,
-                kernel_kind::dense_f32_vec2_no_tail_push_constants,
-                kernel_kind::fused_dense_f32_vec2_no_tail_push_constants})) {
-        return dense_vector_width::vec2;
-    }
-    return dense_vector_width::scalar;
-}
-
-packed_dense_width get_packed_dense_width(kernel_kind kind) {
-    if (one_of(kind, {kernel_kind::dense_packed_8bit_push_constants, kernel_kind::fused_dense_packed_8bit_push_constants})) {
-        return packed_dense_width::four_8bit_elements;
-    }
-    if (one_of(kind,
-               {kernel_kind::dense_packed_16bit_push_constants,
-                kernel_kind::fused_dense_packed_16bit_push_constants,
-                kernel_kind::dense_packed_f16_push_constants,
-                kernel_kind::fused_dense_packed_f16_push_constants})) {
-        return packed_dense_width::two_16bit_elements;
-    }
-    return packed_dense_width::none;
-}
-
-constexpr uint32_t value(packed_dense_width width) {
-    return static_cast<uint32_t>(width);
-}
 
 struct scalar_constant {
     shader_abi::tensor_index input_index = shader_abi::tensor_index::input1;
