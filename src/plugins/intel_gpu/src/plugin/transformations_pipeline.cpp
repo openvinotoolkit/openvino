@@ -1607,6 +1607,24 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         ov::pass::Manager manager("GPU:PostLPT");
         manager.set_per_pass_validation(false);
 
+        if (config.get_enable_mlir()) {
+#ifdef ENABLE_GPU_MLIR
+            auto loweringContext = std::make_shared<ov::EvaluationContext>();
+            auto it = m_context->get_property().find(ov::intel_gpu::ocl_context.name());
+            if (it != m_context->get_property().end()) {
+                // We assume here that there's only one device per context and that an
+                // actual device will be extracted later by the 'mlir_op'.
+                loweringContext->insert(ov::intel_gpu::ocl_context(it->second.as<ov::intel_gpu::gpu_handle_param>()));
+            }
+            ov::intel_gpu::mlir::transformMLIR(func, loweringContext);
+#else
+            OPENVINO_THROW(
+                "[GPU] Property 'GPU_ENABLE_MLIR' (or OV_GPU_ENABLE_MLIR env var) is enabled, "
+                "but the plugin was built without Graph Compiler support. "
+                "Rebuild OpenVINO with -DENABLE_GPU_MLIR=ON to enable MLIR execution.");
+#endif
+        }
+
         manager.register_pass<ov::pass::ConvertWeightCompressedConv1x1ToMatmul>();
         manager.register_pass<ov::intel_gpu::IncreaseRMSInputPrecision>();
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
@@ -1800,23 +1818,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::ConstantsReduce>();
 
-        if (config.get_enable_mlir()) {
-#ifdef ENABLE_GPU_MLIR
-            auto loweringContext = std::make_shared<ov::EvaluationContext>();
-            auto it = m_context->get_property().find(ov::intel_gpu::ocl_context.name());
-            if (it != m_context->get_property().end()) {
-                // We assume here that there's only one device per context and that an
-                // actual device will be extracted later by the 'mlir_op'.
-                loweringContext->insert(ov::intel_gpu::ocl_context(it->second.as<ov::intel_gpu::gpu_handle_param>()));
-            }
-            ov::intel_gpu::mlir::transformMLIR(func, loweringContext);
-#else
-            OPENVINO_THROW(
-                "[GPU] Property 'GPU_ENABLE_MLIR' (or OV_GPU_ENABLE_MLIR env var) is enabled, "
-                "but the plugin was built without Graph Compiler support. "
-                "Rebuild OpenVINO with -DENABLE_GPU_MLIR=ON to enable MLIR execution.");
-#endif
-        }
         manager.register_pass<ov::intel_gpu::PreserveSingleSelectiveSSMOutput>();
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
