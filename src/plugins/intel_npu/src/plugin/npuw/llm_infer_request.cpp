@@ -539,10 +539,9 @@ size_t ov::npuw::LLMInferRequest::select_prefill_variant_index(int64_t tail_leng
     return sizes.size() - 1;
 }
 
-void ov::npuw::LLMInferRequest::prepare_prefill_tail_variant(
-    const std::shared_ptr<ov::IAsyncInferRequest>& tail_req,
-    size_t tail_index,
-    uint32_t num_stored) {
+void ov::npuw::LLMInferRequest::prepare_prefill_tail_variant(const std::shared_ptr<ov::IAsyncInferRequest>& tail_req,
+                                                             size_t tail_index,
+                                                             uint32_t num_stored) {
     namespace uu = ov::npuw::util;
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
 
@@ -569,8 +568,7 @@ void ov::npuw::LLMInferRequest::prepare_prefill_tail_variant(
     // Propagate the longrope scalar (set on the base variant by process_longrope) to the tail variant.
     if (auto tail_lr = tail_in.find(layer_names::longrope_input); tail_lr != tail_in.end()) {
         auto base_lr = base_in.at(layer_names::longrope_input);
-        tail_req->get_tensor(tail_lr->second)->data<int64_t>()[0] =
-            base_req->get_tensor(base_lr)->data<int64_t>()[0];
+        tail_req->get_tensor(tail_lr->second)->data<int64_t>()[0] = base_req->get_tensor(base_lr)->data<int64_t>()[0];
     }
 
     // Past KV: zero the tail past inputs, then copy the accumulated [0, num_stored) tokens from the
@@ -581,8 +579,7 @@ void ov::npuw::LLMInferRequest::prepare_prefill_tail_variant(
         if (num_stored > 0) {
             auto base_past = base_req->get_tensor(base_in.at(kv_name));
             const bool is_value_tensor = ov::npuw::util::isPastValueParam(kv_name);
-            const uint32_t kv_dim =
-                (is_value_tensor && kvcache_desc.v_tensors_transposed_pre) ? 3u : kvcache_desc.dim;
+            const uint32_t kv_dim = (is_value_tensor && kvcache_desc.v_tensors_transposed_pre) ? 3u : kvcache_desc.dim;
             auto base_slice = uu::make_tensor_slice(base_past, kv_dim, 0u, num_stored);
             auto tail_slice = uu::make_tensor_slice(tail_past, kv_dim, 0u, num_stored);
             uu::copy_tensor_by_dim(base_slice, tail_slice, kv_dim, kv_dim);
