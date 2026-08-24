@@ -504,35 +504,35 @@ void LLMBlockKVCacheStrategy::continue_prefill(uint32_t keep, uint32_t delta_len
 
     // Each retained block must exist and be completely full, since a partially
     // filled block would make the continuation prefix incoherent.
-    for (const auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
-        auto validate = [&](KVCacheBlockManager* manager, const char* kv_type) {
-            if (!manager) {
-                return;
-            }
-            const auto allocated = manager->get_allocated_blocks();
-            OPENVINO_ASSERT(allocated.size() >= keep_blocks,
-                            "Continued prefill: layer ",
+    auto validate = [&](uint32_t layer_idx, KVCacheBlockManager* manager, const char* kv_type) {
+        if (!manager) {
+            return;
+        }
+        const auto allocated = manager->get_allocated_blocks();
+        OPENVINO_ASSERT(allocated.size() >= keep_blocks,
+                        "Continued prefill: layer ",
+                        layer_idx,
+                        " ",
+                        kv_type,
+                        " has only ",
+                        allocated.size(),
+                        " allocated blocks, ",
+                        keep_blocks,
+                        " are required.");
+        for (uint32_t i = 0; i < keep_blocks; ++i) {
+            OPENVINO_ASSERT(manager->get_block_tokens(allocated[i]) == m_block_size,
+                            "Continued prefill: retained block ",
+                            i,
+                            " of layer ",
                             layer_idx,
                             " ",
                             kv_type,
-                            " has only ",
-                            allocated.size(),
-                            " allocated blocks, ",
-                            keep_blocks,
-                            " are required.");
-            for (uint32_t i = 0; i < keep_blocks; ++i) {
-                OPENVINO_ASSERT(manager->get_block_tokens(allocated[i]) == m_block_size,
-                                "Continued prefill: retained block ",
-                                i,
-                                " of layer ",
-                                layer_idx,
-                                " ",
-                                kv_type,
-                                " is not full.");
-            }
-        };
-        validate(layer_managers.key_manager.get(), "key");
-        validate(layer_managers.value_manager.get(), "value");
+                            " is not full.");
+        }
+    };
+    for (const auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
+        validate(layer_idx, layer_managers.key_manager.get(), "key");
+        validate(layer_idx, layer_managers.value_manager.get(), "value");
     }
 
     LOG_DEBUG("Continued prefill: truncating block pool to " << keep_blocks << " blocks per layer.");
