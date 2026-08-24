@@ -16,6 +16,7 @@
 #include "intel_npu/weights_pointer_attribute.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/hash.hpp"
@@ -282,23 +283,6 @@ ov::intel_npu::ModelSerializerVersion determineModelSerializerVersion(
 
 namespace intel_npu::compiler_utils {
 
-void registerCompilerCompatibilityPasses(ov::pass::Manager& manager,
-                                         const uint32_t supportedOpset,
-                                         const ze_graph_compiler_version_info_t& compilerVersion,
-                                         Logger& logger) {
-    if (supportedOpset < 11) {
-        // Downgrade to opset10
-        manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
-        logger.info("Downgrade op for opset smaller than 11");
-    }
-    if ((compilerVersion.major < 7) || (compilerVersion.major == 7 && compilerVersion.minor <= 26)) {
-        manager.register_pass<ov::pass::EliminateIdentity>();
-    }
-    // Unconditional: the compiler's own copy of this pass can be stale in ways that aren't queryable at runtime.
-    // See this function's header doc for the rationale.
-    manager.register_pass<ov::pass::GroupQueryAttentionDecomposition>();
-}
-
 /**
  * @brief Interface to be used by the serialization algorithms.
  * @details The "VCL" serializer is meant to integrate an OV serializer and add any additional model metadata in order
@@ -331,7 +315,25 @@ protected:
         // It is possible some of these passes will modify WeightlessCacheAttributes. Therefore, we should run them
         // before storing these attributes.
         ov::pass::Manager manager(std::make_shared<ov::pass::PassConfig>(), "NPU:compiler_compatibility_passes");
-        registerCompilerCompatibilityPasses(manager, _supportedOpset, _compilerVersion, _logger);
+        if (_supportedOpset < 11) {
+            // Downgrade to opset10
+            manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
+            _logger.info("Downgrade op for opset smaller than 11");
+        }
+        if ((_compilerVersion.major < 7) || (_compilerVersion.major == 7 && _compilerVersion.minor <= 26)) {
+            manager.register_pass<ov::pass::EliminateIdentity>();
+        }
+
+        // Registers the passes that adapt a model to whichever compiler package is currently loaded, before it is
+        // handed to that compiler. ov::pass::GroupQueryAttentionDecomposition is registered unconditionally instead:
+        // the compiler runs its own copy of this pass, built against its own OpenVINO revision, and neither that
+        // revision nor a GQA-spec capability is queryable at runtime - so a stale copy (wrong optional-input
+        // convention, or an attribute it predates, e.g. local_window_size) can't be detected and worked around from
+        // here. A MatcherPass is a no-op where the operator is absent, so this is safe to always register; delete it
+        // once the loaded compiler is known to be caught up.
+
+        manager.register_pass<ov::pass::GroupQueryAttentionDecomposition>();
+
         manager.run_passes(model);
 
         // Step 2: store the WeightlessCacheAttributes if requested

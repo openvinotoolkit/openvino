@@ -78,24 +78,5 @@ std::string serializeConfig(const FilteredConfig& config,
                             const ze_graph_compiler_version_info_t& compilerVersion,
                             const std::function<bool(const std::string&)>& isOptionSupportedByCompiler);
 
-/**
- * @brief Registers the passes that adapt a model to whichever compiler package is currently loaded, before it is
- * handed to that compiler.
- * @details The opset-downgrade and Identity-elimination passes are gated on the compiler's reported opset/version.
- * ov::pass::GroupQueryAttentionDecomposition is registered unconditionally instead: the compiler runs its own copy
- * of this pass, built against its own OpenVINO revision, and neither that revision nor a GQA-spec capability is
- * queryable at runtime - so a stale copy (wrong optional-input convention, or an attribute it predates, e.g.
- * local_window_size) can't be detected and worked around from here. A MatcherPass is a no-op where the operator is
- * absent, so this is safe to always register; delete it once the loaded compiler is known to be caught up.
- * @param manager The pass manager the compatibility passes are registered on; not run by this function.
- * @param supportedOpset The last operator set version supported by the compiler.
- * @param compilerVersion The compiler version reported by the driver.
- * @param logger Used to report which compatibility passes were registered and why.
- */
-void registerCompilerCompatibilityPasses(ov::pass::Manager& manager,
-                                         const uint32_t supportedOpset,
-                                         const ze_graph_compiler_version_info_t& compilerVersion,
-                                         Logger& logger);
-
 }  // namespace compiler_utils
 }  // namespace intel_npu
