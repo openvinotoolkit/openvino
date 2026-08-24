@@ -52,6 +52,10 @@ struct mlir_primitive_impl : typed_primitive_impl<mlir_primitive> {
         is_usm_ptr.reserve(instance.inputs_memory_count() + instance.outputs_memory_count());
 
         auto process_buffer = [&is_usm_ptr](memory::ptr mem, ov::TensorVector& tensors) {
+            // make_tensor() below builds a dense ov::Tensor from the logical shape, so a padded layout
+            // would result in wrong data offset and strides being passed to the MLIR kernel.
+            OPENVINO_ASSERT(!static_cast<bool>(mem->get_layout().data_padding),
+                            "[GPU] Padded buffers are not supported by mlir_primitive yet");
             switch (mem->get_allocation_type()) {
                 case allocation_type::cl_mem: {
                     if (void* cl_buff = mem->get_native_handle()) {
