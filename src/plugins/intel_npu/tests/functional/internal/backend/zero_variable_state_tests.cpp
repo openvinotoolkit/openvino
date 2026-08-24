@@ -146,6 +146,21 @@ TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithZeroTensor) {
     OV_ASSERT_NO_THROW(zero_state->reset());
 }
 
+TEST_P(ZeroVariableStateTests, SetStateRejectsTensorSmallerThanStateBuffer) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto shape = Shape{1, 2, 2, 2};
+    auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, element::f32, shape, true);
+    auto zero_state = std::make_shared<::intel_npu::ZeroVariableState>(init_struct, "state", zero_tensor, 1, 1);
+
+    // The state input and its state output share this buffer; a smaller tensor would let the device write past it
+    // through the state output, so set_state must reject it instead of aliasing the undersized buffer.
+    auto smaller_shape = Shape{1};
+    auto smaller_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, element::f32, smaller_shape, true);
+
+    EXPECT_THROW(zero_state->set_state(smaller_tensor), ov::Exception);
+}
+
 TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithNormalTensor) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
