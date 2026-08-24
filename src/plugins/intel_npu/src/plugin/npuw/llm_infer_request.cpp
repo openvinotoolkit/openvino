@@ -228,11 +228,17 @@ void process_longrope(const std::shared_ptr<ov::IAsyncInferRequest>& infer_req,
 
 void ov::npuw::LLMInferRequest::init_lora_states() {
     for (const auto& input_port : m_prefill_request->get_compiled_model()->inputs()) {
-        auto input_name = input_port.get_any_name();
-        if (ov::npuw::util::matchLoRAMatMulAString(input_name) || ov::npuw::util::matchLoRAMatMulBString(input_name) ||
-            ov::npuw::util::matchLoRAMatMulAlphaString(input_name)) {
-            auto input_tensor = m_prefill_request->get_tensor(input_port);
-            m_variableStates.push_back(std::make_shared<VariableState>(input_name, input_tensor));
+        // A port may expose several tensor names; pick the one that matches a LoRA pattern
+        // instead of relying on get_any_name(), which returns an arbitrary name and could
+        // otherwise miss the port or register a non-matching state name.
+        for (const auto& input_name : input_port.get_names()) {
+            if (ov::npuw::util::matchLoRAMatMulAString(input_name) ||
+                ov::npuw::util::matchLoRAMatMulBString(input_name) ||
+                ov::npuw::util::matchLoRAMatMulAlphaString(input_name)) {
+                auto input_tensor = m_prefill_request->get_tensor(input_port);
+                m_variableStates.push_back(std::make_shared<VariableState>(input_name, input_tensor));
+                break;
+            }
         }
     }
 }
@@ -256,11 +262,20 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     auto register_generate_request = [this](const std::shared_ptr<ov::IAsyncInferRequest>& req) {
         m_generate_requests.push_back(req);
         PortsMap in_ports, out_ports;
+        // Register every tensor name of a port, not just get_any_name(): the map is later queried
+        // by names derived from other requests' ports, which may pick a different alias than the
+        // arbitrary one get_any_name() returns.
         for (const auto& p : req->get_compiled_model()->inputs()) {
-            in_ports.emplace(p.get_any_name(), p);
+            for (const auto& name : p.get_names()) {
+                auto res = in_ports.emplace(name, p);
+                OPENVINO_ASSERT(res.second, "Duplicate generate input tensor name across ports: ", name);
+            }
         }
         for (const auto& p : req->get_compiled_model()->outputs()) {
-            out_ports.emplace(p.get_any_name(), p);
+            for (const auto& name : p.get_names()) {
+                auto res = out_ports.emplace(name, p);
+                OPENVINO_ASSERT(res.second, "Duplicate generate output tensor name across ports: ", name);
+            }
         }
         m_generate_variant_in_ports.emplace(req, std::move(in_ports));
         m_generate_variant_out_ports.emplace(req, std::move(out_ports));
@@ -282,11 +297,20 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     m_prefill_base_request = compiled_model->m_prefill_compiled->create_base_infer_request();
     m_prefill_request = compiled_model->m_prefill_compiled->wrap_async_infer_request(m_prefill_base_request);
 
+    // Register every tensor name of a port, not just get_any_name(): kv-cache copy derives lookup
+    // keys (e.g. "present.*") from the generate request's port names, which may not coincide with
+    // the arbitrary alias get_any_name() would pick for the matching prefill port.
     for (const auto& input_port : m_prefill_request->get_compiled_model()->inputs()) {
-        m_prefill_in_ports.emplace(input_port.get_any_name(), input_port);
+        for (const auto& name : input_port.get_names()) {
+            auto res = m_prefill_in_ports.emplace(name, input_port);
+            OPENVINO_ASSERT(res.second, "Duplicate prefill input tensor name across ports: ", name);
+        }
     }
     for (const auto& output_port : m_prefill_request->get_compiled_model()->outputs()) {
-        m_prefill_out_ports.emplace(output_port.get_any_name(), output_port);
+        for (const auto& name : output_port.get_names()) {
+            auto res = m_prefill_out_ports.emplace(name, output_port);
+            OPENVINO_ASSERT(res.second, "Duplicate prefill output tensor name across ports: ", name);
+        }
     }
 
     for (const auto& input_port : m_kvcache_request->get_compiled_model()->inputs()) {
