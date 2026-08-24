@@ -129,6 +129,29 @@ public:
         return empty_node_map();
     }
 
+    // GGUF tokenizer metadata (the file's `tokenizer.*` keys), attached to the converted model's
+    // rt_info so a downstream consumer (OpenVINO GenAI) can build the tokenizer without reopening
+    // the .gguf. Empty when the decoder carries no tokenizer metadata.
+    virtual const ov::AnyMap& get_tokenizer_config() const {
+        static const ov::AnyMap empty;
+        return empty;
+    }
+
+    // Recurrent states, as {input name, output name} pairs: a linear-attention architecture
+    // (qwen35's Gated DeltaNet) carries a conv window and a delta matrix per recurrent layer,
+    // which the stateless graph exposes as a Parameter read at the start of a step and a Result
+    // holding its value at the end.
+    //
+    // These are NOT KV caches. A cache grows along a token axis and is written by SET_ROWS, so
+    // MakeStateful can find it by walking those writes and appending with a Concat; a recurrent
+    // state has no token axis and is overwritten wholesale, so nothing in the graph marks it.
+    // Hence this explicit pairing rather than a name convention: the decoder is the only thing
+    // that knows which Result feeds which Parameter back.
+    virtual const std::vector<std::pair<std::string, std::string>>& get_recurrent_states() const {
+        static const std::vector<std::pair<std::string, std::string>> empty;
+        return empty;
+    }
+
     // RoPE configuration, exposed through get_attribute<RopeConfig>("rope_config"):
     //   - at model scope (via InputModel::get_rope_config), used by TranslateSession::preprocess
     //     to pre-build the shared rope sin/cos table (skipped when RopeConfig::n_dims == 0, i.e.
