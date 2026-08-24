@@ -570,7 +570,7 @@ void ov::npuw::LLMInferRequest::prepare_prefill_tail_variant(
         uu::fill_tensor_bytes(tail_past, 0u);
         if (num_stored > 0) {
             auto base_past = base_req->get_tensor(base_in.at(kv_name));
-            const bool is_value_tensor = kv_name.find("value") != std::string::npos;
+            const bool is_value_tensor = ov::npuw::util::isPastValueParam(kv_name);
             const uint32_t kv_dim =
                 (is_value_tensor && kvcache_desc.v_tensors_transposed_pre) ? 3u : kvcache_desc.dim;
             auto base_slice = uu::make_tensor_slice(base_past, kv_dim, 0u, num_stored);
