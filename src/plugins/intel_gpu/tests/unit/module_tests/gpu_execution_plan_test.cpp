@@ -172,11 +172,28 @@ TEST(gpu_execution_plan, returns_requested_kernel_completion_without_output_mark
     plan_test_stream stream;
     kernel_arguments_desc descriptor;
 
-    const auto completion = plan.execute(stream, lifecycle, {}, true, [&](size_t) {
-        return gpu_dispatch_binding{&descriptor, {}};
-    });
+    size_t dispatch_count = 0;
+    const auto completion = plan.execute_with(
+        stream,
+        lifecycle,
+        {},
+        true,
+        [&](size_t) {
+            return gpu_dispatch_binding{&descriptor, {}};
+        },
+        [&](size_t dispatch_index,
+            kernel& selected_kernel,
+            const kernel_arguments_desc& selected_descriptor,
+            const kernel_arguments_data& arguments,
+            const std::vector<event::ptr>& dependencies,
+            bool request_completion) {
+            EXPECT_EQ(dispatch_index, 0);
+            ++dispatch_count;
+            return stream.enqueue_kernel(selected_kernel, selected_descriptor, arguments, dependencies, request_completion);
+        });
 
     ASSERT_EQ(stream.events.size(), 1);
+    EXPECT_EQ(dispatch_count, 1);
     EXPECT_EQ(completion, stream.events.front());
     EXPECT_EQ(stream.output_event_requests, (std::vector<bool>{true}));
     EXPECT_TRUE(stream.marker_output_event_requests.empty());

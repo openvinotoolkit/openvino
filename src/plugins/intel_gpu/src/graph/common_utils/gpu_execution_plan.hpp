@@ -97,6 +97,28 @@ public:
                        const std::vector<event::ptr>& external_dependencies,
                        bool request_completion,
                        BindingProvider&& provide_binding) {
+        return execute_with(command_stream,
+                            lifecycle,
+                            external_dependencies,
+                            request_completion,
+                            std::forward<BindingProvider>(provide_binding),
+                            [&command_stream](size_t,
+                                              kernel& selected_kernel,
+                                              const kernel_arguments_desc& descriptor,
+                                              const kernel_arguments_data& arguments,
+                                              const std::vector<event::ptr>& dependencies,
+                                              bool dispatch_completion) {
+                                return command_stream.enqueue_kernel(selected_kernel, descriptor, arguments, dependencies, dispatch_completion);
+                            });
+    }
+
+    template <typename BindingProvider, typename DispatchExecutor>
+    event::ptr execute_with(stream& command_stream,
+                            const gpu_kernel_lifecycle& lifecycle,
+                            const std::vector<event::ptr>& external_dependencies,
+                            bool request_completion,
+                            BindingProvider&& provide_binding,
+                            DispatchExecutor&& execute_dispatch) {
         OPENVINO_ASSERT(lifecycle.size() >= required_kernel_count(), "[GPU] Execution plan references a kernel that was not initialized");
 
         const auto last_dispatch = find_last_enabled_dispatch();
@@ -124,8 +146,12 @@ public:
 
             const bool is_final_dispatch = dispatch_index == last_dispatch;
             const bool dispatch_completion = _completion.request_each_dispatch ? request_completion : (request_completion && is_final_dispatch);
-            auto completion =
-                command_stream.enqueue_kernel(*lifecycle.at(dispatch.kernel_index), *binding.descriptor, binding.arguments, *dependencies, dispatch_completion);
+            auto completion = execute_dispatch(dispatch_index,
+                                               *lifecycle.at(dispatch.kernel_index),
+                                               *binding.descriptor,
+                                               binding.arguments,
+                                               *dependencies,
+                                               dispatch_completion);
             previous_event = completion;
             if (_completion.aggregate_dispatch_events && completion != nullptr) {
                 _event_scratch.push_back(completion);

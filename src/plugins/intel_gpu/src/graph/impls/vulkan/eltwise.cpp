@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "activation_inst.h"
+#include "common_utils/gpu_execution_plan.hpp"
 #include "common_utils/gpu_kernel_lifecycle.hpp"
 #include "data_inst.h"
 #include "eltwise_broadcast_f32_eq_spirv.hpp"
@@ -1725,7 +1726,8 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
           _scalar_constant(std::move(scalar)),
           _elements_per_invocation(elements_per_invocation),
           _fused_chain_length(fused_chain_length),
-          _local_size_tuning(std::make_shared<local_size_tuning_state>()) {}
+          _local_size_tuning(std::make_shared<local_size_tuning_state>()),
+          _execution_plan(1) {}
 
     std::unique_ptr<primitive_impl> clone() const override {
         auto result = std::make_unique<eltwise_impl>(*this);
@@ -2045,7 +2047,9 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         read_memories.insert(read_memories.end(), arguments.fused_op_inputs.begin(), arguments.fused_op_inputs.end());
         read_memories.insert(read_memories.end(), arguments.intermediates.begin(), arguments.intermediates.end());
         const auto use_restricted_kernel = _kernels.size() == 2 && output_is_disjoint_from_reads(arguments.outputs.front(), read_memories);
-        auto& selected_kernel = *_kernels.at(use_restricted_kernel ? 1 : 0);
+        const size_t selected_kernel_index = use_restricted_kernel ? 1 : 0;
+        _execution_plan[0].kernel_index = selected_kernel_index;
+        auto& selected_kernel = *_kernels.at(selected_kernel_index);
         if (local_size_action.prewarm) {
             for (const auto candidate : _local_size_tuning->candidates) {
                 descriptor.workGroups.local[0] = candidate;
@@ -2069,8 +2073,23 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
             return measured_event;
         }
         auto& vulkan_dispatch_stream = dynamic_cast<vulkan_stream&>(stream);
-        return vulkan_dispatch_stream
-            .enqueue_kernel(selected_kernel, descriptor, arguments, specialization_constants, events, instance.needs_completion_event());
+        return _execution_plan.execute_with(
+            stream,
+            _kernels,
+            events,
+            instance.needs_completion_event(),
+            [&](size_t) {
+                return gpu_dispatch_binding{&descriptor, std::move(arguments)};
+            },
+            [&](size_t,
+                kernel& selected_kernel,
+                const kernel_arguments_desc& kernel_descriptor,
+                const kernel_arguments_data& kernel_arguments,
+                const std::vector<event::ptr>& dependencies,
+                bool request_completion) {
+                return vulkan_dispatch_stream
+                    .enqueue_kernel(selected_kernel, kernel_descriptor, kernel_arguments, specialization_constants, dependencies, request_completion);
+            });
     }
 
 private:
@@ -2081,6 +2100,7 @@ private:
     uint32_t _fused_chain_length = 0;
     std::shared_ptr<local_size_tuning_state> _local_size_tuning;
     gpu_kernel_lifecycle _kernels;
+    gpu_execution_plan _execution_plan;
     std::array<uint32_t, metadata_words> _cached_metadata{};
     bool _metadata_initialized = false;
 };

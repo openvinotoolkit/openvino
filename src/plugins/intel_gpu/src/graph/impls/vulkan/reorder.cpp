@@ -12,7 +12,7 @@
 #include <utility>
 #include <vector>
 
-#include "common_utils/gpu_kernel_lifecycle.hpp"
+#include "common_utils/gpu_execution_plan.hpp"
 #include "eltwise_shader_abi.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "openvino/core/except.hpp"
@@ -241,13 +241,29 @@ struct reorder_convert_impl : typed_primitive_impl<reorder> {
         arguments.outputs = {instance.output_memory_ptr(0)};
         arguments.intermediates = {metadata_memory};
         auto& vulkan_dispatch_stream = dynamic_cast<vulkan_stream&>(stream);
-        return vulkan_dispatch_stream
-            .enqueue_kernel(*_kernels.front(), descriptor, arguments, specialization_constants, events, instance.needs_completion_event());
+        return _execution_plan.execute_with(
+            stream,
+            _kernels,
+            events,
+            instance.needs_completion_event(),
+            [&](size_t) {
+                return gpu_dispatch_binding{&descriptor, std::move(arguments)};
+            },
+            [&](size_t,
+                kernel& selected_kernel,
+                const kernel_arguments_desc& kernel_descriptor,
+                const kernel_arguments_data& kernel_arguments,
+                const std::vector<event::ptr>& dependencies,
+                bool request_completion) {
+                return vulkan_dispatch_stream
+                    .enqueue_kernel(selected_kernel, kernel_descriptor, kernel_arguments, specialization_constants, dependencies, request_completion);
+            });
     }
 
 private:
     std::shared_ptr<kernel_string> _kernel_source;
     gpu_kernel_lifecycle _kernels;
+    gpu_execution_plan _execution_plan{1};
     std::array<uint32_t, metadata_words> _cached_metadata{};
     bool _metadata_initialized = false;
 };

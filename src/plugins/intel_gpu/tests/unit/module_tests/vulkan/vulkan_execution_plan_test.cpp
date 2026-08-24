@@ -10,7 +10,7 @@
 #include <cstdint>
 #include <vector>
 
-#include "common_utils/gpu_kernel_lifecycle.hpp"
+#include "common_utils/gpu_execution_plan.hpp"
 #include "foundation_stage_local_spirv.hpp"
 #include "foundation_stage_output_spirv.hpp"
 #include "intel_gpu/runtime/kernel_builder.hpp"
@@ -52,9 +52,24 @@ event::ptr execute_foundation_stages(vulkan_stream& command_stream,
         {shader_abi::index(shader_abi::specialization_id::local_size_x), static_cast<uint32_t>(local_size)},
     };
 
-    auto local_completion = command_stream.enqueue_kernel(*lifecycle.at(0), local_stage, local_stage_data, local_specialization, {}, true);
-    std::vector<event::ptr> dependencies = {local_completion};
-    return command_stream.enqueue_kernel(*lifecycle.at(1), output_stage, output_stage_data, output_specialization, dependencies, true);
+    gpu_execution_plan plan(2, {true, false});
+    return plan.execute_with(
+        command_stream,
+        lifecycle,
+        {},
+        true,
+        [&](size_t dispatch_index) {
+            return dispatch_index == 0 ? gpu_dispatch_binding{&local_stage, local_stage_data} : gpu_dispatch_binding{&output_stage, output_stage_data};
+        },
+        [&](size_t dispatch_index,
+            kernel& selected_kernel,
+            const kernel_arguments_desc& descriptor,
+            const kernel_arguments_data& arguments,
+            const std::vector<event::ptr>& dependencies,
+            bool request_completion) {
+            const auto& specialization = dispatch_index == 0 ? local_specialization : output_specialization;
+            return command_stream.enqueue_kernel(selected_kernel, descriptor, arguments, specialization, dependencies, request_completion);
+        });
 }
 
 }  // namespace
