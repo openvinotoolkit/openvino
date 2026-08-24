@@ -703,9 +703,7 @@ class TestLLMModel(TestTorchConvertModel):
     @pytest.mark.nightly
     @pytest.mark.xfail(platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'],
                         reason="gpt2 max diff (~0.063) slightly exceeds the 0.05 eps on ARM64 after the "
-                               "torch 2.13 bump; the same OV build/graph compares cleanly on x86_64, so "
-                               "this looks like upstream PyTorch/ARM-kernel numeric drift rather than a "
-                               "PT FE regression - needs a ticket to track and re-check on ARM hardware")
+                               "torch 2.13 update while x86 have no issues.")
     def test_convert_model_precommit(self, name, type, ie_device):
         self.run(model_name=name, model_link=type, ie_device=ie_device)
 
