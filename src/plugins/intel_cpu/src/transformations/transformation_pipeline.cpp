@@ -74,7 +74,6 @@
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
-#include "transformations/common_optimizations/preserve_selective_ssm_precision.hpp"
 #include "transformations/common_optimizations/reshape_prelu.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
@@ -627,7 +626,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // supported, this may lead to inconsistency during element type propagation. This transformation is called before
     // the ConvertPrecision pass to align the actual precisions with the list of supported ones.
     constexpr bool convert_input_output_precision = false;
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::PreserveSelectiveSSMPrecision);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::InsertConvertAfterExtension, convert_input_output_precision);
     // Do not insert pass::Validate between pass::InsertConvertAfterExtension and pass::ConvertPrecision.
     // This may result in the loss of the original Element type of the Output .
