@@ -201,9 +201,8 @@ template <cpu_isa_t isa>
 void jit_selective_ssm_kernel<isa>::emit_bf16_subnormal_store(const Vmm& source, int element_count, size_t offset) {
     uni_vmovups(vmm_reduce_tmp0, source);
     uni_vmovups(vmm_reduce_tmp1, source);
-    uni_vpslld(vmm_reduce_tmp1, vmm_reduce_tmp1, 15);
-    uni_vpsrld(vmm_reduce_tmp1, vmm_reduce_tmp1, 31);
-    uni_vpslld(vmm_reduce_tmp1, vmm_reduce_tmp1, 15);
+    uni_vpsrld(vmm_reduce_tmp1, vmm_reduce_tmp1, 16);
+    vpsllw(vmm_reduce_tmp1, vmm_reduce_tmp1, 15);
     uni_vpaddd(vmm_reduce_tmp0, vmm_reduce_tmp0, vmm_reduce_tmp1);
     uni_vpsrld(vmm_reduce_tmp0, vmm_reduce_tmp0, 16);
 
