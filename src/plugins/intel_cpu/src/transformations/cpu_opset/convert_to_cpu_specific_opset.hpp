@@ -74,8 +74,9 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
                                                                                                         config);
                           });
 
-    // Convert public GroupedMatMul-17 into the internal GatherMatmul
-    // Must run before the compression pass.
+    // Convert whatever public GroupedMatMul-17 is left into the internal GatherMatmul. Runs after the
+    // GroupedMatMulCompressed folding above and before ConvertGatherMatmulToGatherMatmulCompressed
+    // below, so that a lowered op still gets its weights compressed.
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertGroupedMatMulToGatherMatmul);
     // On x64 keep whatever the native GroupedMatMul node can execute. Neither v17::GroupedMatMul nor
     // GroupedMatMulCompressed implement evaluate(), so anything the node rejects must still be

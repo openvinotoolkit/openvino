@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "cpu_memory.h"
-#include "openvino/core/node.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 
 namespace ov::intel_cpu::node {
@@ -31,16 +30,13 @@ public:
     }
 };
 
+// GroupedMatMulShapeInfer is stateless — it derives everything from the input shapes — so unlike the
+// other factories in this directory this one does not need to capture the op.
 class GroupedMatMulShapeInferFactory : public ShapeInferFactory {
 public:
-    explicit GroupedMatMulShapeInferFactory(const std::shared_ptr<ov::Node>& op) : m_op(op) {}
-
     [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
         return std::make_shared<GroupedMatMulShapeInfer>();
     }
-
-private:
-    std::shared_ptr<const ov::Node> m_op;
 };
 
 }  // namespace ov::intel_cpu::node

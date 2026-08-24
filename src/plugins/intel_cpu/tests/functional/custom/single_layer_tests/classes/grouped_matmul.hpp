@@ -5,15 +5,17 @@
 #pragma once
 
 #include <string>
+#include <tuple>
 
 #include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "shared_test_classes/single_op/grouped_matmul.hpp"
 #include "utils/cpu_test_utils.hpp"
 
-using namespace CPUTestUtils;
-
 namespace ov {
 namespace test {
+
+using CPUTestUtils::CPUSpecificParams;
+using CPUTestUtils::CPUTestsBase;
 
 // CPU-specific counterpart of the shared GroupedMatMulLayerTest / GroupedMatMulCompressedLayerTest.
 // The shared suites verify numerics and that an op of the expected type shows up in the profiling

@@ -165,7 +165,7 @@ ov::element::TypeVector GroupedMatMul::getSupportedCompressedActivationsTypes() 
 }
 
 GroupedMatMul::GroupedMatMul(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, GroupedMatMulShapeInferFactory(op)) {
+    : Node(op, context, GroupedMatMulShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
