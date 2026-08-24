@@ -7,6 +7,8 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_tensor.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
 
 namespace intel_npu {
@@ -91,6 +93,12 @@ private:
     // large: the state input and its state output share this buffer, so a smaller one would let the device write
     // past it through the state output.
     size_t _required_byte_size;
+
+    // Shape and element type of the model's state buffer. The compiled graph interprets the shared Level Zero buffer
+    // using these, so a tensor set through set_state must match both: a differently shaped or typed tensor would be
+    // read and written with the wrong layout even when it is large enough, silently corrupting the state.
+    ov::Shape _expected_shape;
+    ov::element::Type _expected_element_type;
 
     std::shared_ptr<ZeroTensor> _zero_state;
 
