@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "llm_lora_states.hpp"
 #include "llm_test_helpers.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/version.hpp"
@@ -100,7 +101,10 @@ public:
     MockInnerSync(std::shared_ptr<const ov::ICompiledModel> compiled_model, std::shared_ptr<Recorder> rec)
         : ov::ISyncInferRequest(std::move(compiled_model)),
           m_rec(std::move(rec)),
-          m_state(std::make_shared<MockState>(m_rec)) {}
+          m_state(std::make_shared<MockState>(m_rec)),
+          m_adapter_state(std::make_shared<ov::npuw::VariableState>(
+              "lora_state.MatMul.A",
+              ov::get_tensor_impl(ov::Tensor(ov::element::f32, ov::Shape{1})))) {}
 
     void infer() override {
         m_rec->events.emplace_back("infer");
@@ -126,8 +130,11 @@ public:
     }
 
     void check_tensors() const override {}
+    // Every mock request also carries a LoRA adapter state, whose reset() throws by
+    // design. Its presence in every test guards the element's skip of adapter states
+    // in the per-row reset; only the recording MockState is expected to be reset.
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
-        return {ov::SoPtr<ov::IVariableState>(m_state)};
+        return {ov::SoPtr<ov::IVariableState>(m_state), ov::SoPtr<ov::IVariableState>(m_adapter_state)};
     }
     std::vector<ov::ProfilingInfo> get_profiling_info() const override {
         return {};
@@ -136,6 +143,7 @@ public:
 private:
     std::shared_ptr<Recorder> m_rec;
     std::shared_ptr<MockState> m_state;
+    std::shared_ptr<ov::npuw::VariableState> m_adapter_state;
 };
 
 class MockInnerCompiled : public ov::npuw::ICompiledModel {
@@ -292,6 +300,21 @@ TEST_F(NPUWBatchedElementTest, EachRowScoredIndependentlyAndStacked) {
 
     // One inner inference per row, each preceded by a state reset, in order.
     EXPECT_EQ(m_recorder->events, (std::vector<std::string>{"reset", "infer", "reset", "infer", "reset", "infer"}));
+}
+
+// LoRA adapter states carry the adapter weights and their reset() throws, so the
+// element must leave them out of the per-row reset. The mock inner exposes such a
+// state on every request; a multi-row infer completing at all proves the skip, and
+// the event log proves the ordinary state still gets its per-row reset.
+TEST_F(NPUWBatchedElementTest, AdapterStateExcludedFromRowResets) {
+    auto wrapped = wrap();
+    auto req = wrapped->create_infer_request();
+
+    const std::vector<std::vector<int64_t>> ids = {{5, 1, 1, 1}, {6, 2, 2, 2}};
+    bind_inputs(req, ids);
+
+    ASSERT_NO_THROW(req->infer());
+    EXPECT_EQ(m_recorder->events, (std::vector<std::string>{"reset", "infer", "reset", "infer"}));
 }
 
 TEST_F(NPUWBatchedElementTest, SingleRowScored) {
