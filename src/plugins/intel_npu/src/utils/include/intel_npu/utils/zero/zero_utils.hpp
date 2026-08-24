@@ -87,6 +87,8 @@ static inline ov::element::Type_t toOVElementType(const ze_graph_argument_precis
         return ov::element::Type_t::boolean;
     case ZE_GRAPH_ARGUMENT_PRECISION_NF4:
         return ov::element::Type_t::nf4;
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP4_E2M1:
+        return ov::element::Type_t::f4e2m1;
     case ZE_GRAPH_ARGUMENT_PRECISION_FP8_E4M3:
         return ov::element::Type_t::f8e4m3;
     case ZE_GRAPH_ARGUMENT_PRECISION_FP8_E5M2:
