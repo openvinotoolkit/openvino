@@ -166,10 +166,10 @@ void jit_selective_ssm_kernel<isa>::prepare_f16_row_scales(size_t rows) {
     const Xbyak::Xmm delta(accumulator_vmm(0).getIdx());
     if (rows == 2) {
         uni_vmovd(packed_scales, dword[reg_x]);
+        vcvtph2ps(packed_scales, packed_scales);
     } else {
-        uni_vmovq(packed_scales, qword[reg_x]);
+        vcvtph2ps(packed_scales, ptr[reg_x]);
     }
-    vcvtph2ps(packed_scales, packed_scales);
     vbroadcastss(delta, ptr[reg_args + GET_OFF(delta)]);
     vmulps(packed_scales, packed_scales, delta);
 
