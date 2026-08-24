@@ -13,8 +13,10 @@ namespace kernel_selector {
 ParamsKey EltwiseKernel_vload8::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
@@ -72,7 +74,7 @@ bool EltwiseKernel_vload8::Validate(const Params& params) const {
     for (size_t i = 0; i < ewParams.inputs.size(); i++) {
         // allow only the same input sizes or scalars, without pitches
         if (ewParams.inputs[i].PitchesDifferFromLogicalDims() ||
-            (!(ewParams.inputs[0] == ewParams.inputs[i] && ewParams.inputs[i] == ewParams.outputs[0]) &&
+            ((ewParams.inputs[0] != ewParams.inputs[i] || ewParams.inputs[i] != ewParams.outputs[0]) &&
              ewParams.inputs[i].PhysicalSize() != 1))
             bCheckSizes = false;
     }
