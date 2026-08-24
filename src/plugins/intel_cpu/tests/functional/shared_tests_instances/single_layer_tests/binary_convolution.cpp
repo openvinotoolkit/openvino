@@ -67,4 +67,26 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(ov::test::utils::DEVICE_CPU)),
     BinaryConvolutionLayerTest::getTestCaseName);
 
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_X86)
+const auto binConv2DParams_1x1_ExplicitPad = ::testing::Combine(
+    ::testing::Values(std::vector<size_t>{1, 1}),        // kernel
+    ::testing::Values(std::vector<size_t>{1, 1}),        // strides
+    ::testing::Values(std::vector<ptrdiff_t>{0, 0}),     // pads begin
+    ::testing::Values(std::vector<ptrdiff_t>{0, 0}),     // pads end
+    ::testing::Values(std::vector<size_t>{1, 1}),        // dilations
+    ::testing::Values<size_t>(5),                        // out channels
+    ::testing::Values(ov::op::PadType::EXPLICIT),
+    ::testing::Values(-1.0f));                           // pad value
+
+INSTANTIATE_TEST_SUITE_P(
+    BinaryConvolution2D_1x1_Overflow, BinaryConvolutionLayerTest,
+    ::testing::Combine(
+        binConv2DParams_1x1_ExplicitPad,
+        ::testing::Values(ov::element::f32),
+        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
+            std::vector<std::vector<ov::Shape>>{{{1, 256, 56, 56}}})),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
+    BinaryConvolutionLayerTest::getTestCaseName);
+#endif  // defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_X86)
+
 }   // namespace
