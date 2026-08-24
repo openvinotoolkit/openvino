@@ -13,7 +13,6 @@
 #include <functional>
 #include <iostream>
 #include <limits>
-#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -22,6 +21,7 @@
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "openvino/core/except.hpp"
+#include "vulkan_buffer_hazard_tracker.hpp"
 #include "vulkan_descriptor_cache.hpp"
 #include "vulkan_engine.hpp"
 #include "vulkan_event.hpp"
@@ -69,18 +69,6 @@ struct vulkan_stream::resource_state {
     static constexpr size_t max_pool_reset_tuning_pairs = 7;
     static constexpr size_t max_completion_tuning_pairs = 7;
 
-    struct access_range {
-        VkDeviceSize begin = 0;
-        VkDeviceSize end = 0;
-        VkPipelineStageFlags2 stages = 0;
-        VkAccessFlags2 access = 0;
-        uint64_t generation = 0;
-    };
-
-    struct allocation_access_state {
-        std::vector<access_range> ranges;
-    };
-
     struct recorded_dispatch {
         std::shared_ptr<const vulkan_pipeline_state> pipeline;
         VkDescriptorSet descriptor_set = VK_NULL_HANDLE;
@@ -97,9 +85,6 @@ struct vulkan_stream::resource_state {
         std::vector<VkBufferMemoryBarrier2> barriers;
         std::vector<std::weak_ptr<vulkan_buffer_allocation>> allocations;
     };
-
-    using allocation_key = std::weak_ptr<vulkan_buffer_allocation>;
-    using allocation_access_map = std::map<allocation_key, allocation_access_state, std::owner_less<allocation_key>>;
 
     struct slot {
         VkCommandBuffer command_buffer = VK_NULL_HANDLE;
@@ -182,8 +167,9 @@ struct vulkan_stream::resource_state {
             std::clog << "[GPU][Vulkan][Stream] descriptor_allocations=" << descriptor_allocations << " descriptor_updates=" << descriptor_updates
                       << " descriptor_reuses=" << descriptor_reuses << " dispatches=" << dispatches << " queue_submissions=" << queue_submissions
                       << " max_batch_size=" << largest_batch << " selected_batch_limit_min=" << (dispatches == 0 ? 0 : smallest_selected_batch_limit)
-                      << " selected_batch_limit_max=" << largest_selected_batch_limit << " argument_accesses=" << argument_accesses
-                      << " hazard_barriers=" << hazard_barriers << " external_dependency_barriers=" << external_dependency_barriers
+                      << " selected_batch_limit_max=" << largest_selected_batch_limit << " argument_accesses=" << hazard_tracker.argument_access_count()
+                      << " hazard_barriers=" << hazard_tracker.barrier_count()
+                      << " external_dependency_barriers=" << hazard_tracker.external_dependency_barrier_count()
                       << " command_pool_resets=" << command_pool_resets << " descriptor_pool_resets=" << descriptor_pool_resets
                       << " command_buffer_resets=" << command_buffer_resets << " command_sequence_hits=" << command_sequence_hits
                       << " command_sequence_misses=" << command_sequence_misses << " command_sequences_cached=" << command_sequences.size()
@@ -267,36 +253,7 @@ struct vulkan_stream::resource_state {
 
     void record_buffer_hazards(slot& slot, const vulkan_prepared_arguments& prepared, VkPipelineStageFlags2 stages) {
         OPENVINO_ASSERT(recording_slot == &slot && slot.submission == nullptr, "[GPU][Vulkan] Buffer hazards must be recorded in the active command batch");
-        OPENVINO_ASSERT(prepared.buffer_infos.size() == prepared.allocations.size() && prepared.buffer_infos.size() == prepared.accesses.size(),
-                        "[GPU][Vulkan] Prepared buffer access metadata is inconsistent");
-        argument_accesses += prepared.buffer_infos.size();
-        discard_expired_accesses();
-        hazard_barrier_scratch.clear();
-        current_access_scratch.resize(prepared.buffer_infos.size());
-        access_state_scratch.resize(prepared.buffer_infos.size());
-        current_external_dependency_barrier = false;
-
-        if (external_dependency_pending) {
-            clear_access_history();
-            external_dependency_pending = false;
-            current_external_dependency_barrier = true;
-            ++external_dependency_barriers;
-        }
-
-        for (size_t index = 0; index < prepared.buffer_infos.size(); ++index) {
-            current_access_scratch[index] = make_access_range(prepared.buffer_infos[index], stages, prepared.accesses[index], 0);
-            const auto state = access_states.try_emplace(prepared.allocations[index]).first;
-            access_state_scratch[index] = &state->second;
-            append_hazard_barriers(prepared.allocations[index], state->second.ranges, current_access_scratch[index], hazard_barrier_scratch);
-        }
-
-        hazard_barriers += hazard_barrier_scratch.size();
-
-        advance_access_generation();
-        for (size_t index = 0; index < current_access_scratch.size(); ++index) {
-            current_access_scratch[index].generation = access_generation;
-            update_access_state(access_state_scratch[index]->ranges, current_access_scratch[index]);
-        }
+        hazard_tracker.record(prepared, stages);
     }
 
     void record_dispatch(slot& slot,
@@ -306,15 +263,16 @@ struct vulkan_stream::resource_state {
                          const std::array<uint32_t, 3>& group_counts,
                          bool descriptor_is_immutable) {
         OPENVINO_ASSERT(recording_slot == &slot && slot.submission == nullptr, "[GPU][Vulkan] Dispatch does not belong to the active command batch");
+        const auto& barriers = hazard_tracker.barriers();
         const auto barrier_offset = current_sequence_barriers.size();
-        current_sequence_barriers.insert(current_sequence_barriers.end(), hazard_barrier_scratch.begin(), hazard_barrier_scratch.end());
+        current_sequence_barriers.insert(current_sequence_barriers.end(), barriers.begin(), barriers.end());
         current_dispatches.push_back({std::move(pipeline),
                                       descriptor_set,
                                       group_counts,
                                       std::move(prepared.push_constants),
                                       barrier_offset,
-                                      hazard_barrier_scratch.size(),
-                                      current_external_dependency_barrier});
+                                      barriers.size(),
+                                      hazard_tracker.has_external_dependency_barrier()});
         current_allocations.insert(current_allocations.end(), prepared.allocations.begin(), prepared.allocations.end());
         current_sequence_cacheable = current_sequence_cacheable && descriptor_is_immutable;
     }
@@ -325,7 +283,8 @@ struct vulkan_stream::resource_state {
                                    const vulkan_prepared_arguments& prepared,
                                    const std::array<uint32_t, 3>& group_counts) const {
         OPENVINO_ASSERT(recording_slot == &slot && active_direct_recording, "[GPU][Vulkan] Immediate dispatch requires an active direct-recording batch");
-        record_synchronization(slot.command_buffer, current_external_dependency_barrier, hazard_barrier_scratch.data(), hazard_barrier_scratch.size());
+        const auto& barriers = hazard_tracker.barriers();
+        record_synchronization(slot.command_buffer, hazard_tracker.has_external_dependency_barrier(), barriers.data(), barriers.size());
         record_dispatch_commands(slot.command_buffer, pipeline, descriptor_set, prepared.push_constants, group_counts);
     }
 
@@ -377,7 +336,7 @@ struct vulkan_stream::resource_state {
     }
 
     void mark_external_dependency() {
-        external_dependency_pending = true;
+        hazard_tracker.mark_external_dependency();
     }
 
     bool batch_is_full() const {
@@ -456,8 +415,7 @@ struct vulkan_stream::resource_state {
         } else {
             complete_transient_commands_individually();
         }
-        clear_access_history();
-        external_dependency_pending = false;
+        hazard_tracker.clear();
         discard_expired_command_sequences();
         if (inference_in_progress && inference_tunes_command_reuse) {
             observe_inference_cost(inference_uses_direct_recording,
@@ -565,9 +523,6 @@ struct vulkan_stream::resource_state {
     uint64_t buffer_fills = 0;
     uint64_t transfer_bytes = 0;
     uint64_t queue_submissions = 0;
-    uint64_t argument_accesses = 0;
-    uint64_t hazard_barriers = 0;
-    uint64_t external_dependency_barriers = 0;
     uint64_t command_sequence_hits = 0;
     uint64_t command_sequence_misses = 0;
     uint64_t last_command_sequence_miss_submission = 0;
@@ -578,10 +533,7 @@ struct vulkan_stream::resource_state {
     size_t largest_batch = 0;
     size_t smallest_selected_batch_limit = max_retained_dispatches_per_batch;
     size_t largest_selected_batch_limit = 0;
-    allocation_access_map access_states;
-    std::vector<VkBufferMemoryBarrier2> hazard_barrier_scratch;
-    std::vector<access_range> current_access_scratch;
-    std::vector<allocation_access_state*> access_state_scratch;
+    vulkan_buffer_hazard_tracker hazard_tracker;
     std::vector<command_sequence> command_sequences;
     std::vector<recorded_dispatch> current_dispatches;
     std::vector<VkBufferMemoryBarrier2> current_sequence_barriers;
@@ -594,8 +546,6 @@ struct vulkan_stream::resource_state {
     std::vector<uint64_t> timeline_completion_samples;
     size_t generation_reset_pair_wins = 0;
     size_t individual_reset_pair_wins = 0;
-    uint64_t access_generation = 0;
-    bool current_external_dependency_barrier = false;
     bool current_sequence_cacheable = true;
     bool command_reuse_calibration_started = false;
     bool command_reuse_decided = false;
@@ -927,152 +877,6 @@ private:
         }
     }
 
-    static const access_range* range_for_interval(const std::vector<access_range>& ranges, VkDeviceSize begin, VkDeviceSize end) {
-        for (const auto& range : ranges) {
-            if (range.begin <= begin && end <= range.end) {
-                return &range;
-            }
-        }
-        return nullptr;
-    }
-
-    static access_range make_access_range(const VkDescriptorBufferInfo& info, VkPipelineStageFlags2 stages, VkAccessFlags2 access, uint64_t generation) {
-        OPENVINO_ASSERT(info.range > 0 && info.offset <= std::numeric_limits<VkDeviceSize>::max() - info.range,
-                        "[GPU][Vulkan] Buffer access range overflows VkDeviceSize");
-        return {info.offset, info.offset + info.range, stages, access, generation};
-    }
-
-    static void update_access_state(std::vector<access_range>& ranges, const access_range& current) {
-        if (ranges.empty()) {
-            ranges.push_back(current);
-            return;
-        }
-        if (ranges.size() == 1 && ranges.front().begin == current.begin && ranges.front().end == current.end) {
-            auto& range = ranges.front();
-            range.stages = range.generation == current.generation ? range.stages | current.stages : current.stages;
-            range.access = range.generation == current.generation ? range.access | current.access : current.access;
-            range.generation = current.generation;
-            return;
-        }
-
-        const bool overlaps = std::any_of(ranges.begin(), ranges.end(), [&current](const auto& range) {
-            return std::max(range.begin, current.begin) < std::min(range.end, current.end);
-        });
-        if (!overlaps) {
-            const auto position = std::lower_bound(ranges.begin(), ranges.end(), current.begin, [](const auto& range, VkDeviceSize begin) {
-                return range.begin < begin;
-            });
-            ranges.insert(position, current);
-            return;
-        }
-
-        std::vector<VkDeviceSize> boundaries;
-        boundaries.reserve(ranges.size() * 2 + 2);
-        for (const auto& range : ranges) {
-            boundaries.push_back(range.begin);
-            boundaries.push_back(range.end);
-        }
-        boundaries.push_back(current.begin);
-        boundaries.push_back(current.end);
-        std::sort(boundaries.begin(), boundaries.end());
-        boundaries.erase(std::unique(boundaries.begin(), boundaries.end()), boundaries.end());
-
-        std::vector<access_range> result;
-        result.reserve(boundaries.size());
-        for (size_t index = 1; index < boundaries.size(); ++index) {
-            const auto begin = boundaries[index - 1];
-            const auto end = boundaries[index];
-            const auto* previous = range_for_interval(ranges, begin, end);
-            const bool current_covers_interval = current.begin <= begin && end <= current.end;
-            if (previous == nullptr && !current_covers_interval) {
-                continue;
-            }
-
-            auto stages = previous != nullptr ? previous->stages : VkPipelineStageFlags2{0};
-            auto access = previous != nullptr ? previous->access : VkAccessFlags2{0};
-            auto generation = previous != nullptr ? previous->generation : uint64_t{0};
-            if (current_covers_interval) {
-                stages = previous != nullptr && previous->generation == current.generation ? previous->stages | current.stages : current.stages;
-                access = previous != nullptr && previous->generation == current.generation ? previous->access | current.access : current.access;
-                generation = current.generation;
-            }
-            if (!result.empty() && result.back().end == begin && result.back().stages == stages && result.back().access == access &&
-                result.back().generation == generation) {
-                result.back().end = end;
-            } else {
-                result.push_back({begin, end, stages, access, generation});
-            }
-        }
-        ranges = std::move(result);
-    }
-
-    static void append_hazard_barriers(const vulkan_buffer_allocation::ptr& allocation,
-                                       const std::vector<access_range>& previous,
-                                       const access_range& current,
-                                       std::vector<VkBufferMemoryBarrier2>& barriers) {
-        for (const auto& previous_range : previous) {
-            const auto begin = std::max(previous_range.begin, current.begin);
-            const auto end = std::min(previous_range.end, current.end);
-            const auto write_access = VK_ACCESS_2_SHADER_WRITE_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT;
-            const bool previous_writes = (previous_range.access & write_access) != 0;
-            const bool current_writes = (current.access & write_access) != 0;
-            if (begin >= end || (!previous_writes && !current_writes)) {
-                continue;
-            }
-
-            VkBufferMemoryBarrier2 barrier{};
-            barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
-            barrier.srcStageMask = previous_range.stages;
-            barrier.srcAccessMask = previous_range.access;
-            barrier.dstStageMask = current.stages;
-            barrier.dstAccessMask = current.access;
-            barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrier.buffer = allocation->buffer;
-            barrier.offset = begin;
-            barrier.size = end - begin;
-            const auto duplicate = std::find_if(barriers.begin(), barriers.end(), [&barrier](const auto& existing) {
-                return existing.buffer == barrier.buffer && existing.offset == barrier.offset && existing.size == barrier.size &&
-                       existing.srcStageMask == barrier.srcStageMask && existing.srcAccessMask == barrier.srcAccessMask &&
-                       existing.dstStageMask == barrier.dstStageMask;
-            });
-            if (duplicate != barriers.end()) {
-                duplicate->dstAccessMask |= barrier.dstAccessMask;
-            } else {
-                barriers.push_back(barrier);
-            }
-        }
-    }
-
-    void clear_access_history() {
-        for (auto& [allocation, state] : access_states) {
-            state.ranges.clear();
-        }
-    }
-
-    void advance_access_generation() {
-        ++access_generation;
-        if (access_generation != 0) {
-            return;
-        }
-        for (auto& [allocation, state] : access_states) {
-            for (auto& range : state.ranges) {
-                range.generation = 0;
-            }
-        }
-        access_generation = 1;
-    }
-
-    void discard_expired_accesses() {
-        for (auto iterator = access_states.begin(); iterator != access_states.end();) {
-            if (iterator->first.expired()) {
-                iterator = access_states.erase(iterator);
-            } else {
-                ++iterator;
-            }
-        }
-    }
-
     size_t select_batch_limit(size_t local_invocations) const {
         const auto usable_local_invocations = std::max<size_t>(local_invocations, 1);
         const auto work_group_capacity = std::max<uint64_t>(max_work_group_invocations / usable_local_invocations, 1);
@@ -1242,7 +1046,6 @@ private:
 
     slot* recording_slot = nullptr;
     size_t active_batch_limit = 0;
-    bool external_dependency_pending = false;
     std::weak_ptr<vulkan_submission_state> latest_submission;
 
     void begin_profiling(const slot& slot) const {
@@ -1278,7 +1081,8 @@ private:
         check_vk_result(vkBeginCommandBuffer(slot.command_buffer, &begin_info), "vkBeginCommandBuffer(transfer)");
         begin_profiling(slot);
         record_buffer_hazards(slot, prepared, VK_PIPELINE_STAGE_2_TRANSFER_BIT);
-        record_synchronization(slot.command_buffer, current_external_dependency_barrier, hazard_barrier_scratch.data(), hazard_barrier_scratch.size());
+        const auto& barriers = hazard_tracker.barriers();
+        record_synchronization(slot.command_buffer, hazard_tracker.has_external_dependency_barrier(), barriers.data(), barriers.size());
         return slot;
     }
 };
