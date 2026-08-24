@@ -280,18 +280,14 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         tensorsInits,
         std::move(model),
         localConfig,
-<<<<<<< HEAD
-        /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
+        /* persistentBlob = */ true,
+        compatibilityDescriptor);  // exporting the blob shall be available in such a scenario
 
     // At export time, all schedules (main + inits) shall be stored in the blob
     blobWriter->register_section(std::make_shared<ELFMainScheduleSection>(weightlessGraph, _logger.level()));
     blobWriter->register_section(std::make_shared<ELFInitSchedulesSection>(weightlessGraph, _logger.level()));
 
     return weightlessGraph;
-=======
-        /* persistentBlob = */ true,
-        compatibilityDescriptor);  // exporting the blob shall be available in such a scenario
->>>>>>> upstream/master
 }
 
 ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,

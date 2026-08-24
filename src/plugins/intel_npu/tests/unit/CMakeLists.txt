@@ -46,15 +46,12 @@ ov_add_test_target(
             # plugin/src
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/executor.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/metadata.cpp
-<<<<<<< HEAD
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/batch_size_section.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/io_layouts_section.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/compiler_adapter/src/compiler_schedules_sections.cpp
-=======
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/blob_format_importers.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/blob_source.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/compiler_option_support_helper.cpp
->>>>>>> upstream/master
             # npuw core
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/compiled_model.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/flux2_compiled_model.cpp

@@ -261,12 +261,6 @@ TEST_F(MetadataUnitTests, compatibilityDescriptorLenExceedsBounds) {
     meta.write(stream);
     std::string blob = stream.str();
 
-<<<<<<< HEAD
-    const size_t compatDescLenOffset =
-        blob.size() - MAGIC_BYTES.size() - sizeof(uint64_t) - compatDesc.size() - sizeof(uint64_t);
-    const uint64_t badLen = compatDesc.size() + 0xFF;
-    std::memcpy(&blob[compatDescLenOffset], &badLen, sizeof(badLen));
-=======
     const uint64_t badCompatibilityDescriptorSize = compatDesc.size() + 0xFF;
     const size_t compatDescLenOffset =
         blob.size() - FOOTER_SIZE - sizeof(badCompatibilityDescriptorSize) - compatDesc.size();
@@ -275,7 +269,6 @@ TEST_F(MetadataUnitTests, compatibilityDescriptorLenExceedsBounds) {
     std::stringstream malformedStream(blob);
     BlobSource source(malformedStream);
     OV_EXPECT_THROW(read_metadata_from(source), ov::Exception, _);
->>>>>>> upstream/master
 
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{blob.size()});
     std::memcpy(tensor.data<char>(), blob.data(), blob.size());

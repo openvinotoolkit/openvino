@@ -7,11 +7,8 @@
 #include <fstream>
 #include <numeric>
 
-<<<<<<< HEAD
 #include "batch_size_section.hpp"
-=======
 #include "blob_format_importers.hpp"
->>>>>>> upstream/master
 #include "compiled_model.hpp"
 #include "compiler_schedules_sections.hpp"
 #include "driver_compiler_adapter.hpp"
@@ -23,20 +20,11 @@
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/itt.hpp"
-<<<<<<< HEAD
-#include "intel_npu/common/parser_factory.hpp"
 #include "intel_npu/common/supported_section_type_evaluator.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
-#include "intel_npu/utils/zero/zero_init.hpp"
 #include "io_layouts_section.hpp"
-#include "metrics.hpp"
-=======
-#include "intel_npu/config/npuw.hpp"
-#include "intel_npu/config/options.hpp"
-#include "intel_npu/utils/utils.hpp"
->>>>>>> upstream/master
 #include "npuw/compiled_model.hpp"
 #include "npuw/flux2_compiled_model.hpp"
 #include "npuw/gqa_compiled_model.hpp"
@@ -63,8 +51,8 @@ constexpr std::string_view FAILED_IMPORT_MODEL_PREFACE = "Could not import the m
 constexpr std::string_view IMPORT_MODEL_UNEXPECTED_FAILURE_MESSAGE = "Unexpected exception while importing the model";
 
 /**
- * @brief Just checks if there is any "WeightlessCacheAttribute" present in the model. In the negative case, an error is
- * thrown. The weights separation flow in its current state cannot work without this attribuite.
+ * @brief Just checks if there is any "WeightlessCacheAttribute" present in the model. In the negative case, an
+ * error is thrown. The weights separation flow in its current state cannot work without this attribuite.
  */
 void check_weightless_cache_attribute_occurrence(const std::shared_ptr<const ov::Model>& model) {
     if (!model) {
@@ -153,8 +141,8 @@ std::shared_ptr<const ov::Model> get_model_ptr_from_map(const ov::AnyMap& proper
 
 /**
  * @brief Registers all blob sections readers known to the plugin.
- * @note The CRE & OffsetsTable sections should have been already registered (e.g. in the BlobReader ctor) since these
- * sections are a core part of the format.
+ * @note The CRE & OffsetsTable sections should have been already registered (e.g. in the BlobReader ctor) since
+ * these sections are a core part of the format.
  */
 void register_known_sections(const std::shared_ptr<BlobReader>& blobReader) {
     blobReader->register_reader(PredefinedSectionType::ELF_MAIN_SCHEDULE, ELFMainScheduleSection::read);
@@ -247,8 +235,9 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     // parse again env_variables to update registered configs which have env vars set
     config.parseEnvVars();
 
-    // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
-    // to enable those for OV Core to query. Note: do this last to not filter them out. register npuw caching properties
+    // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still
+    // need to enable those for OV Core to query. Note: do this last to not filter them out. register npuw caching
+    // properties
     for_each_exposed_npuw_option([&](auto tag) {
         using Opt = typename decltype(tag)::type;
         REGISTER_OPTION(Opt);
@@ -693,19 +682,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     BlobSource blobSource(stream, _logger.level());
 
     try {
-<<<<<<< HEAD
-        size_t blobSize = BlobReader::get_npu_region_size(stream);
-
-        ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
-        ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
-        if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
-            OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
-        }
-        stream.read(tensor.data<char>(), static_cast<std::streamsize>(blobSize));
-        return parse(tensor, npuPluginProperties);
-=======
         return import_model(blobSource, localProperties);
->>>>>>> upstream/master
     } catch (const std::exception& ex) {
         OPENVINO_THROW(FAILED_IMPORT_MODEL_PREFACE, ex.what());
     } catch (...) {
@@ -788,43 +765,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compiledBlob,
-<<<<<<< HEAD
-                                                         const ov::AnyMap& properties) const {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
-    update_log_level(properties);
-
-    // Need to create intermediate istream for NPUW
-    ov::SharedStreamBuffer buffer{compiledBlob.data(), compiledBlob.get_byte_size()};
-    std::istream stream{&buffer};
-
-    auto npuPluginProperties = properties;
-    // NPUW properties from npuPluginProperties will be erased if import_model_npuw returns nullptr
-    auto compiledModel = import_model_npuw(stream, npuPluginProperties, shared_from_this());
-    if (compiledModel) {
-        return compiledModel;
-    }
-
-    if (_backend != nullptr) {
-        _backend->updateInfo(npuPluginProperties);
-    }
-
-    try {
-        size_t blobSize = BlobReader::get_npu_region_size(compiledBlob);
-
-        const ov::Tensor roiTensor(compiledBlob,
-                                   ov::Coordinate{0},
-                                   ov::Coordinate{blobSize});  // ROI tensor to skip NPU plugin metadata
-        return parse(roiTensor, npuPluginProperties);
-    } catch (const std::exception& ex) {
-        OPENVINO_THROW("Can't import network: ", ex.what());
-    } catch (...) {
-        OPENVINO_THROW("NPU import_model got unexpected exception from CompiledModel");
-    }
-}
-
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compiledBlob,
-=======
->>>>>>> upstream/master
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& properties) const {
     auto casted = std::dynamic_pointer_cast<RemoteContextImpl>(context._ptr);
@@ -877,120 +817,6 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return supportedOpsMap;
 }
 
-<<<<<<< HEAD
-std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig, const ov::AnyMap& properties) const {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::parse");
-
-    auto blobReader = std::make_shared<BlobReader>(_logger.level());
-    register_known_sections(blobReader);
-    auto localProperties = properties;
-
-    auto originalModel = get_model_ptr_from_map(localProperties);
-
-    std::shared_ptr<IDevice> device =
-        utils::getDeviceById(_backend, _propertiesManager->determineDeviceId(localProperties));
-
-    if (_backend == nullptr || device == nullptr) {
-        OPENVINO_THROW("Device not found.");
-    }
-
-    OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
-    FilteredConfig localConfig = _propertiesManager->getConfigWithCompilerPropertiesDisabled(localProperties);
-
-    const auto loadedFromCache = localConfig.get<LOADED_FROM_CACHE>();
-    if (!loadedFromCache) {
-        _logger.warning(
-            "The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead!");
-    }
-
-    blobReader->read(tensorBig);
-    auto mainScheduleSection = std::dynamic_pointer_cast<ELFMainScheduleSection>(
-        blobReader->retrieve_first_section(PredefinedSectionType::ELF_MAIN_SCHEDULE));
-    auto initSchedulesSection = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
-        blobReader->retrieve_first_section(PredefinedSectionType::ELF_INIT_SCHEDULES));
-    auto batchSizeSection = std::dynamic_pointer_cast<BatchSizeSection>(
-        blobReader->retrieve_first_section(PredefinedSectionType::BATCH_SIZE));
-    auto ioLayoutsSection = std::dynamic_pointer_cast<IOLayoutsSection>(
-        blobReader->retrieve_first_section(PredefinedSectionType::IO_LAYOUTS));
-
-    const std::optional<int64_t> batchSize =
-        batchSizeSection != nullptr ? std::make_optional<int64_t>(batchSizeSection->get_batch_size()) : std::nullopt;
-    const bool weightsSeparationEnabled = initSchedulesSection != nullptr;
-
-    if (weightsSeparationEnabled) {
-        // Retrieve the ov::Model used for compilation. This is required for extracting and matching the weights
-        if (!originalModel) {
-            if (!localConfig.get<WEIGHTS_PATH>().empty()) {
-                const std::string weightsPath = localConfig.get<WEIGHTS_PATH>();
-                const size_t weightsPathLength = weightsPath.length();
-                std::string xmlPath = weightsPath;
-
-                if (weightsPathLength > WEIGHTS_EXTENSION.length() &&
-                    weightsPath.compare(weightsPathLength - WEIGHTS_EXTENSION.length(),
-                                        WEIGHTS_EXTENSION.length(),
-                                        WEIGHTS_EXTENSION) == 0) {
-                    xmlPath.replace(weightsPathLength - WEIGHTS_EXTENSION.length(),
-                                    WEIGHTS_EXTENSION.length(),
-                                    XML_EXTENSION);
-                } else if (weightsPathLength <= ONNX_EXTENSION.length() ||
-                           weightsPath.compare(weightsPathLength - ONNX_EXTENSION.length(),
-                                               ONNX_EXTENSION.length(),
-                                               ONNX_EXTENSION)) {
-                    OPENVINO_THROW("Invalid path to the weights: ",
-                                   weightsPath,
-                                   ". A \".bin\" or \".onnx\" extension was expected.");
-                }
-
-                originalModel =
-                    get_core()->read_model(ov::util::make_path(xmlPath), ov::util::make_path(weightsPath), properties);
-            } else {
-                OPENVINO_THROW("Attempted to load a weightless compiled model, but no weights have been provided");
-            }
-        }
-
-        check_weightless_cache_attribute_occurrence(originalModel);
-    }
-
-    ParserFactory parserFactory;
-    auto parser = parserFactory.getParser(_backend->getInitStructs());
-
-    auto graph = parser->parse(
-        mainScheduleSection->get_schedule(),
-        localConfig,
-        weightsSeparationEnabled ? std::make_optional(initSchedulesSection->get_schedules()) : std::nullopt,
-        weightsSeparationEnabled ? std::make_optional(originalModel) : std::nullopt,
-        std::nullopt);  // TODO compatibility string
-
-    mainScheduleSection->set_graph(std::dynamic_pointer_cast<Graph>(graph));
-    if (weightsSeparationEnabled) {
-        initSchedulesSection->set_graph(std::dynamic_pointer_cast<WeightlessGraph>(graph));
-    }
-
-    graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
-    const std::shared_ptr<ov::Model> modelDummy = create_dummy_model(
-        graph->get_metadata().inputs,
-        graph->get_metadata().outputs,
-        batchSize,
-        ioLayoutsSection != nullptr ? std::make_optional<>(ioLayoutsSection->get_input_layouts()) : std::nullopt,
-        ioLayoutsSection != nullptr ? std::make_optional<>(ioLayoutsSection->get_output_layouts()) : std::nullopt);
-
-    if (batchSize.has_value()) {
-        if (batchSize.value() > 0) {
-            // Initial batch setup for static cases
-            graph->set_batch_size(batchSize.value());
-        }
-    }
-
-    OV_ITT_TASK_NEXT(PLUGIN_PARSE_MODEL, "parse");
-
-    // Allows re-exporting the model
-    auto blobWriter = std::make_shared<BlobWriter>(blobReader);
-
-    return std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig, blobWriter);
-}
-
-=======
->>>>>>> upstream/master
 void Plugin::update_log_level(const ov::AnyMap& properties) const {
     if (properties.count(ov::log::level.name()) != 0) {
         Logger::global().setLevel(properties.at(ov::log::level.name()).as<ov::log::Level>());

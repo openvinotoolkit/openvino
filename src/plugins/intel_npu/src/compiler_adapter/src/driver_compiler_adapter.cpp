@@ -260,7 +260,6 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         _logger.info("Compilation memory usage: Peak %lld KB", compile_model_mem_end - compile_model_mem_start);
     }
 
-<<<<<<< HEAD
     auto weightlessGraph = std::make_shared<WeightlessGraph>(_zeGraphExt,
                                                              _zeroInitStruct,
                                                              mainGraphHandle,
@@ -269,28 +268,16 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                                                              initGraphDescriptors,
                                                              std::move(initNetworkMetadata),
                                                              /* initBlobs = */ std::nullopt,
-                                                             model,
-                                                             updatedConfig);
+                                                             std::move(model),
+                                                             updatedConfig,
+                                                             /* persistentBlob = */ false,
+                                                             get_compatibility_descriptor(mainGraphHandle._handle));
 
     // At export time, all schedules (main + inits) shall be stored in the blob.
     blobWriter->register_section(std::make_shared<ELFMainScheduleSection>(weightlessGraph, _logger.level()));
     blobWriter->register_section(std::make_shared<ELFInitSchedulesSection>(weightlessGraph, _logger.level()));
 
     return weightlessGraph;
-=======
-    return std::make_shared<WeightlessGraph>(_zeGraphExt,
-                                             _zeroInitStruct,
-                                             mainGraphHandle,
-                                             std::move(mainNetworkMetadata),
-                                             /* mainBlob = */ std::nullopt,
-                                             initGraphDescriptors,
-                                             std::move(initNetworkMetadata),
-                                             /* initBlobs = */ std::nullopt,
-                                             std::move(model),
-                                             updatedConfig,
-                                             /* persistentBlob = */ false,
-                                             get_compatibility_descriptor(mainGraphHandle._handle));
->>>>>>> upstream/master
 }
 
 ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
