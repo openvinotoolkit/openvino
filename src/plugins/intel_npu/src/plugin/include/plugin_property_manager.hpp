@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -22,7 +21,7 @@
 
 namespace intel_npu {
 
-class PluginPropertyManager final {
+class PluginPropertyManager final : private PropertyRegistrationBase {
 public:
     PluginPropertyManager(const FilteredConfig& config,
                           const ov::SoPtr<IEngineBackend>& backend,
@@ -57,8 +56,6 @@ private:
     ov::SoPtr<IEngineBackend> _backend;
     std::shared_ptr<CompilerOptionSupportHelper> _compilerOptionSupportHelper;
     Logger& _logger;
-
-    std::map<std::string, PropertyDescriptor> _properties;
 
     const std::vector<ov::PropertyName> _cachingProperties = [] {
         std::vector<ov::PropertyName> properties = {
