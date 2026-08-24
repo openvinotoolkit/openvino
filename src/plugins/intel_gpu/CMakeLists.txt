@@ -147,7 +147,6 @@ if(ENABLE_GPU_MLIR)
 
     set(mlir_lib openvino_intel_gpu_mlir_obj)
     add_library(${mlir_lib} OBJECT ${GPU_MLIR_SOURCES})
-    target_compile_options(${mlir_lib} PRIVATE -Wno-error)
     target_compile_definitions(${mlir_lib} PRIVATE ENABLE_GPU_MLIR)
     target_link_libraries(${mlir_lib} PRIVATE openvino::runtime openvino_intel_gpu_graph GraphCompiler)
     target_include_directories(${mlir_lib} PRIVATE
