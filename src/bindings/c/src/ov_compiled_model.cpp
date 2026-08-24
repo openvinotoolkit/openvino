@@ -196,7 +196,7 @@ ov_status_e ov_compiled_model_set_property(const ov_compiled_model_t* compiled_m
 }
 
 ov_status_e ov_compiled_model_set_properties(const ov_compiled_model_t* compiled_model,
-                                             size_t num_properties,
+                                             const size_t num_properties,
                                              const ov_property_t* properties) {
     if (!compiled_model || !properties || num_properties == 0) {
         return ov_status_e::INVALID_C_PARAM;

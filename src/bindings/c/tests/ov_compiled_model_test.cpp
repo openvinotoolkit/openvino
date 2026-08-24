@@ -469,4 +469,36 @@ TEST_P(ov_compiled_model_test, set_properties_same_as_variadic) {
     ov_core_free(core);
 }
 
+TEST_P(ov_compiled_model_test, set_properties_multi) {
+    auto device = GetParam();
+    std::string device_name = "BATCH:" + device + "(4)";
+    ov_core_t* core = nullptr;
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_compiled_model_t* compiled_model = nullptr;
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
+    EXPECT_NE(nullptr, compiled_model);
+
+    // Set two BATCH-mutable properties in a single call and verify both are applied.
+    const ov_property_t props[] = {
+        {ov_property_key_auto_batch_timeout, "3000"},
+        {ov_property_key_auto_batch_timeout, "5000"},  // last write wins
+    };
+    OV_EXPECT_OK(ov_compiled_model_set_properties(compiled_model, 2, props));
+
+    char* result = nullptr;
+    OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, ov_property_key_auto_batch_timeout, &result));
+    EXPECT_STREQ("5000", result);
+    ov_free(result);
+
+    ov_compiled_model_free(compiled_model);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
 }  // namespace

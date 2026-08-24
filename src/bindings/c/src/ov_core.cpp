@@ -243,7 +243,7 @@ ov_status_e ov_core_set_property(const ov_core_t* core, const char* device_name,
 
 ov_status_e ov_core_set_properties(const ov_core_t* core,
                                    const char* device_name,
-                                   size_t num_properties,
+                                   const size_t num_properties,
                                    const ov_property_t* properties) {
     if (!core || !properties || num_properties == 0) {
         return ov_status_e::INVALID_C_PARAM;
@@ -263,7 +263,7 @@ ov_status_e ov_core_set_properties(const ov_core_t* core,
 ov_status_e ov_core_compile_model_props(const ov_core_t* core,
                                         const ov_model_t* model,
                                         const char* device_name,
-                                        size_t num_properties,
+                                        const size_t num_properties,
                                         const ov_property_t* properties,
                                         ov_compiled_model_t** compiled_model) {
     if (!core || !model || !compiled_model) {
@@ -282,7 +282,7 @@ ov_status_e ov_core_compile_model_props(const ov_core_t* core,
         } else {
             object = core->object->compile_model(model->object, property);
         }
-        std::unique_ptr<ov_compiled_model_t> _compiled_model(new ov_compiled_model_t);
+        auto _compiled_model = std::make_unique<ov_compiled_model_t>();
         _compiled_model->object = std::make_shared<ov::CompiledModel>(std::move(object));
         *compiled_model = _compiled_model.release();
     }
@@ -293,7 +293,7 @@ ov_status_e ov_core_compile_model_props(const ov_core_t* core,
 ov_status_e ov_core_compile_model_from_file_props(const ov_core_t* core,
                                                   const char* model_path,
                                                   const char* device_name,
-                                                  size_t num_properties,
+                                                  const size_t num_properties,
                                                   const ov_property_t* properties,
                                                   ov_compiled_model_t** compiled_model) {
     if (!core || !model_path || !compiled_model) {
@@ -312,7 +312,7 @@ ov_status_e ov_core_compile_model_from_file_props(const ov_core_t* core,
         } else {
             object = core->object->compile_model(model_path, property);
         }
-        std::unique_ptr<ov_compiled_model_t> _compiled_model(new ov_compiled_model_t);
+        auto _compiled_model = std::make_unique<ov_compiled_model_t>();
         _compiled_model->object = std::make_shared<ov::CompiledModel>(std::move(object));
         *compiled_model = _compiled_model.release();
     }
@@ -509,7 +509,7 @@ ov_status_e ov_core_compile_model_from_file_unicode(const ov_core_t* core,
 ov_status_e ov_core_compile_model_from_file_unicode_props(const ov_core_t* core,
                                                           const wchar_t* model_path_ws,
                                                           const char* device_name,
-                                                          size_t num_properties,
+                                                          const size_t num_properties,
                                                           const ov_property_t* properties,
                                                           ov_compiled_model_t** compiled_model) {
     if (!core || !model_path_ws || !compiled_model) {
@@ -559,6 +559,29 @@ ov_status_e ov_core_compile_model_with_context(const ov_core_t* core,
 
         ov::CompiledModel object = core->object->compile_model(model->object, *context->object, property);
         std::unique_ptr<ov_compiled_model_t> _compiled_model(new ov_compiled_model_t);
+        _compiled_model->object = std::make_shared<ov::CompiledModel>(std::move(object));
+        *compiled_model = _compiled_model.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_core_compile_model_with_context_props(const ov_core_t* core,
+                                                     const ov_model_t* model,
+                                                     const ov_remote_context_t* context,
+                                                     const size_t num_properties,
+                                                     const ov_property_t* properties,
+                                                     ov_compiled_model_t** compiled_model) {
+    if (!core || !model || !context || !compiled_model) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    if (num_properties > 0 && !properties) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        ov::AnyMap property = ov_build_property_map(properties, num_properties);
+        ov::CompiledModel object = core->object->compile_model(model->object, *context->object, property);
+        auto _compiled_model = std::make_unique<ov_compiled_model_t>();
         _compiled_model->object = std::make_shared<ov::CompiledModel>(std::move(object));
         *compiled_model = _compiled_model.release();
     }

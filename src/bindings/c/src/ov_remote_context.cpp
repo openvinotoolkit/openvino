@@ -66,7 +66,7 @@ ov_status_e ov_core_create_context(const ov_core_t* core,
 
 ov_status_e ov_core_create_context_props(const ov_core_t* core,
                                          const char* device_name,
-                                         size_t num_properties,
+                                         const size_t num_properties,
                                          const ov_property_t* properties,
                                          ov_remote_context_t** context) {
     if (!core || !device_name || !context) {
@@ -79,7 +79,7 @@ ov_status_e ov_core_create_context_props(const ov_core_t* core,
         ov::AnyMap property = ov_build_property_map(properties, num_properties);
         std::string dev_name = device_name;
         ov::RemoteContext object = core->object->create_context(dev_name, property);
-        std::unique_ptr<ov_remote_context> _context(new ov_remote_context);
+        auto _context = std::make_unique<ov_remote_context>();
         _context->object = std::make_shared<ov::RemoteContext>(std::move(object));
         *context = _context.release();
     }
@@ -121,9 +121,9 @@ ov_status_e ov_remote_context_create_tensor(const ov_remote_context_t* context,
 ov_status_e ov_remote_context_create_tensor_props(const ov_remote_context_t* context,
                                                   const ov_element_type_e type,
                                                   const ov_shape_t shape,
-                                                  size_t num_properties,
-                                                  ov_tensor_t** remote_tensor,
-                                                  const ov_property_t* properties) {
+                                                  const size_t num_properties,
+                                                  const ov_property_t* properties,
+                                                  ov_tensor_t** remote_tensor) {
     if (!context || !shape.dims || !remote_tensor) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -136,7 +136,7 @@ ov_status_e ov_remote_context_create_tensor_props(const ov_remote_context_t* con
         std::copy_n(shape.dims, shape.rank, std::back_inserter(tmp_shape));
         auto tmp_type = get_element_type(type);
         ov::RemoteTensor object = context->object->create_tensor(tmp_type, tmp_shape, property);
-        std::unique_ptr<ov_tensor> _remote_tensor(new ov_tensor);
+        auto _remote_tensor = std::make_unique<ov_tensor>();
         _remote_tensor->object = std::make_shared<ov::RemoteTensor>(std::move(object));
         *remote_tensor = _remote_tensor.release();
     }

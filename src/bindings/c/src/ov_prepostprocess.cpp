@@ -339,7 +339,7 @@ ov_status_e ov_preprocess_input_tensor_info_set_color_format(
 ov_status_e ov_preprocess_input_tensor_info_set_color_format_with_subnames(
     ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
     const ov_color_format_e colorFormat,
-    size_t sub_names_size,
+    const size_t sub_names_size,
     const char** sub_names) {
     if (!preprocess_input_tensor_info) {
         return ov_status_e::INVALID_C_PARAM;

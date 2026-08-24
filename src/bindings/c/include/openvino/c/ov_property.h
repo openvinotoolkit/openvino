@@ -276,9 +276,6 @@ ov_property_key_intel_gpu_config_file;
  *   };
  *   ov_core_create_context_props(core, "GPU", ctx_props, 2, &ctx);
  * @endcode
- *
- * In C++ overloaded constructors are provided for convenience so the type is deduced
- * automatically without explicit casts.
  */
 typedef struct {
     const char* key;   /*!< Property key string (see @c ov_property_key_xxx constants). */
