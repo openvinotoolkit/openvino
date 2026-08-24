@@ -91,10 +91,7 @@ jobs:
       # Samples
       #
 
-      - name: Build cpp samples
-        if: ${{ inputs.test_type == 'unit' }}
-        run: $INSTALL_DIR/samples/cpp/build_samples.sh -i $INSTALL_DIR -b $BUILD_DIR/cpp_samples
-
+      # Samples are built in the Build job and reused from openvino_package
       # git uses the system CA bundle, so add the proxy root CA (mounted at
       # /usr/local/share/ca-certificates) to it before cloning over HTTPS,
       # otherwise git fails with "server certificate verification failed".

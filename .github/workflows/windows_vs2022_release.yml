@@ -71,6 +71,7 @@ jobs:
       build-type: 'Release'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
       build-additional-python-wheels: true
+      build-samples: true
       cmake-options: >-
             -G 'Ninja Multi-Config'
             -DENABLE_PYTHON=ON
@@ -142,16 +143,6 @@ jobs:
           set-pip-install-path: 'false'
           self-hosted-runner: 'true'
           use-pip-proxy: 'true'
-
-      # Test with the short names of the arguments
-      - name: Build cpp samples
-        run: |
-          & ${{ env.SAMPLES_INSTALL_DIR }}/cpp/build_samples.ps1 -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/cpp_samples
-
-      # Test with the full names of the arguments
-      - name: Build c samples
-        run: |
-          & ${{ env.SAMPLES_INSTALL_DIR }}/c/build_samples.ps1 -InstallDirectory ${{ env.INSTALL_DIR }} -BuildDirectory ${{ env.BUILD_DIR }}/c_samples
 
       # Install Python benchmark_app by installing openvino-*.whl
       - name: Install OpenVINO Python wheels
@@ -259,12 +250,12 @@ jobs:
         uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3.0.0
 
       - name: E2E of openvino-node package
-        if: fromJSON(env.NODE_VERSION) >= 22
+        if: ${{ 'false' }} # Skipping E2E tests for now due to CVS-192563
         working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: npm run test:e2e
 
       - name: E2E of openvino-node package (cmd)
-        if: fromJSON(env.NODE_VERSION) >= 22
+        if: ${{ 'false' }} # Skipping E2E tests for now due to CVS-192563
         shell: cmd
         working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: call npm run test:e2e

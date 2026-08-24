@@ -13,6 +13,8 @@ namespace ov {
 namespace test {
 namespace npuw {
 struct LLMVariantSwitchTestAccess;
+struct LLMTrimKVCacheTestAccess;
+struct LLMContinuedPrefillTestAccess;
 }  // namespace npuw
 }  // namespace test
 }  // namespace ov
@@ -25,7 +27,6 @@ class WhisperInferRequest;
 class LLMBlockKVCacheStrategy;
 class LLMContinuousKVCacheStrategy;
 struct PrefixCacheRestorationContext;
-struct MaskInfo;
 class LLMCompiledModel : public ov::npuw::ICompiledModel {
     using GetPropertiesMap =
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
@@ -90,6 +91,8 @@ private:
     friend class LLMBlockKVCacheStrategy;
     friend class LLMContinuousKVCacheStrategy;
     friend struct ov::test::npuw::LLMVariantSwitchTestAccess;
+    friend struct ov::test::npuw::LLMTrimKVCacheTestAccess;
+    friend struct ov::test::npuw::LLMContinuedPrefillTestAccess;
     friend class EncoderEmbeddingInferRequest;
 
     std::shared_ptr<ov::ISyncInferRequest> create_llm_infer_request();
