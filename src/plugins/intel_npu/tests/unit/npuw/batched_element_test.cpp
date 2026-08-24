@@ -79,6 +79,14 @@ std::string error_message(const ov::Exception& ex) {
     return ex.what() == nullptr ? std::string{} : std::string(ex.what());
 }
 
+// The fixture drives the element through a synthetic reranker, so the wrap is
+// requested with the rerank tag throughout.
+ov::npuw::batched::ScoringTags rerank_tags() {
+    ov::npuw::batched::ScoringTags tags;
+    tags.text_rerank = true;
+    return tags;
+}
+
 // Minimal two-output model (one input_ids input, two f32 outputs) for the multi-output test. The
 // mock fills the outputs itself, so only the I/O signature matters.
 std::shared_ptr<ov::Model> build_two_output_model() {
@@ -183,7 +191,7 @@ protected:
     }
 
     std::shared_ptr<ov::npuw::ICompiledModel> wrap() {
-        return std::make_shared<ov::npuw::batched::CompiledModel>(make_inner(), m_plugin);
+        return std::make_shared<ov::npuw::batched::CompiledModel>(make_inner(), m_plugin, rerank_tags());
     }
 
     // Bind a fresh zero-filled tensor of the port's element type to a named input.
@@ -270,13 +278,30 @@ TEST_F(NPUWBatchedElementTest, ExportWritesBatchedHeader) {
     EXPECT_EQ(vpatch, OPENVINO_VERSION_PATCH);
     EXPECT_EQ(s11n_version, std::string(NPUW_SERIALIZATION_VERSION));
 
+    // The scoring tags follow the version fields, so import restores them from
+    // the header alone.
+    bool text_rerank = false;
+    bool text_embed = true;
+    ov::npuw::s11n::read(stream, text_rerank);
+    ov::npuw::s11n::read(stream, text_embed);
+    EXPECT_TRUE(text_rerank);
+    EXPECT_FALSE(text_embed);
+
     // The mock inner writes nothing, so the header is the whole stream.
     EXPECT_EQ(stream.peek(), std::char_traits<char>::eof());
 }
 
+// The scoring tags are wrapper state: the inner model never records them, so the
+// wrapper answers them itself and forwards every other property.
+TEST_F(NPUWBatchedElementTest, WrapperReportsScoringTags) {
+    const auto wrapped = wrap();
+    EXPECT_TRUE(wrapped->get_property("NPUW_TEXT_RERANK").as<bool>());
+    EXPECT_FALSE(wrapped->get_property("NPUW_TEXT_EMBED").as<bool>());
+}
+
 TEST_F(NPUWBatchedElementTest, ForwardsInnerIO) {
     auto inner = make_inner();
-    auto wrapped = std::make_shared<ov::npuw::batched::CompiledModel>(inner, m_plugin);
+    auto wrapped = std::make_shared<ov::npuw::batched::CompiledModel>(inner, m_plugin, rerank_tags());
     // The wrapper adds no I/O of its own -- it exposes the inner model's ports.
     EXPECT_EQ(&wrapped->inputs(), &inner->inputs());
     EXPECT_EQ(&wrapped->outputs(), &inner->outputs());
@@ -411,7 +436,7 @@ TEST_F(NPUWBatchedElementTest, BatchSizeFromNonLeadingInput) {
 TEST_F(NPUWBatchedElementTest, MultipleOutputsStackedIndependently) {
     auto model = build_two_output_model();
     auto inner = std::make_shared<MockInnerCompiled>(model, m_plugin, m_recorder);
-    auto wrapped = std::make_shared<ov::npuw::batched::CompiledModel>(inner, m_plugin);
+    auto wrapped = std::make_shared<ov::npuw::batched::CompiledModel>(inner, m_plugin, rerank_tags());
     auto req = wrapped->create_infer_request();
 
     const std::vector<std::vector<int64_t>> ids = {{11, 1}, {22, 1}, {33, 1}};
@@ -435,7 +460,7 @@ TEST_F(NPUWBatchedElementTest, MultipleOutputsStackedIndependently) {
 TEST_F(NPUWBatchedElementTest, PreBoundOutputTensorReused) {
     auto model = build_two_output_model();
     auto inner = std::make_shared<MockInnerCompiled>(model, m_plugin, m_recorder);
-    auto wrapped = std::make_shared<ov::npuw::batched::CompiledModel>(inner, m_plugin);
+    auto wrapped = std::make_shared<ov::npuw::batched::CompiledModel>(inner, m_plugin, rerank_tags());
     auto req = wrapped->create_infer_request();
 
     const std::vector<std::vector<int64_t>> ids = {{11, 1}, {22, 1}, {33, 1}};
@@ -459,7 +484,7 @@ TEST_F(NPUWBatchedElementTest, PreBoundOutputTensorReused) {
 TEST_F(NPUWBatchedElementTest, SingleRowPreBoundOutputWrittenInPlace) {
     auto model = build_two_output_model();
     auto inner = std::make_shared<MockInnerCompiled>(model, m_plugin, m_recorder);
-    auto wrapped = std::make_shared<ov::npuw::batched::CompiledModel>(inner, m_plugin);
+    auto wrapped = std::make_shared<ov::npuw::batched::CompiledModel>(inner, m_plugin, rerank_tags());
     auto req = wrapped->create_infer_request();
 
     set_input_ids(req, {{42, 1}});
