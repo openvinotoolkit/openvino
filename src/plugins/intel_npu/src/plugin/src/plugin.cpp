@@ -337,13 +337,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     FilteredConfig localConfig = _propertiesManager->deriveConfigForPropertiesForCompiler(localProperties);
     localConfig.update({{ov::intel_npu::compiler_version.name(), std::to_string(compiler->get_version())}});
 
-    auto updateBatchMode = [&](ov::intel_npu::BatchMode mode) {
-        std::stringstream strStream;
-        strStream << mode;
-        _logger.info("Setting batching mode to %s.", strStream.str().c_str());
-        localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
-    };
-
     // Resolve HostCompile before batching so the selected mode controls subsequent model and batch handling.
     if (compilerType == ov::intel_npu::CompilerType::PLUGIN && !localConfig.has<COMPILATION_MODE>() &&
         !localConfig.get<DYNAMIC_SHAPE_TO_STATIC>()) {
@@ -397,20 +390,35 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     bool shouldHandleBatching = false;
     bool successfullyDebatched = false;
 
-    const bool isBatchModeSupported = [&]() {
-        try {
-            return _compilerOptionSupportHelper->isOptionSupported(compilerType, ov::intel_npu::batch_mode.name());
-        } catch (...) {
-            return false;
-        }
-    }();
+    auto updateBatchMode = [&](ov::intel_npu::BatchMode mode) {
+        std::stringstream strStream;
+        strStream << mode;
+        _logger.info("Setting batching mode to %s.", strStream.str().c_str());
+        localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
+    };
 
-    if (isBatchModeSupported) {
-        // Set default batch mode if not configured
+    const auto batchMode = [&]() -> std::optional<ov::intel_npu::BatchMode> {
+        bool isSupported = false;
+        try {
+            isSupported =
+                _compilerOptionSupportHelper->isOptionSupported(compilerType, ov::intel_npu::batch_mode.name());
+        } catch (...) {
+            return std::nullopt;
+        }
+
+        if (!isSupported) {
+            return std::nullopt;
+        }
+
         if (!localConfig.has(ov::intel_npu::batch_mode.name())) {
             updateBatchMode(ov::intel_npu::BatchMode::AUTO);
+            return ov::intel_npu::BatchMode::AUTO;
         }
 
+        return localConfig.get<BATCH_MODE>();
+    }();
+
+    if (batchMode.has_value()) {
         if (useDynamicGraphForDynamicModel) {
             // Preserve the dynamic model for HostCompile by skipping plugin-side batching.
             _logger.info("HostCompile compilation bypasses plugin-side batch handling.");
@@ -419,8 +427,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             // Handle models with variables (states)
             if (!model->get_variables().empty()) {
                 if (localConfig.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
-                    OPENVINO_THROW(
-                        "This model contains states, thus it is not supported when handling batching on the plugin");
+                    OPENVINO_THROW("This model contains states, thus it is not supported when handling batching on "
+                                   "the plugin");
                 }
                 updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
             }
@@ -430,9 +438,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         // If the model contains states, it is not supported when handling batching on the plugin
         shouldHandleBatching = !useDynamicGraphForDynamicModel && model->get_variables().empty();
     }
-
-    const std::optional<ov::intel_npu::BatchMode> batchMode =
-        isBatchModeSupported ? std::make_optional(localConfig.get<BATCH_MODE>()) : std::nullopt;
 
     if (shouldHandleBatching) {
         // Process batching
@@ -446,7 +451,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                 !intel_npu::batch_helpers::checkModelDynamicDims(model),
                 "Dynamic shape tensors are not supported with the dynamic strides feature (ENABLE_STRIDES_FOR).");
 
-            OPENVINO_ASSERT(useDynamicGraphForDynamicModel || successfullyDebatched || !isBatchModeSupported ||
+            OPENVINO_ASSERT(useDynamicGraphForDynamicModel || successfullyDebatched || !batchMode.has_value() ||
                                 localConfig.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER,
                             "Dynamic batching is not supported with the dynamic strides feature (ENABLE_STRIDES_FOR).");
         }
