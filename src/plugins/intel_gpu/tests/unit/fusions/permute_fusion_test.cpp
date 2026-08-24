@@ -762,29 +762,16 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_eltwise_reorder, ::testing::Values
 }));
 
 // -----------------------------------------------------------------------------
-// Regression coverage for canonicalize_fused_shapes()'s higher-rank fused-peer fold
-// (kernel_selector_helper.h). Reproduces: a Permute's 5D bfzyx output [1,2,8,6,10]
-// is flattened to 4D bfyx [1,2,48,10] by the layout optimizer for a downstream
-// Reshape, with an eltwise Add fused in whose peer stays 5D. Before the fix, the
-// kernel read the 5D peer with 4D indexing (MSE ~12-20 vs CPU); the fix folds the
-// peer onto the host shape instead.
-//
-// Uses the real GPU compile/layout/fusion pipeline since the 5D->4D flattening is
-// layout-optimizer driven and can't be reproduced with raw cldnn primitives; GPU
-// output is compared against the same model compiled on CPU.
-// fold_higher_rank_fused_peer() is exhaustively unit-tested in
-// canonicalize_fused_shapes_test.cpp; this matrix only checks the decision is
-// plumbed through the real pipeline, one case per behavior class. Requires
-// building AND installing the GPU plugin (ov::Core loads it by name).
+// Regression coverage for fold_higher_rank_fused_peer() (kernel_selector_helper.h):
+// Permute [1,2,8,6,10] bfzyx -> layout optimizer flattens to [1,2,48,10] bfyx for a
+// downstream Reshape -> Add fused in, peer stays 5D -> kernel misreads it (MSE ~12-20 vs CPU).
+// Uses the real GPU compile/layout/fusion pipeline; GPU output is compared against CPU.
+// Requires building and installing the GPU plugin.
 
 namespace {
-// The fusion/impl-selection decision under test (can_fuse_reorder_to_prev ->
-// fused_peers_can_fold_to_layout -> fold_higher_rank_fused_peer) depends only on shape, format, and
-// padding -- never on tensor values -- so these MatMul weights need not match the original
-// defect-triggering model; any values reproduce the same rank/fusion behavior and the same MSE-vs-CPU
-// comparison. Generated once with a fixed seed rather than per-test so every model in this file (5D
-// and 6D) can share them; sized for the largest consumer (6D branch, K=12 by X=2), smaller consumers
-// slice a prefix.
+// can_fuse_reorder_to_prev -> fused_peers_can_fold_to_layout -> fold_higher_rank_fused_peer only
+// depends on shape/format/padding, not values, so any fixed-seed weights work. Shared by all models
+// in this file (5D and 6D); sized for the largest consumer, smaller ones slice a prefix.
 const std::vector<float> kFusedPeerFoldWeights1 = [] {
     tests::random_generator rg;
     rg.set_seed("fused_peer_fold_weights_1");
@@ -924,12 +911,8 @@ bool discover_gpu_and_cpu(ov::Core& core) {
     return has_gpu && has_cpu;
 }
 
-// One case of the collapsed-axis broadcast matrix: host permute output is 5D bfzyx [1,2,8,6,10],
-// flattened by the layout optimizer to 4D bfyx [1,2,48,10] (collapsing z=8,y=6 -> 48) because a
-// downstream Reshape consumes it. The fused Add peer keeps its 5D rank with a per-axis broadcast mask
-// over {f,z,y,x} (1 => broadcast on that axis). Rank reduction is retained only when
-// fold_higher_rank_fused_peer() can represent the peer at the actual 4D output layout; every other mask
-// conservatively keeps the permute at 5D.
+// Host [1,2,8,6,10] bfzyx -> flattened to [1,2,48,10] bfyx (z=8,y=6 -> 48). Peer [1,pf,pz,py,px] stays
+// 5D unless fold_higher_rank_fused_peer() can fold it to the host shape; otherwise rank is preserved.
 struct collapse_mask_case {
     int64_t pf, pz, py, px;
     bool expect_rank_preserved;
@@ -1045,14 +1028,11 @@ TEST_P(permute_fused_collapse_broadcast_matrix, compiles_finite_and_matches_cpu)
     // FP16 tolerance: correct path agrees with CPU to ~1e-3 MSE; the original defect produced MSE ~12-20.
 }
 
-// "equal_total": host and peer are both [1,2,8,6,10] -- the exact shape that triggered the original
-// defect: the Add's peer dependency stays 5D while the target permute host is flattened to 4D
-// (rank-mismatched fused eltwise read the 5D peer with 4D indexing).
-// "feature_broadcast": the peer is [1,1,8,6,10] (fewer elements than the host, 480 vs 960) -- a legal
-// NumPy broadcast rather than an equal-total reshape. Before the fold fix, this aborted GPU compilation
-// at an equal-total-only fold assertion.
-// "inner_y_broadcast" and "inner_y_and_x_broadcast" are REGRESSION cases: an inner spatial axis
-// broadcasts, which is not representable at the reduced rank, so the permute must stay 5D.
+// peer f,z,y,x extents (1 = broadcast), host [1,2,8,6,10]:
+//   equal_total              [2,8,6,10] -> folds (original defect shape)
+//   feature_broadcast        [1,8,6,10] -> folds (NumPy broadcast, not equal-total)
+//   inner_y_broadcast        [2,8,1,10] -> rank preserved
+//   inner_y_and_x_broadcast  [2,8,1,1]  -> rank preserved
 INSTANTIATE_TEST_SUITE_P(collapse_broadcast_matrix,
                          permute_fused_collapse_broadcast_matrix,
                          ::testing::Values(
@@ -1065,10 +1045,9 @@ INSTANTIATE_TEST_SUITE_P(collapse_broadcast_matrix,
                              return std::string(info.param.label);
                          });
 
-// New-shape-infer (NSI) path: the host output stays 5D bfzyx so the fused peer is already
-// rank-consistent (both 5D). This path never entered the broken repair branch and must remain correct;
-// it guards against a fix that only works because it changed the default flattening behavior.
-TEST(permute_fused_eltwise_rank_mismatch, nsi_5d_peer_and_5d_host) {
+// New shape-infer: host stays 5D bfzyx -> peer and host are already rank-consistent. Must remain
+// correct independent of the flattening path exercised above.
+TEST(permute_fused_eltwise_rank_mismatch, new_shape_infer_5d_peer_and_5d_host) {
     ov::Core core;
     if (!discover_gpu_and_cpu(core)) {
         GTEST_SKIP() << "Requires both GPU and CPU plugins discoverable via ov::Core.";
@@ -1084,38 +1063,31 @@ TEST(permute_fused_eltwise_rank_mismatch, nsi_5d_peer_and_5d_host) {
     std::vector<float> gpu_vals;
     ov::CompiledModel gpu_compiled;
     {
-        // NSI is RELEASE_INTERNAL: it must be requested via the env var, not the public config. The
-        // ov::Core is constructed inside the guard's scope so the GPU plugin config picks the value up.
-        scoped_env_var nsi("OV_GPU_ALLOW_NEW_SHAPE_INFER", "1");
-        ov::Core nsi_core;
-        auto res = run_collapse_mask(nsi_core, "GPU", {}, c, in1, in2);
+        // New shape-infer is RELEASE_INTERNAL: only settable via env var, not the public config.
+        scoped_env_var new_shape_infer_env("OV_GPU_ALLOW_NEW_SHAPE_INFER", "1");
+        ov::Core new_shape_infer_core;
+        auto res = run_collapse_mask(new_shape_infer_core, "GPU", {}, c, in1, in2);
         gpu_vals = res.first;
         gpu_compiled = res.second;
     }
 
-    // Under NSI the fused target permute output stays 5D (rank-consistent with the peer).
+    // Fused target permute output stays 5D (rank-consistent with the peer).
     auto rt = gpu_compiled.get_runtime_model();
     auto target = probe_node(rt, {"Transpose_target", "Add_target"});
-    ASSERT_TRUE(target.found) << "Add_target was not fused into Transpose_target under NSI.";
-    ASSERT_EQ(target.rank, 5) << "Under NSI the fused permute host output should remain 5D.";
+    ASSERT_TRUE(target.found) << "Add_target was not fused into Transpose_target under new shape-infer.";
+    ASSERT_EQ(target.rank, 5) << "Under new shape-infer the fused permute host output should remain 5D.";
 
     ASSERT_EQ(gpu_vals.size(), cpu_vals.size());
     double max_ae = 0.0;
     double mse = fused_peer_fold_mse(gpu_vals, cpu_vals, max_ae);
-    EXPECT_LT(mse, 1e-2) << "GPU (NSI) fused-permute output diverges from CPU reference. "
+    EXPECT_LT(mse, 1e-2) << "GPU (new shape-infer) fused-permute output diverges from CPU reference. "
                             "MSE=" << mse << " MaxAbsErr=" << max_ae;
 }
 
 // -----------------------------------------------------------------------------
-// 6D-to-4D matrix. Same purpose as the 5D matrix above, but the peer's leading
-// axes fold via fold_higher_rank_fused_peer()'s multi-axis path (folding three
-// spatial axes into one, fold_count=2, vs. the 5D case's single-axis fold) --
-// the one behavior the 5D matrix can't exercise. Only two cases are needed to
-// prove that multi-axis path is correctly plumbed through the real pipeline:
-// one that folds (equal-total) and one that must conservatively preserve rank
-// (an inner-spatial broadcast). The decision logic itself, including this
-// multi-axis case, is already exhaustively unit-tested in
-// canonicalize_fused_shapes_test.cpp.
+// 6D-to-4D matrix: same as the 5D matrix above, but folds three spatial axes into
+// one (fold_count=2) instead of one. Two cases suffice: one folds, one preserves
+// rank. Decision logic itself is unit-tested in canonicalize_fused_shapes_test.cpp.
 namespace {
 
 struct collapse6d_case {
@@ -1222,9 +1194,7 @@ TEST_P(permute_fused_collapse6d_matrix, compiles_finite_and_matches_cpu) {
 INSTANTIATE_TEST_SUITE_P(collapse6d_matrix,
                          permute_fused_collapse6d_matrix,
                          ::testing::Values(
-                             // host [1,2,X=2,W=4,Z=3,Y=5]. Peer f,x,w,z,y (1 == broadcast). Folding
-                             // 6D->4D always collapses the three middle spatial axes (w,z,y) at once
-                             // (fold_count=3), unlike the 5D matrix's single-axis fold.
+                             // host [1,2,2,4,3,5]; peer f,x,w,z,y (1 = broadcast):
                              collapse6d_case{2, 2, 4, 3, 5, false, "equal_total_6d"},   // folds
                              collapse6d_case{2, 2, 4, 1, 5, true, "z_broadcast_6d"}),   // preserved
                          [](const ::testing::TestParamInfo<collapse6d_case>& info) {

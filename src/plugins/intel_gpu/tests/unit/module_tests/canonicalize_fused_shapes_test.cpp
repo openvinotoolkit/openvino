@@ -11,17 +11,10 @@
 using namespace cldnn;
 using namespace ::tests;
 
-// Unit coverage for fold_higher_rank_fused_peer(), the function that guards and computes the higher-rank
-// fused-eltwise-peer fold in canonicalize_fused_shapes(). The fold is only valid when the peer is an
-// order-preserving reshape of its own axes down to the host rank (contiguous, unpadded, planar, default
-// format) whose result is broadcast-compatible with the host output. It returns the folded host-rank
-// shape on success and std::nullopt otherwise, in which case canonicalize_fused_shapes() falls back to
-// the pre-existing rank-extension path (never an assertion). These cases prove that:
-//   * an equal-total planar reshape folds to exactly the host shape (kept fused);
-//   * a legal higher-rank broadcast peer folds to its broadcast shape (kept fused, distinct from the
-//     equal-total case);
-//   * every unsafe/unprovable higher-rank shape is rejected (returns nullopt -> safe fallback);
-//   * overflowing element counts cannot authorize a fold.
+// Unit coverage for fold_higher_rank_fused_peer() (kernel_selector_helper.h):
+// higher-rank peer -> fold to host rank -> ov::PartialShape on success, std::nullopt otherwise
+// (falls back to the existing rank-extension path in canonicalize_fused_shapes()). Covers: valid
+// equal-total fold, valid broadcast fold, rejected unsafe/unprovable shapes, and overflow protection.
 
 namespace {
 
@@ -58,10 +51,8 @@ TEST(canonicalize_fused_peer_fold, planar_6d_peer_equal_total_folds_to_host) {
     EXPECT_EQ(folded->to_shape(), (ov::Shape{1, 2, 60, 6}));
 }
 
-// A legal NumPy broadcast peer (coordinator's case): the peer has FEWER elements than the host and
-// broadcasts over the feature dim. It must fold to its own regrouped shape [1,1,48,10] (480 elements),
-// which is broadcast-compatible with host [1,2,48,10] (960 elements) -- NOT to the host shape, and it
-// must remain distinct from the equal-total reshape case.
+// Peer [1,1,8,6,10] (480 elem) -> folds to [1,1,48,10], broadcast-compatible with host [1,2,48,10]
+// (960 elem) -- not equal to the host shape, unlike the equal-total case above.
 TEST(canonicalize_fused_peer_fold, planar_5d_broadcast_peer_folds_to_broadcast_shape) {
     auto peer = make_layout({1, 1, 8, 6, 10}, format::bfzyx);  // 480 elements
     auto host = make_layout({1, 2, 48, 10}, format::bfyx);     // 960 elements
@@ -148,14 +139,11 @@ TEST(canonicalize_fused_peer_fold, host_rank_below_three_rejected) {
     ASSERT_FALSE(fold_higher_rank_fused_peer(peer, host).has_value());
 }
 
-// Overflow guard: a static peer whose folded spatial product overflows size_t must NOT authorize a fold
-// through wrapped equality. Using near-2^64 spatial extents makes the true product overflow; the
-// overflow-safe computation must reject the fold rather than fold on a wrapped value.
+// Overflow guard: folded spatial product (big^3) overflows size_t, so the fold must be rejected
+// rather than compared on a wrapped value.
 TEST(canonicalize_fused_peer_fold, overflow_rejected) {
-    const int64_t big = static_cast<int64_t>(3037000500LL);  // ~2^31.5; big*big*big overflows size_t
+    const int64_t big = static_cast<int64_t>(3037000500LL);  // big*big*big overflows size_t
     auto peer = make_layout({1, 1, big, big, big}, format::bfzyx);
-    // Host chosen so that adjust_to_rank/format checks pass; equality never reached because overflow
-    // rejects first. The folded first spatial would be big*big*big (overflow).
     auto host = make_layout({1, 1, big, big}, format::bfyx);
     ASSERT_FALSE(fold_higher_rank_fused_peer(peer, host).has_value());
 }
