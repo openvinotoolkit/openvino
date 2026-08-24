@@ -15,7 +15,6 @@
 #include "moe_transformations/apply_moe_device_routed_transforms.hpp"
 #include "npuw_transformations/add_position_ids_param.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
-#include "npuw_transformations/decompose_gqa.hpp"
 #include "npuw_transformations/detect_causal_mask.hpp"
 #include "npuw_transformations/duplicate_shared_kv_concat.hpp"
 #include "npuw_transformations/lora_stateful_to_stateless.hpp"
@@ -1026,12 +1025,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Make LM head model with static shapes");
         ov::npuw::ReshapeSlicedHeadToStatic(axes.batch, m_kvcache_desc.max_generation_token_len)
             .run_on_model(lm_head_model);
-    }
-
-    LOG_DEBUG("5.1, decompose GroupQueryAttention OP");
-    ov::npuw::DecomposeGQA(true).run_on_model(prefill_model);
-    for (auto& model_variant : generate_model_variants) {
-        ov::npuw::DecomposeGQA(false).run_on_model(model_variant);
     }
 
     const auto prefill_attn_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>();
