@@ -70,7 +70,9 @@ public:
 
     /// Created memory object by wrapping a read-only host-allocated layout region.
     /// Backends that support access flags should use read-only permissions.
-    virtual memory_ptr create_hostbuffer(const void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) = 0;
+    /// @param host_read_only When true, additionally hints that the host side will never write this
+    ///                       memory either (e.g. it originates from a read-only file mapping)
+    virtual memory_ptr create_hostbuffer(const void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout, bool host_read_only = false) = 0;
 
     /// Created memory object from the other @p memory and reinterpred the data using specified @p new_layout
     virtual memory_ptr reinterpret_buffer(const memory& memory, const layout& new_layout) = 0;
