@@ -19,19 +19,28 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
 
-bool ov::npuw::batched::requested(const ov::AnyMap& properties) {
+ov::npuw::batched::ScoringTags ov::npuw::batched::scoring_tags(const ov::AnyMap& properties) {
     const auto is_enabled = [&properties](const std::string& key) {
         const auto it = properties.find(key);
         return it != properties.end() && it->second.as<bool>();
     };
-    return is_enabled(ov::intel_npu::npuw::text_rerank::enabled.name()) ||
-           is_enabled(ov::intel_npu::npuw::text_embed::enabled.name());
+    ScoringTags tags;
+    tags.text_rerank = is_enabled(ov::intel_npu::npuw::text_rerank::enabled.name());
+    tags.text_embed = is_enabled(ov::intel_npu::npuw::text_embed::enabled.name());
+    return tags;
+}
+
+bool ov::npuw::batched::requested(const ov::AnyMap& properties) {
+    const auto tags = scoring_tags(properties);
+    return tags.text_rerank || tags.text_embed;
 }
 
 ov::npuw::batched::CompiledModel::CompiledModel(const std::shared_ptr<ov::npuw::ICompiledModel>& inner,
-                                                const std::shared_ptr<const ov::IPlugin>& plugin)
+                                                const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                const ScoringTags& tags)
     : ov::npuw::ICompiledModel(nullptr, plugin),  // I/O comes from the inner via inputs()/outputs()
-      m_inner(inner) {
+      m_inner(inner),
+      m_tags(tags) {
     OPENVINO_ASSERT(m_inner != nullptr, "Batched compiled model requires an inner compiled model");
 }
 
@@ -46,7 +55,7 @@ const std::vector<ov::Output<const ov::Node>>& ov::npuw::batched::CompiledModel:
 void ov::npuw::batched::CompiledModel::export_model(std::ostream& model) const {
     // The wrap is part of the blob. A batched header goes first, the complete inner
     // blob follows with its own header, and import reconstructs the wrapper from the
-    // indicator alone.
+    // header alone.
     ov::npuw::s11n::write(model, NPUW_SERIALIZATION_INDICATOR);
     ov::npuw::s11n::write(model, NPUW_BATCHED_COMPILED_MODEL_INDICATOR);
     // Versions, as in the LLM blob header. The inner blob checks its own, but the
@@ -55,6 +64,9 @@ void ov::npuw::batched::CompiledModel::export_model(std::ostream& model) const {
     ov::npuw::s11n::write(model, OPENVINO_VERSION_MINOR);
     ov::npuw::s11n::write(model, OPENVINO_VERSION_PATCH);
     ov::npuw::s11n::write(model, std::string(NPUW_SERIALIZATION_VERSION));
+    // The scoring tags are wrapper state, so they ride the wrapper's own header.
+    ov::npuw::s11n::write(model, m_tags.text_rerank);
+    ov::npuw::s11n::write(model, m_tags.text_embed);
     m_inner->export_model(model);
 }
 
@@ -101,8 +113,12 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::batched::CompiledModel::impo
                        NPUW_SERIALIZATION_VERSION);
     }
 
+    ScoringTags tags;
+    ov::npuw::s11n::read(stream, tags.text_rerank);
+    ov::npuw::s11n::read(stream, tags.text_embed);
+
     auto inner = ov::npuw::LLMCompiledModel::import_model(stream, plugin, properties);
-    return std::make_shared<CompiledModel>(inner, plugin);
+    return std::make_shared<CompiledModel>(inner, plugin, tags);
 }
 
 std::shared_ptr<const ov::Model> ov::npuw::batched::CompiledModel::get_runtime_model() const {
@@ -114,6 +130,15 @@ void ov::npuw::batched::CompiledModel::set_property(const ov::AnyMap& properties
 }
 
 ov::Any ov::npuw::batched::CompiledModel::get_property(const std::string& name) const {
+    // The scoring tags live with the wrapper, not the inner model, which stays
+    // unaware of the wrap. Answer them here so the public compiled model reports
+    // them truthfully, on compile and after import alike.
+    if (name == ov::intel_npu::npuw::text_rerank::enabled.name()) {
+        return m_tags.text_rerank;
+    }
+    if (name == ov::intel_npu::npuw::text_embed::enabled.name()) {
+        return m_tags.text_embed;
+    }
     return m_inner->get_property(name);
 }
 
