@@ -15,7 +15,6 @@
 #include "moe_transformations/apply_moe_device_routed_transforms.hpp"
 #include "npuw_transformations/add_position_ids_param.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
-#include "npuw_transformations/decompose_gqa.hpp"
 #include "npuw_transformations/detect_causal_mask.hpp"
 #include "npuw_transformations/duplicate_shared_kv_concat.hpp"
 #include "npuw_transformations/lora_stateful_to_stateless.hpp"
@@ -1028,12 +1027,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             .run_on_model(lm_head_model);
     }
 
-    LOG_DEBUG("5.1, decompose GroupQueryAttention OP");
-    ov::npuw::DecomposeGQA(true).run_on_model(prefill_model);
-    for (auto& model_variant : generate_model_variants) {
-        ov::npuw::DecomposeGQA(false).run_on_model(model_variant);
-    }
-
     const auto prefill_attn_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>();
     const auto generate_attn_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT>();
     const bool prefill_attn_dyn = prefill_attn_hint == ::intel_npu::npuw::llm::AttentionHint::DYNAMIC;
@@ -1801,24 +1794,34 @@ bool ov::npuw::LLMCompiledModel::compute_continuous_prefill_supported() const {
             }
         }
     }
-    // Position ids must form a single linear sequence: 3-D M-RoPE cannot be validated
-    // as a contiguous continuation and is excluded statically. A read-only property
-    // must never throw, so a dynamic rank is treated as unsupported rather than
-    // queried through PartialShape::size(), which asserts a static rank.
+    // The request-level API must carry position ids: the prefill submodel gains them
+    // from AddPositionIdsParam even when the original model has none, and a
+    // synthesized sequence cannot express a continuation start.
+    if (!ov::npuw::util::find_port_by_name(inputs(), ov::npuw::LLMInferRequest::layer_names::position_ids)
+             .has_value()) {
+        return false;
+    }
+    // Position ids must be the exact [batch, seq] sequence the runtime validation
+    // accepts: 3-D M-RoPE cannot be validated as a contiguous continuation. A
+    // read-only property must never throw, so a dynamic rank is treated as
+    // unsupported rather than queried through PartialShape::size(), which asserts
+    // a static rank.
     const auto position_ids_port =
         ov::npuw::util::find_port_by_name(prefill_inputs, ov::npuw::LLMInferRequest::layer_names::position_ids);
     if (!position_ids_port.has_value()) {
         return false;
     }
     const auto& position_ids_rank = position_ids_port.value().get_partial_shape().rank();
-    if (position_ids_rank.is_dynamic() || position_ids_rank.get_length() >= 3) {
+    if (position_ids_rank.is_dynamic() || position_ids_rank.get_length() != 2) {
         return false;
     }
-    // Every static exclusion above passed, but this change carries the protocol only:
-    // nothing attaches the coordinator to the variable state yet, so a proposal would
-    // throw. A capability the request cannot honour must never be advertised, so the
-    // answer stays false until the delta prefill path lands and lifts this.
-    return false;
+    if (m_is_block_kv_cache) {
+        // Only the contiguous strategy can plan a continuation so far, and the block
+        // strategy would raise from the base class in preflight. Block support lands
+        // in the follow-up change.
+        return false;
+    }
+    return true;
 }
 
 ov::Any ov::npuw::LLMCompiledModel::get_property(const std::string& name) const {

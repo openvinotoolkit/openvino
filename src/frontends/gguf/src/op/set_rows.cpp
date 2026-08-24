@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "node_context.hpp"
-#include "op_table.hpp"
-#include "openvino/frontend/gguf/set_rows_op.hpp"
-#include "utils.hpp"
-
 #include <cstdint>
 #include <memory>
+
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/gguf/set_rows_op.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -26,7 +26,7 @@ namespace op {
 // ScatterUpdate form; a caller-registered stateful lowering may instead turn the SetRows that
 // feeds attention into a stateful KV-cache subgraph. This keeps conversion identical regardless
 // of execution mode and needs no KV-vs-non-KV classification at translate time.
-OutputVector translate_set_rows(const NodeContext & context) {
+OutputVector translate_set_rows(const NodeContext& context) {
     num_inputs_check(context, 3, 3);
 
     auto data = context.get_input(0);

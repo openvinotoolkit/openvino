@@ -1,0 +1,100 @@
+name: GGUF Frontend x llama.cpp validation
+
+# The GGUF frontend is consumed directly by llama.cpp's ggml-openvino backend, which has its
+# own, much stricter accuracy tolerance (test-backend-ops) than genai; this job is the only
+# place that exercises that path, against the frontend already built by this workflow's own
+# Build job -- no separate OpenVINO build needed here.
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'Machine on which the job would run'
+        type: string
+        required: true
+      image:
+        description: 'Docker image to use for the job'
+        type: string
+        required: false
+        default: null
+
+permissions: read-all
+
+env:
+  # mvafin/llama.cpp@ov-frontend-swap-llamacpp-sync, pinned to the commit that carries the
+  # ggml-openvino decoder/backend fixes this frontend snapshot requires. Bump alongside any
+  # GGUF-frontend change that needs a matching llama.cpp-side update.
+  LLAMA_CPP_REPO: mvafin/llama.cpp
+  LLAMA_CPP_REF: 16fb7d9d326a3fe69a331ce5fbe7a679a1a281bb
+  INSTALL_DIR: ${{ github.workspace }}/install
+  SCCACHE_DIR: ${{ github.workspace }}/.sccache
+
+jobs:
+  GGUF_LlamaCpp_Validation:
+    name: Build llama.cpp and run its tests against the GGUF frontend
+    timeout-minutes: 60
+    runs-on: ${{ inputs.runner }}
+    container:
+      image: ${{ inputs.image }}
+      volumes:
+        - /mount:/mount
+        - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Download OpenVINO package
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Extract OpenVINO package
+        run: pigz -dc openvino_package.tar.gz | tar -xf - -v
+        working-directory: ${{ env.INSTALL_DIR }}
+
+      - name: Cache sccache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.SCCACHE_DIR }}
+          key: gguf-llamacpp-sccache-${{ runner.os }}-${{ github.base_ref || github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            gguf-llamacpp-sccache-${{ runner.os }}-${{ github.base_ref || github.ref_name }}-
+            gguf-llamacpp-sccache-${{ runner.os }}-
+
+      - name: Checkout llama.cpp
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          repository: ${{ env.LLAMA_CPP_REPO }}
+          ref: ${{ env.LLAMA_CPP_REF }}
+          path: llama.cpp
+
+      - name: Configure llama.cpp against the OpenVINO package
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          cmake -G Ninja -S llama.cpp -B llama.cpp/build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
+            -DGGML_OPENVINO=ON
+
+      - name: Build llama.cpp
+        run: cmake --build llama.cpp/build --parallel "$(nproc)"
+
+      - name: Show sccache stats
+        run: sccache --show-stats
+
+      - name: Run llama.cpp tests against the ggml-openvino backend
+        env:
+          # Q4_K's zero-point defaults to an integer (u8) constant for production (genai) speed.
+          # llama.cpp's test-backend-ops compares against an f32 CPU reference within a tolerance
+          # the rounded u8 zero-point can miss, so request the faithful f16 zero-point here. See
+          # gguf_zero_point_type in src/frontends/gguf/src/quant/weights.cpp.
+          OV_GGUF_Q4_K_ZP_F16: "1"
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          # test-llama-archs needs an arch fixture this frontend snapshot doesn't carry; excluded
+          # to match llama.cpp's own upstream CI (see ci/run.sh) until that lands separately.
+          ctest --test-dir llama.cpp/build -L main \
+            -E "test-opt|test-llama-archs" \
+            --output-on-failure --timeout 2000

@@ -32,6 +32,8 @@ namespace {
 
 constexpr uint8_t MAIN_SCHEDULE_INDEX = 0;
 constexpr std::string_view WEIGHTS_IR_EXTENSION = ".bin";
+constexpr std::string_view WEIGHTS_ONNX_EXTENSION = ".data";
+constexpr std::string_view WEIGHTS_ONNX_PROXY_EXTENSION = ".data_proxy";
 constexpr std::string_view ONNX_EXTENSION = ".onnx";
 
 constexpr std::string_view CONSTANT_OVERFLOW_MESSAGE = "Overflow while computing byte size for constant: ";
@@ -136,12 +138,13 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> extract_consta
         if (ext == ONNX_EXTENSION) {
             const auto model = core->read_model(weightsPath, weightsPath, {});
             return get_all_constants_in_topological_order(model);
-        } else if (ext == WEIGHTS_IR_EXTENSION) {
+        } else if (ext == WEIGHTS_IR_EXTENSION || ext == WEIGHTS_ONNX_EXTENSION ||
+                   ext == WEIGHTS_ONNX_PROXY_EXTENSION) {
             return get_all_constants_memory_mapped(weightsPath, initNetworkMetadata);
         } else {
             OPENVINO_THROW("Invalid path to the weights: ",
                            weightsPath,
-                           ". A \".bin\" or \".onnx\" extension was expected.");
+                           ". A \".bin\", \".data\", \".data_proxy\" or \".onnx\" extension was expected.");
         }
     }
 
@@ -261,14 +264,15 @@ WeightlessGraph::WeightlessGraph(
     std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::pair<std::string, std::shared_ptr<ov::ICore>>>&&
         weightsSource,
     const FilteredConfig& config,
-    const bool blobIsPersistent)
+    const bool blobIsPersistent,
+    const std::optional<std::string>& compatibilityDescriptor)
     : Graph(zeGraphExt,
             zeroInitStruct,
             mainGraphDesc,
             std::move(mainMetadata),
             std::move(mainBlob),
             config,
-            /* compatibilityDescriptor = */ std::nullopt,
+            compatibilityDescriptor,
             blobIsPersistent),
       _initsGraphDesc(initGraphDesc),
       _initBlobs(std::move(initBlobs)),
@@ -424,11 +428,6 @@ void WeightlessGraph::initialize_impl(const FilteredConfig& config) {
     Graph::initialize_impl(config);
 
     set_weights_inputs();
-}
-
-std::optional<std::string_view> WeightlessGraph::get_compatibility_descriptor() const {
-    _logger.warning("Compatibility descriptor is not supported for WeightlessGraph");
-    return std::nullopt;
 }
 
 WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
