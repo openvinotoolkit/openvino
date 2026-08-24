@@ -72,6 +72,16 @@ static size_t get_post_ops_count(const program_node& node) {
 
 // A rank-reducing reorder may be fused into a producer only when every higher-rank external eltwise
 // peer has the same provable lower-rank representation that OCL fused-op canonicalization will use.
+//
+// Example graph this guards against: a Permute produces [1,2,8,6,10] (bfzyx) and has an Add fused into
+// it as a post-op, whose second input ("peer") is an independent branch also shaped [1,2,8,6,10]. A
+// downstream Reshape only needs [1,2,48,10] (bfyx), so the layout optimizer wants to fuse a rank-reducing
+// Reorder into the Permute, making its *own* output layout 4D. The peer is a separate node reached only
+// through this fused primitive and its own shape inference is untouched, so it stays 5D: the fused-op
+// kernel would then read a 5D buffer using 4D indexing and produce wrong results. Folding the peer's
+// shape to [1,2,48,10] (see fold_higher_rank_fused_peer) keeps the fusion; when no such fold exists (e.g.
+// the peer broadcasts over an inner spatial axis, like [1,2,8,1,10]) the reorder fusion is declined here
+// and the Permute keeps its native 5D output instead.
 static bool fused_peers_can_fold_to_layout(const program_node& prev, const layout& reduced_layout) {
     if (!prev.has_fused_primitives())
         return true;

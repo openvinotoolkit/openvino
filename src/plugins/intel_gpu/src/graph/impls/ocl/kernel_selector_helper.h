@@ -270,6 +270,8 @@ inline bool broadcastable(const ov::PartialShape& first_pshape, const ov::Partia
 
 // Computes a lower-rank representation of a fused eltwise peer when collapsing its leading spatial
 // axes is an order-preserving reshape and the result broadcasts directly to the host layout.
+// E.g. peer [1,2,8,6,10] (bfzyx) folds to [1,2,48,10] (bfyx) for host [1,2,48,10]: axes 2 and 3 (8,6)
+// collapse into 48, which then matches the host shape exactly.
 inline std::optional<ov::PartialShape> fold_higher_rank_fused_peer(const layout& peer_layout, const layout& host_layout) {
     const auto& peer_shape = peer_layout.get_partial_shape();
     const auto& host_shape = host_layout.get_partial_shape();
@@ -285,12 +287,11 @@ inline std::optional<ov::PartialShape> fold_higher_rank_fused_peer(const layout&
 
     const auto& peer_format = peer_layout.format;
     const auto& host_format = host_layout.format;
-    if (!format::is_simple_data_format(peer_format) || !format::is_simple_data_format(host_format))
-        return std::nullopt;
     if (!format::is_default_format(peer_format) || !format::is_default_format(host_format))
         return std::nullopt;
-    if (format::adjust_to_rank(peer_format, host_rank) != host_format)
-        return std::nullopt;
+    // A default format adjusted to another rank is always that rank's default format.
+    OPENVINO_ASSERT(format::adjust_to_rank(peer_format, host_rank) == host_format,
+                    "Default format rank adjustment must match the host's default format");
 
     const auto peer_dims = peer_shape.to_shape();
     const auto host_dims = host_shape.to_shape();
@@ -312,8 +313,10 @@ inline std::optional<ov::PartialShape> fold_higher_rank_fused_peer(const layout&
 
     const auto peer_total = ov::util::shape_size_safe(peer_dims);
     const auto folded_total = ov::util::shape_size_safe(folded_dims);
-    if (!peer_total.has_value() || !folded_total.has_value() || peer_total.value() != folded_total.value())
+    if (!peer_total.has_value() || !folded_total.has_value())
         return std::nullopt;
+    // Folding only regroups existing dims, so the element count is preserved whenever both totals fit.
+    OPENVINO_ASSERT(peer_total.value() == folded_total.value(), "Peer folding must preserve the total element count");
     if (folded_dims.size() != host_dims.size())
         return std::nullopt;
 
@@ -339,15 +342,12 @@ inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& im
                 const auto& dep_shape = dep_layout.get_partial_shape();
 
                 if (dep_shape.size() > out_pshape.size()) {
-                    // Always fold higher-rank peers, regardless of broadcastable(): in legacy shape-infer
-                    // mode broadcastable() only compares the first out_pshape.size() axes, so a peer whose
-                    // leading axes are all 1 can be misreported as already compatible while its rank still
-                    // mismatches the host iteration space (df1 output-0 defect).
+                    // Always fold higher-rank peers, regardless of broadcastable(): in legacy shape-infer mode
+                    // broadcastable() only compares the first out_pshape.size() axes, so a peer whose leading
+                    // axes are all 1 can be misreported as compatible while its rank still mismatches the host's
+                    // iteration space, causing the fused-op kernel to index the peer incorrectly.
                     auto folded = fold_higher_rank_fused_peer(dep_layout, out_layout);
-                    // A non-foldable higher-rank peer must never reach here: for static shapes
-                    // can_fuse_reorder_to_prev() declines the rank-reducing reorder fusion, and dynamic
-                    // shapes never fuse a rank-reducing reorder in the first place. Assert loudly rather
-                    // than silently mis-indexing the peer.
+                    // can_fuse_reorder_to_prev() must have already declined fusion for any non-foldable peer.
                     OPENVINO_ASSERT(folded.has_value(),
                                     "Unfoldable higher-rank fused eltwise peer reached canonicalization; "
                                     "can_fuse_reorder_to_prev guard was expected to prevent this.");
