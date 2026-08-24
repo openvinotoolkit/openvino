@@ -142,9 +142,10 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
     // ACTIVATION-like inputs (inp_pos): consumed by make_sin_cos, which transposes {0,3,1,2} to put
     // the token axis at 1, yielding cos/sin [batch, tokens, 1, n_rot/2] that broadcast against the
-    // roped [batch, heads, tokens, head_size]. special_zero's 0 copies dim 0 and -1 absorbs the rest.
-    //   SDPA: [1,1,1,tokens] -> cos/sin [1,tokens,1,half]
-    //   PA  : [tokens,1,1,1] -> cos/sin [tokens,1,1,half], which broadcasts against [tokens,H,1,S]
+    // roped activation. inp_pos must inherit position_ids' own (backend-dependent) leading dim via
+    // special_zero, mirroring Q/K/V's self-correcting token axis (see translate_get_rows):
+    //   SDPA: position_ids [batch, seq], dim 0 is 1        -> inp_pos [1,1,1,tokens]
+    //   PA  : position_ids rewritten to [tokens, 1]        -> inp_pos [tokens,1,1,1]
     const auto shape_keep0_1_1_rest = const_i64({0, 1, 1, -1});
 
     auto tokens_i32 = make_shared<ov::op::v0::Convert>(input_ids, ov::element::i32);
@@ -229,27 +230,14 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     }
 
     // inp_out_ids selects which rows the output head runs on. Emit the LAST row only: genai reads
-    // just the final token's logits, so projecting every prompt position to vocab costs an extra
-    // (tokens - 1) x hidden x vocab matmul per prefill.
-    //
-    // get_rows lowers to Gather(activation, ids, axis=1, batch_dims=1), i.e. act[i, ids[i, j]], so
-    // the last row is ids == ids_shape[1] - 1 in an [ids_shape[0], 1] vector. That is correct in
-    // both layouts: default ids_shape is [1, tokens], giving [1,1] holding tokens - 1; under
-    // SDPAToPagedAttention it is [tokens, 1], so this evaluates to 0 -- the identity that layout
-    // needs, since it already carries one token per row.
+    // just the final token's logits, avoiding an extra (tokens - 1) x hidden x vocab matmul per
+    // prefill. get_rows flattens the activation and this index to canonical [rows, hidden] /
+    // [rows] shapes first (see translate_get_rows), so "seq_len - 1" is the last row's index under
+    // both backends -- no per-backend branching needed.
     if (auto inp_out_ids = find_param(model, "inp_out_ids")) {
-        auto batch_dim =
-            make_shared<ov::op::v8::Gather>(ids_shape, const_i64({0}), const_i64({0}));             // [1]: ids_shape[0]
-        auto seq_dim = make_shared<ov::op::v8::Gather>(ids_shape, const_i64({1}), const_i64({0}));  // [1]: ids_shape[1]
-        auto last_index = make_shared<ov::op::v0::Convert>(make_shared<ov::op::v1::Subtract>(seq_dim, const_i64({1})),
-                                                           ov::element::i32);  // [1]: ids_shape[1] - 1
-        auto out_grid = make_shared<ov::op::v3::Broadcast>(
-            last_index,
-            make_shared<ov::op::v0::Concat>(ov::OutputVector{batch_dim, const_i64({1})}, 0));  // [batch, 1]
-        auto out_ids = make_shared<ov::op::v1::Reshape>(
-            out_grid,
-            make_shared<ov::op::v0::Concat>(ov::OutputVector{const_i64({1, 1}), batch_dim, const_i64({1})}, 0),
-            false);
+        auto last_index = make_shared<ov::op::v0::Convert>(make_shared<ov::op::v1::Subtract>(seq_len, const_i64({1})),
+                                                           ov::element::i32);  // [1]: seq_len - 1
+        auto out_ids = make_shared<ov::op::v1::Reshape>(last_index, const_i64({1, 1, 1, 1}), false);
         inp_out_ids->output(0).replace(out_ids->output(0));
     }
 
