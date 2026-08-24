@@ -221,8 +221,7 @@ jobs:
       )
     uses: ./.github/workflows/job_llm_accuracy_tests.yml
     with:
-      runner: '["self-hosted", "dgpu", "Arc-B580", "Battlemage", "Linux"]'
-      runner-group: 'Intel-GPU'
+      runner: '{"group": "Intel-GPU", "labels": ["self-hosted", "dgpu", "Arc-B580", "Battlemage", "Linux"]}'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
       container-options: '--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129'
       device: 'GPU'
