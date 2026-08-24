@@ -81,12 +81,16 @@ std::string FilteredConfig::getInternal(std::string key) const {
     return _internal_compiler_configs.at(key);
 }
 
-std::string FilteredConfig::toStringForCompiler(const std::function<bool(std::string_view)>& isSupported) const {
+std::string FilteredConfig::toStringForCompiler(const std::function<bool(const std::string&)>& isSupported) const {
+    if (!isSupported) {
+        OPENVINO_THROW("FilteredConfig::toStringForCompiler requires a valid support predicate");
+    }
+
     std::stringstream resultStream;
     bool hasSerializedValue = false;
 
     for (const auto& [key, value] : _impl) {
-        if (_desc->has(key) && _desc->get(key).mode() != OptionMode::RunTime && isSupported(key)) {
+        if (_desc->has(key) && _desc->get(key).mode() != OptionMode::RunTime && isSupported(std::string(key))) {
             if (hasSerializedValue) {
                 resultStream << " ";
             }
@@ -96,7 +100,7 @@ std::string FilteredConfig::toStringForCompiler(const std::function<bool(std::st
     }
 
     for (const auto& [key, value] : _internal_compiler_configs) {
-        if (isSupported(key)) {
+        if (isSupported(std::string(key))) {
             if (hasSerializedValue) {
                 resultStream << " ";
             }

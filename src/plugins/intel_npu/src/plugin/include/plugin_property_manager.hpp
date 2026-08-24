@@ -23,7 +23,8 @@ namespace intel_npu {
 
 class PluginPropertyManager final {
 public:
-    PluginPropertyManager(const ov::SoPtr<IEngineBackend>& backend,
+    PluginPropertyManager(const FilteredConfig& config,
+                          const ov::SoPtr<IEngineBackend>& backend,
                           const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper,
                           Logger& logger);
 
@@ -54,6 +55,38 @@ private:
     Logger& _logger;
 
     std::map<std::string, PropertyDescriptor> _properties;
+
+    const std::vector<ov::PropertyName> _cachingProperties = [] {
+        std::vector<ov::PropertyName> properties = {
+            ov::cache_mode.name(),
+            ov::enable_profiling.name(),
+            ov::device::architecture.name(),
+            ov::hint::execution_mode.name(),
+            ov::hint::inference_precision.name(),
+            ov::hint::performance_mode.name(),
+            ov::intel_npu::batch_compiler_mode_settings.name(),
+            ov::intel_npu::batch_mode.name(),
+            ov::intel_npu::compilation_mode.name(),
+            ov::intel_npu::compilation_mode_params.name(),
+            ov::intel_npu::compiler_dynamic_quantization.name(),
+            ov::intel_npu::compiler_type.name(),
+            ov::intel_npu::dma_engines.name(),
+            ov::intel_npu::driver_version.name(),
+            ov::intel_npu::dynamic_shape_to_static.name(),
+            ov::intel_npu::enable_strides_for.name(),
+            ov::intel_npu::max_tiles.name(),
+            ov::intel_npu::stepping.name(),
+            ov::intel_npu::tiles.name(),
+            ov::intel_npu::turbo.name(),
+            ov::intel_npu::qdq_optimization.name(),
+            ov::intel_npu::qdq_optimization_aggressive.name(),
+        };
+        for_each_cached_npuw_option([&](auto tag) {
+            using Opt = typename decltype(tag)::type;
+            properties.emplace_back(std::string{Opt::key()});
+        });
+        return properties;
+    }();
 
     mutable std::mutex _mutex;
 };
