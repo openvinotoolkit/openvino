@@ -22,6 +22,7 @@
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "openvino/core/except.hpp"
+#include "vulkan_descriptor_cache.hpp"
 #include "vulkan_engine.hpp"
 #include "vulkan_event.hpp"
 #include "vulkan_kernel.hpp"
@@ -61,48 +62,12 @@ struct vulkan_stream::resource_state {
     // These values bound retained resources. They are not
     // selected operating points; the batch limit is chosen per workload below.
     static constexpr size_t max_in_flight_submissions = 8;
-    static constexpr size_t max_cached_descriptor_sets = 256;
     static constexpr size_t max_retained_dispatches_per_batch = 8;
     // This bounds calibration work; measured host costs select the operating path.
     static constexpr size_t max_command_reuse_tuning_samples_per_path = 3;
     // This caps calibration latency; paired inference wins can stop it earlier.
     static constexpr size_t max_pool_reset_tuning_pairs = 7;
     static constexpr size_t max_completion_tuning_pairs = 7;
-
-    struct descriptor_key {
-        std::vector<std::weak_ptr<vulkan_buffer_allocation>> allocations;
-        std::vector<VkDescriptorBufferInfo> buffer_infos;
-
-        bool operator<(const descriptor_key& other) const {
-            if (allocations.size() != other.allocations.size()) {
-                return allocations.size() < other.allocations.size();
-            }
-            const std::owner_less<std::weak_ptr<vulkan_buffer_allocation>> allocation_less;
-            for (size_t index = 0; index < allocations.size(); ++index) {
-                if (allocation_less(allocations[index], other.allocations[index])) {
-                    return true;
-                }
-                if (allocation_less(other.allocations[index], allocations[index])) {
-                    return false;
-                }
-                const auto& info = buffer_infos[index];
-                const auto& other_info = other.buffer_infos[index];
-                if (info.offset != other_info.offset) {
-                    return info.offset < other_info.offset;
-                }
-                if (info.range != other_info.range) {
-                    return info.range < other_info.range;
-                }
-            }
-            return false;
-        }
-    };
-
-    struct descriptor_pool_block {
-        VkDescriptorPool pool = VK_NULL_HANDLE;
-        uint32_t capacity = 0;
-        uint32_t allocated_sets = 0;
-    };
 
     struct access_range {
         VkDeviceSize begin = 0;
@@ -157,6 +122,7 @@ struct vulkan_stream::resource_state {
 
     explicit resource_state(const vulkan_engine& engine, bool enable_profiling = false)
         : device(engine.get_device_handle()),
+          descriptor_cache(device),
           queue(engine.get_compute_queue()),
           queue_mutex(engine.get_queue_mutex()),
           stream_id(next_stream_id()),
@@ -211,13 +177,6 @@ struct vulkan_stream::resource_state {
         }
         if (replay_command_pool != VK_NULL_HANDLE) {
             vkDestroyCommandPool(device, replay_command_pool, nullptr);
-        }
-        for (auto& [descriptor_count, blocks] : descriptor_cache_pools) {
-            for (auto& block : blocks) {
-                if (block.pool != VK_NULL_HANDLE) {
-                    vkDestroyDescriptorPool(device, block.pool, nullptr);
-                }
-            }
         }
         if (diagnostics_enabled) {
             std::clog << "[GPU][Vulkan][Stream] descriptor_allocations=" << descriptor_allocations << " descriptor_updates=" << descriptor_updates
@@ -295,7 +254,7 @@ struct vulkan_stream::resource_state {
     }
 
     bool descriptor_batch_boundary_required(const vulkan_prepared_arguments& prepared) const {
-        return descriptor_cache.size() >= max_cached_descriptor_sets && descriptor_cache.find(make_descriptor_key(prepared)) == descriptor_cache.end();
+        return descriptor_cache.requires_mutable_set(prepared);
     }
 
     void retain_dispatch(slot& slot, const vulkan_prepared_arguments& prepared, std::shared_ptr<const void> kernel_lifetime) {
@@ -520,21 +479,17 @@ struct vulkan_stream::resource_state {
         const auto descriptor_count = checked_u32(prepared.buffer_infos.size(), "descriptor count");
         OPENVINO_ASSERT(descriptor_count == pipeline.descriptor_count, "[GPU][Vulkan] Descriptor resources do not match the selected pipeline");
 
-        auto key = make_descriptor_key(prepared);
-        const auto cached = descriptor_cache.find(key);
-        if (cached != descriptor_cache.end()) {
+        const auto cached = descriptor_cache.lookup_or_allocate(pipeline.descriptor_set_layout, prepared);
+        if (cached.status == vulkan_descriptor_cache::lookup_status::reused) {
             descriptor_is_immutable = true;
             ++descriptor_reuses;
-            return cached->second;
+            return cached.descriptor_set;
         }
-        if (descriptor_cache.size() < max_cached_descriptor_sets) {
-            const VkDescriptorSet descriptor_set = allocate_cached_descriptor_set(pipeline.descriptor_set_layout, descriptor_count);
-            update_descriptor_set(descriptor_set, prepared.buffer_infos);
-            descriptor_cache.emplace(std::move(key), descriptor_set);
+        if (cached.status == vulkan_descriptor_cache::lookup_status::allocated) {
             descriptor_is_immutable = true;
             ++descriptor_allocations;
             ++descriptor_updates;
-            return descriptor_set;
+            return cached.descriptor_set;
         }
 
         // All Vulkan compute pipelines describe consecutive storage-buffer bindings,
@@ -574,7 +529,7 @@ struct vulkan_stream::resource_state {
             return slot.descriptor_set;
         }
 
-        update_descriptor_set(slot.descriptor_set, prepared.buffer_infos);
+        descriptor_cache.update(slot.descriptor_set, prepared.buffer_infos);
         slot.descriptor_allocations.clear();
         slot.descriptor_allocations.reserve(prepared.allocations.size());
         for (const auto& allocation : prepared.allocations) {
@@ -586,6 +541,7 @@ struct vulkan_stream::resource_state {
     }
 
     VkDevice device = VK_NULL_HANDLE;
+    vulkan_descriptor_cache descriptor_cache;
     VkQueue queue = VK_NULL_HANDLE;
     std::mutex& queue_mutex;
     uint64_t stream_id = 0;
@@ -622,8 +578,6 @@ struct vulkan_stream::resource_state {
     size_t largest_batch = 0;
     size_t smallest_selected_batch_limit = max_retained_dispatches_per_batch;
     size_t largest_selected_batch_limit = 0;
-    std::map<descriptor_key, VkDescriptorSet> descriptor_cache;
-    std::map<uint32_t, std::vector<descriptor_pool_block>> descriptor_cache_pools;
     allocation_access_map access_states;
     std::vector<VkBufferMemoryBarrier2> hazard_barrier_scratch;
     std::vector<access_range> current_access_scratch;
@@ -919,12 +873,12 @@ private:
         size_t descriptor_footprint = 0;
         for (const auto& dispatch : current_dispatches) {
             const auto dispatch_footprint = std::max<uint32_t>(dispatch.pipeline->descriptor_count, 1);
-            if (dispatch_footprint > max_cached_descriptor_sets || descriptor_footprint > max_cached_descriptor_sets - dispatch_footprint) {
+            if (dispatch_footprint > vulkan_descriptor_cache::capacity || descriptor_footprint > vulkan_descriptor_cache::capacity - dispatch_footprint) {
                 return 0;
             }
             descriptor_footprint += dispatch_footprint;
         }
-        return max_cached_descriptor_sets / std::max<size_t>(descriptor_footprint, 1);
+        return vulkan_descriptor_cache::capacity / std::max<size_t>(descriptor_footprint, 1);
     }
 
     VkCommandBuffer get_or_record_command_sequence(slot& slot, bool& cache_hit, bool& sequence_replayable) {
@@ -1129,16 +1083,6 @@ private:
         return std::min<size_t>({work_group_capacity, subgroup_capacity, max_retained_dispatches_per_batch});
     }
 
-    static descriptor_key make_descriptor_key(const vulkan_prepared_arguments& prepared) {
-        descriptor_key key;
-        key.buffer_infos = prepared.buffer_infos;
-        key.allocations.reserve(prepared.allocations.size());
-        for (const auto& allocation : prepared.allocations) {
-            key.allocations.emplace_back(allocation);
-        }
-        return key;
-    }
-
     slot& acquire(uint32_t descriptor_count, bool mutable_descriptor_required) {
         const auto slot_is_compatible = [descriptor_count, mutable_descriptor_required](const slot& candidate) {
             const bool descriptor_is_compatible =
@@ -1209,54 +1153,6 @@ private:
         latest_submission = slot.submission;
         return slot.submission;
     }
-    VkDescriptorSet allocate_cached_descriptor_set(VkDescriptorSetLayout layout, uint32_t descriptor_count) {
-        auto& blocks = descriptor_cache_pools[descriptor_count];
-        if (blocks.empty() || blocks.back().allocated_sets == blocks.back().capacity) {
-            const auto remaining_cache_entries = max_cached_descriptor_sets - descriptor_cache.size();
-            const auto descriptors_per_set = std::max<uint32_t>(descriptor_count, 1);
-            const auto pool_capacity = checked_u32(std::max<size_t>(remaining_cache_entries / descriptors_per_set, 1), "descriptor pool capacity");
-
-            VkDescriptorPoolSize pool_size{};
-            pool_size.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            pool_size.descriptorCount = checked_u32(static_cast<size_t>(descriptor_count) * pool_capacity, "descriptor pool storage-buffer count");
-
-            VkDescriptorPoolCreateInfo pool_info{};
-            pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-            pool_info.maxSets = pool_capacity;
-            pool_info.poolSizeCount = descriptor_count == 0 ? 0 : 1;
-            pool_info.pPoolSizes = descriptor_count == 0 ? nullptr : &pool_size;
-
-            descriptor_pool_block block;
-            block.capacity = pool_capacity;
-            check_vk_result(vkCreateDescriptorPool(device, &pool_info, nullptr, &block.pool), "vkCreateDescriptorPool(cache)");
-            blocks.push_back(block);
-        }
-
-        auto& block = blocks.back();
-        VkDescriptorSetAllocateInfo allocate_info{};
-        allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        allocate_info.descriptorPool = block.pool;
-        allocate_info.descriptorSetCount = 1;
-        allocate_info.pSetLayouts = &layout;
-        VkDescriptorSet descriptor_set = VK_NULL_HANDLE;
-        check_vk_result(vkAllocateDescriptorSets(device, &allocate_info, &descriptor_set), "vkAllocateDescriptorSets(cache)");
-        ++block.allocated_sets;
-        return descriptor_set;
-    }
-
-    void update_descriptor_set(VkDescriptorSet descriptor_set, const std::vector<VkDescriptorBufferInfo>& buffer_infos) {
-        std::vector<VkWriteDescriptorSet> descriptor_writes(buffer_infos.size());
-        for (uint32_t index = 0; index < descriptor_writes.size(); ++index) {
-            descriptor_writes[index].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptor_writes[index].dstSet = descriptor_set;
-            descriptor_writes[index].dstBinding = index;
-            descriptor_writes[index].descriptorCount = 1;
-            descriptor_writes[index].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            descriptor_writes[index].pBufferInfo = &buffer_infos[index];
-        }
-        vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data(), 0, nullptr);
-    }
-
     void recycle(slot& slot, bool reset_transient_command = true) {
         if (slot.submission != nullptr) {
             slot.submission->wait();
