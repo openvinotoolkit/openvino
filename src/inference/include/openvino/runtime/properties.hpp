@@ -994,6 +994,26 @@ static constexpr Property<bool, PropertyMutability::RW> force_tbb_terminate{"FOR
 static constexpr Property<bool, PropertyMutability::RW> enable_mmap{"ENABLE_MMAP"};
 
 /**
+ * @brief Read-write property to configure file-backed temporary storage for large constants created during model
+ * conversion and graph transformations. Disabled by default.
+ *
+ * value type: boolean
+ *   - True enables file-backed mmap allocation for generated constants
+ *   - False disables file-backed mmap allocation for generated constants
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<bool, PropertyMutability::RW> enable_mmap_for_constants{"ENABLE_MMAP_FOR_CONSTANTS"};
+
+/**
+ * @brief Read-write property to set the minimum constant size in bytes for file-backed mmap allocation during model
+ * conversion and graph transformations. Constants below this limit use the default allocator.
+ *
+ * value type: uint64_t
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<uint64_t, PropertyMutability::RW> mmap_min_constant_size{"MMAP_MIN_CONSTANT_SIZE"};
+
+/**
  * @brief Namespace with device properties
  */
 namespace device {

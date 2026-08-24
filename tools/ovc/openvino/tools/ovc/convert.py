@@ -4,10 +4,15 @@
 import pathlib
 from typing import Any
 
-from openvino import Model  # pylint: disable=no-name-in-module,import-error
+# pylint: disable=no-name-in-module,import-error
+from openvino import Model
+from openvino._pyopenvino import _TemporaryMMapConstantsScope
 from openvino.tools.ovc.cli_parser import get_all_cli_parser
 from openvino.tools.ovc.convert_impl import _convert
 from openvino.tools.ovc.logger import get_logger_state, restore_logger_state
+
+
+_DEFAULT_MMAP_MIN_CONSTANT_SIZE = 64 * 1024 * 1024
 
 
 def convert_model(
@@ -22,6 +27,8 @@ def convert_model(
         verbose: bool = False,
         share_weights: bool = True,
         dynamo: bool = False,
+        enable_mmap_for_constants: bool = False,
+        mmap_min_constant_size: int = _DEFAULT_MMAP_MIN_CONSTANT_SIZE,
 ) -> Model:
     """
     Converts the model from original framework to OpenVino Model.
@@ -105,13 +112,31 @@ def convert_model(
             dimensions set to -1 or Dimension(-1) become fully dynamic
             (torch.export.Dim.AUTO), and bounded dimensions such as Dimension(1, 10)
             are exported with explicit min/max constraints.
+        :param enable_mmap_for_constants:
+            Store large constants produced during conversion in temporary
+            mmap-backed files.
+            Default is False.
+        :param mmap_min_constant_size:
+            Minimum size in bytes for constants produced during conversion to
+            use temporary mmap-backed storage.
+            Default is 64 MiB.
 
     Returns:
         openvino.Model
     """
     params = locals()
+    if mmap_min_constant_size < 0:
+        raise ValueError("mmap_min_constant_size must be non-negative")
+
     logger_state = get_logger_state()
     cli_parser = get_all_cli_parser()
-    ov_model, _ = _convert(cli_parser, params, True)
+    mmap_scope = _TemporaryMMapConstantsScope(
+        enable_mmap_for_constants,
+        mmap_min_constant_size,
+    )
+    try:
+        ov_model, _ = _convert(cli_parser, params, True)
+    finally:
+        del mmap_scope
     restore_logger_state(logger_state)
     return ov_model

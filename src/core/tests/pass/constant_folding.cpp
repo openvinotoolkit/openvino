@@ -4,6 +4,8 @@
 
 #include "openvino/pass/constant_folding.hpp"
 
+#include <cstring>
+
 #include <gmock/gmock.h>
 
 #include "common_test_utils/all_close_f.hpp"
@@ -12,6 +14,7 @@
 #include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/op/gather_nd.hpp"
 #include "openvino/op/ops.hpp"
+#include "openvino/runtime/allocator_mmap.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "transformations/utils/utils.hpp"
@@ -65,6 +68,42 @@ void run_constant_folding(std::shared_ptr<ov::Model>& model) {
     pass_manager.register_pass<ov::pass::InitNodeInfo>();
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(model);
+}
+
+TEST(constant_folding, mmap_constants_config_scope_restores_previous_values) {
+    EXPECT_FALSE(get_mmap_constants_config().enabled);
+
+    {
+        ScopedMMapConstantsConfig outer_scope({true, 128});
+        EXPECT_TRUE(get_mmap_constants_config().enabled);
+        EXPECT_EQ(get_mmap_constants_config().min_constant_size, 128);
+
+        {
+            ScopedMMapConstantsConfig inner_scope({false, 256});
+            EXPECT_FALSE(get_mmap_constants_config().enabled);
+            EXPECT_EQ(get_mmap_constants_config().min_constant_size, 256);
+        }
+
+        EXPECT_TRUE(get_mmap_constants_config().enabled);
+        EXPECT_EQ(get_mmap_constants_config().min_constant_size, 128);
+    }
+
+    EXPECT_FALSE(get_mmap_constants_config().enabled);
+}
+
+TEST(constant_folding, temporary_file_backed_allocator_allows_read_write) {
+    TemporaryFileBackedAllocator allocator;
+    constexpr size_t byte_size = 4096;
+
+    void* memory = allocator.allocate(byte_size, 64);
+    ASSERT_NE(memory, nullptr);
+
+    std::memset(memory, 0x5A, byte_size);
+    const auto* bytes = static_cast<const uint8_t*>(memory);
+    EXPECT_EQ(bytes[0], 0x5A);
+    EXPECT_EQ(bytes[byte_size - 1], 0x5A);
+
+    allocator.deallocate(memory, byte_size, 64);
 }
 
 void check_names(const std::shared_ptr<ov::Node>& node,

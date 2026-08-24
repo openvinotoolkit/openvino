@@ -4,6 +4,7 @@
 
 #include "openvino/op/constant.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -22,6 +23,8 @@
 #include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/reference/utils/type_util.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/allocator_mmap.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -41,6 +44,29 @@ TContainer convert_values_to(std::vector<int64_t>&& values, const Shape& shape) 
 }
 
 namespace {
+class TemporaryFileBackedAlignedBuffer : public AlignedBuffer {
+public:
+    TemporaryFileBackedAlignedBuffer(size_t byte_size, size_t alignment) : m_alignment{alignment} {
+        m_byte_size = std::max<size_t>(1, byte_size);
+        m_aligned_buffer = static_cast<char*>(m_allocator.allocate(m_byte_size, m_alignment));
+    }
+
+    ~TemporaryFileBackedAlignedBuffer() override {
+        m_allocator.deallocate(m_aligned_buffer, m_byte_size, m_alignment);
+        m_aligned_buffer = nullptr;
+        m_byte_size = 0;
+    }
+
+private:
+    TemporaryFileBackedAllocator m_allocator;
+    size_t m_alignment;
+};
+
+bool use_mmap_constant_buffer(const element::Type& element_type, size_t byte_size) {
+    const auto& config = ov::get_mmap_constants_config();
+    return config.enabled && element_type != ov::element::string && byte_size >= config.min_constant_size;
+}
+
 template <typename T, typename std::enable_if<std::is_floating_point<T>::value>::type* = nullptr>
 std::string to_cpp_string(T value) {
     if (std::isnan(value)) {
@@ -273,7 +299,11 @@ void Constant::allocate_buffer(bool memset_allocation) {
         m_data = std::make_shared<StringAlignedBuffer>(num_elements, *byte_size, host_alignment(), memset_allocation);
     } else {
         constexpr uint8_t init_value = 0;
-        m_data = std::make_shared<AlignedBuffer>(*byte_size, host_alignment());
+        if (use_mmap_constant_buffer(m_element_type, *byte_size)) {
+            m_data = std::make_shared<TemporaryFileBackedAlignedBuffer>(*byte_size, host_alignment());
+        } else {
+            m_data = std::make_shared<AlignedBuffer>(*byte_size, host_alignment());
+        }
 
         // AlignedBuffer allocates 1 byte for empty constants, and we set it to zero
         if (memset_allocation || *byte_size == 0) {

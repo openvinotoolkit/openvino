@@ -275,6 +275,8 @@ def test_properties_ro(ov_property_ro, expected_value):
         ),
         (props.force_tbb_terminate, "FORCE_TBB_TERMINATE", ((True, True), (False, False))),
         (props.enable_mmap, "ENABLE_MMAP", ((True, True), (False, False))),
+        (props.enable_mmap_for_constants, "ENABLE_MMAP_FOR_CONSTANTS", ((True, True), (False, False))),
+        (props.mmap_min_constant_size, "MMAP_MIN_CONSTANT_SIZE", ((64, 64),)),
         (
             props.weights_path,
             "WEIGHTS_PATH",

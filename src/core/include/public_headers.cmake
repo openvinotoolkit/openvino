@@ -393,6 +393,7 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/openvino/pass/pattern/op/true.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/pass/pattern/op/wrap_type.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/runtime/allocator.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/runtime/allocator_mmap.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/runtime/file_handle.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/runtime/tensor.hpp
 )
