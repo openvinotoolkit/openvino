@@ -173,24 +173,31 @@ void verify_low_precision_encoding_semantics(const element::Type& precision) {
     };
     (*kernel)(&call_args);
 
+    constexpr size_t direct_state_size = 16;
+    constexpr size_t direct_row_count = encoding_count / direct_state_size;
     const auto direct_state_kernel = ov::intel_cpu::kernel::create_selective_ssm_jit_kernel(
         precision,
-        1,
+        direct_state_size,
         precision,
         ov::intel_cpu::kernel::jit_selective_ssm_state_mode::separate);
     ASSERT_NE(direct_state_kernel, nullptr);
+    std::vector<T> direct_input_state(encoding_count);
+    for (size_t i = 0; i < encoding_count; ++i) {
+        direct_input_state[i] = T::from_bits(static_cast<uint16_t>(i));
+    }
     std::vector<T> direct_state(encoding_count);
-    std::vector<T> zero_input(encoding_count, static_cast<T>(0.F));
-    const float zero_projection = 0.F;
+    std::vector<T> direct_output(direct_row_count);
+    std::vector<T> zero_input(direct_row_count, static_cast<T>(0.F));
+    std::vector<float> zero_projection(direct_state_size, 0.F);
     const ov::intel_cpu::kernel::jit_selective_ssm_call_args direct_state_args{
-        input.data(),
-        &zero_projection,
-        &output_projection,
+        direct_input_state.data(),
+        zero_projection.data(),
+        zero_projection.data(),
         zero_input.data(),
-        output.data(),
+        direct_output.data(),
         1.F,
         1.F,
-        encoding_count,
+        direct_row_count,
         direct_state.data(),
     };
     (*direct_state_kernel)(&direct_state_args);
