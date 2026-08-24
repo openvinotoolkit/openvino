@@ -762,30 +762,20 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_eltwise_reorder, ::testing::Values
 }));
 
 // -----------------------------------------------------------------------------
-// Regression coverage for the fused-eltwise higher-rank-peer canonicalization fix
-// in canonicalize_fused_shapes() (kernel_selector_helper.h).
+// Regression coverage for canonicalize_fused_shapes()'s higher-rank fused-peer fold
+// (kernel_selector_helper.h). Reproduces: a Permute's 5D bfzyx output [1,2,8,6,10]
+// is flattened to 4D bfyx [1,2,48,10] by the layout optimizer for a downstream
+// Reshape, with an eltwise Add fused in whose peer stays 5D. Before the fix, the
+// kernel read the 5D peer with 4D indexing (MSE ~12-20 vs CPU); the fix folds the
+// peer onto the host shape instead.
 //
-// Reproduces the df1 output-0 defect: in legacy shape-inference mode (the
-// default), a permute whose 5D output is flattened to 4D bfyx by the layout
-// optimizer (because a downstream Reshape consumes it) has an eltwise Add fused
-// in as a post-op, while the fused Add's peer dependency stays 5D bfzyx.
-// Before the fix, canonicalize_fused_shapes() could not down-rank the higher-rank
-// 5D peer to the 4D host output (extend_shape_to_rank_from_begin() only *extends*),
-// so the fused eltwise kernel read the 5D peer with 4D indexing and scrambled data
-// (MSE ~= 12-20 vs CPU). The fix folds the contiguous planar peer onto the host
-// shape, keeping the Add fused and producing the correct result.
-//
-// This exercises the real GPU compile/layout/fusion path rather than a
-// hand-forced cldnn topology (the 5D->4D flattening is IR-layout-optimizer
-// driven and cannot be reproduced with raw cldnn primitives). The reference is
-// the same model compiled on the reference device (CPU); GPU must match it.
-// fold_higher_rank_fused_peer() itself is exhaustively unit-tested (including
-// every rejection reason) in canonicalize_fused_shapes_test.cpp; the single
-// parametrized matrix below only needs to prove that decision is correctly
-// plumbed through the real compile/layout-optimizer/fusion pipeline for one
-// case per behavior class -- not re-derive the decision itself. Because
-// ov::Core loads the installed GPU plugin, validating a source change with
-// these tests requires building AND installing the plugin.
+// Uses the real GPU compile/layout/fusion pipeline since the 5D->4D flattening is
+// layout-optimizer driven and can't be reproduced with raw cldnn primitives; GPU
+// output is compared against the same model compiled on CPU.
+// fold_higher_rank_fused_peer() is exhaustively unit-tested in
+// canonicalize_fused_shapes_test.cpp; this matrix only checks the decision is
+// plumbed through the real pipeline, one case per behavior class. Requires
+// building AND installing the GPU plugin (ov::Core loads it by name).
 
 namespace {
 // The fusion/impl-selection decision under test (can_fuse_reorder_to_prev ->
@@ -1055,9 +1045,9 @@ TEST_P(permute_fused_collapse_broadcast_matrix, compiles_finite_and_matches_cpu)
     // FP16 tolerance: correct path agrees with CPU to ~1e-3 MSE; the original defect produced MSE ~12-20.
 }
 
-// "equal_total": both host and peer are [1,2,8,6,10] -- this is the exact df1 output-0 defect shape.
-// The Add's peer dependency stays 5D while the target permute host is flattened to 4D, which is the
-// case that broke before the fix (rank-mismatched fused eltwise read the 5D peer with 4D indexing).
+// "equal_total": host and peer are both [1,2,8,6,10] -- the exact shape that triggered the original
+// defect: the Add's peer dependency stays 5D while the target permute host is flattened to 4D
+// (rank-mismatched fused eltwise read the 5D peer with 4D indexing).
 // "feature_broadcast": the peer is [1,1,8,6,10] (fewer elements than the host, 480 vs 960) -- a legal
 // NumPy broadcast rather than an equal-total reshape. Before the fold fix, this aborted GPU compilation
 // at an equal-total-only fold assertion.

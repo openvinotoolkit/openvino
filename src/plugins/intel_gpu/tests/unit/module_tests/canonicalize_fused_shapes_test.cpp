@@ -17,7 +17,7 @@ using namespace ::tests;
 // format) whose result is broadcast-compatible with the host output. It returns the folded host-rank
 // shape on success and std::nullopt otherwise, in which case canonicalize_fused_shapes() falls back to
 // the pre-existing rank-extension path (never an assertion). These cases prove that:
-//   * the proven equal-total planar reshape (df1) folds to exactly the host shape (kept fused);
+//   * an equal-total planar reshape folds to exactly the host shape (kept fused);
 //   * a legal higher-rank broadcast peer folds to its broadcast shape (kept fused, distinct from the
 //     equal-total case);
 //   * every unsafe/unprovable higher-rank shape is rejected (returns nullopt -> safe fallback);
@@ -31,8 +31,8 @@ layout make_layout(const ov::PartialShape& shape, format fmt, const padding& pad
 
 }  // namespace
 
-// The proven df1 / reproducer_v3 case: a 5D bfzyx peer folds onto a 4D bfyx host of equal element count.
-// The folded shape equals the host shape exactly (equal-total reshape).
+// A 5D bfzyx peer folds onto a 4D bfyx host of equal element count; the folded shape equals the host
+// shape exactly (equal-total reshape).
 TEST(canonicalize_fused_peer_fold, planar_5d_peer_equal_total_folds_to_host) {
     auto peer = make_layout({1, 2, 8, 6, 10}, format::bfzyx);  // 960 elements
     auto host = make_layout({1, 2, 48, 10}, format::bfyx);     // 960 elements (48 = 8 * 6)
@@ -40,12 +40,12 @@ TEST(canonicalize_fused_peer_fold, planar_5d_peer_equal_total_folds_to_host) {
     ASSERT_TRUE(folded.has_value());
     EXPECT_EQ(folded->to_shape(), (ov::Shape{1, 2, 48, 10}));
 
-    // The df1 shapes as well.
-    auto peer_df1 = make_layout({1, 2, 96, 270, 270}, format::bfzyx);
-    auto host_df1 = make_layout({1, 2, 25920, 270}, format::bfyx);  // 25920 = 96 * 270
-    auto folded_df1 = fold_higher_rank_fused_peer(peer_df1, host_df1);
-    ASSERT_TRUE(folded_df1.has_value());
-    EXPECT_EQ(folded_df1->to_shape(), (ov::Shape{1, 2, 25920, 270}));
+    // Larger dims fold the same way.
+    auto peer_large = make_layout({1, 2, 96, 270, 270}, format::bfzyx);
+    auto host_large = make_layout({1, 2, 25920, 270}, format::bfyx);  // 25920 = 96 * 270
+    auto folded_large = fold_higher_rank_fused_peer(peer_large, host_large);
+    ASSERT_TRUE(folded_large.has_value());
+    EXPECT_EQ(folded_large->to_shape(), (ov::Shape{1, 2, 25920, 270}));
 }
 
 // A 6D peer folding onto a 4D host (still contiguous planar, equal total) is valid; the outermost three
