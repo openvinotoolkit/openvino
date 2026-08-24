@@ -3,4 +3,5 @@
 optimum-intel[tests,nncf]
 whowhatbench[llm-test-openvino] @ git+https://github.com/openvinotoolkit/openvino.genai.git#subdirectory=tools/who_what_benchmark
 pytest
+pytest-html
 jinja2>=3.1.0
