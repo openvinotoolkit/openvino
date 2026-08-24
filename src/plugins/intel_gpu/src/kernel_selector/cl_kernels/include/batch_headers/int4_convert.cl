@@ -22,8 +22,3 @@ inline float convert_as_uint4_float(uchar source, uint index) {
 
     return out;
 }
-
-inline float convert_as_uint2_float(uchar source, uint index) {
-    uint shift = (index % 4) * 2;
-    return (float)((source >> shift) & 0x03);
-}

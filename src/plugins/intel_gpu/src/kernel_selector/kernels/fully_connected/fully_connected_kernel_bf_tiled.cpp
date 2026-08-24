@@ -305,9 +305,6 @@ bool FullyConnected_bf_tiled::Validate(const Params& params) const {
     }
 
     const auto& fc_params = static_cast<const fully_connected_params&>(params);
-    if (fc_params.weights.GetDType() == WeightsType::UINT2) {
-        DO_NOT_USE_THIS_KERNEL(params.layerID);
-    }
 
     const auto& input = fc_params.inputs[0];
     const auto& output = fc_params.outputs[0];
