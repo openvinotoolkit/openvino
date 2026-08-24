@@ -5,7 +5,6 @@
 #include "eltwise.hpp"
 
 #include <algorithm>
-#include <array>
 #include <chrono>
 #include <cstdint>
 #include <memory>
@@ -44,139 +43,6 @@ namespace {
 
 namespace shader_abi = eltwise_shader_abi;
 using namespace eltwise_detail;
-
-constexpr uint32_t broadcast_vector_width = 4;
-constexpr uint32_t broadcast_vector_min_elements = 256;
-constexpr uint32_t maximum_scalar_batch_width = 8;
-constexpr uint32_t balanced_scalar_batch_width = 4;
-constexpr uint32_t division_scalar_batch_width = 2;
-constexpr uint32_t scalar_batch_width = 1;
-constexpr uint32_t scalar_elements_per_subgroup_budget = portable_local_work_group_size_limit;
-
-uint32_t operation_batch_width_limit(eltwise_mode mode, data_types type, kernel_kind kind, const device_info& info) {
-    switch (mode) {
-    case eltwise_mode::pow:
-    case eltwise_mode::atan2:
-        return scalar_batch_width;
-    case eltwise_mode::div:
-    case eltwise_mode::mod:
-    case eltwise_mode::floor_mod:
-        if (type == data_types::i64) {
-            return scalar_batch_width;
-        }
-        if (is_broadcast_vector_kernel(kind) && info.max_work_group_size != 0) {
-            const auto capability_width = std::max<uint64_t>(info.max_work_group_size / portable_local_work_group_size_limit, scalar_batch_width);
-            return static_cast<uint32_t>(std::min<uint64_t>(capability_width, balanced_scalar_batch_width));
-        }
-        return division_scalar_batch_width;
-    case eltwise_mode::squared_diff:
-        return balanced_scalar_batch_width;
-    default:
-        return maximum_scalar_batch_width;
-    }
-}
-
-bool has_aligned_offset(const layout& tensor_layout, uint32_t width) {
-    return tensor_layout.get_linear_offset() % width == 0;
-}
-
-uint32_t select_generic_elements_per_invocation(kernel_kind kind,
-                                                const layout& input0_layout,
-                                                const layout& input1_layout,
-                                                const layout& output_layout,
-                                                const layout* fused_input_layout,
-                                                eltwise_mode mode,
-                                                const std::vector<eltwise_mode>& fused_modes,
-                                                const device_info& info) {
-    const auto packed_width = get_packed_dense_width(kind);
-    if (packed_width != packed_dense_width::none) {
-        return value(packed_width);
-    }
-    const auto vector_width = get_dense_vector_width(kind);
-    if (vector_width != dense_vector_width::scalar) {
-        return value(vector_width);
-    }
-    const auto output_width = output_elements_per_invocation(output_layout);
-    if (output_width != 1 || kind == kernel_kind::unary || kind == kernel_kind::broadcast_scalar || kind == kernel_kind::broadcast_fast_scalar) {
-        return output_width;
-    }
-    OPENVINO_ASSERT(is_plain_dense_kernel(kind) || is_fused_kernel(kind) || is_fused_post_op_kernel(kind) || is_broadcast_vector_kernel(kind) ||
-                        kind == kernel_kind::scalar_constant,
-                    "[GPU][Vulkan] Eltwise scalar batch selection received an unsupported kernel kind");
-
-    uint32_t width_limit = std::min({operation_batch_width_limit(mode, input0_layout.data_type, kind, info),
-                                     operation_batch_width_limit(mode, input1_layout.data_type, kind, info),
-                                     operation_batch_width_limit(mode, output_layout.data_type, kind, info)});
-    for (const auto fused_mode : fused_modes) {
-        width_limit = std::min(width_limit, operation_batch_width_limit(fused_mode, output_layout.data_type, kind, info));
-    }
-    if (is_plain_dense_kernel(kind) || is_fused_kernel(kind) || is_fused_post_op_kernel(kind) || kind == kernel_kind::scalar_constant) {
-        width_limit = std::min(width_limit, balanced_scalar_batch_width);
-    }
-    auto maximum_scalar_size = std::max({data_type_traits::size_of(input0_layout.data_type),
-                                         data_type_traits::size_of(input1_layout.data_type),
-                                         data_type_traits::size_of(output_layout.data_type)});
-    if (fused_input_layout != nullptr) {
-        maximum_scalar_size = std::max(maximum_scalar_size, data_type_traits::size_of(fused_input_layout->data_type));
-    }
-    if (maximum_scalar_size >= sizeof(uint64_t) && width_limit >= division_scalar_batch_width) {
-        return division_scalar_batch_width;
-    }
-    if (info.supported_simd_sizes.empty() || info.supported_simd_sizes.front() == 0 || info.max_work_group_size == 0) {
-        return scalar_batch_width;
-    }
-
-    const auto subgroup_size = static_cast<uint64_t>(info.supported_simd_sizes.front());
-    const auto subgroup_width_limit = std::max<uint64_t>(scalar_elements_per_subgroup_budget / subgroup_size, balanced_scalar_batch_width);
-    width_limit = static_cast<uint32_t>(std::min<uint64_t>(width_limit, subgroup_width_limit));
-    const auto max_work_group_size = std::max<uint64_t>(info.max_work_group_size, 1);
-    const auto subgroups_per_full_work_group = (max_work_group_size + subgroup_size - 1) / subgroup_size;
-    const auto useful_subgroup_coverage = std::min<uint64_t>(subgroups_per_full_work_group, width_limit);
-    const auto required_parallel_invocations = max_work_group_size * useful_subgroup_coverage;
-    const auto has_aligned_layouts = [&](uint32_t candidate) {
-        if (!has_aligned_offset(output_layout, candidate)) {
-            return false;
-        }
-        const bool requires_aligned_inputs = is_plain_dense_kernel(kind) || is_fused_kernel(kind) || is_fused_post_op_kernel(kind);
-        return !requires_aligned_inputs ||
-               (has_aligned_offset(input0_layout, candidate) && has_aligned_offset(input1_layout, candidate) &&
-                (fused_input_layout == nullptr || is_fused_broadcast_kernel(kind) || has_aligned_offset(*fused_input_layout, candidate)));
-    };
-    constexpr std::array candidates{maximum_scalar_batch_width, balanced_scalar_batch_width, division_scalar_batch_width, scalar_batch_width};
-    for (const auto candidate : candidates) {
-        if (candidate > width_limit || !has_aligned_layouts(candidate)) {
-            continue;
-        }
-        const auto invocation_count = (output_layout.count() + candidate - 1) / candidate;
-        if (invocation_count >= required_parallel_invocations) {
-            return candidate;
-        }
-    }
-    return scalar_batch_width;
-}
-
-bool can_use_broadcast_vector_kernel(const layout& output_layout) {
-    if (data_type_traits::size_of(output_layout.data_type) < sizeof(uint32_t) || output_layout.count() < broadcast_vector_min_elements) {
-        return false;
-    }
-    return output_layout.count() % broadcast_vector_width == 0;
-}
-
-bool should_use_fast_broadcast_kernel(const layout& input0_layout,
-                                      const layout& input1_layout,
-                                      const layout& output_layout,
-                                      const device_info& info,
-                                      uint32_t elements_per_invocation) {
-    if (info.supported_simd_sizes.empty() || info.supported_simd_sizes.front() == 0 || info.max_work_group_size == 0) {
-        return false;
-    }
-    const auto subgroup_size = info.supported_simd_sizes.front();
-    const auto subgroup_slots = std::max<uint64_t>(info.max_work_group_size / subgroup_size, 1);
-    const auto rank = EltwiseMetadata::collapsed_broadcast_rank(input0_layout, input1_layout, output_layout);
-    const auto coordinate_schedule_pressure = static_cast<uint64_t>(rank) * subgroup_slots;
-    const auto invocation_count = (output_layout.count() + elements_per_invocation - 1) / elements_per_invocation;
-    return coordinate_schedule_pressure <= portable_local_work_group_size_limit && invocation_count >= subgroup_size;
-}
 
 bool output_is_disjoint_from_reads(const memory::cptr& output, const std::vector<memory::cptr>& reads) {
     const auto* output_buffer = output == nullptr ? nullptr : dynamic_cast<const vulkan_buffer*>(output.get());
@@ -669,7 +535,7 @@ std::unique_ptr<primitive_impl> EltwiseImplementationManager::create_impl(const 
     } else if (!params.is_dynamic()) {
         const auto& output_layout = params.get_output_layout(0);
         scalar = get_scalar_constant(node);
-        if (scalar.has_value() && output_layout.count() >= broadcast_vector_min_elements) {
+        if (scalar.has_value() && benefits_from_scalar_constant_kernel(output_layout)) {
             kind = kernel_kind::scalar_constant;
         } else if (can_use_dense_kernel(input0_layout, input1_layout, output_layout) ||
                    can_use_packed_dense_kernel(input0_layout, input1_layout, output_layout, nullptr)) {

@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <vector>
 
 #include "../eltwise_shader_abi.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
@@ -59,6 +60,21 @@ kernel_kind select_pre_specialized_kernel_kind(kernel_kind fallback,
                                                const layout& input0_layout,
                                                const layout& input1_layout,
                                                const layout& output_layout);
+uint32_t select_generic_elements_per_invocation(kernel_kind kind,
+                                                const layout& input0_layout,
+                                                const layout& input1_layout,
+                                                const layout& output_layout,
+                                                const layout* fused_input_layout,
+                                                eltwise_mode mode,
+                                                const std::vector<eltwise_mode>& fused_modes,
+                                                const device_info& info);
+bool can_use_broadcast_vector_kernel(const layout& output_layout);
+bool benefits_from_scalar_constant_kernel(const layout& output_layout);
+bool should_use_fast_broadcast_kernel(const layout& input0_layout,
+                                      const layout& input1_layout,
+                                      const layout& output_layout,
+                                      const device_info& info,
+                                      uint32_t elements_per_invocation);
 
 }  // namespace vulkan::eltwise_detail
 }  // namespace cldnn
