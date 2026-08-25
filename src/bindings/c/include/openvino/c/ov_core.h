@@ -457,8 +457,8 @@ ov_core_create_context(const ov_core_t* core,
  * @ingroup ov_core_c_api
  * @param core           A pointer to the ov_core_t instance.
  * @param device_name    Device name to identify a plugin.
- * @param properties     Array of ov_property_t key/value pairs (may be NULL when num_properties is 0).
  * @param num_properties Number of entries in the properties array.
+ * @param properties     Array of ov_property_t key/value pairs (may be NULL when num_properties is 0).
  * @param context        A pointer to the newly created remote context.
  * @return Status code of the operation: OK(0) for success.
  */
