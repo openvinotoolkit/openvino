@@ -13,6 +13,7 @@
 #include <cstdint>
 
 #include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 
@@ -22,6 +23,9 @@ struct MMapConstantsConfig {
 };
 
 OPENVINO_API const MMapConstantsConfig& get_mmap_constants_config();
+
+/// @brief Tells whether a buffer of the given type and size should be placed in temporary file-backed storage.
+OPENVINO_API bool use_mmap_constant_buffer(const element::Type& element_type, size_t byte_size);
 
 class OPENVINO_API ScopedMMapConstantsConfig {
 public:

@@ -110,11 +110,6 @@ ov::pass::VectorizedMOE2GEMMTransposeWeights::VectorizedMOE2GEMMTransposeWeights
             auto order_const = v0::Constant::create(ov::element::i64, {transpose_order.size()}, transpose_order);
             auto transpose = std::make_shared<v1::Transpose>(transpose_input, order_const);
 
-            if (ov::is_type<v0::Constant>(transpose_input.get_node_shared_ptr())) {
-                transpose->get_rt_info()["postponed_constant"] = true;
-                ov::pass::disable_constant_folding(transpose);
-            }
-
             ov::NodeVector rt_sources{transpose_input.get_node_shared_ptr()};
             if (auto weight_node = weight_output.get_node_shared_ptr()) {
                 rt_sources.push_back(weight_node);

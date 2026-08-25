@@ -4,12 +4,20 @@
 
 #include "openvino/pass/constant_folding.hpp"
 
+#include <cstdlib>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
+
+#ifdef __linux__
+#    include <unistd.h>
+#endif
 
 #include <gmock/gmock.h>
 
 #include "common_test_utils/all_close_f.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/op/gather_nd.hpp"
@@ -105,6 +113,144 @@ TEST(constant_folding, temporary_file_backed_allocator_allows_read_write) {
 
     allocator.deallocate(memory, byte_size, 64);
 }
+
+#ifdef __linux__
+// Redirects temp_directory_path() so the allocator failure paths can be exercised.
+class ScopedTempDir {
+public:
+    explicit ScopedTempDir(const std::filesystem::path& dir) {
+        if (const char* previous = std::getenv("TMPDIR")) {
+            m_previous = previous;
+            m_had_previous = true;
+        }
+        ::setenv("TMPDIR", dir.c_str(), 1);
+    }
+
+    ~ScopedTempDir() {
+        if (m_had_previous) {
+            ::setenv("TMPDIR", m_previous.c_str(), 1);
+        } else {
+            ::unsetenv("TMPDIR");
+        }
+    }
+
+    ScopedTempDir(const ScopedTempDir&) = delete;
+    ScopedTempDir& operator=(const ScopedTempDir&) = delete;
+
+private:
+    std::string m_previous;
+    bool m_had_previous = false;
+};
+
+TEST(constant_folding, mmap_allocator_reports_error_when_not_enough_space) {
+    std::error_code error;
+    const auto space = std::filesystem::space(std::filesystem::temp_directory_path(), error);
+    ASSERT_FALSE(error);
+
+    TemporaryFileBackedAllocator allocator;
+    OV_EXPECT_THROW_HAS_SUBSTRING(allocator.allocate(space.available + (1ULL << 30), 64),
+                                  ov::Exception,
+                                  "Not enough available space");
+}
+
+TEST(constant_folding, mmap_allocator_reports_error_when_temp_dir_is_write_protected) {
+    if (::geteuid() == 0) {
+        GTEST_SKIP() << "root bypasses directory write permissions";
+    }
+
+    const auto dir = std::filesystem::temp_directory_path() / "ov_mmap_write_protected";
+    std::filesystem::remove_all(dir);
+    ASSERT_TRUE(std::filesystem::create_directories(dir));
+    std::filesystem::permissions(dir,
+                                 std::filesystem::perms::owner_read | std::filesystem::perms::owner_exec,
+                                 std::filesystem::perm_options::replace);
+
+    {
+        const ScopedTempDir temp_dir{dir};
+        TemporaryFileBackedAllocator allocator;
+        OV_EXPECT_THROW_HAS_SUBSTRING(allocator.allocate(4096, 64), ov::Exception, "Cannot create temporary file");
+    }
+
+    std::filesystem::permissions(dir, std::filesystem::perms::owner_all, std::filesystem::perm_options::replace);
+    std::filesystem::remove_all(dir);
+}
+
+TEST(constant_folding, mmap_allocator_reserves_space_up_front) {
+    const auto temp_dir = std::filesystem::temp_directory_path();
+    constexpr size_t byte_size = 256ULL * 1024ULL * 1024ULL;
+
+    std::error_code error;
+    const auto before = std::filesystem::space(temp_dir, error).available;
+    ASSERT_FALSE(error);
+
+    TemporaryFileBackedAllocator allocator;
+    void* memory = allocator.allocate(byte_size, 64);
+    ASSERT_NE(memory, nullptr);
+    const auto after = std::filesystem::space(temp_dir, error).available;
+    allocator.deallocate(memory, byte_size, 64);
+    ASSERT_FALSE(error);
+
+    // Without up-front reservation the mapping stays sparse and a later disk-full condition raises SIGBUS on write.
+    EXPECT_GE(static_cast<int64_t>(before) - static_cast<int64_t>(after), static_cast<int64_t>(byte_size / 4));
+}
+
+// Reports the /proc/self/maps entry owning the address, so the buffer's backing storage can be identified.
+std::string mapping_for_address(const void* address) {
+    const auto value = reinterpret_cast<uintptr_t>(address);
+    std::ifstream maps("/proc/self/maps");
+    for (std::string line; std::getline(maps, line);) {
+        const auto dash = line.find('-');
+        const auto space = line.find(' ');
+        if (dash == std::string::npos || space == std::string::npos) {
+            continue;
+        }
+        const auto begin = std::stoull(line.substr(0, dash), nullptr, 16);
+        const auto end = std::stoull(line.substr(dash + 1, space - dash - 1), nullptr, 16);
+        if (begin <= value && value < end) {
+            return line;
+        }
+    }
+    return {};
+}
+
+std::shared_ptr<Model> make_foldable_add_model(size_t num_elements) {
+    const auto shape = Shape{num_elements};
+    const auto lhs = op::v0::Constant::create(element::f32, shape, std::vector<float>(num_elements, 3.0f));
+    const auto rhs = op::v0::Constant::create(element::f32, shape, std::vector<float>(num_elements, 4.0f));
+    const auto param = make_shared<op::v0::Parameter>(element::f32, shape);
+    const auto mul = make_shared<op::v1::Multiply>(make_shared<op::v1::Add>(lhs, rhs), param);
+    return make_shared<Model>(OutputVector{mul}, ParameterVector{param});
+}
+
+TEST(constant_folding, folded_constant_uses_mmap_buffer_when_enabled) {
+    constexpr size_t num_elements = 1024 * 1024;
+    auto model = make_foldable_add_model(num_elements);
+
+    {
+        ScopedMMapConstantsConfig scope({true, 1024});
+        run_constant_folding(model);
+    }
+
+    const auto folded = ov::as_type_ptr<op::v0::Constant>(
+        model->get_results().at(0)->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(folded, nullptr);
+    EXPECT_THAT(mapping_for_address(folded->get_data_ptr()), testing::HasSubstr("openvino_mmap"));
+    EXPECT_THAT(folded->cast_vector<float>(), testing::Each(7.0f));
+}
+
+TEST(constant_folding, folded_constant_uses_regular_buffer_when_disabled) {
+    constexpr size_t num_elements = 1024 * 1024;
+    auto model = make_foldable_add_model(num_elements);
+
+    run_constant_folding(model);
+
+    const auto folded = ov::as_type_ptr<op::v0::Constant>(
+        model->get_results().at(0)->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(folded, nullptr);
+    EXPECT_THAT(mapping_for_address(folded->get_data_ptr()), testing::Not(testing::HasSubstr("openvino_mmap")));
+    EXPECT_THAT(folded->cast_vector<float>(), testing::Each(7.0f));
+}
+#endif  // __linux__
 
 void check_names(const std::shared_ptr<ov::Node>& node,
                  const std::vector<std::string>& expected_fused_names,

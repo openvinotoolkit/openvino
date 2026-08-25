@@ -83,11 +83,23 @@ int create_temporary_file(size_t bytes) {
 
     OPENVINO_ASSERT(bytes <= static_cast<size_t>((std::numeric_limits<off_t>::max)()),
                     "Requested mmap allocation is too large");
+#    if defined(__linux__)
+    // Blocks must be reserved here: a sparse file would raise SIGBUS on write once the filesystem fills up.
+    if (const int error = ::posix_fallocate(fd, 0, static_cast<off_t>(bytes)); error != 0) {
+        const auto error_message = std::strerror(error);
+        (void)::close(fd);
+        OPENVINO_THROW("Cannot reserve ",
+                       bytes,
+                       " bytes in temporary directory for mmap constant storage: ",
+                       error_message);
+    }
+#    else
     if (::ftruncate(fd, static_cast<off_t>(bytes)) != 0) {
         const auto error_message = std::strerror(errno);
         (void)::close(fd);
         OPENVINO_THROW("Cannot resize temporary file for mmap constant storage to ", bytes, " bytes: ", error_message);
     }
+#    endif
     return fd;
 }
 }  // namespace
@@ -115,7 +127,11 @@ void* TemporaryFileBackedAllocator::allocate(size_t bytes, size_t alignment) {
         fd = create_temporary_file(request);
         base = ::mmap(nullptr, request, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
         if (base == MAP_FAILED) {
-            OPENVINO_THROW("mmap() failed for temporary constant storage: ", std::strerror(errno));
+            OPENVINO_THROW("mmap() failed for temporary constant storage: ",
+                           std::strerror(errno),
+                           ". Every mmap-backed constant needs its own mapping, so a small "
+                           "MMAP_MIN_CONSTANT_SIZE can exceed the vm.max_map_count limit. "
+                           "Increase MMAP_MIN_CONSTANT_SIZE or raise vm.max_map_count.");
         }
 
         const auto base_address = reinterpret_cast<std::uintptr_t>(base);

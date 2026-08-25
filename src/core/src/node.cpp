@@ -15,11 +15,14 @@
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/log_util.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape_util.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/runtime/allocator.hpp"
+#include "openvino/runtime/allocator_mmap.hpp"
 #include "openvino/util/log.hpp"
 #include "shape_validation.hpp"
 #include "shared_node_info.hpp"
@@ -30,6 +33,21 @@ namespace {
 static const char node_idx_out_of_range_txt[] = "node index is out of range";
 static const char idx_txt[] = "index '";
 static const char out_of_range_txt[] = "' out of range";
+
+// Folded results are wrapped into Constants without copying, so the evaluated buffer itself must honour mmap policy.
+ov::Allocator constant_fold_output_allocator(const ov::Output<ov::Node>& output) {
+    if (output.get_partial_shape().is_dynamic()) {
+        return {};
+    }
+
+    const auto& element_type = output.get_element_type();
+    const auto byte_size = ov::util::get_memory_size_safe(element_type, output.get_shape());
+    if (byte_size && ov::use_mmap_constant_buffer(element_type, *byte_size)) {
+        return ov::Allocator{ov::TemporaryFileBackedAllocator{}};
+    }
+
+    return {};
+}
 }  // namespace
 
 void ov::NodeValidationFailure::create(const char* file,
@@ -734,7 +752,7 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     for (const auto& output : outputs()) {
         const auto& et = output.get_element_type();
         if (et.is_static()) {
-            output_tensors.emplace_back(output);
+            output_tensors.emplace_back(output, constant_fold_output_allocator(output));
         } else {
             output_tensors.emplace_back();
         }

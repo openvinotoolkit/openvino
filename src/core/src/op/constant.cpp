@@ -62,11 +62,6 @@ private:
     size_t m_alignment;
 };
 
-bool use_mmap_constant_buffer(const element::Type& element_type, size_t byte_size) {
-    const auto& config = ov::get_mmap_constants_config();
-    return config.enabled && element_type != ov::element::string && byte_size >= config.min_constant_size;
-}
-
 template <typename T, typename std::enable_if<std::is_floating_point<T>::value>::type* = nullptr>
 std::string to_cpp_string(T value) {
     if (std::isnan(value)) {

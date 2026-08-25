@@ -223,6 +223,10 @@ static const auto core_properties_names = ov::util::make_array(ov::cache_dir.nam
 static const auto auto_batch_properties_names =
     ov::util::make_array(ov::auto_batch_timeout.name(), ov::hint::allow_auto_batching.name());
 
+static ov::MMapConstantsConfig make_mmap_constants_config(const ov::CoreConfig& core_config) {
+    return {core_config.get_enable_mmap_for_constants(), core_config.get_mmap_min_constant_size()};
+}
+
 std::filesystem::path extract_weight_path(const std::string& compiled_properties) {
     if (auto start = compiled_properties.find(ov::weights_path.name()); start != std::string::npos) {
         start += std::string_view{ov::weights_path.name()}.size() + 1;
@@ -871,6 +875,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
                                                 m_core_config,
                                                 config_with_batch,
                                                 is_proxy_device(patched_device_name));
+    const ov::ScopedMMapConstantsConfig mmap_config_scope{make_mmap_constants_config(parsed.m_core_config)};
     auto plugin = get_plugin(parsed.m_device_name);
     const auto& [cache_dir, cache_manager] = parsed.m_core_config.get_cache_config_for_device(plugin);
     auto compiled_model = import_compiled_model(plugin, {}, config, model);
@@ -911,6 +916,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
 
     auto parsed =
         parse_device_name_into_config(device_name, m_core_config, config_with_batch, is_proxy_device(device_name));
+    const ov::ScopedMMapConstantsConfig mmap_config_scope{make_mmap_constants_config(parsed.m_core_config)};
     auto plugin = get_plugin(parsed.m_device_name);
     const auto& [cache_dir, cache_manager] = parsed.m_core_config.get_cache_config_for_device(plugin);
     auto compiled_model = import_compiled_model(plugin, context, parsed.m_config, model);
@@ -943,6 +949,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::filesystem:
                                                           const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::compile_model::Path");
     auto parsed = parse_device_config(device_name, m_core_config, config, false);
+    const ov::ScopedMMapConstantsConfig mmap_config_scope{make_mmap_constants_config(parsed.m_core_config)};
     // in case of compile_model(file_name), we need to clear-up core-level properties
     auto plugin = get_plugin(parsed.m_device_name);
     const auto& [cache_dir, cache_manager] = parsed.m_core_config.get_cache_config_for_device(plugin);
@@ -978,6 +985,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
                                                           const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::compile_model::from_memory");
     auto parsed = parse_device_name_into_config(device_name, m_core_config, config);
+    const ov::ScopedMMapConstantsConfig mmap_config_scope{make_mmap_constants_config(parsed.m_core_config)};
     auto plugin = get_plugin(parsed.m_device_name);
     const auto& [cache_dir, cache_manager] = parsed.m_core_config.get_cache_config_for_device(plugin);
     auto compiled_model = import_compiled_model(plugin, {}, parsed.m_config);
@@ -1831,10 +1839,7 @@ std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::filesystem::path&
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from file");
     auto local_core_config = m_core_config;
     local_core_config.set(properties, {});
-    const ov::ScopedMMapConstantsConfig mmap_config_scope({
-        local_core_config.get_enable_mmap_for_constants(),
-        local_core_config.get_mmap_min_constant_size(),
-    });
+    const ov::ScopedMMapConstantsConfig mmap_config_scope{make_mmap_constants_config(local_core_config)};
     return ov::util::read_model(model_path, bin_path, get_extensions_copy(), local_core_config.get_enable_mmap());
 }
 
