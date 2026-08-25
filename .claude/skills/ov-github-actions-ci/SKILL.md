@@ -58,10 +58,11 @@ For framework syntax, use the official [GitHub Actions documentation](https://do
    ```
 2. **Least-privilege `permissions:`.** Start from `permissions: read-all` (workflow level) and grant the
    minimum extra scope at the **job** level only where needed. Never widen without a reason.
-3. **Never use `pull_request_target`**, never hard-code secrets, and treat all `github.*` /
-   `github.event.*` user-controlled values as untrusted — pass them via `env:` or action inputs, never
-   interpolate directly into `run:` shell. Consult [security.md](../../../docs/dev/ci/github_actions/security.md)
-   and ping the CI task force for anything involving secrets or elevated triggers.
+3. **Follow [security.md](../../../docs/dev/ci/github_actions/security.md)** — it is the source of truth.
+   Key rules: never use `pull_request_target`, never hard-code secrets, and treat all `github.*` /
+   `github.event.*` user-controlled values as untrusted (route them through `env:` or action inputs, never
+   interpolate directly into `run:` shell). Ping the CI task force for anything involving secrets or
+   elevated triggers.
 4. **Put shared job logic in a reusable `job_*.yml`, not copy-paste.** If the same job appears in more
    than one validation workflow, it should be a `workflow_call` reusable workflow parameterized by
    `runner`, `image`/`container`, and `affected-components`.
@@ -114,7 +115,12 @@ Follow [adding_tests.md](../../../docs/dev/ci/github_actions/adding_tests.md):
 2. Declare dependents in `.github/components.yml` under `revalidate:` (build+test) / `build:` (build
    only); use `[]` for none, or `'all'` to force full validation. Dependencies are **not** transitive.
 3. Add `Smart_CI` to the validating job's `needs` and gate with
-   `if: fromJSON(needs.smart_ci.outputs.affected_components).<COMPONENT>.{build,test}`.
+   `if: fromJSON(needs.smart_ci.outputs.affected_components).<COMPONENT>.{build,test}`. Keep the same
+   condition on **every** step/job in the dependency chain — a skipped step feeding an ungated dependent
+   leaves it running against missing outputs.
+4. Aggregate results into the `Overall_Status` job (it `needs:` the real jobs and reports one required
+   check). A workflow that must be **required** cannot use a `paths:` filter — a filtered-out run reports
+   no status and blocks the merge queue; rely on Smart CI + `Overall_Status` instead.
 
 ### Add / change a custom action
 * Composite `action.yml` under `.github/actions/<name>/`. Declare `inputs` (with `description`,
@@ -171,6 +177,11 @@ volumes/options (shared drive, sccache) consistent with sibling jobs. GPU → Do
   route through `env:`.
 * **Over-broad `permissions:`** — especially `write` scopes at workflow level.
 * **Job that ignores Smart CI** — burns limited self-hosted/GPU capacity on unaffected PRs.
+* **Smart CI condition mismatch across a dependency chain** — a step skipped by a Smart CI `if:` whose
+  dependent step/job lacks the same condition runs against missing outputs/artifacts. Gate the whole
+  chain consistently.
+* **`paths:` filter on a required workflow** — filtered-out runs report no status and hang the merge
+  queue; use Smart CI + `Overall_Status` instead of `paths:`.
 * **Hard-coded `docker.io` / non-ACR image on `aks-*`** — pulls fail or hit rate limits; use the ACR
   mirror or `handle_docker` output.
 * **Missing `Docker`/`Smart_CI`/`Build` in `needs`** — races or missing artifacts/inputs.
