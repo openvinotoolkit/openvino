@@ -40,9 +40,7 @@ TEST_F(TransformationTestsF, SDPAKVCompressionFusionQuantizedKVInt8) {
             order,
             order,
             order,
-            order,
-            ov::element::dynamic,
-            ov::intel_gpu::op::SDPA::CausalMaskAlignment::LOWER_RIGHT);
+            order);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{sdpa},
                                             ov::ParameterVector{q, k_quant, k_scale, v_quant, v_scale});
@@ -71,9 +69,7 @@ TEST_F(TransformationTestsF, SDPAKVCompressionFusionQuantizedKVInt8) {
             order,
             order,
             order,
-            config,
-            ov::element::dynamic,
-            ov::intel_gpu::op::SDPA::CausalMaskAlignment::LOWER_RIGHT);
+            config);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{sdpa},
                                                 ov::ParameterVector{q, k_quant, k_scale, v_quant, v_scale});
