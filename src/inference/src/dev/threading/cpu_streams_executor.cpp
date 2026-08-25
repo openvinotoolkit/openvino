@@ -175,6 +175,28 @@ struct CPUStreamsExecutor::Impl {
             return mapped_core_types;
         }
 
+        // Creates a plain task arena bound to a single processor group through a soft group-affinity
+        // observer (full group mask, no per-core pinning), so that streams are distributed across all
+        // processor groups on Windows machines with more than 64 logical processors (multiple groups),
+        // where oneTBB/tbbbind numa binding cannot move threads across groups. max_threads_per_core is
+        // intentionally not applied here: setting it would recreate the tbbbind binding observer, whose
+        // group-local affinity would confine threads back to a single group and defeat the distribution.
+        // Returns false on a single-group machine (or off Windows), leaving arena creation to the caller
+        // so the standard constraints (including max_threads_per_core) are used instead.
+        bool try_create_group_soft_arena([[maybe_unused]] int concurrency, [[maybe_unused]] int stream_id) {
+#    if defined(_WIN32)
+            const int group_count = static_cast<int>(GetActiveProcessorGroupCount());
+            if (group_count > 1) {
+                const int target_group = _numaNodeId >= 0 ? (_numaNodeId % group_count) : (stream_id % group_count);
+                _taskArena.reset(new custom::task_arena{concurrency});
+                _observer.reset(new GroupObserver{*_taskArena, target_group, stream_id});
+                _observer->observe(true);
+                return true;
+            }
+#    endif
+            return false;
+        }
+
         void create_tbb_task_arena(const int stream_id,
                                    const StreamCreateType stream_type,
                                    const int concurrency,
@@ -207,10 +229,24 @@ struct CPUStreamsExecutor::Impl {
                     _stream_type = STREAM_WITHOUT_PARAM;
                 }
             }
+#    if defined(_WIN32)
+            if (group_binding_debug_enabled()) {
+                fprintf(stderr,
+                        "[ov threading] stream %d: stream_type=%d numa=%d concurrency=%d numa_nodes=%d groups=%d\n",
+                        stream_id,
+                        static_cast<int>(_stream_type),
+                        _numaNodeId,
+                        concurrency,
+                        get_num_numa_nodes(),
+                        static_cast<int>(GetActiveProcessorGroupCount()));
+            }
+#    endif
             if (_stream_type == STREAM_WITHOUT_PARAM) {
-                _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
-                                                            .set_max_concurrency(concurrency)
-                                                            .set_max_threads_per_core(max_threads_per_core)});
+                if (!try_create_group_soft_arena(concurrency, stream_id)) {
+                    _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
+                                                                .set_max_concurrency(concurrency)
+                                                                .set_max_threads_per_core(max_threads_per_core)});
+                }
             } else if (_stream_type == STREAM_WITH_NUMA_ID) {
                 // Numa node id has used different mapping methods in TBBBind since oneTBB 2021.4.0
 #    if USE_TBBBIND_2_5
@@ -221,17 +257,7 @@ struct CPUStreamsExecutor::Impl {
                     real_numa_node_id = _numaNodeId;
                 }
 #    endif
-#    if defined(_WIN32)
-                // With multiple processor groups (>64 logical processors) tbbbind numa binding cannot
-                // move threads across groups, so mirror the pinning path: plain arena plus a soft group
-                // affinity observer. Single-group Windows keeps the standard numa-constrained arena.
-                if (GetActiveProcessorGroupCount() > 1) {
-                    _taskArena.reset(new custom::task_arena{concurrency});
-                    _observer.reset(new GroupObserver{*_taskArena, _numaNodeId, stream_id});
-                    _observer->observe(true);
-                } else
-#    endif
-                {
+                if (!try_create_group_soft_arena(concurrency, stream_id)) {
                     _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                                 .set_numa_id(real_numa_node_id)
                                                                 .set_max_concurrency(concurrency)
