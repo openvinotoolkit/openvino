@@ -638,4 +638,44 @@ INSTANTIATE_TEST_SUITE_P(CpuStreamType,
                                          _1sockets_32cores_all_proc_bind_subset_of_core_kinds,
                                          _1sockets_32cores_all_proc_skip_binding_all_core_kinds));
 #endif
+
+TEST(StreamProcessorGroupId, PrefersNumaNodeWhenKnown) {
+    // A known numa node id maps directly to its processor group when within range.
+    EXPECT_EQ(get_stream_processor_group_id(0, 100, 6), 0);
+    EXPECT_EQ(get_stream_processor_group_id(3, 100, 6), 3);
+    EXPECT_EQ(get_stream_processor_group_id(5, 0, 6), 5);
+}
+
+TEST(StreamProcessorGroupId, WrapsNumaNodeIntoGroupRange) {
+    // A numa id greater than or equal to the group count wraps around.
+    EXPECT_EQ(get_stream_processor_group_id(6, 0, 6), 0);
+    EXPECT_EQ(get_stream_processor_group_id(7, 0, 6), 1);
+}
+
+TEST(StreamProcessorGroupId, RoundRobinByStreamWhenNumaUnknown) {
+    // A negative numa id falls back to round-robin distribution by stream index.
+    EXPECT_EQ(get_stream_processor_group_id(-1, 0, 6), 0);
+    EXPECT_EQ(get_stream_processor_group_id(-1, 1, 6), 1);
+    EXPECT_EQ(get_stream_processor_group_id(-1, 5, 6), 5);
+    EXPECT_EQ(get_stream_processor_group_id(-1, 6, 6), 0);
+    EXPECT_EQ(get_stream_processor_group_id(-1, 49, 6), 1);
+}
+
+TEST(StreamProcessorGroupId, ReturnsZeroOnInvalidGroupCount) {
+    EXPECT_EQ(get_stream_processor_group_id(3, 7, 0), 0);
+    EXPECT_EQ(get_stream_processor_group_id(3, 7, -1), 0);
+}
+
+TEST(StreamProcessorGroupId, DistributesStreamsEvenlyAcrossGroups) {
+    // 288 concurrency-1 streams with unknown numa id must spread evenly across 6 processor groups.
+    const int group_count = 6;
+    const int stream_count = 288;
+    std::vector<int> per_group(group_count, 0);
+    for (int stream_id = 0; stream_id < stream_count; ++stream_id) {
+        per_group[get_stream_processor_group_id(-1, stream_id, group_count)]++;
+    }
+    for (int group = 0; group < group_count; ++group) {
+        EXPECT_EQ(per_group[group], stream_count / group_count);
+    }
+}
 }  // namespace
