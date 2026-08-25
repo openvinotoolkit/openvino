@@ -17,12 +17,9 @@ namespace test {
 using CPUTestUtils::CPUSpecificParams;
 using CPUTestUtils::CPUTestsBase;
 
-// CPU-specific counterpart of the shared GroupedMatMulLayerTest / GroupedMatMulCompressedLayerTest.
-// The shared suites verify numerics and that an op of the expected type shows up in the profiling
-// info; these ones additionally inspect the executable graph to confirm which primitive the plugin
-// actually built and, for the compressed flavour, that the weights reach it still compressed.
-//
-// Model / offsets / input generation is reused from GroupedMatMulTestBase.
+// CPU counterparts of the shared GroupedMatMul suites: on top of numerics they check the executable
+// graph - which primitive got built, and for the compressed flavour that the weights reach it still
+// compressed. Model / offsets / input generation is reused from GroupedMatMulTestBase.
 
 using GroupedMatMulCPUTestParams = std::tuple<GroupedMatMulShapeParams,  // shape bundle + routing
                                               ov::element::Type,         // activation precision

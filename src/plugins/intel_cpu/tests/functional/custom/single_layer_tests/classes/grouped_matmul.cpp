@@ -24,9 +24,8 @@ namespace {
 
 constexpr auto groupedMatMulLayerType = "GroupedMatMul";
 
-// The executed GroupedMatMul, looked up in the executable graph by its layer type. Presence is
-// asserted separately via CheckNumberOfNodesWithType; this only fetches the node so that its input
-// precisions can be inspected.
+// The executed GroupedMatMul, found by layer type. Only used to inspect its input precisions -
+// presence is asserted via CheckNumberOfNodesWithType.
 std::shared_ptr<ov::Node> executed_grouped_matmul(const ov::CompiledModel& compiled_model) {
     for (const auto& node : compiled_model.get_runtime_model()->get_ops()) {
         const auto& rt_info = node->get_rt_info();
@@ -98,8 +97,7 @@ std::shared_ptr<ov::Node> GroupedMatMulLayerCPUTest::build_weights() {
 }
 
 void GroupedMatMulLayerCPUTest::check_results() {
-    // CheckPluginRelatedResults only validates the nodes it finds, so the presence of exactly one
-    // GroupedMatMul is asserted separately.
+    // CheckPluginRelatedResults only validates the nodes it finds, so assert presence separately
     CheckNumberOfNodesWithType(compiledModel, groupedMatMulLayerType, 1);
     CheckPluginRelatedResults(compiledModel, groupedMatMulLayerType);
 }
@@ -110,9 +108,8 @@ TEST_P(GroupedMatMulLayerCPUTest, CompareWithRefs) {
     check_results();
 }
 
-// The suites are instantiated in instances/x64 only, which is excluded from the non-x64 builds while
-// this file is always compiled. gtest >= 1.11 flags a suite with no instantiation as a failure unless
-// it is explicitly allowed.
+// Instantiated in instances/x64 only, which non-x64 builds exclude while still compiling this file.
+// gtest >= 1.11 fails an uninstantiated suite unless it is explicitly allowed.
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(GroupedMatMulLayerCPUTest);
 
 // ---- GroupedMatMulCompressedLayerCPUTest ------------------------------------------------------
@@ -191,10 +188,9 @@ void GroupedMatMulCompressedLayerCPUTest::SetUp() {
 }
 
 std::shared_ptr<ov::Node> GroupedMatMulCompressedLayerCPUTest::build_weights() {
-    // b_shape is the pre-transposed weight shape [G, N, K]. The planar shape [G, K, N] is handed to
-    // the builder with transpose_weights=true so the constant ends up as [G, N, K] (per-N scales are
-    // per-OC), and insert_transpose_node=false suppresses the trailing Transpose, leaving the
-    // decompressed output already in the [G, N, K] layout GroupedMatMul expects.
+    // b_shape is already pre-transposed [G, N, K]. Pass the planar [G, K, N] with
+    // transpose_weights=true so the constant lands as [G, N, K] (per-N scales == per-OC), and
+    // insert_transpose_node=false to drop the trailing Transpose GroupedMatMul does not want.
     ov::Shape b_planar = shape_params_.b_shape;
     std::swap(b_planar[b_planar.size() - 2], b_planar[b_planar.size() - 1]);
 

@@ -23,7 +23,7 @@ std::vector<CPUSpecificParams> filterSpecificParams_Brgemm() {
     return specificParams;
 }
 
-// N == 1 falls back to the reference gemm implementation.
+// See the N == 1 shapes below.
 std::vector<CPUSpecificParams> filterSpecificParams_JitGemm() {
     return {CPUSpecificParams{{}, {}, {"jit_gemm"}, "jit_gemm"}};
 }

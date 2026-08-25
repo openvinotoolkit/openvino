@@ -24,9 +24,8 @@
 
 namespace ov::intel_cpu::node {
 
-// Native ov::op::v17::GroupedMatMul / ov::op::internal::GroupedMatMulCompressed.
-// x64 only: on other architectures isSupportedOperation() rejects the op and the graph falls back to
-// the ConvertGroupedMatMulToGatherMatmul lowering.
+// Native ov::op::v17::GroupedMatMul / ov::op::internal::GroupedMatMulCompressed. Registered for x64
+// only (nodes_factory.cpp); elsewhere the op is lowered to GatherMatmul instead.
 class GroupedMatMul : public Node {
 public:
     GroupedMatMul(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);

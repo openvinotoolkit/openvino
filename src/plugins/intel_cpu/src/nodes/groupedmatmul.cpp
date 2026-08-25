@@ -208,7 +208,7 @@ void GroupedMatMul::initSupportedPrimitiveDescriptors() {
     for (const auto& [argId, portId] : m_atoi) {
         descs[argId] = makeSrcDesc(portId);
     }
-    // GroupedMatMul-17 has no bias input, but the executor / type mapping keep the argument slot
+    // GroupedMatMul-17 has no bias; the empty slot is what the executor's makeBiasMd() expects
     descs[ARG_BIAS] = MemoryDescUtils::makeEmptyDesc();
     for (auto argId : {ARG_SRC_1, ARG_SRC_3, ARG_SRC_4}) {
         if (descs.count(argId) == 0) {

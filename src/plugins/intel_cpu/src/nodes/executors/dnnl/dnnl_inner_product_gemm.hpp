@@ -32,10 +32,9 @@ struct InnerProductKey {
     bool operator==(const InnerProductKey& rhs) const;
 };
 
-// Thin wrapper around a single oneDNN inner_product primitive with detached memory handles, so that
-// the same primitive can be re-executed against arbitrary src / weights / dst pointers. Used by the
-// executors which have to loop a plain matmul over a batch of independent weight matrices
-// (GatherMatmul, GroupedMatMul).
+// A single oneDNN inner_product with detached memory handles, so it can be re-executed against
+// arbitrary src / weights / dst pointers. Used by the executors that loop a matmul over a batch of
+// independent weight matrices (GatherMatmul, GroupedMatMul).
 class InnerProduct {
 public:
     InnerProduct() = delete;

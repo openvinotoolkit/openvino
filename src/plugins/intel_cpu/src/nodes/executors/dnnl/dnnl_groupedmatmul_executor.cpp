@@ -92,9 +92,8 @@ GroupedMatMulDnnlExecutor::GroupedMatMulDnnlExecutor([[maybe_unused]] const Grou
 
     auto src_precision = srcMemory->getDesc().getPrecision();
     auto weights_precision = weightsMemory->getDesc().getPrecision();
-    // The inner_product destination descriptor is built from the source data type, and the row
-    // copies below assume a single element size for both. GroupedMatMul-17 infers its output type
-    // from mat_a, so this always holds; assert rather than silently mis-stride.
+    // InnerProduct derives the destination descriptor from the source data type, and the tail memset
+    // below assumes one element size. GroupedMatMul-17 takes its output type from mat_a, so assert.
     OPENVINO_ASSERT(memory.at(ARG_DST)->getDesc().getPrecision() == src_precision,
                     "GroupedMatMul: destination precision ",
                     memory.at(ARG_DST)->getDesc().getPrecision(),
@@ -123,9 +122,8 @@ GroupedMatMulDnnlExecutor::GroupedMatMulDnnlExecutor([[maybe_unused]] const Grou
     const auto& eng = context->getEngine();
     const auto threadPool = context->getThreadPool();
     auto cache = context->getRuntimeCache();
-    // The single-row primitive is created up front with format_tag::any so that oneDNN picks the
-    // weights layout; the weights are packed into that layout once below, and every other row count
-    // is then created against the resulting concrete descriptor.
+    // Created with format_tag::any so oneDNN picks the weights layout. The weights are packed into it
+    // once below; every other row count is then created against that concrete descriptor.
     InnerProductPtr refImpl;
     std::tie(refImpl, std::ignore) = cache->getOrCreate(key, [&eng, &threadPool](const InnerProductKey& k) {
         return std::make_shared<InnerProduct>(eng, threadPool, k);
@@ -174,8 +172,8 @@ GroupedMatMulDnnlExecutor::GroupedMatMulDnnlExecutor([[maybe_unused]] const Grou
         }
     }
 
-    // A single row count has to be reported; use the reference primitive's. The per-group primitives
-    // are all inner_product over the same weights, so the implementation family does not change.
+    // Only one value can be reported; the per-group primitives are all inner_product over the same
+    // weights, so the implementation family does not vary.
     m_implType = refImpl->get_impl_type();
 
     m_srcDataType = DnnlExtensionUtils::ElementTypeToDataType(src_precision);
@@ -183,21 +181,16 @@ GroupedMatMulDnnlExecutor::GroupedMatMulDnnlExecutor([[maybe_unused]] const Grou
     m_keyTemplate = InnerProductKey{{}, refImpl->get_weights_md(), key.bias_md, scale_shape, zp_shape};
 }
 
-// oneDNN's inner_product bakes M into its primitive descriptor (src/common/inner_product.cpp rejects
-// DNNL_RUNTIME_DIM_VAL outright), while a group's row count is offsets tensor *data*. The primitives
-// therefore cannot be built any earlier than the point where that data is valid, which is execute():
-//
-//  * update()/prepareParams() runs from Graph::InferDynamic's update phase, which covers a whole
-//    block of nodes before any of them execute, so the offsets buffer still holds the previous
-//    inference's routing. Getting fresh data there would require declaring an output-shape data
-//    dependency on the offsets port to force a sync point - the output shape [T, N] does not actually
-//    depend on those values, and it would cost a barrier on every inference.
-//  * Node::needPrepareParams() is inputShapesModified(), so prepareParams is skipped entirely when
-//    routing changes at a constant token count - which is every decode step.
-//
-// Creation is one-time per distinct row count; steady state is a cache lookup. The runtime cache is
-// keyed on the descriptors rather than on the data, so every GroupedMatMul layer with the same expert
-// dimensions shares a primitive for a given row count.
+// inner_product bakes M into the primitive descriptor (src/common/inner_product.cpp rejects
+// DNNL_RUNTIME_DIM_VAL), and a group's row count is offsets *data*, so nothing can be built earlier
+// than execute():
+//  * prepareParams() runs from Graph::InferDynamic's update phase, which covers a whole block of
+//    nodes before any of them execute, so the offsets still hold the previous inference's routing.
+//    Reading them there needs a sync point, i.e. a data dependency [T, N] does not actually have.
+//  * needPrepareParams() is inputShapesModified(), so prepareParams is skipped whenever routing
+//    changes at a constant token count - every decode step.
+// Steady state is a cache lookup, and the cache keys on descriptors, so layers with equal expert
+// dimensions share primitives.
 GroupedMatMulDnnlExecutor::InnerProductPtr GroupedMatMulDnnlExecutor::implFor(Dim rows) {
     auto key = m_keyTemplate;
     key.src_md =
@@ -212,8 +205,7 @@ GroupedMatMulDnnlExecutor::InnerProductPtr GroupedMatMulDnnlExecutor::implFor(Di
 }
 
 bool GroupedMatMulDnnlExecutor::update([[maybe_unused]] const MemoryArgs& memory) {
-    // Nothing to prepare: the per-group primitives depend on the offsets tensor contents, which are
-    // not valid yet at this point (see implFor).
+    // The per-group primitives depend on offsets contents, which are not valid here. See implFor.
     return true;
 }
 
@@ -286,8 +278,7 @@ void GroupedMatMulDnnlExecutor::execute(const MemoryArgs& memory) {
         auto* scale = scale_offset(g);
         auto* zp = zp_offset(g);
 
-        // Both the source and the destination rows of the group are contiguous, so the primitive
-        // runs straight on them; GroupedMatMul-17 has no bias input.
+        // Source and destination rows are both contiguous, so the primitive runs on them in place
         implFor(rows)->exec(src_at(g, start), dst_at(g, start), wei, nullptr, scale, zp);
     }
 
