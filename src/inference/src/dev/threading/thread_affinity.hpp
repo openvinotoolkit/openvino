@@ -101,5 +101,17 @@ bool pin_current_thread_by_mask(int ncores, const CpuSet& processMask);
  * @return     `True` in case of success, `false` otherwise
  */
 bool pin_current_thread_to_socket(int socket);
+
+/**
+ * @brief      Softly assigns the current thread to a processor group.
+ * @ingroup    ov_dev_api_threading
+ *
+ * Unlike core pinning, this sets only the thread's processor group affinity to the whole group, used
+ * on Windows to spread streams across groups on >64-core machines. No-op without processor groups.
+ *
+ * @param[in]  group_id  The processor group id
+ * @return     `True` in case of success, `false` otherwise
+ */
+bool pin_current_thread_to_group_soft(int group_id);
 }  // namespace threading
 }  // namespace ov

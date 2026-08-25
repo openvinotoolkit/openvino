@@ -110,6 +110,10 @@ bool pin_current_thread_to_socket(int socket) {
     }
     return res;
 }
+bool pin_current_thread_to_group_soft(int /*group_id*/) {
+    // Linux has no 64-processor group limit; the scheduler already spans all cores/NUMA nodes.
+    return false;
+}
 #elif defined(_WIN32)
 std::tuple<CpuSet, int> get_process_mask() {
     DWORD_PTR pro_mask, sys_mask;
@@ -151,6 +155,26 @@ bool pin_current_thread_by_mask(int ncores, const CpuSet& procMask) {
 bool pin_current_thread_to_socket(int socket) {
     return false;
 }
+bool pin_current_thread_to_group_soft(int group_id) {
+    if (group_id < 0) {
+        return false;
+    }
+    // A Windows processor group holds at most 64 logical processors; assigning the full group mask
+    // binds the thread to the target group while letting the OS schedule it on any core within it.
+    const DWORD group_processors = GetActiveProcessorCount(static_cast<WORD>(group_id));
+    if (group_processors == 0) {
+        return false;
+    }
+    GROUP_AFFINITY group_affinity;
+    group_affinity.Group = static_cast<WORD>(group_id);
+    group_affinity.Mask = (group_processors >= sizeof(KAFFINITY) * CHAR_BIT)
+                              ? ~static_cast<KAFFINITY>(0)
+                              : ((static_cast<KAFFINITY>(1) << group_processors) - 1);
+    group_affinity.Reserved[0] = 0;
+    group_affinity.Reserved[1] = 0;
+    group_affinity.Reserved[2] = 0;
+    return 0 != SetThreadGroupAffinity(GetCurrentThread(), &group_affinity, NULL);
+}
 #else   // no threads pinning/binding on MacOS
 std::tuple<CpuSet, int> get_process_mask() {
     return std::make_tuple(nullptr, 0);
@@ -168,6 +192,9 @@ bool pin_current_thread_by_mask(int ncores, const CpuSet& procMask) {
     return false;
 }
 bool pin_current_thread_to_socket(int socket) {
+    return false;
+}
+bool pin_current_thread_to_group_soft(int group_id) {
     return false;
 }
 #endif  // !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
