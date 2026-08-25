@@ -14,7 +14,6 @@ set(TEST_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/ov_model_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ov_partial_shape_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ov_preprocess_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/ov_remote_context_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ov_tensor_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ov_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ov_util_test.cpp
@@ -27,8 +26,12 @@ set(TEST_HEADERS
 )
 list(APPEND TEST_DEFINES TEST_CUSTOM_OP_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../../../plugins/intel_gpu/tests/functional/custom_op/custom_op.xml")
 
-if(NOT TARGET OpenCL::OpenCL)
-    list(FILTER TEST_SOURCES EXCLUDE REGEX ov_remote_context_test.cpp)
+set(TEST_CHECK_SOURCES_EXCLUDE_FILES)
+
+if(TARGET OpenCL::OpenCL)
+    list(APPEND TEST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/ov_remote_context_test.cpp)
+else()
+    list(APPEND TEST_CHECK_SOURCES_EXCLUDE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/ov_remote_context_test.cpp)
 endif()
 
 set(TEST_LINK_LIBRARIES openvino_c openvino::util common_test_utils gtest_main)
@@ -53,6 +56,9 @@ ov_add_test_target(
     ADD_CLANG_FORMAT
     LABELS
         OV UNIT C_API
+    CHECK_SOURCES_LISTED
+    CHECK_SOURCES_EXCLUDE_FILES
+        ${TEST_CHECK_SOURCES_EXCLUDE_FILES}
 )
 
 ov_build_target_faster(${TARGET_NAME} PCH PCH_EXCLUDE "ov_windows_conflict_test.cpp")
