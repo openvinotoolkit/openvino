@@ -5,6 +5,7 @@
 #pragma once
 
 #include "registry/registry.hpp"
+#include "registry/runtime_implementation_policy.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
@@ -118,6 +119,11 @@ struct primitive_type_base : primitive_type {
 
         auto forced_impl_type = node.get_forced_impl_type();
         for (auto& impl : all_impls) {
+            if (!runtime_implementation_policy::allows(node.get_program().get_engine().runtime_type(),
+                                                       impl->get_impl_type(),
+                                                       node.is_in_shape_of_subgraph())) {
+                continue;
+            }
             // Ignore impl validation if it was forced. Mainly used in unit tests
             if (forced_impl_type != impl_types::any && forced_impl_type == impl->get_impl_type()) {
                 supported_list.push_back(impl);
@@ -154,6 +160,11 @@ struct primitive_type_base : primitive_type {
         auto forced_impl_type = node.get_forced_impl_type();
         for (auto& impl : all_impls) {
             impl_types impl_type = impl->get_impl_type();
+            if (!runtime_implementation_policy::allows(node.get_program().get_engine().runtime_type(),
+                                                       impl_type,
+                                                       node.is_in_shape_of_subgraph())) {
+                continue;
+            }
             if (requested_impl_type != impl_types::any && (requested_impl_type & impl_type) != impl_type)
                 continue;
 
