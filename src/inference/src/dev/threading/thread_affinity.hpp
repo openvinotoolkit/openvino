@@ -113,16 +113,5 @@ bool pin_current_thread_to_socket(int socket);
  * @return     `True` in case of success, `false` otherwise
  */
 bool pin_current_thread_to_group_soft(int group_id);
-
-/**
- * @brief      Returns the processor group the current thread is assigned to.
- * @ingroup    ov_dev_api_threading
- *
- * Diagnostic helper for verifying stream-to-group distribution on Windows. Returns -1 on platforms
- * without processor groups or when the group cannot be determined.
- *
- * @return     The current thread's processor group id, or -1 if unavailable
- */
-int get_current_thread_group();
 }  // namespace threading
 }  // namespace ov

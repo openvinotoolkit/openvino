@@ -7,8 +7,6 @@
 #include <algorithm>
 #include <atomic>
 #include <condition_variable>
-#include <cstdio>
-#include <cstdlib>
 #include <memory>
 #include <mutex>
 #include <queue>
@@ -27,17 +25,6 @@
 
 namespace ov {
 namespace threading {
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE) && \
-    defined(_WIN32)
-// Opt-in diagnostic (off by default): set OV_THREADING_GROUP_DEBUG=1 to log stream-to-group binding.
-static bool group_binding_debug_enabled() {
-    static const bool enabled = []() {
-        const char* env = std::getenv("OV_THREADING_GROUP_DEBUG");
-        return env != nullptr && env[0] != '0' && env[0] != '\0';
-    }();
-    return enabled;
-}
-#endif
 struct CPUStreamsExecutor::Impl {
     struct Stream {
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
@@ -64,26 +51,15 @@ struct CPUStreamsExecutor::Impl {
             ~Observer() override = default;
         };
 #    if defined(_WIN32)
-        // Soft-binds every thread entering the arena to a processor group (full group mask). Unlike
-        // core pinning it does not lock a thread to a specific core, it only spreads streams across
-        // groups so machines with more than 64 logical processors are not confined to a single group.
+        // Soft-binds every thread entering the arena to a processor group with the full group mask, so
+        // streams spread across groups on machines with more than 64 logical processors (no core pinning).
         struct GroupObserver : public custom::task_scheduler_observer {
             int _group_id = -1;
-            int _stream_id = -1;
-            std::atomic<bool> _logged{false};
-            GroupObserver(custom::task_arena& arena, int group_id, int stream_id)
+            GroupObserver(custom::task_arena& arena, int group_id)
                 : custom::task_scheduler_observer(arena),
-                  _group_id(group_id),
-                  _stream_id(stream_id) {}
+                  _group_id(group_id) {}
             void on_scheduler_entry(bool) override {
                 pin_current_thread_to_group_soft(_group_id);
-                if (group_binding_debug_enabled() && !_logged.exchange(true)) {
-                    fprintf(stderr,
-                            "[ov threading] stream %d: soft-bound to processor group %d (actual group %d)\n",
-                            _stream_id,
-                            _group_id,
-                            get_current_thread_group());
-                }
             }
             ~GroupObserver() override = default;
         };
@@ -175,21 +151,15 @@ struct CPUStreamsExecutor::Impl {
             return mapped_core_types;
         }
 
-        // Creates a plain task arena bound to a single processor group through a soft group-affinity
-        // observer (full group mask, no per-core pinning), so that streams are distributed across all
-        // processor groups on Windows machines with more than 64 logical processors (multiple groups),
-        // where oneTBB/tbbbind numa binding cannot move threads across groups. max_threads_per_core is
-        // intentionally not applied here: setting it would recreate the tbbbind binding observer, whose
-        // group-local affinity would confine threads back to a single group and defeat the distribution.
-        // Returns false on a single-group machine (or off Windows), leaving arena creation to the caller
-        // so the standard constraints (including max_threads_per_core) are used instead.
+        // On multi-group Windows (>64 logical processors) spread streams across groups via a soft group
+        // observer; skips max_threads_per_core to avoid recreating tbbbind's group-confining observer.
         bool try_create_group_soft_arena([[maybe_unused]] int concurrency, [[maybe_unused]] int stream_id) {
 #    if defined(_WIN32)
             const int group_count = static_cast<int>(GetActiveProcessorGroupCount());
             if (group_count > 1) {
-                const int target_group = _numaNodeId >= 0 ? (_numaNodeId % group_count) : (stream_id % group_count);
+                const int target_group = get_stream_processor_group_id(_numaNodeId, stream_id, group_count);
                 _taskArena.reset(new custom::task_arena{concurrency});
-                _observer.reset(new GroupObserver{*_taskArena, target_group, stream_id});
+                _observer.reset(new GroupObserver{*_taskArena, target_group});
                 _observer->observe(true);
                 return true;
             }
@@ -229,18 +199,6 @@ struct CPUStreamsExecutor::Impl {
                     _stream_type = STREAM_WITHOUT_PARAM;
                 }
             }
-#    if defined(_WIN32)
-            if (group_binding_debug_enabled()) {
-                fprintf(stderr,
-                        "[ov threading] stream %d: stream_type=%d numa=%d concurrency=%d numa_nodes=%d groups=%d\n",
-                        stream_id,
-                        static_cast<int>(_stream_type),
-                        _numaNodeId,
-                        concurrency,
-                        get_num_numa_nodes(),
-                        static_cast<int>(GetActiveProcessorGroupCount()));
-            }
-#    endif
             if (_stream_type == STREAM_WITHOUT_PARAM) {
                 if (!try_create_group_soft_arena(concurrency, stream_id)) {
                     _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
