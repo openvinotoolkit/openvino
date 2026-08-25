@@ -14,14 +14,26 @@
 #include "gtest/gtest.h"
 #include "op_test_utils.hpp"
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
+#include "openvino/op/assign.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/read_value.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/sink.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/variable.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/sdpa_to_paged_attention.hpp"
 
 using namespace ov_gguf_test;
 using ov::frontend::gguf::pass::AdaptToGenAI;
@@ -56,9 +68,17 @@ struct MinimalGgufModel {
     std::shared_ptr<ov::Node> embd;  // Unsqueeze(Gather(vocab, Squeeze(inp_tokens)), axis=0)
     std::shared_ptr<ov::op::v0::Parameter> inp_out_ids;
     std::shared_ptr<ov::Node> row_select;  // Unsqueeze(Gather(Squeeze(embd), Squeeze(inp_out_ids)), axis=0)
+    // A second, independent embedding-table lookup keyed on the same inp_tokens indices, mirroring
+    // Gemma4's per-layer "pe_tok_flat" (GET_ROWS(per_layer_token_embd.weight, inp_tokens)):
+    // Unsqueeze(Gather(pe_table, Squeeze(inp_tokens)), axis=0). Its friendly name deliberately does
+    // NOT end in "_embd" -- FixEmbdAxis must find it structurally (rooted at inp_tokens), not by name.
+    std::shared_ptr<ov::Node> pe_tok;
 };
 
-MinimalGgufModel build_minimal_gguf_model(int64_t vocab = 4, int64_t hidden = 2, bool with_inp_out_ids = false) {
+MinimalGgufModel build_minimal_gguf_model(int64_t vocab = 4,
+                                          int64_t hidden = 2,
+                                          bool with_inp_out_ids = false,
+                                          bool with_second_inp_tokens_lookup = false) {
     MinimalGgufModel m;
 
     m.inp_tokens = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1, 1, 1, -1});
@@ -100,13 +120,30 @@ MinimalGgufModel build_minimal_gguf_model(int64_t vocab = 4, int64_t hidden = 2,
         m.row_select->set_friendly_name("Unsqueeze_test_row_select");
     }
 
+    ov::ResultVector results;
+    if (with_second_inp_tokens_lookup) {
+        std::vector<float> pe_table_values(vocab * hidden);
+        for (size_t i = 0; i < pe_table_values.size(); ++i) {
+            pe_table_values[i] = static_cast<float>(1000 + i);
+        }
+        auto pe_table =
+            ov::op::v0::Constant::create(ov::element::f32, {(size_t)vocab, (size_t)hidden}, pe_table_values);
+        auto pe_indices = std::make_shared<ov::op::v0::Squeeze>(m.inp_tokens, const_i64({0, 1}));
+        auto pe_gather = std::make_shared<ov::op::v8::Gather>(pe_table, pe_indices, const_i64({0}));
+        m.pe_tok = std::make_shared<ov::op::v0::Unsqueeze>(pe_gather, const_i64({0}));
+        m.pe_tok->set_friendly_name("Unsqueeze_test_pe_tok_flat");
+        // Reachable from a Result: MatcherPass only visits nodes reachable from the model's
+        // results/sinks, so an orphan branch would silently never be matched.
+        results.push_back(std::make_shared<ov::op::v0::Result>(m.pe_tok));
+    }
+
     // A trivial rank-4 "logits" output so AdaptToGenAI's final logits reshape has something to
     // work on: reduce the hidden axis so the shape stays predictable regardless of vocab/hidden.
     auto logits_src = with_inp_out_ids ? m.row_select : m.embd;
     auto logits = std::make_shared<ov::op::v1::ReduceSum>(logits_src, const_i64({3}), true);
-    auto result = std::make_shared<ov::op::v0::Result>(logits);
+    results.insert(results.begin(), std::make_shared<ov::op::v0::Result>(logits));
 
-    m.model = std::make_shared<ov::Model>(ov::ResultVector{result}, params);
+    m.model = std::make_shared<ov::Model>(results, params);
     return m;
 }
 
@@ -169,6 +206,42 @@ TEST(GGUFAdaptToGenAI, FixesEmbdAxisStructurally) {
 
     auto axis_const = ov::as_type_ptr<ov::op::v0::Constant>(fixed_embd->input_value(1).get_node_shared_ptr());
     ASSERT_NE(axis_const, nullptr);
+    EXPECT_EQ(axis_const->cast_vector<int64_t>(), std::vector<int64_t>({1}));
+}
+
+// Regression test for the BLOCKER FixEmbdAxis's name-only matcher used to miss: Gemma4 has a
+// SECOND embedding-table lookup rooted at inp_tokens (GET_ROWS(per_layer_token_embd.weight,
+// inp_tokens) -> "pe_tok_flat"), alongside the main "embd" lookup (GET_ROWS(token_embd.weight,
+// inp_tokens)). Both must move their leading axis from 0 to 1 identically; otherwise the two
+// disagree on which axis holds the leading placeholder, and their eventual sum (per_layer_embd =
+// pe_proj + pe_tok, or ffn_inp = attn_out + embd) broadcasts to a spurious [tokens, tokens, ...]
+// shape under PagedAttention instead of [tokens, ...]. FixEmbdAxis must therefore match every
+// embedding-table GET_ROWS structurally rooted at inp_tokens, not just the one whose friendly name
+// happens to end in "_embd".
+TEST(GGUFAdaptToGenAI, FixesEmbdAxisStructurallyForSecondaryInpTokensLookup) {
+    auto m = build_minimal_gguf_model(/*vocab=*/4,
+                                      /*hidden=*/2,
+                                      /*with_inp_out_ids=*/false,
+                                      /*with_second_inp_tokens_lookup=*/true);
+    ASSERT_NE(m.pe_tok, nullptr);
+    auto pe_tok_gather_input = m.pe_tok->input_value(0);  // survives the Unsqueeze replacement
+
+    ASSERT_TRUE(AdaptToGenAI().run_on_model(m.model));
+
+    std::shared_ptr<ov::Node> fixed_pe_tok;
+    for (const auto& op : m.model->get_ordered_ops()) {
+        if (op->get_friendly_name() == "Unsqueeze_test_pe_tok_flat") {
+            fixed_pe_tok = op;
+            break;
+        }
+    }
+    ASSERT_NE(fixed_pe_tok, nullptr);
+    ASSERT_EQ(fixed_pe_tok->get_type_name(), std::string("Unsqueeze"));
+    EXPECT_EQ(fixed_pe_tok->input_value(0), pe_tok_gather_input);  // still the same Gather, unchanged
+
+    auto axis_const = ov::as_type_ptr<ov::op::v0::Constant>(fixed_pe_tok->input_value(1).get_node_shared_ptr());
+    ASSERT_NE(axis_const, nullptr);
+    // Same axis (1) as embd's own fix, above -- the two branches must agree.
     EXPECT_EQ(axis_const->cast_vector<int64_t>(), std::vector<int64_t>({1}));
 }
 
@@ -315,5 +388,150 @@ TEST(GGUFAdaptToGenAI, InpOutIdsRowSelectionCorrectUnderBothLayouts) {
                 EXPECT_FLOAT_EQ(data[i * hidden + h], static_cast<float>(tokens[i] * hidden + h));
             }
         }
+    }
+}
+
+// Functional/structural regression test for the whole bug class FixEmbdAxis and
+// FixInpOutIdsRowSelect fix: a genai-adapted model whose residual stream (embd) feeds a REAL
+// attention block (Q/K/V projections, a stateful KV cache, and an actual
+// ov::op::v13::ScaledDotProductAttention) must survive ov::pass::SDPAToPagedAttention -- the exact
+// transformation that rewrites input_ids to rank-1 [tokens] and is what actually exposed this bug
+// (see the class comment on FixEmbdAxis in adapt_to_genai.cpp). Unlike the tests above, which probe
+// embd/row-selection in isolation and hand-feed a [tokens, 1] tensor to simulate the post-PA
+// layout, this test lets SDPAToPagedAttention itself perform that rewrite and drives Q all the way
+// through a real PagedAttentionExtension node.
+//
+// Heads=1 and head_size=hidden keep the head-merge trivial. Q/K project through an all-zero
+// weight matrix (so every attention score is 0, i.e. uniform weights over the causal window) and V
+// projects through the identity matrix (so V's rows are exactly embd's own rows); with a full
+// causal mask this makes the attention output for token i exactly mean(embedding_row(token_0..i))
+// -- directly exercising whether embd's leading axis threaded correctly into Q/K/V/PagedAttention
+// per token, without needing real RoPE weights or a llama.cpp oracle to compute an expected value.
+namespace {
+
+std::shared_ptr<ov::Model> build_attention_gguf_model(int64_t vocab, int64_t hidden) {
+    auto inp_tokens = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1, 1, 1, -1});
+    inp_tokens->output(0).set_names({"inp_tokens"});
+    auto inp_pos = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1, 1, 1, -1});
+    inp_pos->output(0).set_names({"inp_pos"});
+    auto self_kq_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, -1});
+    self_kq_mask->output(0).set_names({"self_kq_mask"});
+    auto token_len_per_seq = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1});
+    token_len_per_seq->output(0).set_names({"token_len_per_seq"});
+    auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
+    beam_idx->output(0).set_names({"beam_idx"});
+
+    // Token embedding table: row i is filled with value i (so the expected running-mean output
+    // is trivial to compute from the token ids alone).
+    std::vector<float> table_values(vocab * hidden);
+    for (int64_t v = 0; v < vocab; ++v) {
+        for (int64_t h = 0; h < hidden; ++h) {
+            table_values[v * hidden + h] = static_cast<float>(v);
+        }
+    }
+    auto vocab_table = ov::op::v0::Constant::create(ov::element::f32, {(size_t)vocab, (size_t)hidden}, table_values);
+
+    // Mirrors translate_get_rows's embedding-table branch exactly, same as build_minimal_gguf_model.
+    auto indices = std::make_shared<ov::op::v0::Squeeze>(inp_tokens, const_i64({0, 1}));
+    auto gather = std::make_shared<ov::op::v8::Gather>(vocab_table, indices, const_i64({0}));
+    auto embd = std::make_shared<ov::op::v0::Unsqueeze>(gather, const_i64({0}));
+    embd->set_friendly_name("embd");
+
+    // Flatten to [1, tokens, hidden] regardless of which axis (0 pre-fix, 1 post-fix) carries the
+    // real token count -- Reshape never reorders memory, so this is correct either way (same trick
+    // FixInpOutIdsRowSelect itself uses).
+    auto embd_3d = std::make_shared<ov::op::v1::Reshape>(embd, const_i64({1, -1, hidden}), false);
+
+    std::vector<float> zero_w(hidden * hidden, 0.0f);
+    auto w_zero = ov::op::v0::Constant::create(ov::element::f32, {(size_t)hidden, (size_t)hidden}, zero_w);
+    std::vector<float> identity_w(hidden * hidden, 0.0f);
+    for (int64_t i = 0; i < hidden; ++i) {
+        identity_w[i * hidden + i] = 1.0f;
+    }
+    auto w_identity = ov::op::v0::Constant::create(ov::element::f32, {(size_t)hidden, (size_t)hidden}, identity_w);
+
+    // Single-head Q/K/V projection: MatMul -> reshape to [1, tokens, 1, head_size] -> transpose to
+    // [1, 1, tokens, head_size].
+    auto make_projection = [&](const std::shared_ptr<ov::op::v0::Constant>& weight) {
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(embd_3d, weight, false, true);
+        auto heads = std::make_shared<ov::op::v1::Reshape>(matmul, const_i64({0, 0, 1, hidden}), true);
+        return std::make_shared<ov::op::v1::Transpose>(heads, const_i64({0, 2, 1, 3}));
+    };
+    auto q = make_projection(w_zero);
+    auto k = make_projection(w_zero);
+    auto v = make_projection(w_identity);
+
+    // Stateful KV cache: ReadValue -> Gather(beam_idx) -> Concat(-2, cur) -> Assign, exactly what
+    // ov::frontend::gguf::pass::MakeStateful emits for a real model.
+    auto make_kv_cache = [&](const ov::Output<ov::Node>& cur, const std::string& var_id) {
+        auto var = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape{-1, 1, -1, hidden}, ov::element::f32, var_id});
+        auto init_shape = const_i64({1, 1, 0, hidden});
+        auto init = std::make_shared<ov::op::v3::Broadcast>(ov::op::v0::Constant::create(ov::element::f32, {}, {0.0f}),
+                                                            init_shape);
+        auto read = std::make_shared<ov::op::v6::ReadValue>(init, var);
+        auto past = std::make_shared<ov::op::v8::Gather>(read, beam_idx, const_i64({0}), 0);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{past, cur}, -2);
+        auto assign = std::make_shared<ov::op::v6::Assign>(concat, var);
+        return std::make_pair(ov::Output<ov::Node>(concat), std::static_pointer_cast<ov::op::Sink>(assign));
+    };
+    auto [k_concat, k_assign] = make_kv_cache(k, "attn_k_cache.0");
+    auto [v_concat, v_assign] = make_kv_cache(v, "attn_v_cache.0");
+
+    auto scale = ov::op::v0::Constant::create(ov::element::f32, {}, {1.0f});
+    auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q,
+                                                                         k_concat,
+                                                                         v_concat,
+                                                                         self_kq_mask,
+                                                                         scale,
+                                                                         /*causal=*/false);
+
+    // Merge heads back and flatten to [1, tokens, hidden] -- the "logits"-shaped output
+    // AdaptToGenAI's final reshape expects.
+    auto merged = std::make_shared<ov::op::v1::Transpose>(sdpa, const_i64({0, 2, 1, 3}));
+    auto merged_flat = std::make_shared<ov::op::v1::Reshape>(merged, const_i64({0, 0, -1}), true);
+    auto result = std::make_shared<ov::op::v0::Result>(merged_flat);
+
+    return std::make_shared<ov::Model>(
+        ov::ResultVector{result},
+        ov::SinkVector{k_assign, v_assign},
+        ov::ParameterVector{inp_tokens, inp_pos, self_kq_mask, token_len_per_seq, beam_idx});
+}
+
+}  // namespace
+
+TEST(GGUFAdaptToGenAI, SurvivesSDPAToPagedAttentionWithRealAttentionBlock) {
+    const int64_t vocab = 8;
+    const int64_t hidden = 4;
+    auto model = build_attention_gguf_model(vocab, hidden);
+
+    ASSERT_TRUE(AdaptToGenAI().run_on_model(model));
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+
+    // Run the real transformation this bug was found under -- it rewrites input_ids (and every
+    // Parameter/subgraph derived from it, including embd) from [1, tokens] to rank-1 [tokens], and
+    // requires the whole attention block (Q/K/V, KV cache, SDPA) to be shape-consistent under that
+    // rewrite.
+    ov::pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::SDPAToPagedAttention>();
+    ASSERT_NO_THROW(pass_manager.run_passes(model));
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+
+    std::shared_ptr<ov::op::PagedAttentionExtension> pa;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (auto node = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op)) {
+            pa = node;
+        }
+    }
+    ASSERT_NE(pa, nullptr);
+
+    // Q (input 0) is [B_token, H*S]: its leading dim must be the flattened per-token axis, not a
+    // dimension carrying head*hidden data mistakenly folded from a corrupted [tokens, tokens, ...]
+    // broadcast -- i.e. its trailing dim must stay exactly hidden (H=1 head).
+    const auto& q_shape = pa->get_input_partial_shape(0);
+    ASSERT_TRUE(q_shape.rank().is_static());
+    EXPECT_EQ(q_shape.rank().get_length(), 2);
+    if (q_shape[1].is_static()) {
+        EXPECT_EQ(q_shape[1].get_length(), hidden);
     }
 }

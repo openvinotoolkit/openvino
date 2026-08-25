@@ -59,24 +59,51 @@ std::shared_ptr<ov::op::v0::Constant> const_i64(const std::vector<int64_t>& valu
 // [tokens]: PagedAttentionExtension needs Q/K/V's leading axis to become the real token count, not
 // stay 1. That translator is shared with llama.cpp's own raw cgraph decoder (which never runs
 // SDPAToPagedAttention and must keep the old, literal-1 layout), so this fix is genai-side only:
-// move "embd"'s (the token embedding, root of the residual stream) restored axis from 0 to 1. Axis
-// 1, not 0, because attention's own "merge heads back" reshape (op_case 2 in reshape.cpp) already
-// puts a literal 1 there and infers axis 2 from whatever is left, so the two must agree on which
-// axis holds the placeholder for their sum (ffn_inp) to broadcast correctly; inserting at axis 1
-// also leaves the pre-PA layout numerically unchanged (indices' own leading axis is already 1
-// there), and still gives Q/K/V's leading axis room to become the real token count post-PA.
+// move the restored axis from 0 to 1 for EVERY embedding-table lookup structurally rooted at
+// "inp_tokens" -- not just the main "embd" (token_embd.weight) lookup, but also per-layer lookups
+// like Gemma4's "pe_tok_flat" (per_layer_token_embd.weight). Matching by name suffix alone (the
+// old approach) misses pe_tok_flat: it would then disagree with the fixed embd/projection branch
+// on which axis holds the leading placeholder, and their eventual sum broadcasts to a spurious
+// [tokens, tokens, ...] shape instead of [tokens, ...]. Axis 1, not 0, because attention's own
+// "merge heads back" reshape (op_case 2 in reshape.cpp) already puts a literal 1 there and infers
+// axis 2 from whatever is left, so the two must agree on which axis holds the placeholder for
+// their sum (ffn_inp) to broadcast correctly; inserting at axis 1 also leaves the pre-PA layout
+// numerically unchanged (indices' own leading axis is already 1 there), and still gives Q/K/V's
+// leading axis room to become the real token count post-PA.
 class FixEmbdAxis : public ov::pass::MatcherPass {
 public:
     FixEmbdAxis() {
-        auto is_embd = [](const ov::Output<ov::Node>& output) -> bool {
-            const auto& name = output.get_node()->get_friendly_name();
-            return name.size() > 5 && name.compare(name.size() - 5, 5, "_embd") == 0;
-        };
-        auto p_unsqueeze = ov::pass::pattern::wrap_type<ov::op::v0::Unsqueeze>(is_embd);
+        auto p_unsqueeze = ov::pass::pattern::wrap_type<ov::op::v0::Unsqueeze>();
 
         ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
             auto unsqueeze = m.get_match_root();
-            auto res = unsqueeze->input_value(0);  // Gather's output, rank 3
+
+            // translate_get_rows optionally inserts a Convert between the Gather and the
+            // Unsqueeze (output dtype mismatch); look through it structurally instead of
+            // relying on naming.
+            auto node = unsqueeze->input_value(0).get_node_shared_ptr();
+            if (auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node)) {
+                node = convert->input_value(0).get_node_shared_ptr();
+            }
+            auto gather = ov::as_type_ptr<ov::op::v8::Gather>(node);
+            if (!gather) {
+                return false;
+            }
+
+            // The indices feeding the Gather are Squeeze(inp_tokens, [0,1]) (see
+            // translate_get_rows); trace back through that Squeeze to confirm this call site is
+            // actually rooted at the "inp_tokens" parameter, not some unrelated Gather/Unsqueeze
+            // pair elsewhere in the graph (e.g. FixInpOutIdsRowSelect's call sites).
+            auto indices_node = gather->input_value(1).get_node_shared_ptr();
+            if (auto squeeze = ov::as_type_ptr<ov::op::v0::Squeeze>(indices_node)) {
+                indices_node = squeeze->input_value(0).get_node_shared_ptr();
+            }
+            auto param = ov::as_type_ptr<ov::op::v0::Parameter>(indices_node);
+            if (!param || param->output(0).get_names().count("inp_tokens") == 0) {
+                return false;
+            }
+
+            auto res = unsqueeze->input_value(0);  // Gather's (or Convert's) output, rank 3
             auto fixed = make_shared<ov::op::v0::Unsqueeze>(res, const_i64({1}));
             fixed->set_friendly_name(unsqueeze->get_friendly_name());
             ov::copy_runtime_info(unsqueeze, fixed);
