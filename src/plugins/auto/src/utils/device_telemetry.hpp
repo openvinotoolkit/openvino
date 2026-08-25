@@ -10,19 +10,21 @@
 #include <string_view>
 
 #include "../common.hpp"
+#include "ipf_client.hpp"
 
 namespace ov {
 namespace auto_plugin {
 namespace device_monitor {
 
-#ifdef OV_AUTO_ENABLE_IPF
-void gear_changed_callback(const char* path, const char* event, void* context);
-#endif
-
 class TelemetryClient {
 public:
     TelemetryClient();
     ~TelemetryClient();
+
+#if defined(MULTIUNITTEST) && defined(OV_AUTO_ENABLE_IPF)
+    // Test-only: inject a fake/mock IPF client so business logic can be tested without real IPF.
+    explicit TelemetryClient(std::unique_ptr<IIpfClient> client_for_test);
+#endif
 
     std::optional<float> utilization(const std::string& device_name, const std::string& device_type = "");
 
@@ -32,9 +34,6 @@ public:
     std::optional<bool> is_low_power_mode();
 
 private:
-#ifdef OV_AUTO_ENABLE_IPF
-    friend void gear_changed_callback(const char* path, const char* event, void* context);
-#endif
     class Impl;
     std::unique_ptr<Impl> m_impl;
 };
@@ -58,7 +57,7 @@ inline constexpr bool has_prefix(std::string_view value, std::string_view prefix
 
 // CPU -> CPUUtilization; GPU(integrated/discrete) -> IGPU/DGPU; NPU -> NPUUtilization.
 inline constexpr std::string_view device_to_metric_key(std::string_view device_name,
-                                                       std::string_view device_type = {}) {
+                                                        std::string_view device_type = {}) {
     std::string_view metric_key;
     if (has_prefix(device_name, "CPU")) {
         metric_key = k_cpu_utilization_metric;
@@ -76,8 +75,8 @@ inline constexpr std::string_view device_to_metric_key(std::string_view device_n
 
 #if defined(MULTIUNITTEST) && defined(OV_AUTO_ENABLE_IPF)
 std::optional<float> parse_utilization_from_aiselector_json_for_test(const std::string& json_str,
-                                                                     const std::string& device_name,
-                                                                     const std::string& device_type = "");
+                                                                      const std::string& device_name,
+                                                                      const std::string& device_type = "");
 #endif
 
 }  // namespace device_monitor

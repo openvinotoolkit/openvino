@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <memory>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -13,6 +14,7 @@
 #include <vector>
 
 #include "utils/device_telemetry.hpp"
+#include "utils/ipf_client.hpp"
 
 using namespace ov::auto_plugin;
 
@@ -93,6 +95,89 @@ TEST(DeviceMonitorTest, telemetry_client_unknown_device_returns_nullopt) {
 }
 
 #ifdef OV_AUTO_ENABLE_IPF
+class MockIpfClient : public device_monitor::IIpfClient {
+public:
+    MOCK_METHOD(bool, is_valid, (), (const, override));
+    MOCK_METHOD(std::string, get_node, (const std::string&), (override));
+    MOCK_METHOD(std::string, get_value, (const std::string&), (override));
+    MOCK_METHOD(bool, register_event, (const std::string&, device_monitor::IpfEventCallback), (override));
+    MOCK_METHOD(void, unregister_event, (const std::string&), (override));
+};
+
+TEST(DeviceMonitorTest, telemetry_client_reports_nullopt_when_ipf_invalid) {
+    auto mock = std::make_unique<::testing::NiceMock<MockIpfClient>>();
+    EXPECT_CALL(*mock, is_valid()).WillRepeatedly(::testing::Return(false));
+    EXPECT_CALL(*mock, get_node(::testing::_)).Times(0);
+    EXPECT_CALL(*mock, register_event(::testing::_, ::testing::_)).Times(0);
+
+    device_monitor::TelemetryClient client(std::move(mock));
+    EXPECT_FALSE(client.utilization("CPU").has_value());
+    EXPECT_FALSE(client.is_low_power_mode().has_value());
+}
+
+TEST(DeviceMonitorTest, telemetry_client_utilization_returns_parsed_value_for_cpu) {
+    auto mock = std::make_unique<::testing::NiceMock<MockIpfClient>>();
+    EXPECT_CALL(*mock, is_valid()).WillRepeatedly(::testing::Return(true));
+    EXPECT_CALL(*mock, get_node(std::string("Platform.Features.AISelector")))
+        .WillOnce(::testing::Return(R"({"Performance": {"CPUUtilization": 42.5}, "Status": "Online"})"));
+
+    device_monitor::TelemetryClient client(std::move(mock));
+    const auto utilization = client.utilization("CPU");
+    ASSERT_TRUE(utilization.has_value());
+    EXPECT_FLOAT_EQ(utilization.value(), 42.5f);
+}
+
+TEST(DeviceMonitorTest, telemetry_client_utilization_returns_nullopt_when_query_fails) {
+    auto mock = std::make_unique<::testing::NiceMock<MockIpfClient>>();
+    EXPECT_CALL(*mock, is_valid()).WillRepeatedly(::testing::Return(true));
+    EXPECT_CALL(*mock, get_node(::testing::_)).WillOnce(::testing::Return(""));
+
+    device_monitor::TelemetryClient client(std::move(mock));
+    EXPECT_FALSE(client.utilization("CPU").has_value());
+}
+
+TEST(DeviceMonitorTest, telemetry_client_is_low_power_mode_reflects_initial_gear) {
+    auto mock = std::make_unique<::testing::NiceMock<MockIpfClient>>();
+    EXPECT_CALL(*mock, is_valid()).WillRepeatedly(::testing::Return(true));
+    ON_CALL(*mock, get_value(::testing::HasSubstr("Version"))).WillByDefault(::testing::Return(R"("1.2.3")"));
+    ON_CALL(*mock, get_value(::testing::HasSubstr("CurrentGear"))).WillByDefault(::testing::Return(R"("2")"));
+    ON_CALL(*mock, register_event(::testing::_, ::testing::_)).WillByDefault(::testing::Return(true));
+
+    device_monitor::TelemetryClient client(std::move(mock));
+    const auto low_power_mode = client.is_low_power_mode();
+    ASSERT_TRUE(low_power_mode.has_value());
+    EXPECT_TRUE(low_power_mode.value());
+}
+
+TEST(DeviceMonitorTest, telemetry_client_is_low_power_mode_updates_on_gear_changed_event) {
+    auto mock = std::make_unique<::testing::NiceMock<MockIpfClient>>();
+    device_monitor::IpfEventCallback captured_callback;
+    EXPECT_CALL(*mock, is_valid()).WillRepeatedly(::testing::Return(true));
+    ON_CALL(*mock, get_value(::testing::HasSubstr("Version"))).WillByDefault(::testing::Return(R"("1.2.3")"));
+    ON_CALL(*mock, get_value(::testing::HasSubstr("CurrentGear"))).WillByDefault(::testing::Return(R"("0")"));
+    EXPECT_CALL(*mock, register_event(::testing::_, ::testing::_))
+        .WillOnce(::testing::DoAll(::testing::SaveArg<1>(&captured_callback), ::testing::Return(true)));
+
+    device_monitor::TelemetryClient client(std::move(mock));
+    ASSERT_FALSE(client.is_low_power_mode().value());
+
+    ASSERT_TRUE(static_cast<bool>(captured_callback));
+    captured_callback(R"({"OnEpoGearChanged": "2"})");
+    EXPECT_TRUE(client.is_low_power_mode().value());
+}
+
+TEST(DeviceMonitorTest, telemetry_client_unregisters_event_on_destruction_when_registered) {
+    auto mock = std::make_unique<::testing::NiceMock<MockIpfClient>>();
+    EXPECT_CALL(*mock, is_valid()).WillRepeatedly(::testing::Return(true));
+    ON_CALL(*mock, register_event(::testing::_, ::testing::_)).WillByDefault(::testing::Return(true));
+    EXPECT_CALL(*mock, unregister_event(::testing::_)).Times(1);
+
+    {
+        device_monitor::TelemetryClient client(std::move(mock));
+        client.is_low_power_mode();
+    }
+}
+
 TEST(DeviceMonitorTest, parse_utilization_uses_gpu_fallback_for_igpu) {
     const std::string aiselector_json = R"({
         "Performance": {
