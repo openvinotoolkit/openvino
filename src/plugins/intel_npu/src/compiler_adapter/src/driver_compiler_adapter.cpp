@@ -151,7 +151,10 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                          get_compatibility_descriptor(graphDesc._handle));
 
     // Tell the blob writer to store the main schedule in the blob at export time
-    blobWriter->register_section(std::make_shared<ELFMainScheduleSection>(graph, _logger.level()));
+    blobWriter->register_section(std::make_shared<ELFMainScheduleSection>(
+        graph,
+        secureCompile ? std::make_optional<>(updatedConfig.get<CACHE_ENCRYPTION_CALLBACKS>()) : std::nullopt,
+        _logger.level()));
 
     return graph;
 }
@@ -273,9 +276,17 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                                                              /* persistentBlob = */ false,
                                                              get_compatibility_descriptor(mainGraphHandle._handle));
 
+    std::optional<ov::EncryptionCallbacks> encryption_callbacks = std::nullopt;
+    if (updatedConfig.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
+        updatedConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
+        encryption_callbacks = updatedConfig.get<CACHE_ENCRYPTION_CALLBACKS>();
+    }
+
     // At export time, all schedules (main + inits) shall be stored in the blob.
-    blobWriter->register_section(std::make_shared<ELFMainScheduleSection>(weightlessGraph, _logger.level()));
-    blobWriter->register_section(std::make_shared<ELFInitSchedulesSection>(weightlessGraph, _logger.level()));
+    blobWriter->register_section(
+        std::make_shared<ELFMainScheduleSection>(weightlessGraph, encryption_callbacks, _logger.level()));
+    blobWriter->register_section(
+        std::make_shared<ELFInitSchedulesSection>(weightlessGraph, encryption_callbacks, _logger.level()));
 
     return weightlessGraph;
 }

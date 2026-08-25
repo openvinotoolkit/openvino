@@ -4,7 +4,10 @@
 
 #pragma once
 
+#include <optional>
+
 #include "intel_npu/common/isection.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "weightless_graph.hpp"
 
 namespace intel_npu {
@@ -12,14 +15,20 @@ namespace intel_npu {
 class ELFMainScheduleSection final : public ISection {
 public:
     ELFMainScheduleSection(const std::shared_ptr<Graph>& graph,
+                           const std::optional<ov::EncryptionCallbacks>& encryption_callbacks = std::nullopt,
                            const ov::log::Level log_level = ov::log::Level::WARNING);
 
-    ELFMainScheduleSection(ov::Tensor&& main_schedule, const ov::log::Level log_level = ov::log::Level::WARNING);
+    ELFMainScheduleSection(ov::Tensor&& main_schedule,
+                           const std::optional<ov::EncryptionCallbacks>& encryption_callbacks = std::nullopt,
+                           const ov::log::Level log_level = ov::log::Level::WARNING);
 
     std::vector<CREToken> get_compatibility_requirements_subexpression(
         const std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>&
             all_registered_sections) const override;
 
+    /**
+     * @note The compiler payload is encrypted before writing if an encryption callback is available.
+     */
     void write(BlobWriterInterface& writer) override;
 
     void set_graph(const std::shared_ptr<Graph>& graph);
@@ -30,6 +39,7 @@ public:
 
 private:
     std::variant<std::shared_ptr<Graph>, ov::Tensor> m_graph_or_schedule;
+    std::optional<ov::EncryptionCallbacks> m_encryption_callbacks;
 
     Logger m_logger;
 };
@@ -37,15 +47,20 @@ private:
 class ELFInitSchedulesSection final : public ISection {
 public:
     ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph,
+                            const std::optional<ov::EncryptionCallbacks>& encryption_callbacks = std::nullopt,
                             const ov::log::Level log_level = ov::log::Level::WARNING);
 
     ELFInitSchedulesSection(std::vector<ov::Tensor>&& init_schedules,
+                            const std::optional<ov::EncryptionCallbacks>& encryption_callbacks = std::nullopt,
                             const ov::log::Level log_level = ov::log::Level::WARNING);
 
     std::vector<CREToken> get_compatibility_requirements_subexpression(
         const std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>&
             all_registered_sections) const override;
 
+    /**
+     * @note The compiler payload is encrypted before writing if an encryption callback is available.
+     */
     void write(BlobWriterInterface& writer) override;
 
     void set_graph(const std::shared_ptr<WeightlessGraph>& weightless_graph);
@@ -56,6 +71,7 @@ public:
 
 private:
     std::variant<std::shared_ptr<WeightlessGraph>, std::vector<ov::Tensor>> m_graph_or_schedules;
+    std::optional<ov::EncryptionCallbacks> m_encryption_callbacks;
 
     Logger m_logger;
 };

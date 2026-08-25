@@ -24,18 +24,40 @@ ov::Tensor allocate_aligned_tensor(size_t blobSize) {
     return ov::Tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
 }
 
+ov::Tensor encrypt_blob(const ov::Tensor target) {
+    std::string encryptedBlobStr;
+    {
+        std::string tmpBlobStr;
+        {
+            std::stringstream tmpStringStream;
+            _blobWriter->write_to(tmpStringStream);  // +1x blob size
+            tmpBlobStr = tmpStringStream.str();      // +2x blob size
+        }  // -1x blob size when deallocating temporary stringstream
+        encryptedBlobStr =
+            _propertiesManager->getConfig().get<CACHE_ENCRYPTION_CALLBACKS>().encrypt(tmpBlobStr);  // +2x blob size
+        blobSizeAfterEncryption = encryptedBlobStr.size();
+    }  // -1x blob size when deallocating temporary blob string
+    stream.write(encryptedBlobStr.c_str(), encryptedBlobStr.size());
+}
+
 }  // namespace
 
 namespace intel_npu {
 
-ELFMainScheduleSection::ELFMainScheduleSection(const std::shared_ptr<Graph>& graph, const ov::log::Level log_level)
+ELFMainScheduleSection::ELFMainScheduleSection(const std::shared_ptr<Graph>& graph,
+                                               const std::optional<ov::EncryptionCallbacks>& encryption_callbacks,
+                                               const ov::log::Level log_level)
     : ISection(PredefinedSectionType::ELF_MAIN_SCHEDULE),
       m_graph_or_schedule(graph),
+      m_encryption_callbacks(encryption_callbacks),
       m_logger("ELFMainScheduleSection", log_level) {}
 
-ELFMainScheduleSection::ELFMainScheduleSection(ov::Tensor&& main_schedule, const ov::log::Level log_level)
+ELFMainScheduleSection::ELFMainScheduleSection(ov::Tensor&& main_schedule,
+                                               const std::optional<ov::EncryptionCallbacks>& encryption_callbacks,
+                                               const ov::log::Level log_level)
     : ISection(PredefinedSectionType::ELF_MAIN_SCHEDULE),
       m_graph_or_schedule(std::move(main_schedule)),
+      m_encryption_callbacks(encryption_callbacks),
       m_logger("ELFMainScheduleSection", log_level) {}
 
 std::vector<CREToken> ELFMainScheduleSection::get_compatibility_requirements_subexpression(
@@ -103,15 +125,19 @@ std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob
 }
 
 ELFInitSchedulesSection::ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph,
+                                                 const std::optional<ov::EncryptionCallbacks>& encryption_callbacks,
                                                  const ov::log::Level log_level)
     : ISection(PredefinedSectionType::ELF_INIT_SCHEDULES),
       m_graph_or_schedules(weightless_graph),
+      m_encryption_callbacks(encryption_callbacks),
       m_logger("ELFInitSchedulesSection", log_level) {}
 
 ELFInitSchedulesSection::ELFInitSchedulesSection(std::vector<ov::Tensor>&& init_schedules,
+                                                 const std::optional<ov::EncryptionCallbacks>& encryption_callbacks,
                                                  const ov::log::Level log_level)
     : ISection(PredefinedSectionType::ELF_INIT_SCHEDULES),
       m_graph_or_schedules(std::move(init_schedules)),
+      m_encryption_callbacks(encryption_callbacks),
       m_logger("ELFInitSchedulesSection", log_level) {}
 
 std::vector<CREToken> ELFInitSchedulesSection::get_compatibility_requirements_subexpression(
