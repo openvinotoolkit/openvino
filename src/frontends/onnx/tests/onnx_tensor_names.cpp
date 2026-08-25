@@ -200,6 +200,37 @@ OPENVINO_TEST(onnx_tensor_names, matmulnbits_zp_name_preserved) {
     EXPECT_EQ(packed_zp->get_element_type(), element::u4);
 }
 
+OPENVINO_TEST(onnx_tensor_names, matmulnbits_zp_name_preserved_unaligned) {
+    // Same as matmulnbits_zp_name_preserved, but n_blocks_per_col (3) is not a multiple of num_per_byte
+    // (2 for bits=4), so the packed zero-point takes the Slice path. The repacked Constant must still
+    // keep the ONNX initializer name - this is the bug fixed after e07506d308 moved the name-copy into
+    // the aligned-only else branch.
+    const auto model = convert_model("com.microsoft/matmulnbits_3x48_zp_unaligned.onnx");
+
+    const auto ops = model->get_ordered_ops();
+
+    EXPECT_TRUE(matching_node_found_in_graph<op::v0::Constant>(ops, "b_zp", {"b_zp"}));
+
+    const auto packed_zp = find_by_friendly_name<op::v0::Constant>(ops, "b_zp");
+    ASSERT_NE(packed_zp, nullptr);
+    EXPECT_EQ(packed_zp->get_element_type(), element::u4);
+}
+
+OPENVINO_TEST(onnx_tensor_names, matmulnbits_zp_name_preserved_sametype) {
+    // zero_point has the same element type as A (float), so it takes the "not packed" branch that
+    // builds converted_zero_points directly as a Constant of A's type. Must also keep the ONNX
+    // initializer name.
+    const auto model = convert_model("com.microsoft/matmulnbits_3x32_zp_sametype.onnx");
+
+    const auto ops = model->get_ordered_ops();
+
+    EXPECT_TRUE(matching_node_found_in_graph<op::v0::Constant>(ops, "b_zp", {"b_zp"}));
+
+    const auto packed_zp = find_by_friendly_name<op::v0::Constant>(ops, "b_zp");
+    ASSERT_NE(packed_zp, nullptr);
+    EXPECT_EQ(packed_zp->get_element_type(), element::f32);
+}
+
 OPENVINO_TEST(onnx_tensor_names, matmulnbits_shared_b_name_collision_resolved) {
     // One B feeding two MatMulNBits creates two same-named Constants; ResolveNameCollisions (in
     // normalize) keeps "b_Q4" on one and suffixes the other - no manual postfix needed.
