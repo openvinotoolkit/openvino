@@ -73,6 +73,8 @@ ParamsKey GatherElementsKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
+    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableOutputLayout(DataLayout::bfzyx);
     k.EnableInputLayout(DataLayout::bfwzyx);
@@ -125,6 +127,7 @@ CommonDispatchData GatherElementsKernelRef::SetDefault(const gather_elements_par
 
     switch (params.inputs[1].GetLayout()) {
     case DataLayout::bfyx:
+    case DataLayout::b_fs_yx_fsv16:
         dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
         dims_by_gws = {{Tensor::DataChannelName::X},
                        {Tensor::DataChannelName::Y},

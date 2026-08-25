@@ -98,6 +98,7 @@ attach_gather_elements_impl::attach_gather_elements_impl() {
 
     auto formats = {
         format::bfyx,
+        format::b_fs_yx_fsv16,
         format::bfzyx,
         format::bfwzyx
     };
