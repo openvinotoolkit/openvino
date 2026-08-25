@@ -313,6 +313,7 @@ private:
         decrypt_payload(m_compiler_payload, m_config.get<CACHE_ENCRYPTION_CALLBACKS>(), m_logger);
     }
 
+    // TODO check blob ownership management
     ov::Tensor extract_main_schedule() const override {
         const uint64_t main_size = m_metadata->get_main_schedule_size();
 
@@ -405,13 +406,11 @@ public:
     explicit BlobFormatV2Importer(BlobSource& npu_formatted_blob,
                                   const std::shared_ptr<const ov::Model>& original_model,
                                   const FilteredConfig& config)
-        : IBlobFormatImporter(original_model, config, Logger("BlobFormatV2Importer", config.get<LOG_LEVEL>())) {
-        size_t blobSize = BlobReader::get_npu_region_size(npu_formatted_blob);
-
-        auto blobReader = std::make_shared<BlobReader>(m_logger.level());
+        : IBlobFormatImporter(original_model, config, Logger("BlobFormatV2Importer", config.get<LOG_LEVEL>())),
+          m_blob_reader(m_logger.level()) {
         register_known_sections();
 
-        blobReader->read(npu_formatted_blob);
+        m_blob_reader.read(npu_formatted_blob);
     }
 
 private:

@@ -65,6 +65,7 @@ enum : SectionType {
     ELF_INIT_SCHEDULES = 103,
     IO_LAYOUTS = 104,
     BATCH_SIZE = 105,
+    ENCRYPTED_SCHEDULES_FLAG = 106,
 };
 };
 

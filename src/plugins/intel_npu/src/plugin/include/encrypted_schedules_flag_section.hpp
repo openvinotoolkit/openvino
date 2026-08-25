@@ -10,9 +10,10 @@
 
 namespace intel_npu {
 
-class BatchSizeSection final : public ISection {
+class EncryptedSchedulesFlagSection final : public ISection {
 public:
-    BatchSizeSection(const int64_t batch_size, const ov::log::Level log_level = ov::log::Level::WARNING);
+    EncryptedSchedulesFlagSection(const bool applied_encryption,
+                                  const ov::log::Level log_level = ov::log::Level::WARNING);
 
     std::vector<CREToken> get_compatibility_requirements_subexpression(
         const std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>&
@@ -20,12 +21,12 @@ public:
 
     void write(BlobWriterInterface& writer) override;
 
-    int64_t get_batch_size() const;
+    bool get_flag() const;
 
     static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
 
 private:
-    int64_t m_batch_size;
+    bool m_flag;
 
     Logger m_logger;
 };
