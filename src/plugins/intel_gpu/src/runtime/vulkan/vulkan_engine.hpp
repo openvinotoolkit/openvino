@@ -34,7 +34,11 @@ public:
     memory_ptr reinterpret_handle(const layout& layout, shared_mem_params params) override;
     memory_ptr create_subbuffer(const memory& memory, const layout& layout, size_t byte_offset) override;
     memory_ptr create_hostbuffer(void* address, size_t size, allocation_type type, const layout layout) override;
-    memory_ptr create_hostbuffer(const void* address, size_t size, allocation_type type, const layout layout) override;
+    memory_ptr create_hostbuffer(const void* address,
+                                 size_t size,
+                                 allocation_type type,
+                                 const layout layout,
+                                 bool host_read_only = false) override;
     memory_ptr reinterpret_buffer(const memory& memory, const layout& layout) override;
     memory_ptr import_buffer(const layout& layout, ov::intel_gpu::os_handle_param external_handle) override;
     bool is_the_same_buffer(const memory& lhs, const memory& rhs) override;

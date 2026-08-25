@@ -45,6 +45,7 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/executor.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/metadata.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/blob_format_importers.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/blob_source.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/compiler_option_support_helper.cpp
             # npuw core
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/compiled_model.cpp
@@ -106,7 +107,6 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/collapse_unqdq.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/conv_to_matmul.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/convert_kvcache_to_precision.cpp
-            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/decompose_gqa.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/drop_zp_subtract.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/untangle_dq_scale.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/lora_stateful_to_stateless.cpp
@@ -164,6 +164,7 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_continued_prefill_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/stored_tokens_state_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_infer_request_variant_switch_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_infer_request_port_names_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_trim_kvcache_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/lincache_utils_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/model_builder_lora_test.cpp

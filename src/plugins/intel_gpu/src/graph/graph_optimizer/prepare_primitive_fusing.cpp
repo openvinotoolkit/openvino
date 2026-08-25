@@ -716,10 +716,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             auto out_layout = node.get_output_layout();
             // Do not fuse if the estimated format is fs_b_yx_fsv32 because the optimized kernel does not support fusion
-            return out_layout.data_type != data_types::f16 || !out_layout.is_static() || out_layout.batch() <= 1 ||
-                (((lo.get_optimization_attributes().fs_b_yx_fsv32_network == 0) ||
-                  lo.has_all_enabled_onednn_impls_optimization_attribute() || has_reorder_behind_mvn()) &&
-                 out_layout.format != format::fs_b_yx_fsv32);
+            return (out_layout.data_type != data_types::f16 && out_layout.data_type != data_types::bf16) || !out_layout.is_static() || out_layout.batch() <= 1 ||
+                   (((lo.get_optimization_attributes().fs_b_yx_fsv32_network == 0) ||
+                     lo.has_all_enabled_onednn_impls_optimization_attribute() || has_reorder_behind_mvn()) &&
+                    out_layout.format != format::fs_b_yx_fsv32);
         };
 
         auto get_users_from_fusing_history = [&](const primitive_id& id) {
