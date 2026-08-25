@@ -1618,6 +1618,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::normalize::type_id() &&
             prim.type() != cldnn::group_normalization::type_id() &&
             prim.type() != cldnn::mvn::type_id() &&
+            prim.type() != cldnn::gather_elements::type_id() &&
             prim.type() != cldnn::gather::type_id() &&
             prim.type() != cldnn::scatter_nd_update::type_id() &&
             prim.type() != cldnn::broadcast::type_id() &&
