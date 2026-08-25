@@ -244,6 +244,16 @@ inline void read_any(std::istream& stream, ov::Any& var) {
     read(stream, var);
 }
 
+// Writes the common NPUW blob header: the NPUW serialization indicator, the
+// given model indicator, and the serializing OV + NPUW s11n versions.
+void write_header(std::ostream& stream, const IndicatorType& model_indicator);
+
+// Reads and validates a header written by write_header(). Throws if the
+// stream wasn't serialized via NPUW, if the model indicator doesn't match
+// `expected` (`what` names the expected producer in the error message), or
+// if the blob was serialized by a different OV / NPUW s11n version.
+void read_and_check_header(std::istream& stream, const IndicatorType& expected, const std::string& what);
+
 }  // namespace s11n
 
 // --------------------------------------------------------------------------

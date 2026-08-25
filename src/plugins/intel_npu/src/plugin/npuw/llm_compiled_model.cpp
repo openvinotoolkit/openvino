@@ -1432,15 +1432,7 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     }
 
     // Write header regardless of encryption requirement - to identify NPUW serializated blobs
-    // Serialize magic number first
-    write(stream, NPUW_SERIALIZATION_INDICATOR);
-    // Serilize LLMCompiledModel identifier
-    write(stream, NPUW_LLM_COMPILED_MODEL_INDICATOR);
-    // Serialize general meta info
-    write(stream, OPENVINO_VERSION_MAJOR);
-    write(stream, OPENVINO_VERSION_MINOR);
-    write(stream, OPENVINO_VERSION_PATCH);
-    write(stream, std::string(NPUW_SERIALIZATION_VERSION));
+    write_header(stream, NPUW_LLM_COMPILED_MODEL_INDICATOR);
     // Serialize encrypted flag
     write(stream, encryption_required);
     // Write flow identifier
@@ -1568,44 +1560,8 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
 
     using namespace ov::npuw::s11n;
 
-    // Sanity check magic number
-    ov::npuw::s11n::IndicatorType serialization_indicator;
-    read(stream, serialization_indicator);
-    NPUW_ASSERT(serialization_indicator == NPUW_SERIALIZATION_INDICATOR && "This blob wasn't serialized via NPUW!");
-
-    ov::npuw::s11n::IndicatorType llm_compiled_indicator;
-    read(stream, llm_compiled_indicator);
-    NPUW_ASSERT(llm_compiled_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR &&
-                "This blob wasn't serialized via LLMCompiledModel!");
-
-    // Deserialize general meta info
-    int vmajor, vminor, vpatch;
-    std::string s11n_version;
-    read(stream, vmajor);
-    read(stream, vminor);
-    read(stream, vpatch);
-    read(stream, s11n_version);
-
-    if (vmajor != OPENVINO_VERSION_MAJOR || vminor != OPENVINO_VERSION_MINOR || vpatch != OPENVINO_VERSION_PATCH ||
-        s11n_version != std::string(NPUW_SERIALIZATION_VERSION)) {
-        OPENVINO_THROW("This blobs was serialized with different OV version!",
-                       "\nSerialized by OV ",
-                       vmajor,
-                       '.',
-                       vminor,
-                       '.',
-                       vpatch,
-                       "\nCurrent OV version ",
-                       OPENVINO_VERSION_MAJOR,
-                       '.',
-                       OPENVINO_VERSION_MINOR,
-                       '.',
-                       OPENVINO_VERSION_PATCH,
-                       "\nNPUW serialized by version ",
-                       s11n_version,
-                       "\nNPUW current serialization version ",
-                       NPUW_SERIALIZATION_VERSION);
-    }
+    // Sanity check the header (magic numbers + versions)
+    read_and_check_header(stream, NPUW_LLM_COMPILED_MODEL_INDICATOR, "LLMCompiledModel");
 
     bool encrypted = false;
     read(stream, encrypted);
