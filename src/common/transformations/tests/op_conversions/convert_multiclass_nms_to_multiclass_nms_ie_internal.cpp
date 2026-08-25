@@ -63,8 +63,8 @@ TEST(TransformationTests, ConvertMulticlassNmsToMulticlassNmsIE_DynamicShape) {
     manager.register_pass<ov::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
     OV_ASSERT_NO_THROW(manager.run_passes(model));
 
-    auto internal_nms =
-        ov::as_type_ptr<ov::op::internal::MulticlassNmsIEInternal>(model->get_results()[0]->get_input_node_shared_ptr(0));
+    auto internal_nms = ov::as_type_ptr<ov::op::internal::MulticlassNmsIEInternal>(
+        model->get_results()[0]->get_input_node_shared_ptr(0));
     ASSERT_NE(internal_nms, nullptr);
 
     for (size_t i = 0; i < internal_nms->get_output_size(); ++i) {
