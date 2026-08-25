@@ -4,7 +4,6 @@
 
 #include <type_traits>
 
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "mlir_test_env.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/ceiling.hpp"
@@ -17,7 +16,6 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/tanh.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
 

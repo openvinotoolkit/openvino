@@ -16,7 +16,6 @@
 #include "openvino/op/power.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/subtract.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
 

@@ -2,18 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "mlir_test_env.hpp"
-#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_min.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reduce_sum.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
 using ReduceParams = std::tuple<ov::Shape,             // Input shape

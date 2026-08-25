@@ -4,17 +4,14 @@
 
 #include "mlir_evaluate.hpp"
 
-#include <algorithm>
 #include <memory>
 #include <vector>
 
 #include "common/convert_common.hpp"
 #include "gc/ExecutionEngine/GPURuntime/GpuOclRuntime.h"
 #include "gc/Transforms/Passes.h"
-#include "gc/Utils/Error.h"
 #include "interface/properties.hpp"
 #include "mlir/Dialect/Bufferization/Transforms/Passes.h"
-#include "mlir/Pass/PassManager.h"
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
 
 namespace ov::intel_gpu::mlir {

@@ -4,13 +4,11 @@
 
 #include "openvino/op/transpose.hpp"
 
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "mlir_test_env.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
 

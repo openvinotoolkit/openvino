@@ -12,7 +12,6 @@
 #include "intel_gpu/runtime/tensor_accessor.hpp"  // cldnn::make_tensor
 #include "mlir_primitive_inst.h"
 #include "openvino/core/node.hpp"
-#include "openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp"
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
 #include "plugin/transformations/mlir/interface/properties.hpp"
 #include "register.hpp"
