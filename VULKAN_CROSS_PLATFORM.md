@@ -181,6 +181,17 @@
 
 ## Журнал
 
+- 2026-08-26 (ночь): **батч 9 + бенчмарк №1**. Витрина: `src/core/README.md`
+  (обзор ядра) и `FORMAT.md` (байтовая спека FB/PB v5 + таблица op-кодов).
+  Бенч (`test_perf.exe`, сборка один раз, чистый execute): tiled matmul
+  256³ = **182 GFLOP/s**, 512³ = **274–378 GFLOP/s**; decoder-step
+  B=1 L=128 D=256 (attention + KV-cache append + causal softmax + argmax,
+  целиком ops ядра) = **2.75 мс/шаг ≈ 46 500 tokens/s**. Пул памяти и
+  FP16-тензоры — в следующий батч с дизайном: пулу нужны оффсетные
+  дескрипторы (VkDescriptorBufferInfo.offset в стриме + view-offset в
+  vk_memory), FP16 — dtype в IR и FB v6. Всё закоммичено и запушено на
+  fork (`afe2df5462` core batches, `93604b5215` repo slimming); рабочее
+  дерево чистое.
 - 2026-08-26 (вечер): **батч 8 (инженерия рантайма, часть 1)** —
   **Safetensors-ридер** (`safetensors_reader.hpp/cpp`, namespace `st_r`):
   u64-заголовок + мини-JSON-сканер фиксированной схемы (dtype/shape/
