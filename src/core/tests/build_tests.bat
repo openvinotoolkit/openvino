@@ -1,5 +1,5 @@
 @echo off
-rem Configure, build and run the standalone core tests (pure CMake — no manual
+rem Configure, build and run the standalone core tests (pure CMake ??? no manual
 rem cl/link commands). Toolchain bootstrap (once):
 rem   powershell -ExecutionPolicy Bypass -File tools\setup_vktools.ps1
 setlocal
@@ -20,10 +20,14 @@ cmake -S "%SCRIPT_DIR%." -B "%SCRIPT_DIR%build" -G "Visual Studio 17 2022" -A x6
 cmake --build "%SCRIPT_DIR%build" --config Release || exit /b 1
 
 echo === running tests ===
+setlocal enabledelayedexpansion
 set FAILED=0
 for %%f in ("%SCRIPT_DIR%build\Release\test_*.exe") do (
     "%%~ff"
-    if errorlevel 1 set FAILED=1
+    "%%~ff"
+    if !errorlevel! neq 0 set FAILED=1
 )
 if %FAILED% neq 0 exit /b 1
 echo ALL TEST EXECUTABLES PASS
+
+
