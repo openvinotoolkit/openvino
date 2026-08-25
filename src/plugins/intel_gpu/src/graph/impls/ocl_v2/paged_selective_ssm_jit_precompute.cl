@@ -4,7 +4,12 @@
 
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/bf16_utils.cl"
-#include "selective_ssm_jit_storage.cl"
+
+#if INPUT0_IS_FP
+#    define SSM_TO_FLOAT(value) convert_float(value)
+#else
+#    define SSM_TO_FLOAT(value) _convert_as_bfloat16_float(value)
+#endif
 
 KERNEL(paged_selective_ssm_jit_precompute)(OPTIONAL_SHAPE_INFO_ARG
                                            const __global INPUT0_TYPE* A,

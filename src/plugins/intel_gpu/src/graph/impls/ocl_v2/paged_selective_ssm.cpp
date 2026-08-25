@@ -148,8 +148,9 @@ template <selective_ssm_jit::device_kind Kind, bool PrecomputeDA = false>
 class PagedSelectiveSSMJitGenerator : public KernelGenerator {
 public:
     PagedSelectiveSSMJitGenerator()
-        : KernelGenerator(Kind == selective_ssm_jit::device_kind::integrated ? "paged_selective_ssm_jit_integrated" : "paged_selective_ssm_jit_discrete",
-                          PrecomputeDA ? "precomputed_da" : "") {}
+        : KernelGenerator(
+              "selective_ssm_jit",
+              Kind == selective_ssm_jit::device_kind::integrated ? "paged_integrated" : (PrecomputeDA ? "paged_discrete_precomputed_da" : "paged_discrete")) {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -175,9 +176,9 @@ protected:
         jit.make("SSM_SUBGROUP_SIZE", subgroup_size);
         jit.make("SSM_HEAD_DIM_BLOCK", head_dim_block);
         jit.make("SSM_STATE_ITERATIONS", cldnn::ceil_div(state_size, subgroup_size));
+        jit.make("SSM_PAGED", true);
         jit.make("SSM_JIT_PRECOMPUTE_DA", PrecomputeDA);
-        if constexpr (Kind == selective_ssm_jit::device_kind::discrete)
-            jit.make("SSM_JIT_USE_SLM", use_discrete_slm(params));
+        jit.make("SSM_JIT_USE_SLM", Kind == selective_ssm_jit::device_kind::discrete && use_discrete_slm(params));
         return jit;
     }
 
