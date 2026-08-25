@@ -56,23 +56,24 @@ If `$OV_REPO` has no build directory yet, don't build the whole product — conf
 
 ```bash
 cd "$OV_REPO" && git submodule update --init --recursive --jobs 8
-mkdir build && cd build
-cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
   -DENABLE_PYTHON=ON -DENABLE_PYTHON_PACKAGING=ON \
   -DENABLE_TESTS=OFF -DENABLE_SAMPLES=OFF -DENABLE_TEMPLATE=OFF \
   -DENABLE_INTEL_GPU=OFF -DENABLE_INTEL_NPU=OFF \
   -DENABLE_OV_TF_FRONTEND=OFF -DENABLE_OV_TF_LITE_FRONTEND=OFF \
   -DENABLE_OV_PADDLE_FRONTEND=OFF -DENABLE_OV_JAX_FRONTEND=OFF \
-  -DENABLE_JS=OFF -DENABLE_WHEEL=OFF ..
-ninja openvino_pytorch_frontend py_pytorch_frontend pyopenvino openvino_intel_cpu_plugin -j$(nproc)
+  -DENABLE_JS=OFF -DENABLE_WHEEL=OFF
+cmake --build build --parallel --target openvino_pytorch_frontend py_pytorch_frontend pyopenvino openvino_intel_cpu_plugin
 ```
+
+Using `cmake -S . -B build` (rather than `mkdir build && cd build && cmake ..`) keeps the working directory fixed at the repo root, and driving the build through `cmake --build --target ...` (rather than invoking `ninja` directly) keeps this platform-agnostic across generators.
 
 Enable `ccache` (`-DCMAKE_C_COMPILER_LAUNCHER=ccache`/`CXX` variant) whenever it's installed — a warm cache from a prior build of the same or a nearby commit cuts a from-scratch build from tens of minutes to a few minutes.
 
 Four targets are needed, and it's easy to build the wrong subset:
 
-- `pyopenvino` — the core Python bindings (`openvino._pyopenvino`). Note the target is `pyopenvino`, **not** `_pyopenvino` (that name doesn't exist and `ninja` will error on it).
+- `pyopenvino` — the core Python bindings (`openvino._pyopenvino`). Note the target is `pyopenvino`, **not** `_pyopenvino` (that name doesn't exist and the build will error on it).
 - `py_pytorch_frontend` — the pybind module the layer tests actually import (`openvino.frontend.pytorch.py_pytorch_frontend`, via `TorchScriptPythonDecoder`/`fx_decoder`). This is **separate** from `openvino_pytorch_frontend` (the C++ frontend library) — building only the C++ target still leaves the tests raising `ImportError: OpenVINO PyTorch frontend is not available ... No module named 'openvino.frontend.pytorch.py_pytorch_frontend'`.
 - `openvino_pytorch_frontend` — the C++ frontend itself; rebuild after any translator/op_table change (see Step 3).
 - `openvino_intel_cpu_plugin` — required whenever `TEST_DEVICE=CPU` (the layer test default). Without it, every single test fails at inference time with `Device with "CPU" name is not registered in the OpenVINO Runtime` — don't mistake this for a translator regression.
