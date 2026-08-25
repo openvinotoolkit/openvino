@@ -123,7 +123,7 @@ JitConstants ReorderKernelBase::GetJitConstants(const reorder_params& params) co
     if (params.inputs[0].GetDType() == Datatype::BF16 || params.inputs[0].GetDType() == Datatype::F8E8M0) {
         calc_type = Datatype::F32;
     }
-    if (params.inputs[0].GetDType() == Datatype::F8E4M3 || params.inputs[0].GetDType() == Datatype::F8E5M2) {
+    if (params.inputs[0].GetDType() == Datatype::F8E4M3 || params.inputs[0].GetDType() == Datatype::F8E5M2 || params.inputs[0].GetDType() == Datatype::F4E2M1) {
         calc_type = Datatype::F16;
     }
     Datatype output_reorder_type = useUshort ? Datatype::UINT16 : params.outputs[0].GetDType();
@@ -160,8 +160,8 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_weig
 ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_params& params) const {
     DispatchData dispatchData;
 
-    auto& input = params.inputs[0];
-    auto& output = params.outputs[0];
+    const auto& input = params.inputs[0];
+    const auto& output = params.outputs[0];
     auto input_l = input.GetLayout();
     auto output_l = output.GetLayout();
     DataTensor input_tensor = input;

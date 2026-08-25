@@ -83,6 +83,9 @@ void ParamsKey::EnableInputDataType(Datatype dt) {
         case Datatype::BF16:
             key.inputType.val.BF16 = 1;
             break;
+        case Datatype::F4E2M1:
+            key.inputType.val.F4E2M1 = 1;
+            break;
         case Datatype::F8E4M3:
             key.inputType.val.F8E4M3 = 1;
             break;
@@ -137,6 +140,9 @@ void ParamsKey::EnableOutputDataType(Datatype dt) {
         case Datatype::BF16:
             key.outputType.val.BF16 = 1;
             break;
+        case Datatype::F4E2M1:
+            key.outputType.val.F4E2M1 = 1;
+            break;
         case Datatype::F8E4M3:
             key.outputType.val.F8E4M3 = 1;
             break;
@@ -179,6 +185,18 @@ void ParamsKey::EnableInputWeightsType(WeightsType wt) {
         case WeightsType::BF16:
             key.inputWeightsType.val.BF16 = 1;
             break;
+        case WeightsType::F4E2M1:
+            key.inputWeightsType.val.F4E2M1 = 1;
+            break;
+        case WeightsType::F8E4M3:
+            key.inputWeightsType.val.F8E4M3 = 1;
+            break;
+        case WeightsType::F8E5M2:
+            key.inputWeightsType.val.F8E5M2 = 1;
+            break;
+        case WeightsType::F8E8M0:
+            key.inputWeightsType.val.F8E8M0 = 1;
+            break;
         default:
             break;
     }
@@ -211,6 +229,18 @@ void ParamsKey::EnableOutputWeightsType(WeightsType wt) {
             break;
         case WeightsType::BF16:
             key.outputWeightsType.val.BF16 = 1;
+            break;
+        case WeightsType::F4E2M1:
+            key.outputWeightsType.val.F4E2M1 = 1;
+            break;
+        case WeightsType::F8E4M3:
+            key.outputWeightsType.val.F8E4M3 = 1;
+            break;
+        case WeightsType::F8E5M2:
+            key.outputWeightsType.val.F8E5M2 = 1;
+            break;
+        case WeightsType::F8E8M0:
+            key.outputWeightsType.val.F8E8M0 = 1;
             break;
         default:
             break;
