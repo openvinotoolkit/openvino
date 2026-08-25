@@ -836,7 +836,8 @@ std::string SDPAMicroGenerator::get_build_options(const kernel_impl_params& para
     extra_options += " -Dcl_intel_global_float_atomic";
     extra_options += " -Dcl_intel_subgroup_matrix_multiply_accumulate";
     extra_options += " -Dcl_intel_subgroup_split_matrix_multiply_accumulate";
-    if (params.get_program().get_config().get_pa_integrity_check() && !m_is_gqa_single_token) {
+    bool debug_pa_integrity_check = GPU_DEBUG_VALUE_OR(params.get_program().get_config().get_pa_integrity_check(), false);
+    if (debug_pa_integrity_check && !m_is_gqa_single_token) {
         extra_options += " -DPA_INTEGRITY_CHECK=1";
     }
 
@@ -1567,7 +1568,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     }
 
     if (!is_prefill) {
-        const auto& wg_cfg = params.get_program().get_config().get_micro_sdpa_workgroup_config();
+        const auto& wg_cfg = GPU_DEBUG_VALUE_OR(params.get_program().get_config().get_micro_sdpa_workgroup_config(), std::vector<int>{});
         if (wg_cfg.size() >= 4) {
             config->wg_m_kq = wg_cfg[0];
             config->wg_n_kq = wg_cfg[1];
