@@ -23,9 +23,9 @@ dependencies = [
 
 [build-system]
 requires = [
-    "setuptools>=77,<=83.0.0", 
+    "setuptools>=77,<=84.0.0", 
     "wheel<=0.48.0",
-    "cmake<=4.4.0", 
+    "cmake<=4.4.2", 
     "patchelf<=0.19.1.0; sys_platform == 'linux' and platform_machine == 'x86_64'"
 ]
 build-backend = "setuptools.build_meta"

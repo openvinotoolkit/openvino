@@ -43,21 +43,21 @@ ModelKind detect_model_kind(const std::unordered_map<std::string, GGUFMetaData>&
     // "clip", which is not an LLM architecture name, and reading any "<arch>.block_count"-style
     // key on it would fail with a misleading "missing config key" error.
     if (meta_flag(metadata, "clip.has_vision_encoder")) {
-        return ModelKind::Vision;
+        return ModelKind::VISION;
     }
     if (meta_flag(metadata, "clip.has_audio_encoder")) {
-        return ModelKind::Audio;
+        return ModelKind::AUDIO;
     }
-    return ModelKind::Decoder;
+    return ModelKind::DECODER;
 }
 
 const char* model_kind_name(ModelKind kind) {
     switch (kind) {
-    case ModelKind::Vision:
+    case ModelKind::VISION:
         return "vision (mmproj)";
-    case ModelKind::Audio:
+    case ModelKind::AUDIO:
         return "audio (mmproj)";
-    case ModelKind::Decoder:
+    case ModelKind::DECODER:
     default:
         return "decoder";
     }

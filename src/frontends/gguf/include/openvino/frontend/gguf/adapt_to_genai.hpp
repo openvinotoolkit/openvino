@@ -46,12 +46,12 @@ public:
     OPENVINO_MODEL_PASS_RTTI("ov::frontend::gguf::pass::AdaptToGenAI");
 
     /// \brief Which genai input contract to expose.
-    /// IdsToLogits  : input_ids -> logits (text LLMPipeline). The only mode implemented today.
-    /// EmbedsToLogits: inputs_embeds -> logits (reserved for the VLM language model, where
+    /// IDS_TO_LOGITS  : input_ids -> logits (text LLMPipeline). The only mode implemented today.
+    /// EMBEDS_TO_LOGITS: inputs_embeds -> logits (reserved for the VLM language model, where
     ///                 image+text embeddings are merged outside the graph). Not yet implemented.
-    enum class InputMode { IdsToLogits, EmbedsToLogits };
+    enum class InputMode { IDS_TO_LOGITS, EMBEDS_TO_LOGITS };
 
-    explicit AdaptToGenAI(InputMode mode = InputMode::IdsToLogits) : m_mode(mode) {}
+    explicit AdaptToGenAI(InputMode mode = InputMode::IDS_TO_LOGITS) : m_mode(mode) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
