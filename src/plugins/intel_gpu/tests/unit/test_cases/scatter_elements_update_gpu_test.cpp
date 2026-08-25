@@ -1039,3 +1039,114 @@ TEST(scatter_elements_update_gpu_fp16, smoke_sum_opt_local_kernel_dense_flat) {
         }
     }
 }
+
+TEST(scatter_elements_update_gpu_i32, smoke_sum_opt_local_kernel_integer_exact) {
+    // Integer element types take scatter_elements_update_opt_local_sum's identity
+    // encoding, so the local-staged sum is exact int32 arithmetic. Four updates collide
+    // on every fourth destination, all with value 2^24+1 -- the first integer a float
+    // cannot represent. An encoding that round-tripped through float would round each
+    // contribution down to 2^24 and return 67108864 instead of 67108868.
+    auto& engine = get_test_engine();
+    const int32_t num = 20000;  // ~80KB of i32, past `_ref`'s own local-memory path
+    const int32_t update_value = 16777217;  // 2^24 + 1
+    auto input1 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{num, 1, 1, 1}});
+    auto input2 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{num, 1, 1, 1}});
+    auto input3 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{num, 1, 1, 1}});
+
+    std::vector<int32_t> data(num, 0);
+    std::vector<int32_t> indices(num);
+    std::vector<int32_t> updates(num, update_value);
+    for (int32_t i = 0; i < num; ++i) {
+        indices[i] = i & ~3;  // groups of 4 accumulate onto one destination
+    }
+
+    topology topology;
+    topology.add(input_layout("input", input1->get_layout()));
+    topology.add(input_layout("indices", input2->get_layout()));
+    topology.add(input_layout("updates", input3->get_layout()));
+    topology.add(scatter_elements_update("scatter_elements_update",
+                                         input_info("input"),
+                                         input_info("indices"),
+                                         input_info("updates"),
+                                         0,
+                                         ScatterElementsUpdateOp::Reduction::SUM,
+                                         true));
+
+    set_values(input1, data);
+    set_values(input2, indices);
+    set_values(input3, updates);
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input1);
+    network.set_input_data("indices", input2);
+    network.set_input_data("updates", input3);
+
+    auto outputs = network.execute();
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(outputs.at("scatter_elements_update").get_memory(),
+                                                             get_test_stream());
+
+    for (int32_t i = 0; i < num; ++i) {
+        const int32_t expected = (i % 4 == 0) ? 4 * update_value : 0;
+        ASSERT_EQ(expected, output_ptr[i]) << "at index " << i;
+    }
+}
+
+TEST(scatter_elements_update_gpu_fp32, smoke_sum_opt_local_kernel_f32_precision) {
+    // f32 accumulates in floating point, so staging contributions locally reorders the
+    // additions relative to `_ref` and the result is not bit-reproducible -- that is
+    // float addition, not anything this kernel controls. What must hold is agreement
+    // within the expected precision of the sum. Eight contributions land on every
+    // destination with values in [-1, 1), and the reference is accumulated in double.
+    auto& engine = get_test_engine();
+    const int32_t out_len = 20000;      // ~80KB f32, past `_ref`'s own local-memory path
+    const int32_t per_dest = 8;
+    const int32_t n_updates = out_len * per_dest;
+
+    auto input1 = engine.allocate_memory({data_types::f32, format::bfyx, tensor{out_len, 1, 1, 1}});
+    auto input2 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{n_updates, 1, 1, 1}});
+    auto input3 = engine.allocate_memory({data_types::f32, format::bfyx, tensor{n_updates, 1, 1, 1}});
+
+    std::mt19937 rng(4242);
+    std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+    std::vector<float> data(out_len, 0.0f);
+    std::vector<int32_t> indices(n_updates);
+    std::vector<float> updates(n_updates);
+    std::vector<double> expected(out_len, 0.0);
+    for (int32_t i = 0; i < n_updates; ++i) {
+        indices[i] = i % out_len;
+        updates[i] = dist(rng);
+        expected[indices[i]] += static_cast<double>(updates[i]);
+    }
+
+    topology topology;
+    topology.add(input_layout("input", input1->get_layout()));
+    topology.add(input_layout("indices", input2->get_layout()));
+    topology.add(input_layout("updates", input3->get_layout()));
+    topology.add(scatter_elements_update("scatter_elements_update",
+                                         input_info("input"),
+                                         input_info("indices"),
+                                         input_info("updates"),
+                                         0,
+                                         ScatterElementsUpdateOp::Reduction::SUM,
+                                         true));
+
+    set_values(input1, data);
+    set_values(input2, indices);
+    set_values(input3, updates);
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input1);
+    network.set_input_data("indices", input2);
+    network.set_input_data("updates", input3);
+
+    auto outputs = network.execute();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(outputs.at("scatter_elements_update").get_memory(),
+                                                           get_test_stream());
+
+    // Eight additions of magnitude < 1 in f32: the accumulated rounding error is bounded
+    // well below 1e-4. A tolerance this tight still catches a dropped or double-counted
+    // contribution, which is what could actually go wrong here.
+    for (int32_t i = 0; i < out_len; ++i) {
+        ASSERT_NEAR(static_cast<float>(expected[i]), output_ptr[i], 1e-4f) << "at index " << i;
+    }
+}

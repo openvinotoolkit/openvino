@@ -29,17 +29,35 @@ namespace kernel_selector {
 // followed by one clustered, mostly-nonzero-only global write-back per workgroup. Any
 // destination index that falls outside a workgroup's window (large/divergent motion,
 // no assumption of bounded flow is made or required) falls back to the *exact same*
-// direct global atomic_fetch_add the `_ref` kernel already does for every element --
-// so this can never be less correct than `_ref`, only potentially less effective.
+// direct global atomic the `_ref` kernel already does for every element -- so this can
+// never be less correct than `_ref`, only potentially less effective.
 //
-// Correctness rests on one exact (not approximate) invariant: the SUM-mode accumulator
-// is fixed-point int32 (see this kernel's own to_int/from_int, copied unchanged from
-// `_ref`'s), so integer addition is truly associative/commutative -- staging some
-// contributions locally before adding them to global memory changes only the order of
-// additions, never the result (barring the same int32 overflow risk the reference
-// kernel already has). Validated bit-identical against `_ref` on the existing GPU unit
-// test suite plus new coverage for the local/global-fallback boundary (see the PR test
-// additions).
+// Element types: the encoding is `_ref`'s, unchanged, all three branches of it -- f32
+// bit-reinterpret, fp16 fixed-point scale, integer identity -- and the accumulator is
+// sized one int32 per padded output element rather than from the output's byte size, so
+// a type narrower than int32 is allocated correctly rather than half-sized. Validate()
+// nonetheless accepts only f16/f32/i32, the set this kernel is actually exercised on:
+// i8/u8 cannot reach any scatter kernel as an input today (the plugin's own impl gate
+// allows only f32/f16/i32 there), and a narrower output arrives only through a fused
+// quantize, which Validate() also rejects -- so neither can be tested. Keeping the
+// accepted set equal to the verified set means that if either restriction is later
+// lifted, this kernel steps aside for `_ref` instead of taking an unexercised path.
+//
+// On reproducibility, which is what the local staging actually changes: it alters the
+// order in which contributions are added, nothing else.
+//   * Integer accumulators -- i32, and fp16's fixed-point encoding -- add with int32
+//     atomics. Integer addition is associative and commutative (C11 atomics define
+//     wraparound, so this holds even on overflow, the same overflow `_ref` already has),
+//     so the staged result is bit-identical to `_ref`'s.
+//   * f32 accumulates in floating point, via the same CAS loop `_ref` uses. Floating-point
+//     addition is not associative, so a summation of more than two f32 contributions is
+//     not bit-reproducible under *any* reordering -- by the arithmetic, not by anything
+//     this kernel or `_ref` does. `_ref`'s own SUM path already accumulates through
+//     unordered global atomics, so its f32 result is not reproducible run to run either.
+//     The correctness bar for f32 is agreement within the expected precision of the
+//     summation, which is the same bar `_ref` meets.
+// Validated against `_ref` on the existing GPU unit test suite plus new coverage for the
+// local/global-fallback boundary, integer exactness, and f32 precision (see the PR tests).
 //
 // Deliberately independent of ScatterElementsUpdateKernelRef (no inheritance) -- purely
 // additive, touches nothing in the existing, already-validated kernel. Only attached

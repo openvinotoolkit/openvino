@@ -53,9 +53,10 @@
 #endif
 
 // This kernel is only ever selected for REDUCE_MODE == SUM (see Validate()); the
-// fixed-point encoding is the same scheme `_ref` uses (see its own comments for the
-// f32-bitcast-CAS vs fp16-fixed-point-scale rationale). Kept identical so the two
-// kernels' accumulators are bit-for-bit interchangeable.
+// accumulator encoding is the same scheme `_ref` uses, all three branches of it (see its
+// own comments for the f32-bitcast-CAS / fp16-fixed-point-scale / integer-identity
+// rationale). Kept identical so the two kernels' accumulators are bit-for-bit
+// interchangeable for every element type either kernel accepts.
 #define FP_SCALE     65504.0f
 #define FP_SCALE_MAX 2147483648.0f
 #define FP_SCALE_MIN -FP_SCALE_MAX
@@ -63,12 +64,16 @@
 
 inline int FUNC(to_int)(INPUT2_TYPE data_in)
 {
-    #if INPUT2_TYPE_SIZE == 4
-        return as_int((float)data_in);
+    #if INPUT2_IS_FP
+        #if INPUT2_TYPE_SIZE == 4
+            return as_int((float)data_in);
+        #else
+            float scaled = convert_float((half)data_in) * FP_SCALE;
+            scaled = clamp(scaled, FP_SCALE_MIN, FP_SCALE_MAX);
+            return convert_int_rte(scaled);
+        #endif
     #else
-        float scaled = convert_float((half)data_in) * FP_SCALE;
-        scaled = clamp(scaled, FP_SCALE_MIN, FP_SCALE_MAX);
-        return convert_int_rte(scaled);
+        return data_in;
     #endif
 }
 
@@ -81,10 +86,12 @@ inline float FUNC(from_int)(int acc)
     #endif
 }
 
-// f32 has no native OpenCL float atomics -- bit-reinterpret CAS, same as `_ref`. fp16's
-// fixed-point int32 representation lets us use a real hardware atomic_fetch_add
-// directly, at both local and global scope.
-#if INPUT2_TYPE_SIZE == 4
+// f32 has no native OpenCL float atomics -- bit-reinterpret CAS, same as `_ref`. Note the
+// CAS adds in *floating point*, so local staging reassociates an f32 sum; `_ref`'s own
+// unordered global atomics already leave that order unspecified (see the header). Both
+// other encodings are plain int32, so they use a real hardware atomic_fetch_add at both
+// local and global scope, and their sums reassociate exactly.
+#if INPUT2_IS_FP && INPUT2_TYPE_SIZE == 4
     #define CAS_ADD(addr, val, scope) { \
         int expected_value; \
         int desired_value; \
@@ -231,8 +238,12 @@ KERNEL(scatter_elements_update_opt_local_sum)(OPTIONAL_SHAPE_INFO_ARG
     #endif
     const uint input_idx = GET_INPUT_INDEX(ORDER);
     const uint output_idx = GET_OUTPUT_INDEX(ORDER);
-    float val_f32 = FUNC_CALL(from_int)(output_fp[input_idx]);
-    INPUT2_TYPE val = TO_OUTPUT_TYPE(val_f32);
+    #if INPUT2_IS_FP
+        float val_f32 = FUNC_CALL(from_int)(output_fp[input_idx]);
+        INPUT2_TYPE val = TO_OUTPUT_TYPE(val_f32);
+    #else
+        INPUT2_TYPE val = output_fp[input_idx];
+    #endif
     output[output_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
 #endif
 }

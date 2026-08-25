@@ -151,10 +151,9 @@ JitConstants ScatterElementsUpdateKernelOptLocalSum::GetJitConstants(
     jit.AddConstant(MakeJitConstant("AXIS_VALUE", GetChannelIndex(params)));
     jit.AddConstant(MakeJitConstant("WINDOW_SIZE", kWindowSize));
     // Element budget of the internal accumulator buffer (matches GetKernelsData's
-    // `PhysicalSizeInBytes() * 2` allocation) -- bounds the write-back loop so a window
-    // straddling the buffer's end can't write out of bounds.
-    const size_t total_elements = (params.outputs[0].PhysicalSizeInBytes() * 2) / sizeof(int32_t);
-    jit.AddConstant(MakeJitConstant("OPT_LOCAL_ACC_TOTAL_ELEMENTS", total_elements));
+    // allocation) -- bounds the write-back loop so a window straddling the buffer's end
+    // can't write out of bounds.
+    jit.AddConstant(MakeJitConstant("OPT_LOCAL_ACC_TOTAL_ELEMENTS", params.outputs[0].PhysicalSize()));
     return jit;
 }
 
@@ -167,6 +166,25 @@ bool ScatterElementsUpdateKernelOptLocalSum::Validate(const Params& p) const {
     // Rejecting here falls through to `_ref` unchanged -- this kernel only opts in for
     // its narrow scope, never replaces `_ref` for anything outside it.
     if (params.mode != ScatterUpdateReduction::SUM) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+    // Accept only the element types this kernel is actually exercised on. The encoding
+    // below handles every type in GetSupportedKey() -- integers included, since `_ref`'s
+    // identity branch is reproduced here and the accumulator is sized per element rather
+    // than per output byte -- but i8/u8 cannot currently reach any scatter kernel as an
+    // input (the plugin's impl gate allows only f32/f16/i32 there) and so cannot be
+    // tested. Rejecting them keeps the accepted set equal to the verified set: if that
+    // gate is ever relaxed, this kernel steps aside for `_ref` rather than quietly
+    // taking a path nobody has run.
+    //
+    // This has to live here rather than in GetSupportedKey(): base_params::GetParamsKey()
+    // folds every input's dtype into one shared bitfield, and the indices tensor is INT32,
+    // so narrowing the key's type list would stop the kernel matching anything at all.
+    const auto is_verified_type = [](Datatype dt) {
+        return dt == Datatype::F16 || dt == Datatype::F32 || dt == Datatype::INT32;
+    };
+    if (!is_verified_type(params.inputs[0].GetDType()) || !is_verified_type(params.inputs[2].GetDType()) ||
+        !is_verified_type(params.outputs[0].GetDType())) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
     if (!params.use_init_val) {
@@ -241,7 +259,11 @@ KernelsData ScatterElementsUpdateKernelOptLocalSum::GetKernelsData(const Params&
     const auto& output = newParams.outputs[0];
 
     kd.internalBuffers.clear();
-    kd.internalBuffers.push_back(output.PhysicalSizeInBytes() * 2);  // fixed-point accumulator
+    // One int32 accumulator slot per (padded) output element. Sized from the element
+    // count, not from the output's byte size: `_ref` writes this same buffer as
+    // `PhysicalSizeInBytes() * 2`, which happens to equal one int32 per element only for
+    // 2-byte types and under-allocates by half for i8/u8.
+    kd.internalBuffers.push_back(output.PhysicalSize() * sizeof(int32_t));
     kd.internalBufferDataType = Datatype::INT32;
 
     for (size_t i = 0; i < kernel_size; i++) {
