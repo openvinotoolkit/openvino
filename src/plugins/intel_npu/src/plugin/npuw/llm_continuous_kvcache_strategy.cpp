@@ -135,6 +135,7 @@ void LLMContinuousKVCacheStrategy::on_generate_variant_switch(const std::shared_
 
         // Copy via a temporary CPU buffer to avoid aliasing (src and dst share backing memory).
         auto tmp = uu::allocMem(src->get_element_type(), src_slice->get_shape(), "CPU", nullptr);
+        NPUW_ASSERT(tmp._ptr && "CPU buffer allocation for KV copy failed — check memory availability");
         src_slice->copy_to(tmp._ptr);
         uu::copy_tensor_by_dim(tmp, dst_slice, kv_dim, kv_dim);
     }
