@@ -528,7 +528,7 @@ ov_status_e ov_core_compile_model_from_file_unicode_props(const ov_core_t* core,
         } else {
             object = core->object->compile_model(model_path_ws, property);
         }
-        std::unique_ptr<ov_compiled_model_t> _compiled_model(new ov_compiled_model_t);
+        auto _compiled_model = std::make_unique<ov_compiled_model_t>();
         _compiled_model->object = std::make_shared<ov::CompiledModel>(std::move(object));
         *compiled_model = _compiled_model.release();
     }
