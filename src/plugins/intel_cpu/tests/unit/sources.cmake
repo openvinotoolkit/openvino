@@ -18,6 +18,8 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/graph/merge_transpose_reorder_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph/resolve_edge_conflicts_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/memory_desc/empty_memory_desc.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/nodes/kernels/selective_ssm_test_utils.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/nodes/kernels/selective_ssm_test_utils.hpp
     ${CMAKE_CURRENT_LIST_DIR}/nodes/reorder_node_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/common/cpu_runtime_configurator.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/common/enforce_precision.cpp
@@ -184,6 +186,8 @@ set(CPU_UNIT_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/softmax_kernel_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/xattention_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/nodes/eltwise_node_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/nodes/executors/x64/selective_ssm_jit_executor_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/nodes/kernels/x64/selective_ssm_jit_kernel_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/x64/brgemm_supported_precisions.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/x64/fake_quantize_tokenization_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/x64/fuse_brgemm_cpu_postops.cpp
