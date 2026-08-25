@@ -11,6 +11,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/paged_causal_conv1d.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
@@ -186,6 +187,41 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
             ssm_state_table->set_element_type(ssm_cache_precision);
             enable_keep_const_precision(ssm_state_table);
             ssm_state_table->validate_and_infer_types();
+
+            // PagedSelectiveSSM requires inputs A, dt, B, x, C (ports 0..4) and
+            // recurrent_state_table (port 5) to share one common float element type
+            // (see PagedSelectiveSSM::validate_and_infer_types "float_types_merge" check).
+            // Port 5 is now pinned to ssm_cache_precision above, but ports 0..4 are produced
+            // by graph computations (often inside a per-layer Loop body) that may still be
+            // f32 when ssm_cache_precision differs (e.g. GPU inferencePrecision == f16).
+            // Align them explicitly here rather than relying on the generic ConvertPrecision
+            // pass, which does not reliably reach into Loop bodies for this op.
+            const auto original_data_type = paged_ssm->get_input_element_type(0);
+            for (size_t i = 0; i < 5; ++i) {
+                const auto& input_value = paged_ssm->input_value(i);
+                if (input_value.get_element_type() != ssm_cache_precision) {
+                    auto convert = std::make_shared<v0::Convert>(input_value, ssm_cache_precision);
+                    paged_ssm->input(i).replace_source_output(convert->output(0));
+                }
+            }
+            paged_ssm->validate_and_infer_types();
+
+            // Forcing ports 0..4 to ssm_cache_precision also shifts PagedSelectiveSSM's own
+            // output (0) to that precision. The rest of the model (e.g. the mamba mixer's
+            // skip-connection Add combining the SSM result with a separately computed x * D
+            // term) was built expecting the original data type, so leaking ssm_cache_precision
+            // to consumers outside this op would trade one precision mismatch for another.
+            // Restore the output to the original common data type so the SSM's numeric result
+            // stays consistent with the rest of the graph; only the internal computation (and
+            // the persisted recurrent_state_table) run at ssm_cache_precision.
+            if (original_data_type.is_static() && original_data_type != ssm_cache_precision) {
+                auto targets = paged_ssm->output(0).get_target_inputs();
+                auto output_convert = std::make_shared<v0::Convert>(paged_ssm->output(0), original_data_type);
+                output_convert->set_friendly_name(paged_ssm->get_friendly_name() + "/restore_precision");
+                for (auto& target : targets) {
+                    target.replace_source_output(output_convert->output(0));
+                }
+            }
             return true;
         }
 

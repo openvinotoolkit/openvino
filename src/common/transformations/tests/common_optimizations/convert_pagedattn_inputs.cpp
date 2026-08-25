@@ -8,6 +8,7 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/paged_causal_conv1d.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
@@ -600,6 +601,158 @@ TEST_F(ConvertPagedAttnInputsStateTableTest, ConvertPagedSelectiveSSMPrecision) 
     // Verify no Convert node between Parameter and PagedSelectiveSSM
     EXPECT_TRUE(ov::is_type<v0::Parameter>(paged_ssm->get_input_node_shared_ptr(5)));
     EXPECT_EQ(ssm_state_table->get_element_type(), ov::element::f16);
+}
+
+// Regression test for the GPU-only "PagedSelectiveSSM expects inputs A, dt, B, x, C and
+// recurrent_state_table to have the same element type" failure: A, dt, B, x, C (ports 0..4)
+// are produced by f32 subgraphs (e.g. left untouched by ConvertPrecision because they live
+// inside a Loop body) while recurrent_state_table (port 5) is already resolved to the
+// inference precision by ConvertPagedAttnInputs. Verify ConvertPagedAttnInputs inserts
+// explicit Converts to realign ports 0..4 so the op's port-precision-consistency invariant
+// holds, regardless of what ConvertPrecision did (or didn't do) upstream.
+TEST_F(ConvertPagedAttnInputsStateTableTest, ConvertPagedSelectiveSSMDataPortsPrecision) {
+    auto A = std::make_shared<v0::Parameter>(element::f32, PartialShape{2});
+    auto dt = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2});
+    auto B = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 64});
+    auto x = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 64});
+    auto C = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 64});
+    auto ssm_state_table = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{-1, 2, 64, 64});
+    ssm_state_table->set_friendly_name("selective_ssm_state_table.0");
+    enable_keep_const_precision(ssm_state_table);
+    auto subsequence_begins = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto block_indices = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto block_indices_begins = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto past_lens = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto cache_interval = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+
+    auto paged_ssm = std::make_shared<op::internal::PagedSelectiveSSM>(A,
+                                                                       dt,
+                                                                       B,
+                                                                       x,
+                                                                       C,
+                                                                       ssm_state_table,
+                                                                       subsequence_begins,
+                                                                       block_indices,
+                                                                       block_indices_begins,
+                                                                       past_lens,
+                                                                       cache_interval);
+    auto local_model = std::make_shared<Model>(OutputVector{paged_ssm},
+                                               ParameterVector{A,
+                                                               dt,
+                                                               B,
+                                                               x,
+                                                               C,
+                                                               ssm_state_table,
+                                                               subsequence_begins,
+                                                               block_indices,
+                                                               block_indices_begins,
+                                                               past_lens,
+                                                               cache_interval});
+
+    for (auto& node : local_model->get_ops()) {
+        ov::disable_keep_const_precision(node);
+    }
+
+    ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
+    cacheConfig.inferencePrecision = ov::element::f16;
+
+    ov::pass::Manager local_manager;
+    // Intentionally do NOT run ConvertPrecision: A, dt, B, x, C stay f32 to emulate the
+    // GPU scenario where those tensors are produced inside a Loop body and are not touched
+    // by the generic ConvertPrecision pass.
+    auto update_paged_attention_shape_func =
+        [](const ov::element::Type&, const bool, const size_t, int64_t&, int64_t&) {};
+    local_manager.register_pass<ov::pass::ConvertPagedAttnInputs>(cacheConfig, update_paged_attention_shape_func);
+    local_manager.run_passes(local_model);
+
+    // recurrent_state_table (port 5) is still resolved to the inference precision.
+    EXPECT_EQ(paged_ssm->get_input_element_type(5), ov::element::f16);
+
+    // Ports 0..4 (A, dt, B, x, C) must now be realigned to the same precision via explicit
+    // Converts, since their original producers (Parameters here) were left f32.
+    for (size_t i = 0; i < 5; ++i) {
+        EXPECT_TRUE(ov::is_type<v0::Convert>(paged_ssm->get_input_node_shared_ptr(i)))
+            << "Expected a Convert on PagedSelectiveSSM input " << i;
+        EXPECT_EQ(paged_ssm->get_input_element_type(i), ov::element::f16);
+    }
+
+    // The op-level port-precision-consistency invariant must hold after the transformation.
+    EXPECT_NO_THROW(paged_ssm->validate_and_infer_types());
+    EXPECT_EQ(paged_ssm->get_output_element_type(0), ov::element::f16);
+
+    // The op's own output runs at ssm_cache_precision (f16), but the rest of the graph
+    // (here: the model Result, standing in for e.g. a mamba mixer skip-connection Add) was
+    // built expecting the original f32 data type. A restoring Convert must be inserted so
+    // external consumers keep seeing f32, avoiding trading one precision mismatch for another.
+    const auto& result_input = local_model->get_results()[0]->input(0);
+    EXPECT_TRUE(ov::is_type<v0::Convert>(result_input.get_source_output().get_node_shared_ptr()));
+    EXPECT_EQ(result_input.get_source_output().get_element_type(), ov::element::f32);
+}
+
+// When ports 0..4 already match the resolved recurrent_state_table precision (as is
+// effectively the case on CPU, where ConvertPrecision aligns everything upstream), no
+// redundant Convert nodes should be inserted.
+TEST_F(ConvertPagedAttnInputsStateTableTest, ConvertPagedSelectiveSSMDataPortsPrecisionNoOpWhenAligned) {
+    auto A = std::make_shared<v0::Parameter>(element::f16, PartialShape{2});
+    auto dt = std::make_shared<v0::Parameter>(element::f16, PartialShape{-1, 2});
+    auto B = std::make_shared<v0::Parameter>(element::f16, PartialShape{-1, 2, 64});
+    auto x = std::make_shared<v0::Parameter>(element::f16, PartialShape{-1, 2, 64});
+    auto C = std::make_shared<v0::Parameter>(element::f16, PartialShape{-1, 2, 64});
+    auto ssm_state_table = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{-1, 2, 64, 64});
+    ssm_state_table->set_friendly_name("selective_ssm_state_table.0");
+    enable_keep_const_precision(ssm_state_table);
+    auto subsequence_begins = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto block_indices = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto block_indices_begins = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto past_lens = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto cache_interval = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+
+    auto paged_ssm = std::make_shared<op::internal::PagedSelectiveSSM>(A,
+                                                                       dt,
+                                                                       B,
+                                                                       x,
+                                                                       C,
+                                                                       ssm_state_table,
+                                                                       subsequence_begins,
+                                                                       block_indices,
+                                                                       block_indices_begins,
+                                                                       past_lens,
+                                                                       cache_interval);
+    auto local_model = std::make_shared<Model>(OutputVector{paged_ssm},
+                                               ParameterVector{A,
+                                                               dt,
+                                                               B,
+                                                               x,
+                                                               C,
+                                                               ssm_state_table,
+                                                               subsequence_begins,
+                                                               block_indices,
+                                                               block_indices_begins,
+                                                               past_lens,
+                                                               cache_interval});
+
+    for (auto& node : local_model->get_ops()) {
+        ov::disable_keep_const_precision(node);
+    }
+
+    ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
+    cacheConfig.inferencePrecision = ov::element::f16;
+
+    ov::pass::Manager local_manager;
+    auto update_paged_attention_shape_func =
+        [](const ov::element::Type&, const bool, const size_t, int64_t&, int64_t&) {};
+    local_manager.register_pass<ov::pass::ConvertPagedAttnInputs>(cacheConfig, update_paged_attention_shape_func);
+    local_manager.run_passes(local_model);
+
+    for (size_t i = 0; i < 5; ++i) {
+        EXPECT_FALSE(ov::is_type<v0::Convert>(paged_ssm->get_input_node_shared_ptr(i)))
+            << "Did not expect a Convert on PagedSelectiveSSM input " << i << " when already aligned";
+    }
+
+    // Output must not be wrapped in a restoring Convert either, since it already matches
+    // ssm_cache_precision.
+    const auto& result_input = local_model->get_results()[0]->input(0);
+    EXPECT_FALSE(ov::is_type<v0::Convert>(result_input.get_source_output().get_node_shared_ptr()));
 }
 
 }  // namespace
