@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-25-03-03-27-000-32797618628",
+  "timestamp": "2026-08-25T03:03:27Z",
+  "run_id": "32797618628",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32797618628",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37149",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37149",
+  "author": "dylanneve1",
+  "category": "Flaky Test",
+  "title": "NPU Models Tests / 6010 - TensorFlow compile-only convert_model step fails on Windows runner",
+  "signature": "tf models tests npu compile only convert model step failed|Flaky Test",
+  "signature_hash": "2abe56c58c994e45",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "NPU Models Tests / 6010",
+      "conclusion": "failure",
+      "symptom": "Step 'TensorFlow Models Tests - NPU compile-only (convert_model)' failed (02:26:26Z - 02:30:39Z UTC); all other test steps passed"
+    }
+  ],
+  "key_errors": [
+    "Step 10 'TensorFlow Models Tests - NPU compile-only (convert_model)' failed on NPU 6010 Windows runner",
+    "PR #37149 only modifies NPUW KV cache strategy files (llm_block_kvcache_strategy.cpp/hpp, llm_compiled_model.cpp, unit tests) - unrelated to TF model tests",
+    "Run attempt 2 - already been retried once",
+    "All PyTorch and JAX test steps passed; failure isolated to TF convert_model step only"
+  ],
+  "root_cause": "The TensorFlow Models Tests - NPU compile-only (convert_model) step failed on the NPU 6010 Windows runner. PR #37149 modifies only NPUW block-based KV cache strategy files and has no relationship to TF model conversion tests. The failure is isolated to this single step on the NPU 6010 runner while all other test groups passed. This matches a previously recorded flaky pattern (signature_hash: 2abe56c58c994e45, first seen 2026-08-19) for the same step on the same NPU 6010 Windows runner. The root cause is a flaky TF model test or transient runner environment issue on the NPU 6010 Windows runner.",
+  "reproduction_steps": "N/A - Flaky infrastructure/runner issue not reproducible on demand",
+  "recommended_actions": [
+    "Re-add the PR to the merge queue for a clean retry",
+    "If the failure recurs repeatedly on NPU 6010 for TF convert_model, investigate whether the NPU 6010 Windows runner has resource or driver issues",
+    "Consider adding retry logic or skipping the flaky TF convert_model test on NPU 6010 Windows"
+  ],
+  "prevention_strategies": "Track the 2abe56c58c994e45 pattern; if count exceeds 5, file an infrastructure ticket for the NPU 6010 Windows runner environment.",
+  "historical_context": "Same failure pattern previously seen on 2026-08-19 (run 32266833204, PR #37360). Pattern file 2abe56c58c994e45 count was 1 before this run."
+}
