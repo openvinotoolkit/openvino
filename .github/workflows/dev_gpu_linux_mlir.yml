@@ -230,7 +230,7 @@ jobs:
       #     # fail later with unresolved mlir::* symbols. Either an exact match or a rebuild.
 
       - name: Install Graph Compiler build dependencies
-        run: python3 -m pip install lit nanobind
+        run: python3 -m pip install lit 'nanobind==2.9.*'
 
       - name: Build LLVM and Graph Compiler
         working-directory: ${{ env.GC_REPO }}
