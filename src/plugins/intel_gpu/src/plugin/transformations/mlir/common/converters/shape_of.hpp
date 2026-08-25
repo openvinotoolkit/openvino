@@ -16,7 +16,7 @@
 namespace ov::intel_gpu::mlir {
 
 struct ConvertShapeOf {
-    Operation* operator()(ConversionContext& context, NodePtr node) {
+    Operation* operator()(ConversionContext& context, const NodePtr& node) {
         auto loc = createLocation(context.context, node);
         auto& builder = context.builder();
         const auto ov_output_element_type = node->get_output_element_type(0);

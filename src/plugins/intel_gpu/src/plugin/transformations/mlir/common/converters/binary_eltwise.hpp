@@ -21,7 +21,7 @@ using ::mlir::ValueRange;
 
 template <typename MlirBinOpBuilder>
 struct ConvertBinaryEltwise {
-    Operation* operator()(ConversionContext& context, NodePtr node) {
+    Operation* operator()(ConversionContext& context, const NodePtr& node) {
         auto loc = createLocation(context.context, node);
         auto& builder = context.builder();
         const auto inputs = context.getInputs(node);

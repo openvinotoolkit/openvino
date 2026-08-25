@@ -17,7 +17,7 @@ namespace ov::intel_gpu::mlir {
 
 // TODO: add signed/unsigned integers support
 struct ConvertGather {
-    Operation* operator()(ConversionContext& context, NodePtr node) {
+    Operation* operator()(ConversionContext& context, const NodePtr& node) {
         // TODO: support batch attribute
         auto loc = createLocation(context.context, node);
         auto& builder = context.builder();

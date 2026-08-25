@@ -59,7 +59,7 @@ struct ConvertSDPA {
         return {};
     }
 
-    Operation* operator()(ConversionContext& context, NodePtr node) {
+    Operation* operator()(ConversionContext& context, const NodePtr& node) {
         auto loc = createLocation(context.context, node);
         auto& builder = context.builder();
         const auto inputs = context.getInputs(node);
@@ -132,7 +132,7 @@ struct ConvertSDPA {
         } else {
             // Default scale: 1 / sqrt(head_dim), where head_dim is last dim of Q
             auto head_dim = qShape[qRank - 1].get_length();
-            float default_scale = 1.0f / std::sqrt(static_cast<float>(head_dim));
+            float default_scale = 1.0F / std::sqrt(static_cast<float>(head_dim));
             scale = getConstant(builder, ov_output_element_type, default_scale);
         }
 

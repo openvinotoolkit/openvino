@@ -15,7 +15,7 @@ namespace ov::intel_gpu::mlir {
 
 // y = x / sqrt(mean(x^2, last_dim) + eps) [* gamma]
 struct ConvertRMS {
-    Operation* operator()(ConversionContext& context, NodePtr node) {
+    Operation* operator()(ConversionContext& context, const NodePtr& node) {
         auto rms = ov::as_type_ptr<ov::op::internal::RMS>(node);
         OPENVINO_ASSERT(rms, "Failed to cast to RMS");
 
@@ -58,7 +58,10 @@ struct ConvertRMS {
                         .getResult(0);
 
         // sum / N
-        auto n_const = arith::ConstantOp::create(builder, loc, ::mlir::DenseElementsAttr::get(reduced_type, builder.getFloatAttr(mlir_el_type, num_els)));
+        auto n_const =
+            arith::ConstantOp::create(builder,
+                                      loc,
+                                      ::mlir::DenseElementsAttr::get(reduced_type, builder.getFloatAttr(mlir_el_type, static_cast<double>(num_els))));
         auto div_empty = tensor::EmptyOp::create(builder, loc, reduced_type, reduced_dims);
         Value mean = linalg::DivOp::create(builder, loc, ValueRange{sum, n_const}, ValueRange{div_empty}).getResult(0);
 

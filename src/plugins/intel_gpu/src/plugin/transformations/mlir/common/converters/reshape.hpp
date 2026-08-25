@@ -13,7 +13,7 @@
 namespace ov::intel_gpu::mlir {
 
 struct ConvertReshape {
-    Operation* operator()(ConversionContext& context, NodePtr node) {
+    Operation* operator()(ConversionContext& context, const NodePtr& node) {
         const auto in_shape = node->get_input_partial_shape(0);
         const auto out_shape = node->get_output_partial_shape(0);
         assert(in_shape.rank().is_static() && out_shape.rank().is_static());

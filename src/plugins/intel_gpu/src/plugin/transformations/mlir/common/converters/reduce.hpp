@@ -31,7 +31,7 @@ template <typename OVOp>
 struct ConvertReduce {
     ConvertReduce() = default;
 
-    Operation* operator()(ConversionContext& context, NodePtr node) {
+    Operation* operator()(ConversionContext& context, const NodePtr& node) {
         auto el_type = importPrecision(context.context, node->get_input_element_type(0));
         auto input_shape = node->get_input_partial_shape(0);
         auto input_rank = input_shape.rank().get_length();
@@ -112,14 +112,27 @@ private:
             if (type.isFloat()) {
                 return getConstant(builder, type, -std::numeric_limits<double>::infinity(), loc);
             }
-            int64_t min_val = type.isUnsignedInteger() ? 0 : -(1LL << (type.getIntOrFloatBitWidth() - 1));
+            // The 'bitwidth >= 64' cases are spelled out separately: shifting by the full width of the
+            // type is undefined behavior, so '1 << 64' must never be evaluated.
+            const unsigned bitwidth = type.getIntOrFloatBitWidth();
+            int64_t min_val = 0;
+            if (!type.isUnsignedInteger()) {
+                min_val = bitwidth >= 64 ? std::numeric_limits<int64_t>::min() : -(1LL << (bitwidth - 1));
+            }
             return getConstant(builder, type, min_val, loc);
         } else if constexpr (std::is_same_v<OVOp, ov::op::v1::ReduceMin>) {
             if (type.isFloat()) {
                 return getConstant(builder, type, std::numeric_limits<double>::infinity(), loc);
             }
-            unsigned bitwidth = type.getIntOrFloatBitWidth();
-            int64_t max_val = type.isUnsignedInteger() ? ((1ULL << bitwidth) - 1) : ((1LL << (bitwidth - 1)) - 1);
+            const unsigned bitwidth = type.getIntOrFloatBitWidth();
+            int64_t max_val = 0;
+            if (type.isUnsignedInteger()) {
+                // All-ones of the target width. Passing it through int64_t is fine: getIntegerAttr()
+                // truncates the value to the type's bitwidth.
+                max_val = static_cast<int64_t>(bitwidth >= 64 ? ~0ULL : (1ULL << bitwidth) - 1ULL);
+            } else {
+                max_val = bitwidth >= 64 ? std::numeric_limits<int64_t>::max() : (1LL << (bitwidth - 1)) - 1;
+            }
             return getConstant(builder, type, max_val, loc);
         } else if constexpr (std::is_same_v<OVOp, ov::op::v1::ReduceSum> || std::is_same_v<OVOp, ov::op::v1::ReduceMean>) {
             return getConstant(builder, type, 0, loc);

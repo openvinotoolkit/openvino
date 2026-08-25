@@ -14,7 +14,7 @@
 namespace ov::intel_gpu::mlir {
 
 struct ConvertFloor {
-    Operation* operator()(ConversionContext& context, NodePtr node) {
+    Operation* operator()(ConversionContext& context, const NodePtr& node) {
         auto loc = createLocation(context.context, node);
         auto& builder = context.builder();
         const auto input = context.getInputs(node)[0];

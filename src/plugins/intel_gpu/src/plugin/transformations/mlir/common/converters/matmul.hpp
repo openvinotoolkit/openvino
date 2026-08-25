@@ -14,7 +14,7 @@
 namespace ov::intel_gpu::mlir {
 
 struct ConvertMatMul {
-    Operation* operator()(ConversionContext& context, NodePtr node) {
+    Operation* operator()(ConversionContext& context, const NodePtr& node) {
         auto loc = createLocation(context.context, node);
         auto& builder = context.builder();
         // TODO: Support broadcasts
@@ -48,12 +48,14 @@ struct ConvertMatMul {
             auto collapse = [&](Value tensor) -> Value {  // Has no-op if rank <= 2
                 auto shape = mlir::cast<RankedTensorType>(tensor.getType()).getShape();
                 int64_t rank = shape.size();
-                if (rank <= 2)
+                if (rank <= 2) {
                     return tensor;
+                }
                 SmallVector<ReassociationIndices> reassoc;
                 ReassociationIndices leading;
-                for (int64_t i = 0; i < rank - 1; ++i)
+                for (int64_t i = 0; i < rank - 1; ++i) {
                     leading.push_back(i);
+                }
                 reassoc.push_back(leading);
                 reassoc.push_back(ReassociationIndices{rank - 1});
                 return tensor::CollapseShapeOp::create(builder, loc, tensor, reassoc).getResult();
@@ -68,12 +70,14 @@ struct ConvertMatMul {
             int64_t rank = ov_output_shape.size();
             auto type = mlir::cast<RankedTensorType>(tensor.getType());
             auto shape = type.getShape();
-            if (static_cast<int64_t>(shape.size()) == rank)
+            if (static_cast<int64_t>(shape.size()) == rank) {
                 return tensor;
+            }
             SmallVector<ReassociationIndices> reassoc;
             ReassociationIndices leading;
-            for (int64_t i = 0; i < rank - 1; ++i)
+            for (int64_t i = 0; i < rank - 1; ++i) {
                 leading.push_back(i);
+            }
             reassoc.push_back(leading);
             reassoc.push_back(ReassociationIndices{rank - 1});
             SmallVector<int64_t> new_shape(rank, 1);
@@ -82,7 +86,7 @@ struct ConvertMatMul {
             return tensor::ExpandShapeOp::create(builder, loc, new_type, tensor, reassoc).getResult();
         };
 
-        Operation* matmul;
+        Operation* matmul = nullptr;
         if (batch) {
             // Expand if required, to have all inputs of the same rank.
             ins[0] = expand(ins[0]);

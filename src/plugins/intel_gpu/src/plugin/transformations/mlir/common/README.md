@@ -22,7 +22,7 @@ Contains `.hpp` files, each representing a converter for a specific OV operation
 conversion context and an OV node, produces a sequence of MLIR operations, and returns the final op:
 
 ```c++
-mlir::Operation* operator()(ov::intel_gpu::mlir::ConversionContext& context, std::shared_ptr<ov::Node> node)
+mlir::Operation* operator()(ov::intel_gpu::mlir::ConversionContext& context, const std::shared_ptr<ov::Node>& node)
 ```
 
 In the GPU plugin this contract is spelled as the `GraphConverter::Convertor` alias, see

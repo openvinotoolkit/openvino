@@ -26,7 +26,7 @@ class GraphConverter {
     ConversionContext _ctx;
 
 public:
-    using Convertor = std::function<Operation*(ConversionContext&, NodePtr)>;
+    using Convertor = std::function<Operation*(ConversionContext&, const NodePtr&)>;
     using NodeOutputMap = std::map<ov::Output<ov::Node>, mlir::Value>;
 
     static const std::map<ov::DiscreteTypeInfo, Convertor> convertors;
