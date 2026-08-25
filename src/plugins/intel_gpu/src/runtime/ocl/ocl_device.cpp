@@ -268,7 +268,6 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
         return value == CL_TRUE;
     };
     info.supports_work_group_collective_functions = query_device_bool(CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT);
-    info.supports_non_uniform_work_group = query_device_bool(CL_DEVICE_NON_UNIFORM_WORK_GROUP_SUPPORT);
 
     if (info.supports_intel_required_subgroup_size) {
         info.supported_simd_sizes = device.getInfo<CL_DEVICE_SUB_GROUP_SIZES_INTEL>();
