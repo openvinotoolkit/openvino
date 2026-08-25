@@ -56,14 +56,9 @@ void ov::npuw::batched::CompiledModel::export_model(std::ostream& model) const {
     // The wrap is part of the blob. A batched header goes first, the complete inner
     // blob follows with its own header, and import reconstructs the wrapper from the
     // header alone.
-    ov::npuw::s11n::write(model, NPUW_SERIALIZATION_INDICATOR);
-    ov::npuw::s11n::write(model, NPUW_BATCHED_COMPILED_MODEL_INDICATOR);
-    // Versions, as in the LLM blob header. The inner blob checks its own, but the
-    // wrapper header needs a version of its own in case its format ever changes.
-    ov::npuw::s11n::write(model, OPENVINO_VERSION_MAJOR);
-    ov::npuw::s11n::write(model, OPENVINO_VERSION_MINOR);
-    ov::npuw::s11n::write(model, OPENVINO_VERSION_PATCH);
-    ov::npuw::s11n::write(model, std::string(NPUW_SERIALIZATION_VERSION));
+    // The inner blob checks its own versions, but the wrapper header needs a
+    // version of its own in case its format ever changes.
+    ov::npuw::s11n::write_header(model, NPUW_BATCHED_COMPILED_MODEL_INDICATOR);
     // The scoring tags are wrapper state, so they ride the wrapper's own header.
     ov::npuw::s11n::write(model, m_tags.text_rerank);
     ov::npuw::s11n::write(model, m_tags.text_embed);
@@ -76,42 +71,7 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::batched::CompiledModel::impo
     const ov::AnyMap& properties) {
     LOG_INFO("Deserializing batched::CompiledModel...");
 
-    ov::npuw::s11n::IndicatorType serialization_indicator;
-    ov::npuw::s11n::read(stream, serialization_indicator);
-    OPENVINO_ASSERT(serialization_indicator == NPUW_SERIALIZATION_INDICATOR, "This blob wasn't serialized via NPUW!");
-
-    ov::npuw::s11n::IndicatorType batched_indicator;
-    ov::npuw::s11n::read(stream, batched_indicator);
-    OPENVINO_ASSERT(batched_indicator == NPUW_BATCHED_COMPILED_MODEL_INDICATOR,
-                    "This blob wasn't serialized via batched::CompiledModel!");
-
-    int vmajor = 0, vminor = 0, vpatch = 0;
-    std::string s11n_version;
-    ov::npuw::s11n::read(stream, vmajor);
-    ov::npuw::s11n::read(stream, vminor);
-    ov::npuw::s11n::read(stream, vpatch);
-    ov::npuw::s11n::read(stream, s11n_version);
-
-    if (vmajor != OPENVINO_VERSION_MAJOR || vminor != OPENVINO_VERSION_MINOR || vpatch != OPENVINO_VERSION_PATCH ||
-        s11n_version != std::string(NPUW_SERIALIZATION_VERSION)) {
-        OPENVINO_THROW("This blob was serialized with different OV version!",
-                       "\nSerialized by OV ",
-                       vmajor,
-                       '.',
-                       vminor,
-                       '.',
-                       vpatch,
-                       "\nCurrent OV version ",
-                       OPENVINO_VERSION_MAJOR,
-                       '.',
-                       OPENVINO_VERSION_MINOR,
-                       '.',
-                       OPENVINO_VERSION_PATCH,
-                       "\nNPUW serialized by version ",
-                       s11n_version,
-                       "\nNPUW current serialization version ",
-                       NPUW_SERIALIZATION_VERSION);
-    }
+    ov::npuw::s11n::read_and_check_header(stream, NPUW_BATCHED_COMPILED_MODEL_INDICATOR, "batched::CompiledModel");
 
     ScoringTags tags;
     ov::npuw::s11n::read(stream, tags.text_rerank);
