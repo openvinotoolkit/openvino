@@ -753,7 +753,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             if (node->get_output_size() == 1) {
                 auto consumers = node->output(0).get_target_inputs();
                 auto convert = std::make_shared<ov::op::v0::Convert>(node, target_type);
-                for (auto& input : consumers) {
+                for (const auto& input : consumers) {
                     if (ov::is_type<ov::op::v0::Result>(input.get_node()) ||
                         ov::is_type<ov::op::v0::Convert>(input.get_node())) {
                         continue;
