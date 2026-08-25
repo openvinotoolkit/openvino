@@ -139,7 +139,8 @@ std::shared_ptr<ov::npuw::CompiledModel> make_compiled_model_with_input_link(
     param->output(0).get_tensor().set_names({"input"});
     auto res = std::make_shared<ov::op::v0::Result>(param);
     res->output(0).get_tensor().set_names({"output"});
-    auto model = std::make_shared<ov::Model>(ov::OutputVector{res->output(0)}, ov::ParameterVector{param}, "test_model");
+    auto model =
+        std::make_shared<ov::Model>(ov::OutputVector{res->output(0)}, ov::ParameterVector{param}, "test_model");
 
     auto plugin = make_test_plugin();
     auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, true);
@@ -170,7 +171,7 @@ void add_fake_submodel(const std::shared_ptr<ov::npuw::CompiledModel>& compiled)
 }
 
 void expect_validation_throw_contains(const std::shared_ptr<ov::npuw::CompiledModel>& compiled,
-                                     const std::string& expected_substr) {
+                                      const std::string& expected_substr) {
     try {
         ov::npuw::CompiledModel::validate_import_routing_tables(compiled);
         FAIL() << "Expected ov::Exception containing: " << expected_substr;

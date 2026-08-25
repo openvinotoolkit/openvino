@@ -1410,53 +1410,51 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
         }
     };
 
-    const auto ensure_input_port_index = [&](const char* table_name,
-                                             std::size_t owner_idx,
-                                             const auto& link,
-                                             bool allow_no_link) {
-        ensure_submodel_index(table_name, owner_idx, "input", link, allow_no_link);
-        if (link == CompiledModel::NO_LINK) {
-            return;
-        }
-        const auto& submodel_desc = compiled->m_compiled_submodels.at(link.first);
-        if (submodel_desc.compiled_model != nullptr && link.second >= submodel_desc.compiled_model->inputs().size()) {
-            OPENVINO_THROW("Invalid ",
-                           table_name,
-                           "[",
-                           owner_idx,
-                           "] input port index ",
-                           link.second,
-                           " for submodel ",
-                           link.first,
-                           " (inputs: ",
-                           submodel_desc.compiled_model->inputs().size(),
-                           ")");
-        }
-    };
+    const auto ensure_input_port_index =
+        [&](const char* table_name, std::size_t owner_idx, const auto& link, bool allow_no_link) {
+            ensure_submodel_index(table_name, owner_idx, "input", link, allow_no_link);
+            if (link == CompiledModel::NO_LINK) {
+                return;
+            }
+            const auto& submodel_desc = compiled->m_compiled_submodels.at(link.first);
+            if (submodel_desc.compiled_model != nullptr &&
+                link.second >= submodel_desc.compiled_model->inputs().size()) {
+                OPENVINO_THROW("Invalid ",
+                               table_name,
+                               "[",
+                               owner_idx,
+                               "] input port index ",
+                               link.second,
+                               " for submodel ",
+                               link.first,
+                               " (inputs: ",
+                               submodel_desc.compiled_model->inputs().size(),
+                               ")");
+            }
+        };
 
-    const auto ensure_output_port_index = [&](const char* table_name,
-                                              std::size_t owner_idx,
-                                              const auto& link,
-                                              bool allow_no_link) {
-        ensure_submodel_index(table_name, owner_idx, "output", link, allow_no_link);
-        if (link == CompiledModel::NO_LINK) {
-            return;
-        }
-        const auto& submodel_desc = compiled->m_compiled_submodels.at(link.first);
-        if (submodel_desc.compiled_model != nullptr && link.second >= submodel_desc.compiled_model->outputs().size()) {
-            OPENVINO_THROW("Invalid ",
-                           table_name,
-                           "[",
-                           owner_idx,
-                           "] output port index ",
-                           link.second,
-                           " for submodel ",
-                           link.first,
-                           " (outputs: ",
-                           submodel_desc.compiled_model->outputs().size(),
-                           ")");
-        }
-    };
+    const auto ensure_output_port_index =
+        [&](const char* table_name, std::size_t owner_idx, const auto& link, bool allow_no_link) {
+            ensure_submodel_index(table_name, owner_idx, "output", link, allow_no_link);
+            if (link == CompiledModel::NO_LINK) {
+                return;
+            }
+            const auto& submodel_desc = compiled->m_compiled_submodels.at(link.first);
+            if (submodel_desc.compiled_model != nullptr &&
+                link.second >= submodel_desc.compiled_model->outputs().size()) {
+                OPENVINO_THROW("Invalid ",
+                               table_name,
+                               "[",
+                               owner_idx,
+                               "] output port index ",
+                               link.second,
+                               " for submodel ",
+                               link.first,
+                               " (outputs: ",
+                               submodel_desc.compiled_model->outputs().size(),
+                               ")");
+            }
+        };
 
     for (std::size_t idx = 0u; idx < compiled->m_compiled_submodels.size(); ++idx) {
         const auto& submodel_desc = compiled->m_compiled_submodels[idx];
