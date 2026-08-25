@@ -84,6 +84,8 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
     std::vector<int64_t> input_v_transpose_order;
     std::vector<int64_t> output_transpose_order;
 
+    int64_t sliding_window = 0;
+
     std::optional<float> attn_mask_val;
     std::optional<float> scale_val;
 
@@ -107,6 +109,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         if (scale_val) {
             seed = hash_combine(seed, scale_val.value());
         }
+        seed = hash_combine(seed, sliding_window);
         seed = hash_combine(seed, is_kv_compressed);
         seed = hash_range(seed, quantization_attributes.scales_zp_output_order.begin(), quantization_attributes.scales_zp_output_order.end());
         seed = hash_range(seed, quantization_attributes.group_sizes.begin(), quantization_attributes.group_sizes.end());
@@ -137,6 +140,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
                output_transpose_order == rhs_casted.output_transpose_order &&
                attn_mask_val == rhs_casted.attn_mask_val &&
                scale_val == rhs_casted.scale_val &&
+               sliding_window == rhs_casted.sliding_window &&
                is_kv_compressed == rhs_casted.is_kv_compressed &&
                quantization_attributes.scales_zp_output_order == rhs_casted.quantization_attributes.scales_zp_output_order &&
                quantization_attributes.output_storage_type == rhs_casted.quantization_attributes.output_storage_type &&
@@ -151,6 +155,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         primitive_base<scaled_dot_product_attention>::save(ob);
         ob << is_causal;
         ob << causal_lower_right;
+        ob << sliding_window;
         ob << is_kv_compressed;
         ob << has_attn_mask_input;
         ob << has_scale_input;
@@ -181,6 +186,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         primitive_base<scaled_dot_product_attention>::load(ib);
         ib >> is_causal;
         ib >> causal_lower_right;
+        ib >> sliding_window;
         ib >> is_kv_compressed;
         ib >> has_attn_mask_input;
         ib >> has_scale_input;

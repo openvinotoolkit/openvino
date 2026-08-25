@@ -1194,4 +1194,15 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #else
     tile_store(A_tile_half, A, d, q, lda, sg_i0_vs, sg_j0_vs);
 #endif
+
+#if SLIDING_WINDOW_SIZE && !IS_PAGED_ATTENTION
+    // DEBUG: write after final store so values survive; only first thread writes
+    if (get_group_id(0) == 0 && get_group_id(1) == 0 && get_group_id(2) == 0
+        && sg_ij == 0 && get_sub_group_local_id() == 0) {
+        A[0] = (half)window_k_begin;
+        A[1] = (half)window_k0_begin;
+        A[2] = (half)SLIDING_WINDOW_SIZE;
+        A[3] = (half)causal_k;
+    }
+#endif
 }

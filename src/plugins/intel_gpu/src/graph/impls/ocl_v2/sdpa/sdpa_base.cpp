@@ -203,6 +203,10 @@ sdpa_configuration SDPABase::get_sdpa_configuration(const kernel_impl_params& im
     // figure out sdpa input number: QKV + attention_mask + scale, exclude: beam table, key compression scale/zp, value compression scale/zp
     config.input_num = get_data_inputs_num(*desc);
 
+    config.sliding_window = desc->sliding_window;
+    GPU_DEBUG_TRACE_DETAIL << "[SDPA config] sliding_window = " << config.sliding_window
+                          << " is_causal = " << config.is_causal << "\n";
+
     return config;
 }
 

@@ -143,6 +143,8 @@ static void CreateSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::intern
                                                          op->get_kv_compressed(),
                                                          op->get_causal_mask_alignment() ==
                                                              op::SDPA::CausalMaskAlignment::LOWER_RIGHT);
+    sdpa_prim.sliding_window = op->get_sliding_window_size();
+
     if (scalar_scale) {
         sdpa_prim.scale_val = scalar_scale->cast_vector<float>()[0];
     }
