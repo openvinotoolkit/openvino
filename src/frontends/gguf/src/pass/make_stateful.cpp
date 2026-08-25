@@ -137,10 +137,7 @@ static bool make_recurrent_states_stateful(const std::shared_ptr<ov::Model>& mod
                 break;
             }
         }
-        OPENVINO_ASSERT(state_result,
-                        "[GGUF] GGUFMakeStateful: no Result produces recurrent state '",
-                        out_name,
-                        "'");
+        OPENVINO_ASSERT(state_result, "[GGUF] GGUFMakeStateful: no Result produces recurrent state '", out_name, "'");
 
         const auto et = param->get_element_type();
         auto var = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{ps, et, in_name});

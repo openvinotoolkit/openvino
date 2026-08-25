@@ -3,11 +3,11 @@
 //
 
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
-#include "openvino/frontend/gguf/make_stateful.hpp"
 
 #include <memory>
 #include <unordered_map>
 
+#include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -21,13 +21,13 @@
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/tile.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/tile.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/runtime/properties.hpp"
 
@@ -48,8 +48,7 @@ std::shared_ptr<ov::op::v0::Constant> const_i64(const std::vector<int64_t>& valu
 }
 
 // Find a Parameter whose output tensor names (or friendly name) match `name`.
-std::shared_ptr<ov::op::v0::Parameter> find_param(const std::shared_ptr<ov::Model>& model,
-                                                  const std::string& name) {
+std::shared_ptr<ov::op::v0::Parameter> find_param(const std::shared_ptr<ov::Model>& model, const std::string& name) {
     for (const auto& p : model->get_parameters()) {
         const auto& names = p->output(0).get_names();
         if (names.count(name) || p->get_friendly_name() == name) {
@@ -87,9 +86,9 @@ int64_t max_kv_cache_head_size(const std::shared_ptr<ov::Model>& model) {
 }  // namespace
 
 bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    OPENVINO_ASSERT(m_mode == InputMode::IdsToLogits,
-                    "[gguf] AdaptToGenAI: only InputMode::IdsToLogits is implemented; "
-                    "EmbedsToLogits (VLM language model) is reserved for future work.");
+    OPENVINO_ASSERT(m_mode == InputMode::IDS_TO_LOGITS,
+                    "[gguf] AdaptToGenAI: only InputMode::IDS_TO_LOGITS is implemented; "
+                    "EMBEDS_TO_LOGITS (VLM language model) is reserved for future work.");
 
     // The gguf inputs we rewire. inp_tokens/inp_pos/self_kq_mask/token_len_per_seq are
     // required; if they are absent the model is not a gguf-IO model (e.g. already adapted),
@@ -219,8 +218,8 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
                 ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {static_cast<int32_t>(window - 1)});
             auto window_start = make_shared<ov::op::v1::Subtract>(q_pos_col, window_m1);      // [seq, 1]
             auto within_window = make_shared<ov::op::v1::GreaterEqual>(k_row, window_start);  // [seq, kv_len]
-            auto allowed_swa = make_shared<ov::op::v1::LogicalAnd>(allowed, within_window);    // [seq, kv_len]
-            auto mask2d_swa = make_shared<ov::op::v1::Select>(allowed_swa, zero_f, neg_f);     // [seq, kv_len]
+            auto allowed_swa = make_shared<ov::op::v1::LogicalAnd>(allowed, within_window);   // [seq, kv_len]
+            auto mask2d_swa = make_shared<ov::op::v1::Select>(allowed_swa, zero_f, neg_f);    // [seq, kv_len]
             swa_mask_4d = make_shared<ov::op::v1::Reshape>(
                 mask2d_swa,
                 make_shared<ov::op::v0::Concat>(ov::OutputVector{const_i64({1, 1}), seq_len, kv_len}, 0),
@@ -240,12 +239,10 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // needs, since it already carries one token per row.
     if (auto inp_out_ids = find_param(model, "inp_out_ids")) {
         auto batch_dim =
-            make_shared<ov::op::v8::Gather>(ids_shape, const_i64({0}), const_i64({0}));  // [1]: ids_shape[0]
-        auto seq_dim =
-            make_shared<ov::op::v8::Gather>(ids_shape, const_i64({1}), const_i64({0}));  // [1]: ids_shape[1]
-        auto last_index = make_shared<ov::op::v0::Convert>(
-            make_shared<ov::op::v1::Subtract>(seq_dim, const_i64({1})),
-            ov::element::i32);  // [1]: ids_shape[1] - 1
+            make_shared<ov::op::v8::Gather>(ids_shape, const_i64({0}), const_i64({0}));             // [1]: ids_shape[0]
+        auto seq_dim = make_shared<ov::op::v8::Gather>(ids_shape, const_i64({1}), const_i64({0}));  // [1]: ids_shape[1]
+        auto last_index = make_shared<ov::op::v0::Convert>(make_shared<ov::op::v1::Subtract>(seq_dim, const_i64({1})),
+                                                           ov::element::i32);  // [1]: ids_shape[1] - 1
         auto out_grid = make_shared<ov::op::v3::Broadcast>(
             last_index,
             make_shared<ov::op::v0::Concat>(ov::OutputVector{batch_dim, const_i64({1})}, 0));  // [batch, 1]
