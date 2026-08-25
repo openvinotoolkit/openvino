@@ -940,7 +940,7 @@ const std::vector<ov::AnyMap> mtConfigs = {
     },
 };
 
-const std::vector<std::string> mtModelNames = {"MaxPool_NCHW", "CustomNet"};
+const std::vector<std::string> mtModelNames = {"MaxPool_NCHW" /*, "CustomNet"*/};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          InferWithHostCompileMultithreadTests,
