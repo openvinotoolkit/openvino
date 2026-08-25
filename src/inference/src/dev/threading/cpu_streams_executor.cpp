@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <atomic>
 #include <condition_variable>
+#include <cstdio>
+#include <cstdlib>
 #include <memory>
 #include <mutex>
 #include <queue>
@@ -25,6 +27,17 @@
 
 namespace ov {
 namespace threading {
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE) && \
+    defined(_WIN32)
+// Opt-in diagnostic (off by default): set OV_THREADING_GROUP_DEBUG=1 to log stream-to-group binding.
+static bool group_binding_debug_enabled() {
+    static const bool enabled = []() {
+        const char* env = std::getenv("OV_THREADING_GROUP_DEBUG");
+        return env != nullptr && env[0] != '0' && env[0] != '\0';
+    }();
+    return enabled;
+}
+#endif
 struct CPUStreamsExecutor::Impl {
     struct Stream {
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
@@ -50,6 +63,31 @@ struct CPUStreamsExecutor::Impl {
             }
             ~Observer() override = default;
         };
+#    if defined(_WIN32)
+        // Soft-binds every thread entering the arena to a processor group (full group mask). Unlike
+        // core pinning it does not lock a thread to a specific core, it only spreads streams across
+        // groups so machines with more than 64 logical processors are not confined to a single group.
+        struct GroupObserver : public custom::task_scheduler_observer {
+            int _group_id = -1;
+            int _stream_id = -1;
+            std::atomic<bool> _logged{false};
+            GroupObserver(custom::task_arena& arena, int group_id, int stream_id)
+                : custom::task_scheduler_observer(arena),
+                  _group_id(group_id),
+                  _stream_id(stream_id) {}
+            void on_scheduler_entry(bool) override {
+                pin_current_thread_to_group_soft(_group_id);
+                if (group_binding_debug_enabled() && !_logged.exchange(true)) {
+                    fprintf(stderr,
+                            "[ov threading] stream %d: soft-bound to processor group %d (actual group %d)\n",
+                            _stream_id,
+                            _group_id,
+                            get_current_thread_group());
+                }
+            }
+            ~GroupObserver() override = default;
+        };
+#    endif
 #endif
         explicit Stream(Impl* impl) : _impl(impl) {
             {
@@ -183,15 +221,22 @@ struct CPUStreamsExecutor::Impl {
                     real_numa_node_id = _numaNodeId;
                 }
 #    endif
-                _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
-                                                            .set_numa_id(real_numa_node_id)
-                                                            .set_max_concurrency(concurrency)
-                                                            .set_max_threads_per_core(max_threads_per_core)});
 #    if defined(_WIN32)
-                // Without core pinning the master thread stays confined to the process' primary group,
-                // so on >64-core (multi-group) machines soft-assign it to its group to spread streams.
-                pin_current_thread_to_group_soft(_numaNodeId);
+                // With multiple processor groups (>64 logical processors) tbbbind numa binding cannot
+                // move threads across groups, so mirror the pinning path: plain arena plus a soft group
+                // affinity observer. Single-group Windows keeps the standard numa-constrained arena.
+                if (GetActiveProcessorGroupCount() > 1) {
+                    _taskArena.reset(new custom::task_arena{concurrency});
+                    _observer.reset(new GroupObserver{*_taskArena, _numaNodeId, stream_id});
+                    _observer->observe(true);
+                } else
 #    endif
+                {
+                    _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
+                                                                .set_numa_id(real_numa_node_id)
+                                                                .set_max_concurrency(concurrency)
+                                                                .set_max_threads_per_core(max_threads_per_core)});
+                }
             } else if (_stream_type == STREAM_WITH_CORE_TYPE) {
                 // sys_core_types = [LPECore, Ecore, Pcore]
                 const auto sys_core_types = custom::info::core_types();
@@ -265,7 +310,7 @@ struct CPUStreamsExecutor::Impl {
         std::queue<Task> _taskQueue;
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
         std::unique_ptr<custom::task_arena> _taskArena;
-        std::unique_ptr<Observer> _observer;
+        std::unique_ptr<custom::task_scheduler_observer> _observer;
         std::vector<int> _cpu_ids;
 #elif OV_THREAD == OV_THREAD_SEQ
         CpuSet _mask = nullptr;

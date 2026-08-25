@@ -114,6 +114,9 @@ bool pin_current_thread_to_group_soft(int /*group_id*/) {
     // Linux has no 64-processor group limit; the scheduler already spans all cores/NUMA nodes.
     return false;
 }
+int get_current_thread_group() {
+    return -1;
+}
 #elif defined(_WIN32)
 std::tuple<CpuSet, int> get_process_mask() {
     DWORD_PTR pro_mask, sys_mask;
@@ -175,6 +178,13 @@ bool pin_current_thread_to_group_soft(int group_id) {
     group_affinity.Reserved[2] = 0;
     return 0 != SetThreadGroupAffinity(GetCurrentThread(), &group_affinity, NULL);
 }
+int get_current_thread_group() {
+    GROUP_AFFINITY group_affinity;
+    if (0 != GetThreadGroupAffinity(GetCurrentThread(), &group_affinity)) {
+        return static_cast<int>(group_affinity.Group);
+    }
+    return -1;
+}
 #else   // no threads pinning/binding on MacOS
 std::tuple<CpuSet, int> get_process_mask() {
     return std::make_tuple(nullptr, 0);
@@ -196,6 +206,9 @@ bool pin_current_thread_to_socket(int socket) {
 }
 bool pin_current_thread_to_group_soft(int group_id) {
     return false;
+}
+int get_current_thread_group() {
+    return -1;
 }
 #endif  // !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
 }  // namespace threading
