@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-25-10-13-22-000-32835607686",
+  "timestamp": "2026-08-25T10:13:22Z",
+  "run_id": "32835607686",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32835607686",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "pr_number": "37556",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37556",
+  "author": "praasz",
+  "category": "External Service",
+  "title": "Smart CI fails: GitHub API returns HTTP 500 on repos.get_branch call",
+  "signature": "urllib error HTTPError HTTP Error 500 Internal Server Error|External Service",
+  "signature_hash": "979eeb6f32c4ab64",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Smart_CI",
+      "conclusion": "failure",
+      "symptom": "Get affected components step fails with urllib.error.HTTPError: HTTP Error 500: Internal Server Error when calling gh_api.repos.get_branch"
+    },
+    {
+      "name": "ci/gha_overall_status_windows_cc",
+      "conclusion": "failure",
+      "symptom": "Overall status check fails because Smart_CI job failed"
+    }
+  ],
+  "key_errors": [
+    "File \"/home/runner/work/openvino/openvino/./.github/actions/smart-ci/smart_ci.py\", line 122, in get_changeset\n    target_branch_head_commit = gh_api.repos.get_branch(target_branch).commit.sha\nurllib.error.HTTPError: HTTP Error 500: Internal Server Error\n====Error Body===="
+  ],
+  "root_cause": "The Smart CI script called the GitHub API endpoint repos.get_branch to determine the target branch head commit for changeset computation. GitHub's API returned an HTTP 500 Internal Server Error with an empty response body, indicating a transient server-side failure on GitHub's infrastructure. This caused the smart_ci.py script to raise an unhandled HTTPError and exit with code 1, blocking the entire merge-queue run. This is not related to any code change in the PR; it is a transient GitHub API availability issue.",
+  "reproduction_steps": "N/A - transient GitHub API failure; not reproducible outside of the specific time window when GitHub's API was degraded.",
+  "recommended_actions": [
+    "Re-trigger the merge-queue run (automated remediation requested via remediate_transient_failure).",
+    "If failures persist, check https://www.githubstatus.com/ for GitHub API degradation.",
+    "Consider adding retry logic with exponential backoff in smart_ci.py around the repos.get_branch API call to make the script resilient to transient GitHub API 5xx errors."
+  ],
+  "prevention_strategies": "Add retry/backoff logic in smart_ci.py for GitHub API calls that are prone to transient 5xx errors. A simple exponential backoff with 3 retries would prevent this class of failure from blocking the merge queue.",
+  "historical_context": "This is the first recorded occurrence of a GitHub API HTTP 500 error in Smart CI. Similar transient External Service failures in the Smart CI have been seen before (e.g., SSL certificate errors, ghapi/fastcore library issues). The fix pattern is always to re-trigger the run."
+}

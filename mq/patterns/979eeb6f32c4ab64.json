@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "urllib error HTTPError HTTP Error 500 Internal Server Error|External Service",
+  "signature_hash": "979eeb6f32c4ab64",
+  "title": "Smart CI fails: GitHub API returns HTTP 500 on repos.get_branch call",
+  "category": "External Service",
+  "count": 1,
+  "first_seen": "2026-08-25T10:13:22Z",
+  "last_seen": "2026-08-25T10:13:22Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/32835607686"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37556"
+  ],
+  "recent_timestamps": [
+    "2026-08-25T10:13:22Z"
+  ],
+  "rerun_search_string": "HTTP Error 500: Internal Server Error"
+}
