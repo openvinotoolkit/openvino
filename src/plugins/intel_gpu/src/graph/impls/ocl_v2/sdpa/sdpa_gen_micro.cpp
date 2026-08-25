@@ -1576,13 +1576,8 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
             config->wg_n_vs = wg_cfg[3];
         }
     }
-    GPU_DEBUG_TRACE_DETAIL << "is_prefill=" << is_prefill << " single_token " << is_gqa_single_token << " Chosen config for xe_hpg: "
-            << config->wg_m_kq << ", "
-            << config->wg_n_kq << ", "
-            << config->wg_m_vs << ", "
-            << config->wg_n_vs << ", "
-            << std::endl;
-
+    GPU_DEBUG_TRACE_DETAIL << "is_prefill=" << is_prefill << " single_token " << is_gqa_single_token << " Chosen config for xe_hpg: " << config->wg_m_kq << ", "
+                           << config->wg_n_kq << ", " << config->wg_m_vs << ", " << config->wg_n_vs << ", " << std::endl;
     OPENVINO_ASSERT(config != nullptr);
 
     /* Get device information */
