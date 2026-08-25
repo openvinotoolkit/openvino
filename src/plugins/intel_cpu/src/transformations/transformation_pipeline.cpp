@@ -224,6 +224,10 @@
 #    include "transformations/utils/utils.hpp"
 #endif
 
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "transformations/cpu_opset/x64/pass/preserve_selective_ssm_jit_precision.hpp"
+#endif
+
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    include "low_precision/avg_pool.hpp"
 #    include "low_precision/convolution.hpp"
@@ -626,6 +630,11 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // supported, this may lead to inconsistency during element type propagation. This transformation is called before
     // the ConvertPrecision pass to align the actual precisions with the list of supported ones.
     constexpr bool convert_input_output_precision = false;
+#if defined(OPENVINO_ARCH_X86_64)
+    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
+        CPU_REGISTER_PASS_X64(manager, PreserveSelectiveSSMJitPrecision);
+    }
+#endif
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::InsertConvertAfterExtension, convert_input_output_precision);
     // Do not insert pass::Validate between pass::InsertConvertAfterExtension and pass::ConvertPrecision.
     // This may result in the loss of the original Element type of the Output .
