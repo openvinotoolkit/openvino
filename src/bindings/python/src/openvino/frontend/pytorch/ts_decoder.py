@@ -398,79 +398,31 @@ class TorchScriptPythonDecoder(Decoder):
             return 0
 
         max_output_index = -1
-        has_getitem = False
         output = self.raw_outputs[0]
         for use in output.uses():
             user = use.user
             if user.kind() == "prim::ListUnpack":
                 max_output_index = max(max_output_index, len(list(user.outputs())) - 1)
             elif user.kind() == "aten::__getitem__":
-                has_getitem = True
                 index = list(user.inputs())[1].toIValue()
                 if isinstance(index, int):
                     max_output_index = max(max_output_index, index)
-
-        # aten::__getitem__ only reveals the highest index accessed, not the true
-        # number of produced tensors. Derive the real arity from the traced input
-        # shape so every indexed slice lowers to the correct chunk.
-        if has_getitem:
-            arity = self._list_producing_arity()
-            if arity is not None:
-                return arity
 
         if max_output_index >= 0:
             return max_output_index + 1
 
         if any(use.user.kind() == "prim::Return" for use in output.uses()):
-            arity = self._list_producing_arity()
-            if arity is not None:
-                return arity
+            if self.get_op_type() in ["aten::chunk", "aten::unsafe_chunk"]:
+                chunks = self.raw_inputs[1].toIValue()
+                if isinstance(chunks, int):
+                    return chunks
+            elif self.get_op_type() == "aten::unbind":
+                dim = 0 if len(self.raw_inputs) < 2 else self.raw_inputs[1].toIValue()
+                input_shape = self.get_shape_for_value(self.raw_inputs[0])
+                if isinstance(dim, int) and input_shape.rank.is_static:
+                    return input_shape[dim].get_length()
 
         return 0
-
-    def _list_producing_arity(self):
-        """Number of tensors produced by a list-producing op (aten::chunk,
-        aten::unsafe_chunk, aten::unbind) derived from the traced static input
-        shape. Returns None when it cannot be determined (dynamic size or
-        unsupported op) so the caller can fall back to consumer-based counting.
-        """
-        op_type = self.get_op_type()
-        if op_type not in ["aten::chunk", "aten::unsafe_chunk", "aten::unbind"]:
-            return None
-
-        def static_dim_size(dim):
-            raw = self.raw_inputs[0]
-            if not isinstance(raw, torch.Value) or not raw.isCompleteTensor():
-                return None
-            sizes = raw.type().sizes()
-            if not sizes:
-                return None
-            rank = len(sizes)
-            if dim < 0:
-                dim += rank
-            if dim < 0 or dim >= rank:
-                return None
-            size = sizes[dim]
-            return size if isinstance(size, int) and size >= 0 else None
-
-        if op_type in ["aten::chunk", "aten::unsafe_chunk"]:
-            chunks = self.raw_inputs[1].toIValue()
-            dim = 0 if len(self.raw_inputs) < 3 else self.raw_inputs[2].toIValue()
-            if not (isinstance(chunks, int) and chunks > 0 and isinstance(dim, int)):
-                return None
-            dim_size = static_dim_size(dim)
-            if dim_size is None:
-                return None
-            chunk_size = -(-dim_size // chunks)  # ceil(dim_size / chunks)
-            if chunk_size <= 0:
-                return None
-            return -(-dim_size // chunk_size)  # ceil(dim_size / chunk_size)
-
-        # aten::unbind
-        dim = 0 if len(self.raw_inputs) < 2 else self.raw_inputs[1].toIValue()
-        if not isinstance(dim, int):
-            return None
-        return static_dim_size(dim)
 
     def output(self, index: int):
         return self.outputs()[index]
