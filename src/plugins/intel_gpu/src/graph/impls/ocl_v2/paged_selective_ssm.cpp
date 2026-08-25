@@ -26,6 +26,12 @@ constexpr size_t max_jit_state_size = 512;
 // Paged recurrence amortizes wider Xe2 private state; f32 and bf16 retain SLM beyond 256 elements.
 constexpr size_t max_xe2_extended_private_state_size = 256;
 constexpr size_t max_xe2_f16_private_state_size = 512;
+// A separate dA kernel wins only when a long recurrence amortizes its launch and temporary-buffer traffic.
+constexpr size_t precompute_da_min_tokens = 3072;
+constexpr size_t precompute_da_min_head_dim_groups = 12;
+constexpr size_t precompute_da_min_state_size = 128;
+constexpr size_t precompute_da_reference_head_dim_groups = 16;
+constexpr size_t precompute_da_min_group_tokens = precompute_da_min_tokens * precompute_da_reference_head_dim_groups;
 
 bool has_supported_indexing(const cldnn::layout& layout) {
     return layout.get_partial_shape().is_dynamic() || (layout.data_padding == cldnn::padding() && layout.count() <= std::numeric_limits<uint32_t>::max());
@@ -60,11 +66,90 @@ bool use_discrete_slm(const RuntimeParams& params) {
     return !supports_private_state;
 }
 
-template <selective_ssm_jit::device_kind Kind>
+size_t get_precomputed_da_head_dim_groups(const RuntimeParams& params) {
+    const auto& info = params.get_device_info();
+    if (info.dev_type != cldnn::device_type::discrete_gpu || info.arch < cldnn::gpu_arch::xe2)
+        return 0;
+
+    const auto& x_shape = params.get_input_layout(3).get_partial_shape();
+    const auto& B_shape = params.get_input_layout(2).get_partial_shape();
+    const size_t head_dim = x_shape[2].get_length();
+    const size_t state_size = B_shape[2].get_length();
+    if (state_size < precompute_da_min_state_size)
+        return 0;
+
+    const size_t subgroup_size = selective_ssm_jit::get_subgroup_size(info, selective_ssm_jit::device_kind::discrete);
+    const size_t head_dim_block = selective_ssm_jit::get_head_dim_block(head_dim,
+                                                                        state_size,
+                                                                        subgroup_size,
+                                                                        info,
+                                                                        selective_ssm_jit::device_kind::discrete,
+                                                                        selective_ssm_jit::paged_private_value_budget);
+    return head_dim_block == 0 ? 0 : cldnn::ceil_div(head_dim, head_dim_block);
+}
+
+bool supports_precomputed_da(const RuntimeParams& params) {
+    return get_precomputed_da_head_dim_groups(params) >= precompute_da_min_head_dim_groups;
+}
+
+bool use_precomputed_da(const RuntimeParams& params) {
+    const size_t head_dim_groups = get_precomputed_da_head_dim_groups(params);
+    if (head_dim_groups < precompute_da_min_head_dim_groups)
+        return false;
+
+    if (params.is_dynamic())
+        return true;
+
+    const size_t min_tokens = std::max(precompute_da_min_tokens, cldnn::ceil_div(precompute_da_min_group_tokens, head_dim_groups));
+    return static_cast<size_t>(params.get_input_layout(1).get_partial_shape()[0].get_length()) >= min_tokens;
+}
+
+class PagedSelectiveSSMJitPrecomputeGenerator : public KernelGenerator {
+public:
+    PagedSelectiveSSMJitPrecomputeGenerator() : KernelGenerator("paged_selective_ssm_jit_precompute") {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = KernelGenerator::get_jit_constants(params);
+        const auto& x_shape = params.get_input_layout(3).get_partial_shape();
+        if (!params.is_dynamic())
+            jit.make("SSM_TOKEN_COUNT", x_shape[0].get_length());
+        jit.make("SSM_NUM_HEADS", x_shape[1].get_length());
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        Arguments args;
+        if (params.is_dynamic())
+            args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+        args.push_back({ArgumentDescriptor::Types::INPUT, 0});
+        args.push_back({ArgumentDescriptor::Types::INPUT, 1});
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
+            const size_t lws = std::min<size_t>(256, params.get_device_info().max_work_group_size);
+            if (params.is_dynamic()) {
+                kd.params.workGroups.global = {lws, 1, 1};
+                kd.params.workGroups.local = {lws, 1, 1};
+                return;
+            }
+
+            const size_t work_items = params.get_input_layout(1).count();
+            kd.params.workGroups.global = {cldnn::ceil_div(work_items, lws) * lws, 1, 1};
+            kd.params.workGroups.local = {lws, 1, 1};
+        }};
+    }
+};
+
+template <selective_ssm_jit::device_kind Kind, bool PrecomputeDA = false>
 class PagedSelectiveSSMJitGenerator : public KernelGenerator {
 public:
     PagedSelectiveSSMJitGenerator()
-        : KernelGenerator(Kind == selective_ssm_jit::device_kind::integrated ? "paged_selective_ssm_jit_integrated" : "paged_selective_ssm_jit_discrete") {}
+        : KernelGenerator(Kind == selective_ssm_jit::device_kind::integrated ? "paged_selective_ssm_jit_integrated" : "paged_selective_ssm_jit_discrete",
+                          PrecomputeDA ? "precomputed_da" : "") {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -90,6 +175,7 @@ protected:
         jit.make("SSM_SUBGROUP_SIZE", subgroup_size);
         jit.make("SSM_HEAD_DIM_BLOCK", head_dim_block);
         jit.make("SSM_STATE_ITERATIONS", cldnn::ceil_div(state_size, subgroup_size));
+        jit.make("SSM_JIT_PRECOMPUTE_DA", PrecomputeDA);
         if constexpr (Kind == selective_ssm_jit::device_kind::discrete)
             jit.make("SSM_JIT_USE_SLM", use_discrete_slm(params));
         return jit;
@@ -102,6 +188,8 @@ protected:
         for (uint32_t i = 0; i < params.input_layouts.size(); i++)
             args.push_back({ArgumentDescriptor::Types::INPUT, i});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+        if constexpr (PrecomputeDA)
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         if constexpr (Kind == selective_ssm_jit::device_kind::discrete) {
             if (use_discrete_slm(params))
                 args.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, 0});
@@ -316,15 +404,40 @@ class PagedSelectiveSSMJitDiscreteImpl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::PagedSelectiveSSMJitDiscreteImpl)
 
+    Stage::Ptr precompute_da = make_stage<PagedSelectiveSSMJitPrecomputeGenerator>();
+    Stage::Ptr paged_selective_ssm_precomputed = make_stage<PagedSelectiveSSMJitGenerator<selective_ssm_jit::device_kind::discrete, true>>();
     Stage::Ptr paged_selective_ssm = make_stage<PagedSelectiveSSMJitGenerator<selective_ssm_jit::device_kind::discrete>>();
 
     PagedSelectiveSSMJitDiscreteImpl() : PrimitiveImplOCL(PagedSelectiveSSMJitDiscrete::get_type_info_static()) {}
     PagedSelectiveSSMJitDiscreteImpl(const program_node&, const RuntimeParams& params) : PagedSelectiveSSMJitDiscreteImpl() {
-        add_stage(paged_selective_ssm, params);
+        const bool precompute = use_precomputed_da(params);
+        if (precompute) {
+            add_stage(precompute_da, params);
+            add_stage(paged_selective_ssm_precomputed, params);
+        }
+        if ((params.is_dynamic() && supports_precomputed_da(params)) || !precompute)
+            add_stage(paged_selective_ssm, params);
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
         return make_deep_copy<PagedSelectiveSSMJitDiscreteImpl>(this);
+    }
+
+    [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const RuntimeParams& params) const override {
+        if (!has_stage(precompute_da))
+            return {};
+
+        const auto& dt_layout = params.get_input_layout(1);
+        const size_t elements =
+            use_precomputed_da(params) ? (dt_layout.is_dynamic() ? ov::shape_size(dt_layout.get_partial_shape().get_max_shape()) : dt_layout.count()) : 1;
+        return {BufferDescriptor{elements, ov::element::f32}};
+    }
+
+    [[nodiscard]] std::vector<size_t> get_stages_execution_order(const RuntimeParams& params) const override {
+        if (use_precomputed_da(params))
+            return {0, 1};
+
+        return {2};
     }
 };
 

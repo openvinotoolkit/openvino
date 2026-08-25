@@ -9,6 +9,8 @@
 
 #if IS_DYNAMIC
 #    define SSM_RUNTIME_INDEX(value) ((size_t)(value))
+#    define SSM_TOKEN_TYPE long
+#    define SSM_COUNTDOWN_TYPE ulong
 #    define SSM_A_INDEX GET_DATA_INDEX(INPUT0, h, 0, 0, 0)
 #    define SSM_DT_INDEX(token) GET_DATA_INDEX(INPUT1, token, h, 0, 0)
 #    define SSM_B_INDEX(token, state_element) GET_DATA_INDEX(INPUT2, token, g, state_element, 0)
@@ -23,6 +25,8 @@
 #    define SSM_INTERVAL_INDEX(index) GET_DATA_INDEX(INPUT10, index, 0, 0, 0)
 #else
 #    define SSM_RUNTIME_INDEX(value) ((uint)(value))
+#    define SSM_TOKEN_TYPE uint
+#    define SSM_COUNTDOWN_TYPE uint
 #    define SSM_A_INDEX h
 #    define SSM_DT_INDEX(token) (((token) * SSM_NUM_HEADS) + h)
 #    define SSM_B_INDEX(token, state_element) \
@@ -38,6 +42,9 @@
 #    define SSM_PROCESSED_INDEX(index) (index)
 #    define SSM_INTERVAL_INDEX(index) (index)
 #endif
+#if SSM_JIT_PRECOMPUTE_DA
+#    define SSM_PRECOMPUTED_DA_INDEX(token) (((token) * SSM_NUM_HEADS) + h)
+#endif
 REQD_SUB_GROUP_SIZE(SSM_SUBGROUP_SIZE)
 KERNEL(SSM_JIT_KERNEL)(OPTIONAL_SHAPE_INFO_ARG
                        const __global INPUT0_TYPE* A,
@@ -52,6 +59,9 @@ KERNEL(SSM_JIT_KERNEL)(OPTIONAL_SHAPE_INFO_ARG
                        const __global INPUT9_TYPE* num_processed_tokens,
                        const __global INPUT10_TYPE* cache_interval,
                        __global OUTPUT_TYPE* output
+#if SSM_JIT_PRECOMPUTE_DA
+                       , const __global float* precomputed_dA
+#endif
 #if SSM_JIT_USE_SLM
                        , __local float* slm_state
 #endif
@@ -100,6 +110,9 @@ KERNEL(SSM_JIT_KERNEL)(OPTIONAL_SHAPE_INFO_ARG
     if (token_begin == token_end)
         return;
 
+    const SSM_TOKEN_TYPE recurrence_begin = (SSM_TOKEN_TYPE)token_begin;
+    const SSM_TOKEN_TYPE recurrence_end = (SSM_TOKEN_TYPE)token_end;
+
     if (block_begin < 0 || block_end <= block_begin || (ulong)block_end > (ulong)INPUT7_BATCH_NUM) {
         if (lane == 0) {
             for (long token = token_begin; token < token_end; ++token) {
@@ -135,7 +148,12 @@ KERNEL(SSM_JIT_KERNEL)(OPTIONAL_SHAPE_INFO_ARG
     const bool cache_enabled = interval > 0;
     const ulong positive_interval = cache_enabled ? (ulong)interval : 1;
     const ulong previous_in_interval = cache_enabled ? (ulong)processed % positive_interval : 0;
-    ulong tokens_until_boundary = cache_enabled ? positive_interval - previous_in_interval : 0;
+#if IS_DYNAMIC
+    SSM_COUNTDOWN_TYPE tokens_until_boundary = cache_enabled ? positive_interval - previous_in_interval : 0;
+#else
+    SSM_COUNTDOWN_TYPE tokens_until_boundary =
+        cache_enabled ? (uint)min(positive_interval - previous_in_interval, (ulong)0xffffffffu) : 0;
+#endif
     ulong write_slot = 1;
     const uint g = h / (SSM_NUM_HEADS / SSM_NUM_GROUPS);
     const float A_lane = lane == 0 ? SSM_TO_FLOAT(A[SSM_A_INDEX]) : 0.0f;
@@ -149,7 +167,7 @@ KERNEL(SSM_JIT_KERNEL)(OPTIONAL_SHAPE_INFO_ARG
 #include "selective_ssm_jit_load_state.cl"
 #undef SSM_JIT_LOAD_STATE
 
-    for (long token = token_begin; token < token_end; ++token) {
+    for (SSM_TOKEN_TYPE token = recurrence_begin; token < recurrence_end; ++token) {
 #if IS_DYNAMIC
         const size_t token_idx = (size_t)token;
 #else
@@ -161,7 +179,7 @@ KERNEL(SSM_JIT_KERNEL)(OPTIONAL_SHAPE_INFO_ARG
 
         if (cache_enabled) {
             const bool at_boundary = --tokens_until_boundary == 0;
-            const bool at_sequence_end = token + 1 == token_end;
+            const bool at_sequence_end = token + 1 == recurrence_end;
             if (at_boundary || at_sequence_end) {
                 const ulong block_position = (ulong)block_begin + write_slot++;
                 if (block_position < (ulong)block_end && block_position < (ulong)INPUT7_BATCH_NUM) {
@@ -173,8 +191,13 @@ KERNEL(SSM_JIT_KERNEL)(OPTIONAL_SHAPE_INFO_ARG
 #undef SSM_JIT_STORE_STATE
                     }
                 }
-                if (at_boundary)
+                if (at_boundary) {
+#if IS_DYNAMIC
                     tokens_until_boundary = positive_interval;
+#else
+                    tokens_until_boundary = (uint)min(positive_interval, (ulong)0xffffffffu);
+#endif
+                }
             }
         }
     }
@@ -182,6 +205,8 @@ KERNEL(SSM_JIT_KERNEL)(OPTIONAL_SHAPE_INFO_ARG
 
 #undef SSM_TO_FLOAT
 #undef SSM_RUNTIME_INDEX
+#undef SSM_TOKEN_TYPE
+#undef SSM_COUNTDOWN_TYPE
 #undef SSM_A_INDEX
 #undef SSM_DT_INDEX
 #undef SSM_B_INDEX
@@ -194,4 +219,7 @@ KERNEL(SSM_JIT_KERNEL)(OPTIONAL_SHAPE_INFO_ARG
 #undef SSM_BLOCK_BEGIN_INDEX
 #undef SSM_PROCESSED_INDEX
 #undef SSM_INTERVAL_INDEX
+#if SSM_JIT_PRECOMPUTE_DA
+#    undef SSM_PRECOMPUTED_DA_INDEX
+#endif
 #undef SSM_STATE_AT

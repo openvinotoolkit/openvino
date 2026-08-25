@@ -6,7 +6,11 @@
 // SSM_*_INDEX macros, SSM_TOKEN_INDEX, and recurrence-state storage.
 const float dt_lane = lane == 0 ? SSM_TO_FLOAT(dt[SSM_DT_INDEX(SSM_TOKEN_INDEX)]) : 0.0f;
 const float dt_value = sub_group_broadcast(dt_lane, 0);
+#if SSM_JIT_PRECOMPUTE_DA
+const float dA_lane = lane == 0 ? precomputed_dA[SSM_PRECOMPUTED_DA_INDEX(SSM_TOKEN_INDEX)] : 0.0f;
+#else
 const float dA_lane = lane == 0 ? exp(A_value * dt_value) : 0.0f;
+#endif
 const float dA = sub_group_broadcast(dA_lane, 0);
 float input_scales[SSM_HEAD_DIM_BLOCK];
 float partial[SSM_HEAD_DIM_BLOCK];
