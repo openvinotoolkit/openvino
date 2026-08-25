@@ -672,28 +672,28 @@ namespace {
 class HFAFakePlugin final : public ov::IPlugin {
 public:
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,
-                                                       const ov::AnyMap&) const override {
+                                                      const ov::AnyMap&) const override {
         OPENVINO_THROW("Unexpected compile_model call");
     }
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,
-                                                       const ov::AnyMap&,
-                                                       const ov::SoPtr<ov::IRemoteContext>&) const override {
+                                                      const ov::AnyMap&,
+                                                      const ov::SoPtr<ov::IRemoteContext>&) const override {
         OPENVINO_THROW("Unexpected compile_model(context) call");
     }
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream&, const ov::AnyMap&) const override {
         OPENVINO_THROW("Unexpected import_model(stream) call");
     }
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream&,
-                                                      const ov::SoPtr<ov::IRemoteContext>&,
-                                                      const ov::AnyMap&) const override {
+                                                     const ov::SoPtr<ov::IRemoteContext>&,
+                                                     const ov::AnyMap&) const override {
         OPENVINO_THROW("Unexpected import_model(stream, context) call");
     }
     std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor&, const ov::AnyMap&) const override {
         OPENVINO_THROW("Unexpected import_model(blob) call");
     }
     std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor&,
-                                                      const ov::SoPtr<ov::IRemoteContext>&,
-                                                      const ov::AnyMap&) const override {
+                                                     const ov::SoPtr<ov::IRemoteContext>&,
+                                                     const ov::AnyMap&) const override {
         OPENVINO_THROW("Unexpected import_model(blob, context) call");
     }
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>&, const ov::AnyMap&) const override {
@@ -738,7 +738,7 @@ std::shared_ptr<ov::Model> make_hfa_stub_model(std::size_t num_inputs, std::size
     ov::ParameterVector params;
     ov::ResultVector results;
     for (std::size_t i = 0; i < num_inputs; ++i) {
-        params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1}));
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 1, 1}));
     }
     for (std::size_t i = 0; i < num_outputs; ++i) {
         auto add = std::make_shared<ov::op::v1::Add>(params.at(0), params.at(0));
@@ -752,6 +752,32 @@ ov::SoPtr<ov::ICompiledModel> make_hfa_fake_compiled_model(const std::shared_ptr
                                                            std::size_t num_outputs) {
     auto model = make_hfa_stub_model(num_inputs, num_outputs);
     return ov::SoPtr<ov::ICompiledModel>(std::make_shared<HFAFakeCompiledModel>(model, plugin));
+}
+
+ov::npuw::compiled::HostFlashAttention make_deserialized_hfa(std::size_t k_seq_dim,
+                                                             std::size_t v_seq_dim,
+                                                             std::size_t context_size = 32) {
+    using namespace ov::npuw::s11n;
+
+    ov::npuw::compiled::HostFlashAttention source;
+    source._sdpa_attention_info._query_size = 8;
+    source._sdpa_attention_info._context_size = context_size;
+    source._sdpa_attention_info._k_seq_dim = k_seq_dim;
+    source._sdpa_attention_info._v_seq_dim = v_seq_dim;
+    source._sdpa_attention_info._sdpa_indices = {0, {0}, {0}, 0, 0, 0};
+    source._sdpa_attention_info._tile_input_indices = {0, 1, 2, 3, 0, 1, 2};
+    source._sdpa_attention_info._tile_output_indices = {0, 1, 2};
+    source._tile_size = 64;
+
+    ov::npuw::compiled::HostFlashAttention result;
+    std::stringstream stream;
+    write(stream, source);
+    read(stream, result);
+
+    auto plugin = std::make_shared<HFAFakePlugin>();
+    result._compiled_tile_model = make_hfa_fake_compiled_model(plugin, 3, 3);
+    result._compiled_final_tile_model = make_hfa_fake_compiled_model(plugin, 4, 3);
+    return result;
 }
 
 }  // namespace
@@ -788,6 +814,64 @@ TEST(SerializationTest, HostFlashAttention_OutOfRangeTileIndexRejectedAfterDeser
     res._compiled_final_tile_model = make_hfa_fake_compiled_model(plugin, /*num_inputs=*/4, /*num_outputs=*/3);
 
     EXPECT_FALSE(res.is_valid());
+}
+
+TEST(SerializationTest, HostFlashAttention_OutOfRangeKSeqDimRejectedAfterDeserialization) {
+    auto hfa = make_deserialized_hfa(/*k_seq_dim=*/4, /*v_seq_dim=*/2);
+
+    EXPECT_FALSE(hfa.is_valid());
+}
+
+TEST(SerializationTest, HostFlashAttention_OutOfRangeVSeqDimRejectedAfterDeserialization) {
+    auto hfa = make_deserialized_hfa(/*k_seq_dim=*/1, /*v_seq_dim=*/4);
+
+    EXPECT_FALSE(hfa.is_valid());
+}
+
+// Positive control for the rejection tests above: the baseline configuration they are derived from
+// must be accepted. Without it, an over-strict is_valid() - which would break every HFA inference
+// at the OPENVINO_ASSERT in ensure_hfa_requests - would still leave those tests green.
+TEST(SerializationTest, HostFlashAttention_ValidConfigurationAcceptedAfterDeserialization) {
+    auto hfa = make_deserialized_hfa(/*k_seq_dim=*/1, /*v_seq_dim=*/2);
+
+    EXPECT_TRUE(hfa.is_valid());
+}
+
+// Mask-skipping optimization: the regular tile model is compiled without a mask input, so the
+// mask index deliberately points past its inputs while still addressing the final tile model's
+// mask port. is_valid() must accept that, and must still reject an index that is out of range
+// for the final tile model as well.
+TEST(SerializationTest, HostFlashAttention_MaskSkippingConfigurationAccepted) {
+    auto hfa = make_deserialized_hfa(/*k_seq_dim=*/1, /*v_seq_dim=*/2);
+    auto plugin = std::make_shared<HFAFakePlugin>();
+
+    // Regular tile model: [acc, max, d, k, v, q]; final tile model additionally has mask at index 6.
+    hfa._sdpa_attention_info._tile_input_indices = {/*q=*/5,
+                                                    /*k=*/3,
+                                                    /*v=*/4,
+                                                    /*mask=*/6,
+                                                    /*acc=*/0,
+                                                    /*max=*/1,
+                                                    /*d=*/2};
+    hfa._compiled_tile_model = make_hfa_fake_compiled_model(plugin, /*num_inputs=*/6, /*num_outputs=*/3);
+    hfa._compiled_final_tile_model = make_hfa_fake_compiled_model(plugin, /*num_inputs=*/7, /*num_outputs=*/3);
+    EXPECT_TRUE(hfa.is_valid());
+
+    hfa._compiled_final_tile_model = make_hfa_fake_compiled_model(plugin, /*num_inputs=*/6, /*num_outputs=*/3);
+    EXPECT_FALSE(hfa.is_valid());
+}
+
+// _context_size feeds the mask tile buffer allocation loop in
+// HFARuntimeContext::initialize_mask_cache (context_size / query_size device allocations), so
+// values that are zero, not a whole number of tiles, or absurdly large must be rejected.
+TEST(SerializationTest, HostFlashAttention_InvalidContextSizeRejectedAfterDeserialization) {
+    EXPECT_FALSE(make_deserialized_hfa(/*k_seq_dim=*/1, /*v_seq_dim=*/2, /*context_size=*/0).is_valid());
+    EXPECT_FALSE(make_deserialized_hfa(/*k_seq_dim=*/1, /*v_seq_dim=*/2, /*context_size=*/33).is_valid());
+    // Divisible by query_size (8), but would request 2^61 mask tile buffers.
+    EXPECT_FALSE(make_deserialized_hfa(/*k_seq_dim=*/1,
+                                       /*v_seq_dim=*/2,
+                                       /*context_size=*/std::numeric_limits<std::size_t>::max() - 7)
+                     .is_valid());
 }
 
 TEST(SerializationTest, OVTypes_MoEExperts) {

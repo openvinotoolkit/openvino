@@ -473,9 +473,15 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
     // Sub-byte views are not supported here
     NPUW_ASSERT(type != ov::element::u4 && type != ov::element::i4);
 
+    const auto& src_shape = src->get_shape();
+    NPUW_ASSERT(from.size() == src_shape.size());
+
     const auto num_dims = from.size();
     ov::Shape view_shape;
     for (auto d = 0u; d < num_dims; d++) {
+        // The window must stay inside the source tensor - otherwise the resulting view would
+        // advertise memory the source tensor does not own.
+        NPUW_ASSERT(from[d] <= to[d] && to[d] <= src_shape[d] && "NPUW view window is out of the source tensor bounds");
         view_shape.push_back(to[d] - from[d]);
     }
 
@@ -497,6 +503,10 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
                                             std::size_t len) {
     const auto& shape = src->get_shape();
     NPUW_ASSERT(dim < shape.size());
+    // Check the extent before computing offset + len so that a corrupted (huge) offset or length
+    // cannot wrap around std::size_t and slip past the validation in the View-based overload.
+    NPUW_ASSERT(offset <= shape[dim] && len <= shape[dim] - offset &&
+                "NPUW view window is out of the source tensor bounds");
     View view_start = View(shape.size(), 0u);
     View view_end = shape;
     view_start[dim] = offset;
