@@ -99,26 +99,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
     // TODO what should _config.get<EXPORT_RAW_BLOB>() do now?
-    if (_propertiesManager->getConfig().has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
-        _propertiesManager->getConfig().get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
-        std::string encryptedBlobStr;
-        {
-            std::string tmpBlobStr;
-            {
-                std::stringstream tmpStringStream;
-                _blobWriter->write_to(tmpStringStream);  // +1x blob size
-                tmpBlobStr = tmpStringStream.str();      // +2x blob size
-            }  // -1x blob size when deallocating temporary stringstream
-            encryptedBlobStr =
-                _propertiesManager->getConfig().get<CACHE_ENCRYPTION_CALLBACKS>().encrypt(tmpBlobStr);  // +2x blob size
-            blobSizeAfterEncryption = encryptedBlobStr.size();
-        }  // -1x blob size when deallocating temporary blob string
-        stream.write(encryptedBlobStr.c_str(), encryptedBlobStr.size());
-    }  // -1x blob size when deallocating encrypted blob string
-    else {
-        //  Write blob directly to user's output stream
-        _blobWriter->write_to(stream);
-    }
+    _blobWriter->write_to(stream);
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {

@@ -24,22 +24,6 @@ ov::Tensor allocate_aligned_tensor(size_t blobSize) {
     return ov::Tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
 }
 
-ov::Tensor encrypt_blob(const ov::Tensor target) {
-    std::string encryptedBlobStr;
-    {
-        std::string tmpBlobStr;
-        {
-            std::stringstream tmpStringStream;
-            _blobWriter->write_to(tmpStringStream);  // +1x blob size
-            tmpBlobStr = tmpStringStream.str();      // +2x blob size
-        }  // -1x blob size when deallocating temporary stringstream
-        encryptedBlobStr =
-            _propertiesManager->getConfig().get<CACHE_ENCRYPTION_CALLBACKS>().encrypt(tmpBlobStr);  // +2x blob size
-        blobSizeAfterEncryption = encryptedBlobStr.size();
-    }  // -1x blob size when deallocating temporary blob string
-    stream.write(encryptedBlobStr.c_str(), encryptedBlobStr.size());
-}
-
 }  // namespace
 
 namespace intel_npu {
@@ -81,7 +65,26 @@ void ELFMainScheduleSection::write(BlobWriterInterface& writer) {
 
     m_logger.debug("Added %lu padding to offset %lu", padding_size, offset);
 
-    (*graph)->export_main_blob(writer.m_stream.get());
+    if (!m_encryption_callbacks.has_value()) {
+        (*graph)->export_main_blob(writer.m_stream.get());
+        return;
+    }
+
+    // Encrypt the compiler payload, then write it
+    OPENVINO_ASSERT(m_encryption_callbacks->encrypt, "Missing encryption callback");
+
+    std::string encrypted_payload;
+    {
+        std::string tmp_plain_payload;
+        {
+            std::stringstream tmp_stream;
+            (*graph)->export_main_blob(tmp_stream);  // +1x blob size
+            tmp_plain_payload = tmp_stream.str();    // +2x blob size
+        }  // -1x blob size when deallocating temporary stringstream
+        encrypted_payload = m_encryption_callbacks->encrypt(tmp_plain_payload);  // +2x blob size
+    }  // -1x blob size when deallocating temporary blob string
+
+    writer.write_from(encrypted_payload.c_str(), encrypted_payload.size());
 }
 
 void ELFMainScheduleSection::set_graph(const std::shared_ptr<Graph>& graph) {
@@ -167,7 +170,27 @@ void ELFInitSchedulesSection::write(BlobWriterInterface& writer) {
     writer.write_from(&padding_size, sizeof(padding_size));
     writer.add_padding(padding_size);
 
-    const std::vector<uint64_t> init_sizes = (*weightless_graph)->export_init_blobs(writer.m_stream.get());
+    std::vector<uint64_t> init_sizes = (*weightless_graph)->export_init_blobs(writer.m_stream.get());
+
+    if (!m_encryption_callbacks.has_value()) {
+        init_sizes = (*weightless_graph)->export_init_blobs(writer.m_stream.get());
+    } else {
+        // Encrypt the compiler payload, then write it
+        OPENVINO_ASSERT(m_encryption_callbacks->encrypt, "Missing encryption callback");
+
+        std::string encrypted_payload;
+        {
+            std::string tmp_plain_payload;
+            {
+                std::stringstream tmp_stream;
+                init_sizes = (*weightless_graph)->export_init_blobs(tmp_stream);
+                tmp_plain_payload = tmp_stream.str();  // +2x blob size
+            }  // -1x blob size when deallocating temporary stringstream
+            encrypted_payload = m_encryption_callbacks->encrypt(tmp_plain_payload);  // +2x blob size
+        }  // -1x blob size when deallocating temporary blob string
+
+        writer.write_from(encrypted_payload.c_str(), encrypted_payload.size());
+    }
 
     // Go back and write the sizes of the init schedules
     writer.move_cursor_relative_to_current_section(will_get_to_this_later);

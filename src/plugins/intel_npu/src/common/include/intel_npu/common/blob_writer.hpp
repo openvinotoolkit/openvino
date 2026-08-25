@@ -120,6 +120,7 @@ public:
      */
     SectionTypeInstance register_section(const std::shared_ptr<ISection>& section);
 
+    // TODO raw write?
     /**
      * @brief Writes all sections within the writing queue into the provided stream.
      * @note This operation is idempotent. I.e. calling this function twice in a row (but on different streams) will
