@@ -14,6 +14,7 @@
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/paged_causal_conv1d.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
+#include "openvino/op/paged_selective_ssm.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
@@ -35,7 +36,8 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
 
     auto result = pattern::wrap_type<ov::op::PagedAttentionExtension>() |
                   pattern::wrap_type<ov::op::internal::PagedCausalConv1D>() |
-                  pattern::wrap_type<ov::op::internal::PagedGatedDeltaNet>();
+                  pattern::wrap_type<ov::op::internal::PagedGatedDeltaNet>() |
+                  pattern::wrap_type<ov::op::internal::PagedSelectiveSSM>();
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto root = m.get_match_root();
         bool status = false;
@@ -167,6 +169,23 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
             gated_delta_state_table->set_element_type(gated_delta_cache_precision);
             enable_keep_const_precision(gated_delta_state_table);
             gated_delta_state_table->validate_and_infer_types();
+            return true;
+        }
+
+        if (const auto paged_ssm = ov::as_type_ptr<ov::op::internal::PagedSelectiveSSM>(root)) {
+            auto ssm_state_table = ov::as_type_ptr<v0::Parameter>(paged_ssm->get_input_node_shared_ptr(5));
+            if (!ssm_state_table) {
+                return false;
+            }
+
+            auto ssm_cache_precision = m_config.inferencePrecision;
+            if (m_update_precision_func) {
+                m_update_precision_func(ssm_cache_precision);
+            }
+
+            ssm_state_table->set_element_type(ssm_cache_precision);
+            enable_keep_const_precision(ssm_state_table);
+            ssm_state_table->validate_and_infer_types();
             return true;
         }
 
