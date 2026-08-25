@@ -202,6 +202,18 @@ std::string runtime_backend_registry::make_public_device_id(runtime_types runtim
     return make_device_id(runtime_type, backend_device_id);
 }
 
+std::string runtime_backend_registry::select_default_device_id(
+    const std::vector<std::pair<runtime_types, std::string>>& available_devices) {
+    const auto default_runtime = default_backend().runtime_type;
+    const auto device_it = std::find_if(available_devices.begin(), available_devices.end(), [default_runtime](const auto& device) {
+        return device.first == default_runtime;
+    });
+    if (device_it == available_devices.end()) {
+        return {};
+    }
+    return make_public_device_id(device_it->first, device_it->second);
+}
+
 bool runtime_backend_registry::parse_device_id(const std::string& device_id, runtime_types& runtime_type, std::string& backend_device_id) {
     const auto separator = device_id.find('_');
     if (separator == std::string::npos || separator == 0 || separator + 1 == device_id.size()) {

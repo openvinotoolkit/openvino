@@ -51,3 +51,23 @@ TEST(runtime_backend_registry, rejects_older_or_incomplete_tagged_identity) {
     EXPECT_FALSE(runtime_backend_registry::parse_device_id("_0", runtime_type, backend_device_id));
     EXPECT_FALSE(runtime_backend_registry::parse_device_id("unknown_0", runtime_type, backend_device_id));
 }
+
+TEST(runtime_backend_no_fallback, missing_default_runtime_device_does_not_select_another_runtime) {
+    const auto default_runtime = runtime_backend_registry::default_backend().runtime_type;
+    const auto alternate_runtime = default_runtime == runtime_types::vulkan ? runtime_types::ocl : runtime_types::vulkan;
+    const std::vector<std::pair<runtime_types, std::string>> available_devices{{alternate_runtime, "0"}};
+
+    EXPECT_TRUE(runtime_backend_registry::select_default_device_id(available_devices).empty());
+}
+
+TEST(runtime_backend_no_fallback, selects_first_device_from_configured_default_runtime) {
+    const auto default_runtime = runtime_backend_registry::default_backend().runtime_type;
+    const auto alternate_runtime = default_runtime == runtime_types::vulkan ? runtime_types::ocl : runtime_types::vulkan;
+    const std::vector<std::pair<runtime_types, std::string>> available_devices{
+        {alternate_runtime, "0"},
+        {default_runtime, "1"},
+        {default_runtime, "2"},
+    };
+
+    EXPECT_EQ(runtime_backend_registry::select_default_device_id(available_devices), "1");
+}

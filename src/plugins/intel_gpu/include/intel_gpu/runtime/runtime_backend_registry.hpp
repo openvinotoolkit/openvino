@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "engine_configuration.hpp"
@@ -61,6 +62,7 @@ public:
 
     static std::string make_device_id(runtime_types runtime_type, const std::string& backend_device_id);
     static std::string make_public_device_id(runtime_types runtime_type, const std::string& backend_device_id);
+    static std::string select_default_device_id(const std::vector<std::pair<runtime_types, std::string>>& available_devices);
     static bool parse_device_id(const std::string& device_id, runtime_types& runtime_type, std::string& backend_device_id);
 };
 
