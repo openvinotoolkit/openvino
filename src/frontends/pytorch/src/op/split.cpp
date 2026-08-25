@@ -29,6 +29,35 @@ namespace op {
 
 using namespace ov::op;
 
+namespace {
+/// \brief Prepares a possibly-complex tensor for a split-like op.
+///
+/// When \p data is a ComplexTypeMark, \p dim is converted to i32 and normalized against the logical
+/// rank so negative axes never target the encoded real/imag dimension, and \p data is replaced by
+/// the underlying real tensor. Both \p data and \p dim are modified in place. When \p data is not
+/// complex, \p data and \p dim are left unchanged.
+///
+/// \param context Node context used for marking nodes.
+/// \param data Input tensor, unwrapped in place when complex.
+/// \param dim Split axis, converted to i32 and normalized in place when the input is complex.
+/// \return The ComplexTypeMark node when \p data was complex, otherwise nullptr; pass it to
+///         wrap_complex to re-wrap the split results.
+std::shared_ptr<ComplexTypeMark> unwrap_complex_split(const NodeContext& context,
+                                                      Output<Node>& data,
+                                                      Output<Node>& dim) {
+    auto complex = as_type_ptr<ComplexTypeMark>(data.get_node_shared_ptr());
+    if (complex) {
+        if (dim.get_element_type() != element::i32) {
+            dim = context.mark_node(std::make_shared<v0::Convert>(dim, element::i32));
+        }
+        auto rank = std::get<1>(get_shape_rank(context, data, true));
+        dim = normalize_axis(context, dim, rank);
+        data = complex->get_input_source_output(0);
+    }
+    return complex;
+}
+}  // namespace
+
 OutputVector translate_chunk(const NodeContext& context) {
     // aten::chunk(Tensor self, int chunks, int dim=0) -> Tensor[]
     num_inputs_check(context, 2, 3, true);
@@ -51,9 +80,13 @@ OutputVector translate_chunk(const NodeContext& context) {
         return {context.mark_node(make_list_construct({input}))};
     }
 
-    // Normalise negative dim values.
-    auto rank = std::get<1>(get_shape_rank(context, input, true));
-    dim = normalize_axis(context, dim, rank);
+    // Complex inputs are split on their logical axes; unwrap here and re-wrap the results.
+    auto complex = unwrap_complex_split(context, input, dim);
+    if (!complex) {
+        // Normalise negative dim values against the input rank.
+        auto rank = std::get<1>(get_shape_rank(context, input, true));
+        dim = normalize_axis(context, dim, rank);
+    }
 
     // Build a VariadicSplit: the first (num_outputs - 1) chunks have equal size
     // (= ceil(dim_size / num_chunks)) and the last chunk receives the remainder.
@@ -83,7 +116,7 @@ OutputVector translate_chunk(const NodeContext& context) {
     auto split_lengths = context.mark_node(std::make_shared<v0::Concat>(OutputVector{split_lengths_even, neg1_1d}, 0));
 
     auto split = context.mark_node(std::make_shared<v1::VariadicSplit>(input, dim, split_lengths));
-    return {context.mark_node(make_list_construct(split->outputs()))};
+    return {context.mark_node(make_list_construct(wrap_complex(context, split->outputs(), complex)))};
 }
 
 OutputVector translate_unbind(const NodeContext& context) {
@@ -98,9 +131,13 @@ OutputVector translate_unbind(const NodeContext& context) {
         dim = get_input_as_i32(context, 1);
     }
 
-    // Normalise negative dim values.
-    auto rank = std::get<1>(get_shape_rank(context, input, true));
-    dim = normalize_axis(context, dim, rank);
+    // Complex inputs are split on their logical axes; unwrap here and re-wrap the results.
+    auto complex = unwrap_complex_split(context, input, dim);
+    if (!complex) {
+        // Normalise negative dim values against the input rank.
+        auto rank = std::get<1>(get_shape_rank(context, input, true));
+        dim = normalize_axis(context, dim, rank);
+    }
 
     // Determine the number of output tensors from the decoder.
     const size_t num_outputs = context.get_decoder()->output_list_size();
@@ -113,7 +150,7 @@ OutputVector translate_unbind(const NodeContext& context) {
     for (size_t i = 0; i < num_outputs; ++i) {
         outputs.push_back(context.mark_node(std::make_shared<v0::Squeeze>(split->output(i), dim)));
     }
-    return {context.mark_node(make_list_construct(outputs))};
+    return {context.mark_node(make_list_construct(wrap_complex(context, outputs, complex)))};
 }
 
 OutputVector translate_chunk_fx(const NodeContext& context) {
@@ -184,26 +221,10 @@ OutputVector translate_split_with_sizes(const NodeContext& context) {
         dim = context.get_input(2);
     }
 
-    auto complex = as_type_ptr<ComplexTypeMark>(data.get_node_shared_ptr());
-    bool is_complex = complex != nullptr;
-    if (is_complex) {
-        if (dim.get_element_type() != element::i32) {
-            dim = context.mark_node(std::make_shared<v0::Convert>(dim, element::i32));
-        }
-        auto rank = std::get<1>(get_shape_rank(context, data, true));
-        dim = normalize_axis(context, dim, rank);
-        data = complex->get_input_source_output(0);
-    }
-
+    // Complex inputs are split on their logical axes; unwrap here and re-wrap the results.
+    auto complex = unwrap_complex_split(context, data, dim);
     auto split = context.mark_node(std::make_shared<v1::VariadicSplit>(data, dim, split_lengths));
-
-    auto res = split->outputs();
-    if (is_complex) {
-        for (auto& output : res) {
-            output = context.mark_node(std::make_shared<ComplexTypeMark>(output));
-        }
-    }
-    return {context.mark_node(make_list_construct(res))};
+    return {context.mark_node(make_list_construct(wrap_complex(context, split->outputs(), complex)))};
 }
 
 }  // namespace op
