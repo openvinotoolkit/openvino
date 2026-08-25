@@ -104,7 +104,7 @@
 #include "plugin/transformations/keep_gqa_kv_scale_precision.hpp"
 #include "plugin/transformations/keep_moe_3gemm_const_precision.hpp"
 #include "plugin/transformations/keep_xattention_threshold_precision.hpp"
-#include "plugin/transformations/preserve_selective_ssm_precision.hpp"
+#include "plugin/transformations/preserve_single_selective_ssm_output.hpp"
 #include "plugin/transformations/kv_cache_compression.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
@@ -770,7 +770,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // (the intact op requires fp32 scales; it is decomposed later in CommonOptimizations).
         manager.register_pass<ov::intel_gpu::KeepGQAKVScalePrecision>();
         manager.register_pass<ov::intel_gpu::EliminateEmptySelectiveSSM>();
-        manager.register_pass<ov::intel_gpu::PreserveSelectiveSSMPrecision>();
 
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
                                                           empty_fuse_map,
