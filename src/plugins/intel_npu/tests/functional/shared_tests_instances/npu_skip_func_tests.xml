@@ -54,27 +54,17 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- E#170977 -->
     <skip_config>
-        <message>Data type u2 not supported by NPU3720</message>
+        <message>Data type u2 and 4-bit network outputs not supported by NPU3720</message>
         <enable_rules>
             <device>3720</device>
         </enable_rules>
         <filters>
             <filter>.*InferRequestCheckTensorPrecision.*type=u2.*</filter>
-            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u2.*</filter>
-        </filters>
-    </skip_config>
-
-    <skip_config>
-        <message>4-bit network outputs not supported by NPU3720</message>
-        <enable_rules>
-            <device>3720</device>
-        </enable_rules>
-        <filters>
             <filter>.*InferRequestCheckTensorPrecision.*type=i4.*</filter>
             <filter>.*InferRequestCheckTensorPrecision.*type=u4.*</filter>
             <filter>.*InferRequestCheckTensorPrecision.*type=nf4.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u2.*</filter>
             <filter>.*InferRequestIOTensorSetPrecisionTest.*type=i4.*</filter>
             <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u4.*</filter>
             <filter>.*InferRequestIOTensorSetPrecisionTest.*type=nf4.*</filter>
