@@ -117,7 +117,7 @@ The output layout is ``[N, C_{out}, H_{feat}, W_{feat}]`` (NCHW).
 **Types**
 
 * *T_FP*: ``f16`` or ``f32``. All floating-point inputs must share the same element type.
-* *T_INT*: ``i32`` or ``i64``.
+* *T_INT*: ``i32``, ``i64``, ``u32`` or ``u64``.
 
 **Examples**
 

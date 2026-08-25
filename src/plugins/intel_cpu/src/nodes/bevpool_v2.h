@@ -41,6 +41,9 @@ private:
     template <typename T, typename IdxT>
     void dispatchIntervalType(const ov::element::Type& itv_prc);
 
+    template <typename T>
+    void dispatchIndexType(const ov::element::Type& idx_prc, const ov::element::Type& itv_prc);
+
     uint32_t m_input_channels = 0;
     uint32_t m_output_channels = 0;
     uint32_t m_image_width = 0;

@@ -86,11 +86,14 @@ void BevPoolV2::initSupportedPrimitiveDescriptors() {
         dw_prc = ov::element::f32;
     }
 
-    // Index inputs: support i32 and i64
-    if (idx_prc != ov::element::i32 && idx_prc != ov::element::i64) {
+    // Index inputs: support i32, i64, u32 and u64
+    const auto is_supported_index_prc = [](const ov::element::Type& prc) {
+        return prc == ov::element::i32 || prc == ov::element::i64 || prc == ov::element::u32 || prc == ov::element::u64;
+    };
+    if (!is_supported_index_prc(idx_prc)) {
         idx_prc = ov::element::i32;
     }
-    if (itv_prc != ov::element::i32 && itv_prc != ov::element::i64) {
+    if (!is_supported_index_prc(itv_prc)) {
         itv_prc = ov::element::i32;
     }
 
@@ -167,8 +170,25 @@ template <typename T, typename IdxT>
 void BevPoolV2::dispatchIntervalType(const ov::element::Type& itv_prc) {
     if (itv_prc == ov::element::i64) {
         executeImpl<T, IdxT, int64_t>();
+    } else if (itv_prc == ov::element::u32) {
+        executeImpl<T, IdxT, uint32_t>();
+    } else if (itv_prc == ov::element::u64) {
+        executeImpl<T, IdxT, uint64_t>();
     } else {
         executeImpl<T, IdxT, int32_t>();
+    }
+}
+
+template <typename T>
+void BevPoolV2::dispatchIndexType(const ov::element::Type& idx_prc, const ov::element::Type& itv_prc) {
+    if (idx_prc == ov::element::i64) {
+        dispatchIntervalType<T, int64_t>(itv_prc);
+    } else if (idx_prc == ov::element::u32) {
+        dispatchIntervalType<T, uint32_t>(itv_prc);
+    } else if (idx_prc == ov::element::u64) {
+        dispatchIntervalType<T, uint64_t>(itv_prc);
+    } else {
+        dispatchIntervalType<T, int32_t>(itv_prc);
     }
 }
 
@@ -178,17 +198,9 @@ void BevPoolV2::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto itv_prc = getSrcMemoryAtPort(ITV_IDX)->getDesc().getPrecision();
 
     if (cf_prc == ov::element::f16) {
-        if (idx_prc == ov::element::i64) {
-            dispatchIntervalType<ov::float16, int64_t>(itv_prc);
-        } else {
-            dispatchIntervalType<ov::float16, int32_t>(itv_prc);
-        }
+        dispatchIndexType<ov::float16>(idx_prc, itv_prc);
     } else {
-        if (idx_prc == ov::element::i64) {
-            dispatchIntervalType<float, int64_t>(itv_prc);
-        } else {
-            dispatchIntervalType<float, int32_t>(itv_prc);
-        }
+        dispatchIndexType<float>(idx_prc, itv_prc);
     }
 }
 
