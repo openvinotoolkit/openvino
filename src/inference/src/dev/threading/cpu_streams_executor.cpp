@@ -187,6 +187,11 @@ struct CPUStreamsExecutor::Impl {
                                                             .set_numa_id(real_numa_node_id)
                                                             .set_max_concurrency(concurrency)
                                                             .set_max_threads_per_core(max_threads_per_core)});
+#    if defined(_WIN32)
+                // Without core pinning the master thread stays confined to the process' primary group,
+                // so on >64-core (multi-group) machines soft-assign it to its group to spread streams.
+                pin_current_thread_to_group_soft(_numaNodeId);
+#    endif
             } else if (_stream_type == STREAM_WITH_CORE_TYPE) {
                 // sys_core_types = [LPECore, Ecore, Pcore]
                 const auto sys_core_types = custom::info::core_types();
