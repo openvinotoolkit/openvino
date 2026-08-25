@@ -224,7 +224,7 @@ Perform the above steps for each SKUs information (CPUID, L1/L2/L3 cache size, c
 How to Enable Conditional Compilation on Windows
 ################################################
 
-Find detailed information in the Building OpenVINO static libraries `document <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/static_libaries.md>`__ .
+Find detailed information in the Building OpenVINO static libraries `document <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/static_libraries.md>`__ .
 
 
 Stage 1: Selective build analyzed stage
