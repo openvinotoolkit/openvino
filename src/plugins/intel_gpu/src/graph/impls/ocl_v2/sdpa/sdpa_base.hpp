@@ -52,6 +52,8 @@ struct sdpa_configuration {
     bool has_score_aggregation = false;
     bool has_rotated_blocks = false;
 
+    int64_t sliding_window = 0;
+
     int64_t input_num;
 };
 
