@@ -76,6 +76,10 @@ void CompiledModelPropertyManager::setProperty(const ov::AnyMap& properties) {
         if (propertyIt->second.mutability == ov::PropertyMutability::RO) {
             OPENVINO_THROW("READ-ONLY configuration key: ", property.first);
         }
+    }
+
+    for (const auto& property : properties) {
+        const auto propertyIt = _properties.find(property.first);
         propertyIt->second.set(property.second);
     }
 }

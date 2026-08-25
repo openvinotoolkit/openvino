@@ -12,7 +12,7 @@ Practical manual for NPU plugin properties
   - [Config](#config)
   - [FilteredConfig](#filteredconfig)
   - [Properties](#properties)
-- [How to add a new public (option backed) property](#how-to-add-a-new-public-option-backed-property)
+- [How to add a new public (option-backed) property](#how-to-add-a-new-public-option-backed-property)
   - [Step 1. Define the new property](#step-1-define-the-new-property)
   - [Step 2. Define the internal option descriptor](#step-2-define-the-internal-option-descriptor)
   - [Step 3. Register the new option](#step-3-register-the-new-option)
@@ -124,15 +124,15 @@ struct OptionBase {
 ### OptionDesc
 is storage for the registered options. This is the base map which stores the available OptionBase descriptors.
 This layer implements the option database manipulation functions: add/has/reset.
-The plugin creates it once, registers the plugin options, and lets the backend add its compiler-specific options before
-passing the finalized descriptor to the plugin property manager.
+The plugin creates it once and reuses it during constructor bootstrap: first with `LOG_LEVEL` only (for early logging),
+then with the full plugin and backend options before property-manager initialization.
 
 ### Config
-is the highlevel configuration "database" which implements the mapping between OptionBase and templatized OptionValue.
+is the high-level configuration "database" which implements the mapping between OptionBase and templatized OptionValue.
 Maps and stores the user-defined values for each entry in OptionsDesc layer.
 Implements the top level configuration manipulation functions:
 get/update/updateAny/has/getString/toString/fromString and handles typecasts, type verification, parsing and conversions.
-```` Note: This layer is initialized once in the plugin from the finalized OptionsDesc and passed to the plugin property manager. ````
+```` Note: In Plugin bootstrap, this layer is created early from a minimal descriptor (LOG_LEVEL), then expanded in place as the shared OptionsDesc is populated and environment variables are reparsed. ````
 
 ### FilteredConfig
 is a derivative class of Config, used only by NPU Plugin, which implements additional filtering layers atop of the base config,
@@ -140,21 +140,20 @@ such as enabling/disabling keys based on their availability/support on the curre
 ```` Note: This layer dynamically changes based on system configuration and compiler_type. ````
 
 The initialization order is:
-1. `Plugin` creates the complete `OptionsDesc` and registers all plugin options.
-2. The backend adds its options through `backend->registerOptions(*options)`.
-3. `Plugin` constructs the `FilteredConfig` from the finalized descriptor, parses environment variables, and passes it to `PluginPropertyManager`.
-4. `PluginPropertyManager` resolves the effective compiler type and registers property descriptors.
+1. `Plugin` creates and populates `OptionsDesc` with all plugin options (`register_options(...)`) and then registers backend options (`backend->registerOptions(*options)` when a backend exists).
+2. `Plugin` reparses environment variables in `FilteredConfig` so newly registered options are applied.
+3. `Plugin` constructs `PluginPropertyManager`, which resolves the effective compiler context and registers property descriptors.
 
 ### Properties
 is the top level class and serves as the NPU Plugin's interface to OpenVino and the application layer.
-It's main purpose is to implement get_property and set_property interfaces and the callback functions of each property.
+Its main purpose is to implement `get_property` and `set_property` interfaces and the callback functions for each property.
 ```` Note: This layer dynamically changes based on system configuration and compiler_type ````
 
 <br><br>
 
-# How to add a new public (option backed) property
+# How to add a new public (option-backed) property
 
-The following steps how to add a new simple property which maps to a compiler configuration option.  
+The following steps explain how to add a new simple property that maps to a compiler configuration option.  
 _*simple in this context means that it has no special callback function required for it, just set/get_  
 
 ## Step 1. Define the new property
