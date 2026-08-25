@@ -629,11 +629,19 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return len(self.outputs())
 
     def output_list_size(self):
-        max_out_id = -1
+        # A getitem access only requests one slice from a list-producing op; it does
+        # not define the list's full runtime arity. Keep the actual list length
+        # separate from the highest sliced index.
+        if not self.pt_module.users:
+            return 0
+
+        max_getitem_index = -1
         for user in self.pt_module.users:
-            if "<built-in function getitem>" == str(user.target) and max_out_id < user.args[1]:
-                max_out_id = user.args[1]
-        return max_out_id + 1
+            if "<built-in function getitem>" == str(user.target):
+                if len(user.args) > 1 and isinstance(user.args[1], int):
+                    max_getitem_index = max(max_getitem_index, user.args[1])
+
+        return 0 if max_getitem_index >= 0 else 0
 
     def mark_node(self, node):
         name = self.get_op_type()

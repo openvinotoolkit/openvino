@@ -397,19 +397,26 @@ class TorchScriptPythonDecoder(Decoder):
         if not isinstance(self.graph_element, torch.Node) or len(self.raw_outputs) != 1:
             return 0
 
-        max_output_index = -1
+        list_arity = 0
+        max_getitem_index = -1
         output = self.raw_outputs[0]
         for use in output.uses():
             user = use.user
             if user.kind() == "prim::ListUnpack":
-                max_output_index = max(max_output_index, len(list(user.outputs())) - 1)
+                list_arity = max(list_arity, len(list(user.outputs())))
             elif user.kind() == "aten::__getitem__":
                 index = list(user.inputs())[1].toIValue()
                 if isinstance(index, int):
-                    max_output_index = max(max_output_index, index)
+                    max_getitem_index = max(max_getitem_index, index)
 
-        if max_output_index >= 0:
-            return max_output_index + 1
+        if list_arity > 0:
+            return list_arity
+
+        # A getitem request asks for one slice of a list and does not tell us the
+        # true output arity of the list-producing op. Only ListUnpack/Return cases
+        # define the real list length here.
+        if max_getitem_index >= 0:
+            return 0
 
         if any(use.user.kind() == "prim::Return" for use in output.uses()):
             if self.get_op_type() in ["aten::chunk", "aten::unsafe_chunk"]:

@@ -49,6 +49,48 @@ std::shared_ptr<ComplexTypeMark> unwrap_complex_split(const NodeContext& context
 }
 }  // namespace
 
+namespace {
+size_t get_effective_num_outputs(const NodeContext& context,
+                                const Output<Node>& input,
+                                const Output<Node>& dim,
+                                bool is_chunk) {
+    const size_t decoder_count = context.get_decoder()->output_list_size();
+    if (decoder_count > 0) {
+        return decoder_count;
+    }
+
+    auto shape = input.get_partial_shape();
+    if (!shape.rank().is_static()) {
+        return 0;
+    }
+
+    int64_t dim_val = 0;
+    if (is_chunk) {
+        dim_val = context.const_input<int>(2);
+    } else {
+        dim_val = context.input_is_none(1) ? 0 : context.const_input<int>(1);
+    }
+
+    const auto rank = shape.rank().get_length();
+    if (dim_val < 0) {
+        dim_val += static_cast<int64_t>(rank);
+    }
+    if (dim_val < 0 || dim_val >= static_cast<int64_t>(rank) || !shape[dim_val].is_static()) {
+        return 0;
+    }
+
+    if (is_chunk) {
+        const auto dim_size = static_cast<size_t>(shape[dim_val].get_length());
+        if (dim_size == 0) {
+            return 0;
+        }
+        const auto requested_chunks = static_cast<size_t>(std::max<int64_t>(1, context.const_input<int>(1)));
+        return std::min(requested_chunks, dim_size);
+    }
+    return static_cast<size_t>(shape[dim_val].get_length());
+}
+}  // namespace
+
 OutputVector translate_unbind(const NodeContext& context) {
     // aten::unbind.int(Tensor self, int dim=0) -> Tensor[]
     num_inputs_check(context, 1, 2, true);
@@ -69,10 +111,11 @@ OutputVector translate_unbind(const NodeContext& context) {
         dim = normalize_axis(context, dim, rank);
     }
 
-    // Determine the number of output tensors from the decoder.
-    const size_t num_outputs = context.get_decoder()->output_list_size();
+    // output_list_size() reflects requested getitem indices, not the real list arity.
+    // Fallback to the shape-derived arity when the decoder cannot prove a true list unpack.
+    const size_t num_outputs = get_effective_num_outputs(context, input, dim, false);
     PYTORCH_OP_CONVERSION_CHECK(num_outputs > 0,
-                                "aten::unbind: cannot determine the number of outputs from the decoder.");
+                                "aten::unbind: cannot determine the number of outputs from the decoder or input shape.");
 
     auto split = context.mark_node(std::make_shared<v1::Split>(input, dim, num_outputs));
 
@@ -91,7 +134,11 @@ OutputVector translate_chunk_fx(const NodeContext& context) {
 
     auto shape = context.get_input(0).get_partial_shape();
     if (shape.rank().is_dynamic()) {
-        size_t num_splits = context.get_decoder()->output_list_size();
+        const size_t num_splits = get_effective_num_outputs(context, context.get_input(0), dim, true);
+        if (num_splits == 0) {
+            PYTORCH_OP_CONVERSION_CHECK(false,
+                                        "aten::chunk: cannot determine the actual number of output chunks from the decoder or input shape.");
+        }
         std::vector<int32_t> split_lengths_vec;
         for (size_t i = 0; i < num_splits - 1; i++) {
             split_lengths_vec.push_back(num_chunks);
@@ -106,7 +153,9 @@ OutputVector translate_chunk_fx(const NodeContext& context) {
     if (dim_val < 0) {
         dim_val = static_cast<int>(shape.rank().get_length()) + dim_val;
     }
-    int num_splits = static_cast<int>(shape[dim_val].get_length()) / num_chunks;
+    const auto dim_size = shape[dim_val].get_length();
+    const auto num_splits = static_cast<int>(std::min<size_t>(std::max<size_t>(1, static_cast<size_t>(num_chunks)),
+                                                             static_cast<size_t>(dim_size)));
 
     chunk = context.mark_node(std::make_shared<v1::Split>(context.get_input(0), dim, num_splits));
 
