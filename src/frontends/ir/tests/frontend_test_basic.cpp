@@ -402,7 +402,12 @@ TEST_F(IRFrontendTests, const_layer_with_missing_shape_attribute) {
 </net>
 )V0G0N";
 
-    ASSERT_THROW(core.read_model(testModelV11, ov::Tensor()), ov::Exception);
+    std::vector<unsigned char> buffer(1, 0);
+    createTemporalModelFile(testModelV11, buffer);
+
+    OV_EXPECT_THROW(core.read_model(xmlFileName, binFileName),
+                    ov::Exception,
+                    testing::HasSubstr("Missing attribute 'shape' for Const"));
 }
 
 TEST_F(IRFrontendTests, const_layer_with_missing_element_type_attribute) {
@@ -427,7 +432,12 @@ TEST_F(IRFrontendTests, const_layer_with_missing_element_type_attribute) {
 </net>
 )V0G0N";
 
-    ASSERT_THROW(core.read_model(testModelV11, ov::Tensor()), ov::Exception);
+    std::vector<unsigned char> buffer(1, 0);
+    createTemporalModelFile(testModelV11, buffer);
+
+    OV_EXPECT_THROW(core.read_model(xmlFileName, binFileName),
+                    ov::Exception,
+                    testing::HasSubstr("Missing attribute 'element_type' for Const"));
 }
 
 TEST_P(IRFrontendMMapTests, model_with_weights_reading_from_disk) {
