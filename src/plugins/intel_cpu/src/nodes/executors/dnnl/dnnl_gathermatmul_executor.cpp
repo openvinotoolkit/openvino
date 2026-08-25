@@ -117,7 +117,13 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor([[maybe_unused]] const Gather
                                   DnnlExtensionUtils::ElementTypeToDataType(weights_precision),
                                   dnnl::memory::format_tag::any);
 
-    InnerProductKey key{src_md, weights_md, makeBiasMd(N, memory.at(ARG_BIAS)), scale_shape, zp_shape};
+    const auto dst_precision = memory.at(ARG_DST)->getDesc().getPrecision();
+    InnerProductKey key{src_md,
+                        weights_md,
+                        makeBiasMd(N, memory.at(ARG_BIAS)),
+                        DnnlExtensionUtils::ElementTypeToDataType(dst_precision),
+                        scale_shape,
+                        zp_shape};
 
     const auto& eng = context->getEngine();
     const auto threadPool = context->getThreadPool();
@@ -228,6 +234,7 @@ bool GatherMatmulDnnlExecutor::update(const MemoryArgs& memory) {
     InnerProductKey key{src_md,
                         weights_md,
                         makeBiasMd(static_cast<dnnl::memory::dim>(weights_md.get_dims()[0]), memory.at(ARG_BIAS)),
+                        DnnlExtensionUtils::ElementTypeToDataType(memory.at(ARG_DST)->getDesc().getPrecision()),
                         scale_shape,
                         zp_shape};
     const auto& eng = m_context->getEngine();

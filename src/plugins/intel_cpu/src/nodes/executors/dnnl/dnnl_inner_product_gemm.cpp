@@ -39,6 +39,7 @@ size_t InnerProductKey::hash() const {
     seed = hash_combine(seed, get_md_hash(*src_md.get()));
     seed = hash_combine(seed, get_md_hash(*weights_md.get()));
     seed = hash_combine(seed, get_md_hash(*bias_md.get()));
+    seed = hash_combine(seed, static_cast<size_t>(dst_data_type));
     seed = get_vector_hash(seed, scale_shape);
     seed = get_vector_hash(seed, zp_shape);
     return seed;
@@ -46,7 +47,7 @@ size_t InnerProductKey::hash() const {
 
 bool InnerProductKey::operator==(const InnerProductKey& rhs) const {
     return src_md == rhs.src_md && weights_md == rhs.weights_md && bias_md == rhs.bias_md &&
-           scale_shape == rhs.scale_shape && zp_shape == rhs.zp_shape;
+           dst_data_type == rhs.dst_data_type && scale_shape == rhs.scale_shape && zp_shape == rhs.zp_shape;
 }
 
 InnerProduct::InnerProduct(const dnnl::engine& eng,
@@ -80,7 +81,7 @@ InnerProduct::InnerProduct(const dnnl::engine& eng,
     }
 
     m_input_md = src_md;
-    m_output_md = dnnl::memory::desc(dnnl::memory::dims({M, N}), src_md.get_data_type(), dnnl::memory::format_tag::ab);
+    m_output_md = dnnl::memory::desc(dnnl::memory::dims({M, N}), key.dst_data_type, dnnl::memory::format_tag::ab);
 
     const auto& bias_md = key.bias_md;
 

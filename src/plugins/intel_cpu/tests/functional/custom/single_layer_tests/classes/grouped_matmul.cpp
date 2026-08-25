@@ -14,6 +14,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
+#include "openvino/runtime/properties.hpp"
 
 using namespace CPUTestUtils;
 
@@ -54,6 +55,13 @@ std::string config_to_string(const ov::AnyMap& config) {
     return result.str();
 }
 
+// bf16 is requested through the property, not through the model precision: the compression pass runs
+// before Graph::EnforceInferencePrecision, so it has to see f32 activations at conversion time.
+ov::element::Type configured_inference_precision(const ov::AnyMap& config) {
+    const auto it = config.find(ov::hint::inference_precision.name());
+    return it == config.end() ? ov::element::dynamic : it->second.as<ov::element::Type>();
+}
+
 }  // namespace
 
 // ---- GroupedMatMulLayerCPUTest ----------------------------------------------------------------
@@ -85,6 +93,13 @@ void GroupedMatMulLayerCPUTest::SetUp() {
     selectedType = makeSelectedTypeStr(selectedType, act_type);
 
     GroupedMatMulTestBase::SetUp();
+
+    // The model stays f32; bf16 comes from Graph::EnforceInferencePrecision, so the reference is
+    // computed in a higher precision than the execution
+    if (configured_inference_precision(configuration) == ov::element::bf16) {
+        abs_threshold = 0.2F;
+        rel_threshold = 0.1F;
+    }
 }
 
 std::shared_ptr<ov::Node> GroupedMatMulLayerCPUTest::build_weights() {
@@ -181,9 +196,13 @@ void GroupedMatMulCompressedLayerCPUTest::SetUp() {
 
     // Dequantization adds rounding error on top of the uncompressed path
     if (weights_prec_ == ov::element::u4 || weights_prec_ == ov::element::i4) {
-        abs_threshold = 0.2f;
+        abs_threshold = 0.2F;
     } else if (weights_prec_ == ov::element::u8 || weights_prec_ == ov::element::i8) {
-        abs_threshold = 0.1f;
+        abs_threshold = 0.1F;
+    }
+    if (configured_inference_precision(configuration) == ov::element::bf16) {
+        abs_threshold = 0.5F;
+        rel_threshold = 0.1F;
     }
 }
 

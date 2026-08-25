@@ -92,13 +92,7 @@ GroupedMatMulDnnlExecutor::GroupedMatMulDnnlExecutor([[maybe_unused]] const Grou
 
     auto src_precision = srcMemory->getDesc().getPrecision();
     auto weights_precision = weightsMemory->getDesc().getPrecision();
-    // InnerProduct derives the destination descriptor from the source data type, and the tail memset
-    // below assumes one element size. GroupedMatMul-17 takes its output type from mat_a, so assert.
-    OPENVINO_ASSERT(memory.at(ARG_DST)->getDesc().getPrecision() == src_precision,
-                    "GroupedMatMul: destination precision ",
-                    memory.at(ARG_DST)->getDesc().getPrecision(),
-                    " must match the source precision ",
-                    src_precision);
+    const auto dst_precision = memory.at(ARG_DST)->getDesc().getPrecision();
     m_isBatched = srcMemory->getShape().getRank() == 3;
 
     const auto& weiDims = weightsMemory->getShape().getStaticDims();
@@ -117,7 +111,12 @@ GroupedMatMulDnnlExecutor::GroupedMatMulDnnlExecutor([[maybe_unused]] const Grou
                                   DnnlExtensionUtils::ElementTypeToDataType(weights_precision),
                                   dnnl::memory::format_tag::any);
 
-    InnerProductKey key{src_md, weights_md, makeBiasMd(N, memory.at(ARG_BIAS)), scale_shape, zp_shape};
+    InnerProductKey key{src_md,
+                        weights_md,
+                        makeBiasMd(N, memory.at(ARG_BIAS)),
+                        DnnlExtensionUtils::ElementTypeToDataType(dst_precision),
+                        scale_shape,
+                        zp_shape};
 
     const auto& eng = context->getEngine();
     const auto threadPool = context->getThreadPool();
@@ -178,7 +177,8 @@ GroupedMatMulDnnlExecutor::GroupedMatMulDnnlExecutor([[maybe_unused]] const Grou
 
     m_srcDataType = DnnlExtensionUtils::ElementTypeToDataType(src_precision);
     m_K = K;
-    m_keyTemplate = InnerProductKey{{}, refImpl->get_weights_md(), key.bias_md, scale_shape, zp_shape};
+    m_keyTemplate =
+        InnerProductKey{{}, refImpl->get_weights_md(), key.bias_md, key.dst_data_type, scale_shape, zp_shape};
 }
 
 // inner_product bakes M into the primitive descriptor (src/common/inner_product.cpp rejects
@@ -249,7 +249,7 @@ void GroupedMatMulDnnlExecutor::execute(const MemoryArgs& memory) {
         offsets = offsetsMem->getDataAs<int32_t>();
     }
 
-    const auto element_size = srcMem->getDesc().getPrecision().size();
+    const auto dst_element_size = dstMem->getDesc().getPrecision().size();
 
     // Row range owned by group g. The 2D x 3D offsets are cumulative exclusive end boundaries; the
     // 3D x 3D form gives every group its own M rows, indexed within the group.
@@ -285,7 +285,7 @@ void GroupedMatMulDnnlExecutor::execute(const MemoryArgs& memory) {
     // offsets[G-1] is allowed to be smaller than the token count; the rows past the last group are
     // left untouched by every GEMM, and the reference implementation defines them as zero.
     if (!m_isBatched && prevEnd < totalRows) {
-        std::memset(dst_at(0, prevEnd), 0, (totalRows - prevEnd) * N * element_size);
+        std::memset(dst_at(0, prevEnd), 0, (totalRows - prevEnd) * N * dst_element_size);
     }
 }
 

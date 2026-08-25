@@ -20,11 +20,13 @@
 namespace ov::intel_cpu::dnnl_utils {
 
 // Key identifying a single oneDNN inner_product primitive: the (M, K) source, the (N, K) weights,
-// the optional bias and the decompression scale / zero point shapes.
+// the destination data type, the optional bias and the decompression scale / zero point shapes.
 struct InnerProductKey {
     dnnl::memory::desc src_md;
     dnnl::memory::desc weights_md;
     dnnl::memory::desc bias_md;
+    // The destination may differ from the source, e.g. a bf16 enforced node feeding an f32 consumer
+    dnnl::memory::data_type dst_data_type = dnnl::memory::data_type::undef;
     VectorDims scale_shape;
     VectorDims zp_shape;
 
