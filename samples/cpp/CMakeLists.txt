@@ -246,7 +246,6 @@ macro(ov_add_sample)
     unset(SAMPLE_INCLUDE_DIRECTORIES)
 endmacro()
 
-# explicit list of samples subdirectories (excludes thirdparty/common, which are not samples)
 set(samples_dirs
     benchmark
     benchmark_app
