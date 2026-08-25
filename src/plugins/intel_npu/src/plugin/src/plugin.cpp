@@ -261,6 +261,7 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
     REGISTER_OPTION(SHARED_COMMON_QUEUE);
     REGISTER_OPTION(CACHE_ENCRYPTION_CALLBACKS);
     REGISTER_OPTION(MAX_TILES);
+    REGISTER_OPTION(DISABLE_IDLE_MEMORY_PRUNING);
 
     if (backend) {
         // Options registered only if drivers is present and supports the corresponding extension

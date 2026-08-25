@@ -358,7 +358,10 @@ void PluginPropertyManager::registerProperties() {
         return hasBackend;
     };
 
-    using DeviceValidationCache = std::optional<std::pair<std::string, bool>>;
+    struct DeviceValidationCache {
+        std::mutex mutex;
+        std::optional<std::pair<std::string, bool>> value;
+    };
     auto hasBackendAndValidDeviceCache = std::make_shared<DeviceValidationCache>();
 
     const auto getDeviceId = [this](const ov::AnyMap& arguments) -> std::string {
@@ -378,13 +381,20 @@ void PluginPropertyManager::registerProperties() {
             try {
                 const auto specifiedDeviceName = getDeviceId(arguments);
 
-                if (hasBackendAndValidDeviceCache->has_value() &&
-                    hasBackendAndValidDeviceCache->value().first == specifiedDeviceName) {
-                    return hasBackendAndValidDeviceCache->value().second;
+                {
+                    std::lock_guard<std::mutex> lock(hasBackendAndValidDeviceCache->mutex);
+                    if (hasBackendAndValidDeviceCache->value.has_value() &&
+                        hasBackendAndValidDeviceCache->value->first == specifiedDeviceName) {
+                        return hasBackendAndValidDeviceCache->value->second;
+                    }
                 }
 
                 const bool isValidDevice = utils::getDeviceById(_backend, specifiedDeviceName) != nullptr;
-                *hasBackendAndValidDeviceCache = std::make_pair(specifiedDeviceName, isValidDevice);
+
+                {
+                    std::lock_guard<std::mutex> lock(hasBackendAndValidDeviceCache->mutex);
+                    hasBackendAndValidDeviceCache->value = std::make_pair(specifiedDeviceName, isValidDevice);
+                }
                 return isValidDevice;
             } catch (...) {
                 _logger.debug("Property is not supported for current configuration due to unavailable device.");
@@ -809,12 +819,20 @@ void PluginPropertyManager::registerProperties() {
     register_property(ov::device::luid.name(), _backend != nullptr && _backend->isLUIDExtSupported(), ov::PropertyMutability::RO, hasBackendAndValidDevice, [this, getDeviceId](const ov::AnyMap& arguments) {
         return utils::getDeviceLUID(_backend, getDeviceId(arguments));
     }, readOnlySetter);
+    
+    struct CompatibilityCheckSupportCache {
+        std::mutex mutex;
+        std::optional<bool> value;
+    };
+    auto compatibilityCheckSupportCache = std::make_shared<CompatibilityCheckSupportCache>();
     register_property(ov::compatibility_check.name(), true, ov::PropertyMutability::RO,
-        [this, compatibilityCheckSupported = std::optional<bool>{}](const ov::AnyMap&) mutable { 
-            if (!compatibilityCheckSupported.has_value()) {
-                compatibilityCheckSupported = isCompatibilityCheckSupported(_backend, *_compilerOptionSupportHelper);
+        [this, compatibilityCheckSupportCache](const ov::AnyMap&) {
+            std::lock_guard<std::mutex> lock(compatibilityCheckSupportCache->mutex);
+            if (!compatibilityCheckSupportCache->value.has_value()) {
+                compatibilityCheckSupportCache->value =
+                    isCompatibilityCheckSupported(_backend, *_compilerOptionSupportHelper);
             }
-            return compatibilityCheckSupported.value();
+            return compatibilityCheckSupportCache->value.value();
         },
         [this](const ov::AnyMap& arguments) { 
             return validateCompatibilityDescriptor(_backend, arguments, *_compilerOptionSupportHelper);
