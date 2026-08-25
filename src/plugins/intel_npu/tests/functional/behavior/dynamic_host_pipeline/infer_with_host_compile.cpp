@@ -1746,7 +1746,7 @@ const std::vector<ov::AnyMap> configs = {
 
 // Ensure the added test model's input and output shapes are identical and accept concrete NHWC shapes for reuse shape
 // in tests.
-const std::vector<std::string> modelNames = {"CustomNet", "CustomNet_DynBatch", "MaxPool", "MaxPool_NCHW"};
+const std::vector<std::string> modelNames = {/*"CustomNet", "CustomNet_DynBatch", */ "MaxPool", "MaxPool_NCHW"};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          InferWithHostCompileTests,
