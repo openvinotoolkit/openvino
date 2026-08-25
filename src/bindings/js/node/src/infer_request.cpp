@@ -252,23 +252,29 @@ void perform_inference_thread(TsfnContext* context) {
 }  // namespace
 
 Napi::Value InferRequestWrap::infer_async(const Napi::CallbackInfo& info) {
-    if (info.Length() != 1) {
-        reportError(info.Env(), "InferAsync method takes as an argument an array or an object.");
-    }
     Napi::Env env = info.Env();
-
-    auto context = new TsfnContext(env);
-    context->_ir = &_infer_request;
+    TsfnContext* context = nullptr;
     try {
-        auto parsed_input = parse_input_data(info[0]);
-        context->_inputs = parsed_input;
-    } catch (std::exception& e) {
-        reportError(info.Env(), e.what());
+        OPENVINO_ASSERT(info.Length() == 1, "InferAsync method takes as an argument an array or an object.");
+
+        context = new TsfnContext(env);
+        context->_ir = &_infer_request;
+        context->_inputs = parse_input_data(info[0]);
+
+        context->tsfn = Napi::ThreadSafeFunction::New(env,
+                                                      Napi::Function(),
+                                                      "TSFN",
+                                                      0,
+                                                      1,
+                                                      context,
+                                                      FinalizerCallback,
+                                                      (void*)nullptr);
+        auto promise = context->deferred.Promise();
+        context->native_thread = std::thread(perform_inference_thread, context);
+        return promise;
+    } catch (const std::exception& e) {
+        reportError(env, e.what());
+        delete context;
+        return env.Undefined();
     }
-
-    context->tsfn =
-        Napi::ThreadSafeFunction::New(env, Napi::Function(), "TSFN", 0, 1, context, FinalizerCallback, (void*)nullptr);
-
-    context->native_thread = std::thread(perform_inference_thread, context);
-    return context->deferred.Promise();
 }
