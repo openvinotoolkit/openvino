@@ -14,13 +14,13 @@ constexpr uint32_t FORMAT_VERSION = 0x30000;  // 3.0;
 
 constexpr intel_npu::SectionTypeInstance FIRST_INSTANCE_ID = 0;
 
-size_t move_cursor_with_bound_checking(const size_t destination, const size_t npu_region_size) {
+void seekg_with_bound_checking(intel_npu::BlobSource& source, const size_t destination, const size_t npu_region_size) {
     OPENVINO_ASSERT(destination <= npu_region_size,
                     "Attempted to move the cursor beyond the NPU region. Destination: ",
                     destination,
                     ". Limit: ",
                     npu_region_size);
-    return destination;
+    source.seekg(destination, std::ios::beg);
 }
 
 }  // namespace
@@ -77,15 +77,17 @@ BlobReader::retrieve_sections_same_type(const SectionType type) const {
 std::unordered_map<SectionID, SectionInstanceEvaluator> BlobReader::build_section_type_instance_evaluators(
     BlobSource& source,
     const OffsetsTable& offsets_table,
+    const size_t npu_region_start,
     const size_t npu_region_size) const {
     std::unordered_map<SectionID, SectionInstanceEvaluator> instance_evaluators;
     const std::unordered_set<SectionID> all_section_ids = offsets_table.get_all_registered_section_ids();
 
     for (const SectionID& section_id : all_section_ids) {
         BlobReaderInterface reader(source,
+                                   npu_region_start,
+                                   npu_region_size,
                                    offsets_table.lookup_offset(section_id).value(),
                                    offsets_table.lookup_length(section_id).value(),
-                                   npu_region_size,
                                    m_logger.level());
 
         // Do not create any evaluator if no function has been provided. The CRE code will treat such cases as supported
@@ -102,11 +104,16 @@ std::unordered_map<SectionID, SectionInstanceEvaluator> BlobReader::build_sectio
 
 void BlobReader::parse_section(const SectionID section_id,
                                BlobSource& source,
-                               size_t cursor,
                                const size_t section_length,
+                               const size_t npu_region_start,
                                const size_t npu_region_size,
                                const bool include_in_sections_order) {
-    BlobReaderInterface interface(source, cursor, section_length, npu_region_size, m_logger.level());
+    BlobReaderInterface interface(source,
+                                  npu_region_start,
+                                  npu_region_size,
+                                  source.tellg(),
+                                  section_length,
+                                  m_logger.level());
 
     m_parsed_sections[section_id.type][section_id.type_instance] = m_readers.at(section_id.type)(interface);
     m_parsed_sections[section_id.type][section_id.type_instance]->set_section_type_instance(section_id.type_instance);
@@ -129,10 +136,13 @@ void BlobReader::read(BlobSource& source) {
         m_parsed_sections = {};
     }
 
+    const size_t npu_region_start = source.tellg();
+
     // Read the size of the NPU region
-    size_t npu_region_size = get_npu_region_size(source);
+    const size_t npu_region_size = get_npu_region_size(source);
     m_logger.trace("NPU region size: %lu", npu_region_size);
-    size_t cursor = MAGIC_BYTES.size() + sizeof(FORMAT_VERSION) + sizeof(npu_region_size);
+    // Already checked within "get_npu_region_size"
+    source.seekg(MAGIC_BYTES.size() + sizeof(FORMAT_VERSION) + sizeof(npu_region_size), std::ios::beg);
 
     // Step 1: Read the table of offsets. First, get the location and size of the table from the region of
     // persistent format. Then, use this information to parse the table.
@@ -140,28 +150,25 @@ void BlobReader::read(BlobSource& source) {
     uint64_t offsets_table_size;
 
     const size_t where_the_region_of_persistent_format_starts =
-        cursor + sizeof(offsets_table_location) + sizeof(offsets_table_size);
+        source.tellg() + sizeof(offsets_table_location) + sizeof(offsets_table_size);
     OPENVINO_ASSERT(where_the_region_of_persistent_format_starts <= npu_region_size,
                     "The parsed NPU region size is too small. Found: ",
                     npu_region_size,
                     ". Minimum required: ",
                     where_the_region_of_persistent_format_starts);
-    std::memcpy(reinterpret_cast<char*>(&offsets_table_location),
-                source.data<const char>() + cursor,
-                sizeof(offsets_table_location));
-    cursor = move_cursor_with_bound_checking(cursor + sizeof(offsets_table_location), npu_region_size);
-    std::memcpy(reinterpret_cast<char*>(&offsets_table_size),
-                source.data<const char>() + cursor,
-                sizeof(offsets_table_size));
+
+    source.read_into_buffer(reinterpret_cast<char*>(&offsets_table_location), sizeof(offsets_table_location));
+    seekg_with_bound_checking(source, source.tellg() + sizeof(offsets_table_location), npu_region_size);
+    source.read_into_buffer(reinterpret_cast<char*>(&offsets_table_size), sizeof(offsets_table_size));
     m_logger.trace("Offsets table location %lu; size %lu", offsets_table_location, offsets_table_size);
 
-    cursor = move_cursor_with_bound_checking(offsets_table_location, npu_region_size);
+    seekg_with_bound_checking(source, offsets_table_location, npu_region_size);
 
     OPENVINO_ASSERT(m_readers.count(PredefinedSectionType::OFFSETS_TABLE), "No reader found for the table of offsets");
     parse_section(SectionID(PredefinedSectionType::OFFSETS_TABLE, FIRST_INSTANCE_ID),
                   source,
-                  cursor,
                   offsets_table_size,
+                  npu_region_start,
                   npu_region_size,
                   /*include_in_sections_order*/ false);
 
@@ -176,18 +183,18 @@ void BlobReader::read(BlobSource& source) {
     std::optional<uint64_t> cre_length = offsets_table.lookup_length(CRE_SECTION_ID);
 
     std::unordered_map<SectionID, SectionInstanceEvaluator> section_instance_evaluators =
-        build_section_type_instance_evaluators(source, offsets_table, npu_region_size);
+        build_section_type_instance_evaluators(source, offsets_table, npu_region_start, npu_region_size);
 
     // TODO test the negative branch as well
     // TODO safeguards for multiple offsets tables/CREs?
     if (cre_location.has_value()) {
-        cursor = move_cursor_with_bound_checking(cre_location.value(), npu_region_size);
+        seekg_with_bound_checking(source, cre_location.value(), npu_region_size);
 
         OPENVINO_ASSERT(m_readers.count(PredefinedSectionType::CRE), "No reader found for the table of offsets");
         parse_section(SectionID(PredefinedSectionType::CRE, FIRST_INSTANCE_ID),
                       source,
-                      cursor,
                       cre_length.value(),
+                      npu_region_start,
                       npu_region_size,
                       /*include_in_sections_order*/ false);
 
@@ -204,31 +211,31 @@ void BlobReader::read(BlobSource& source) {
 
     // Step 3: Parse all known sections
     size_t number_of_sections_encountered = 0;
-    cursor = move_cursor_with_bound_checking(where_the_region_of_persistent_format_starts, npu_region_size);
-    while (cursor < npu_region_size) {
+    seekg_with_bound_checking(source, where_the_region_of_persistent_format_starts, npu_region_size);
+    while (source.tellg() < npu_region_size) {
         // The table of offsets & CRE have already been parsed
-        if (cursor == offsets_table_location) {
-            cursor = move_cursor_with_bound_checking(cursor + offsets_table_size, npu_region_size);
+        if (source.tellg() == offsets_table_location) {
+            seekg_with_bound_checking(source, source.tellg() + offsets_table_size, npu_region_size);
             continue;
         }
-        if (cursor == cre_location.value()) {
-            cursor = move_cursor_with_bound_checking(cursor + cre_length.value(), npu_region_size);
+        if (source.tellg() == cre_location.value()) {
+            seekg_with_bound_checking(source, source.tellg() + cre_length.value(), npu_region_size);
             ++number_of_sections_encountered;
             continue;
         }
 
-        const std::optional<SectionID> section_id = offsets_table.lookup_section_id(cursor);
+        const std::optional<SectionID> section_id = offsets_table.lookup_section_id(source.tellg());
         OPENVINO_ASSERT(section_id.has_value(),
                         "Did not find any section corresponding to the relative offset ",
-                        cursor);
+                        source.tellg());
         const std::optional<uint64_t> section_length = offsets_table.lookup_length(section_id.value());
         ++number_of_sections_encountered;
 
-        const size_t next_section_location = cursor + section_length.value();
+        const size_t next_section_location = source.tellg() + section_length.value();
 
         m_logger.trace("Found section ID %s at offset %lu, length %lu",
                        section_id->to_string(),
-                       cursor,
+                       source.tellg(),
                        section_length.value());
 
         // The section is considered for parsing only if the BlobReader has a reader registered for its type. Then, how
@@ -244,7 +251,7 @@ void BlobReader::read(BlobSource& source) {
         //  block.
         if (!m_readers.count(section_id->type)) {
             m_logger.debug("No section reader found for section %s. Skipping", section_id);
-            cursor = move_cursor_with_bound_checking(next_section_location, npu_region_size);
+            seekg_with_bound_checking(source, next_section_location, npu_region_size);
             continue;
         }
 
@@ -258,7 +265,7 @@ void BlobReader::read(BlobSource& source) {
             if (instance_evaluator.evaluated() && instance_evaluator.get_result()) {
                 // Case 1
                 m_logger.trace("Parsing mandatory section ", section_id);
-                parse_section(section_id.value(), source, cursor, section_length.value(), npu_region_size);
+                parse_section(section_id.value(), source, section_length.value(), npu_region_start, npu_region_size);
             } else if (instance_evaluator.evaluated() && !instance_evaluator.get_result()) {
                 // Case 2
                 m_logger.debug("The parsing of section ID ",
@@ -271,7 +278,11 @@ void BlobReader::read(BlobSource& source) {
                                " was not evaluated");
 
                 try {
-                    parse_section(section_id.value(), source, cursor, section_length.value(), npu_region_size);
+                    parse_section(section_id.value(),
+                                  source,
+                                  section_length.value(),
+                                  npu_region_start,
+                                  npu_region_size);
                 } catch (std::exception& e) {
                     m_logger.warning("The parsing of optional section ",
                                      section_id.value(),
@@ -292,7 +303,7 @@ void BlobReader::read(BlobSource& source) {
                 "Found a section type instance that was evaluated without evaluating the section type first");
 
             try {
-                parse_section(section_id.value(), source, cursor, section_length.value(), npu_region_size);
+                parse_section(section_id.value(), source, section_length.value(), npu_region_start, npu_region_size);
             } catch (std::exception& e) {
                 m_logger.warning("The parsing of optional section ",
                                  section_id.value(),
@@ -301,7 +312,7 @@ void BlobReader::read(BlobSource& source) {
             }
         }
 
-        cursor = move_cursor_with_bound_checking(next_section_location, npu_region_size);
+        seekg_with_bound_checking(source, next_section_location, npu_region_size);
     }
 
     OPENVINO_ASSERT(

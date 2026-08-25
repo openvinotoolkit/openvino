@@ -96,12 +96,13 @@ private:
     std::unordered_map<SectionID, SectionInstanceEvaluator> build_section_type_instance_evaluators(
         BlobSource& source,
         const OffsetsTable& offsets_table,
+        const size_t npu_region_start,
         const size_t npu_region_size) const;
 
     void parse_section(const SectionID section_id,
                        BlobSource& source,
-                       size_t cursor,
                        const size_t section_length,
+                       const size_t npu_region_start,
                        const size_t npu_region_size,
                        const bool include_in_sections_order = true);
 
