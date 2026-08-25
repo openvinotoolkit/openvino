@@ -38,7 +38,8 @@ struct ConvertSDPA {
                 return {qMap, kMap, vMap, sMap, mMap, rMap};
             }
             return {qMap, kMap, vMap, sMap, rMap};
-        } else if (rank == 4) {
+        }
+        if (rank == 4) {
             // 4D: (batch, head, seq, hidden)
             AffineExpr batch, head, m, k1, k2, n;
             bindDims(ctx, batch, head, m, k1, k2, n);

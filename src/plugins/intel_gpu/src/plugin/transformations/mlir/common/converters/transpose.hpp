@@ -26,7 +26,7 @@ struct ConvertTranspose {
         auto out_type = importTensor(context.context, ov_output_shape, ov_output_element_type);
         auto dynamic_dimensions = context.get_dynamic_dimension_values(ov_output_shape);
 
-        auto const_order = dynamic_cast<ov::op::v0::Constant*>(node->get_input_node_ptr(1));
+        auto* const_order = dynamic_cast<ov::op::v0::Constant*>(node->get_input_node_ptr(1));
         assert(const_order && "non-const order not supported");
         auto coords = const_order->cast_vector<int64_t>();
         SmallVector<int64_t> order(coords.begin(), coords.end());

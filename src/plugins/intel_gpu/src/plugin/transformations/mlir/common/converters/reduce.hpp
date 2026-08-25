@@ -37,7 +37,7 @@ struct ConvertReduce {
         auto input_rank = input_shape.rank().get_length();
         SmallVector<int64_t> reduction_axes;
         {
-            auto input1 = dynamic_cast<ov::op::v0::Constant*>(node->get_input_node_ptr(1));
+            auto* input1 = dynamic_cast<ov::op::v0::Constant*>(node->get_input_node_ptr(1));
             assert(input1 && "Only constant axes are supported");
             auto axes = input1->cast_vector<int64_t>();
             reduction_axes.reserve(axes.size());
@@ -93,7 +93,7 @@ struct ConvertReduce {
         }
 
         // If keep_dims is true, broadcast along the reduced dimensions
-        if (auto keep_dims = dynamic_cast<const ov::op::util::ArithmeticReductionKeepDims*>(node.get()); keep_dims && keep_dims->get_keep_dims()) {
+        if (const auto* keep_dims = dynamic_cast<const ov::op::util::ArithmeticReductionKeepDims*>(node.get()); keep_dims && keep_dims->get_keep_dims()) {
             auto shape = llvm::map_to_vector(node->get_output_partial_shape(0), [](const ov::Dimension& dim) {
                 return dim.get_length();
             });
@@ -111,18 +111,16 @@ private:
         if constexpr (std::is_same_v<OVOp, ov::op::v1::ReduceMax>) {
             if (type.isFloat()) {
                 return getConstant(builder, type, -std::numeric_limits<double>::infinity(), loc);
-            } else {
-                int64_t min_val = type.isUnsignedInteger() ? 0 : -(1LL << (type.getIntOrFloatBitWidth() - 1));
-                return getConstant(builder, type, min_val, loc);
             }
+            int64_t min_val = type.isUnsignedInteger() ? 0 : -(1LL << (type.getIntOrFloatBitWidth() - 1));
+            return getConstant(builder, type, min_val, loc);
         } else if constexpr (std::is_same_v<OVOp, ov::op::v1::ReduceMin>) {
             if (type.isFloat()) {
                 return getConstant(builder, type, std::numeric_limits<double>::infinity(), loc);
-            } else {
-                unsigned bitwidth = type.getIntOrFloatBitWidth();
-                int64_t max_val = type.isUnsignedInteger() ? ((1ULL << bitwidth) - 1) : ((1LL << (bitwidth - 1)) - 1);
-                return getConstant(builder, type, max_val, loc);
             }
+            unsigned bitwidth = type.getIntOrFloatBitWidth();
+            int64_t max_val = type.isUnsignedInteger() ? ((1ULL << bitwidth) - 1) : ((1LL << (bitwidth - 1)) - 1);
+            return getConstant(builder, type, max_val, loc);
         } else if constexpr (std::is_same_v<OVOp, ov::op::v1::ReduceSum> || std::is_same_v<OVOp, ov::op::v1::ReduceMean>) {
             return getConstant(builder, type, 0, loc);
         } else if constexpr (std::is_same_v<OVOp, ov::op::v1::ReduceProd>) {
@@ -138,31 +136,29 @@ private:
         if constexpr (std::is_same_v<OVOp, ov::op::v1::ReduceMax>) {
             if (type.isFloat()) {
                 return ::mlir::arith::MaximumFOp::create(builder, loc, lhs, rhs);
-            } else if (type.isUnsignedInteger()) {
-                return ::mlir::arith::MaxUIOp::create(builder, loc, lhs, rhs);
-            } else {
-                return ::mlir::arith::MaxSIOp::create(builder, loc, lhs, rhs);
             }
+            if (type.isUnsignedInteger()) {
+                return ::mlir::arith::MaxUIOp::create(builder, loc, lhs, rhs);
+            }
+            return ::mlir::arith::MaxSIOp::create(builder, loc, lhs, rhs);
         } else if constexpr (std::is_same_v<OVOp, ov::op::v1::ReduceMin>) {
             if (type.isFloat()) {
                 return ::mlir::arith::MinimumFOp::create(builder, loc, lhs, rhs);
-            } else if (type.isUnsignedInteger()) {
-                return ::mlir::arith::MinUIOp::create(builder, loc, lhs, rhs);
-            } else {
-                return ::mlir::arith::MinSIOp::create(builder, loc, lhs, rhs);
             }
+            if (type.isUnsignedInteger()) {
+                return ::mlir::arith::MinUIOp::create(builder, loc, lhs, rhs);
+            }
+            return ::mlir::arith::MinSIOp::create(builder, loc, lhs, rhs);
         } else if constexpr (std::is_same_v<OVOp, ov::op::v1::ReduceSum> || std::is_same_v<OVOp, ov::op::v1::ReduceMean>) {
             if (type.isFloat()) {
                 return ::mlir::arith::AddFOp::create(builder, loc, lhs, rhs);
-            } else {
-                return ::mlir::arith::AddIOp::create(builder, loc, lhs, rhs);
             }
+            return ::mlir::arith::AddIOp::create(builder, loc, lhs, rhs);
         } else if constexpr (std::is_same_v<OVOp, ov::op::v1::ReduceProd>) {
             if (type.isFloat()) {
                 return ::mlir::arith::MulFOp::create(builder, loc, lhs, rhs);
-            } else {
-                return ::mlir::arith::MulIOp::create(builder, loc, lhs, rhs);
             }
+            return ::mlir::arith::MulIOp::create(builder, loc, lhs, rhs);
         } else {
             static_assert(sizeof(OVOp) == 0, "Unsupported reduction operation");
         }

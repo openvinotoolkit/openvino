@@ -28,7 +28,7 @@ struct ConvertUnsqueeze {
 
         assert(ov_input_shape.rank().is_static() && "expecting static output shape");
 
-        auto const_axes = dynamic_cast<ov::op::v0::Constant*>(node->get_input_node_ptr(1));
+        auto* const_axes = dynamic_cast<ov::op::v0::Constant*>(node->get_input_node_ptr(1));
         assert(const_axes && "non-const axes not supported");
         ov::Coordinate coords = const_axes->get_coordinate_val();
 
