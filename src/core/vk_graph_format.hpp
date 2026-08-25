@@ -3,8 +3,15 @@
 //
 // vk_graph_format: binary serialization of the plugin-agnostic Vulkan IR.
 //
-// FB (Float Binary) v1: one ir_graph, f32 payloads. Self-describing,
+// FB (Float Binary) v5: one ir_graph, f32 payloads. Self-describing,
 // little-endian, bounds-checked so truncated/corrupt blobs fail loudly.
+// v2 adds the per-node f32 attribute |alpha| (op scalar: leaky_relu slope,
+// rms_norm eps, pad fill value);
+// v3 serializes |quant_constants| (raw GGUF block payloads), so a compiled
+// blob exported from a quantized graph keeps its native in-shader dequant;
+// v4 adds the per-node |axis| and |transpose_order| attributes
+// (Concat/Softmax/Reduce axis and the Transpose permutation);
+// v5 adds pool |pads_end| (Pad op per-dim end padding).
 //
 // PB (Parallel Binary) v1: container of several FB graphs in one blob (parallel
 // branches, per-device/per-rank graphs). The header carries the graph count;
@@ -32,7 +39,7 @@ namespace ov::core::vulkan::cross_platform {
 // FB magic, 8 bytes: "VKFB0001". PB magic: "VKPB0001".
 inline constexpr std::array<char, 8> k_fb_magic{'V', 'K', 'F', 'B', '0', '0', '0', '1'};
 inline constexpr std::array<char, 8> k_pb_magic{'V', 'K', 'P', 'B', '0', '0', '0', '1'};
-inline constexpr uint32_t k_format_version = 1;
+inline constexpr uint32_t k_format_version = 5;
 
 // Serializes a single graph (nodes, tensors, constants, ports) to FB bytes.
 [[nodiscard]] std::vector<std::byte> serialize_fb(const ir_graph& graph);

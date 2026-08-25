@@ -1,0 +1,41 @@
+#version 450
+// Native Vulkan kernel: Reduction (f32) along one axis (axis is removed).
+// Input is [outer, len, inner] flattened row-major; output is [outer, inner].
+// One thread per output element; the thread walks the reduced axis.
+// mode: 0 = sum, 1 = mean, 2 = max.
+// binding 0: input, binding 1: output.
+// push constants: total (output count), len, inner, mode.
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0, std430) buffer In0 { float data[]; } in0;
+layout(set = 0, binding = 1, std430) buffer Out0 { float data[]; } out0;
+
+layout(push_constant, std430) uniform Params {
+    uint total;
+    uint len;
+    uint inner;
+    uint mode;
+} params;
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+    if (gid >= params.total)
+        return;
+
+    const uint o = gid / params.inner;
+    const uint t = gid % params.inner;
+    const uint base = (o * params.len) * params.inner + t;
+
+    float acc = params.mode == 2u ? -3.402823466e38 : 0.0f;
+    for (uint a = 0u; a < params.len; ++a) {
+        const float v = in0.data[base + a * params.inner];
+        if (params.mode == 2u)
+            acc = max(acc, v);
+        else
+            acc += v;
+    }
+    if (params.mode == 1u)
+        acc /= float(params.len);
+    out0.data[gid] = acc;
+}

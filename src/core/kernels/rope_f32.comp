@@ -1,0 +1,40 @@
+#version 450
+// Native Vulkan kernel: RoPE (f32), rotary position embedding, halves
+// convention. x is [..., H, D] flattened (e.g. [B,L,H,D]); cos/sin are
+// [L, D/2]. For every pair (t, t+D/2) inside a head vector:
+//   out_t       = x_t  * cos(l,t) - x_{t+D/2} * sin(l,t)
+//   out_{t+D/2} = x_{t+D/2} * cos(l,t) + x_t  * sin(l,t)
+// binding 0: x, binding 1: cos, binding 2: sin, binding 3: output.
+// push constants: total_pairs (= elems/D), half (= D/2), heads (= H).
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0, std430) buffer In0 { float data[]; } in0;
+layout(set = 0, binding = 1, std430) buffer C0 { float data[]; } c0;
+layout(set = 0, binding = 2, std430) buffer S0 { float data[]; } s0;
+layout(set = 0, binding = 3, std430) buffer Out0 { float data[]; } out0;
+
+layout(push_constant, std430) uniform Params {
+    uint total_pairs;
+    uint hf;
+    uint heads;
+} params;
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+    if (gid >= params.total_pairs)
+        return;
+
+    const uint t = gid % params.hf;                 // dim inside head / 2
+    const uint q = gid / params.hf;
+    const uint h = q % params.heads;                  // head
+    const uint bl = q / params.heads;                 // batch * seq position
+
+    const uint xbase = q * (params.hf * 2u);
+    const float c = c0.data[bl * params.hf + t];
+    const float s = s0.data[bl * params.hf + t];
+    const float x1 = in0.data[xbase + t];
+    const float x2 = in0.data[xbase + params.hf + t];
+    out0.data[xbase + t] = x1 * c - x2 * s;
+    out0.data[xbase + params.hf + t] = x2 * c + x1 * s;
+}

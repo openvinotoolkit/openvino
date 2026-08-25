@@ -147,6 +147,29 @@ private:
         case ir_op::avg_pool:
         case ir_op::convolution:
         case ir_op::matmul:
+        case ir_op::mul:
+        case ir_op::sub:
+        case ir_op::div:
+        case ir_op::sigmoid:
+        case ir_op::tanh:
+        case ir_op::leaky_relu:
+        case ir_op::transpose:
+        case ir_op::concat:
+        case ir_op::softmax:
+        case ir_op::reshape:
+        case ir_op::reduce_mean:
+        case ir_op::reduce_sum:
+        case ir_op::reduce_max:
+        case ir_op::gelu:
+        case ir_op::swiglu:
+        case ir_op::quick_gelu:
+        case ir_op::rms_norm:
+        case ir_op::pad:
+        case ir_op::crop:
+        case ir_op::causal_softmax:
+        case ir_op::rope:
+        case ir_op::cache_write:
+        case ir_op::argmax:
             return static_cast<ir_op>(v);
     }
     format_error("unknown op code " + std::to_string(v));
@@ -156,6 +179,7 @@ void write_fb_body(fb_writer& w, const ir_graph& graph) {
     w.put_u32(k_format_version);
     w.put_u32(static_cast<uint32_t>(graph.tensor_shapes.size()));
     w.put_u32(static_cast<uint32_t>(graph.constant_data.size()));
+    w.put_u32(static_cast<uint32_t>(graph.quant_constants.size()));
     w.put_u32(static_cast<uint32_t>(graph.nodes.size()));
     w.put_u32(static_cast<uint32_t>(graph.inputs.size()));
     w.put_u32(static_cast<uint32_t>(graph.outputs.size()));
@@ -170,13 +194,23 @@ void write_fb_body(fb_writer& w, const ir_graph& graph) {
         for (const float f : data)
             w.put_f32(f);
     }
+    for (const auto& [id, qc] : graph.quant_constants) {
+        w.put_str(id);
+        w.put_u32(qc.type);
+        w.put_u32(static_cast<uint32_t>(qc.bytes.size()));
+        w.put_bytes(std::span<const std::byte>(reinterpret_cast<const std::byte*>(qc.bytes.data()), qc.bytes.size()));
+    }
     for (const auto& node : graph.nodes) {
         w.put_u8(op_to_u8(node.op));
         w.put_str(node.id);
         w.put_u8(node.matmul_transpose_b ? 1 : 0);
+        w.put_f32(node.alpha);
+        w.put_u32(node.axis);
+        w.put_u64_vec(node.transpose_order);
         w.put_u64_vec(node.pool.kernel);
         w.put_u64_vec(node.pool.strides);
         w.put_u64_vec(node.pool.pads_begin);
+        w.put_u64_vec(node.pool.pads_end);
         w.put_u32(static_cast<uint32_t>(node.inputs.size()));
         for (const auto& in : node.inputs)
             w.put_str(in);
@@ -194,6 +228,7 @@ void read_fb_body(fb_reader& r, ir_graph& out) {
 
     const uint32_t num_tensors = r.get_u32();
     const uint32_t num_constants = r.get_u32();
+    const uint32_t num_quants = r.get_u32();
     const uint32_t num_nodes = r.get_u32();
     const uint32_t num_inputs = r.get_u32();
     const uint32_t num_outputs = r.get_u32();
@@ -215,14 +250,28 @@ void read_fb_body(fb_reader& r, ir_graph& out) {
             data.push_back(r.get_f32());
         out.constant_data[id] = std::move(data);
     }
+    for (uint32_t i = 0; i < num_quants; ++i) {
+        ir_quant_const qc;
+        const auto id = r.get_str();
+        qc.type = r.get_u32();
+        const uint32_t count = r.get_u32();
+        qc.bytes.reserve(count);
+        for (uint32_t j = 0; j < count; ++j)
+            qc.bytes.push_back(r.get_u8());
+        out.quant_constants[id] = std::move(qc);
+    }
     for (uint32_t i = 0; i < num_nodes; ++i) {
         ir_node node;
         node.op = u8_to_op(r.get_u8());
         node.id = r.get_str();
         node.matmul_transpose_b = r.get_u8() != 0;
+        node.alpha = r.get_f32();
+        node.axis = r.get_u32();
+        node.transpose_order = r.get_u64_vec();
         node.pool.kernel = r.get_u64_vec();
         node.pool.strides = r.get_u64_vec();
         node.pool.pads_begin = r.get_u64_vec();
+        node.pool.pads_end = r.get_u64_vec();
         const uint32_t n_inputs = r.get_u32();
         node.inputs.reserve(n_inputs);
         for (uint32_t j = 0; j < n_inputs; ++j)

@@ -1,0 +1,51 @@
+#version 450
+// Native Vulkan kernel: Crop (f32) — per-dim window of the input.
+// begin offsets come from pads_begin; the window size is the output shape.
+// binding 0: input, binding 1: output.
+// push constants: total_out, rank, then two fixed 8-wide tuples written as
+// individual scalars (od* = output dims, is* = row-major INPUT strides,
+// bg* = per-dim begin offsets).
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0, std430) buffer In0 { float data[]; } in0;
+layout(set = 0, binding = 1, std430) buffer Out0 { float data[]; } out0;
+
+layout(push_constant, std430) uniform Params {
+    uint total;
+    uint rank;
+    uint od0; uint od1; uint od2; uint od3; uint od4; uint od5; uint od6; uint od7;
+    uint is0; uint is1; uint is2; uint is3; uint is4; uint is5; uint is6; uint is7;
+    uint bg0; uint bg1; uint bg2; uint bg3; uint bg4; uint bg5; uint bg6; uint bg7;
+} params;
+
+uint out_dim_at(uint i) {
+    return i == 0u ? params.od0 : i == 1u ? params.od1 : i == 2u ? params.od2 : i == 3u ? params.od3
+         : i == 4u ? params.od4 : i == 5u ? params.od5 : i == 6u ? params.od6 : params.od7;
+}
+
+uint stride_at(uint i) {
+    return i == 0u ? params.is0 : i == 1u ? params.is1 : i == 2u ? params.is2 : i == 3u ? params.is3
+         : i == 4u ? params.is4 : i == 5u ? params.is5 : i == 6u ? params.is6 : params.is7;
+}
+
+uint begin_at(uint i) {
+    return i == 0u ? params.bg0 : i == 1u ? params.bg1 : i == 2u ? params.bg2 : i == 3u ? params.bg3
+         : i == 4u ? params.bg4 : i == 5u ? params.bg5 : i == 6u ? params.bg6 : params.bg7;
+}
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+    if (gid >= params.total)
+        return;
+
+    uint rem = gid;
+    uint src = 0u;
+    for (uint ii = 0u; ii < params.rank; ++ii) {
+        const uint d = params.rank - 1u - ii;   // fastest axis first
+        const uint coord = rem % out_dim_at(d);
+        rem /= out_dim_at(d);
+        src += (coord + begin_at(d)) * stride_at(d);
+    }
+    out0.data[gid] = in0.data[src];
+}

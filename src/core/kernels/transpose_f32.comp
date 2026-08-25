@@ -1,0 +1,53 @@
+#version 450
+// Native Vulkan kernel: Transpose (f32), generic axis permutation.
+// binding 0: input, binding 1: output.
+// push constants: total_out, rank, then three fixed 8-wide tuples written as
+// individual scalars (od0..od7 = output dims, is0..is7 = row-major input
+// element strides, pm0..pm7 = permutation). Individual scalars keep the push
+// block free of std140/std430 array-layout ambiguity.
+// out_dim[d] = in_dim[perm[d]].
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0, std430) buffer In0 { float data[]; } in0;
+layout(set = 0, binding = 1, std430) buffer Out0 { float data[]; } out0;
+
+layout(push_constant, std430) uniform Params {
+    uint total;
+    uint rank;
+    uint od0; uint od1; uint od2; uint od3; uint od4; uint od5; uint od6; uint od7;
+    uint is0; uint is1; uint is2; uint is3; uint is4; uint is5; uint is6; uint is7;
+    uint pm0; uint pm1; uint pm2; uint pm3; uint pm4; uint pm5; uint pm6; uint pm7;
+} params;
+
+uint dim_at(uint i) {
+    return i == 0u ? params.od0 : i == 1u ? params.od1 : i == 2u ? params.od2 : i == 3u ? params.od3
+         : i == 4u ? params.od4 : i == 5u ? params.od5 : i == 6u ? params.od6 : params.od7;
+}
+
+uint stride_at(uint i) {
+    return i == 0u ? params.is0 : i == 1u ? params.is1 : i == 2u ? params.is2 : i == 3u ? params.is3
+         : i == 4u ? params.is4 : i == 5u ? params.is5 : i == 6u ? params.is6 : params.is7;
+}
+
+uint perm_at(uint i) {
+    return i == 0u ? params.pm0 : i == 1u ? params.pm1 : i == 2u ? params.pm2 : i == 3u ? params.pm3
+         : i == 4u ? params.pm4 : i == 5u ? params.pm5 : i == 6u ? params.pm6 : params.pm7;
+}
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+    if (gid >= params.total)
+        return;
+
+    // Row-major decomposition of the output index: fastest axis first.
+    uint rem = gid;
+    uint src = 0u;
+    for (uint ii = 0u; ii < params.rank; ++ii) {
+        const uint d = params.rank - 1u - ii;
+        const uint coord = rem % dim_at(d);
+        rem /= dim_at(d);
+        src += coord * stride_at(perm_at(d));
+    }
+    out0.data[gid] = in0.data[src];
+}

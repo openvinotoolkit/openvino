@@ -1,0 +1,33 @@
+#version 450
+// Native Vulkan kernel: batched MatMul with transposed weights,
+// A [B,M,K] x B [N,K] -> O [B,M,N].
+// binding 0: A, binding 1: B (stored [N,K]), binding 2: output.
+// push constants: [0]=M [1]=N [2]=K [3]=total_out [4]=batch
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0, std430) buffer In0 { float data[]; } a;
+layout(set = 0, binding = 1, std430) buffer In1 { float data[]; } b;
+layout(set = 0, binding = 2, std430) buffer Out0 { float data[]; } o;
+
+layout(push_constant) uniform Params {
+    uint M;
+    uint N;
+    uint K;
+    uint total_out;
+    uint batch;
+} params;
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+    if (gid >= params.total_out)
+        return;
+    uint n = gid % params.N;
+    uint m = (gid / params.N) % params.M;
+    uint bt = gid / (params.N * params.M);
+    float acc = 0.0f;
+    for (uint k = 0; k < params.K; ++k) {
+        acc += a.data[bt * params.M * params.K + m * params.K + k] * b.data[n * params.K + k];
+    }
+    o.data[gid] = acc;
+}

@@ -1,0 +1,96 @@
+#version 450
+// Native Vulkan kernel: batched MatMul (f32 activations) x quantized weights,
+// dequant done entirely in-shader. A [B,M,K] x shared B [K,N] -> O [B,M,N];
+// B holds the raw on-disk GGUF block payload (blocks run along N).
+// binding 0: A (f32), binding 1: B (raw quant blocks), binding 2: output.
+// push constants: [0]=M [1]=N [2]=K [3]=total_out [4]=batch [5]=quant type.
+//
+// Block types mirror matmul_q_f32.comp:
+//   2=Q4_0 18B, 3=Q4_1 20B, 6=Q5_0 22B, 7=Q5_1 24B, 8=Q8_0 34B.
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0, std430) buffer In0 { float data[]; } a;
+layout(set = 0, binding = 1, std430) buffer In1 { uint data[]; } b;
+layout(set = 0, binding = 2, std430) buffer Out0 { float data[]; } o;
+
+layout(push_constant, std430) uniform Params {
+    uint M;
+    uint N;
+    uint K;
+    uint total_out;
+    uint batch;
+    uint qtype;
+} params;
+
+uint rd_u8(uint off) {
+    uint word = b.data[off >> 2];
+    return (word >> ((off & 3u) << 3u)) & 0xFFu;
+}
+uint rd_u16(uint off) { return rd_u8(off) | (rd_u8(off + 1u) << 8u); }
+uint rd_u32(uint off) {
+    return rd_u8(off) | (rd_u8(off + 1u) << 8u) | (rd_u8(off + 2u) << 16u) | (rd_u8(off + 3u) << 24u);
+}
+float f16_at(uint off) {
+    return unpackHalf2x16(rd_u16(off)).x;
+}
+
+uint quant_block_bytes() {
+    if (params.qtype == 2u) return 18u;
+    if (params.qtype == 3u) return 20u;
+    if (params.qtype == 6u) return 22u;
+    if (params.qtype == 7u) return 24u;
+    return 34u;  // Q8_0
+}
+
+float dequant(uint blk, uint idx) {
+    const uint off = blk * quant_block_bytes();
+    if (params.qtype == 2u) {
+        const float d = f16_at(off);
+        const uint byte = rd_u8(off + 2u + (idx >> 1u));
+        const int q = int((byte >> ((idx & 1u) << 2u)) & 0xFu);
+        return d * float(q - 8);
+    }
+    if (params.qtype == 3u) {
+        const float d = f16_at(off);
+        const float m = f16_at(off + 2u);
+        const uint byte = rd_u8(off + 4u + (idx >> 1u));
+        const int q = int((byte >> ((idx & 1u) << 2u)) & 0xFu);
+        return d * float(q) + m;
+    }
+    if (params.qtype == 6u) {
+        const float d = f16_at(off);
+        const uint qh = rd_u32(off + 2u);
+        const uint lo = (idx < 16u) ? (rd_u8(off + 6u + idx) & 0xFu) : (rd_u8(off + 6u + (idx - 16u)) >> 4u);
+        const uint hi = (qh >> idx) & 1u;
+        return d * float(int(lo | (hi << 4u)) - 16);
+    }
+    if (params.qtype == 7u) {
+        const float d = f16_at(off);
+        const float m = f16_at(off + 2u);
+        const uint qh = rd_u32(off + 4u);
+        const uint lo = (idx < 16u) ? (rd_u8(off + 8u + idx) & 0xFu) : (rd_u8(off + 8u + (idx - 16u)) >> 4u);
+        const uint hi = (qh >> idx) & 1u;
+        return d * float(int(lo | (hi << 4u))) + m;
+    }
+    const float d = f16_at(off);
+    int q = int(rd_u8(off + 2u + idx));
+    if (q >= 128) q -= 256;
+    return d * float(q);
+}
+
+void main() {
+    const uint gid = gl_GlobalInvocationID.x;
+    if (gid >= params.total_out)
+        return;
+    const uint n = gid % params.N;
+    const uint m = (gid / params.N) % params.M;
+    const uint bt = gid / (params.N * params.M);
+    const uint blocks_per_row = (params.N + 31u) / 32u;
+    float acc = 0.0f;
+    for (uint k = 0u; k < params.K; ++k) {
+        const float w = dequant(k * blocks_per_row + (n / 32u), n % 32u);
+        acc += a.data[bt * params.M * params.K + m * params.K + k] * w;
+    }
+    o.data[gid] = acc;
+}

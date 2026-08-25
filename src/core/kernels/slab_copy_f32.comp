@@ -1,0 +1,34 @@
+#version 450
+// Native Vulkan kernel: slab copy (f32) ??? the building block of Concat.
+// Copies one axis-slab of a tensor into its place inside the concatenated
+// output: dst[((o*out_axis + off + a)*inner + t)] =
+//           src[(o*in_axis + a)*inner + t],  a < k.
+// binding 0: source, binding 1: destination.
+// push constants: outer, in_axis, out_axis, off, k, inner, total.
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0, std430) buffer In0 { float data[]; } in0;
+layout(set = 0, binding = 1, std430) buffer Out0 { float data[]; } out0;
+
+layout(push_constant, std430) uniform Params {
+    uint outer;
+    uint in_axis;
+    uint out_axis;
+    uint off;
+    uint k;
+    uint inner;
+    uint total;
+} params;
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+    if (gid >= params.total)
+        return;
+    const uint t = gid % params.inner;
+    const uint r = gid / params.inner;
+    const uint a = r % params.k;
+    const uint o = r / params.k;
+    out0.data[(o * params.out_axis + params.off + a) * params.inner + t] =
+        in0.data[(o * params.in_axis + a) * params.inner + t];
+}

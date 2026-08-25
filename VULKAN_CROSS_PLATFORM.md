@@ -70,24 +70,22 @@
        `vksc_core.h` — задел готов, заголовки отсутствуют. Проверено
        smoke10: desktop, moltenvk (Windows-фолбэк) и vulkan_sc +
        оффлайн-экспорт (артефакты на месте, инференс PASS).)*
-4. [~] **Маршрутизация по именам устройств**: один кросплатформенный плагин
-       регистрируется как `GPU`/`CPU`/`NPU` — ядро само выбирает физическое
-       устройство по классу (GPU → любой не-CPU Vulkan-девайс, CPU → CPU-тип
-       драйвера (SwiftShader/Lavapipe), NPU → класс пока не существует, запрос
-       падает с чистой ошибкой). Регресс: intel_cpu/intel_npu снимаются,
-       остаётся только openvino_crossplatform.dll.
-       *(сделано: `vk_platform_config.device_name` + фильтр физических устройств
-       в `init_vk_engine_data` (throw вместо fallback, когда нет совпадения);
-       `engine::create(..., device_name)` и проброс `m_device_name` из
-       `RemoteContextImpl::initialize`; фильтр в `Plugin`: `available_devices`,
-       `get_default_contexts`, `get_metric` (device_matches_plugin_name —
-       dynamic_cast к `vk_device`, `is_cpu_device()`); контекст без устройств
-       кидает «No Vulkan device matching ...»; ctor плагина больше не
-       хардкодит `set_device_name("GPU")` — имя назначает рантайм, иначе
-       core-проверка «plugin name ⊂ device name» режет CPU/NPU; plugins.xml
-       пишется POST_BUILD-шагом с тремя записями на один dll. Проверено
-       smoke11: GPU PASS, CPU/NPU — чистые ошибки без устройств; полный
-       регресс smoke–smoke10 + fmt_test PASS.)*
+4. [x] **Маршрутизация по именам устройств (автономная)**: единая точка входа
+       ядра сама выбирает исполнителя по имени (`device_name`), роутинг
+       прежнего OV-плагина перенесён внутрь ядра.
+       *(сделано в standalone-архитектуре: `vk_dispatch.hpp` — `vk_execute(
+       graph, inputs, "GPU[.N]" | "CPU", platform_config)`: CPU → нативный
+       `cpu_execute`, всё остальное → Vulkan-путь (vk_engine → vk_program →
+       vk_network, readback через host-visible override); `vk_available_devices()`
+       перечисляет устройства как маршрутизируемые имена ("GPU.0", "CPU.1"...);
+       в `init_vk_engine_data` явная классификация по типу физического
+       устройства: GPU = discrete/integrated/virtual, CPU = CPU-тип драйвера,
+       NPU = класса не существует → всегда чистая ошибка «No Vulkan device
+       matching ...» (раньше NPU ошибочно матчился с GPU — поймано смоуком);
+       суффикс `.N` теперь реально выбирает N-й кандидат: stable_sort по score,
+       ничьи сохраняют порядок перечисления. Проверено ops_smoke 22/22:
+       dispatch CPU/GPU/GPU.0 vs эталон, NPU — чистая ошибка; полный блок
+       операций + FB/PB round-trip PASS.)*
 
 5. [x] **Легаси удалён накорню**: `src/plugins/intel_cpu` (~1900 файлов) и
        `src/plugins/intel_npu` (~700 файлов), `src/plugins/intel_gpu` выпилены
@@ -161,15 +159,20 @@
 > NPU/TPU) — либо вендорный рантайм, либо фолбэк на `cpu_engine`.
 
 
-> **Жизнеспособность ядра:** текущий набор операций (relu/add/matmul/
-> maxpool/avgpool/conv2d) покрывает только демо-цепочки. Для реальных
-> моделей (ResNet/BERT и т.п.) набор необходимо расширять — в первую
-> очередь reshape/transpose (без OV-пасса), concat,
-> softmax, reductions (mean/sum/max), elementwise (mul/sub/div),
-> activation (sigmoid/tanh/leaky_relu), GEMM-обёртки fc/matmul 4D,
-> раздельные bias-константы для conv. Каждый новый op = `ir_op` +
-> матчинг в конвертере + (как правило) один `.comp`-кернел + смоук-тест;
-> границы проверяются на этапе конвертации, не на инференсе.
+> **Жизнеспособность ядра:** набор операций расширяется батчами (каждый новый
+> op = `ir_op` + `.comp`-кернел + случай в `vk_program`/`cpu_engine` +
+> `u8_to_op` + смоук; границы проверяются на этапе конвертации). Готово:
+> батч 1 — mul/sub/div, sigmoid/tanh/leaky_relu (+alpha, FB v2); батч 2 —
+> transpose, reshape (алиас), concat, softmax, reduce mean/sum/max (FB v4);
+> батч 3 — батчированный matmul 3D(+tb), gelu/swiglu, контракт bias для conv;
+> батч 4 — quick_gelu, rms_norm, pad, квантованный batched matmul (FB v5);
+> батч 5 — softmax по произвольной оси, crop, попарно-батчированный matmul,
+> attention-композиция (scale → Q·Kᵀ → softmax → ·V) проверена тестом;
+> батч 6 — causal_softmax, rope, функциональный cache_write, argmax, GQA
+> (Bb=1), полный decoder-шаг в тесте.
+> Дальше: батч 7 (скорость: tiled matmul, float4, фьюжн bias+act, FP16),
+> батч 8 (пул памяти, графовые пассы dce/fold, Safetensors), батч 9
+> (витрина: док формата, примеры).
 
 ## Риски
 
@@ -178,6 +181,160 @@
 
 ## Журнал
 
+- 2026-08-26 (вечер): **батч 8 (инженерия рантайма, часть 1)** —
+  **Safetensors-ридер** (`safetensors_reader.hpp/cpp`, namespace `st_r`):
+  u64-заголовок + мини-JSON-сканер фиксированной схемы (dtype/shape/
+  data_offsets, skip `__metadata__`), F32/F16/BF16 → f32, остальное — чистая
+  ошибка; тест пишет файл из кода и гоняет matmul с весами из файла на CPU+GPU.
+  **Графовые пассы** (`vk_pass.hpp/cpp`, namespace `pass`, чистые функции над
+  ir_graph): `dce` (недостижимые ветки; осиротевшие constant-ноды удаляются
+  ВМЕСТЕ с payload — первая версия оставляла ноды без данных), 
+  `fold_constants` (каскадный фолдинг через cpu_execute мини-графа; два
+  грабли: синтетическая result-нода не создаёт тензор → outputs.at() падал,
+  константы обязаны идти раньше потребителя в мини-графе),
+  `peephole` (transpose∘transpose → композиция/аннигиляция, relu∘relu,
+  sigmoid∘sigmoid), `optimize` = всё до фикспоинта. Тесты `optim` + 
+  `safetensors`. Пул памяти и FP16-тензоры перенесены в батч 9: пулу нужны
+  оффсетные дескрипторы в стриме, FP16 — поле dtype в IR (FB v6).
+- 2026-08-26 (день): **батч 7 (скорость)** — shared-memory tiling 16×16 для
+  трёх горячих GEMM: `matmul_tiled_f32` (2D), `matmul_batched_tiled_f32`
+  (shared-батч), `matmul_bb_tiled_f32` (попарный/GQA). Пуш-раскладка
+  идентична наивным кернелам — drop-in; билдер выбирает тайл автоматически
+  при M,N,K ≥ 16 (f32, не transpose_b); грид для тайлов — 2D {N,M,B} вместо
+  линейного (первый запуск дал частичный расчёт — поймано паритетом на
+  17³/33×48). Замер (`test_perf.exe`, сборка один раз, тайминг чистого
+  execute): **129 GFLOP/s @ 256³, 162 GFLOP/s @ 512³** (0.52 мс / 1.65 мс)
+  на пользовательском GPU; первый замер «0.2 GFLOP/s» мерял пересборку
+  программы в каждом вызове, не GEMM. FP16-тензоры и фьюжн-пассы перенесены
+  в батч 8 (нужно решение по памяти и инфраструктура пассов). Инцидент:
+  vk_program.cpp был обнулён неудачной записью редактора — восстановлен
+  целиком по памяти сессии, все 6 exe зелёные.
+- 2026-08-26: **батч 6 (LLM-словарь)** — ядро теперь 28 ops, и в `test_llm.cpp`
+  собран полный decoder-шаг из ops ядра: scale → Q·Kᵀ (попарный батч) →
+  causal softmax → P·V → KV-cache append → crop чтение истории. Новые op:
+  **causal_softmax** (последняя ось [...,L,L], хвост обнуляется),
+  **rope** (halves-конвенция; cos/sin = x_dims[:-2]+[D/2]; `half` —
+  зарезервированное слово GLSL, член пуша назван hf), **cache_write**
+  (функциональный append: out=cache с заменой rows [pos,pos+L); первая
+  версия была in-place и сломалась об override-индирекцию — писатель целил
+  override-буфер, читатель брал программный; функциональная семантика
+  композируется идеально), **argmax** (первая ничья). **GQA**: pairwise
+  matmul принимает Bb=1 (матрица шарится на батч, push b_batch + bt%bb).
+  Регрессия: 5 exe ALL PASS (~75 проверок). Дважды виноват референс теста,
+  не движок: sc не обнулялся между батчами; P·V суммировал по всем j вместо
+  каузального треугольника.
+- 2026-08-25 (утро #2): **батч 5** — ядро теперь 24 ops, и оно впервые
+  собирает настоящий трансформерный блок. (1) **Softmax по произвольной
+  оси**: кернел переписан на [outer,len,inner]-декомпозицию (нить на строку,
+  стабильный max-вычит); last-axis-ограничение снято, shape_ops теперь
+  проверяет корректность средней оси вместо отказа. (2) **Crop** — окно по
+  осям, begin-офсеты в pads_begin, до 8D. (3) **Попарно-батчированный MatMul**
+  `matmul_bb_f32`: A [B,M,K] x B [B,K,N] — per-head матрицы; ветка
+  выбирается по рангу B (3D → pairwise, 2D → shared). (4) **Attention как
+  композиция** (`test_attention.cpp`): scale→Q·Kᵀ→softmax(axis=2)→·V —
+  целиком из ops ядра, CPU и GPU против референса; crop там же.
+  Найдено в ходе: K попарного GEMM берётся из b_shape[1]; lines softmax = 
+  outer*inner (не outer). Регрессия: 4 exe ALL PASS.
+- 2026-08-25 (ночь #2): **батч 4** — ядро теперь 23 ops. **QuickGELU**
+  (`x·sigmoid(1.702x)`), **RMSNorm** по последней оси (weight [axis], eps =
+  alpha; alpha теперь документирован как общий скалярный атрибут op:
+  slope/eps/fill), **Pad** с constant fill (pads_begin/pads_end по осям, до
+  8D), **квантованный batched MatMul** (`matmul_q_batched_f32`, Q4_0/Q4_1/
+  Q5_0/Q5_1/Q8_0, блоки вдоль N общей матрицы). FB → **v5** (pads_end).
+  Найдено в ходе: (1) push-бюджет 128Б жёсткий — pad с четырьмя 8-тuples не
+  влезал (140Б); in_dims выведены в шейдере из out−pb−pe (108Б); стрим
+  поймал перерасход чистой ошибкой — защита работает; (2) softmax/rms_norm
+  корректны только на последней оси (контiguous lines) — добавлена явная
+  валидация вместо молчаливо неверных чисел на средней оси; (3) тестовый
+  heap-corruption: референс-вектор короче формы графа. Тесты: новый
+  `test_shape_ops.cpp` (12 проверок) — регрессия всех трёх exe ALL PASS.
+- 2026-08-25 (ночь): **батч 3** — ядро теперь 20 ops. (1) **Батчированный
+  MatMul**: A [B,M,K] x общая B [K,N|N,K] → [B,M,N], кернелы
+  `matmul_batched(+transpose_b)_f32`; ветка выбирается по рангу входа A в
+  `build()` (ir_op тот же, IR/FB без изменений); квантование пока только на
+  2D-пути — чистая ошибка на 3D+quant; fc = reshape-алиас + обычный 2D matmul.
+  (2) **GELU** (tanh-аппроксимация) и **SwiGLU** (`silu(a)*b`) — elementwise,
+  swiglu входит в broadcast-группу бинарников. (3) **Контракт conv**: ровно
+  3 входа (data, weights, bias); отсутствие bias раньше читало мусорную
+  память в GPU-кернеле (binding B0 безусловен) и падало с std::out_of_range
+  на CPU — теперь чистая ошибка «materialize a zero bias upstream» на обоих
+  исполнителях. Тесты: новый `test_nn_ops.cpp` (10 проверок — заодно первая
+  проверка мульти-тестового CMake: два exe из одной папки), регрессия
+  ops_smoke ALL PASS.
+- 2026-08-25 (вечер): смоки переехали в репо — `src/core/tests/`, и переведены
+  с ручных `cl`/`link`-команд на чистый CMake: `CMakeLists.txt` собирает ядро
+  статически + SPIR-V через `gen_spirv.cmake`, каждый `test_*.cpp` → exe +
+  регистрация в CTest; `build_tests.bat` = configure/build/run тремя
+  командами cmake. Vulkan: SDK или vktools-bootstrap (fallback). Проверено:
+  полный прогон ALL PASS.
+- 2026-08-25: **батч 2** — 7 новых ops (ядро теперь 18): transpose
+  (1..8D-перестановка, gather по out_dims/in_strides/perm), reshape
+  (**алиас памяти**, без кернела — плоские f32 переинтерпретируются,
+  producer форвардится для выходов модели), concat (цепочка slab_copy в
+  общий буфер + финальная identity-копия как registered producer — readback
+  захватывает полный буфер), softmax (нить на строку, стабильный max-вычит),
+  reduce mean/sum/max (общий кернел с mode-push, ось удаляется).
+  `ir_node` + поля `transpose_order`/`axis`; FB → **v4** (сериализация axis +
+  perm). Найдено в ходе: (1) push_constant блоки БЕЗ явного std430 получают
+  std140 — массивы выравниваются на 16 байт; transpose переписан на 24
+  отдельных скаляра (вообще без массивов), новые кернелы помечены
+  `layout(push_constant, std430)`; (2) декомпозиция линейного индекса должна
+  идти от быстрой оси (первый вариант шёл от медленной → транспонировал
+  column-major); (3) concat нельзя собрать gather-кернелом со статическими
+  биндингами (стрим биндит фиксированный слот на вход ноды) — потому цепочка
+  копий. Смоук ops_smoke: 37 проверок ALL PASS (все ops × CPU/GPU, dispatch,
+  FB/PB round-trip новых атрибутов). Набор покрывает базовые цепочки ResNet/
+  BERT-класса по ширине (остаются: GEMM 4D, bias conv, активации CLIP-like,
+  pad/tiling для больших моделей).
+- 2026-08-24 (ночь): шаг 4 завершён в автономной архитектуре — маршрутизация
+  по именам устройств перенесена из эпохи плагинов в ядро. Новый header-only
+  фасад `src/core/vk_dispatch.hpp`: `vk_execute(graph, inputs, device_name,
+  platform_config)` — CPU → `cpu_execute`, иначе Vulkan-путь с readback через
+  host-visible override; `vk_available_devices()` — перечисление как
+  маршрутизируемых имён. В `init_vk_engine_data`: явная классификация
+  (GPU = discrete/integrated/virtual, CPU = CPU-драйвер, NPU — класса нет →
+  чистая ошибка; найден и исправлен баг: старый фильтр `is_cpu != want_cpu`
+  пропускал GPU под именем NPU) + суффикс `.N` теперь выбирает N-й кандидат
+  (stable_sort по score, ничьи — порядок перечисления). Смоук расширен до
+  22 проверок (dispatch CPU/GPU/GPU.0/NPU-error/available_devices) — ALL PASS.
+- 2026-08-24 (вечер): закрыты оба пробела из утреннего батча.
+  (1) **FB-формат v3**: `quant_constants` сериализуются в FB/PB (id, тип u32,
+  длина + сырые байты блока) — экспортированный блоб квантованного графа
+  больше не теряет нативный девант; проверено round-trip'ом Q4_0-matmul
+  структурно (байты идентичны) и численно (CPU и GPU совпали с эталоном).
+  (2) **Broadcast в ядре**: constant-broadcast входы elementwise
+  (add/mul/sub/div) теперь материализуются самим ядром — `vk_program_builder`
+  разворачивает константу до полного размера в host-visible буфер (`id#bcast#node`),
+  `cpu_execute` делает то же самое; динамический вход несовпадающего размера →
+  чистая ошибка вместо тихо неверных чисел. Проверено bias [1,2] против [2,2]
+  на CPU и GPU. Смоук расширен до 17 проверок — ALL PASS. Попутно два бага
+  в самом смоуке: беззнаковый underflow `(n%16+1)-8` в референсе (size_t) и
+  переполнение ниббла q=16 в генераторе Q4_0 (движок в обоих случаях считал
+  верно).
+- 2026-08-24: батч 1 расширения операций — 6 новых ops в ядре:
+  elementwise mul/sub/div (клоны `eltwise_add_f32`) и активации
+  sigmoid/tanh/leaky_relu (шаблон relu; у leaky_relu push-константа
+  `{uint total, float alpha}` — `scalar_t::FLOAT32`). `ir_node` получил поле
+  `float alpha`; FB-формат поднят до **v2** (в ноду добавлено f32 alpha,
+  старые v1-блобы отсекаются проверкой версии). Все точки обновлены:
+  `vk_ir.hpp` (enum, новые коды в конце — старые u8 не сдвинуты),
+  `vk_graph_format.cpp` (`u8_to_op`, put/get alpha), `vk_program.cpp`
+  (имена кернелов + группированные случаи build), `cpu_engine.cpp`.
+  Тулчейн восстановлен после чистки temp: glslang 16.5.0
+  (%LOCALAPPDATA%\vktools\glslang, новый бинарь `glslang.exe` вместо
+  `glslangValidator.exe`) + Vulkan-Headers 1.3.290 + `vulkan-1.lib`,
+  сгенерированный из системного `C:\Windows\System32\vulkan-1.dll`
+  (dumpbin /EXPORTS → .def → lib /def). Смоук `ops_smoke.exe`
+  (vksmoke): цепочка leaky_relu(0.1)→sigmoid→tanh и mul→sub→div против
+  аналитических эталонов на CPU и GPU; FB/PB round-trip (alpha
+  сериализуется); регрессия legacy relu→matmul→add. Нюанс: readback
+  device-local выхода через lock() невозможен — используется
+  host-visible override по `output_port_to_id` (set_output_memory).
+  Broadcast-bias в тесте сначала дал «неправильные» числа — это контракт
+  ядра (broadcast материализуется загрузчиком), тест исправлен.
+  Итог: ALL PASS 10/10. Зафиксированы пробелы на следующие батчи:
+  quant_constants не пишутся в FB/PB; broadcast-материализация —
+  ответственность загрузчика.
 - 2026-08-16: автономный Paddle-конвертер в ядре (`openvino/src/core/paddle_reader.hpp/cpp`,
   namespace `...::paddle_r`): читает PaddlePaddle `__model__` (ProgramDesc, proto2
   wire-формат, мини-парсер без protobuf-либы: varint/length-delimited/skip,
@@ -291,12 +448,28 @@ glslangValidator → clspv SPIR-V, зашиты при сборке в `spirv_ke
 
 | Операция | Кернел | Ограничения | Проверено |
 |---|---|---|---|
-| Relu | `relu_f32` | — | smoke |
-| Add | `eltwise_add_f32` | broadcast-входы материализуются константой на этапе конвертера | smoke, smoke2 |
-| MatMul | `matmul_f32` / `matmul_transpose_b_f32` | 2D, `transpose_a` не поддержан; `transpose_b` — отдельный кернел (веса `[N,K]`) | smoke2, smoke3 |
-| MaxPool | `maxpool_f32` | 2D, stride/pad произвольные, batch произвольный | smoke4, smoke6, smoke7 |
-| AvgPool | `avgpool_f32` | 2D, только `exclude_pad=true` (деление на число валидных ячеек) | smoke8 |
-| Convolution | `conv2d_f32` | 2D, stride/pad произвольные, dilation=1, batch произвольный | smoke5–smoke8 |
+| Relu | `relu_f32` | — | smoke, ops_smoke |
+| Add | `eltwise_add_f32` | constant-broadcast входы материализуются ядром; динамические — ошибка | smoke, smoke2, ops_smoke |
+| Mul / Sub / Div | `eltwise_mul/sub/div_f32` | same-shape или constant-broadcast (разворачивает ядро) | ops_smoke |
+| Sigmoid / Tanh | `sigmoid_f32` / `tanh_f32` | — | ops_smoke |
+| LeakyRelu | `leaky_relu_f32` | alpha — push-константа (FB v2) | ops_smoke |
+| GELU | `gelu_f32` | tanh-аппроксимация | nn_ops |
+| QuickGELU | `quick_gelu_f32` | x·sigmoid(1.702x) | shape_ops |
+| SwiGLU | `swiglu_f32` | silu(a)*b; constant-broadcast допустим | nn_ops |
+| RMSNorm | `rms_norm_f32` | последняя ось (контiguous lines); weight [axis]; eps = alpha | shape_ops |
+| Pad | `pad_f32` | constant fill (alpha), pads_begin/pads_end по осям, до 8D | shape_ops |
+| Transpose | `transpose_f32` | 1..8D, произвольная перестановка осей; push = 24 скаляра (dims/strides/perm) | ops_smoke |
+| Reshape | — (алиас памяти) | плоские f32-буферы переинтерпретируются без копирования; reshape от непроизводимого тензора не может быть выходом модели | ops_smoke |
+| Concat | `slab_copy_f32` ×k + identity | произвольная ось; собирается цепочкой слэб-копий + финальная полная копия (readback) | ops_smoke |
+| Softmax | `softmax_f32` | произвольная ось ([outer,len,inner], нить на строку), стабильный max-вычит | ops_smoke, shape_ops, attention |
+| Reduce Mean/Sum/Max | `reduce_f32` (mode-push) | ось удаляется (keep_dims=false) | ops_smoke |
+| Crop | `crop_f32` | окно по осям; begin = pads_begin; до 8D | attention |
+| CausalSoftmax | `causal_softmax_f32` | последняя ось [...,L,L]; j>i → 0 | llm |
+| RoPE | `rope_f32` | halves-конвенция; x [...,H,D], cos/sin x_dims[:-2]+[D/2] | llm |
+| CacheWrite | `cache_write_f32` | функциональный append KV: out=cache с rows [pos,pos+L); pos = axis | llm |
+| ArgMax | `argmax_f32` | последняя ось, индекс как f32, первая ничья | llm |
+| MatMul | `matmul_f32` / `matmul_transpose_b_f32` / `matmul_q_f32` / `matmul_batched(+tb)_f32` / `matmul_q_batched_f32` / `matmul_bb_f32` / `*(+tiled)` | 2D `[M,K]x[K,N]`, 3D-батч shared, попарный батч + **GQA** (`Bb=1`); f32 ≥16³ автоматически идёт в tiled-кернелы (shared memory 16×16; 129–162 GFLOP/s на тестовом GPU); Q4_0…Q8_0 — девант в шейдере (2D/3D-shared); fc = reshape-алиас + matmul | все смоки + perf |
+| Convolution | `conv2d_f32` | 2D, stride/pad произвольные, dilation=1, batch произвольный; **ровно 3 входа** (data, weights, bias — нулевой bias материализует загрузчик) | smoke5–smoke8, nn_ops |
 
 - I/O-порты модели маппятся строго по порядку `get_parameters()` /
   `get_results()` (порядок `get_ordered_ops()` не гарантирован — была ошибка
@@ -309,10 +482,15 @@ glslangValidator → clspv SPIR-V, зашиты при сборке в `spirv_ke
 
 ### Смоук-тесты
 
-`C:\Users\selem\AppData\Local\Temp\opencode\vksmoke\` (smoke–smoke10) — все
-прогоны PASS: 2 инференса подряд, MatMul(+Add, bias-бродкаст), константные
-веса через `Transpose`→`transpose_b`, conv/maxpool/avgpool с паддингом и
-batch=2, цепочка Conv→Relu→MaxPool, экспорт/импорт compiled blob (smoke9),
-standalone FB/PB round-trip (fmt_test, собирается без openvino),
-платформенные конфигурации (smoke10: desktop / moltenvk-фолбэк на Windows /
-vulkan_sc + оффлайн-экспорт артефактов).
+**Живут в репо:** `src/core/tests/` (`build_tests.bat` собирает все
+`test_*.cpp` → `build/*.exe`; bootstrap тулчейна — `tools/setup_vktools.ps1`,
+подробности в `src/core/tests/README.md`).
+
+- `test_ops_smoke.exe` — все 18 `ir_op` против эталонов на CPU и GPU,
+  dispatch CPU/GPU/GPU.0/чистая ошибка NPU, FB/PB round-trip
+  (alpha/axis/perm/quant_constants), broadcast-bias — **ALL PASS 37**.
+- Ранние прогоны (smoke–smoke11, gguf_fe/gguf_fe_q/gguf_cross/paddle_fe,
+  fmt_test) выполнялись из временной папки `vksmoke` и не пережили чистку
+  temp; их покрытие поглощено `test_ops_smoke`, кроме тестов самих ридеров
+  (GGUF/Paddle) — восстановить как `test_gguf_fe.cpp` / `test_paddle_fe.cpp`
+  с генерацией мини-моделей в коде.

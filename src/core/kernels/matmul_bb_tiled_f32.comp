@@ -1,0 +1,55 @@
+#version 450
+// Native Vulkan kernel: pairwise-batched MatMul (f32),
+// A [B,M,K] x B [Bb,K,N] -> O [B,M,N], with 16x16 shared-memory tiling.
+// GQA: b_batch==1 shares the matrix across the batch. Drop-in replacement
+// for matmul_bb_f32 (identical bindings/push); selected automatically when
+// M and N are >= 16.
+// binding 0: A, binding 1: B, binding 2: output.
+// push constants: [0]=M [1]=N [2]=K [3]=total_out [4]=batch [5]=b_batch
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(set = 0, binding = 0, std430) buffer In0 { float data[]; } a;
+layout(set = 0, binding = 1, std430) buffer In1 { float data[]; } b;
+layout(set = 0, binding = 2, std430) buffer Out0 { float data[]; } o;
+
+layout(push_constant, std430) uniform Params {
+    uint M;
+    uint N;
+    uint K;
+    uint total_out;
+    uint batch;
+    uint b_batch;
+} params;
+
+shared float As[16][16];
+shared float Bs[16][16];
+
+void main() {
+    const uint bt = gl_WorkGroupID.z;
+    const uint bb = params.b_batch == 0u ? params.batch : params.b_batch;
+    const uint bt_b = min(bt, bb - 1u);
+    const uint row = gl_WorkGroupID.y * 16u + gl_LocalInvocationID.y;
+    const uint col = gl_WorkGroupID.x * 16u + gl_LocalInvocationID.x;
+    const uint ty = gl_LocalInvocationID.y;
+    const uint tx = gl_LocalInvocationID.x;
+
+    float acc = 0.0f;
+    const uint num_tiles = (params.K + 15u) / 16u;
+    for (uint t = 0u; t < num_tiles; ++t) {
+        const uint a_col = t * 16u + tx;
+        As[ty][tx] = (row < params.M && a_col < params.K)
+                         ? a.data[bt * params.M * params.K + row * params.K + a_col]
+                         : 0.0f;
+        const uint b_row = t * 16u + ty;
+        Bs[ty][tx] = (b_row < params.K && col < params.N)
+                         ? b.data[bt_b * params.K * params.N + b_row * params.N + col]
+                         : 0.0f;
+        barrier();
+        for (uint k = 0u; k < 16u; ++k)
+            acc += As[ty][k] * Bs[k][tx];
+        barrier();
+    }
+    if (row < params.M && col < params.N)
+        o.data[bt * params.M * params.N + row * params.N + col] = acc;
+}

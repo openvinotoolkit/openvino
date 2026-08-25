@@ -1,0 +1,34 @@
+#version 450
+// Native Vulkan kernel: ArgMax (f32) along the LAST axis.
+// One thread per line; output drops the axis and stores the winning index
+// as f32. Ties resolve to the first maximum.
+// binding 0: input, binding 1: output (= input shape without last dim).
+// push constants: lines (= total/len), len.
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0, std430) buffer In0 { float data[]; } in0;
+layout(set = 0, binding = 1, std430) buffer Out0 { float data[]; } out0;
+
+layout(push_constant, std430) uniform Params {
+    uint lines;
+    uint len;
+} params;
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+    if (gid >= params.lines)
+        return;
+
+    const uint base = gid * params.len;
+    float best = in0.data[base];
+    uint idx = 0u;
+    for (uint i = 1u; i < params.len; ++i) {
+        const float v = in0.data[base + i];
+        if (v > best) {
+            best = v;
+            idx = i;
+        }
+    }
+    out0.data[gid] = float(idx);
+}

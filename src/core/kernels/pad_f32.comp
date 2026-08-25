@@ -1,0 +1,63 @@
+#version 450
+// Native Vulkan kernel: Pad (f32) with a constant fill value.
+// Generic ND gather: the linear output index is decomposed fastest-axis-first
+// over out_dims; any coordinate outside [pad_begin, pad_begin+in_dim) maps to
+// the fill value, otherwise to the input element.
+// in_dim is derived as out_dim - begin_pad - end_pad, keeping the push block
+// within the 128-byte budget at rank 8.
+// binding 0: input, binding 1: output.
+// push constants: total_out, rank, then three fixed 8-wide tuples written as
+// individual scalars (od* = out dims, pb*/pe* = per-dim begin/end padding);
+// the last push scalar is the f32 fill value.
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0, std430) buffer In0 { float data[]; } in0;
+layout(set = 0, binding = 1, std430) buffer Out0 { float data[]; } out0;
+
+layout(push_constant, std430) uniform Params {
+    uint total;
+    uint rank;
+    uint od0; uint od1; uint od2; uint od3; uint od4; uint od5; uint od6; uint od7;
+    uint pb0; uint pb1; uint pb2; uint pb3; uint pb4; uint pb5; uint pb6; uint pb7;
+    uint pe0; uint pe1; uint pe2; uint pe3; uint pe4; uint pe5; uint pe6; uint pe7;
+    float fill;
+} params;
+
+uint out_dim_at(uint i) {
+    return i == 0u ? params.od0 : i == 1u ? params.od1 : i == 2u ? params.od2 : i == 3u ? params.od3
+         : i == 4u ? params.od4 : i == 5u ? params.od5 : i == 6u ? params.od6 : params.od7;
+}
+
+uint pad_at(uint i, uint sel) {
+    // sel: 1 = begin pad, 2 = end pad
+    if (sel == 1u)
+        return i == 0u ? params.pb0 : i == 1u ? params.pb1 : i == 2u ? params.pb2 : i == 3u ? params.pb3
+             : i == 4u ? params.pb4 : i == 5u ? params.pb5 : i == 6u ? params.pb6 : params.pb7;
+    return i == 0u ? params.pe0 : i == 1u ? params.pe1 : i == 2u ? params.pe2 : i == 3u ? params.pe3
+         : i == 4u ? params.pe4 : i == 5u ? params.pe5 : i == 6u ? params.pe6 : params.pe7;
+}
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+    if (gid >= params.total)
+        return;
+
+    uint rem = gid;
+    uint src = 0u;
+    uint stride = 1u;
+    bool inside = true;
+    for (uint ii = 0u; ii < params.rank; ++ii) {
+        const uint d = params.rank - 1u - ii;          // fastest axis first
+        const uint coord = rem % out_dim_at(d);
+        rem /= out_dim_at(d);
+        const uint b = pad_at(d, 1u);
+        const uint in_dim = out_dim_at(d) - b - pad_at(d, 2u);
+        if (coord < b || coord >= b + in_dim)
+            inside = false;
+        else
+            src += (coord - b) * stride;
+        stride *= in_dim;
+    }
+    out0.data[gid] = inside ? in0.data[src] : params.fill;
+}

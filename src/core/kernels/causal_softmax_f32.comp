@@ -1,0 +1,41 @@
+#version 450
+// Native Vulkan kernel: causal Softmax (f32) over the LAST axis of [...,L,L]:
+// positions j > i (query i, key j) are masked out (-inf) before the softmax.
+// One thread per row; the row index splits as (b, i).
+// binding 0: input, binding 1: output (same shape).
+// push constants: rows (= total/len), len (= L).
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0, std430) buffer In0 { float data[]; } in0;
+layout(set = 0, binding = 1, std430) buffer Out0 { float data[]; } out0;
+
+layout(push_constant, std430) uniform Params {
+    uint rows;
+    uint len;
+} params;
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+    if (gid >= params.rows)
+        return;
+
+    const uint base = gid * params.len;
+    const uint limit = (gid % params.len) + 1u;   // keys j <= query i
+
+    float m = in0.data[base];
+    for (uint j = 1u; j < limit; ++j)
+        m = max(m, in0.data[base + j]);
+
+    float s = 0.0f;
+    for (uint j = 0u; j < limit; ++j) {
+        const float e = exp(in0.data[base + j] - m);
+        out0.data[base + j] = e;
+        s += e;
+    }
+    for (uint j = 0u; j < limit; ++j)
+        out0.data[base + j] /= s;
+    // Masked tail stays zero (fresh buffers are reset; also overwrite anyway).
+    for (uint j = limit; j < params.len; ++j)
+        out0.data[base + j] = 0.0f;
+}

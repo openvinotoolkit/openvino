@@ -8,6 +8,7 @@
 #include "vk_kernel_builder.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 #include <cstring>
 #include <limits>
 #include <memory>
@@ -80,16 +81,27 @@ vk_engine_init_data init_vk_engine_data(const vk_platform_config& config) {
     // The cross-platform core serves every device name: "GPU" → discrete/
     // integrated GPUs, "CPU" → CPU-type drivers (SwiftShader, Lavapipe, ...),
     // "NPU" → Vulkan SC-class devices (none on desktop today). CPU devices are
-    // never picked for "GPU" and vice versa.
-    const std::string device_name = [&] {
-        const std::string raw = config.device_name.empty() ? std::string("GPU") : config.device_name;
-        return raw.substr(0, raw.find('.'));
-    }();
+    // never picked for "GPU" and vice versa. A ".N" suffix selects the Nth
+    // matching device (candidates are ordered by score, ties keep physical
+    // enumeration order); without a suffix index 0 is used.
+    const std::string raw = config.device_name.empty() ? std::string("GPU") : config.device_name;
+    const size_t dot = raw.find('.');
+    const std::string device_name = raw.substr(0, dot);
+    size_t requested_index = 0;
+    if (dot != std::string::npos && dot + 1 < raw.size())
+        requested_index = static_cast<size_t>(std::strtoull(raw.c_str() + dot + 1, nullptr, 10));
     const bool want_cpu = device_name == "CPU";
     const bool want_npu = device_name == "NPU";
+    // NPU has no Vulkan physical-device class today (Vulkan SC hardware does
+    // not exist yet): every NPU request fails cleanly instead of silently
+    // falling back to a GPU.
+    const bool want_gpu = !want_cpu && !want_npu;
 
-    VkPhysicalDevice physical_device = VK_NULL_HANDLE;
-    int best_score = -1;
+    struct device_candidate {
+        VkPhysicalDevice pd;
+        int score;
+    };
+    std::vector<device_candidate> candidates;
     for (const auto& candidate : physical_devices) {
         VkPhysicalDeviceProperties properties;
         vkGetPhysicalDeviceProperties(candidate, &properties);
@@ -101,28 +113,35 @@ vk_engine_init_data init_vk_engine_data(const vk_platform_config& config) {
             continue;
         }
 
-        const bool is_cpu = properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU;
-        if (is_cpu != want_cpu)
-            continue;  // NPU has no Vulkan device class yet — nothing matches
-
+        bool matches = false;
         int score = 0;
         switch (properties.deviceType) {
-            case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:   score = 100; break;
-            case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU: score = 50;  break;
-            case VK_PHYSICAL_DEVICE_TYPE_CPU:            score = 100; break;
-            default:                                     score = 1;   break;
+            case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+            case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+            case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+                matches = want_gpu;
+                score = properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU ? 100 : 50;
+                break;
+            case VK_PHYSICAL_DEVICE_TYPE_CPU:
+                matches = want_cpu;
+                score = 100;
+                break;
+            default:
+                break;
         }
-        if (score > best_score) {
-            best_score = score;
-            physical_device = candidate;
-        }
+        if (!matches)
+            continue;
+        candidates.push_back({candidate, score});
     }
-    if (physical_device == VK_NULL_HANDLE) {
+    std::stable_sort(candidates.begin(), candidates.end(),
+                     [](const device_candidate& a, const device_candidate& b) { return a.score > b.score; });
+    if (requested_index >= candidates.size()) {
         OPENVINO_THROW("[GPU] No Vulkan device matching the requested device name '",
-                       device_name,
+                       raw,
                        "' was found (GPU = discrete/integrated, CPU = a CPU-type driver like "
                        "SwiftShader/Lavapipe, NPU = a Vulkan SC device; none present)");
     }
+    VkPhysicalDevice physical_device = candidates[requested_index].pd;
 
     vk_engine_init_data init;
     init.instance = instance;

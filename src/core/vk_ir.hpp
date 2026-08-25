@@ -30,12 +30,36 @@ enum class ir_op {
     avg_pool,
     convolution,
     matmul,
+    mul,
+    sub,
+    div,
+    sigmoid,
+    tanh,
+    leaky_relu,
+    transpose,
+    concat,
+    softmax,
+    reshape,      // no kernel: flat f32 buffers are reinterpreted in place
+    reduce_mean,
+    reduce_sum,
+    reduce_max,
+    gelu,         // tanh approximation: 0.5x(1+tanh(sqrt(2/pi)(x+0.044715x^3)))
+    swiglu,       // silu(a)*b, silu(x) = x*sigmoid(x); two same-shape inputs
+    quick_gelu,   // x * sigmoid(1.702x)
+    rms_norm,     // out = x/sqrt(mean(x^2,axis)+eps) * weight; alpha holds eps
+    pad,          // constant fill; pads_begin/pads_end per dim, alpha = fill
+    crop,         // per-dim window; begin offsets in pads_begin
+    causal_softmax,  // softmax over the last axis with j>i masked to -inf
+    rope,         // rotary embedding: x[...,D] x cos/sin[L,D/2]; halves convention
+    cache_write,  // cache[B,S,D] rows [pos, pos+L) := new[B,L,D]; pos = alpha
+    argmax,       // index (f32) of the max along the last axis
 };
 
 struct ir_pool_params {
     std::vector<size_t> kernel;
     std::vector<size_t> strides;
     std::vector<size_t> pads_begin;
+    std::vector<size_t> pads_end;  // Pad op: per-dim end padding
 };
 
 // Quantized weight constant: the raw on-disk GGUF block payload plus the
@@ -52,6 +76,9 @@ struct ir_node {
     std::vector<std::string> inputs;   // producer buffer ids (canonical)
     ir_pool_params pool;
     bool matmul_transpose_b = false;   // MatMul: second input is the transposed weight matrix [N,K]
+    float alpha = 0.0f;                // op scalar attribute: leaky_relu slope, rms_norm eps, pad fill value
+    std::vector<size_t> transpose_order;  // Transpose: permutation of the input axes
+    uint32_t axis = 0;                 // Concat / Softmax / Reduce working axis
 };
 
 struct ir_graph {

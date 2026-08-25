@@ -1,0 +1,35 @@
+#version 450
+// Native Vulkan kernel: KV-cache append (FUNCTIONAL). Produces the full
+// updated cache: out [B,S,D] = cache [B,S,D] with rows [pos, pos+L)
+// overwritten by new [B,L,D]. pos arrives via the ir_node axis attribute.
+// Pure function of its inputs — composes with buffer overrides safely.
+// binding 0: new, binding 1: cache, binding 2: output.
+// push constants: dim(D), seq_cap(S), new_len(L), total_cache(=B*S*D), pos.
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0, std430) buffer In0 { float data[]; } nw;
+layout(set = 0, binding = 1, std430) buffer In1 { float data[]; } ca;
+layout(set = 0, binding = 2, std430) buffer Out0 { float data[]; } out0;
+
+layout(push_constant, std430) uniform Params {
+    uint dim;
+    uint seq_cap;
+    uint new_len;
+    uint total_cache;
+    uint pos;
+} params;
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+    if (gid >= params.total_cache)
+        return;
+    const uint d = gid % params.dim;
+    const uint row = (gid / params.dim) % params.seq_cap;
+    const uint b = gid / (params.dim * params.seq_cap);
+    const bool upd = row >= params.pos && row < params.pos + params.new_len;
+    const float v = upd
+                        ? nw.data[(b * params.new_len + (row - params.pos)) * params.dim + d]
+                        : ca.data[gid];
+    out0.data[gid] = v;
+}
