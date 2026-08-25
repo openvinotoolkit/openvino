@@ -6,13 +6,12 @@
 
 #include <openvino/pass/graph_rewrite.hpp>
 
-#include "mlir/IR/Value.h"
-#include "mlir/IR/MLIRContext.h"
-#include "mlir/IR/Builders.h"
-
-#include "common/typedefs.hpp"
-#include "common/convert_common.hpp"
 #include "common/conversion_context.hpp"
+#include "common/convert_common.hpp"
+#include "common/typedefs.hpp"
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/MLIRContext.h"
+#include "mlir/IR/Value.h"
 
 namespace ov::intel_gpu::mlir {
 
@@ -36,34 +35,33 @@ public:
 
     GraphConverter(mlir::MLIRContext* context, mlir::OpBuilder* block_builder);
 
-    SmallVector<mlir::Value> getInputs(NodePtr node);
-    void addOutputs(NodePtr node, mlir::Operation* op);
+    SmallVector<mlir::Value> getInputs(const NodePtr& node);
+    void addOutputs(const NodePtr& node, mlir::Operation* op);
 
-    static void set_convertor(NodePtr node, const Convertor& convertor);
+    static void set_convertor(const NodePtr& node, const Convertor& convertor);
 
-    void convert(NodePtr node);
+    void convert(const NodePtr& node);
 
     Value get_dimension_value(const Dimension& d);
 };
-
 
 const std::string& subgraph_mark();
 
 // name is the function name, that will contain the subgraph after conversion. The nodes are grouped by this name and
 // could be splitted into multiple subgraphs by marking with different names.
-void set_subgraph_mark(NodePtr node, const std::string& name = "entry");
+void set_subgraph_mark(const NodePtr& node, const std::string& name = "entry");
 
-bool has_subgraph_mark(NodePtr node);
+bool has_subgraph_mark(const NodePtr& node);
 
 // Returns "" if node is not marked
-std::string get_subgraph_mark(NodePtr node);
+std::string get_subgraph_mark(const NodePtr& node);
 
 class MarkPattern : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("MarkPattern");
-    MarkPattern(NodePtr pattern, GraphConverter::Convertor convertor);
+    MarkPattern(const NodePtr& pattern, const GraphConverter::Convertor& convertor);
     using Callback = std::function<bool(ov::pass::pattern::Matcher&)>;
-    MarkPattern(NodePtr pattern, Callback callback);
+    MarkPattern(const NodePtr& pattern, const Callback& callback);
 };
 
 }  // namespace ov::intel_gpu::mlir

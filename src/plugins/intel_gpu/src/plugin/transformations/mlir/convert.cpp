@@ -5,36 +5,41 @@
 #include "interface/convert.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstdlib>
 #include <functional>
+#include <openvino/op/abs.hpp>
 #include <openvino/op/add.hpp>
+#include <openvino/op/ceiling.hpp>
 #include <openvino/op/constant.hpp>
 #include <openvino/op/divide.hpp>
-#include <openvino/op/multiply.hpp>
-#include <openvino/op/power.hpp>
-#include <openvino/op/abs.hpp>
-#include <openvino/op/ceiling.hpp>
 #include <openvino/op/exp.hpp>
 #include <openvino/op/log.hpp>
+#include <openvino/op/multiply.hpp>
 #include <openvino/op/negative.hpp>
-#include <openvino/op/relu.hpp>
-#include <openvino/op/sqrt.hpp>
-#include <openvino/op/tanh.hpp>
+#include <openvino/op/power.hpp>
 #include <openvino/op/reduce_max.hpp>
 #include <openvino/op/reduce_mean.hpp>
 #include <openvino/op/reduce_min.hpp>
 #include <openvino/op/reduce_prod.hpp>
 #include <openvino/op/reduce_sum.hpp>
+#include <openvino/op/relu.hpp>
+#include <openvino/op/sqrt.hpp>
 #include <openvino/op/subtract.hpp>
+#include <openvino/op/tanh.hpp>
 #include <openvino/pass/graph_rewrite.hpp>
 #include <openvino/pass/manager.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
 // TODO: Prune unused headers -- it's hard to understand needed ones
-#include "graph_converter.hpp"
 #include "common/convert_common.hpp"
+#include "conversion/patterns.hpp"
+#include "gc/Transforms/Passes.h"
+#include "graph_converter.hpp"
+#include "intel_gpu/op/mlir_op.hpp"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/InitLLVM.h"
@@ -51,8 +56,8 @@
 #include "mlir/Dialect/Linalg/Passes.h"
 #include "mlir/Dialect/Linalg/TransformOps/DialectExtension.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
-#include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/Dialect/Shape/IR/Shape.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/Dialect/Tensor/TransformOps/TensorTransformOps.h"
 #include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/ExecutionEngine/ExecutionEngine.h"
@@ -74,16 +79,10 @@
 #include "mlir/Target/LLVMIR/Dialect/All.h"
 #include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Target/LLVMIR/ModuleTranslation.h"
-
-#include "gc/Transforms/Passes.h"
-
-#include "intel_gpu/op/mlir_op.hpp"
 #include "mlir_evaluate.hpp"
-#include "conversion/patterns.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/symbol.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "subgraph_tracker.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
@@ -98,8 +97,7 @@ MemRefType convertTensorToMemRef(TensorType tensorType) {
     return MemRefType::get(shape, elementType);
 }
 
-
-SmallVector<mlir::Type> tensorsToMemRefs(SmallVector<mlir::Type> tensors) {
+SmallVector<mlir::Type> tensorsToMemRefs(const SmallVector<mlir::Type>& tensors) {
     SmallVector<mlir::Type> out;
     out.reserve(tensors.size());
     for (const auto& tensor : tensors) {
@@ -107,7 +105,6 @@ SmallVector<mlir::Type> tensorsToMemRefs(SmallVector<mlir::Type> tensors) {
     }
     return out;
 }
-
 
 SmallVector<mlir::Type> get_types_for_values(mlir::MLIRContext* context, const ov::OutputVector& values) {
     SmallVector<mlir::Type> types;
@@ -181,28 +178,27 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
     for (size_t i = 0, r = 0; i < inputs.size(); ++i) {
         auto loc = createLocation(context, inputs[i].get_node_shared_ptr());
         if (is_constant[i]) {
-            auto* cst = ov::as_type<ov::op::v0::Constant>(inputs[i].get_node());    
+            auto* cst = ov::as_type<ov::op::v0::Constant>(inputs[i].get_node());
             graph_converter.nodeOutputMap.emplace(inputs[i], getConstant(block_builder, cst, loc));
         } else {
             auto funcInputVal = func.getArgument(r++);
             // transition from memref enclosure to tensor interior
             auto ranked = mlir::dyn_cast<mlir::MemRefType>(funcInputVal.getType());
             auto tensorTy = mlir::RankedTensorType::get(ranked.getShape(), ranked.getElementType());
-            auto tensor = bufferization::ToTensorOp::create(
-                block_builder, loc, tensorTy, funcInputVal, /*restrict = */ true, /*writable=*/ true);
+            auto tensor = bufferization::ToTensorOp::create(block_builder, loc, tensorTy, funcInputVal, /*restrict = */ true, /*writable=*/true);
             graph_converter.nodeOutputMap.emplace(inputs[i], tensor);
 
             // FIXME: Avoid pre-population of dimension_map, take dimension values only if needed
             auto input_shape = inputs[i].get_partial_shape();
             auto input_rank = input_shape.rank();
-            if(input_rank.is_static()) {
-                for(int64_t j = 0; j < input_rank.get_length(); ++j) {
+            if (input_rank.is_static()) {
+                for (int64_t j = 0; j < input_rank.get_length(); ++j) {
                     auto dim = input_shape[j];
-                    if(dim.is_dynamic()) {
+                    if (dim.is_dynamic()) {
                         auto symbol = dim.get_symbol();
                         assert(symbol);
                         symbol = ov::symbol::ancestor_of(symbol);
-                        if(dim.is_dynamic() && !graph_converter.dimension_map.count(symbol)) {
+                        if (dim.is_dynamic() && !graph_converter.dimension_map.count(symbol)) {
                             auto dimSize = tensor::DimOp::create(block_builder, loc, tensor, j);
                             graph_converter.dimension_map[symbol] = dimSize;
                         }
@@ -212,8 +208,7 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
         }
     }
 
-    for (size_t i = 0; i < nodes.size(); ++i) {
-        auto node = nodes[i];
+    for (const auto& node : nodes) {
         graph_converter.convert(node);
     }
 
@@ -240,22 +235,24 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
     mlir::func::ReturnOp::create(block_builder, retLoc, ArrayRef(SmallVector<Value>()));
     SmallVector<size_t> keptRuntimeIndices;
     dropUnusedInputArgs(func, runtime_inputs.size(), keptRuntimeIndices);
-    auto runtime_to_original = llvm::map_to_vector(
-        llvm::make_filter_range(llvm::enumerate(is_constant), [](const auto& p) { return !p.value(); }),
-        [](const auto& p) { return p.index(); });
-    llvm::transform(keptRuntimeIndices, std::back_inserter(keptInputIndices),
-        [&](size_t i) { return runtime_to_original[i]; });
+    auto runtime_to_original = llvm::map_to_vector(llvm::make_filter_range(llvm::enumerate(is_constant),
+                                                                           [](const auto& p) {
+                                                                               return !p.value();
+                                                                           }),
+                                                   [](const auto& p) {
+                                                       return p.index();
+                                                   });
+    llvm::transform(keptRuntimeIndices, std::back_inserter(keptInputIndices), [&](size_t i) {
+        return runtime_to_original[i];
+    });
     return module;
 }
 
 // This pass converts a group of nodes into a single MLIROp
-NodePtr ngraph_to_mlir_op(MLIRContext* context,
-                          SubgraphPtr subgraph,
-                          std::shared_ptr<ov::EvaluationContext> loweringContext) {
+NodePtr ngraph_to_mlir_op(MLIRContext* context, const SubgraphPtr& subgraph, const std::shared_ptr<ov::EvaluationContext>& loweringContext) {
     SmallVector<size_t> keptInputIndices;
     mlir::OwningOpRef<mlir::ModuleOp> module =
-        ngraph_to_mlir(context, subgraph->inputs, subgraph->nodes, subgraph->outputs, keptInputIndices,
-                       subgraph->function_name);
+        ngraph_to_mlir(context, subgraph->inputs, subgraph->nodes, subgraph->outputs, keptInputIndices, subgraph->function_name);
 
     ov::OutputVector inputs;
     inputs.reserve(keptInputIndices.size());
@@ -269,9 +266,9 @@ NodePtr ngraph_to_mlir_op(MLIRContext* context,
         auto shape = input.get_partial_shape();
         for (size_t j = 0; j < shape.size(); ++j) {
             auto dim = shape[j];
-            if(shape[j].is_dynamic()) {
+            if (shape[j].is_dynamic()) {
                 auto symbol = ov::symbol::ancestor_of(dim.get_symbol());
-                if(0 == input_map.count(symbol)) {
+                if (0 == input_map.count(symbol)) {
                     input_map[symbol] = Index(i, j);
                 } else {
                     OPENVINO_MLIR_DEBUG_PRINT("Lost equality constraint for dimensions in output " << input << ".");
@@ -286,36 +283,31 @@ NodePtr ngraph_to_mlir_op(MLIRContext* context,
     ov::intel_gpu::op::OVOutputTypes output_types;
     ov::intel_gpu::op::DimensionsMap output_map;
     output_map.reserve(outputs.size());
-    for (size_t i = 0; i < outputs.size(); ++i) {
-        auto output = outputs[i];
+    for (const auto& output : outputs) {
         auto shape = output.get_partial_shape();
-        output_types.push_back(
-            std::make_tuple(output.get_element_type(), shape));
+        output_types.emplace_back(output.get_element_type(), shape);
         ov::intel_gpu::op::DimensionsMap::value_type dm;
         dm.reserve(shape.size());
-        for (size_t j = 0; j < shape.size(); ++j) {
-            auto dim = shape[j];
-            if (dim.is_dynamic())
+        for (const auto& dim : shape) {
+            if (dim.is_dynamic()) {
                 assert(input_map.count(ov::symbol::ancestor_of(dim.get_symbol())) && "Input map is missing a symbol for dynamic dim");
+            }
             dm.push_back(dim.is_dynamic() ? input_map.at(ov::symbol::ancestor_of(dim.get_symbol())) : empty);
         }
         output_map.emplace_back(dm);
     }
-    return std::make_shared<ov::intel_gpu::op::MLIROp>(
-        inputs,
-        std::make_shared<MLIREvaluateGcGPU>(std::move(module), loweringContext),
-        output_types,
-        output_map
-    );
+    return std::make_shared<ov::intel_gpu::op::MLIROp>(inputs,
+                                                       std::make_shared<MLIREvaluateGcGPU>(std::move(module), loweringContext),
+                                                       output_types,
+                                                       output_map);
 };
 
-
-void replace_subgraph(SubgraphPtr subgraph, NodePtr node) {
+void replace_subgraph(const SubgraphPtr& subgraph, const NodePtr& node) {
     const auto& output_consumers = subgraph->output_consumers;
     assert(output_consumers.size() == node->get_output_size());
-    for(size_t i = 0; i < node->get_output_size(); ++i) {
+    for (size_t i = 0; i < node->get_output_size(); ++i) {
         auto replacement = node->output(i);
-        for(auto consumer: output_consumers[i]) {
+        for (auto consumer : output_consumers[i]) {
             consumer.replace_source_output(replacement);
         }
     }
@@ -355,18 +347,21 @@ class PatternMatcher : public ov::pass::ModelPass {
             pos = sep == std::string::npos ? spec.size() : sep + 1;
 
             auto eq = entry.find('=');
-            if (eq == std::string::npos)
+            if (eq == std::string::npos) {
                 continue;
+            }
             NamedPattern p{entry.substr(0, eq), {}};
             for (size_t tp = eq + 1; tp < entry.size();) {
                 auto comma = entry.find(',', tp);
                 auto type = entry.substr(tp, comma == std::string::npos ? std::string::npos : comma - tp);
-                if (!type.empty())
+                if (!type.empty()) {
                     p.types.push_back(type);
+                }
                 tp = comma == std::string::npos ? entry.size() : comma + 1;
             }
-            if (!p.name.empty() && !p.types.empty())
+            if (!p.name.empty() && !p.types.empty()) {
                 patterns.push_back(std::move(p));
+            }
         }
         return patterns;
     }();
@@ -375,17 +370,16 @@ public:
     OPENVINO_MODEL_PASS_RTTI("PatternMatcher");
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
-        if (patterns.empty())
+        if (patterns.empty()) {
             return false;
+        }
 
         auto ordered_ops = model->get_ordered_ops();
         auto filter = std::remove_if(ordered_ops.begin(), ordered_ops.end(), [](const auto& n) {
-            static std::string skip[] = {"Constant", "Parameter", "Result"};
-            for (const auto& s : skip) {
-                if (s == n->get_type_info().name)
-                    return true;
-            }
-            return false;
+            static const std::array<std::string, 3> skip = {"Constant", "Parameter", "Result"};
+            return std::any_of(skip.begin(), skip.end(), [&n](const std::string& s) {
+                return s == n->get_type_info().name;
+            });
         });
         ordered_ops.erase(filter, ordered_ops.end());
 
@@ -401,8 +395,9 @@ public:
             }
         };
 
-        if (::ov::intel_gpu::mlir::is_debug())
+        if (::ov::intel_gpu::mlir::is_debug()) {
             print_chain("Matching model: ", 0, ordered_ops.size());
+        }
 
         bool changed = false;
         std::unordered_set<ov::Node*> matched;
@@ -412,8 +407,9 @@ public:
         for (size_t i = 0, count = ordered_ops.size(); i < count; ++i) {
             auto node = ordered_ops[i];
             for (const auto& p : patterns) {
-                if (p.types.size() > count - i || p.types.front() != node->get_type_info().name || !has_subgraph_mark(node))
+                if (p.types.size() > count - i || p.types.front() != node->get_type_info().name || !has_subgraph_mark(node)) {
                     continue;
+                }
                 bool all_matches = true;
                 size_t len = p.types.size();
                 for (size_t n = i + 1, t = 1; t < len; ++n, ++t) {
@@ -425,22 +421,27 @@ public:
                 // Connectivity check
                 if (all_matches && len > 1) {
                     std::unordered_set<ov::Node*> nodes;
-                    for (size_t t = 0; t < len; ++t)
+                    for (size_t t = 0; t < len; ++t) {
                         nodes.insert(ordered_ops[i + t].get());
+                    }
                     std::unordered_set<ov::Node*> seen{ordered_ops[i].get()};
                     std::vector<ov::Node*> stack{ordered_ops[i].get()};
                     auto visit = [&](ov::Node* nb) {
-                        if (nodes.count(nb) && seen.insert(nb).second)
+                        if ((nodes.count(nb) != 0U) && seen.insert(nb).second) {
                             stack.push_back(nb);
+                        }
                     };
                     while (!stack.empty()) {
                         auto* cur = stack.back();
                         stack.pop_back();
-                        for (auto& in : cur->input_values())
+                        for (auto& in : cur->input_values()) {
                             visit(in.get_node());
-                        for (auto& out : cur->outputs())
-                            for (auto& ti : out.get_target_inputs())
+                        }
+                        for (auto& out : cur->outputs()) {
+                            for (const auto& ti : out.get_target_inputs()) {
                                 visit(ti.get_node());
+                            }
+                        }
                     }
                     all_matches = seen.size() == len;
                 }
@@ -463,7 +464,7 @@ public:
         }
 
         // Clear marks on nodes not matched by any pattern - they will not be converted to MLIR.
-        for (auto node : ordered_ops) {
+        for (const auto& node : ordered_ops) {
             if (matched.count(node.get()) == 0) {
                 set_subgraph_mark(node, "");
                 changed = true;
@@ -477,21 +478,21 @@ public:
 class Partitioner : public ov::pass::ModelPass {
     MLIRContext* context;
     std::shared_ptr<ov::EvaluationContext> loweringContext;
+
 public:
     OPENVINO_MODEL_PASS_RTTI("Partitioner");
 
-    Partitioner(MLIRContext* context, std::shared_ptr<ov::EvaluationContext> loweringContext) :
-        context(context),
-        loweringContext(loweringContext)
-    {}
+    Partitioner(MLIRContext* context, std::shared_ptr<ov::EvaluationContext> loweringContext)
+        : context(context),
+          loweringContext(std::move(std::move(loweringContext))) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
-        SubgraphTracker tracker([this](SubgraphPtr subgraph) {
+        SubgraphTracker tracker([this](const SubgraphPtr& subgraph) {
             auto mlir_op = ngraph_to_mlir_op(context, subgraph, loweringContext);
             replace_subgraph(subgraph, mlir_op);
             OPENVINO_MLIR_DEBUG_PRINT("Created MLIR op: " << mlir_op);
         });
-        for (auto node : model->get_ordered_ops()) {
+        for (const auto& node : model->get_ordered_ops()) {
             tracker.add_node(node, get_subgraph_mark(node));
         }
         tracker.finalize();
@@ -506,9 +507,7 @@ namespace {
 using namespace mlir;
 using namespace ov::intel_gpu::mlir;
 
-void injectMLIR(std::shared_ptr<ov::Model> model,
-                MLIRContext* context,
-                std::shared_ptr<ov::EvaluationContext> loweringContext) {
+void injectMLIR(const std::shared_ptr<ov::Model>& model, MLIRContext* context, const std::shared_ptr<ov::EvaluationContext>& loweringContext) {
     ov::pass::Manager manager;
     using namespace ov::op;
     manager.set_per_pass_validation(false);
@@ -558,9 +557,8 @@ MLIRContext* get_shared_mlir_context() {
     return context.get();
 }
 
-} // namespace
+}  // namespace
 
-void ov::intel_gpu::mlir::transformMLIR(std::shared_ptr<ov::Model> model,
-                                        std::shared_ptr<ov::EvaluationContext> loweringContext) {
+void ov::intel_gpu::mlir::transformMLIR(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<ov::EvaluationContext>& loweringContext) {
     injectMLIR(model, get_shared_mlir_context(), loweringContext);
 }

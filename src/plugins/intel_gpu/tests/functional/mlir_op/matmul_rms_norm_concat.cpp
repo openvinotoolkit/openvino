@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "mlir_test_env.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -17,8 +18,6 @@
 #include "openvino/op/transpose.hpp"
 #include "shared_test_classes/base/benchmark.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-
-#include "mlir_test_env.hpp"
 
 namespace {
 
@@ -42,18 +41,18 @@ namespace {
 
 // Builds the MatMul+RmsNorm subgraph for a given A shape and shared B parameter.
 // Returns the output node (Multiply × scale).
-static std::shared_ptr<ov::Node> build_matmul_rmsnorm(ov::element::Type prec,
-                                                      const std::shared_ptr<ov::op::v0::Parameter>& param_a,
-                                                      const std::shared_ptr<ov::op::v0::Parameter>& param_b) {
+std::shared_ptr<ov::Node> build_matmul_rmsnorm(ov::element::Type prec,
+                                               const std::shared_ptr<ov::op::v0::Parameter>& param_a,
+                                               const std::shared_ptr<ov::op::v0::Parameter>& param_b) {
     const auto& a_shape = param_a->get_shape();
-    const int64_t hidden = static_cast<int64_t>(a_shape.back());
-    const int64_t seq = static_cast<int64_t>(a_shape[1]);
+    const auto hidden = static_cast<int64_t>(a_shape.back());
+    const auto seq = static_cast<int64_t>(a_shape[1]);
     const int64_t heads = 24;
     const int64_t head_size = hidden / heads;
 
     auto matmul = std::make_shared<ov::op::v0::MatMul>(param_a, param_b, false, true);
 
-    auto bias = ov::op::v0::Constant::create(prec, {(size_t)hidden}, std::vector<float>(hidden, 0.1f));
+    auto bias = ov::op::v0::Constant::create(prec, {static_cast<size_t>(hidden)}, std::vector<float>(hidden, 0.1F));
     auto add1 = std::make_shared<ov::op::v1::Add>(matmul, bias);
 
     auto shape_val = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, seq, heads, head_size});
@@ -62,23 +61,23 @@ static std::shared_ptr<ov::Node> build_matmul_rmsnorm(ov::element::Type prec,
     auto order = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, 2, 1, 3});
     auto transpose = std::make_shared<ov::op::v1::Transpose>(reshape, order);
 
-    auto exp2 = ov::op::v0::Constant::create(prec, {1}, std::vector<float>{2.f});
+    auto exp2 = ov::op::v0::Constant::create(prec, {1}, std::vector<float>{2.F});
     auto power = std::make_shared<ov::op::v1::Power>(transpose, exp2);
 
     auto axes = ov::op::v0::Constant::create(ov::element::i64, {1}, std::vector<int64_t>{3});
     auto reduce_mean = std::make_shared<ov::op::v1::ReduceMean>(power, axes, true);
 
-    auto eps = ov::op::v0::Constant::create(prec, {1}, std::vector<float>{1e-5f});
+    auto eps = ov::op::v0::Constant::create(prec, {1}, std::vector<float>{1e-5F});
     auto add2 = std::make_shared<ov::op::v1::Add>(reduce_mean, eps);
 
     auto sqrt_node = std::make_shared<ov::op::v0::Sqrt>(add2);
 
-    auto one = ov::op::v0::Constant::create(prec, {1}, std::vector<float>{1.f});
+    auto one = ov::op::v0::Constant::create(prec, {1}, std::vector<float>{1.F});
     auto divide = std::make_shared<ov::op::v1::Divide>(one, sqrt_node);
 
     auto mul1 = std::make_shared<ov::op::v1::Multiply>(divide, transpose);
 
-    auto scale = ov::op::v0::Constant::create(prec, {1}, std::vector<float>{2.f});
+    auto scale = ov::op::v0::Constant::create(prec, {1}, std::vector<float>{2.F});
     return std::make_shared<ov::op::v1::Multiply>(mul1, scale);
 }
 
@@ -117,10 +116,11 @@ TEST_P(MatMulRmsnormTest, Inference) {
     run();
 }
 TEST_P(MatMulRmsnormBenchmark, Inference) {
-    if (ov::test::is_mlir_enabled())
+    if (ov::test::is_mlir_enabled()) {
         run_benchmark("MLIROp");
-    else
+    } else {
         run_benchmark({"FullyConnected", "Add", "Reshape", "Transpose", "RMS"});
+    }
 }
 
 const auto rmsnormParams = ::testing::Combine(::testing::Values(ov::Shape{1, 1024, 1536}), ::testing::Values(ov::Shape{1536, 1536}));
@@ -176,10 +176,11 @@ TEST_P(MatMulRmsnormConcatTest, Inference) {
     run();
 }
 TEST_P(MatMulRmsnormConcatBenchmark, Inference) {
-    if (ov::test::is_mlir_enabled())
+    if (ov::test::is_mlir_enabled()) {
         run_benchmark("MLIROp");
-    else
+    } else {
         run_benchmark({"FullyConnected", "Add", "Reshape", "Transpose", "RMS", "Concat"});
+    }
 }
 
 const auto concatParams =

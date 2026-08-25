@@ -6,20 +6,19 @@
 
 #include <openvino/pass/graph_rewrite.hpp>
 
-#include "mlir/IR/Value.h"
-#include "mlir/IR/MLIRContext.h"
-#include "mlir/IR/Builders.h"
-
-#include "typedefs.hpp"
 #include "convert_common.hpp"
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/MLIRContext.h"
+#include "mlir/IR/Value.h"
+#include "typedefs.hpp"
 
 namespace ov::intel_gpu::mlir {
 
-using ::mlir::Value;
 using ::mlir::MLIRContext;
 using ::mlir::OpBuilder;
 using ::mlir::Operation;
 using ::mlir::SmallVector;
+using ::mlir::Value;
 using ::mlir::ValueRange;
 
 class ConversionContext {
@@ -33,16 +32,13 @@ public:
     getInputsFn getInputs;
     getDimValueFn getDimValue;
 
-    ConversionContext(
-        mlir::MLIRContext* context, mlir::OpBuilder* block_builder,
-        getInputsFn getInputs, getDimValueFn getDimValue
-    );
+    ConversionContext(mlir::MLIRContext* context, mlir::OpBuilder* block_builder, getInputsFn getInputs, getDimValueFn getDimValue);
 
-    mlir::OpBuilder& builder() {
+    [[nodiscard]] mlir::OpBuilder& builder() const {
         return *block_builder;
     }
 
-    SmallVector<Value> get_dynamic_dimension_values(const PartialShape& shape);
+    [[nodiscard]] SmallVector<Value> get_dynamic_dimension_values(const PartialShape& shape) const;
 };
 
 }  // namespace ov::intel_gpu::mlir

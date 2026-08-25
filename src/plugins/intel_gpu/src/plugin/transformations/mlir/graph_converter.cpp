@@ -5,24 +5,32 @@
 // #include "mlir/IR/BuiltinAttributes.h"
 // #include "mlir/IR/BuiltinTypes.h"
 
-#include "common/conversion_context.hpp"
 #include "graph_converter.hpp"
 
+#include <utility>
+
+#include "common/conversion_context.hpp"
 
 namespace ov::intel_gpu::mlir {
 
 using namespace ::mlir;
 
-
-std::string GraphConverter::rt_info_convertor () {
+std::string GraphConverter::rt_info_convertor() {
     return "__mlir_convertor";
 }
 
-
 GraphConverter::GraphConverter(mlir::MLIRContext* context, mlir::OpBuilder* block_builder)
-    : _ctx(context, block_builder, [this](NodePtr node) { return getInputs(node); }, [this](const Dimension& dim) { return get_dimension_value(dim); }) {}
+    : _ctx(
+          context,
+          block_builder,
+          [this](const NodePtr& node) {
+              return getInputs(node);
+          },
+          [this](const Dimension& dim) {
+              return get_dimension_value(dim);
+          }) {}
 
-SmallVector<mlir::Value> GraphConverter::getInputs(NodePtr node) {
+SmallVector<mlir::Value> GraphConverter::getInputs(const NodePtr& node) {
     SmallVector<mlir::Value> out;
     out.reserve(node->get_input_size());
     for (const auto& input : node->inputs()) {
@@ -31,31 +39,30 @@ SmallVector<mlir::Value> GraphConverter::getInputs(NodePtr node) {
     return out;
 }
 
-void GraphConverter::addOutputs(NodePtr node, mlir::Operation* op) {
+void GraphConverter::addOutputs(const NodePtr& node, mlir::Operation* op) {
     const auto results = op->getOpResults();
 
-    OPENVINO_ASSERT(
-        results.size() == node->get_output_size(),
-        "Mismatch between original Node '{0}' number of outputs '{1}' and created number of outputs '{2}'",
-        node->get_friendly_name(),
-        node->get_output_size(),
-        results.size());
+    OPENVINO_ASSERT(results.size() == node->get_output_size(),
+                    "Mismatch between original Node '{0}' number of outputs '{1}' and created number of outputs '{2}'",
+                    node->get_friendly_name(),
+                    node->get_output_size(),
+                    results.size());
 
     for (const auto& res : results) {
         nodeOutputMap.emplace(node->output(res.getResultNumber()), res);
     }
 }
 
-void GraphConverter::convert(NodePtr node) {
+void GraphConverter::convert(const NodePtr& node) {
     const auto& rt_info = node->get_rt_info();
     auto it = rt_info.find(rt_info_convertor());
     OPENVINO_ASSERT(it != rt_info.end(), "No MLIR converter registered for node ", node->get_type_name());
     auto convertor = it->second.as<Convertor>();
-    auto mlirOp = convertor(_ctx, node);
+    auto* mlirOp = convertor(_ctx, node);
     addOutputs(node, mlirOp);
 }
 
-void GraphConverter::set_convertor(NodePtr node, const Convertor& convertor) {
+void GraphConverter::set_convertor(const NodePtr& node, const Convertor& convertor) {
     Convertor local_copy = convertor;
     auto as_any = ov::Any(local_copy);
     node->get_rt_info()[rt_info_convertor()] = as_any;
@@ -71,27 +78,26 @@ Value GraphConverter::get_dimension_value(const Dimension& d) {
     return dimension_map.at(symbol);
 }
 
-
 const std::string& subgraph_mark() {
     static const std::string mark = "__subgraph_mlir_mark";
     return mark;
 }
 
-void set_subgraph_mark(NodePtr node, const std::string& name) {
+void set_subgraph_mark(const NodePtr& node, const std::string& name) {
     node->get_rt_info()[subgraph_mark()] = name;
 }
 
-bool has_subgraph_mark(NodePtr node) {
-    return node->get_rt_info().count(subgraph_mark());
+bool has_subgraph_mark(const NodePtr& node) {
+    return node->get_rt_info().count(subgraph_mark()) != 0U;
 }
 
-std::string get_subgraph_mark(NodePtr node) {
+std::string get_subgraph_mark(const NodePtr& node) {
     const auto& rti = node->get_rt_info();
     auto it = rti.find(subgraph_mark());
     return it == rti.end() ? "" : it->second.as<std::string>();
 }
 
-MarkPattern::MarkPattern(NodePtr pattern, GraphConverter::Convertor convertor) {
+MarkPattern::MarkPattern(const NodePtr& pattern, const GraphConverter::Convertor& convertor) {
     auto callback = [convertor](ov::pass::pattern::Matcher& m) {
         auto node = m.get_match_root();
         set_subgraph_mark(node);
@@ -102,10 +108,9 @@ MarkPattern::MarkPattern(NodePtr pattern, GraphConverter::Convertor convertor) {
     register_matcher(m, callback);
 }
 
-MarkPattern::MarkPattern(NodePtr pattern, MarkPattern::Callback callback) {
+MarkPattern::MarkPattern(const NodePtr& pattern, const MarkPattern::Callback& callback) {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern, "MarkPattern");
     register_matcher(m, callback);
 }
-
 
 }  // namespace ov::intel_gpu::mlir

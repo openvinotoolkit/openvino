@@ -7,30 +7,26 @@
 
 #include "conversion_context.hpp"
 
+#include <utility>
 
 namespace ov::intel_gpu::mlir {
 
 using namespace ::mlir;
 
-ConversionContext::ConversionContext(
-    mlir::MLIRContext* context, mlir::OpBuilder* block_builder,
-    getInputsFn getInputs, getDimValueFn getDimValue
-)
+ConversionContext::ConversionContext(mlir::MLIRContext* context, mlir::OpBuilder* block_builder, getInputsFn getInputs, getDimValueFn getDimValue)
     : context(context),
-        block_builder(block_builder),
-        getInputs(getInputs),
-        getDimValue(getDimValue) {}
+      block_builder(block_builder),
+      getInputs(std::move(getInputs)),
+      getDimValue(std::move(getDimValue)) {}
 
-
-SmallVector<Value> ConversionContext::get_dynamic_dimension_values (const PartialShape& shape) {
+SmallVector<Value> ConversionContext::get_dynamic_dimension_values(const PartialShape& shape) const {
     SmallVector<Value> dims;
-    for (const auto& dim: shape) {
+    for (const auto& dim : shape) {
         if (dim.is_dynamic()) {
             dims.push_back(getDimValue(dim));
         }
     }
     return dims;
 }
-
 
 }  // namespace ov::intel_gpu::mlir

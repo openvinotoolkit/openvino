@@ -22,8 +22,7 @@ namespace cldnn {
 struct mlir_primitive : public primitive_base<mlir_primitive> {
     CLDNN_DECLARE_PRIMITIVE(mlir_primitive)
 
-    using shape_infer_function =
-        std::function<std::vector<ov::PartialShape>(const std::vector<ov::PartialShape>&)>;
+    using shape_infer_function = std::function<std::vector<ov::PartialShape>(const std::vector<ov::PartialShape>&)>;
 
     mlir_primitive() : primitive_base("", {}) {}
 

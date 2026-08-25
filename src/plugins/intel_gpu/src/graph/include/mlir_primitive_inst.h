@@ -18,7 +18,9 @@ struct typed_program_node<mlir_primitive> : public typed_program_node_base<mlir_
 public:
     using parent::parent;
 
-    program_node& input(size_t idx = 0) const { return get_dependency(idx); }
+    program_node& input(size_t idx = 0) const {
+        return get_dependency(idx);
+    }
 };
 
 using mlir_primitive_node = typed_program_node<mlir_primitive>;
@@ -30,13 +32,12 @@ class typed_primitive_inst<mlir_primitive> : public typed_primitive_inst_base<ml
 
 public:
     template <typename ShapeType>
-    static std::vector<layout> calc_output_layouts(mlir_primitive_node const& node,
-                                                   const kernel_impl_params& impl_param);
-    static layout calc_output_layout(mlir_primitive_node const& node, kernel_impl_params const& impl_param);
+    static std::vector<layout> calc_output_layouts(const mlir_primitive_node& node, const kernel_impl_params& impl_param);
+    static layout calc_output_layout(const mlir_primitive_node& node, const kernel_impl_params& impl_param);
 
-    static std::string to_string(mlir_primitive_node const& node);
+    static std::string to_string(const mlir_primitive_node& node);
 
-    typed_primitive_inst(network& network, mlir_primitive_node const& node);
+    typed_primitive_inst(network& network, const mlir_primitive_node& node);
 
     const mlir_primitive_node* node;
 };

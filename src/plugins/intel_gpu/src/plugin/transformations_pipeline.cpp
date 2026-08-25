@@ -162,8 +162,8 @@
 #include "transformations/normalize_l2_decomposition.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #ifdef ENABLE_GPU_MLIR
-#include "transformations/mlir/interface/convert.hpp"
-#endif // ENABLE_GPU_MLIR
+#    include "transformations/mlir/interface/convert.hpp"
+#endif  // ENABLE_GPU_MLIR
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 #include "transformations/op_conversions/convert_broadcast3.hpp"
@@ -917,8 +917,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node> node){
             // Never decompose if mlir-path is enabled
-            if (config.get_enable_mlir())
+            if (config.get_enable_mlir()) {
                 return true;
+            }
 
             if (!config.get_enable_sdpa_optimization())
                 return false;
@@ -1618,10 +1619,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
             ov::intel_gpu::mlir::transformMLIR(func, loweringContext);
 #else
-            OPENVINO_THROW(
-                "[GPU] Property 'GPU_ENABLE_MLIR' (or OV_GPU_ENABLE_MLIR env var) is enabled, "
-                "but the plugin was built without Graph Compiler support. "
-                "Rebuild OpenVINO with -DENABLE_GPU_MLIR=ON to enable MLIR execution.");
+            OPENVINO_THROW("[GPU] Property 'GPU_ENABLE_MLIR' (or OV_GPU_ENABLE_MLIR env var) is enabled, "
+                           "but the plugin was built without Graph Compiler support. "
+                           "Rebuild OpenVINO with -DENABLE_GPU_MLIR=ON to enable MLIR execution.");
 #endif
         }
 

@@ -63,16 +63,15 @@ struct ConvertReduce {
         auto empty = ::mlir::tensor::EmptyOp::create(builder, loc, result_type, ValueRange{});
         Value init_value = create_init_value(builder, loc, el_type);
         auto output = ::mlir::linalg::FillOp::create(builder, loc, ValueRange{init_value}, ValueRange{empty});
-        Value result = ::mlir::linalg::ReduceOp::create(
-                           builder,
-                           loc,
-                           ValueRange{context.getInputs(node)[0]},
-                           ValueRange{output.getResult(0)},
-                           reduction_axes,
-                           [&](::mlir::OpBuilder& b, ::mlir::Location loc, ValueRange inputs) {
-                               Value result = create_payload_op(b, loc, inputs[0], inputs[1], el_type);
-                               ::mlir::linalg::YieldOp::create(b, loc, result);
-                           })
+        Value result = ::mlir::linalg::ReduceOp::create(builder,
+                                                        loc,
+                                                        ValueRange{context.getInputs(node)[0]},
+                                                        ValueRange{output.getResult(0)},
+                                                        reduction_axes,
+                                                        [&](::mlir::OpBuilder& b, ::mlir::Location loc, ValueRange inputs) {
+                                                            Value result = create_payload_op(b, loc, inputs[0], inputs[1], el_type);
+                                                            ::mlir::linalg::YieldOp::create(b, loc, result);
+                                                        })
                            .getResult(0);
 
         // For ReduceMean, divide by the number of elements
@@ -88,17 +87,13 @@ struct ConvertReduce {
             } else {
                 divisor_attr = builder.getFloatAttr(el_type, static_cast<double>(num_els));
             }
-            auto divisor = ::mlir::arith::ConstantOp::create(builder,
-                                                             loc,
-                                                             ::mlir::DenseElementsAttr::get(result_type, divisor_attr));
+            auto divisor = ::mlir::arith::ConstantOp::create(builder, loc, ::mlir::DenseElementsAttr::get(result_type, divisor_attr));
             auto empty = ::mlir::tensor::EmptyOp::create(builder, loc, result_type, ValueRange{});
-            result = ::mlir::linalg::DivOp::create(builder, loc, ValueRange{result, divisor}, ValueRange{empty})
-                         .getResult(0);
+            result = ::mlir::linalg::DivOp::create(builder, loc, ValueRange{result, divisor}, ValueRange{empty}).getResult(0);
         }
 
         // If keep_dims is true, broadcast along the reduced dimensions
-        if (auto keep_dims = dynamic_cast<const ov::op::util::ArithmeticReductionKeepDims*>(node.get());
-            keep_dims && keep_dims->get_keep_dims()) {
+        if (auto keep_dims = dynamic_cast<const ov::op::util::ArithmeticReductionKeepDims*>(node.get()); keep_dims && keep_dims->get_keep_dims()) {
             auto shape = llvm::map_to_vector(node->get_output_partial_shape(0), [](const ov::Dimension& dim) {
                 return dim.get_length();
             });
@@ -128,8 +123,7 @@ private:
                 int64_t max_val = type.isUnsignedInteger() ? ((1ULL << bitwidth) - 1) : ((1LL << (bitwidth - 1)) - 1);
                 return getConstant(builder, type, max_val, loc);
             }
-        } else if constexpr (std::is_same_v<OVOp, ov::op::v1::ReduceSum> ||
-                             std::is_same_v<OVOp, ov::op::v1::ReduceMean>) {
+        } else if constexpr (std::is_same_v<OVOp, ov::op::v1::ReduceSum> || std::is_same_v<OVOp, ov::op::v1::ReduceMean>) {
             return getConstant(builder, type, 0, loc);
         } else if constexpr (std::is_same_v<OVOp, ov::op::v1::ReduceProd>) {
             return getConstant(builder, type, 1, loc);
@@ -157,8 +151,7 @@ private:
             } else {
                 return ::mlir::arith::MinSIOp::create(builder, loc, lhs, rhs);
             }
-        } else if constexpr (std::is_same_v<OVOp, ov::op::v1::ReduceSum> ||
-                             std::is_same_v<OVOp, ov::op::v1::ReduceMean>) {
+        } else if constexpr (std::is_same_v<OVOp, ov::op::v1::ReduceSum> || std::is_same_v<OVOp, ov::op::v1::ReduceMean>) {
             if (type.isFloat()) {
                 return ::mlir::arith::AddFOp::create(builder, loc, lhs, rhs);
             } else {

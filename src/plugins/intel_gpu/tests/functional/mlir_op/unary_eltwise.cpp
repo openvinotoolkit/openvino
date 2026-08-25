@@ -5,6 +5,7 @@
 #include <type_traits>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "mlir_test_env.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/exp.hpp"
@@ -17,8 +18,6 @@
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/tanh.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-
-#include "mlir_test_env.hpp"
 
 namespace {
 
@@ -38,8 +37,9 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
-        if constexpr (std::is_same_v<Op, ov::op::v0::Exp>)
-            rel_threshold = 0.011f;
+        if constexpr (std::is_same_v<Op, ov::op::v0::Exp>) {
+            rel_threshold = 0.011F;
+        }
         const auto& [shape, precision] = GetParam();
         auto input = std::make_shared<ov::op::v0::Parameter>(precision, shape);
         auto op = std::make_shared<Op>(input);

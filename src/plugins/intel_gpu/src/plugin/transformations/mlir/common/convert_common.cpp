@@ -5,6 +5,7 @@
 #include "convert_common.hpp"
 
 #include <openvino/util/env_util.hpp>
+#include <utility>
 
 namespace ov::intel_gpu::mlir {
 
@@ -71,13 +72,11 @@ Type importPrecision(MLIRContext* ctx, const ov::element::Type& precision) {
     }
 }
 
-RankedTensorType importTensor(MLIRContext* ctx,
-                                    const ov::PartialShape& shape,
-                                    const ov::element::Type& elemType) {
+RankedTensorType importTensor(MLIRContext* ctx, const ov::PartialShape& shape, const ov::element::Type& elemType) {
     return RankedTensorType::get(ArrayRef(importShape(shape)), importPrecision(ctx, elemType));
 }
 
-Location createLocation(MLIRContext* ctx, NodePtr node) {
+Location createLocation(MLIRContext* ctx, const NodePtr& node) {
     return createLayerLocation(ctx, node->get_friendly_name(), node->get_type_name());
 }
 
@@ -94,17 +93,17 @@ BroadcastDimensions broadcast_dimensions(const PartialShape& src, const PartialS
     bool group_bonded = false;  // true if `group` has a non-brodcasted dimension
 
     int64_t dst_i = 0;  // dimension index in the `dst` shape
-    for(; dst_i < offset; ++dst_i) {
+    for (; dst_i < offset; ++dst_i) {
         dimensions.push_back(dst_i);
     }
-    for(; dst_i < dst_rank; ++dst_i) {
+    for (; dst_i < dst_rank; ++dst_i) {
         auto src_i = dst_i - offset;
-        auto src_d = src[src_i];
-        auto dst_d = dst[dst_i];
-        if(has_broadcast(src_d, dst_d)) {
+        const auto& src_d = src[src_i];
+        const auto& dst_d = dst[dst_i];
+        if (has_broadcast(src_d, dst_d)) {
             dimensions.push_back(dst_i);
         } else {
-            if(group_bonded) {
+            if (group_bonded) {
                 collapse_groups.emplace_back(group);
                 group = ReassociationIndices();
             } else {
@@ -114,7 +113,7 @@ BroadcastDimensions broadcast_dimensions(const PartialShape& src, const PartialS
         group.push_back(src_i);
     }
 
-    if(group_bonded && !group.empty()) {
+    if (group_bonded && !group.empty()) {
         collapse_groups.emplace_back(group);
     }
 
@@ -123,7 +122,7 @@ BroadcastDimensions broadcast_dimensions(const PartialShape& src, const PartialS
     return result;
 }
 
-bool symbol_ancestor_less (SymbolPtr x, SymbolPtr y) {
+bool symbol_ancestor_less(const SymbolPtr& x, const SymbolPtr& y) {
     return ov::symbol::ancestor_of(x) < ov::symbol::ancestor_of(y);
 }
 
@@ -136,24 +135,21 @@ bool elementwise_no_broadcast_predicate(const ov::Output<ov::Node>& output) {
     auto inputs = output.get_node_shared_ptr()->inputs();
     auto output_shape = output.get_partial_shape();
 
-    if (std::any_of(inputs.begin(), inputs.end(), [&](const ov::Input<ov::Node>& input) {
-            auto input_shape = input.get_partial_shape();
-            if(output_shape.rank().get_length() != input_shape.rank().get_length()) {
+    return !std::any_of(inputs.begin(), inputs.end(), [&](const ov::Input<ov::Node>& input) {
+        auto input_shape = input.get_partial_shape();
+        if (output_shape.rank().get_length() != input_shape.rank().get_length()) {
+            return true;
+        }
+        for (size_t i = 0; i < output_shape.size(); ++i) {
+            if (!are_equal_dimensions(input_shape[i], output_shape[i])) {
                 return true;
             }
-            for (size_t i = 0; i < output_shape.size(); ++i) {
-                if(!are_equal_dimensions(input_shape[i], output_shape[i]))
-                    return true;
-            }
-            return false;
-        })) {
+        }
         return false;
-    }
-
-    return true;
+    });
 }
 
-bool has_dynamic_rank(NodePtr node) {
+bool has_dynamic_rank(const NodePtr& node) {
     auto inputs = node->inputs();
     auto outputs = node->outputs();
     if (std::any_of(inputs.begin(), inputs.end(), [&](const ov::Input<ov::Node>& input) {
@@ -161,42 +157,36 @@ bool has_dynamic_rank(NodePtr node) {
         })) {
         return true;
     }
-    if (std::any_of(outputs.begin(), outputs.end(), [&](const ov::Output<ov::Node>& output) {
-            return output.get_partial_shape().rank().is_dynamic();
-        })) {
-        return true;
-    }
-    return false;
+    return std::any_of(outputs.begin(), outputs.end(), [&](const ov::Output<ov::Node>& output) {
+        return output.get_partial_shape().rank().is_dynamic();
+    });
 }
 
-bool are_equal_dimensions(Dimension d1, Dimension d2) {
-    return
-        (d1.is_static() && d2.is_static() && d1 == d2)
-        ||
-        ov::symbol::are_equal(d1.get_symbol(), d2.get_symbol());
+bool are_equal_dimensions(const Dimension& d1, const Dimension& d2) {
+    return (d1.is_static() && d2.is_static() && d1 == d2) || ov::symbol::are_equal(d1.get_symbol(), d2.get_symbol());
 }
 
-bool has_broadcast(Dimension from, Dimension to) {
+bool has_broadcast(const Dimension& from, const Dimension& to) {
     return from.is_static() && from.get_length() == 1 && !are_equal_dimensions(from, to);
 }
 
 bool statically_broadcastable(const PartialShape& from, const PartialShape& to) {
-    if(from.rank().is_dynamic() || to.rank().is_dynamic()) { // FIXME: `from` can has dynamic rank
+    if (from.rank().is_dynamic() || to.rank().is_dynamic()) {  // FIXME: `from` can has dynamic rank
         return false;
     }
 
     auto from_rank = from.rank().get_length();
     auto to_rank = to.rank().get_length();
 
-    if(from_rank > to_rank) { // such cases shouldn't be allowed to this function, but kept to make the function generic
+    if (from_rank > to_rank) {  // such cases shouldn't be allowed to this function, but kept to make the function generic
         return false;
     }
 
     auto offset = to_rank - from_rank;
-    for(int64_t i = 0; i < from_rank; ++i) {
-        auto d_from = from[i];
-        auto d_to = to[offset + i];
-        if(!are_equal_dimensions(d_from, d_to) && !has_broadcast(d_from, d_to)) {
+    for (int64_t i = 0; i < from_rank; ++i) {
+        const auto& d_from = from[i];
+        const auto& d_to = to[offset + i];
+        if (!are_equal_dimensions(d_from, d_to) && !has_broadcast(d_from, d_to)) {
             // cannot deduce neither dimensions broadcast nor dimensions equality
             return false;
         }

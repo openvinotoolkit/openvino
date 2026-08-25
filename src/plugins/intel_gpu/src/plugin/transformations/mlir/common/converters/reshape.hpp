@@ -50,8 +50,7 @@ struct ConvertReshape {
         }
 
         auto dst_shape = llvm::to_vector(llvm::map_range(out_shape, std::mem_fn(&ov::Dimension::get_length)));
-        auto dst_type =
-            RankedTensorType::get(dst_shape, importPrecision(context.context, node->get_output_element_type(0)));
+        auto dst_type = RankedTensorType::get(dst_shape, importPrecision(context.context, node->get_output_element_type(0)));
         auto loc = createLocation(context.context, node);
         auto& builder = context.builder();
         const auto input = context.getInputs(node)[0];

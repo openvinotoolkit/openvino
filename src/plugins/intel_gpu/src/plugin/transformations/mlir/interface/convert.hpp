@@ -11,7 +11,6 @@
 
 namespace ov::intel_gpu::mlir {
 
-void transformMLIR(std::shared_ptr<ov::Model> model,
-                   std::shared_ptr<ov::EvaluationContext> loweringContext);
+void transformMLIR(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<ov::EvaluationContext>& loweringContext);
 
 }  // namespace ov::intel_gpu::mlir

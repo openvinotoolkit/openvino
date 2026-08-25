@@ -4,59 +4,46 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "openvino/opsets/opset13_decl.hpp"
-
-#include "mlir_test_env.hpp"
-#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
-#include "openvino/pass/manager.hpp"
-
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
-#include "openvino/op/matmul.hpp"
-
 #include "intel_gpu/runtime/execution_config.hpp"
+#include "mlir_test_env.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 
 namespace {
 using ov::test::InputShape;
 
-typedef std::tuple<ov::element::Type,                 // netPrecision
-                   std::vector<InputShape>,           // shape
-                   bool,                              // is_causal
-                   bool,                              // has_attn
-                   bool,                              // is_attn_const
-                   bool,                              // has_scale
-                   bool,                              // is_scale_const
-                   std::vector<std::vector<int64_t>>, // input_transpose
-                   bool                               // has_sink
-                   > ScaledAttnGPUTestParams;
+using ScaledAttnGPUTestParams = std::tuple<ov::element::Type, std::vector<InputShape>, bool, bool, bool, bool, bool, std::vector<std::vector<int64_t>>, bool>;
 
-class ScaledAttnLayerGPUMlirTest : public testing::WithParamInterface<ScaledAttnGPUTestParams>,
-                               virtual public ov::test::MlirSubgraphTest {
+class ScaledAttnLayerGPUMlirTest : public testing::WithParamInterface<ScaledAttnGPUTestParams>, virtual public ov::test::MlirSubgraphTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ScaledAttnGPUTestParams>& obj);
 
 protected:
     void SetUp() override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
-    void transpose_prepare(std::vector<InputShape>& shapes, const std::vector<std::vector<int64_t>>& input_transpose);
+    static void transpose_prepare(std::vector<InputShape>& shapes, const std::vector<std::vector<int64_t>>& input_transpose);
     void check_mlir_execution() override;
-    bool is_causal;
-    bool has_attn;
-    bool is_attn_const;
-    bool has_scale;
-    bool is_scale_const;
-    bool has_sink;
+    bool is_causal = false;
+    bool has_attn = false;
+    bool is_attn_const = false;
+    bool has_scale = false;
+    bool is_scale_const = false;
+    bool has_sink = false;
 };
 
 std::string ScaledAttnLayerGPUMlirTest::getTestCaseName(const testing::TestParamInfo<ScaledAttnGPUTestParams>& obj) {
-    bool transpose_enable;
+    bool transpose_enable = false;
     const auto& [inType, inputShapes, is_causal, has_attn, is_attn_const, has_scale, is_scale_const, input_transpose, has_sink] = obj.param;
 
-    transpose_enable = (input_transpose.size() != 0);
+    transpose_enable = (!input_transpose.empty());
     std::ostringstream result;
     result << "netPRC=" << inType << "_";
     result << "IS=";
@@ -85,7 +72,8 @@ void ScaledAttnLayerGPUMlirTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_GPU;
     configuration[ov::intel_gpu::hint::enable_sdpa_optimization.name()] = false;
 
-    const auto& [inType, _inputShapes, _is_causal, _has_attn, _is_attn_const, _has_scale, _is_scale_const, input_transpose, _has_sink] = this->GetParam();
+    const auto& [inType, _inputShapes, _is_causal, _has_attn, _is_attn_const, _has_scale, _is_scale_const, input_transpose, _has_sink] =
+        ScaledAttnLayerGPUMlirTest::GetParam();
     is_causal = _is_causal;
     has_attn = _has_attn;
     is_attn_const = _is_attn_const;
@@ -124,37 +112,37 @@ void ScaledAttnLayerGPUMlirTest::SetUp() {
     }
 
     ov::OutputVector inputParams_transpose;
-    for (size_t i = 0; i < inputParams.size(); i++) {
-        inputParams_transpose.push_back(inputParams[i]);
+    for (const auto& inputParam : inputParams) {
+        inputParams_transpose.emplace_back(inputParam);
     }
     if (has_attn && is_attn_const) {
-        auto attn_const = std::make_shared<ov::op::v0::Constant>(inType, ov::Shape{}, 0.0f);
+        auto attn_const = std::make_shared<ov::op::v0::Constant>(inType, ov::Shape{}, 0.0F);
         attn_const->set_friendly_name("attention_mask");
-        inputParams_transpose.push_back(attn_const);
+        inputParams_transpose.emplace_back(attn_const);
         if (has_scale && !is_scale_const) {
             auto scale_param = std::make_shared<ov::op::v0::Parameter>(inType, ov::PartialShape{1});
             scale_param->set_friendly_name("scale");
             inputParams.push_back(scale_param);
-            inputParams_transpose.push_back(scale_param);
+            inputParams_transpose.emplace_back(scale_param);
         }
     } else if (has_sink && !has_attn) {
         // Add default mask when sink token exists and attention mask is not present
-        auto attn_const = std::make_shared<ov::op::v0::Constant>(inType, ov::Shape{}, 0.0f);
+        auto attn_const = std::make_shared<ov::op::v0::Constant>(inType, ov::Shape{}, 0.0F);
         attn_const->set_friendly_name("attention_mask");
-        inputParams_transpose.push_back(attn_const);
+        inputParams_transpose.emplace_back(attn_const);
     }
     if (has_scale && is_scale_const) {
-        auto scale_const = std::make_shared<ov::op::v0::Constant>(inType, ov::Shape({1}), 0.35f);
+        auto scale_const = std::make_shared<ov::op::v0::Constant>(inType, ov::Shape({1}), 0.35F);
         scale_const->set_friendly_name("scale");
-        inputParams_transpose.push_back(scale_const);
+        inputParams_transpose.emplace_back(scale_const);
     } else if (has_sink && !has_scale) {
         // Add default scale when sink token exists and scale is not present
-        auto scale_const = std::make_shared<ov::op::v0::Constant>(inType, ov::Shape({1}), 0.35f);
+        auto scale_const = std::make_shared<ov::op::v0::Constant>(inType, ov::Shape({1}), 0.35F);
         scale_const->set_friendly_name("scale");
-        inputParams_transpose.push_back(scale_const);
-     }
+        inputParams_transpose.emplace_back(scale_const);
+    }
 
-    if (input_transpose.size() != 0) {
+    if (!input_transpose.empty()) {
         auto rank = input_transpose[0].size();
         // deal with transpose.
         auto tranpose_a_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, input_transpose[0]);
@@ -174,8 +162,8 @@ void ScaledAttnLayerGPUMlirTest::SetUp() {
     }
 
     ov::OutputVector inputs;
-    for (size_t i = 0; i < inputParams_transpose.size(); i++) {
-        inputs.push_back(inputParams_transpose[i]);
+    for (const auto& i : inputParams_transpose) {
+        inputs.push_back(i);
     }
     if (has_sink) {
         size_t num_heads = inputDynamicShapes[0][1].get_length();
@@ -183,7 +171,7 @@ void ScaledAttnLayerGPUMlirTest::SetUp() {
         auto sink_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, ov::Shape{1, num_heads, 1, 1}, data);
         auto sink_const = std::make_shared<ov::op::v0::Constant>(sink_tensor);
         sink_const->set_friendly_name("sink");
-        inputs.push_back(sink_const);
+        inputs.emplace_back(sink_const);
     }
     auto sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(inputs, is_causal);
     sdp->set_friendly_name("sdpa");
@@ -208,7 +196,7 @@ void ScaledAttnLayerGPUMlirTest::SetUp() {
     manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
     manager.run_passes(functionRefs);
 
-    auto it = std::find_if(inputShapes[1].second.begin(), inputShapes[1].second.end(), [&](const ov::Shape& shape){
+    auto it = std::find_if(inputShapes[1].second.begin(), inputShapes[1].second.end(), [&](const ov::Shape& shape) {
         return shape[0] >= 128 || shape[2] >= 384 || shape[3] >= 128;
     });
 
@@ -230,8 +218,7 @@ void ScaledAttnLayerGPUMlirTest::SetUp() {
     }
 }
 
-void ScaledAttnLayerGPUMlirTest::transpose_prepare(std::vector<InputShape>& shapes,
-    const std::vector<std::vector<int64_t>>& input_transpose) {
+void ScaledAttnLayerGPUMlirTest::transpose_prepare(std::vector<InputShape>& shapes, const std::vector<std::vector<int64_t>>& input_transpose) {
     auto transpose_pshape = [](InputShape& pshapes, const std::vector<int64_t>& order) {
         auto transposed_pshape = ov::PartialShape::dynamic(pshapes.first.rank());
         std::vector<ov::Shape> transposed_cshapes(pshapes.second);
@@ -277,14 +264,14 @@ void ScaledAttnLayerGPUMlirTest::generate_inputs(const std::vector<ov::Shape>& t
             inputs.insert({model_inputs[i].get_node_shared_ptr(), data_tensor});
         }
     }
-    ov::test::utils::InputGenerateData attn_data(-1.0f, 2, 1);
-    ov::test::utils::InputGenerateData scale_data(0.1f, 1, 10);
+    ov::test::utils::InputGenerateData attn_data(-1.0F, 2, 1);
+    ov::test::utils::InputGenerateData scale_data(0.1F, 1, 10);
     if (!has_attn && has_scale) {
-        shapes.push_back(ov::Shape{});
+        shapes.emplace_back();
         ov::Tensor attn_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, shapes[3], attn_data);
         inputs.insert({model_inputs[3].get_node_shared_ptr(), attn_tensor});
         if (!is_scale_const) {
-            shapes.push_back(ov::Shape{1});
+            shapes.emplace_back(1);
             ov::Tensor scale_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, shapes[4], scale_data);
             inputs.insert({model_inputs[4].get_node_shared_ptr(), scale_tensor});
         }
@@ -296,7 +283,7 @@ void ScaledAttnLayerGPUMlirTest::generate_inputs(const std::vector<ov::Shape>& t
             inputs.insert({model_inputs[idx++].get_node_shared_ptr(), attn_tensor});
         }
         if (has_scale && !is_scale_const) {
-            shapes.push_back(ov::Shape{1});
+            shapes.emplace_back(1);
             ov::Tensor scale_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, shapes[idx], scale_data);
             inputs.insert({model_inputs[idx].get_node_shared_ptr(), scale_tensor});
         }
@@ -304,8 +291,9 @@ void ScaledAttnLayerGPUMlirTest::generate_inputs(const std::vector<ov::Shape>& t
 }
 
 void ScaledAttnLayerGPUMlirTest::check_mlir_execution() {
-    if (!ov::test::is_mlir_enabled())
+    if (!ov::test::is_mlir_enabled()) {
         return;
+    }
 
     auto exec_model = compiledModel.get_runtime_model();
     ASSERT_NE(exec_model, nullptr);
@@ -342,124 +330,85 @@ const std::vector<std::vector<InputShape>> static_shapes_3D{
     // static shapes
     {
         // q shape
-        {ov::test::InputShape{ov::PartialShape{16, 128, 80},
-            {ov::Shape{16, 128, 80}}}
-        },
+        {ov::test::InputShape{ov::PartialShape{16, 128, 80}, {ov::Shape{16, 128, 80}}}},
         // k shape
-        {ov::test::InputShape{ov::PartialShape{16, 128, 80},
-            {ov::Shape{16, 128, 80}}}
-        },
+        {ov::test::InputShape{ov::PartialShape{16, 128, 80}, {ov::Shape{16, 128, 80}}}},
         // v shape
-        {ov::test::InputShape{ov::PartialShape{16, 128, 80},
-            {ov::Shape{16, 128, 80}}}
-        },
+        {ov::test::InputShape{ov::PartialShape{16, 128, 80}, {ov::Shape{16, 128, 80}}}},
         // attn shape: [B, 128, -128, L0+L1]
-        {ov::test::InputShape{ov::PartialShape{128, 128},
-            {ov::Shape{128, 128}}}
-        },
+        {ov::test::InputShape{ov::PartialShape{128, 128}, {ov::Shape{128, 128}}}},
     },
 };
 
 const auto static_shape_params_3D = testing::Combine(testing::Values(ov::element::f16),
-                                                  testing::ValuesIn(static_shapes_3D),
-                                                  testing::Values(false),  // is_causal
-                                                  testing::Values(false, true),  // has_attn
-                                                  testing::Values(false, true),  // is_attn_const
-                                                  testing::Values(false, true),  // has_scale
-                                                  testing::Values(/*false,*/ true),  // is_scale_const
-                                                  testing::ValuesIn({disable_transpose}),
-                                                  testing::Values(false));  // has_sink
+                                                     testing::ValuesIn(static_shapes_3D),
+                                                     testing::Values(false),            // is_causal
+                                                     testing::Values(false, true),      // has_attn
+                                                     testing::Values(false, true),      // is_attn_const
+                                                     testing::Values(false, true),      // has_scale
+                                                     testing::Values(/*false,*/ true),  // is_scale_const
+                                                     testing::ValuesIn({disable_transpose}),
+                                                     testing::Values(false));  // has_sink
 
-INSTANTIATE_TEST_SUITE_P(mlir_ScaledAttnStatic3D_GPU,
-                         ScaledAttnLayerGPUMlirTest,
-                         static_shape_params_3D,
-                         ScaledAttnLayerGPUMlirTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(mlir_ScaledAttnStatic3D_GPU, ScaledAttnLayerGPUMlirTest, static_shape_params_3D, ScaledAttnLayerGPUMlirTest::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> static_shapes_4D{
     // static shapes
     {
         // q shape
-        {ov::test::InputShape{ov::PartialShape{1, 16, 128, 80},
-            {ov::Shape{1, 16, 128, 80}}}
-        },
+        {ov::test::InputShape{ov::PartialShape{1, 16, 128, 80}, {ov::Shape{1, 16, 128, 80}}}},
         // k shape
-        {ov::test::InputShape{ov::PartialShape{1, 16, 128, 80},
-            {ov::Shape{1, 16, 128, 80}}}
-        },
+        {ov::test::InputShape{ov::PartialShape{1, 16, 128, 80}, {ov::Shape{1, 16, 128, 80}}}},
         // v shape
-        {ov::test::InputShape{ov::PartialShape{1, 16, 128, 80},
-            {ov::Shape{1, 16, 128, 80}}}
-        },
+        {ov::test::InputShape{ov::PartialShape{1, 16, 128, 80}, {ov::Shape{1, 16, 128, 80}}}},
         // attn shape: [B, 128, -128, L0+L1]
-        {ov::test::InputShape{ov::PartialShape{128, 128},
-            {ov::Shape{128, 128}}}
-        },
+        {ov::test::InputShape{ov::PartialShape{128, 128}, {ov::Shape{128, 128}}}},
     },
     {
         // q shape
-        {ov::test::InputShape{ov::PartialShape{1, 8, 128, 128},
-            {ov::Shape{1, 8, 128, 128}}}
-        },
+        {ov::test::InputShape{ov::PartialShape{1, 8, 128, 128}, {ov::Shape{1, 8, 128, 128}}}},
         // k shape
-        {ov::test::InputShape{ov::PartialShape{1, 8, 128, 128},
-            {ov::Shape{1, 8, 128, 128}}}
-        },
+        {ov::test::InputShape{ov::PartialShape{1, 8, 128, 128}, {ov::Shape{1, 8, 128, 128}}}},
         // v shape
-        {ov::test::InputShape{ov::PartialShape{1, 8, 128, 128},
-            {ov::Shape{1, 8, 128, 128}}}
-        },
+        {ov::test::InputShape{ov::PartialShape{1, 8, 128, 128}, {ov::Shape{1, 8, 128, 128}}}},
         // attn shape: [B, 1, -1, L0+L1]
-        {ov::test::InputShape{ov::PartialShape{1, 1, 128, 128},
-            {ov::Shape{1, 1, 128, 128}}}
-        },
+        {ov::test::InputShape{ov::PartialShape{1, 1, 128, 128}, {ov::Shape{1, 1, 128, 128}}}},
     },
 };
 
 const auto static_shape_params_4D = testing::Combine(testing::Values(ov::element::f16),
-                                                  testing::ValuesIn(static_shapes_4D),
-                                                  testing::Values(false), // is_causal
-                                                  testing::Values(false, true), // has_attn
-                                                  testing::Values(false, true), // is_attn_const
-                                                  testing::Values(false, true), // has_scale
-                                                  testing::Values(/*false,*/true), // is_scale_const
-                                                  testing::ValuesIn({disable_transpose}),
-                                                  testing::Values(false)); // has_sink
+                                                     testing::ValuesIn(static_shapes_4D),
+                                                     testing::Values(false),            // is_causal
+                                                     testing::Values(false, true),      // has_attn
+                                                     testing::Values(false, true),      // is_attn_const
+                                                     testing::Values(false, true),      // has_scale
+                                                     testing::Values(/*false,*/ true),  // is_scale_const
+                                                     testing::ValuesIn({disable_transpose}),
+                                                     testing::Values(false));  // has_sink
 
-INSTANTIATE_TEST_SUITE_P(mlir_ScaledAttnStatic4D_GPU,
-                         ScaledAttnLayerGPUMlirTest,
-                         static_shape_params_4D,
-                         ScaledAttnLayerGPUMlirTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(mlir_ScaledAttnStatic4D_GPU, ScaledAttnLayerGPUMlirTest, static_shape_params_4D, ScaledAttnLayerGPUMlirTest::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> dynamic_shapes_4D{
     {
         // q shape: ?x24x?x64
-        {ov::test::InputShape{ov::PartialShape{-1, 24, -1, 64},
-            {ov::Shape{1, 24, 128, 64}}}
-        },
+        {ov::test::InputShape{ov::PartialShape{-1, 24, -1, 64}, {ov::Shape{1, 24, 128, 64}}}},
         // k shape: ?x24x?x64
-        {ov::test::InputShape{ov::PartialShape{-1, 24, -1, 64},
-            {ov::Shape{1, 24, 128, 64}}}
-        },
+        {ov::test::InputShape{ov::PartialShape{-1, 24, -1, 64}, {ov::Shape{1, 24, 128, 64}}}},
         // v shape: ?x24x?x64
-        {ov::test::InputShape{ov::PartialShape{-1, 24, -1, 64},
-            {ov::Shape{1, 24, 128, 64}}}
-        },
+        {ov::test::InputShape{ov::PartialShape{-1, 24, -1, 64}, {ov::Shape{1, 24, 128, 64}}}},
     },
 };
 
 const auto dynamic_shape_params_4D = testing::Combine(testing::Values(ov::element::f16),
-                                                  testing::ValuesIn(dynamic_shapes_4D),
-                                                  testing::Values(false),  // is_causal
-                                                  testing::Values(false),  // has_attn
-                                                  testing::Values(false),  // is_attn_const
-                                                  testing::Values(false),  // has_scale
-                                                  testing::Values(false),  // is_scale_const
-                                                  testing::ValuesIn({disable_transpose}),
-                                                  testing::Values(false));  // has_sink
+                                                      testing::ValuesIn(dynamic_shapes_4D),
+                                                      testing::Values(false),  // is_causal
+                                                      testing::Values(false),  // has_attn
+                                                      testing::Values(false),  // is_attn_const
+                                                      testing::Values(false),  // has_scale
+                                                      testing::Values(false),  // is_scale_const
+                                                      testing::ValuesIn({disable_transpose}),
+                                                      testing::Values(false));  // has_sink
 
-INSTANTIATE_TEST_SUITE_P(mlir_ScaledAttnDynamic4D_GPU,
-                         ScaledAttnLayerGPUMlirTest,
-                         dynamic_shape_params_4D,
-                         ScaledAttnLayerGPUMlirTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(mlir_ScaledAttnDynamic4D_GPU, ScaledAttnLayerGPUMlirTest, dynamic_shape_params_4D, ScaledAttnLayerGPUMlirTest::getTestCaseName);
 
-} // namespace
+}  // namespace

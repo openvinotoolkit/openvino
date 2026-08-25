@@ -6,17 +6,14 @@
 
 #include <iostream>
 
-#include "mlir/IR/BuiltinAttributes.h"
-#include "mlir/IR/BuiltinTypes.h"
-#include "mlir/IR/MLIRContext.h"
-#include "mlir/IR/Location.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
-
+#include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/Location.h"
+#include "mlir/IR/MLIRContext.h"
 #include "openvino/op/constant.hpp"
-
 #include "typedefs.hpp"
-
 
 namespace ov::intel_gpu::mlir {
 
@@ -24,8 +21,19 @@ using namespace ::mlir;
 
 bool is_debug();
 
-#define OPENVINO_MLIR_DEBUG(X) do if(::ov::intel_gpu::mlir::is_debug()) { X; } while(false)
-#define OPENVINO_MLIR_DEBUG_PRINT(X) do if(::ov::intel_gpu::mlir::is_debug()) { ::std::cerr << "[DEBUG] " << X << ::std::endl; } while(false)
+#define OPENVINO_MLIR_DEBUG(X)                   \
+    do                                           \
+        if (::ov::intel_gpu::mlir::is_debug()) { \
+            X;                                   \
+        }                                        \
+    while (false)
+// Variadic on purpose: the argument is a '<<' chain, so it must not be wrapped in parentheses.
+#define OPENVINO_MLIR_DEBUG_PRINT(...)                        \
+    do                                                        \
+        if (::ov::intel_gpu::mlir::is_debug()) {              \
+            ::std::cerr << "[DEBUG] " << __VA_ARGS__ << '\n'; \
+        }                                                     \
+    while (false)
 
 Location createLayerLocation(MLIRContext* ctx, const std::string& layerName, const std::string& layerType);
 
@@ -33,17 +41,12 @@ SmallVector<int64_t> importShape(const ov::PartialShape& shape);
 
 Type importPrecision(MLIRContext* ctx, const ov::element::Type& precision);
 
-RankedTensorType importTensor(MLIRContext* ctx,
-                                    const ov::PartialShape& shape,
-                                    const ov::element::Type& elemType);
+RankedTensorType importTensor(MLIRContext* ctx, const ov::PartialShape& shape, const ov::element::Type& elemType);
 
-Location createLocation(MLIRContext* ctx, NodePtr node);
+Location createLocation(MLIRContext* ctx, const NodePtr& node);
 
 template <typename T>
-mlir::arith::ConstantOp getConstant(OpBuilder& builder,
-                                    const mlir::Type& type,
-                                    T value,
-                                    std::optional<mlir::Location> loc = std::nullopt) {
+mlir::arith::ConstantOp getConstant(OpBuilder& builder, const mlir::Type& type, T value, std::optional<mlir::Location> loc = std::nullopt) {
     TypedAttr attr;
     if (type.isInteger()) {
         attr = builder.getIntegerAttr(type, int64_t(value));
@@ -55,22 +58,15 @@ mlir::arith::ConstantOp getConstant(OpBuilder& builder,
 }
 
 template <typename T>
-mlir::arith::ConstantOp getConstant(OpBuilder& builder,
-                                    const ov::element::Type& precision,
-                                    T value,
-                                    std::optional<mlir::Location> loc = std::nullopt) {
+mlir::arith::ConstantOp getConstant(OpBuilder& builder, const ov::element::Type& precision, T value, std::optional<mlir::Location> loc = std::nullopt) {
     return getConstant(builder, importPrecision(builder.getContext(), precision), value, loc);
 }
 
-inline arith::ConstantOp getConstant(OpBuilder& builder,
-                                     const ov::op::v0::Constant* constant,
-                                     std::optional<Location> loc = std::nullopt) {
-    auto tensorTy = dyn_cast<RankedTensorType>(
-        importTensor(builder.getContext(), constant->get_output_partial_shape(0), constant->get_element_type()));
+inline arith::ConstantOp getConstant(OpBuilder& builder, const ov::op::v0::Constant* constant, std::optional<Location> loc = std::nullopt) {
+    auto tensorTy = dyn_cast<RankedTensorType>(importTensor(builder.getContext(), constant->get_output_partial_shape(0), constant->get_element_type()));
     DenseElementsAttr attr;
     if (constant->get_all_data_elements_bitwise_identical()) {
-        auto raw = llvm::ArrayRef<char>(static_cast<const char*>(constant->get_data_ptr()),
-                                        constant->get_element_type().size());
+        auto raw = llvm::ArrayRef<char>(static_cast<const char*>(constant->get_data_ptr()), constant->get_element_type().size());
         auto scalarAttr = DenseElementsAttr::getFromRawBuffer(tensorTy.cloneWith({}, tensorTy.getElementType()), raw);
         attr = DenseElementsAttr::get(tensorTy, scalarAttr.getSplatValue<Attribute>());
     } else {
@@ -81,17 +77,17 @@ inline arith::ConstantOp getConstant(OpBuilder& builder,
 }
 
 using BroadcastDimensions = std::tuple<SmallVector<ReassociationIndices>, SmallVector<int64_t>>;
-BroadcastDimensions broadcast_dimensions(const PartialShape& from, const PartialShape& to);
+BroadcastDimensions broadcast_dimensions(const PartialShape& src, const PartialShape& dst);
 
 bool elementwise_no_broadcast_predicate(const ov::Output<ov::Node>& output);
 
-bool symbol_ancestor_less (SymbolPtr x, SymbolPtr y);
+bool symbol_ancestor_less(const SymbolPtr& x, const SymbolPtr& y);
 
-bool has_dynamic_rank(NodePtr node);
+bool has_dynamic_rank(const NodePtr& node);
 
-bool are_equal_dimensions(Dimension d1, Dimension d2);
+bool are_equal_dimensions(const Dimension& d1, const Dimension& d2);
 
-bool has_broadcast(Dimension from, Dimension to);
+bool has_broadcast(const Dimension& from, const Dimension& to);
 
 bool statically_broadcastable(const PartialShape& from, const PartialShape& to);
 

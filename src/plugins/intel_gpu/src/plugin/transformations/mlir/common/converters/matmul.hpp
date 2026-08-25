@@ -4,14 +4,12 @@
 
 #pragma once
 
-#include "mlir/Dialect/Tensor/IR/Tensor.h"
-#include "mlir/Dialect/Linalg/Passes.h"
-
 #include <openvino/op/matmul.hpp>
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "../convert_common.hpp"
-
+#include "mlir/Dialect/Linalg/Passes.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov::intel_gpu::mlir {
 
@@ -40,14 +38,14 @@ struct ConvertMatMul {
 
         // TODO: move the unit-dimension-folding logic to the graph-compiler
         bool batch = true;
-        auto canCollapse = [](mlir::Value tensor) { // rank <= 2 or all leading dimensions are 1
+        auto canCollapse = [](mlir::Value tensor) {  // rank <= 2 or all leading dimensions are 1
             auto shape = mlir::cast<RankedTensorType>(tensor.getType()).getShape().drop_back(2);
             return std::all_of(shape.begin(), shape.end(), [](int64_t d) {
                 return d == 1;
             });
         };
         if (canCollapse(ins[0]) && canCollapse(ins[1]) && canCollapse(outs[0])) {
-            auto collapse = [&](Value tensor) -> Value { // Has no-op if rank <= 2
+            auto collapse = [&](Value tensor) -> Value {  // Has no-op if rank <= 2
                 auto shape = mlir::cast<RankedTensorType>(tensor.getType()).getShape();
                 int64_t rank = shape.size();
                 if (rank <= 2)

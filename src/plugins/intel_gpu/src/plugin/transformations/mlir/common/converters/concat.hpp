@@ -4,14 +4,13 @@
 
 #pragma once
 
-#include "mlir/Dialect/Linalg/Passes.h"
-#include "mlir/Dialect/Tensor/IR/Tensor.h"
-
 #include <openvino/op/concat.hpp>
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "../convert_common.hpp"
+#include "mlir/Dialect/Linalg/Passes.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov::intel_gpu::mlir {
 
@@ -36,4 +35,3 @@ struct ConvertConcat {
 };
 
 }  // namespace ov::intel_gpu::mlir
-

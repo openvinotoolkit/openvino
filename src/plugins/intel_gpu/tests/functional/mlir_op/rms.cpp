@@ -2,21 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ov_ops/rms.hpp"
+
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "mlir_test_env.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
-#include "ov_ops/rms.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-
-#include "mlir_test_env.hpp"
-
 
 namespace {
 
-using RMSParams = std::tuple<ov::Shape,           // input shape
-                             ov::element::Type,   // precision
-                             bool>;               // with gamma
+using RMSParams = std::tuple<ov::Shape,          // input shape
+                             ov::element::Type,  // precision
+                             bool>;              // with gamma
 
 class RMSTest : public testing::WithParamInterface<RMSParams>, virtual public ov::test::MlirSubgraphStaticTest {
 public:
@@ -41,7 +40,7 @@ protected:
             const size_t last = shape.back();
             std::vector<float> gamma_val(last);
             for (size_t i = 0; i < last; ++i) {
-                gamma_val[i] = 0.5f + 0.01f * static_cast<float>(i % 10);
+                gamma_val[i] = 0.5F + 0.01F * static_cast<float>(i % 10);
             }
             auto gamma = ov::op::v0::Constant::create(precision, {last}, gamma_val);
             rms = std::make_shared<ov::op::internal::RMS>(input, gamma, 1e-5, precision);

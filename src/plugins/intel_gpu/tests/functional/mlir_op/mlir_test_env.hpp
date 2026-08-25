@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <cstdlib>
-
 #include <gtest/gtest.h>
+
+#include <cstdlib>
 
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/compiled_model.hpp"
@@ -14,8 +14,7 @@
 #include "openvino/util/env_util.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-namespace ov {
-namespace test {
+namespace ov::test {
 
 // RAII helper for MLIR op tests. Sets 'OV_MLIR_PATTERNS' to an empty
 // string (match-all to mlir) for the lifetime of the test-class object.
@@ -49,16 +48,19 @@ inline bool is_mlir_enabled() {
 // Returns true if the compiled model's runtime graph contains at least one MLIROp.
 inline bool has_mlir_op(const ov::CompiledModel& compiled) {
     const auto exec_model = compiled.get_runtime_model();
-    if (!exec_model)
+    if (!exec_model) {
         return false;
+    }
     for (const auto& node : exec_model->get_ordered_ops()) {
         const auto& rt_info = node->get_rt_info();
         const auto it = rt_info.find(ov::exec_model_info::LAYER_TYPE);
-        if (it == rt_info.end())
+        if (it == rt_info.end()) {
             continue;
+        }
         const auto layer_type = it->second.as<std::string>();
-        if (layer_type == "mlir_primitive" || layer_type == "MLIROp")
+        if (layer_type == "mlir_primitive" || layer_type == "MLIROp") {
             return true;
+        }
     }
     return false;
 }
@@ -73,8 +75,9 @@ class MlirTestFixture : public Base {
 protected:
     void run() override {
         Base::run();
-        if (m_check_mlir_execution)
+        if (m_check_mlir_execution) {
             check_mlir_execution();
+        }
     }
 
     virtual void check_mlir_execution() {
@@ -83,8 +86,7 @@ protected:
                                 << "The model was compiled without the MLIR path.";
             return;
         }
-        EXPECT_TRUE(ov::test::has_mlir_op(this->compiledModel))
-            << "Expected at least one MLIROp in the execution graph, but none was found.";
+        EXPECT_TRUE(ov::test::has_mlir_op(this->compiledModel)) << "Expected at least one MLIROp in the execution graph, but none was found.";
     }
 
     bool m_check_mlir_execution = true;
@@ -96,5 +98,4 @@ private:
 using MlirSubgraphTest = MlirTestFixture<ov::test::SubgraphBaseTest>;
 using MlirSubgraphStaticTest = MlirTestFixture<ov::test::SubgraphBaseStaticTest>;
 
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test

@@ -4,13 +4,13 @@
 
 #pragma once
 
+#include <openvino/op/relu.hpp>
+
+#include "mlir/Dialect/Linalg/Passes.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/Value.h"
-#include "mlir/Dialect/Tensor/IR/Tensor.h"
-#include "mlir/Dialect/Linalg/Passes.h"
-
-#include <openvino/op/relu.hpp>
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov::intel_gpu::mlir {
@@ -19,7 +19,7 @@ using namespace ov;
 using namespace ov::intel_gpu::mlir;
 using ::mlir::ValueRange;
 
-template<typename MlirBinOpBuilder>
+template <typename MlirBinOpBuilder>
 struct ConvertBinaryEltwise {
     Operation* operator()(ConversionContext& context, NodePtr node) {
         auto loc = createLocation(context.context, node);
@@ -32,9 +32,9 @@ struct ConvertBinaryEltwise {
         SmallVector<Value> dynamic_dimensions = context.get_dynamic_dimension_values(ov_output_shape);
 
         SmallVector<Value> broadcasted_inputs;
-        for(size_t i = 0; i < inputs.size(); ++i) {
+        for (size_t i = 0; i < inputs.size(); ++i) {
             auto [collapse_groups, dimensions] = broadcast_dimensions(node->get_input_partial_shape(i), ov_output_shape);
-            if(!dimensions.empty()) {
+            if (!dimensions.empty()) {
                 // FIXME: Find a way to avoid dimension squeezing before applying linalg.broadcast
                 // Step 1: Squeeze input shape to eliminate broadcasted dimensions
                 auto squeezed = tensor::CollapseShapeOp::create(builder, loc, inputs[i], collapse_groups);

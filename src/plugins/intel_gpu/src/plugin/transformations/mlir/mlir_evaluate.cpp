@@ -8,22 +8,22 @@
 #include <memory>
 #include <vector>
 
+#include "common/convert_common.hpp"
 #include "gc/ExecutionEngine/GPURuntime/GpuOclRuntime.h"
 #include "gc/Transforms/Passes.h"
 #include "gc/Utils/Error.h"
+#include "interface/properties.hpp"
 #include "mlir/Dialect/Bufferization/Transforms/Passes.h"
 #include "mlir/Pass/PassManager.h"
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
-#include "common/convert_common.hpp"
-#include "interface/properties.hpp"
 
 namespace ov::intel_gpu::mlir {
 
 using namespace ::mlir;
 
 static cl_device_id extract_device_from_context(cl_context context) {
-    size_t devices_size;
-    cl_int err = clGetContextInfo(context, CL_CONTEXT_DEVICES, 0, NULL, &devices_size);
+    size_t devices_size = 0;
+    cl_int err = clGetContextInfo(context, CL_CONTEXT_DEVICES, 0, nullptr, &devices_size);
     if (err != CL_SUCCESS) {
         OPENVINO_THROW("Error getting context info: ", err);
     }
@@ -31,8 +31,11 @@ static cl_device_id extract_device_from_context(cl_context context) {
         OPENVINO_THROW("Expected exactly one device in the context, got ", devices_size);
     }
 
-    cl_device_id devices;
-    err = clGetContextInfo(context, CL_CONTEXT_DEVICES, devices_size, &devices, NULL);
+    cl_device_id devices = nullptr;
+    // cl_device_id is itself a pointer type and clGetContextInfo takes its output buffer as 'void*',
+    // so the extra level of indirection is dictated by the OpenCL API and cannot be avoided here.
+    // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
+    err = clGetContextInfo(context, CL_CONTEXT_DEVICES, devices_size, &devices, nullptr);
     if (err != CL_SUCCESS) {
         OPENVINO_THROW("Error getting device IDs: ", err);
     }
@@ -40,8 +43,7 @@ static cl_device_id extract_device_from_context(cl_context context) {
     return devices;
 }
 
-MLIREvaluateGcGPU::MLIREvaluateGcGPU(OwningOpRef<::mlir::ModuleOp> _module,
-                                     std::shared_ptr<ov::EvaluationContext> loweringContext) {
+MLIREvaluateGcGPU::MLIREvaluateGcGPU(OwningOpRef<::mlir::ModuleOp> _module, const std::shared_ptr<ov::EvaluationContext>& loweringContext) {
     if (::ov::intel_gpu::mlir::is_debug()) {
         OPENVINO_MLIR_DEBUG_PRINT("-------------- Source MLIR --------------");
         _module->dump();
@@ -55,9 +57,9 @@ MLIREvaluateGcGPU::MLIREvaluateGcGPU(OwningOpRef<::mlir::ModuleOp> _module,
     if (it == loweringContext->end()) {
         OPENVINO_THROW("No cl_context provided for OpenCL execution");
     }
-    auto context = reinterpret_cast<cl_context>(it->second.as<ov::intel_gpu::gpu_handle_param>());
+    auto* context = reinterpret_cast<cl_context>(it->second.as<ov::intel_gpu::gpu_handle_param>());
     // assuming there's always one device per context
-    auto device = extract_device_from_context(context);
+    auto* device = extract_device_from_context(context);
 
     if (auto mod = builder.build(device, context)) {
         module = std::make_unique<const gc::gpu::OclModule>(*mod);
@@ -66,9 +68,7 @@ MLIREvaluateGcGPU::MLIREvaluateGcGPU(OwningOpRef<::mlir::ModuleOp> _module,
     }
 }
 
-bool MLIREvaluateGcGPU::invoke(const ov::TensorVector& inputs,
-                               ov::TensorVector& outputs,
-                               const ov::EvaluationContext& evaluationContext) {
+bool MLIREvaluateGcGPU::invoke(const ov::TensorVector& inputs, ov::TensorVector& outputs, const ov::EvaluationContext& evaluationContext) {
     std::vector<void*> waitList;
     gc::gpu::OclContext ctx = build_ocl_context(evaluationContext, waitList);
     gc::gpu::StaticExecutor<> exec(*module);
@@ -101,27 +101,25 @@ bool MLIREvaluateGcGPU::invoke_packed(std::vector<void*>& args, const ov::Evalua
     // in transformations/op/mlir_op.cpp):
     //   [aligned, rank, shape*, strides*, is_usm]
     constexpr size_t kStride = 5;
-    OPENVINO_ASSERT(args.size() % kStride == 0,
-                    "[GPU] MLIREvaluateGcGPU::invoke_packed: malformed args vector");
+    OPENVINO_ASSERT(args.size() % kStride == 0, "[GPU] MLIREvaluateGcGPU::invoke_packed: malformed args vector");
     for (size_t i = 0; i < args.size(); i += kStride) {
         exec.arg(
             /*alignedPtr=*/args[i],
             /*rank=*/static_cast<size_t>(reinterpret_cast<uintptr_t>(args[i + 1])),
             /*shape=*/reinterpret_cast<int64_t*>(args[i + 2]),
             /*strides=*/reinterpret_cast<int64_t*>(args[i + 3]),
-            /*isUsm=*/reinterpret_cast<uintptr_t>(args[i + 4]) != 0
-        );
+            /*isUsm=*/reinterpret_cast<uintptr_t>(args[i + 4]) != 0);
     }
     exec(ctx);
     maybe_set_result_events(evaluationContext, ctx);
     return true;
 }
 
-void MLIREvaluateGcGPU::maybe_set_result_events(const ov::EvaluationContext& evaluationContext,
-                                                gc::gpu::OclContext& ctx) {
+void MLIREvaluateGcGPU::maybe_set_result_events(const ov::EvaluationContext& evaluationContext, gc::gpu::OclContext& ctx) {
     auto events_it = evaluationContext.find(ov::internal::mlir_meta::result_events.name());
-    if (events_it == evaluationContext.end())
+    if (events_it == evaluationContext.end()) {
         return;
+    }
 
     auto retain_event = [](cl_event event) {
         const auto err = clRetainEvent(event);
@@ -132,19 +130,18 @@ void MLIREvaluateGcGPU::maybe_set_result_events(const ov::EvaluationContext& eva
 
     auto* events = events_it->second.as<std::vector<void*>*>();
     events->reserve(events->size() + ctx.events.size());
-    for (auto event : ctx.events) {
+    for (auto* event : ctx.events) {
         retain_event(event);
         events->push_back(event);
     }
 }
 
-gc::gpu::OclContext MLIREvaluateGcGPU::build_ocl_context(const ov::EvaluationContext& evaluationContext,
-                                                        std::vector<void*>& waitList) {
+gc::gpu::OclContext MLIREvaluateGcGPU::build_ocl_context(const ov::EvaluationContext& evaluationContext, std::vector<void*>& waitList) {
     auto it = evaluationContext.find(ov::intel_gpu::ocl_queue.name());
     if (it == evaluationContext.end()) {
         OPENVINO_THROW("No queue provided for OpenCL execution");
     }
-    cl_command_queue queue = reinterpret_cast<cl_command_queue>(it->second.as<void*>());
+    auto* queue = reinterpret_cast<cl_command_queue>(it->second.as<void*>());
 
     uint32_t waitListLen = 0;
 
@@ -155,8 +152,7 @@ gc::gpu::OclContext MLIREvaluateGcGPU::build_ocl_context(const ov::EvaluationCon
     }
 
     const bool createEvents = evaluationContext.count(ov::internal::mlir_meta::result_events.name()) != 0;
-    return gc::gpu::OclContext(module->runtime, queue, createEvents, waitListLen,
-                               reinterpret_cast<cl_event*>(waitList.data()));
+    return gc::gpu::OclContext(module->runtime, queue, createEvents, waitListLen, reinterpret_cast<cl_event*>(waitList.data()));
 }
 
 }  // namespace ov::intel_gpu::mlir

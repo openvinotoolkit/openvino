@@ -36,17 +36,12 @@ public:
 
     MLIROp() = default;
 
-    MLIROp(const ov::OutputVector& args,
-           std::shared_ptr<mlir::MLIREvaluateBase> engine,
-           const OVOutputTypes& output_types,
-           const DimensionsMap& dimensions_map);
+    MLIROp(const ov::OutputVector& args, std::shared_ptr<mlir::MLIREvaluateBase> engine, OVOutputTypes output_types, DimensionsMap dimensions_map);
 
     void validate_and_infer_types() override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
     bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
-    bool evaluate(ov::TensorVector& outputs,
-                  const ov::TensorVector& inputs,
-                  const ov::EvaluationContext& evaluationContext) const override;
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs, const ov::EvaluationContext& evaluationContext) const override;
     bool has_evaluate() const override;
     std::vector<ov::PartialShape> shape_infer(const std::vector<ov::PartialShape>& input_shapes) const;
 };

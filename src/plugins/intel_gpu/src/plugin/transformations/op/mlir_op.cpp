@@ -4,17 +4,18 @@
 
 #ifdef ENABLE_GPU_MLIR
 
-#include "intel_gpu/op/mlir_op.hpp"
+#    include "intel_gpu/op/mlir_op.hpp"
 
-#include <algorithm>
-#include <cassert>
-#include <iterator>
-#include <memory>
-#include <vector>
+#    include <algorithm>
+#    include <cassert>
+#    include <iterator>
+#    include <memory>
+#    include <utility>
+#    include <vector>
 
-#include "openvino/core/shape.hpp"
-#include "../mlir/interface/mlir_evaluate_base.hpp"
-#include "../mlir/interface/properties.hpp"
+#    include "../mlir/interface/mlir_evaluate_base.hpp"
+#    include "../mlir/interface/properties.hpp"
+#    include "openvino/core/shape.hpp"
 
 namespace ov::intel_gpu::op {
 
@@ -27,10 +28,7 @@ namespace {
 struct MemRefDescriptor {
     MemRefDescriptor() = default;
 
-    MemRefDescriptor(ov::Tensor tensor, const ov::PartialShape& module_input_shape)
-        : allocated(tensor.data()),
-          aligned(tensor.data()),
-          offset(0) {
+    MemRefDescriptor(ov::Tensor tensor, const ov::PartialShape& module_input_shape) : allocated(tensor.data()), aligned(tensor.data()) {
         OPENVINO_ASSERT(module_input_shape.rank().is_static(), "MLIROp: module_input_shape rank must be static");
         const auto module_rank = static_cast<size_t>(module_input_shape.rank().get_length());
         OPENVINO_ASSERT(module_rank <= tensor.get_shape().size(),
@@ -43,7 +41,9 @@ struct MemRefDescriptor {
         // Keep only the leading `module_rank` dims; the trailing ones must all be 1
         auto it = std::next(tensor.get_shape().begin(), module_rank);
         shape.assign(tensor.get_shape().begin(), it);
-        if (std::any_of(it, tensor.get_shape().end(), [](size_t dim) { return dim != 1; })) {
+        if (std::any_of(it, tensor.get_shape().end(), [](size_t dim) {
+                return dim != 1;
+            })) {
             OPENVINO_THROW("Mismatch in shape sizes");
         }
 
@@ -57,62 +57,88 @@ struct MemRefDescriptor {
         }
     }
 
-    explicit MemRefDescriptor(ov::Tensor tensor) : MemRefDescriptor(tensor, tensor.get_shape()) {}
+    explicit MemRefDescriptor(const ov::Tensor& tensor) : MemRefDescriptor(tensor, tensor.get_shape()) {}
 
-    void* allocated;
-    void* aligned;
-    int64_t offset;
+    void* allocated = nullptr;
+    void* aligned = nullptr;
+    int64_t offset = 0L;
     std::vector<int64_t> shape;
     std::vector<int64_t> strides;
 
     void append_to_packed_args(std::vector<void*>& args, bool is_usm) {
         args.push_back(aligned);
+        // The kernel ABI passes scalars in the same 'void*' slots as pointers, so integer-to-pointer
+        // casts are required here; there is no pointer-typed alternative.
+        // NOLINTNEXTLINE(performance-no-int-to-ptr)
         args.push_back(reinterpret_cast<void*>(static_cast<uintptr_t>(shape.size())));
         args.push_back(shape.data());
         args.push_back(strides.data());
+        // NOLINTNEXTLINE(performance-no-int-to-ptr)
         args.push_back(reinterpret_cast<void*>(static_cast<uintptr_t>(is_usm)));
     }
 };
 
 }  // namespace
 
-MLIROp::MLIROp(const ov::OutputVector& args,
-               std::shared_ptr<mlir::MLIREvaluateBase> engine,
-               const OVOutputTypes& output_types,
-               const DimensionsMap& dimensions_map)
+MLIROp::MLIROp(const ov::OutputVector& args, std::shared_ptr<mlir::MLIREvaluateBase> engine, OVOutputTypes output_types, DimensionsMap dimensions_map)
     : Op(args),
       engine(std::move(engine)),
-      output_types(output_types),
-      dimensions_map(dimensions_map) {
+      output_types(std::move(output_types)),
+      dimensions_map(std::move(dimensions_map)) {
     constructor_validate_and_infer_types();
 }
 
 std::vector<ov::PartialShape> MLIROp::shape_infer(const std::vector<ov::PartialShape>& input_shapes) const {
     OPENVINO_ASSERT(dimensions_map.size() == output_types.size(),
-                    "MLIROp::shape_infer: dimensions_map size (", dimensions_map.size(),
-                    ") does not match output_types size (", output_types.size(), ")");
+                    "MLIROp::shape_infer: dimensions_map size (",
+                    dimensions_map.size(),
+                    ") does not match output_types size (",
+                    output_types.size(),
+                    ")");
 
     std::vector<ov::PartialShape> output_shapes;
     output_shapes.reserve(output_types.size());
     for (size_t i = 0; i < output_types.size(); ++i) {
         ov::PartialShape resolved = std::get<1>(output_types[i]);
         OPENVINO_ASSERT(dimensions_map[i].size() == resolved.size(),
-                        "MLIROp::shape_infer: dimensions_map[", i, "] size (", dimensions_map[i].size(),
-                        ") does not match output ", i, " rank (", resolved.size(), ")");
+                        "MLIROp::shape_infer: dimensions_map[",
+                        i,
+                        "] size (",
+                        dimensions_map[i].size(),
+                        ") does not match output ",
+                        i,
+                        " rank (",
+                        resolved.size(),
+                        ")");
 
         for (size_t j = 0; j < resolved.size(); ++j) {
             if (!resolved[j].is_dynamic()) {
                 continue;
             }
-            size_t input_index, dim_index;
+            size_t input_index = 0, dim_index = 0;
             std::tie(input_index, dim_index) = dimensions_map[i][j];
             OPENVINO_ASSERT(input_index < input_shapes.size(),
-                            "MLIROp::shape_infer: dimensions_map[", i, "][", j, "] refers to input ",
-                            input_index, " but only ", input_shapes.size(), " input shapes provided");
+                            "MLIROp::shape_infer: dimensions_map[",
+                            i,
+                            "][",
+                            j,
+                            "] refers to input ",
+                            input_index,
+                            " but only ",
+                            input_shapes.size(),
+                            " input shapes provided");
             OPENVINO_ASSERT(dim_index < input_shapes[input_index].size(),
-                            "MLIROp::shape_infer: dimensions_map[", i, "][", j, "] refers to dim ",
-                            dim_index, " of input ", input_index, " (rank ",
-                            input_shapes[input_index].size(), ")");
+                            "MLIROp::shape_infer: dimensions_map[",
+                            i,
+                            "][",
+                            j,
+                            "] refers to dim ",
+                            dim_index,
+                            " of input ",
+                            input_index,
+                            " (rank ",
+                            input_shapes[input_index].size(),
+                            ")");
             resolved[j] = input_shapes[input_index][dim_index];
         }
         output_shapes.push_back(resolved);
@@ -138,9 +164,7 @@ std::shared_ptr<ov::Node> MLIROp::clone_with_new_inputs(const ov::OutputVector& 
     return std::make_shared<MLIROp>(new_args, engine, output_types, dimensions_map);
 }
 
-bool MLIROp::evaluate(ov::TensorVector& outputs,
-                     const ov::TensorVector& inputs,
-                     const ov::EvaluationContext& evaluationContext) const {
+bool MLIROp::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs, const ov::EvaluationContext& evaluationContext) const {
     if (!engine->requires_packed_args()) {
         return engine->invoke(inputs, outputs, evaluationContext);
     }
@@ -158,7 +182,7 @@ bool MLIROp::evaluate(ov::TensorVector& outputs,
         for (size_t j = 0; j < expected.size(); ++j) {
             auto dim = expected[j];
             if (dim.is_dynamic()) {
-                size_t input_index, dim_index;
+                size_t input_index = 0, dim_index = 0;
                 std::tie(input_index, dim_index) = dimensions_map[i][j];
                 target.push_back(inputs[input_index].get_shape()[dim_index]);
             } else {
@@ -176,8 +200,7 @@ bool MLIROp::evaluate(ov::TensorVector& outputs,
     } else {
         is_usm.assign(memref_args.size(), false);
     }
-    OPENVINO_ASSERT(is_usm.size() == memref_args.size(),
-                    "[GPU] MLIROp::evaluate: is_usm and memref count mismatch");
+    OPENVINO_ASSERT(is_usm.size() == memref_args.size(), "[GPU] MLIROp::evaluate: is_usm and memref count mismatch");
 
     std::vector<void*> args;
     for (size_t k = 0; k < memref_args.size(); ++k) {

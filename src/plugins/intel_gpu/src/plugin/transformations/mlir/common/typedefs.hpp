@@ -7,7 +7,6 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/symbol.hpp"
 
-
 namespace ov::intel_gpu::mlir {
 
 using NodePtr = std::shared_ptr<ov::Node>;

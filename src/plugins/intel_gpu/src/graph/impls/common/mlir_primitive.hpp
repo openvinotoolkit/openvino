@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <utility>
 
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"
@@ -14,10 +15,9 @@ namespace cldnn::common {
 struct MLIRPrimitiveImplementationManager : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("common::mlir_primitive")
     MLIRPrimitiveImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr)
-        : ImplementationManager(impl_types::common, shape_type, vf) {}
+        : ImplementationManager(impl_types::common, shape_type, std::move(vf)) {}
 
-    std::unique_ptr<primitive_impl> create_impl(const program_node& node,
-                                                const kernel_impl_params& params) const override;
+    [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
 };
 
 }  // namespace cldnn::common

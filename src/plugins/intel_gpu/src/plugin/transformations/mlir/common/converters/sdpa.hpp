@@ -4,29 +4,25 @@
 
 #pragma once
 
-#include "mlir/Dialect/Tensor/IR/Tensor.h"
-#include "mlir/Dialect/Linalg/Passes.h"
-
-#include <openvino/op/scaled_dot_product_attention.hpp>
-#include <openvino/op/constant.hpp>
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include <iostream>
 #include <cmath>
-
-#include "mlir/Dialect/Arith/IR/Arith.h"
-#include "mlir/Dialect/Math/IR/Math.h"
-#include "gc/Dialect/Linalgx/LinalgxDialect.h"
-#include "gc/Dialect/Linalgx/LinalgxOps.h"
-#include "mlir/IR/AffineExpr.h"
+#include <iostream>
+#include <openvino/op/constant.hpp>
+#include <openvino/op/scaled_dot_product_attention.hpp>
 
 #include "../convert_common.hpp"
+#include "gc/Dialect/Linalgx/LinalgxDialect.h"
+#include "gc/Dialect/Linalgx/LinalgxOps.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Linalg/Passes.h"
+#include "mlir/Dialect/Math/IR/Math.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "mlir/IR/AffineExpr.h"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov::intel_gpu::mlir {
 
 struct ConvertSDPA {
-    static SmallVector<AffineMap> getStandardAttentionIndexingMaps(MLIRContext *ctx,
-                                                               bool hasMask,
-                                                               int rank) {
+    static SmallVector<AffineMap> getStandardAttentionIndexingMaps(MLIRContext* ctx, bool hasMask, int rank) {
         if (rank == 3) {
             // 3D: (batch, seq, hidden)
             AffineExpr batch, m, k1, k2, n;
@@ -84,9 +80,7 @@ struct ConvertSDPA {
                         ", V rank=",
                         vRank);
 
-        OPENVINO_ASSERT(qRank == 3 || qRank == 4,
-                        "SDPA: Only 3D and 4D inputs are supported, but got rank=",
-                        qRank);
+        OPENVINO_ASSERT(qRank == 3 || qRank == 4, "SDPA: Only 3D and 4D inputs are supported, but got rank=", qRank);
 
         auto sdpa_node = std::dynamic_pointer_cast<ov::op::v13::ScaledDotProductAttention>(node);
         OPENVINO_ASSERT(sdpa_node, "Failed to cast to ScaledDotProductAttention");
@@ -148,15 +142,20 @@ struct ConvertSDPA {
         auto zero = getConstant(builder, ov_output_element_type, 0);
         auto fill = linalg::FillOp::create(builder, loc, mlir::ValueRange{zero}, mlir::ValueRange{empty});
 
-        SmallVector<AffineMap> indexingMaps =
-            getStandardAttentionIndexingMaps(context.context, hasMask, qRank);
+        SmallVector<AffineMap> indexingMaps = getStandardAttentionIndexingMaps(context.context, hasMask, qRank);
 
         Operation* sdpa = linalgx::AttentionOp::create(builder,
-            loc, fill.getResult(0).getType(), inputs[0], inputs[1], inputs[2], scale, fill.getResult(0),
-            builder.getAffineMapArrayAttr(indexingMaps), mask);
+                                                       loc,
+                                                       fill.getResult(0).getType(),
+                                                       inputs[0],
+                                                       inputs[1],
+                                                       inputs[2],
+                                                       scale,
+                                                       fill.getResult(0),
+                                                       builder.getAffineMapArrayAttr(indexingMaps),
+                                                       mask);
         return sdpa;
     }
 };
 
 }  // namespace ov::intel_gpu::mlir
-

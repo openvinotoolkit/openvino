@@ -100,8 +100,7 @@ public:
 class BinaryEltwisePatternBase : public MarkPattern {
 public:
     OPENVINO_MATCHER_PASS_RTTI("BinaryEltwisePatternBase");
-    BinaryEltwisePatternBase(NodeTypeInfo wrapped_type, GraphConverter::Convertor convertor,
-                             const std::set<element::Type>& element_types = {});
+    BinaryEltwisePatternBase(NodeTypeInfo wrapped_type, const GraphConverter::Convertor& convertor, const std::set<element::Type>& element_types = {});
 };
 
 template <typename OVOp, typename LinalgOp>
@@ -109,8 +108,7 @@ class BinaryEltwisePattern : public BinaryEltwisePatternBase {
 public:
     BinaryEltwisePattern(const std::set<element::Type>& element_types = {});
 
-    BinaryEltwisePattern(const element::Type& element_type)
-        : BinaryEltwisePattern(std::set<element::Type>{element_type}) {}
+    BinaryEltwisePattern(const element::Type& element_type) : BinaryEltwisePattern(std::set<element::Type>{element_type}) {}
 };
 
 template <typename OVOp, typename LinalgOp>
