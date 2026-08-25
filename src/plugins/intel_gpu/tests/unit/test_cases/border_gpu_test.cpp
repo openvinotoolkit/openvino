@@ -1736,8 +1736,7 @@ public:
         topology.add(data("pads_end", pads_end));
         topology.add(border("output",
                             {input_info("input"), input_info("pads_begin"), input_info("pads_end")},
-                            cldnn::border::PAD_NON_CONST_INPUT::BEGIN |
-                            cldnn::border::PAD_NON_CONST_INPUT::END,
+                            cldnn::border::PAD_NON_CONST_INPUT::BEGIN | cldnn::border::PAD_NON_CONST_INPUT::END,
                             ov::CoordinateDiff{},
                             ov::CoordinateDiff{},
                             mode,

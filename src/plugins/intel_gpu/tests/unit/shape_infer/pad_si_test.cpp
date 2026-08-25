@@ -43,10 +43,13 @@ TEST_P(pad_test_three_input, shape_infer) {
     auto pads_end_prim = std::make_shared<input_layout>("pads_end", p.pads_end_layout);
 
     int32_t non_constant_input_mask = border::PAD_NON_CONST_INPUT::BEGIN | border::PAD_NON_CONST_INPUT::END;
-    auto border_prim = std::make_shared<border>("output", std::vector<input_info>{input_info("input"), input_info("pads_begin"), input_info("pads_end")},
+    auto border_prim = std::make_shared<border>("output",
+                                                std::vector<input_info>{input_info("input"), input_info("pads_begin"), input_info("pads_end")},
                                                 non_constant_input_mask,
-                                                ov::CoordinateDiff{}, ov::CoordinateDiff{},
-                                                p.pad_mode, p.pad_value);
+                                                ov::CoordinateDiff{},
+                                                ov::CoordinateDiff{},
+                                                p.pad_mode,
+                                                p.pad_value);
     cldnn::program prog(engine);
 
     auto pads_begin_mem = engine.allocate_memory(p.pads_begin_layout);
