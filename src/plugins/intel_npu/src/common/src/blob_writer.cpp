@@ -200,7 +200,7 @@ void BlobWriter::write_to(std::ostream& stream) const {
     // only within the scope of the writing session.
     OffsetsTable offsets_table(m_logger.level());
 
-    // The region of persistent format (fields of cemented location and meaning)
+    // The header
     stream.write(reinterpret_cast<const char*>(MAGIC_BYTES.data()), MAGIC_BYTES.size());
     stream.write(reinterpret_cast<const char*>(&FORMAT_VERSION), sizeof(FORMAT_VERSION));
 
@@ -216,7 +216,7 @@ void BlobWriter::write_to(std::ostream& stream) const {
     stream.write(reinterpret_cast<const char*>(&offsets_table_location), sizeof(offsets_table_location));
     stream.write(reinterpret_cast<const char*>(&offsets_table_size), sizeof(offsets_table_size));
 
-    // The region of non-persistent format (list of key-length-payload sections, any order & no restrictions w.r.t.
+    // The region of dynamic format (list of key-length-payload sections, any order & no restrictions w.r.t.
     // the content of the payload)
 
     // Write the CRESection. This section doesn't have to be the first one, but we write it first to emphasize the fact

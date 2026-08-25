@@ -43,6 +43,7 @@ void ELFMainScheduleSection::write(BlobWriterInterface& writer) {
     const size_t offset = writer.get_offset_relative_to_npu_region();
     const size_t padding_size = utils::align_size_to_standard_page_size(offset) - offset;
     writer.write_from(&padding_size, sizeof(padding_size));
+    // TODO add method that adds padding until page aligned relative to NPU region start
     writer.add_padding(padding_size);
 
     m_logger.debug("Added %lu padding to offset %lu", padding_size, offset);

@@ -12,14 +12,22 @@ namespace {
 constexpr std::string_view MAGIC_BYTES = "OVNPU";
 constexpr uint32_t FORMAT_VERSION = 0x30000;  // 3.0;
 
+// The header: magic, format version, NPU region size, manifest location, manifest size
+constexpr size_t MINIMUM_BLOB_SIZE = MAGIC_BYTES.size() + sizeof(FORMAT_VERSION) + 3 * sizeof(uint64_t);
 constexpr intel_npu::SectionTypeInstance FIRST_INSTANCE_ID = 0;
 
-void seekg_with_bound_checking(intel_npu::BlobSource& source, const size_t destination, const size_t npu_region_size) {
-    OPENVINO_ASSERT(destination <= npu_region_size,
-                    "Attempted to move the cursor beyond the NPU region. Destination: ",
+void seekg_with_bound_checking(intel_npu::BlobSource& source,
+                               const size_t destination,
+                               const size_t npu_region_start,
+                               const size_t npu_region_size) {
+    OPENVINO_ASSERT(npu_region_start <= destination && destination <= npu_region_size,
+                    "Attempted to move the cursor outside the NPU region. Destination: ",
                     destination,
-                    ". Limit: ",
-                    npu_region_size);
+                    ". Limits: [",
+                    npu_region_start,
+                    ", ",
+                    npu_region_size,
+                    "]");
     source.seekg(destination, std::ios::beg);
 }
 
@@ -141,28 +149,26 @@ void BlobReader::read(BlobSource& source) {
     // Read the size of the NPU region
     const size_t npu_region_size = get_npu_region_size(source);
     m_logger.trace("NPU region size: %lu", npu_region_size);
-    // Already checked within "get_npu_region_size"
-    source.seekg(MAGIC_BYTES.size() + sizeof(FORMAT_VERSION) + sizeof(npu_region_size), std::ios::beg);
+    // The magic and format version have been already checked within "get_npu_region_size"
+    source.seekg(MAGIC_BYTES.size() + sizeof(FORMAT_VERSION) + sizeof(npu_region_size), std::ios::cur);
 
-    // Step 1: Read the table of offsets. First, get the location and size of the table from the region of
-    // persistent format. Then, use this information to parse the table.
+    // Step 1: Read the table of offsets. First, get the location and size of the table from the header.
+    // Then, use this information to parse the table.
     uint64_t offsets_table_location;
     uint64_t offsets_table_size;
 
-    const size_t where_the_region_of_persistent_format_starts =
+    const size_t dynamic_format_region_start =
         source.tellg() + sizeof(offsets_table_location) + sizeof(offsets_table_size);
-    OPENVINO_ASSERT(where_the_region_of_persistent_format_starts <= npu_region_size,
-                    "The parsed NPU region size is too small. Found: ",
-                    npu_region_size,
-                    ". Minimum required: ",
-                    where_the_region_of_persistent_format_starts);
 
     source.read_into_buffer(reinterpret_cast<char*>(&offsets_table_location), sizeof(offsets_table_location));
-    seekg_with_bound_checking(source, source.tellg() + sizeof(offsets_table_location), npu_region_size);
+    seekg_with_bound_checking(source,
+                              source.tellg() + sizeof(offsets_table_location),
+                              npu_region_start,
+                              npu_region_size);
     source.read_into_buffer(reinterpret_cast<char*>(&offsets_table_size), sizeof(offsets_table_size));
     m_logger.trace("Offsets table location %lu; size %lu", offsets_table_location, offsets_table_size);
 
-    seekg_with_bound_checking(source, offsets_table_location, npu_region_size);
+    seekg_with_bound_checking(source, offsets_table_location, npu_region_start, npu_region_size);
 
     OPENVINO_ASSERT(m_readers.count(PredefinedSectionType::OFFSETS_TABLE), "No reader found for the table of offsets");
     parse_section(SectionID(PredefinedSectionType::OFFSETS_TABLE, FIRST_INSTANCE_ID),
@@ -188,7 +194,7 @@ void BlobReader::read(BlobSource& source) {
     // TODO test the negative branch as well
     // TODO safeguards for multiple offsets tables/CREs?
     if (cre_location.has_value()) {
-        seekg_with_bound_checking(source, cre_location.value(), npu_region_size);
+        seekg_with_bound_checking(source, cre_location.value(), npu_region_start, npu_region_size);
 
         OPENVINO_ASSERT(m_readers.count(PredefinedSectionType::CRE), "No reader found for the table of offsets");
         parse_section(SectionID(PredefinedSectionType::CRE, FIRST_INSTANCE_ID),
@@ -211,15 +217,15 @@ void BlobReader::read(BlobSource& source) {
 
     // Step 3: Parse all known sections
     size_t number_of_sections_encountered = 0;
-    seekg_with_bound_checking(source, where_the_region_of_persistent_format_starts, npu_region_size);
-    while (source.tellg() < npu_region_size) {
+    seekg_with_bound_checking(source, dynamic_format_region_start, npu_region_start, npu_region_size);
+    while (source.tellg() < npu_region_start + npu_region_size) {
         // The table of offsets & CRE have already been parsed
         if (source.tellg() == offsets_table_location) {
-            seekg_with_bound_checking(source, source.tellg() + offsets_table_size, npu_region_size);
+            seekg_with_bound_checking(source, source.tellg() + offsets_table_size, npu_region_start, npu_region_size);
             continue;
         }
         if (source.tellg() == cre_location.value()) {
-            seekg_with_bound_checking(source, source.tellg() + cre_length.value(), npu_region_size);
+            seekg_with_bound_checking(source, source.tellg() + cre_length.value(), npu_region_start, npu_region_size);
             ++number_of_sections_encountered;
             continue;
         }
@@ -251,7 +257,7 @@ void BlobReader::read(BlobSource& source) {
         //  block.
         if (!m_readers.count(section_id->type)) {
             m_logger.debug("No section reader found for section %s. Skipping", section_id);
-            seekg_with_bound_checking(source, next_section_location, npu_region_size);
+            seekg_with_bound_checking(source, next_section_location, npu_region_start, npu_region_size);
             continue;
         }
 
@@ -312,7 +318,7 @@ void BlobReader::read(BlobSource& source) {
             }
         }
 
-        seekg_with_bound_checking(source, next_section_location, npu_region_size);
+        seekg_with_bound_checking(source, next_section_location, npu_region_start, npu_region_size);
     }
 
     OPENVINO_ASSERT(
@@ -324,8 +330,12 @@ void BlobReader::read(BlobSource& source) {
 }
 
 size_t BlobReader::get_npu_region_size(BlobSource& npu_formatted_blob) {
+    OPENVINO_ASSERT(
+        npu_formatted_blob.get_remaining_size() >= MINIMUM_BLOB_SIZE,
+        "The remaining size of the blob is too small to contain all mandatory information. Remaining size: ",
+        npu_formatted_blob.get_remaining_size());
     const size_t cursor_before_reading = npu_formatted_blob.tellg();
-    // TODO check size before reading
+
     std::string magic_bytes(MAGIC_BYTES.size(), 0);
     npu_formatted_blob.read_into_buffer(const_cast<char*>(magic_bytes.c_str()), MAGIC_BYTES.size());
     OPENVINO_ASSERT(magic_bytes == MAGIC_BYTES,
@@ -345,6 +355,11 @@ size_t BlobReader::get_npu_region_size(BlobSource& npu_formatted_blob) {
     uint64_t npu_region_size;
     npu_formatted_blob.read_into_buffer(reinterpret_cast<char*>(&npu_region_size), sizeof(npu_region_size));
     npu_formatted_blob.seekg(cursor_before_reading);
+
+    OPENVINO_ASSERT(
+        npu_region_size <= npu_formatted_blob.get_remaining_size(),
+        "The size of the NPU blob region is too great compared to the remaining size of the blob. NPU region size: ",
+        npu_region_size);
 
     return npu_region_size;
 }
