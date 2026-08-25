@@ -6,12 +6,12 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cstdint>
 #include <sstream>
 #include <vector>
 
 #include "openvino/core/visibility.hpp"
-#include "openvino/util/container_util.hpp"
 
 namespace ov::test {
 
@@ -21,45 +21,54 @@ namespace ov::test {
 // the x86-64 CRC-64 hash, so the tests are x86-64 only and assert the collision to catch hash changes.
 #if defined(OPENVINO_ARCH_X86_64)
 namespace {
-constexpr auto k_small = ov::util::make_array<char>(0x07, 0x18, 0x29, 0x3a, 0x4b, 0x5c, 0x6d, 0x7e,
-                                                    0x8f, 0xa0, 0xb1, 0xc2, 0xd3, 0xe4, 0xf5, 0x06);
-constexpr auto k_large = ov::util::make_array<char>(0x07, 0x18, 0x29, 0x3a, 0x4b, 0x5c, 0x6d, 0x7e, 0x8f, 0xa0, 0xb1, 0xc2,
-                                                    0xd3, 0xe4, 0xf5, 0x06, 0x2b, 0xa4, 0x34, 0x82, 0x0b, 0x04, 0xb1, 0x2a);
+constexpr std::array<uint8_t, 16> k_small =
+    {0x07, 0x18, 0x29, 0x3a, 0x4b, 0x5c, 0x6d, 0x7e, 0x8f, 0xa0, 0xb1, 0xc2, 0xd3, 0xe4, 0xf5, 0x06};
+constexpr std::array<uint8_t, 24> k_large = {0x07, 0x18, 0x29, 0x3a, 0x4b, 0x5c, 0x6d, 0x7e, 0x8f, 0xa0, 0xb1, 0xc2,
+                                             0xd3, 0xe4, 0xf5, 0x06, 0x2b, 0xa4, 0x34, 0x82, 0x0b, 0x04, 0xb1, 0x2a};
+
+// Writes compile-time byte data through ConstantWriter, reinterpreting it as the char buffer the API expects.
+template <size_t N>
+ov::util::ConstantWriter::FilePosition write_bytes(ov::util::ConstantWriter& writer,
+                                                   const std::array<uint8_t, N>& data,
+                                                   size_t& new_size) {
+    return writer.write(reinterpret_cast<const char*>(data.data()), data.size(), new_size);
+}
 
 // Surfaces the internal per-buffer hash through the public get_data_hash(): a fresh writer combines it
 // as u64_hash_combine(0, hash), which is one-to-one, so equal results imply equal hashes.
-uint64_t const_write_hash(const char* data, size_t size) {
+template <size_t N>
+uint64_t const_write_hash(const std::array<uint8_t, N>& data) {
     std::stringstream bin;
     ov::util::ConstantWriter writer(bin, /*enable_compression=*/true);
     size_t new_size = 0;
-    writer.write(data, size, new_size);
+    write_bytes(writer, data, new_size);
     return writer.get_data_hash();
 }
 }  // namespace
 
 TEST(ConstantWriterTest, size_mismatch_is_not_deduplicated) {
-    ASSERT_EQ(const_write_hash(k_small.data(), k_small.size()), const_write_hash(k_large.data(), k_large.size()))
+    ASSERT_EQ(const_write_hash(k_small), const_write_hash(k_large))
         << "hardcoded buffers no longer collide; regenerate them for the current hash";
 
     std::stringstream bin;
     ov::util::ConstantWriter writer(bin, /*enable_compression=*/true);
     size_t new_size = 0;
-    const auto off_large = writer.write(k_large.data(), k_large.size(), new_size);
-    const auto off_small = writer.write(k_small.data(), k_small.size(), new_size);
+    const auto off_large = write_bytes(writer, k_large, new_size);
+    const auto off_small = write_bytes(writer, k_small, new_size);
 
     EXPECT_NE(off_small, off_large) << "a shorter constant must not be deduplicated onto a longer colliding one";
     EXPECT_EQ(static_cast<size_t>(bin.tellp()), k_large.size() + k_small.size()) << "both constants must be written";
 }
 
 TEST(ConstantWriterTest, hash_collision_with_larger_current_buffer_no_oob) {
-    ASSERT_EQ(const_write_hash(k_small.data(), k_small.size()), const_write_hash(k_large.data(), k_large.size()))
+    ASSERT_EQ(const_write_hash(k_small), const_write_hash(k_large))
         << "hardcoded buffers no longer collide; regenerate them for the current hash";
 
     std::stringstream bin;
     ov::util::ConstantWriter writer(bin, /*enable_compression=*/true);
     size_t new_size = 0;
-    const auto off_small = writer.write(k_small.data(), k_small.size(), new_size);
-    const auto off_large = writer.write(k_large.data(), k_large.size(), new_size);
+    const auto off_small = write_bytes(writer, k_small, new_size);
+    const auto off_large = write_bytes(writer, k_large, new_size);
 
     EXPECT_NE(off_large, off_small) << "a longer constant must not be deduplicated onto a shorter colliding one";
     EXPECT_EQ(static_cast<size_t>(bin.tellp()), k_small.size() + k_large.size()) << "both constants must be written";
