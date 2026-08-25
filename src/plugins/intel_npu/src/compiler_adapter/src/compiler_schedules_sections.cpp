@@ -12,8 +12,19 @@
 namespace {
 
 constexpr std::string_view INVALID_STATE_MESSAGE = "Invalid state";
+constexpr std::string_view NEW_PAGE_ALIGNED_BUFFER_MESSAGE =
+    "A new, page aligned buffer of size %zu has been allocated to host a compiled model";
 
+ov::Tensor allocate_aligned_tensor(size_t blobSize) {
+    ov::Allocator customAllocator{intel_npu::utils::AlignedAllocator{intel_npu::utils::STANDARD_PAGE_SIZE}};
+    if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
+        OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
+    }
+
+    return ov::Tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
 }
+
+}  // namespace
 
 namespace intel_npu {
 
@@ -22,9 +33,9 @@ ELFMainScheduleSection::ELFMainScheduleSection(const std::shared_ptr<Graph>& gra
       m_graph_or_schedule(graph),
       m_logger("ELFMainScheduleSection", log_level) {}
 
-ELFMainScheduleSection::ELFMainScheduleSection(ov::Tensor main_schedule, const ov::log::Level log_level)
+ELFMainScheduleSection::ELFMainScheduleSection(ov::Tensor&& main_schedule, const ov::log::Level log_level)
     : ISection(PredefinedSectionType::ELF_MAIN_SCHEDULE),
-      m_graph_or_schedule(main_schedule),
+      m_graph_or_schedule(std::move(main_schedule)),
       m_logger("ELFMainScheduleSection", log_level) {}
 
 std::vector<CREToken> ELFMainScheduleSection::get_compatibility_requirements_subexpression(
@@ -68,16 +79,27 @@ std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob
 
     // Skip the first padding region
     const size_t offset = blob_reader.get_offset_relative_to_npu_region();
+
     size_t padding_size;
-    blob_reader.read_into_buffer(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
+    blob_reader.read_into_buffer(&padding_size, sizeof(padding_size));
+    OPENVINO_ASSERT(padding_size <= blob_reader.get_section_length(),
+                    "The read padding size is greater than the length of the blob section");
     blob_reader.move_cursor_relative_to_current_section(blob_reader.get_offset_relative_to_current_section() +
                                                         padding_size);
 
     logger.debug("Skipped %lu padding from offset %lu", padding_size, offset);
 
-    return std::make_shared<ELFMainScheduleSection>(
-        blob_reader.create_roi_tensor(blob_reader.get_section_length() - padding_size),
-        logger.level());
+    const size_t main_schedule_size = blob_reader.get_section_length() - padding_size;
+
+    if (!blob_reader.source_is_contiguous()) {
+        ov::Tensor main_schedule = allocate_aligned_tensor(main_schedule_size);
+        blob_reader.read_into_buffer(main_schedule.data(), main_schedule_size);
+
+        logger.info(NEW_PAGE_ALIGNED_BUFFER_MESSAGE.data(), main_schedule_size);
+        return std::make_shared<ELFMainScheduleSection>(std::move(main_schedule), logger.level());
+    }
+
+    return std::make_shared<ELFMainScheduleSection>(blob_reader.create_roi_tensor(main_schedule_size), logger.level());
 }
 
 ELFInitSchedulesSection::ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph,
@@ -86,7 +108,7 @@ ELFInitSchedulesSection::ELFInitSchedulesSection(const std::shared_ptr<Weightles
       m_graph_or_schedules(weightless_graph),
       m_logger("ELFInitSchedulesSection", log_level) {}
 
-ELFInitSchedulesSection::ELFInitSchedulesSection(std::vector<ov::Tensor>& init_schedules,
+ELFInitSchedulesSection::ELFInitSchedulesSection(std::vector<ov::Tensor>&& init_schedules,
                                                  const ov::log::Level log_level)
     : ISection(PredefinedSectionType::ELF_INIT_SCHEDULES),
       m_graph_or_schedules(std::move(init_schedules)),
@@ -147,7 +169,8 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
     const size_t section_length = blob_reader.get_section_length();
 
     uint64_t number_of_inits;
-    blob_reader.read_into_buffer(reinterpret_cast<char*>(&number_of_inits), sizeof(number_of_inits));
+    blob_reader.read_into_buffer(&number_of_inits, sizeof(number_of_inits));
+    // TODO tighter constraints
     OPENVINO_ASSERT(
         number_of_inits * sizeof(uint64_t) < section_length,
         "The parsed number of init schedules is too big for the current section size. Number of init schedules: ",
@@ -161,14 +184,16 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
     std::vector<uint64_t> init_sizes;
     uint64_t value;
     while (number_of_inits--) {
-        blob_reader.read_into_buffer(reinterpret_cast<char*>(&value), sizeof(value));
+        blob_reader.read_into_buffer(&value, sizeof(value));
         init_sizes.push_back(value);
+
+        OPENVINO_ASSERT(total_init_sizes <= total_init_sizes + value, "Integer overflow");
         total_init_sizes += value;
 
         logger.debug("Init schedule parsed size: %lu", value);
     }
 
-    OPENVINO_ASSERT(total_init_sizes < blob_reader.get_section_length(),
+    OPENVINO_ASSERT(total_init_sizes < section_length,
                     "The sum of the parsed init schedule sizes is too big for the current section size. Sum: ",
                     total_init_sizes,
                     ". Section length: ",
@@ -177,17 +202,27 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
     // Skip the first padding
     const size_t offset = blob_reader.get_offset_relative_to_npu_region();
     size_t padding_size;
-    blob_reader.read_into_buffer(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
+    blob_reader.read_into_buffer(&padding_size, sizeof(padding_size));
     blob_reader.move_cursor_relative_to_current_section(blob_reader.get_offset_relative_to_current_section() +
                                                         padding_size);
 
     std::vector<ov::Tensor> init_schedules;
     for (const auto& init_size : init_sizes) {
-        // TODO use is_contiguous
-        init_schedules.push_back(blob_reader.create_roi_tensor(init_size));
+        ov::Tensor init_schedule;
+
+        if (!blob_reader.source_is_contiguous()) {
+            init_schedule = allocate_aligned_tensor(init_size);
+            blob_reader.read_into_buffer(init_schedule.data(), init_size);
+
+            logger.info(NEW_PAGE_ALIGNED_BUFFER_MESSAGE.data(), init_size);
+        } else {
+            init_schedule = blob_reader.create_roi_tensor(init_size);
+        }
+
+        init_schedules.push_back(std::move(init_schedule));
     }
 
-    return std::make_shared<ELFInitSchedulesSection>(init_schedules, logger.level());
+    return std::make_shared<ELFInitSchedulesSection>(std::move(init_schedules), logger.level());
 }
 
 }  // namespace intel_npu

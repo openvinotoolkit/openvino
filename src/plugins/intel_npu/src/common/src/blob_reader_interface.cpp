@@ -26,8 +26,7 @@ BlobReaderInterface::BlobReaderInterface(BlobSource& source,
     m_logger.debug("Created a new BlobReaderInterface. Boundaries: [%lu, %lu)", m_section_start, m_section_end);
 }
 
-// TODO change type to void* and remove reinterpret casts
-void BlobReaderInterface::read_into_buffer(char* destination, const size_t size) {
+void BlobReaderInterface::read_into_buffer(void* destination, const size_t size) {
     m_logger.trace("Reading and copying %lu bytes", size);
 
     OPENVINO_ASSERT(size <= m_section_end && m_source.get().tellg() <= m_section_end - size,
@@ -75,6 +74,10 @@ void BlobReaderInterface::move_cursor_relative_to_npu_region(const size_t offset
     OPENVINO_ASSERT(destination >= m_section_start && destination <= m_section_end,
                     "A section reader attempted to move the cursor beyond its own boundaries");
     m_source.get().seekg(destination, std::ios::beg);
+}
+
+bool BlobReaderInterface::source_is_contiguous() const {
+    return m_source.get().is_contiguous();
 }
 
 size_t BlobReaderInterface::get_section_length() const {

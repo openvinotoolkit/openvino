@@ -66,8 +66,8 @@ std::shared_ptr<ISection> IOLayoutsSection::read(BlobReaderInterface& blob_reade
 
     uint64_t number_of_input_layouts;
     uint64_t number_of_output_layouts;
-    blob_reader.read_into_buffer(reinterpret_cast<char*>(&number_of_input_layouts), sizeof(number_of_input_layouts));
-    blob_reader.read_into_buffer(reinterpret_cast<char*>(&number_of_output_layouts), sizeof(number_of_output_layouts));
+    blob_reader.read_into_buffer(&number_of_input_layouts, sizeof(number_of_input_layouts));
+    blob_reader.read_into_buffer(&number_of_output_layouts, sizeof(number_of_output_layouts));
 
     logger.debug("Reading %lu input layouts and %lu output layouts", number_of_input_layouts, number_of_output_layouts);
 
@@ -80,7 +80,7 @@ std::shared_ptr<ISection> IOLayoutsSection::read(BlobReaderInterface& blob_reade
         uint16_t string_length;
         layouts.reserve(number_of_layouts);
         for (uint64_t layout_index = 0; layout_index < number_of_layouts; ++layout_index) {
-            blob_reader.read_into_buffer(reinterpret_cast<char*>(&string_length), sizeof(string_length));
+            blob_reader.read_into_buffer(&string_length, sizeof(string_length));
 
             std::string layout_string(string_length, 0);
             blob_reader.read_into_buffer(const_cast<char*>(layout_string.c_str()), string_length);

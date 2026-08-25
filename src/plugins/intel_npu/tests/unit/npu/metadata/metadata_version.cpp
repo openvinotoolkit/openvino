@@ -24,15 +24,6 @@ constexpr size_t MINIMUM_BLOB_SIZE = sizeof(uint32_t) + FOOTER_SIZE;
 constexpr size_t SIZE_OF_INIT_SCHEDULE_SIZE = sizeof(uint64_t);
 constexpr size_t SIZE_OF_LAYOUT_SIZE = sizeof(uint16_t);
 
-// intel_npu::BlobSource create_tensor_blob_source_from_stream(istream& stream) {
-//     size_t totalSize = source.get_total_size();
-//     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{totalSize});
-
-//     source.seekg(0, std::ios::beg);
-//     source.read_into_buffer(tensor.data<char>(), tensor.get_byte_size());
-//     return intel_npu::BlobSource(tensor);
-// }
-
 intel_npu::BlobSource create_tensor_blob_source_from_stream_source(intel_npu::BlobSource& source, ov::Tensor& tensor) {
     source.seekg(0, std::ios::beg);
     source.read_into_buffer(tensor.data<char>(), tensor.get_byte_size());

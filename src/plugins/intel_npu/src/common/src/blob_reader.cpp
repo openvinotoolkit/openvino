@@ -160,12 +160,12 @@ void BlobReader::read(BlobSource& source) {
     const size_t dynamic_format_region_start =
         source.tellg() + sizeof(offsets_table_location) + sizeof(offsets_table_size);
 
-    source.read_into_buffer(reinterpret_cast<char*>(&offsets_table_location), sizeof(offsets_table_location));
+    source.read_into_buffer(&offsets_table_location, sizeof(offsets_table_location));
     seekg_with_bound_checking(source,
                               source.tellg() + sizeof(offsets_table_location),
                               npu_region_start,
                               npu_region_size);
-    source.read_into_buffer(reinterpret_cast<char*>(&offsets_table_size), sizeof(offsets_table_size));
+    source.read_into_buffer(&offsets_table_size, sizeof(offsets_table_size));
     m_logger.trace("Offsets table location %lu; size %lu", offsets_table_location, offsets_table_size);
 
     seekg_with_bound_checking(source, offsets_table_location, npu_region_start, npu_region_size);
@@ -345,7 +345,7 @@ size_t BlobReader::get_npu_region_size(BlobSource& npu_formatted_blob) {
                     MAGIC_BYTES);
 
     uint32_t format_version;
-    npu_formatted_blob.read_into_buffer(reinterpret_cast<char*>(&format_version), sizeof(format_version));
+    npu_formatted_blob.read_into_buffer(&format_version, sizeof(format_version));
     OPENVINO_ASSERT(format_version == FORMAT_VERSION,
                     "Invalid blob format version. Found: ",
                     format_version,
@@ -353,7 +353,7 @@ size_t BlobReader::get_npu_region_size(BlobSource& npu_formatted_blob) {
                     FORMAT_VERSION);
 
     uint64_t npu_region_size;
-    npu_formatted_blob.read_into_buffer(reinterpret_cast<char*>(&npu_region_size), sizeof(npu_region_size));
+    npu_formatted_blob.read_into_buffer(&npu_region_size, sizeof(npu_region_size));
     npu_formatted_blob.seekg(cursor_before_reading);
 
     OPENVINO_ASSERT(

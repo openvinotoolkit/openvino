@@ -28,7 +28,7 @@ public:
      * @brief Reads data from the compiled model source and copies it to the given destination. Also the read cursor is
      * advanced according to the given size.
      */
-    void read_into_buffer(char* destination, const size_t size);
+    void read_into_buffer(void* destination, const size_t size);
 
     /**
      * @brief Returns a pointer to the current position of the cursor, then advances the cursor according to the given
@@ -50,6 +50,8 @@ public:
     size_t get_offset_relative_to_npu_region() const;
 
     void move_cursor_relative_to_npu_region(const size_t offset);
+
+    bool source_is_contiguous() const;
 
     size_t get_section_length() const;
 

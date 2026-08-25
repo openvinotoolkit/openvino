@@ -27,6 +27,7 @@ namespace {
 
 using namespace intel_npu;
 
+// TODO make utility
 ov::Tensor allocate_aligned_tensor(size_t blobSize) {
     ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
     if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
