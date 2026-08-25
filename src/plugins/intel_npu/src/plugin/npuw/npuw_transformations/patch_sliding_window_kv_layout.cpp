@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "patch_sliding_window_kvcache.hpp"
+#include "patch_sliding_window_kv_layout.hpp"
 
 #include <algorithm>
 #include <regex>
@@ -176,16 +176,16 @@ size_t patch_shape_inputs_from_snapshots(const std::vector<ShapeInputSnapshot>& 
 
 namespace ov::npuw {
 
-PatchSlidingWindowKVCache::PatchSlidingWindowKVCache(ov::npuw::util::SwaLayout swa_layout,
-                                                     uint32_t kvcache_size,
-                                                     uint32_t input_size,
-                                                     const KVAxesPosition& kv_axes_position)
+PatchSlidingWindowKVLayout::PatchSlidingWindowKVLayout(ov::npuw::util::SwaLayout swa_layout,
+                                                       uint32_t kvcache_size,
+                                                       uint32_t input_size,
+                                                       const KVAxesPosition& kv_axes_position)
     : m_swa_layout(std::move(swa_layout)),
       m_kvcache_size(kvcache_size),
       m_input_size(input_size),
       m_kv_axes_position(kv_axes_position) {}
 
-bool PatchSlidingWindowKVCache::run_on_model(const std::shared_ptr<ov::Model>& model) {
+bool PatchSlidingWindowKVLayout::run_on_model(const std::shared_ptr<ov::Model>& model) {
     if (!m_swa_layout.enabled() || m_swa_layout.layer_is_sliding.empty()) {
         LOG_INFO("[SWA] Sliding Window Attention is not configured, skipping " << model->get_friendly_name());
         return false;
@@ -259,7 +259,7 @@ bool PatchSlidingWindowKVCache::run_on_model(const std::shared_ptr<ov::Model>& m
             !pshape[m_kv_axes_position.seq_len].is_static()) {
             LOG_WARN("[SWA] Layer " << layer_idx << ": past KV parameter '" << name
                                     << "' has a non-static seq_len axis, skipping reshape. Was ReshapeToStatic "
-                                       "applied before PatchSlidingWindowKVCache?");
+                                       "applied before PatchSlidingWindowKVLayout?");
             continue;
         }
         const int64_t old_past = pshape[m_kv_axes_position.seq_len].get_length();
@@ -298,7 +298,7 @@ bool PatchSlidingWindowKVCache::run_on_model(const std::shared_ptr<ov::Model>& m
         const auto& pshape = input.get_partial_shape();
         if (pshape.rank().is_dynamic() || pshape.size() == 0 || !pshape[pshape.size() - 1].is_static()) {
             LOG_WARN("[SWA] 'sliding_window_attention_mask' has a dynamic last axis, skipping shrink. Was "
-                     "ReshapeToStatic applied before PatchSlidingWindowKVCache?");
+                     "ReshapeToStatic applied before PatchSlidingWindowKVLayout?");
             break;
         }
         const size_t last_axis = pshape.size() - 1;

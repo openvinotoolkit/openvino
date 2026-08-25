@@ -19,7 +19,7 @@
 #include "npuw_transformations/duplicate_shared_kv_concat.hpp"
 #include "npuw_transformations/lora_stateful_to_stateless.hpp"
 #include "npuw_transformations/optimize_value_tensors.hpp"
-#include "npuw_transformations/patch_sliding_window_kvcache.hpp"
+#include "npuw_transformations/patch_sliding_window_kv_layout.hpp"
 #include "npuw_transformations/patch_sliding_window_mask.hpp"
 #include "npuw_transformations/remove_token_type_ids.hpp"
 #include "npuw_transformations/replace_deepstack_scatter_with_add.hpp"
@@ -680,7 +680,7 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
         if (m_swa_layout.enabled()) {
             LOG_DEBUG("[SWA] Applying sliding-window KV-cache reduction to generate variant (kv_size=" << kv_size
                                                                                                        << ").");
-            ov::npuw::PatchSlidingWindowKVCache(m_swa_layout, kv_size, max_generation_token_len, axes)
+            ov::npuw::PatchSlidingWindowKVLayout(m_swa_layout, kv_size, max_generation_token_len, axes)
                 .run_on_model(generate_variant);
         }
 
@@ -1031,7 +1031,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
     if (m_swa_layout.enabled()) {
         LOG_DEBUG("[SWA] Applying sliding-window KV-cache reduction to prefill model.");
-        ov::npuw::PatchSlidingWindowKVCache(m_swa_layout, m_kvcache_desc.max_prompt_size, prefill_input_size, axes)
+        ov::npuw::PatchSlidingWindowKVLayout(m_swa_layout, m_kvcache_desc.max_prompt_size, prefill_input_size, axes)
             .run_on_model(prefill_model);
     }
     LOG_DEBUG("Make kvcache model with static shapes");

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Tests for PatchSlidingWindowKVCache through the LLMCompiledModel pipeline.
+// Tests for PatchSlidingWindowKVLayout through the LLMCompiledModel pipeline.
 // Focus: sliding-mask externalization and sliding/full layer shape invariants.
 
 #include <gtest/gtest.h>
@@ -19,7 +19,7 @@ namespace {
 
 using ov::test::npuw::RecordingFactory;
 
-class PatchSlidingWindowKVCacheTest : public ov::test::npuw::LLMPassTestFixture {};
+class PatchSlidingWindowKVLayoutTest : public ov::test::npuw::LLMPassTestFixture {};
 
 // Maps layer index parsed from "model.layers.N.self_attn" to SDPA node.
 std::map<size_t, std::shared_ptr<ov::op::v13::ScaledDotProductAttention>> sdpa_by_layer(
@@ -51,7 +51,7 @@ std::shared_ptr<ov::Model> build_hybrid_model() {
 }  // namespace
 
 // Both generate and prefill externalize only sliding mask input.
-TEST_F(PatchSlidingWindowKVCacheTest, PrefillAndGenerate_ExternalizeOnlySlidingMask) {
+TEST_F(PatchSlidingWindowKVLayoutTest, PrefillAndGenerate_ExternalizeOnlySlidingMask) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -68,7 +68,7 @@ TEST_F(PatchSlidingWindowKVCacheTest, PrefillAndGenerate_ExternalizeOnlySlidingM
 }
 
 // Non-hybrid model should not gain sliding_window_attention_mask.
-TEST_F(PatchSlidingWindowKVCacheTest, NonHybridModel_NoMaskExternalized) {
+TEST_F(PatchSlidingWindowKVLayoutTest, NonHybridModel_NoMaskExternalized) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -82,7 +82,7 @@ TEST_F(PatchSlidingWindowKVCacheTest, NonHybridModel_NoMaskExternalized) {
 }
 
 // Step 1: only sliding layers shrink past KV axis.
-TEST_F(PatchSlidingWindowKVCacheTest, GenerateModel_OnlySlidingLayersPastKVShrunk) {
+TEST_F(PatchSlidingWindowKVLayoutTest, GenerateModel_OnlySlidingLayersPastKVShrunk) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -102,7 +102,7 @@ TEST_F(PatchSlidingWindowKVCacheTest, GenerateModel_OnlySlidingLayersPastKVShrun
 }
 
 // Step 1b: generate mask width equals new_kv_total.
-TEST_F(PatchSlidingWindowKVCacheTest, GenerateModel_SlidingMaskWidthShrunkToNewKvTotal) {
+TEST_F(PatchSlidingWindowKVLayoutTest, GenerateModel_SlidingMaskWidthShrunkToNewKvTotal) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -118,7 +118,7 @@ TEST_F(PatchSlidingWindowKVCacheTest, GenerateModel_SlidingMaskWidthShrunkToNewK
 }
 
 // Step 1b: prefill uses the same width invariant.
-TEST_F(PatchSlidingWindowKVCacheTest, PrefillModel_SlidingMaskWidthShrunkToNewKvTotal) {
+TEST_F(PatchSlidingWindowKVLayoutTest, PrefillModel_SlidingMaskWidthShrunkToNewKvTotal) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -140,7 +140,7 @@ TEST_F(PatchSlidingWindowKVCacheTest, PrefillModel_SlidingMaskWidthShrunkToNewKv
 }
 
 // Only sliding-layer past KV parameters get SWA rt_info tag.
-TEST_F(PatchSlidingWindowKVCacheTest, GenerateModel_OnlySlidingLayersPastKVTaggedWithRtInfo) {
+TEST_F(PatchSlidingWindowKVLayoutTest, GenerateModel_OnlySlidingLayersPastKVTaggedWithRtInfo) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -159,7 +159,7 @@ TEST_F(PatchSlidingWindowKVCacheTest, GenerateModel_OnlySlidingLayersPastKVTagge
 }
 
 // Sliding SDPA consumes externalized mask; full-attention SDPA does not.
-TEST_F(PatchSlidingWindowKVCacheTest, GenerateModel_SlidingSDPAUsesExternalizedMask_FullSDPADoesNot) {
+TEST_F(PatchSlidingWindowKVLayoutTest, GenerateModel_SlidingSDPAUsesExternalizedMask_FullSDPADoesNot) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 

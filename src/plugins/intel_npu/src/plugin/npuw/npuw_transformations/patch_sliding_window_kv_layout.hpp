@@ -35,18 +35,18 @@ namespace ov::npuw {
 //
 // Must run AFTER ReshapeToStatic and BEFORE DecomposeGQA / V-tensor optimization passes.
 // Runs once per model variant (prefill and each generate kv-size bucket).
-class PatchSlidingWindowKVCache : public ov::pass::ModelPass {
+class PatchSlidingWindowKVLayout : public ov::pass::ModelPass {
     ov::npuw::util::SwaLayout m_swa_layout;
     uint32_t m_kvcache_size;
     uint32_t m_input_size;
     KVAxesPosition m_kv_axes_position;
 
 public:
-    OPENVINO_MODEL_PASS_RTTI("ov::npuw::PatchSlidingWindowKVCache");
-    PatchSlidingWindowKVCache(ov::npuw::util::SwaLayout swa_layout,
-                              uint32_t kvcache_size,
-                              uint32_t input_size,
-                              const KVAxesPosition& kv_axes_position);
+    OPENVINO_MODEL_PASS_RTTI("ov::npuw::PatchSlidingWindowKVLayout");
+    PatchSlidingWindowKVLayout(ov::npuw::util::SwaLayout swa_layout,
+                               uint32_t kvcache_size,
+                               uint32_t input_size,
+                               const KVAxesPosition& kv_axes_position);
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 

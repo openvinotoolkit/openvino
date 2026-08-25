@@ -293,7 +293,7 @@ TEST_F(SplitKVCacheIntoBlocksTest, MultipleKVParameters) {
 
 TEST_F(SplitKVCacheIntoBlocksTest, SkipsSwaTaggedParameter) {
     // Test: a KV cache parameter pre-tagged with NPUW_KV_CACHE_SLIDING_RT_KEY (as
-    // PatchSlidingWindowKVCache would do for a Sliding Window Attention layer) is left as a
+    // PatchSlidingWindowKVLayout would do for a Sliding Window Attention layer) is left as a
     // single, unsplit parameter, while an untagged KV cache parameter in the same model is
     // split into blocks as usual.
     const uint32_t block_size = 16;

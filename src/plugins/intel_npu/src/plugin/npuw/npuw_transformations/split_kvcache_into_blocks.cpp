@@ -91,7 +91,7 @@ bool SplitKVCacheIntoBlocks::run_on_model(const std::shared_ptr<ov::Model>& mode
         }
 
         // SWA layers are handled by a separate KV-cache path.
-        // PatchSlidingWindowKVCache tags resized SWA past KV params with this rt_info key.
+        // PatchSlidingWindowKVLayout tags resized SWA past KV params with this rt_info key.
         if (param->get_rt_info().count(ov::npuw::util::NPUW_KV_CACHE_SLIDING_RT_KEY) > 0) {
             continue;
         }
