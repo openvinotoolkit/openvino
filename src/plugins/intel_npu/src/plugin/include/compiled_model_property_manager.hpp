@@ -19,7 +19,7 @@ namespace intel_npu {
 
 class CompiledModelPropertyManager final : private PropertyRegistrationBase {
 public:
-    CompiledModelPropertyManager(const FilteredConfig& config,
+    CompiledModelPropertyManager(const std::shared_ptr<FilteredConfig>& config,
                                  const std::shared_ptr<IGraph>& graph,
                                  const std::optional<int64_t>& batchSize,
                                  Logger& logger);
@@ -27,20 +27,14 @@ public:
     void setProperty(const ov::AnyMap& properties);
     ov::Any getProperty(const std::string& name) const;
 
-    const FilteredConfig& getConfig() const {
-        return _config;
-    }
-
 private:
     void registerProperties();
 
-    FilteredConfig _config;
+    std::shared_ptr<FilteredConfig> _config;
 
     std::shared_ptr<IGraph> _graph;
     std::optional<int64_t> _batchSize;
     Logger& _logger;
-
-    mutable std::mutex _mutex;
 };
 
 }  // namespace intel_npu

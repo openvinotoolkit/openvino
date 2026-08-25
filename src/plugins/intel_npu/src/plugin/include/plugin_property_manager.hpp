@@ -23,7 +23,7 @@ namespace intel_npu {
 
 class PluginPropertyManager final : private PropertyRegistrationBase {
 public:
-    PluginPropertyManager(const FilteredConfig& config,
+    PluginPropertyManager(const std::shared_ptr<FilteredConfig>& config,
                           const ov::SoPtr<IEngineBackend>& backend,
                           const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper,
                           Logger& logger);
@@ -33,25 +33,16 @@ public:
     void setProperty(const ov::AnyMap& properties);
     ov::Any getProperty(const std::string& name, const ov::AnyMap& arguments = {});
     bool isPropertySupported(const std::string& name, const ov::AnyMap& arguments = {});
-
-    FilteredConfig deriveConfigForPropertiesForCompiler(const ov::AnyMap& properties);
-
-    const FilteredConfig& getConfig() const {
-        return _config;
-    }
-
-    std::string determinePlatform(const ov::AnyMap& properties) const;
-    std::string determineDeviceId(const ov::AnyMap& properties) const;
-    ov::intel_npu::CompilerType determineCompilerType(const ov::AnyMap& properties) const;
+    bool isPropertyAvailable(const std::string& name, const ov::AnyMap& arguments = {});
 
 private:
     void registerProperties();
     bool isPropertyRegistered(const std::string& propertyName) const;
     std::optional<ov::intel_npu::CompilerType> resolveCompilerType(ov::intel_npu::CompilerType compilerType,
-                                                                    const std::string& deviceId,
-                                                                    const std::string& platform) const;
+                                                                   const std::string& deviceId,
+                                                                   const std::string& platform) const;
 
-    FilteredConfig _config;
+    std::shared_ptr<FilteredConfig> _config;
 
     ov::SoPtr<IEngineBackend> _backend;
     std::shared_ptr<CompilerOptionSupportHelper> _compilerOptionSupportHelper;
@@ -88,8 +79,6 @@ private:
         });
         return properties;
     }();
-
-    mutable std::mutex _mutex;
 };
 
 }  // namespace intel_npu

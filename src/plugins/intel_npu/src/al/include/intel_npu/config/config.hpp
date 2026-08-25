@@ -490,6 +490,7 @@ public:
 
     bool has(std::string key) const;
     void remove(std::string key);
+    void removeCompileTimeConfigs();
 
     template <class Opt>
     typename Opt::ValueType get() const;

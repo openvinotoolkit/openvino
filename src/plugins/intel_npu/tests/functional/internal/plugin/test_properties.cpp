@@ -47,7 +47,7 @@ class PropertiesManagerTests : public ov::test::behavior::OVPluginTestBase,
                                public testing::WithParamInterface<ConfigParams> {
 protected:
     std::shared_ptr<::intel_npu::OptionsDesc> options = std::make_shared<::intel_npu::OptionsDesc>();
-    ::intel_npu::FilteredConfig npu_config = ::intel_npu::FilteredConfig(options);
+    std::shared_ptr<::intel_npu::FilteredConfig> npu_config = std::make_shared<::intel_npu::FilteredConfig>(options);
     ov::SoPtr<::intel_npu::IEngineBackend> backend;
     std::unique_ptr<::intel_npu::PluginPropertyManager> propertiesManager;
 
@@ -157,14 +157,14 @@ public:
             REGISTER_OPTION(Opt);
         });
 
-        if (npu_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN && backend != nullptr) {
+        if (npu_config->get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN && backend != nullptr) {
             auto device = backend->getDevice();
             if (device) {
                 auto platformName = device->getName();
                 CompilerAdapterFactory compilerFactory;
                 auto compileType = compilerFactory.determineAppropriateCompilerTypeBasedOnPlatform(platformName);
                 if (compileType == ov::intel_npu::CompilerType::DRIVER) {
-                    npu_config.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compileType)}});
+                    npu_config->update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compileType)}});
                 }
             }
         }

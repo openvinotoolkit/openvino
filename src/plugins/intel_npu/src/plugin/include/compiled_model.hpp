@@ -64,6 +64,8 @@ private:
     // For special config, stream executors must be set accordingly to ensure correct behavior.
     void configure_stream_executors();
 
+    std::shared_ptr<FilteredConfig> _config;
+
     Logger _logger;
 
     const std::shared_ptr<IDevice> _device;
