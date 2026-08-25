@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -320,6 +320,8 @@ std::shared_ptr<vk_program> vk_program_builder::build(const ir_graph& graph) {
                     stride *= in_shape[i];
                 }
                 for (size_t d = 0; d < in_shape.size(); ++d) {
+                    OPENVINO_ASSERT(in_shape[d] <= 0xFFFFFFFFu && out_shape[d] <= 0xFFFFFFFFu,
+                                    "[GPU] vk_program: Transpose dim exceeds u32 push range on axis ", d, " in ", node.id);
                     out_dims[d] = static_cast<uint32_t>(out_shape[d]);
                     perm8[d] = static_cast<uint32_t>(perm[d]);
                 }
@@ -418,6 +420,8 @@ std::shared_ptr<vk_program> vk_program_builder::build(const ir_graph& graph) {
                 uint32_t pb8[8] = {0, 0, 0, 0, 0, 0, 0, 0};
                 uint32_t pe8[8] = {0, 0, 0, 0, 0, 0, 0, 0};
                 for (size_t d = 0; d < in_shape.size(); ++d) {
+                    OPENVINO_ASSERT(out_shape[d] <= 0xFFFFFFFFu && pb[d] <= 0xFFFFFFFFu && pe[d] <= 0xFFFFFFFFu,
+                                    "[GPU] vk_program: Pad dim exceeds u32 push range on axis ", d, " in ", node.id);
                     od8[d] = static_cast<uint32_t>(out_shape[d]);
                     pb8[d] = static_cast<uint32_t>(pb[d]);
                     pe8[d] = static_cast<uint32_t>(pe[d]);
@@ -456,6 +460,8 @@ std::shared_ptr<vk_program> vk_program_builder::build(const ir_graph& graph) {
                     stride *= in_shape[i];
                 }
                 for (size_t d = 0; d < in_shape.size(); ++d) {
+                    OPENVINO_ASSERT(out_shape[d] <= 0xFFFFFFFFu && begin[d] <= 0xFFFFFFFFu,
+                                    "[GPU] vk_program: Crop dim exceeds u32 push range on axis ", d, " in ", node.id);
                     od8[d] = static_cast<uint32_t>(out_shape[d]);
                     bg8[d] = static_cast<uint32_t>(begin[d]);
                     OPENVINO_ASSERT(begin[d] + out_shape[d] <= in_shape[d],
@@ -767,6 +773,9 @@ std::shared_ptr<vk_program> vk_program_builder::build(const ir_graph& graph) {
         node_op->k = get_build_kernel(kernel_id);
 
         const auto& out_shape = shape_of(node.id);
+        OPENVINO_ASSERT(element_count(out_shape) <= 0xFFFFFFFFu,
+                        "[GPU] vk_program: output of ", node.id,
+                        " exceeds the u32 push-constant range (", element_count(out_shape), " elements)");
         node_op->output_id = node_op->id + "_out";
         node_op->wgs.global = {element_count(out_shape), 1, 1};
         if (kernel_id == "matmul_tiled_f32" || kernel_id == "matmul_batched_tiled_f32" ||
@@ -829,3 +838,5 @@ std::shared_ptr<vk_program> vk_program_builder::build(const ir_graph& graph) {
 }  // namespace cross_platform
 }  // namespace vulkan
 }  // namespace ov
+
+

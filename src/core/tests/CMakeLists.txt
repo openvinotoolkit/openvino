@@ -1,4 +1,4 @@
-# Standalone test driver for the Vulkan core (no openvino tree needed).
+﻿# Standalone test driver for the Vulkan core (no openvino tree needed).
 #
 #   cmake -S . -B build -G "Visual Studio 17 2022" -A x64
 #   cmake --build build --config Release
@@ -39,7 +39,7 @@ endif()
 
 # ---- SPIR-V kernels ------------------------------------------------------------
 set(GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/spirv")
-file(GLOB COMP_FILES "${CORE_DIR}/kernels/*.comp")
+file(GLOB COMP_FILES CONFIGURE_DEPENDS "${CORE_DIR}/kernels/*.comp")
 add_custom_command(
     OUTPUT "${GEN_DIR}/spirv_kernels.inc"
     COMMAND "${CMAKE_COMMAND}"
@@ -51,7 +51,7 @@ add_custom_command(
     COMMENT "Compiling native Vulkan kernels to SPIR-V")
 
 # ---- core under test -----------------------------------------------------------
-file(GLOB CORE_SRCS "${CORE_DIR}/*.cpp")
+file(GLOB CORE_SRCS CONFIGURE_DEPENDS "${CORE_DIR}/*.cpp")
 file(GLOB RUNTIME_SRCS "${CORE_DIR}/runtime/*.cpp")
 add_library(vk_core_under_test STATIC
             ${CORE_SRCS}
@@ -63,7 +63,7 @@ target_include_directories(vk_core_under_test
 target_link_libraries(vk_core_under_test PRIVATE "${Vulkan_LIBRARY}")
 
 # ---- tests ---------------------------------------------------------------------
-file(GLOB TEST_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/test_*.cpp")
+file(GLOB TEST_SRCS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/test_*.cpp")
 foreach(test_src ${TEST_SRCS})
     get_filename_component(test_name "${test_src}" NAME_WE)
     string(REGEX REPLACE "^test_" "" exe_name "${test_name}")
@@ -77,3 +77,4 @@ foreach(test_src ${TEST_SRCS})
     string(REGEX REPLACE "^test_" "" exe_name "${test_name}")
     add_test(NAME "${exe_name}" COMMAND "${exe_name}")
 endforeach()
+

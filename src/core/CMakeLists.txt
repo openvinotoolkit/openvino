@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+﻿# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # The standalone Vulkan core (ov::core::vulkan::cross_platform).
@@ -45,7 +45,7 @@ if(NOT GLSLANG_VALIDATOR)
 endif()
 
 set(VK_KERNELS_GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/spirv")
-file(GLOB VK_KERNELS_COMP "${CMAKE_CURRENT_SOURCE_DIR}/kernels/*.comp")
+file(GLOB VK_KERNELS_COMP CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/kernels/*.comp")
 add_custom_command(
     OUTPUT "${VK_KERNELS_GEN_DIR}/spirv_kernels.inc"
     COMMAND "${CMAKE_COMMAND}"
@@ -123,3 +123,4 @@ if((NOT ANDROID) AND (UNIX))
 endif()
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
+
