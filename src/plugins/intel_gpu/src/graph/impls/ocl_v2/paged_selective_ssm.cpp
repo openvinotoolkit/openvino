@@ -33,6 +33,12 @@ constexpr size_t precompute_da_min_state_size = 128;
 constexpr size_t precompute_da_reference_head_dim_groups = 16;
 constexpr size_t precompute_da_min_group_tokens = precompute_da_min_tokens * precompute_da_reference_head_dim_groups;
 
+enum PagedSelectiveSSMJitStages {
+    PRECOMPUTE_DA = 0,
+    PRECOMPUTED_DA_RECURRENCE,
+    RECURRENCE,
+};
+
 bool has_supported_indexing(const cldnn::layout& layout) {
     return layout.get_partial_shape().is_dynamic() || (layout.data_padding == cldnn::padding() && layout.count() <= std::numeric_limits<uint32_t>::max());
 }
@@ -144,13 +150,22 @@ protected:
     }
 };
 
+template <selective_ssm_jit::device_kind Kind, bool PrecomputeDA>
+constexpr const char* get_paged_jit_suffix() {
+    if constexpr (Kind == selective_ssm_jit::device_kind::integrated) {
+        static_assert(!PrecomputeDA, "Precomputed dA is supported only by the discrete paged JIT kernel");
+        return "paged_integrated";
+    } else if constexpr (PrecomputeDA) {
+        return "paged_discrete_precomputed_da";
+    } else {
+        return "paged_discrete";
+    }
+}
+
 template <selective_ssm_jit::device_kind Kind, bool PrecomputeDA = false>
 class PagedSelectiveSSMJitGenerator : public KernelGenerator {
 public:
-    PagedSelectiveSSMJitGenerator()
-        : KernelGenerator(
-              "selective_ssm_jit",
-              Kind == selective_ssm_jit::device_kind::integrated ? "paged_integrated" : (PrecomputeDA ? "paged_discrete_precomputed_da" : "paged_discrete")) {}
+    PagedSelectiveSSMJitGenerator() : KernelGenerator("selective_ssm_jit", get_paged_jit_suffix<Kind, PrecomputeDA>()) {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -436,9 +451,9 @@ public:
 
     [[nodiscard]] std::vector<size_t> get_stages_execution_order(const RuntimeParams& params) const override {
         if (use_precomputed_da(params))
-            return {0, 1};
+            return {PRECOMPUTE_DA, PRECOMPUTED_DA_RECURRENCE};
 
-        return {2};
+        return {RECURRENCE};
     }
 };
 

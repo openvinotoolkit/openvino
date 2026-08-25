@@ -6,12 +6,17 @@
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/bf16_utils.cl"
 
+#if SSM_JIT_PRECOMPUTE_DA && !SSM_PAGED
+#    error "Precomputed dA is supported only by the paged SelectiveSSM JIT kernel"
+#endif
+
 #if INPUT0_IS_FP
 #    define SSM_TO_FLOAT(value) convert_float(value)
 #else
 #    define SSM_TO_FLOAT(value) _convert_as_bfloat16_float(value)
 #endif
 
+// Specialize tensor indexing for paged and dense layouts.
 #if SSM_PAGED
 #    if IS_DYNAMIC
 #        define SSM_RUNTIME_INDEX(value) ((size_t)(value))
@@ -67,6 +72,7 @@
 #    define SSM_PRECOMPUTED_DA_INDEX(token) (((token) * SSM_NUM_HEADS) + h)
 #endif
 
+// Select recurrence-state storage at compile time for each device specialization.
 #if SSM_JIT_USE_SLM
 #    define SSM_STATE_AT(p_offset, step, state_element) slm_state[(p_offset) * SSM_STATE_SIZE + (state_element)]
 #else
@@ -103,6 +109,7 @@ KERNEL(selective_ssm_jit)(OPTIONAL_SHAPE_INFO_ARG
                        ) {
     const uint lane = get_sub_group_local_id();
 
+// Resolve paged recurrence and cache metadata before entering the common kernel body.
 #if SSM_PAGED
 #    if IS_DYNAMIC
     const uint h = (uint)get_global_id(1);
@@ -202,6 +209,7 @@ KERNEL(selective_ssm_jit)(OPTIONAL_SHAPE_INFO_ARG
     const uint initial_state_block = b;
 #endif
 
+    // Load the initial recurrence state into the selected private or SLM storage.
     const uint g = h / (SSM_NUM_HEADS / SSM_NUM_GROUPS);
     const float A_lane = lane == 0 ? SSM_TO_FLOAT(A[SSM_A_INDEX]) : 0.0f;
     const float A_value = sub_group_broadcast(A_lane, 0);
@@ -222,6 +230,7 @@ KERNEL(selective_ssm_jit)(OPTIONAL_SHAPE_INFO_ARG
         }
     }
 
+    // Apply the common SelectiveSSM recurrence for the selected token range.
     for (SSM_TOKEN_TYPE token = recurrence_begin; token < recurrence_end; ++token) {
 #if SSM_PAGED && IS_DYNAMIC
         const size_t token_idx = (size_t)token;
@@ -275,6 +284,7 @@ KERNEL(selective_ssm_jit)(OPTIONAL_SHAPE_INFO_ARG
                 output[SSM_OUTPUT_INDEX(token_idx, p)] = TO_OUTPUT_TYPE(total);
         }
 
+        // Persist paged state snapshots at cache boundaries and at sequence completion.
 #if SSM_PAGED
         if (cache_enabled) {
             const bool at_boundary = --tokens_until_boundary == 0;
@@ -310,6 +320,7 @@ KERNEL(selective_ssm_jit)(OPTIONAL_SHAPE_INFO_ARG
 #endif
     }
 
+    // Dense SelectiveSSM returns the final recurrence state through its second output.
 #if !SSM_PAGED
 #pragma unroll
     for (uint p_offset = 0; p_offset < SSM_HEAD_DIM_BLOCK; ++p_offset) {
