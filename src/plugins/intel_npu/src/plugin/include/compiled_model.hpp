@@ -6,6 +6,7 @@
 
 #include <mutex>
 #include <optional>
+#include <shared_mutex>
 
 #include "compiled_model_property_manager.hpp"
 #include "intel_npu/common/icompiled_model.hpp"
@@ -65,19 +66,18 @@ private:
     void configure_stream_executors();
 
     std::shared_ptr<FilteredConfig> _config;
+    mutable std::shared_mutex _configMutex;
 
     Logger _logger;
 
     const std::shared_ptr<IDevice> _device;
+    std::shared_ptr<IGraph> _graph;
+    std::optional<int64_t> _batchSize;
 
     std::unique_ptr<CompiledModelPropertyManager> _propertiesManager;
 
-    std::shared_ptr<IGraph> _graph;
-
     std::shared_ptr<ov::threading::ITaskExecutor> _resultExecutor = nullptr;
     mutable std::once_flag _streamExecutorsInitFlag;
-
-    std::optional<int64_t> _batchSize;
 };
 
 }  //  namespace intel_npu

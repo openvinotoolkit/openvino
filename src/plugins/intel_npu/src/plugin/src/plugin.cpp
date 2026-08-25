@@ -339,25 +339,34 @@ void Plugin::set_property(const ov::AnyMap& properties) {
     if (const auto logLevel = properties.find(ov::log::level.name()); logLevel != properties.end()) {
         _logger.setLevel(logLevel->second.as<ov::log::Level>());
     }
+    std::unique_lock<std::shared_mutex> lock(_configMutex);
     _propertiesManager->setProperty(properties);
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
+    std::shared_lock<std::shared_mutex> lock(_configMutex);
     return _propertiesManager->getProperty(name, arguments);
 }
 
 bool Plugin::is_property_supported(const std::string& name, const ov::AnyMap& arguments) const {
+    std::shared_lock<std::shared_mutex> lock(_configMutex);
     return _propertiesManager->isPropertySupported(name, arguments);
 }
 
 void Plugin::update_properties_before_operation(const ov::AnyMap& properties) const {
-    if (const auto logLevel = properties.find(ov::log::level.name()); logLevel != properties.end()) {
+    const auto logLevel = properties.find(ov::log::level.name());
+    const auto disableIdleMemoryPruning = properties.find(ov::intel_npu::disable_idle_memory_prunning.name());
+    if (logLevel == properties.end() && disableIdleMemoryPruning == properties.end()) {
+        return;
+    }
+
+    std::unique_lock<std::shared_mutex> lock(_configMutex);
+    if (logLevel != properties.end()) {
         _logger.setLevel(logLevel->second.as<ov::log::Level>());
         _propertiesManager->setProperty({{ov::log::level.name(), logLevel->second}});
     }
 
-    if (const auto disableIdleMemoryPruning = properties.find(ov::intel_npu::disable_idle_memory_prunning.name());
-        disableIdleMemoryPruning != properties.end()) {
+    if (disableIdleMemoryPruning != properties.end()) {
         _propertiesManager->setProperty(
             {{ov::intel_npu::disable_idle_memory_prunning.name(), disableIdleMemoryPruning->second}});
     }
@@ -387,11 +396,20 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         _backend->updateInfo(localProperties);
     }
 
-    // Resolving the requested compiler type based on local and global properties.
-    // It can still remain PREFER_PLUGIN even after this point
-    ov::intel_npu::CompilerType compilerType = determine_compiler_type(localProperties, _config);
+    ov::intel_npu::CompilerType compilerType;
+    std::string deviceId;
+    std::string requestedPlatform;
 
-    auto deviceId = determine_device_id(localProperties, _config);
+    {
+        std::shared_lock<std::shared_mutex> lock(_configMutex);
+
+        // Resolving the requested compiler type based on local and global properties.
+        // It can still remain PREFER_PLUGIN even after this point
+        compilerType = determine_compiler_type(localProperties, _config);
+        deviceId = determine_device_id(localProperties, _config);
+        requestedPlatform = determine_platform(localProperties, _config);
+    }
+
     // DEVICE_ID can be passed both as an index and as a platform name.
     // Identify the right device object to be taken into account when the target compilation platform is determined
     std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, deviceId);
@@ -399,7 +417,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // Determine the final compilation target based on NPU_PLATFORM, determined device name (if any) and the list of
     // available devices (if any)
     const auto compilationPlatform =
-        utils::getCompilationPlatform(determine_platform(localProperties, _config),
+        utils::getCompilationPlatform(requestedPlatform,
                                       device == nullptr ? std::move(deviceId) : device->getName(),
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
@@ -415,8 +433,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
-    FilteredConfig localConfig = *_config;
-    apply_properties_to_config(localConfig, localProperties, _propertiesManager, _logger);
+    FilteredConfig localConfig = [&]() {
+        std::shared_lock<std::shared_mutex> lock(_configMutex);
+        FilteredConfig cfg = *_config;
+        apply_properties_to_config(cfg, localProperties, _propertiesManager, _logger);
+        return cfg;
+    }();
 
     localConfig.update({{ov::intel_npu::compiler_version.name(), std::to_string(compiler->get_version())}});
 
@@ -753,8 +775,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "fork_local_config");
     properties.erase(ov::intel_npu::compiler_type.name());
 
-    FilteredConfig localConfig = *_config;
-    apply_properties_to_config(localConfig, properties, _propertiesManager, _logger);
+    std::string deviceId;
+    FilteredConfig localConfig = [&]() {
+        std::shared_lock<std::shared_mutex> lock(_configMutex);
+        deviceId = determine_device_id(properties, _config);
+        FilteredConfig cfg = *_config;
+        apply_properties_to_config(cfg, properties, _propertiesManager, _logger);
+        return cfg;
+    }();
 
     std::unique_ptr<IBlobFormatImporter> blobFormatImporter = blob_format_importer_factory::create(
         blobSource,
@@ -762,7 +790,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
         get_model_ptr_from_map(properties),
         localConfig);
 
-    std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, determine_device_id(properties, _config));
+    std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, deviceId);
     OPENVINO_ASSERT(device != nullptr, "Device not found.");
 
     if (!localConfig.get<LOADED_FROM_CACHE>()) {
@@ -810,13 +838,21 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
         _backend->updateInfo(localProperties);
     }
 
-    ov::intel_npu::CompilerType compilerType = determine_compiler_type(localProperties, _config);
-    auto deviceId = determine_device_id(localProperties, _config);
+    ov::intel_npu::CompilerType compilerType;
+    std::string deviceId;
+    std::string requestedPlatform;
+
+    {
+        std::shared_lock<std::shared_mutex> lock(_configMutex);
+        compilerType = determine_compiler_type(localProperties, _config);
+        deviceId = determine_device_id(localProperties, _config);
+        requestedPlatform = determine_platform(localProperties, _config);
+    }
 
     std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, deviceId);
 
     const auto compilationPlatform =
-        utils::getCompilationPlatform(determine_platform(localProperties, _config),
+        utils::getCompilationPlatform(requestedPlatform,
                                       device == nullptr ? std::move(deviceId) : device->getName(),
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
@@ -831,8 +867,12 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
         localProperties[ov::intel_npu::platform.name()] = compilationPlatform;
     }
 
-    FilteredConfig localConfig = *_config;
-    apply_properties_to_config(localConfig, localProperties, _propertiesManager, _logger);
+    FilteredConfig localConfig = [&]() {
+        std::shared_lock<std::shared_mutex> lock(_configMutex);
+        FilteredConfig cfg = *_config;
+        apply_properties_to_config(cfg, localProperties, _propertiesManager, _logger);
+        return cfg;
+    }();
 
     ov::SupportedOpsMap supportedOpsMap;
     try {
