@@ -6,6 +6,7 @@
 
 #include <map>
 #include <memory>
+#include <shared_mutex>
 #include <string>
 
 #include "backends_registry.hpp"
@@ -76,6 +77,7 @@ private:
 
     mutable Logger _logger;
     std::shared_ptr<FilteredConfig> _config;
+    mutable std::shared_mutex _configMutex;
     std::unique_ptr<PluginPropertyManager> _propertiesManager;
     std::shared_ptr<CompilerOptionSupportHelper> _compilerOptionSupportHelper;
 
