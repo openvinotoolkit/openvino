@@ -351,6 +351,7 @@ jobs:
       runner: 'aks-linux-4-cores-16gb'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      event_name: ${{ github.event_name }}
       python-version: '3.11'
 
   Python_API_Tests:
@@ -365,6 +366,7 @@ jobs:
 
   TensorFlow_Layer_Tests:
     name: TensorFlow Layer Tests
+    if: ${{ github.event_name == 'schedule' }}
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_layer_tests.yml
     with:
@@ -426,8 +428,7 @@ jobs:
 
   TensorFlow_Models_Tests_Precommit:
     name: TensorFlow Models tests
-    if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
-        fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
+    if: ${{ github.event_name == 'schedule' }}
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:

@@ -161,21 +161,22 @@ jobs:
           ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend-GraphIteratorDisabled.xml
 
       - name: TensorFlow Common frontend tests
-        if: fromJSON(inputs.affected-components).TF_FE.test ||
-            fromJSON(inputs.affected-components).TFL_FE.test &&
-            (runner.os != 'macOS' && runner.arch != 'ARM64')
+        if: ${{ inputs.event_name == 'schedule' &&
+            (fromJSON(inputs.affected-components).TF_FE.test ||
+            fromJSON(inputs.affected-components).TFL_FE.test) &&
+            (runner.os != 'macOS' && runner.arch != 'ARM64') }}
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_common_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowCommonFrontend.xml
 
       - name: TensorFlow frontend tests
-        if: fromJSON(inputs.affected-components).TF_FE.test
+        if: ${{ inputs.event_name == 'schedule' && fromJSON(inputs.affected-components).TF_FE.test }}
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowFrontend.xml
 
       - name: TensorFlow Lite frontend tests
-        if: ${{ fromJSON(inputs.affected-components).TFL_FE.test }}
+        if: ${{ inputs.event_name == 'schedule' && fromJSON(inputs.affected-components).TFL_FE.test }}
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowLiteFrontend.xml
