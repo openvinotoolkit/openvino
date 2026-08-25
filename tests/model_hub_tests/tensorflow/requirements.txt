@@ -1,9 +1,0 @@
--c ../../constraints.txt
-numpy
-pytest
-pytest-html
-tensorflow
-tensorflow-hub
-#tensorflow-text # ticket 179327
-transformers
-tf-sentence-transformers

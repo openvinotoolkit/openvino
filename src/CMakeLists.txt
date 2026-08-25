@@ -8,6 +8,4 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     ov_add_compiler_flags(-Wmissing-declarations)
 endif()
 
-# The standalone Vulkan core only. frontends / plugins / inference / bindings /
-# tests depend on the removed ov::Model graph layer and are intentionally gone.
 add_subdirectory(core)

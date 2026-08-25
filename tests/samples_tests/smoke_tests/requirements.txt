@@ -1,7 +1,0 @@
--c ../../constraints.txt
-numpy
-opencv-python-headless
-requests
-pytest
-pytest-xdist  # Enable pytest --numprocesses
-pyyaml

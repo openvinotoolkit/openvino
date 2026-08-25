@@ -19,7 +19,3 @@ if(Python3_Interpreter_FOUND)
         message(FATAL_ERROR "Python script failed with return code ${SCRIPT_RESULT}\nOutput: ${SCRIPT_OUTPUT}\nError: ${SCRIPT_ERROR}")
     endif()
 endif()
-
-if(ENABLE_TESTS)
-    add_subdirectory(tests)
-endif()

@@ -1,3 +1,0 @@
--c ../../../bindings/python/constraints.txt
-numpy
-tensorflow

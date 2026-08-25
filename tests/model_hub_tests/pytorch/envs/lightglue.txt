@@ -1,3 +1,0 @@
-# Extra dependencies for test_lightglue.py
-# kornia is required by lightglue_onnx/disk.py which is imported via __init__.py
-kornia
