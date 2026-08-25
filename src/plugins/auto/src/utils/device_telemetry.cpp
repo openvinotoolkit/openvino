@@ -90,9 +90,7 @@ std::optional<float> parse_utilization_from_aiselector_json_impl(const std::stri
 
 }  // namespace
 
-// Calls into ClientApi.dll through the plain-C ABI (ClientApiC.h).
-// The callback context is a heap-allocated shared_ptr<atomic<int>>; Impl deletes it only after
-// IpfUnregisterEvent returns, ensuring no in-flight callback can outlive the pointed-to memory.
+// Calls into the statically linked IPF ClientApi through the plain-C ABI (ClientApiC.h).
 class TelemetryClient::Impl {
 public:
     static void handle_gear_changed_event(void* context, const std::string& gear_str) {

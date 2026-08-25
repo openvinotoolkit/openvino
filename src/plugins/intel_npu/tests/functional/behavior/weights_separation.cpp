@@ -345,6 +345,30 @@ TEST_P(WeightsSeparationTests, CorrectInferenceResultIfWeightsPathUsed) {
 }
 
 /**
+ * @brief compile -> import the result, ov::weights_path with .data extension provided -> create inference request ->
+ * run one inference and check the result
+ */
+TEST_P(WeightsSeparationTests, CorrectInferenceResultIfWeightsPathWithDataExtensionUsed) {
+    model = createTestModel();
+
+    model_path = ov::util::path_join({utils::getCurrentWorkingDir(), utils::generateTestFilePrefix()}).string();
+    ov::serialize(model, model_path + ".xml", model_path + ".data");
+
+    configuration.insert(ov::enable_weightless(true));
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
+    ASSERT_TRUE(compiled_model);
+
+    std::stringstream export_stream;
+    compiled_model.export_model(export_stream);
+
+    configuration.insert(ov::weights_path(model_path + ".data"));
+    OV_ASSERT_NO_THROW(compiled_model = core->import_model(export_stream, target_device, configuration));
+    ASSERT_TRUE(compiled_model);
+
+    create_infer_request_and_check_result();
+}
+
+/**
  * @brief Providing the wrong weights to a weightless compiled model should produce incorrect results.
  */
 TEST_P(WeightsSeparationTests, WrongInferenceResultIfWrongWeightsProvided) {

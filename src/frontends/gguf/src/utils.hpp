@@ -7,13 +7,11 @@
 #include <memory>
 #include <utility>
 
+#include "node_context.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/topk.hpp"
-
-#include "openvino/core/node_vector.hpp"
-
-#include "node_context.hpp"
 
 namespace ov {
 namespace op {
