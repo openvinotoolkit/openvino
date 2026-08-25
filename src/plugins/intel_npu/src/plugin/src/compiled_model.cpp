@@ -98,8 +98,32 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
-    // TODO what should _config.get<EXPORT_RAW_BLOB>() do now?
-    _blobWriter->write_to(stream);
+    if (!_propertiesManager->getConfig().get<EXPORT_RAW_BLOB>()) {
+        _blobWriter->write_to(stream);
+        return;
+    }
+
+    if (!(_propertiesManager->getConfig().has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
+          _propertiesManager->getConfig().get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr)) {
+        // Plain raw blob
+        _graph->export_main_blob(tmpStream);
+        return;
+    }
+
+    // Encrypted raw blob
+    std::string encryptedPayload;
+    {
+        std::string tmpPlainPayload;
+        {
+            std::stringstream tmpStream;
+            _graph->export_main_blob(tmpStream);  // +1x blob size
+            tmpPlainPayload = tmpStream.str();    // +2x blob size
+        }  // -1x blob size when deallocating temporary stringstream
+        encryptedPayload = _propertiesManager->getConfig().get<CACHE_ENCRYPTION_CALLBACKS>().encrypt(
+            tmpPlainPayload);  // +2x blob size
+    }  // -1x blob size when deallocating temporary blob string
+
+    stream.write(encryptedPayload.c_str(), encryptedPayload.size());
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
