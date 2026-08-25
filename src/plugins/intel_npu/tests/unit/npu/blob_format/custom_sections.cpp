@@ -147,10 +147,10 @@ TEST(MockSections, GetROITensors) {
 
     BlobReaderInterface interface(tensor, 0, tensor.get_byte_size(), tensor.get_byte_size());
     interface.move_cursor_relative_to_npu_region(offset_1);
-    auto roi_1 = interface.get_roi_tensor(length_1);
+    auto roi_1 = interface.create_roi_tensor(length_1);
 
     interface.move_cursor_relative_to_npu_region(offset_2);
-    auto roi_2 = interface.get_roi_tensor(length_2);
+    auto roi_2 = interface.create_roi_tensor(length_2);
 
     EXPECT_EQ(roi_1.data<uint8_t>(), tensor.data<uint8_t>() + offset_1);
     EXPECT_EQ(roi_1.get_byte_size(), length_1);

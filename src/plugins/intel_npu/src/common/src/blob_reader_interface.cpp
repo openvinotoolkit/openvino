@@ -25,6 +25,7 @@ BlobReaderInterface::BlobReaderInterface(BlobSource& source,
     m_logger.debug("Created a new BlobReaderInterface. Boundaries: [%lu, %lu)", m_section_start, m_section_end);
 }
 
+// TODO change type to void* and remove reinterpret casts
 void BlobReaderInterface::read_into_buffer(char* destination, const size_t size) {
     m_logger.trace("Reading and copying %lu bytes", size);
 

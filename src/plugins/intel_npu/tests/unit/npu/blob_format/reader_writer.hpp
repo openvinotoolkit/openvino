@@ -118,7 +118,7 @@ TEST_F(Reader, GetROITensor) {
     // skip first 2 bytes
     reader.move_cursor_relative_to_npu_region(2);
 
-    auto roi = reader.get_roi_tensor(4);
+    auto roi = reader.create_roi_tensor(4);
 
     EXPECT_EQ(roi.data<uint8_t>(), source.data<uint8_t>() + 2);
     EXPECT_EQ(roi.get_byte_size(), 4);

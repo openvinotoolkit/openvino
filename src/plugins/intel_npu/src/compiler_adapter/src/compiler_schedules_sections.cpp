@@ -39,12 +39,10 @@ void ELFMainScheduleSection::write(BlobWriterInterface& writer) {
     const auto* graph = std::get_if<std::shared_ptr<Graph>>(&m_graph_or_schedule);
     OPENVINO_ASSERT(graph, INVALID_STATE_MESSAGE);
 
-    // At import time, position "cursor = 0" is guaranteed to be aligned to the standard page size (4096). Therefore, we
-    // only need to make sure the value of the cursor is a multiple of 4096 before writting any schedule.
-
     // Also take the padding size into account, we'll write that first
     const size_t offset = writer.get_offset_relative_to_npu_region();
     const size_t padding_size = utils::align_size_to_standard_page_size(offset) - offset;
+    writer.write_from(&padding_size, sizeof(padding_size));
     writer.add_padding(padding_size);
 
     m_logger.debug("Added %lu padding to offset %lu", padding_size, offset);
@@ -69,14 +67,15 @@ std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob
 
     // Skip the first padding region
     const size_t offset = blob_reader.get_offset_relative_to_npu_region();
-    const size_t padding_size = utils::align_size_to_standard_page_size(offset) - offset;
+    size_t padding_size;
+    blob_reader.read_into_buffer(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
     blob_reader.move_cursor_relative_to_current_section(blob_reader.get_offset_relative_to_current_section() +
                                                         padding_size);
 
     logger.debug("Skipped %lu padding from offset %lu", padding_size, offset);
 
     return std::make_shared<ELFMainScheduleSection>(
-        blob_reader.get_roi_tensor(blob_reader.get_section_length() - padding_size),
+        blob_reader.create_roi_tensor(blob_reader.get_section_length() - padding_size),
         logger.level());
 }
 
@@ -113,12 +112,10 @@ void ELFInitSchedulesSection::write(BlobWriterInterface& writer) {
     const auto will_get_to_this_later = writer.get_offset_relative_to_current_section();
     writer.add_padding(number_of_inits * sizeof(uint64_t));
 
-    // At import time, position "cursor = 0" is guaranteed to be aligned to the standard page size (4096). Therefore, we
-    // only need to make sure the value of the cursor is a multiple of 4096 before writting any schedule.
-
     // Also take the padding size into account, we'll write that next
     const size_t offset = writer.get_offset_relative_to_npu_region();
     const size_t padding_size = utils::align_size_to_standard_page_size(offset) - offset;
+    writer.write_from(&padding_size, sizeof(padding_size));
     writer.add_padding(padding_size);
 
     const std::vector<uint64_t> init_sizes = (*weightless_graph)->export_init_blobs(writer.m_stream.get());
@@ -178,7 +175,8 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
 
     // Skip the first padding
     const size_t offset = blob_reader.get_offset_relative_to_npu_region();
-    const size_t padding_size = utils::align_size_to_standard_page_size(offset) - offset;
+    size_t padding_size;
+    blob_reader.read_into_buffer(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
     blob_reader.move_cursor_relative_to_current_section(blob_reader.get_offset_relative_to_current_section() +
                                                         padding_size);
 
