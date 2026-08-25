@@ -205,6 +205,15 @@ std::set<std::string> device_list_to_set(const std::string& device_list) {
     }
     return result;
 }
+
+void validate_closure_metadata_sizes(std::size_t closure_size,
+                                     std::size_t lazy_closure_size,
+                                     std::size_t is_remote_size,
+                                     std::size_t closure_uid_size) {
+    NPUW_ASSERT(lazy_closure_size == closure_size);
+    NPUW_ASSERT(is_remote_size == closure_size);
+    NPUW_ASSERT(closure_uid_size == closure_size);
+}
 }  // anonymous namespace
 
 namespace ov {
@@ -289,15 +298,6 @@ void pre_load_transform(const std::shared_ptr<ov::Model>& model, const ov::AnyMa
     model->validate_nodes_and_infer_types();
 }
 }  // anonymous namespace
-
-static void validate_closure_metadata_sizes(std::size_t closure_size,
-                                            std::size_t lazy_closure_size,
-                                            std::size_t is_remote_size,
-                                            std::size_t closure_uid_size) {
-    NPUW_ASSERT(lazy_closure_size == closure_size);
-    NPUW_ASSERT(is_remote_size == closure_size);
-    NPUW_ASSERT(closure_uid_size == closure_size);
-}
 
 std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     const std::shared_ptr<ov::Model>& model,
