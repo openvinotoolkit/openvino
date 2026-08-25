@@ -16,6 +16,7 @@
 #include "vulkan_api.hpp"
 #include "vulkan_device.hpp"
 #include "vulkan_instance.hpp"
+#include "vulkan_required_device_profile.hpp"
 
 namespace cldnn {
 namespace vulkan {
@@ -61,11 +62,6 @@ std::optional<uint32_t> find_compute_queue_family(VkPhysicalDevice physical_devi
     return selected;
 }
 
-bool is_supported_gpu(const VkPhysicalDeviceProperties& properties) {
-    const auto is_gpu = properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU || properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
-    return is_gpu && properties.apiVersion >= required_api_version;
-}
-
 }  // namespace
 
 std::map<std::string, device::ptr> vulkan_device_detector::get_available_devices(void* user_context,
@@ -88,9 +84,10 @@ std::map<std::string, device::ptr> vulkan_device_detector::get_available_devices
 
     std::vector<device::ptr> devices;
     for (const VkPhysicalDevice physical_device : physical_devices) {
-        VkPhysicalDeviceProperties properties{};
-        vkGetPhysicalDeviceProperties(physical_device, &properties);
-        if (!is_supported_gpu(properties)) {
+        const auto required_profile = query_vulkan_required_device_profile(physical_device);
+        const auto& properties = required_profile.properties;
+        if (!required_profile.is_supported()) {
+            GPU_DEBUG_LOG << "Vulkan device '" << properties.deviceName << "' is skipped because " << required_profile.incompatibility_reason() << std::endl;
             continue;
         }
 

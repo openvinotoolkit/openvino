@@ -14,6 +14,7 @@
 
 #include "openvino/core/except.hpp"
 #include "vulkan_pipeline_cache.hpp"
+#include "vulkan_required_device_profile.hpp"
 
 namespace cldnn {
 namespace vulkan {
@@ -252,26 +253,8 @@ void vulkan_device::initialize() {
     queue_create_info.queueCount = 1;
     queue_create_info.pQueuePriorities = &queue_priority;
 
-    VkPhysicalDevice8BitStorageFeatures available_storage8{};
-    available_storage8.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES;
-    VkPhysicalDeviceSynchronization2Features available_synchronization2{};
-    available_synchronization2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES;
-    VkPhysicalDeviceTimelineSemaphoreFeatures available_timeline{};
-    available_timeline.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES;
-    VkPhysicalDeviceMaintenance4Features available_maintenance4{};
-    available_maintenance4.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES;
-    available_storage8.pNext = &available_synchronization2;
-    available_synchronization2.pNext = &available_timeline;
-    available_timeline.pNext = &available_maintenance4;
-    VkPhysicalDeviceFeatures2 available_features{};
-    available_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-    available_features.pNext = &available_storage8;
-    vkGetPhysicalDeviceFeatures2(_physical_device, &available_features);
-    OPENVINO_ASSERT(available_storage8.storageBuffer8BitAccess == VK_TRUE,
-                    "[GPU][Vulkan] The common Eltwise byte-address ABI requires storageBuffer8BitAccess");
-    OPENVINO_ASSERT(available_synchronization2.synchronization2 == VK_TRUE, "[GPU][Vulkan] Exact buffer hazard tracking requires Vulkan 1.3 synchronization2");
-    OPENVINO_ASSERT(available_timeline.timelineSemaphore == VK_TRUE, "[GPU][Vulkan] Asynchronous batch completion requires Vulkan timeline semaphores");
-    OPENVINO_ASSERT(available_maintenance4.maintenance4 == VK_TRUE, "[GPU][Vulkan] Dynamic local work-group specialization requires Vulkan 1.3 maintenance4");
+    const auto required_profile = query_vulkan_required_device_profile(_physical_device);
+    OPENVINO_ASSERT(required_profile.is_supported(), "[GPU][Vulkan] ", required_profile.incompatibility_reason());
 
     VkPhysicalDevice8BitStorageFeatures enabled_storage8{};
     enabled_storage8.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES;
