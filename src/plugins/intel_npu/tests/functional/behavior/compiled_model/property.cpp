@@ -726,24 +726,31 @@ TEST_P(CheckCompilerPropertyWhenImporting, CheckImportWithCompilerProperty) {
         logs.push_back('\n');
     };
 
+    ov::CompiledModel imported_model;
     {
         ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
-        OV_ASSERT_NO_THROW(
-            core_for_importing.import_model(export_stream,
-                                            deviceName,
-                                            {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
-                                              ov::intel_npu::platform("5010"),
-                                              ov::intel_npu::qdq_optimization(true)}}));
+        OV_ASSERT_NO_THROW(imported_model = core_for_importing.import_model(
+                               export_stream,
+                               deviceName,
+                               {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
+                                 ov::intel_npu::platform("5010"),
+                                 ov::intel_npu::qdq_optimization(true)}}));
     }
 
     ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
     ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
-    ASSERT_NE(logs.find("Property 'NPU_PLATFORM' is recognized as a compiler option, will not be used for current "
+    ASSERT_EQ(logs.find("Property 'NPU_PLATFORM' is recognized as a compiler option, will not be used for current "
                         "configuration."),
               std::string::npos);
     ASSERT_NE(logs.find("Property 'NPU_QDQ_OPTIMIZATION' is recognized as a compiler option, will not be used for "
                         "current configuration."),
               std::string::npos);
+
+    std::string platform;
+    OV_ASSERT_NO_THROW(platform = imported_model.get_property(ov::intel_npu::platform));
+    ASSERT_EQ(platform, "5010");
+    ASSERT_THROW(imported_model.get_property(ov::intel_npu::qdq_optimization),
+                 ov::Exception);  // Expect to throw due to unsupported property
 }
 
 TEST_P(CheckCompilerPropertyWhenImporting, CheckImportWithCompilerPropertyAfterCompiling) {
@@ -767,23 +774,31 @@ TEST_P(CheckCompilerPropertyWhenImporting, CheckImportWithCompilerPropertyAfterC
         logs.push_back('\n');
     };
 
+    ov::CompiledModel imported_model;
     {
         ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
-        OV_ASSERT_NO_THROW(core.import_model(export_stream,
-                                             deviceName,
-                                             {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
-                                               ov::intel_npu::platform("5010"),
-                                               ov::intel_npu::qdq_optimization(true)}}));
+        OV_ASSERT_NO_THROW(imported_model =
+                               core.import_model(export_stream,
+                                                 deviceName,
+                                                 {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
+                                                   ov::intel_npu::platform("5010"),
+                                                   ov::intel_npu::qdq_optimization(true)}}));
     }
 
     ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
     ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
-    ASSERT_NE(logs.find("Property 'NPU_PLATFORM' is recognized as a compiler option, will not be used for current "
+    ASSERT_EQ(logs.find("Property 'NPU_PLATFORM' is recognized as a compiler option, will not be used for current "
                         "configuration."),
               std::string::npos);
     ASSERT_NE(logs.find("Property 'NPU_QDQ_OPTIMIZATION' is recognized as a compiler option, will not be used for "
                         "current configuration."),
               std::string::npos);
+
+    std::string platform;
+    OV_ASSERT_NO_THROW(platform = imported_model.get_property(ov::intel_npu::platform));
+    ASSERT_EQ(platform, "5010");
+    ASSERT_THROW(imported_model.get_property(ov::intel_npu::qdq_optimization),
+                 ov::Exception);  // Expect to throw due to unsupported property
 }
 
 using CheckCpuPinning = ClassExecutableNetworkGetPropertiesTestNPU;
