@@ -44,10 +44,16 @@ TEST_F(CompatibilityStringGPU, RuntimeRequirementsIsSupportedAndNonEmpty) {
     std::string requirements;
     OV_ASSERT_NO_THROW(requirements = compiled_model.get_property(ov::runtime_requirements));
     ASSERT_FALSE(requirements.empty());
-    EXPECT_EQ(requirements.find("meta=2.0"), 0);
+    EXPECT_EQ(requirements.find("meta=3.0"), 0);
     EXPECT_NE(requirements.find(";runtime="), std::string::npos);
     EXPECT_NE(requirements.find(";kernel_artifact="), std::string::npos);
     EXPECT_NE(requirements.find(";artifact_schema="), std::string::npos);
+    if (requirements.find(";kernel_artifact=spirv") != std::string::npos) {
+        EXPECT_NE(requirements.find(";physical=[vendor="), std::string::npos);
+        EXPECT_NE(requirements.find(";uuid="), std::string::npos);
+        EXPECT_NE(requirements.find(";selection=[max_wg="), std::string::npos);
+        EXPECT_NE(requirements.find(";simd="), std::string::npos);
+    }
     std::cout << "[ INFO     ] GPU ov::runtime_requirements = " << requirements << std::endl;
 }
 
@@ -64,7 +70,7 @@ TEST_F(CompatibilityStringGPU, OlderV1RequirementsRequireRecompile) {
     ASSERT_NE(runtime_pos, std::string::npos);
     ASSERT_NE(desc_pos, std::string::npos);
     auto older_requirements = current.substr(0, runtime_pos) + current.substr(desc_pos);
-    older_requirements.replace(0, std::string{"meta=2.0"}.size(), "meta=1.0");
+    older_requirements.replace(0, std::string{"meta=3.0"}.size(), "meta=1.0");
 
     EXPECT_EQ(core.get_property(ov::test::utils::DEVICE_GPU, ov::compatibility_check, {{ov::runtime_requirements.name(), older_requirements}}),
               ov::CompatibilityCheck::UNSUPPORTED);
@@ -109,6 +115,26 @@ TEST_F(CompatibilityStringGPU, TamperedRequirementsUnsupported) {
                                                   ov::compatibility_check,
                                                   {{ov::runtime_requirements.name(), requirements}}));
     ASSERT_EQ(result, ov::CompatibilityCheck::UNSUPPORTED);
+}
+
+// Physical device identity is part of SPIR-V compatibility, so a descriptor produced for
+// another device cannot be accepted even when its runtime and driver strings match.
+TEST_F(CompatibilityStringGPU, DifferentPhysicalDeviceRequirementsUnsupported) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::Core core;
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU);
+
+    auto requirements = compiled_model.get_property(ov::runtime_requirements);
+    const auto uuid_pos = requirements.find(";uuid=");
+    if (uuid_pos == std::string::npos) {
+        GTEST_SKIP() << "The selected cached kernel artifact does not require physical device identity";
+    }
+    const auto first_uuid_digit = uuid_pos + std::string{";uuid="}.size();
+    ASSERT_LT(first_uuid_digit, requirements.size());
+    requirements[first_uuid_digit] = requirements[first_uuid_digit] == '0' ? '1' : '0';
+
+    EXPECT_EQ(core.get_property(ov::test::utils::DEVICE_GPU, ov::compatibility_check, {{ov::runtime_requirements.name(), requirements}}),
+              ov::CompatibilityCheck::UNSUPPORTED);
 }
 
 // An empty or missing requirements argument yields NOT_APPLICABLE.
@@ -168,7 +194,7 @@ TEST_F(CompatibilityStringGPU, DescriptorBlockIsMagicGuardedInBlob) {
     ASSERT_EQ(magic, expected_magic);
     uint32_t version = 0;
     std::memcpy(&version, data.data() + sizeof(ov::CacheMode) + sizeof(expected_magic), sizeof(version));
-    constexpr uint32_t expected_descriptor_version = 2;
+    constexpr uint32_t expected_descriptor_version = 3;
     EXPECT_EQ(version, expected_descriptor_version);
     // The guard only works if the magic can never collide with a real input count.
     ASSERT_GT(magic, static_cast<uint64_t>(1) << 32) << "magic must dwarf any realistic input count";

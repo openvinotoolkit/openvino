@@ -38,6 +38,22 @@ std::string build_runtime_requirements(const cldnn::device& device) {
     descriptor << ";ip=" << info.gfx_ver.major << "." << static_cast<uint32_t>(info.gfx_ver.minor) << ".";
     descriptor << static_cast<uint32_t>(info.gfx_ver.revision);
     descriptor << ";eus=" << info.execution_units_count << "]";
+    if (artifact == cldnn::gpu_cached_kernel_artifact::spirv) {
+        descriptor << ";physical=[vendor=" << info.vendor_id;
+        descriptor << ";device=" << info.device_id;
+        descriptor << ";uuid=" << info.uuid << "]";
+        descriptor << ";selection=[max_wg=" << info.max_work_group_size;
+        descriptor << ";local_mem=" << info.max_local_mem_size;
+        descriptor << ";subgroups=" << info.supports_khr_subgroups;
+        descriptor << ";simd=";
+        for (size_t index = 0; index < info.supported_simd_sizes.size(); ++index) {
+            if (index != 0) {
+                descriptor << ",";
+            }
+            descriptor << info.supported_simd_sizes[index];
+        }
+        descriptor << "]";
+    }
     return descriptor.str();
 }
 
