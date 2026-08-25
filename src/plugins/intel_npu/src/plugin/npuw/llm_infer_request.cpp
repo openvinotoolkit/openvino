@@ -15,6 +15,7 @@
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "util.hpp"
 
 namespace {
@@ -215,24 +216,63 @@ size_t scatter_deepstack_visual_embeds(const ov::SoPtr<ov::ITensor>& src,
     return k;
 }
 
-void process_longrope(const std::shared_ptr<ov::IAsyncInferRequest>& infer_req,
-                      const LLMInferRequest::PortsMap& ports,
-                      const ov::SoPtr<ov::ITensor>& position_ids) {
-    if (auto longrope_port_it = ports.find(LLMInferRequest::layer_names::longrope_input);
-        longrope_port_it != ports.end()) {
-        auto longrope_input = infer_req->get_tensor(longrope_port_it->second);
-        longrope_input->data<int64_t>()[0] = get_max_position_id(position_ids);
+// Points the npuw_lr_cos/npuw_lr_sin model inputs the LongRoPE RoPE-cache rewrite
+// created (see RopeCacheMatcher, pre_compute.cpp) at the precomputed coefficient rows
+// of the applicable regime. Those inputs are the model's only source of RoPE
+// coefficients, so the short/long-factor choice the graph used to make with an in-graph
+// Select is made here instead - by the same criterion:
+// max(position_ids) + 1 > original_max_position_embeddings.
+//
+// Binding is by pointer into the compiled model's own tables, which outlive this
+// request - no coefficients are copied per inference.
+//
+// A no-op for models without those inputs (not a LongRoPE model, or the RoPE cache pass
+// didn't run).
+void process_longrope_tables(const std::shared_ptr<ov::IAsyncInferRequest>& infer_req,
+                             const LLMInferRequest::PortsMap& ports,
+                             ov::npuw::patterns::pre_compute::LongRopeCosSin& tables,
+                             const ov::SoPtr<ov::ITensor>& position_ids,
+                             uint64_t context_limit) {
+    namespace pc = ov::npuw::patterns::pre_compute;
+
+    const auto cos_port_it = ports.find(pc::longrope_cos_input);
+    const auto sin_port_it = ports.find(pc::longrope_sin_input);
+    if (cos_port_it == ports.end() || sin_port_it == ports.end()) {
+        return;
     }
+    // The graph has no other cos/sin source, so missing tables would silently produce
+    // garbage instead of failing. This guards an imported blob whose LongRoPE metadata
+    // failed to come back.
+    OPENVINO_ASSERT(tables.is_valid(),
+                    "NPUW: the compiled model has npuw_lr_cos/npuw_lr_sin inputs but no precomputed LongRoPE "
+                    "cos/sin table to bind them to.");
+
+    const auto max_position_id = get_max_position_id(position_ids);
+    const bool is_long = max_position_id >= 0 && static_cast<uint64_t>(max_position_id) >= context_limit;
+
+    const auto& lut_shape = cos_port_it->second.get_shape();
+    OPENVINO_ASSERT(lut_shape.size() == 3 && lut_shape.back() == tables.rotary_ndims,
+                    "NPUW: unexpected npuw_lr_cos/npuw_lr_sin shape, expected [1, lut_len, rotary_ndims]");
+    const auto lut_len = lut_shape[1];
+
+    infer_req->set_tensor(cos_port_it->second, ov::get_tensor_impl(tables.cos_rows(lut_len, is_long)));
+    infer_req->set_tensor(sin_port_it->second, ov::get_tensor_impl(tables.sin_rows(lut_len, is_long)));
 }
 }  // anonymous namespace
 
 void ov::npuw::LLMInferRequest::init_lora_states() {
     for (const auto& input_port : m_prefill_request->get_compiled_model()->inputs()) {
-        auto input_name = input_port.get_any_name();
-        if (ov::npuw::util::matchLoRAMatMulAString(input_name) || ov::npuw::util::matchLoRAMatMulBString(input_name) ||
-            ov::npuw::util::matchLoRAMatMulAlphaString(input_name)) {
-            auto input_tensor = m_prefill_request->get_tensor(input_port);
-            m_variableStates.push_back(std::make_shared<VariableState>(input_name, input_tensor));
+        // A port may expose several tensor names; pick the one that matches a LoRA pattern
+        // instead of relying on get_any_name(), which returns an arbitrary name and could
+        // otherwise miss the port or register a non-matching state name.
+        for (const auto& input_name : input_port.get_names()) {
+            if (ov::npuw::util::matchLoRAMatMulAString(input_name) ||
+                ov::npuw::util::matchLoRAMatMulBString(input_name) ||
+                ov::npuw::util::matchLoRAMatMulAlphaString(input_name)) {
+                auto input_tensor = m_prefill_request->get_tensor(input_port);
+                m_variableStates.push_back(std::make_shared<VariableState>(input_name, input_tensor));
+                break;
+            }
         }
     }
 }
@@ -256,11 +296,20 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     auto register_generate_request = [this](const std::shared_ptr<ov::IAsyncInferRequest>& req) {
         m_generate_requests.push_back(req);
         PortsMap in_ports, out_ports;
+        // Register every tensor name of a port, not just get_any_name(): the map is later queried
+        // by names derived from other requests' ports, which may pick a different alias than the
+        // arbitrary one get_any_name() returns.
         for (const auto& p : req->get_compiled_model()->inputs()) {
-            in_ports.emplace(p.get_any_name(), p);
+            for (const auto& name : p.get_names()) {
+                auto res = in_ports.emplace(name, p);
+                OPENVINO_ASSERT(res.second, "Duplicate generate input tensor name across ports: ", name);
+            }
         }
         for (const auto& p : req->get_compiled_model()->outputs()) {
-            out_ports.emplace(p.get_any_name(), p);
+            for (const auto& name : p.get_names()) {
+                auto res = out_ports.emplace(name, p);
+                OPENVINO_ASSERT(res.second, "Duplicate generate output tensor name across ports: ", name);
+            }
         }
         m_generate_variant_in_ports.emplace(req, std::move(in_ports));
         m_generate_variant_out_ports.emplace(req, std::move(out_ports));
@@ -282,11 +331,20 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     m_prefill_base_request = compiled_model->m_prefill_compiled->create_base_infer_request();
     m_prefill_request = compiled_model->m_prefill_compiled->wrap_async_infer_request(m_prefill_base_request);
 
+    // Register every tensor name of a port, not just get_any_name(): kv-cache copy derives lookup
+    // keys (e.g. "present.*") from the generate request's port names, which may not coincide with
+    // the arbitrary alias get_any_name() would pick for the matching prefill port.
     for (const auto& input_port : m_prefill_request->get_compiled_model()->inputs()) {
-        m_prefill_in_ports.emplace(input_port.get_any_name(), input_port);
+        for (const auto& name : input_port.get_names()) {
+            auto res = m_prefill_in_ports.emplace(name, input_port);
+            OPENVINO_ASSERT(res.second, "Duplicate prefill input tensor name across ports: ", name);
+        }
     }
     for (const auto& output_port : m_prefill_request->get_compiled_model()->outputs()) {
-        m_prefill_out_ports.emplace(output_port.get_any_name(), output_port);
+        for (const auto& name : output_port.get_names()) {
+            auto res = m_prefill_out_ports.emplace(name, output_port);
+            OPENVINO_ASSERT(res.second, "Duplicate prefill output tensor name across ports: ", name);
+        }
     }
 
     for (const auto& input_port : m_kvcache_request->get_compiled_model()->inputs()) {
@@ -556,6 +614,9 @@ void ov::npuw::LLMInferRequest::apply_lora() {
                                                                          ov::SoPtr<ov::ITensor> infer_tensor,
                                                                          bool has_padding) {
                 if (!has_padding) {
+                    NPUW_ASSERT(
+                        infer_tensor._ptr &&
+                        "target request returned null tensor for LoRA input port — request may be uninitialized");
                     state_tensor->copy_to(infer_tensor._ptr);
                     return;
                 }
@@ -565,6 +626,8 @@ void ov::npuw::LLMInferRequest::apply_lora() {
                 if (low_rank_dim == 1) {
                     copy_columns_by_row_chunks_2d(state_tensor, new_tensor_slice);
                 } else {
+                    NPUW_ASSERT(new_tensor_slice._ptr &&
+                                "null slice of LoRA infer tensor — tensor may be uninitialized or have wrong shape");
                     state_tensor->copy_to(new_tensor_slice._ptr);
                 }
             };
@@ -681,6 +744,8 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
                                                                    prefill_past_kv->get_shape(),
                                                                    m_pre_alloc_device,
                                                                    m_npuw_llm_compiled_model->get_plugin());
+                    NPUW_ASSERT(tmp_dense_kv_tensor._ptr &&
+                                "KV cache buffer allocation failed — check device availability and memory constraints");
                     prefill_past_kv->copy_to(tmp_dense_kv_tensor._ptr);
                     prefill_past_kv_chunks = make_tensor_slice(tmp_dense_kv_tensor,
                                                                pre_kv_dim,
@@ -815,6 +880,8 @@ void ov::npuw::LLMInferRequest::copy_lincache(
                         " not found in model outputs.");
         auto from_tensor = from_request->get_tensor(from_ports.at(output_name));
 
+        NPUW_ASSERT(to_tensor._ptr &&
+                    "destination request returned null tensor for output port — request may be uninitialized");
         from_tensor->copy_to(to_tensor._ptr);
     });
     LOG_DEBUG("Done.");
@@ -1016,6 +1083,8 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                                                   static_cast<uint32_t>(chunk_prompt_len));
 
             // Copy with proper stride handling
+            NPUW_ASSERT(pos_ids_slice._ptr &&
+                        "null slice of position IDs tensor — source tensor may be uninitialized or have wrong shape");
             actual_position_ids_slice->copy_to(pos_ids_slice._ptr);
 
             // DeepStack (Qwen3-VL): scatter only the visual tokens that fall into the current
@@ -1227,7 +1296,13 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
         }
     });
 
-    process_longrope(m_prefill_request, m_prefill_in_ports, position_ids);
+    // One regime decision for the whole logical prompt - chunked prefill reuses it, as
+    // the in-graph Select did when it was fed from these same position_ids.
+    process_longrope_tables(m_prefill_request,
+                            m_prefill_in_ports,
+                            m_npuw_llm_compiled_model->m_longrope_tables,
+                            position_ids,
+                            m_npuw_llm_compiled_model->m_longrope_context_limit);
 
     m_llm_profile["1/prefill:2.apply_lora"].record([&]() {
         apply_lora();
@@ -1428,7 +1503,11 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             // No visual tokens are generated during the generate stage
             std::fill_n(reinterpret_cast<uint8_t*>(deepstack_local->data()), deepstack_local->get_byte_size(), 0);
         }
-        process_longrope(m_kvcache_request, m_kvcache_in_ports, position_ids);
+        process_longrope_tables(m_kvcache_request,
+                                m_kvcache_in_ports,
+                                m_npuw_llm_compiled_model->m_longrope_tables,
+                                position_ids,
+                                m_npuw_llm_compiled_model->m_longrope_context_limit);
         // FIXME: these tensors should be shared between the parent & child models
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
         auto kv_input_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name));
