@@ -90,6 +90,29 @@ inline float moe_mlp_fast_erf(float x) {
 // 2-bit (u2) dequant: 4 values per byte, LSB-first; u2 weights are always unsigned.
 #define DEQUANT_2BIT(v, s) convert_half(((v) >> (s)) & 0x3)
 
+// Group-scale load. MOE_SCALE_DT is half normally, uchar when the model stores an 8-bit group scale
+// plus one per-tensor factor per GEMM (NNCF --experts-fp8-scale): 0.25 -> 0.125 bit/weight, which is
+// -1.13 GB on the 160e 122B. Table lookup rather than open-coded bit surgery because e4m3's
+// subnormals (below 2^-6) are where the near-dead groups land -- a bug there would be invisible in
+// any aggregate error metric. Every e4m3 value is exactly representable in half (max 448 < 65504,
+// min subnormal 2^-9 > half's 2^-24), so the table is exact, and the per-group factor costs one
+// multiply per GROUP, not per element. Without f8 the factor is ignored entirely (the host asserts it
+// is 1.0 then), so the f16 path keeps exactly the instructions it had.
+#if MOE_SCALE_F8E4M3
+__constant half MOE_SCALE_F8_LUT[256] = MOE_SCALE_F8_TABLE;
+#    define MOE_SCALE_AT(S, idx, glob) (MOE_SCALE_F8_LUT[(uchar)((S)[(idx)])] * (half)(glob))
+// One scale per lane (lane == output channel), as a float. The width MUST follow the dtype: the f16
+// form reads 2 bytes per lane, so leaving it on an f8 buffer would silently pair up two e4m3 bytes
+// into a half and stride twice as far.
+#    define MOE_SCALE_BLOCK_READ(S, glob)                                                            \
+        (convert_float(MOE_SCALE_F8_LUT[intel_sub_group_block_read_uc((const __global uchar*)(S))]) * \
+         (float)(glob))
+#else
+#    define MOE_SCALE_AT(S, idx, glob) ((S)[(idx)])
+#    define MOE_SCALE_BLOCK_READ(S, glob) \
+        convert_float(as_half(intel_sub_group_block_read_us((const __global ushort*)(S))))
+#endif
+
 // A3 per-GEMM helpers (mixed-dtype MoE): per-expert byte strides given a compression
 // code DT (0=u4/i4, 1=u8/i8, 2=f16, 3=u2) and group size GS. N*K equals
 // INTERMEDIATE_SIZE*HIDDEN_SIZE for all three GEMMs, so one product serves gate/up/down.
@@ -142,7 +165,8 @@ KERNEL(moe_unpack_u2_to_u4)(const __global uchar* src, __global uchar* dst, int 
 
 #elif GATE_UP_ENABLE
 inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
-                                __global half* scales,
+                                __global MOE_SCALE_DT* scales,
+                                half scale_global,
                                 __global uchar* zps,
                                 __global half* y,
                                 int N,
@@ -159,14 +183,14 @@ inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
         const __global uchar* B = weight + n * K / 2;
         float sum_all0 = 0;
         float sum_all1 = 0;
-        __global half* S = scales + n;
+        __global MOE_SCALE_DT* S = scales + n;
 #if HAS_ZP
         __global uchar* Z = zps + n / 2;
 #endif
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
             int scale_offset = (gk * FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
-            half s0 = S[scale_offset];
-            half s1 = S[scale_offset + 1];
+            half s0 = MOE_SCALE_AT(S, scale_offset, scale_global);
+            half s1 = MOE_SCALE_AT(S, scale_offset + 1, scale_global);
 #if HAS_ZP
             int zp_offset = (gk * FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N / 2;
             uchar z = Z[zp_offset];
@@ -274,7 +298,8 @@ inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
 // both the gate and the up projection, and a mixed INT2_SYM/INT2_ASYM layer gives them different
 // zero-point forms. Both callers pass a jit constant, so the selects below fold away.
 inline void gate_up_gemv_n2x_u2(const __global uchar* weight,
-                                __global half* scales,
+                                __global MOE_SCALE_DT* scales,
+                                half scale_global,
                                 __global uchar* zps,
                                 __global half* y,
                                 int N,
@@ -291,7 +316,7 @@ inline void gate_up_gemv_n2x_u2(const __global uchar* weight,
         const __global uchar* B = weight + n * K / 4;
         float sum_all0 = 0;
         float sum_all1 = 0;
-        __global half* S = scales + n;
+        __global MOE_SCALE_DT* S = scales + n;
 #if HAS_ZP
         __global uchar* Z = zps + n / 4;
         // n is even, so channels n and n+1 always share one packed zp byte.
@@ -299,8 +324,8 @@ inline void gate_up_gemv_n2x_u2(const __global uchar* weight,
 #endif
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
             int scale_offset = (gk * FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
-            half s0 = S[scale_offset];
-            half s1 = S[scale_offset + 1];
+            half s0 = MOE_SCALE_AT(S, scale_offset, scale_global);
+            half s1 = MOE_SCALE_AT(S, scale_offset + 1, scale_global);
 #if HAS_ZP
             const half z_scalar = convert_half(((__global MOE_ZP_SCALAR_DT*)zps)[0]);
             const uchar z = zp_scalar ? (uchar)0 : Z[(gk * FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N / 4];
@@ -435,7 +460,8 @@ inline void gate_up_gemv_n2x_u2(const __global uchar* weight,
 }
 
 inline void gate_up_gemv_n2x_u8(const __global uchar* weight,
-                                __global half* scales,
+                                __global MOE_SCALE_DT* scales,
+                                half scale_global,
                                 __global uchar* zps,
                                 __global half* y,
                                 int N,
@@ -452,14 +478,14 @@ inline void gate_up_gemv_n2x_u8(const __global uchar* weight,
         const __global uchar* B = weight + n * K;
         float sum_all0 = 0;
         float sum_all1 = 0;
-        __global half* S = scales + n;
+        __global MOE_SCALE_DT* S = scales + n;
 #if HAS_ZP
         __global uchar* Z = zps + n;
 #endif
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
             int scale_offset = (gk * FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
-            half s0 = S[scale_offset];
-            half s1 = S[scale_offset + 1];
+            half s0 = MOE_SCALE_AT(S, scale_offset, scale_global);
+            half s1 = MOE_SCALE_AT(S, scale_offset + 1, scale_global);
 #if HAS_ZP
             int zp_offset = (gk * FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
             half z0 = convert_half(Z[zp_offset]);
@@ -842,29 +868,30 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
 
     // A3: dispatch up (silu=false) then gate (silu=true) by each projection's own dtype.
 #    if UP_WEIGHT_DT == 0
-    gate_up_gemv_n2x_u4(up_weight, up_scale, up_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, false);
+    gate_up_gemv_n2x_u4(up_weight, up_scale, UP_SCALE_GLOBAL, up_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, false);
 #    elif UP_WEIGHT_DT == 1
-    gate_up_gemv_n2x_u8(up_weight, up_scale, up_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, false);
+    gate_up_gemv_n2x_u8(up_weight, up_scale, UP_SCALE_GLOBAL, up_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, false);
 #    elif UP_WEIGHT_DT == 2
     gate_up_gemv_n2x_f16(up_weight, up_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, false);
 #    elif UP_WEIGHT_DT == 3
-    gate_up_gemv_n2x_u2(up_weight, up_scale, up_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, false, UP_ZP_SCALAR);
+    gate_up_gemv_n2x_u2(up_weight, up_scale, UP_SCALE_GLOBAL, up_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, false, UP_ZP_SCALAR);
 #    endif
 #    if GATE_WEIGHT_DT == 0
-    gate_up_gemv_n2x_u4(gate_weight, gate_scale, gate_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, true);
+    gate_up_gemv_n2x_u4(gate_weight, gate_scale, GATE_SCALE_GLOBAL, gate_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, true);
 #    elif GATE_WEIGHT_DT == 1
-    gate_up_gemv_n2x_u8(gate_weight, gate_scale, gate_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, true);
+    gate_up_gemv_n2x_u8(gate_weight, gate_scale, GATE_SCALE_GLOBAL, gate_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, true);
 #    elif GATE_WEIGHT_DT == 2
     gate_up_gemv_n2x_f16(gate_weight, gate_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, true);
 #    elif GATE_WEIGHT_DT == 3
-    gate_up_gemv_n2x_u2(gate_weight, gate_scale, gate_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, true, GATE_ZP_SCALAR);
+    gate_up_gemv_n2x_u2(gate_weight, gate_scale, GATE_SCALE_GLOBAL, gate_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, true, GATE_ZP_SCALAR);
 #    endif
 }
 
 #elif DOWN_ENABLE
 
 inline void down_gemv_n2x_u4(const __global uchar* weight,
-                             __global half* scales,
+                             __global MOE_SCALE_DT* scales,
+                             half scale_global,
                              __global uchar* zps,
                              MOE_DTYPE routing_weight_val,
                              __global half* y,
@@ -878,7 +905,7 @@ inline void down_gemv_n2x_u4(const __global uchar* weight,
 
     unroll_for(int n = n_start; n < n_end; n += 2) {
         const __global uchar* B = weight + n * K / 2;
-        __global half* S = scales + n;
+        __global MOE_SCALE_DT* S = scales + n;
 #if HAS_ZP
         __global uchar* Z = zps + n / 2;
 #endif
@@ -886,8 +913,8 @@ inline void down_gemv_n2x_u4(const __global uchar* weight,
         float sum_all1 = 0;
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
             int scale_offset = (gk * FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
-            half s0 = S[scale_offset];
-            half s1 = S[scale_offset + 1];
+            half s0 = MOE_SCALE_AT(S, scale_offset, scale_global);
+            half s1 = MOE_SCALE_AT(S, scale_offset + 1, scale_global);
 #if HAS_ZP
             int zp_offset = (gk * FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N / 2;
             ushort z = Z[zp_offset];
@@ -986,7 +1013,8 @@ inline void down_gemv_n2x_u4(const __global uchar* weight,
 }
 
 inline void down_gemv_n2x_u2(const __global uchar* weight,
-                             __global half* scales,
+                             __global MOE_SCALE_DT* scales,
+                             half scale_global,
                              __global uchar* zps,
                              MOE_DTYPE routing_weight_val,
                              __global half* y,
@@ -1000,7 +1028,7 @@ inline void down_gemv_n2x_u2(const __global uchar* weight,
 
     unroll_for(int n = n_start; n < n_end; n += 2) {
         const __global uchar* B = weight + n * K / 4;
-        __global half* S = scales + n;
+        __global MOE_SCALE_DT* S = scales + n;
 #if HAS_ZP
         __global uchar* Z = zps + n / 4;
         // n is even, so channels n and n+1 always share one packed zp byte.
@@ -1010,8 +1038,8 @@ inline void down_gemv_n2x_u2(const __global uchar* weight,
         float sum_all1 = 0;
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
             int scale_offset = (gk * FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
-            half s0 = S[scale_offset];
-            half s1 = S[scale_offset + 1];
+            half s0 = MOE_SCALE_AT(S, scale_offset, scale_global);
+            half s1 = MOE_SCALE_AT(S, scale_offset + 1, scale_global);
 #if HAS_ZP
 #        if DOWN_ZP_SCALAR
             const half z_hf0 = convert_half(((__global MOE_ZP_SCALAR_DT*)zps)[0]);
@@ -1144,7 +1172,8 @@ inline void down_gemv_n2x_u2(const __global uchar* weight,
 }
 
 inline void down_gemv_n2x_u8(const __global uchar* weight,
-                             __global half* scales,
+                             __global MOE_SCALE_DT* scales,
+                             half scale_global,
                              __global uchar* zps,
                              MOE_DTYPE routing_weight_val,
                              __global half* y,
@@ -1158,7 +1187,7 @@ inline void down_gemv_n2x_u8(const __global uchar* weight,
 
     unroll_for(int n = n_start; n < n_end; n += 2) {
         const __global uchar* B = weight + n * K;
-        __global half* S = scales + n;
+        __global MOE_SCALE_DT* S = scales + n;
 #if HAS_ZP
         __global uchar* Z = zps + n;
 #endif
@@ -1166,8 +1195,8 @@ inline void down_gemv_n2x_u8(const __global uchar* weight,
         float sum_all1 = 0;
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
             int scale_offset = (gk * FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
-            half s0 = S[scale_offset];
-            half s1 = S[scale_offset + 1];
+            half s0 = MOE_SCALE_AT(S, scale_offset, scale_global);
+            half s1 = MOE_SCALE_AT(S, scale_offset + 1, scale_global);
 #if HAS_ZP
             int zp_offset = (gk * FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
             half z0 = convert_half(Z[zp_offset]);
@@ -1486,13 +1515,13 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
 #    endif
 
 #    if DOWN_WEIGHT_DT == 0
-    down_gemv_n2x_u4(weight, scales, zps, routing_weight_val, y, N, K, x2, xg_sum);
+    down_gemv_n2x_u4(weight, scales, DOWN_SCALE_GLOBAL, zps, routing_weight_val, y, N, K, x2, xg_sum);
 #    elif DOWN_WEIGHT_DT == 1
-    down_gemv_n2x_u8(weight, scales, zps, routing_weight_val, y, N, K, x2, xg_sum);
+    down_gemv_n2x_u8(weight, scales, DOWN_SCALE_GLOBAL, zps, routing_weight_val, y, N, K, x2, xg_sum);
 #    elif DOWN_WEIGHT_DT == 2
     down_gemv_n2x_f16(weight, routing_weight_val, y, N, K, x2);
 #    elif DOWN_WEIGHT_DT == 3
-    down_gemv_n2x_u2(weight, scales, zps, routing_weight_val, y, N, K, x2, xg_sum);
+    down_gemv_n2x_u2(weight, scales, DOWN_SCALE_GLOBAL, zps, routing_weight_val, y, N, K, x2, xg_sum);
 #    endif
 }
 
@@ -1616,7 +1645,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_reduce)(con
 __attribute__((intel_reqd_sub_group_size(U2_DPAS_SG))) KERNEL(moe_u2_gemm)(
     const __global half* a_ptr,       // [total_gathered, U2_GEMM_K], sorted by expert
     const __global uchar* wei_ptr,    // [E, U2_GEMM_N, U2_GEMM_K/4] u2, K innermost
-    const __global half* scale_ptr,   // per-group f16 scales
+    const __global MOE_SCALE_DT* scale_ptr,  // per-group scales (f16, or e4m3 + U2_GEMM_SCALE_GLOBAL)
     const __global uchar* zp_ptr,     // scalar zp (INT2_SYM) or per-group u2 [E, G, N] (INT2_ASYM)
     const __global int* blocks,       // [num_blocks * 3] {expert_id, token_start, n_tokens}
     // Output last: execute_stage() binds every INPUT descriptor before any OUTPUT one.
@@ -1636,7 +1665,7 @@ __attribute__((intel_reqd_sub_group_size(U2_DPAS_SG))) KERNEL(moe_u2_gemm)(
     const int n0 = (int)get_group_id(0) * U2_N_PER_WG + sgid * 16;
 
     const __global uchar* weight = wei_ptr + (size_t)expert_id * ((size_t)N * K / 4);
-    const __global half* scales = scale_ptr + (size_t)expert_id * ((size_t)N * K / U2_GEMM_GROUP_SIZE);
+    const __global MOE_SCALE_DT* scales = scale_ptr + (size_t)expert_id * ((size_t)N * K / U2_GEMM_GROUP_SIZE);
 
     // The only SLM left. Per token, per quant group, the plain sum of activations, for the
     // zero-point correction. NOTE this is the FULL sum: unlike the FMA variant there is no
@@ -1701,8 +1730,7 @@ __attribute__((intel_reqd_sub_group_size(U2_DPAS_SG))) KERNEL(moe_u2_gemm)(
         // lane == channel, so this group's 16 scales are contiguous: one block read.
         // Indexing is S[group * N + n], copied from gate_up_gemv_n2x_u2 rather than derived from
         // the IR const shape - see the note on the FMA variant below.
-        const float sf = convert_float(as_half(intel_sub_group_block_read_us(
-            (const __global ushort*)(scales + (size_t)g * N + n0))));
+        const float sf = MOE_SCALE_BLOCK_READ(scales + (size_t)g * N + n0, U2_GEMM_SCALE_GLOBAL);
 
 #        if HAS_ZP && !U2_GEMM_ZP_SCALAR
         // One byte load and two ALU ops per quant group, against U2_GEMM_GROUP_SIZE/16 DPAS ops.
@@ -1812,7 +1840,7 @@ __attribute__((intel_reqd_sub_group_size(U2_DPAS_SG))) KERNEL(moe_u2_gemm)(
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(moe_u2_gemm)(
     const __global half* a_ptr,       // [total_gathered, U2_GEMM_K], sorted by expert
     const __global uchar* wei_ptr,    // [E, U2_GEMM_N, U2_GEMM_K/4] u2, K innermost
-    const __global half* scale_ptr,   // per-group f16 scales
+    const __global MOE_SCALE_DT* scale_ptr,  // per-group scales (f16, or e4m3 + U2_GEMM_SCALE_GLOBAL)
     const __global uchar* zp_ptr,     // scalar zp (INT2_SYM) or per-group u2 [E, G, N] (INT2_ASYM)
     const __global int* blocks,       // [num_blocks * 3] {expert_id, token_start, n_tokens}
     // Output last: execute_stage() binds every INPUT descriptor before any OUTPUT one, so the
@@ -1829,7 +1857,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(moe_u2_gemm)(
 
     // Per-expert bases. Byte stride for u2 is N*K/4; the scale stride is dtype-independent.
     const __global uchar* weight = wei_ptr + (size_t)expert_id * ((size_t)N * K / 4);
-    const __global half* scales = scale_ptr + (size_t)expert_id * ((size_t)N * K / U2_GEMM_GROUP_SIZE);
+    const __global MOE_SCALE_DT* scales = scale_ptr + (size_t)expert_id * ((size_t)N * K / U2_GEMM_GROUP_SIZE);
 #    if HAS_ZP && !U2_GEMM_ZP_SCALAR
     // Per (group, channel) zp: N * (K/group_size) entries per expert, u2-packed 4 per byte, in the
     // same [E, G, N] byfx layout as the scales.
@@ -1894,7 +1922,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(moe_u2_gemm)(
 
     unroll_for(int n = n_start; n < n_end; n += 2) {
         const __global uchar* B = weight + (size_t)n * K / 4;
-        const __global half* S = scales + n;
+        const __global MOE_SCALE_DT* S = scales + n;
 #    if HAS_ZP && !U2_GEMM_ZP_SCALAR
         // n is even, so channels n and n+1 always share one packed byte: one load, two shifts.
         const __global uchar* Z = zps + n / 4;
@@ -1910,8 +1938,8 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(moe_u2_gemm)(
 
         unroll_for(int gk = 0; gk < U2_GEMM_NUM_GK; gk++) {
             const int scale_offset = (gk * FAKE_GROUP_SIZE / U2_GEMM_GROUP_SIZE) * N;
-            const half s0 = S[scale_offset];
-            const half s1 = S[scale_offset + 1];
+            const half s0 = MOE_SCALE_AT(S, scale_offset, U2_GEMM_SCALE_GLOBAL);
+            const half s1 = MOE_SCALE_AT(S, scale_offset + 1, U2_GEMM_SCALE_GLOBAL);
 #    if HAS_ZP && U2_GEMM_ZP_SCALAR
             // INT2_SYM emits a single scalar zp shared by every expert, group and channel.
             const half z_hf0 = convert_half(((const __global MOE_ZP_SCALAR_DT*)zp_ptr)[0]);

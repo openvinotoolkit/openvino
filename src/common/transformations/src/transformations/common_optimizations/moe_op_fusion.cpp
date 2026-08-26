@@ -377,6 +377,18 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
                 ov::element::f16,
             };
 
+            // Carry each GEMM's per-tensor scale factor across. It is a member of
+            // GatherMatmulCompressed rather than an input, so nothing above would have moved it, and
+            // dropping it would scale every expert weight by the wrong constant -- wrong output, not a
+            // failed match.
+            auto scale_global_of = [&pm](const std::shared_ptr<ov::Node>& bgm_pattern) {
+                auto bgm = ov::as_type_ptr<GatherMatmulCompressed>(pm.at(bgm_pattern).get_node_shared_ptr());
+                return bgm ? bgm->get_weight_scale_global() : 1.0f;
+            };
+            compressed_config.wei_scale_global = {scale_global_of(bgm_gate_6_m),
+                                                 scale_global_of(bgm_up_6_m),
+                                                 scale_global_of(bgm_down_6_m)};
+
             auto moe_compressed = std::make_shared<MOECompressed>(moe_inputs, compressed_config);
 
             // Insert Convert if output type was forced and differs from original
@@ -527,6 +539,18 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool ha
         // Bail out if BGMs are mixed (some compressed, some plain).
         if (is_gate_up_compressed != is_down_compressed) {
             return false;
+        }
+
+        // This 2-GEMM config has nowhere to put a per-tensor weight scale factor, so refuse rather than
+        // drop it: dropping it is silently wrong output, refusing only costs the fusion. Reachable only
+        // via a two-level scale, which today means NNCF's f8 group scales.
+        if (is_gate_up_compressed) {
+            for (const auto& bgm_pattern : {bgm_gate_up_6_m, bgm_down_6_m}) {
+                auto bgm = ov::as_type_ptr<GatherMatmulCompressed>(pm.at(bgm_pattern).get_node_shared_ptr());
+                if (bgm && bgm->get_weight_scale_global() != 1.0f) {
+                    return false;
+                }
+            }
         }
 
         const bool is_compressed = is_gate_up_compressed;

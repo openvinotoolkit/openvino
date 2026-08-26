@@ -20,9 +20,11 @@ using ov::intel_gpu::ocl::moe::ResidentExpertWeightProvider;
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #    include <algorithm>
 #    include <chrono>
+#    include <cmath>
 #    include <cstdint>
 #    include <fstream>
 #    include <initializer_list>
+#    include <iomanip>
 #    include <iostream>
 #    include <limits>
 #    include <mutex>
@@ -42,6 +44,7 @@ using ov::intel_gpu::ocl::moe::ResidentExpertWeightProvider;
 #    include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #    include "intel_gpu/runtime/lru_cache.hpp"
 #    include "intel_gpu/runtime/stream.hpp"
+#    include "openvino/core/type/float8_e4m3.hpp"
 #    include "moe_3gemm_fused_inst.h"
 #    include "moe_3gemm_gen_micro.hpp"
 #    include "ocl_v2/utils/jitter.hpp"
@@ -455,7 +458,62 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
 
     bool is_signed_weight = (weight_dt == ov::element::i4 || weight_dt == ov::element::i8);
     jit.make("WEIGHT_IS_SIGNED", is_signed_weight ? 1 : 0);
-    // auto scale_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::SCALE_0)).data_type;
+
+    // Weight-scale dtype. f16 is the norm. f8e4m3 appears when the model was quantized with NNCF's
+    // --experts-fp8-scale, which halves the scale bytes by storing an 8-bit group scale plus one
+    // per-tensor factor per GEMM (_config.wei_scale_global). This MUST be checked rather than assumed:
+    // the GEMV reads the scale buffer through MOE_SCALE_DT, so an unexpected dtype is not an error but
+    // a reinterpret -- silent garbage output.
+    const auto scale_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::SCALE_0)).data_type;
+    for (const auto si : {MOE3GemmInputIndex::SCALE_1, MOE3GemmInputIndex::SCALE_2}) {
+        const auto dt = params.get_input_layout(static_cast<size_t>(si)).data_type;
+        OPENVINO_ASSERT(dt == scale_dt,
+                        "MoE 3-GEMM needs one scale dtype for gate/up/down, got ",
+                        scale_dt,
+                        " and ",
+                        dt);
+    }
+    OPENVINO_ASSERT(scale_dt == ov::element::f16 || scale_dt == ov::element::f8e4m3,
+                    "MoE 3-GEMM supports f16 or f8e4m3 weight scales, got ",
+                    scale_dt);
+    const bool scale_is_f8 = scale_dt == ov::element::f8e4m3;
+    // The f16 kernel path ignores the per-tensor factor outright (MOE_SCALE_AT drops its `glob`
+    // argument), so a non-1.0 factor with f16 scales would be silently discarded. It cannot happen
+    // today -- moe_op_fusion only ever sets one alongside a two-level f8 scale -- but the whole point
+    // of dropping it in the f16 macro is that the f16 path keeps its exact instruction count, so the
+    // invariant has to be asserted rather than assumed.
+    if (!scale_is_f8) {
+        for (size_t i = 0; i < desc->_config.wei_scale_global.size(); ++i) {
+            OPENVINO_ASSERT(desc->_config.wei_scale_global[i] == 1.0f,
+                            "MoE 3-GEMM: wei_scale_global[",
+                            i,
+                            "]=",
+                            desc->_config.wei_scale_global[i],
+                            " with an f16 weight scale; the kernels only apply that factor to f8 scales");
+        }
+    }
+    jit.make("MOE_SCALE_DT", scale_is_f8 ? "uchar" : "half");
+    jit.make("MOE_SCALE_F8E4M3", scale_is_f8 ? 1 : 0);
+    if (scale_is_f8) {
+        // Exact 256-entry decode table. Every e4m3 value is representable in f16 (max 448 < 65504,
+        // min subnormal 2^-9 > f16's 2^-24), so a table is exact AND branch-free -- open-coding the
+        // bit surgery needs a subnormal path, and it is precisely the near-dead groups that land
+        // there, so a bug in it would be invisible in any aggregate error metric.
+        std::ostringstream tbl;
+        tbl << std::setprecision(9);
+        for (int b = 0; b < 256; ++b) {
+            const float v = static_cast<float>(ov::float8_e4m3::from_bits(static_cast<uint8_t>(b)));
+            // e4m3fn's only non-finite codes are NaN (0x7F/0xFF); a NaN scale means a corrupt model,
+            // and 0 keeps it local instead of poisoning the whole expert output.
+            tbl << (b ? "," : "") << (std::isfinite(v) ? v : 0.0f) << "h";
+        }
+        jit.make("MOE_SCALE_F8_TABLE", "{" + tbl.str() + "}");
+    }
+    // Applied once per group, not per element, so the multiply is free. 1.0 for a plain f16 scale.
+    jit.make("GATE_SCALE_GLOBAL", desc->_config.wei_scale_global[0]);
+    jit.make("UP_SCALE_GLOBAL", desc->_config.wei_scale_global[1]);
+    jit.make("DOWN_SCALE_GLOBAL", desc->_config.wei_scale_global[2]);
+
     // auto zp_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::ZP_0)).data_type;
     // u2 packs 4 values per byte, so the batched GEMV kernels that serve it (micro-gemm and oneDNN
     // have no u2 dtype) need both K dimensions to be a whole number of bytes.
@@ -468,7 +526,6 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     // Only f16 weights are read as half; every compressed dtype is addressed as bytes.
     const bool wei_is_f16 = weight_dt == ov::element::f16;
     jit.make("MOE_WEI_DT", wei_is_f16 ? "half" : "uchar");
-    jit.make("MOE_SCALE_DT", "half");
     jit.make("MOE_ZP_DT", wei_is_f16 ? "half" : "uchar");
 
     // A3: per-GEMM weight dtype codes (gate/up/down may differ under NNCF mixed precision).
@@ -737,6 +794,9 @@ protected:
         jit.make("U2_GEMM_N", n);
         jit.make("U2_GEMM_GROUP_SIZE", group_size);
         jit.make("TILE_M", TILE_M);
+        // This kernel is instantiated once per GEMM, so it needs only its own factor -- unlike the
+        // decode GEMV, where one compiled kernel serves gate and up and the factor is a parameter.
+        jit.make("U2_GEMM_SCALE_GLOBAL", cfg.wei_scale_global[m_gemm_idx]);
 
         // Zero-point form is per GEMM -- a mixed layer can pair a scalar (INT2_SYM) gate with a
         // per-group (INT2_ASYM) down -- and this kernel is instantiated once per GEMM.

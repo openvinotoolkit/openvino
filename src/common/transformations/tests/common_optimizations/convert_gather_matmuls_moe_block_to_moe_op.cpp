@@ -848,6 +848,12 @@ struct CompressedMoeSpec {
     // element::dynamic == no zp at all (symmetric). Anything else builds real zps whose shape
     // mirrors the corresponding scale.
     ov::element::Type zp_dt = ov::element::dynamic;
+    // A rank-0 (per-tensor) zp instead of one shaped like the scale. This is the form NNCF emits
+    // for INT2_SYM, and it is the one shape MOE validation exempts from the num_experts check.
+    bool scalar_zp = false;
+    // Only meaningful with scalar_zp. 0 is normalized away to the absent form; a non-zero value is
+    // admitted for u2 weights and declined for anything else.
+    int32_t scalar_zp_value = 2;
 };
 
 // Same topology as build_3gemm_bgm_model, with the three GatherMatmul replaced by
@@ -892,9 +898,18 @@ std::shared_ptr<ov::Model> build_3gemm_bgm_compressed_model(const CompressedMoeS
     const bool has_zp = spec.zp_dt != element::dynamic;
     // 10/11/12 rather than 0..3: a zp of 0 is indistinguishable from the symmetric case, and T6
     // asserts on the expanded values.
-    auto gate_zp = has_zp ? int_const(spec.zp_dt, Shape{kE, kInter, spec.gate_G}, 10) : absent_input();
-    auto up_zp = has_zp ? int_const(spec.zp_dt, Shape{kE, kInter, spec.up_G}, 11) : absent_input();
-    auto down_zp = has_zp ? int_const(spec.zp_dt, Shape{kE, kHidden, spec.down_G}, 12) : absent_input();
+    auto make_zp = [&](const Shape& scale_shape, int32_t base) -> std::shared_ptr<Node> {
+        if (!has_zp) {
+            return absent_input();
+        }
+        if (spec.scalar_zp) {
+            return op::v0::Constant::create(spec.zp_dt, Shape{}, std::vector<int32_t>{spec.scalar_zp_value});
+        }
+        return int_const(spec.zp_dt, scale_shape, base);
+    };
+    auto gate_zp = make_zp(Shape{kE, kInter, spec.gate_G}, 10);
+    auto up_zp = make_zp(Shape{kE, kInter, spec.up_G}, 11);
+    auto down_zp = make_zp(Shape{kE, kHidden, spec.down_G}, 12);
 
     auto bgm_gate = std::make_shared<GatherMatmulCompressed>(unsqueeze,
                                                              gate_w,
@@ -1073,4 +1088,69 @@ TEST(Convert3GatherMatmulMoeBlockToMoeOpCompressed, u8_per_channel_zp_expands) {
             EXPECT_EQ(expanded[ch * target_G + g], expected) << "channel " << ch << " group " << g;
         }
     }
+}
+
+// C8. The rank-0 (per-tensor) zp form NNCF emits for INT2_SYM. Two pieces have to line up for it
+// to survive: normalize_scalar_zp() passes a non-zero rank-0 constant straight through for u2
+// weights, and MOE::validate_and_infer_types() exempts rank-0 inputs from the
+// "all weight inputs share num_experts" check -- without that exemption the check indexes
+// get_input_shape(i)[0] on an empty shape. Nothing else in this file builds a rank-0 zp, so both
+// halves were uncovered.
+TEST(Convert3GatherMatmulMoeBlockToMoeOpCompressed, u2_nonzero_scalar_zp_fuses) {
+    CompressedMoeSpec spec;
+    spec.gate_dt = spec.up_dt = spec.down_dt = ov::element::u2;
+    // Byte-wide on purpose: normalize_scalar_zp() only reads i8/u8/i32/u32/i64, because
+    // cast_vector on a packed constant is not meaningful there.
+    spec.zp_dt = ov::element::u8;
+    spec.scalar_zp = true;
+    spec.scalar_zp_value = 2;
+
+    auto model = build_3gemm_bgm_compressed_model(spec);
+    ASSERT_EQ(count_ops_of_type<GatherMatmulCompressed>(model), 3);
+    auto moe = run_3gemm_compressed(model);
+
+    ASSERT_NE(moe, nullptr) << "u2 weights with a non-zero per-tensor zp must fuse";
+    EXPECT_EQ(count_ops_of_type<GatherMatmulCompressed>(model), 0);
+    EXPECT_TRUE(moe->get_config().has_zp);
+
+    // The zp must reach the op still rank-0: the kernels broadcast the single element, and an
+    // expansion to [E, N, G] here would be the silent-garbage path C7 guards against.
+    auto gate_zp = ov::as_type_ptr<ov::op::v0::Constant>(moe->input_value(5).get_node_shared_ptr());
+    ASSERT_NE(gate_zp, nullptr);
+    EXPECT_EQ(gate_zp->get_shape(), ov::Shape{});
+    ASSERT_EQ(gate_zp->cast_vector<int32_t>().size(), 1u);
+    EXPECT_EQ(gate_zp->cast_vector<int32_t>()[0], 2);
+}
+
+// C8. The same form on non-u2 weights. Only the u2 kernels broadcast a scalar zp, so the fusion
+// has to decline rather than hand a per-tensor zp to a u4 decode that indexes it per group.
+TEST(Convert3GatherMatmulMoeBlockToMoeOpCompressed, u4_nonzero_scalar_zp_declines) {
+    CompressedMoeSpec spec;
+    spec.gate_dt = spec.up_dt = spec.down_dt = ov::element::u4;
+    spec.zp_dt = ov::element::u8;
+    spec.scalar_zp = true;
+    spec.scalar_zp_value = 2;
+
+    auto model = build_3gemm_bgm_compressed_model(spec);
+    auto moe = run_3gemm_compressed(model);
+
+    EXPECT_EQ(moe, nullptr) << "a non-zero per-tensor zp is only decodable for u2 weights";
+    EXPECT_EQ(count_ops_of_type<GatherMatmulCompressed>(model), 3);
+}
+
+// C8. A rank-0 zp of zero is the symmetric case written the long way, and is normalized to the
+// absent-input form instead of being carried as a real zp. Asserted through has_zp so the test
+// does not depend on which sentinel shape the normalization picks.
+TEST(Convert3GatherMatmulMoeBlockToMoeOpCompressed, zero_scalar_zp_normalizes_to_absent) {
+    CompressedMoeSpec spec;
+    spec.gate_dt = spec.up_dt = spec.down_dt = ov::element::u2;
+    spec.zp_dt = ov::element::u8;
+    spec.scalar_zp = true;
+    spec.scalar_zp_value = 0;
+
+    auto model = build_3gemm_bgm_compressed_model(spec);
+    auto moe = run_3gemm_compressed(model);
+
+    ASSERT_NE(moe, nullptr) << "an all-zero per-tensor zp is the symmetric case and must still fuse";
+    EXPECT_FALSE(moe->get_config().has_zp) << "a zero zp must be normalized away, not carried";
 }

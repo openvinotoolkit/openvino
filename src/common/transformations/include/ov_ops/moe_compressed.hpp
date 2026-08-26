@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <array>
 #include <optional>
 
 #include "openvino/op/moe.hpp"
@@ -34,6 +35,12 @@ public:
         bool has_zp = false;
         ov::element::Type out_type = ov::element::dynamic;
         std::optional<float> scale_factor;
+        // Per-tensor factor the per-group weight scale of each routed GEMM (gate, up, down) must be
+        // multiplied by, in that order. All 1.0 for a plain f16 group scale; only ever != 1 when the
+        // group scale is stored in a low-precision float type that cannot hold the weights' magnitude
+        // on its own (INT2 experts built with NNCF --experts-fp8-scale). NOT the same thing as
+        // scale_factor above, which is an activation scaling and is unused by the GPU plugin.
+        std::array<float, 3> wei_scale_global = {1.0f, 1.0f, 1.0f};
     };
 
     /// \brief Constructs a MOECompressed operation with config only
