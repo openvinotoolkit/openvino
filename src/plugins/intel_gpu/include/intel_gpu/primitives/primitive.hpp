@@ -219,6 +219,11 @@ public:
     /// @brief Type name of original ov operation.
     std::string origin_op_type_name;
 
+    /// @brief Set from ov::ShapeOfSubgraphRoot rt_info: output is a data-dependent shape/index
+    /// value (not real tensor data), so mark_shape_of_subgraphs should root a protected,
+    /// fusion-free subgraph here, same as it does for shape_of and PagedAttention max_context_len.
+    bool is_shape_of_subgraph_root = false;
+
     /// @brief Requested output padding.
     std::vector<padding> output_paddings;
 
