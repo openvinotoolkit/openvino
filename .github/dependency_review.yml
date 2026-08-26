@@ -26,3 +26,6 @@ allow-dependencies-licenses:
   - 'pkg:pypi/pytz@2026.3.post1' # MIT license, but dependency review flags it as MIT AND ZPL-2.1: https://github.com/stub42/pytz/blob/release_2026.3.post1/LICENSE.txt
   
   - 'pkg:npm/@sinclair/typebox@0.34.49' # It has only an MIT license, but the dependency check actions reports it as MIT AND Zlib, see https://github.com/sinclairzx81/sinclair-typebox?tab=License-1-ov-file
+  - 'pkg:pypi/gitdb@4.0.12' # BSD License per PyPI/GitHub, but flagged as BSD-2-Clause AND BSD-3-Clause AND GPL-1.0-or-later: https://github.com/gitpython-developers/gitdb
+  - 'pkg:pypi/cffi@2.1.1' # MIT license, but SPDX detection reports the more permissive MIT-0: https://github.com/python-cffi/cffi
+  - 'pkg:pypi/wrapt@2.3.0' # BSD-2-Clause per PyPI, but flagged as BSD-2-Clause AND BSD-3-Clause AND Python-2.0 AND Ruby: https://github.com/GrahamDumpleton/wrapt

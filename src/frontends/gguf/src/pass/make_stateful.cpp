@@ -72,6 +72,99 @@ int64_t resolve_append_axis(const ov::PartialShape& ps, const std::string& cache
 
 }  // namespace
 
+const std::string& gguf_recurrent_states_key() {
+    static const std::string key = "gguf_recurrent_states";
+    return key;
+}
+
+const std::string& gguf_imrope_key() {
+    static const std::string key = "gguf_is_imrope";
+    return key;
+}
+
+const std::string& gguf_swa_window_key() {
+    static const std::string key = "gguf_swa_window_size";
+    return key;
+}
+
+// Rewrite the recurrent (overwritten, non-appending) states into OpenVINO Variables.
+//
+// A KV cache is found by walking the SetRows writes and is grown with a Concat along its token
+// axis. A recurrent state has neither: it is read whole at the start of a step and replaced whole
+// at the end, so the graph carries nothing that marks it and the pairing arrives via rt_info (see
+// gguf_recurrent_states_key). The rewrite is correspondingly simpler -- ReadValue -> ... -> Assign
+// with no Concat, and no beam Gather, since there is no past to reorder.
+//
+// Their shapes are fully static, so the init is a real zeros Constant. Zero is also the correct
+// initial value: ggml starts a sequence with a zeroed conv window and delta matrix.
+static bool make_recurrent_states_stateful(const std::shared_ptr<ov::Model>& model) {
+    auto it = model->get_rt_info().find(gguf_recurrent_states_key());
+    if (it == model->get_rt_info().end()) {
+        return false;
+    }
+    const auto flat = it->second.as<std::vector<std::string>>();
+    if (flat.empty() || flat.size() % 2 != 0) {
+        return false;
+    }
+
+    ov::ParameterVector params_to_remove;
+    ov::ResultVector results_to_remove;
+    ov::SinkVector new_sinks;
+
+    for (size_t i = 0; i + 1 < flat.size(); i += 2) {
+        const std::string& in_name = flat[i];
+        const std::string& out_name = flat[i + 1];
+
+        auto param = find_param(model, in_name);
+        if (!param) {
+            continue;  // already rewritten (a second run of this pass)
+        }
+        const auto& ps = param->get_partial_shape();
+        OPENVINO_ASSERT(ps.is_static(),
+                        "[GGUF] GGUFMakeStateful: recurrent state '",
+                        in_name,
+                        "' must have a fully static shape, got ",
+                        ps);
+
+        // The Result holding this state's new value: the one whose producing node carries the
+        // state's output name. The builder names that node after the state (see the VIEW cases),
+        // which is why those names have to survive translation.
+        std::shared_ptr<ov::op::v0::Result> state_result;
+        for (const auto& r : model->get_results()) {
+            const auto producer = r->get_input_node_shared_ptr(0);
+            if (producer->get_friendly_name().find(out_name) != std::string::npos) {
+                state_result = r;
+                break;
+            }
+        }
+        OPENVINO_ASSERT(state_result, "[GGUF] GGUFMakeStateful: no Result produces recurrent state '", out_name, "'");
+
+        const auto et = param->get_element_type();
+        auto var = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{ps, et, in_name});
+        auto init = ov::op::v0::Constant::create(et, ps.to_shape(), std::vector<float>(1, 0.0f));
+        auto read_value = std::make_shared<ov::op::v6::ReadValue>(init, var);
+        read_value->set_friendly_name(in_name);
+        ov::replace_node(param, read_value);
+
+        new_sinks.push_back(std::make_shared<ov::op::v6::Assign>(state_result->input_value(0), var));
+        model->add_variables({var});
+        results_to_remove.push_back(state_result);
+        params_to_remove.push_back(param);
+    }
+
+    if (params_to_remove.empty()) {
+        return false;
+    }
+    for (const auto& r : results_to_remove) {
+        model->remove_result(r);
+    }
+    model->add_sinks(new_sinks);
+    for (const auto& p : params_to_remove) {
+        model->remove_parameter(p);
+    }
+    return true;
+}
+
 bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // beam_idx reorders the past cache along the batch axis for beam search (identity at batch 1 /
     // beam_idx [0], but emitting it is what lets CPU's stateful_sdpa_fusion match). It belongs to
@@ -101,8 +194,10 @@ bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
             cache_writes.push_back(set_rows);
         }
     }
+    // A model can have recurrent states and no KV cache at all (an all-linear-attention stack),
+    // so the recurrent rewrite must not sit behind this early return.
     if (cache_writes.empty()) {
-        return false;
+        return make_recurrent_states_stateful(model);
     }
 
     ov::ParameterVector params_to_remove;
@@ -204,6 +299,9 @@ bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
     for (const auto& p : params_to_remove) {
         model->remove_parameter(p);
     }
+
+    // Recurrent states are independent of the KV caches; a hybrid stack (qwen35) has both.
+    make_recurrent_states_stateful(model);
 
     model->validate_nodes_and_infer_types();
     return true;

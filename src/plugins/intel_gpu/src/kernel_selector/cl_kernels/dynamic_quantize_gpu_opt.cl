@@ -174,9 +174,12 @@ KERNEL(dynamic_quantize_gpu_opt)(
     )
 {
     const uint b = (uint)get_global_id(2);
-    const uint f_grp = get_global_id(1) * VEC_SIZE * SIMD / QUANTIZE_GROUP_SIZE;
+    const uint global_block_idx = (uint)get_global_id(1);
+    const uint f_grp = global_block_idx * VEC_SIZE * SIMD / QUANTIZE_GROUP_SIZE;
     const uint sglid = get_sub_group_local_id();
     const uint blockid = (uint)get_global_id(1) % BLOCKS_PER_GROUP;
+    const bool is_valid_block = (global_block_idx < TOTAL_BLOCK_NUM);
+    
 #if OUTPUT_DIMS == 2
     const uint input_offset = INPUT0_GET_INDEX (b, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0, 0);
     const uint output_offset = (OUTPUT_GET_INDEX(b, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0, 0)) / ELEMENTS_PER_BYTE;
@@ -206,23 +209,38 @@ KERNEL(dynamic_quantize_gpu_opt)(
     half grp_min = ACT_MIN_VAL;
     half max_value = 0.0h;
     half min_value = 0.0h;
-    val = AS_INPUT_TYPE_N(VLOAD_N(0, input + input_offset + (blockid * block_size)));
+    
+    if (is_valid_block) {
+        val = AS_INPUT_TYPE_N(VLOAD_N(0, input + input_offset + (blockid * block_size)));
+    } else {
+        // Initialize with zero for skipped blocks  
+        val = (MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE))(0);
+    }
 
 #if ASYMMETRIC_QUANTIZATION
-    unroll_for (int j = 0; j < VEC_SIZE; j++) {
-        max_value = fmax(max_value, val[j]);
-        min_value = fmin(min_value, val[j]);
+    if (is_valid_block) {
+        unroll_for (int j = 0; j < VEC_SIZE; j++) {
+            max_value = fmax(max_value, val[j]);
+            min_value = fmin(min_value, val[j]);
+        }
+        grp_max = fmax(grp_max, max_value);
+        grp_min = fmin(grp_min, min_value);
+    } else {
+        grp_max = -INFINITY;
+        grp_min = INFINITY;
     }
-    grp_max = fmax(grp_max, max_value);
-    grp_min = fmin(grp_min, min_value);
 #else
-    abs_val = fabs(val);
+    if (is_valid_block) {
+        abs_val = fabs(val);
 
-    unroll_for (int j = 0; j < VEC_SIZE; j++) {
-        max_value = fmax(max_value, abs_val[j]);
+        unroll_for (int j = 0; j < VEC_SIZE; j++) {
+            max_value = fmax(max_value, abs_val[j]);
+        }
+
+        grp_max = fmax(grp_max, max_value);
+    } else {
+        grp_max = -INFINITY;
     }
-
-    grp_max = fmax(grp_max, max_value);
 #endif
 
     max_value = sub_group_reduce_max(grp_max);
@@ -266,22 +284,24 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #endif
 
     MAKE_VECTOR_TYPE(SCALE_TYPE, VEC_SIZE) val_scaled = TO_TYPE_N(SCALE_TYPE, VEC_SIZE, val) * (MAKE_VECTOR_TYPE(SCALE_TYPE, VEC_SIZE))scale;
+    if (is_valid_block) {
 #if F4E2M1_OUTPUT
-    val_scaled = clamp(val_scaled, -TO_SCALE_TYPE(OUTPUT_VAL_MAX), TO_SCALE_TYPE(OUTPUT_VAL_MAX));
-    MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out_f4 = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val_scaled);
-    VSTORE_F4(out_f4.data, 0, (uchar*)(&output[output_offset + (blockid  * block_size) / ELEMENTS_PER_BYTE]));
+        val_scaled = clamp(val_scaled, -TO_SCALE_TYPE(OUTPUT_VAL_MAX), TO_SCALE_TYPE(OUTPUT_VAL_MAX));
+        MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out_f4 = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val_scaled);
+        VSTORE_F4(out_f4.data, 0, (uchar*)(&output[output_offset + (blockid  * block_size) / ELEMENTS_PER_BYTE]));
 #elif IS_F8
-    val = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, val_scaled);
-    MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val);
-    VSTORE_N(out.data, 0, (char*)(&output[output_offset + (blockid * block_size)]));
+        val = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, val_scaled);
+        MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val);
+        VSTORE_N(out.data, 0, (char*)(&output[output_offset + (blockid * block_size)]));
 #elif ASYMMETRIC_QUANTIZATION
-    val *= scale;
-    val += zp;
-    VSTORE_N(CAT(CONVERT_UCHAR_N, _rte)(val), 0, output + output_offset + (blockid * block_size));
+        val *= scale;
+        val += zp;
+        VSTORE_N(CAT(CONVERT_UCHAR_N, _rte)(val), 0, output + output_offset + (blockid * block_size));
 #else // i8 symmetric
-    val *= scale;
-    VSTORE_N(CAT(CONVERT_CHAR_N, _rte)(val), 0, output + output_offset + (blockid * block_size));
+        val *= scale;
+        VSTORE_N(CAT(CONVERT_CHAR_N, _rte)(val), 0, output + output_offset + (blockid * block_size));
 #endif
+    }
 
 #if GENERATE_PRECOMPUTED_REDUCTION
     // Calculate local reduction for this work-item
@@ -312,7 +332,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #endif
 #endif
 
-    if (sglid == 0 && blockid == 0) {
+    if (sglid == 0 && blockid == 0 && is_valid_block) {
 #if OUTPUT_DIMS == 2
         const int output_idx = OUTPUT1_GET_INDEX(b, f_grp, 0, 0);
 #else
