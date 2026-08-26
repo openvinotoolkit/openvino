@@ -183,6 +183,8 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
                 m_update_precision_func(ssm_cache_precision);
             }
 
+            
+            std::cout << "Setting cache precision to " << ssm_cache_precision << std::endl;
             ssm_state_table->set_element_type(ssm_cache_precision);
             enable_keep_const_precision(ssm_state_table);
             ssm_state_table->validate_and_infer_types();
