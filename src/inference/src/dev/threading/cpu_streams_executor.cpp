@@ -50,20 +50,6 @@ struct CPUStreamsExecutor::Impl {
             }
             ~Observer() override = default;
         };
-#    if defined(_WIN32)
-        // Soft-binds every thread entering the arena to a processor group with the full group mask, so
-        // streams spread across groups on machines with more than 64 logical processors (no core pinning).
-        struct GroupObserver : public custom::task_scheduler_observer {
-            int _group_id = -1;
-            GroupObserver(custom::task_arena& arena, int group_id)
-                : custom::task_scheduler_observer(arena),
-                  _group_id(group_id) {}
-            void on_scheduler_entry(bool) override {
-                pin_current_thread_to_group_soft(_group_id);
-            }
-            ~GroupObserver() override = default;
-        };
-#    endif
 #endif
         explicit Stream(Impl* impl) : _impl(impl) {
             {
@@ -151,22 +137,6 @@ struct CPUStreamsExecutor::Impl {
             return mapped_core_types;
         }
 
-        // On multi-group Windows (>64 logical processors) spread streams across groups via a soft group
-        // observer; skips max_threads_per_core to avoid recreating tbbbind's group-confining observer.
-        bool try_create_group_soft_arena([[maybe_unused]] int concurrency, [[maybe_unused]] int stream_id) {
-#    if defined(_WIN32)
-            const int group_count = static_cast<int>(GetActiveProcessorGroupCount());
-            if (group_count > 1) {
-                const int target_group = get_stream_processor_group_id(_numaNodeId, stream_id, group_count);
-                _taskArena.reset(new custom::task_arena{concurrency});
-                _observer.reset(new GroupObserver{*_taskArena, target_group});
-                _observer->observe(true);
-                return true;
-            }
-#    endif
-            return false;
-        }
-
         void create_tbb_task_arena(const int stream_id,
                                    const StreamCreateType stream_type,
                                    const int concurrency,
@@ -199,8 +169,15 @@ struct CPUStreamsExecutor::Impl {
                     _stream_type = STREAM_WITHOUT_PARAM;
                 }
             }
+            const int target_group = get_stream_processor_group_id(_numaNodeId, stream_id, get_num_processor_groups());
             if (_stream_type == STREAM_WITHOUT_PARAM) {
-                if (!try_create_group_soft_arena(concurrency, stream_id)) {
+                // On multi-group Windows (target_group >= 0) distribute the stream across processor
+                // groups; max_threads_per_core is dropped so tbbbind does not confine it to one group.
+                if (target_group >= 0) {
+                    _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
+                                                                .set_max_concurrency(concurrency)
+                                                                .set_processor_group(target_group)});
+                } else {
                     _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                                 .set_max_concurrency(concurrency)
                                                                 .set_max_threads_per_core(max_threads_per_core)});
@@ -215,7 +192,13 @@ struct CPUStreamsExecutor::Impl {
                     real_numa_node_id = _numaNodeId;
                 }
 #    endif
-                if (!try_create_group_soft_arena(concurrency, stream_id)) {
+                // On multi-group Windows (target_group >= 0) distribute the stream across processor
+                // groups; max_threads_per_core is dropped so tbbbind does not confine it to one group.
+                if (target_group >= 0) {
+                    _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
+                                                                .set_max_concurrency(concurrency)
+                                                                .set_processor_group(target_group)});
+                } else {
                     _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                                 .set_numa_id(real_numa_node_id)
                                                                 .set_max_concurrency(concurrency)
@@ -294,7 +277,7 @@ struct CPUStreamsExecutor::Impl {
         std::queue<Task> _taskQueue;
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
         std::unique_ptr<custom::task_arena> _taskArena;
-        std::unique_ptr<custom::task_scheduler_observer> _observer;
+        std::unique_ptr<Observer> _observer;
         std::vector<int> _cpu_ids;
 #elif OV_THREAD == OV_THREAD_SEQ
         CpuSet _mask = nullptr;

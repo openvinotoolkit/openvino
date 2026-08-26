@@ -81,9 +81,16 @@ void update_proc_type_table(const std::vector<std::vector<int>> _cpu_mapping_tab
  *             negative value when unknown
  * @param[in]  stream_id the stream index, used for round-robin distribution when numa id is unknown
  * @param[in]  group_count the number of active processor groups
- * @return     the target processor group id in the range [0, group_count), or 0 when group_count <= 0
+ * @return     the target processor group id in the range [0, group_count), or -1 when group_count <= 1
+ *             (single group / no distribution needed)
  */
 int get_stream_processor_group_id(int numa_node_id, int stream_id, int group_count);
+
+/**
+ * @brief      Get the number of active processor groups on the system.
+ * @return     the number of Windows processor groups, or 1 on platforms without processor groups
+ */
+int get_num_processor_groups();
 
 }  // namespace threading
 }  // namespace ov

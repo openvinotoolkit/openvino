@@ -10,6 +10,13 @@
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 
+#if defined(_WIN32)
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include <windows.h>
+#endif
+
 namespace ov {
 namespace threading {
 
@@ -270,13 +277,21 @@ void update_proc_type_table(const std::vector<std::vector<int>> _cpu_mapping_tab
 }
 
 int get_stream_processor_group_id(int numa_node_id, int stream_id, int group_count) {
-    if (group_count <= 0) {
-        return 0;
+    if (group_count <= 1) {
+        return -1;
     }
     // Prefer the stream's numa node (== processor group on Windows); fall back to round-robin by stream
     // index when the numa id is unknown. The modulo keeps the result within the available group range.
     const int base = numa_node_id >= 0 ? numa_node_id : stream_id;
     return (base % group_count + group_count) % group_count;
+}
+
+int get_num_processor_groups() {
+#if defined(_WIN32)
+    return static_cast<int>(GetActiveProcessorGroupCount());
+#else
+    return 1;
+#endif
 }
 
 }  // namespace threading

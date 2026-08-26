@@ -80,6 +80,10 @@ struct constraints {
         max_threads_per_core = threads_number;
         return *this;
     }
+    constraints& set_processor_group(int group_id) {
+        processor_group = group_id;
+        return *this;
+    }
 
     numa_node_id numa_id = tbb::task_arena::automatic;
     int max_concurrency = tbb::task_arena::automatic;
@@ -87,6 +91,9 @@ struct constraints {
     // Upper 4 bits reserved for format marker (single vs multiple core types)
     static constexpr size_t core_type_id_bits = sizeof(core_type_id) * CHAR_BIT - 4;
     int max_threads_per_core = tbb::task_arena::automatic;
+    // Target Windows processor group for soft (non-pinning) stream distribution across groups on
+    // machines with more than 64 logical processors. Negative means no group policy.
+    int processor_group = -1;
 };
 
 #if USE_TBBBIND_2_5
@@ -111,6 +118,29 @@ struct binding_observer_deleter {
 
 using binding_oberver_ptr = std::unique_ptr<binding_observer, binding_observer_deleter>;
 #endif
+
+#    if defined(_WIN32)
+// Spreads streams across Windows processor groups without core pinning: soft-binds an entering thread
+// to a processor group (full group mask) and restores its previous group affinity on scheduler exit.
+class group_affinity_observer : public tbb::task_scheduler_observer {
+    int my_group_id;
+
+public:
+    group_affinity_observer(tbb::task_arena& ta, int group_id);
+
+    void on_scheduler_entry(bool) override;
+    void on_scheduler_exit(bool) override;
+};
+
+struct group_affinity_observer_deleter {
+    void operator()(group_affinity_observer* observer) const {
+        observer->observe(false);
+        delete observer;
+    }
+};
+
+using group_affinity_observer_ptr = std::unique_ptr<group_affinity_observer, group_affinity_observer_deleter>;
+#    endif
 }  // namespace detail
 
 class task_arena {
@@ -120,6 +150,12 @@ class task_arena {
 #if USE_TBBBIND_2_5
     detail::binding_oberver_ptr my_binding_observer;
 #endif
+#    if defined(_WIN32)
+    detail::group_affinity_observer_ptr my_group_affinity_observer;
+    std::once_flag my_group_observer_state;
+#    endif
+
+    void init_group_affinity_observer();
 
 public:
     using constraints = detail::constraints;
