@@ -226,6 +226,11 @@ bool matchLinCacheString(const std::string& input, const std::string& past_or_pr
 
 bool starts_with_past_lincache(const std::string& input_name);
 
+// Matches the paged KV cache inputs of the PagedAttention model deployed by
+// the GenAI continuous-batching pipeline (key_cache.N / value_cache.N, named
+// by the SDPAToPagedAttention transformation).
+bool is_pa_kv_cache_name(const std::string& input_name);
+
 // Structure to hold SDPA pattern nodes.
 // After SplitKVCacheIntoBlocks the single past_key / past_value parameter is
 // replaced by N block parameters, so both param-node fields are vectors.
