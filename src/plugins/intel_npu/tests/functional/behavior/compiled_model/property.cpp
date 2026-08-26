@@ -574,6 +574,47 @@ TEST_P(CheckCompilerTypeProperty, GetCompilerVersion) {
     logs.clear();
 }
 
+using compatibility_CheckCompilerTypeProperty = ClassExecutableNetworkGetPropertiesTestNPU;
+
+TEST_P(compatibility_CheckCompilerTypeProperty, GlobalPluginPropertyRespectsDriverCompilerSupport) {
+    ov::Core core;
+
+    const auto isDriverCompilerPropertySupported = [&]() {
+        try {
+            core.get_property(deviceName,
+                              ov::intel_npu::qdq_optimization_aggressive,
+                              {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)});
+            return true;
+        } catch (...) {
+            return false;
+        }
+    }();
+
+    OV_ASSERT_NO_THROW(
+        core.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)));
+    OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::intel_npu::qdq_optimization_aggressive(true)));
+
+    ov::CompiledModel compiled_model;
+    if (isDriverCompilerPropertySupported) {
+        OV_ASSERT_NO_THROW(compiled_model =
+                               core.compile_model(model,
+                                                  deviceName,
+                                                  {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
+                                                    ov::intel_npu::qdq_optimization_aggressive(true)}}));
+    } else {
+        EXPECT_THROW(
+            compiled_model = core.compile_model(model,
+                                                deviceName,
+                                                {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
+                                                  ov::intel_npu::qdq_optimization_aggressive(true)}}),
+            ov::Exception);
+        return;
+    }
+
+    ASSERT_EQ(compiled_model.get_property(ov::intel_npu::compiler_type), ov::intel_npu::CompilerType::DRIVER);
+    EXPECT_TRUE(compiled_model.get_property(ov::intel_npu::qdq_optimization_aggressive));
+}
+
 using CheckCompilerVersionProperty = ClassExecutableNetworkGetPropertiesTestNPU;
 
 TEST_P(CheckCompilerVersionProperty, GetCompilerVersionFromCompiledModel) {
@@ -1055,6 +1096,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CheckCompilerType,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(valid_device_ids)),
                          CheckCompilerTypeProperty::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_CheckCompilerType,
+                         compatibility_CheckCompilerTypeProperty,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(valid_device_ids)),
+                         compatibility_CheckCompilerTypeProperty::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CheckCompilerType,
                          CheckCompilerPropertyWhenImporting,
