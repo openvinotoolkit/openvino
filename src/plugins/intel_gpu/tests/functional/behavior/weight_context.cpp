@@ -17,9 +17,9 @@
 #include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -30,14 +30,14 @@
 namespace {
 std::tuple<std::shared_ptr<ov::Model>, size_t> makeModelWithWeights(size_t elem_count) {
     size_t weight_count = 0;
-    auto s = std::make_shared<ov::opset8::Parameter>(ov::element::u8, ov::Shape{elem_count});
-    auto one = ov::opset8::Constant::create(ov::element::u8, ov::Shape{elem_count}, {1});
+    auto s = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{elem_count});
+    auto one = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{elem_count}, {1});
     weight_count++;
-    auto add = std::make_shared<ov::opset8::Add>(s, one);
-    auto three = ov::opset8::Constant::create(ov::element::u8, ov::Shape{elem_count}, {3});
+    auto add = std::make_shared<ov::op::v1::Add>(s, one);
+    auto three = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{elem_count}, {3});
     weight_count++;
-    auto mul = std::make_shared<ov::opset8::Multiply>(add, three);
-    auto res = std::make_shared<ov::opset8::Result>(mul);
+    auto mul = std::make_shared<ov::op::v1::Multiply>(add, three);
+    auto res = std::make_shared<ov::op::v0::Result>(mul);
     auto m = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{s}, "producer");
     m->input(0).set_names({"input"});
     m->output(0).set_names({"output"});
