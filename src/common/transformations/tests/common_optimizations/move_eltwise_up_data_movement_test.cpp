@@ -408,8 +408,7 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelUnsqueezeMiddleAxisSquareDims)
         auto input = std::make_shared<v0::Parameter>(ov::element::f32, shape);
         auto unsqueeze_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
         auto unsqueeze = std::make_shared<v0::Unsqueeze>(input, unsqueeze_axis);
-        auto per_channel_const =
-            v0::Constant::create(ov::element::f32, {1, 1, 5, 1}, {0.f, 1.f, 2.f, 3.f, 4.f});
+        auto per_channel_const = v0::Constant::create(ov::element::f32, {1, 1, 5, 1}, {0.f, 1.f, 2.f, 3.f, 4.f});
         auto add = std::make_shared<v1::Add>(unsqueeze, per_channel_const);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{input});
@@ -417,8 +416,7 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelUnsqueezeMiddleAxisSquareDims)
     }
     {
         auto input = std::make_shared<v0::Parameter>(ov::element::f32, shape);
-        auto per_channel_const =
-            v0::Constant::create(ov::element::f32, {1, 5, 1}, {0.f, 1.f, 2.f, 3.f, 4.f});
+        auto per_channel_const = v0::Constant::create(ov::element::f32, {1, 5, 1}, {0.f, 1.f, 2.f, 3.f, 4.f});
         auto add = std::make_shared<v1::Add>(input, per_channel_const);
         auto unsqueeze_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
         auto unsqueeze = std::make_shared<v0::Unsqueeze>(add, unsqueeze_axis);
