@@ -49,8 +49,8 @@ if(TARGET openvino::ipf_client_api_static AND TARGET openvino::ipf_client_api_dy
     target_link_options(${TARGET_NAME} PRIVATE $<${_ipf_use_dynamic_genex}:/DELAYLOAD:ClientApi.dll>)
 
     add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E $<IF:${_ipf_use_dynamic_genex},copy_if_different,true>
-                "$<TARGET_FILE:ClientApi>" "$<TARGET_FILE_DIR:${TARGET_NAME}>")
+        COMMAND "$<${_ipf_use_dynamic_genex}:${CMAKE_COMMAND};-E;copy_if_different;$<TARGET_FILE:ClientApi>;$<TARGET_FILE_DIR:${TARGET_NAME}>>"
+        COMMAND_EXPAND_LISTS)
 endif()
 
 ov_set_threading_interface_for(${TARGET_NAME})

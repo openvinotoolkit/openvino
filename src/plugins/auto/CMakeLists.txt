@@ -79,12 +79,11 @@ if(TARGET openvino::ipf_client_api_static AND TARGET openvino::ipf_client_api_dy
     # from loading. Only meaningful in configs that actually link the dynamic target.
     target_link_options(${TARGET_NAME} PRIVATE $<${_ipf_use_dynamic_genex}:/DELAYLOAD:ClientApi.dll>)
 
-    # Make ClientApi.dll available next to the plugin for in-tree/test runs only in the
-    # configs that dynamically link it; a no-op ("cmake -E true") elsewhere. Packaged
-    # installs are handled by the install(TARGETS ClientApi ...) rule in thirdparty/.
+    # Copy ClientApi.dll next to the plugin only in configs that link it dynamically;
+    # packaged installs are handled by the install(TARGETS ClientApi ...) rule in thirdparty/.
     add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E $<IF:${_ipf_use_dynamic_genex},copy_if_different,true>
-                "$<TARGET_FILE:ClientApi>" "$<TARGET_FILE_DIR:${TARGET_NAME}>")
+        COMMAND "$<${_ipf_use_dynamic_genex}:${CMAKE_COMMAND};-E;copy_if_different;$<TARGET_FILE:ClientApi>;$<TARGET_FILE_DIR:${TARGET_NAME}>>"
+        COMMAND_EXPAND_LISTS)
 
     message(STATUS "[AUTO] IPF support successfully enabled for ${TARGET_NAME} "
                    "(Release: static; Debug: ${ENABLE_IPF_DEBUG_WITH_RELEASE_CRT})")
