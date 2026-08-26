@@ -143,7 +143,9 @@ enum class Type : uint8_t {
     GatedDeltaNet,
     PagedGatedDeltaNet,
     PagedCausalConv1D,
-    BevPoolV2
+    BevPoolV2,
+    SelectiveSSM,
+    PagedSelectiveSSM
 };
 
 enum class Algorithm : uint8_t {
