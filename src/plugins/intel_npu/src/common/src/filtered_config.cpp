@@ -89,24 +89,41 @@ std::string FilteredConfig::toStringForCompiler(const std::function<bool(const s
     std::stringstream resultStream;
     bool hasSerializedValue = false;
 
-    for (const auto& [key, value] : _impl) {
-        if (_desc->has(key) && _desc->get(key).mode() != OptionMode::RunTime && isSupported(std::string(key))) {
-            if (hasSerializedValue) {
-                resultStream << " ";
-            }
-            resultStream << key << "=\"" << value->toString() << "\"";
-            hasSerializedValue = true;
+    const auto append = [&](const std::string& key, const std::string& serializedValue) {
+        if (hasSerializedValue) {
+            resultStream << " ";
         }
+        resultStream << key << "=\"" << serializedValue << "\"";
+        hasSerializedValue = true;
+    };
+
+    for (const auto& [key, value] : _impl) {
+        if (!_desc->has(key)) {
+            OPENVINO_THROW("[ NOT_FOUND ] Option '" + std::string(key) +
+                           "' is not supported for current configuration");
+        }
+
+        const auto mode = _desc->get(key).mode();
+        if (mode != OptionMode::CompileTime && mode != OptionMode::Both) {
+            continue;
+        }
+        if (mode == OptionMode::CompileTime && !isSupported(std::string(key))) {
+            OPENVINO_THROW("[ NOT_FOUND ] Option '" + std::string(key) +
+                           "' is not supported for current configuration");
+        }
+        if (mode == OptionMode::Both && !isSupported(std::string(key))) {
+            continue;
+        }
+
+        append(std::string(key), value->toString());
     }
 
     for (const auto& [key, value] : _internal_compiler_configs) {
-        if (isSupported(std::string(key))) {
-            if (hasSerializedValue) {
-                resultStream << " ";
-            }
-            resultStream << key << "=\"" << value << "\"";
-            hasSerializedValue = true;
+        if (!isSupported(std::string(key))) {
+            OPENVINO_THROW("[ NOT_FOUND ] Option '" + std::string(key) +
+                           "' is not supported for current configuration");
         }
+        append(std::string(key), value);
     }
 
     return resultStream.str();
