@@ -949,8 +949,6 @@ def test_make_16bit_traceable_no_16bit_activation_cast(dtype):
 
 
 def test_dataclasses_to_tuples():
-    """_dataclasses_to_tuples recursively converts dataclasses to tuples,
-    drops None fields, and leaves other containers/values untouched."""
     import dataclasses
     from openvino.frontend.pytorch.patch_model import _dataclasses_to_tuples
 
@@ -984,6 +982,37 @@ def test_dataclasses_to_tuples():
     assert _dataclasses_to_tuples({"x": Inner(a=t1, b=t3)}) == {"x": (t1, t3)}
 
 
+def test_dataclasses_to_tuples_leaves_supported_containers_alone():
+    """Only bare dataclasses are rewritten.
+
+    Container subclasses cannot always be rebuilt from a generator (namedtuple) or
+    would be downcast (OrderedDict/defaultdict), and dataclasses that are also dict
+    subclasses (transformers' ModelOutput) are already capturable as-is.
+    """
+    import collections
+    import dataclasses
+    from openvino.frontend.pytorch.patch_model import _dataclasses_to_tuples
+
+    t1, t2 = torch.tensor(1), torch.tensor(2)
+
+    point = collections.namedtuple("Point", ["x", "y"])(t1, t2)
+    assert _dataclasses_to_tuples(point) is point
+
+    ordered = collections.OrderedDict(a=t1)
+    assert _dataclasses_to_tuples(ordered) is ordered
+
+    default = collections.defaultdict(list, a=t1)
+    assert _dataclasses_to_tuples(default) is default
+
+    # A dataclass that is also a dict subclass, like transformers' ModelOutput.
+    @dataclasses.dataclass
+    class DictOutput(collections.OrderedDict):
+        first: torch.Tensor = None
+
+    dict_output = DictOutput(first=t1)
+    assert _dataclasses_to_tuples(dict_output) is dict_output
+
+
 def test_patched_dataclass_outputs():
     """patched_dataclass_outputs temporarily converts a bare @dataclass model
     output into a tuple, and restores the original forward on exit."""
@@ -1015,6 +1044,63 @@ def test_patched_dataclass_outputs():
     assert dataclasses.is_dataclass(restored)
     assert torch.equal(restored.first, x + 1)
     assert restored.second is None
+
+
+def test_convert_model_with_dataclass_output():
+    """End-to-end conversion of a model whose forward() returns a bare @dataclass.
+    """
+    import dataclasses
+    import openvino as ov
+
+    @dataclasses.dataclass
+    class GuardOutput:
+        first: torch.Tensor
+        second: torch.Tensor
+        unset: torch.Tensor = None
+
+    class DataclassOutputModel(torch.nn.Module):
+        def forward(self, x):
+            return GuardOutput(first=x + 1, second=x * 2)
+
+    model = DataclassOutputModel().eval()
+    example_input = torch.rand(1, 4)
+
+    converted_model = ov.convert_model(model, example_input=example_input, dynamo=True)
+    assert len(converted_model.outputs) == 2
+
+    compiled_model = ov.compile_model(converted_model, "CPU", default_cfg)
+    res = compiled_model((example_input.numpy(),))
+    ref = model(example_input)
+    np.testing.assert_allclose(res[0], ref.first.numpy(), 1e-7, 0)
+    np.testing.assert_allclose(res[1], ref.second.numpy(), 1e-7, 0)
+
+    # The patch is only active during capture; the model still returns its dataclass.
+    assert dataclasses.is_dataclass(model(example_input))
+
+
+@pytest.mark.parametrize("dynamo", [False, True])
+def test_convert_model_with_namedtuple_output(dynamo):
+    """A namedtuple output must survive conversion untouched by the dataclass patch."""
+    import collections
+    import openvino as ov
+
+    point = collections.namedtuple("Point", ["x", "y"])
+
+    class NamedTupleOutputModel(torch.nn.Module):
+        def forward(self, x):
+            return point(x + 1, x * 2)
+
+    model = NamedTupleOutputModel().eval()
+    example_input = torch.rand(1, 4)
+
+    converted_model = ov.convert_model(model, example_input=example_input, dynamo=dynamo)
+    assert len(converted_model.outputs) == 2
+
+    compiled_model = ov.compile_model(converted_model, "CPU", default_cfg)
+    res = compiled_model((example_input.numpy(),))
+    ref = model(example_input)
+    np.testing.assert_allclose(res[0], ref.x.numpy(), 1e-7, 0)
+    np.testing.assert_allclose(res[1], ref.y.numpy(), 1e-7, 0)
 
 
 def verify_model(model, example_input, expected_ops):
