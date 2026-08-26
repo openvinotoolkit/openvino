@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <cstring>
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <tuple>
@@ -26,6 +27,7 @@
 #include "openvino/util/memory.hpp"
 #include "openvino/util/mmap_object.hpp"
 
+namespace {
 std::tuple<std::shared_ptr<ov::Model>, size_t> makeModelWithWeights(size_t elem_count) {
     size_t weight_count = 0;
     auto s = std::make_shared<ov::opset8::Parameter>(ov::element::u8, ov::Shape{elem_count});
@@ -118,18 +120,18 @@ makeCorrectWeightSharingContext(std::vector<std::shared_ptr<ov::op::v0::Constant
 class WeightContextTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        auto cache_file_path = testing::UnitTest::GetInstance()->current_test_info()->name() + std::string(".bin");
+        auto cache_file_path = std::filesystem::path(testing::UnitTest::GetInstance()->current_test_info()->name()).replace_extension(".bin");
         if (std::filesystem::exists(cache_file_path)) {
             std::filesystem::remove(cache_file_path);
         }
-        properties = ov::AnyMap{{ov::cache_dir(cache_file_path)}};
+        properties = ov::AnyMap{{ov::cache_path(cache_file_path)}};
     }
 
     void TearDown() override {
-        auto cache_dir_it = properties.find(ov::cache_dir.name());
-        assert(cache_dir_it != properties.end());
-        auto cache_dir = cache_dir_it->second.as<std::string>();
-        std::filesystem::remove(cache_dir);
+        auto cache_path_it = properties.find(ov::cache_path.name());
+        assert(cache_path_it != properties.end());
+        auto cache_path = cache_path_it->second.as<std::filesystem::path>();
+        std::filesystem::remove(cache_path);
     }
 
     void enableWeightSharingContext(const ov::internal::WeightSharingCtxPtr& weightCtx) {
@@ -144,6 +146,7 @@ protected:
 private:
     ov::AnyMap properties;
 };
+}  // namespace
 
 TEST_F(WeightContextTest, smoke_weightContextCannotBeConsumedDueToUnsupportedAlignment) {
     auto core = ov::Core();
