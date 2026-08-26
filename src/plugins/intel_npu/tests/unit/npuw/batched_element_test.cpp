@@ -413,7 +413,8 @@ TEST_F(NPUWBatchedElementTest, SharedInputBoundToEveryRow) {
 }
 
 // Regression: a leading batch-1 input (here input_ids, shared) must not pin the batch to 1
-// when a later input carries the real batch -- the batch is the largest leading dim.
+// when a later input carries the real batch -- a leading dim of 1 means broadcast, and the
+// batch is whatever the batched inputs agree on.
 TEST_F(NPUWBatchedElementTest, BatchSizeFromNonLeadingInput) {
     auto wrapped = wrap();
     auto req = wrapped->create_infer_request();
@@ -477,6 +478,57 @@ TEST_F(NPUWBatchedElementTest, PreBoundOutputTensorReused) {
     for (std::size_t r = 0; r < ids.size(); ++r) {
         EXPECT_FLOAT_EQ(row_value(out, r), static_cast<float>(ids[r].front()));
     }
+}
+
+// A caller-bound output tensor that does not fit what the inference produces is a
+// contract violation: the element never discards a caller's tensor behind their
+// back, so it throws instead of silently replacing it.
+TEST_F(NPUWBatchedElementTest, MismatchedPreBoundOutputThrows) {
+    auto model = build_two_output_model();
+    auto inner = std::make_shared<MockInnerCompiled>(model, m_plugin, m_recorder);
+    auto wrapped = std::make_shared<ov::npuw::batched::CompiledModel>(inner, m_plugin, rerank_tags());
+    auto req = wrapped->create_infer_request();
+
+    const std::vector<std::vector<int64_t>> ids = {{11, 1}, {22, 1}, {33, 1}};
+    set_input_ids(req, ids);
+
+    // The stacked shape will be [3, 1]; bind a [2, 1] caller tensor.
+    auto bound = ov::get_tensor_impl(ov::Tensor(ov::element::f32, {2, 1}));
+    req->set_tensor(wrapped->outputs()[0], bound);
+
+    try {
+        req->infer();
+        FAIL() << "expected a mismatched caller-bound output rejection";
+    } catch (const ov::Exception& ex) {
+        EXPECT_NE(error_message(ex).find("caller tensor"), std::string::npos);
+    }
+}
+
+// Re-inferring with a different batch reallocates the outputs the element bound
+// itself -- they are the element's own, unlike a caller's tensor -- and the batch-1
+// shortcut may likewise replace them with the exposed inner outputs.
+TEST_F(NPUWBatchedElementTest, BatchChangeReallocatesElementOutputs) {
+    auto model = build_two_output_model();
+    auto inner = std::make_shared<MockInnerCompiled>(model, m_plugin, m_recorder);
+    auto wrapped = std::make_shared<ov::npuw::batched::CompiledModel>(inner, m_plugin, rerank_tags());
+    auto req = wrapped->create_infer_request();
+
+    set_input_ids(req, {{11, 1}, {22, 1}, {33, 1}});
+    req->infer();
+    ASSERT_EQ(req->get_tensor(wrapped->outputs()[0])->get_shape()[0], 3u);
+
+    set_input_ids(req, {{44, 1}, {55, 1}});
+    ASSERT_NO_THROW(req->infer());
+    const auto out = req->get_tensor(wrapped->outputs()[0]);
+    ASSERT_EQ(out->get_shape()[0], 2u);
+    EXPECT_FLOAT_EQ(row_value(out, 0), 44.0f);
+    EXPECT_FLOAT_EQ(row_value(out, 1), 55.0f);
+
+    set_input_ids(req, {{66, 1}});
+    ASSERT_NO_THROW(req->infer());
+    const auto single = req->get_tensor(wrapped->outputs()[0]);
+    ASSERT_EQ(single->get_shape()[0], 1u);
+    EXPECT_FLOAT_EQ(row_value(single, 0), 66.0f);
 }
 
 // At batch 1 the outputs skip the stacking path, but a caller-bound tensor of the
