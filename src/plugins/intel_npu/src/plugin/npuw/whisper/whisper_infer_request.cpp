@@ -58,11 +58,17 @@ void ov::npuw::WhisperInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_i
                                                  0u,
                                                  m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens);
 
-    // for word-level timestamps
-    auto decomposed_sdpa_size = m_npuw_llm_compiled_model->m_decomposed_sdpa_size;
-    for (size_t idx = 0; idx < decomposed_sdpa_size; idx++) {
-        auto name = whisper_layer_names::qk_scores_ + std::to_string(idx);
-        m_alignment_tensors.insert({name, m_prefill_request->get_tensor(m_prefill_out_ports.at(name))});
+    // For word-level timestamps. These real prefill outputs only carry their own indexed
+    // qk_scores_N name (see add_cross_attention_qk_scaled_scores_outputs_for_whisper), never
+    // the generic qk_scores marker - that marker only gets added to the fake outer-compiled-model
+    // ports in llm_compiled_model.cpp. So key on the indexed name directly, not the marker.
+    for (const auto& [_, port] : m_prefill_out_ports) {
+        for (const auto& port_name : port.get_names()) {
+            if (port_name.find(WhisperInferRequest::whisper_layer_names::qk_scores_) != std::string::npos) {
+                m_alignment_tensors.insert({port_name, m_prefill_request->get_tensor(port)});
+                break;
+            }
+        }
     }
 
     LOG_DEBUG("Done");
