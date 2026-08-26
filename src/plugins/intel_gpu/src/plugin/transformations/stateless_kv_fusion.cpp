@@ -11,6 +11,7 @@
 
 #include "intel_gpu/op/stateless_kv.hpp"
 #include "intel_gpu/op/sdpa.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
@@ -84,12 +85,6 @@ StatelessKVFusionMatcher::StatelessKVFusionMatcher() {
             return false;
         }
 
-        static const auto env_slkv = std::getenv("statelesskv");
-        static const auto noslkv = env_slkv && std::string_view("false") == env_slkv;
-        if (noslkv) {
-            return false;
-        }
-
         const auto& pattern_map = m.get_pattern_value_map();
         auto result_node = ov::as_type_ptr<ov::op::v0::Result>(pattern_map.at(result).get_node_shared_ptr());
         const auto result_input = result_node->input(0);
@@ -102,22 +97,28 @@ StatelessKVFusionMatcher::StatelessKVFusionMatcher() {
         ov::Output<ov::Node> pos_idx_output;
         ov::Output<ov::Node> seqlen_output;
         ov::NodeVector node_infos;
+        std::vector<ov::Input<ov::Node>> other_inputs;
         int64_t target_axis = 0;
         bool is_present_len = true;
 
         const bool is_slice_concat = pattern_map.count(concat) > 0;
         bool is_update_split = false;
 
-        const auto kv_present_consumers = kv_present_output.get_target_inputs();
-        if (kv_present_consumers.size() != 2) {
-            return false;
-        }
-        for (const auto& input : kv_present_consumers) {
-            if (input != result_input) {
+        for (const auto& input : kv_present_output.get_target_inputs()) {
+            if (input == result_input) {
+                continue;
+            }
+            ov::Node* shapeof_node = ov::as_type<ov::op::v3::ShapeOf>(input.get_node());
+            // first non shape-of will be treated as the input to SDPA
+            if (!ov::as_type<ov::op::v3::ShapeOf>(input.get_node()) && !kv_to_sdpa_input.has_value()) {
                 kv_to_sdpa_input.emplace(input);
+            } else {
+                other_inputs.push_back(input);
             }
         }
-        OPENVINO_ASSERT(kv_to_sdpa_input.has_value());
+        if (!kv_to_sdpa_input.has_value()) {
+            return false;
+        }
 
         std::optional<int64_t> shapeof_axis;
         if (pattern_map.count(seqlen_dim) > 0) {
@@ -129,10 +130,6 @@ StatelessKVFusionMatcher::StatelessKVFusionMatcher() {
             auto cur_neg_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(cur_seqlen_neg_const).get_node_shared_ptr());
             neg_cur_seqlen = cur_neg_node->cast_vector<int64_t>()[0];
         }
-        static const auto gqareuse = []() {
-            const auto txt = std::getenv("gqareuse");
-            return !(txt && txt == std::string_view("false"));
-        }();
         ov::Output<ov::Node> total_seqlen_output;
         if (pattern_map.count(total_seqlen) > 0) {
             total_seqlen_output = pattern_map.at(total_seqlen);
@@ -310,7 +307,7 @@ StatelessKVFusionMatcher::StatelessKVFusionMatcher() {
         }
 
         auto get_trimmed_mask = [&](const ov::Output<ov::Node>& full_mask, const ov::Dimension& cur_seqlen) -> std::shared_ptr<ov::Node> {
-            if (gqareuse && cache->present_kv_len.get_node() && cur_seqlen.is_static()) {
+            if (cache->present_kv_len.get_node() && cur_seqlen.is_static()) {
                 for (const auto& [len, old_mask, new_mask] : cache->trimmed_masks) {
                     if (len != cur_seqlen.get_length())
                         continue;
@@ -352,36 +349,27 @@ StatelessKVFusionMatcher::StatelessKVFusionMatcher() {
                     std::make_shared<v0::Concat>(ov::OutputVector{present_len, v0::Constant::create(present_len_type, ov::Shape{1}, {-1})}, 0);
                 const auto mask_split = std::make_shared<v1::VariadicSplit>(full_mask, v0::Constant::create(present_len_type, ov::Shape{}, {1}), split_lengths);
                 trimmed_mask = mask_split;
-                if (gqareuse && cache->present_kv_len.get_node() && cur_seqlen.is_static()) {
+                if (cache->present_kv_len.get_node() && cur_seqlen.is_static()) {
                     cache->trimmed_masks.push_back({cur_seqlen.get_length(), full_mask, trimmed_mask});
                 }
             }
-            printf("@@##statelesskv: mask-trim [%s] -> [%s]\n", full_mask.get_node()->get_friendly_name().c_str(), trimmed_mask->get_friendly_name().c_str());
+            GPU_DEBUG_TRACE_DETAIL << "statelesskv: mask-trim [" << full_mask.get_node()->get_friendly_name() << "] -> [" << trimmed_mask->get_friendly_name()
+                                   << "]" << std::endl;
             sdpa_node->set_argument(3, trimmed_mask->output(0));
             m_trimmed_masks.insert(trimmed_mask->output(0));
         }
 
-        static const auto env_nopos = std::getenv("nopos");
-        static const auto nopos = env_nopos && std::string_view("true") == env_nopos;
         std::string posidname;
         if (pos_idx_output.get_node()) {
             posidname = pos_idx_output.get_node()->get_friendly_name();
-            if (nopos) {
-                posidname += "(remove)";
-            }
         }
-        printf("@@##statelesskv(%s): [%s][%s] %s[%s] len[%s](%s) pos[%s] clen[%s]\n",
-               is_slice_concat ? "SC" : (is_update_split ? "US" : "U"),
-               past_output.get_any_name().c_str(),
-               result_node->get_friendly_name().c_str(),
-               sdpa_node ? "sdpa" : "next",
-               kv_sdpa_node->get_friendly_name().c_str(),
-               seqlen_output.get_node()->get_friendly_name().c_str(),
-               is_present_len ? "present" : "past",
-               posidname.c_str(),
-               cache->present_kv_len.get_node() ? cache->present_kv_len.get_node()->get_friendly_name().c_str() : "");
+        GPU_DEBUG_TRACE_DETAIL << "statelesskv " << (is_slice_concat ? "SC" : (is_update_split ? "US" : "U")) << ": [" << past_output.get_any_name() << "]["
+                               << result_node->get_friendly_name() << "] " << (sdpa_node ? "sdpa" : "next") << ":" << kv_sdpa_node->get_friendly_name()
+                               << " len:" << seqlen_output.get_node()->get_friendly_name() << "(" << (is_present_len ? "present" : "past")
+                               << ") pos:" << posidname
+                               << " clen:" << (cache->present_kv_len.get_node() ? cache->present_kv_len.get_node()->get_friendly_name() : "") << std::endl;
         std::shared_ptr<op::StatelessKV> stateless_kv;
-        if (nopos || !pos_idx_output.get_node()) {
+        if (!pos_idx_output.get_node()) {
             stateless_kv = std::make_shared<op::StatelessKV>(past_output, new_token_output, seqlen_output, target_axis, is_present_len);
         } else {
             stateless_kv = std::make_shared<op::StatelessKV>(past_output, new_token_output, seqlen_output, pos_idx_output, target_axis, is_present_len);
@@ -392,6 +380,10 @@ StatelessKVFusionMatcher::StatelessKVFusionMatcher() {
 
         kv_sdpa_input->replace_source_output(stateless_kv->output(1));
         result_node->input(0).replace_source_output(stateless_kv->output(0));
+        for (auto& input : other_inputs) {
+            // for full static case, need to keep other inputs to use original full shape
+            input.replace_source_output(stateless_kv->output(is_slice_concat || is_update_split ? 1 : 0));
+        }
 
         return true;
     };
