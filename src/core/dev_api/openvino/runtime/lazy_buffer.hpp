@@ -18,8 +18,8 @@ class OPENVINO_API LazyBuffer : public AlignedBuffer {
 public:
     /**
      * @brief Constructs a LazyBuffer which provides a view on a file. The file content is loaded to memory when
-     * get_ptr() is called for the first time after object creation or after hint_evict() is called. The file content is
-     * loaded at aligned addresses, so the actual allocated memory may be larger than the requested byte size.
+     * get_ptr() is called for the first time after object creation. The file content is loaded at aligned addresses,
+     * so the actual allocated memory may be larger than the requested byte size.
      * @param file_path Path to the file to load
      * @param offset Offset in the file to start the view
      * @param byte_size Size of the view in bytes
@@ -42,8 +42,7 @@ public:
     }
 
     /**
-     * @brief Evicts the buffer from memory. After this call, next call to hint_prefetch() will load the file content
-     * again.
+     * @brief No-op by design: once loaded, LazyBuffer keeps file content resident until destroyed.
      */
     void hint_evict() noexcept override;
 

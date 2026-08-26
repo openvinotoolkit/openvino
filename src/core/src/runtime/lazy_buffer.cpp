@@ -91,20 +91,7 @@ void LazyBuffer::hint_prefetch() const {
     }
 }
 
-void LazyBuffer::hint_evict() noexcept {
-    hint_evict(0, m_byte_size);
-}
+void LazyBuffer::hint_evict() noexcept {}
 
-void LazyBuffer::hint_evict(size_t offset, size_t size) noexcept {
-    if (m_loaded.load(std::memory_order_acquire)) {
-        try {
-            std::lock_guard lock{m_loading};
-            if (m_loaded.load(std::memory_order_relaxed)) {
-                util::vm_decommit(m_aligned_buffer, m_byte_size);
-                m_loaded.store(false, std::memory_order_release);
-            }
-        } catch (...) {
-        }
-    }
-}
+void LazyBuffer::hint_evict(size_t offset, size_t size) noexcept {}
 }  // namespace ov
