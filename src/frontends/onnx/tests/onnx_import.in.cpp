@@ -2083,11 +2083,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_resize11_negative_axes) {
     const Shape expected_output_shape{1, 1, 4, 4};
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>({1.0f, 2.0f, 3.0f, 4.0f});
-    test_case.add_expected_output<float>(expected_output_shape,
-                                         {1.0f, 1.0f, 2.0f, 2.0f,
-                                          1.0f, 1.0f, 2.0f, 2.0f,
-                                          3.0f, 3.0f, 4.0f, 4.0f,
-                                          3.0f, 3.0f, 4.0f, 4.0f});
+    test_case.add_expected_output<float>(
+        expected_output_shape,
+        {1.0f, 1.0f, 2.0f, 2.0f, 1.0f, 1.0f, 2.0f, 2.0f, 3.0f, 3.0f, 4.0f, 4.0f, 3.0f, 3.0f, 4.0f, 4.0f});
 
     test_case.run();
 }
