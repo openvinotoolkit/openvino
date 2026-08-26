@@ -1,0 +1,126 @@
+name: LLM accuracy tests
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'Runner on which to run the job. JSON string: either an array of labels (e.g. ''["aks-linux-4-cores-16gb"]'') or an object with group and labels (e.g. ''{"group": "Intel-GPU", "labels": ["self-hosted", "igpu", "Linux"]}'')'
+        type: string
+        required: true
+      image:
+        description: 'Docker image to use for the job'
+        type: string
+        required: true
+      container-options:
+        description: 'Additional docker container options (e.g. GPU device mounts)'
+        type: string
+        required: false
+        default: ''
+      device:
+        description: 'Device filter passed to pytest -k (CPU or GPU)'
+        type: string
+        required: true
+      timeout-minutes:
+        description: 'Job timeout in minutes'
+        type: number
+        required: false
+        default: 90
+      test-suffix:
+        description: 'Suffix appended to artifact name to avoid collisions (e.g. CPU, iGPU, dGPU)'
+        type: string
+        required: true
+      use-pip-proxy:
+        description: 'Whether the runner can reach the internal pip caching proxy (true for cloud AKS runners, false for iGPU/dGPU self-hosted runners)'
+        type: boolean
+        required: true
+
+permissions: read-all
+
+jobs:
+  LLM_Accuracy_Tests:
+    name: LLM accuracy ${{ inputs.device }} tests
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    runs-on: ${{ fromJSON(inputs.runner) }}
+    container:
+      image: ${{ inputs.image }}
+      volumes:
+        - /mnt/caches:/mnt/caches
+        - /opt/home/actions_runner/actions-runner/secrets/:/secrets:ro # HF auth token file (HF_TOKEN_PATH_LIN)
+        - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro
+        - ${{ github.workspace }}:${{ github.workspace }}
+      options: ${{ inputs.container-options }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      INSTALL_DIR: ${{ github.workspace }}/install
+      LLM_TEST_DIR: ${{ github.workspace }}/tests/llm
+      HF_HUB_CACHE: /mnt/caches/huggingface
+      HUGGINGFACE_HUB_CACHE: /mnt/caches/huggingface
+      HF_TOKEN_PATH: /secrets/huggingface/token-secondary
+      NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
+      PIP_CERT: /etc/ssl/certs/ca-certificates.crt
+      REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
+      SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+    steps:
+      - name: Update CA certificates
+        run: update-ca-certificates
+
+      - name: Checkout
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          sparse-checkout: |
+            .github/actions
+            tests/llm
+            tests/constraints.txt
+          sparse-checkout-cone-mode: false
+          submodules: 'false'
+
+      - name: Download OpenVINO artifacts (wheels)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          pattern: 'openvino_{wheels,tokenizers_wheel}'
+          path: ${{ env.INSTALL_DIR }}
+          merge-multiple: true
+
+      - name: Setup Python 3.12
+        uses: ./.github/actions/setup_python
+        with:
+          version: '3.12'
+          pip-cache-path: '/mnt/caches/pip'
+          set-pip-install-path: 'false'
+          self-hosted-runner: true
+          use-pip-proxy: ${{ inputs.use-pip-proxy }}
+
+      - name: Install OpenVINO Python wheels
+        uses: ./.github/actions/install_ov_wheels
+        with:
+          wheels-dir-path: ${{ env.INSTALL_DIR }}
+          wheels-to-install: 'openvino openvino_tokenizers'
+
+      - name: Install LLM accuracy test requirements
+        run: python3 -m pip install -r ${LLM_TEST_DIR}/requirements.txt
+
+      - name: LLM accuracy ${{ inputs.device }} tests
+        env:
+          DEVICE: ${{ inputs.device }}
+        run: |
+          python3 -m pytest ${LLM_TEST_DIR}/accuracy_conformance.py \
+            -k "$DEVICE" \
+            --tb native \
+            --log-level INFO \
+            --log-cli-level ERROR \
+            --junitxml=${LLM_TEST_DIR}/llm_accuracy.xml \
+            --html=${LLM_TEST_DIR}/llm_accuracy.html \
+            --self-contained-html
+
+      - name: Upload LLM accuracy test results
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        if: always()
+        with:
+          name: test-results-llm-accuracy-${{ inputs.test-suffix }}
+          path: |
+            ${{ env.LLM_TEST_DIR }}/llm_accuracy.xml
+            ${{ env.LLM_TEST_DIR }}/llm_accuracy.html
+          if-no-files-found: 'ignore'
