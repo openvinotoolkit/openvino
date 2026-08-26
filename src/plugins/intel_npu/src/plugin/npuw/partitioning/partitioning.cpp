@@ -1836,12 +1836,18 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
                 funcall._lazy_closure.push_back(put_to_closure(input_node));  // (n)/1/i/c
             } else if (ov::op::util::is_constant(input_node) &&
                        input_node->get_rt_info().count(ov::npuw::weights::op::Sub128::rt_key) > 0) {
-                // A Sub128-marked Constant landed in consts_to_keep and stays inline
-                // in the function body - the shift would be silently skipped there,
-                // producing wrong numerics. Fail loudly instead.
-                OPENVINO_THROW("NPUW: Sub128-marked Constant ",
-                               input_node->get_friendly_name(),
-                               " is kept in the function body and won't be transformed");
+                // A Sub128-marked Constant landed in consts_to_keep and stays inline in the
+                // function body, so the shift can't be deferred to closure unpacking here -
+                // bake it into a literal Constant right now instead.
+                LOG_DEBUG("Sub128 marker found on preserved inline Constant "
+                          << input_node->get_friendly_name() << " - materializing the shift now");
+                auto const_node = std::static_pointer_cast<ov::op::v0::Constant>(input_node);
+                const auto shifted = LazyTensor(const_node).sub128().eval();
+                auto new_const =
+                    std::make_shared<ov::op::v0::Constant>(shifted.get_element_type(), shifted.get_shape(), shifted.data());
+                new_const->set_friendly_name(const_node->get_friendly_name());
+                input_desc.replace_source_output(new_const);
+                func_ggg.consts_to_keep.insert(new_const);
             } else if (ov::op::util::is_parameter(input_node)) {
                 LOG_DEBUG("Handling a Parameter input " << prod_output);
                 LOG_BLOCK();

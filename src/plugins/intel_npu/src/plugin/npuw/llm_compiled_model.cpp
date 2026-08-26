@@ -1027,7 +1027,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     ov::npuw::ReplaceDeepstackScatterWithAdd().run_on_model(kvcache_model);
 
-    if (m_cfg.get<::intel_npu::NPUW_LLM_ASYM_VOCAB_AS_INPUT>()) {
+    if (m_cfg.get<::intel_npu::NPUW_LLM_ASYM_I8_VOCAB_AS_INPUT>()) {
         if (!convert_vocab_to_i8(kvcache_model)) {
             LOG_INFO("No asymmetric u8 vocab found - i8 vocab conversion is skipped.");
         }
@@ -1416,7 +1416,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         apply_weights_bank_name(lm_head_config, weights_bank_name);
 
         // Host gather can't serve the vocab which is passed to the LM head as an input.
-            if (m_cfg.get<::intel_npu::NPUW_LLM_ASYM_VOCAB_AS_INPUT>()) {
+        if (m_cfg.get<::intel_npu::NPUW_LLM_ASYM_VOCAB_AS_INPUT>()) {
             lm_head_config["NPUW_HOST_GATHER"] = "NO";
         }
         m_lm_head_compiled = m_compiled_model_factory(lm_head_model, plugin, lm_head_config);
