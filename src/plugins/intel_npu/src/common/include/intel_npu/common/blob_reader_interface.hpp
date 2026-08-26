@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "blob_source.hpp"
+#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/isection_type_evaluator.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 
@@ -22,7 +23,7 @@ public:
                         const size_t npu_region_size,
                         const size_t section_start,
                         const size_t section_length,
-                        const ov::log::Level log_level = ov::log::Level::WARNING);
+                        const FilteredConfig& config);
 
     /**
      * @brief Reads data from the compiled model source and copies it to the given destination. Also the read cursor is
@@ -55,6 +56,8 @@ public:
 
     size_t get_section_length() const;
 
+    FilteredConfig get_config() const;
+
     ov::log::Level get_log_level() const;
 
 private:
@@ -64,6 +67,7 @@ private:
     size_t m_section_start;
     size_t m_section_end;
 
+    FilteredConfig m_config;
     Logger m_logger;
 };
 

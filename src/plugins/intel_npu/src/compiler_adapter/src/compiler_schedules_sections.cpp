@@ -7,6 +7,7 @@
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/itt.hpp"
+#include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 
 namespace {
@@ -53,6 +54,14 @@ void decrypt_payload(ov::Tensor& payload, const ov::EncryptionCallbacks& encrypt
         std::memset(payload.data<char>() + decryptedBlobStr.size(), 0, paddingSize);
     }
 }  // -1x blob size when deallocating decrypted blob string
+
+std::optional<ov::EncryptionCallbacks> get_encryption_callbacks_from_config(const FilteredConfig& config) {
+    if (config.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
+        config.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
+        return config.get<CACHE_ENCRYPTION_CALLBACKS>();
+    }
+    return std::nullopt;
+}
 
 }  // namespace
 
@@ -160,9 +169,9 @@ std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob
         logger.info(NEW_PAGE_ALIGNED_BUFFER_MESSAGE.data(), main_schedule_size);
         return std::make_shared<ELFMainScheduleSection>(std::move(main_schedule), logger.level());
     }
-
+    // TODO on import path, must be able to retrieve the encryption callback from config
     return std::make_shared<ELFMainScheduleSection>(blob_reader.create_roi_tensor(main_schedule_size),
-                                                    std::nullopt,
+                                                    get_encryption_callbacks_from_config(blob_reader.get_config()),
                                                     logger.level());
 }
 
@@ -319,7 +328,9 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
         init_schedules.push_back(std::move(init_schedule));
     }
 
-    return std::make_shared<ELFInitSchedulesSection>(std::move(init_schedules), std::nullopt, logger.level());
+    return std::make_shared<ELFInitSchedulesSection>(std::move(init_schedules),
+                                                     get_encryption_callbacks_from_config(blob_reader.get_config()),
+                                                     logger.level());
 }
 
 DynamicScheduleSection::DynamicScheduleSection(const std::shared_ptr<DynamicGraph>& graph,
@@ -364,9 +375,10 @@ std::shared_ptr<ISection> DynamicScheduleSection::read(BlobReaderInterface& blob
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "DynamicScheduleSection::read");
     // TODO more logs
 
-    return std::make_shared<DynamicScheduleSection>(ELFMainScheduleSection::read(blob_reader),
-                                                    std::nullopt,
-                                                    blob_reader.get_log_level());
+    return std::make_shared<DynamicScheduleSection>(
+        std::dynamic_pointer_cast<ELFMainScheduleSection>(ELFMainScheduleSection::read(blob_reader))->get_schedule(),
+        get_encryption_callbacks_from_config(blob_reader.get_config()),
+        blob_reader.get_log_level());
 }
 
 }  // namespace intel_npu

@@ -13,6 +13,7 @@
 #include "blob_source.hpp"
 #include "cre.hpp"
 #include "intel_npu/common/blob_reader_interface.hpp"
+#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/isection_type_evaluator.hpp"
 #include "intel_npu/common/offsets_table.hpp"
 #include "intel_npu/common/section_type_instance_evaluator.hpp"
@@ -40,7 +41,7 @@ public:
     /**
      * @brief Constructs a BlobReader, associating it with the given compiled model source.
      */
-    BlobReader(const ov::log::Level log_level = ov::log::Level::WARNING);
+    BlobReader(const FilteredConfig& config);
 
     /**
      * @brief Parses the given compiled model using all section readers registered so far.
@@ -130,6 +131,7 @@ private:
     std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> m_section_type_evaluators;
     std::unordered_map<SectionType, std::function<bool(BlobReaderInterface&)>> m_section_instance_evaluate_fn;
 
+    FilteredConfig m_config;
     Logger m_logger;
 };
 

@@ -411,7 +411,7 @@ public:
                                   const std::shared_ptr<const ov::Model>& original_model,
                                   const FilteredConfig& config)
         : IBlobFormatImporter(original_model, config, Logger("BlobFormatV2Importer", config.get<LOG_LEVEL>())),
-          m_blob_reader(m_logger.level()) {
+          m_blob_reader(config) {
         register_known_sections();
 
         m_blob_reader.read(npu_formatted_blob);

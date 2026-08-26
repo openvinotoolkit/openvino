@@ -4,6 +4,8 @@
 
 #include "intel_npu/common/blob_reader_interface.hpp"
 
+#include "intel_npu/config/options.hpp"
+
 namespace intel_npu {
 
 BlobReaderInterface::BlobReaderInterface(BlobSource& source,
@@ -11,12 +13,13 @@ BlobReaderInterface::BlobReaderInterface(BlobSource& source,
                                          const size_t npu_region_size,
                                          const size_t section_start,
                                          const size_t section_length,
-                                         const ov::log::Level log_level)
+                                         const FilteredConfig& config)
     : m_source(source),
       m_npu_region_start(npu_region_start),
       m_section_start(section_start),
       m_section_end(section_start + section_length),
-      m_logger("BlobReaderInterface", log_level) {
+      m_config(config),
+      m_logger("BlobReaderInterface", config.get<LOG_LEVEL>()) {
     OPENVINO_ASSERT(section_start <= m_section_end, "Integer overflow while computing the end boundary of a section");
     OPENVINO_ASSERT(npu_region_start <= npu_region_start + npu_region_size,
                     "Integer overflow while computing the end boundary of the NPU blob region");
@@ -82,6 +85,10 @@ bool BlobReaderInterface::source_is_contiguous() const {
 
 size_t BlobReaderInterface::get_section_length() const {
     return m_section_end - m_section_start;
+}
+
+FilteredConfig BlobReaderInterface::get_config() const {
+    return m_config;
 }
 
 ov::log::Level BlobReaderInterface::get_log_level() const {

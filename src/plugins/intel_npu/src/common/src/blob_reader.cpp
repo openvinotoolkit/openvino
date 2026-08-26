@@ -6,6 +6,7 @@
 
 #include "intel_npu/common/cre_section.hpp"
 #include "intel_npu/common/itt.hpp"
+#include "intel_npu/config/options.hpp"
 
 namespace {
 
@@ -35,7 +36,9 @@ void seekg_with_bound_checking(intel_npu::BlobSource& source,
 
 namespace intel_npu {
 
-BlobReader::BlobReader(const ov::log::Level log_level) : m_logger("BlobReader", log_level) {
+BlobReader::BlobReader(const FilteredConfig& config)
+    : m_config(config),
+      m_logger("BlobReader", config.get<LOG_LEVEL>()) {
     // Register the core sections
     register_reader(PredefinedSectionType::CRE, CRESection::read);
     register_reader(PredefinedSectionType::OFFSETS_TABLE, OffsetsTableSection::read);
@@ -96,7 +99,7 @@ std::unordered_map<SectionID, SectionInstanceEvaluator> BlobReader::build_sectio
                                    npu_region_size,
                                    offsets_table.lookup_offset(section_id).value(),
                                    offsets_table.lookup_length(section_id).value(),
-                                   m_logger.level());
+                                   m_config);
 
         // Do not create any evaluator if no function has been provided. The CRE code will treat such cases as supported
         // by default
@@ -116,12 +119,7 @@ void BlobReader::parse_section(const SectionID section_id,
                                const size_t npu_region_start,
                                const size_t npu_region_size,
                                const bool include_in_sections_order) {
-    BlobReaderInterface interface(source,
-                                  npu_region_start,
-                                  npu_region_size,
-                                  source.tellg(),
-                                  section_length,
-                                  m_logger.level());
+    BlobReaderInterface interface(source, npu_region_start, npu_region_size, source.tellg(), section_length, m_config);
 
     m_parsed_sections[section_id.type][section_id.type_instance] = m_readers.at(section_id.type)(interface);
     m_parsed_sections[section_id.type][section_id.type_instance]->set_section_type_instance(section_id.type_instance);
