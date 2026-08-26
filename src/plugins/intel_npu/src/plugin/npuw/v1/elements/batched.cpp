@@ -8,7 +8,6 @@
 #include <memory>
 #include <utility>
 
-#include "../../llm_compiled_model.hpp"
 #include "../../llm_lora_states.hpp"
 #include "../../logging.hpp"
 #include "../../serialization.hpp"
@@ -77,7 +76,9 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::batched::CompiledModel::impo
     ov::npuw::s11n::read(stream, tags.text_rerank);
     ov::npuw::s11n::read(stream, tags.text_embed);
 
-    auto inner = ov::npuw::LLMCompiledModel::import_model(stream, plugin, properties);
+    // The inner blob carries its own indicator header - the common NPUW dispatch
+    // picks the right implementation, so the wrapper stays agnostic of what it wraps.
+    auto inner = ov::npuw::ICompiledModel::import_model(stream, plugin, properties);
     return std::make_shared<CompiledModel>(inner, plugin, tags);
 }
 

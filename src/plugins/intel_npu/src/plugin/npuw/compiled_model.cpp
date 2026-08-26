@@ -346,6 +346,42 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     return compiled_model;
 }
 
+std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::import_model(
+    std::istream& stream,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& properties) {
+    LOG_INFO("Choosing which NPUW CompiledModel to import");
+    LOG_BLOCK();
+
+    const auto stream_start_pos = stream.tellg();
+    ov::npuw::s11n::IndicatorType serialization_indicator;
+    OPENVINO_ASSERT(
+        ov::npuw::orc::try_read_bytes(stream, serialization_indicator.data(), serialization_indicator.size()) &&
+            serialization_indicator == NPUW_SERIALIZATION_INDICATOR,
+        "Couldn't deserialize NPUW blob - no NPUW serialization indicator found!");
+    ov::npuw::s11n::IndicatorType compiled_model_indicator;
+    OPENVINO_ASSERT(
+        ov::npuw::orc::try_read_bytes(stream, compiled_model_indicator.data(), compiled_model_indicator.size()),
+        "Couldn't deserialize NPUW blob - no compiled model indicator found!");
+    stream.clear();
+    stream.seekg(stream_start_pos);
+
+    if (compiled_model_indicator == NPUW_FLUX2_COMPILED_MODEL_INDICATOR) {
+        return ov::npuw::Flux2CompiledModel::import_model(stream, plugin, properties);
+    } else if (compiled_model_indicator == NPUW_GQA_COMPILED_MODEL_INDICATOR) {
+        return ov::npuw::GQACompiledModel::import_model(stream, plugin, properties);
+    } else if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
+        // Properties are required for ov::weights_path
+        return ov::npuw::LLMCompiledModel::import_model(stream, plugin, properties);
+    } else if (compiled_model_indicator == NPUW_BATCHED_COMPILED_MODEL_INDICATOR) {
+        return ov::npuw::batched::CompiledModel::import_model(stream, plugin, properties);
+    } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
+        OPENVINO_THROW("Legacy flat NPUW CompiledModel blobs are no longer supported. Re-export the model with "
+                       "the current ORC serializer.");
+    }
+    OPENVINO_THROW("Couldn't deserialize NPUW blob - fatal error!");
+}
+
 ov::npuw::ICompiledModel::ICompiledModel(const std::shared_ptr<ov::Model>& model,
                                          const std::shared_ptr<const ov::IPlugin>& plugin)
     : ov::ICompiledModel(model, plugin) {}
