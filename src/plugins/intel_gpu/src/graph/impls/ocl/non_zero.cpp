@@ -27,7 +27,7 @@ struct count_nonzero_impl : typed_primitive_impl_ocl<count_nonzero> {
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
+        if (is_dynamic() && !_kernel_data.kernelName.empty()) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
@@ -38,9 +38,8 @@ struct count_nonzero_impl : typed_primitive_impl_ocl<count_nonzero> {
         if (instance.get_impl_params()->input_layouts[0].count() == 0) {
             // set count of non-zero elements to 0 in case if input tensor is empty to have correct memory alloc for gather_nonzero
             return instance.output_memory(0).fill(instance.get_network().get_stream());
-        } else {
-            return parent::execute_impl(events, instance);
         }
+        return parent::execute_impl(events, instance);
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
@@ -72,7 +71,7 @@ struct gather_nonzero_impl : typed_primitive_impl_ocl<gather_nonzero> {
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
+        if (is_dynamic() && !_kernel_data.kernelName.empty()) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);

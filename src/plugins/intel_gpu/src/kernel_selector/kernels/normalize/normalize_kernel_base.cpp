@@ -79,7 +79,7 @@ KernelsData NormalizeKernelBase::GetCommonKernelsData(const Params& params) cons
 bool NormalizeKernelBase::Validate(const Params& params) const {
     const normalize_params& orgParams = static_cast<const normalize_params&>(params);
 
-    for (auto& fused_op : orgParams.fused_ops) {
+    for (const auto& fused_op : orgParams.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
             DO_NOT_USE_THIS_KERNEL(params.layerID);
     }

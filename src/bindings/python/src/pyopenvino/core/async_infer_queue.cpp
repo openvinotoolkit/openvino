@@ -1,5 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include "pyopenvino/core/async_infer_queue.hpp"
 
@@ -41,7 +42,13 @@ public:
     }
 
     ~AsyncInferQueue() {
-        m_requests.clear();
+        try {
+            // Release the GIL before destroying requests. m_requests.clear() triggers a C++ destructor chain that
+            // eventually joins plugin executor threads (via CoreImpl dtor).
+            py::gil_scoped_release release;
+            m_requests.clear();
+        } catch (...) {
+        }
     }
 
     bool _is_ready() {

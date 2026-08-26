@@ -22,7 +22,7 @@ public:
     ExperimentalDetectronGenerateProposalsSingleImageRef()
     : KernelBaseOpenCL("experimental_detectron_generate_proposals_single_image_ref") {}
 
-    ~ExperimentalDetectronGenerateProposalsSingleImageRef() = default;
+    ~ExperimentalDetectronGenerateProposalsSingleImageRef() override = default;
 
     using DispatchData = CommonDispatchData;
 

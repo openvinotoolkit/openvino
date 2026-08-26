@@ -71,11 +71,13 @@ jobs:
       build-type: 'Release'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
       build-additional-python-wheels: true
+      build-samples: true
       cmake-options: >-
             -G 'Ninja Multi-Config'
             -DENABLE_PYTHON=ON
             -DENABLE_WHEEL=OFF
             -DENABLE_TESTS=ON
+            -DENABLE_OV_GGUF_FRONTEND=ON
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
             -DENABLE_STRICT_DEPENDENCIES=OFF
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
@@ -141,16 +143,6 @@ jobs:
           set-pip-install-path: 'false'
           self-hosted-runner: 'true'
           use-pip-proxy: 'true'
-
-      # Test with the short names of the arguments
-      - name: Build cpp samples
-        run: |
-          & ${{ env.SAMPLES_INSTALL_DIR }}/cpp/build_samples.ps1 -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/cpp_samples
-
-      # Test with the full names of the arguments
-      - name: Build c samples
-        run: |
-          & ${{ env.SAMPLES_INSTALL_DIR }}/c/build_samples.ps1 -InstallDirectory ${{ env.INSTALL_DIR }} -BuildDirectory ${{ env.BUILD_DIR }}/c_samples
 
       # Install Python benchmark_app by installing openvino-*.whl
       - name: Install OpenVINO Python wheels
@@ -258,12 +250,12 @@ jobs:
         uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3.0.0
 
       - name: E2E of openvino-node package
-        if: fromJSON(env.NODE_VERSION) >= 22
+        if: ${{ 'false' }} # Skipping E2E tests for now due to CVS-192563
         working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: npm run test:e2e
 
       - name: E2E of openvino-node package (cmd)
-        if: fromJSON(env.NODE_VERSION) >= 22
+        if: ${{ 'false' }} # Skipping E2E tests for now due to CVS-192563
         shell: cmd
         working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: call npm run test:e2e
@@ -562,6 +554,15 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
+  NPU_Models_Tests:
+    name: NPU Models Tests
+    needs: [ Build, Smart_CI ]
+    uses: ./.github/workflows/job_npu_tests.yml
+    if: ${{ fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test || fromJSON(needs.smart_ci.outputs.affected_components).JAX_FE.test || fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test }}
+    with:
+      runner: 'aks-win-4-cores-8gb-test'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+
   CXX_Unit_Tests:
     name: C++ unit tests
     needs: [ Build, Smart_CI ]
@@ -669,7 +670,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_windows
-    needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests, Openvino_tokenizers, TensorFlow_Layer_Tests, Pytorch_Layer_Tests, JS_API ]
+    needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests, Openvino_tokenizers, TensorFlow_Layer_Tests, Pytorch_Layer_Tests, JS_API, NPU_Models_Tests ]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

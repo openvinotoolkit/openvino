@@ -1,4 +1,4 @@
-// Copyright (C) 2025-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/convolution.hpp>
+#include <intel_gpu/primitives/crop.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 
 #include <algorithm>
@@ -15,6 +16,7 @@
 #include <cmath>
 #include <iostream>
 #include <iomanip>
+#include <limits>
 #include <thread>
 #include <type_traits>
 #include <fstream>
