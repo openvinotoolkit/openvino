@@ -51,8 +51,7 @@ set(HEADERS
 )
 
 # create library
-add_library(${TARGET_NAME} ${LEGACY_HEADERS})
-target_sources(${TARGET_NAME} PRIVATE ${HEADERS} ${SOURCES})
+add_library(${TARGET_NAME} ${HEADERS} ${SOURCES})
 add_library(openvino::runtime::c ALIAS ${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino openvino::util)
