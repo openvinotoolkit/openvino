@@ -33,7 +33,8 @@ Shortcut for: run_agent.py enable-operator <context-file>
 """
 
 import os
-import subprocess
+# Thin wrapper: re-execs run_agent.py via sys.executable and a fixed script path (no shell).
+import subprocess  # nosec B404
 import sys
 
 
