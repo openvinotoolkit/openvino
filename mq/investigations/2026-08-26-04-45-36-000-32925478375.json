@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-26-04-45-36-000-32925478375",
+  "timestamp": "2026-08-26T04:45:36Z",
+  "run_id": "32925478375",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32925478375",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37559",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37559",
+  "author": "allnes",
+  "category": "Flaky Test",
+  "title": "NPU Models Tests - TensorFlow compile-only convert_model step fails on Windows runner",
+  "signature": "tf models tests npu compile only convert model step failed|Flaky Test",
+  "signature_hash": "2abe56c58c994e45",
+  "confidence": "High",
+  "failed_jobs": [
+    "NPU Models Tests / 4000",
+    "NPU Models Tests / 3720",
+    "NPU Models Tests / 5020"
+  ],
+  "key_errors": [
+    "TensorFlow Models Tests - NPU compile-only (convert_model) step failed (all three NPU platform variants: 3720, 4000, 5020)"
+  ],
+  "root_cause": "The 'TensorFlow Models Tests - NPU compile-only (convert_model)' step failed on all three NPU runners. This is a known flaky pattern (signature hash 2abe56c58c994e45, occurrence 3) that has been observed since 2026-08-19 on Windows NPU test runners. The failure is unrelated to the GPU-focused PR #37559 (SelectiveSSM JIT kernels). The PyTorch model hub tests (run after the TF tests in the same job) passed successfully with 4 passed/7 skipped. The TF convert_model failure appears to be a transient infrastructure issue on the Windows NPU test runners.",
+  "reproduction_steps": "Run TensorFlow Models Tests NPU compile-only (convert_model) on Windows NPU runner platforms 3720, 4000, 5020.",
+  "recommended_actions": [
+    "Re-run the failed jobs to confirm the transient nature of the failure.",
+    "Investigate if a specific TF model or conversion step is intermittently failing.",
+    "Consider adding retry logic to the TF NPU compile-only test step."
+  ],
+  "prevention_strategies": "This is a recurring flaky test pattern on Windows NPU runners. Consider adding retry logic for the TF convert_model step or investigating root cause of intermittent failures.",
+  "historical_context": "This same pattern has been observed 3 times total since 2026-08-19: runs 32266833204, 32797618628, and now 32925478375. Affects multiple unrelated PRs, confirming it is infrastructure/test-side flakiness."
+}
