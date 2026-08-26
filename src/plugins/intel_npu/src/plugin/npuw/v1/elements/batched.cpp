@@ -51,17 +51,17 @@ const std::vector<ov::Output<const ov::Node>>& ov::npuw::batched::CompiledModel:
     return m_inner->outputs();
 }
 
-void ov::npuw::batched::CompiledModel::export_model(std::ostream& model) const {
+void ov::npuw::batched::CompiledModel::export_model(std::ostream& stream) const {
     // The wrap is part of the blob. A batched header goes first, the complete inner
     // blob follows with its own header, and import reconstructs the wrapper from the
     // header alone.
     // The inner blob checks its own versions, but the wrapper header needs a
     // version of its own in case its format ever changes.
-    ov::npuw::s11n::write_header(model, NPUW_BATCHED_COMPILED_MODEL_INDICATOR);
+    ov::npuw::s11n::write_header(stream, NPUW_BATCHED_COMPILED_MODEL_INDICATOR);
     // The scoring tags are wrapper state, so they ride the wrapper's own header.
-    ov::npuw::s11n::write(model, m_tags.text_rerank);
-    ov::npuw::s11n::write(model, m_tags.text_embed);
-    m_inner->export_model(model);
+    ov::npuw::s11n::write(stream, m_tags.text_rerank);
+    ov::npuw::s11n::write(stream, m_tags.text_embed);
+    m_inner->export_model(stream);
 }
 
 std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::batched::CompiledModel::import_model(
@@ -138,6 +138,11 @@ ov::npuw::batched::InferRequest::BatchedInputs ov::npuw::batched::InferRequest::
     const auto& in_ports = get_inputs();
     OPENVINO_ASSERT(!in_ports.empty(), "Batched element: the wrapped model has no inputs");
 
+    // The batch contract: every input's leading dimension is either the batch size
+    // N (the input carries per-row data, sliced by infer()) or exactly 1 (the input
+    // is broadcast, bound whole to every row). N is whatever the batched inputs
+    // agree on - two inputs with different leading dimensions > 1 are an error -
+    // and with every input at 1 the infer is a plain batch-1 one.
     BatchedInputs inputs;
     inputs.tensors.reserve(in_ports.size());
     for (const auto& port : in_ports) {
@@ -152,19 +157,18 @@ ov::npuw::batched::InferRequest::BatchedInputs ov::npuw::batched::InferRequest::
                         "Batched element: input '",
                         port.get_any_name(),
                         "' has a zero-sized batch dimension - batch size must be > 0");
-        inputs.batch = std::max(inputs.batch, shape[0]);
+        if (shape[0] > 1) {
+            OPENVINO_ASSERT(inputs.batch == 1 || inputs.batch == shape[0],
+                            "Batched element: input '",
+                            port.get_any_name(),
+                            "' has batch dimension ",
+                            shape[0],
+                            " which is neither the inferred batch size ",
+                            inputs.batch,
+                            " nor 1 (broadcast).");
+            inputs.batch = shape[0];
+        }
         inputs.tensors.push_back(std::move(tensor));
-    }
-    for (std::size_t i = 0; i < in_ports.size(); ++i) {
-        const std::size_t in_batch = inputs.tensors[i]->get_shape()[0];
-        OPENVINO_ASSERT(in_batch == inputs.batch || in_batch == 1,
-                        "Batched element: input '",
-                        in_ports[i].get_any_name(),
-                        "' has batch dimension ",
-                        in_batch,
-                        " which is neither the inferred batch size ",
-                        inputs.batch,
-                        " nor 1 (shared).");
     }
     return inputs;
 }
