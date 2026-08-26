@@ -8,6 +8,7 @@
 #include <sstream>
 
 #include "exceptions.hpp"
+#include "openvino/core/deprecated.hpp"
 #include "openvino/runtime/lazy_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
@@ -102,7 +103,9 @@ Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::file
                                                                                       read_data);
     };
     const auto get_lazy_buffer = [&]() {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto lazy = std::make_shared<LazyBuffer>(full_path, m_offset, read_data_length);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         return std::make_shared<SharedBuffer<std::shared_ptr<AlignedBuffer>>>(
             static_cast<char*>(lazy->get_reserved_ptr()),
             lazy->size(),

@@ -9,12 +9,14 @@
 #include <memory>
 #include <mutex>
 
+#include "openvino/core/deprecated.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 
 namespace ov {
 
 /** \brief LazyBuffer is lazy loaded AlignedBuffer which provides a view on a file w/o memory mapping. */
-class OPENVINO_API LazyBuffer : public AlignedBuffer {
+class OPENVINO_API OPENVINO_DEPRECATED("LazyBuffer is deprecated and will be removed in 2026.5 release") LazyBuffer
+    : public AlignedBuffer {
 public:
     /**
      * @brief Constructs a LazyBuffer which provides a view on a file. The file content is loaded to memory when

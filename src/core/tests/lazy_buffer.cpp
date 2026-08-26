@@ -11,10 +11,12 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
+#include "openvino/core/deprecated.hpp"
 
 using namespace testing;
 
 namespace ov::test {
+OPENVINO_SUPPRESS_DEPRECATED_START
 class LazyBufferTest : public Test {
 protected:
     std::filesystem::path m_file_path;
@@ -133,4 +135,5 @@ TEST_F(LazyBufferTest, hint_evict_is_noop) {
     ASSERT_EQ(second_ptr, first_ptr);
     EXPECT_THAT(first_rewrite, ElementsAreArray(second_ptr, size));
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace ov::test
