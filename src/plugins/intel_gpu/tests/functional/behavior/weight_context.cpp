@@ -23,6 +23,7 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/memory.hpp"
 #include "openvino/util/mmap_object.hpp"
 
 std::tuple<std::shared_ptr<ov::Model>, size_t> makeModelWithWeights(size_t elem_count) {
@@ -58,14 +59,10 @@ std::tuple<std::shared_ptr<ov::weight_sharing::Context>, std::shared_ptr<::ov::S
     size_t alignment,
     std::function<size_t()> source_id_generator,
     size_t skew_constant_alignment = 0) {
-    auto align_bytes = [](size_t bytes, size_t alignment) {
-        return ((bytes + alignment - 1) / alignment) * alignment;
-    };
-
     // Allocate a single shared buffer for all constants, with padding to the specified alignment.
     size_t source_buffer_size = 0;
     for (const auto& constant : constants) {
-        source_buffer_size += align_bytes(constant->get_byte_size(), alignment) + skew_constant_alignment;
+        source_buffer_size += ov::util::align_size_up(constant->get_byte_size(), alignment) + skew_constant_alignment;
     }
 
     const size_t source_id = source_id_generator();
@@ -87,7 +84,7 @@ std::tuple<std::shared_ptr<ov::weight_sharing::Context>, std::shared_ptr<::ov::S
                                                                                                                constant->get_byte_size(),
                                                                                                                source_buffer,
                                                                                                                const_descriptor);
-        constant_id += align_bytes(constant->get_byte_size(), alignment) + skew_constant_alignment;
+        constant_id += ov::util::align_size_up(constant->get_byte_size(), alignment) + skew_constant_alignment;
         auto shared_constant = std::make_shared<ov::op::v0::Constant>(constant->get_element_type(), constant->get_shape(), constant_shared_buffer);
         shared_constant->set_friendly_name(constant->get_friendly_name());
         std::memcpy(constant_shared_buffer->get_ptr(), constant->get_data_ptr(), constant->get_byte_size());

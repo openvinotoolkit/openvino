@@ -50,6 +50,7 @@
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/util/memory.hpp"
 #include "partitioning/patterns/fold_const.hpp"
 #include "partitioning/patterns/moe.hpp"
 #include "partitioning/patterns/pre_compute.hpp"
@@ -857,11 +858,8 @@ void ov::npuw::LLMCompiledModel::assign_shared_weight_to_model_if_possible(
     auto constant_to_share = collect_weights_to_share(model, is_constant_shareable);
     LOG_INFO("[NPUW] SHARED_WEIGHTS: collected constants to share: " << constant_to_share.size());
 
-    auto align_bytes = [](size_t bytes, size_t alignment) {
-        return ((bytes + alignment - 1) / alignment) * alignment;
-    };
-    auto align_page_size = [kMinRelocateBytes, align_bytes](const ov::op::v0::Constant& constant) {
-        return align_bytes(constant.get_byte_size(), kMinRelocateBytes);
+    auto align_page_size = [kMinRelocateBytes](const ov::op::v0::Constant& constant) {
+        return ov::util::align_size_up(constant.get_byte_size(), kMinRelocateBytes);
     };
     auto partitioned_constants =
         partition_constants_by_size(std::move(constant_to_share), single_weigh_shared_source_size_max, align_page_size);
