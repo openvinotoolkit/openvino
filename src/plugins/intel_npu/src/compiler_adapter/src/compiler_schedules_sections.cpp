@@ -161,7 +161,9 @@ std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob
         return std::make_shared<ELFMainScheduleSection>(std::move(main_schedule), logger.level());
     }
 
-    return std::make_shared<ELFMainScheduleSection>(blob_reader.create_roi_tensor(main_schedule_size), logger.level());
+    return std::make_shared<ELFMainScheduleSection>(blob_reader.create_roi_tensor(main_schedule_size),
+                                                    std::nullopt,
+                                                    logger.level());
 }
 
 ELFInitSchedulesSection::ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph,
@@ -317,7 +319,54 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
         init_schedules.push_back(std::move(init_schedule));
     }
 
-    return std::make_shared<ELFInitSchedulesSection>(std::move(init_schedules), logger.level());
+    return std::make_shared<ELFInitSchedulesSection>(std::move(init_schedules), std::nullopt, logger.level());
+}
+
+DynamicScheduleSection::DynamicScheduleSection(const std::shared_ptr<DynamicGraph>& graph,
+                                               const std::optional<ov::EncryptionCallbacks>& encryption_callbacks,
+                                               const ov::log::Level log_level)
+    : ISection(PredefinedSectionType::DYNAMIC_SCHEDULE),
+      m_impl(std::dynamic_pointer_cast<Graph>(graph), encryption_callbacks, log_level),
+      m_logger("DynamicScheduleSection", log_level) {}
+
+DynamicScheduleSection::DynamicScheduleSection(ov::Tensor&& main_schedule,
+                                               const std::optional<ov::EncryptionCallbacks>& encryption_callbacks,
+                                               const ov::log::Level log_level)
+    : ISection(PredefinedSectionType::DYNAMIC_SCHEDULE),
+      m_impl(std::move(main_schedule), encryption_callbacks, log_level),
+      m_logger("DynamicScheduleSection", log_level) {}
+
+std::vector<CREToken> DynamicScheduleSection::get_compatibility_requirements_subexpression(
+    const std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>&
+    /*all_registered_sections*/) const {
+    m_logger.debug("Added the DYNAMIC_SCHEDULE section type to the CRE");
+    return {get_section_type()};
+}
+
+void DynamicScheduleSection::write(BlobWriterInterface& writer) {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "DynamicScheduleSection::write");
+    m_impl.write(writer);
+}
+
+void DynamicScheduleSection::set_graph(const std::shared_ptr<DynamicGraph>& graph) {
+    m_impl.set_graph(std::dynamic_pointer_cast<Graph>(graph));
+}
+
+ov::Tensor DynamicScheduleSection::get_schedule() const {
+    return m_impl.get_schedule();
+}
+
+void DynamicScheduleSection::decrypt(const ov::EncryptionCallbacks& encryption_callbacks) {
+    m_impl.decrypt(encryption_callbacks);
+}
+
+std::shared_ptr<ISection> DynamicScheduleSection::read(BlobReaderInterface& blob_reader) {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "DynamicScheduleSection::read");
+    // TODO more logs
+
+    return std::make_shared<DynamicScheduleSection>(ELFMainScheduleSection::read(blob_reader),
+                                                    std::nullopt,
+                                                    blob_reader.get_log_level());
 }
 
 }  // namespace intel_npu

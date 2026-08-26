@@ -6,6 +6,8 @@
 
 #include <optional>
 
+#include "dynamic_graph.hpp"
+#include "graph.hpp"
 #include "intel_npu/common/isection.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "weightless_graph.hpp"
@@ -76,6 +78,39 @@ public:
 private:
     std::variant<std::shared_ptr<WeightlessGraph>, std::vector<ov::Tensor>> m_graph_or_schedules;
     std::optional<ov::EncryptionCallbacks> m_encryption_callbacks;
+
+    Logger m_logger;
+};
+
+class DynamicScheduleSection final : public ISection {
+public:
+    DynamicScheduleSection(const std::shared_ptr<DynamicGraph>& graph,
+                           const std::optional<ov::EncryptionCallbacks>& encryption_callbacks = std::nullopt,
+                           const ov::log::Level log_level = ov::log::Level::WARNING);
+
+    DynamicScheduleSection(ov::Tensor&& main_schedule,
+                           const std::optional<ov::EncryptionCallbacks>& encryption_callbacks = std::nullopt,
+                           const ov::log::Level log_level = ov::log::Level::WARNING);
+
+    std::vector<CREToken> get_compatibility_requirements_subexpression(
+        const std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>&
+            all_registered_sections) const override;
+
+    /**
+     * @note The compiler payload is encrypted before writing if an encryption callback is available.
+     */
+    void write(BlobWriterInterface& writer) override;
+
+    void set_graph(const std::shared_ptr<DynamicGraph>& graph);
+
+    ov::Tensor get_schedule() const;
+
+    static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
+
+    void decrypt(const ov::EncryptionCallbacks& encryption_callbacks);
+
+private:
+    ELFMainScheduleSection m_impl;
 
     Logger m_logger;
 };
