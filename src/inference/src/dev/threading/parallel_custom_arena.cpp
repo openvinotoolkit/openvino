@@ -214,7 +214,9 @@ void binding_observer::on_scheduler_exit(bool) {
 
 static binding_oberver_ptr construct_binding_observer(tbb::task_arena& ta, int num_slots, const constraints& c) {
     binding_oberver_ptr observer{};
-    if (detail::is_binding_environment_valid() &&
+    // A stream requesting processor-group distribution uses group_affinity_observer instead; the two
+    // are mutually exclusive so the tbbbind binding must not also attach to the same arena.
+    if (c.processor_group < 0 && detail::is_binding_environment_valid() &&
         ((c.core_type >= 0 && info::core_types().size() > 1) || (c.numa_id >= 0 && info::numa_nodes().size() > 1) ||
          c.max_threads_per_core > 0)) {
         observer.reset(new binding_observer{ta, num_slots, c});
@@ -224,6 +226,52 @@ static binding_oberver_ptr construct_binding_observer(tbb::task_arena& ta, int n
 }
 
 #    endif  // USE_TBBBIND_2_5
+
+#    if defined(_WIN32)
+// Previous group affinity per worker thread so each shared TBB worker restores its own state on exit.
+static thread_local GROUP_AFFINITY g_prev_group_affinity;
+static thread_local bool g_has_prev_group_affinity = false;
+
+group_affinity_observer::group_affinity_observer(tbb::task_arena& ta, int group_id)
+    : tbb::task_scheduler_observer(ta),
+      my_group_id(group_id) {}
+
+void group_affinity_observer::on_scheduler_entry(bool) {
+    const DWORD group_processors = GetActiveProcessorCount(static_cast<WORD>(my_group_id));
+    if (group_processors == 0) {
+        return;
+    }
+    GROUP_AFFINITY group_affinity;
+    group_affinity.Group = static_cast<WORD>(my_group_id);
+    group_affinity.Mask = (group_processors >= sizeof(KAFFINITY) * CHAR_BIT)
+                              ? ~static_cast<KAFFINITY>(0)
+                              : ((static_cast<KAFFINITY>(1) << group_processors) - 1);
+    group_affinity.Reserved[0] = 0;
+    group_affinity.Reserved[1] = 0;
+    group_affinity.Reserved[2] = 0;
+    GROUP_AFFINITY previous_affinity;
+    if (SetThreadGroupAffinity(GetCurrentThread(), &group_affinity, &previous_affinity)) {
+        g_prev_group_affinity = previous_affinity;
+        g_has_prev_group_affinity = true;
+    }
+}
+
+void group_affinity_observer::on_scheduler_exit(bool) {
+    if (g_has_prev_group_affinity) {
+        SetThreadGroupAffinity(GetCurrentThread(), &g_prev_group_affinity, NULL);
+        g_has_prev_group_affinity = false;
+    }
+}
+
+static group_affinity_observer_ptr construct_group_affinity_observer(tbb::task_arena& ta, const constraints& c) {
+    group_affinity_observer_ptr observer{};
+    if (c.processor_group >= 0 && GetActiveProcessorGroupCount() > 1) {
+        observer.reset(new group_affinity_observer{ta, c.processor_group});
+        observer->observe(true);
+    }
+    return observer;
+}
+#    endif  // _WIN32
 }  // namespace detail
 
 task_arena::task_arena(int max_concurrency_, unsigned reserved_for_masters)
@@ -266,6 +314,14 @@ task_arena::task_arena(const task_arena& s)
 {
 }
 
+void task_arena::init_group_affinity_observer() {
+#    if defined(_WIN32)
+    std::call_once(my_group_observer_state, [this] {
+        my_group_affinity_observer = detail::construct_group_affinity_observer(my_task_arena, my_constraints);
+    });
+#    endif
+}
+
 void task_arena::initialize() {
     my_task_arena.initialize();
 #    if USE_TBBBIND_2_5
@@ -275,6 +331,7 @@ void task_arena::initialize() {
             detail::construct_binding_observer(my_task_arena, my_task_arena.max_concurrency(), my_constraints);
     });
 #    endif
+    init_group_affinity_observer();
 }
 
 void task_arena::initialize(int max_concurrency_, unsigned reserved_for_masters) {
@@ -286,6 +343,7 @@ void task_arena::initialize(int max_concurrency_, unsigned reserved_for_masters)
             detail::construct_binding_observer(my_task_arena, my_task_arena.max_concurrency(), my_constraints);
     });
 #    endif
+    init_group_affinity_observer();
 }
 
 void task_arena::initialize(constraints constraints_, unsigned reserved_for_masters) {
@@ -302,6 +360,7 @@ void task_arena::initialize(constraints constraints_, unsigned reserved_for_mast
 #    else
     my_task_arena.initialize(my_constraints.max_concurrency, reserved_for_masters);
 #    endif
+    init_group_affinity_observer();
 }
 
 task_arena::operator tbb::task_arena&() {

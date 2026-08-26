@@ -661,9 +661,12 @@ TEST(StreamProcessorGroupId, RoundRobinByStreamWhenNumaUnknown) {
     EXPECT_EQ(get_stream_processor_group_id(-1, 49, 6), 1);
 }
 
-TEST(StreamProcessorGroupId, ReturnsZeroOnInvalidGroupCount) {
-    EXPECT_EQ(get_stream_processor_group_id(3, 7, 0), 0);
-    EXPECT_EQ(get_stream_processor_group_id(3, 7, -1), 0);
+TEST(StreamProcessorGroupId, ReturnsNoGroupOnSingleOrInvalidGroupCount) {
+    // A single group (or invalid count) means no distribution is needed: no group policy is applied.
+    EXPECT_EQ(get_stream_processor_group_id(3, 7, 1), -1);
+    EXPECT_EQ(get_stream_processor_group_id(3, 7, 0), -1);
+    EXPECT_EQ(get_stream_processor_group_id(3, 7, -1), -1);
+    EXPECT_EQ(get_stream_processor_group_id(-1, 7, 1), -1);
 }
 
 TEST(StreamProcessorGroupId, DistributesStreamsEvenlyAcrossGroups) {
@@ -676,6 +679,25 @@ TEST(StreamProcessorGroupId, DistributesStreamsEvenlyAcrossGroups) {
     }
     for (int group = 0; group < group_count; ++group) {
         EXPECT_EQ(per_group[group], stream_count / group_count);
+    }
+}
+
+TEST(StreamProcessorGroupId, NumProcessorGroupsIsAtLeastOne) {
+    // Always at least one group; on non-Windows platforms there is exactly one.
+    EXPECT_GE(get_num_processor_groups(), 1);
+#if !defined(_WIN32)
+    EXPECT_EQ(get_num_processor_groups(), 1);
+#endif
+}
+
+TEST(StreamProcessorGroupId, NoDistributionWhenSystemReportsSingleGroup) {
+    // End-to-end guard: on a single-group system (e.g. non-Windows CI) streams get no group policy,
+    // so behavior is unchanged regardless of numa id or stream index.
+    if (get_num_processor_groups() <= 1) {
+        for (int stream_id = 0; stream_id < 16; ++stream_id) {
+            EXPECT_EQ(get_stream_processor_group_id(-1, stream_id, get_num_processor_groups()), -1);
+            EXPECT_EQ(get_stream_processor_group_id(stream_id, stream_id, get_num_processor_groups()), -1);
+        }
     }
 }
 }  // namespace
