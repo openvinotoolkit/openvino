@@ -399,4 +399,106 @@ TEST_P(ov_compiled_model_test, create_infer_request_error_handling) {
     ov_core_free(core);
 }
 
+TEST_P(ov_compiled_model_test, set_properties) {
+    auto device = GetParam();
+    std::string device_name = "BATCH:" + device + "(4)";
+    ov_core_t* core = nullptr;
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_compiled_model_t* compiled_model = nullptr;
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
+    EXPECT_NE(nullptr, compiled_model);
+
+    const char* key = ov_property_key_auto_batch_timeout;
+    char* result = nullptr;
+    OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
+    EXPECT_STREQ("1000", result);  // default value
+
+    const ov_property_t props[] = {{key, "3000"}};
+    OV_EXPECT_OK(ov_compiled_model_set_properties(compiled_model, 1, props));
+    ov_free(result);
+
+    result = nullptr;
+    OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
+    EXPECT_STREQ("3000", result);
+    ov_free(result);
+
+    ov_compiled_model_free(compiled_model);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST_P(ov_compiled_model_test, set_properties_same_as_variadic) {
+    auto device = GetParam();
+    std::string device_name = "BATCH:" + device + "(4)";
+    ov_core_t* core = nullptr;
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
+    EXPECT_NE(nullptr, model);
+
+    // variadic path
+    ov_compiled_model_t* cm_variadic = nullptr;
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &cm_variadic));
+    OV_EXPECT_OK(ov_compiled_model_set_property(cm_variadic, ov_property_key_auto_batch_timeout, "2000"));
+    char* res_variadic = nullptr;
+    OV_EXPECT_OK(ov_compiled_model_get_property(cm_variadic, ov_property_key_auto_batch_timeout, &res_variadic));
+
+    // struct-array path
+    ov_compiled_model_t* cm_array = nullptr;
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &cm_array));
+    const ov_property_t props[] = {{ov_property_key_auto_batch_timeout, "2000"}};
+    OV_EXPECT_OK(ov_compiled_model_set_properties(cm_array, 1, props));
+    char* res_array = nullptr;
+    OV_EXPECT_OK(ov_compiled_model_get_property(cm_array, ov_property_key_auto_batch_timeout, &res_array));
+
+    EXPECT_STREQ(res_variadic, res_array);
+
+    ov_free(res_variadic);
+    ov_free(res_array);
+    ov_compiled_model_free(cm_variadic);
+    ov_compiled_model_free(cm_array);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST_P(ov_compiled_model_test, set_properties_multi) {
+    auto device = GetParam();
+    std::string device_name = "BATCH:" + device + "(4)";
+    ov_core_t* core = nullptr;
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_compiled_model_t* compiled_model = nullptr;
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
+    EXPECT_NE(nullptr, compiled_model);
+
+    // Set two BATCH-mutable properties in a single call and verify both are applied.
+    const ov_property_t props[] = {
+        {ov_property_key_auto_batch_timeout, "3000"},
+        {ov_property_key_auto_batch_timeout, "5000"},  // last write wins
+    };
+    OV_EXPECT_OK(ov_compiled_model_set_properties(compiled_model, 2, props));
+
+    char* result = nullptr;
+    OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, ov_property_key_auto_batch_timeout, &result));
+    EXPECT_STREQ("5000", result);
+    ov_free(result);
+
+    ov_compiled_model_free(compiled_model);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
 }  // namespace
