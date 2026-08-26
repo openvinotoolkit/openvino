@@ -272,30 +272,38 @@ public:
         futures.reserve(threadCount);
 
         for (size_t i = 0; i < threadCount; ++i) {
-            futures.emplace_back(std::async(std::launch::async, [i, &prepareInference, &startInference, &waitInference,
-                                                                  &mutex, &condition, &readyCount, &start, &aborted]() {
-                try {
-                    prepareInference(i);
-                } catch (...) {
-                    std::lock_guard<std::mutex> lock(mutex);
-                    aborted = true;
-                    condition.notify_all();
-                    throw;
-                }
-                {
-                    std::unique_lock<std::mutex> lock(mutex);
-                    ++readyCount;
-                    condition.notify_all();
-                    condition.wait(lock, [&start, &aborted]() {
-                        return start || aborted;
-                    });
-                    if (aborted) {
-                        return;
-                    }
-                }
-                startInference(i);
-                waitInference(i);
-            }));
+            futures.emplace_back(std::async(std::launch::async,
+                                            [i,
+                                             &prepareInference,
+                                             &startInference,
+                                             &waitInference,
+                                             &mutex,
+                                             &condition,
+                                             &readyCount,
+                                             &start,
+                                             &aborted]() {
+                                                try {
+                                                    prepareInference(i);
+                                                } catch (...) {
+                                                    std::lock_guard<std::mutex> lock(mutex);
+                                                    aborted = true;
+                                                    condition.notify_all();
+                                                    throw;
+                                                }
+                                                {
+                                                    std::unique_lock<std::mutex> lock(mutex);
+                                                    ++readyCount;
+                                                    condition.notify_all();
+                                                    condition.wait(lock, [&start, &aborted]() {
+                                                        return start || aborted;
+                                                    });
+                                                    if (aborted) {
+                                                        return;
+                                                    }
+                                                }
+                                                startInference(i);
+                                                waitInference(i);
+                                            }));
         }
 
         {
@@ -540,16 +548,16 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
             requests[i].set_input_tensor(0, firstInputs.back());
             referenceRequests[i].set_input_tensor(0, firstInputs.back());
         }
-        runConcurrentlyAsync(kThreadCount,
-                             [&requests](size_t threadIdx) {
-                                 requests[threadIdx].start_async();
-                             },
-                             [&requests, &referenceRequests](size_t threadIdx) {
-                                 waitAndCompare(requests[threadIdx], referenceRequests[threadIdx]);
-                             });
+        runConcurrentlyAsync(
+            kThreadCount,
+            [&requests](size_t threadIdx) {
+                requests[threadIdx].start_async();
+            },
+            [&requests, &referenceRequests](size_t threadIdx) {
+                waitAndCompare(requests[threadIdx], referenceRequests[threadIdx]);
+            });
 
-        OV_ASSERT_NO_THROW(compiledModel.set_property(
-            {{ov::hint::model_priority.name(), ov::hint::Priority::HIGH}}));
+        OV_ASSERT_NO_THROW(compiledModel.set_property({{ov::hint::model_priority.name(), ov::hint::Priority::HIGH}}));
 
         std::vector<ov::Tensor> secondInputs;
         secondInputs.reserve(kThreadCount);
@@ -558,16 +566,16 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
             requests[i].set_input_tensor(0, secondInputs.back());
             referenceRequests[i].set_input_tensor(0, secondInputs.back());
         }
-        runConcurrentlyAsync(kThreadCount,
-                             [&requests](size_t threadIdx) {
-                                 requests[threadIdx].start_async();
-                             },
-                             [&requests, &referenceRequests](size_t threadIdx) {
-                                 waitAndCompare(requests[threadIdx], referenceRequests[threadIdx]);
-                             });
+        runConcurrentlyAsync(
+            kThreadCount,
+            [&requests](size_t threadIdx) {
+                requests[threadIdx].start_async();
+            },
+            [&requests, &referenceRequests](size_t threadIdx) {
+                waitAndCompare(requests[threadIdx], referenceRequests[threadIdx]);
+            });
 
-        OV_ASSERT_NO_THROW(compiledModel.set_property(
-            {{ov::hint::model_priority.name(), ov::hint::Priority::LOW}}));
+        OV_ASSERT_NO_THROW(compiledModel.set_property({{ov::hint::model_priority.name(), ov::hint::Priority::LOW}}));
 
         std::vector<ov::Tensor> thirdInputs;
         thirdInputs.reserve(kThreadCount);
@@ -576,13 +584,14 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
             requests[i].set_input_tensor(0, thirdInputs.back());
             referenceRequests[i].set_input_tensor(0, thirdInputs.back());
         }
-        runConcurrentlyAsync(kThreadCount,
-                             [&requests](size_t threadIdx) {
-                                 requests[threadIdx].start_async();
-                             },
-                             [&requests, &referenceRequests](size_t threadIdx) {
-                                 waitAndCompare(requests[threadIdx], referenceRequests[threadIdx]);
-        });
+        runConcurrentlyAsync(
+            kThreadCount,
+            [&requests](size_t threadIdx) {
+                requests[threadIdx].start_async();
+            },
+            [&requests, &referenceRequests](size_t threadIdx) {
+                waitAndCompare(requests[threadIdx], referenceRequests[threadIdx]);
+            });
     }
 }
 
@@ -638,8 +647,15 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
             const auto& shape = useAltShape ? shapeSmall : shapeLarge;
             runConcurrentlyAsync(
                 kThreadCount,
-                [model, &compiledModels, &referenceCompiledModel, &requests, &referenceRequests, &inputs, &shape,
-                 kRequestsPerModel, inferIdx](size_t threadIdx) {
+                [model,
+                 &compiledModels,
+                 &referenceCompiledModel,
+                 &requests,
+                 &referenceRequests,
+                 &inputs,
+                 &shape,
+                 kRequestsPerModel,
+                 inferIdx](size_t threadIdx) {
                     if (requests[threadIdx].empty()) {
                         requests[threadIdx].reserve(compiledModels.size() * kRequestsPerModel);
                         referenceRequests[threadIdx].reserve(compiledModels.size() * kRequestsPerModel);
@@ -653,8 +669,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
                                 referenceRequests[threadIdx].emplace_back(
                                     referenceCompiledModel.create_infer_request());
                             }
-                            const int startFrom = static_cast<int>(100 + threadIdx * 17 + modelIdx * 7 + reqIdx * 3 +
-                                                                   inferIdx);
+                            const int startFrom =
+                                static_cast<int>(100 + threadIdx * 17 + modelIdx * 7 + reqIdx * 3 + inferIdx);
                             inputs[threadIdx].emplace_back(makeInputTensor(model, shape, startFrom));
                             const size_t requestIdx = modelIdx * kRequestsPerModel + reqIdx;
                             requests[threadIdx][requestIdx].set_input_tensor(0, inputs[threadIdx].back());
@@ -723,8 +739,16 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelZeroInputOu
             const auto& shape = useAltShape ? shapeSmall : shapeLarge;
             runConcurrentlyAsync(
                 kThreadCount,
-                [this, model, &compiledModel, &referenceCompiledModel, &requests, &referenceRequests, &inputs,
-                 &outputs, &shape, inferIdx](size_t threadIdx) {
+                [this,
+                 model,
+                 &compiledModel,
+                 &referenceCompiledModel,
+                 &requests,
+                 &referenceRequests,
+                 &inputs,
+                 &outputs,
+                 &shape,
+                 inferIdx](size_t threadIdx) {
                     if (!requests[threadIdx]) {
                         requests[threadIdx] = std::make_shared<ov::InferRequest>(compiledModel.create_infer_request());
                         referenceRequests[threadIdx] =
@@ -792,8 +816,17 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileZeroInputOutputT
             const auto& shape = useAltShape ? shapeSmall : shapeLarge;
             runConcurrentlyAsync(
                 kThreadCount,
-                [this, &cfg, &referenceCompiledModel, &models, &compiledModels, &requests, &referenceRequests,
-                 &inputs, &outputs, &shape, inferIdx](size_t threadIdx) {
+                [this,
+                 &cfg,
+                 &referenceCompiledModel,
+                 &models,
+                 &compiledModels,
+                 &requests,
+                 &referenceRequests,
+                 &inputs,
+                 &outputs,
+                 &shape,
+                 inferIdx](size_t threadIdx) {
                     if (!models[threadIdx]) {
                         models[threadIdx] = createModelByName(selectedModelName);
                         compiledModels[threadIdx] = std::make_shared<ov::CompiledModel>(
@@ -863,62 +896,90 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CompileAndInferOverlap) {
         std::atomic<size_t> nextModelIdx{0};
         std::atomic<size_t> successInferCount{0};
         std::future<void> producer;
-        runConcurrently(kThreadCount, [model, &referenceCompiledModel, &shape, &compiledModels, &mutex, &cv,
-                                       &producerDone, &producerException, &nextModelIdx, &successInferCount](size_t threadIdx) {
-            while (true) {
-                ov::CompiledModel compiledModel;
-                {
-                    std::unique_lock<std::mutex> lock(mutex);
-                    cv.wait(lock, [&compiledModels, &producerDone, &nextModelIdx]() {
-                        return nextModelIdx.load(std::memory_order_relaxed) < compiledModels.size() || producerDone;
-                    });
-                    if (producerException) {
-                        std::rethrow_exception(producerException);
-                    }
-                    const size_t idx = nextModelIdx.fetch_add(1, std::memory_order_relaxed);
-                    if (idx >= compiledModels.size()) {
-                        break;
-                    }
-                    compiledModel = compiledModels[idx];
-                }
-
-                auto reqDynamic = compiledModel.create_infer_request();
-                auto reqReference = referenceCompiledModel.create_infer_request();
-                auto input = makeInputTensor(model, shape, static_cast<int>(100 + threadIdx));
-                reqDynamic.set_input_tensor(0, input);
-                reqReference.set_input_tensor(0, input);
-                reqDynamic.start_async();
-                waitAndCompare(reqDynamic, reqReference);
-                successInferCount.fetch_add(1, std::memory_order_relaxed);
-            }
-        }, [this, &cfg, &model, &compiledModels, &mutex, &cv, &producerDone, &producerException, kModelCount,
-            &producer](const std::shared_future<void>& start) {
-            producer = std::async(std::launch::async, [this, &cfg, &model, &compiledModels, &mutex, &cv, &producerDone,
-                                                       &producerException, start, kModelCount]() {
-                start.wait();
-                try {
-                    for (size_t i = 0; i < kModelCount; ++i) {
-                        auto compiledModel = core->compile_model(model, target_device, cfg);
-                        {
-                            std::lock_guard<std::mutex> lock(mutex);
-                            compiledModels.push_back(compiledModel);
+        runConcurrently(
+            kThreadCount,
+            [model,
+             &referenceCompiledModel,
+             &shape,
+             &compiledModels,
+             &mutex,
+             &cv,
+             &producerDone,
+             &producerException,
+             &nextModelIdx,
+             &successInferCount](size_t threadIdx) {
+                while (true) {
+                    ov::CompiledModel compiledModel;
+                    {
+                        std::unique_lock<std::mutex> lock(mutex);
+                        cv.wait(lock, [&compiledModels, &producerDone, &nextModelIdx]() {
+                            return nextModelIdx.load(std::memory_order_relaxed) < compiledModels.size() || producerDone;
+                        });
+                        if (producerException) {
+                            std::rethrow_exception(producerException);
                         }
-                        cv.notify_all();
+                        const size_t idx = nextModelIdx.fetch_add(1, std::memory_order_relaxed);
+                        if (idx >= compiledModels.size()) {
+                            break;
+                        }
+                        compiledModel = compiledModels[idx];
                     }
-                } catch (...) {
-                    std::lock_guard<std::mutex> lock(mutex);
-                    producerException = std::current_exception();
-                    producerDone = true;
-                    cv.notify_all();
-                    return;
+
+                    auto reqDynamic = compiledModel.create_infer_request();
+                    auto reqReference = referenceCompiledModel.create_infer_request();
+                    auto input = makeInputTensor(model, shape, static_cast<int>(100 + threadIdx));
+                    reqDynamic.set_input_tensor(0, input);
+                    reqReference.set_input_tensor(0, input);
+                    reqDynamic.start_async();
+                    waitAndCompare(reqDynamic, reqReference);
+                    successInferCount.fetch_add(1, std::memory_order_relaxed);
                 }
-                {
-                    std::lock_guard<std::mutex> lock(mutex);
-                    producerDone = true;
-                }
-                cv.notify_all();
+            },
+            [this,
+             &cfg,
+             &model,
+             &compiledModels,
+             &mutex,
+             &cv,
+             &producerDone,
+             &producerException,
+             kModelCount,
+             &producer](const std::shared_future<void>& start) {
+                producer = std::async(std::launch::async,
+                                      [this,
+                                       &cfg,
+                                       &model,
+                                       &compiledModels,
+                                       &mutex,
+                                       &cv,
+                                       &producerDone,
+                                       &producerException,
+                                       start,
+                                       kModelCount]() {
+                                          start.wait();
+                                          try {
+                                              for (size_t i = 0; i < kModelCount; ++i) {
+                                                  auto compiledModel = core->compile_model(model, target_device, cfg);
+                                                  {
+                                                      std::lock_guard<std::mutex> lock(mutex);
+                                                      compiledModels.push_back(compiledModel);
+                                                  }
+                                                  cv.notify_all();
+                                              }
+                                          } catch (...) {
+                                              std::lock_guard<std::mutex> lock(mutex);
+                                              producerException = std::current_exception();
+                                              producerDone = true;
+                                              cv.notify_all();
+                                              return;
+                                          }
+                                          {
+                                              std::lock_guard<std::mutex> lock(mutex);
+                                              producerDone = true;
+                                          }
+                                          cv.notify_all();
+                                      });
             });
-        });
         producer.get();
 
         ASSERT_EQ(successInferCount.load(std::memory_order_relaxed), kModelCount)

@@ -204,8 +204,9 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
         _fences.emplace_back(std::make_unique<Fence>(_command_queue));
     }
 
-    _command_list_group =
-        std::make_unique<PipelinedCommandLists>(num_of_subgraphs, _init_structs, use_npu_vm_runtime_v2_api(_apiVersion));
+    _command_list_group = std::make_unique<PipelinedCommandLists>(num_of_subgraphs,
+                                                                  _init_structs,
+                                                                  use_npu_vm_runtime_v2_api(_apiVersion));
 
     auto& commandLists = _command_list_group;
     commandLists->initArguments(_graph->get_metadata());
@@ -277,7 +278,8 @@ void DynamicPipeline::push() {
         }
     }
 
-    const auto commandQueueHandle = useV2Api && !commandQueueDesc.shared_common_queue() ? nullptr : _command_queue->handle();
+    const auto commandQueueHandle =
+        useV2Api && !commandQueueDesc.shared_common_queue() ? nullptr : _command_queue->handle();
     OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
     auto& commandLists = _command_list_group;
     auto& dynamicArguments = commandLists->getArguments();
@@ -298,12 +300,7 @@ void DynamicPipeline::push() {
         _runtime_config_command_queue_desc_valid = true;
     } else {
         const ze_fence_handle_t fence = _sync_output_with_fences ? _fences.front()->handle() : nullptr;
-        execute_vm_runtime(vmRuntime,
-                           dynamicArguments,
-                           commandLists->getHandles(),
-                           commandQueueHandle,
-                           fence,
-                           nullptr);
+        execute_vm_runtime(vmRuntime, dynamicArguments, commandLists->getHandles(), commandQueueHandle, fence, nullptr);
     }
 
     _logger.debug("push - completed");
