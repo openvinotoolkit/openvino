@@ -226,12 +226,12 @@ TEST_P(OVCheckSetSupportedRWMetricsPropsTestsNPU, ChangeCorrectProperties) {
     }
 }
 
-TEST(OVInternalPropertiesNPU, ModelSharingContextListedInSupportedProperties) {
+TEST(OVInternalPropertiesNPU, ModelSharingContextListedInInternalButNotPublicProperties) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     ov::Core core;
     const auto supported_properties = core.get_property(ov::test::utils::DEVICE_NPU, ov::supported_properties);
-    ASSERT_TRUE(util::contains(supported_properties, ov::internal::model_sharing_context.name()));
+    ASSERT_FALSE(util::contains(supported_properties, ov::internal::model_sharing_context.name()));
 
     const auto internal_supported_properties =
         core.get_property(ov::test::utils::DEVICE_NPU, ov::internal::supported_properties);
