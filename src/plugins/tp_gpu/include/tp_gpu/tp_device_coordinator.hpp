@@ -382,7 +382,33 @@ private:
 
     // One rendezvous + one cached plan per collective_id.
     std::vector<std::unique_ptr<Rendezvous>> m_rendezvous;
+    // One recording per slot, deliberately.  Generation alternates between the
+    // prompt-sized prefill and the single-token decode, so every switch
+    // re-records every collective, and keeping both shapes recorded would
+    // obviously avoid that.  It is not safe: the only thing identifying a
+    // buffer here is its address, a recorded command list holds the driver's
+    // allocation objects in its residency list, and intel_gpu frees and
+    // reallocates network buffers between inferences.  A new allocation
+    // landing on an old address makes matches() report a hit and the next
+    // submit walks a destroyed GraphicsAllocation -- a segfault inside
+    // zeCommandQueueExecuteCommandLists, reproducible on the second benchmark
+    // iteration.  Re-recording is what clears the stale residency, so it
+    // cannot simply be skipped.  The cost disappears on its own once the
+    // collective moves into the GPU plugin's own stream and stops being
+    // recorded ahead of time at all.
     std::vector<std::unique_ptr<Plan>>       m_plans;
+
+    // Where recording time goes, split by stage.  Written only from rank 0's
+    // branch, which is the only caller of record_plan.
+    std::chrono::nanoseconds                 m_rec_drain{};
+    std::chrono::nanoseconds                 m_rec_reset{};
+    std::chrono::nanoseconds                 m_rec_build{};
+    std::chrono::nanoseconds                 m_rec_close{};
+
+    /// zeCommandListClose with its cost attributed to m_rec_close: closing is
+    /// where the driver finalizes the list, and it is the stage most likely to
+    /// dominate re-recording.
+    void close_list(ze_command_list_handle_t list);
 };
 
 using TPDeviceCoordinatorPtr = std::shared_ptr<TPDeviceCoordinator>;

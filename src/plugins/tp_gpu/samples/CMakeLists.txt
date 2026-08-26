@@ -4,3 +4,4 @@
 
 add_subdirectory(tp_benchmark)
 add_subdirectory(tp_allreduce_l0)
+add_subdirectory(tp_l0_call_cost)
