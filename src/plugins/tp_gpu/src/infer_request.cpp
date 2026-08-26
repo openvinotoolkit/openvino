@@ -381,19 +381,46 @@ void InferRequest::infer() {
             per_rank_ms[0] = std::chrono::duration<double, std::milli>(clock::now() - r0).count();
         }
     } else {
-        std::vector<std::future<void>> futures;
-        futures.reserve(num_ranks);
-        for (size_t rank = 0; rank < num_ranks; ++rank) {
-            futures.push_back(std::async(std::launch::async, [this, rank, &per_rank_ms]() {
-                auto r0 = clock::now();
-                m_rank_requests[rank]->infer();
-                if (!per_rank_ms.empty()) {
-                    per_rank_ms[rank] = std::chrono::duration<double, std::milli>(clock::now() - r0).count();
-                }
-            }));
-        }
-        for (auto& f : futures) {
-            f.get();
+        // Persistent threads, not one per inference.  How long a rank takes to
+        // actually start matters far more than it looks: the ranks meet at
+        // every AllReduce point, so the group moves at the speed of whichever
+        // rank started last, 64 times per token.  start_us records that spread
+        // so the two schemes can be compared on the same footing.
+        static const bool skew_enabled = std::getenv("TP_SKEW") != nullptr;
+        static std::mutex skew_mutex;
+        static uint64_t skew_calls = 0;
+        static double skew_spread_us = 0.0;
+        static double skew_first_us = 0.0;
+        std::vector<double> start_us(skew_enabled ? num_ranks : 0, 0.0);
+        const auto t_launch = clock::now();
+
+        m_compiled_model->rank_workers().run([&](std::size_t rank) {
+            if (!start_us.empty()) {
+                start_us[rank] =
+                    std::chrono::duration<double, std::micro>(clock::now() - t_launch).count();
+            }
+            auto r0 = clock::now();
+            m_rank_requests[rank]->infer();
+            if (!per_rank_ms.empty()) {
+                per_rank_ms[rank] =
+                    std::chrono::duration<double, std::milli>(clock::now() - r0).count();
+            }
+        });
+
+        if (skew_enabled) {
+            const double lo = *std::min_element(start_us.begin(), start_us.end());
+            const double hi = *std::max_element(start_us.begin(), start_us.end());
+            std::lock_guard<std::mutex> lock(skew_mutex);
+            skew_spread_us += hi - lo;
+            skew_first_us += lo;
+            if ((++skew_calls % 500) == 0) {
+                std::cerr << "[TP][SKEW] rank dispatch over " << skew_calls
+                          << " inferences: first rank starts after "
+                          << (skew_first_us / static_cast<double>(skew_calls)) << "us"
+                          << ", spread between ranks "
+                          << (skew_spread_us / static_cast<double>(skew_calls)) << "us"
+                          << std::endl;
+            }
         }
     }
 

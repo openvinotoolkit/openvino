@@ -4,6 +4,7 @@
 
 #include "tp_gpu/tp_device_coordinator.hpp"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstring>
@@ -14,6 +15,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <thread>
 
 #define CL_TARGET_OPENCL_VERSION 220
 #define CL_USE_DEPRECATED_OPENCL_1_2_APIS
@@ -82,6 +84,20 @@ bool tp_profiling_enabled() {
     return on;
 }
 
+// Dump period for the arrival-skew report, or 0 when TP_SKEW is unset.  Kept
+// apart from TP_PROF so the imbalance can be observed on an otherwise
+// undistorted run.
+int tp_skew_period() {
+    static const int n = [] {
+        if (const char* v = std::getenv("TP_SKEW")) {
+            const int x = std::atoi(v);
+            return x > 0 ? x : 64;
+        }
+        return 0;
+    }();
+    return n;
+}
+
 std::size_t checked_multiply(std::size_t lhs, std::size_t rhs, const char* what) {
     OPENVINO_ASSERT(rhs == 0 || lhs <= std::numeric_limits<std::size_t>::max() / rhs,
                     "[TP][L0] ", what, " byte count overflow: ", lhs, " * ", rhs);
@@ -106,6 +122,16 @@ const std::shared_ptr<ov::ZeroApi>& ze_api() {
 // 512 for f32, which covers any vector width the OpenCL back end may pick for
 // the reduce kernel.
 constexpr std::size_t kRingAlignElems = 128;
+
+// Elements folded by one work item of the reduce kernel; must match TP_VEC in
+// kernels/allreduce_sum.cl.
+constexpr std::size_t kElemsPerItem = 8;
+
+// Work groups needed to fold `n` elements.
+uint32_t launch_groups(std::size_t n, uint32_t group_size) {
+    const std::size_t items = (n + kElemsPerItem - 1) / kElemsPerItem;
+    return static_cast<uint32_t>((items + group_size - 1) / group_size);
+}
 
 std::size_t collective_payload_bytes(std::size_t n, ov::element::Type dtype) {
     OPENVINO_ASSERT(dtype == ov::element::f16 || dtype == ov::element::f32,
@@ -302,6 +328,18 @@ TPDeviceCoordinator::TPDeviceCoordinator(TPL0SharedContextPtr shared,
     m_scratch.allocations.assign(world_size, nullptr);
     m_scratch.bytes_per_rank.assign(world_size, 0);
 
+    m_skew.ph1_ns.assign(static_cast<std::size_t>(world_size), 0);
+    m_skew.ph2_ns.assign(static_cast<std::size_t>(world_size), 0);
+    m_skew.ph3_ns.assign(static_cast<std::size_t>(world_size), 0);
+    m_skew.late_ns.assign(static_cast<std::size_t>(world_size), 0);
+    m_skew.last_count.assign(static_cast<std::size_t>(world_size), 0);
+    m_skew.seg_ns.assign(static_cast<std::size_t>(world_size), 0);
+    m_skew.seg_min_ns.assign(static_cast<std::size_t>(world_size), ~uint64_t{0});
+    m_skew.seg_max_ns.assign(static_cast<std::size_t>(world_size), 0);
+    m_skew.seg_count.assign(static_cast<std::size_t>(world_size), 0);
+    m_skew.last_exit.assign(static_cast<std::size_t>(world_size),
+                            std::chrono::steady_clock::time_point{});
+
     try {
         for (int r = 0; r < world_size; ++r) {
             init_rank(m_ranks[r]);
@@ -323,8 +361,9 @@ TPDeviceCoordinator::TPDeviceCoordinator(TPL0SharedContextPtr shared,
             // Command lists are cheap to keep but not to create: making them
             // lazily put ~50 ms of driver work on the first inference, which
             // is the one whose latency users measure as time to first token.
+            // The events are built here for the same reason.
             m_plans[i] = std::make_unique<Plan>();
-            ensure_plan_lists(*m_plans[i]);
+            create_plan_events(*m_plans[i]);
         }
     } catch (...) {
         for (auto& plan : m_plans) {
@@ -528,8 +567,9 @@ void TPDeviceCoordinator::destroy_plan(Plan& plan) {
     plan.ts_pool = nullptr;
     plan.compute_lists.clear();
     plan.copy_lists.clear();
-    plan.recorded = false;
-    plan.recorded_scratch_generation = 0;
+    std::fill(plan.recorded.begin(), plan.recorded.end(), 0);
+    std::fill(plan.recorded_scratch_generation.begin(),
+              plan.recorded_scratch_generation.end(), 0);
     plan.in_ptrs.clear();
     plan.out_ptrs.clear();
     plan.n = 0;
@@ -713,36 +753,19 @@ void* TPDeviceCoordinator::ring_slot(int rank, int chunk) const {
     return base + static_cast<std::size_t>(chunk) * m_scratch.chunk_capacity_bytes;
 }
 
-void TPDeviceCoordinator::build_plan(int /*collective_id*/,
-                                     const std::vector<void*>& in_ptrs,
-                                     const std::vector<void*>& out_ptrs,
-                                     std::size_t n,
-                                     ov::element::Type dtype,
-                                     Plan& plan) {
-    OPENVINO_ASSERT(dtype == ov::element::f16 || dtype == ov::element::f32,
-                    "[TP][L0] AllReduce supports f16/f32 only, got ", dtype);
-
+void TPDeviceCoordinator::create_plan_events(Plan& plan) {
     auto ctx = m_shared->context;
     const int N = m_world_size;
-    const std::size_t payload_bytes = collective_payload_bytes(n, dtype);
 
-    plan.in_ptrs  = in_ptrs;
-    plan.out_ptrs = out_ptrs;
-    plan.n        = n;
-    plan.dtype    = dtype;
+    plan.recorded.assign(static_cast<std::size_t>(N), 0);
+    plan.recorded_scratch_generation.assign(static_cast<std::size_t>(N), 0);
 
-    OPENVINO_ASSERT(m_scratch.payload_capacity_bytes >= payload_bytes,
-                    "[TP][L0] scratch arena is smaller than collective payload");
-
-    // Event resources are pointer/shape independent and remain cached per
-    // collective.  Device staging is coordinator-owned and shared.
-    const bool resources_already_built = plan.pool != nullptr;
-    if (resources_already_built) {
+    if (plan.pool != nullptr) {
         return;
     }
 
     // Command lists are per collective, so a recording is not clobbered by
-    // the next collective's.  Normally already created at setup.
+    // the next collective's.
     ensure_plan_lists(plan);
 
     if (N == 2) {
@@ -905,7 +928,7 @@ void TPDeviceCoordinator::ensure_plan_lists(Plan& plan) {
     }
 }
 
-void TPDeviceCoordinator::record_ring_plan(Plan& plan) {
+void TPDeviceCoordinator::record_ring_rank(Plan& plan, int r) {
     constexpr uint32_t kGroupSize = 256;
     const int N = m_world_size;
     const int steps = N - 1;
@@ -913,9 +936,9 @@ void TPDeviceCoordinator::record_ring_plan(Plan& plan) {
     const std::size_t elem = plan.dtype.size();
     OPENVINO_ASSERT(n > 0, "[TP][L0] ring requires a non-empty payload");
 
-    auto ev = [&](int step, int rank) -> ze_event_handle_t {
+    auto ev = [&](int step, int who) -> ze_event_handle_t {
         return plan.ev_ring[static_cast<std::size_t>(step) * static_cast<std::size_t>(N) +
-                            static_cast<std::size_t>(rank)];
+                            static_cast<std::size_t>(who)];
     };
     auto byte_at = [elem](void* base, std::size_t offset_elems) -> void* {
         return static_cast<uint8_t*>(base) + offset_elems * elem;
@@ -929,129 +952,304 @@ void TPDeviceCoordinator::record_ring_plan(Plan& plan) {
         }
     };
 
-    for (int r = 0; r < N; ++r) {
-        auto& self = m_ranks[r];
-        const int next = (r + 1) % N;
-        const int prev = (r + N - 1) % N;
-        ze_command_list_handle_t list = plan.compute_lists[r];
-        ze_kernel_handle_t kernel =
-            (plan.dtype == ov::element::f16) ? self.kernel_f16 : self.kernel_f32;
-        ZE_THROW(ze_api()->zeKernelSetGroupSize(kernel, kGroupSize, 1, 1));
+    auto& self = m_ranks[r];
+    const int next = (r + 1) % N;
+    const int prev = (r + N - 1) % N;
+    ze_command_list_handle_t list = plan.compute_lists[r];
+    ze_kernel_handle_t kernel =
+        (plan.dtype == ov::element::f16) ? self.kernel_f16 : self.kernel_f32;
+    ZE_THROW(ze_api()->zeKernelSetGroupSize(kernel, kGroupSize, 1, 1));
 
-        // ---- Reduce-scatter: N-1 steps ----
-        // At step s rank r forwards chunk (r-s) and folds the incoming chunk
-        // (r-s-1) with its own contribution.  Each chunk is accumulated
-        // exactly once per rank, and the incoming buffer already carries the
-        // partial sum of every rank before us on the ring, so the reduction
-        // is always "my input plus what arrived" -- the same two-source
-        // kernel the direct N=2 exchange uses.
-        for (int s = 0; s < steps; ++s) {
-            const int send_chunk = ((r - s) % N + N) % N;
-            const int recv_chunk = ((r - s - 1) % N + N) % N;
+    // ---- Reduce-scatter: N-1 steps ----
+    // At step s rank r forwards chunk (r-s) and folds the incoming chunk
+    // (r-s-1) with its own contribution.  Each chunk is accumulated
+    // exactly once per rank, and the incoming buffer already carries the
+    // partial sum of every rank before us on the ring, so the reduction
+    // is always "my input plus what arrived" -- the same two-source
+    // kernel the direct N=2 exchange uses.
+    for (int s = 0; s < steps; ++s) {
+        const int send_chunk = ((r - s) % N + N) % N;
+        const int recv_chunk = ((r - s - 1) % N + N) % N;
 
-            std::size_t send_off = 0, send_cnt = 0, recv_off = 0, recv_cnt = 0;
-            ring_chunk(n, send_chunk, send_off, send_cnt);
-            ring_chunk(n, recv_chunk, recv_off, recv_cnt);
+        std::size_t send_off = 0, send_cnt = 0, recv_off = 0, recv_cnt = 0;
+        ring_chunk(n, send_chunk, send_off, send_cnt);
+        ring_chunk(n, recv_chunk, recv_off, recv_cnt);
 
-            // Step 0 forwards our own untouched input; later steps forward
-            // the chunk this rank reduced in the previous step.  An empty
-            // chunk still has to signal, or the successor waits forever.
-            if (send_cnt == 0) {
-                ZE_THROW(ze_api()->zeCommandListAppendSignalEvent(list, ev(s, r)));
-            } else {
-                void* send_src = (s == 0) ? byte_at(plan.in_ptrs[r], send_off)
-                                          : byte_at(plan.out_ptrs[r], send_off);
-                ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(
-                    list,
-                    ring_slot(next, send_chunk),
-                    send_src,
-                    send_cnt * elem,
-                    ev(s, r),
-                    0, nullptr));
-            }
-
-            ZE_THROW(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &plan.ev_ring[
-                static_cast<std::size_t>(s) * static_cast<std::size_t>(N) +
-                static_cast<std::size_t>(prev)]));
-
-            if (recv_cnt == 0) {
-                continue;
-            }
-            void* dst  = byte_at(plan.out_ptrs[r], recv_off);
-            void* src0 = byte_at(plan.in_ptrs[r], recv_off);
-            void* src1 = ring_slot(r, recv_chunk);
-            uint64_t cnt = recv_cnt;
-            ze_group_count_t gc{
-                (static_cast<uint32_t>(recv_cnt) + kGroupSize - 1) / kGroupSize, 1, 1};
-            ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 0, sizeof(void*), &dst));
-            ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 1, sizeof(void*), &src0));
-            ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 2, sizeof(void*), &src1));
-            ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 3, sizeof(cnt), &cnt));
-            ZE_THROW(ze_api()->zeCommandListAppendLaunchKernel(list, kernel, &gc, nullptr, 0, nullptr));
-            order(list);
+        // Step 0 forwards our own untouched input; later steps forward
+        // the chunk this rank reduced in the previous step.  An empty
+        // chunk still has to signal, or the successor waits forever.
+        if (send_cnt == 0) {
+            ZE_THROW(ze_api()->zeCommandListAppendSignalEvent(list, ev(s, r)));
+        } else {
+            void* send_src = (s == 0) ? byte_at(plan.in_ptrs[r], send_off)
+                                      : byte_at(plan.out_ptrs[r], send_off);
+            ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(
+                list,
+                ring_slot(next, send_chunk),
+                send_src,
+                send_cnt * elem,
+                ev(s, r),
+                0, nullptr));
         }
 
-        // ---- All-gather: N-1 steps ----
-        // Rank r now owns the finished chunk (r+1).  Each step passes a
-        // finished chunk along the same ring, straight into the successor's
-        // output -- no staging and no kernel, because there is nothing left
-        // to reduce.
-        //
-        // Writing into the successor's output is only safe once that rank has
-        // stopped writing there itself.  Its reduce-scatter touches every
-        // chunk but its own, including the ones we are about to deliver, and
-        // nothing in the per-step chain orders the two: a rank whose
-        // predecessors ran ahead could still be in reduce-scatter when the
-        // first all-gather copy lands, and its partial sum would then
-        // overwrite our final one.  One handshake per rank closes that.
-        ZE_THROW(ze_api()->zeCommandListAppendSignalEvent(list, ev(2 * steps, r)));
         ZE_THROW(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &plan.ev_ring[
-            static_cast<std::size_t>(2 * steps) * static_cast<std::size_t>(N) +
-            static_cast<std::size_t>(next)]));
+            static_cast<std::size_t>(s) * static_cast<std::size_t>(N) +
+            static_cast<std::size_t>(prev)]));
 
-        for (int s = 0; s < steps; ++s) {
-            const int send_chunk = ((r + 1 - s) % N + N) % N;
-            std::size_t off = 0, cnt = 0;
-            ring_chunk(n, send_chunk, off, cnt);
-
-            const int step = steps + s;
-            if (cnt == 0) {
-                ZE_THROW(ze_api()->zeCommandListAppendSignalEvent(list, ev(step, r)));
-            } else {
-                ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(
-                    list,
-                    byte_at(plan.out_ptrs[next], off),
-                    byte_at(plan.out_ptrs[r], off),
-                    cnt * elem,
-                    ev(step, r),
-                    0, nullptr));
-            }
-
-            ZE_THROW(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &plan.ev_ring[
-                static_cast<std::size_t>(step) * static_cast<std::size_t>(N) +
-                static_cast<std::size_t>(prev)]));
+        if (recv_cnt == 0) {
+            continue;
         }
-
-        // Every ring event has exactly one waiter, so each rank clears the
-        // ones it consumed: the per-step events of its predecessor and the
-        // reduce-scatter handshake of its successor.  The in-order list
-        // already orders these behind the waits above.
-        if (use_device_event_reset()) {
-            order(list);
-            for (int s = 0; s < 2 * steps; ++s) {
-                ZE_THROW(ze_api()->zeCommandListAppendEventReset(list, ev(s, prev)));
-            }
-            ZE_THROW(ze_api()->zeCommandListAppendEventReset(list, ev(2 * steps, next)));
-        }
-
-        close_list(list);
+        void* dst  = byte_at(plan.out_ptrs[r], recv_off);
+        void* src0 = byte_at(plan.in_ptrs[r], recv_off);
+        void* src1 = ring_slot(r, recv_chunk);
+        uint64_t cnt = recv_cnt;
+        ze_group_count_t gc{launch_groups(recv_cnt, kGroupSize), 1, 1};
+        ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 0, sizeof(void*), &dst));
+        ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 1, sizeof(void*), &src0));
+        ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 2, sizeof(void*), &src1));
+        ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 3, sizeof(cnt), &cnt));
+        ZE_THROW(ze_api()->zeCommandListAppendLaunchKernel(list, kernel, &gc, nullptr, 0, nullptr));
+        order(list);
     }
+
+    // ---- All-gather: N-1 steps ----
+    // Rank r now owns the finished chunk (r+1).  Each step passes a
+    // finished chunk along the same ring -- no kernel, because there is
+    // nothing left to reduce.
+    //
+    // Chunks travel through the successor's staging rather than straight
+    // into its output buffer, and each rank copies what arrives into its
+    // own output itself.  Writing into a peer's output would mean baking
+    // that peer's address into this recording, which is the one thing
+    // keeping every rank from recording and submitting independently of
+    // the others.  Someone has to write those chunks into our output --
+    // either the producer or us -- so the local copy is the price of that
+    // independence, not an accident: (N-1)/N of the payload per rank.
+    //
+    // Writing into the successor's staging is only safe once that rank has
+    // stopped writing there itself.  Its reduce-scatter touches every
+    // chunk but its own, including the ones we are about to deliver, and
+    // nothing in the per-step chain orders the two: a rank whose
+    // predecessors ran ahead could still be in reduce-scatter when the
+    // first all-gather copy lands, and its partial sum would then
+    // overwrite our final one.  One handshake per rank closes that.
+    ZE_THROW(ze_api()->zeCommandListAppendSignalEvent(list, ev(2 * steps, r)));
+    ZE_THROW(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &plan.ev_ring[
+        static_cast<std::size_t>(2 * steps) * static_cast<std::size_t>(N) +
+        static_cast<std::size_t>(next)]));
+
+    for (int s = 0; s < steps; ++s) {
+        const int send_chunk = ((r + 1 - s) % N + N) % N;
+        const int recv_chunk = ((r - s) % N + N) % N;
+
+        std::size_t send_off = 0, send_cnt = 0, recv_off = 0, recv_cnt = 0;
+        ring_chunk(n, send_chunk, send_off, send_cnt);
+        ring_chunk(n, recv_chunk, recv_off, recv_cnt);
+
+        const int step = steps + s;
+        if (send_cnt == 0) {
+            ZE_THROW(ze_api()->zeCommandListAppendSignalEvent(list, ev(step, r)));
+        } else {
+            // Step 0 forwards the chunk this rank reduced into its own
+            // output; every later step forwards what the previous step
+            // delivered into our staging, which the wait below ordered.
+            void* send_src = (s == 0) ? byte_at(plan.out_ptrs[r], send_off)
+                                      : ring_slot(r, send_chunk);
+            ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(
+                list,
+                ring_slot(next, send_chunk),
+                send_src,
+                send_cnt * elem,
+                ev(step, r),
+                0, nullptr));
+        }
+
+        ZE_THROW(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &plan.ev_ring[
+            static_cast<std::size_t>(step) * static_cast<std::size_t>(N) +
+            static_cast<std::size_t>(prev)]));
+
+        // Deliver what just arrived into our own output.  Nothing else
+        // reads that range, and the wait above already places this after
+        // the transfer that produced it, so it needs no ordering of its own.
+        if (recv_cnt > 0) {
+            ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(
+                list,
+                byte_at(plan.out_ptrs[r], recv_off),
+                ring_slot(r, recv_chunk),
+                recv_cnt * elem,
+                nullptr,
+                0, nullptr));
+        }
+    }
+
+    // Every ring event has exactly one waiter, so each rank clears the
+    // ones it consumed: the per-step events of its predecessor and the
+    // reduce-scatter handshake of its successor.  The in-order list
+    // already orders these behind the waits above.
+    if (use_device_event_reset()) {
+        order(list);
+        for (int s = 0; s < 2 * steps; ++s) {
+            ZE_THROW(ze_api()->zeCommandListAppendEventReset(list, ev(s, prev)));
+        }
+        ZE_THROW(ze_api()->zeCommandListAppendEventReset(list, ev(2 * steps, next)));
+    }
+
+    close_list(list);
 }
 
 void TPDeviceCoordinator::close_list(ze_command_list_handle_t list) {
     const auto t0 = std::chrono::steady_clock::now();
     ZE_THROW(ze_api()->zeCommandListClose(list));
-    m_rec_close += std::chrono::steady_clock::now() - t0;
+    m_rec_close_ns.fetch_add(
+        static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                  std::chrono::steady_clock::now() - t0)
+                                  .count()),
+        std::memory_order_relaxed);
+}
+
+void TPDeviceCoordinator::submit_rank(Plan& plan, int rank) {
+    auto& rs = m_ranks[rank];
+    // The ring records nothing onto the copy engine, so with TP_COPY_ENGINE
+    // set its copy list exists but is empty and was never closed; submitting
+    // that would be an error.
+    if (!m_use_ring && rs.copy_queue && plan.copy_lists[rank]) {
+        ZE_THROW(ze_api()->zeCommandQueueExecuteCommandLists(
+            rs.copy_queue, 1, &plan.copy_lists[rank], nullptr));
+    }
+    ZE_THROW(ze_api()->zeCommandQueueExecuteCommandLists(
+        rs.compute_queue, 1, &plan.compute_lists[rank], nullptr));
+}
+
+void TPDeviceCoordinator::sync_rank(Plan& plan, int rank) {
+    auto& rs = m_ranks[rank];
+    // Name the rank: a collective that stalls does so on one specific link,
+    // and "which queue never drained" is the first thing worth knowing when
+    // it happens.
+    const std::string what = "allreduce: queue rank " + std::to_string(rank) +
+                             " (n=" + std::to_string(plan.n) +
+                             (m_use_ring ? (m_ring_in_order ? ", ring in-order" : ", ring barriers")
+                                         : "") +
+                             ")";
+    sync_queue(rs.compute_queue, what.c_str());
+    // On the two-rank exchange the compute queue's first command waits on the
+    // event the peer's copy queue signals, so draining both compute queues
+    // already implies both copies landed; there is nothing left to wait for.
+}
+
+void TPDeviceCoordinator::record_rank(Plan& plan, int rank) {
+    // On the immediate path nothing is recorded ahead of time -- cmdlists are
+    // appended to and consumed inside execute_plan, and zeCommandListReset is
+    // not allowed on them.
+    if (m_use_immediate) {
+        return;
+    }
+    OPENVINO_ASSERT(per_rank_schedule(),
+                    "[TP][L0] this schedule cannot be recorded one rank at a time");
+
+    // Reset this rank's command lists (must be done before re-recording).
+    // zeCommandListReset on a list that still has work in-flight on its queue
+    // is undefined; on shared multi-device L0 contexts it can deadlock.  Sync
+    // the queue first so the previous submission has fully drained before we
+    // wipe the recorded commands.
+    //
+    // Recording is only 0.4% of collective calls but all of its misses land in
+    // time to first token, so the stages are timed separately: the drain, the
+    // reset, and the appends that follow.
+    using rec_clk = std::chrono::steady_clock;
+    auto& rs = m_ranks[rank];
+    const auto t0 = rec_clk::now();
+    if (rs.compute_queue) {
+        sync_queue(rs.compute_queue, "re-record: compute queue drain");
+    }
+    if (rs.copy_queue) {
+        sync_queue(rs.copy_queue, "re-record: copy queue drain");
+    }
+    const auto t1 = rec_clk::now();
+    ZE_THROW(ze_api()->zeCommandListReset(plan.compute_lists[rank]));
+    if (plan.copy_lists[rank]) {
+        ZE_THROW(ze_api()->zeCommandListReset(plan.copy_lists[rank]));
+    }
+    const auto t2 = rec_clk::now();
+
+    if (m_use_ring) {
+        record_ring_rank(plan, rank);
+    } else {
+        record_pair_rank(plan, rank);
+    }
+    const auto t3 = rec_clk::now();
+
+    m_rec_drain_ns.fetch_add(
+        static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()),
+        std::memory_order_relaxed);
+    m_rec_reset_ns.fetch_add(
+        static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()),
+        std::memory_order_relaxed);
+    m_rec_build_ns.fetch_add(
+        static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t3 - t2).count()),
+        std::memory_order_relaxed);
+}
+
+void TPDeviceCoordinator::record_pair_rank(Plan& plan, int r) {
+    constexpr uint32_t kGroupSize = 256;
+    const std::size_t n = plan.n;
+    const std::size_t bytes = collective_payload_bytes(n, plan.dtype);
+    ze_group_count_t gc{launch_groups(n, kGroupSize), 1, 1};
+    uint64_t cn64 = n;
+
+    auto& self = m_ranks[r];
+    const int peer = 1 - r;
+    ze_command_list_handle_t self_compute = plan.compute_lists[r];
+
+    ze_kernel_handle_t kernel =
+        (plan.dtype == ov::element::f16) ? self.kernel_f16 : self.kernel_f32;
+    ZE_THROW(ze_api()->zeKernelSetGroupSize(kernel, kGroupSize, 1, 1));
+
+    // 1. Push our `in` to peer's local staging (source-side memcpy).
+    //    Route onto the dedicated copy engine when available so cross-device
+    //    DMA does not contend with the reduce kernel on the compute engine.
+    //    ev_recv[r] is signaled by the copy queue; the cross-device wait below
+    //    resolves on the peer's compute queue regardless of which engine
+    //    signaled.  The destination is the coordinator's staging, never the
+    //    peer's own buffer, which is what lets each rank record on its own.
+    ze_command_list_handle_t copy_target =
+        plan.copy_lists[r] ? plan.copy_lists[r] : self_compute;
+    ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(
+        copy_target,
+        scratch_buffer(peer),
+        plan.in_ptrs[r],
+        bytes,
+        plan.ev_recv[r],
+        0, nullptr));
+
+    // 2. Wait for peer's push to land in our staging.
+    ZE_THROW(ze_api()->zeCommandListAppendWaitOnEvents(self_compute,
+                                                      1, &plan.ev_recv[peer]));
+
+    // Rank r is the only consumer of ev_recv[peer], and once the wait above is
+    // satisfied the event has done its job -- clearing it does not touch the
+    // staged data the kernel is about to read.  Placing the reset here rather
+    // than after the kernel is what makes it free: the wait already orders
+    // everything appended after it, so no barrier is needed.
+    if (use_device_event_reset()) {
+        ZE_THROW(ze_api()->zeCommandListAppendEventReset(self_compute, plan.ev_recv[peer]));
+    }
+
+    // 3. Reduce: out_self = in_self + staging_self.
+    void* dst   = plan.out_ptrs[r];
+    void* src0  = plan.in_ptrs[r];
+    void* src1  = scratch_buffer(r);
+    ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 0, sizeof(void*), &dst));
+    ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 1, sizeof(void*), &src0));
+    ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 2, sizeof(void*), &src1));
+    ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 3, sizeof(cn64), &cn64));
+    ZE_THROW(ze_api()->zeCommandListAppendLaunchKernel(self_compute,
+                                                      kernel, &gc,
+                                                      plan.ev_ts_kernel[r], 0, nullptr));
+
+    close_list(self_compute);
+    if (plan.copy_lists[r]) {
+        close_list(plan.copy_lists[r]);
+    }
 }
 
 void TPDeviceCoordinator::record_plan(Plan& plan) {
@@ -1066,16 +1264,16 @@ void TPDeviceCoordinator::record_plan(Plan& plan) {
     if (m_use_immediate) {
         return;
     }
+    // Only the funnel is left here: it writes into peer output buffers, so a
+    // recording needs every rank's pointers at once and cannot be split.
+    OPENVINO_ASSERT(!per_rank_schedule(),
+                    "[TP][L0] per-rank schedules are recorded through record_rank");
 
     // Reset this plan's command lists (must be done before re-recording).
     // zeCommandListReset on a list that still has work in-flight on its
     // queue is undefined; on shared multi-device L0 contexts it can
     // deadlock.  Sync each queue first so the previous submission has
     // fully drained before we wipe the recorded commands.
-    //
-    // Recording is only 0.4% of collective calls but all of its misses land
-    // in time to first token, so the three stages are timed separately: the
-    // drains, the resets, and the appends that follow.
     using rec_clk = std::chrono::steady_clock;
     const auto t_rec0 = rec_clk::now();
     for (int r = 0; r < N; ++r) {
@@ -1095,82 +1293,25 @@ void TPDeviceCoordinator::record_plan(Plan& plan) {
         }
     }
     const auto t_rec2 = rec_clk::now();
-    m_rec_drain += t_rec1 - t_rec0;
-    m_rec_reset += t_rec2 - t_rec1;
+    m_rec_drain_ns.fetch_add(
+        static_cast<uint64_t>(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(t_rec1 - t_rec0).count()),
+        std::memory_order_relaxed);
+    m_rec_reset_ns.fetch_add(
+        static_cast<uint64_t>(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(t_rec2 - t_rec1).count()),
+        std::memory_order_relaxed);
     struct BuildTimer {
         TPDeviceCoordinator* self;
         rec_clk::time_point start{rec_clk::now()};
-        ~BuildTimer() { self->m_rec_build += rec_clk::now() - start; }
-    } build_timer{this};
-
-    if (m_use_ring) {
-        record_ring_plan(plan);
-        return;
-    }
-
-    if (N == 2) {
-        uint32_t items = static_cast<uint32_t>(n);
-        ze_group_count_t gc{(items + kGroupSize - 1) / kGroupSize, 1, 1};
-        uint64_t cn64 = n;
-
-        for (int r = 0; r < 2; ++r) {
-            auto& self = m_ranks[r];
-            const int peer = 1 - r;
-            ze_command_list_handle_t self_compute = plan.compute_lists[r];
-
-            ze_kernel_handle_t kernel =
-                (plan.dtype == ov::element::f16) ? self.kernel_f16 : self.kernel_f32;
-            ZE_THROW(ze_api()->zeKernelSetGroupSize(kernel, kGroupSize, 1, 1));
-
-            // 1. Push our `in` to peer's local staging (source-side memcpy).
-            //    Route onto the dedicated copy engine when available so
-            //    cross-device DMA does not contend with the reduce kernel
-            //    on the compute engine.  ev_recv[r] is signaled by the
-            //    copy queue; the cross-device wait below resolves on the
-            //    peer's compute queue regardless of which engine signaled.
-            ze_command_list_handle_t copy_target =
-                plan.copy_lists[r] ? plan.copy_lists[r] : self_compute;
-            ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(
-                copy_target,
-                scratch_buffer(peer),
-                plan.in_ptrs[r],
-                bytes,
-                plan.ev_recv[r],
-                0, nullptr));
-
-            // 2. Wait for peer's push to land in our staging.
-            ZE_THROW(ze_api()->zeCommandListAppendWaitOnEvents(self_compute,
-                                                              1, &plan.ev_recv[peer]));
-
-            // Rank r is the only consumer of ev_recv[peer], and once the wait
-            // above is satisfied the event has done its job -- clearing it
-            // does not touch the staged data the kernel is about to read.
-            // Placing the reset here rather than after the kernel is what
-            // makes it free: the wait already orders everything appended
-            // after it, so no barrier is needed.
-            if (use_device_event_reset()) {
-                ZE_THROW(ze_api()->zeCommandListAppendEventReset(self_compute, plan.ev_recv[peer]));
-            }
-
-            // 3. Reduce: out_self = in_self + staging_self.
-            void* dst   = plan.out_ptrs[r];
-            void* src0  = plan.in_ptrs[r];
-            void* src1  = scratch_buffer(r);
-            ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 0, sizeof(void*), &dst));
-            ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 1, sizeof(void*), &src0));
-            ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 2, sizeof(void*), &src1));
-            ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 3, sizeof(cn64), &cn64));
-            ZE_THROW(ze_api()->zeCommandListAppendLaunchKernel(self_compute,
-                                                              kernel, &gc,
-                                                              plan.ev_ts_kernel[r], 0, nullptr));
-
-            close_list(self_compute);
-            if (plan.copy_lists[r]) {
-                close_list(plan.copy_lists[r]);
-            }
+        ~BuildTimer() {
+            self->m_rec_build_ns.fetch_add(
+                static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                          rec_clk::now() - start)
+                                          .count()),
+                std::memory_order_relaxed);
         }
-        return;
-    }
+    } build_timer{this};
 
     // ---- Legacy N>2 main-funnel path ----
     const int W = N - 1;
@@ -1225,8 +1366,7 @@ void TPDeviceCoordinator::record_plan(Plan& plan) {
         }
     }
 
-    uint32_t items = static_cast<uint32_t>(n);
-    ze_group_count_t gc{(items + kGroupSize - 1) / kGroupSize, 1, 1};
+    ze_group_count_t gc{launch_groups(n, kGroupSize), 1, 1};
     uint64_t cn64 = n;
 
     void* dst_main = plan.out_ptrs[0];
@@ -1341,8 +1481,7 @@ void TPDeviceCoordinator::execute_plan(Plan& plan, ExecStats* stats) {
         // counter-based event signaled by the tail barrier on each rank.
         constexpr uint32_t kGroupSize = 256;
         const std::size_t bytes = collective_payload_bytes(plan.n, plan.dtype);
-        const uint32_t items = static_cast<uint32_t>(plan.n);
-        ze_group_count_t gc{(items + kGroupSize - 1) / kGroupSize, 1, 1};
+        ze_group_count_t gc{launch_groups(plan.n, kGroupSize), 1, 1};
         uint64_t cn64 = plan.n;
 
         auto step = [](const char* what) {
@@ -1462,20 +1601,13 @@ void TPDeviceCoordinator::execute_plan(Plan& plan, ExecStats* stats) {
         trace("execute: submit ring");
         auto tg0 = clk::now();
         for (int r = 0; r < m_world_size; ++r) {
-            ZE_THROW(ze_api()->zeCommandQueueExecuteCommandLists(
-                m_ranks[r].compute_queue, 1, &plan.compute_lists[r], nullptr));
+            submit_rank(plan, r);
         }
         auto tg1 = clk::now();
 
         auto tprev = tg1;
         for (int r = 0; r < m_world_size; ++r) {
-            // Name the rank: a ring that stalls does so on one specific link,
-            // and "which queue never drained" is the first thing worth
-            // knowing when it happens.
-            const std::string what = "allreduce: ring queue rank " + std::to_string(r) +
-                                     " (n=" + std::to_string(plan.n) +
-                                     (m_ring_in_order ? ", in-order" : ", barriers") + ")";
-            sync_queue(m_ranks[r].compute_queue, what.c_str());
+            sync_rank(plan, r);
             if (stats) {
                 const auto tnow = clk::now();
                 (r == 0 ? stats->sync_first : stats->sync_rest) += tnow - tprev;
@@ -1527,17 +1659,12 @@ void TPDeviceCoordinator::execute_plan(Plan& plan, ExecStats* stats) {
         // compute queue here; the copy queue is implicitly drained.
         auto ts0 = clk::now();
         for (int r = 0; r < 2; ++r) {
-            if (m_ranks[r].copy_queue) {
-                ZE_THROW(ze_api()->zeCommandQueueExecuteCommandLists(
-                    m_ranks[r].copy_queue, 1, &plan.copy_lists[r], nullptr));
-            }
-            ZE_THROW(ze_api()->zeCommandQueueExecuteCommandLists(
-                m_ranks[r].compute_queue, 1, &plan.compute_lists[r], nullptr));
+            submit_rank(plan, r);
         }
         auto ts1 = clk::now();
-        sync_queue(m_ranks[0].compute_queue, "allreduce: rank 0 queue");
+        sync_rank(plan, 0);
         auto ts2 = clk::now();
-        sync_queue(m_ranks[1].compute_queue, "allreduce: rank 1 queue");
+        sync_rank(plan, 1);
         auto ts3 = clk::now();
         if (stats) {
             stats->submit = ts1 - ts0;
@@ -1817,6 +1944,11 @@ void TPDeviceCoordinator::allreduce(int collective_id,                          
     // Uses a generation counter so the wait predicate is monotonic and the
     // last-in resets `arrived` immediately for the next epoch.
     trace("phase1: enter");
+    static const int skew_period = tp_skew_period();
+    auto elapsed_ns = [](clk::time_point a, clk::time_point b) -> uint64_t {
+        return static_cast<uint64_t>(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(b - a).count());
+    };
     {
         std::unique_lock<std::mutex> lk(rdz.mtx);
         rdz.in_ptrs[rank]  = in_dev;
@@ -1824,6 +1956,26 @@ void TPDeviceCoordinator::allreduce(int collective_id,                          
         if (rank == 0) {
             rdz.n     = n;
             rdz.dtype = dtype;
+        }
+        if (skew_period > 0) {
+            const auto t_arrive = clk::now();
+            if (rdz.arrived == 0) {
+                rdz.first_arrival = t_arrive;
+            }
+            m_skew.late_ns[rank] += elapsed_ns(rdz.first_arrival, t_arrive);
+            if (rdz.arrived + 1 == m_world_size) {
+                m_skew.spread_ns += elapsed_ns(rdz.first_arrival, t_arrive);
+                ++m_skew.last_count[rank];
+            }
+            // How long this rank's own model work took since it left the
+            // previous collective.  Only this rank touches these slots.
+            if (m_skew.last_exit[rank] != std::chrono::steady_clock::time_point{}) {
+                const uint64_t seg = elapsed_ns(m_skew.last_exit[rank], t_arrive);
+                m_skew.seg_ns[rank] += seg;
+                m_skew.seg_min_ns[rank] = std::min(m_skew.seg_min_ns[rank], seg);
+                m_skew.seg_max_ns[rank] = std::max(m_skew.seg_max_ns[rank], seg);
+                ++m_skew.seg_count[rank];
+            }
         }
         const uint64_t my_gen = rdz.enter_gen;
         if (++rdz.arrived == m_world_size) {
@@ -1842,23 +1994,42 @@ void TPDeviceCoordinator::allreduce(int collective_id,                          
     trace("phase1: passed");
     auto t1 = clk::now();
 
-    // Phase 2: rank 0 orchestrates; non-zero ranks wait for `done`.
-    if (rank == 0) {
-        // Rank 0 owns the launch.  Every other rank is parked on `done`, so if
-        // anything below throws they would wait for a result that will never
-        // be produced.  Releasing them is the whole point of the guard.
-        struct AbortOnFailure {
-            TPDeviceCoordinator* self;
-            int collective_id;
-            bool armed{true};
-            ~AbortOnFailure() {
-                if (armed) {
-                    self->abort_all("[TP][L0] rank 0 failed while running collective " +
-                                    std::to_string(collective_id));
-                }
-            }
-        } abort_guard{this, collective_id};
+    // Phase 2.  Recording needs every rank's pointers at once, so rank 0 does
+    // it for the whole group and `done` releases the others once it has.
+    //
+    // Execution is a different matter.  On a per-rank schedule each rank owns
+    // a queue of its own, and having a single thread submit four of them
+    // serialized what the hardware can do at once while three threads slept --
+    // submit alone measured 0.6 ms per token at four ranks.  Every rank now
+    // drives its own queue, which is why `done` here means "recorded, go"
+    // rather than "finished".
+    //
+    // Profiling and the host-reset toggle stay on the old single-threaded
+    // path: both read events back after the sync, and that wants one thread
+    // that knows every rank has finished.
+    const bool per_rank_exec = per_rank_schedule() && use_device_event_reset();
 
+    // Whoever fails leaves the rest of the group waiting for something that
+    // will never arrive, so every rank arms the guard, not just rank 0.
+    struct AbortOnFailure {
+        TPDeviceCoordinator* self;
+        int collective_id;
+        int rank;
+        bool armed{true};
+        ~AbortOnFailure() {
+            if (armed) {
+                self->abort_all("[TP][L0] rank " + std::to_string(rank) +
+                                " failed while running collective " +
+                                std::to_string(collective_id));
+            }
+        }
+    } abort_guard{this, collective_id, rank};
+
+    Plan* const slot = m_plans[collective_id].get();
+    auto tr0 = clk::now();
+    auto tr1 = tr0;
+
+    if (rank == 0) {
         OPENVINO_ASSERT(rdz.n == n && rdz.dtype == dtype,
                         "[TP][L0] inconsistent (n,dtype) across ranks for collective ",
                         collective_id);
@@ -1869,23 +2040,26 @@ void TPDeviceCoordinator::allreduce(int collective_id,                          
                             " arrivals that did not cover every rank");
         }
 
-        Plan* const slot = m_plans[collective_id].get();
-
         const auto payload_bytes = collective_payload_bytes(n, dtype);
         const bool scratch_grew = ensure_scratch_capacity(payload_bytes);
-        const bool resources_missing = slot->pool == nullptr;
         const bool signature_matches = slot->matches(rdz.in_ptrs, rdz.out_ptrs, n, dtype);
+        // Every rank has to be recorded against the current signature and the
+        // current staging arena.  They move together today, but they are kept
+        // per rank because that is what lets a rank re-record on its own.
+        const bool all_ranks_recorded =
+            std::all_of(slot->recorded.begin(), slot->recorded.end(),
+                        [](uint8_t v) { return v != 0; }) &&
+            std::all_of(slot->recorded_scratch_generation.begin(),
+                        slot->recorded_scratch_generation.end(),
+                        [this](uint64_t g) { return g == m_scratch.generation; });
         const bool recorded_matches = !m_use_immediate &&
-                                      slot->recorded &&
-                                      slot->recorded_scratch_generation == m_scratch.generation &&
+                                      all_ranks_recorded &&
                                       signature_matches;
         const bool need_record = !m_use_immediate && !recorded_matches;
 
-        trace(resources_missing ? "phase2: build resources"
-                                : scratch_grew ? "phase2: grow scratch and re-record"
-                                : need_record ? "phase2: re-record" : "phase2: reuse recording");
-        auto tr0 = clk::now();
-        if (resources_missing || scratch_grew) {
+        trace(scratch_grew ? "phase2: grow scratch and re-record"
+                           : need_record ? "phase2: re-record" : "phase2: reuse recording");
+        if (scratch_grew) {
             ++n_rebuild;
         }
 
@@ -1899,9 +2073,7 @@ void TPDeviceCoordinator::allreduce(int collective_id,                          
                       << std::endl;
         }
 
-        if (resources_missing) {
-            build_plan(collective_id, rdz.in_ptrs, rdz.out_ptrs, n, dtype, *slot);
-        } else if (!signature_matches) {
+        if (!signature_matches) {
             slot->in_ptrs = rdz.in_ptrs;
             slot->out_ptrs = rdz.out_ptrs;
             slot->n = n;
@@ -1910,22 +2082,54 @@ void TPDeviceCoordinator::allreduce(int collective_id,                          
         slot->max_payload_bytes = std::max(previous_max_payload, payload_bytes);
 
         if (need_record) {
-            record_plan(*slot);
-            slot->recorded = true;
-            slot->recorded_scratch_generation = m_scratch.generation;
+            if (per_rank_schedule()) {
+                for (int r = 0; r < m_world_size; ++r) {
+                    record_rank(*slot, r);
+                }
+            } else {
+                record_plan(*slot);
+            }
+            std::fill(slot->recorded.begin(), slot->recorded.end(), 1);
+            std::fill(slot->recorded_scratch_generation.begin(),
+                      slot->recorded_scratch_generation.end(), m_scratch.generation);
             ++n_record;
         }
-        auto tr1 = clk::now();
+        tr1 = clk::now();
 
+        if (per_rank_exec) {
+            std::unique_lock<std::mutex> lk(rdz.mtx);
+            rdz.done = true;
+            rdz.cv.notify_all();
+        }
+    } else if (per_rank_exec) {
+        std::unique_lock<std::mutex> lk(rdz.mtx);
+        const auto outcome = wait_for_condition(lk, rdz.cv, m_collective_timeout, m_aborted,
+                                                [&] { return rdz.done; });
+        if (outcome != WaitOutcome::ready) {
+            lk.unlock();
+            fail_collective(outcome == WaitOutcome::timed_out, collective_id, rank, "record phase");
+        }
+        tr1 = clk::now();
+    }
+
+    auto te1 = tr1;
+    if (per_rank_exec) {
+        // Submit before syncing, on every rank: a rank's list blocks on events
+        // its neighbours only signal once they run, so draining one queue
+        // before the others are submitted would deadlock.  Nothing here waits
+        // on the host, so all four submissions happen at once.
+        trace("phase2: submit own queue");
+        submit_rank(*slot, rank);
+        sync_rank(*slot, rank);
+        te1 = clk::now();
+        trace("phase2: own queue drained");
+    } else if (rank == 0) {
         trace("phase2: execute");
-        auto te0 = clk::now();
         ExecStats es{};
         execute_plan(*slot, &es);
-        auto te1 = clk::now();
+        te1 = clk::now();
         trace("phase2: executed");
 
-        t_record += tr1 - tr0;
-        t_exec   += te1 - te0;
         t_reset  += es.reset;
         t_submit += es.submit;
         t_sync_first += es.sync_first;
@@ -1935,15 +2139,10 @@ void TPDeviceCoordinator::allreduce(int collective_id,                          
         t_dev_ts_query += es.dev_ts_query;
         t_copy_bytes   += es.copy_bytes;
         t_copy_bytes_total += es.copy_bytes_total;
-        t_prep         += tr0 - t1;
 
-        {
-            std::unique_lock<std::mutex> lk(rdz.mtx);
-            abort_guard.armed = false;
-            rdz.done = true;
-            rdz.cv.notify_all();
-        }
-        t_tail += clk::now() - te1;
+        std::unique_lock<std::mutex> lk(rdz.mtx);
+        rdz.done = true;
+        rdz.cv.notify_all();
     } else {
         std::unique_lock<std::mutex> lk(rdz.mtx);
         const auto outcome = wait_for_condition(lk, rdz.cv, m_collective_timeout, m_aborted,
@@ -1952,6 +2151,15 @@ void TPDeviceCoordinator::allreduce(int collective_id,                          
             lk.unlock();
             fail_collective(outcome == WaitOutcome::timed_out, collective_id, rank, "execute phase");
         }
+        te1 = clk::now();
+    }
+    abort_guard.armed = false;
+
+    if (rank == 0) {
+        t_record += tr1 - tr0;
+        t_exec   += te1 - tr1;
+        t_prep   += tr0 - t1;
+        t_tail   += clk::now() - te1;
     }
     trace("phase2: passed");
     auto t2 = clk::now();
@@ -1987,6 +2195,37 @@ void TPDeviceCoordinator::allreduce(int collective_id,                          
         t_phase1 += t1 - t0;
         t_phase2 += t2 - t1;
         t_phase3 += t3 - t2;
+    }
+    if (skew_period > 0) {
+        // Every rank records its own slots, so no lock is needed here.
+        m_skew.ph1_ns[rank] += elapsed_ns(t0, t1);
+        m_skew.ph2_ns[rank] += elapsed_ns(t1, t2);
+        m_skew.ph3_ns[rank] += elapsed_ns(t2, t3);
+        m_skew.last_exit[rank] = t3;
+        if (rank == 0 && (++m_skew.calls % static_cast<uint64_t>(skew_period)) == 0) {
+            const double c = static_cast<double>(m_skew.calls);
+            auto us = [c](uint64_t v) { return static_cast<double>(v) / 1.0e3 / c; };
+            std::cerr << "[TP][SKEW] calls=" << m_skew.calls
+                      << " arrival spread=" << us(m_skew.spread_ns) << "us/call"
+                      << std::endl;
+            for (int r = 0; r < m_world_size; ++r) {
+                const double last_share =
+                    100.0 * static_cast<double>(m_skew.last_count[r]) / c;
+                const double sc =
+                    std::max<double>(1.0, static_cast<double>(m_skew.seg_count[r]));
+                std::cerr << "[TP][SKEW]   rank " << r
+                          << ": late=" << us(m_skew.late_ns[r]) << "us"
+                          << " arrived_last=" << last_share << "%"
+                          << "  ph1=" << us(m_skew.ph1_ns[r]) << "us"
+                          << " ph2=" << us(m_skew.ph2_ns[r]) << "us"
+                          << " ph3=" << us(m_skew.ph3_ns[r]) << "us"
+                          << "  segment mean="
+                          << (static_cast<double>(m_skew.seg_ns[r]) / 1.0e3 / sc) << "us"
+                          << " min=" << (static_cast<double>(m_skew.seg_min_ns[r]) / 1.0e3)
+                          << "us max=" << (static_cast<double>(m_skew.seg_max_ns[r]) / 1.0e3)
+                          << "us" << std::endl;
+            }
+        }
     }
     if (prof_every > 0 && rank == 0) {
         uint64_t c = ++n_calls;
@@ -2053,12 +2292,16 @@ void TPDeviceCoordinator::allreduce(int collective_id,                          
             // recordings, not by calls: recording is rare but every miss
             // lands in time to first token.
             const double rc = std::max<double>(1.0, static_cast<double>(n_record.load()));
+            auto rec_ms = [](const std::atomic<uint64_t>& v) {
+                return static_cast<double>(v.load(std::memory_order_relaxed)) / 1.0e6;
+            };
             std::cerr << "[TP][PROF]   record breakdown: records=" << n_record.load()
                       << " per-record=" << ms(t_record).count() / rc << "ms"
-                      << " (drain=" << ms(m_rec_drain).count() / rc << "ms"
-                      << " reset=" << ms(m_rec_reset).count() / rc << "ms"
-                      << " append=" << ms(m_rec_build - m_rec_close).count() / rc << "ms"
-                      << " close=" << ms(m_rec_close).count() / rc << "ms)"
+                      << " (drain=" << rec_ms(m_rec_drain_ns) / rc << "ms"
+                      << " reset=" << rec_ms(m_rec_reset_ns) / rc << "ms"
+                      << " append="
+                      << (rec_ms(m_rec_build_ns) - rec_ms(m_rec_close_ns)) / rc << "ms"
+                      << " close=" << rec_ms(m_rec_close_ns) / rc << "ms)"
                       << std::endl;
             const auto scratch = get_scratch_stats();
             std::cerr << "[TP][PROF]   scratch: payload_capacity="
