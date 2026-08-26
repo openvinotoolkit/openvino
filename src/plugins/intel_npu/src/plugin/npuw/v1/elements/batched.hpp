@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <mutex>
+#include <unordered_set>
 #include <vector>
 
 #include "../../compiled_model.hpp"
@@ -127,17 +128,23 @@ private:
     BatchedInputs extract_batch() const;
 
     // Make the public output tensors [batch, ...] copies of the inner's [1, ...]
-    // outputs, reusing caller-bound tensors that already fit. The wrapped model's
-    // ports are dynamic, so this can only run once the first row has been scored
-    // and the inner output shapes are known.
+    // outputs. A caller-bound tensor that already fits is kept and written into; a
+    // caller-bound tensor that does not fit throws (the element never discards a
+    // tensor the caller provided); only the element's own previous allocations are
+    // replaced freely. The wrapped model's ports are dynamic, so this can only run
+    // once the first row has been scored and the inner output shapes are known.
     void ensure_batched_outputs(std::size_t batch);
 
     // Batch-1 shortcut: publish the inner outputs as the public ones without the
-    // stacking copy. A caller-bound tensor of the fitting shape and type is still
-    // written in place instead.
+    // stacking copy. A caller-bound tensor of the fitting shape and type is
+    // written in place instead, and a mismatched caller-bound tensor throws.
     void expose_inner_outputs();
 
     std::shared_ptr<ov::IAsyncInferRequest> m_inner;
+    // The output tensors the element itself published (its own allocations and
+    // exposed inner tensors), so mismatch handling can tell them from tensors the
+    // caller bound: ours are replaced freely, the caller's are never discarded.
+    std::unordered_set<const ov::ITensor*> m_owned_outputs;
     mutable std::mutex m_mutex;
 
     // Per-phase timings of the unroll.

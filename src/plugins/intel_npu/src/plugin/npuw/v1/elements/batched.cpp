@@ -18,6 +18,15 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
 
+namespace {
+// A port name for error messages. get_any_name() throws on a tensor with no
+// names, so fall back to the node's friendly name.
+std::string port_name(const ov::Output<const ov::Node>& port) {
+    const auto& names = port.get_names();
+    return names.empty() ? port.get_node()->get_friendly_name() : port.get_any_name();
+}
+}  // anonymous namespace
+
 ov::npuw::batched::ScoringTags ov::npuw::batched::scoring_tags(const ov::AnyMap& properties) {
     const auto is_enabled = [&properties](const std::string& key) {
         const auto it = properties.find(key);
@@ -147,20 +156,20 @@ ov::npuw::batched::InferRequest::BatchedInputs ov::npuw::batched::InferRequest::
     inputs.tensors.reserve(in_ports.size());
     for (const auto& port : in_ports) {
         auto tensor = get_tensor(port);
-        OPENVINO_ASSERT(tensor, "Batched element: no tensor is set for input '", port.get_any_name(), "'");
+        OPENVINO_ASSERT(tensor, "Batched element: no tensor is set for input '", port_name(port), "'");
         const auto& shape = tensor->get_shape();
         OPENVINO_ASSERT(!shape.empty(),
                         "Batched element: input '",
-                        port.get_any_name(),
+                        port_name(port),
                         "' has no leading (batch) dimension");
         OPENVINO_ASSERT(shape[0] > 0,
                         "Batched element: input '",
-                        port.get_any_name(),
+                        port_name(port),
                         "' has a zero-sized batch dimension - batch size must be > 0");
         if (shape[0] > 1) {
             OPENVINO_ASSERT(inputs.batch == 1 || inputs.batch == shape[0],
                             "Batched element: input '",
-                            port.get_any_name(),
+                            port_name(port),
                             "' has batch dimension ",
                             shape[0],
                             " which is neither the inferred batch size ",
@@ -244,9 +253,26 @@ void ov::npuw::batched::InferRequest::expose_inner_outputs() {
             current->get_shape() == inner_out->get_shape()) {
             // The caller bound a fitting output tensor - keep writing into it.
             inner_out->copy_to(current._ptr);
-        } else {
-            set_tensor(port, inner_out);
+            continue;
         }
+        if (current && current._ptr != inner_out._ptr) {
+            // Only the element's own previous publications may be replaced - a
+            // tensor the caller bound is never discarded behind their back.
+            OPENVINO_ASSERT(m_owned_outputs.count(current._ptr.get()) > 0,
+                            "Batched element: output '",
+                            port_name(port),
+                            "' is bound to a caller tensor of type ",
+                            current->get_element_type(),
+                            " and shape ",
+                            current->get_shape(),
+                            ", but this inference produces type ",
+                            inner_out->get_element_type(),
+                            " and shape ",
+                            inner_out->get_shape(),
+                            " - bind a fitting tensor or leave the output unset.");
+        }
+        m_owned_outputs.insert(inner_out._ptr.get());
+        set_tensor(port, inner_out);
     }
 }
 
@@ -255,14 +281,33 @@ void ov::npuw::batched::InferRequest::ensure_batched_outputs(std::size_t batch) 
         const auto inner_out = m_inner->get_tensor(port);
         OPENVINO_ASSERT(inner_out && !inner_out->get_shape().empty() && inner_out->get_shape()[0] == 1,
                         "Batched element: output '",
-                        port.get_any_name(),
+                        port_name(port),
                         "' of the inner request is not a [1, ...] tensor");
         ov::Shape shape = inner_out->get_shape();
         shape[0] = batch;
         const auto current = get_tensor(port);
-        if (!current || current->get_element_type() != inner_out->get_element_type() || current->get_shape() != shape) {
-            set_tensor(port, ov::get_tensor_impl(ov::Tensor(inner_out->get_element_type(), shape)));
+        if (current && current->get_element_type() == inner_out->get_element_type() && current->get_shape() == shape) {
+            // Fits (caller-bound or ours from an earlier call) - rows are written
+            // straight into it.
+            continue;
         }
+        // Only the element's own previous publications may be replaced - a tensor
+        // the caller bound is never discarded behind their back.
+        OPENVINO_ASSERT(!current || m_owned_outputs.count(current._ptr.get()) > 0,
+                        "Batched element: output '",
+                        port_name(port),
+                        "' is bound to a caller tensor of type ",
+                        current ? current->get_element_type() : ov::element::dynamic,
+                        " and shape ",
+                        current ? current->get_shape() : ov::Shape{},
+                        ", but this inference produces type ",
+                        inner_out->get_element_type(),
+                        " and shape ",
+                        shape,
+                        " - bind a fitting tensor or leave the output unset.");
+        auto fresh = ov::get_tensor_impl(ov::Tensor(inner_out->get_element_type(), shape));
+        m_owned_outputs.insert(fresh._ptr.get());
+        set_tensor(port, fresh);
     }
 }
 
