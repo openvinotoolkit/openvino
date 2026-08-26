@@ -508,7 +508,15 @@ private:
     }
 
     std::optional<BlobType> extract_blob_type() const override {
-        // TODO determine blob type
+        // TODO assert there's only one main/dynamic schedule section
+        if (std::dynamic_pointer_cast<ELFMainScheduleSection>(
+                m_blob_reader.retrieve_first_section(PredefinedSectionType::ELF_MAIN_SCHEDULE))) {
+            return BlobType::ELF;
+        }
+
+        const auto dynamic_schedule_section = std::dynamic_pointer_cast<DynamicScheduleSection>(
+            m_blob_reader.retrieve_first_section(PredefinedSectionType::DYNAMIC_SCHEDULE));
+        return dynamic_schedule_section->get_blob_type();
     }
 
     BlobReader m_blob_reader;

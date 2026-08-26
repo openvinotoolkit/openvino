@@ -338,13 +338,16 @@ DynamicScheduleSection::DynamicScheduleSection(const std::shared_ptr<DynamicGrap
                                                const ov::log::Level log_level)
     : ISection(PredefinedSectionType::DYNAMIC_SCHEDULE),
       m_impl(std::dynamic_pointer_cast<Graph>(graph), encryption_callbacks, log_level),
+      m_blob_type(graph->get_blob_type()),
       m_logger("DynamicScheduleSection", log_level) {}
 
 DynamicScheduleSection::DynamicScheduleSection(ov::Tensor&& main_schedule,
+                                               const BlobType blob_type,
                                                const std::optional<ov::EncryptionCallbacks>& encryption_callbacks,
                                                const ov::log::Level log_level)
     : ISection(PredefinedSectionType::DYNAMIC_SCHEDULE),
       m_impl(std::move(main_schedule), encryption_callbacks, log_level),
+      m_blob_type(blob_type),
       m_logger("DynamicScheduleSection", log_level) {}
 
 std::vector<CREToken> DynamicScheduleSection::get_compatibility_requirements_subexpression(
@@ -356,6 +359,8 @@ std::vector<CREToken> DynamicScheduleSection::get_compatibility_requirements_sub
 
 void DynamicScheduleSection::write(BlobWriterInterface& writer) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "DynamicScheduleSection::write");
+    // TODO might need casting to uint8_t
+    writer.write_from(&m_blob_type, sizeof(m_blob_type));
     m_impl.write(writer);
 }
 
@@ -367,6 +372,10 @@ ov::Tensor DynamicScheduleSection::get_schedule() const {
     return m_impl.get_schedule();
 }
 
+BlobType DynamicScheduleSection::get_blob_type() const {
+    return m_blob_type;
+}
+
 void DynamicScheduleSection::decrypt(const ov::EncryptionCallbacks& encryption_callbacks) {
     m_impl.decrypt(encryption_callbacks);
 }
@@ -375,8 +384,12 @@ std::shared_ptr<ISection> DynamicScheduleSection::read(BlobReaderInterface& blob
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "DynamicScheduleSection::read");
     // TODO more logs
 
+    BlobType blob_type;
+    blob_reader.read_into_buffer(&blob_type, sizeof(blob_type));
+
     return std::make_shared<DynamicScheduleSection>(
         std::dynamic_pointer_cast<ELFMainScheduleSection>(ELFMainScheduleSection::read(blob_reader))->get_schedule(),
+        blob_type,
         get_encryption_callbacks_from_config(blob_reader.get_config()),
         blob_reader.get_log_level());
 }

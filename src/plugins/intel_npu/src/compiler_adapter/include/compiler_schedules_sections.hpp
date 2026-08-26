@@ -89,6 +89,7 @@ public:
                            const ov::log::Level log_level = ov::log::Level::WARNING);
 
     DynamicScheduleSection(ov::Tensor&& main_schedule,
+                           const BlobType blob_type,
                            const std::optional<ov::EncryptionCallbacks>& encryption_callbacks = std::nullopt,
                            const ov::log::Level log_level = ov::log::Level::WARNING);
 
@@ -105,12 +106,15 @@ public:
 
     ov::Tensor get_schedule() const;
 
+    BlobType get_blob_type() const;
+
     static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
 
     void decrypt(const ov::EncryptionCallbacks& encryption_callbacks);
 
 private:
     ELFMainScheduleSection m_impl;
+    BlobType m_blob_type;
 
     Logger m_logger;
 };
