@@ -49,7 +49,7 @@ TEST_F(CompatibilityStringGPU, CompatibilityCheckListedInSupportedProperties) {
     ASSERT_NE(std::find(supported.begin(), supported.end(), ov::compatibility_check.name()), supported.end());
 }
 
-TEST_F(CompatibilityStringGPU, ModelSharingContextListedInSupportedProperties) {
+TEST_F(CompatibilityStringGPU, ModelSharingContextListedInInternalButNotPublicProperties) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::Core core;
 
@@ -59,7 +59,7 @@ TEST_F(CompatibilityStringGPU, ModelSharingContextListedInSupportedProperties) {
               internal_supported.end());
 
     auto supported = core.get_property(ov::test::utils::DEVICE_GPU, ov::supported_properties);
-    ASSERT_NE(std::find(supported.begin(), supported.end(), ov::internal::model_sharing_context.name()),
+    ASSERT_EQ(std::find(supported.begin(), supported.end(), ov::internal::model_sharing_context.name()),
               supported.end());
 }
 
