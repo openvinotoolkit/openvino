@@ -3,9 +3,7 @@
 MLIR and Graph Compiler are not added as third-party submodules to the project, so a developer has to manually
 build a suitable LLVM & Graph Compiler and then provide cmake-configs during the OpenVINO build.
 
-The pinned Graph Compiler revision can be found in [`cmake/graph-compiler.cmake`](../../../../../cmake/graph-compiler.cmake)
-and in the CI job [`.github/workflows/dev_gpu_linux_mlir.yml`](../../../../../.github/workflows/dev_gpu_linux_mlir.yml)
-(the actual build steps can also be taken from there).
+The pinned Graph Compiler revision can be found in [`cmake/graph-compiler.cmake`](../../../../../cmake/graph-compiler.cmake).
 
 ## 1. Clone a suitable graph-compiler and build gc + llvm
 
@@ -51,9 +49,6 @@ included to the regular build, they are only built with `ENABLE_GPU_MLIR=ON`). T
 copied from the usual OV tests (e.g. `functional/single_layer_tests/dynamic/scaled_dot_product_attention.cpp`
 -> `functional/mlir_op/sdpa.cpp`) but redefine the tests base class (to `MlirSubgraphTest`), sometimes include
 additional cases or change the accuracy thresholds that are suitable for the mlir implementations.
-
-A dedicated CI job `dev_gpu_linux_mlir.yml` builds suitable gc + llvm, builds OV with MLIR support, and runs
-the tests from the `functional/mlir_op` folder. The job is only triggered when mlir-related files are changed.
 
 ## See also
 
