@@ -118,6 +118,29 @@ inline ir_graph lower(const bridge::graph& bg) {
         if (!unsupported.empty())
             continue;  // collect the FULL gap list before failing
 
+        // torch.Linear lowers into matmul(transpose_b) + bias-add: the
+        // kernels take two operands, and the core's constant-broadcast
+        // expansion turns a [N] bias into the full [M,N] add for free.
+        if (op == ir_op::matmul && detail::lower_type(n.type) == "linear" && n.inputs.size() == 3) {
+            const std::string mm_id = n.id + "#mm";
+            ir_node mm;
+            mm.id = mm_id;
+            mm.op = ir_op::matmul;
+            mm.inputs = {n.inputs[0], n.inputs[1]};
+            mm.matmul_transpose_b = true;  // torch stores W as [N,K]
+            g.nodes.push_back(mm);
+            g.tensor_shapes[mm_id] = n.shape;
+
+            ir_node add;
+            add.id = n.id;
+            add.op = ir_op::add;
+            add.inputs = {mm_id, n.inputs[2]};
+            g.nodes.push_back(add);
+            g.tensor_shapes[n.id] = n.shape;
+            continue;
+        }
+
+
         ir_node out;
         out.id = n.id;
         out.op = op;
@@ -190,5 +213,6 @@ inline ir_graph lower(const bridge::graph& bg) {
 }  // namespace cross_platform
 }  // namespace vulkan
 }  // namespace ov
+
 
 
