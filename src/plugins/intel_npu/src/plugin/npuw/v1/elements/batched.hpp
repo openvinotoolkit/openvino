@@ -73,7 +73,7 @@ public:
     const std::vector<ov::Output<const ov::Node>>& inputs() const override;
     const std::vector<ov::Output<const ov::Node>>& outputs() const override;
 
-    void export_model(std::ostream& model) const override;
+    void export_model(std::ostream& stream) const override;
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
 
     void set_property(const ov::AnyMap& properties) override;
@@ -96,9 +96,9 @@ private:
 //
 // The public input tensors default to the inner request's own tensors (surfaced in
 // the constructor), so a plain batch-1 infer works exactly as on the inner. When
-// the caller binds [N, ...] inputs, infer() takes N as the largest leading
-// dimension across the inputs (an input with a leading dim of 1 is shared across
-// rows), and for each row: resets the inner variable state, binds the row's
+// the caller binds [N, ...] inputs, infer() takes N as the leading dimension the
+// batched inputs agree on (an input with a leading dim of 1 is broadcast - shared
+// across rows), and for each row: resets the inner variable state, binds the row's
 // [1, ...] view of every batched input, runs the inner request, and copies the
 // inner outputs into row i of the [N, ...] public output tensors. Caller-bound
 // output tensors are reused when they already have the right shape and type.
@@ -121,10 +121,9 @@ private:
         std::size_t batch = 1;
     };
 
-    // Snapshot the public inputs and derive the batch size: the largest leading
-    // dimension across them. Every input must either carry the batch ([N, ...],
-    // sliced per row by infer()) or be shared across rows ([1, ...], bound whole);
-    // anything else throws.
+    // Snapshot the public inputs and derive the batch size N. Every input must
+    // either carry the batch ([N, ...], sliced per row by infer()) or be broadcast
+    // ([1, ...], bound whole to every row); inputs disagreeing on N throw.
     BatchedInputs extract_batch() const;
 
     // Make the public output tensors [batch, ...] copies of the inner's [1, ...]
