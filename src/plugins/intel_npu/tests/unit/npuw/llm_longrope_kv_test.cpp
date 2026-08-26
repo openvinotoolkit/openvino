@@ -190,6 +190,37 @@ TEST(LongRopeRerotate, PositionsOutsideTheTablesThrow) {
     EXPECT_THROW(lr::make_regime_delta(tables, 1, kSeqLen, true), ov::Exception);
 }
 
+// A quantized cache cannot be turned without dequantizing it, and a half-turned cache is
+// worse than none - so it is refused rather than warned about and skipped.
+TEST(LongRopeRerotate, UnsupportedElementTypeThrows) {
+    auto tables = make_tables(true);
+    const auto delta = lr::make_regime_delta(tables, 0, kSeqLen, true);
+
+    std::vector<int8_t> quantized(kHeads * kSeqLen * kHeadDim, 1);
+    auto tensor = ov::get_tensor_impl(
+        ov::Tensor(ov::element::i8, ov::Shape{1, kHeads, kSeqLen, kHeadDim}, quantized.data()));
+
+    EXPECT_THROW(lr::rerotate_keys(tensor, kSeqDim, kSeqLen, delta), ov::Exception);
+}
+
+// Rows are addressed from one base pointer, so anything but a canonically packed tensor
+// has to be refused. A view that crops only the sequence axis is the trap: its own
+// sequence stride still looks dense while every plane after the first sits elsewhere.
+TEST(LongRopeRerotate, StridedTensorThrows) {
+    auto tables = make_tables(true);
+    const auto delta = lr::make_regime_delta(tables, 0, kSeqLen, true);
+
+    ov::Tensor parent(ov::element::f32, ov::Shape{1, kHeads, kSeqLen * 2, kHeadDim});
+    std::fill_n(parent.data<float>(), parent.get_size(), 0.5f);
+    ov::Tensor cropped(parent,
+                       ov::Coordinate{0, 0, 0, 0},
+                       ov::Coordinate{1, kHeads, kSeqLen, kHeadDim});
+    ASSERT_EQ(cropped.get_shape(), (ov::Shape{1, kHeads, kSeqLen, kHeadDim}));
+
+    auto tensor = ov::get_tensor_impl(cropped);
+    EXPECT_THROW(lr::rerotate_keys(tensor, kSeqDim, kSeqLen, delta), ov::Exception);
+}
+
 // An f16 cache is rewritten by the SIMD kernel in util_xarch, an f32 one by the scalar
 // loop; the two must agree. A rotary width of 20 gives 10 planes per row, which covers
 // both the 8-wide vector body and the 2-plane scalar tail of the SIMD path.

@@ -1353,6 +1353,23 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     }
 
+    // A LongRoPE model can flip between its short- and its long-factor coefficients in
+    // the middle of a conversation, and NPUW repairs that by re-rotating the cached keys
+    // in place (llm_longrope_kv.hpp). That rewrite needs a flat, non-quantized key cache.
+    // Where it cannot run there is no correct fallback - the cache would stay in the old
+    // rotation frame and every answer past the crossing would be garbage - so refuse the
+    // combination here rather than at the crossing token.
+    if (m_longrope_tables.has_long) {
+        OPENVINO_ASSERT(!m_is_block_kv_cache,
+                        "NPUW: a block-based KV cache cannot be re-rotated when the LongRoPE regime changes. "
+                        "Set NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE=NO for this model.");
+        OPENVINO_ASSERT(kv_kache_storage_type == ov::element::f16 || kv_kache_storage_type == ov::element::f32,
+                        "NPUW: a ",
+                        kv_kache_storage_type,
+                        " KV cache cannot be re-rotated when the LongRoPE regime changes. "
+                        "Use an f16 or f32 KV cache for this model.");
+    }
+
     // Duplicate shared K/V broadcast chains in the prefill model so that each downstream
     // SDPA gets its own independent Concat chain.  This enables TagSDPA/SDPADecomposed to
     // isolate and convert each SDPA to HFA independently (e.g. Gemma-4 L15–L34 reuse

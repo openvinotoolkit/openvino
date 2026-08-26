@@ -102,13 +102,51 @@ ov::npuw::longrope::RegimeDelta ov::npuw::longrope::make_regime_delta(
     return delta;
 }
 
-void ov::npuw::longrope::rerotate_keys(const ov::SoPtr<ov::ITensor>& tensor,
-                                       uint32_t seq_dim,
+void ov::npuw::longrope::rerotate_keys(const KeyTensorLayout& layout,
                                        uint32_t num_tokens,
                                        const RegimeDelta& delta) {
     if (delta.half == 0u || num_tokens == 0u) {
         return;
     }
+    if (layout.type == ov::element::f16) {
+        // f16 goes through the SIMD kernel: expressed with ov::float16 the loop would
+        // spend all its time in that class's out-of-line float conversions.
+        auto* data = static_cast<uint16_t*>(layout.data);
+        for (size_t o = 0; o < layout.outer; ++o) {
+            ov::npuw::util::XARCH::rerotate_f16_rows(data + o * layout.seq_len * layout.seq_stride,
+                                                     num_tokens,
+                                                     layout.seq_stride,
+                                                     layout.rows_per_token,
+                                                     layout.head_dim,
+                                                     delta.cos.data(),
+                                                     delta.sin.data(),
+                                                     delta.half);
+        }
+    } else {
+        rerotate_planes(static_cast<float*>(layout.data),
+                        layout.outer,
+                        layout.seq_len,
+                        layout.seq_stride,
+                        layout.rows_per_token,
+                        layout.head_dim,
+                        num_tokens,
+                        delta);
+    }
+}
+
+ov::npuw::longrope::KeyTensorLayout ov::npuw::longrope::check_key_tensor(const ov::SoPtr<ov::ITensor>& tensor,
+                                                                        uint32_t seq_dim,
+                                                                        uint32_t num_tokens,
+                                                                        const RegimeDelta& delta) {
+    OPENVINO_ASSERT(tensor, "NPUW: a past-key input of a LongRoPE model has no tensor bound to it.");
+
+    const auto type = tensor->get_element_type();
+    // A quantized cache cannot be turned without dequantizing it first, and no other
+    // element type reaches the kernels below.
+    OPENVINO_ASSERT(type == ov::element::f16 || type == ov::element::f32,
+                    "NPUW: a LongRoPE regime change cannot re-rotate a KV cache of element type ",
+                    type,
+                    "; only f16 and f32 caches can be turned in place.");
 
     const auto& shape = tensor->get_shape();
     const size_t rank = shape.size();
@@ -128,53 +166,57 @@ void ov::npuw::longrope::rerotate_keys(const ov::SoPtr<ov::ITensor>& tensor,
     const size_t seq_len = shape[seq_dim];
     OPENVINO_ASSERT(num_tokens <= seq_len, "NPUW: more cached tokens than the past-key tensor can hold.");
 
-    // Rows are addressed arithmetically, which holds only for a densely packed tensor -
-    // the layout every KV buffer NPUW hands out has.
+    // Rows are addressed arithmetically from a single base pointer, which holds only
+    // for a canonically packed tensor. Checking the sequence stride alone is not
+    // enough: a view that crops the sequence axis keeps its parent's outer strides, so
+    // every plane past the first would be read at the wrong offset. Demand the whole
+    // row-major stride vector instead.
+    const auto& strides = tensor->get_strides();
+    OPENVINO_ASSERT(strides.size() == rank,
+                    "NPUW: past-key tensor reports ",
+                    strides.size(),
+                    " strides for rank ",
+                    rank,
+                    ".");
+    size_t dense_stride = type.size();
+    for (size_t d = rank; d-- > 0;) {
+        OPENVINO_ASSERT(strides[d] == dense_stride,
+                        "NPUW: past-key tensor is not densely packed (stride ",
+                        strides[d],
+                        " at axis ",
+                        d,
+                        ", expected ",
+                        dense_stride,
+                        "), cannot re-rotate in place.");
+        dense_stride *= shape[d];
+    }
+
     size_t seq_stride = 1u;
     for (size_t d = seq_dim + 1u; d < rank; ++d) {
         seq_stride *= shape[d];
     }
-    OPENVINO_ASSERT(tensor->get_strides()[seq_dim] == seq_stride * tensor->get_element_type().size(),
-                    "NPUW: past-key tensor is not densely packed, cannot re-rotate in place.");
 
-    const size_t outer = tensor->get_size() / (seq_len * seq_stride);
-    const size_t rows_per_token = seq_stride / head_dim;
+    KeyTensorLayout layout;
+    // Resolving the pointer here is itself a check: a device-side tensor that cannot be
+    // mapped to the host throws, and it does so before any other layer was touched.
+    layout.data = tensor->data();
+    layout.type = type;
+    layout.outer = tensor->get_size() / (seq_len * seq_stride);
+    layout.seq_len = seq_len;
+    layout.seq_stride = seq_stride;
+    layout.rows_per_token = seq_stride / head_dim;
+    layout.head_dim = head_dim;
+    return layout;
+}
 
-    switch (tensor->get_element_type()) {
-    case ov::element::f16: {
-        // f16 goes through the SIMD kernel: expressed with ov::float16 the loop would
-        // spend all its time in that class's out-of-line float conversions.
-        auto* data = reinterpret_cast<uint16_t*>(tensor->data<ov::float16>());
-        for (size_t o = 0; o < outer; ++o) {
-            ov::npuw::util::XARCH::rerotate_f16_rows(data + o * seq_len * seq_stride,
-                                                     num_tokens,
-                                                     seq_stride,
-                                                     rows_per_token,
-                                                     head_dim,
-                                                     delta.cos.data(),
-                                                     delta.sin.data(),
-                                                     delta.half);
-        }
-        break;
+void ov::npuw::longrope::rerotate_keys(const ov::SoPtr<ov::ITensor>& tensor,
+                                       uint32_t seq_dim,
+                                       uint32_t num_tokens,
+                                       const RegimeDelta& delta) {
+    if (delta.half == 0u || num_tokens == 0u) {
+        return;
     }
-    case ov::element::f32:
-        rerotate_planes(tensor->data<float>(),
-                        outer,
-                        seq_len,
-                        seq_stride,
-                        rows_per_token,
-                        head_dim,
-                        num_tokens,
-                        delta);
-        break;
-    default:
-        // A quantized KV cache cannot be turned without dequantizing it first. Leaving
-        // it in the previous regime is what happens today anyway, so warn instead of
-        // failing an otherwise working configuration.
-        LOG_WARN("LongRoPE key re-rotation does not support the KV cache element type "
-                 << tensor->get_element_type() << "; cached keys stay in the previous regime.");
-        break;
-    }
+    rerotate_keys(check_key_tensor(tensor, seq_dim, num_tokens, delta), num_tokens, delta);
 }
 
 void ov::npuw::longrope::rerotate_cached_keys(const std::shared_ptr<ov::IAsyncInferRequest>& request,
@@ -190,18 +232,27 @@ void ov::npuw::longrope::rerotate_cached_keys(const std::shared_ptr<ov::IAsyncIn
         return;
     }
 
-    LOG_DEBUG("Re-rotating " << num_tokens << " cached keys into the " << (to_long ? "long" : "short")
-                             << "-factor LongRoPE regime.");
-
-    ov::parallel_for(past_kv_names.size(), [&](size_t idx) {
-        const auto& name = past_kv_names[idx];
+    // Resolve and check every live key first. Anything that throws does so here, with
+    // the cache still wholly in the previous regime and the caller's regime flag not
+    // yet advanced.
+    std::vector<KeyTensorLayout> layouts;
+    layouts.reserve(past_kv_names.size());
+    for (const auto& name : past_kv_names) {
         if (!ov::npuw::util::isPastKeyParam(name)) {
-            return;
+            continue;
         }
         const auto port_it = in_ports.find(name);
-        if (port_it == in_ports.end()) {
-            return;
-        }
-        rerotate_keys(request->get_tensor(port_it->second), seq_dim, num_tokens, delta);
+        OPENVINO_ASSERT(port_it != in_ports.end(),
+                        "NPUW: past-key input ",
+                        name,
+                        " is missing from the request the LongRoPE regime change has to re-rotate.");
+        layouts.push_back(check_key_tensor(request->get_tensor(port_it->second), seq_dim, num_tokens, delta));
+    }
+
+    LOG_DEBUG("Re-rotating " << num_tokens << " cached keys of " << layouts.size() << " layers into the "
+                             << (to_long ? "long" : "short") << "-factor LongRoPE regime.");
+
+    ov::parallel_for(layouts.size(), [&](size_t idx) {
+        rerotate_keys(layouts[idx], num_tokens, delta);
     });
 }

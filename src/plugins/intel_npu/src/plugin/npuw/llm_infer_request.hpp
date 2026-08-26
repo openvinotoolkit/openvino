@@ -25,6 +25,7 @@ struct LLMVariantSwitchTestAccess;
 struct LLMTrimKVCacheTestAccess;
 struct LLMPortNameRegistrationTestAccess;
 struct LLMContinuedPrefillTestAccess;
+struct LLMLongRopeRegimeTestAccess;
 }  // namespace npuw
 }  // namespace test
 }  // namespace ov
@@ -111,6 +112,9 @@ protected:
     // are turned by the angle difference between the regimes instead of being dropped;
     // see llm_longrope_kv.hpp. num_cached_tokens rows of the request's past-key inputs
     // are rewritten.
+    //
+    // Throws if the flip cannot be carried out in full, leaving m_longrope_long_regime
+    // describing the regime the cache is actually in.
     void sync_longrope_kv_regime(const std::shared_ptr<ov::IAsyncInferRequest>& request,
                                  const PortsMap& in_ports,
                                  uint32_t num_cached_tokens,
@@ -237,6 +241,7 @@ protected:
     friend struct ov::test::npuw::LLMTrimKVCacheTestAccess;
     friend struct ov::test::npuw::LLMPortNameRegistrationTestAccess;
     friend struct ov::test::npuw::LLMContinuedPrefillTestAccess;
+    friend struct ov::test::npuw::LLMLongRopeRegimeTestAccess;
 };
 
 }  // namespace npuw

@@ -192,6 +192,10 @@ struct LLMConfig : public BaseModelConfig {
     /// Only applies when build_llm auto-creates the RoPE functor.
     size_t rotary_dim = 0;
 
+    /// Phi-style LongRoPE inverse frequencies. Only applies when build_llm auto-creates
+    /// a full-width HalfRotationRoPE functor.
+    LongRopeSpec longrope;
+
     // MoE configuration (num_experts=0 means dense, no MoE)
     size_t num_experts = 0;           ///< Total experts. 0 = dense model.
     size_t num_experts_per_tok = 0;   ///< Top-K. 0 = default to 2.

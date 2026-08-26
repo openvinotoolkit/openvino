@@ -1277,30 +1277,30 @@ void ov::npuw::LLMInferRequest::sync_longrope_kv_regime(const std::shared_ptr<ov
     if (is_long == m_longrope_long_regime) {
         return;
     }
+
+    if (num_cached_tokens > 0u && m_npuw_llm_compiled_model->m_longrope_tables.has_long) {
+        // The KV layouts this rewrite cannot turn are rejected when the model is
+        // compiled (see LLMCompiledModel), so a crossing that gets this far has to
+        // succeed for every live key: rerotate_cached_keys() throws rather than leave
+        // the cache half-turned, and m_longrope_long_regime below is only reached once
+        // it did not.
+        OPENVINO_ASSERT(!m_npuw_llm_compiled_model->m_is_block_kv_cache,
+                        "NPUW: the LongRoPE regime changed mid-conversation but a block-based KV cache cannot be "
+                        "re-rotated.");
+        m_llm_profile["longrope:rerotate_kv"].record([&]() {
+            ov::npuw::longrope::rerotate_cached_keys(request,
+                                                     in_ports,
+                                                     m_kvcache_past_names,
+                                                     m_npuw_llm_compiled_model->m_longrope_tables,
+                                                     m_npuw_llm_compiled_model->m_kvcache_desc.dim,
+                                                     num_cached_tokens,
+                                                     m_first_position_id,
+                                                     is_long);
+        });
+    }
+
+    // Only now do the cached keys really belong to this regime.
     m_longrope_long_regime = is_long;
-
-    if (num_cached_tokens == 0u) {
-        return;
-    }
-    if (m_npuw_llm_compiled_model->m_is_block_kv_cache) {
-        // Block mode splits every layer's cache across block ports whose token order is
-        // owned by the block manager, so the flat row-per-position rewrite below does
-        // not apply. The cache stays in the previous regime.
-        LOG_WARN("LongRoPE regime changed but the block-based KV cache cannot be re-rotated; "
-                 "cached keys stay in the previous regime.");
-        return;
-    }
-
-    m_llm_profile["longrope:rerotate_kv"].record([&]() {
-        ov::npuw::longrope::rerotate_cached_keys(request,
-                                                 in_ports,
-                                                 m_kvcache_past_names,
-                                                 m_npuw_llm_compiled_model->m_longrope_tables,
-                                                 m_npuw_llm_compiled_model->m_kvcache_desc.dim,
-                                                 num_cached_tokens,
-                                                 m_first_position_id,
-                                                 is_long);
-    });
 }
 
 void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
