@@ -1370,6 +1370,68 @@ std::shared_ptr<ov::Model> GraphRewriter::rewrite(const std::shared_ptr<const ov
     }
 
     // ------------------------------------------------------------------
+    // 3d) Trim the vocabulary projection on every rank but the first.
+    //
+    //     The final MatMul turns the last hidden state into logits, and on a
+    //     sharded model nothing else reads it: every collective sits inside a
+    //     transformer layer, no Assign depends on it, and the infer request
+    //     collects outputs from rank 0 alone.  So ranks 1..N-1 read the whole
+    //     vocabulary weight once per token to produce a tensor that is thrown
+    //     away -- on an 8B model at four ranks that is 1.05 GB of reads, about
+    //     1.7 ms per token, and the same 1.05 GB sitting in each rank's VRAM.
+    //
+    //     Cutting the projection down to a single output row removes both and
+    //     leaves the graph valid; only that rank's logits become meaningless,
+    //     which no one reads.  TP_LM_HEAD_ALL_RANKS=1 keeps the full
+    //     projection everywhere for anyone who needs every rank to produce the
+    //     real thing.
+    // ------------------------------------------------------------------
+    if (rank != 0 && std::getenv("TP_LM_HEAD_ALL_RANKS") == nullptr) {
+        std::set<std::string> sharded_names;
+        for (const auto& desc : plan.linears) {
+            sharded_names.insert(desc.matmul_name);
+        }
+
+        for (const auto& result : cloned->get_results()) {
+            auto producer = result->input(0).get_source_output().get_node_shared_ptr();
+            // Only the plain shape is accepted: a bias or any other consumer
+            // between the projection and the result would see the trimmed
+            // shape, and quietly reshaping someone else's graph is not worth
+            // the milliseconds.
+            if (ov::is_type<ov::op::v0::Convert>(producer)) {
+                producer = producer->input(0).get_source_output().get_node_shared_ptr();
+            }
+            auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(producer);
+            if (!matmul || sharded_names.count(matmul->get_friendly_name()) != 0) {
+                continue;
+            }
+            if (matmul->output(0).get_target_inputs().size() != 1) {
+                continue;
+            }
+
+            auto weight_output = matmul->input(1).get_source_output();
+            const auto axes = weight_axes(matmul);
+            const auto& full_dim = weight_output.get_partial_shape()[axes.out_features];
+            if (!full_dim.is_static() || full_dim.get_length() < 2) {
+                continue;
+            }
+            const int64_t full = full_dim.get_length();
+
+            if (can_pre_slice_chain(weight_output, axes.out_features, full, 0, 1)) {
+                pre_slice_chain(matmul->input(1), axes.out_features, full, 0, 1);
+            } else {
+                auto sliced = insert_weight_slice(weight_output, axes.out_features, 0, 1);
+                matmul->input(1).replace_source_output(sliced);
+            }
+            if (std::getenv("TP_PROF") != nullptr) {
+                std::cerr << "[TP] Rank " << rank << ": trimmed vocabulary projection '"
+                          << matmul->get_friendly_name() << "' from " << full
+                          << " rows to 1; this rank's logits are not produced" << std::endl;
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
     // 4) Validate — propagate shapes through the modified graph.
     // ------------------------------------------------------------------
     cloned->validate_nodes_and_infer_types();
