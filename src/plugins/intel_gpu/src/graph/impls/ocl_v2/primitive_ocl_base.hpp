@@ -316,7 +316,13 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         OPENVINO_ASSERT(kernels.size() == 1, "Only the kernels of the single primitive should be allowed.");
         auto& kernel_vec = kernels.begin()->second;
         for (auto& [kernel, sub_kernel_idx] : kernel_vec) {
-            _stages[sub_kernel_idx]->kernel = kernel;
+            // sub_kernel_idx is the position in the compiled kernel batch (0-indexed, matching
+            // get_kernels_source() order, which is _order[] order). Map it to the actual
+            // _stages[] index via _order so that non-contiguous stage layouts (e.g. FCGGUFOptImpl
+            // where q4_1_sg_stage is at _stages[6] not _stages[2]) are assigned correctly.
+            OPENVINO_ASSERT(sub_kernel_idx < _order.size(),
+                            "set_kernels: sub_kernel_idx ", sub_kernel_idx, " >= _order.size() ", _order.size());
+            _stages[_order[sub_kernel_idx]]->kernel = kernel;
         }
     }
 

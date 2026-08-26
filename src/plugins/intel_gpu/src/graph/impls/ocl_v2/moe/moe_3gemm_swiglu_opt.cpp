@@ -65,18 +65,31 @@ dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
         return dnnl::memory::data_type::f32;
     case cldnn::data_types::f16:
         return dnnl::memory::data_type::f16;
+    case cldnn::data_types::bf16:
+        return dnnl::memory::data_type::bf16;
     case cldnn::data_types::i8:
         return dnnl::memory::data_type::s8;
     case cldnn::data_types::u8:
         return dnnl::memory::data_type::u8;
     case cldnn::data_types::i32:
         return dnnl::memory::data_type::s32;
+    case cldnn::data_types::i64:
+        return dnnl::memory::data_type::s64;
+    case cldnn::data_types::f64:
+        return dnnl::memory::data_type::f64;
     case cldnn::data_types::i4:
         return dnnl::memory::data_type::s4;
     case cldnn::data_types::u4:
         return dnnl::memory::data_type::u4;
+    case cldnn::data_types::f8e4m3:
+        return dnnl::memory::data_type::f8_e4m3;
+    case cldnn::data_types::f8e5m2:
+        return dnnl::memory::data_type::f8_e5m2;
+    case cldnn::data_types::f8e8m0:
+        return dnnl::memory::data_type::e8m0;
     default:
-        throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn type");
+        throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn type in moe_3gemm_swiglu_opt, cldnn dt=" +
+                                    std::to_string(static_cast<int>(dt)));
     }
 }
 
@@ -380,7 +393,84 @@ protected:
 #    define N_BLOCK      4
 #    define SUBGROUP_NUM 8
 
-static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
+// Tier-3 dispatch sweep knobs (OV_GPU_MOE_NBLOCK / OV_GPU_MOE_SGN). N_BLOCK = output rows a subgroup
+// owns (fewer -> fewer per-lane accumulators/registers + more work-groups); SUBGROUP_NUM = subgroups
+// per work-group (occupancy / SLM). Both feed BOTH the JIT and the host dispatch so they stay in
+// lock-step. Must keep n_groups (= N / N_BLOCK) divisible by SUBGROUP_NUM.
+static int moe_n_block() {
+    if (const char* e = std::getenv("OV_GPU_MOE_NBLOCK")) { const long v = std::atol(e); if (v > 0) return static_cast<int>(v); }
+    return N_BLOCK;
+}
+static int moe_subgroup_num() {
+    if (const char* e = std::getenv("OV_GPU_MOE_SGN")) { const long v = std::atol(e); if (v > 0) return static_cast<int>(v); }
+    return SUBGROUP_NUM;
+}
+
+// Per-stage N_BLOCK: the gate_up GEMV is register-bound and prefers 1 row/subgroup (more work-groups,
+// better latency hiding: -12% vs 4), while the down GEMV (v2 unit-striping needs N_BLOCK*nblk lanes)
+// prefers 4. OV_GPU_MOE_NBLOCK_GU / OV_GPU_MOE_NBLOCK_DN override; both fall back to the global
+// moe_n_block() knob so the plain OV_GPU_MOE_NBLOCK sweep still moves both stages together.
+static int moe_gate_up_n_block() {
+    if (const char* e = std::getenv("OV_GPU_MOE_NBLOCK_GU")) { const long v = std::atol(e); if (v > 0) return static_cast<int>(v); }
+    if (std::getenv("OV_GPU_MOE_NBLOCK")) return moe_n_block();
+    return 1;
+}
+static int moe_down_n_block() {
+    if (const char* e = std::getenv("OV_GPU_MOE_NBLOCK_DN")) { const long v = std::atol(e); if (v > 0) return static_cast<int>(v); }
+    return moe_n_block();
+}
+
+// GGUF MoE decode-type code shared with the kernel (moe_3gemm_swiglu_mlp.cl):
+// 1=Q4_K, 2=Q5_K, 3=Q6_K, 4=Q8_0. 0 = not a supported GGUF MoE block.
+static int moe_gguf_decode_code(const ov::element::Type& t) {
+    if (t == ov::element::gguf_q4_k)
+        return 1;
+    if (t == ov::element::gguf_q5_k)
+        return 2;
+    if (t == ov::element::gguf_q6_k)
+        return 3;
+    if (t == ov::element::gguf_q8_0)
+        return 4;
+    return 0;
+}
+
+// Only Q4_K/Q5_K/Q6_K (decode codes 1-3) have a bespoke routed-expert "SG" kernel branch in
+// moe_gguf_sg_gemv.cl (gate_up_sg / down_merge_sg only define their QCODE==MOE_SG_Q4_K/Q5_K/Q6_K
+// sections). Q8_0 (code 4) has NO routed-expert SG kernel implementation, and
+// RepackGGUFMoEWeights::pack_moe_weight_sg() (repack_gguf_moe_weights.cpp's moe_sg_decode_code())
+// likewise never repacks a routed Q8_0 weight into the SG transposed layout -- it is left in its
+// raw per-row GGUF-block layout, decoded only by moe_3gemm_swiglu_mlp.cl. So a plain
+// `moe_gguf_decode_code(...) != 0` check (which also matches Q8_0) would wrongly enable the SG
+// gate_up_sg/down_merge_sg kernels for a routed Q8_0 projection -- their QCODE would then be 4,
+// matching none of the QCODE==1/2/3 branches, so essential macros/helpers (e.g. SG_EXPERT_BYTES)
+// are never defined for that translation unit -> kernel build failure (or, in a hypothetical
+// build that somehow still compiled, garbage decode of raw GGUF bytes as if SG-packed) -- for
+// BOTH decode and prefill, since exec_batched_gemv() serves every token count when the SG path is
+// selected. Use this helper (mirrors moe_sg_decode_code()'s codomain) everywhere the routed
+// gate/up/down weight type must be checked for SG-kernel eligibility.
+static bool moe_gguf_sg_routable(int code) {
+    return code >= 1 && code <= 3;
+}
+
+// Opt-in "SG" (sub-group block-read, transposed weight layout) GEMV kernels for the native GGUF
+// MoE decode path (moe_gguf_sg_gemv.cl), replacing the slower raw-GGUF-block decode kernels
+// (moe_3gemm_swiglu_mlp.cl) for Q4_K / Q5_K / Q6_K only -- Q4_0 and every other weight compression
+// type are unaffected. Default ON (mirrors RepackGGUFMoEWeights::moe_sg_enabled() in
+// repack_gguf_moe_weights.cpp -- the two MUST agree, since the transform only repacks the weight
+// Constants into the SG layout when moe_sg_enabled() there is true). Set OV_GPU_GGUF_MOE_SG=0 to
+// fall back to the raw-GGUF-block decode kernels for these types too.
+// Shared expert: handled too, but only when its gate/up/down weights are GGUF Q8_0 (see
+// moe_gguf_sg_gemv.cl's "Shared-expert Q8_0 kernels" section and this file's shared_expert_sg_ok
+// check); any other shared-expert weight type falls back entirely to moe_3gemm_swiglu_mlp.cl,
+// regardless of this flag.
+static bool gguf_moe_sg_enabled() {
+    if (const char* env = std::getenv("OV_GPU_GGUF_MOE_SG")) {
+        return std::atol(env) != 0;
+    }
+    return true;
+}
+
+static void add_common_consts(const RuntimeParams& params, JitConstants& jit, int n_block) {
     auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
     auto& engine = params.prog->get_engine();
     const auto& info = engine.get_device_info();
@@ -391,12 +481,17 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
         down_group_size = desc->_config.inter_size;
     }
 
+    ov::element::Type weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).data_type;
+    const bool is_gguf = weight_dt.is_gguf_block();
+
     GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt: group_size=" << desc->_config.group_size << ", gate_up_group_size=" << gate_up_group_size
-                           << ", down_group_size=" << down_group_size << std::endl;
+                           << ", down_group_size=" << down_group_size << ", is_gguf=" << is_gguf << std::endl;
 
     // Validate GEMV kernel compatibility: ELEMS_PER_LANE = FAKE_GROUP_SIZE / SUBGROUP_SIZE must be >= 2.
     // Smaller values have no kernel branch and would silently produce wrong results.
-    {
+    // GGUF decode reads whole super-blocks (no FAKE_GROUP_SIZE tiling), so this constraint
+    // does not apply to the native GGUF path.
+    if (!is_gguf) {
         const size_t sg = (info.arch >= gpu_arch::xe2) ? 32u : 16u;
         const size_t fake_gs = std::min(gate_up_group_size, size_t{128});
         OPENVINO_ASSERT(fake_gs >= 2 * sg,
@@ -413,21 +508,38 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     jit.make("EXPERT_NUM", desc->_config.num_expert);
     jit.make("HIDDEN_SIZE", desc->_config.hidden_size);
     jit.make("INTERMEDIATE_SIZE", desc->_config.inter_size);
-    jit.make("N_BLOCK", N_BLOCK);
+    jit.make("N_BLOCK", n_block);
     jit.make("SUBGROUP_SIZE", info.arch >= gpu_arch::xe2 ? 32 : 16);
-    jit.make("SUBGROUP_NUM", SUBGROUP_NUM);
+    jit.make("SUBGROUP_NUM", moe_subgroup_num());
     jit.make("GATE_UP_GROUP_SIZE", gate_up_group_size);
     jit.make("DOWN_GROUP_SIZE", down_group_size);
     jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
     jit.make("MOE_DTYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
     jit.make("HAS_ZP", desc->_config.has_zp ? 1 : 0);
 
-    ov::element::Type weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).data_type;
     bool is_signed_weight = (weight_dt == ov::element::i4 || weight_dt == ov::element::i8);
     jit.make("WEIGHT_IS_SIGNED", is_signed_weight ? 1 : 0);
     // auto scale_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::SCALE_0)).data_type;
     // auto zp_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::ZP_0)).data_type;
-    if (weight_dt == ov::element::u4 || weight_dt == ov::element::i4) {
+    if (is_gguf) {
+        // Native GGUF super-block decode: weights stay as raw bytes (uchar); scale/zp live inside
+        // the blocks and are unused. Per-projection decode codes drive the in-kernel decoder
+        // (routed gate/up = WEIGHT_0 type, routed down = WEIGHT_2 type, shared = SHARED_GATE type).
+        jit.make("WEIGHT_COMPRESSEION_DT", 3);
+        jit.make("MOE_WEI_DT", "uchar");
+        jit.make("MOE_SCALE_DT", "half");  // dummy, unused
+        jit.make("MOE_ZP_DT", "uchar");    // dummy, unused
+        const auto down_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_2)).data_type;
+        int shared_code = moe_gguf_decode_code(weight_dt);
+        if (desc->_config.num_shared_expert > 0 &&
+            params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)) {
+            shared_code = moe_gguf_decode_code(
+                params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)).data_type);
+        }
+        jit.make("GATEUP_DECODE", moe_gguf_decode_code(weight_dt));
+        jit.make("DOWN_DECODE", moe_gguf_decode_code(down_dt));
+        jit.make("SHARED_DECODE", shared_code);
+    } else if (weight_dt == ov::element::u4 || weight_dt == ov::element::i4) {
         jit.make("WEIGHT_COMPRESSEION_DT", 0);
         jit.make("MOE_WEI_DT", "uchar");
         jit.make("MOE_SCALE_DT", "half");
@@ -455,7 +567,7 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
-        add_common_consts(params, jit);
+        add_common_consts(params, jit, moe_gate_up_n_block());
         jit.make("GATE_UP_ENABLE", 1);
         if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH) {
             jit.make("GATE_ACT_GELU_TANH", 1);
@@ -494,7 +606,7 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
-        add_common_consts(params, jit);
+        add_common_consts(params, jit, moe_down_n_block());
         jit.make("DOWN_ENABLE", 1);
         if (!_disable_shared_experts && desc->_config.num_shared_expert > 0 &&
             params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)) {
@@ -528,7 +640,7 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
-        add_common_consts(params, jit);
+        add_common_consts(params, jit, moe_n_block());
         jit.make("REDUCE_ENABLE", 1);
         if (!_disable_shared_experts && desc->_config.num_shared_expert > 0 &&
             params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)) {
@@ -563,6 +675,408 @@ static int64_t get_bytes_count(int64_t element_count, const cldnn::layout& layou
     return static_cast<int64_t>(ov::element::Type(layout.data_type).bitwidth()) * element_count / 8;
 }
 
+// =================================================================================================
+// GGUF MoE prefill transcode path (token > 32) — see MOE_SPEC §4.3.1.
+//
+// The batched-GEMV decode kernel (moe_3gemm_swiglu_mlp.cl, WEIGHT_COMPRESSEION_DT==3) is memory-bound
+// and serves decode (token <= 32). For prefill it re-reads every expert weight once per token, which
+// is wasteful. This path instead transcodes each GGUF expert weight ONCE into a OneDNN-WOQ-native
+// low-bit layout (i4/i8 + f16 per-32 scale) written to a shared per-stream scratchpad, then reuses the
+// existing compute-bound oneDNN per-expert prefill loop (exec_prefill_onednn / init_dnnl_weights).
+// The scratch is grown-once and reused in-order across all MoE nodes (MC5, no persistent 2nd copy).
+// =================================================================================================
+
+// Symmetric requant target: Q4_0/Q4_K -> i4 (qmax 7); Q5_K/Q6_K/Q8_0 -> i8 (qmax 127).
+struct MoeGgufTranscodeTarget {
+    bool to_i4;
+    int qmax;
+};
+MoeGgufTranscodeTarget moe_transcode_target(const ov::element::Type& t) {
+    if (t == ov::element::gguf_q4_0 || t == ov::element::gguf_q4_k) {
+        return {true, 7};
+    }
+    if (t == ov::element::gguf_q5_k || t == ov::element::gguf_q6_k || t == ov::element::gguf_q8_0) {
+        return {false, 127};
+    }
+    OPENVINO_THROW("[GPU] MoE GGUF transcode: unsupported block type ", t.get_type_name());
+}
+
+const char* moe_gguf_type_jit_flag(const ov::element::Type& t) {
+    if (t == ov::element::gguf_q4_0)
+        return "GGUF_IS_Q4_0";
+    if (t == ov::element::gguf_q8_0)
+        return "GGUF_IS_Q8_0";
+    if (t == ov::element::gguf_q4_k)
+        return "GGUF_IS_Q4_K";
+    if (t == ov::element::gguf_q5_k)
+        return "GGUF_IS_Q5_K";
+    if (t == ov::element::gguf_q6_k)
+        return "GGUF_IS_Q6_K";
+    OPENVINO_THROW("[GPU] MoE GGUF transcode: no kernel for block type ", t.get_type_name());
+}
+
+constexpr int MOE_GGUF_REQUANT_GROUP = 32;
+constexpr int MOE_GGUF_TRANSCODE_LWS = 16;
+
+// One transcode kernel per projection. Reads that projection's GGUF weight input layout (dtype/N/K/E)
+// and specialises the kernel; args (raw weight in; low-bit weight + f16 scale out) are supplied by the
+// impl at dispatch. `is_shared` selects rank-2 [N,K] (E=1) vs routed rank-3 [E,N,K].
+class MoE3GemmSwigluGgufTranscode : public KernelGenerator {
+public:
+    MoE3GemmSwigluGgufTranscode(MOE3GemmInputIndex weight_idx, bool is_shared)
+        : KernelGenerator("moe_gguf_transcode"),
+          m_weight_idx(weight_idx),
+          m_is_shared(is_shared) {}
+
+protected:
+    struct dims {
+        size_t E, N, K;
+    };
+    dims get_dims(const RuntimeParams& params) const {
+        const auto& wl = params.get_input_layout(static_cast<size_t>(m_weight_idx));
+        const auto& shp = wl.get_shape();
+        if (m_is_shared) {
+            return {1, shp[shp.size() - 2], shp[shp.size() - 1]};
+        }
+        return {shp[0], shp[1], shp[2]};
+    }
+
+    [[nodiscard]] std::string get_entry_point(const RuntimeParams& params) const override {
+        const auto& wl = params.get_input_layout(static_cast<size_t>(m_weight_idx));
+        const auto d = get_dims(params);
+        return get_kernel_name() + "_" + ov::element::Type(wl.data_type).get_type_name() + "_E" + std::to_string(d.E) + "_N" + std::to_string(d.N) +
+               "_K" + std::to_string(d.K);
+    }
+
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = make_base_jit_constants(params);
+        const auto& wl = params.get_input_layout(static_cast<size_t>(m_weight_idx));
+        const ov::element::Type wt(wl.data_type);
+        const auto d = get_dims(params);
+        const auto tgt = moe_transcode_target(wl.data_type);
+        // GGUF_SG_LAYOUT: this weight Constant was repacked into the transposed "SG" layout by
+        // RepackGGUFMoEWeights (pack_moe_weight_sg for routed Q4_K/Q5_K/Q6_K; pack_shared_q8_0_sg for
+        // the shared-expert Q8_0 gate/up/down). Stage 1 must then gather from that layout
+        // (mtq_decode_block_sg) rather than index a raw per-row GGUF block. This decision MUST mirror
+        // RepackGGUFMoEWeights exactly, otherwise prefill decodes the repacked bytes as raw (garbage).
+        //   - routed Q4_K/Q5_K/Q6_K: gguf_moe_sg_enabled() (same gate as pack_moe_weight_sg).
+        //   - shared Q8_0: only when the SG shared-expert path is active, i.e. routed gate/up/down are
+        //     all SG-routable (Q4_K/Q5_K/Q6_K) AND shared gate/up/down are all Q8_0 -- matching
+        //     _use_gguf_moe_sg_shared_q8_0 and the (tightened) repack routed_ok gate.
+        const int this_code = moe_gguf_decode_code(wl.data_type);
+        bool sg_layout = (this_code >= 1 && this_code <= 3) && gguf_moe_sg_enabled();
+        if (!sg_layout && m_is_shared && this_code == 4 && gguf_moe_sg_enabled() &&
+            params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_DOWN_WEIGHT)) {
+            auto code_of = [&](MOE3GemmInputIndex i) {
+                return moe_gguf_decode_code(params.get_input_layout(static_cast<size_t>(i)).data_type);
+            };
+            const bool routed_ok = moe_gguf_sg_routable(code_of(MOE3GemmInputIndex::WEIGHT_0)) &&
+                                   moe_gguf_sg_routable(code_of(MOE3GemmInputIndex::WEIGHT_1)) &&
+                                   moe_gguf_sg_routable(code_of(MOE3GemmInputIndex::WEIGHT_2));
+            const bool shared_all_q8_0 = code_of(MOE3GemmInputIndex::SHARED_GATE_WEIGHT) == 4 &&
+                                         code_of(MOE3GemmInputIndex::SHARED_UP_WEIGHT) == 4 &&
+                                         code_of(MOE3GemmInputIndex::SHARED_DOWN_WEIGHT) == 4;
+            sg_layout = routed_ok && shared_all_q8_0;
+        }
+        jit.add({
+            make_jit_constant("NUM_EXPERTS", static_cast<int>(d.E)),
+            make_jit_constant("N_SIZE", static_cast<int>(d.N)),
+            make_jit_constant("K_SIZE", static_cast<int>(d.K)),
+            make_jit_constant("GGUF_BLOCK_ELEM", static_cast<int>(wt.block_elem_count())),
+            make_jit_constant("GGUF_BLOCK_BYTES", static_cast<int>(wt.block_byte_size())),
+            make_jit_constant("REQUANT_GROUP", MOE_GGUF_REQUANT_GROUP),
+            make_jit_constant("TRANSCODE_TO_I4", tgt.to_i4 ? 1 : 0),
+            make_jit_constant("QMAX", tgt.qmax),
+            make_jit_constant("SG_SIZE", MOE_GGUF_TRANSCODE_LWS),
+            make_jit_constant(moe_gguf_type_jit_flag(wl.data_type), 1),
+            // Q4_K/Q5_K/Q6_K: when the SG decode path is enabled, RepackGGUFMoEWeights packed this
+            // weight Constant into the transposed "SG" layout (see repack_gguf_moe_weights.cpp
+            // pack_moe_weight_sg) instead of leaving it as plain per-row raw GGUF blocks; Stage 1 of
+            // moe_gguf_transcode.cl must then gather bytes from that layout (mtq_decode_block_sg)
+            // rather than index a contiguous per-row block. Must agree with gguf_moe_sg_enabled().
+            make_jit_constant("GGUF_SG_LAYOUT", sg_layout ? 1 : 0),
+        });
+        return jit;
+    }
+
+    // Args supplied explicitly by the impl at dispatch (execute_stage builds the descriptor).
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams&) const override {
+        return {};
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams&, KernelData&, ImplRuntimeParams*) {}};
+    }
+
+private:
+    MOE3GemmInputIndex m_weight_idx;
+    bool m_is_shared;
+};
+
+// ================================================================================================
+// GGUF "SG" (sub-group block-read, transposed weight layout) decode-path GEMV kernels
+// (ocl_v2/moe_gguf_sg_gemv.cl) -- opt-in replacement for the raw-GGUF-block decode kernels
+// (moe_3gemm_swiglu_mlp.cl) for Q4_K / Q5_K / Q6_K only. See gguf_moe_sg_enabled() and the .cl
+// file's header comment for the full design; dispatch is built manually in exec_batched_gemv()
+// (same pattern as mlp_gate_up/mlp_down/mlp_reduce), not through get_dispatch_data_func().
+//
+// gate_up_sg fuses (for these 3 types) what mlp_gate_up used to do: one work-group per
+// (token, topk-slot) writes scratch.up[(t*EXPERTS_PER_TOKEN+v)*INTERMEDIATE_SIZE + row].
+// down_merge_sg FUSES mlp_down + mlp_reduce: one work-group per (token, output-row-group) loops
+// over all EXPERTS_PER_TOKEN routed experts internally and writes the final hidden_states row.
+// ================================================================================================
+// K-split (occupancy) heuristic for the SG MoE dispatch -- mirrors choose_ksplit() in
+// q4k_moe_gemv/test_moe_gemv_sg_kernels.py. base_groups = number of work-groups at KSPLIT=1;
+// split_space = reduction iterations (K-blocks) available to split across sub-groups.
+static int moe_gguf_sg_choose_ksplit(size_t base_groups, size_t split_space, size_t target = 2048, size_t maxk = 8) {
+    if (const char* env = std::getenv("OV_GPU_MOE_GGUF_SG_KSPLIT")) {
+        int v = static_cast<int>(std::atol(env));
+        if (v > 0)
+            return v;
+    }
+    if (base_groups >= 512)
+        return 1;
+    size_t ks = std::max<size_t>(1, (target + base_groups / 2) / std::max<size_t>(base_groups, 1));
+    ks = std::min({ks, split_space, maxk});
+    size_t p = 1;
+    while (p * 2 <= ks)
+        p *= 2;
+    return static_cast<int>(p);
+}
+
+// Local work-group size for shared_gate_scalar_q8_0's tree reduction (see moe_gguf_sg_gemv.cl):
+// largest power of two <= 256 that does not exceed HIDDEN_SIZE (HIDDEN_SIZE is virtually always
+// >= 256 in practice; the min() guards degenerate/test configs).
+static int moe_gguf_shared_scalar_lws(int hidden_size) {
+    size_t lws = 256;
+    while (lws > 1 && lws > static_cast<size_t>(hidden_size))
+        lws /= 2;
+    return static_cast<int>(lws);
+}
+
+class MoE3GemmSwigluGgufSGGateUp : public KernelGenerator {
+public:
+    MoE3GemmSwigluGgufSGGateUp() : KernelGenerator("moe_gguf_sg_gemv", "gate_up_sg") {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = make_base_jit_constants(params);
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
+        const auto weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).data_type;
+        const int hidden_size = static_cast<int>(desc->_config.hidden_size);
+        const int inter_size = static_cast<int>(desc->_config.inter_size);
+        const int experts_per_token = static_cast<int>(desc->_config.top_k);
+        // KSPLIT heuristic assumes token_len=1 (the common decode case); this only tunes reduction
+        // occupancy, not correctness, so it stays valid (just potentially sub-optimal) for larger
+        // decode token counts too. See moe_gguf_sg_choose_ksplit().
+        const size_t base_groups = (static_cast<size_t>(inter_size) / 16) * static_cast<size_t>(experts_per_token);
+        const size_t split_space = static_cast<size_t>(hidden_size) / 256;
+        const int ksplit = moe_gguf_sg_choose_ksplit(base_groups, split_space);
+        jit.add({
+            make_jit_constant("GATE_UP_SG_ENABLE", 1),
+            make_jit_constant("GATEUP_DECODE", moe_gguf_decode_code(weight_dt)),
+            make_jit_constant("EXPERTS_PER_TOKEN", experts_per_token),
+            make_jit_constant("HIDDEN_SIZE", hidden_size),
+            make_jit_constant("INTERMEDIATE_SIZE", inter_size),
+            make_jit_constant("KSPLIT", ksplit),
+        });
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams&) const override {
+        return {};
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams&, KernelData&, ImplRuntimeParams*) {}};
+    }
+};
+
+class MoE3GemmSwigluGgufSGDownMerge : public KernelGenerator {
+public:
+    MoE3GemmSwigluGgufSGDownMerge() : KernelGenerator("moe_gguf_sg_gemv", "down_merge_sg") {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = make_base_jit_constants(params);
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
+        const auto weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_2)).data_type;
+        const int hidden_size = static_cast<int>(desc->_config.hidden_size);
+        const int inter_size = static_cast<int>(desc->_config.inter_size);
+        const int experts_per_token = static_cast<int>(desc->_config.top_k);
+        const size_t base_groups = static_cast<size_t>(hidden_size) / 16;
+        const size_t split_space = static_cast<size_t>(experts_per_token) * (static_cast<size_t>(inter_size) / 256);
+        const int ksplit = moe_gguf_sg_choose_ksplit(base_groups, split_space);
+        jit.add({
+            make_jit_constant("DOWN_MERGE_SG_ENABLE", 1),
+            make_jit_constant("DOWN_DECODE", moe_gguf_decode_code(weight_dt)),
+            make_jit_constant("EXPERTS_PER_TOKEN", experts_per_token),
+            make_jit_constant("HIDDEN_SIZE", hidden_size),
+            make_jit_constant("INTERMEDIATE_SIZE", inter_size),
+            make_jit_constant("KSPLIT", ksplit),
+        });
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams&) const override {
+        return {};
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams&, KernelData&, ImplRuntimeParams*) {}};
+    }
+};
+
+// ================================================================================================
+// Shared-expert Q8_0 GEMV kernels (moe_gguf_sg_gemv.cl, SHARED_*_Q8_0_ENABLE guards) -- let the "SG"
+// decode path fully replace the raw-GGUF-block batched-GEMV kernels even when a shared expert
+// is present, as long as the shared expert's gate/up/down weights are GGUF Q8_0. Unlike the routed
+// Q4_K/Q5_K/Q6_K experts, Q8_0 has no bespoke K-format SG layout of its own in moe_sg_decode_code()
+// (which returns 0 for it) -- but the shared expert's Q8_0 weights ARE separately repacked, by
+// RepackGGUFMoEWeights::pack_shared_q8_0_sg() in repack_gguf_moe_weights.cpp, into the same
+// transposed "SG" (sub-group block-read) byte layout fc_gguf_q8_0_sg.cl uses for plain FC, so
+// shared_gate_up_q8_0 / shared_down_merge_q8_0 can decode both weights and activations with
+// intel_sub_group_block_read8. See moe_gguf_sg_gemv.cl header comment for the full kernel design
+// and exec_batched_gemv() for how these three stages are sequenced against gguf_sg_gate_up/down_merge.
+// ================================================================================================
+class MoE3GemmSwigluSharedGateScalarQ8_0 : public KernelGenerator {
+public:
+    MoE3GemmSwigluSharedGateScalarQ8_0() : KernelGenerator("moe_gguf_sg_gemv", "shared_gate_scalar_q8_0") {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = make_base_jit_constants(params);
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
+        const int hidden_size = static_cast<int>(desc->_config.hidden_size);
+        jit.add({
+            make_jit_constant("SHARED_GATE_SCALAR_Q8_0_ENABLE", 1),
+            make_jit_constant("HIDDEN_SIZE", hidden_size),
+            make_jit_constant("SHARED_SCALAR_LWS", moe_gguf_shared_scalar_lws(hidden_size)),
+        });
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams&) const override {
+        return {};
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams&, KernelData&, ImplRuntimeParams*) {}};
+    }
+};
+
+class MoE3GemmSwigluSharedGateUpQ8_0 : public KernelGenerator {
+public:
+    MoE3GemmSwigluSharedGateUpQ8_0() : KernelGenerator("moe_gguf_sg_gemv", "shared_gate_up_q8_0") {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = make_base_jit_constants(params);
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
+        const int hidden_size = static_cast<int>(desc->_config.hidden_size);
+        const int inter_size = static_cast<int>(desc->_config.inter_size);
+        // Q8_0 super-block is 32 elements (vs 256 for Q4_K/Q5_K/Q6_K), so the reduction split-space
+        // (blocks-per-row) is much larger here; see moe_gguf_sg_choose_ksplit().
+        const size_t base_groups = static_cast<size_t>(inter_size) / 16;
+        const size_t split_space = static_cast<size_t>(hidden_size) / 32;
+        const int ksplit = moe_gguf_sg_choose_ksplit(base_groups, split_space);
+        jit.add({
+            make_jit_constant("SHARED_GATE_UP_Q8_0_ENABLE", 1),
+            make_jit_constant("HIDDEN_SIZE", hidden_size),
+            make_jit_constant("INTERMEDIATE_SIZE", inter_size),
+            make_jit_constant("KSPLIT", ksplit),
+        });
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams&) const override {
+        return {};
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams&, KernelData&, ImplRuntimeParams*) {}};
+    }
+};
+
+class MoE3GemmSwigluSharedDownMergeQ8_0 : public KernelGenerator {
+public:
+    MoE3GemmSwigluSharedDownMergeQ8_0() : KernelGenerator("moe_gguf_sg_gemv", "shared_down_merge_q8_0") {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = make_base_jit_constants(params);
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
+        const int hidden_size = static_cast<int>(desc->_config.hidden_size);
+        const int inter_size = static_cast<int>(desc->_config.inter_size);
+        const size_t base_groups = static_cast<size_t>(hidden_size) / 16;
+        const size_t split_space = static_cast<size_t>(inter_size) / 32;
+        const int ksplit = moe_gguf_sg_choose_ksplit(base_groups, split_space);
+        jit.add({
+            make_jit_constant("SHARED_DOWN_MERGE_Q8_0_ENABLE", 1),
+            make_jit_constant("HIDDEN_SIZE", hidden_size),
+            make_jit_constant("INTERMEDIATE_SIZE", inter_size),
+            make_jit_constant("KSPLIT", ksplit),
+        });
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams&) const override {
+        return {};
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams&, KernelData&, ImplRuntimeParams*) {}};
+    }
+};
+
+// Shared, per-stream, reused-in-order transcode scratchpad. One slot per projection (routed gate/up/
+// down [0..2] and shared gate/up/down [0..2]). Grown-only, reused across every GGUF MoE node in a
+// stream (oneDNN in-order queue guarantees node L's matmul finishes before node L+1's transcode
+// overwrites the buffer — same contract as the FC path's TranscodeArena).
+struct MoeTranscodeScratch {
+    memory::ptr w[3];
+    memory::ptr sc[3];
+    memory::ptr sw[3];
+    memory::ptr ssc[3];
+    // Grow-once flat token-index buffer (TOKEN_IDX_PER_EXPERT) for the grouped_gemm prefill path.
+    // Cannot be a pre-allocated intermediate: it is sized token_num*max_topk at compile time, but
+    // for GGUF the impl is compiled in decode mode (token_num=1) while prefill may bring 1000+ tokens.
+    memory::ptr token_idx;
+    // Grow-once GEMM data buffers for the grouped_gemm prefill path (== internal buffers
+    // GATE_UP_INPUT/GATE_OUTPUT/UP_OUTPUT/DOWN_OUTPUT). Same reason as token_idx: the pre-allocated
+    // intermediates are sized for the decode-mode token_num the GGUF impl was compiled with, but the
+    // grouped GEMM gathers/writes token_num*max_topk rows. Undersized -> out-of-bounds GPU write.
+    memory::ptr x;     // gather output / gate-up input [total_gathered_tokens, hidden_size]
+    memory::ptr gate;  // gate GEMM + swiglu output     [total_gathered_tokens, inter_size]
+    memory::ptr up;    // up GEMM output                [total_gathered_tokens, inter_size]
+    memory::ptr y;     // down GEMM output              [total_gathered_tokens, hidden_size]
+};
+struct MoeTranscodeArena {
+    std::mutex mtx;
+    std::unordered_map<const cldnn::stream*, MoeTranscodeScratch> per_stream;
+};
+std::shared_ptr<MoeTranscodeArena> get_moe_transcode_arena(const cldnn::engine* eng) {
+    static std::mutex g_mtx;
+    static std::map<const cldnn::engine*, std::weak_ptr<MoeTranscodeArena>> g_registry;
+    std::lock_guard<std::mutex> lk(g_mtx);
+    auto& weak = g_registry[eng];
+    if (auto sp = weak.lock()) {
+        return sp;
+    }
+    auto sp = std::make_shared<MoeTranscodeArena>();
+    weak = sp;
+    return sp;
+}
+
+// Opt-in (default ON) prefill transcode path for GGUF MoE. Set OV_GPU_GGUF_MOE_PREFILL_TRANSCODE=0 to
+// fall back to the batched-GEMV decode kernel for all token counts.
+bool gguf_moe_prefill_transcode_enabled() {
+    if (const char* env = std::getenv("OV_GPU_GGUF_MOE_PREFILL_TRANSCODE")) {
+        return std::atol(env) != 0;
+    }
+    return true;
+}
+
 class moe_3gemm_swiglu_opt_impl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoE3GemmSwigluImpl)
@@ -584,6 +1098,34 @@ public:
     Stage::Ptr grouped_gemm_prefill_gather = make_stage<MoE3GemmSwigluPrefillGather>(/*use_grouped_gemm=*/true);
     Stage::Ptr grouped_gemm_prefill_swiglu = make_stage<MoE3GemmSwigluPrefillSwiglu>(/*use_grouped_gemm=*/true);
     Stage::Ptr grouped_gemm_prefill_scatter_reduce = make_stage<MoE3GemmSwigluPrefillScatterReduce>(/*use_grouped_gemm=*/true);
+
+    // GGUF prefill transcode stages (token > 32): one per projection (routed gate/up/down + shared
+    // gate/up/down). Each transcodes a GGUF expert weight into a low-bit (i4/i8) + f16-scale scratch
+    // consumed by exec_prefill_onednn. Only added/compiled for the native GGUF MoE path.
+    Stage::Ptr gguf_transcode_gate = make_stage<MoE3GemmSwigluGgufTranscode>(MOE3GemmInputIndex::WEIGHT_0, /*is_shared=*/false);
+    Stage::Ptr gguf_transcode_up = make_stage<MoE3GemmSwigluGgufTranscode>(MOE3GemmInputIndex::WEIGHT_1, /*is_shared=*/false);
+    Stage::Ptr gguf_transcode_down = make_stage<MoE3GemmSwigluGgufTranscode>(MOE3GemmInputIndex::WEIGHT_2, /*is_shared=*/false);
+    Stage::Ptr gguf_transcode_shared_gate = make_stage<MoE3GemmSwigluGgufTranscode>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT, /*is_shared=*/true);
+    Stage::Ptr gguf_transcode_shared_up = make_stage<MoE3GemmSwigluGgufTranscode>(MOE3GemmInputIndex::SHARED_UP_WEIGHT, /*is_shared=*/true);
+    Stage::Ptr gguf_transcode_shared_down = make_stage<MoE3GemmSwigluGgufTranscode>(MOE3GemmInputIndex::SHARED_DOWN_WEIGHT, /*is_shared=*/true);
+    std::shared_ptr<MoeTranscodeArena> _moe_transcode_arena;
+    bool _use_gguf_prefill_transcode = false;
+
+    // GGUF "SG" decode-path GEMV kernels (Q4_K/Q5_K/Q6_K only, no shared expert -- see
+    // gguf_moe_sg_enabled()). Replace mlp_gate_up + (mlp_down/mlp_reduce) for the decode
+    // (token <= batched_gemv_threshold) path when active.
+    Stage::Ptr gguf_sg_gate_up = make_stage<MoE3GemmSwigluGgufSGGateUp>();
+    Stage::Ptr gguf_sg_down_merge = make_stage<MoE3GemmSwigluGgufSGDownMerge>();
+    bool _use_gguf_moe_sg = false;
+
+    // Q8_0 shared-expert GEMV kernels, added alongside gguf_sg_gate_up/down_merge when the (single)
+    // shared expert's gate/up/down weights are GGUF Q8_0 -- see MoE3GemmSwiglu*Q8_0 classes above and
+    // exec_batched_gemv(). Lets the SG decode path fully replace moe_3gemm_swiglu_mlp.cl even
+    // with a shared expert present.
+    Stage::Ptr gguf_sg_shared_gate_scalar = make_stage<MoE3GemmSwigluSharedGateScalarQ8_0>();
+    Stage::Ptr gguf_sg_shared_gate_up = make_stage<MoE3GemmSwigluSharedGateUpQ8_0>();
+    Stage::Ptr gguf_sg_shared_down_merge = make_stage<MoE3GemmSwigluSharedDownMergeQ8_0>();
+    bool _use_gguf_moe_sg_shared_q8_0 = false;
 
     struct dnnl_weights {
         dnnl::memory weight;
@@ -720,6 +1262,25 @@ public:
             scratch.moe_fusion_wei_addr.shared_zp[2] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_DOWN_ZP));
             scratch.moe_fusion_wei_addr.shared_weight[3] = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_GATE_WEIGHT));
         }
+
+        // GGUF experts carry scale/zp inside the block bytes, so the op's scale/zp inputs are empty
+        // (0-size) Constants whose device memory may be null. Bind the (non-null) weight buffer as a
+        // placeholder for the unused scale/zp kernel arguments so the GEMV kernel never dereferences
+        // a null memory (the WEIGHT_COMPRESSEION_DT==3 path ignores scale/zp entirely).
+        const bool is_gguf_moe = scratch.moe_fusion_wei_addr.weight[0] &&
+                                 ov::element::is_gguf_block(scratch.moe_fusion_wei_addr.weight[0]->get_layout().data_type);
+        if (is_gguf_moe) {
+            for (int i = 0; i < 3; i++) {
+                scratch.moe_fusion_wei_addr.scale[i] = scratch.moe_fusion_wei_addr.weight[i];
+                scratch.moe_fusion_wei_addr.zp[i] = scratch.moe_fusion_wei_addr.weight[i];
+            }
+            if (instance.dependencies().size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)) {
+                for (int i = 0; i < 3; i++) {
+                    scratch.moe_fusion_wei_addr.shared_scale[i] = scratch.moe_fusion_wei_addr.shared_weight[i];
+                    scratch.moe_fusion_wei_addr.shared_zp[i] = scratch.moe_fusion_wei_addr.shared_weight[i];
+                }
+            }
+        }
     }
 
     void on_before_batched_gemv(cldnn::stream& stream,
@@ -812,17 +1373,22 @@ public:
         int64_t wei_offset##i = lru_expert_no * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc, params.name##_w->get_layout());               \
         int64_t scale_offset##i =                                                                                                                      \
             lru_expert_no * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size, params.name##_s->get_layout());   \
-        int64_t zp_offset##i =                                                                                                                         \
-            lru_expert_no * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size, params.name##_z->get_layout());   \
         dnnl_weights[i].weight = convert2dnnl(params.name##_w, {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ba, wei_offset##i); \
         dnnl_weights[i].scale = convert2dnnl(params.name##_s,                                                                                          \
                                              {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},                                 \
                                              dnnl::memory::format_tag::ab,                                                                             \
                                              scale_offset##i);                                                                                         \
-        dnnl_weights[i].zp = convert2dnnl(params.name##_z,                                                                                             \
-                                          {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},                                    \
-                                          dnnl::memory::format_tag::ab,                                                                                \
-                                          zp_offset##i);
+        if (instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config.has_zp && params.name##_z &&                                               \
+            params.name##_z->get_layout().data_type != data_types::dynamic) {                                                                          \
+            int64_t zp_offset##i =                                                                                                                      \
+                lru_expert_no * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size, params.name##_z->get_layout());\
+            dnnl_weights[i].zp = convert2dnnl(params.name##_z,                                                                                          \
+                                              {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},                                 \
+                                              dnnl::memory::format_tag::ab,                                                                             \
+                                              zp_offset##i);                                                                                            \
+        } else {                                                                                                                                        \
+            dnnl_weights[i].zp = dnnl::memory();                                                                                                        \
+        }
         CONVERT_DNNL_OTD(gate, 0)
         CONVERT_DNNL_OTD(up, 1)
         CONVERT_DNNL_OTD(down, 2)
@@ -1006,12 +1572,74 @@ public:
             _weight_provider = std::make_shared<ResidentExpertWeightProvider>();
         }
 
+        // The native GGUF MoE path is served entirely by the batched-GEMV decode kernels
+        // (moe_3gemm_swiglu_mlp.cl); the prefill kernels (micro-gemm / grouped-gemm / oneDNN) do not
+        // decode raw GGUF blocks. Disable every prefill path so their non-GGUF kernels are neither
+        // compiled nor selected, and route all token counts through the decode path (see execute()).
+        {
+            const auto& w0_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).data_type;
+            if (ov::element::is_gguf_block(w0_dt)) {
+                use_micro_gemm_prefill = false;
+                use_grouped_gemm_prefill = false;
+                // Prefill (token > threshold): transcode GGUF experts to a low-bit oneDNN-WOQ scratch
+                // then run exec_prefill_grouped_gemm. Decode (token <= batched_gemv_threshold) still
+                // uses the native batched-GEMV kernel. The grouped-GEMM path already handles non-Xe2
+                // via subgroup_size=16, so no arch gate is needed here.
+                // Opt-out via OV_GPU_GGUF_MOE_PREFILL_TRANSCODE=0.
+                _use_gguf_prefill_transcode = gguf_moe_prefill_transcode_enabled();
+                // Decode: "SG" transposed-layout GEMV kernels (Q4_K/Q5_K/Q6_K only -- see
+                // moe_gguf_sg_gemv.cl). RepackGGUFMoEWeights must agree (same env gate) on whether
+                // it packed gate/up/down into the SG layout.
+                //
+                // Shared expert: if present, the routed SG path is only enabled when the shared
+                // expert's gate/up/down weights are GGUF Q8_0 too. moe_sg_decode_code() (used for
+                // the routed gate/up/down loop above) returns 0 for Q8_0 -- it has no bespoke
+                // K-format SG layout of its own -- but RepackGGUFMoEWeights separately repacks the
+                // SHARED expert's Q8_0 weights (pack_shared_q8_0_sg()) into the SG transposed
+                // layout fc_gguf_q8_0_sg.cl uses for plain FC, and moe_gguf_sg_gemv.cl's
+                // shared_*_q8_0 kernels decode THAT layout with intel_sub_group_block_read8 (see
+                // MoE3GemmSwiglu*Q8_0 classes above). Any other shared-expert weight type falls
+                // back entirely to the raw-GGUF-block batched-GEMV kernels, same as before this
+                // Q8_0 support was added.
+                const bool has_shared_expert_inputs =
+                    params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT);
+                const auto up_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_1)).data_type;
+                const auto down_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_2)).data_type;
+                bool shared_expert_sg_ok = true;
+                if (has_shared_expert_inputs) {
+                    const auto sg_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)).data_type;
+                    const auto su_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::SHARED_UP_WEIGHT)).data_type;
+                    const auto sd_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::SHARED_DOWN_WEIGHT)).data_type;
+                    constexpr int kQ8_0Code = 4;
+                    shared_expert_sg_ok = moe_gguf_decode_code(sg_dt) == kQ8_0Code && moe_gguf_decode_code(su_dt) == kQ8_0Code &&
+                                          moe_gguf_decode_code(sd_dt) == kQ8_0Code;
+                }
+                // Routed gate/up/down must each be Q4_K/Q5_K/Q6_K (codes 1-3) -- Q8_0 (code 4) has no
+                // routed-expert SG kernel (see moe_gguf_sg_routable() above); a plain "!= 0" check
+                // would wrongly admit it and either fail to compile or silently misdecode.
+                _use_gguf_moe_sg = gguf_moe_sg_enabled() && shared_expert_sg_ok &&
+                                   moe_gguf_sg_routable(moe_gguf_decode_code(w0_dt)) &&
+                                   moe_gguf_sg_routable(moe_gguf_decode_code(up_dt)) &&
+                                   moe_gguf_sg_routable(moe_gguf_decode_code(down_dt));
+                _use_gguf_moe_sg_shared_q8_0 = _use_gguf_moe_sg && has_shared_expert_inputs;
+            }
+        }
+
         // Don't change the order of stages
         add_stage(gather, params);
         add_stage(scatter, params);
         add_stage(mlp_gate_up, params);
         add_stage(mlp_down, params);
         add_stage(mlp_reduce, params);
+        if (_use_gguf_moe_sg) {
+            add_stage(gguf_sg_gate_up, params);
+            add_stage(gguf_sg_down_merge, params);
+        }
+        if (_use_gguf_moe_sg_shared_q8_0) {
+            add_stage(gguf_sg_shared_gate_scalar, params);
+            add_stage(gguf_sg_shared_gate_up, params);
+            add_stage(gguf_sg_shared_down_merge, params);
+        }
         if (use_micro_gemm_prefill) {
             add_stage(prefill_mask_gen, params);
             add_stage(prefill_gather, params);
@@ -1021,10 +1649,23 @@ public:
             add_stage(micro_gemm_down, params);
             add_stage(prefill_scatter_reduce, params);
         }
-        if (use_grouped_gemm_prefill) {
+        if (use_grouped_gemm_prefill || _use_gguf_prefill_transcode) {
             add_stage(grouped_gemm_prefill_gather, params);
             add_stage(grouped_gemm_prefill_swiglu, params);
             add_stage(grouped_gemm_prefill_scatter_reduce, params);
+        }
+        if (_use_gguf_prefill_transcode) {
+            // Routed gate/up/down transcode kernels. After transcode the weights are low-bit
+            // (i4/i8 + f16 scale) and consumed by exec_prefill_grouped_gemm (the grouped OCL
+            // stages added above). No micro-gemm or per-expert oneDNN loop is needed.
+            add_stage(gguf_transcode_gate, params);
+            add_stage(gguf_transcode_up, params);
+            add_stage(gguf_transcode_down, params);
+            if (params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)) {
+                add_stage(gguf_transcode_shared_gate, params);
+                add_stage(gguf_transcode_shared_up, params);
+                add_stage(gguf_transcode_shared_down, params);
+            }
         }
     }
 
@@ -1262,6 +1903,9 @@ public:
         ob << use_micro_gemm_prefill;
         ob << use_gpu_mask_gen_prefill;
         ob << use_grouped_gemm_prefill;
+        ob << _use_gguf_prefill_transcode;
+        ob << _use_gguf_moe_sg;
+        ob << _use_gguf_moe_sg_shared_q8_0;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -1271,6 +1915,9 @@ public:
         ib >> use_micro_gemm_prefill;
         ib >> use_gpu_mask_gen_prefill;
         ib >> use_grouped_gemm_prefill;
+        ib >> _use_gguf_prefill_transcode;
+        ib >> _use_gguf_moe_sg;
+        ib >> _use_gguf_moe_sg_shared_q8_0;
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
         init(impl_params->typed_desc<moe_3gemm_fused_compressed>());
     }
@@ -1287,6 +1934,9 @@ public:
         cur_moe->use_gpu_mask_gen_prefill = use_gpu_mask_gen_prefill;
         cur_moe->use_grouped_gemm_prefill = use_grouped_gemm_prefill;
         cur_moe->batched_gemv_threshold = batched_gemv_threshold;
+        cur_moe->_use_gguf_prefill_transcode = _use_gguf_prefill_transcode;
+        cur_moe->_use_gguf_moe_sg = _use_gguf_moe_sg;
+        cur_moe->_use_gguf_moe_sg_shared_q8_0 = _use_gguf_moe_sg_shared_q8_0;
         cur_moe->_activation_type = _activation_type;
         return cur_moe;
     }
@@ -1336,8 +1986,13 @@ public:
             layout layout_actual_used_expert_num(ov::Shape{1}, ov::element::i32, cldnn::format::bfyx);
             internal_buffers.emplace_back(layout_actual_used_expert_num, false);  // 11: actual_used_expert_num
         }
-        // for grouped_gemm: shared metadata buffers (7-11) + int32_t expert-row-offsets (12)
-        if (use_grouped_gemm_prefill && token_num > 1) {
+        // for grouped_gemm: shared metadata buffers (7-11) + int32_t expert-row-offsets (12).
+        // Also needed for the GGUF transcode path which routes to exec_prefill_grouped_gemm.
+        // NOTE: for GGUF the impl is often compiled in decode mode (token_num=1), so the
+        // token_idx buffer (index 10, sized token_num*max_topk) would be too small for prefill.
+        // That buffer is grown-on-demand via MoeTranscodeArena.token_idx instead; the pre-allocated
+        // slot here is a placeholder (1 element) so the vector index is valid.
+        if ((use_grouped_gemm_prefill && token_num > 1) || _use_gguf_prefill_transcode) {
             layout layout_meta(ov::Shape{expert_num, token_num}, ov::element::i32, cldnn::format::bfyx);
             internal_buffers.emplace_back(layout_meta, true);  // 7: activated expert ids
             internal_buffers.emplace_back(layout_meta, true);  // 8: token start offset per activated expert
@@ -1357,7 +2012,6 @@ public:
     void prepare_internal_buffers(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, scratch_buffers& scratch, size_t token_num) {
         const auto& intermediates_memories = instance.get_intermediates_memories();
         auto& engine = instance.get_network().get_engine();
-
         // topk_id / topk_weights are read from inputs (computed by MoERouterFused).
         scratch.topk_weights = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::TOPK_WEIGHTS));
         scratch.topk_id = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::TOPK_INDICES));
@@ -1365,6 +2019,18 @@ public:
         scratch.y = intermediates_memories[MOE_INTERNAL_BUFFER_DOWN_OUTPUT];
         // Routing weights scratch buffer (used in prefill paths and reused as shared_gate_vals in batched GEMV)
         scratch.routing_weights = intermediates_memories[MOE_INTERNAL_BUFFER_ROUTING_WEIGHTS];
+        // The Q8_0 shared-expert "SG" decode path (exec_batched_gemv, _use_gguf_moe_sg_shared_q8_0)
+        // reuses scratch.gate as the shared-expert gate_up_out [token_num, INTERMEDIATE_SIZE]. That
+        // path runs in DECODE mode (token_num <= batched_gemv_threshold, typically token_num == 1),
+        // where the `if (token_num > 1)` block below does NOT run, so scratch.gate would stay null and
+        // shared_gate_up_q8_0's OUTPUT arg binding would fail the ocl_stream.cpp
+        // "allocated output memory is necessary" assert. MOE_INTERNAL_BUFFER_GATE_OUTPUT (index 4) is
+        // allocated unconditionally in get_internal_buffer_descs(), so bind it here regardless of
+        // token_num when this path is active. (For token_num > 1 the block below re-assigns the same
+        // buffer, so this is harmless.)
+        if (_use_gguf_moe_sg_shared_q8_0) {
+            scratch.gate = intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT];
+        }
         if (token_num > 1) {
             scratch.x = intermediates_memories[MOE_INTERNAL_BUFFER_GATE_UP_INPUT];
             scratch.gate = intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT];
@@ -1513,12 +2179,22 @@ public:
                                         typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                         scratch_buffers& scratch,
                                         size_t token_num) {
-        auto& cur_net = instance.get_network();
-        auto& stream = cur_net.get_stream();
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
+        auto& stream = instance.get_network().get_stream();
         int max_topk = static_cast<int>(cur_moe->_config.top_k);
 
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
+        // Diagnostic: OV_GPU_GGUF_MOE_SKIP=1 zeroes the MoE output and skips the whole GEMV, so the
+        // end-to-end decode delta vs a normal run isolates the MoE decode cost (garbage output; timing
+        // only). Static read once — negligible.
+        static const bool skip_moe_gemv = []() {
+            const char* e = std::getenv("OV_GPU_GGUF_MOE_SKIP");
+            return e && std::atol(e) != 0;
+        }();
+        if (skip_moe_gemv) {
+            final_hidden_states_mem_ptr->fill(instance.get_network().get_stream(), false);
+            return nullptr;
+        }
         auto batch_mem_ptr = scratch.topk_id;
         auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES));
         auto routing_mem_ptr = scratch.topk_weights;
@@ -1587,6 +2263,105 @@ public:
         GPU_DEBUG_TRACE_DETAIL << "\nexec_batched_gemv(): token_num=" << token_num << ", max_topk=" << max_topk << ", has_shared=" << _has_shared_expert
                                << std::endl;
 
+        // "SG" transposed-layout decode kernels (Q4_K/Q5_K/Q6_K): replaces mlp_gate_up + mlp_down +
+        // mlp_reduce with gate_up_sg + down_merge_sg (the latter fuses the down-projection and the
+        // per-token topk reduction). See moe_gguf_sg_gemv.cl. When a (Q8_0) shared expert is also
+        // present (_use_gguf_moe_sg_shared_q8_0), its contribution is computed by three additional
+        // kernels (shared_gate_scalar_q8_0 / shared_gate_up_q8_0 / shared_down_merge_q8_0, run
+        // independently of the routed-expert kernels above) and accumulated into the same
+        // final_hidden_states buffer after down_merge_sg has written the routed-expert sum.
+        if (_use_gguf_moe_sg) {
+            const size_t OPG = 16;
+            std::vector<memory::ptr> args_gate_up_sg = {batch_mem_ptr, mlp_gate_wei_mem, mlp_up_wei_mem, hidden_states_mem_ptr};
+            // KSPLIT is baked into the compiled kernel at JIT time (see
+            // MoE3GemmSwigluGgufSGGateUp/DownMerge::get_jit_constants); the local/global work-group
+            // split below MUST re-derive the identical value (same formula, same inputs) so that
+            // local dim1 matches what the kernel source was compiled with.
+            const int hidden_size_i = _hidden_size, inter_size_i = _intermediate_size;
+            const size_t gu_base_groups = (static_cast<size_t>(inter_size_i) / OPG) * static_cast<size_t>(max_topk);
+            const size_t gu_split_space = static_cast<size_t>(hidden_size_i) / 256;
+            const size_t gu_ks = static_cast<size_t>(moe_gguf_sg_choose_ksplit(gu_base_groups, gu_split_space));
+
+            auto ret_event = execute_stage(events,
+                                           instance,
+                                           *gguf_sg_gate_up,
+                                           args_gate_up_sg,
+                                           {scratch.up},
+                                           {static_cast<size_t>(inter_size_i), gu_ks, static_cast<size_t>(max_topk) * token_num},
+                                           {OPG, gu_ks, 1});
+
+            const size_t dm_base_groups = static_cast<size_t>(hidden_size_i) / OPG;
+            const size_t dm_split_space = static_cast<size_t>(max_topk) * (static_cast<size_t>(inter_size_i) / 256);
+            const size_t dm_ks = static_cast<size_t>(moe_gguf_sg_choose_ksplit(dm_base_groups, dm_split_space));
+
+            std::vector<memory::ptr> args_down_merge_sg = {scratch.up, mlp_down_wei_mem, batch_mem_ptr, routing_mem_ptr};
+            auto down_merge_event = execute_stage({ret_event},
+                                                  instance,
+                                                  *gguf_sg_down_merge,
+                                                  args_down_merge_sg,
+                                                  {final_hidden_states_mem_ptr},
+                                                  {static_cast<size_t>(hidden_size_i), dm_ks, token_num},
+                                                  {OPG, dm_ks, 1},
+                                                  _use_gguf_moe_sg_shared_q8_0 ? false : instance.needs_completion_event(),
+                                                  {0} /* is_acc = 0: overwrite (routed-expert sum) */);
+
+            if (!_use_gguf_moe_sg_shared_q8_0) {
+                return down_merge_event;
+            }
+
+            // Shared expert (Q8_0, raw per-row GGUF blocks -- see moe_gguf_sg_gemv.cl header
+            // comment). shared_gate_scalar_q8_0 and shared_gate_up_q8_0 only depend on the (already
+            // available) hidden_states input, so they can run concurrently with the routed-expert
+            // kernels above (dispatched off the original `events`, not `ret_event`/`down_merge_event`).
+            // scratch.gate is otherwise unused by this decode path -- reused here to hold the
+            // shared-expert gate_up_out [token_num, INTERMEDIATE_SIZE]; scratch.routing_weights is
+            // reused (same convention as the raw-GGUF-block SHARED_EXPERT_ENABLE path) to hold the
+            // per-token shared-gate scalar [token_num].
+            const auto& shared_gate_vec_mem = scratch.moe_fusion_wei_addr.shared_weight[3];
+            const size_t shared_scalar_lws = static_cast<size_t>(moe_gguf_shared_scalar_lws(hidden_size_i));
+            auto shared_scalar_event = execute_stage(events,
+                                                     instance,
+                                                     *gguf_sg_shared_gate_scalar,
+                                                     {hidden_states_mem_ptr, shared_gate_vec_mem},
+                                                     {scratch.routing_weights},
+                                                     {shared_scalar_lws, token_num},
+                                                     {shared_scalar_lws, 1});
+
+            const auto& shared_gate_wei_mem = scratch.moe_fusion_wei_addr.shared_weight[0];
+            const auto& shared_up_wei_mem = scratch.moe_fusion_wei_addr.shared_weight[1];
+            const auto& shared_down_wei_mem = scratch.moe_fusion_wei_addr.shared_weight[2];
+
+            const size_t sgu_base_groups = static_cast<size_t>(inter_size_i) / OPG;
+            const size_t sgu_split_space = static_cast<size_t>(hidden_size_i) / 32;
+            const size_t sgu_ks = static_cast<size_t>(moe_gguf_sg_choose_ksplit(sgu_base_groups, sgu_split_space));
+
+            auto shared_gate_up_event = execute_stage(events,
+                                                      instance,
+                                                      *gguf_sg_shared_gate_up,
+                                                      {shared_gate_wei_mem, shared_up_wei_mem, hidden_states_mem_ptr},
+                                                      {scratch.gate},
+                                                      {static_cast<size_t>(inter_size_i), sgu_ks, token_num},
+                                                      {OPG, sgu_ks, 1});
+
+            const size_t sdm_base_groups = static_cast<size_t>(hidden_size_i) / OPG;
+            const size_t sdm_split_space = static_cast<size_t>(inter_size_i) / 32;
+            const size_t sdm_ks = static_cast<size_t>(moe_gguf_sg_choose_ksplit(sdm_base_groups, sdm_split_space));
+
+            ret = execute_stage({down_merge_event, shared_gate_up_event, shared_scalar_event},
+                                instance,
+                                *gguf_sg_shared_down_merge,
+                                {scratch.gate, shared_down_wei_mem, scratch.routing_weights},
+                                {final_hidden_states_mem_ptr},
+                                {static_cast<size_t>(hidden_size_i), sdm_ks, token_num},
+                                {OPG, sdm_ks, 1},
+                                instance.needs_completion_event(),
+                                {1} /* is_acc = 1: accumulate onto the routed-expert sum */);
+            return ret;
+        }
+
+        const size_t gate_up_n_groups = static_cast<size_t>(_intermediate_size) / moe_gate_up_n_block();
+        const size_t down_n_groups = static_cast<size_t>(_hidden_size) / moe_down_n_block();
+
         {
             // scratch.up = up(x) * silu(gate(x)) for all (token, expert) pairs
             std::vector<memory::ptr> args_gate_up =
@@ -1600,8 +2375,8 @@ public:
                                            *stage_gate_up,
                                            args_gate_up,
                                            {scratch.up},
-                                           {token_num * compute_experts, subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
-                                           {1, subgroup_size, SUBGROUP_NUM});
+                                           {token_num * compute_experts, subgroup_size, gate_up_n_groups},
+                                           {1, subgroup_size, static_cast<size_t>(moe_subgroup_num())});
 
             // scratch.y = down(scratch.up) * routing_weight for all (token, expert) pairs
             std::vector<memory::ptr> args_down = {batch_mem_ptr, mlp_down_wei_mem, mlp_down_scale_mem, mlp_down_zp_mem};
@@ -1616,8 +2391,8 @@ public:
                                       *stage_down,
                                       args_down,
                                       {scratch.y},
-                                      {token_num * compute_experts, subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
-                                      {1, subgroup_size, SUBGROUP_NUM});
+                                      {token_num * compute_experts, subgroup_size, down_n_groups},
+                                      {1, subgroup_size, static_cast<size_t>(moe_subgroup_num())});
 
             // Per-token reduction: final[t] = sum(scratch.y[t * REDUCE_COUNT .. (t+1) * REDUCE_COUNT - 1])
             ret = execute_stage({ret_event},
@@ -1953,6 +2728,9 @@ public:
     };
     using grouped_kernel_lru = LruCache<int, std::shared_ptr<grouped_onednn_kernel>>;
     grouped_kernel_lru _grouped_kernels{128};
+    // Separate cache for GGUF transcode path: primitives are built from the transcoded (i4/i8)
+    // weight types and MOE_GGUF_REQUANT_GROUP=32 group size, not the raw GGUF block types.
+    grouped_kernel_lru _grouped_kernels_gguf{128};
     onednn_kernel& get_kernel(int n_token, int expert_no, typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
         // OTD: all slots have identical shape → cache by n_token only.
         // Non-OTD: cache by (n_token, expert_no) since each expert has fixed weight handles.
@@ -2003,7 +2781,9 @@ public:
         auto kernel = std::make_shared<onednn_kernel>();
 
         // gate
-        auto gate_weight_layout_dt = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0))->get_layout().data_type);
+        // Use the (already-built) dnnl weight's data type: for GGUF this is the transcoded scratch
+        // dtype (s4/s8), not the raw gguf_* input type which convert_data_type cannot map.
+        auto gate_weight_layout_dt = dnnl_weights[0].weight.get_desc().get_data_type();
         kernel->gate = onednn_linear::create(dnn_stream.get_engine(),
                                              hidden_states_layout_dt,
                                              gate_weight_layout_dt,
@@ -2018,7 +2798,7 @@ public:
                                              gate_activation_algo);
 
         // up
-        auto up_weight_layout_dt = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_1))->get_layout().data_type);
+        auto up_weight_layout_dt = dnnl_weights[1].weight.get_desc().get_data_type();
         kernel->up = onednn_linear::create(dnn_stream.get_engine(),
                                            hidden_states_layout_dt,
                                            up_weight_layout_dt,
@@ -2032,7 +2812,7 @@ public:
                                            dnnl_weights[1].zp);
 
         // down
-        auto down_weight_layout_dt = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_2))->get_layout().data_type);
+        auto down_weight_layout_dt = dnnl_weights[2].weight.get_desc().get_data_type();
         kernel->down = onednn_linear::create(dnn_stream.get_engine(),
                                              hidden_states_layout_dt,
                                              down_weight_layout_dt,
@@ -2140,6 +2920,75 @@ public:
 
         _grouped_kernels.add(key, gk);
         return *_grouped_kernels.get(key);
+    }
+
+    // Variant of get_grouped_kernel for the GGUF transcode path.
+    // After run_moe_gguf_transcode() the weights in scratch.moe_fusion_wei_addr are i4 or i8
+    // (not raw GGUF block types), and the re-quantisation group size is MOE_GGUF_REQUANT_GROUP=32.
+    // Builds / caches OneDNN grouped matmul primitives from those transcoded layouts rather than
+    // from the raw GGUF instance inputs that convert_data_type() cannot handle.
+    grouped_onednn_kernel& get_grouped_kernel_gguf(int total_tokens,
+                                                    const scratch_buffers& scratch,
+                                                    typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
+        auto key = total_tokens;
+        if (_grouped_kernels_gguf.has(key)) {
+            return *_grouped_kernels_gguf.get(key);
+        }
+
+        auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
+        const auto& config = cur_moe->_config;
+        auto& engine = instance.get_network().get_engine();
+        auto& onednn_engine = engine.get_onednn_engine();
+
+        int num_experts = static_cast<int>(config.num_expert);
+        auto a_dt = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES))->get_layout().data_type);
+
+        // Use transcoded weight dtypes (i4/i8), not the original GGUF block type.
+        auto gw_dt = convert_data_type(scratch.moe_fusion_wei_addr.weight[0]->get_layout().data_type);
+        auto uw_dt = convert_data_type(scratch.moe_fusion_wei_addr.weight[1]->get_layout().data_type);
+        auto dw_dt = convert_data_type(scratch.moe_fusion_wei_addr.weight[2]->get_layout().data_type);
+
+        // Symmetric requant -> no zero points (gk->has_zp below).
+        int K_gu = _hidden_size;
+        int N_gu = _intermediate_size;
+        int K_d  = _intermediate_size;
+        int N_d  = _hidden_size;
+        // The transcode re-quantises with group size = MOE_GGUF_REQUANT_GROUP = 32.
+        const int group_size = MOE_GGUF_REQUANT_GROUP;
+
+        auto make_pd = [&](int K, int N, dnnl::memory::data_type w_dt) {
+            dnnl::primitive_attr attr;
+            attr.set_fpmath_mode(dnnl::fpmath_mode::f16, true);
+            // per-expert(0) x per-K-group(1) x per-N-channel(2)
+            attr.set_scales(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 1) | (1 << 2), {group_size, 1}, dnnl::memory::data_type::f16);
+            auto src_md = dnnl::memory::desc::grouped(dnnl::memory::dims{total_tokens, K}, a_dt, 0, num_experts, dnnl::memory::data_type::s32);
+            auto dst_md = dnnl::memory::desc::grouped(dnnl::memory::dims{total_tokens, N}, a_dt, 0, num_experts, dnnl::memory::data_type::s32);
+            auto w_md   = dnnl::memory::desc(dnnl::memory::dims{num_experts, K, N}, w_dt, dnnl::memory::format_tag::acb);
+            return dnnl::matmul::primitive_desc(onednn_engine, src_md, w_md, dst_md, attr);
+        };
+
+        auto make_scale_md = [&](int E, int K, int N) {
+            int num_k_groups = K / group_size;
+            return dnnl::memory::desc({E, num_k_groups, N}, dnnl::memory::data_type::f16, dnnl::memory::format_tag::abc);
+        };
+
+        auto gk       = std::make_shared<grouped_onednn_kernel>();
+        gk->has_zp    = false;
+
+        gk->gate_pd       = make_pd(K_gu, N_gu, gw_dt);
+        gk->gate_prim     = dnnl::matmul(gk->gate_pd);
+        gk->gate_scale_md = make_scale_md(num_experts, K_gu, N_gu);
+
+        gk->up_pd       = make_pd(K_gu, N_gu, uw_dt);
+        gk->up_prim     = dnnl::matmul(gk->up_pd);
+        gk->up_scale_md = gk->gate_scale_md;
+
+        gk->down_pd       = make_pd(K_d, N_d, dw_dt);
+        gk->down_prim     = dnnl::matmul(gk->down_pd);
+        gk->down_scale_md = make_scale_md(num_experts, K_d, N_d);
+
+        _grouped_kernels_gguf.add(key, gk);
+        return *_grouped_kernels_gguf.get(key);
     }
 
     //  inputs 0 is hidden_states, inputs 1 is router_logits[num_tokens, NUM_EXPERTS=128]
@@ -2258,7 +3107,7 @@ public:
 
     // Third prefill path: OneDNN grouped GEMM (one matmul call per GEMM layer, all experts together).
     // This avoids the per-expert loop of exec_prefill_onednn while keeping full weight-format
-    // compatibility (quantized or fp16 weights).
+    // compatibility (quantized or fp16 weights, or GGUF after transcode).
     //
     //  gather_by_expert(hidden_states, topk_id) -> scratch.x          [total, hidden]
     //  grouped_matmul(scratch.x, W_gate)        -> scratch.gate       [total, inter]
@@ -2268,11 +3117,15 @@ public:
     //  scatter_reduce(scratch.y, topk_id, topk_weights) -> output     [token_num, hidden]
     //
     // Note: "total" = token_num * max_topk, sorted by expert assignment.
+    // is_gguf_transcode: weights in scratch are i4/i8 from run_moe_gguf_transcode; use
+    //   get_grouped_kernel_gguf (group_size=32, dtypes from scratch) instead of the
+    //   normal getter that reads raw GGUF block types from instance inputs.
     //
     cldnn::event::ptr exec_prefill_grouped_gemm(const std::vector<cldnn::event::ptr>& events,
                                                 cldnn::stream& stream,
                                                 typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-                                                scratch_buffers& scratch) {
+                                                scratch_buffers& scratch,
+                                                bool is_gguf_transcode = false) {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("moe_3gemm_swiglu_opt_impl::exec_prefill_grouped_gemm"));
 
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
@@ -2359,8 +3212,70 @@ public:
                                << ", max_tokens_per_expert=" << max_tokens_per_expert << ", num_actually_used_experts=" << num_actually_used_experts
                                << std::endl;
 
+        // Safety check: buffers 7-12 must exist. For GGUF transcode, they are allocated
+        // unconditionally in get_internal_buffer_descs even when the model was compiled at
+        // decode-mode token_num=1. Buffer 10 is a small placeholder for that path; the actual
+        // runtime-sized token_idx is obtained from _moe_transcode_arena below.
+        OPENVINO_ASSERT(intermediates_memories.size() > MOE_INTERNAL_BUFFER_GROUPED_OFFSETS,
+                        "[MOE_3GEMM_GROUPED_BUG] exec_prefill_grouped_gemm requires ",
+                        MOE_INTERNAL_BUFFER_GROUPED_OFFSETS + 1,
+                        " internal buffers but only ",
+                        intermediates_memories.size(),
+                        " are allocated (is_gguf_transcode=",
+                        is_gguf_transcode,
+                        ", use_grouped_gemm_prefill=",
+                        use_grouped_gemm_prefill,
+                        "). Check get_internal_buffer_descs.");
+
+        // For GGUF transcode: buffer 10 (TOKEN_IDX_PER_EXPERT) was compiled at decode-mode
+        // token_num (e.g. 1), so only holds max_topk int32. Grow the arena slot to
+        // total_gathered_tokens int32 instead and use that for both copy_from and the gather kernel.
+        // The GEMM data buffers (scratch.x/gate/up/y == internal buffers 2/4/0/1) were compiled at
+        // the same decode-mode token_num, so they only hold ~max_topk rows. The grouped GEMM gathers
+        // and writes total_gathered_tokens rows, so grow those from the arena too and repoint scratch
+        // — otherwise the gather/GEMM kernels write far past the end of the buffers (silent GPU fault).
+        memory::ptr token_idx_mem;
+        if (is_gguf_transcode) {
+            OPENVINO_ASSERT(_moe_transcode_arena,
+                            "[MOE_GGUF] exec_prefill_grouped_gemm: transcode arena not initialised — "
+                            "run_moe_gguf_transcode must be called first");
+            auto& engine      = instance.get_network().get_engine();
+            const auto alloc_type = engine.get_preferred_memory_allocation_type();
+            const auto hs_dt  = hidden_states_layout.data_type;
+
+            // Grow-once helper: (re)allocate the arena slot to at least `lay` bytes, then return a
+            // view of it with the requested layout. stream.finish() before freeing guards against a
+            // previous execute's kernel still reading the old (smaller) buffer.
+            auto grow_slot = [&](memory::ptr& slot, const cldnn::layout& lay) -> memory::ptr {
+                if (!slot || slot->size() < lay.bytes_count()) {
+                    if (slot) {
+                        stream.finish();
+                    }
+                    slot = engine.allocate_memory(lay, alloc_type, /*reset=*/false);
+                }
+                return engine.reinterpret_buffer(*slot, lay);
+            };
+
+            const cldnn::layout tok_layout(ov::Shape{static_cast<size_t>(total_gathered_tokens)},
+                                           ov::element::i32, cldnn::format::bfyx);
+            const cldnn::layout hidden_layout(ov::Shape{static_cast<size_t>(total_gathered_tokens), static_cast<size_t>(_hidden_size)},
+                                              hs_dt, cldnn::format::bfyx);
+            const cldnn::layout inter_layout(ov::Shape{static_cast<size_t>(total_gathered_tokens), static_cast<size_t>(_intermediate_size)},
+                                             hs_dt, cldnn::format::bfyx);
+
+            std::lock_guard<std::mutex> lk(_moe_transcode_arena->mtx);
+            auto& slot   = _moe_transcode_arena->per_stream[&stream];
+            token_idx_mem = grow_slot(slot.token_idx, tok_layout);
+            scratch.x     = grow_slot(slot.x,    hidden_layout);
+            scratch.gate  = grow_slot(slot.gate, inter_layout);
+            scratch.up    = grow_slot(slot.up,   inter_layout);
+            scratch.y     = grow_slot(slot.y,    hidden_layout);
+        } else {
+            token_idx_mem = intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT];
+        }
+
         // Upload scratch metadata for the scatter_reduce and gather kernels
-        intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT]
+        token_idx_mem
             ->copy_from(stream, tokens_per_expert_cpu.data(), 0, 0, tokens_per_expert_cpu.size() * sizeof(int32_t), true);
         // When ONEDNN_GROUPED_GEMM_USED, the scatter_reduce kernel reads:
         //   exp_offset_start = expert_id == 0 ? 0 : experts_start_offset[expert_id - 1]
@@ -2395,7 +3310,7 @@ public:
                                       instance,
                                       *grouped_gemm_prefill_gather,
                                       {instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES)),
-                                       intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT]},
+                                       token_idx_mem},
                                       {scratch.x},
                                       {static_cast<size_t>(total_gathered_tokens) * local_threads_count, 1, 1},
                                       {local_threads_count, 1, 1});
@@ -2408,18 +3323,8 @@ public:
         // ----------------------------------------------------------------
         // Steps 3-5: OneDNN grouped GEMM – gate, up, SiLU, down
         // ----------------------------------------------------------------
-        // SAFETY CHECK: Verify grouped_offsets buffer exists before accessing
-        if (intermediates_memories.size() <= MOE_INTERNAL_BUFFER_GROUPED_OFFSETS) {
-            OPENVINO_THROW("[MOE_3GEMM_GROUPED_BUG] Grouped GEMM path requires buffer ",
-                           MOE_INTERNAL_BUFFER_GROUPED_OFFSETS,
-                           " (GROUPED_OFFSETS) but only ",
-                           intermediates_memories.size(),
-                           " buffers allocated. ",
-                           "This indicates a mismatch between buffer allocation and execution path. ",
-                           "use_grouped_gemm_prefill=",
-                           use_grouped_gemm_prefill);
-        }
-        auto& gk = get_grouped_kernel(total_gathered_tokens, instance);
+        auto& gk = is_gguf_transcode ? get_grouped_kernel_gguf(total_gathered_tokens, scratch, instance)
+                                     : get_grouped_kernel(total_gathered_tokens, instance);
         auto row_offsets = intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS];
 
         // Runtime dispatch hint: actual max tokens assigned to any single expert.
@@ -2471,11 +3376,14 @@ public:
         {
             const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
 
+            // Use scratch.up/scratch.gate (== internal UP_OUTPUT/GATE_OUTPUT for non-GGUF; grown
+            // arena buffers for the GGUF transcode prefill path) so the token dimension matches
+            // total_gathered_tokens rather than the decode-mode compile size.
             ret_event = execute_stage({ret_event},
                                       instance,
                                       *grouped_gemm_prefill_swiglu,
-                                      {intermediates_memories[MOE_INTERNAL_BUFFER_UP_OUTPUT], intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT]},
-                                      {intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT]},
+                                      {scratch.up, scratch.gate},
+                                      {scratch.gate},
                                       {static_cast<size_t>(_intermediate_size), static_cast<size_t>(total_gathered_tokens), 1},
                                       {subgroup_size, 1, 1});
         }
@@ -2511,10 +3419,10 @@ public:
             ret_event = execute_stage({ret_event},
                                       instance,
                                       *grouped_gemm_prefill_scatter_reduce,
-                                      {intermediates_memories[MOE_INTERNAL_BUFFER_DOWN_OUTPUT],
+                                      {scratch.y,
                                        batch_mem_ptr,
                                        routing_mem_ptr,
-                                       intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT],
+                                       token_idx_mem,
                                        intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_START_OFFSET_PER_EXPERT],
                                        intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT],
                                        intermediates_memories[MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS],
@@ -2526,6 +3434,115 @@ public:
         }
 
         return ret_event;
+    }
+
+    // GGUF prefill transcode (token > threshold): convert each GGUF expert weight (routed gate/up/down
+    // + shared gate/up/down) into a OneDNN-WOQ-native low-bit layout (i4 for Q4_*, i8 for Q5_K/Q6_K/
+    // Q8_0) plus an f16 per-32 scale, written to the shared per-stream scratch. The scratch memory
+    // objects are stable across executes (grown-only), so init_dnnl_weights / get_kernel /
+    // init_shared_primitives can cache their dnnl::memory wrappers of them, while the in-order queue
+    // guarantees each node's matmul reads its own transcode before the next node overwrites the buffer.
+    // On return scratch.moe_fusion_wei_addr.{weight,scale,zp} (routed + shared) point at the scratch.
+    cldnn::event::ptr run_moe_gguf_transcode(const std::vector<cldnn::event::ptr>& events,
+                                             typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
+                                             scratch_buffers& scratch) {
+        auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
+        const auto& config = cur_moe->_config;
+        auto& stream = instance.get_network().get_stream();
+        auto& engine = instance.get_network().get_engine();
+        if (!_moe_transcode_arena) {
+            _moe_transcode_arena = get_moe_transcode_arena(&engine);
+        }
+        const auto alloc_type = engine.get_preferred_memory_allocation_type();
+        const int E = static_cast<int>(config.num_expert);
+        cldnn::event::ptr last_ev = nullptr;
+
+        // Transcode one projection: read its GGUF weight input, (re)size the scratch slot, dispatch the
+        // per-projection transcode kernel, and return the low-bit weight + f16 scale scratch memories.
+        auto transcode_one = [&](Stage& stage,
+                                 MOE3GemmInputIndex weight_idx,
+                                 int experts,  // routed: E; shared: 1
+                                 memory::ptr& w_slot,
+                                 memory::ptr& s_slot,
+                                 memory::ptr& out_w,
+                                 memory::ptr& out_s) {
+            auto weight_mem = instance.input_memory_ptr(static_cast<size_t>(weight_idx));
+            const auto& wl = weight_mem->get_layout();
+            const auto& shp = wl.get_shape();
+            const bool is_shared = (experts == 1);
+            const int N = static_cast<int>(is_shared ? shp[shp.size() - 2] : shp[1]);
+            const int K = static_cast<int>(shp[shp.size() - 1]);
+            const ov::element::Type wt(wl.data_type);
+            const int block_elem = static_cast<int>(wt.block_elem_count());
+            const int blocks_per_row = K / block_elem;
+            const auto tgt = moe_transcode_target(wl.data_type);
+            const auto w_dt = tgt.to_i4 ? data_types::i4 : data_types::i8;
+            const int num_groups = K / MOE_GGUF_REQUANT_GROUP;
+
+            // Weight scratch: [E, N, K] (i4 packed / i8). Scale scratch: [E, N, K/32] f16 (declared
+            // shape so init_dnnl_weights sees num_groups=K/32 at shape[2]; the kernel writes the bytes
+            // in dnnl scale-md order [E, K/32, N]).
+            const cldnn::layout w_layout(ov::Shape{static_cast<size_t>(experts), static_cast<size_t>(N), static_cast<size_t>(K)}, w_dt, cldnn::format::bfyx);
+            const cldnn::layout s_layout(ov::Shape{static_cast<size_t>(experts), static_cast<size_t>(N), static_cast<size_t>(num_groups)},
+                                         data_types::f16,
+                                         cldnn::format::bfyx);
+            {
+                std::lock_guard<std::mutex> lk(_moe_transcode_arena->mtx);
+                if (!w_slot || w_slot->size() < w_layout.bytes_count()) {
+                    if (w_slot) {
+                        stream.finish();
+                    }
+                    w_slot = engine.allocate_memory(w_layout, alloc_type, /*reset=*/false);
+                }
+                if (!s_slot || s_slot->size() < s_layout.bytes_count()) {
+                    if (s_slot) {
+                        stream.finish();
+                    }
+                    s_slot = engine.allocate_memory(s_layout, alloc_type, /*reset=*/false);
+                }
+                out_w = engine.reinterpret_buffer(*w_slot, w_layout);
+                out_s = engine.reinterpret_buffer(*s_slot, s_layout);
+            }
+
+            const size_t n_global =
+                ((static_cast<size_t>(N) + MOE_GGUF_TRANSCODE_LWS - 1) / MOE_GGUF_TRANSCODE_LWS) * MOE_GGUF_TRANSCODE_LWS;
+            last_ev = execute_stage(events,
+                                    instance,
+                                    stage,
+                                    /*inputs=*/{weight_mem},
+                                    /*outputs=*/{out_w, out_s},
+                                    /*global=*/{n_global, static_cast<size_t>(blocks_per_row), static_cast<size_t>(experts)},
+                                    /*local=*/{MOE_GGUF_TRANSCODE_LWS, 1, 1});
+        };
+
+        auto& slot = _moe_transcode_arena->per_stream[&stream];
+
+        // Routed gate / up / down.
+        transcode_one(*gguf_transcode_gate, MOE3GemmInputIndex::WEIGHT_0, E, slot.w[0], slot.sc[0],
+                      scratch.moe_fusion_wei_addr.weight[0], scratch.moe_fusion_wei_addr.scale[0]);
+        transcode_one(*gguf_transcode_up, MOE3GemmInputIndex::WEIGHT_1, E, slot.w[1], slot.sc[1],
+                      scratch.moe_fusion_wei_addr.weight[1], scratch.moe_fusion_wei_addr.scale[1]);
+        transcode_one(*gguf_transcode_down, MOE3GemmInputIndex::WEIGHT_2, E, slot.w[2], slot.sc[2],
+                      scratch.moe_fusion_wei_addr.weight[2], scratch.moe_fusion_wei_addr.scale[2]);
+        // Symmetric requant -> no zero point; leave zp pointing at the (unused) weight buffer.
+        for (int i = 0; i < 3; i++) {
+            scratch.moe_fusion_wei_addr.zp[i] = scratch.moe_fusion_wei_addr.weight[i];
+        }
+
+        // Shared expert gate / up / down (Q8_0 -> i8 + f16 scale; near-lossless, keeps MC7 precision).
+        if (config.num_shared_expert > 0 &&
+            instance.dependencies().size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)) {
+            transcode_one(*gguf_transcode_shared_gate, MOE3GemmInputIndex::SHARED_GATE_WEIGHT, 1, slot.sw[0], slot.ssc[0],
+                          scratch.moe_fusion_wei_addr.shared_weight[0], scratch.moe_fusion_wei_addr.shared_scale[0]);
+            transcode_one(*gguf_transcode_shared_up, MOE3GemmInputIndex::SHARED_UP_WEIGHT, 1, slot.sw[1], slot.ssc[1],
+                          scratch.moe_fusion_wei_addr.shared_weight[1], scratch.moe_fusion_wei_addr.shared_scale[1]);
+            transcode_one(*gguf_transcode_shared_down, MOE3GemmInputIndex::SHARED_DOWN_WEIGHT, 1, slot.sw[2], slot.ssc[2],
+                          scratch.moe_fusion_wei_addr.shared_weight[2], scratch.moe_fusion_wei_addr.shared_scale[2]);
+            for (int i = 0; i < 3; i++) {
+                scratch.moe_fusion_wei_addr.shared_zp[i] = scratch.moe_fusion_wei_addr.shared_weight[i];
+            }
+        }
+        return last_ev;
     }
 
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& ins) override {
@@ -2562,7 +3579,31 @@ public:
 
         // Batched GEMV: for small token counts (including single token, MTP/speculative decoding),
         // use optimized GEMV kernels with batch dimension. Avoids gather/scatter overhead.
-        if (token_num <= batched_gemv_threshold) {
+        // The native GGUF path always uses this pure-OCL decode kernel, regardless of token count,
+        // unless the transcode path is enabled (token > threshold on Xe2+).
+        const bool is_gguf_moe =
+            ov::element::is_gguf_block(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0))->get_layout().data_type);
+
+        // Single source of truth for the GGUF prefill decision, reused for both the dispatch
+        // below and the output pre-zero choice further down so the two can never drift:
+        //   prefill (token_num > threshold) + transcode enabled -> transcode + exec_prefill_grouped_gemm
+        //   decode  (token_num <= threshold) or transcode off   -> exec_batched_gemv
+        const bool use_gguf_grouped_gemm = is_gguf_moe && _use_gguf_prefill_transcode && token_num > batched_gemv_threshold;
+
+        if (is_gguf_moe) {
+            GPU_DEBUG_TRACE_DETAIL << "MoE GGUF exec: token_num=" << token_num << ", batched_gemv_threshold=" << batched_gemv_threshold
+                                   << ", use_gguf_prefill_transcode=" << _use_gguf_prefill_transcode << " -> "
+                                   << (use_gguf_grouped_gemm ? "transcode+grouped_gemm(prefill)" : "batched_gemv(decode)")
+                                   << std::endl;
+            if (!use_gguf_grouped_gemm) {
+                // Decode (or transcode disabled): native pure-OCL batched GEMV over raw GGUF blocks.
+                return exec_batched_gemv(events, instance, scratch, token_num);
+            }
+            // Prefill: transcode routed + shared GGUF experts into the shared low-bit scratch and
+            // repoint scratch.moe_fusion_wei_addr to it. Enqueued on the in-order queue before the
+            // OneDNN grouped matmuls below, which therefore read the freshly transcoded weights.
+            run_moe_gguf_transcode(events, instance, scratch);
+        } else if (token_num <= batched_gemv_threshold) {
             return exec_batched_gemv(events, instance, scratch, token_num);
         }
 
@@ -2572,8 +3613,9 @@ public:
         // The grouped_gemm scatter_reduce writes all token positions atomically
         // and does not require pre-zeroing — except in OTD mode where the
         // fallback to exec_prefill_onednn (when unique_experts > lru slots)
-        // also accumulates via index_add.
-        if (!use_micro_gemm_prefill && should_pre_zero_output()) {
+        // also accumulates via index_add. The GGUF transcode path routes to
+        // grouped_gemm (scatter_reduce) and likewise needs no pre-zeroing.
+        if (!use_micro_gemm_prefill && should_pre_zero_output() && !use_gguf_grouped_gemm) {
             final_hidden_states_mem_ptr->fill(stream, false);
         }
         // GPU mask gen is only supported for micro_gemm; both grouped_gemm and onednn loop
@@ -2590,12 +3632,12 @@ public:
 
         GPU_DEBUG_TRACE_DETAIL << "\nMoE3GemmFusedCompressed exec(): token_num=" << token_num << ", max_topk=" << static_cast<int>(config.top_k)
                                << ", use_micro_gemm_prefill=" << use_micro_gemm_prefill << ", use_grouped_gemm_prefill=" << use_grouped_gemm_prefill
-                               << std::endl;
+                               << ", use_gguf_grouped_gemm=" << use_gguf_grouped_gemm << std::endl;
         update_rt_params(instance);
         if (use_micro_gemm_prefill) {
             ret_env = exec_prefill_micro_gemm(events, instance, scratch, use_gpu_mask_gen);
-        } else if (use_grouped_gemm_prefill) {
-            ret_env = exec_prefill_grouped_gemm(events, stream, instance, scratch);
+        } else if (use_grouped_gemm_prefill || use_gguf_grouped_gemm) {
+            ret_env = exec_prefill_grouped_gemm(events, stream, instance, scratch, use_gguf_grouped_gemm);
             // In OTD mode the grouped_gemm path interleaves OCL kernels with OneDNN
             // grouped matmul on the same in-order queue. The framework's event-based
             // scheduling may proceed to subsequent graph nodes before scatter_reduce
@@ -2614,7 +3656,7 @@ public:
             // same in-order OCL queue, so submission order guarantees execution order.
             // No explicit wait() is needed — the in-order queue serializes all GPU work,
             // and any subsequent primitive on the same queue will see the completed output.
-            if (use_grouped_gemm_prefill && ret_env) {
+            if ((use_grouped_gemm_prefill || use_gguf_grouped_gemm) && ret_env) {
                 // ensure grouped GEMM fully completes before executing shared expert, which relies on its output being ready;
                 // For grouped_gemm path, scatter_reduce (OCL) is preceded by multiple OCL <--> OneDNN
                 // transitions inside exec_prefill_grouped_gemm. The implicit ordering between

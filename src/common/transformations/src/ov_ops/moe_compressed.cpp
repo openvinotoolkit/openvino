@@ -170,7 +170,16 @@ void MOECompressed::validate_and_infer_types() {
 }
 
 bool MOECompressed::visit_attributes(ov::AttributeVisitor& visitor) {
-    MOE::visit_attributes(visitor);
+    // Handle base MOE::Config fields directly via m_config so that get_config() returns
+    // a fully updated MOECompressed::Config after XML deserialization. Calling
+    // MOE::visit_attributes() would write into MOE::m_config (a separate private field)
+    // which is never returned by MOECompressed::get_config(), so expert_type and other
+    // base-class attributes would silently revert to their defaults on reload.
+    visitor.on_attribute("expert_type", m_config.expert_type);
+    visitor.on_attribute("expert_alpha", m_config.expert_alpha);
+    visitor.on_attribute("expert_beta", m_config.expert_beta);
+    visitor.on_attribute("gate_idx", m_config.gate_idx);
+    visitor.on_attribute("activation_type", m_config.activation_type);
     visitor.on_attribute("hidden_size", m_config.hidden_size);
     visitor.on_attribute("inter_size", m_config.inter_size);
     visitor.on_attribute("num_expert", m_config.num_expert);

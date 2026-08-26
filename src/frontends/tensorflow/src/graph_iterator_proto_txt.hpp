@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 
+#include "google/protobuf/io/tokenizer.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
 #include "graph_iterator_proto.hpp"
@@ -64,8 +65,21 @@ public:
             if (!input_stream) {
                 return false;
             }
+            // Use a silent ErrorCollector to suppress protobuf parse error messages
+            // that would otherwise be printed to stderr when probing non-TF binary files
+            // (e.g. GGUF) during frontend auto-detection.
+            struct SilentErrorCollector : public ::google::protobuf::io::ErrorCollector {
+                void AddError(int /*line*/,
+                              ::google::protobuf::io::ColumnNumber /*column*/,
+                              const std::string& /*message*/) override {}
+                void AddWarning(int /*line*/,
+                                ::google::protobuf::io::ColumnNumber /*column*/,
+                                const std::string& /*message*/) override {}
+            } error_collector;
+            ::google::protobuf::TextFormat::Parser parser;
+            parser.RecordErrorsTo(&error_collector);
             auto graph_def = std::make_shared<::tensorflow::GraphDef>();
-            auto is_parsed = ::google::protobuf::TextFormat::Parse(input_stream.get(), graph_def.get()) && graph_def &&
+            auto is_parsed = parser.Parse(input_stream.get(), graph_def.get()) && graph_def &&
                              graph_def->node_size() > 0;
             return is_parsed;
         } catch (...) {

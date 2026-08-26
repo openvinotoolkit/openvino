@@ -83,6 +83,9 @@
 #include "plugin/transformations/clamp_fp16_output.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
+#include "plugin/transformations/convert_gguf_fc_compressed.hpp"
+#include "plugin/transformations/repack_gguf_moe_weights.hpp"
+#include "plugin/transformations/repack_gguf_weights.hpp"
 #include "transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/fuse_moe_shared_expert.hpp"
@@ -1600,6 +1603,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (!device_info.supports_immad) {
             manager.register_pass<ov::intel_gpu::ReduceFCDimensions>();
         }
+        manager.register_pass<ov::intel_gpu::ConvertGGUFFullyConnectedCompressed>();
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
         manager.register_pass<ov::intel_gpu::FoldActivationTranspose>();
 
@@ -1643,6 +1647,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         });
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
+        manager.register_pass<ov::intel_gpu::RepackGGUFWeightsShuffle>();
+        // Compile-time "SG" repack of Q4_K/Q5_K/Q6_K routed MoE experts (and the shared
+        // expert's Q8_0 gate/up/down) into the transposed sub-group-block-read layout that the
+        // native GGUF MoE GEMV kernels (moe_gguf_sg_gemv.cl) and the SG-aware prefill transcode
+        // consume. MUST be registered whenever that SG path is enabled: the impl
+        // (moe_3gemm_swiglu_opt.cpp, gguf_moe_sg_enabled()) turns it on by default and assumes the
+        // weights were repacked here; without this pass the kernels read RAW GGUF bytes as if
+        // SG-packed and silently produce wrong results. Same env gate (OV_GPU_GGUF_MOE_SG) so the
+        // transform and the impl always agree on the layout.
+        manager.register_pass<ov::intel_gpu::RepackGGUFMoEWeights>();
         manager.register_pass<ov::intel_gpu::TransposeFusion>(device_info.supports_immad);
 
         if (!device_info.supports_immad) {
