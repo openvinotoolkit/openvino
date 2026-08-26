@@ -149,6 +149,7 @@
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/ngram_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/permute_slice_n_interpolation.hpp"
+#include "transformations/cpu_opset/common/pass/preserve_standalone_selective_ssm_precision.hpp"
 #include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
 #include "transformations/cpu_opset/convert_to_cpu_specific_opset.hpp"
@@ -529,6 +530,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
     ov::pass::Manager manager("Plugin:CPU");
     manager.set_per_pass_validation(false);
+    CPU_REGISTER_PASS_COMMON(manager, PreserveStandaloneSelectiveSSMPrecision);
     if (useLpt) {
         CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkDequantization, defaultPrecisions);
     }
@@ -680,6 +682,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         }
     };
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPagedAttnInputs, cacheConfig, update_paged_attention_shape_func);
+    CPU_REGISTER_PASS_COMMON(manager, RestoreStandalonePagedSelectiveSSMStatePrecision);
     CPU_REGISTER_PASS_COMMON(manager, SwapConvertTranspose);
     CPU_REGISTER_PASS_X64(manager, ConvertToInteraction);
     CPU_REGISTER_PASS_X64(manager, ConvertInteractionInt8);
