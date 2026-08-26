@@ -21,7 +21,6 @@
 #include <string>
 #include <vector>
 
-#include "llm_lora_states.hpp"
 #include "llm_test_helpers.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/version.hpp"
@@ -36,6 +35,7 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "serialization.hpp"
 #include "v1/elements/batched.hpp"
+#include "variable_state.hpp"
 
 namespace {
 

@@ -8,10 +8,10 @@
 #include <memory>
 #include <utility>
 
-#include "../../llm_lora_states.hpp"
 #include "../../logging.hpp"
 #include "../../serialization.hpp"
 #include "../../util.hpp"
+#include "../../variable_state.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/version.hpp"
@@ -184,9 +184,10 @@ void ov::npuw::batched::InferRequest::infer() {
     // Unroll row by row: reset the inner variable state so each row is scored as an
     // independent prompt, bind the row's [1, ...] view of every batched input, run
     // the batch-1 inner request, and write the row's outputs into row `row` of the
-    // [N, ...] public output tensors. LoRA adapter states are kept out of the reset
-    // set: they carry the adapter weights, not per-prompt data, so they must survive
-    // the row loop, and their reset() throws by design.
+    // [N, ...] public output tensors. States the inner exposes as
+    // ov::npuw::VariableState are kept out of the reset set: that type holds data
+    // bound for the model's lifetime, not per-inference data, so it must survive
+    // the row loop and by design implements no reset().
     auto inner_states = m_inner->query_state();
     inner_states.erase(std::remove_if(inner_states.begin(),
                                       inner_states.end(),
