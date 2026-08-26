@@ -184,11 +184,11 @@ void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
             }
         } else {
             const auto& descriptor = propertyDescriptorIt->second;
-            if (!descriptor.isSupported(supportCheckArguments)) {
-                OPENVINO_THROW("Unsupported configuration key: ", value.first);
-            }
             if (descriptor.mutability == ov::PropertyMutability::RO) {
                 OPENVINO_THROW("READ-ONLY configuration key: ", value.first);
+            }
+            if (!descriptor.isSupported(supportCheckArguments)) {
+                OPENVINO_THROW("Unsupported configuration key: ", value.first);
             }
         }
     }
@@ -307,6 +307,11 @@ bool PluginPropertyManager::isPropertyAvailable(const std::string& name, const o
     const auto it = _properties.find(name);
     if (it != _properties.end()) {
         return it->second.isSupported(propertyArguments);
+    } else if (_config->hasOpt(name)) {
+        const auto mode = _config->getOpt(name).mode();
+        if (mode != OptionMode::CompileTime) {
+            return true;
+        }
     }
 
     ov::intel_npu::CompilerType compilerType = normalizedArguments.compilerType;
@@ -459,7 +464,7 @@ void PluginPropertyManager::registerProperties() {
                 return _config->get<OptionType>();
             },
             [this, propertyName](const ov::Any& value) {
-                _config->updateAny({{propertyName, value}});
+                _config->update({{propertyName, value.as<std::string>()}});
             });
     };
 
@@ -511,7 +516,7 @@ void PluginPropertyManager::registerProperties() {
                 return _config->get<OptionType>();
             },
             [this, propertyName](const ov::Any& value) {
-                _config->updateAny({{propertyName, value}});
+                _config->update({{propertyName, value.as<std::string>()}});
             });
     };
 
@@ -585,7 +590,7 @@ void PluginPropertyManager::registerProperties() {
             return deviceId.empty() ? ov::Any(_config->get<DEVICE_ID>()) : ov::Any(deviceId);
         },
         [this](const ov::Any& value) {
-            _config->updateAny({{ov::device::id.name(), value}});
+            _config->update({{ov::device::id.name(), value.as<std::string>()}});
         }
     );
     register_property(ov::intel_npu::compiler_type.name(), true, ov::PropertyMutability::RW,
@@ -597,7 +602,7 @@ void PluginPropertyManager::registerProperties() {
             return compilerType.has_value() ? ov::Any(compilerType.value()) : ov::Any(_config->get<COMPILER_TYPE>());
         },
         [this](const ov::Any& value) {
-            _config->updateAny({{ov::intel_npu::compiler_type.name(), value}});
+            _config->update({{ov::intel_npu::compiler_type.name(), value.as<std::string>()}});
         }
     );
     register_property(ov::intel_npu::max_tiles.name(), true, ov::PropertyMutability::RO, 
@@ -605,8 +610,7 @@ void PluginPropertyManager::registerProperties() {
         [this, getDeviceId](const ov::AnyMap& arguments) {
             if (!_config->has<MAX_TILES>()) {
                 try {
-                    const auto specifiedDeviceName = getDeviceId(arguments);
-                    return static_cast<int64_t>(utils::getMaxTiles(_backend, specifiedDeviceName));
+                    return static_cast<int64_t>(utils::getMaxTiles(_backend, getDeviceId(arguments)));
                 } catch (...) {
                     _logger.warning("GetMaxTiles failed to get value from device.");
                 }
@@ -626,19 +630,18 @@ void PluginPropertyManager::registerProperties() {
             return platformIt != arguments.end() ? platformIt->second : ov::Any(_config->get<PLATFORM>());
         },
         [this](const ov::Any& value) {
-            _config->updateAny({{ov::intel_npu::platform.name(), value}});
+            _config->update({{ov::intel_npu::platform.name(), value.as<std::string>()}});
         }
     );
     register_property(ov::intel_npu::turbo.name(), true, ov::PropertyMutability::RW,
         [this, isCompilerOptionSupported](const ov::AnyMap& arguments) {
-            return isCompilerOptionSupported(ov::intel_npu::turbo.name(), arguments) ||
-                   (_backend != nullptr && _backend->isCommandQueueExtSupported());
+            return isCompilerOptionSupported(ov::intel_npu::turbo.name(), arguments) || (_backend != nullptr && _backend->isCommandQueueExtSupported());
         },
         [this](const ov::AnyMap&) {
             return _config->get<TURBO>();
         },
         [this](const ov::Any& value) {
-            _config->updateAny({{ov::intel_npu::turbo.name(), value}});
+            _config->update({{ov::intel_npu::turbo.name(), value.as<std::string>()}});
         }
     );
     register_property(ov::intel_npu::enable_strides_for.name(), true, ov::PropertyMutability::RW,
@@ -647,8 +650,7 @@ void PluginPropertyManager::registerProperties() {
                 return false;
             }
             if (_backend != nullptr && _backend->getGraphExtVersion() < ZE_MAKE_VERSION(1, 16)) {
-                _logger.info("Config option %s not supported by the driver! Requirements not met.",
-                             ov::intel_npu::enable_strides_for.name());
+                _logger.info("Config option %s not supported by the driver! Requirements not met.", ov::intel_npu::enable_strides_for.name());
                 return false;
             }
             return true;
@@ -657,7 +659,7 @@ void PluginPropertyManager::registerProperties() {
             return _config->get<ENABLE_STRIDES_FOR>();
         },
         [this](const ov::Any& value) {
-            _config->updateAny({{ov::intel_npu::enable_strides_for.name(), value}});
+            _config->update({{ov::intel_npu::enable_strides_for.name(), value.as<std::string>()}});
         }
     );
     register_property(ov::cache_encryption_callbacks.name(), true, ov::PropertyMutability::WO,
@@ -687,7 +689,7 @@ void PluginPropertyManager::registerProperties() {
             return _config->get<STEPPING>();
         },
         [this](const ov::Any& value) {
-            _config->updateAny({{ov::intel_npu::stepping.name(), value}});
+            _config->update({{ov::intel_npu::stepping.name(), value.as<std::string>()}});
         }
     );
     register_property(ov::intel_npu::compile_log_level.name(), false, ov::PropertyMutability::RW,
@@ -698,7 +700,7 @@ void PluginPropertyManager::registerProperties() {
             return COMPILE_LOG_LEVEL::resolve(*_config);
         },
         [this](const ov::Any& value) {
-            _config->updateAny({{ov::intel_npu::compile_log_level.name(), value}});
+            _config->update({{ov::intel_npu::compile_log_level.name(), value.as<std::string>()}});
         }
     );
 
@@ -713,9 +715,7 @@ void PluginPropertyManager::registerProperties() {
         return std::vector<std::string>{"NPU"};
     }, readOnlySetter);
     register_property(ov::device::capabilities.name(), true, ov::PropertyMutability::RO, alwaysSupported, [](const ov::AnyMap&) {
-        return std::vector<std::string>{ov::device::capability::FP16,
-                                        ov::device::capability::INT8,
-                                        ov::device::capability::EXPORT_IMPORT};
+        return std::vector<std::string>{ov::device::capability::FP16, ov::device::capability::INT8, ov::device::capability::EXPORT_IMPORT};
     }, readOnlySetter);
     register_property(ov::range_for_async_infer_requests.name(), true, ov::PropertyMutability::RO, alwaysSupported, [](const ov::AnyMap&) {
         return std::tuple<uint32_t, uint32_t, uint32_t>{1u, 8u, 1u};
@@ -731,13 +731,12 @@ void PluginPropertyManager::registerProperties() {
     }, readOnlySetter);
     register_property(ov::supported_properties.name(), true, ov::PropertyMutability::RO, alwaysSupported, [this, getCompilerTypeOrDefault, getDeviceId](const ov::AnyMap& arguments) {
         auto resolvedArguments = arguments;
-        if (const auto compilerType = getCompilerTypeOrDefault(arguments);
-            compilerType.has_value() && compilerType.value() == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
+        if (const auto compilerType = getCompilerTypeOrDefault(arguments); compilerType.has_value() && compilerType.value() == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
             const auto platformIt = arguments.find(ov::intel_npu::platform.name());
-            const auto platform = platformIt != arguments.end() ? platformIt->second.as<std::string>() :std::string{}; 
-            const auto resolvedCompilerType = resolveCompilerType(compilerType.value(),
-            getDeviceId(arguments), platform); if (resolvedCompilerType) {
-                resolvedArguments[ov::intel_npu::compiler_type.name()] = *resolvedCompilerType;
+            const auto platform = platformIt != arguments.end() ? platformIt->second.as<std::string>() :std::string{};
+            const auto resolvedCompilerType = resolveCompilerType(compilerType.value(), getDeviceId(arguments), platform);
+            if (resolvedCompilerType.has_value()) {
+                resolvedArguments[ov::intel_npu::compiler_type.name()] = resolvedCompilerType.value();
             } else {
                 resolvedArguments.erase(ov::intel_npu::compiler_type.name());
             }
@@ -762,13 +761,12 @@ void PluginPropertyManager::registerProperties() {
     }, readOnlySetter);
     register_property(ov::internal::caching_properties.name(), false, ov::PropertyMutability::RO, alwaysSupported, [this, getCompilerTypeOrDefault, getDeviceId](const ov::AnyMap& arguments) {
         auto resolvedArguments = arguments;
-        if (const auto compilerType = getCompilerTypeOrDefault(arguments);
-            compilerType.has_value() && compilerType.value() == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
+        if (const auto compilerType = getCompilerTypeOrDefault(arguments); compilerType.has_value() && compilerType.value() == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
             const auto platformIt = arguments.find(ov::intel_npu::platform.name());
-            const auto platform = platformIt != arguments.end() ? platformIt->second.as<std::string>() :
-            std::string{}; const auto resolvedCompilerType = resolveCompilerType(compilerType.value(),
-            getDeviceId(arguments), platform); if (resolvedCompilerType) {
-                resolvedArguments[ov::intel_npu::compiler_type.name()] = *resolvedCompilerType;
+            const auto platform = platformIt != arguments.end() ? platformIt->second.as<std::string>() : std::string{};
+            const auto resolvedCompilerType = resolveCompilerType(compilerType.value(), getDeviceId(arguments), platform);
+            if (resolvedCompilerType.has_value()) {
+                resolvedArguments[ov::intel_npu::compiler_type.name()] = resolvedCompilerType.value();
             } else {
                 resolvedArguments.erase(ov::intel_npu::compiler_type.name());
             }
@@ -829,8 +827,7 @@ void PluginPropertyManager::registerProperties() {
         [this, compatibilityCheckSupportCache](const ov::AnyMap&) {
             std::lock_guard<std::mutex> lock(compatibilityCheckSupportCache->mutex);
             if (!compatibilityCheckSupportCache->value.has_value()) {
-                compatibilityCheckSupportCache->value =
-                    isCompatibilityCheckSupported(_backend, *_compilerOptionSupportHelper);
+                compatibilityCheckSupportCache->value = isCompatibilityCheckSupported(_backend, *_compilerOptionSupportHelper);
             }
             return compatibilityCheckSupportCache->value.value();
         },
@@ -916,7 +913,7 @@ void PluginPropertyManager::registerProperties() {
                 return _config->get<OptionType>();
             },
             [this, propertyName](const ov::Any& value) {
-                _config->updateAny({{propertyName, value}});
+                _config->update({{propertyName, value.as<std::string>()}});
             });
     });
 }

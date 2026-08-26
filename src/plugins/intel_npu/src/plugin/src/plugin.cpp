@@ -172,7 +172,8 @@ void apply_properties_to_config(FilteredConfig& config,
         config.removeCompileTimeConfigs();
     }
 
-    ov::AnyMap cfgsToSet;
+    std::map<std::string, std::string> cfgsToSet;
+    ov::AnyMap specialCfgsToSet;
     for (auto&& value : properties) {
         if (value.first == ov::hint::model.name()) {
             continue;
@@ -200,10 +201,15 @@ void apply_properties_to_config(FilteredConfig& config,
             }
         }
 
-        cfgsToSet.emplace(value.first, value.second);
+        if (value.first == ov::cache_encryption_callbacks.name()) {
+            specialCfgsToSet.emplace(value.first, value.second);
+        } else {
+            cfgsToSet.emplace(value.first, value.second.as<std::string>());
+        }
     }
 
-    config.updateAny(cfgsToSet);
+    config.update(cfgsToSet);
+    config.updateAny(specialCfgsToSet);
 }
 
 void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel_npu::OptionsDesc& options) {
@@ -775,7 +781,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "fork_local_config");
     properties.erase(ov::intel_npu::compiler_type.name());
-
     std::string deviceId;
     FilteredConfig localConfig = [&]() {
         std::shared_lock<std::shared_mutex> lock(_configMutex);

@@ -331,9 +331,11 @@ TEST_P(CompatibilityCheckTests, ExpectTurboPropertyAndCompatibilityCheckAreSuppo
     if (turboSupportedByDevice) {
         // Turbo is supported by device, so checking support must not trigger compiler adapters.
         ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+        ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
         ASSERT_TRUE(turboSupported);
     } else {
-        ASSERT_NE(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+        ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+        ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
         ASSERT_FALSE(turboSupported);
     }
 }

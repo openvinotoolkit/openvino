@@ -70,11 +70,14 @@ CompiledModelPropertyManager::CompiledModelPropertyManager(const std::shared_ptr
 void CompiledModelPropertyManager::setProperty(const ov::AnyMap& properties) {
     for (const auto& property : properties) {
         const auto propertyIt = _properties.find(property.first);
-        if (propertyIt == _properties.end() || !propertyIt->second.isSupported(ov::AnyMap{})) {
+        if (propertyIt == _properties.end()) {
             OPENVINO_THROW("Unsupported configuration key: ", property.first);
         }
         if (propertyIt->second.mutability == ov::PropertyMutability::RO) {
             OPENVINO_THROW("READ-ONLY configuration key: ", property.first);
+        }
+        if (!propertyIt->second.isSupported(ov::AnyMap{})) {
+            OPENVINO_THROW("Unsupported configuration key: ", property.first);
         }
     }
 
@@ -200,7 +203,7 @@ void CompiledModelPropertyManager::registerProperties() {
             return _config->get<MODEL_PRIORITY>();
         },
         [this](const ov::Any& value) {
-            _config->updateAny({{ov::hint::model_priority.name(), value}});
+            _config->update({{ov::hint::model_priority.name(), value.as<std::string>()}});
             if (_graph != nullptr) {
                 _graph->set_model_priority(value.as<ov::hint::Priority>());
             }
@@ -214,7 +217,7 @@ void CompiledModelPropertyManager::registerProperties() {
             return _config->get<WORKLOAD_TYPE>();
         },
         [this](const ov::Any& value) {
-            _config->updateAny({{ov::workload_type.name(), value}});
+            _config->update({{ov::workload_type.name(), value.as<std::string>()}});
             if (_graph != nullptr) {
                 _graph->set_workload_type(value.as<ov::WorkloadType>());
             }
