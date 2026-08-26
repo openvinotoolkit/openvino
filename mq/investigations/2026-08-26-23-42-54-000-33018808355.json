@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-26-23-42-54-000-33018808355",
+  "timestamp": "2026-08-26T23:42:54Z",
+  "run_id": "33018808355",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33018808355",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37611",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37611",
+  "author": "praasz",
+  "category": "Flaky Test",
+  "title": "NPU Models Tests fail with KeyError on aten.upsample_vec ops not in decomp table",
+  "signature": "keyerror opoverload op aten upsample vec not found in decomp table|Flaky Test",
+  "signature_hash": "36b843d557b4160a",
+  "confidence": "Medium",
+  "failed_jobs": [
+    "NPU Models Tests / 4000",
+    "NPU Models Tests / 5020",
+    "NPU Models Tests / 5010",
+    "ci/gha_overall_status_windows"
+  ],
+  "key_errors": [
+    "KeyError: <OpOverload(op='aten.upsample_nearest2d', overload='vec')>",
+    "WARNING:root:Operation aten.upsample_bilinear2d.vec not found in decomp table",
+    "File: openvino/frontend/pytorch/fx_decoder.py, line 290, in from_exported_program: cls._decomp_table.pop(op)"
+  ],
+  "root_cause": "The NPU Models Tests attempted to pop 'aten.upsample_nearest2d.vec' and 'aten.upsample_bilinear2d.vec' from the PyTorch FX decoder decomp table, but these ops were not present in the table for this PyTorch version on Windows. The tests themselves passed (4 passed, 7 skipped per group). The overall_status job failed because the first attempt of NPU tests failed, triggering ci/gha_overall_status_windows to exit 1. The PR changes (IR FE XmlDeserializer for Constant layer attributes) are unrelated to NPU/PyTorch frontend code.",
+  "reproduction_steps": "Run NPU model hub tests on Windows with PyTorch installed: pytest install/tests/model_hub_tests/pytorch/test_easyocr.py -k NPU on a Windows runner with NPU hardware (4000, 5010, or 5020).",
+  "recommended_actions": [
+    "Re-run the failed jobs to verify they pass on retry (tests passed 4/4 in both logged attempts, suggesting the overall_status failure is from attempt 1 state)",
+    "Check if aten.upsample_nearest2d.vec and aten.upsample_bilinear2d.vec need to be added to the decomp exclusion list in fx_decoder.py",
+    "Investigate if this is a PyTorch version compatibility issue with the decomp table on Windows"
+  ],
+  "prevention_strategies": "Guard the _decomp_table.pop() calls in fx_decoder.py with existence checks to avoid KeyError when ops are not in the decomp table.",
+  "historical_context": "No prior occurrences of this specific pattern found in the investigation history."
+}

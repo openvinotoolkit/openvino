@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "signature": "keyerror opoverload op aten upsample vec not found in decomp table|Flaky Test",
+  "signature_hash": "36b843d557b4160a",
+  "title": "NPU Models Tests fail with KeyError on aten.upsample_vec ops not in decomp table",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-08-26T23:42:54Z",
+  "last_seen": "2026-08-26T23:42:54Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/33018808355"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/37611"],
+  "recent_timestamps": ["2026-08-26T23:42:54Z"],
+  "rerun_search_string": "not found in decomp table"
+}
