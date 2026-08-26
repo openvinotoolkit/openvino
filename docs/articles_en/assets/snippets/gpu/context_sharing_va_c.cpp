@@ -101,7 +101,7 @@ int main() {
 
     // the C API reads every non-handle property value with va_arg(..., char*),
     // so numeric values such as the VASurfaceID and the plane index must be decimal strings
-    char surface_id[16];
+    char surface_id[21];
     snprintf(surface_id, sizeof(surface_id), "%u", (unsigned int)va_surface);
 
     ov_tensor_t* remote_tensor_y = NULL;
