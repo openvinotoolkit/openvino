@@ -25,7 +25,7 @@ std::string strip_weight_suffix(const std::string& name) {
 }  // namespace
 
 GraphEmitter::GraphEmitter(std::unordered_map<std::string, ov::Tensor>& weights,
-                           std::unordered_map<std::string, gguf_tensor_type>& qtypes,
+                           std::unordered_map<std::string, GgufTensorType>& qtypes,
                            std::string arch)
     : m_weights(weights),
       m_qtypes(qtypes),
@@ -128,7 +128,7 @@ void GraphEmitter::add_extra_input_node(const std::string& name, const std::shar
 
 void GraphEmitter::emit_weight_op(const std::string& node_name,
                                   const std::unordered_map<std::string, ov::Tensor>& extracted,
-                                  gguf_tensor_type qtype,
+                                  GgufTensorType qtype,
                                   const ov::PartialShape& shape_4d) {
     if (m_emitted_weights.count(node_name)) {
         return;
@@ -171,7 +171,7 @@ void GraphEmitter::add_weight(const std::string& ggml_name) {
             extracted[base + sub] = it->second;
         }
     }
-    gguf_tensor_type qtype = GGUF_TYPE_F16;
+    GgufTensorType qtype = GGUF_TYPE_F16;
     if (auto it = m_qtypes.find(base + ".qtype"); it != m_qtypes.end()) {
         qtype = it->second;
     }
@@ -199,7 +199,7 @@ void GraphEmitter::add_weight_from(const std::string& node_name, const std::stri
             extracted[dst_base + sub] = it->second;
         }
     }
-    gguf_tensor_type qtype = GGUF_TYPE_F16;
+    GgufTensorType qtype = GGUF_TYPE_F16;
     if (auto it = m_qtypes.find(src_base + ".qtype"); it != m_qtypes.end()) {
         qtype = it->second;
     }
@@ -221,9 +221,9 @@ void GraphEmitter::add_named_weight(const std::string& ggml_name) {
     const ov::Tensor& w = it->second;
     // Map the OV element type back to the ggml float qtype so translate_weight rebuilds a plain
     // Constant of the right precision.
-    gguf_tensor_type qtype = w.get_element_type() == ov::element::f32    ? GGUF_TYPE_F32
-                             : w.get_element_type() == ov::element::bf16 ? GGUF_TYPE_BF16
-                                                                         : GGUF_TYPE_F16;
+    GgufTensorType qtype = w.get_element_type() == ov::element::f32    ? GGUF_TYPE_F32
+                           : w.get_element_type() == ov::element::bf16 ? GGUF_TYPE_BF16
+                                                                       : GGUF_TYPE_F16;
     // emit_weight_op re-keys by the last '.'; a bias ends in ".bias", so key it as ".weight"
     // explicitly (make_weight_node's plain-Constant path reads "<base>.weight").
     std::unordered_map<std::string, ov::Tensor> extracted{{ggml_name + ".weight", w}};

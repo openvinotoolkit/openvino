@@ -52,8 +52,8 @@ OutputVector translate_weight(const NodeContext& context) {
         }
         FRONT_END_OP_CONVERSION_CHECK(weights.count(base + ".weight"),
                                       "GGML_OP_NONE weight leaf has no 'gguf.blob.weight' attribute");
-        auto qtype = static_cast<gguf_tensor_type>(context.get_attribute<int>("gguf_qtype"));
-        std::unordered_map<std::string, gguf_tensor_type> qtypes{{base + ".qtype", qtype}};
+        auto qtype = static_cast<GgufTensorType>(context.get_attribute<int>("gguf_qtype"));
+        std::unordered_map<std::string, GgufTensorType> qtypes{{base + ".qtype", qtype}};
         auto node = make_weight_node(base, weights, qtypes);
         return rename_outputs_with_suffix({node}, context.get_name());
     }

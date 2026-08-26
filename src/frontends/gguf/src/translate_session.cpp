@@ -65,8 +65,7 @@ void add_sliced_mask(TensorMap& tensor_map) {
             auto mask = tensor_map.at(mask_name).get_node_shared_ptr();
             // The decoder binds the mask with its current runtime shape, so its
             // token axis already is the active token window.
-            std::shared_ptr<ov::Node> mask_sliced =
-                std::make_shared<ov::op::v0::Convert>(mask, ov::element::f16);
+            std::shared_ptr<ov::Node> mask_sliced = std::make_shared<ov::op::v0::Convert>(mask, ov::element::f16);
             mask_sliced->set_friendly_name(sliced_name);
             tensor_map.insert({sliced_name, mask_sliced->output(0)});
         }
@@ -179,8 +178,8 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
             // builder's pre-extracted payload (bool "gguf_weight") or the cgraph decoder's raw
             // bytes ("data"). Otherwise it is a model-input leaf (already seeded as a Parameter
             // above) and there is nothing to translate.
-            const bool is_builder_weight = decoder->get_attribute("gguf_weight").is<bool>() &&
-                                           decoder->get_attribute("gguf_weight").as<bool>();
+            const bool is_builder_weight =
+                decoder->get_attribute("gguf_weight").is<bool>() && decoder->get_attribute("gguf_weight").as<bool>();
             const bool is_cgraph_weight = decoder->get_attribute("data").is<ov::Tensor>();
             if (!is_builder_weight && !is_cgraph_weight) {
                 return;
@@ -360,9 +359,10 @@ std::shared_ptr<Model> TranslateSession::apply_transformations(std::shared_ptr<M
     // Loop: GatedDeltaNetFusion also bundles TransposeFuse, a generic cleanup that would otherwise
     // touch every architecture's op count.
     const auto ordered_ops = model->get_ordered_ops();
-    const auto has_loop = std::any_of(ordered_ops.begin(), ordered_ops.end(), [](const std::shared_ptr<ov::Node>& node) {
-        return ov::is_type<ov::op::v5::Loop>(node);
-    });
+    const auto has_loop =
+        std::any_of(ordered_ops.begin(), ordered_ops.end(), [](const std::shared_ptr<ov::Node>& node) {
+            return ov::is_type<ov::op::v5::Loop>(node);
+        });
     if (has_loop) {
         auto live_before_gdn = std::make_shared<std::unordered_set<const ov::Node*>>();
         manager.register_pass<pass::SnapshotLiveParameters>(live_before_gdn);

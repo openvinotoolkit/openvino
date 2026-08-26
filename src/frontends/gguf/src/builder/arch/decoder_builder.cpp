@@ -37,7 +37,7 @@ constexpr int64_t D = -1;
 
 DecoderBuilder::DecoderBuilder(const std::map<std::string, GGUFMetaData>& config,
                                std::unordered_map<std::string, ov::Tensor>& weights,
-                               std::unordered_map<std::string, gguf_tensor_type>& qtypes)
+                               std::unordered_map<std::string, GgufTensorType>& qtypes)
     : m_cfg(config, weights),
       m_emit(weights, qtypes, m_cfg.arch),
       m_kv(blocks::KvCachePlan::build(m_cfg)) {
@@ -289,7 +289,7 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
         // real model has no per-layer dense FFN tensors here and dense_ffn's weight_tensor lookup
         // would assert.
         const bool is_moe_layer_r = m_cfg.is_moe && (il >= m_cfg.n_dense_lead);
-        auto down_r = is_moe_layer_r     ? blocks::moe_ffn(m_emit, m_cfg, p, ffn_norm_r, T)
+        auto down_r = is_moe_layer_r   ? blocks::moe_ffn(m_emit, m_cfg, p, ffn_norm_r, T)
                       : m_cfg.is_geglu ? blocks::geglu_ffn(m_emit, m_cfg, p, ffn_norm_r, T)
                                        : blocks::dense_ffn(m_emit, m_cfg, p, ffn_norm_r, T);
         return m_emit.add_op("GGML_OP_ADD", p + "l_out", {down_r, ffn_inp_r}, ps({1, 1, T, m_cfg.n_embd}), f32);

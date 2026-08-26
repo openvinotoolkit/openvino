@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "node_context.hpp"
-#include "op_table.hpp"
-#include "utils.hpp"
-
 #include <climits>
 #include <cstdint>
 #include <memory>
+#include <vector>
+
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -21,14 +21,14 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include <vector>
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
 namespace gguf {
 namespace op {
 
-OutputVector translate_mulmat(const NodeContext & context) {
+OutputVector translate_mulmat(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
 
     int op_case = context.get_attribute<int>("op_case", 0);
@@ -72,12 +72,15 @@ OutputVector translate_mulmat(const NodeContext & context) {
         auto unsqueeze_axes = ov::op::v0::Constant::create(ov::element::i64, Shape{}, {2});
         auto Z_unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(Z, unsqueeze_axes);
 
-        auto broadcast_shape = ov::op::v0::Constant::create(
-            ov::element::i64, {5}, {(int64_t) 1, (int64_t) 1, factor, (int64_t) 1, (int64_t) 1});
-        auto new_Z_shape = ov::op::v0::Constant::create(ov::element::i64, {4},
-                                                        {(int64_t) 0, batch_large, (int64_t) -1, (int64_t) A_shape[3]});
+        auto broadcast_shape = ov::op::v0::Constant::create(ov::element::i64,
+                                                            {5},
+                                                            {(int64_t)1, (int64_t)1, factor, (int64_t)1, (int64_t)1});
+        auto new_Z_shape = ov::op::v0::Constant::create(ov::element::i64,
+                                                        {4},
+                                                        {(int64_t)0, batch_large, (int64_t)-1, (int64_t)A_shape[3]});
 
-        auto Z_broadcasted = std::make_shared<ov::op::v3::Broadcast>(Z_unsqueezed, broadcast_shape,
+        auto Z_broadcasted = std::make_shared<ov::op::v3::Broadcast>(Z_unsqueezed,
+                                                                     broadcast_shape,
                                                                      ov::op::BroadcastType::BIDIRECTIONAL);
         Z = std::make_shared<ov::op::v1::Reshape>(Z_broadcasted, new_Z_shape, true);
     }
