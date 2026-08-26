@@ -79,6 +79,13 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     // Lambda detects type of input_tensor and creates correct node: constant or parameter
     auto create_const_or_param = [&](const std::string& name,
                                      const std::shared_ptr<ov::frontend::onnx::TensorONNXPlace>& input_tensor) {
+        // If the tensor already exists (e.g. duplicate from parent-scope injection),
+        // skip creating a new parameter — the existing one is authoritative.
+        auto existing_in_tv = m_tensor_values.find(name);
+        if (existing_in_tv != m_tensor_values.end()) {
+            input_tensor->translate(existing_in_tv->second);
+            return;
+        }
         std::shared_ptr<ov::Node> node;
         if (input_tensor->get_data_location() != nullptr || input_tensor->get_data() != nullptr) {
             Tensor tensor = Tensor(input_tensor);
