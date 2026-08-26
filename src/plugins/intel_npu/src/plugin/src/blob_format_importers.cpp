@@ -415,6 +415,7 @@ public:
         register_known_sections();
 
         m_blob_reader.read(npu_formatted_blob);
+        verify_valid_sections();
     }
 
 private:
@@ -433,6 +434,15 @@ private:
             m_blob_reader.register_section_type_evaluator(std::make_shared<SupportedSectionTypeEvaluator>(type));
         }
     }
+
+    /**
+     * @brief Checks if the type and count of sections are valid.
+     * @details Expectations:
+     *   * The compiled model doesn't contain more than one section of any type
+     *   * Either an "ELF main schedule" (with or without init schedules) or a "Dynamic schedule" (without init
+     * schedule) exists
+     */
+    void verify_valid_sections() {}
 
     /**
      * @brief Decrypts all compiler payloads (main schedule + init schedules if applicable) if:
@@ -458,6 +468,14 @@ private:
         const ov::EncryptionCallbacks encryption_callbacks = m_config.get<CACHE_ENCRYPTION_CALLBACKS>();
 
         // TODO assert there is only one of this type
+        auto dynamic_schedule_section = std::dynamic_pointer_cast<DynamicScheduleSection>(
+            m_blob_reader.retrieve_first_section(PredefinedSectionType::DYNAMIC_SCHEDULE));
+        if (dynamic_schedule_section) {
+            m_logger.debug("Decrypting the dynamic compiler schedule");
+            dynamic_schedule_section->decrypt(encryption_callbacks);
+            return;
+        }
+
         auto main_schedule_section = std::dynamic_pointer_cast<ELFMainScheduleSection>(
             m_blob_reader.retrieve_first_section(PredefinedSectionType::ELF_MAIN_SCHEDULE));
         if (main_schedule_section) {
@@ -471,15 +489,19 @@ private:
             m_logger.debug("Decrypting the compiler init schedules");
             init_schedules_section->decrypt(encryption_callbacks);
         }
-
-        // TODO extend to dynamic models
     }
 
     ov::Tensor extract_main_schedule() const override {
+        // TODO assert there's exactly one main schedule
         const auto main_schedule_section = std::dynamic_pointer_cast<ELFMainScheduleSection>(
             m_blob_reader.retrieve_first_section(PredefinedSectionType::ELF_MAIN_SCHEDULE));
+        if (main_schedule_section) {
+            return main_schedule_section->get_schedule();
+        }
 
-        return main_schedule_section->get_schedule();
+        const auto dynamic_schedule_section = std::dynamic_pointer_cast<DynamicScheduleSection>(
+            m_blob_reader.retrieve_first_section(PredefinedSectionType::DYNAMIC_SCHEDULE));
+        return dynamic_schedule_section->get_schedule();
     }
 
     std::optional<std::vector<ov::Tensor>> extract_init_schedules() const override {

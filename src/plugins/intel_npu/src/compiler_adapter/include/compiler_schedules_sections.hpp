@@ -104,6 +104,7 @@ public:
 
     void set_graph(const std::shared_ptr<DynamicGraph>& graph);
 
+    // TODO consider moving the tensor to free the schedule earlier
     ov::Tensor get_schedule() const;
 
     BlobType get_blob_type() const;

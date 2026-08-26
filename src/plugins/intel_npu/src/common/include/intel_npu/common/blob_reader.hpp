@@ -83,6 +83,23 @@ public:
         const SectionType type) const;
 
     /**
+     * @return true if at least one section of the given type has been parsed
+     * @return false otherwise
+     */
+    bool has_section_of_type(const SectionType section_type) const;
+
+    /**
+     * @return The number of parsed sections of the given type
+     */
+    size_t count_sections_of_type(const SectionType section_type) const;
+
+    /**
+     * @return A summary of the blob content, represented as a map between section types and their number of occurrences
+     * in the blob
+     */
+    std::unordered_map<SectionType, size_t> get_content_summary() const;
+
+    /**
      * @brief Extracts the size of the NPU blob region from the given blob source.
      * @details This number is a field found at the beginning of the NPU blob region.
      */

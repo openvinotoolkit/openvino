@@ -327,6 +327,23 @@ void BlobReader::read(BlobSource& source) {
         offsets_table.get_number_of_entries());
 }
 
+bool BlobReader::has_section_of_type(const SectionType section_type) const {
+    return m_parsed_sections.count(section_type) ? m_parsed_sections.at(section_type).size() > 0 : false;
+}
+
+size_t BlobReader::count_sections_of_type(const SectionType section_type) const {
+    return m_parsed_sections.count(section_type) ? m_parsed_sections.at(section_type).size() : 0;
+}
+
+std::unordered_map<SectionType, size_t> BlobReader::get_content_summary() const {
+    std::unordered_map<SectionType, size_t> summary;
+    for (const auto& [section_type, section_instances] : m_parsed_sections) {
+        summary[section_type] = section_instances.size();
+    }
+
+    return summary;
+}
+
 size_t BlobReader::get_npu_region_size(BlobSource& npu_formatted_blob) {
     OPENVINO_ASSERT(
         npu_formatted_blob.get_remaining_size() >= MINIMUM_BLOB_SIZE,
