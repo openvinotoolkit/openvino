@@ -86,20 +86,30 @@ public:
     bool is_shape_infer_dep() const {
         if (!myprog.is_new_shape_infer())
             return false;
-        for (auto* u : users) {
-            for (auto dep_idx : u->get_shape_infer_dependencies()) {
-                if (u->get_dependencies().size() <= dep_idx) {
-                    continue;
+
+        std::set<const program_node*> visited = {this};
+        auto is_shape_infer_dep_impl = [&visited](const auto& self, const program_node* node) {
+            for (auto* u : node->users) {
+                for (auto dep_idx : u->get_shape_infer_dependencies()) {
+                    if (u->get_dependencies().size() <= dep_idx) {
+                        continue;
+                    }
+                    if (u->is_fused_dep(dep_idx)) {
+                        continue;
+                    }
+                    if (u->get_dependencies().at(dep_idx).first == node) {
+                        return true;
+                    }
                 }
-                if (u->is_fused_dep(dep_idx)) {
-                    continue;
-                }
-                if (u->get_dependencies().at(dep_idx).first == this) {
+
+                if (u->can_be_optimized() && visited.insert(u).second && self(self, u)) {
                     return true;
                 }
             }
-        }
-        return false;
+            return false;
+        };
+
+        return is_shape_infer_dep_impl(is_shape_infer_dep_impl, this);
     }
 
     bool is_fused_dep(size_t dep_idx) const;
