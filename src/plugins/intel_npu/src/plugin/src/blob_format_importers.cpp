@@ -66,10 +66,13 @@ void update_compiler_type_if_perf_count(FilteredConfig& config,
     }
 }
 
+// TODO make utility, also used within compiler schedules
 /**
  * @brief Uses the provided decryption callback to decrypt the given payload.
  */
 void decrypt_payload(ov::Tensor& payload, const ov::EncryptionCallbacks& encryption_callbacks, const Logger& logger) {
+    OPENVINO_ASSERT(encryption_callbacks.decrypt, "Decryption requested without providing a decryption callback");
+
     std::string decryptedBlobStr;
     {
         std::string encryptedBlobStr(payload.data<const char>(), payload.get_byte_size());  // +1x blob size
@@ -432,13 +435,44 @@ private:
     }
 
     /**
-     * @brief Decrypts the whole compiler payload (main schedule + init schedules if applicable) if:
+     * @brief Decrypts all compiler payloads (main schedule + init schedules if applicable) if:
      *   1. A decryption callback was provided and
-     *   2. The metadata indicates the blob was encrypted.
-     * @throws ov::AssertFailure if the blob was encrypted but no decryption callback was provided.
+     *   2. There is a section indicating the compiler schedules have been encrypted.
+     * @throws ov::AssertFailure if the schedules were encrypted, but no decryption callback was provided.
      */
     void decrypt_schedules() override {
-        // TODO section for encrypted payload flag
+        // TODO assert there is only one of this type
+        const auto encrypted_schedules_flag_section = std::dynamic_pointer_cast<EncryptedSchedulesFlagSection>(
+            m_blob_reader.retrieve_first_section(PredefinedSectionType::ENCRYPTED_SCHEDULES_FLAG));
+        const bool is_payload_encrypted =
+            encrypted_schedules_flag_section ? encrypted_schedules_flag_section->get_flag() : false;
+        if (!is_payload_encrypted) {
+            m_logger.debug("The compiler payload is NOT encrypted");
+            return;
+        }
+
+        const bool is_null_decryption = !(m_config.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
+                                          m_config.get<CACHE_ENCRYPTION_CALLBACKS>().decrypt != nullptr);
+        OPENVINO_ASSERT(!is_null_decryption, "Blob is encrypted, but no decryption callback was provided!");
+
+        const ov::EncryptionCallbacks encryption_callbacks = m_config.get<CACHE_ENCRYPTION_CALLBACKS>();
+
+        // TODO assert there is only one of this type
+        auto main_schedule_section = std::dynamic_pointer_cast<ELFMainScheduleSection>(
+            m_blob_reader.retrieve_first_section(PredefinedSectionType::ELF_MAIN_SCHEDULE));
+        if (main_schedule_section) {
+            m_logger.debug("Decrypting the compiler main schedule");
+            main_schedule_section->decrypt(encryption_callbacks);
+        }
+
+        auto init_schedules_section = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
+            m_blob_reader.retrieve_first_section(PredefinedSectionType::ELF_INIT_SCHEDULES));
+        if (init_schedules_section) {
+            m_logger.debug("Decrypting the compiler init schedules");
+            init_schedules_section->decrypt(encryption_callbacks);
+        }
+
+        // TODO extend to dynamic models
     }
 
     ov::Tensor extract_main_schedule() const override {

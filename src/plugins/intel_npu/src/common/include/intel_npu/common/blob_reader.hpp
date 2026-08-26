@@ -60,6 +60,7 @@ public:
     /**
      * @brief Retrieve a parsed section.
      * @note This should be called only after "read" was invoked.
+     * @return The requested section if found, else "nullptr"
      */
     std::shared_ptr<ISection> retrieve_section(const SectionID& id) const;
 
@@ -68,12 +69,14 @@ public:
      * @note This should be called only after "read" was invoked.
      * @note This function exists only for convenience. Most section types will typically have a single instance inside
      * a compiled model.
+     * @return The first parsed section of the given type if any, else "nullptr"
      */
     std::shared_ptr<ISection> retrieve_first_section(const SectionType section_type) const;
 
     /**
      * @brief Retrieves all parsed sections of the given type.
      * @note This should be called only after "read" was invoked.
+     * @return All parsed sections of the given type if any, else "std::nullopt"
      */
     std::optional<std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>> retrieve_sections_same_type(
         const SectionType type) const;
