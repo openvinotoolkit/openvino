@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 185,
+  "total": 186,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1813,6 +1813,15 @@
       "category": "Flaky Test",
       "signature_hash": "2abe56c58c994e45",
       "pr_number": "37559"
+    },
+    {
+      "investigation_id": "2026-08-26-08-40-52-000-32939982809",
+      "run_id": "32939982809",
+      "timestamp": "2026-08-26T08:40:52Z",
+      "title": "GPU RoPE Tests fail \u2014 Intel proxy proxy-dmz.intel.com not resolvable when downloading HuggingFace models",
+      "category": "Network",
+      "signature_hash": "4af26ac5e3256c5f",
+      "pr_number": "37475"
     }
   ]
 }

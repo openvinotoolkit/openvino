@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-26-08-40-52-000-32939982809",
+  "timestamp": "2026-08-26T08:40:52Z",
+  "run_id": "32939982809",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32939982809",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37475",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37475",
+  "author": "jatinwadhwa921",
+  "category": "Network",
+  "title": "GPU RoPE Tests fail — Intel proxy proxy-dmz.intel.com not resolvable when downloading HuggingFace models",
+  "signature": "failed to resolve proxy-dmz.intel.com name or service not known|Network",
+  "signature_hash": "4af26ac5e3256c5f",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "iGPU RoPE Tests / GPU_RoPE",
+      "conclusion": "failure",
+      "symptom": "test_transformations_precommit fails with ProxyError: Unable to connect to proxy proxy-dmz.intel.com ([Errno -2] Name or service not known)"
+    }
+  ],
+  "key_errors": [
+    "urllib3.exceptions.NameResolutionError: HTTPSConnection(host='proxy-dmz.intel.com', port=912): Failed to resolve 'proxy-dmz.intel.com' ([Errno -2] Name or service not known)",
+    "urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /api/models/hf-internal-testing/tiny-random-LlamaForCausalLM/revision/main (Caused by ProxyError('Unable to connect to proxy', NameResolutionError(...)))"
+  ],
+  "root_cause": "The iGPU RoPE test job runs model-hub transformation tests that need to download HuggingFace models via the Intel corporate proxy proxy-dmz.intel.com on port 912. During this run, DNS resolution for that proxy host failed with NXDOMAIN ([Errno -2] Name or service not known), preventing the test from fetching the model metadata. This is a transient infrastructure/network failure on the runner — the proxy host was temporarily unreachable or the runner's DNS resolver was unavailable. The PR changes (TFLite FE StableHLO RMSNorm dequantization) have no relation to this failure.",
+  "reproduction_steps": "N/A — transient infrastructure DNS failure not reproducible locally.",
+  "recommended_actions": [
+    "Re-run the failed GPU_RoPE job; the proxy should be reachable on a fresh runner.",
+    "If the failure recurs, investigate the Intel internal proxy availability for the iGPU runner pool."
+  ],
+  "prevention_strategies": "Add retry logic or a DNS resolution check before running HuggingFace model downloads in CI. Consider caching model snapshots so network failures during download are less likely to cause test failures.",
+  "historical_context": "First recorded occurrence of proxy-dmz.intel.com DNS resolution failure specifically in iGPU RoPE tests. Similar proxy/network failures have been seen in other jobs (e.g., FinalizeArtifact ECONNREFUSED)."
+}

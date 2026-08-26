@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "failed to resolve proxy-dmz.intel.com name or service not known|Network",
+  "signature_hash": "4af26ac5e3256c5f",
+  "title": "GPU RoPE Tests fail — Intel proxy proxy-dmz.intel.com not resolvable when downloading HuggingFace models",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-08-26T08:40:52Z",
+  "last_seen": "2026-08-26T08:40:52Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/32939982809"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37475"
+  ],
+  "recent_timestamps": [
+    "2026-08-26T08:40:52Z"
+  ],
+  "rerun_search_string": "Failed to resolve proxy-dmz.intel.com"
+}
