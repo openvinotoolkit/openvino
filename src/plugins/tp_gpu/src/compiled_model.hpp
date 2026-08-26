@@ -11,6 +11,7 @@
 
 #include "openvino/runtime/icompiled_model.hpp"
 #include "cache_controller.hpp"
+#include "rank_workers.hpp"
 #include "tp_gpu/tp_device_coordinator.hpp"
 #include "tp_l0_shared_context.hpp"
 
@@ -66,6 +67,17 @@ public:
         return std::unique_lock<std::mutex>(m_inference_mutex);
     }
 
+    /// Threads the ranks run on.  Created on first use, which is always under
+    /// lock_inference(), and kept for the life of the model: creating them per
+    /// inference costs tens of microseconds of start-up skew, and that skew is
+    /// paid again at every one of the model's AllReduce points.
+    RankWorkers& rank_workers() const {
+        if (!m_rank_workers) {
+            m_rank_workers = std::make_unique<RankWorkers>(m_rank_compiled.size());
+        }
+        return *m_rank_workers;
+    }
+
 protected:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
@@ -82,6 +94,9 @@ private:
     CacheControllerPtr m_cache_controller;
     bool m_loaded_from_cache{false};
     mutable std::mutex m_inference_mutex;
+    // Declared last so it is destroyed first: the worker threads must be
+    // joined before anything they might still be touching goes away.
+    mutable std::unique_ptr<RankWorkers> m_rank_workers;
 };
 
 }  // namespace tp_gpu

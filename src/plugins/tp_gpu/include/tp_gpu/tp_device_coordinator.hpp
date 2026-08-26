@@ -187,11 +187,16 @@ private:
         std::vector<ze_command_list_handle_t> compute_lists;  // [N]
         std::vector<ze_command_list_handle_t> copy_lists;     // [N], null without a copy engine
 
-        // Whether compute_lists currently hold commands matching the
+        // Per rank: whether that rank's lists hold commands matching the
         // signature above, and which scratch generation they were recorded
         // against (the staging pointers are baked into the recording).
-        bool                        recorded{false};
-        uint64_t                    recorded_scratch_generation{0};
+        // Per rank rather than per plan because ring and the direct N=2
+        // exchange record each rank from that rank's own pointers, so a rank
+        // can be re-recorded without touching the others.  uint8_t rather
+        // than bool: std::vector<bool> packs bits, and neighbouring ranks
+        // would then be writing the same word.
+        std::vector<uint8_t>        recorded;                     // [N]
+        std::vector<uint64_t>       recorded_scratch_generation;  // [N]
 
         bool matches(const std::vector<void*>& ins,
                      const std::vector<void*>& outs,
@@ -235,6 +240,16 @@ private:
     //               clears done + buffer pointers.
     // Generation counters avoid the races that arise from reusing a single
     // counter for both "rank 0 finished" and "all ranks have left".
+    //
+    // A mutex and a condition_variable, deliberately.  These barriers are
+    // crossed twice per collective and 64 collectives per model step, which
+    // looks like an obvious case for a lock-free counter -- but an atomic
+    // barrier that spins before parking measured worse at four ranks (26.0 vs
+    // 24.3 ms/token), and worse still when the fallback slept instead of
+    // spinning (28.9).  What a rank waits for here is mostly its peers being
+    // genuinely late, not the barrier itself, and a spinning waiter takes the
+    // core that the late peer's dispatch thread needs.  futex parks and wakes
+    // better than anything hand-rolled here did.
     struct Rendezvous {
         std::mutex                  mtx;
         std::condition_variable     cv;
@@ -247,25 +262,78 @@ private:
         uint64_t                    exit_gen{0};
         std::size_t                 n{0};
         ov::element::Type           dtype{ov::element::dynamic};
+        // When the first rank reached this collective, used to measure how
+        // far behind the others are.  Only written under TP_SKEW.
+        std::chrono::steady_clock::time_point first_arrival{};
     };
+
+    // How far apart the ranks arrive at a collective, and what each of them
+    // spends its time waiting for.  Collected only when TP_SKEW is set, and
+    // deliberately separate from TP_PROF: profiling adds hundreds of
+    // microseconds per collective and would drown the imbalance being
+    // measured.  Every counter is indexed by rank and written only by that
+    // rank, except the two totals, which are written under the rendezvous
+    // mutex by whichever rank arrives last.
+    struct SkewStats {
+        std::vector<uint64_t> ph1_ns;      // [N] time spent in the enter barrier
+        std::vector<uint64_t> ph2_ns;      // [N] time spent in the execute phase
+        std::vector<uint64_t> ph3_ns;      // [N] time spent in the exit barrier
+        std::vector<uint64_t> late_ns;     // [N] arrival minus the first arrival
+        std::vector<uint64_t> last_count;  // [N] how often this rank arrived last
+        // The stretch of model work between leaving one collective and
+        // reaching the next.  This is where the arrival skew is built, so it
+        // is measured per rank with its extremes kept, not just averaged.
+        std::vector<uint64_t> seg_ns;      // [N] sum of segment durations
+        std::vector<uint64_t> seg_min_ns;  // [N]
+        std::vector<uint64_t> seg_max_ns;  // [N]
+        std::vector<uint64_t> seg_count;   // [N]
+        std::vector<std::chrono::steady_clock::time_point> last_exit;  // [N]
+        uint64_t spread_ns{0};             // sum of (last arrival - first arrival)
+        uint64_t calls{0};
+    };
+    SkewStats                       m_skew;
 
     void init_rank(RankState& rs);
     void destroy_rank(RankState& rs);
 
     void destroy_plan(Plan& plan);
-    void build_plan(int collective_id,
-                    const std::vector<void*>& in_ptrs,
-                    const std::vector<void*>& out_ptrs,
-                    std::size_t n,
-                    ov::element::Type dtype,
-                    Plan& plan);
+
+    /// Creates the plan's event pool and its events.  How many there are
+    /// depends only on the world size and on whether profiling is on, never on
+    /// the payload, so this runs once at construction.  Doing it lazily put 64
+    /// pool creations on the first inference, which is the one whose latency
+    /// users measure as time to first token.
+    void create_plan_events(Plan& plan);
     void record_plan(Plan& plan);
 
-    /// Records the ring schedule: N-1 reduce-scatter steps followed by N-1
-    /// all-gather steps, every rank sending only to its successor.  Each link
-    /// carries 2*(N-1)/N of the payload instead of the funnel's (N-1) copies
-    /// in and out of rank 0, so the cost per link stops growing with N.
-    void record_ring_plan(Plan& plan);
+    /// True when the schedule records every rank from that rank's own
+    /// pointers plus the coordinator's staging, and so can be driven one rank
+    /// at a time.  The funnel cannot: it writes into peer output buffers, so
+    /// recording it needs every rank's pointers at once.
+    bool per_rank_schedule() const { return m_use_ring || m_world_size == 2; }
+
+    /// Drains, resets and re-records one rank's lists.  Only valid for a
+    /// per-rank schedule.
+    void record_rank(Plan& plan, int rank);
+
+    /// Submits one rank's lists.  Every rank must be submitted before any of
+    /// them is waited on: a rank's list blocks on events its neighbours only
+    /// signal once they run, so draining one first would deadlock.
+    void submit_rank(Plan& plan, int rank);
+
+    /// Waits for one rank's queues to drain.
+    void sync_rank(Plan& plan, int rank);
+
+    /// Records the ring schedule for one rank: N-1 reduce-scatter steps
+    /// followed by N-1 all-gather steps, sending only to its successor.  Each
+    /// link carries 2*(N-1)/N of the payload instead of the funnel's (N-1)
+    /// copies in and out of rank 0, so the cost per link stops growing with N.
+    void record_ring_rank(Plan& plan, int rank);
+
+    /// Records the direct two-rank exchange for one rank: push our input into
+    /// the peer's staging, then reduce our input with what the peer pushed
+    /// into ours.
+    void record_pair_rank(Plan& plan, int rank);
 
     /// Element range of ring chunk `chunk` within a payload of `n` elements.
     /// Chunks differ by at most one element, which keeps every one of them
@@ -398,16 +466,16 @@ private:
     // recorded ahead of time at all.
     std::vector<std::unique_ptr<Plan>>       m_plans;
 
-    // Where recording time goes, split by stage.  Written only from rank 0's
-    // branch, which is the only caller of record_plan.
-    std::chrono::nanoseconds                 m_rec_drain{};
-    std::chrono::nanoseconds                 m_rec_reset{};
-    std::chrono::nanoseconds                 m_rec_build{};
-    std::chrono::nanoseconds                 m_rec_close{};
+    // Where recording time goes, split by stage, in nanoseconds.  Atomic
+    // because each rank records its own lists and all of them accumulate here.
+    std::atomic<uint64_t>                    m_rec_drain_ns{0};
+    std::atomic<uint64_t>                    m_rec_reset_ns{0};
+    std::atomic<uint64_t>                    m_rec_build_ns{0};
+    std::atomic<uint64_t>                    m_rec_close_ns{0};
 
-    /// zeCommandListClose with its cost attributed to m_rec_close: closing is
-    /// where the driver finalizes the list, and it is the stage most likely to
-    /// dominate re-recording.
+    /// zeCommandListClose with its cost attributed to m_rec_close_ns: closing
+    /// is where the driver finalizes the list, and it is the stage most likely
+    /// to dominate re-recording.
     void close_list(ze_command_list_handle_t list);
 };
 
