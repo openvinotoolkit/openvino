@@ -173,6 +173,43 @@ TEST(type_prop, group_query_attention_rotary_inputs_static_shapes) {
     EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{1, 2, 5, 8}));
 }
 
+TEST(type_prop, group_query_attention_partial_rotary_dim_accepted) {
+    // head_size == 8; cos_cache last dim == 2 -> rotary_dim == 4 < head_size (GPT-NeoX/Phi-style partial RoPE).
+    auto args = make_valid_gqa_args();
+    const auto cos_cache = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{16, 2});
+    const auto sin_cache = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{16, 2});
+    args.push_back(cos_cache);
+    args.push_back(sin_cache);
+
+    const auto op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, true, false);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 4, 48}));
+}
+
+TEST(type_prop, group_query_attention_rotary_dim_exceeds_head_size) {
+    // head_size == 8; cos_cache last dim == 8 -> rotary_dim == 16 > head_size.
+    auto args = make_valid_gqa_args();
+    const auto cos_cache = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{16, 8});
+    const auto sin_cache = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{16, 8});
+    args.push_back(cos_cache);
+    args.push_back(sin_cache);
+
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, true, false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("must not exceed head_size"));
+}
+
+TEST(type_prop, group_query_attention_rotary_dim_dynamic_cos_with_static_head_size) {
+    auto args = make_valid_gqa_args();
+    const auto cos_cache = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{16, -1});
+    const auto sin_cache = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{16, -1});
+    args.push_back(cos_cache);
+    args.push_back(sin_cache);
+
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, true, false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("must be statically known"));
+}
+
 TEST(type_prop, group_query_attention_quant_type_enum_names) {
     EXPECT_EQ(as_string(op::internal::GroupQueryAttentionQuantType::NONE), "NONE");
     EXPECT_EQ(as_string(op::internal::GroupQueryAttentionQuantType::PER_TENSOR), "PER_TENSOR");

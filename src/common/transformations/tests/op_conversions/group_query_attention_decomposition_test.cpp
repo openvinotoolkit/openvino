@@ -49,6 +49,7 @@ struct GqaParams {
     std::string name;
     bool do_rotary = false;
     bool rotary_interleaved = false;
+    int64_t rotary_dim = HEAD_SIZE;
     int64_t kv_cache_bit_width = 0;
     element::Type kv_type = element::f32;
     int64_t local_window_size = -1;
@@ -65,9 +66,10 @@ struct GqaParams {
     bool expects_scatter_update = false;
 
     explicit GqaParams(std::string n) : name(std::move(n)) {}
-    GqaParams& rotary(bool interleaved = false) {
+    GqaParams& rotary(bool interleaved = false, int64_t dim = HEAD_SIZE) {
         do_rotary = true;
         rotary_interleaved = interleaved;
+        rotary_dim = dim;
         return *this;
     }
     GqaParams& quant(int64_t bits, element::Type t) {
@@ -143,8 +145,8 @@ std::shared_ptr<Model> make_gqa_model(const GqaParams& p) {
     add(element::i32, PartialShape{1});                                      // 5: seqlens_k
     add(element::i32, PartialShape{});                                       // 6: total_sequence_length
     if (p.do_rotary) {
-        add(f32, PartialShape{1, HEAD_SIZE / 2});  // 7: cos_cache
-        add(f32, PartialShape{1, HEAD_SIZE / 2});  // 8: sin_cache
+        add(f32, PartialShape{1, p.rotary_dim / 2});  // 7: cos_cache
+        add(f32, PartialShape{1, p.rotary_dim / 2});  // 8: sin_cache
     }
     if (p.attention_bias) {
         pad_to(10);
@@ -243,6 +245,9 @@ INSTANTIATE_TEST_SUITE_P(GroupQueryAttentionDecomposition,
                                          GqaParams{"prefill"}.shape(4, Dimension::dynamic()),
                                          GqaParams{"rotary"}.rotary(),
                                          GqaParams{"rotary_interleaved"}.rotary(/*interleaved*/ true),
+                                         GqaParams{"partial_rotary"}.rotary(/*interleaved*/ false, HEAD_SIZE / 2),
+                                         GqaParams{"partial_rotary_interleaved"}.rotary(/*interleaved*/ true,
+                                                                                        HEAD_SIZE / 2),
                                          GqaParams{"static_past_scatter"}.shape(1, 8),
                                          GqaParams{"static_past_scatter_bias"}.shape(1, 8).bias(5),
                                          GqaParams{"sliding_window"}.window(2),

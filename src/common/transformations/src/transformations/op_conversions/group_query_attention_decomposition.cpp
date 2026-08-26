@@ -532,28 +532,51 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::rotaryEmbe
                                                                                       bool interleaved) {
     auto two = v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
 
+    // rotary_dim (2 * cos.shape[-1]) may be smaller than head_size for GPT-NeoX/Phi-style partial RoPE:
+    // only the leading rotary_dim channels are rotated below; the trailing channels pass through
+    // unchanged. The op-level validate_and_infer_types() already bounds rotary_dim <= head_size.
+    const auto& cos_partial_shape = cos.get_partial_shape();
+    const auto half_head_size_val =
+        static_cast<int64_t>(cos_partial_shape[cos_partial_shape.rank().get_length() - 1].get_length());
+    const auto rotary_dim_val = 2 * half_head_size_val;
+    const auto& input_partial_shape = input.get_partial_shape();
+    const auto head_size_val =
+        static_cast<int64_t>(input_partial_shape[input_partial_shape.rank().get_length() - 1].get_length());
+    const bool is_partial_rotary = rotary_dim_val < head_size_val;
+
+    ov::Output<ov::Node> rotary_input = input;
+    ov::Output<ov::Node> pass_through;
+    if (is_partial_rotary) {
+        const auto part_split_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
+        const auto part_split_lengths =
+            v0::Constant::create(ov::element::i64, ov::Shape{2}, {rotary_dim_val, head_size_val - rotary_dim_val});
+        auto parts = register_new_node<v1::VariadicSplit>(input, part_split_axis, part_split_lengths)->outputs();
+        rotary_input = parts[0];
+        pass_through = parts[1];
+    }
+
     // Unsqueeze cos/sin to 4D [1, 1, seqlen, head_size/2] to match RoPE fusion pattern
     auto unsqueeze_axes = v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1});
     auto cos_4d = register_new_node<v0::Unsqueeze>(cos, unsqueeze_axes);
     auto sin_4d = register_new_node<v0::Unsqueeze>(sin, unsqueeze_axes);
 
     // For interleaved mode, deinterleave first so the core RoPE formula is identical
-    ov::Output<ov::Node> rope_input = input;
+    ov::Output<ov::Node> rope_input = rotary_input;
     std::shared_ptr<v3::ShapeOf> input_shape;
     std::shared_ptr<ov::Node> dim_bns, half_head_size;
     std::shared_ptr<v0::Constant> perm_5d;
     if (interleaved) {
-        input_shape = register_new_node<v3::ShapeOf>(input);
+        input_shape = register_new_node<v3::ShapeOf>(rotary_input);
         dim_bns = get_dimensions(input_shape, {0, 1, 2});
         half_head_size = get_dimensions(cos.get_node_shared_ptr(), {-1});
         perm_5d = v0::Constant::create(ov::element::i64, ov::Shape{5}, {0, 1, 2, 4, 3});
 
-        // Deinterleave: [bs,nh,seq,head_size]
-        //   -> reshape [bs,nh,seq,head_size/2,2]
-        //   -> transpose [bs,nh,seq,2,head_size/2]
-        //   -> reshape [bs,nh,seq,head_size]  (now [first_half, second_half])
+        // Deinterleave: [bs,nh,seq,rotary_dim]
+        //   -> reshape [bs,nh,seq,rotary_dim/2,2]
+        //   -> transpose [bs,nh,seq,2,rotary_dim/2]
+        //   -> reshape [bs,nh,seq,rotary_dim]  (now [first_half, second_half])
         auto deinterleave_5d = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, half_head_size, two}, 0);
-        auto reshaped_5d = register_new_node<v1::Reshape>(input, deinterleave_5d, false);
+        auto reshaped_5d = register_new_node<v1::Reshape>(rotary_input, deinterleave_5d, false);
         auto transposed_5d = register_new_node<v1::Transpose>(reshaped_5d, perm_5d);
         rope_input = register_new_node<v1::Reshape>(transposed_5d, input_shape, false);
     }
@@ -561,9 +584,6 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::rotaryEmbe
     // Core RoPE formula (matches RoPEFusionGPTOSS pattern for both modes)
     // first_ = first_half * cos - second_half * sin
     // second_ = second_half * cos + first_half * sin
-    const auto& cos_partial_shape = cos.get_partial_shape();
-    const auto half_head_size_val =
-        static_cast<int64_t>(cos_partial_shape[cos_partial_shape.rank().get_length() - 1].get_length());
     const auto split_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
     const auto split_lengths =
         v0::Constant::create(ov::element::i64, ov::Shape{2}, {half_head_size_val, half_head_size_val});
@@ -581,14 +601,19 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::rotaryEmbe
 
     // For interleaved mode, re-interleave the result
     if (interleaved) {
-        // Re-interleave: [bs,nh,seq,head_size]
-        //   -> reshape [bs,nh,seq,2,head_size/2]
-        //   -> transpose [bs,nh,seq,head_size/2,2]
-        //   -> reshape [bs,nh,seq,head_size]
+        // Re-interleave: [bs,nh,seq,rotary_dim]
+        //   -> reshape [bs,nh,seq,2,rotary_dim/2]
+        //   -> transpose [bs,nh,seq,rotary_dim/2,2]
+        //   -> reshape [bs,nh,seq,rotary_dim]
         auto reinterleave_5d = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, two, half_head_size}, 0);
         auto result_5d = register_new_node<v1::Reshape>(output, reinterleave_5d, false);
         auto result_transposed = register_new_node<v1::Transpose>(result_5d, perm_5d);
         output = register_new_node<v1::Reshape>(result_transposed, input_shape, false);
+    }
+
+    if (is_partial_rotary) {
+        // Re-attach the untouched tail channels beyond rotary_dim.
+        output = register_new_node<v0::Concat>(ov::OutputVector{output, pass_through}, -1);
     }
 
     return output.get_node_shared_ptr();

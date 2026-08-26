@@ -5521,6 +5521,76 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_causal_bidirectional) {
     test_case.run_with_tolerance_as_fp();
 }
 
+// Partial RoPE (GPT-NeoX/Phi-style): rotary_dim (2 * cos_cache.shape[-1] = 16) is smaller than
+// head_size (32). Only the leading 16 channels of Q/K are rotated; the trailing 16 pass through
+// unchanged. Single decode token (seqlens_k=0, total_sequence_length=1) makes "output"/"present_value"
+// insensitive to the rotation (softmax over one key is always 1.0), so present_key is what actually
+// exercises the fix: its first half is the RoPE-rotated K, its second half is K's untouched tail.
+// Expected values from real ONNX Runtime 1.30.0 CPUExecutionProvider (same native MLAS core).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_partial_rotary) {
+    const auto model = convert_model("com.microsoft/gqa_partial_rotary.onnx");
+
+    std::vector<float> query = {
+        0.304700f,  -1.040000f, 0.750500f,  0.940600f,  -1.951000f, -1.302200f, 0.127800f,  -0.316200f, -0.016800f,
+        -0.853000f, 0.879400f,  0.777800f,  0.066000f,  1.127200f,  0.467500f,  -0.859300f, 0.368800f,  -0.958900f,
+        0.878500f,  -0.049900f, -0.184900f, -0.680900f, 1.222500f,  -0.154500f, -0.428300f, -0.352100f, 0.532300f,
+        0.365400f,  0.412700f,  0.430800f,  2.141600f,  -0.406400f, -0.512200f, -0.813800f, 0.616000f,  1.129000f,
+        -0.113900f, -0.840200f, -0.824500f, 0.650600f,  0.743300f,  0.543200f,  -0.665500f, 0.232200f,  0.116700f,
+        0.218700f,  0.871400f,  0.223600f,  0.678900f,  0.067600f,  0.289100f,  0.631300f,  -1.457200f, -0.319700f,
+        -0.470400f, -0.638900f, -0.275100f, 1.494900f,  -0.865800f, 0.968300f,  -1.682900f, -0.334900f, 0.162800f,
+        0.586200f,  0.711200f,  0.793300f,  -0.348700f, -0.462400f, 0.858000f,  -0.191300f, -1.275700f, -1.133300f,
+        -0.919500f, 0.497200f,  0.142400f,  0.690500f,  -0.427300f, 0.158500f,  0.625600f,  -0.309300f, 0.456800f,
+        -0.661900f, -0.363100f, -0.381700f, -1.195800f, 0.487000f,  -0.469400f, 0.012500f,  0.480700f,  0.446500f,
+        0.665400f,  -0.098500f, -0.423300f, -0.079700f, -1.687300f, -1.447100f, -1.322700f, -0.997200f, 0.399800f,
+        -0.905500f, -0.378200f, 1.299200f,  -0.356300f, 0.737500f,  -0.933600f, -0.205400f, -0.950000f, -0.339000f,
+        0.840300f,  -1.727300f, 0.434400f,  0.237700f,  -0.594100f, -1.446100f, 0.072100f,  -0.529500f, 0.232700f,
+        0.021900f,  1.601800f,  -0.239400f, -1.023500f, 0.179300f,  0.220000f,  1.359200f,  0.835100f,  0.356900f,
+        1.463300f,  -1.188800f,
+    };
+    std::vector<float> cos_cache =
+        {-0.658800f, 0.850200f, 0.162100f, -0.306300f, 0.181800f, -0.954400f, 0.917100f, -0.035400f};
+    std::vector<float> sin_cache =
+        {0.565500f, -0.834500f, -0.026700f, -0.018600f, 0.875700f, 0.143500f, -0.053000f, -0.466000f};
+
+    std::vector<float> expected_output = {
+        -1.322700f, -0.997200f, 0.399800f,  -0.905500f, -0.378200f, 1.299200f,  -0.356300f, 0.737500f,
+        -0.933600f, -0.205400f, -0.950000f, -0.339000f, 0.840300f,  -1.727300f, 0.434400f,  0.237700f,
+        -0.594100f, -1.446100f, 0.072100f,  -0.529500f, 0.232700f,  0.021900f,  1.601800f,  -0.239400f,
+        -1.023500f, 0.179300f,  0.220000f,  1.359200f,  0.835100f,  0.356900f,  1.463300f,  -1.188800f,
+        -1.322700f, -0.997200f, 0.399800f,  -0.905500f, -0.378200f, 1.299200f,  -0.356300f, 0.737500f,
+        -0.933600f, -0.205400f, -0.950000f, -0.339000f, 0.840300f,  -1.727300f, 0.434400f,  0.237700f,
+        -0.594100f, -1.446100f, 0.072100f,  -0.529500f, 0.232700f,  0.021900f,  1.601800f,  -0.239400f,
+        -1.023500f, 0.179300f,  0.220000f,  1.359200f,  0.835100f,  0.356900f,  1.463300f,  -1.188800f,
+    };
+
+    std::vector<float> expected_present_key = {
+        0.051439f, 1.089377f,  -0.052722f, 0.154476f,  0.530171f,  0.159832f,  -1.136788f, -0.104015f,
+        1.007950f, -0.239289f, 0.032393f,  -0.202900f, 0.673667f,  -0.178724f, 0.641350f,  0.539067f,
+        0.456800f, -0.661900f, -0.363100f, -0.381700f, -1.195800f, 0.487000f,  -0.469400f, 0.012500f,
+        0.480700f, 0.446500f,  0.665400f,  -0.098500f, -0.423300f, -0.079700f, -1.687300f, -1.447100f,
+    };
+
+    std::vector<float> expected_present_value = {
+        -1.322700f, -0.997200f, 0.399800f,  -0.905500f, -0.378200f, 1.299200f,  -0.356300f, 0.737500f,
+        -0.933600f, -0.205400f, -0.950000f, -0.339000f, 0.840300f,  -1.727300f, 0.434400f,  0.237700f,
+        -0.594100f, -1.446100f, 0.072100f,  -0.529500f, 0.232700f,  0.021900f,  1.601800f,  -0.239400f,
+        -1.023500f, 0.179300f,  0.220000f,  1.359200f,  0.835100f,  0.356900f,  1.463300f,  -1.188800f,
+    };
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 128}, query);
+    test_case.add_input<float>(Shape{1, 1, 0, 32}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 32}, {});
+    test_case.add_input<int>(Shape{1, 1}, {0});
+    test_case.add_input<int>(Shape{}, {1});
+    test_case.add_input<float>(Shape{1, 8}, cos_cache);
+    test_case.add_input<float>(Shape{1, 8}, sin_cache);
+    test_case.add_expected_output<float>(Shape{1, 1, 64}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 32}, expected_present_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 32}, expected_present_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
 // ONNX Runtime rejects local_window_size >= 1 together with causal=0 (gqa_attention_base.h:101); the FE
 // must mirror that precondition rather than silently combining a sliding window with bidirectional attention.
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_causal_window_conflict_throws) {
