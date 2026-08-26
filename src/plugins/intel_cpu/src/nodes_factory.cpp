@@ -45,7 +45,6 @@
 #include "nodes/gathermatmul.h"
 #include "nodes/generate_proposals.h"
 #include "nodes/grn.h"
-#include "nodes/groupedmatmul.h"
 #include "nodes/identity.hpp"
 #include "nodes/if.h"
 #include "nodes/input.h"
@@ -120,6 +119,7 @@
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "nodes/fake_quantize.h"
 #    include "nodes/grid_sample.hpp"
+#    include "nodes/groupedmatmul.h"
 #    include "nodes/interaction.h"
 #    include "nodes/llm_mlp.h"
 #    include "nodes/paged_attn.h"

@@ -42,6 +42,8 @@ public:
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
+    // Same check without the diagnostic message, for use as a transformation callback
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op) noexcept;
 
     static bool isSupportedCompressedOperation(const std::shared_ptr<ov::Node>& op,
                                                size_t IC,

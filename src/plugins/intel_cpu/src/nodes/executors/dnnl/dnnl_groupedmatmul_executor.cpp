@@ -222,7 +222,6 @@ void GroupedMatMulDnnlExecutor::execute(const MemoryArgs& memory) {
 
     const auto& srcShape = srcMem->getStaticDims();
     const size_t G = m_weightsMemory->getStaticDims()[0];
-    const size_t K = srcShape.back();
     const size_t N = dstMem->getStaticDims().back();
     const size_t totalRows = m_isBatched ? srcShape[0] * srcShape[1] : srcShape[0];
 

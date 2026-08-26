@@ -4,6 +4,7 @@
 
 #include "groupedmatmul.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
@@ -97,11 +98,16 @@ bool GroupedMatMul::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
     return true;
 }
 
-bool GroupedMatMul::isSupportedCompressedOperation([[maybe_unused]] const std::shared_ptr<ov::Node>& op,
+bool GroupedMatMul::isSupportedCompressedOperation(const std::shared_ptr<ov::Node>& op,
                                                    [[maybe_unused]] size_t IC,
                                                    [[maybe_unused]] size_t OC,
                                                    [[maybe_unused]] size_t G,
                                                    [[maybe_unused]] const Config& config) noexcept {
+    // Kept outside the arch guard so that the whole function body stays compiled everywhere
+    const auto& activations = getSupportedCompressedActivationsTypes();
+    if (std::find(activations.begin(), activations.end(), op->get_input_element_type(0)) == activations.end()) {
+        return false;
+    }
 #ifdef OPENVINO_ARCH_X86_64
     try {
         std::string errorMessage;
@@ -162,6 +168,11 @@ ov::element::TypeVector GroupedMatMul::getSupportedCompressedActivationsTypes() 
     // @todo enable for bf16 as well
     // after EnforceInferencePrecision is replaced with ConvertPrecision
     return {Type_t::f32};
+}
+
+bool GroupedMatMul::isSupportedOperation(const std::shared_ptr<const ov::Node>& op) noexcept {
+    std::string errorMessage;
+    return isSupportedOperation(op, errorMessage);
 }
 
 GroupedMatMul::GroupedMatMul(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)

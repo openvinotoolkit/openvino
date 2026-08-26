@@ -4,10 +4,8 @@
 
 #pragma once
 
-#include <algorithm>
 #include <cstddef>
 #include <memory>
-#include <string>
 
 #include "common/pass/align_matmul_input_ranks.hpp"
 #include "common/pass/convert_matmul_to_fc.hpp"
@@ -21,7 +19,6 @@
 #include "config.h"
 #include "nodes/fullyconnected.h"
 #include "nodes/gathermatmul.h"
-#include "nodes/groupedmatmul.h"
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -39,8 +36,13 @@
 #include "transformations/op_conversions/convert_fc_to_compressed.hpp"
 #include "transformations/op_conversions/convert_fc_to_quantized_legacy.hpp"
 #include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
-#include "transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp"
 #include "transformations/op_conversions/convert_grouped_matmul_to_gather_matmul.hpp"
+
+// GroupedMatMul has an x64 only executor, so everything below is referenced from CPU_*_X64 blocks
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "nodes/groupedmatmul.h"
+#    include "transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp"
+#endif
 
 namespace ov::intel_cpu {
 
@@ -60,13 +62,6 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
                                     size_t IC,
                                     size_t OC,
                                     size_t G) {
-                              const auto& supported_activations =
-                                  ov::intel_cpu::node::GroupedMatMul::getSupportedCompressedActivationsTypes();
-                              if (std::find(supported_activations.begin(),
-                                            supported_activations.end(),
-                                            grouped_matmul->get_input_element_type(0)) == supported_activations.end()) {
-                                  return false;
-                              }
                               return ov::intel_cpu::node::GroupedMatMul::isSupportedCompressedOperation(grouped_matmul,
                                                                                                         IC,
                                                                                                         OC,
@@ -84,11 +79,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
     CPU_SET_CALLBACK_X64(
         manager,
         [](const std::shared_ptr<const ov::Node>& node) -> bool {
-            if (ov::is_type<ov::op::internal::GroupedMatMulCompressed>(node)) {
-                return true;
-            }
-            std::string errorMessage;
-            return ov::intel_cpu::node::GroupedMatMul::isSupportedOperation(node, errorMessage);
+            return ov::intel_cpu::node::GroupedMatMul::isSupportedOperation(node);
         },
         ov::pass::ConvertGroupedMatMulToGatherMatmul);
 
