@@ -12,6 +12,7 @@
 
 #include "compiler_schedules_sections.hpp"
 #include "graph.hpp"
+#include "intel_npu/common/encrypted_schedules_flag_section.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/common/option_support_cache.hpp"
@@ -150,6 +151,10 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                          updatedConfig,
                                          get_compatibility_descriptor(graphDesc._handle));
 
+    if (secureCompile) {
+        blobWriter->register_section(std::make_shared<EncryptedSchedulesFlagSection>(true));
+    }
+
     // Tell the blob writer to store the main schedule in the blob at export time
     blobWriter->register_section(std::make_shared<ELFMainScheduleSection>(
         graph,
@@ -276,17 +281,18 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                                                              /* persistentBlob = */ false,
                                                              get_compatibility_descriptor(mainGraphHandle._handle));
 
-    std::optional<ov::EncryptionCallbacks> encryption_callbacks = std::nullopt;
+    std::optional<ov::EncryptionCallbacks> encryptionCallbacks = std::nullopt;
     if (updatedConfig.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
         updatedConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
-        encryption_callbacks = updatedConfig.get<CACHE_ENCRYPTION_CALLBACKS>();
+        encryptionCallbacks = updatedConfig.get<CACHE_ENCRYPTION_CALLBACKS>();
+        blobWriter->register_section(std::make_shared<EncryptedSchedulesFlagSection>(true));
     }
 
     // At export time, all schedules (main + inits) shall be stored in the blob.
     blobWriter->register_section(
-        std::make_shared<ELFMainScheduleSection>(weightlessGraph, encryption_callbacks, _logger.level()));
+        std::make_shared<ELFMainScheduleSection>(weightlessGraph, encryptionCallbacks, _logger.level()));
     blobWriter->register_section(
-        std::make_shared<ELFInitSchedulesSection>(weightlessGraph, encryption_callbacks, _logger.level()));
+        std::make_shared<ELFInitSchedulesSection>(weightlessGraph, encryptionCallbacks, _logger.level()));
 
     return weightlessGraph;
 }

@@ -9,6 +9,7 @@
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
+#include "intel_npu/common/encrypted_schedules_flag_section.hpp"
 #include "intel_npu/common/isection.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/common/parser_factory.hpp"

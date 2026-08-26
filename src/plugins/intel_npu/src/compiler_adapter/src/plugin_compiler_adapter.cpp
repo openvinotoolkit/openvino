@@ -11,6 +11,7 @@
 #include "dynamic_graph.hpp"
 #include "graph.hpp"
 #include "intel_npu/common/device_helpers.hpp"
+#include "intel_npu/common/encrypted_schedules_flag_section.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/common/option_support_cache.hpp"
 #include "intel_npu/config/options.hpp"
@@ -124,15 +125,17 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         compatibilityDescriptor,
         /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
 
-    std::optional<ov::EncryptionCallbacks> encryption_callbacks = std::nullopt;
+    std::optional<ov::EncryptionCallbacks> encryptionCallbacks = std::nullopt;
     if (config.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
         config.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
-        encryption_callbacks = config.get<CACHE_ENCRYPTION_CALLBACKS>();
+        // TODO shotgun surgery? could create a common factory/reader instead, but this may create dependency issues
+        // since not all sections can be placed in the common directory (schedules need graphs)
+        encryptionCallbacks = config.get<CACHE_ENCRYPTION_CALLBACKS>();
+        blobWriter->register_section(std::make_shared<EncryptedSchedulesFlagSection>(true));
     }
 
     // Tell the blob writer to store the main schedule in the blob at export time
-    blobWriter->register_section(
-        std::make_shared<ELFMainScheduleSection>(graph, encryption_callbacks, _logger.level()));
+    blobWriter->register_section(std::make_shared<ELFMainScheduleSection>(graph, encryptionCallbacks, _logger.level()));
 
     return graph;
 }
@@ -290,17 +293,18 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         /* persistentBlob = */ true,
         compatibilityDescriptor);  // exporting the blob shall be available in such a scenario
 
-    std::optional<ov::EncryptionCallbacks> encryption_callbacks = std::nullopt;
+    std::optional<ov::EncryptionCallbacks> encryptionCallbacks = std::nullopt;
     if (localConfig.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
         localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
-        encryption_callbacks = localConfig.get<CACHE_ENCRYPTION_CALLBACKS>();
+        encryptionCallbacks = localConfig.get<CACHE_ENCRYPTION_CALLBACKS>();
+        blobWriter->register_section(std::make_shared<EncryptedSchedulesFlagSection>(true));
     }
 
     // At export time, all schedules (main + inits) shall be stored in the blob
     blobWriter->register_section(
-        std::make_shared<ELFMainScheduleSection>(weightlessGraph, encryption_callbacks, _logger.level()));
+        std::make_shared<ELFMainScheduleSection>(weightlessGraph, encryptionCallbacks, _logger.level()));
     blobWriter->register_section(
-        std::make_shared<ELFInitSchedulesSection>(weightlessGraph, encryption_callbacks, _logger.level()));
+        std::make_shared<ELFInitSchedulesSection>(weightlessGraph, encryptionCallbacks, _logger.level()));
 
     return weightlessGraph;
 }
