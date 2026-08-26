@@ -106,6 +106,16 @@ protected:
                         ov::SoPtr<ov::ITensor> position_ids,
                         ov::SoPtr<ov::ITensor> per_layer_inputs);
 
+    // Keeps already-cached keys consistent with the LongRoPE regime the next inference
+    // will rotate its queries and new keys with. On a short<->long flip the cached keys
+    // are turned by the angle difference between the regimes instead of being dropped;
+    // see llm_longrope_kv.hpp. num_cached_tokens rows of the request's past-key inputs
+    // are rewritten.
+    void sync_longrope_kv_regime(const std::shared_ptr<ov::IAsyncInferRequest>& request,
+                                 const PortsMap& in_ports,
+                                 uint32_t num_cached_tokens,
+                                 bool is_long);
+
     // Continuation counterpart of prepare_for_new_conversation(), run by
     // infer_prefill() when a granted keep is armed. Validates the delta inputs,
     // repacks the preserved prefix through the strategy, restores the history
@@ -175,6 +185,10 @@ protected:
     size_t m_kvcache_variant_idx = 0;
 
     bool m_first_run = true;
+
+    // Whether the currently cached keys were rotated with the long-factor LongRoPE
+    // coefficients. Meaningless for models without LongRoPE, where it stays false.
+    bool m_longrope_long_regime = false;
 
     int64_t m_first_position_id = 0;
 

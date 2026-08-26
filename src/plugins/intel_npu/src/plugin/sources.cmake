@@ -85,6 +85,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_infer_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_infer_request.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_kvcache_strategy.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_longrope_kv.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_longrope_kv.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_lora_states.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_prefix_caching.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_prefix_caching.hpp

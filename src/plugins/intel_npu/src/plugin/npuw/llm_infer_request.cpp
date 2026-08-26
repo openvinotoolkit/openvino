@@ -12,6 +12,7 @@
 #include "llm_block_kvcache_strategy.hpp"
 #include "llm_compiled_model.hpp"
 #include "llm_continuous_kvcache_strategy.hpp"
+#include "llm_longrope_kv.hpp"
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
@@ -226,9 +227,10 @@ size_t scatter_deepstack_visual_embeds(const ov::SoPtr<ov::ITensor>& src,
 // Binding is by pointer into the compiled model's own tables, which outlive this
 // request - no coefficients are copied per inference.
 //
-// A no-op for models without those inputs (not a LongRoPE model, or the RoPE cache pass
-// didn't run).
-void process_longrope_tables(const std::shared_ptr<ov::IAsyncInferRequest>& infer_req,
+// Returns the regime picked for this call, so the caller can notice a flip against the
+// one the cached keys were rotated with. A no-op returning false for models without
+// those inputs (not a LongRoPE model, or the RoPE cache pass didn't run).
+bool process_longrope_tables(const std::shared_ptr<ov::IAsyncInferRequest>& infer_req,
                              const LLMInferRequest::PortsMap& ports,
                              ov::npuw::patterns::pre_compute::LongRopeCosSin& tables,
                              const ov::SoPtr<ov::ITensor>& position_ids,
@@ -238,7 +240,7 @@ void process_longrope_tables(const std::shared_ptr<ov::IAsyncInferRequest>& infe
     const auto cos_port_it = ports.find(pc::longrope_cos_input);
     const auto sin_port_it = ports.find(pc::longrope_sin_input);
     if (cos_port_it == ports.end() || sin_port_it == ports.end()) {
-        return;
+        return false;
     }
     // The graph has no other cos/sin source, so missing tables would silently produce
     // garbage instead of failing. This guards an imported blob whose LongRoPE metadata
@@ -257,6 +259,7 @@ void process_longrope_tables(const std::shared_ptr<ov::IAsyncInferRequest>& infe
 
     infer_req->set_tensor(cos_port_it->second, ov::get_tensor_impl(tables.cos_rows(lut_len, is_long)));
     infer_req->set_tensor(sin_port_it->second, ov::get_tensor_impl(tables.sin_rows(lut_len, is_long)));
+    return is_long;
 }
 }  // anonymous namespace
 
@@ -1267,6 +1270,39 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
     LOG_DEBUG("Done");
 }
 
+void ov::npuw::LLMInferRequest::sync_longrope_kv_regime(const std::shared_ptr<ov::IAsyncInferRequest>& request,
+                                                        const PortsMap& in_ports,
+                                                        uint32_t num_cached_tokens,
+                                                        bool is_long) {
+    if (is_long == m_longrope_long_regime) {
+        return;
+    }
+    m_longrope_long_regime = is_long;
+
+    if (num_cached_tokens == 0u) {
+        return;
+    }
+    if (m_npuw_llm_compiled_model->m_is_block_kv_cache) {
+        // Block mode splits every layer's cache across block ports whose token order is
+        // owned by the block manager, so the flat row-per-position rewrite below does
+        // not apply. The cache stays in the previous regime.
+        LOG_WARN("LongRoPE regime changed but the block-based KV cache cannot be re-rotated; "
+                 "cached keys stay in the previous regime.");
+        return;
+    }
+
+    m_llm_profile["longrope:rerotate_kv"].record([&]() {
+        ov::npuw::longrope::rerotate_cached_keys(request,
+                                                 in_ports,
+                                                 m_kvcache_past_names,
+                                                 m_npuw_llm_compiled_model->m_longrope_tables,
+                                                 m_npuw_llm_compiled_model->m_kvcache_desc.dim,
+                                                 num_cached_tokens,
+                                                 m_first_position_id,
+                                                 is_long);
+    });
+}
+
 void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                               ov::SoPtr<ov::ITensor> attention_mask,
                                               ov::SoPtr<ov::ITensor> position_ids,
@@ -1298,11 +1334,14 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 
     // One regime decision for the whole logical prompt - chunked prefill reuses it, as
     // the in-graph Select did when it was fed from these same position_ids.
-    process_longrope_tables(m_prefill_request,
-                            m_prefill_in_ports,
-                            m_npuw_llm_compiled_model->m_longrope_tables,
-                            position_ids,
-                            m_npuw_llm_compiled_model->m_longrope_context_limit);
+    const bool is_long = process_longrope_tables(m_prefill_request,
+                                                 m_prefill_in_ports,
+                                                 m_npuw_llm_compiled_model->m_longrope_tables,
+                                                 position_ids,
+                                                 m_npuw_llm_compiled_model->m_longrope_context_limit);
+    // A fresh conversation starts with a zeroed cache, so only a continued prefill can
+    // carry keys rotated under the other regime into this call.
+    sync_longrope_kv_regime(m_prefill_request, m_prefill_in_ports, m_continued_prefill_base, is_long);
 
     m_llm_profile["1/prefill:2.apply_lora"].record([&]() {
         apply_lora();
@@ -1503,11 +1542,15 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             // No visual tokens are generated during the generate stage
             std::fill_n(reinterpret_cast<uint8_t*>(deepstack_local->data()), deepstack_local->get_byte_size(), 0);
         }
-        process_longrope_tables(m_kvcache_request,
-                                m_kvcache_in_ports,
-                                m_npuw_llm_compiled_model->m_longrope_tables,
-                                position_ids,
-                                m_npuw_llm_compiled_model->m_longrope_context_limit);
+        const bool is_long = process_longrope_tables(m_kvcache_request,
+                                                     m_kvcache_in_ports,
+                                                     m_npuw_llm_compiled_model->m_longrope_tables,
+                                                     position_ids,
+                                                     m_npuw_llm_compiled_model->m_longrope_context_limit);
+        // The generate model's past-key inputs already hold the whole conversation at
+        // this point, so a crossing of the context limit is repaired here rather than
+        // leaving the cache rotated with coefficients this step no longer uses.
+        sync_longrope_kv_regime(m_kvcache_request, m_kvcache_in_ports, kvcache_desc.num_stored_tokens, is_long);
         // FIXME: these tensors should be shared between the parent & child models
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
         auto kv_input_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name));
