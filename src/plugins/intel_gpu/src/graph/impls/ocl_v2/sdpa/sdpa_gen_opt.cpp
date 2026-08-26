@@ -75,6 +75,12 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
             }
         }
 
+        // Generator tuning needs a static V head size before SDPABase emits the common JIT constants.
+        // A remainder V output from a dynamic QKV split has the same logical head size as K.
+        if (v_head_size <= 0 && k_head_size > 0) {
+            v_head_size = k_head_size;
+        }
+
         GPU_DEBUG_TRACE_DETAIL << "k_head_size = " << k_head_size << ", v_head_size = " << v_head_size << "\n";
 
         size_t data_inputs_num = get_data_inputs_num(*desc);
