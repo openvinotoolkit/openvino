@@ -55,6 +55,26 @@ struct LLMContinuedPrefillTestAccess {
         return req.m_prefill_request->get_tensor(req.m_prefill_in_ports.at(Request::layer_names::attention_mask));
     }
 
+    static ov::SoPtr<ov::ITensor> prefill_input_ids(Request& req) {
+        return req.m_prefill_request->get_tensor(req.m_prefill_in_ports.at(Request::layer_names::input_ids));
+    }
+
+    static ov::SoPtr<ov::ITensor> prefill_position_ids(Request& req) {
+        return req.m_prefill_request->get_tensor(req.m_prefill_in_ports.at(Request::layer_names::position_ids));
+    }
+
+    static ov::SoPtr<ov::ITensor> prefill_present(Request& req, const std::string& past_name) {
+        auto present_name = past_name;
+        present_name.replace(present_name.find(Request::layer_names::past_key_values),
+                             std::string(Request::layer_names::past_key_values).size(),
+                             "present");
+        return req.m_prefill_request->get_tensor(req.m_prefill_out_ports.at(present_name));
+    }
+
+    static void copy_kvcache(Request& req) {
+        req.copy_kvcache();
+    }
+
     static bool generate_initialized(Request& req) {
         return req.m_generate_initialized;
     }
@@ -467,6 +487,70 @@ TEST_F(LLMContinuedPrefillTest, SingleTokenDeltaRoutesToContinuedPrefill) {
     EXPECT_EQ(stored_tokens(), 65);
     // The delta ran as a prefill, so the generate phase re-initializes next.
     EXPECT_FALSE(LLMContinuedPrefillTestAccess::generate_initialized(req));
+}
+
+TEST_F(LLMContinuedPrefillTest, ShortTailChunkKeepsInputsAndKvSourceLeftAligned) {
+    auto& req = request();
+    constexpr uint32_t prompt_len = 65u;
+    constexpr uint32_t last_token_position = prompt_len - 1u;
+
+    run_full_prefill(prompt_len);
+    EXPECT_EQ(stored_tokens(), prompt_len);
+
+    auto input_ids = LLMContinuedPrefillTestAccess::prefill_input_ids(req);
+    ASSERT_EQ(input_ids->get_size(), 32u);
+    EXPECT_EQ(input_ids->data<int64_t>()[0], 1);
+    EXPECT_TRUE(std::all_of(input_ids->data<int64_t>() + 1, input_ids->data<int64_t>() + input_ids->get_size(),
+                            [](int64_t value) {
+                                return value == 0;
+                            }));
+
+    auto position_ids = LLMContinuedPrefillTestAccess::prefill_position_ids(req);
+    ASSERT_EQ(position_ids->get_size(), 32u);
+    EXPECT_EQ(position_ids->data<int64_t>()[0], last_token_position);
+    EXPECT_TRUE(std::all_of(position_ids->data<int64_t>() + 1,
+                            position_ids->data<int64_t>() + position_ids->get_size(),
+                            [](int64_t value) {
+                                return value == 0;
+                            }));
+
+    auto attention_mask = LLMContinuedPrefillTestAccess::prefill_attention_mask(req);
+    ASSERT_GE(attention_mask->get_size(), prompt_len);
+    EXPECT_TRUE(std::all_of(attention_mask->data<int64_t>(), attention_mask->data<int64_t>() + prompt_len,
+                            [](int64_t value) {
+                                return value == 1;
+                            }));
+    EXPECT_TRUE(std::all_of(attention_mask->data<int64_t>() + prompt_len,
+                            attention_mask->data<int64_t>() + attention_mask->get_size(),
+                            [](int64_t value) {
+                                return value == 0;
+                            }));
+
+    uint8_t seed = 17u;
+    std::unordered_map<std::string, std::vector<uint8_t>> expected_kv_bytes;
+    for (const auto& name : LLMContinuedPrefillTestAccess::past_names(req)) {
+        auto present = LLMContinuedPrefillTestAccess::prefill_present(req, name);
+        const auto seq_dim = prefill_seq_dim(name);
+        const auto seq_len = static_cast<uint32_t>(present->get_shape()[seq_dim]);
+        ASSERT_EQ(seq_len, 32u);
+
+        auto left_token = ov::npuw::util::make_tensor_slice(present, seq_dim, 0u, 1u);
+        fill_tensor_pattern(left_token, seed);
+        expected_kv_bytes.emplace(name, materialize_bytes(left_token));
+
+        auto right_token = ov::npuw::util::make_tensor_slice(present, seq_dim, seq_len - 1u, seq_len);
+        fill_tensor_pattern(right_token, static_cast<uint8_t>(seed + 1u));
+        seed = static_cast<uint8_t>(seed + 31u);
+    }
+
+    LLMContinuedPrefillTestAccess::copy_kvcache(req);
+
+    for (const auto& name : LLMContinuedPrefillTestAccess::past_names(req)) {
+        auto generate = LLMContinuedPrefillTestAccess::generate_past(req, name);
+        auto last_token = ov::npuw::util::make_tensor_slice(
+            generate, generate_seq_dim(name), last_token_position, prompt_len);
+        EXPECT_EQ(materialize_bytes(last_token), expected_kv_bytes.at(name)) << name;
+    }
 }
 
 // A preflight rejection mutates nothing and leaves the command pending, so a

@@ -904,8 +904,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     } else {
         LOG_DEBUG("Adding position_ids input in case it doesn't exist in model: LFM-2 case.");
         ov::npuw::AddPositionIdsParam().run_on_model(kvcache_model);
-        LOG_DEBUG("Right-align attention_mask slice for Conv operations: LFM-2 case.");
-        ov::npuw::RightAlignMaskSliceForConv().run_on_model(kvcache_model);
+        if (!m_use_chunk_prefill) {
+            LOG_DEBUG("Right-align attention_mask slice for Conv operations: LFM-2 case.");
+            ov::npuw::RightAlignMaskSliceForConv().run_on_model(kvcache_model);
+        }
         LOG_DEBUG("Transform kvcache model from stateful to stateless.");
         ov::pass::StatefulToStateless().run_on_model(kvcache_model);
     }
@@ -942,6 +944,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
     prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
+
+    if (m_use_chunk_prefill && !m_is_embedding) {
+        LOG_DEBUG("Right-align attention_mask slice for Conv operations in generate model: LFM-2 case.");
+        ov::npuw::RightAlignMaskSliceForConv().run_on_model(kvcache_model);
+    }
 
     m_kvcache_desc =
         KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim, max_generation_token_len};
