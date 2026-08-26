@@ -400,6 +400,34 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelEltwiseUnsqueezeReverseInOrder
     }
 }
 
+// The data movement op inserts an axis before the constant's channel axis, so the channel axis
+// shifts. Matching on extent alone picks input axis 2 instead of axis 1 when both measure 5.
+TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelUnsqueezeMiddleAxisSquareDims) {
+    const ov::Shape shape{1, 5, 5};
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f32, shape);
+        auto unsqueeze_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+        auto unsqueeze = std::make_shared<v0::Unsqueeze>(input, unsqueeze_axis);
+        auto per_channel_const =
+            v0::Constant::create(ov::element::f32, {1, 1, 5, 1}, {0.f, 1.f, 2.f, 3.f, 4.f});
+        auto add = std::make_shared<v1::Add>(unsqueeze, per_channel_const);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{input});
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f32, shape);
+        auto per_channel_const =
+            v0::Constant::create(ov::element::f32, {1, 5, 1}, {0.f, 1.f, 2.f, 3.f, 4.f});
+        auto add = std::make_shared<v1::Add>(input, per_channel_const);
+        auto unsqueeze_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+        auto unsqueeze = std::make_shared<v0::Unsqueeze>(add, unsqueeze_axis);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{unsqueeze}, ov::ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
 TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelEltwiseSqueeze) {
     const ov::Shape shape{10, 20, 1, 1};
     {
