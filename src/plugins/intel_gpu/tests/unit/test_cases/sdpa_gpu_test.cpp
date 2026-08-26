@@ -284,6 +284,65 @@ TEST_P(sdpa_gpu_test, basic_caching) {
 }
 #endif
 
+TEST(sdpa_gpu_custom, dynamic_v_head_size_metadata) {
+    auto& engine = get_test_engine();
+
+    const ov::PartialShape qk_shape{-1, 1, -1, 384};
+    const ov::PartialShape v_shape{-1, 1, -1, -1};
+    const ov::Shape static_shape{1, 1, 16, 384};
+
+    const layout q_layout(qk_shape, data_types::f16, format::bfyx);
+    const layout k_layout(qk_shape, data_types::f16, format::bfyx);
+    const layout v_layout(v_shape, data_types::f16, format::bfyx);
+    const layout static_layout(static_shape, data_types::f16, format::bfyx);
+
+    auto q_mem = engine.allocate_memory(static_layout);
+    auto k_mem = engine.allocate_memory(static_layout);
+    auto v_mem = engine.allocate_memory(static_layout);
+
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    auto fill_random = [&](const memory::ptr& mem) {
+        auto data = rg.generate_random_1d<ov::float16>(static_layout.count(), -1.0f, 1.0f);
+        set_values(mem, data);
+    };
+    fill_random(q_mem);
+    fill_random(k_mem);
+    fill_random(v_mem);
+
+    topology topology;
+    topology.add(input_layout("q", q_layout));
+    topology.add(input_layout("k", k_layout));
+    topology.add(input_layout("v", v_layout));
+    topology.add(scaled_dot_product_attention("sdpa",
+                                              {input_info("q"), input_info("k"), input_info("v")},
+                                              false,
+                                              -1,
+                                              {0, 1, 2, 3},
+                                              {0, 1, 2, 3},
+                                              {0, 1, 2, 3},
+                                              {0, 1, 2, 3},
+                                              {},
+                                              false));
+    topology.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"sdpa", {format::type::bfyx, "sdpa_opt"}}
+    }));
+
+    auto network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+    network->set_input_data("q", q_mem);
+    network->set_input_data("k", k_mem);
+    network->set_input_data("v", v_mem);
+
+    auto output = network->execute().at("result").get_memory();
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_data(output, get_test_stream());
+    for (size_t i = 0; i < output_data.size(); ++i)
+        ASSERT_TRUE(std::isfinite(static_cast<float>(output_data[i])));
+}
+
 TEST(sdpa_gpu_custom, single_token_cond_attn_mask_clamp) {
     tests::random_generator rg; rg.set_seed(GET_SUITE_NAME);
     auto& engine = get_test_engine();
