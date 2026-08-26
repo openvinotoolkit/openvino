@@ -1,5 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
-# SPDX-License-Identifier: Apache-2.0
-#
-
-add_subdirectory(src)
+# The PyTorch frontend is python tooling + a core-side reader:
+#   tools/torch_export.py        — torch.jit.trace -> vktorch + safetensors
+#   src/core/pytorch_reader.hpp  — consumed by core tests/executables
+# Nothing to compile here; see README.md.
