@@ -27,7 +27,7 @@ Install OpenVINO™ 2026.3
 OpenVINO 2026.3, described here, is not a Long-Term-Support version!
 All currently supported versions are:
 
-* 2026.3.0 (development)
+* 2026.3.1 (development)
 * 2025.4.1 (maintenance)
 
 .. dropdown:: Effortless GenAI integration with OpenVINO GenAI
