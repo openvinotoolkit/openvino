@@ -9,6 +9,10 @@ set(INTTYPES_FORMAT C99)
 set(BUILD_TESTING OFF)
 set(BUILD_SHARED_LIBS OFF)
 
+# gflags >= 2.3.1 defaults EXPORT_NONAMESPACE_SET to OFF for subprojects,
+# need for npu plugin
+set(GFLAGS_EXPORT_NONAMESPACE_SET ON)
+
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-variable")
 endif()
