@@ -913,6 +913,12 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         auto& final_tile_request = state.hfa_requests.infer_requests[HFARequestSet::FINAL_TILE];
                         auto attention_output_tensor =
                             final_tile_request->get_tensor(hfa_desc->_compiled_final_tile_model->outputs()[0]);
+                        ov::SoPtr<ov::ITensor> attention_sink_tensor;
+                        if (sdpa_in.attention_sink) {
+                            OPENVINO_ASSERT(*sdpa_in.attention_sink < hfa_inputs.size(),
+                                            "HFA attention sink input index out of range");
+                            attention_sink_tensor = hfa_inputs.at(*sdpa_in.attention_sink);
+                        }
                         const auto& tile_in = sdpa_info._tile_input_indices;
                         const auto& tile_out = sdpa_info._tile_output_indices;
                         const auto n_in = hfa_desc->_compiled_tile_model->inputs().size();
@@ -942,10 +948,11 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                 regular_tile_request->get_tensor(hfa_desc->_compiled_tile_model->inputs()[tile_in.max]);
                             state_sum =
                                 regular_tile_request->get_tensor(hfa_desc->_compiled_tile_model->inputs()[tile_in.d]);
-                            runtime::host_flash_attention::HFARuntimeContext::initialize_state_tensors(state_acc,
-                                                                                                       state_max,
-                                                                                                       state_sum);
                         }
+                        runtime::host_flash_attention::HFARuntimeContext::initialize_state_tensors(state_acc,
+                                                                                                   state_max,
+                                                                                                   state_sum,
+                                                                                                   attention_sink_tensor);
 
                         regular_tile_request->set_tensor(hfa_desc->_compiled_tile_model->inputs()[tile_in.q],
                                                          query_tensor);

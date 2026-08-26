@@ -112,6 +112,7 @@ struct HostFlashAttention {
     std::size_t _present_key_param_idx = 0u;
     std::size_t _present_value_param_idx = 0u;
     std::size_t _attention_mask_param_idx = 0u;
+    std::optional<std::size_t> _attention_sink_param_idx;
 
     // KV cache block parameter indices (for split KV cache support)
     // After SplitKVCacheIntoBlocks transformation, KV cache is split into multiple block parameters
@@ -144,6 +145,9 @@ struct HostFlashAttention {
     static std::optional<HostFlashAttention> from(const std::shared_ptr<ov::Model>& model,
                                                   bool fused_flash_attention = true,
                                                   bool enable_mask_skipping = false);
+
+    // Resolve the sink after function construction promotes Const inputs to closure Parameters.
+    bool resolve_attention_sink_parameter(const std::shared_ptr<ov::Model>& model);
 };
 
 }  // namespace function
@@ -174,6 +178,7 @@ struct HostFlashAttentionInfo {
         std::size_t present_key = 0u;
         std::size_t present_value = 0u;
         std::size_t attention_mask = 0u;
+        std::optional<std::size_t> attention_sink;
     } _sdpa_indices;
 
     // Pre-cached tile input indices
@@ -414,10 +419,11 @@ struct HFARuntimeContext {
     // State Buffer Modifications
     // ============================================================================
 
-    /// Initialize state tensors: acc=0, max=-inf, sum=0 (static utility)
+    /// Initialize state tensors. An attention sink becomes the initial max and unit denominator.
     static void initialize_state_tensors(ov::SoPtr<ov::ITensor>& acc,
                                          ov::SoPtr<ov::ITensor>& max,
-                                         ov::SoPtr<ov::ITensor>& sum);
+                                         ov::SoPtr<ov::ITensor>& sum,
+                                         const ov::SoPtr<ov::ITensor>& attention_sink = {});
 
     /// Prepare next buffer asynchronously (call during NPU execution)
     void prepare_next_state_buffers();

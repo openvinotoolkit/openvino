@@ -137,6 +137,7 @@ void expect_host_flash_attention_equal(const ov::npuw::compiled::HostFlashAttent
     EXPECT_EQ(lhs._sdpa_indices.present_key, rhs._sdpa_indices.present_key);
     EXPECT_EQ(lhs._sdpa_indices.present_value, rhs._sdpa_indices.present_value);
     EXPECT_EQ(lhs._sdpa_indices.attention_mask, rhs._sdpa_indices.attention_mask);
+    EXPECT_EQ(lhs._sdpa_indices.attention_sink, rhs._sdpa_indices.attention_sink);
     EXPECT_EQ(lhs._tile_input_indices.q, rhs._tile_input_indices.q);
     EXPECT_EQ(lhs._tile_input_indices.k, rhs._tile_input_indices.k);
     EXPECT_EQ(lhs._tile_input_indices.v, rhs._tile_input_indices.v);
@@ -624,6 +625,7 @@ TEST(SerializationTest, OVTypes_HostFlashAttention) {
     var._sdpa_attention_info._k_seq_dim = 1;
     var._sdpa_attention_info._v_seq_dim = 2;
     var._sdpa_attention_info._sdpa_indices = {3, {4}, {5}, 6, 7, 8};
+    var._sdpa_attention_info._sdpa_indices.attention_sink = 9;
     var._sdpa_attention_info._tile_input_indices = {9, 10, 11, 12, 13, 14, 15};
     var._sdpa_attention_info._tile_output_indices = {16, 17, 18};
     var._tile_size = 64;

@@ -843,9 +843,16 @@ static void build_sdpa_param_mapping(HostFlashAttention& hfa,
         hfa._attention_mask_param_idx = model->get_parameter_index(add_param);
     }
 
+    if (auto sink_param = extract_param(pattern_nodes.attention_sink_node)) {
+        hfa._attention_sink_param_idx = model->get_parameter_index(sink_param);
+    }
+
     LOG_INFO("Built SDPA input mapping: query="
              << hfa._query_param_idx << ", present_key=" << hfa._present_key_param_idx
              << ", present_value=" << hfa._present_value_param_idx << ", mask=" << hfa._attention_mask_param_idx);
+    if (hfa._attention_sink_param_idx) {
+        LOG_INFO("  Attention sink: parameter index " << *hfa._attention_sink_param_idx);
+    }
     LOG_INFO("  Past key blocks: " << hfa._past_key_block_indices.size());
     LOG_INFO("  Past value blocks: " << hfa._past_value_block_indices.size());
 
@@ -861,6 +868,28 @@ static void build_sdpa_param_mapping(HostFlashAttention& hfa,
     }
 
     LOG_DEBUG("=============================================");
+}
+
+bool HostFlashAttention::resolve_attention_sink_parameter(const std::shared_ptr<ov::Model>& model) {
+    const auto pattern_nodes = ov::npuw::util::find_sdpa_pattern_nodes(model);
+    if (!pattern_nodes.is_valid()) {
+        LOG_WARN("Could not re-find SDPA pattern while resolving attention sink");
+        return false;
+    }
+    if (!pattern_nodes.attention_sink_node) {
+        _attention_sink_param_idx.reset();
+        return true;
+    }
+
+    const auto sink_param = ov::as_type_ptr<ov::op::v0::Parameter>(skip_convert_nodes(pattern_nodes.attention_sink_node));
+    if (!sink_param) {
+        LOG_WARN("Attention sink was not promoted to a function parameter");
+        return false;
+    }
+
+    _attention_sink_param_idx = model->get_parameter_index(sink_param);
+    LOG_DEBUG("Resolved attention sink at parameter index " << *_attention_sink_param_idx);
+    return true;
 }
 
 // ============================================================================
@@ -1254,6 +1283,7 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     _sdpa_attention_info._sdpa_indices.present_key = func_hfa._present_key_param_idx;
     _sdpa_attention_info._sdpa_indices.present_value = func_hfa._present_value_param_idx;
     _sdpa_attention_info._sdpa_indices.attention_mask = func_hfa._attention_mask_param_idx;
+    _sdpa_attention_info._sdpa_indices.attention_sink = func_hfa._attention_sink_param_idx;
 
     // Pre-cache tile input indices
     auto get_tile_input_idx = [&](HFATileInputId input_id) -> std::size_t {
@@ -1291,6 +1321,9 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
              << ", present_key=" << _sdpa_attention_info._sdpa_indices.present_key
              << ", present_value=" << _sdpa_attention_info._sdpa_indices.present_value
              << ", attention_mask=" << _sdpa_attention_info._sdpa_indices.attention_mask << "]");
+    if (_sdpa_attention_info._sdpa_indices.attention_sink) {
+        LOG_INFO("Attention sink parameter index: " << *_sdpa_attention_info._sdpa_indices.attention_sink);
+    }
     LOG_INFO("  Past key blocks: " << _sdpa_attention_info._sdpa_indices.past_key_blocks.size());
     LOG_INFO("  Past value blocks: " << _sdpa_attention_info._sdpa_indices.past_value_blocks.size());
     LOG_INFO("Attention configuration: query_size="
@@ -1418,9 +1451,56 @@ void HFARuntimeContext::clear_mask_cache() {
     m_mask_tile_cache.clear();
 }
 
+namespace {
+
+template <typename StateType, typename SinkType>
+void broadcast_attention_sink_to_state_max(ov::SoPtr<ov::ITensor>& max,
+                                           const ov::SoPtr<ov::ITensor>& attention_sink) {
+    const auto state_shape = max->get_shape();
+    const auto sink_shape = attention_sink->get_shape();
+    OPENVINO_ASSERT(sink_shape.size() <= state_shape.size(),
+                    "HFA attention sink rank ",
+                    sink_shape.size(),
+                    " exceeds state rank ",
+                    state_shape.size());
+
+    const size_t rank_offset = state_shape.size() - sink_shape.size();
+    std::vector<size_t> state_strides(state_shape.size(), 1u);
+    std::vector<size_t> sink_strides(sink_shape.size(), 1u);
+    for (size_t index = state_shape.size(); index-- > 1u;) {
+        state_strides[index - 1u] = state_strides[index] * state_shape[index];
+    }
+    for (size_t index = sink_shape.size(); index-- > 1u;) {
+        sink_strides[index - 1u] = sink_strides[index] * sink_shape[index];
+    }
+    for (size_t sink_axis = 0u; sink_axis < sink_shape.size(); ++sink_axis) {
+        const size_t state_axis = rank_offset + sink_axis;
+        OPENVINO_ASSERT(sink_shape[sink_axis] == 1u || sink_shape[sink_axis] == state_shape[state_axis],
+                        "HFA attention sink shape is not broadcastable to the state max shape");
+    }
+
+    auto* state_data = max->data<StateType>();
+    const auto* sink_data = attention_sink->data<const SinkType>();
+    for (size_t state_index = 0u; state_index < max->get_size(); ++state_index) {
+        size_t sink_index = 0u;
+        for (size_t sink_axis = 0u; sink_axis < sink_shape.size(); ++sink_axis) {
+            if (sink_shape[sink_axis] == 1u) {
+                continue;
+            }
+            const size_t state_axis = rank_offset + sink_axis;
+            const size_t coordinate = (state_index / state_strides[state_axis]) % state_shape[state_axis];
+            sink_index += coordinate * sink_strides[sink_axis];
+        }
+        state_data[state_index] = static_cast<StateType>(sink_data[sink_index]);
+    }
+}
+
+}  // namespace
+
 void HFARuntimeContext::initialize_state_tensors(ov::SoPtr<ov::ITensor>& acc,
                                                  ov::SoPtr<ov::ITensor>& max,
-                                                 ov::SoPtr<ov::ITensor>& sum) {
+                                                 ov::SoPtr<ov::ITensor>& sum,
+                                                 const ov::SoPtr<ov::ITensor>& attention_sink) {
     const auto type = acc->get_element_type();
     if (type == ov::element::f16) {
         std::memset(acc->data<ov::float16>(), 0, acc->get_byte_size());
@@ -1432,6 +1512,29 @@ void HFARuntimeContext::initialize_state_tensors(ov::SoPtr<ov::ITensor>& acc,
         std::memset(sum->data<float>(), 0, sum->get_byte_size());
     } else {
         throw std::runtime_error("HFA: Unsupported state tensor type");
+    }
+
+    if (!attention_sink) {
+        return;
+    }
+
+    OPENVINO_ASSERT(attention_sink->get_element_type() == ov::element::f16 ||
+                        attention_sink->get_element_type() == ov::element::f32,
+                    "HFA: Attention sink must have f16 or f32 element type");
+    if (type == ov::element::f16) {
+        std::fill_n(sum->data<ov::float16>(), sum->get_size(), ov::float16(1.0f));
+        if (attention_sink->get_element_type() == ov::element::f16) {
+            broadcast_attention_sink_to_state_max<ov::float16, ov::float16>(max, attention_sink);
+        } else {
+            broadcast_attention_sink_to_state_max<ov::float16, float>(max, attention_sink);
+        }
+    } else {
+        std::fill_n(sum->data<float>(), sum->get_size(), 1.0f);
+        if (attention_sink->get_element_type() == ov::element::f16) {
+            broadcast_attention_sink_to_state_max<float, ov::float16>(max, attention_sink);
+        } else {
+            broadcast_attention_sink_to_state_max<float, float>(max, attention_sink);
+        }
     }
 }
 
