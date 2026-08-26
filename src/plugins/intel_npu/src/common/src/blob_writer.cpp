@@ -149,6 +149,10 @@ void BlobWriter::register_section_from_blob_reader(const std::shared_ptr<ISectio
     m_registered_sections[section_type][section->get_section_type_instance().value()] = section;
 }
 
+size_t BlobWriter::count_registered_sections_of_type(const SectionType type) const {
+    return m_registered_sections.count(type) ? m_registered_sections.at(type).size() : 0;
+}
+
 CRE BlobWriter::build_cre() const {
     m_logger.debug("Filling the CRE");
 

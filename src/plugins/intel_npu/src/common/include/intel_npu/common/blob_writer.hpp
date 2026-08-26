@@ -120,7 +120,6 @@ public:
      */
     SectionTypeInstance register_section(const std::shared_ptr<ISection>& section);
 
-    // TODO raw write?
     /**
      * @brief Writes all sections within the writing queue into the provided stream.
      * @note This operation is idempotent. I.e. calling this function twice in a row (but on different streams) will
@@ -129,6 +128,8 @@ public:
      * @param stream Where the blob will be stored.
      */
     void write_to(std::ostream& stream) const;
+
+    size_t count_registered_sections_of_type(const SectionType type) const;
 
 private:
     std::streamoff get_offset_relative_to_npu_region(std::ostream& stream,

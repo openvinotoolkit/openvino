@@ -22,6 +22,18 @@
 #include "openvino/runtime/properties.hpp"
 #include "transformations/utils/utils.hpp"
 
+namespace {
+
+using namespace intel_npu;
+
+bool blob_contains_only_main_schedule(const BlobWriter& writer) {
+    // TODO expand with dynamic model type
+    return (writer.count_registered_sections_of_type(PredefinedSectionType::ELF_MAIN_SCHEDULE) == 1) &&
+           !writer.count_registered_sections_of_type(PredefinedSectionType::ELF_INIT_SCHEDULES);
+}
+
+}  // namespace
+
 namespace intel_npu {
 
 CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
@@ -101,6 +113,11 @@ void CompiledModel::export_model(std::ostream& stream) const {
     if (!_propertiesManager->getConfig().get<EXPORT_RAW_BLOB>()) {
         _blobWriter->write_to(stream);
         return;
+    }
+
+    if (!blob_contains_only_main_schedule(_blobWriter)) {
+        OPENVINO_THROW("Received a request to export the compiled model using the raw format, but multiple compiler "
+                       "schedules have been found. The raw format supports only a single compiler schedule.");
     }
 
     if (!(_propertiesManager->getConfig().has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
