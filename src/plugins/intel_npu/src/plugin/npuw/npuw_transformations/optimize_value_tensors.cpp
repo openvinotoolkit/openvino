@@ -119,8 +119,8 @@ public:
             LOG_DEBUG("vtensors transposed: Whisper cross-attention prefill pattern");
             return true;
         };
-        register_matcher(
-            std::make_shared<opp::Matcher>(matmul, "TransposeCrossAttentionValueTensorsPrefill"), std::move(callback));
+        register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeCrossAttentionValueTensorsPrefill"),
+                         std::move(callback));
     }
 };
 
@@ -155,8 +155,8 @@ public:
             matched_matmul->set_transpose_b(true);
             return true;
         };
-        register_matcher(
-            std::make_shared<opp::Matcher>(matmul, "TransposeCrossAttentionValueTensorsGenerate"), std::move(callback));
+        register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeCrossAttentionValueTensorsGenerate"),
+                         std::move(callback));
     }
 };
 
