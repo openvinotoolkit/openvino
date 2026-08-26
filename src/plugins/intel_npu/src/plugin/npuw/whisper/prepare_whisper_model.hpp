@@ -43,6 +43,12 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
+// True if cross-attention SDPA in this model has already been decomposed (word-level
+// timestamps requested), detected from the "cross_attention_qk_scaled_scores" tensor name
+// the decomposition attaches - covers GenAI having decomposed it upfront (CPU/GPU) as well
+// as NPUW's own decomposition below (NPU) having already run on this model.
+bool has_decomposed_cross_attention_sdpa(const std::shared_ptr<ov::Model>& model);
+
 }  // namespace util
 }  // namespace npuw
 }  // namespace ov

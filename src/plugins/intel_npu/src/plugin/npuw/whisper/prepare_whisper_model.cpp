@@ -736,7 +736,10 @@ void expose_runtime_states_as_inputs(const std::shared_ptr<ov::Model>& model) {
 void normalize_input_key_value_names(const std::shared_ptr<ov::Model>& model) {
     ov::ResultVector new_results, old_results;
     for (const auto& in : model->inputs()) {
-        if (in.get_any_name().find("decoder") == std::string::npos) {
+        // Decomposed cross-attention (word-level timestamps) exposes extra ports
+        // (e.g. the qk-score outputs) that may have no tensor name at all here -
+        // get_any_name() throws on those, unlike get_names().
+        if (in.get_names().empty() || in.get_any_name().find("decoder") == std::string::npos) {
             continue;
         }
 
@@ -752,7 +755,9 @@ void normalize_input_key_value_names(const std::shared_ptr<ov::Model>& model) {
 void normalize_output_key_value_names(const std::shared_ptr<ov::Model>& model) {
     ov::ResultVector new_results, old_results;
     for (const auto& out : model->outputs()) {
-        if (out.get_any_name().find("decoder") == std::string::npos) {
+        // See normalize_input_key_value_names: decomposed cross-attention adds
+        // outputs (qk scores) that can be nameless at this point in the pipeline.
+        if (out.get_names().empty() || out.get_any_name().find("decoder") == std::string::npos) {
             continue;
         }
 
@@ -879,4 +884,8 @@ bool ov::npuw::util::PrepareWhisperKVCacheModel::run_on_model(const std::shared_
     model->validate_nodes_and_infer_types();
 
     return true;
+}
+
+bool ov::npuw::util::has_decomposed_cross_attention_sdpa(const std::shared_ptr<ov::Model>& model) {
+    return !find_decomposed_cross_attn_score_nodes(model).empty();
 }
