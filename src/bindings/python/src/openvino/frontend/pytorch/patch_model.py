@@ -604,8 +604,7 @@ def patched_dataclass_outputs(model: torch.nn.Module):
 
 
 def _dataclasses_to_tuples(value):
-    """Recursively convert bare ``@dataclass`` instances in ``value`` into tuples.
-    """
+    """Recursively convert bare ``@dataclass`` instances in ``value`` into tuples."""
     if dataclasses.is_dataclass(value) and not isinstance(value, (type, list, tuple, dict)):
         return tuple(_dataclasses_to_tuples(getattr(value, f.name))
                      for f in dataclasses.fields(value)
