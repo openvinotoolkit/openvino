@@ -185,6 +185,18 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         FRONT_END_OP_CONVERSION_CHECK(!ov::op::util::is_null(K), "GroupQueryAttention: Expecting K not null.");
         FRONT_END_OP_CONVERSION_CHECK(!ov::op::util::is_null(V), "GroupQueryAttention: Expecting V not null.");
 
+        // "Shared KV" (kv_sequence_length == 0): ORT treats this as the past buffer already holding the
+        // complete KV, with nothing new appended and K/V skipping RoPE (helper.h). The reshape below sizes
+        // K/V using Q's sequence dim (current_seqlen_size_node), so a genuinely empty K/V cannot even be
+        // reshaped to it; reject cleanly here instead of failing inside the Reshape with an unrelated
+        // element-count-mismatch error.
+        const auto& k_ps = K.get_partial_shape();
+        FRONT_END_OP_CONVERSION_CHECK(
+            !(k_ps.rank().is_static() && k_ps.rank().get_length() == 3 && k_ps[1].is_static() &&
+              k_ps[1].get_length() == 0),
+            "GroupQueryAttention: kv_sequence_length == 0 (shared KV / past buffer already complete) is not "
+            "supported.");
+
         auto num_heads_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {num_heads});
         auto head_size_node = std::make_shared<v1::Divide>(hidden_size_node, num_heads_node);
         auto q_shape = std::make_shared<v0::Concat>(

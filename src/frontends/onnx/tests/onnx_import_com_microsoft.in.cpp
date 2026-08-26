@@ -5604,6 +5604,34 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_causal_window_conflict_throws) {
     }
 }
 
+// "Shared KV" (kv_sequence_length == 0): the past buffer already holds the complete KV and nothing new is
+// appended (ORT helper.h). The FE reshapes K/V using Q's sequence dim, so a genuinely empty K/V cannot be
+// reshaped to it; this must fail with a named diagnostic rather than an unrelated Reshape element-count error.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_shared_kv_unsupported_throws) {
+    try {
+        convert_model("com.microsoft/gqa_shared_kv.onnx");
+        FAIL() << "ONNX Importer did not reject kv_sequence_length == 0 (shared KV) for GroupQueryAttention";
+    } catch (const std::exception& e) {
+        EXPECT_THAT(e.what(), testing::HasSubstr("kv_sequence_length"));
+    } catch (...) {
+        FAIL() << "Unexpected exception type thrown";
+    }
+}
+
+// past_key/past_value are optional per spec and ORT (helper.h:283-293: both-absent means no past cache), but
+// the FE and internal op currently hard-require them. Lock in today's clean reject (not a crash/silent-wrong
+// result) so a future relaxation of this requirement is a deliberate change, not an accidental regression.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_absent_past_unsupported_throws) {
+    try {
+        convert_model("com.microsoft/gqa_absent_past.onnx");
+        FAIL() << "ONNX Importer did not reject absent past_key/past_value for GroupQueryAttention";
+    } catch (const std::exception& e) {
+        EXPECT_THAT(e.what(), testing::HasSubstr("past_key"));
+    } catch (...) {
+        FAIL() << "Unexpected exception type thrown";
+    }
+}
+
 // External attention_bias (input 10) combined with a sliding window: the window band must be added on
 // top of the caller-supplied bias. Exercises the additive-band branch of make_attention_mask. Output
 // matches ONNX Runtime (MLAS CPU).
