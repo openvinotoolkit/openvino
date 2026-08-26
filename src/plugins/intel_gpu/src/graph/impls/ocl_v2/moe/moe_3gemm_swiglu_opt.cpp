@@ -302,13 +302,9 @@ protected:
 
 class MoE3GemmSwigluPrefillScatterReduce : public KernelGenerator {
 public:
-    explicit MoE3GemmSwigluPrefillScatterReduce(bool use_grouped_gemm = false)
-        : KernelGenerator("moe_scatter_reduction_opt", "moe_scatter_reduction_ref"),
-          m_use_grouped_gemm(use_grouped_gemm) {}
+    MoE3GemmSwigluPrefillScatterReduce() : KernelGenerator("moe_scatter_reduction_opt", "prefill_scatter_reduce") {}
 
 protected:
-    bool m_use_grouped_gemm;
-
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
@@ -334,8 +330,6 @@ protected:
         jit.make("INPUT5_TYPE", "int");   // tokens len for experts
         jit.make("INPUT6_TYPE", "int");   // expert id
         jit.make("OUTPUT_TYPE", "half");  // output
-        if (m_use_grouped_gemm)
-            jit.make("ONEDNN_GROUPED_GEMM_USED", 1);
 
         return jit;
     }
