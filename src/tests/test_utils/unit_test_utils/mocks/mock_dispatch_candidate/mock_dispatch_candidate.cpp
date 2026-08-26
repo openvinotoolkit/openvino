@@ -37,8 +37,7 @@ public:
                                                       const ov::AnyMap&) const override {
         OPENVINO_NOT_IMPLEMENTED;
     }
-    std::shared_ptr<ov::ICompiledModel> compile_model(const std::filesystem::path&,
-                                                      const ov::AnyMap&) const override {
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::filesystem::path&, const ov::AnyMap&) const override {
         OPENVINO_NOT_IMPLEMENTED;
     }
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,

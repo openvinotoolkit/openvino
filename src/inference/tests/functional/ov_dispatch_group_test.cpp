@@ -28,18 +28,18 @@ constexpr int CAPABLE = 50;
 constexpr int PREFERRED = 100;
 
 void set_env(const std::string& name, const std::string& value) {
-#ifdef _WIN32
+#    ifdef _WIN32
     _putenv_s(name.c_str(), value.c_str());
-#else
+#    else
     ::setenv(name.c_str(), value.c_str(), 1);
-#endif
+#    endif
 }
 void unset_env(const std::string& name) {
-#ifdef _WIN32
+#    ifdef _WIN32
     _putenv_s(name.c_str(), "");
-#else
+#    else
     ::unsetenv(name.c_str());
-#endif
+#    endif
 }
 
 std::filesystem::path candidate_lib(const std::string& suffix) {
@@ -55,9 +55,8 @@ protected:
 
     void write_registry() {
         std::ofstream file(xml_path);
-        file << "<ie><plugins><plugin name=\"" << device << "\">"
-             << "<location>" << candidate_lib("a").string() << "</location>"
-             << "<location>" << candidate_lib("b").string() << "</location>"
+        file << "<ie><plugins><plugin name=\"" << device << "\">" << "<location>" << candidate_lib("a").string()
+             << "</location>" << "<location>" << candidate_lib("b").string() << "</location>"
              << "</plugin></plugins></ie>";
     }
 
@@ -209,9 +208,9 @@ TEST_F(DispatchGroupTest, unload_plugin_frees_group_and_reloads) {
     script("0,aa," + std::to_string(PREFERRED), "0,aa," + std::to_string(CAPABLE));
     ov::Core core;
     core.register_plugins(xml_path.string());
-    EXPECT_EQ(resolved_tag(core), "A");            // constructs the winner
+    EXPECT_EQ(resolved_tag(core), "A");              // constructs the winner
     OV_ASSERT_NO_THROW(core.unload_plugin(device));  // frees it
-    EXPECT_EQ(resolved_tag(core), "A");            // re-resolves and reloads cleanly
+    EXPECT_EQ(resolved_tag(core), "A");              // re-resolves and reloads cleanly
 }
 
 // Two per-id winners coexist and both unload together via the group name.

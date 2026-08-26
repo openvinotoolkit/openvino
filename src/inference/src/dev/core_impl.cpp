@@ -793,7 +793,6 @@ void ov::CoreImpl::register_plugins_in_registry(const std::filesystem::path& xml
     }
 }
 
-
 std::optional<size_t> ov::CoreImpl::resolve_dispatch_winner_unsafe(const std::string& device_name,
                                                                    const PluginDescriptor& desc,
                                                                    const std::string& device_id) const {
