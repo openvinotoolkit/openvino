@@ -43,6 +43,18 @@ public:
         }
     }
 
+    void hint_prefetch_async() const override {
+        if constexpr (std::is_same_v<std::shared_ptr<ov::MappedMemory>, T>) {
+            if (m_shared_object) {
+                m_shared_object->hint_prefetch_async(get_offset(), m_byte_size);
+            }
+        } else if constexpr (is_aligned_buffer_ptr_v<T>) {
+            if (m_shared_object) {
+                AlignedBuffer::invoke_hint_prefetch_async(*m_shared_object, get_offset(), m_byte_size);
+            }
+        }
+    }
+
 protected:
     template <typename U>
     struct is_aligned_buffer_ptr : std::false_type {};
@@ -64,6 +76,14 @@ protected:
         if constexpr (is_aligned_buffer_ptr_v<T>) {
             if (this->m_shared_object) {
                 AlignedBuffer::invoke_hint_prefetch(*this->m_shared_object);
+            }
+        }
+    }
+
+    void hint_prefetch_async(size_t offset, size_t size) const override {
+        if constexpr (std::is_same_v<std::shared_ptr<ov::MappedMemory>, T>) {
+            if (m_shared_object) {
+                m_shared_object->hint_prefetch_async(offset, size);
             }
         }
     }

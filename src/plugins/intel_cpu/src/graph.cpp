@@ -60,8 +60,10 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/itt.hpp"
 #include "openvino/op/assign.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/exception.hpp"
 #include "openvino/runtime/itensor.hpp"
@@ -225,7 +227,16 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
     inputNodes.resize(model->get_parameters().size());
     outputNodes.resize(model->get_results().size());
 
-    for (const auto& op : model->get_ordered_ops()) {
+    const auto orderedOps = model->get_ordered_ops();
+
+    // Prefetching this early gives page population the whole compile to run ahead.
+    for (const auto& op : orderedOps) {
+        if (const auto constant = ov::as_type_ptr<op::v0::Constant>(op)) {
+            ov::wsh::Extension::hint_prefetch_async(*constant);
+        }
+    }
+
+    for (const auto& op : orderedOps) {
         const NodePtr node = createNode(op);
 
         AddNode(node);
