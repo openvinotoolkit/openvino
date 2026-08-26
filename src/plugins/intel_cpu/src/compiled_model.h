@@ -18,6 +18,7 @@
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/weights_prefetch.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
@@ -87,6 +88,7 @@ private:
     // WARNING: Do not use m_graphs directly.
     mutable std::deque<GraphGuard> m_graphs;
     mutable SocketsWeights m_socketWeights;
+    const ov::wsh::WeightsPrefetch::Ptr m_weightsPrefetch = std::make_shared<ov::wsh::WeightsPrefetch>();
 
     /* WARNING: Use get_graph() function to get access to graph in current stream.
      * NOTE: Main thread is interpreted as master thread of external stream so use this function to get access to graphs

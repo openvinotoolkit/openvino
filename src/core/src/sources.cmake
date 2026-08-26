@@ -47,6 +47,7 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/validation_util.cpp
     ${CMAKE_CURRENT_LIST_DIR}/version.cpp
     ${CMAKE_CURRENT_LIST_DIR}/weight_sharing_util.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/weights_prefetch.cpp
     ${CMAKE_CURRENT_LIST_DIR}/descriptor/input.cpp
     ${CMAKE_CURRENT_LIST_DIR}/descriptor/output.cpp
     ${CMAKE_CURRENT_LIST_DIR}/descriptor/shared_tensor.cpp

@@ -14,6 +14,7 @@
 #include "dnnl_scratch_pad.h"
 #include "memory_control.hpp"
 #include "nodes/memory.hpp"
+#include "openvino/core/weights_prefetch.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
@@ -27,9 +28,11 @@ GraphContext::GraphContext(Config config,
                            bool isGraphQuantized,
                            ov::threading::IStreamsExecutor::Ptr streamExecutor,
                            std::shared_ptr<CpuParallel> cpuParallel,
-                           std::shared_ptr<SubMemoryManager> sub_memory_manager)
+                           std::shared_ptr<SubMemoryManager> sub_memory_manager,
+                           ov::wsh::WeightsPrefetch::Ptr weights_prefetch)
     : m_config(std::move(config)),
       m_weightsCache(std::move(w_cache)),
+      m_weightsPrefetch(std::move(weights_prefetch)),
       m_rtParamsCache(std::make_shared<MultiCache>(m_config.rtCacheCapacity)),
       m_snippetsParamsCache(std::make_shared<MultiCache>(m_config.snippetsCacheCapacity)),
       m_isGraphQuantizedFlag(isGraphQuantized),
