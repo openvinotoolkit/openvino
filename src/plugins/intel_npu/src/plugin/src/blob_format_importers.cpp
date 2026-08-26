@@ -47,6 +47,7 @@ constexpr std::string_view EMPTY_COMPILER_PAYLOAD_MESSAGE =
 constexpr std::string_view DECRYPTING_PAYLOAD_MESSAGE = "Decrypting the compiler payload";
 constexpr std::string_view NEW_PAGE_ALIGNED_BUFFER_MESSAGE =
     "The compiler payload has been copied into a new, page aligned buffer";
+constexpr std::string_view MISSING_MAIN_SCHEDULE_MESSAGE = "The compiler main schedule is missing";
 
 const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 
@@ -427,6 +428,7 @@ private:
     void register_known_sections() {
         m_blob_reader.register_reader(PredefinedSectionType::ELF_MAIN_SCHEDULE, ELFMainScheduleSection::read);
         m_blob_reader.register_reader(PredefinedSectionType::ELF_INIT_SCHEDULES, ELFInitSchedulesSection::read);
+        m_blob_reader.register_reader(PredefinedSectionType::DYNAMIC_SCHEDULE, ELFInitSchedulesSection::read);
         m_blob_reader.register_reader(PredefinedSectionType::BATCH_SIZE, BatchSizeSection::read);
         m_blob_reader.register_reader(PredefinedSectionType::IO_LAYOUTS, IOLayoutsSection::read);
 
@@ -442,7 +444,22 @@ private:
      *   * Either an "ELF main schedule" (with or without init schedules) or a "Dynamic schedule" (without init
      * schedule) exists
      */
-    void verify_valid_sections() {}
+    void verify_valid_sections() {
+        const bool has_elf_main_schedule = m_blob_reader.has_section_of_type(PredefinedSectionType::ELF_MAIN_SCHEDULE);
+        const bool has_init_schedules = m_blob_reader.has_section_of_type(PredefinedSectionType::ELF_INIT_SCHEDULES);
+        const bool has_dynamic_schedule = m_blob_reader.has_section_of_type(PredefinedSectionType::DYNAMIC_SCHEDULE);
+
+        OPENVINO_ASSERT(has_elf_main_schedule || has_dynamic_schedule, MISSING_MAIN_SCHEDULE_MESSAGE);
+        OPENVINO_ASSERT((has_elf_main_schedule && !has_dynamic_schedule) ||
+                            (has_dynamic_schedule && !has_elf_main_schedule && !has_init_schedules),
+                        "Found an unsupported combination of compiler schedules within the blob");
+
+        for (const auto& [section_type, count] : m_blob_reader.get_content_summary()) {
+            OPENVINO_ASSERT(count <= 1,
+                            "Multiple instances of the same section type found inside the blob. This feature is not "
+                            "supported yet.");
+        }
+    }
 
     /**
      * @brief Decrypts all compiler payloads (main schedule + init schedules if applicable) if:
@@ -451,7 +468,6 @@ private:
      * @throws ov::AssertFailure if the schedules were encrypted, but no decryption callback was provided.
      */
     void decrypt_schedules() override {
-        // TODO assert there is only one of this type
         const auto encrypted_schedules_flag_section = std::dynamic_pointer_cast<EncryptedSchedulesFlagSection>(
             m_blob_reader.retrieve_first_section(PredefinedSectionType::ENCRYPTED_SCHEDULES_FLAG));
         const bool is_payload_encrypted =
@@ -467,7 +483,6 @@ private:
 
         const ov::EncryptionCallbacks encryption_callbacks = m_config.get<CACHE_ENCRYPTION_CALLBACKS>();
 
-        // TODO assert there is only one of this type
         auto dynamic_schedule_section = std::dynamic_pointer_cast<DynamicScheduleSection>(
             m_blob_reader.retrieve_first_section(PredefinedSectionType::DYNAMIC_SCHEDULE));
         if (dynamic_schedule_section) {
@@ -478,10 +493,10 @@ private:
 
         auto main_schedule_section = std::dynamic_pointer_cast<ELFMainScheduleSection>(
             m_blob_reader.retrieve_first_section(PredefinedSectionType::ELF_MAIN_SCHEDULE));
-        if (main_schedule_section) {
-            m_logger.debug("Decrypting the compiler main schedule");
-            main_schedule_section->decrypt(encryption_callbacks);
-        }
+        OPENVINO_ASSERT(main_schedule_section, MISSING_MAIN_SCHEDULE_MESSAGE);
+
+        m_logger.debug("Decrypting the compiler main schedule");
+        main_schedule_section->decrypt(encryption_callbacks);
 
         auto init_schedules_section = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
             m_blob_reader.retrieve_first_section(PredefinedSectionType::ELF_INIT_SCHEDULES));
@@ -492,7 +507,6 @@ private:
     }
 
     ov::Tensor extract_main_schedule() const override {
-        // TODO assert there's exactly one main schedule
         const auto main_schedule_section = std::dynamic_pointer_cast<ELFMainScheduleSection>(
             m_blob_reader.retrieve_first_section(PredefinedSectionType::ELF_MAIN_SCHEDULE));
         if (main_schedule_section) {
@@ -501,6 +515,7 @@ private:
 
         const auto dynamic_schedule_section = std::dynamic_pointer_cast<DynamicScheduleSection>(
             m_blob_reader.retrieve_first_section(PredefinedSectionType::DYNAMIC_SCHEDULE));
+        OPENVINO_ASSERT(dynamic_schedule_section, MISSING_MAIN_SCHEDULE_MESSAGE);
         return dynamic_schedule_section->get_schedule();
     }
 
@@ -508,21 +523,23 @@ private:
         const auto init_schedules_section = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
             m_blob_reader.retrieve_first_section(PredefinedSectionType::ELF_INIT_SCHEDULES));
 
-        return init_schedules_section->get_schedules();
+        return init_schedules_section ? std::make_optional<>(init_schedules_section->get_schedules()) : std::nullopt;
     }
 
     std::optional<int> extract_batch_size() const override {
         const auto batch_size_section = std::dynamic_pointer_cast<BatchSizeSection>(
             m_blob_reader.retrieve_first_section(PredefinedSectionType::BATCH_SIZE));
 
-        return batch_size_section->get_batch_size();
+        return batch_size_section ? std::make_optional<>(batch_size_section->get_batch_size()) : std::nullopt;
     }
 
     std::optional<std::pair<std::vector<ov::Layout>, std::vector<ov::Layout>>> extract_layouts() const override {
         const auto io_layouts_section = std::dynamic_pointer_cast<IOLayoutsSection>(
             m_blob_reader.retrieve_first_section(PredefinedSectionType::IO_LAYOUTS));
 
-        return std::make_pair<>(io_layouts_section->get_input_layouts(), io_layouts_section->get_output_layouts());
+        return io_layouts_section ? std::make_optional<>(std::make_pair<>(io_layouts_section->get_input_layouts(),
+                                                                          io_layouts_section->get_output_layouts()))
+                                  : std::nullopt;
     }
 
     std::optional<std::string> extract_compiler_compatibility_descriptor() const override {
@@ -530,14 +547,13 @@ private:
     }
 
     std::optional<BlobType> extract_blob_type() const override {
-        // TODO assert there's only one main/dynamic schedule section
-        if (std::dynamic_pointer_cast<ELFMainScheduleSection>(
-                m_blob_reader.retrieve_first_section(PredefinedSectionType::ELF_MAIN_SCHEDULE))) {
+        if (m_blob_reader.has_section_of_type(PredefinedSectionType::ELF_MAIN_SCHEDULE)) {
             return BlobType::ELF;
         }
 
         const auto dynamic_schedule_section = std::dynamic_pointer_cast<DynamicScheduleSection>(
             m_blob_reader.retrieve_first_section(PredefinedSectionType::DYNAMIC_SCHEDULE));
+        OPENVINO_ASSERT(dynamic_schedule_section, MISSING_MAIN_SCHEDULE_MESSAGE);
         return dynamic_schedule_section->get_blob_type();
     }
 
