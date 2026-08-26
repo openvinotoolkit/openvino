@@ -100,6 +100,7 @@
 #include "plugin/transformations/fuse_moe_router.hpp"
 #include "plugin/transformations/fuse_moe_router_scale.hpp"
 #include "plugin/transformations/increase_position_ids_precision.hpp"
+#include "plugin/transformations/disable_fp16_compression.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/keep_gqa_kv_scale_precision.hpp"
 #include "plugin/transformations/keep_moe_3gemm_const_precision.hpp"
@@ -119,10 +120,7 @@
 #include "plugin/transformations/sdpa_transpose_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/expand_broadcast_reshape_sdpa_fusion.hpp"
-#include "plugin/transformations/disable_fp16_comp_rms.hpp"
 #include "plugin/transformations/swiglu_fusion_with_clamp.hpp"
-#include "plugin/transformations/disable_fp16_comp_cumsum_sin_gen.hpp"
-#include "plugin/transformations/disable_fp16_comp_sin_gen.hpp"
 #include "plugin/transformations/increase_rms_input_precision.hpp"
 #include "transformations/common_optimizations/activations_scaling.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
@@ -749,14 +747,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             return static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
         });
         manager.register_pass<ov::pass::RMSFusion>(false, true);
-        manager.register_pass<DisableFP16CompForGemma3RMSPattern>();
-        manager.register_pass<DisableFP16ComForGPTOSSROPEPattern>();
-        manager.register_pass<DisableFP16CompCumSumSinGen>();
-        // HiFiGAN matches a strict suffix of the CumSumSinGen chain — skip
-        // when the same Sin was already marked above.
-        pass_config->set_callback<DisableFP16ComSinGenPatternForHiFiGAN>(
-            [](const_node_ptr& node) -> bool { return ov::is_conversion_disabled(node, ov::element::f16); });
-        manager.register_pass<DisableFP16ComSinGenPatternForHiFiGAN>();
+        manager.register_pass<DisableFP16Compression>();
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
         const bool store_original_precision_as_rt_attribute = true;
