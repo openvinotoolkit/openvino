@@ -55,7 +55,7 @@ bool requested(const ov::AnyMap& properties);
 // It is applied at npuw::ICompiledModel::create() on compilation, and the wrap is
 // part of the serialized blob. export_model() writes a batched header (indicator,
 // versions and the scoring tags) in front of the complete inner blob, so the
-// plugin's NPUW import dispatch reconstructs the wrapper from the header alone,
+// common NPUW import dispatch reconstructs the wrapper from the header alone,
 // with no entry point deciding anything.
 class CompiledModel final : public ov::npuw::ICompiledModel {
 public:
