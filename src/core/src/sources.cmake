@@ -314,6 +314,7 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/util/scatter_base.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/util/scatter_elements_update_base.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/util/scatter_nd_base.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/util/shape_of_subgraph_root_attribute.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/util/slice_plan.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/util/squeeze_base.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/util/sub_graph_base.cpp

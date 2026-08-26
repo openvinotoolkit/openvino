@@ -315,6 +315,7 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/util/scatter_elements_update_base.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/util/scatter_nd_base.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/util/shape_of_base.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/util/shape_of_subgraph_root_attribute.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/util/squeeze_base.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/util/sub_graph_base.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/util/symbolic_info.hpp
