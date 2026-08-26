@@ -115,3 +115,32 @@ set(OPENVINO_PYTHON_SOURCE_FILES
     ${CMAKE_CURRENT_LIST_DIR}/src/openvino/utils/reduction.py
     ${CMAKE_CURRENT_LIST_DIR}/src/openvino/utils/types.py
 )
+
+set(OpenVINO_Telemetry_SOURCE_DIR "${OpenVINO_SOURCE_DIR}/thirdparty/telemetry")
+set(telemetry_files
+    ${OpenVINO_Telemetry_SOURCE_DIR}/LICENSE
+    ${OpenVINO_Telemetry_SOURCE_DIR}/README.md
+    ${OpenVINO_Telemetry_SOURCE_DIR}/requirements.txt
+    ${OpenVINO_Telemetry_SOURCE_DIR}/setup.py
+    ${OpenVINO_Telemetry_SOURCE_DIR}/src/__init__.py
+    ${OpenVINO_Telemetry_SOURCE_DIR}/src/backend/__init__.py
+    ${OpenVINO_Telemetry_SOURCE_DIR}/src/backend/backend.py
+    ${OpenVINO_Telemetry_SOURCE_DIR}/src/backend/backend_ga.py
+    ${OpenVINO_Telemetry_SOURCE_DIR}/src/backend/backend_ga4.py
+    ${OpenVINO_Telemetry_SOURCE_DIR}/src/backend/backend_ga4_test.py
+    ${OpenVINO_Telemetry_SOURCE_DIR}/src/backend/backend_ga_test.py
+    ${OpenVINO_Telemetry_SOURCE_DIR}/src/main.py
+    ${OpenVINO_Telemetry_SOURCE_DIR}/src/main_test.py
+    ${OpenVINO_Telemetry_SOURCE_DIR}/src/opt_in_out.py
+    ${OpenVINO_Telemetry_SOURCE_DIR}/src/utils/__init__.py
+    ${OpenVINO_Telemetry_SOURCE_DIR}/src/utils/cid.py
+    ${OpenVINO_Telemetry_SOURCE_DIR}/src/utils/colored_print.py
+    ${OpenVINO_Telemetry_SOURCE_DIR}/src/utils/input_with_timeout.py
+    ${OpenVINO_Telemetry_SOURCE_DIR}/src/utils/input_with_timeout_test.py
+    ${OpenVINO_Telemetry_SOURCE_DIR}/src/utils/message.py
+    ${OpenVINO_Telemetry_SOURCE_DIR}/src/utils/opt_in_checker.py
+    ${OpenVINO_Telemetry_SOURCE_DIR}/src/utils/opt_in_checker_test.py
+    ${OpenVINO_Telemetry_SOURCE_DIR}/src/utils/params.py
+    ${OpenVINO_Telemetry_SOURCE_DIR}/src/utils/sender.py
+    ${OpenVINO_Telemetry_SOURCE_DIR}/src/utils/sender_test.py
+)

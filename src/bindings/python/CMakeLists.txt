@@ -350,35 +350,6 @@ if(ENABLE_PYTHON_PACKAGING)
         COMMENT "Create python package with ${openvino_meta_info_subdir} folder")
 
     # Install OpenVINO Telemetry
-    set(OpenVINO_Telemetry_SOURCE_DIR "${OpenVINO_SOURCE_DIR}/thirdparty/telemetry")
-    set(telemetry_files
-        ${OpenVINO_Telemetry_SOURCE_DIR}/LICENSE
-        ${OpenVINO_Telemetry_SOURCE_DIR}/README.md
-        ${OpenVINO_Telemetry_SOURCE_DIR}/requirements.txt
-        ${OpenVINO_Telemetry_SOURCE_DIR}/setup.py
-        ${OpenVINO_Telemetry_SOURCE_DIR}/src/__init__.py
-        ${OpenVINO_Telemetry_SOURCE_DIR}/src/backend/__init__.py
-        ${OpenVINO_Telemetry_SOURCE_DIR}/src/backend/backend.py
-        ${OpenVINO_Telemetry_SOURCE_DIR}/src/backend/backend_ga.py
-        ${OpenVINO_Telemetry_SOURCE_DIR}/src/backend/backend_ga4.py
-        ${OpenVINO_Telemetry_SOURCE_DIR}/src/backend/backend_ga4_test.py
-        ${OpenVINO_Telemetry_SOURCE_DIR}/src/backend/backend_ga_test.py
-        ${OpenVINO_Telemetry_SOURCE_DIR}/src/main.py
-        ${OpenVINO_Telemetry_SOURCE_DIR}/src/main_test.py
-        ${OpenVINO_Telemetry_SOURCE_DIR}/src/opt_in_out.py
-        ${OpenVINO_Telemetry_SOURCE_DIR}/src/utils/__init__.py
-        ${OpenVINO_Telemetry_SOURCE_DIR}/src/utils/cid.py
-        ${OpenVINO_Telemetry_SOURCE_DIR}/src/utils/colored_print.py
-        ${OpenVINO_Telemetry_SOURCE_DIR}/src/utils/input_with_timeout.py
-        ${OpenVINO_Telemetry_SOURCE_DIR}/src/utils/input_with_timeout_test.py
-        ${OpenVINO_Telemetry_SOURCE_DIR}/src/utils/message.py
-        ${OpenVINO_Telemetry_SOURCE_DIR}/src/utils/opt_in_checker.py
-        ${OpenVINO_Telemetry_SOURCE_DIR}/src/utils/opt_in_checker_test.py
-        ${OpenVINO_Telemetry_SOURCE_DIR}/src/utils/params.py
-        ${OpenVINO_Telemetry_SOURCE_DIR}/src/utils/sender.py
-        ${OpenVINO_Telemetry_SOURCE_DIR}/src/utils/sender_test.py
-    )
-
     set(telemetry_python_package_prefix "${CMAKE_CURRENT_BINARY_DIR}/telemetry/install_${pyversion}")
     set(telemetry_install_lib "${telemetry_python_package_prefix}/lib/${python_versioned_folder}/${ov_site_packages}")
     set(openvino_telemetry_meta_info_subdir "openvino-telemetry-${OpenVINO_VERSION}-py${python_xy}.egg-info")
