@@ -28,6 +28,7 @@
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/logical_or.hpp"
 #include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/power.hpp"
@@ -274,9 +275,20 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     } else if (is_static_input) {
         // Static full-length cache (max length, valid KVs left-aligned). Insert current K/V at
         // [past_seqlen, past_seqlen + curr_seqlen] with ScatterUpdate, keeping the buffer shape.
+        // past_seqlen is a runtime value (derived from seqlens_k) and cannot be bounded at trace time, so a
+        // caller that overruns the declared cache capacity would otherwise scatter past the end of the C
+        // buffer. C and curr_seqlen are both statically known here (is_static_input), so clamp past_seqlen to
+        // the largest value that keeps the whole write in bounds, turning an out-of-bounds ScatterUpdate into
+        // a safe (if the caller mis-sized seqlens_k, silently truncated) write. Matches ORT's explicit runtime
+        // bound check (group_query_attention.cc:336-345).
+        const int64_t capacity = past_key.get_partial_shape()[2].get_length();
+        const int64_t curr_len = K.get_partial_shape()[2].get_length();
+        const auto max_past_seqlen =
+            register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {capacity - curr_len}));
+        const auto clamped_past_seqlen = register_new_node<v1::Minimum>(past_seqlen, max_past_seqlen);
         std::shared_ptr<ov::Node> scatter_idx =
             register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
-        scatter_idx = register_new_node<v1::Add>(scatter_idx, past_seqlen);
+        scatter_idx = register_new_node<v1::Add>(scatter_idx, clamped_past_seqlen);
         const auto scatter_axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
         K = register_new_node<v3::ScatterUpdate>(past_key, scatter_idx, K, scatter_axis);
         V = register_new_node<v3::ScatterUpdate>(past_value, scatter_idx, V, scatter_axis);

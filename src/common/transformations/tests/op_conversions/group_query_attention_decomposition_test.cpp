@@ -14,11 +14,13 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/group_query_attention.hpp"
+#include "openvino/op/minimum.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
@@ -356,6 +358,38 @@ TEST(GroupQueryAttentionValues, sliding_window_boundary_uses_window_size_constan
     auto window_const = as_type_ptr<op::v0::Constant>(greater_eq->get_input_node_shared_ptr(1));
     ASSERT_NE(window_const, nullptr) << "window boundary is not a constant";
     EXPECT_EQ(window_const->cast_vector<int64_t>(), std::vector<int64_t>{W});
+}
+
+TEST(GroupQueryAttentionValues, static_cache_scatter_index_clamped_to_capacity) {
+    // capacity (past_len) = 8, curr_seqlen = 1 -> max valid past_seqlen = capacity - curr_seqlen = 7. A
+    // caller-supplied seqlens_k implying a larger past_seqlen must not push the ScatterUpdate write past
+    // the end of the static full-length cache buffer (G10: unguarded static-cache overflow).
+    auto model = make_gqa_model(GqaParams{"static_scatter"}.shape(1, 8));
+    decompose(model);
+
+    std::shared_ptr<op::v3::ScatterUpdate> cache_scatter;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (auto su = as_type_ptr<op::v3::ScatterUpdate>(op)) {
+            if (ov::is_type<op::v0::Parameter>(su->get_input_node_shared_ptr(0))) {
+                cache_scatter = su;
+                break;
+            }
+        }
+    }
+    ASSERT_NE(cache_scatter, nullptr) << "static full-length cache ScatterUpdate not found";
+
+    // indices = Range(0, S) + Minimum(past_seqlen, capacity - S)
+    auto add = as_type_ptr<op::v1::Add>(cache_scatter->get_input_node_shared_ptr(1));
+    ASSERT_NE(add, nullptr);
+    std::shared_ptr<op::v1::Minimum> clamp;
+    for (size_t i = 0; i < add->get_input_size(); ++i)
+        if (auto m = as_type_ptr<op::v1::Minimum>(add->get_input_node_shared_ptr(i)))
+            clamp = m;
+    ASSERT_NE(clamp, nullptr) << "past_seqlen feeding the static-cache scatter index is not clamped";
+
+    auto cap_const = as_type_ptr<op::v0::Constant>(clamp->get_input_node_shared_ptr(1));
+    ASSERT_NE(cap_const, nullptr) << "clamp bound is not a constant";
+    EXPECT_EQ(cap_const->cast_vector<int64_t>(), std::vector<int64_t>{7});
 }
 
 TEST(GroupQueryAttentionValues, smooth_softmax_sink_is_zero) {
