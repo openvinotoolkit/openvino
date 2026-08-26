@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "Failed to ListArtifacts Unable to make request ECONNREFUSED|Network",
+  "signature_hash": "b889d24cd154d2dd",
+  "title": "TensorFlow Models tests fail - artifact download ECONNREFUSED on self-hosted runner",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-08-26T10:07:28Z",
+  "last_seen": "2026-08-26T10:07:28Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/32947237491"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37630"
+  ],
+  "recent_timestamps": [
+    "2026-08-26T10:07:28Z"
+  ],
+  "rerun_search_string": "Failed to ListArtifacts Unable to make request ECONNREFUSED"
+}

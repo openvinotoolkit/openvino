@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-26-10-07-28-000-32947237491",
+  "timestamp": "2026-08-26T10:07:28Z",
+  "run_id": "32947237491",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32947237491",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37630",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37630",
+  "author": "artanokhov",
+  "category": "Network",
+  "title": "TensorFlow Models tests fail - artifact download ECONNREFUSED on self-hosted runner",
+  "signature": "Failed to ListArtifacts Unable to make request ECONNREFUSED|Network",
+  "signature_hash": "b889d24cd154d2dd",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "TensorFlow Models tests / TensorFlow Models tests",
+      "conclusion": "failure",
+      "symptom": "Download artifact step fails with ECONNREFUSED when trying to ListArtifacts"
+    }
+  ],
+  "key_errors": [
+    "##[error]Action failed with error: Failed to ListArtifacts: Unable to make request: ECONNREFUSED\nIf you are using self-hosted runners, please make sure your runner has access to all GitHub endpoints",
+    "##[error]Unable to download artifact(s): Failed to ListArtifacts: Unable to make request: ECONNREFUSED",
+    "fatal: unable to access 'https://github.com/openvinotoolkit/openvino/': Failed to connect to github.com port 443 after 20 ms: Connection refused"
+  ],
+  "root_cause": "The self-hosted runner lost network connectivity to GitHub endpoints during the TensorFlow Models tests job. The artifact download step (downloading 'openvino_tokenizers_wheel') failed with ECONNREFUSED, indicating the runner could not reach GitHub's artifact service. The same runner also failed to connect to github.com port 443 during git cleanup. This is a transient infrastructure/network issue on the self-hosted runner, unrelated to the PR changes (README.md logo bump).",
+  "reproduction_steps": "N/A - network connectivity issue on self-hosted runner, not reproducible locally.",
+  "recommended_actions": [
+    "Re-run the failed job - the network connectivity issue is transient",
+    "If persistent, check self-hosted runner network configuration and access to GitHub endpoints"
+  ],
+  "prevention_strategies": "Monitor self-hosted runner network stability. Consider adding retry logic to artifact download steps.",
+  "historical_context": "Network connectivity failures (ECONNREFUSED) on self-hosted runners are a recurring transient pattern in this repository's CI."
+}
