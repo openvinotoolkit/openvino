@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "signature": "connection reset while preparing sdk package android sdk build tools|Network",
+  "signature_hash": "7eb75d0b5dca4a63",
+  "title": "Android SDK Build-Tools install fails with Connection reset",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-08-26T09:33:51Z",
+  "last_seen": "2026-08-26T09:33:51Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/32950535921"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/37631"],
+  "recent_timestamps": ["2026-08-26T09:33:51Z"],
+  "rerun_search_string": "Connection reset"
+}

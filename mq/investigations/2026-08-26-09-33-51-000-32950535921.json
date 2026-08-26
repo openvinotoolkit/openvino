@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-26-09-33-51-000-32950535921",
+  "timestamp": "2026-08-26T09:33:51Z",
+  "run_id": "32950535921",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32950535921",
+  "workflow_name": "Android ARM64 with ONNX, CPU PlugIn, nGraph functions",
+  "pr_number": "37631",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37631",
+  "author": "praasz",
+  "category": "Network",
+  "title": "Android SDK Build-Tools install fails with Connection reset",
+  "signature": "connection reset while preparing sdk package android sdk build tools|Network",
+  "signature_hash": "7eb75d0b5dca4a63",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CXX_Unit_Tests",
+      "conclusion": "failure",
+      "symptom": "Android SDK Build-Tools 36 install fails with Connection reset; emulator never starts, ADB port 5554 refused"
+    }
+  ],
+  "key_errors": [
+    "Warning: An error occurred while preparing SDK package Android SDK Build-Tools 36: Connection reset.",
+    "error: could not connect to TCP port 5554: Connection refused"
+  ],
+  "root_cause": "The sdkmanager command failed to download the Android SDK Build-Tools 36 package due to a network connection reset (likely a transient upstream outage or packet loss between the CI runner and Google's SDK server). As a result, the Android emulator was never installed or started, and ADB could not connect on port 5554. The CPU unit tests never ran.",
+  "reproduction_steps": "N/A - transient network failure during CI dependency installation",
+  "recommended_actions": [
+    "Re-run the failed jobs or re-add the PR to the merge queue to retry the transient network failure",
+    "If the failure recurs, check Google Android SDK server availability and network connectivity from CI runners"
+  ],
+  "prevention_strategies": "Add retry logic around sdkmanager install steps (--retry or a shell retry wrapper). Consider caching the Android SDK packages to reduce dependency on remote network availability.",
+  "historical_context": "No prior matching pattern found in the CI Doctor MQ database. This appears to be the first recorded occurrence of this specific failure."
+}
