@@ -82,6 +82,11 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov
     ov::preprocess::PrePostProcessor ppp(model);
 
     for (const auto& tensor : model->inputs()) {
+        // Decomposed cross-attention (word-level timestamps) can add ports with no
+        // tensor name at all - get_any_name() throws on those, unlike get_names().
+        if (tensor.get_names().empty()) {
+            continue;
+        }
         const auto& name = tensor.get_any_name();
         if (ov::npuw::util::isPastKeyValuesKey(name).has_value()) {
             ppp.input(name).tensor().set_element_type(key_storage_type);
@@ -91,6 +96,10 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov
     }
 
     for (const auto& tensor : model->outputs()) {
+        // See above: skip nameless outputs (e.g. qk-score outputs) before get_any_name().
+        if (tensor.get_names().empty()) {
+            continue;
+        }
         const auto& name = tensor.get_any_name();
         if (ov::npuw::util::isPresentKeyValuesKey(name).has_value()) {
             ppp.output(name).tensor().set_element_type(key_storage_type);
