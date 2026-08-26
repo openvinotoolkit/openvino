@@ -13,6 +13,7 @@
 #include "graph.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/itt.hpp"
+#include "intel_npu/common/option_support_cache.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "mem_usage.hpp"
@@ -22,6 +23,11 @@
 #include "weightless_utils.hpp"
 
 namespace intel_npu {
+
+namespace {
+constexpr OptionSupportCache::CacheKey driverOptionSupportKey =
+    static_cast<OptionSupportCache::CacheKey>(ov::intel_npu::CompilerType::DRIVER);
+}
 
 namespace {
 
@@ -39,10 +45,8 @@ bool isVersionSupportedByCompiler(uint32_t version, const ze_graph_compiler_vers
 const std::vector<PropertySupportInfo> _supportedPropertiesWithVersions = {
     {ov::compilation_num_threads.name(), ONEAPI_MAKE_VERSION(0, 0)},
     {ov::enable_profiling.name(), ONEAPI_MAKE_VERSION(0, 0)},
-    {ov::device::id.name(), ONEAPI_MAKE_VERSION(0, 0)},
     {ov::hint::execution_mode.name(), ONEAPI_MAKE_VERSION(5, 6)},
     {ov::hint::inference_precision.name(), ONEAPI_MAKE_VERSION(5, 4)},
-    {ov::hint::num_requests.name(), ONEAPI_MAKE_VERSION(0, 0)},
     {ov::hint::performance_mode.name(), ONEAPI_MAKE_VERSION(0, 0)},
     {ov::log::level.name(), ONEAPI_MAKE_VERSION(0, 0)},
     {ov::intel_npu::batch_compiler_mode_settings.name(), ONEAPI_MAKE_VERSION(7, 4)},
@@ -63,8 +67,10 @@ const std::vector<PropertySupportInfo> _supportedPropertiesWithVersions = {
 
 }  // namespace
 
-DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
+DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                                             const std::shared_ptr<OptionSupportCache>& optionSupportCache)
     : _zeroInitStruct(zeroInitStruct),
+      _optionSupportCache(optionSupportCache),
       _logger("DriverCompilerAdapter", Logger::global().level()) {
     _logger.info("initialize DriverCompilerAdapter start");
 
@@ -253,7 +259,9 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                                              std::move(initNetworkMetadata),
                                              /* initBlobs = */ std::nullopt,
                                              std::move(model),
-                                             updatedConfig);
+                                             updatedConfig,
+                                             /* persistentBlob = */ false,
+                                             get_compatibility_descriptor(mainGraphHandle._handle));
 }
 
 ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
@@ -327,6 +335,10 @@ std::vector<std::string> DriverCompilerAdapter::get_supported_options() const {
         while (suppstream >> option) {
             compilerOpts.push_back(option);
         }
+
+        if (_optionSupportCache) {
+            _optionSupportCache->setSupportedOptions(driverOptionSupportKey, compilerOpts);
+        }
         return compilerOpts;
     }
 
@@ -341,21 +353,42 @@ std::vector<std::string> DriverCompilerAdapter::get_supported_options() const {
     if (compilerOpts.empty()) {
         return {};
     }
+
+    if (_optionSupportCache) {
+        _optionSupportCache->setSupportedOptions(driverOptionSupportKey, compilerOpts);
+    }
     return compilerOpts;
 }
 
 bool DriverCompilerAdapter::is_option_supported(const std::string& optName,
                                                 const std::optional<std::string>& optValue) const {
+    bool optionSupportCache = _optionSupportCache && !optValue.has_value();
+    if (optionSupportCache) {
+        const auto cachedSupport = _optionSupportCache->isOptionSupported(driverOptionSupportKey, optName);
+        if (cachedSupport.has_value()) {
+            return cachedSupport.value();
+        }
+    }
+
     auto isOptionSupported = _zeGraphExt->isOptionSupported(optName, optValue);
     if (isOptionSupported.has_value()) {
-        return isOptionSupported.value();
+        const bool supported = isOptionSupported.value();
+        if (optionSupportCache) {
+            _optionSupportCache->addSupportedOption(driverOptionSupportKey, optName, supported);
+        }
+
+        return supported;
     }
 
     // legacy path
     const auto& compilerVersion = _compilerProperties.compilerVersion;
     for (const auto& prop : _supportedPropertiesWithVersions) {
         if (prop.name == optName) {
-            return isVersionSupportedByCompiler(prop.version, compilerVersion);
+            const bool supported = isVersionSupportedByCompiler(prop.version, compilerVersion);
+            if (_optionSupportCache) {
+                _optionSupportCache->addSupportedOption(driverOptionSupportKey, optName, supported);
+            }
+            return supported;
         }
     }
     return false;

@@ -617,6 +617,10 @@ private:
         int cb_work = impl::utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
         int MB = jpp.mb;
 
+        if (MB <= 0 || cb_work <= 0 || jpp.oh <= 0 || jpp.ow <= 0) {
+            return;
+        }
+
         int real_rois = 0;
         for (; real_rois < MB; real_rois++) {
             size_t roi_off = real_rois * src_roi_step;
@@ -761,6 +765,10 @@ public:
                           const CpuParallelPtr& cpuParallel) {
         int cb_work = impl::utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
         int MB = jpp.mb;
+
+        if (MB <= 0 || cb_work <= 0 || jpp.oh <= 0 || jpp.ow <= 0) {
+            return;
+        }
 
         int real_rois = 0;
         for (; real_rois < MB; real_rois++) {
