@@ -130,6 +130,10 @@ KERNEL(rms_gpu_bfyx_opt)(
 
     rms = slm_buf[0];
 
+#if ELEMENTWISE_AFFINE && RMS_GAMMA_IS_SCALAR
+    const ACCUMULATOR_TYPE gamma_scalar = TO_ACCUMULATOR_TYPE(gamma[0]);
+#endif
+
     #if HAS_FUSED_OPS
         uint b, f, z, y, x;
         #if INPUT_RANK == 1
@@ -156,7 +160,9 @@ KERNEL(rms_gpu_bfyx_opt)(
         for (; i < items_num - (items_num % SUBGROUP_BLOCK_SIZE); i += SUBGROUP_BLOCK_SIZE)
         {
 #if ELEMENTWISE_AFFINE
+#if !RMS_GAMMA_IS_SCALAR
             ACC_TYPE vec_gamma = TO_ACC_TYPE(BLOCK_READ(gamma, subgroup_offset + i * get_sub_group_size()));
+#endif
 #endif
             OUTPUT_VEC_TYPE vec_tmp;
             #if HAS_FUSED_OPS
@@ -164,7 +170,11 @@ KERNEL(rms_gpu_bfyx_opt)(
             #endif
 #if SUBGROUP_BLOCK_SIZE == 1
 #if ELEMENTWISE_AFFINE
+#if RMS_GAMMA_IS_SCALAR
+            OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i] * gamma_scalar);
+#else
             OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i] * vec_gamma);
+#endif
 #else
             OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i]);
 #endif
@@ -176,7 +186,11 @@ KERNEL(rms_gpu_bfyx_opt)(
 #else
             unroll_for (int j = 0; j < SUBGROUP_BLOCK_SIZE; j++) {
 #if ELEMENTWISE_AFFINE
+#if RMS_GAMMA_IS_SCALAR
+                OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i + j] * gamma_scalar);
+#else
                 OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i + j] * vec_gamma[j]);
+#endif
 #else
                 OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i + j]);
 #endif
@@ -195,8 +209,12 @@ KERNEL(rms_gpu_bfyx_opt)(
     for (; i < items_num; i++)
     {
 #if ELEMENTWISE_AFFINE
+    #if RMS_GAMMA_IS_SCALAR
+        OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i] * gamma_scalar);
+    #else
         ACCUMULATOR_TYPE temp = TO_ACCUMULATOR_TYPE(gamma[subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()]);
         OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i] * temp);
+    #endif
 #else
         OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i]);
 #endif
@@ -211,8 +229,12 @@ KERNEL(rms_gpu_bfyx_opt)(
     if (in_data_idx < leftovers)
     {
 #if ELEMENTWISE_AFFINE
+    #if RMS_GAMMA_IS_SCALAR
+        OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[items_num] * gamma_scalar);
+    #else
         ACCUMULATOR_TYPE temp = TO_ACCUMULATOR_TYPE(gamma[workers_per_data * items_num + in_data_idx]);
         OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[items_num] * temp);
+    #endif
 #else
         OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[items_num]);
 #endif

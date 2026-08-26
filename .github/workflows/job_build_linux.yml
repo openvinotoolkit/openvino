@@ -85,6 +85,16 @@ on:
         type: boolean
         required: false
         default: true
+      build-samples:
+        description: 'Whether to build OpenVINO C++/C samples and include them in the OpenVINO package'
+        type: boolean
+        required: false
+        default: false
+      generate-gguf-fixtures:
+        description: 'Whether to generate the GGUF per-architecture test fixtures from llama.cpp into the tests artifact. Off by default: only useful where this build feeds job_cxx_unit_tests.yml'
+        type: boolean
+        required: false
+        default: false
 
 permissions: read-all
 
@@ -137,6 +147,7 @@ jobs:
         shell: bash
         run: |
           SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+          # nosemgrep: yaml.github-actions.security.audit.unsafe-add-mask-workflow-command.unsafe-add-mask-workflow-command
           echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
           echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
           echo "✓ Connection string loaded and masked"
@@ -151,7 +162,7 @@ jobs:
         timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
-          submodules: 'true'
+          submodules: 'recursive'
 
       - name: Clone OpenVINO
         if: ${{ inputs.os != 'fedora_29' }}
@@ -159,7 +170,7 @@ jobs:
         timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
-          submodules: 'true'
+          submodules: 'recursive'
 
       # Ticket: 139627
       - name: Checkout the latest OneDNN for GPU in nightly
@@ -231,7 +242,7 @@ jobs:
       - name: CMake configure - OpenVINO
         run: eval cmake ${{ env.CMAKE_OPTIONS }} -S ${{ env.OPENVINO_REPO }} -B ${{ env. BUILD_DIR }}
         env:
-          CMAKE_OPTIONS: ${{ inputs.cmake-options }}
+          CMAKE_OPTIONS: ${{ inputs.cmake-options }} -DENABLE_SAMPLES=${{ inputs.build-samples && 'ON' || 'OFF' }}
 
       - name: Clean sccache stats
         run: ${SCCACHE_PATH} --zero-stats
@@ -247,6 +258,30 @@ jobs:
           cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_DIR}
           cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_TEST_DIR} --component tests
           cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${DEVELOPER_PACKAGE_DIR} --component developer_package
+
+      # Samples are built by the main build (ENABLE_SAMPLES=ON); install their binaries into the package
+      - name: Install OpenVINO samples
+        if: ${{ inputs.build-samples }}
+        run: cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_DIR} --component samples_bin
+
+      # The GGUF per-architecture fixtures are GGUF headers emitted by llama.cpp's test-llama-archs.
+      # They are generated here rather than committed, and land in the tests artifact so the test job
+      # (which has neither a source checkout nor cmake) can consume them like any other test data.
+      # Where they are absent the arch test suite skips itself, so this is test data, not a build
+      # dependency -- which is what keeps llama.cpp out of OpenVINO's dependency graph.
+      #
+      # llama.cpp is pinned inside gen_arch_fixtures.py and only moves when the fixtures are
+      # deliberately refreshed: the generator writes whatever KVs llama.cpp currently defines, so
+      # following upstream would change every fixture's bytes -- and break the pinned graph
+      # fingerprints -- on an unrelated llama.cpp commit.
+      - name: Generate GGUF arch fixtures
+        if: ${{ inputs.generate-gguf-fixtures && fromJSON(inputs.affected-components).GGUF_FE.test }}
+        run: |
+          python3 -m pip install --no-cache-dir gguf
+          python3 ${OPENVINO_REPO}/src/frontends/gguf/tests/gen_arch_fixtures.py \
+            --fetch \
+            --out-dir ${INSTALL_TEST_DIR}/tests/test_data/arch_fixtures \
+            -j $(nproc)
 
       - name: Install Python wheels for the main Python
         if: ${{ ! inputs.build-additional-python-packages }}
@@ -316,12 +351,14 @@ jobs:
           [[ "${OS}" == "ubuntu_24_04" || "${OS}" == "ubuntu_26_04" ]] && python_exec=/venv/bin/python3 || python_exec=/usr/bin/python3
           $python_exec -m pip install -U pip
           $python_exec -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
+          # Debian packages always ship the openvino-samples package, so enable samples regardless of build-samples
           cmake -UPython* -U_Python* -UPYTHON* \
                 -UTBB* \
                 -DENABLE_SYSTEM_TBB=ON \
                 -DENABLE_PYTHON_PACKAGING=ON \
                 -DENABLE_WHEEL=OFF \
                 -DENABLE_TESTS=OFF \
+                -DENABLE_SAMPLES=ON \
                 -DPython3_EXECUTABLE=$python_exec \
                 -DCPACK_GENERATOR=DEB \
                 ${BUILD_DIR}
@@ -373,12 +410,14 @@ jobs:
       - name: Build RPM packages
         if: ${{ inputs.build-rpm-packages }}
         run: |
+          # RPM packages always ship the openvino-samples package, so enable samples regardless of build-samples
           cmake -UTBB* \
                 -DCPACK_GENERATOR=RPM \
                 -DENABLE_SYSTEM_TBB=ON \
                 -DENABLE_PYTHON_PACKAGING=ON \
                 -DENABLE_WHEEL=OFF \
                 -DENABLE_TESTS=OFF \
+                -DENABLE_SAMPLES=ON \
                 ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel $(nproc) --target package -- --quiet
 

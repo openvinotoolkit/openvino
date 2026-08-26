@@ -772,6 +772,22 @@ OPENVINO_TEST(onnx_editor, subgraph__custom_input_name_already_exist) {
     }
 }
 
+OPENVINO_TEST(onnx_editor, values__append_one_nibble_initializer) {
+    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
+    FrontEnd::Ptr front_end;
+    auto input_model = load_model("model_editor/cast_1D_f4e2m1.onnx", &front_end);
+
+    // 6 f4e2m1 values packed two per byte (LSB first): 0.0, 0.5, 1.0, -1.0, 6.0, -6.0
+    const std::vector<uint8_t> packed{0x10, 0xa2, 0xf7};
+    auto place = input_model->get_place_by_tensor_name("A");
+    input_model->set_tensor_value(place, packed.data());
+
+    const auto model = front_end->convert(input_model);
+    auto test_case = ov::test::TestCase(model);
+    test_case.add_expected_output<float>(Shape{6}, {0.0f, 0.5f, 1.0f, -1.0f, 6.0f, -6.0f});
+    test_case.run();
+}
+
 OPENVINO_TEST(onnx_editor, values__append_one_initializer) {
     SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;

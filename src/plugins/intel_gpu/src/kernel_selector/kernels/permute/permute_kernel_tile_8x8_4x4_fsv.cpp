@@ -18,12 +18,14 @@ namespace kernel_selector {
 ParamsKey PermuteKernel_tile_8x8_4x4_fsv::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::INT64);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
@@ -64,7 +66,7 @@ static inline std::vector<std::string> GetFusedOpOrderVector(size_t size) {
 }
 
 static inline std::string GetTiledOutputOrder(size_t size) {
-    std::string order_str = "";
+    std::string order_str;
     switch (size) {
         case 4 :
             order_str = "b, y, x, f + lw";
@@ -80,7 +82,7 @@ static inline std::string GetTiledOutputOrder(size_t size) {
 static inline std::string GetReorderedTiledOutputOrder(const permute_params& params) {
     std::pair<size_t, size_t> dim_change = {params.inputs[0].GetDims().size(), params.outputs[0].GetDims().size()};
 
-    std::string order_str = "";
+    std::string order_str;
     int32_t dim_diff = static_cast<int32_t>(dim_change.first) - static_cast<int32_t>(dim_change.second);
     if (dim_diff == 0) {
         switch (params.outputs[0].GetDims().size()) {
@@ -119,7 +121,7 @@ static inline std::string GetReorderedTiledOutputOrder(const permute_params& par
 }
 
 static inline std::string GetTiledInputOrder(size_t size) {
-    std::string order_str = "";
+    std::string order_str;
     switch (size) {
         case 4 :
             order_str = "b, f, y + lh, x";
@@ -358,12 +360,13 @@ KernelsPriority PermuteKernel_tile_8x8_4x4_fsv::GetKernelsPriority(const Params&
 
     if (num_working_groups == 1) {
         return DONT_USE_IF_HAVE_SOMETHING_ELSE;
-    } else if ((rotating_dim >= DEFAULT_TILE_SIZE) && (feature >= DEFAULT_TILE_SIZE)) {
-        return FORCE_PRIORITY_1;
-    } else if ((rotating_dim >= DEFAULT_TILE_SIZE) || (feature >= DEFAULT_TILE_SIZE)) {
-        return FORCE_PRIORITY_2;
-    } else {
-        return FORCE_PRIORITY_3;
     }
+    if ((rotating_dim >= DEFAULT_TILE_SIZE) && (feature >= DEFAULT_TILE_SIZE)) {
+        return FORCE_PRIORITY_1;
+    }
+    if ((rotating_dim >= DEFAULT_TILE_SIZE) || (feature >= DEFAULT_TILE_SIZE)) {
+        return FORCE_PRIORITY_2;
+    }
+    return FORCE_PRIORITY_3;
 }
 }  // namespace kernel_selector

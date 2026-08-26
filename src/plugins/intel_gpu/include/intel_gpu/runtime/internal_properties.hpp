@@ -135,6 +135,7 @@ static constexpr Property<float, PropertyMutability::RW> buffers_preallocation_r
 static constexpr Property<size_t, PropertyMutability::RW> max_kernels_per_batch{"GPU_MAX_KERNELS_PER_BATCH"};
 static constexpr Property<bool, PropertyMutability::RW> use_onednn{"GPU_USE_ONEDNN"};
 static constexpr Property<bool, PropertyMutability::RW> use_cm{"GPU_USE_CM"};
+static constexpr Property<bool, PropertyMutability::RW> enable_zero_copy_cache_load{"GPU_ENABLE_ZERO_COPY_CACHE_LOAD"};
 
 static constexpr Property<bool, ov::PropertyMutability::RW> help{"HELP"};
 static constexpr Property<size_t, ov::PropertyMutability::RW> verbose{"VERBOSE"};
@@ -190,6 +191,8 @@ static constexpr Property<bool, ov::PropertyMutability::RW> allow_bypass_xattn{"
 static constexpr Property<bool, ov::PropertyMutability::RW> network_marker{"GPU_NETWORK_MARKER"};
 static constexpr Property<bool, ov::PropertyMutability::RW> list_layers{"GPU_LIST_LAYERS"};
 static constexpr Property<bool, ov::PropertyMutability::RW> print_input_data_shapes{"GPU_PRINT_INPUT_DATA_SHAPES"};
+static constexpr Property<bool, ov::PropertyMutability::RW> pa_integrity_check{"GPU_PA_INTEGRITY_CHECK"};
+static constexpr Property<std::vector<int>, ov::PropertyMutability::RW> micro_sdpa_workgroup_config{"GPU_MICRO_SDPA_WORKGROUP_CONFIG"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> pa_mixed_route_mode{"GPU_PA_MIXED_ROUTE_MODE"};
 }  // namespace ov::intel_gpu
 

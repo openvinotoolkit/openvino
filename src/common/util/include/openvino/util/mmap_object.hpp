@@ -16,17 +16,36 @@
 #include <string>
 
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/memory.hpp"
 
 namespace ov {
 
 namespace util {
 int64_t get_system_page_size();
+
+/**
+ * @brief Alignment required for a memory mapping offset: allocation granularity on Windows, page size elsewhere.
+ */
+size_t get_system_alloc_granularity();
 }  // namespace util
 
 /**
  * @brief Generic constant to indicate automatic size calculation is required.
  */
 inline constexpr auto auto_size = std::numeric_limits<size_t>::max();
+
+/**
+ * @brief Access mode of a memory mapping.
+ */
+enum class MmapMode {
+    READ,       //!< Read-only mapping.
+    READ_WRITE  //!< Read-write mapping, modifications are written back to the file.
+};
+
+/**
+ * @brief Id reported by mappings whose content is mutable, so they must never be substituted for one another.
+ */
+inline constexpr uint64_t no_mapping_id = 0;
 
 /**
  * @brief This class represents a mapped memory.
@@ -48,6 +67,17 @@ public:
      *               mapping when set to auto_size.
      */
     virtual void hint_prefetch(size_t offset = 0, size_t size = auto_size) = 0;
+
+    /**
+     * @brief Asynchronous variant of @ref hint_prefetch: starts populating the given region in the
+     * background and returns immediately. Any background work is joined before this object is
+     * destroyed.
+     *
+     * @param offset Offset within the mapping where prefetching starts.
+     * @param size   Number of bytes to prefetch. Defaults to the rest of the
+     *               mapping when set to auto_size.
+     */
+    virtual void hint_prefetch_async(size_t offset = 0, size_t size = auto_size) = 0;
 };
 
 /**
@@ -61,12 +91,15 @@ public:
  * @param no_placeholder When true, skip the Windows 10+ placeholder/VEH mechanism and use the legacy
  *                       single-call MapViewOfFile path instead. This guarantees a uniform AllocationBase
  *                       across the whole mapping, required for NPU zero-copy blob import. On Linux ignored.
+ * @param mode Access mode of the mapping. A read_write mapping requires the file to be writable and reports
+ *             no_mapping_id, because get_id() marks an immutable data source that consumers may share.
  * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
  */
 std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& path,
                                                    size_t offset = 0,
                                                    size_t size = auto_size,
-                                                   bool no_placeholder = false);
+                                                   bool no_placeholder = false,
+                                                   MmapMode mode = MmapMode::READ);
 
 /**
  * @brief Returns mapped memory for a file from provided file handle (cross-platform).

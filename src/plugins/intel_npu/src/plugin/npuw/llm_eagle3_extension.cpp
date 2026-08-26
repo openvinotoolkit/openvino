@@ -299,6 +299,8 @@ void Eagle3Extension::accumulate_chunk_last_hidden_state(
                                                 m_chunked_seq_offset,
                                                 m_chunked_seq_offset + chunk_token_count);
 
+    NPUW_ASSERT(target_slice._ptr &&
+                "null slice of last_hidden_state tensor — source tensor may be uninitialized or have wrong shape");
     chunk_output_slice->copy_to(target_slice._ptr);
 
     LOG_VERB("Eagle3: Copied chunk [" << chunk_start_offset << ":" << chunk_seq_len << "] to position ["

@@ -25,7 +25,7 @@ static std::map<primitive_id, layout> get_out_layout_map(cldnn::program::ptr pro
 
 static std::map<primitive_id, layout> get_out_layout_map(cldnn::network::ptr net) {
     std::map<primitive_id, layout> out_layout_map;
-    for (auto& o : net->get_outputs()) {
+    for (const auto& o : net->get_outputs()) {
         out_layout_map.insert({o->id(), o->get_output_layout()});
     }
     return out_layout_map;
@@ -34,14 +34,14 @@ static std::map<primitive_id, layout> get_out_layout_map(cldnn::network::ptr net
 static std::vector<layout> get_output_layouts(std::map<primitive_id, layout>&& outputs, const std::map<size_t, cldnn::primitive_id> &io_output_map) {
     std::vector<layout> out_layouts;
     for (auto out : outputs) {
-        for (auto& io_output : io_output_map) {
+        for (const auto& io_output : io_output_map) {
             auto inner_prim_id = io_output.second;
             if (out.first == inner_prim_id) {
                 out_layouts.push_back(out.second);
             }
         }
     }
-    OPENVINO_ASSERT(out_layouts.size() > 0, "Not found any matched output");
+    OPENVINO_ASSERT(!out_layouts.empty(), "Not found any matched output");
     return out_layouts;
 }
 
@@ -113,9 +113,8 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& true_pshape, const
         // Union of scalar and 1D case
         if (then_rank.get_length() <= 1 && else_rank.get_length() <= 1) {
             return ov::PartialShape::dynamic(1);
-        } else {
-            return ov::PartialShape::dynamic();
         }
+        return ov::PartialShape::dynamic();
     }
     std::vector<ov::Dimension> new_dims;
 
@@ -171,29 +170,27 @@ std::vector<layout> condition_inst::calc_output_layouts(condition_node const& /*
             }
         }
         return output_layouts;
-    } else {
-        auto layouts_true  = get_output_layouts(get_out_layout_map(impl_param.inner_nets[idx_branch_true]),  impl_param.io_output_maps[idx_branch_true]);
-        auto layouts_false = get_output_layouts(get_out_layout_map(impl_param.inner_nets[idx_branch_false]), impl_param.io_output_maps[idx_branch_false]);
-        const size_t num_outputs = impl_param.output_layouts.size();
-        OPENVINO_ASSERT((num_outputs == layouts_true.size() && num_outputs == layouts_false.size()),
-                            "The number of outputs for each branch should be same!");
-
-        auto& memory_deps = impl_param.memory_deps;
-        OPENVINO_ASSERT(memory_deps.count(0) > 0, "The count of memory deps should not be zero");
-        auto mem_ptr = memory_deps.at(0);
-        auto pred = condition_inst::get_pred_from_memory(mem_ptr, impl_param.get_stream());
-        std::vector<layout> output_layouts;
-        if (pred) {
-            for (size_t i = 0; i < num_outputs; i++) {
-                output_layouts.push_back(condition_inst::adjust_scalar_to_1d_layout(layouts_true[i], layouts_false[i]));
-            }
-        } else {
-            for (size_t i = 0; i < num_outputs; i++) {
-                output_layouts.push_back(condition_inst::adjust_scalar_to_1d_layout(layouts_false[i], layouts_true[i]));
-            }
-        }
-        return output_layouts;
     }
+    auto layouts_true = get_output_layouts(get_out_layout_map(impl_param.inner_nets[idx_branch_true]), impl_param.io_output_maps[idx_branch_true]);
+    auto layouts_false = get_output_layouts(get_out_layout_map(impl_param.inner_nets[idx_branch_false]), impl_param.io_output_maps[idx_branch_false]);
+    const size_t num_outputs = impl_param.output_layouts.size();
+    OPENVINO_ASSERT((num_outputs == layouts_true.size() && num_outputs == layouts_false.size()), "The number of outputs for each branch should be same!");
+
+    const auto& memory_deps = impl_param.memory_deps;
+    OPENVINO_ASSERT(memory_deps.count(0) > 0, "The count of memory deps should not be zero");
+    auto mem_ptr = memory_deps.at(0);
+    auto pred = condition_inst::get_pred_from_memory(mem_ptr, impl_param.get_stream());
+    std::vector<layout> output_layouts;
+    if (pred) {
+        for (size_t i = 0; i < num_outputs; i++) {
+            output_layouts.push_back(condition_inst::adjust_scalar_to_1d_layout(layouts_true[i], layouts_false[i]));
+        }
+    } else {
+        for (size_t i = 0; i < num_outputs; i++) {
+            output_layouts.push_back(condition_inst::adjust_scalar_to_1d_layout(layouts_false[i], layouts_true[i]));
+        }
+    }
+    return output_layouts;
 }
 
 template std::vector<layout> condition_inst::calc_output_layouts<ov::PartialShape>(condition_node const& node, const kernel_impl_params& impl_param);
