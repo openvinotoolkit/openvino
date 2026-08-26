@@ -228,7 +228,7 @@ KERNEL(sdpa_ref)(
                                   b1 * (TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                                   target_seq_idx * (SOURCE_SEQ_LEN) + s;
 #if IS_CAUSAL
-            #if CAUSAL_MASK_LOWER_RIGHT
+            #if !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
                 OUTPUT_TYPE attn_mask_val = s > target_seq_idx + (SOURCE_SEQ_LEN - TARGET_SEQ_LEN) ? OUTPUT_VAL_MIN : 0;
             #else
                 OUTPUT_TYPE attn_mask_val = s > target_seq_idx ? OUTPUT_VAL_MIN : 0;

@@ -228,7 +228,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         #if !IS_GQA_SINGLE_TOKEN
             causal_k = min(k, past_len + (int)wg_j0 + ugemm_kq_wg_tile_n);
         #endif
-    #elif CAUSAL_MASK_LOWER_RIGHT
+    #elif !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
         causal_k = min(k, k- q + (int)wg_j0 + ugemm_kq_wg_tile_n);
     #else
         causal_k = min(k, (int)wg_j0 + ugemm_kq_wg_tile_n);

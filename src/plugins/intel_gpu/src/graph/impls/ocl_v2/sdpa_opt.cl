@@ -518,7 +518,7 @@ KERNEL(sdpa_opt)(
 
                         // Apply attention mask
 #if IS_CAUSAL
-                        #if CAUSAL_MASK_LOWER_RIGHT
+                        #if !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
                             if (start_partition_idx + seq_len > (SOURCE_SEQ_LEN - TARGET_SEQ_LEN) + target_seq_idx + seq_idx)
                         #else
                             if (start_partition_idx + seq_len > target_seq_idx + seq_idx)
@@ -1040,7 +1040,11 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #if IS_CAUSAL
-    const uint causal_offset = CAUSAL_MASK_LOWER_RIGHT ? max(0, (int)SOURCE_SEQ_LEN - (int)TARGET_SEQ_LEN) : 0;
+    #if !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
+        const uint causal_offset = max(0, (int)SOURCE_SEQ_LEN - (int)TARGET_SEQ_LEN);
+    #else
+        const uint causal_offset = 0;
+    #endif
     if (target_seq_idx >= (uint)TARGET_SEQ_LEN) {
         unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
             mask_vec[i] = NAN;
@@ -1360,7 +1364,11 @@ KERNEL(sdpa_opt)(
 #endif
 
 #if IS_CAUSAL
-    const uint causal_offset = CAUSAL_MASK_LOWER_RIGHT ? max(0, (int)SOURCE_SEQ_LEN - (int)TARGET_SEQ_LEN) : 0;
+    #if !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
+        const uint causal_offset = max(0, (int)SOURCE_SEQ_LEN - (int)TARGET_SEQ_LEN);
+    #else
+        const uint causal_offset = 0;
+    #endif
     const SEQ_RANGE default_this_work_item_seq_range = {
         0,
         target_seq_idx + sglid + causal_offset,
