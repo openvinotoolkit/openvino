@@ -218,6 +218,11 @@ class TorchScriptPythonDecoder(Decoder):
 
     def get_input_shape(self, index: int):
         raw_input = self._raw_input(index)
+        if isinstance(self.graph_element, torch.Node) and self.get_op_type() in [
+            "aten::chunk", "aten::unsafe_chunk", "aten::unbind",
+        ]:
+            if raw_input.isCompleteTensor():
+                return PartialShape(list(raw_input.type().sizes()))
         return self.get_shape_for_value(raw_input)
 
     def get_input_strides(self, index: int) -> list[int]:
@@ -423,20 +428,24 @@ class TorchScriptPythonDecoder(Decoder):
                 chunks = self.raw_inputs[1].toIValue()
                 if isinstance(chunks, int):
                     dim = 0 if len(self.raw_inputs) < 3 else self.raw_inputs[2].toIValue()
-                    input_shape = self.get_shape_for_value(self.raw_inputs[0])
+                    input_shape = self.get_input_shape(0)
                     if isinstance(dim, int) and input_shape.rank.is_static:
                         rank = input_shape.rank.get_length()
                         if dim < 0:
                             dim += rank
                         if 0 <= dim < rank and input_shape[dim].is_static:
-                            return min(chunks, input_shape[dim].get_length())
+                            dim_size = input_shape[dim].get_length()
+                            if dim_size == 0:
+                                return 0
+                            chunk_size = 1 + (dim_size - 1) // max(1, chunks)
+                            return 1 + (dim_size - 1) // chunk_size
                     # The requested chunk count is only an upper bound; for dynamic or
                     # unknown split dimensions we cannot materialize a fixed VariadicSplit
                     # list length without changing semantics.
                     return 0
             elif self.get_op_type() == "aten::unbind":
                 dim = 0 if len(self.raw_inputs) < 2 else self.raw_inputs[1].toIValue()
-                input_shape = self.get_shape_for_value(self.raw_inputs[0])
+                input_shape = self.get_input_shape(0)
                 if isinstance(dim, int) and input_shape.rank.is_static:
                     rank = input_shape.rank.get_length()
                     if dim < 0:

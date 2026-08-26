@@ -7,6 +7,24 @@ import torch
 from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
+class TestSplitEmptyDimension(PytorchLayerTest):
+    def _prepare_input(self):
+        return (self.random.randn(0, 4),)
+
+    def create_model(self):
+        class aten_split(torch.nn.Module):
+            def forward(self, input_tensor):
+                result, = torch.split(input_tensor, 2, dim=0)
+                return result
+
+        return aten_split(), "aten::split"
+
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_split_empty_dimension(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version)
+
+
 class TestSplit(PytorchLayerTest):
     def _prepare_input(self):
         return (self.random.randn(1, 10, 224, 224),)

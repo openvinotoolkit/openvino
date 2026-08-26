@@ -72,9 +72,22 @@ class aten_chunk_getitem(torch.nn.Module):
                              )[self.idx]
 
 
+class aten_chunk_empty(torch.nn.Module):
+    def forward(self, input_tensor):
+        a, b, c = torch.chunk(input_tensor, chunks=3, dim=0)
+        return a, b, c
+
+
 class TestChunk(PytorchLayerTest):
     def _prepare_input(self):
         return (self.random.rand(*self.input_shape),)
+
+    @pytest.mark.parametrize("input_shape", [(0,), (0, 4)])
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_chunk_empty_dimension(self, input_shape, ie_device, precision, ir_version):
+        self.input_shape = input_shape
+        self._test(aten_chunk_empty(), "aten::chunk", ie_device, precision, ir_version)
 
     @pytest.mark.parametrize("input_shape", [
         (4, 4),

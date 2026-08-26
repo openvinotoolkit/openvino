@@ -65,6 +65,7 @@ OP_CONVERTER(translate_bitwise_xor);
 OP_CONVERTER(translate_bucketize);
 OP_CONVERTER(translate_cat);
 OP_CONVERTER(translate_cdist);
+OP_CONVERTER(translate_chunk);
 OP_CONVERTER(translate_celu);
 OP_CONVERTER(translate_channel_shuffle);
 OP_CONVERTER(translate_clamp);
@@ -368,7 +369,6 @@ OP_CONVERTER(translate_quantize_per_tensor_fx);
 OP_CONVERTER(translate_var_fx);
 OP_CONVERTER(translate_var_mean_fx);
 OP_CONVERTER(translate_vstack);
-OP_CONVERTER(translate_unbind_int_fx);
 OP_CONVERTER(translate_zeros_fx);
 OP_CONVERTER(translate_zeros_like_fx);
 // Extensions
@@ -480,6 +480,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::ceil_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Ceiling>>},
         {"aten::celu", op::translate_celu},
         {"aten::channel_shuffle", op::translate_channel_shuffle},
+        {"aten::chunk", op::translate_chunk},
         {"aten::clamp", op::translate_clamp},
         {"aten::clamp_max", op::translate_1to1_match_2_inputs_align_types<opset10::Minimum>},
         {"aten::clamp_min", op::translate_1to1_match_2_inputs_align_types<opset10::Maximum>},
@@ -793,6 +794,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::unbind", op::translate_unbind},
         {"aten::unflatten", op::translate_unflatten},
         {"aten::unfold", op::translate_unfold},
+        {"aten::unsafe_chunk", op::translate_chunk},
         {"aten::unsqueeze", common_translators::translate_unsqueeze},
         {"aten::unsqueeze_copy", common_translators::translate_unsqueeze},
         {"aten::upsample_bicubic2d", op::translate_upsample_bicubic2d},
@@ -1158,7 +1160,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.transpose.int", op::translate_transpose},
         {"aten.tril.default", op::translate_tril},
         {"aten.triu.default", op::translate_triu},
-        {"aten.unbind.int", op::translate_unbind_int_fx},
+        {"aten.unbind.int", op::translate_unbind},
         {"aten.unfold.default", op::translate_unfold},
         {"aten.unsqueeze.default", common_translators::translate_unsqueeze},
         {"aten.unsqueeze_copy.default", op::translate_1to1_match_2_inputs<opset10::Unsqueeze>},
