@@ -200,6 +200,14 @@ protected:
     void alloc_quant_gather_tensors(std::size_t idx, RqPtr request);
     void handle_quant_host_gather(std::size_t idx, RqPtr request);
 
+    // JustInferRequest shares one physical subrequest per function body (indexed by
+    // real_idx); UnfoldInferRequest gives every call-site its own dedicated subrequest
+    // (indexed by idx). Dumping must read from whichever one is actually holding the
+    // data, or it may touch a request that's concurrently running ("Infer Request is busy").
+    virtual RqPtr dump_request(std::size_t idx, std::size_t real_idx) const {
+        return m_subrequests[real_idx];
+    }
+
     void dump_input_tensors(std::size_t idx);
     void dump_output_tensors(std::size_t idx);
 

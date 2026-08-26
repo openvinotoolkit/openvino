@@ -26,6 +26,12 @@ public:
     bool valid_subrequest(std::size_t idx) const override;
     void start_subrequest(std::size_t) override {}
     void run_subrequest_for_success(std::size_t) override {}
+
+    // Unlike JustInferRequest, every call-site here owns its own dedicated subrequest
+    // (see constructor), so dumping must read from m_subrequests[idx], not [real_idx].
+    RqPtr dump_request(std::size_t idx, std::size_t) const override {
+        return m_subrequests[idx];
+    }
     void subscribe_subrequest(std::size_t, Completed cb) override {}
     void complete_subrequest(std::size_t) override {}
     void cancel_subrequest(std::size_t) override {}

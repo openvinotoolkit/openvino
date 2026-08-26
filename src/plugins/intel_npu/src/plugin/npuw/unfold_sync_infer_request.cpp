@@ -9,6 +9,8 @@
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
 
+#include <utility>
+
 ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
     : ov::npuw::IBaseInferRequest(compiled_model) {
     // Create infer requests
@@ -97,16 +99,17 @@ void ov::npuw::UnfoldInferRequest::infer() {
         bind_global_params(idx, m_subrequests[idx]);
         bind_global_results(idx, m_subrequests[idx]);
     };
-    auto wait_and_clear = [](RqPtrs& rqs) {
-        for (auto&& r : rqs) {
+    std::vector<std::pair<std::size_t, RqPtr>> previous_requests;
+    auto wait_and_dump = [&](std::vector<std::pair<std::size_t, RqPtr>>& rqs) {
+        for (auto&& [idx, r] : rqs) {
             r->wait();
+            dump_output_tensors(idx);
         }
         rqs.clear();
     };
 
     if (do_async) {
         std::size_t past_repl_id = 0u;
-        RqPtrs previous_requests;
 
         prepare(0);
         for (std::size_t idx = 0; idx < m_num_submodels; idx++) {
@@ -121,14 +124,15 @@ void ov::npuw::UnfoldInferRequest::infer() {
                 // For non-repeating blocks, the above value_or returns idx
                 // For repeating blocks, it returns the function group id
                 // If either is not equal to the past_repl_id, make a barrier here
-                wait_and_clear(previous_requests);
+                wait_and_dump(previous_requests);
                 past_repl_id = this_repl_id;
             }
+            dump_input_tensors(idx);
             subr->start_async();
-            previous_requests.push_back(subr);
+            previous_requests.emplace_back(idx, subr);
             prepare(idx + 1);
         }
-        wait_and_clear(previous_requests);
+        wait_and_dump(previous_requests);
     } else {
         prepare(0);
         for (std::size_t idx = 0; idx < m_num_submodels; idx++) {
@@ -137,9 +141,14 @@ void ov::npuw::UnfoldInferRequest::infer() {
                 prepare(idx + 1);
                 continue;
             }
+            dump_input_tensors(idx);
             subr->start_async();
             prepare(idx + 1);
             subr->wait();
+            dump_output_tensors(idx);
         }
     }  // (async)
+
+    // Increment counter regardless if dumps etc are enabled or not.
+    m_run_iter++;
 }

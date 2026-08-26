@@ -663,7 +663,7 @@ void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
             if (!port_selected(port)) {
                 continue;
             }
-            const auto& tnsr = m_subrequests[real_idx]->get_tensor(port);
+            const auto& tnsr = dump_request(idx, real_idx)->get_tensor(port);
             std::string in_base_name = comp_submodel_path + "_input_" + ov::npuw::util::fmt(i, num_inputs);
             ov::npuw::dump_tensor(tnsr, in_base_name);
             in_base_names.push_back(std::move(in_base_name));
@@ -690,7 +690,7 @@ void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
             if (!port_selected(port)) {
                 continue;
             }
-            const auto& tnsr = m_subrequests[real_idx]->get_tensor(port);
+            const auto& tnsr = dump_request(idx, real_idx)->get_tensor(port);
             std::string in_base_name = comp_submodel_path + "_input_" + ov::npuw::util::fmt(i, num_inputs);
             ov::npuw::dump_tensor(tnsr, in_base_name);
             in_base_names[i] = std::move(in_base_name);
@@ -759,7 +759,7 @@ void ov::npuw::IBaseInferRequest::dump_output_tensors(std::size_t idx) {
             if (!port_selected(port)) {
                 continue;
             }
-            const auto& tnsr = m_subrequests[real_idx]->get_tensor(port);
+            const auto& tnsr = dump_request(idx, real_idx)->get_tensor(port);
             std::string out_base_name = comp_submodel_path + "_output_" + ov::npuw::util::fmt(i, num_outputs);
             ov::npuw::dump_tensor(tnsr, out_base_name);
             out_base_names.push_back(std::move(out_base_name));
