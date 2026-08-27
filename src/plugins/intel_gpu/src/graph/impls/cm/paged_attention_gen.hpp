@@ -236,6 +236,11 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     size_t small_q_tile_count = 0;   // Number of SG tiles = ceil_div(small_q_token_count, TILE_Q)
     // small_q uses its own, larger partition size
     size_t small_q_num_of_partitions = 0;
+    // The runtime KV_PARTITION_SIZE this batch chose. gws[2], the kernel scalar and the
+    // partial buffer sizes must all derive from THIS field -- they are computed in three
+    // different functions, so a divergence would size the work for one partition and index
+    // it with another.
+    size_t small_q_partition_size = 0;
     int small_q_rung = 0;            // which compiled TILE_Q rung the batch selected
     int small_q_tile_q = 1;          // TILE_Q value chosen at JIT time (must match kernel)
     size_t small_q_max_kv_len = 0;   // Max kv_len across small-q subsequences (for partition count)
@@ -408,37 +413,45 @@ public:
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
 
-    // small-q wants a *larger* partition than single-token, and the same one for both cache
-    // layouts. The partition size sets two things at once: the workgroup count (parallelism for
-    // this kernel) and the size of the fp32 partial buffer that this kernel writes and the
-    // finalization reads back. Those pull in opposite directions, but very unequally -- the main
-    // kernel's preference is shallow while the partials dominate the pair's DRAM traffic, so the
-    // optimum sits well above single-token's 128/256.
+    // Upper bound compiled into the kernel, NOT the value used. KV_PARTITION_SIZE is a runtime
+    // scalar now (see pa_small_q.cm); this only sizes the three prologue lookaside tables, at
+    // 3 * (MAX / KV_STEP) * 4 = 480 bytes (7.5 GRF) unconditionally. Raising it is not free --
+    // 2048 would cost 24 GRF on a kernel already near the ceiling -- and 640 is the largest
+    // partition that ever measured best, so it is also the largest worth allowing.
     //
-    // Measured (15 k context, GQA-4, head 128, cmpr=2, main + reduce ms):
-    //                    block 16          block 256
-    //   partition    q=6      q=16      q=6      q=16
-    //     128       0.677    1.256       -        -
-    //     256       0.572    1.008     0.627    0.983
-    //     512       0.517    0.881     0.525    0.869
-    //     640       0.506    0.836     0.515    0.848      <- best for every column
-    //     768       0.589    0.854     0.581    0.851
+    // It is also what feeds get_single_token_q_chunking for this stage, so it must stay in the
+    // range where that helper still yields q_head_chunk_size 4 (it drops to 2 above 768, which
+    // would double the workgroup count and the K/V traffic). update_rt_params asserts the
+    // resulting chunking matches the dispatch chunking.
+    static constexpr size_t SMALL_Q_PARTITION_MAX = 640;
     //
-    // 640 is best for both q_len and both layouts, so this stays a constant rather than
-    // something keyed on q_len.
+    // This was 640 for a while, chosen from a 15 k-context sweep. That was overfitting: the
+    // partition size sets the workgroup count (WGs = kv_heads * chunks_per_kv * nparts), so a
+    // large partition starves the machine at short context. At past_len 512 a 640-token
+    // partition yields *one* partition, i.e. 8 workgroups of 3 threads = 24 threads on a part
+    // that holds ~160.
     //
-    // The ceiling is not performance but get_single_token_q_chunking: it sizes q_head_chunk_size
-    // against a full-partition-wide rS tile, which the *single-token* kernel holds but small_q
-    // does not (its rS_tile is one online tile wide). Past 768 that model shrinks the chunk from
-    // 4 to 2, which doubles q_head_chunks_per_kv_head and so doubles the workgroup count and the
-    // K/V read traffic. 1024 measures better than 640 in the sandbox only because that harness
-    // forces the chunk to 4. Raising this further needs a small-q-specific chunking model first.
-    static constexpr size_t SMALL_Q_PARTITION_SIZE = 640;
-    static size_t get_partition_size(const bool has_xattention = false) {
-        if (SMALL_Q_PARTITION_SIZE == 0) {
-            return PagedAttentionGeneratorSingleToken::get_partition_size(has_xattention);
-        }
-        return SMALL_Q_PARTITION_SIZE;
+    // Measured, main + reduce ms (GQA-4, head 128, cmpr 2, TILE_Q = q_len):
+    //
+    //           q_len=6                        q_len=16
+    //   past   128    256    384    640      128    256    384    640
+    //    512  0.042  0.062  0.092  0.113    0.070  0.093  0.077  0.082
+    //   2048  0.115  0.122  0.096  0.137    0.190  0.170  0.171  0.188
+    //  15360  0.686  0.597  0.586  0.552    1.275  0.997  0.930  0.888
+    //
+    // Cost of pinning one value, against the best per case:
+    //   128 -> worst +44 %, mean +17 %      384 -> worst +118 %, mean +23 %
+    //   256 -> worst +47 %, mean +21 %      640 -> worst +168 %, mean +40 %
+    //
+    // So no constant is good: 640 is the *worst* of the four, and even the best (128) gives up
+    // 44 % at 15 k. The real fix is to compile a couple of partition variants and pick on
+    // max_context_len, the same way SMALL_Q_EXTRA_RUNG_TILE_Q does for TILE_Q -- 640 would then
+    // be selected only for long contexts, where it is worth 12 % at q_len=16. Until then this
+    // tracks single-token so short contexts are not penalised.
+    //
+    // Regression coverage: test_15k_perf_comparison_ov_exp.py::test_small_q_partition_choice.
+    static size_t get_partition_size(const bool /*has_xattention*/ = false) {
+        return SMALL_Q_PARTITION_MAX;
     }
 
 private:
@@ -461,6 +474,47 @@ public:
 private:
     int _rung = 0;
 };
+
+// Runtime KV_PARTITION_SIZE for a batch, from the context length.
+//
+// The partition sets two opposing things: the workgroup count
+// (WGs = kv_heads * chunks_per_kv * ceil(context / partition)) and the fp32 partial traffic
+// the finalization reads back (proportional to the same partition count). Parallelism wants
+// many partitions, traffic wants few, and the balance moves with context -- so no constant is
+// right. A value tuned at 15 k left ONE partition at past_len=512, i.e. 8 workgroups of 3
+// threads on a part that holds ~160, and ran 3.3x slower.
+//
+// Measured best partition (main measured + reduce modelled at ~100 GB/s, GQA-4, head 128,
+// cmpr 2, TILE_Q = q_len):
+//
+//   context    512   1024   2048   4096   8192   15360
+//   q_len=6    128    256    384    384    640     640
+//   q_len=16   384*   256    512*   640*   640     640      (* within 7 % of this table)
+//
+// Note q_len=6 prefers a smaller partition than q_len=16 at the same context: it runs 3
+// threads per workgroup against 8, so it needs more workgroups to fill the machine. The table
+// below follows the q_len=6 column, which costs q_len=16 at most 7 %.
+//
+// Against the per-case best: this table is +7 % worst / +2 % mean, where the previous fixed
+// 256 was +47 % / +21 %.
+//
+// A table and not a formula on purpose: the thresholds were measured on one device with one
+// head size (which sets MARSHAL_CHUNKS_C, and with it the whole thread-count cost curve), and
+// a table is auditable and regression-testable. Re-measure with
+// test_small_q_partition_choice before trusting it elsewhere.
+inline size_t pick_small_q_partition(size_t max_context_len, bool /*has_xattention*/) {
+    size_t p;
+    if (max_context_len <= 768) {
+        p = 128;
+    } else if (max_context_len <= 1536) {
+        p = 256;
+    } else if (max_context_len <= 6144) {
+        p = 384;
+    } else {
+        p = 640;
+    }
+    return std::min(p, PagedAttentionGeneratorSmallQ::SMALL_Q_PARTITION_MAX);
+}
 
 // TILE_Q this stage rung resolves to for `params`, or 0 when the rung does not exist for this
 // shape (only rung 1 can be absent). Shared by both small-q stages so their JIT constants

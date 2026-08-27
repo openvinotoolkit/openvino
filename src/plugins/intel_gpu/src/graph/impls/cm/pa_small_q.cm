@@ -47,7 +47,21 @@ namespace KERNEL_NAME {
 #define VNNI_WIDTH 2
 #define REG_K (SystolicDepth * VNNI_WIDTH)
 #define REG_M RepeatCount
-#define KV_PARTITION_STEP_NUM  (KV_PARTITION_SIZE / KV_STEP)
+// KV_PARTITION_SIZE arrives as a kernel scalar, not a jit constant, so one compiled kernel
+// serves every context length and the host can size the partition from max_context_len
+// instead of pinning a value that is only right at one point. That matters because the
+// partition sets two opposing things at once -- the workgroup count (parallelism) and the
+// fp32 partial traffic the finalization reads back -- so the optimum moves with context.
+// Measured: the best fixed value still costs +44 % worst / +17 % mean against the per-case
+// best, and one tuned at 15 k regressed past_len=512 by 3.3x.
+//
+// The jit constant survives as an upper *bound* only, because the three prologue lookaside
+// tables below are the one thing that genuinely needs a compile-time extent. They cost
+// 3 * (KV_PARTITION_SIZE_MAX / KV_STEP) * 4 bytes of GRF unconditionally -- 480 B (7.5 GRF)
+// at 640 -- which is what bounds how large a partition may be requested. Raising the bound is
+// not free: at 2048 it would be 24 GRF on a kernel that already sits near the ceiling.
+#define KV_PARTITION_SIZE_MAX      KV_PARTITION_SIZE
+#define KV_PARTITION_STEP_NUM_MAX  (KV_PARTITION_SIZE_MAX / KV_STEP)
 
 #define STEPS_PER_BLOCK (KV_BLOCK_SIZE / KV_STEP)
 #if (KV_BLOCK_SIZE % KV_STEP) != 0
@@ -110,7 +124,6 @@ namespace KERNEL_NAME {
 #define ONLINE_TILE_STEPS 1
 #endif
 
-#define NUM_ONLINE_TILES ((KV_PARTITION_STEP_NUM + ONLINE_TILE_STEPS - 1) / ONLINE_TILE_STEPS)
 
 #define KV_PREFETCH_DIST 1
 
@@ -208,7 +221,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     int* selected_q_mapping [[type("svmptr_t")]],
     float* output [[type("svmptr_t")]],
     float* lse [[type("svmptr_t")]],
-    int q_len_unused,
+    int kv_partition_size_arg,   // KV_PARTITION_SIZE, runtime (was q_len_unused)
     int selected_token_count
     ) {
     // tile_idx indexes the host-packed (orig_seq, q_start, valid_count) triple list.
@@ -216,6 +229,11 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     // indexing only when the experimental workgroup-shared path is enabled.
     const uint tile_idx = cm_group_id(0);
     const uint local_qg = cm_local_id(0);
+    // Must equal the value the host sized gws[2] and the partial buffers with; all three come
+    // from rt_params->small_q_partition_size.
+    const uint kv_partition_size = (uint)kv_partition_size_arg;
+    const uint kv_part_steps = kv_partition_size / KV_STEP;
+    const uint num_online_tiles = (kv_part_steps + ONLINE_TILE_STEPS - 1) / ONLINE_TILE_STEPS;
     if (tile_idx >= (uint)selected_token_count) {
         return;
     }
@@ -241,7 +259,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     // re-applies the tighter bound on rS columns.
     const uint past_q_lens         = (uint)past_lens[orig_seq_idx];
     const uint kv_len_max          = past_q_lens + q_start + valid_count;       // tile-wide upper bound
-    const uint seq_kv_partition_num = (kv_len_max + KV_PARTITION_SIZE - 1) / KV_PARTITION_SIZE;
+    const uint seq_kv_partition_num = (kv_len_max + kv_partition_size - 1) / kv_partition_size;
 
 #if HAS_QQ_BIAS
     // Per-subsequence qq_bias slice: row-major [spec_num, spec_num] over speculative tokens.
@@ -376,8 +394,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         // Ordinal of the first cache block this partition touches. Derived from the key
         // position rather than from a blocks-per-partition ratio, so it stays correct when a
         // block is larger than a partition as well as smaller.
-        const uint first_blk_ord = (kv_partition_idx * KV_PARTITION_SIZE) / KV_BLOCK_SIZE;
-        if (kv_partition_idx * KV_PARTITION_SIZE >= kv_len_max || block_begin + first_blk_ord >= block_end) {
+        const uint first_blk_ord = (kv_partition_idx * kv_partition_size) / KV_BLOCK_SIZE;
+        if (kv_partition_idx * kv_partition_size >= kv_len_max || block_begin + first_blk_ord >= block_end) {
             #pragma unroll
             for (int row = 0; row < ROWS_PER_THREAD; row++) {
                 const int global_row = subgroup_row_base + row;
@@ -402,7 +420,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 
         uint leftover_size = 0;
         if (kv_partition_idx == seq_kv_partition_num - 1) {
-            leftover_size = (kv_len_max - KV_PARTITION_SIZE * kv_partition_idx) % KV_PARTITION_SIZE;
+            leftover_size = (kv_len_max - kv_partition_size * kv_partition_idx) % kv_partition_size;
         }
 
         constexpr float log2e_wg = 1.4426950408889634f;
@@ -419,7 +437,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         matrix<float, HEAD_SIZE / REG_N, ROWS_PER_THREAD * REG_N> Omat = 0;
 
         {
-            const uint partition_valid = (leftover_size > 0) ? leftover_size : (uint)KV_PARTITION_SIZE;
+            const uint partition_valid = (leftover_size > 0) ? leftover_size : kv_partition_size;
 
             // Column blocks strictly below mask_bound are unmasked for *every* row this
             // thread owns, so the whole per-row masking block can be skipped for them.
@@ -428,7 +446,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
             // only available to threads that own no such row.
             const int t_min_thread = (int)(subgroup_row_base / Q_head_chunk_size);
             const int t_max_thread = (int)((subgroup_row_base + ROWS_PER_THREAD - 1) / Q_head_chunk_size);
-            const int kv_global_start_h = (int)(kv_partition_idx * KV_PARTITION_SIZE);
+            const int kv_global_start_h = (int)(kv_partition_idx * kv_partition_size);
             const int mask_from_min = (int)(past_q_lens + q_start + t_min_thread + 1) - kv_global_start_h;
             int mask_bound_i = mask_from_min < (int)partition_valid ? mask_from_min : (int)partition_valid;
             if (t_min_thread >= (int)valid_count) {
@@ -445,19 +463,19 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
             for (int i = 0; i < REG_N; i++) lane_idx[i] = (ushort)i;
 
             // Precompute per-ki valid span once and reuse across all online tiles.
-            vector<uint, KV_PARTITION_STEP_NUM> kv_pos_end_cache = 0;
+            vector<uint, KV_PARTITION_STEP_NUM_MAX> kv_pos_end_cache = 0;
             // Same for the physical block index. Same number of loads as reading it once per
             // tile, but they all issue here, in the prologue, where their latency overlaps
             // instead of sitting on every tile's critical path -- and it makes tile i+1's
             // prefetch address available with no load at all.
-            vector<uint, KV_PARTITION_STEP_NUM> blk_idx_cache = 0;
+            vector<uint, KV_PARTITION_STEP_NUM_MAX> blk_idx_cache = 0;
             // ...and the token offset of the tile *inside* that block. With KV_BLOCK_SIZE
             // 256 and KV_STEP 16 a block spans 16 online tiles, so this is what tells the 2D
             // descriptors which rows to read (set_block_y) and where the tile's per-token
             // scale/zero-point live.
-            vector<uint, KV_PARTITION_STEP_NUM> tok_in_blk_cache = 0;
+            vector<uint, KV_PARTITION_STEP_NUM_MAX> tok_in_blk_cache = 0;
             #pragma unroll
-            for (int ki = 0; ki < KV_PARTITION_STEP_NUM; ki++) {
+            for (int ki = 0; ki < (int)kv_part_steps; ki++) {
                 // Valid key positions in *this online tile*, in [0, KV_STEP]. Note this is a
                 // per-tile count, not a per-block one: the two coincide only when
                 // STEPS_PER_BLOCK == 1.
@@ -470,7 +488,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                     }
                 }
                 if (tile_valid > 0) {
-                    const uint pos_global = kv_partition_idx * KV_PARTITION_SIZE + pos_in_part;
+                    const uint pos_global = kv_partition_idx * kv_partition_size + pos_in_part;
                     const uint blk_ord = pos_global / KV_BLOCK_SIZE;   // block ordinal in the sequence
                     if (block_begin + blk_ord < block_end) {
                         blk_idx_cache[ki] = block_indices[block_begin + blk_ord];
@@ -488,7 +506,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 #else
             #pragma unroll
 #endif
-            for (int online_tile = 0; online_tile < NUM_ONLINE_TILES; online_tile++) {
+            for (int online_tile = 0; online_tile < (int)num_online_tiles; online_tile++) {
                 const int ki_base = online_tile * ONLINE_TILE_STEPS;
                 const int ki_base_m = ki_base;
                 const uint slm_slot_k = 0;
@@ -520,7 +538,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                 #pragma unroll
                 for (int li_m = 0; li_m < ONLINE_TILE_STEPS; li_m++) {
                     const int ki_m = ki_base_m + li_m;
-                    if (ki_m >= KV_PARTITION_STEP_NUM) {
+                    if (ki_m >= (int)kv_part_steps) {
                         continue;
                     }
 
@@ -540,7 +558,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                     uint k_blk_next = 0;
                     uint v_blk_next = 0;
                     uint tok_in_blk_next = 0;
-                    if (ki_m + KV_PREFETCH_DIST < KV_PARTITION_STEP_NUM
+                    if (ki_m + KV_PREFETCH_DIST < (int)kv_part_steps
                         && kv_pos_end_cache[ki_m + KV_PREFETCH_DIST] > 0) {
                         const uint bn = blk_idx_cache[ki_m + KV_PREFETCH_DIST];
                         tok_in_blk_next = tok_in_blk_cache[ki_m + KV_PREFETCH_DIST];
@@ -747,7 +765,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                 #pragma unroll
                 for (int li = 0; li < ONLINE_TILE_STEPS; li++) {
                     const int ki = ki_base + li;
-                    if (ki >= KV_PARTITION_STEP_NUM) {
+                    if (ki >= (int)kv_part_steps) {
                         continue;
                     }
 
@@ -789,7 +807,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 
                 if ((ki_base + ONLINE_TILE_STEPS) * REG_N > mask_bound)
                 {
-                    const int kv_global_start = (int)(kv_partition_idx * KV_PARTITION_SIZE);
+                    const int kv_global_start = (int)(kv_partition_idx * kv_partition_size);
                     vector<int, REG_N> col_index;
                     #pragma unroll
                     for (int c = 0; c < REG_N; ++c) col_index[c] = c;
@@ -836,7 +854,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                 // tile test below is the cheap equivalent: only blocks that extend beyond
                 // past_q_lens can carry a spec key at all.
                 if (qq_bias_num_subseq > 0 && qq_bias_spec_num > 0) {
-                    const int kv_gs = (int)(kv_partition_idx * KV_PARTITION_SIZE);
+                    const int kv_gs = (int)(kv_partition_idx * kv_partition_size);
                     const float NEG_INF_QQ = -3.4e38f;
                     #pragma unroll
                     for (int b = 0; b < ONLINE_TILE_STEPS; ++b) {
@@ -936,7 +954,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                 #pragma unroll
                 for (int li_v = 0; li_v < ONLINE_TILE_STEPS; li_v++) {
                     const int ki = ki_base + li_v;
-                    if (ki >= KV_PARTITION_STEP_NUM) {
+                    if (ki >= (int)kv_part_steps) {
                         continue;
                     }
 

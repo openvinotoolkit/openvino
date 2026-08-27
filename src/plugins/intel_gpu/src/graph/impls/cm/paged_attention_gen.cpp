@@ -699,7 +699,10 @@ DispatchDataFunc PagedAttentionGeneratorSmallQ::get_dispatch_data_func() const {
         wgs.local = {static_cast<size_t>(wg_threads), 1, 1};
 
         auto& scalars = kd.params.scalars;
-        std::vector<size_t> scaler_value = {1, tile_count};
+        // scalar 0 carries the runtime KV_PARTITION_SIZE (it used to be an unused constant 1);
+        // it must be the same value partition_num above was derived from.
+        OPENVINO_ASSERT(rtp->small_q_partition_size != 0, "small_q_partition_size not set");
+        std::vector<size_t> scaler_value = {rtp->small_q_partition_size, tile_count};
         scalars.resize(scaler_value.size());
         for (size_t i = 0; i < scaler_value.size(); ++i) {
             scalars[i].t = ScalarDescriptor::Types::INT32;

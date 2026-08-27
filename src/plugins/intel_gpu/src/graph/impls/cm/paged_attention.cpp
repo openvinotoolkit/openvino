@@ -373,10 +373,22 @@ public:
                 rt_params->num_of_partitions = ceil_div(max_context_len, sq_partition_size);
                 rt_params->q_chunking = sq_q_chunking;
 
-                const auto small_q_partition_size = PagedAttentionGeneratorSmallQ::get_partition_size(desc->has_xattention);
+                // Two different partition values, deliberately. The jit bound is what the kernel
+                // was compiled with and is therefore what the q-chunking must be checked
+                // against; the runtime value is what this batch actually dispatches with, and
+                // is the one gws[2], the kernel scalar and the partial buffers all derive from.
+                const auto small_q_jit_partition = PagedAttentionGeneratorSmallQ::get_partition_size(desc->has_xattention);
+                const auto small_q_partition_size = pick_small_q_partition(max_context_len, desc->has_xattention);
+                OPENVINO_ASSERT(small_q_partition_size > 0 &&
+                                    small_q_partition_size <= small_q_jit_partition &&
+                                    (small_q_partition_size % get_kv_split_size(xe_arch).first) == 0,
+                                "small_q runtime partition ", small_q_partition_size,
+                                " must be a non-zero multiple of kv_step and <= the jit bound ",
+                                small_q_jit_partition);
+                rt_params->small_q_partition_size = small_q_partition_size;
                 rt_params->small_q_num_of_partitions = ceil_div(max_context_len, small_q_partition_size);
 
-                const auto small_q_chunking = get_single_token_q_chunking(params, *desc, small_q_partition_size);
+                const auto small_q_chunking = get_single_token_q_chunking(params, *desc, small_q_jit_partition);
                 OPENVINO_ASSERT(small_q_chunking.q_head_chunk_size == sq_q_chunking.q_head_chunk_size &&
                                     small_q_chunking.q_head_chunks_per_kv_head == sq_q_chunking.q_head_chunks_per_kv_head,
                                 "pa_small_q q-chunking (", small_q_chunking.q_head_chunk_size, "x",
