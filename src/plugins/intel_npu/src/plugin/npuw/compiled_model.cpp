@@ -889,13 +889,12 @@ bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared
     return false;
 }
 
-void ov::npuw::validate_orc_submodel_indices(
-    const Subgraph::Gather& host_gather,
-    const Subgraph::QuantUnpackGather& quant_unpack_gather,
-    std::size_t param_base,
-    std::size_t closure_size,
-    bool has_compiled_model,
-    std::size_t n_model_inputs) {
+void ov::npuw::validate_orc_submodel_indices(const Subgraph::Gather& host_gather,
+                                             const Subgraph::QuantUnpackGather& quant_unpack_gather,
+                                             std::size_t param_base,
+                                             std::size_t closure_size,
+                                             bool has_compiled_model,
+                                             std::size_t n_model_inputs) {
     if (!has_compiled_model) {
         // No compiled model was loaded: all routing indices must be the disabled sentinel (-1).
         auto require_disabled = [](int64_t idx, const char* field_name) {
@@ -932,21 +931,28 @@ void ov::npuw::validate_orc_submodel_indices(
 
     // Validate consistency of quant_unpack_gather indices.
     if (quant_unpack_gather.dst_idx != -1) {
-        OPENVINO_ASSERT(quant_unpack_gather.idx_idx != -1,
-                        "ORC import: \"quant_unpack_gather.idx_idx\" cannot be -1 when \"quant_unpack_gather.dst_idx\" is active");
+        OPENVINO_ASSERT(
+            quant_unpack_gather.idx_idx != -1,
+            "ORC import: \"quant_unpack_gather.idx_idx\" cannot be -1 when \"quant_unpack_gather.dst_idx\" is active");
         OPENVINO_ASSERT(quant_unpack_gather.src_w_idx != -1,
-                        "ORC import: \"quant_unpack_gather.src_w_idx\" cannot be -1 when \"quant_unpack_gather.dst_idx\" is active");
+                        "ORC import: \"quant_unpack_gather.src_w_idx\" cannot be -1 when "
+                        "\"quant_unpack_gather.dst_idx\" is active");
         OPENVINO_ASSERT(quant_unpack_gather.src_s_idx != -1,
-                        "ORC import: \"quant_unpack_gather.src_s_idx\" cannot be -1 when \"quant_unpack_gather.dst_idx\" is active");
+                        "ORC import: \"quant_unpack_gather.src_s_idx\" cannot be -1 when "
+                        "\"quant_unpack_gather.dst_idx\" is active");
     } else {
-        OPENVINO_ASSERT(quant_unpack_gather.idx_idx == -1,
-                        "ORC import: \"quant_unpack_gather.idx_idx\" must be -1 when \"quant_unpack_gather.dst_idx\" is -1");
-        OPENVINO_ASSERT(quant_unpack_gather.src_w_idx == -1,
-                        "ORC import: \"quant_unpack_gather.src_w_idx\" must be -1 when \"quant_unpack_gather.dst_idx\" is -1");
-        OPENVINO_ASSERT(quant_unpack_gather.src_s_idx == -1,
-                        "ORC import: \"quant_unpack_gather.src_s_idx\" must be -1 when \"quant_unpack_gather.dst_idx\" is -1");
-        OPENVINO_ASSERT(quant_unpack_gather.src_z_idx == -1,
-                        "ORC import: \"quant_unpack_gather.src_z_idx\" must be -1 when \"quant_unpack_gather.dst_idx\" is -1");
+        OPENVINO_ASSERT(
+            quant_unpack_gather.idx_idx == -1,
+            "ORC import: \"quant_unpack_gather.idx_idx\" must be -1 when \"quant_unpack_gather.dst_idx\" is -1");
+        OPENVINO_ASSERT(
+            quant_unpack_gather.src_w_idx == -1,
+            "ORC import: \"quant_unpack_gather.src_w_idx\" must be -1 when \"quant_unpack_gather.dst_idx\" is -1");
+        OPENVINO_ASSERT(
+            quant_unpack_gather.src_s_idx == -1,
+            "ORC import: \"quant_unpack_gather.src_s_idx\" must be -1 when \"quant_unpack_gather.dst_idx\" is -1");
+        OPENVINO_ASSERT(
+            quant_unpack_gather.src_z_idx == -1,
+            "ORC import: \"quant_unpack_gather.src_z_idx\" must be -1 when \"quant_unpack_gather.dst_idx\" is -1");
     }
 
     // Validate indices that directly address compiled_model->inputs().
@@ -970,8 +976,7 @@ void ov::npuw::validate_orc_submodel_indices(
 
     // host_gather.src_idx is an index into closure (not inputs): validate against closure_size.
     if (host_gather.src_idx != -1) {
-        OPENVINO_ASSERT(host_gather.src_idx >= 0 &&
-                            static_cast<std::size_t>(host_gather.src_idx) >= param_base,
+        OPENVINO_ASSERT(host_gather.src_idx >= 0 && static_cast<std::size_t>(host_gather.src_idx) >= param_base,
                         "ORC import: \"host_gather.src_idx\" (",
                         host_gather.src_idx,
                         ") is negative or less than param_base (",
@@ -986,7 +991,8 @@ void ov::npuw::validate_orc_submodel_indices(
                         ")");
     }
 
-    // param_base + closure_size must not overflow compiled_model->inputs() (used in unpack_closure and funcall prologue).
+    // param_base + closure_size must not overflow compiled_model->inputs() (used in unpack_closure and funcall
+    // prologue).
     OPENVINO_ASSERT(param_base <= n_model_inputs && closure_size <= n_model_inputs - param_base,
                     "ORC import: param_base (",
                     param_base,
@@ -1027,11 +1033,11 @@ void ov::npuw::CompiledModel::validate_orc_submodels(const std::vector<CompiledM
         const std::size_t n_model_inputs = has_compiled_model ? effective_compiled_model->inputs().size() : 0u;
 
         validate_orc_submodel_indices(subm.host_gather,
-                                     subm.quant_unpack_gather,
-                                     subm.param_base,
-                                     closure_size,
-                                     has_compiled_model,
-                                     n_model_inputs);
+                                      subm.quant_unpack_gather,
+                                      subm.param_base,
+                                      closure_size,
+                                      has_compiled_model,
+                                      n_model_inputs);
     }
 }
 
@@ -1136,11 +1142,11 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
         stream & closure_size;
         if (!is_fcall) {
             ov::npuw::validate_orc_submodel_indices(host_gather,
-                                                   quant_unpack_gather,
-                                                   param_base,
-                                                   closure_size,
-                                                   static_cast<bool>(compiled_model),
-                                                   compiled_model ? compiled_model->inputs().size() : 0u);
+                                                    quant_unpack_gather,
+                                                    param_base,
+                                                    closure_size,
+                                                    static_cast<bool>(compiled_model),
+                                                    compiled_model ? compiled_model->inputs().size() : 0u);
         }
         std::vector<ov::Tensor> cpu_closures;
         std::vector<std::size_t> cpu_closure_ids;
@@ -1186,11 +1192,11 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
         stream & closure_size;
         if (!is_fcall) {
             ov::npuw::validate_orc_submodel_indices(host_gather,
-                                                   quant_unpack_gather,
-                                                   param_base,
-                                                   closure_size,
-                                                   static_cast<bool>(compiled_model),
-                                                   compiled_model ? compiled_model->inputs().size() : 0u);
+                                                    quant_unpack_gather,
+                                                    param_base,
+                                                    closure_size,
+                                                    static_cast<bool>(compiled_model),
+                                                    compiled_model ? compiled_model->inputs().size() : 0u);
         }
         std::vector<std::size_t> cpu_closure_ids;
         if (stream.output()) {

@@ -329,12 +329,24 @@ struct CompiledModelDescTestAccessor {
     using SubmodelDesc = CompiledModel::CompiledModelDesc;
     using SubmodelVec = std::vector<CompiledModel::CompiledModelDesc>;
 
-    static SubmodelDesc make() { return {}; }
-    static auto& compiled_model(SubmodelDesc& desc) { return desc.compiled_model; }
-    static auto& host_gather(SubmodelDesc& desc) { return desc.host_gather; }
-    static auto& quant_unpack_gather(SubmodelDesc& desc) { return desc.quant_unpack_gather; }
-    static auto& param_base(SubmodelDesc& desc) { return desc.param_base; }
-    static auto& closure(SubmodelDesc& desc) { return desc.closure; }
+    static SubmodelDesc make() {
+        return {};
+    }
+    static auto& compiled_model(SubmodelDesc& desc) {
+        return desc.compiled_model;
+    }
+    static auto& host_gather(SubmodelDesc& desc) {
+        return desc.host_gather;
+    }
+    static auto& quant_unpack_gather(SubmodelDesc& desc) {
+        return desc.quant_unpack_gather;
+    }
+    static auto& param_base(SubmodelDesc& desc) {
+        return desc.param_base;
+    }
+    static auto& closure(SubmodelDesc& desc) {
+        return desc.closure;
+    }
     static void validate_orc_submodels(const SubmodelVec& submodels) {
         CompiledModel::validate_orc_submodels(submodels);
     }

@@ -49,10 +49,10 @@ std::shared_ptr<ov::Model> make_validation_model(std::size_t n_inputs) {
 }
 
 void expect_serialize_valid(const Gather& hg,
-                           const QuantUnpackGather& qug,
-                           std::size_t param_base,
-                           std::size_t closure_size,
-                           std::size_t n_model_inputs) {
+                            const QuantUnpackGather& qug,
+                            std::size_t param_base,
+                            std::size_t closure_size,
+                            std::size_t n_model_inputs) {
     auto writer = ov::npuw::CompiledModelDescTestAccessor::make();
     auto plugin = std::make_shared<NullPlugin>();
     if (n_model_inputs != 0) {
@@ -74,10 +74,10 @@ void expect_serialize_valid(const Gather& hg,
 }
 
 void expect_serialize_throws(const Gather& hg,
-                            const QuantUnpackGather& qug,
-                            std::size_t param_base,
-                            std::size_t closure_size,
-                            std::size_t n_model_inputs) {
+                             const QuantUnpackGather& qug,
+                             std::size_t param_base,
+                             std::size_t closure_size,
+                             std::size_t n_model_inputs) {
     auto writer = ov::npuw::CompiledModelDescTestAccessor::make();
     auto plugin = std::make_shared<NullPlugin>();
     if (n_model_inputs != 0) {
@@ -1270,8 +1270,9 @@ TEST(SerializationTest, ParamBaseClosureSizeExceedsInputsFails) {
 }
 
 TEST(SerializationTest, ParamBaseClosureSizeOverflowWrapFails) {
-    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, {-1, -1, -1, -1, -1}, std::numeric_limits<std::size_t>::max(), 2, 8),
-                 ov::Exception);
+    EXPECT_THROW(
+        expect_serialize_throws({-1, -1, -1}, {-1, -1, -1, -1, -1}, std::numeric_limits<std::size_t>::max(), 2, 8),
+        ov::Exception);
 }
 
 TEST(SerializationTest, ParamBaseClosureSizeExactlyAtBoundPasses) {
