@@ -21,7 +21,6 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/paged_selective_ssm_config.hpp"
 #include "nodes/node_config.h"
-#include "nodes/paged_selective_ssm_ports.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"

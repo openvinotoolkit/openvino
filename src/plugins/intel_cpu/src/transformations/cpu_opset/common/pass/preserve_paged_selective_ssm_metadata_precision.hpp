@@ -11,10 +11,11 @@ namespace ov::intel_cpu {
 /**
  * @brief Preserves i64 values consumed by PagedSelectiveSSM metadata inputs.
  *
- * CPU converts general i64 computations to i32. PagedSelectiveSSM accepts i64 metadata and may consume values that
- * cannot be represented by i32. This pass keeps only the i64 producer paths that reach the operation's metadata
- * inputs. When such a producer is shared, its other consumers retain the normal CPU policy through an explicit i32
- * conversion at the boundary of the protected path.
+ * CPU converts unsupported i64 extension outputs and general i64 computations to i32. PagedSelectiveSSM accepts i64
+ * metadata and may consume values that cannot be represented by i32. This pass applies the normal CPU conversion to
+ * extension outputs, then keeps only the i64 producer paths that reach the operation's metadata inputs. When such a
+ * producer is shared, its other consumers retain the normal CPU policy through an explicit i32 conversion at the
+ * boundary of the protected path.
  *
  * Before:
  *

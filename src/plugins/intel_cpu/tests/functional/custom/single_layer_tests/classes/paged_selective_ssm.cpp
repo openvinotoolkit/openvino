@@ -12,7 +12,7 @@
 #include <vector>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "nodes/paged_selective_ssm_ports.hpp"
+#include "nodes/paged_selective_ssm.h"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/paged_selective_ssm.hpp"
@@ -26,7 +26,6 @@
 #include "utils/precision_support.h"
 
 namespace {
-
 template <typename DataT, typename StateT, typename IndexT>
 void run_reference(const std::vector<DataT>& A,
                    const std::vector<DataT>& dt,
