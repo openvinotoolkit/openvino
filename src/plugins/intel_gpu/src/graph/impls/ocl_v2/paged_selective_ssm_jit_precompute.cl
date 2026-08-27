@@ -4,12 +4,7 @@
 
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/bf16_utils.cl"
-
-#if INPUT0_IS_FP
-#    define SSM_TO_FLOAT(value) convert_float(value)
-#else
-#    define SSM_TO_FLOAT(value) _convert_as_bfloat16_float(value)
-#endif
+#include "selective_ssm_type_utils.cl"
 
 KERNEL(paged_selective_ssm_jit_precompute)(OPTIONAL_SHAPE_INFO_ARG
                                            const __global INPUT0_TYPE* A,
@@ -33,7 +28,5 @@ KERNEL(paged_selective_ssm_jit_precompute)(OPTIONAL_SHAPE_INFO_ARG
     const size_t A_index = h;
     const size_t dt_index = index;
 #endif
-    precomputed_dA[index] = exp(SSM_TO_FLOAT(A[A_index]) * SSM_TO_FLOAT(dt[dt_index]));
+    precomputed_dA[index] = exp(ssm_to_float(A[A_index]) * ssm_to_float(dt[dt_index]));
 }
-
-#undef SSM_TO_FLOAT
