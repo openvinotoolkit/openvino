@@ -542,11 +542,7 @@ RNN::RNN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     CPU_NODE_ASSERT(rnnCellBase, "does not have original layer for RNNCell.");
     const float clip = rnnCellBase->get_clip();
     if (!ov::op::util::requires_clip(clip) && !ov::op::util::is_no_clip(clip)) {
-        DEBUG_LOG("[",
-                  op->get_friendly_name(),
-                  "] Ignoring invalid RNN clip value ",
-                  clip,
-                  "; using no clipping");
+        DEBUG_LOG("[", op->get_friendly_name(), "] Ignoring invalid RNN clip value ", clip, "; using no clipping");
     }
 
     cell_type = ie2dnnl(op);
