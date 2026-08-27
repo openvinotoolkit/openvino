@@ -428,7 +428,7 @@ public:
 
     /// \return A handle to the `output_index`th output of this node.
     /// \throw std::out_of_range if the node does not have at least `output_index+1` outputs.
-    Output<const Node> output(size_t output_index) const;
+    virtual Output<const Node> output(size_t output_index) const;
 
     virtual bool match_value(ov::pass::pattern::Matcher* matcher,
                              const Output<Node>& pattern_value,

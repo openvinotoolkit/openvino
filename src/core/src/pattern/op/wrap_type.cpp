@@ -48,6 +48,23 @@ bool ov::pass::pattern::op::WrapType::match_value(Matcher* matcher,
     return res;
 }
 
+ov::Output<ov::Node> ov::pass::pattern::op::WrapType::output(size_t index) {
+    if (m_strict_output_index && index >= get_output_size())
+        set_output_size(index + 1);
+    return Node::output(index);
+}
+
+ov::Output<const ov::Node> ov::pass::pattern::op::WrapType::output(size_t index) const {
+    OPENVINO_ASSERT(index == 0 || index < get_output_size(),
+                    "WrapType::output(",
+                    index,
+                    ") const: this pattern node exposes only ",
+                    get_output_size(),
+                    " output(s). const output() cannot grow the output list; reference this index via the "
+                    "non-const output() during pattern construction first.");
+    return Node::output(index);
+}
+
 ov::NodeTypeInfo ov::pass::pattern::op::WrapType::get_wrapped_type() const {
     if (m_wrapped_types.size() > 1) {
         OPENVINO_THROW("get_wrapped_type() called on WrapType with more than one type");

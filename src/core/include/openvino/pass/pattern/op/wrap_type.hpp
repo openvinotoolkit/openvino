@@ -52,13 +52,8 @@ public:
         m_strict_output_index = strict;
     }
 
-    using ov::Node::output;
-    // Strict nodes grow the placeholder output list on demand; others keep the base out-of-range check.
-    Output<Node> output(size_t index) override {
-        if (m_strict_output_index && index >= get_output_size())
-            set_output_size(index + 1);
-        return Node::output(index);
-    }
+    Output<Node> output(size_t output_index) override;
+    Output<const Node> output(size_t output_index) const override;
 
 private:
     std::vector<NodeTypeInfo> m_wrapped_types;
