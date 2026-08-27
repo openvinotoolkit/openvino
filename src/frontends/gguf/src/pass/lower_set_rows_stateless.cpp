@@ -43,8 +43,9 @@ LowerSetRowsStateless::LowerSetRowsStateless() {
                 return dst_ps[i].is_static() ? dst_ps[i].get_length() : -1;
             };
             std::vector<int64_t> shape = {dim_or_dynamic(0), dim_or_dynamic(1), dim_or_dynamic(2), dim_or_dynamic(3)};
-            res = std::make_shared<ov::op::v1::Reshape>(
-                res, ov::op::v0::Constant::create(ov::element::i64, {4}, shape), false);
+            res = std::make_shared<ov::op::v1::Reshape>(res,
+                                                        ov::op::v0::Constant::create(ov::element::i64, {4}, shape),
+                                                        false);
         }
 
         res->set_friendly_name(set_rows->get_friendly_name());

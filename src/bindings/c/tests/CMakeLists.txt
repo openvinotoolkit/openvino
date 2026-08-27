@@ -5,34 +5,60 @@
 # OpenVINO C API 2.0 test sample
 set(TARGET_NAME "ov_capi_test")
 
-file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/ov_*.cpp test_model_repo.cpp)
-file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
-list(APPEND DEFINES TEST_CUSTOM_OP_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../../../plugins/intel_gpu/tests/functional/custom_op/custom_op.xml")
+set(TEST_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_auto_property_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_compiled_model_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_core_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_infer_request_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_layout_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_model_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_partial_shape_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_preprocess_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_tensor_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_util_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_windows_conflict_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_model_repo.cpp
+)
+set(TEST_HEADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_test.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_model_repo.hpp
+)
+list(APPEND TEST_DEFINES TEST_CUSTOM_OP_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../../../plugins/intel_gpu/tests/functional/custom_op/custom_op.xml")
 
-if(NOT TARGET OpenCL::OpenCL)
-    list(FILTER SOURCES EXCLUDE REGEX ov_remote_context_test.cpp)
-endif()
-
-add_executable(${TARGET_NAME} ${SOURCES} ${HEADERS})
-target_link_libraries(${TARGET_NAME} PRIVATE openvino_c openvino::util
-    common_test_utils gtest_main)
-
-target_compile_definitions(${TARGET_NAME} PRIVATE ${DEFINES})
-
-target_include_directories(${TARGET_NAME} PUBLIC
-    $<BUILD_INTERFACE:${OPENVINO_API_SOURCE_DIR}/include>)
+set(TEST_CHECK_SOURCES_EXCLUDE_FILES)
 
 if(TARGET OpenCL::OpenCL)
-    target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::OpenCL)
+    list(APPEND TEST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/ov_remote_context_test.cpp)
+else()
+    list(APPEND TEST_CHECK_SOURCES_EXCLUDE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/ov_remote_context_test.cpp)
 endif()
 
-add_dependencies(${TARGET_NAME} mock_engine)
+set(TEST_LINK_LIBRARIES openvino_c openvino::util common_test_utils gtest_main)
 
-ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+if(TARGET OpenCL::OpenCL)
+    list(APPEND TEST_LINK_LIBRARIES OpenCL::OpenCL)
+endif()
+
+ov_add_test_target(
+    NAME
+        ${TARGET_NAME}
+    SOURCES
+        ${TEST_SOURCES} ${TEST_HEADERS}
+    DEFINES
+        ${TEST_DEFINES}
+    INCLUDES
+        $<BUILD_INTERFACE:${OPENVINO_API_SOURCE_DIR}/include>
+    LINK_LIBRARIES
+        ${TEST_LINK_LIBRARIES}
+    DEPENDENCIES
+        mock_engine
+    ADD_CLANG_FORMAT
+    LABELS
+        OV UNIT C_API
+    CHECK_SOURCES_LISTED
+    CHECK_SOURCES_EXCLUDE_FILES
+        ${TEST_CHECK_SOURCES_EXCLUDE_FILES}
+)
 
 ov_build_target_faster(${TARGET_NAME} PCH PCH_EXCLUDE "ov_windows_conflict_test.cpp")
-
-install(TARGETS ${TARGET_NAME}
-    RUNTIME DESTINATION tests
-    COMPONENT tests
-    EXCLUDE_FROM_ALL)

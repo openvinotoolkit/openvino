@@ -54,9 +54,9 @@ log_level: INFO
 #### OpenVINO parameters
 - `priority` - **Optional**. Model priority: _HIGH_, _MEDIUM_, _LOW_. (Default: _MEDIUM_)
 - `config` - **Optional**. OpenVINO Plugin specific parameters.
-- `device` - **Optional**. OpenVINO device name. 
-- `ip` - **Optional**. Input layer precision: _FP16_, _FP32_, _U8_, _I32_.
-- `op` - **Optional**. Output layer precision: _FP16_, _FP32_, _U8_, _I32_.
+- `device` - **Optional**. OpenVINO device name.
+- `ip` - **Optional**. Input layer precision: _FP16_, _FP32_, _U8_, _I32_, _BOOL_.
+- `op` - **Optional**. Output layer precision: _FP16_, _FP32_, _U8_, _I32_, _BOOL_.
 - `il` - **Optional**. Input layer layout.
 - `ol` - **Optional**. Output layer layout.
 - `iml` - **Optional**. Input model layout.
@@ -90,7 +90,7 @@ Examples:
 ```
 
 ### Graph structure
-There are two ways to describe the execution graph structure in Protopipe:  
+There are two ways to describe the execution graph structure in Protopipe:
 1. Using [Dependency Graph](#dependency-graph) (preferable)
 2. Using [Network Sequence](#network-sequence) (old)
 
@@ -164,7 +164,7 @@ In this case the section `connections` **can be omitted**.
 ```
 #1: Invalid - The list must contain at least two operations to connect
 - [A]
-#2: Invalid - Self-loop is prohibited 
+#2: Invalid - Self-loop is prohibited
 - [A, A]
 #3: Invalid - Loop is prohibited
 - [A, B, C, A]
@@ -218,20 +218,20 @@ graph LR;
     D[Model-D.xml]
     E[Model-E.xml]
     F[Model-F.xml]
-    
+
     D --> E
     D --> F
 
   end
-  
+
   A --> B
   B --> C
 ```
 
 #### Network Sequence
-There is also a way to describe the graph by using chain-like structure:  
-`network` - **Required**. List or list of lists of model parameters. Follow [Model Parameters](#model-parameters) for the details.  
-`delay_in_us` - **Optional**. Delay between models in microseconds.  
+There is also a way to describe the graph by using chain-like structure:
+`network` - **Required**. List or list of lists of model parameters. Follow [Model Parameters](#model-parameters) for the details.
+`delay_in_us` - **Optional**. Delay between models in microseconds.
 
 ```
 input_stream_list:
@@ -239,7 +239,7 @@ input_stream_list:
   - { name: A.xml, ip: FP16, il: NCHW, device: CPU }
   - [{ name: B.xml, ip: FP16, op: FP16 }, { name: C.xml, ip: FP16, op: FP16 }]
   - { name: D.xml, ip: FP16, op: FP16, config: { PEROFMRANCE_HINT: LATENCY } }
-  delay_in_us: 5000 
+  delay_in_us: 5000
 ```
 
 ```mermaid
@@ -255,13 +255,13 @@ input_stream_list:
 ### Scenario parameters
 The list of scenarios are specified by using `multi_inference` parameter, every scenario has the following parameters:
 - `name` - **Optional**. The name of execution scenario.
-- `input_stream_list` - **Required**. The list of the streams that will be run in parallel.  
+- `input_stream_list` - **Required**. The list of the streams that will be run in parallel.
 
 Every stream has the following execution parameters:
-- `name` - **Optional**. The name of the stream.  
-- `iteration_count` - **Optional**. Number of iterations to execute.  
-- `exec_time_in_secs` - **Optional**. Execute until timeout specified.  
-- `frames_interval_in_ms` - **Optional**. Execution frequency of the stream (**Default**: 0 - Unbounded)  
+- `name` - **Optional**. The name of the stream.
+- `iteration_count` - **Optional**. Number of iterations to execute.
+- `exec_time_in_secs` - **Optional**. Execute until timeout specified.
+- `frames_interval_in_ms` - **Optional**. Execution frequency of the stream (**Default**: 0 - Unbounded)
 - `target_fps` - **Optional**. Execution frequency of the stream. `target_fps = 1000 / frames_interval_in_ms`. `target_fps` and `frames_interval_in_ms` are mutually exclusive and cannot be provided together.
 - `target_latency_in_ms` - **Optional**. When iteration isn't finished within specified interval, the next frame will be dropped from execution. (**Default**: Disabled)
 - `op_desc`/`conections` or `network` - **Required**. Execution graph structure. Follow [Graph structure](#graph-structure) for the details.
@@ -276,7 +276,7 @@ Every stream has the following execution parameters:
     workload_type : {initial_value: Default, change_to: [Efficient, Default], change_interval: 5, repeat: true}
     ```
 ### Config example
-Consider the following scenario that consists of two parallel streams specified on `config.yaml`:  
+Consider the following scenario that consists of two parallel streams specified on `config.yaml`:
 ```
 model_dir:
   local: C:\workspace\models
@@ -315,7 +315,7 @@ multi_inference:
 	E-->F;
 	F-->G;
 	```
- 
+
 Run:
 ```
 ./protopipe -cfg config.yaml --drop_frames
@@ -329,21 +329,21 @@ stream 1: throughput: <number> FPS, latency: min: <number> ms, avg: <number> ms,
 ```
 
 ## How to run
-Protopipe has the following `CLI` options to configure the execution behaviour:  
+Protopipe has the following `CLI` options to configure the execution behaviour:
 
-`--cfg <path>` - Path to configuration file.       
-`--drop_frames`- **Optional**. Drop frames if they come earlier than stream is completed. E.g if `stream` works with `target_fps: 10` (~`100ms` latency) but stream iteration takes `150ms` - the next iteration will be triggered only in `50ms` if option is enabled.           
-`--pipeline` - **Optional**. Enables pipelined execution for all scenarios/streams.                      
-`--niter <value>` - **Optional**. Number of iterations. If specified overwrites termination criterion specified in configuration file for all scenarios/streams.             
-`-t <value>` - **Optional**. Time in seconds. If specified overwrites termination criterion specified in configuration file for all scenarios/streams.  
+`--cfg <path>` - Path to configuration file.
+`--drop_frames`- **Optional**. Drop frames if they come earlier than stream is completed. E.g if `stream` works with `target_fps: 10` (~`100ms` latency) but stream iteration takes `150ms` - the next iteration will be triggered only in `50ms` if option is enabled.
+`--pipeline` - **Optional**. Enables pipelined execution for all scenarios/streams.
+`--niter <value>` - **Optional**. Number of iterations. If specified overwrites termination criterion specified in configuration file for all scenarios/streams.
+`-t <value>` - **Optional**. Time in seconds. If specified overwrites termination criterion specified in configuration file for all scenarios/streams.
 `--mode <value>` - **Optional**. Execution mode: *performance*, *reference*, *validation*, *accuracy* (**Default**: *performance*)
 `--reference_device <value>` - **Optional**. Reference device for accuracy mode comparison. (**Default**: *CPU*)
 `--target_device <value>` - **Optional**. Target device for accuracy mode comparison. (**Default**: *NPU*)
-`--exec_filter <value>` - **Optional**. Run only the scenarios that match provided string pattern.  
-`--inference_only` - **Optional**. Run only inference execution for every model excluding i/o data transfer (**Default**: true)  
+`--exec_filter <value>` - **Optional**. Run only the scenarios that match provided string pattern.
+`--inference_only` - **Optional**. Run only inference execution for every model excluding i/o data transfer (**Default**: true)
 
 ### Filtering
-Sometime it's needed to run particular set of scenarios specified in config file rather than all of them.   
+Sometime it's needed to run particular set of scenarios specified in config file rather than all of them.
 For example consider the following config file with three scenarios specified in `scenarios.yaml`:
 ```
 model_dir:
@@ -360,13 +360,13 @@ multi_inference:
   - network:
     - { name: C.xml }
 ```
-By default all scenarios are assigned unique names according to the following `multi_inference_<number>` pattern.    
-E.g scenario with model `A.xml` has default name `multi_inference_0`.    
-Use `-exec_filter <value>` CLI option to control what scenarios from config should be executed:   
+By default all scenarios are assigned unique names according to the following `multi_inference_<number>` pattern.
+E.g scenario with model `A.xml` has default name `multi_inference_0`.
+Use `-exec_filter <value>` CLI option to control what scenarios from config should be executed:
 ```
 ./protopipe -cfg scenarios.yaml -niter 100 -exec_filter=".*[0-1]"
 ```
-Only `multi_inference_0` and `multi_inference_1` scenarios will be executed.  
+Only `multi_inference_0` and `multi_inference_1` scenarios will be executed.
 
 It's also possible to overwrite the default names in config file:
 ```
@@ -416,7 +416,7 @@ As the prerequisite for accuracy validation it's useful to have a mechanism that
 Use additional parameters to configure `reference` mode:
 - `input_data` - **Required**. Path that contain input data for the model, if entity under the path is empty, input data will be generated randomly and dumped into the path specified.
 - `output_data` - **Required**. Path where to dump reference output data.
-- `random` - **Optional**. Initializer to generate input data randomly. (Default: ` { dist: uniform, low: 0.0, high: 255, seed: -1 }`)
+- `random` - **Optional**. Initializer to generate input data randomly. (Default: ` { dist: uniform, low: 0.0, high: 255, seed: -1 }`, or `{ dist: uniform, low: 0.0, high: 2.0 }` for layers with `ip: BOOL`, so only valid `0`/`1` values are generated)
 
 Examples:
 ```
@@ -444,7 +444,7 @@ Protopipe has the dedicated `validation` mode to perform accuracy validation. Ex
 - `save_validation_outputs` - **Optional**. Accepts the path where to dump actual execution outputs. (Default: disabled)
 - `metric` - **Optional**. Accuracy metric to compare actual vs reference outputs. (Default: `{ name: norm, tolerance: 0.0 }`)
 - `input_data` - **Required**. Path that contain input data for the model.
-- `output_data` - **Required**. Path that contain **reference** data to compare with.  
+- `output_data` - **Required**. Path that contain **reference** data to compare with.
 
 **Note**: If folder is provided either for **input_data** or **output_data**, it must be in the following format:
 ```
@@ -472,11 +472,11 @@ Examples:
 ```
 
 ### Supported metrics
-1. L2 Norm: $$\text{Norm}(\mathbf{A}, \mathbf{B}) = \sqrt{\sum_{i,j} (A_{i,j} - B_{i,j})^2}$$  
+1. L2 Norm: $$\text{Norm}(\mathbf{A}, \mathbf{B}) = \sqrt{\sum_{i,j} (A_{i,j} - B_{i,j})^2}$$
 Parameters:
     - `name: norm` - **Required**. Enables L2 Norm metric.
 	- `tolerance` - **Required**. If value of metric is greater than **tolerance** it will be treated as **FAIL**.
-3. Cosine similarity: $$\text{Cosine}(\mathbf{A}, \mathbf{B}) = \frac{\mathbf{A} \cdot \mathbf{B}}{\| \mathbf{A} \|_2 \| \mathbf{B} \|_2}$$  
+3. Cosine similarity: $$\text{Cosine}(\mathbf{A}, \mathbf{B}) = \frac{\mathbf{A} \cdot \mathbf{B}}{\| \mathbf{A} \|_2 \| \mathbf{B} \|_2}$$
 Parameters:
     - `name: cosine` - **Required**. Enables cosine similarity metric.
 	- `threshold` - **Required**. If value of metric is lower than **threshold** it will be treated as **FAIL**.
@@ -616,7 +616,7 @@ Iteration <number>:
    ```
 ### Verify the installation
 **Note**: Make sure `opencv_*` libraries are visible in the environment:
-- Windows: 
+- Windows:
 	```
 	set PATH=<path-to-opencv>\build\bin\Release\;%PATH%
 	```
