@@ -119,6 +119,7 @@
 #include "plugin/transformations/sdpa_transpose_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/expand_broadcast_reshape_sdpa_fusion.hpp"
+#include "plugin/transformations/sdpa_select_mask_fusion.hpp"
 #include "plugin/transformations/disable_fp16_comp_rms.hpp"
 #include "plugin/transformations/swiglu_fusion_with_clamp.hpp"
 #include "plugin/transformations/disable_fp16_comp_cumsum_sin_gen.hpp"
@@ -776,6 +777,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                           keep_precision_sensitive_in_fp32_1,
                                                           convert_input_output_precision,
                                                           store_original_precision_as_rt_attribute);
+
+        // Convert decomposed-attention Select (where) masks into additive masks so the common
+        // ov::pass::SDPAFusion (registered inside the CommonOptimizations below) can fuse them.
+        manager.register_pass<ov::intel_gpu::SDPASelectMaskFusion>();
 
         manager.register_pass<ov::pass::CommonOptimizations>();
 
