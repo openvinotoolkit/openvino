@@ -22,7 +22,7 @@ public:
     struct arg_t {
         enum class kind_t { BUFFER, SCALAR, LOCAL_MEM };
         kind_t kind = kind_t::BUFFER;
-        memory::ptr mem;         // BUFFER
+        memory::cptr mem;        // BUFFER
         scalar_desc scalar{};    // SCALAR
         size_t local_size = 0;   // LOCAL_MEM (bytes)
     };

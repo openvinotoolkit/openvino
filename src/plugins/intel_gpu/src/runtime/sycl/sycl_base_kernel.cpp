@@ -14,44 +14,44 @@ namespace sycl {
 
 namespace {
 
-memory::ptr resolve_arg_mem(const argument_desc& arg,
+memory::cptr resolve_arg_mem(const argument_desc& arg,
                             const kernel_arguments_data& data) {
     using T = argument_desc::Types;
     switch (arg.t) {
         case T::INPUT:
             OPENVINO_ASSERT(arg.index < data.inputs.size() && data.inputs[arg.index],
                             "The allocated input memory is necessary to set kernel arguments.");
-            return std::const_pointer_cast<memory>(data.inputs[arg.index]);
+            return data.inputs[arg.index];
         case T::OUTPUT:
             OPENVINO_ASSERT(arg.index < data.outputs.size() && data.outputs[arg.index],
                             "The allocated output memory is necessary to set kernel arguments.");
-            return std::const_pointer_cast<memory>(data.outputs[arg.index]);
+            return data.outputs[arg.index];
         case T::WEIGHTS:
-            return std::const_pointer_cast<memory>(data.weights);
+            return data.weights;
         case T::BIAS:
-            return std::const_pointer_cast<memory>(data.bias);
+            return data.bias;
         case T::SCALE_TABLE:
-            return std::const_pointer_cast<memory>(data.scale_table);
+            return data.scale_table;
         case T::SLOPE:
-            return std::const_pointer_cast<memory>(data.slope);
+            return data.slope;
         case T::INTERNAL_BUFFER:
             OPENVINO_ASSERT(arg.index < data.intermediates.size() && data.intermediates[arg.index],
                             "The allocated intermediate memory is necessary to set kernel arguments.");
-            return std::const_pointer_cast<memory>(data.intermediates[arg.index]);
+            return data.intermediates[arg.index];
         case T::CELL:
-            return std::const_pointer_cast<memory>(data.cell);
+            return data.cell;
         case T::WEIGHTS_ZERO_POINTS:
-            return std::const_pointer_cast<memory>(data.weights_zero_points);
+            return data.weights_zero_points;
         case T::ACTIVATIONS_ZERO_POINTS:
-            return std::const_pointer_cast<memory>(data.activations_zero_points);
+            return data.activations_zero_points;
         case T::COMPENSATION:
-            return std::const_pointer_cast<memory>(data.compensation);
+            return data.compensation;
         case T::INPUT_OF_FUSED_PRIMITIVE:
             OPENVINO_ASSERT(arg.index < data.fused_op_inputs.size() && data.fused_op_inputs[arg.index],
                             "The allocated fused_op_input memory is necessary to set kernel arguments.");
-            return std::const_pointer_cast<memory>(data.fused_op_inputs[arg.index]);
+            return data.fused_op_inputs[arg.index];
         case T::SHAPE_INFO:
-            return std::const_pointer_cast<memory>(data.shape_info);
+            return data.shape_info;
         default:
             return nullptr;
     }
