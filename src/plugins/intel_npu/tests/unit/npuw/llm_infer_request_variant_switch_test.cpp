@@ -28,6 +28,24 @@ struct LLMVariantSwitchTestAccess {
         return compiled->m_generate_compiled_variants.size();
     }
 
+    static std::size_t prefill_variant_count(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
+        return compiled->m_prefill_compiled_variants.size();
+    }
+
+    static std::size_t select_prefill_variant_index(const ov::npuw::LLMInferRequest& req, uint64_t tail_length) {
+        return req.select_prefill_variant_index(tail_length);
+    }
+
+    static void prepare_prefill_tail_variant(ov::npuw::LLMInferRequest& req,
+                                             std::size_t variant_index,
+                                             uint32_t num_stored_tokens) {
+        req.prepare_prefill_tail_variant(variant_index, num_stored_tokens);
+    }
+
+    static std::size_t current_prefill_variant_index(const ov::npuw::LLMInferRequest& req) {
+        return req.m_prefill_variant_idx;
+    }
+
     static std::shared_ptr<ov::npuw::ICompiledModel_v0> generate_variant(
         const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
         std::size_t idx) {
@@ -269,6 +287,23 @@ TEST_F(LLMInferRequestVariantSwitchTest, ContinuousKvSwitchMigratesStoredTokensT
             dst, LLMVariantSwitchTestAccess::kv_dim_for_name(req, name), 0u, stored_tokens);
         EXPECT_EQ(materialize_bytes(dst_slice), expected_kv_bytes.at(name)) << name;
     }
+}
+
+TEST_F(LLMInferRequestVariantSwitchTest, ShorterPrefillChunkSelectsAndActivatesTailVariant) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                                           {"NPUW_LLM_PREFILL_CHUNK_SIZE", "64"},
+                                           {"NPUW_LLM_PREFILL_SHORTER_CHUNK_SIZE", "32"}},
+                                          factory);
+    ASSERT_NE(compiled, nullptr);
+    ASSERT_EQ(LLMVariantSwitchTestAccess::prefill_variant_count(compiled), 2u);
+
+    ov::npuw::LLMInferRequest req(compiled);
+    EXPECT_EQ(LLMVariantSwitchTestAccess::select_prefill_variant_index(req, 32u), 0u);
+    EXPECT_EQ(LLMVariantSwitchTestAccess::select_prefill_variant_index(req, 33u), 1u);
+
+    LLMVariantSwitchTestAccess::prepare_prefill_tail_variant(req, 0u, 0u);
+    EXPECT_EQ(LLMVariantSwitchTestAccess::current_prefill_variant_index(req), 0u);
 }
 
 TEST_F(LLMInferRequestVariantSwitchTest, BlockKvVariantsExposeCompatibleBindingsAcrossSwitchBoundary) {
