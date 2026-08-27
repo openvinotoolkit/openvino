@@ -16,9 +16,21 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::make_tensor_slice(ov::SoPtr<ov::ITensor> 
                                                          uint32_t dim,
                                                          uint32_t start_pos,
                                                          uint32_t end_pos) {
-    ov::Shape start_shape(std::vector<size_t>(tensor->get_shape().size(), 0u));
+    // `dim` may originate from a deserialized KVCacheDesc and is used below to subscript
+    // freshly-allocated ov::Shape vectors. Validate it against the actual tensor rank before
+    // the stores, otherwise a malformed axis is an out-of-bounds write on the shape vectors.
+    const auto& shape = tensor->get_shape();
+    OPENVINO_ASSERT(dim < shape.size(), "KV slice axis ", dim, " is out of range for a rank-", shape.size(), " tensor");
+    OPENVINO_ASSERT(start_pos <= end_pos && end_pos <= shape[dim],
+                    "KV slice [",
+                    start_pos,
+                    ", ",
+                    end_pos,
+                    ") is out of range for extent ",
+                    shape[dim]);
+    ov::Shape start_shape(std::vector<size_t>(shape.size(), 0u));
     start_shape[dim] = start_pos;
-    ov::Shape end_shape = tensor->get_shape();
+    ov::Shape end_shape = shape;
     end_shape[dim] = end_pos;
     return ov::get_tensor_impl(ov::Tensor(ov::make_tensor(tensor), start_shape, end_shape));
 }
