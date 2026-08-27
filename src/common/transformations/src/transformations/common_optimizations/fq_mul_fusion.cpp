@@ -104,7 +104,7 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
             auto diff = rank - mul_constant_shape.size();
             if (diff > 0) {
                 mul_constant_shape.insert(mul_constant_shape.begin(), diff, 1);
-                mul_constant = std::make_shared<v1::Reshape>(
+                mul_constant = ov::op::util::make_try_fold<v1::Reshape>(
                     mul_constant,
                     v0::Constant::create(element::i64, Shape{mul_constant_shape.size()}, mul_constant_shape),
                     false);
