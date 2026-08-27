@@ -682,7 +682,8 @@ DispatchDataFunc PagedAttentionGeneratorSmallQ::get_dispatch_data_func() const {
         OPENVINO_ASSERT(rt_params != nullptr);
 
         const size_t kv_heads_num = desc->kv_heads_num;
-        const size_t partition_num = rtp->num_of_partitions;
+        const size_t partition_num = rtp->small_q_num_of_partitions;
+        OPENVINO_ASSERT(partition_num != 0, "small_q_num_of_partitions not set for the small-q stage");
 
         OPENVINO_ASSERT(rtp->q_chunking.q_head_chunks_per_kv_head > 0, "Invalid q_head_chunks_per_kv_head in runtime params");
         // One *workgroup* per tile: its WG_THREADS threads split the tile's Q_ROWS q-rows
@@ -768,7 +769,8 @@ DispatchDataFunc PagedAttentionGeneratorSmallQFinalization::get_dispatch_data_fu
         wgs.local = {1, 1, 1};
 
         auto& scalars = kd.params.scalars;
-        const size_t partition_num = rtp->num_of_partitions;
+        const size_t partition_num = rtp->small_q_num_of_partitions;
+        OPENVINO_ASSERT(partition_num != 0, "small_q_num_of_partitions not set for the small-q finalization stage");
         std::vector<size_t> scaler_value = {partition_token_rows, partition_num};
         scalars.resize(scaler_value.size());
         for (size_t i = 0; i < scaler_value.size(); ++i) {

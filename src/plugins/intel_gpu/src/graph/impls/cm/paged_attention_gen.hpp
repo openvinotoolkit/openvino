@@ -247,6 +247,8 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     // small-q decode path (q_len > 1 spec-decoding subsequences)
     size_t small_q_token_count = 0;  // Total (subseq, q-token) pairs routed to pa_small_q
     size_t small_q_tile_count = 0;   // Number of SG tiles = ceil_div(small_q_token_count, TILE_Q)
+    // small_q uses its own, larger partition size
+    size_t small_q_num_of_partitions = 0;
     int small_q_tile_q = 1;          // TILE_Q value chosen at JIT time (must match kernel)
     size_t small_q_max_kv_len = 0;   // Max kv_len across small-q subsequences (for partition count)
 
@@ -418,10 +420,37 @@ public:
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
 
-    // Reuse single-token's partition-size policy: spec windows are short relative
-    // to past KV, so the large 256-token partition still amortises K/V loads well.
+    // small-q wants a *larger* partition than single-token, and the same one for both cache
+    // layouts. The partition size sets two things at once: the workgroup count (parallelism for
+    // this kernel) and the size of the fp32 partial buffer that this kernel writes and the
+    // finalization reads back. Those pull in opposite directions, but very unequally -- the main
+    // kernel's preference is shallow while the partials dominate the pair's DRAM traffic, so the
+    // optimum sits well above single-token's 128/256.
+    //
+    // Measured (15 k context, GQA-4, head 128, cmpr=2, main + reduce ms):
+    //                    block 16          block 256
+    //   partition    q=6      q=16      q=6      q=16
+    //     128       0.677    1.256       -        -
+    //     256       0.572    1.008     0.627    0.983
+    //     512       0.517    0.881     0.525    0.869
+    //     640       0.506    0.836     0.515    0.848      <- best for every column
+    //     768       0.589    0.854     0.581    0.851
+    //
+    // 640 is best for both q_len and both layouts, so this stays a constant rather than
+    // something keyed on q_len.
+    //
+    // The ceiling is not performance but get_single_token_q_chunking: it sizes q_head_chunk_size
+    // against a full-partition-wide rS tile, which the *single-token* kernel holds but small_q
+    // does not (its rS_tile is one online tile wide). Past 768 that model shrinks the chunk from
+    // 4 to 2, which doubles q_head_chunks_per_kv_head and so doubles the workgroup count and the
+    // K/V read traffic. 1024 measures better than 640 in the sandbox only because that harness
+    // forces the chunk to 4. Raising this further needs a small-q-specific chunking model first.
+    static constexpr size_t SMALL_Q_PARTITION_SIZE = 640;
     static size_t get_partition_size(const bool has_xattention = false) {
-        return PagedAttentionGeneratorSingleToken::get_partition_size(has_xattention);
+        if (SMALL_Q_PARTITION_SIZE == 0) {
+            return PagedAttentionGeneratorSingleToken::get_partition_size(has_xattention);
+        }
+        return SMALL_Q_PARTITION_SIZE;
     }
 
 private:

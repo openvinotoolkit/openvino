@@ -345,6 +345,17 @@ public:
             if (use_split_mixed && (rt_params->single_token_selected_count > 0 || rt_params->small_q_token_count > 0)) {
                 rt_params->num_of_partitions = ceil_div(max_context_len, sq_partition_size);
                 rt_params->q_chunking = sq_q_chunking;
+
+                const auto small_q_partition_size = PagedAttentionGeneratorSmallQ::get_partition_size(desc->has_xattention);
+                rt_params->small_q_num_of_partitions = ceil_div(max_context_len, small_q_partition_size);
+
+                const auto small_q_chunking = get_single_token_q_chunking(params, *desc, small_q_partition_size);
+                OPENVINO_ASSERT(small_q_chunking.q_head_chunk_size == sq_q_chunking.q_head_chunk_size &&
+                                    small_q_chunking.q_head_chunks_per_kv_head == sq_q_chunking.q_head_chunks_per_kv_head,
+                                "pa_small_q q-chunking (", small_q_chunking.q_head_chunk_size, "x",
+                                small_q_chunking.q_head_chunks_per_kv_head, " at partition ", small_q_partition_size,
+                                ") disagrees with the dispatch chunking (", sq_q_chunking.q_head_chunk_size, "x",
+                                sq_q_chunking.q_head_chunks_per_kv_head, " at partition ", sq_partition_size, ")");
             }
 
             if (desc->has_xattention) {
@@ -798,10 +809,13 @@ public:
             int64_t small_q_buf_elems = 16;
             int64_t small_q_mapping_elems = 3;
             if (needs_small_q_buffers) {
-                OPENVINO_ASSERT(rt_params->num_of_partitions != 0);
+                // Sized by small_q's own partition count, which is what both small-q stages
+                // index with.
+                OPENVINO_ASSERT(rt_params->small_q_num_of_partitions != 0);
                 const size_t partition_token_rows = rt_params->small_q_tile_count * static_cast<size_t>(std::max(1, rt_params->small_q_tile_q));
-                small_q_buf_elems = static_cast<int64_t>(partition_token_rows * desc->heads_num * rt_params->num_of_partitions);
-                small_q_tmp_out_elems = static_cast<int64_t>(partition_token_rows * desc->heads_num * desc->v_head_size * rt_params->num_of_partitions);
+                small_q_buf_elems = static_cast<int64_t>(partition_token_rows * desc->heads_num * rt_params->small_q_num_of_partitions);
+                small_q_tmp_out_elems =
+                    static_cast<int64_t>(partition_token_rows * desc->heads_num * desc->v_head_size * rt_params->small_q_num_of_partitions);
                 small_q_mapping_elems = static_cast<int64_t>(rt_params->small_q_tile_count * 3);
             }
             internal_buffers.emplace_back(small_q_tmp_out_elems, ov::element::f32);               // SMALL_Q_PARTITIONOUT

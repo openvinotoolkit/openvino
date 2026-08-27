@@ -16,33 +16,8 @@
 
 namespace KERNEL_NAME {
 
-// Included *inside* the namespace, as pa_multi_token.cm does. KERNEL_NAME is the unique
-// entry-point name, so this is what keeps the helpers distinct when the same .cm is
-// instantiated more than once in one translation unit -- which happens whenever two stages
-// share a kernels_cache options bucket (the two TILE_Q rungs, or pa_multi_token's three
-// xattn block sizes). None of these headers are include-guarded, and they must not be: a
-// guard would define the helpers in the first namespace only and leave the later copies
-// unable to find them.
 #include "cm_qq_bias_mask.hpp"
 
-// Experimental sandbox copy of pa_small_q_ov.cm.
-// Keep stability-oriented changes in pa_small_q_ov.cm and stage more invasive
-// register-pressure / scheduling experiments in this file.
-
-// pa_small_q: per-(tile, head-chunk, kv-partition) decode kernel.
-//
-// Adapted from pa_single_token to handle q_len > 1 within a subsequence — the
-// spec-decoding / draft-validation case where one sequence carries `spec_num`
-// query tokens (e.g. q_len=16) against a long past KV. multi_token's WG
-// utilisation collapses to 1/16 in this shape.
-//
-// TILE_Q optimisation: each SG packs TILE_Q q-tokens of the same subsequence
-// so K/V loads are amortised across the spec window and DPAS RepeatCount stays
-// saturated at Q_head_chunk_size * TILE_Q (≤ 8). Mapping is host-packed as i32
-// triples (orig_seq_idx, q_start_in_subseq, valid_count); valid_count is in the
-// range [1, TILE_Q] and equals TILE_Q for full tiles. Tail tiles (valid_count <
-// TILE_Q) write neutral output (lse = -inf) for the dummy rows so finalize can
-// safely reduce a fixed-size partition buffer.
 //
 // Layout invariants:
 //   selected_q_mapping  : i32 triples, length = 3 * tile_count
@@ -50,9 +25,7 @@ namespace KERNEL_NAME {
 //   lse                 : f32 [tile_count * TILE_Q, head, partition]
 //   Causal: row t in a tile sees past_lens + q_start + t + 1 keys.
 
-// Scope: the two quantised KV layouts. compr=1 quantises both K and V per *token*;
-// compr=2 quantises K per *channel* and keeps V per token. Uncompressed (fp16) KV is not
-// supported by this kernel.
+// Uncompressed (fp16) KV is not supported by this kernel.
 #if !KV_CACHE_COMPRESSION
 #error "pa_small_q: only KV_CACHE_COMPRESSION 1 and 2 are supported"
 #endif
@@ -76,10 +49,6 @@ namespace KERNEL_NAME {
 #define REG_M RepeatCount
 #define KV_PARTITION_STEP_NUM  (KV_PARTITION_SIZE / KV_STEP)
 
-// One online tile covers KV_STEP key positions, which is also the DPAS N width, so KV_STEP
-// must equal REG_N. A *cache block* holds KV_BLOCK_SIZE positions, which is 16 for the
-// legacy layout but 256 when xattention is enabled -- i.e. many online tiles per block. The
-// two must never be conflated: an online tile index is not a block index.
 #define STEPS_PER_BLOCK (KV_BLOCK_SIZE / KV_STEP)
 #if (KV_BLOCK_SIZE % KV_STEP) != 0
     #error "KV_BLOCK_SIZE must be a whole number of KV_STEP online tiles"
@@ -96,15 +65,6 @@ namespace KERNEL_NAME {
 // thread makes exactly one DPAS pass per head-dim chunk: 8 is the widest the systolic
 // array takes and maximises K/V reuse per thread.
 //
-// It is the load-bearing tuning number in this kernel. It fixes the per-thread live state
-// at Omat (ROWS_PER_THREAD*HEAD_SIZE fp32) + Qmat (same in fp16), which decides the
-// smallest register file that does not spill and, through WG_THREADS below, how much SLM
-// each thread costs. Both directions were measured and both are slower:
-//   * more rows/thread (two DPAS passes) inflates live state, forcing a bigger register
-//     file and so fewer resident threads;
-//   * fewer rows/thread (RepeatCount 4) does fit a 128-GRF file with no spill, but each
-//     thread still reads the *whole* marshalled K/V tile regardless of how many q-rows it
-//     serves, so halving the rows doubles total SLM read traffic to buy +25% threads.
 #if Q_ROWS > 8
 #if (Q_ROWS % 8) != 0
         #error "Q_ROWS > 8 requires Q_ROWS to be divisible by 8"
@@ -152,140 +112,20 @@ namespace KERNEL_NAME {
 
 #define NUM_ONLINE_TILES ((KV_PARTITION_STEP_NUM + ONLINE_TILE_STEPS - 1) / ONLINE_TILE_STEPS)
 
-
-// Ablation probe, see the use sites: reuse head-dim chunk 0 for every chunk in both
-// consume loops. Removes 7/8 of the consume-phase SLM read traffic with an almost
-// unchanged instruction stream. Produces wrong results; measurement only.
-
-// Ablation probe, see the use site: make the whole K/V working set L1-resident by rotating
-// over 4 physical blocks. Isolates exposed DRAM latency/bandwidth from everything else.
-// Produces wrong results; measurement only.
-
-// How many online tiles ahead to software-prefetch K/V, via cm_prefetch.
-//
-// Round 14 deleted the raw-staging phase, which was double-buffered -- it loaded tile i+1
-// while tile i computed. The 2D block load that replaced it sits at the top of the tile with
-// the marshal consuming it immediately and a barrier right after, so DRAM latency became
-// fully exposed once per tile. An ablation forcing K/V L1-resident measures that exposure at -21.9 % of the main kernel, most of which is compulsory bus time
-// for the 31.5 MB of K/V; a distance-1 prefetch recovers over half of it.
-//
-// Paired A/B on the main kernel, 8-10 rounds each: distance 1 = -11.8 % and -11.5 % in two
-// independent batches, distance 2 = -6.5 %, distance 4 = -10.4 %. Distance 1 wins because
-// tile i's marshal, barrier and consume already cover a full DRAM round trip, and going
-// deeper only ages the line in L1. cm_prefetch cannot change results.
 #define KV_PREFETCH_DIST 1
 
-// Fold the dequantize's subtract and multiply into one mad: (v - zp)*scale is
-// v*scale + (-zp*scale), and the second term is a per-token scalar that can be built once
-// per tile from 16-element vectors. Saves one whole element pass over the 256-element K and
-// V tiles -- and element passes, not instruction count, are what this kernel pays for.
-
-// Do the online-softmax shift per row instead of as one whole-tile expression. The
-// whole-tile form has to *materialise* the per-row max as a broadcast matrix
-// (new_max.replicate<...>) before it can subtract it, which is a third element pass: at
-// exec 32 that is 4 mov + 4 add + 4 mul = 24 cycles for 128 floats. Per row it is 8 mads at
-// exec 16 = 8 cycles. Round 4's MATRIX_SOFTMAX chose the whole-tile form on instruction
-// count, which round 15 showed is the wrong metric.
-
-// Head-dim chunks fetched per SLM read in the two consume loops. Chunks are contiguous in
-// slm_Kt/slm_Vt, so a wider read returns N adjacent chunks in one message, each still a
-// contiguous 8-GRF region and therefore still a legal direct DPAS operand. Byte traffic is
-// unchanged; only the message count drops. Separates "SLM bytes" from "SLM messages" as the
-// cost of the consume phase.
-
-// Measured and rejected, recorded so they are not re-tried blind (see PROFILING.md):
-//   * wider SLM reads in the consume loops -- 512 B is the hardware maximum for an SLM block
-//     read, so a 2-chunk read is split back into two messages and buys nothing.
-//   * double-buffering the marshalled operands to drop the pre-marshal barrier: correct, and
-//     -0.7 %. Removing *both* barriers is worth -12 %, so the cost is the workgroup lockstep
-//     itself, not the barrier count.
-//   * software-pipelining the marshal against the consume (marshal tile t while consuming
-//     tile t-1 from the other slot): correct, but -4.1 % over 10 rounds and +12.1 % over 14,
-//     i.e. unresolvable on the available rig.
-//   * folding the dequantize's sub+mul into one mad, and whole-tile instead of per-row
-//     dequantize: both remove element work and both measure +1 to +3 %. At ~30 % ALU
-//     utilisation, ALU work is not what this kernel pays for.
-
-#define KV_PREFETCH_DIST 1
-
-// Fold the dequantize's subtract and multiply into one mad: (v - zp)*scale is
-// v*scale + (-zp*scale), and the second term is a per-token scalar that can be built once
-// per tile from 16-element vectors. Saves one whole element pass over the 256-element K and
-// V tiles -- and element passes, not instruction count, are what this kernel pays for.
-
-// Do the online-softmax shift per row instead of as one whole-tile expression. The
-// whole-tile form has to *materialise* the per-row max as a broadcast matrix
-// (new_max.replicate<...>) before it can subtract it, which is a third element pass: at
-// exec 32 that is 4 mov + 4 add + 4 mul = 24 cycles for 128 floats. Per row it is 8 mads at
-// exec 16 = 8 cycles. Round 4's MATRIX_SOFTMAX chose the whole-tile form on instruction
-// count, which round 15 showed is the wrong metric.
-
-// Head-dim chunks fetched per SLM read in the two consume loops. Chunks are contiguous in
-// slm_Kt/slm_Vt, so a wider read returns N adjacent chunks in one message, each still a
-// contiguous 8-GRF region and therefore still a legal direct DPAS operand. Byte traffic is
-// unchanged; only the message count drops. Separates "SLM bytes" from "SLM messages" as the
-// cost of the consume phase.
-
-// --- Ablation probes. All produce wrong results; measurement only. Each removes one
-// resource while leaving the values it feeds live and data-dependent, so IGC cannot fold
-// away the surrounding work (ablations must remove traffic while leaving values live).
-//
-// NO_MARSHAL_ALU: keep the global 2D load and the 512 B SLM write, drop the dequantize and
-// the transpose/VNNI pack in between. Isolates the marshal's ALU from its memory traffic.
-// NO_SOFTMAX: keep rS live and P fed from it, drop the row-max tree, the rescale guards and
-// the exponentials.
-// NO_BARRIER: drop both barriers per online tile. All work stays; only the workgroup
-// lockstep goes away.
-
-// Double-buffer the marshalled operands, so one barrier per online tile suffices instead of
-// two. With a single slm_Kt/slm_Vt the loop needs a barrier *before* the marshal (so tile
-// i's writes cannot overtake tile i-1's reads) as well as after it. With two slots, tile i
-// writes slot i&1 while any thread still finishing tile i-1 reads slot (i-1)&1, and a thread
-// cannot reach tile i's marshal until every thread has passed tile i-1's post-marshal
-// barrier -- which is after their tile i-2 consume of slot i&1. So the pre-marshal barrier
-// carries no dependency and can go.
-//
-// The ablation suite puts both barriers at -12.0 % of the main kernel. Cost is 8 -> 16 KiB
-// of SLM per workgroup, which is free here: at 192 GRF residency is 6 workgroups per
-// Xe-core, i.e. 96 KiB of the 128 KiB available.
-
-// Software-pipeline the marshal against the consume: iteration t marshals tile t while
-// consuming tile t-1, with one barrier at the end. Requires double-buffered marshalled operands.
-//
-// The ablation suite says the marshal's dequantize + transpose chain is worth -13.6 % of the
-// main kernel, yet removing a fifth of its element work measures +1.7 %. All-or-nothing like
-// that is the signature of *chain latency*, not throughput: load -> convert -> convert ->
-// convert -> sub -> mul -> transpose -> SLM write is eight dependent steps, and the barrier
-// straight afterwards means nothing else in the thread can cover them. Interleaving the
-// consume's DPAS work with it gives the scheduler something to fill the chain with.
-//
-// The loop runs NUM_ONLINE_TILES+1 times: t marshals tile t (skipped on the last) and
-// consumes tile t-1 (skipped on the first). Slot t&1 is written while slot (t-1)&1 is read,
-// and slot t&1's previous reader was iteration t-1's consume of tile t-2, which the barrier
-// at the end of t-1 already ordered.
 #define SLM_SLOTS 1
 
-// Pin the online_tile unroll factor. On a kernel near the GRF ceiling IGC spends any freed
-// register slack on more unrolling, so a change that removes work can silently double the
-// code instead of speeding anything up (see PROFILING.md round 3). 0 = let IGC choose.
-
-// Dequantize the whole REG_N x REG_K tile with flat/whole-matrix ops instead of one row at
-// a time. Kept OFF: it does exactly what it claims and is worth nothing, which is the
-// cleanest evidence available for what actually costs on this kernel.
-//
-// It cuts the marshal from 213 to 165 instructions and lifts it from exec 16 to exec 32
-// (int8->half convert movs 104 -> 32, dequant sub/mul 64 -> 32; instCount 7509 -> 7133).
-// Measured over 12 paired rounds against a verified-different build: **+1.0 %**.
-//
-// The ALU is 16 wide, so an exec-32 op costs two pipe cycles. Counted in cycles instead of
-// instructions the flat marshal is 285 vs 221 -- it got *worse*. Contrast the promoted
-// vector scale/zp copy, which deleted 96 exec-**1** instructions and won 4-8 %. The cost
-// model on this kernel is pipe cycles at width 16, so widening an already-vector loop pays
-// nothing; only deleting element-work or exec-1 scalar code does. See PROFILING.md round 15.
-
-// Restore the old per-token scalar scale/zp gather, for re-measuring the vector form.
 #define PA_PRAGMA_STR(x) _Pragma(#x)
 #define PA_PRAGMA_UNROLL(n) PA_PRAGMA_STR(unroll n)
+
+#ifndef TILE_UNROLL
+#define TILE_UNROLL 4
+#endif
+
+#ifndef SOFTMAX_RESCALE_BRANCHLESS
+#define SOFTMAX_RESCALE_BRANCHLESS 1
+#endif
 
 #if KV_CACHE_COMPRESSION
 #if KV_CACHE_COMPRESSION == 2
@@ -430,13 +270,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     constexpr uint per_k_block_element_num = KV_BLOCK_SIZE * KV_HEADS_NUM * HEAD_SIZE;
 #endif
 
-// The workgroup-shared path covers both quantised layouts. compr=1 quantises K per *token*
-// (one scale/zp per token row, shared by all HEAD_SIZE channels); compr=2 quantises it per
-// *channel* (one scale/zp per channel, shared by the SUB_BLOCK_SIZE tokens of a group).
-// The K *data* layout is identical in both -- token-major, HEAD_SIZE bytes per token,
-// pitch HEAD_SIZE -- so the 2D block load, the transpose, the SLM sharing and everything
-// downstream are unchanged. Only where the scale/zp vector comes from, and which axis it
-// broadcasts along, differ. V is per-token in both.
     if (local_qg >= WG_THREADS) {
         return;
     }
@@ -648,7 +481,11 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
             }
 
 
+#if TILE_UNROLL > 0
+            PA_PRAGMA_UNROLL(TILE_UNROLL)
+#else
             #pragma unroll
+#endif
             for (int online_tile = 0; online_tile < NUM_ONLINE_TILES; online_tile++) {
                 const int ki_base = online_tile * ONLINE_TILE_STEPS;
                 const int ki_base_m = ki_base;
@@ -1042,6 +879,17 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                             rS_tile.select<ROWS_PER_THREAD, 1, SM_N, 1>(0, 0));
                     vector<float, ROWS_PER_THREAD> new_max = cm_max<float>(final_max, tile_max);
 
+#if SOFTMAX_RESCALE_BRANCHLESS
+                    // final_max - new_max <= 0, and is exactly 0 for rows that did not move.
+                    vector<float, ROWS_PER_THREAD> correction_v =
+                        cm_exp((final_max - new_max) * log2e_wg);
+                    #pragma unroll
+                    for (int row = 0; row < ROWS_PER_THREAD; row++) {
+                        final_sum_acc.row(row) *= correction_v[row];
+                        // Row `row` lives at offset row*REG_N of every chunk.
+                        Omat.select<HEAD_SIZE / REG_N, 1, REG_N, 1>(0, row * REG_N) *= correction_v[row];
+                    }
+#else
                     #pragma unroll
                     for (int row = 0; row < ROWS_PER_THREAD; row++) {
                         if (tile_max[row] > final_max[row])
@@ -1052,6 +900,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                             Omat.select<HEAD_SIZE / REG_N, 1, REG_N, 1>(0, row * REG_N) *= correction;
                         }
                     }
+#endif
                     final_max = new_max;
 
                     vector<float, ROWS_PER_THREAD * SM_N> shifted =
