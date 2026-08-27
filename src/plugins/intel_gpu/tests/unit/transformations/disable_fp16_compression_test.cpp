@@ -20,6 +20,7 @@
 #include "openvino/op/cos.hpp"
 #include "openvino/op/cum_sum.hpp"
 #include "openvino/op/interpolate.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
 #include "openvino/op/parameter.hpp"
@@ -171,7 +172,13 @@ TEST(TransformationTests, DisableFP16CompForGatedResidual_Positive) {
 TEST(TransformationTests, DisableFP16CompForGatedResidual_ConvertPrecision) {
     auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 128});
     auto gate = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 128});
-    auto branch = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 128});
+    auto branch_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 64});
+    auto branch_weights = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{64, 128});
+    auto branch_matmul = std::make_shared<ov::op::v0::MatMul>(branch_input, branch_weights);
+    branch_matmul->set_friendly_name("branch_matmul");
+    auto branch_bias = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{128}, {0});
+    auto branch = std::make_shared<ov::op::v1::Add>(branch_matmul, branch_bias);
+    branch->set_friendly_name("branch");
     auto gated_branch = std::make_shared<ov::op::v1::Multiply>(gate, branch);
     gated_branch->set_friendly_name("gated_branch");
     auto add = std::make_shared<ov::op::v1::Add>(residual, gated_branch);
@@ -181,7 +188,8 @@ TEST(TransformationTests, DisableFP16CompForGatedResidual_ConvertPrecision) {
         std::make_shared<ov::op::v6::MVN>(add, axes, true, 1e-6, ov::op::MVNEpsMode::INSIDE_SQRT);
     mvn->set_friendly_name("mvn");
 
-    auto model = std::make_shared<ov::Model>(ov::OutputVector{mvn}, ov::ParameterVector{residual, gate, branch});
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{mvn},
+                                             ov::ParameterVector{residual, gate, branch_input, branch_weights});
     ov::pass::Manager manager;
     manager.register_pass<DisableFP16Compression>();
     precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
@@ -190,13 +198,15 @@ TEST(TransformationTests, DisableFP16CompForGatedResidual_ConvertPrecision) {
 
     size_t checked_nodes = 0;
     for (const auto& op : model->get_ops()) {
-        if (op->get_friendly_name() == "gated_branch" || op->get_friendly_name() == "residual_add" ||
+        if (op->get_friendly_name() == "branch_matmul" || op->get_friendly_name() == "branch" ||
+            op->get_friendly_name() == "gated_branch" ||
+            op->get_friendly_name() == "residual_add" ||
             op->get_friendly_name() == "mvn") {
             EXPECT_EQ(op->get_output_element_type(0), ov::element::f32) << op->get_friendly_name();
             ++checked_nodes;
         }
     }
-    EXPECT_EQ(checked_nodes, 3);
+    EXPECT_EQ(checked_nodes, 5);
 }
 
 TEST(TransformationTests, DisableFP16CompForGatedResidual_Negative) {

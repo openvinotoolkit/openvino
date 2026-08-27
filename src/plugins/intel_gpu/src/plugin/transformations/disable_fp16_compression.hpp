@@ -43,8 +43,8 @@ public:
 /**
  * @brief Keeps gated residual paths in FP32 when they feed normalization.
  *
- * The Multiply result in Add(residual, Multiply(gate, branch)) can exceed the
- * FP16 range even when both Multiply inputs are representable in FP16.
+ * The branch MatMul or Multiply result in Add(residual, Multiply(gate, branch))
+ * can exceed the FP16 range even when the earlier inputs are representable in FP16.
  */
 class DisableFP16CompForGatedResidualPattern : public ov::pass::MatcherPass {
 public:
