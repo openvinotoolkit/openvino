@@ -275,6 +275,7 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
         if (it != _properties.end() && it->second.isPublic && it->second.isSupported(propertyArguments)) {
             return true;
         }
+        propertyArguments[ov::intel_npu::compiler_type.name()] = normalizedArguments.compilerType;
     }
 
     const auto it = _properties.find(name);
@@ -302,6 +303,7 @@ bool PluginPropertyManager::isPropertyAvailable(const std::string& name, const o
         if (it != _properties.end() && it->second.isSupported(propertyArguments)) {
             return true;
         }
+        propertyArguments[ov::intel_npu::compiler_type.name()] = normalizedArguments.compilerType;
     }
 
     const auto it = _properties.find(name);
