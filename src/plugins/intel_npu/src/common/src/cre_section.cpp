@@ -2,34 +2,33 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_npu/common/cre_section.hpp"
-
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/itt.hpp"
+#include "intel_npu/common/runtime_requirements_section.hpp"
 
 namespace intel_npu {
 
-CRESection::CRESection(const CRE& cre, const ov::log::Level log_level)
+RuntimeRequirementsSection::RuntimeRequirementsSection(const CRE& cre, const ov::log::Level log_level)
     : ISection(PredefinedSectionType::CRE),
       m_cre(cre),
-      m_logger("CRESection", log_level) {}
+      m_logger("RuntimeRequirementsSection", log_level) {}
 
-void CRESection::write(BlobWriterInterface& writer) {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CRESection::write");
+void RuntimeRequirementsSection::write(BlobWriterInterface& writer) {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "RuntimeRequirementsSection::write");
 
     writer.write_from(m_cre.get_expression().data(), m_cre.get_expression_length() * sizeof(CREToken));
 
     m_logger.debug("%lu tokens written", m_cre.get_expression_length());
 }
 
-CRE CRESection::get_cre() const {
+CRE RuntimeRequirementsSection::get_cre() const {
     return m_cre;
 }
 
-std::shared_ptr<ISection> CRESection::read(BlobReaderInterface& blob_reader) {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CRESection::read");
-    Logger logger("CRESection", blob_reader.get_log_level());
+std::shared_ptr<ISection> RuntimeRequirementsSection::read(BlobReaderInterface& blob_reader) {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "RuntimeRequirementsSection::read");
+    Logger logger("RuntimeRequirementsSection", blob_reader.get_log_level());
 
     const size_t section_length = blob_reader.get_section_length();
     OPENVINO_ASSERT(section_length % sizeof(CREToken) == 0,
@@ -47,7 +46,7 @@ std::shared_ptr<ISection> CRESection::read(BlobReaderInterface& blob_reader) {
     std::vector<CREToken> tokens(number_of_tokens);
     blob_reader.read_into_buffer(tokens.data(), number_of_tokens * sizeof(CREToken));
 
-    return std::make_shared<CRESection>(CRE(tokens, logger.level()), logger.level());
+    return std::make_shared<RuntimeRequirementsSection>(CRE(tokens, logger.level()), logger.level());
 }
 
 }  // namespace intel_npu

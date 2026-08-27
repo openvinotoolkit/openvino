@@ -4,8 +4,8 @@
 
 #include "intel_npu/common/blob_reader.hpp"
 
-#include "intel_npu/common/cre_section.hpp"
 #include "intel_npu/common/itt.hpp"
+#include "intel_npu/common/runtime_requirements_section.hpp"
 #include "intel_npu/config/options.hpp"
 
 namespace {
@@ -40,7 +40,7 @@ BlobReader::BlobReader(const FilteredConfig& config)
     : m_config(config),
       m_logger("BlobReader", config.get<LOG_LEVEL>()) {
     // Register the core sections
-    register_reader(PredefinedSectionType::CRE, CRESection::read);
+    register_reader(PredefinedSectionType::CRE, RuntimeRequirementsSection::read);
     register_reader(PredefinedSectionType::OFFSETS_TABLE, OffsetsTableSection::read);
 }
 
@@ -202,7 +202,7 @@ void BlobReader::read(BlobSource& source) {
                       npu_region_size,
                       /*include_in_sections_order*/ false);
 
-        const bool is_compatible = std::dynamic_pointer_cast<CRESection>(
+        const bool is_compatible = std::dynamic_pointer_cast<RuntimeRequirementsSection>(
                                        m_parsed_sections.at(PredefinedSectionType::CRE).at(FIRST_INSTANCE_ID))
                                        ->get_cre()
                                        .check_compatibility(m_section_type_evaluators, section_instance_evaluators);

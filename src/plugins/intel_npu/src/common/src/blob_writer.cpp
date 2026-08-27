@@ -7,8 +7,8 @@
 #include <iterator>
 
 #include "intel_npu/common/blob_reader.hpp"
-#include "intel_npu/common/cre_section.hpp"
 #include "intel_npu/common/itt.hpp"
+#include "intel_npu/common/runtime_requirements_section.hpp"
 
 namespace {
 
@@ -223,9 +223,9 @@ void BlobWriter::write_to(std::ostream& stream) const {
     // The region of dynamic format (list of key-length-payload sections, any order & no restrictions w.r.t.
     // the content of the payload)
 
-    // Write the CRESection. This section doesn't have to be the first one, but we write it first to emphasize the fact
-    // that section writers cannot append to the "global" CRE
-    const auto cre_section = std::make_shared<CRESection>(build_cre(), m_logger.level());
+    // Write the RuntimeRequirementsSection. This section doesn't have to be the first one, but we write it first to
+    // emphasize the fact that section writers cannot append to the "global" CRE
+    const auto cre_section = std::make_shared<RuntimeRequirementsSection>(build_cre(), m_logger.level());
     cre_section->set_section_type_instance(FIRST_INSTANCE_ID);
     write_section(stream, cre_section, stream_npu_region_start, offsets_table);
 

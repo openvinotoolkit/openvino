@@ -9,9 +9,9 @@
 
 namespace intel_npu {
 
-class CRESection final : public ISection {
+class RuntimeRequirementsSection final : public ISection {
 public:
-    CRESection(const CRE& cre, const ov::log::Level log_level = ov::log::Level::WARNING);
+    RuntimeRequirementsSection(const CRE& cre, const ov::log::Level log_level = ov::log::Level::WARNING);
 
     void write(BlobWriterInterface& writer) override;
 
