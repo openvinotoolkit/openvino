@@ -2,15 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_npu/common/runtime_requirements_section.hpp"
+
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/itt.hpp"
-#include "intel_npu/common/runtime_requirements_section.hpp"
 
 namespace intel_npu {
 
-RuntimeRequirementsSection::RuntimeRequirementsSection(const CRE& cre, const ov::log::Level log_level)
+RuntimeRequirementsSection::RuntimeRequirementsSection(const std::map<std::string, std::string>& sections_requirements,
+                                                       const CRE& cre,
+                                                       const ov::log::Level log_level)
     : ISection(PredefinedSectionType::CRE),
+      m_sections_requirements(sections_requirements),
       m_cre(cre),
       m_logger("RuntimeRequirementsSection", log_level) {}
 
@@ -24,6 +28,10 @@ void RuntimeRequirementsSection::write(BlobWriterInterface& writer) {
 
 CRE RuntimeRequirementsSection::get_cre() const {
     return m_cre;
+}
+
+std::map<std::string, std::string> RuntimeRequirementsSection::get_sections_requirements() const {
+    return m_sections_requirements;
 }
 
 std::shared_ptr<ISection> RuntimeRequirementsSection::read(BlobReaderInterface& blob_reader) {
