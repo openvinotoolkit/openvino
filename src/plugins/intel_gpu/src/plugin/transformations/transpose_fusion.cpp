@@ -18,6 +18,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -27,6 +28,7 @@
 #include "graph/include/gemm_inst.h"
 
 #include "ov_ops/vl_sdpa.hpp"
+#include "ov_ops/rotary_positional_embeddings.hpp"
 
 #include <iostream>
 #include <vector>
@@ -580,6 +582,50 @@ TransposeSplitMatcher::TransposeSplitMatcher() {
         // Condition 4: Check num_splits is 3
         if (split->get_num_splits() != 3) {
             return false;
+        }
+
+        // CVS-192936 (reviewer feedback): do not infer safety from the immediate
+        // reshape consumer at cldnn build time (fragile: new consumer op types, or
+        // an extra hop before reaching the real consumer, would silently bypass that
+        // check). Instead lock this rewrite down to the exact pattern it was designed
+        // for at the ov::Model level, where the full chain is still visible: each
+        // Split output must reach ov::op::internal::VLSDPA, optionally through a single
+        // RoPE hop (Q/K), after passing through the rank-reducing Reshape/Squeeze.
+        // SDPAToVLSDPA runs before TransposeFusion (see transformations_pipeline.cpp),
+        // so by the time this matcher fires, the graph already reflects whether VLSDPA
+        // fusion actually happened for this attention block; if it was disabled (e.g.
+        // CM/IGC unavailable on this host/driver, non-f16 precision, non-XMX HW), the
+        // consumer is still the generic ScaledDotProductAttention, whose GPU kernels do
+        // not honor the padding this rewrite introduces -- so the rewrite must not apply.
+        auto leads_to_vlsdpa = [](const ov::Output<ov::Node>& split_output) {
+            auto targets = split_output.get_target_inputs();
+            if (targets.size() != 1)
+                return false;
+            auto reshape = targets.begin()->get_node();
+            if (!ov::is_type<ov::op::v1::Reshape>(reshape) && !ov::is_type<ov::op::v0::Squeeze>(reshape))
+                return false;
+            if (reshape->get_output_size() != 1)
+                return false;
+            auto reshape_targets = reshape->get_output_target_inputs(0);
+            if (reshape_targets.size() != 1)
+                return false;
+            auto consumer = reshape_targets.begin()->get_node();
+            if (ov::is_type<ov::op::internal::VLSDPA>(consumer))
+                return true;
+            // Q/K branch: one RoPE hop is allowed before VLSDPA.
+            if (ov::is_type<ov::op::internal::RoPE>(consumer)) {
+                if (consumer->get_output_size() != 1)
+                    return false;
+                auto rope_targets = consumer->get_output_target_inputs(0);
+                if (rope_targets.size() != 1)
+                    return false;
+                return ov::is_type<ov::op::internal::VLSDPA>(rope_targets.begin()->get_node());
+            }
+            return false;
+        };
+        for (size_t i = 0; i < split->get_output_size(); i++) {
+            if (!leads_to_vlsdpa(split->output(i)))
+                return false;
         }
 
         // Create new Split that operates directly on axis=1 of the input (before transpose)

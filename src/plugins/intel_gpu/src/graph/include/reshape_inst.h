@@ -9,6 +9,7 @@
 #include "crop_inst.h"
 #include "mvn_inst.h"
 #include "vl_sdpa_inst.h"
+#include "scaled_dot_product_attention_inst.h"
 #include "primitive_inst.h"
 
 #include <string>
@@ -141,10 +142,27 @@ public:
         // A 2D → 1D squeeze (e.g. NMS bbox-coord split [-1, 4] → [-1, 1] → [-1]) does NOT
         // meet this condition and must not be optimized — its downstream arithmetic kernels
         // are compiled without dynamic-padding support.
+        //
+        // CVS-192936: shape matching alone is NOT sufficient. The safety argument above
+        // ("downstream consumers RoPE / oneDNN SDPA only receive the squeezed view") does NOT
+        // hold for the generic, non-fused `scaled_dot_product_attention` primitive (its ocl_v2
+        // sdpa_ref/sdpa_opt/sdpa_gen_micro/sdpa_gen_opt kernels index Q/K/V as if the buffer
+        // were physically contiguous and never read the parent crop's pad_before/pad_after from
+        // shape_info, unlike RoPE and vl_sdpa which do). Every other consumer proven correct by
+        // prepare_buffer_fusing_test.cpp's in_place_crop_along_feature_* tests (Eltwise, RoPE,
+        // vl_sdpa, ...) DOES correctly honor the propagated padding via layout pitches/offsets,
+        // so only the generic sdpa consumer must be excluded here. In the Qwen3-VL vision
+        // encoder this exact shape signature (crop axis=1 size=1 -> squeeze reshape) feeds the
+        // V input of `scaled_dot_product_attention` directly: applying the optimization there
+        // silently corrupted the V read (wrong vision embeddings -> wrong image captions on GPU,
+        // while CPU -- which never runs this in-place optimization -- stayed correct).
         if (axis == 1 && !input_pshape[1].is_dynamic() && input_pshape[1].get_length() == 1) {
             if (prim->output_partial_shape.size() >= 2 &&
                 prim->output_partial_shape.size() + 1 == input_pshape.size()) {
-                return true;
+                bool feeds_unsafe_sdpa_consumer = get_users().size() == 1 &&
+                    get_users().front()->is_type<scaled_dot_product_attention>();
+                if (!feeds_unsafe_sdpa_consumer)
+                    return true;
             }
         }
 
