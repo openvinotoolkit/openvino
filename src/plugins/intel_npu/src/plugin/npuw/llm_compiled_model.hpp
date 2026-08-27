@@ -109,6 +109,13 @@ private:
                                                          const ov::AnyMap& properties,
                                                          const ov::npuw::s11n::CompiledContext& ctx);
 
+    // Re-establishes the generate-variant invariants that the compile path builds by
+    // construction but the blob does not carry - most importantly that the variants are
+    // ordered by ascending KV cache size, which the continuous KV strategy relies on when
+    // it shares the last variant's past KV allocation with all the others. Throws on any
+    // inconsistency.
+    void validate_imported_kv_variants() const;
+
     std::string m_name;
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
