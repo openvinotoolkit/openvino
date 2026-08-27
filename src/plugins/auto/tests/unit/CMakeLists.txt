@@ -29,7 +29,7 @@ ov_add_test_target(
 ov_add_version_defines(${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/plugin.cpp ${TARGET_NAME})
 
 if(TARGET openvino::ipf_client_api)
-    target_compile_definitions(${TARGET_NAME} PRIVATE OV_AUTO_ENABLE_IPF ClientApi_IMPORTS)
+    target_compile_definitions(${TARGET_NAME} PRIVATE OV_AUTO_ENABLE_IPF)
     target_link_libraries(${TARGET_NAME} PRIVATE openvino::ipf_client_api)
     target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
         $<TARGET_PROPERTY:nlohmann_json::nlohmann_json,INTERFACE_INCLUDE_DIRECTORIES>)

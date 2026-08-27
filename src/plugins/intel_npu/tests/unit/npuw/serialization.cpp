@@ -813,6 +813,30 @@ TEST(SerializationTest, OVTypes_HostFlashAttention) {
     expect_host_flash_attention_equal(var, res);
 }
 
+/**
+ * @brief Raw tile indices deserialize without validation; SIZE_MAX would OOB-index
+ * _compiled_tile_model->inputs() at attn_subgraph.cpp:372/915.
+ */
+TEST(SerializationTest, OVTypes_HostFlashAttention_OOBTileIndexRejected) {
+    using namespace ov::npuw::s11n;
+
+    ov::npuw::compiled::HostFlashAttention var;
+    var._sdpa_attention_info._query_size = 8;
+    var._sdpa_attention_info._context_size = 32;
+    var._sdpa_attention_info._k_seq_dim = 1;
+    var._sdpa_attention_info._v_seq_dim = 2;
+    var._sdpa_attention_info._sdpa_indices = {3, {4}, {5}, 6, 7, 8};
+    var._sdpa_attention_info._tile_input_indices = {9, 10, 11, 12, std::numeric_limits<std::size_t>::max(), 14, 15};
+    var._sdpa_attention_info._tile_output_indices = {0, 1, 2};
+    var._tile_size = 64;
+    var._can_use_tensor_view = true;
+
+    ov::npuw::compiled::HostFlashAttention res;
+    std::stringstream ss;
+    write(ss, var);
+    EXPECT_THROW(read(ss, res), ov::Exception);
+}
+
 TEST(SerializationTest, OVTypes_MoEExperts) {
     using namespace ov::npuw::s11n;
 
