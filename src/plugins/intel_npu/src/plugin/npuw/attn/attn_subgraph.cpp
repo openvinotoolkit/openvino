@@ -811,7 +811,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         const auto pyramid_id = state.pyramid_selector->pyramid_id();
                         const std::size_t dyn_mask_idx = pyramid->mask_idx_at(pyramid_id);
                         const std::size_t dyn_query_size = pyramid->query_size_at(pyramid_id);
-                        auto mask_iport = pyramid->_compiled_models[pyramid_id]->inputs()[dyn_mask_idx];
+                        auto mask_iport = pyramid->_compiled_models[pyramid_id]->inputs().at(dyn_mask_idx);
                         const auto& graph_mask = io.inputs.at(dyn_mask_idx);
                         const auto this_case = state.pyramid_selector->this_case();
                         const auto present_len = dyn_query_size;
@@ -1240,22 +1240,25 @@ void serialize_compiled_state(v1::subgraphs::Context& context,
                 std::string model_str = ss.str();
                 stream & model_str;
             }
-        } else if (num_models > 0) {
+        } else {
             mutable_pyramid->_compiled_models.resize(num_models);
-            NPUW_ASSERT(submodel_ctx != nullptr);
-            for (size_t i = 0; i < num_models - 1; ++i) {
-                std::string model_str;
-                stream & model_str;
-                std::stringstream ss(model_str);
-                mutable_pyramid->_compiled_models[i] =
-                    submodel_ctx->plugin->get_core()->import_model(ss,
-                                                                   submodel_ctx->device,
-                                                                   submodel_ctx->import_config);
+            if (num_models > 0) {
+                NPUW_ASSERT(submodel_ctx != nullptr);
+                for (size_t i = 0; i < num_models - 1; ++i) {
+                    std::string model_str;
+                    stream & model_str;
+                    std::stringstream ss(model_str);
+                    mutable_pyramid->_compiled_models[i] =
+                        submodel_ctx->plugin->get_core()->import_model(ss,
+                                                                       submodel_ctx->device,
+                                                                       submodel_ctx->import_config);
+                }
+                if (submodel_ctx->compiled_model) {
+                    mutable_pyramid->_compiled_models[num_models - 1] = submodel_ctx->compiled_model;
+                    LOG_DEBUG("Reused compiled_model for the last pyramid attention model");
+                }
             }
-            if (submodel_ctx->compiled_model) {
-                mutable_pyramid->_compiled_models[num_models - 1] = submodel_ctx->compiled_model;
-                LOG_DEBUG("Reused compiled_model for the last pyramid attention model");
-            }
+            mutable_pyramid->validate_port_indices();
         }
     }
 
