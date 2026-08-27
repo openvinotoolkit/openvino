@@ -200,6 +200,20 @@ DEF_BLOCK2D_LOAD_STORE(half, ushort, 16, 16, u16_m8k32v1, 32, 8)
         } \
     } while (0)
 
+// Reinterpret each element of a half tile as bf16 bits and convert to float,
+// storing the result into a float tile of matching shape.
+#define tile_copy_bf16bits_to_float(t, t_new) \
+    do { \
+        _Pragma("unroll") for (int i = 0; i < sizeof(t.x) / sizeof(t.x[0]); \
+                               i++) { \
+            _Pragma("unroll") for (int s = 0; \
+                                   s < sizeof(t.x[0]) / sizeof(t.x[0][0]); \
+                                   s++) { \
+                t_new.x[i][s] = _convert_as_bfloat16_float(as_ushort(t.x[i][s])); \
+            } \
+        } \
+    } while (0)
+
 #define tile_copy_to_half2(t, t_new) \
     do { \
         _Pragma("unroll") for (int i = 0; i < sizeof(t.x) / sizeof(t.x[0]); \

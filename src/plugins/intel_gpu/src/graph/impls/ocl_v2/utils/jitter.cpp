@@ -614,7 +614,7 @@ std::string to_ocl_type(ov::element::Type_t et) {
     case ov::element::Type_t::f16:
         return get_ocl_type_name<ov::float16>();
     case ov::element::Type_t::bf16:
-        return get_ocl_type_name<uint16_t>();
+        return get_ocl_type_name<ov::bfloat16>();
     case ov::element::Type_t::f32:
         return get_ocl_type_name<float>();
     default:

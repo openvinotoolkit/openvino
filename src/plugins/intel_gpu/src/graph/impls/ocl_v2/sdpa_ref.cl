@@ -37,6 +37,18 @@
     #define LOAD_INPUT2(v)     (v)
 #endif
 
+// attn_mask input (INPUT3) - same treatment as Q/K/V: bit-reinterpret bf16 storage,
+// identity load for the remaining supported (numerically usable) mask types.
+#ifdef INPUT3_TYPE
+#if INPUT3_TYPE_SIZE == 2 && !INPUT3_IS_FP
+    #define INPUT3_COMPUTE_T   COMPUTE_TYPE
+    #define LOAD_INPUT3(v)     _convert_as_bfloat16_float(v)
+#else
+    #define INPUT3_COMPUTE_T   INPUT3_TYPE
+    #define LOAD_INPUT3(v)     (v)
+#endif
+#endif
+
 // Output store: for bf16 we bit-reinterpret the float accumulator into a ushort payload; for
 // other output types the standard numeric conversion is correct. OUTPUT_COMPUTE_T is the type
 // used to hold in-flight values that will eventually be stored to `output` (mirrors the

@@ -19,7 +19,7 @@
 #include "include/batch_headers/bf16_utils.cl"
 #include "include/batch_headers/tile_ops.cl"
 
-#if defined(KV_DT_BF16) && KV_DT_BF16
+#if INPUT_DT_BF16
 #define KV_SLM_T ushort
 #define tile_copy_S_to_kv(t, t_new) tile_copy_to_bf16x2(t, t_new)
 #else
@@ -955,7 +955,13 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         tile_elementwise(S_tile, mask_scale_op);
 #elif WITH_ATTN_MASK
         mask_tile_type_float mask_tile_float;
+#if INPUT_DT_BF16
+        // Mask buffer holds bf16 values but the kernel reads it as half*;
+        // reinterpret the 16-bit values as bf16 bits when converting to float.
+        tile_copy_bf16bits_to_float(mask_tile, mask_tile_float);
+#else
         tile_copy(mask_tile, mask_tile_float);
+#endif
 #ifdef LOG_2_E_MUL_SCALE
 #define unscale(x) ((x)*iscale)
         tile_elementwise(mask_tile_float, unscale);
@@ -1524,7 +1530,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     uint sg_i0_vs = sg_i_vs * ugemm_vs_sg_tile_m;
     uint sg_j0_vs = sg_j_vs * ugemm_vs_sg_tile_n + wg_j0;
 
-#if defined(KV_DT_BF16) && KV_DT_BF16
+#if INPUT_DT_BF16
     tile_reinterpret_half_to_bf16bits(A_tile_half);
 #endif
 

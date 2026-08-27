@@ -1124,7 +1124,9 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     jit.make("QRY_DATA_T", to_ocl_type(Q.data_type));
     jit.make("KEY_DATA_T", to_ocl_type(K.data_type));
     jit.make("VAL_DATA_T", to_ocl_type(V.data_type));
-    jit.make("KV_DT_BF16", (V.data_type == ov::element::bf16) ? 1 : 0);
+    // All inputs (Q/K/V/mask) currently share the same data type.
+    // bf16 inputs require bit-reinterpret instead of numeric cast in decode paths.
+    jit.make("INPUT_DT_BF16", (Q.data_type == ov::element::bf16) ? 1 : 0);
 
     auto elems_per_byte = [](ov::element::Type dt) {
         switch (dt) {

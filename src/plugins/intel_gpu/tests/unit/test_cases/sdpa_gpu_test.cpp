@@ -167,7 +167,7 @@ struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
             input2_layout = cldnn::layout({-1, -1, num_heads, head_size}, p.dt, format::bfyx);
 
             if (test_two_rank_mask) {
-                input3_layout = cldnn::layout({ -1, -1}, data_types::f32, format::bfyx);
+                input3_layout = cldnn::layout({ -1, -1}, p.dt, format::bfyx);
             } else {
                 input3_layout = cldnn::layout({-1, num_heads, -1, -1}, p.dt, format::bfyx);
             }
@@ -176,7 +176,7 @@ struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
             input1_static_layout = cldnn::layout({batch, seq_length_kv, num_heads, head_size}, p.dt, format::bfyx);
             input2_static_layout = cldnn::layout({batch, seq_length_kv, num_heads, head_size}, p.dt, format::bfyx);
             if (test_two_rank_mask) {
-                input3_static_layout = cldnn::layout({seq_length_q, seq_length_kv}, data_types::f32, format::bfyx);
+                input3_static_layout = cldnn::layout({seq_length_q, seq_length_kv}, p.dt, format::bfyx);
             } else {
                 input3_static_layout = cldnn::layout({batch, num_heads,     1,     seq_length_kv}, p.dt, format::bfyx);
             }
