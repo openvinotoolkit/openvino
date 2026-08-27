@@ -62,7 +62,7 @@ if [ -n "$selftest" ] ; then
                  raspbian:10 debian:10 ubuntu:20.04 ubuntu:20.10 ubuntu:21.04 \
                  raspbian:11 debian:11 ubuntu:21.10 ubuntu:22.04 \
                  raspbian:12 debian:12 ubuntu:22.10 ubuntu:23.04 ubuntu:24.04 \
-                 debian:13 ; do
+                 debian:13 ubuntu:26.04 ; do
         for opt in  "-h" "-p" "-e -p" "-n" "-n -e" "-y" "-y -e" ; do
             echo "||"
             echo "|| Test $image / '$opt'"
@@ -112,7 +112,7 @@ if [ "$os" == "auto" ] ; then
         raspbian10|debian10|ubuntu20.04|ubuntu20.10|ubuntu21.04|\
         raspbian11|debian11|ubuntu21.10|ubuntu22.04|\
         raspbian12|debian12|ubuntu22.10|ubuntu23.04|ubuntu23.10|ubuntu24.04|\
-        debian13) [ -z "$print" ] && echo "Detected OS: ${os}" ;;
+        debian13|ubuntu26.04) [ -z "$print" ] && echo "Detected OS: ${os}" ;;
         *) echo "Unsupported OS: ${os:-detection failed}" >&2 ; exit 1 ;;
     esac
 fi
@@ -142,7 +142,7 @@ elif [ "$os" == "ubuntu18.04" ] ; then
 elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "debian10" ] || [ "$os" == "raspbian10" ] ||
      [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubuntu22.04" ] || [ "$os" == "debian11" ] || [ "$os" == "raspbian11" ] ||
      [ "$os" == "ubuntu22.10" ] || [ "$os" == "ubuntu23.04" ] || [ "$os" == "ubuntu24.04" ] || [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ] ||
-     [ "$os" == "debian13" ]; then
+     [ "$os" == "debian13" ] || [ "$os" == "ubuntu26.04" ]; then
 
     pkgs_gpu=(ocl-icd-libopencl1)
     pkgs_python=(python3 python3-venv python3-pip)
@@ -164,6 +164,8 @@ elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "debian10" ] || [ "$os" == "raspbi
         pkgs_python+=(libpython3.12)
     elif [ "$os" == "debian13" ] ; then
         pkgs_python+=(libpython3.13)
+    elif [ "$os" == "ubuntu26.04" ] ; then
+        pkgs_python+=(libpython3.14)
     fi
 
 elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] || [ "$os" == "centos9" ] ||
@@ -280,7 +282,7 @@ if [ "$os" == "debian9" ] || [ "$os" == "raspbian9" ] || [ "$os" == "ubuntu18.04
    [ "$os" == "debian10" ] || [ "$os" == "raspbian10" ] || [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu20.10" ] || [ "$os" == "ubuntu21.04" ] ||
    [ "$os" == "debian11" ] || [ "$os" == "raspbian11" ] || [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubuntu22.04" ] ||
    [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ] || [ "$os" == "ubuntu22.10" ] || [ "$os" == "ubuntu23.04" ] || [ "$os" == "ubuntu23.10" ] || [ "$os" == "ubuntu24.04" ] ||
-   [ "$os" == "debian13" ] ; then
+   [ "$os" == "debian13" ] || [ "$os" == "ubuntu26.04" ] ; then
 
     [ -z "$interactive" ] && iopt="-y"
     [ -n "$dry" ] && iopt="--dry-run"
