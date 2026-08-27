@@ -1800,10 +1800,9 @@ void ov::npuw::LLMCompiledModel::validate_imported_kvcache_dim() const {
         // A port can carry several tensor names; match against all of them, as the runtime does
         // when it collects the past-KV ports, so get_any_name()'s choice of alias can't hide one.
         const auto& names = port.get_names();
-        const bool is_past_key =
-            std::any_of(names.begin(), names.end(), [](const std::string& name) {
-                return ov::npuw::util::isPastKeyParam(name);
-            });
+        const bool is_past_key = std::any_of(names.begin(), names.end(), [](const std::string& name) {
+            return ov::npuw::util::isPastKeyParam(name);
+        });
         if (!is_past_key) {
             continue;
         }
