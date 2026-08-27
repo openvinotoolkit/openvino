@@ -536,8 +536,12 @@ std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::LLMInferRequest::select_genera
     int64_t expected_total_tokens = prompt_length + min_response_len;
 
     const auto& kvcache_sizes = m_npuw_llm_compiled_model->m_kvcache_sizes;
+    // Defence in depth: kvcache_sizes and m_generate_requests are parallel containers (one size per
+    // variant). We index m_generate_requests by a kvcache_sizes position below, so never walk past the
+    // shorter of the two even if a tampered blob slipped an inconsistent size table past the loader.
+    const size_t num_variants = std::min(kvcache_sizes.size(), m_generate_requests.size());
     // Find the smallest variant that can accommodate the expected token count
-    for (size_t i = 0; i < kvcache_sizes.size(); ++i) {
+    for (size_t i = 0; i < num_variants; ++i) {
         if (expected_total_tokens <= kvcache_sizes[i]) {
             LOG_DEBUG("Selected generate request " << (i + 1) << "/" << kvcache_sizes.size() << " with size "
                                                    << kvcache_sizes[i] << " for prompt_length=" << prompt_length
@@ -670,8 +674,12 @@ void ov::npuw::LLMInferRequest::bind_generate_variant(int64_t prompt_length) {
     m_kvcache_out_ports = m_generate_variant_out_ports.at(m_kvcache_request);
     // Record the selected variant index for O(1) capacity queries and mid-decode switching.
     const auto& reqs = m_generate_requests;
-    m_kvcache_variant_idx =
-        static_cast<size_t>(std::distance(reqs.begin(), std::find(reqs.begin(), reqs.end(), m_kvcache_request)));
+    const auto it = std::find(reqs.begin(), reqs.end(), m_kvcache_request);
+    // A miss would make std::distance yield reqs.size(), an out-of-bounds index later used to look up
+    // m_kvcache_sizes (get_current_variant_capacity). select_generate_request() always returns an
+    // element of m_generate_requests, so a miss means invariants upstream are broken.
+    OPENVINO_ASSERT(it != reqs.end(), "NPUW: active kvcache request is not among the generate variants.");
+    m_kvcache_variant_idx = static_cast<size_t>(std::distance(reqs.begin(), it));
 }
 
 void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_length) {
@@ -890,7 +898,7 @@ void ov::npuw::LLMInferRequest::copy_lincache(
 uint32_t ov::npuw::LLMInferRequest::get_current_variant_capacity() const {
     // The generate model's past KV input tensor is shaped to (kv_size - max_generation_token_len)
     // by ReshapeToStatic. Capacity is the number of past tokens that fit, not the total KV window.
-    const uint32_t kv_size = m_npuw_llm_compiled_model->m_kvcache_sizes[m_kvcache_variant_idx];
+    const uint32_t kv_size = m_npuw_llm_compiled_model->m_kvcache_sizes.at(m_kvcache_variant_idx);
     const uint32_t max_gen_len = m_npuw_llm_compiled_model->m_kvcache_desc.max_generation_token_len;
     OPENVINO_ASSERT(kv_size >= max_gen_len,
                     "KV cache size ",
@@ -903,10 +911,14 @@ uint32_t ov::npuw::LLMInferRequest::get_current_variant_capacity() const {
 
 bool ov::npuw::LLMInferRequest::try_switch_to_larger_variant() {
     const size_t next_idx = m_kvcache_variant_idx + 1;
-    if (next_idx >= m_generate_requests.size()) {
+    const auto& kvcache_sizes = m_npuw_llm_compiled_model->m_kvcache_sizes;
+    // Guard against both: m_generate_requests[next_idx] and kvcache_sizes[next_idx]. They are
+    // parallel (one size per variant) and the loader enforces equal length, but bounding only
+    // one while indexing the other is the anti-pattern that makes out-of-bounds vulnerabilities
+    // exploitable.
+    if (next_idx >= m_generate_requests.size() || next_idx >= kvcache_sizes.size()) {
         return false;  // already at the largest variant
     }
-    const auto& kvcache_sizes = m_npuw_llm_compiled_model->m_kvcache_sizes;
     LOG_INFO("KV cache capacity (" << kvcache_sizes[m_kvcache_variant_idx] << ") reached at "
                                    << m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens
                                    << " stored tokens; switching to variant with capacity " << kvcache_sizes[next_idx]
