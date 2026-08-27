@@ -19,6 +19,7 @@
 #include "ze_memory.hpp"
 #include "ze_common.hpp"
 #include "ze_command_list.hpp"
+#include "ze_command_recorder.hpp"
 
 #include "compute_runtime/ze_intel_gpu.h"
 #include "compute_runtime/ze_stypes.h"
@@ -257,6 +258,7 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
         // If counter based events are not supported or not used, use the same factory for both user and base events
         m_ev_factory = m_user_ev_factory;
     }
+    m_recorder = std::make_shared<ze_command_recorder>(*this);
     GPU_DEBUG_INFO << "[GPU] Created Level Zero stream ("
         << "index=" << index
         << ", use_cp_offload=" << use_cp_offload
@@ -279,6 +281,7 @@ ze_stream::ze_stream(const ze_engine& engine, const ExecutionConfig& config, ze_
     } else {
         m_ev_factory = m_user_ev_factory;
     }
+    m_recorder = std::make_shared<ze_command_recorder>(*this);
     GPU_DEBUG_INFO << "[GPU] Created L0 stream from existing command list ("
         << "use_counter_based_events=" << use_counter_based_events
         << ")" << std::endl;
@@ -408,9 +411,9 @@ void ze_stream::flush() const {
 }
 
 void ze_stream::finish() const {
-    if (is_recording()) {
-        stop_recording();
-        GPU_DEBUG_TRACE << "[GPU] Stream finish interrupted recording" << std::endl;
+    if (get_recorder()->is_recording()) {
+        get_recorder()->stop_recording();
+        GPU_DEBUG_TRACE << "[GPU][REC] Stream finish interrupted recording" << std::endl;
     }
     OV_ZE_EXPECT(ze::zeCommandListHostSynchronize(m_imm_cmd_list.handle(), endless_wait));
 }
@@ -468,8 +471,8 @@ ze_context_resource ze_stream::get_context() const {
 dnnl::stream& ze_stream::get_onednn_stream() {
     OPENVINO_ASSERT(m_queue_type == QueueTypes::in_order, "[GPU] Can't create onednn stream handle as onednn doesn't support out-of-order queue");
     OPENVINO_ASSERT(_engine.get_device_info().vendor_id == INTEL_VENDOR_ID, "[GPU] Can't create onednn stream handle as for non-Intel devices");
-    if (is_recording()) {
-        return m_recorded_cmd_list->get_onednn_stream();
+    if (m_recorder->is_recording()) {
+        return std::static_pointer_cast<ze_command_list>(m_recorder->get_active_command_list())->get_onednn_stream();
     }
     if (!_onednn_stream) {
         _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ze_interop::make_stream(_engine.get_onednn_engine(), m_imm_cmd_list.handle(), is_profiling_enabled()));
@@ -479,40 +482,15 @@ dnnl::stream& ze_stream::get_onednn_stream() {
 }
 #endif
 
-bool ze_stream::supports_recording() const {
-    return true;
-}
-std::shared_ptr<command_list> ze_stream::create_command_list() const {
-    return std::make_shared<ze_command_list>(*this, m_queue_type);
+command_recorder::ptr ze_stream::get_recorder() const {
+    return m_recorder;
 }
 
-void ze_stream::start_recording(command_list::ptr cmd_list) const {
-    auto ze_cmd_list = std::dynamic_pointer_cast<ze_command_list>(cmd_list);
-    OPENVINO_ASSERT(!is_recording(), "[GPU] Can't start recording command list while another command list is being recorded");
-    OPENVINO_ASSERT(ze_cmd_list != nullptr, "[GPU] Can't start recording command list other than ze_command_list");
-    m_recorded_cmd_list = ze_cmd_list;
-    OV_ZE_EXPECT(zeCommandListReset(m_recorded_cmd_list->handle()));
-}
-
-bool ze_stream::is_recording() const {
-    return m_recorded_cmd_list != nullptr;
-}
-
-command_list::ptr ze_stream::stop_recording() const {
-    ze_command_list::ptr ret = nullptr;
-    m_recorded_cmd_list.swap(ret);
-    if (ret != nullptr) {
-        OV_ZE_EXPECT(zeCommandListClose(ret->handle()));
-        enqueue_command_list(ret);
+ze_command_list_handle_t ze_stream::get_current_command_list() const {
+    if (m_recorder->is_recording()) {
+        return std::static_pointer_cast<ze_command_list>(m_recorder->get_active_command_list())->handle();
     }
-    return ret;
-}
-
-void ze_stream::enqueue_command_list(command_list::ptr cmd_list) const {
-    auto ze_cmd_list = std::dynamic_pointer_cast<ze_command_list>(cmd_list);
-    OPENVINO_ASSERT(ze_cmd_list != nullptr, "[GPU] Can't enqueue command list other than ze_command_list");
-    ze_command_list_handle_t enqueued_cmd_list = ze_cmd_list->handle();
-    OV_ZE_EXPECT(zeCommandListImmediateAppendCommandListsWithParameters(m_imm_cmd_list.handle(), 1, &enqueued_cmd_list, nullptr, nullptr, 0, nullptr));
+    return m_imm_cmd_list.handle();
 }
 
 }  // namespace ze

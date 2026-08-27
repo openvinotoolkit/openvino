@@ -2333,7 +2333,8 @@ void primitive_inst::prepare_primitive() {
                     // Use marker to ensure proper synchronization for both events and barriers
                     auto dep_events = out_of_order_queue ? std::vector<event::ptr>{get_network().get_stream().enqueue_marker(_impl_params->dep_events)}
                                                          : std::vector<event::ptr>{};
-                    add_dep_event(output->fill(get_network().get_stream(), dep_events));
+                    // Add dependency event for the output fill operation but do not sync with host
+                    add_dep_event(output->fill(get_network().get_stream(), dep_events, false));
                 }
             }
         }

@@ -12,13 +12,16 @@
 #include "ze_event.hpp"
 #include "ze_command_list.hpp"
 
+
 namespace cldnn {
 namespace ze {
 struct ze_base_event_factory;
+class ze_command_recorder;
 
 class ze_stream : public stream {
 public:
-    ze_command_list_handle_t get_queue() const { return m_imm_cmd_list.handle(); }
+    ze_command_list_handle_t get_immediate_command_list() const { return m_imm_cmd_list.handle(); }
+    ze_command_list_handle_t get_current_command_list() const;
     const ze_engine& get_engine() const { return _engine; }
 
     ze_stream(const ze_engine& engine, const ExecutionConfig& config);
@@ -32,7 +35,7 @@ public:
         , m_last_barrier_ev(other.m_last_barrier_ev)
         , m_ev_factory(std::move(other.m_ev_factory))
         , m_user_ev_factory(std::move(other.m_user_ev_factory))
-        , m_recorded_cmd_list(std::move(other.m_recorded_cmd_list)) {}
+        , m_recorder(std::move(other.m_recorder)) {}
 
     ~ze_stream();
 
@@ -60,21 +63,9 @@ public:
     dnnl::stream& get_onednn_stream() override;
 #endif
 
-    bool supports_recording() const override;
-    command_list::ptr create_command_list() const override;
-    void start_recording(command_list::ptr cmd_list) const override;
-    bool is_recording() const override;
-    command_list::ptr stop_recording() const override;
-    void enqueue_command_list(command_list::ptr cmd_list) const override;
-
+    command_recorder::ptr get_recorder() const override;
 private:
     void sync_events(std::vector<event::ptr> const& deps, bool is_output = false);
-    ze_command_list_handle_t get_current_command_list() const {
-        if (is_recording()) {
-            return m_recorded_cmd_list->handle();
-        }
-        return m_imm_cmd_list.handle();
-    }
 
     const ze_engine& _engine;
     ze_command_list_resource m_imm_cmd_list;
@@ -86,7 +77,7 @@ private:
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::shared_ptr<dnnl::stream> _onednn_stream = nullptr;
 #endif
-    mutable std::shared_ptr<ze_command_list> m_recorded_cmd_list = nullptr;
+    std::shared_ptr<command_recorder> m_recorder = nullptr;
     bool m_profiling_enabled;
 };
 

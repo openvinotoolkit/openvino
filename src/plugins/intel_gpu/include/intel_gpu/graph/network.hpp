@@ -250,7 +250,6 @@ private:
     bool _reset_arguments;
     bool _reuse_variable_mem = false;
     bool _is_recording_valid = false;
-    bool _enable_stream_recording = false;
 
     /* Common memory pointer for shape_info */
     memory::ptr _shape_info_ptr;
@@ -281,6 +280,8 @@ private:
 
     /// @brief Invalidate the recording of the previous iteration
     void invalidate_stream_recording();
+    /// @brief Check if recording is supported for the current network
+    bool is_recording_supported() const;
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);
     void transfer_memory_to_device(std::shared_ptr<primitive_inst> instance, program_node const& node);

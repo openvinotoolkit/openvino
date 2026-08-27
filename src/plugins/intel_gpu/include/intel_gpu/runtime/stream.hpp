@@ -8,7 +8,7 @@
 #include "kernel.hpp"
 #include "kernel_args.hpp"
 #include "execution_config.hpp"
-#include "command_list.hpp"
+#include "command_recorder.hpp"
 
 #include <memory>
 #include <vector>
@@ -56,31 +56,9 @@ public:
     virtual void finish() const = 0;
     virtual void wait() = 0;
 
-    /// @brief Check if the stream supports recording.
-    /// @return True if recording is supported, false otherwise.
-    virtual bool supports_recording() const = 0;
-
-    /// @brief Create command list for recording executed commands.
-    /// @return Command list object.
-    virtual command_list::ptr create_command_list() const = 0;
-
-    /// @brief Start recording operations executed on the stream.
-    /// Executed commands are not submitted to the device during recording.
-    /// @param cmd_list Command list to record executed commands.
-    virtual void start_recording(command_list::ptr cmd_list) const = 0;
-
-    /// @brief Check if the stream is currently recording commands to the command list.
-    /// @return True if the stream is recording, false otherwise.
-    virtual bool is_recording() const = 0;
-
-    /// @brief Stop recording and submit all recorded commands to the device.
-    /// @return Command list with recorded commands or nullptr if stream was not recording.
-    virtual command_list::ptr stop_recording() const = 0;
-
-    /// @brief Enqueue command list.
-    /// @param cmd_list Command list to enqueue.
-    /// @note Resources referenced by the command list must remain valid during command list execution.
-    virtual void enqueue_command_list(command_list::ptr cmd_list) const = 0;
+    /// @brief Get the command recorder associated with the stream.
+    /// @return Command recorder object or nullptr if not supported.
+    virtual command_recorder::ptr get_recorder() const { return nullptr; }
 
     virtual void set_arguments(kernel& kernel, const kernel_arguments_desc& args_desc, const kernel_arguments_data& args) = 0;
     virtual event::ptr enqueue_kernel(kernel& kernel,
