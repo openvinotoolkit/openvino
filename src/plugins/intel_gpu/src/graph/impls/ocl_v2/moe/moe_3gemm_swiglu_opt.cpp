@@ -1391,7 +1391,7 @@ public:
             internal_buffers.emplace_back(layout_unused, true);  // 9: token len per activated expert (unused here)
             layout layout_token_idx(ov::Shape{token_num * max_topk}, ov::element::i32, cldnn::format::bfyx);
             internal_buffers.emplace_back(layout_token_idx, true);  // 10: flat token idx per expert (for gather)
-            internal_buffers.emplace_back(layout_unused, false);  // 11: actual_used_expert_num (unused here)
+            internal_buffers.emplace_back(layout_unused, false);    // 11: actual_used_expert_num (unused here)
             // int32_t end-offsets per expert for OneDNN grouped memory descriptor
             // offsets[e] = sum(n_0..n_e), the exclusive end index of expert e in the flat buffer
             layout layout_grouped_offsets(ov::Shape{expert_num}, ov::element::i32, cldnn::format::bfyx);
@@ -2401,8 +2401,7 @@ public:
 
         int total_gathered_tokens = static_cast<int>(token_num) * max_topk;
 
-        intermediates_memories[MOE_INTERNAL_BUFFER_ROW_LUT]
-            ->copy_from(stream, row_lut_cpu.data(), 0, 0, row_lut_cpu.size() * sizeof(int32_t), true);
+        intermediates_memories[MOE_INTERNAL_BUFFER_ROW_LUT]->copy_from(stream, row_lut_cpu.data(), 0, 0, row_lut_cpu.size() * sizeof(int32_t), true);
 
         // Compute actual max tokens assigned to any single expert.
         int max_tokens_per_expert = 0;
@@ -2546,16 +2545,15 @@ public:
             auto [local_threads_count, batches_per_thread, _unused] =
                 calc_thread_count(const_cast<RuntimeParams&>(*instance.get_impl_params()), 4, _hidden_size);
 
-            ret_event = execute_stage({ret_event},
-                                      instance,
-                                      *prefill_scatter_reduce_row_lut,
-                                      {intermediates_memories[MOE_INTERNAL_BUFFER_DOWN_OUTPUT],
-                                       routing_mem_ptr,
-                                       intermediates_memories[MOE_INTERNAL_BUFFER_ROW_LUT]},
-                                      {final_hidden_states_mem_ptr},
-                                      {static_cast<size_t>(token_num) * local_threads_count, 1, 1},
-                                      {local_threads_count, 1, 1},
-                                      true /*needs_completion_event*/);
+            ret_event =
+                execute_stage({ret_event},
+                              instance,
+                              *prefill_scatter_reduce_row_lut,
+                              {intermediates_memories[MOE_INTERNAL_BUFFER_DOWN_OUTPUT], routing_mem_ptr, intermediates_memories[MOE_INTERNAL_BUFFER_ROW_LUT]},
+                              {final_hidden_states_mem_ptr},
+                              {static_cast<size_t>(token_num) * local_threads_count, 1, 1},
+                              {local_threads_count, 1, 1},
+                              true /*needs_completion_event*/);
         }
 
         return ret_event;
