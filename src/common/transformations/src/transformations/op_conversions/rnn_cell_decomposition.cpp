@@ -47,7 +47,7 @@ ov::pass::RNNCellDecomposition::RNNCellDecomposition() {
         // f(Xt*(Wi^T) + Ht-1*(Ri^T) + Wbi + Rbi)
         auto clip = rnn_cell->get_clip();
         std::shared_ptr<Node> clamp = i_t;
-        if (op_util::requires_clip(clip)) {
+        if (op_util::classify_rnn_clip(clip) == op_util::RNNClipMode::CLAMP) {
             clamp = std::make_shared<v0::Clamp>(i_t, -clip, clip);
             ov::copy_runtime_info(rnn_cell, clamp);
         }

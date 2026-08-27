@@ -17,50 +17,47 @@
 namespace ov {
 namespace op {
 namespace util {
-/// \brief      Tells whether an RNN `clip` attribute value is a valid request to disable clipping.
+enum class RNNClipMode {
+    NONE,
+    CLAMP,
+    INVALID,
+};
+
+/// \brief      Classifies an RNN `clip` attribute value.
 ///
-/// \note       Per the RNN/GRU/LSTM specs the default `clip` is *infinity*, which means "clipping is not applied";
-///             OpenVINO ops additionally treat `clip == 0` as no clipping (see RNNCellBase::clip), so both values
-///             must be handled identically. Negative values, negative infinity, and `NaN` are invalid and are not
-///             reported as valid no-clipping requests. Use requires_clip() to decide whether a Clamp can be created;
-///             callers may reject invalid values or deliberately ignore them for backward compatibility.
+/// \note       Per the RNN/GRU/LSTM specs the default `clip` is positive infinity, which means "clipping is not
+///             applied". OpenVINO ops additionally treat `clip == 0` as no clipping. Only finite positive values
+///             describe valid Clamp bounds; negative values, negative infinity, and `NaN` are invalid.
 ///
 /// \param[in]  clip  Value of the `clip` attribute.
 ///
-/// \return     True if `clip` validly expresses "no clipping".
-inline bool is_no_clip(float clip) {
-    return clip == 0.f || (clip > 0.f && std::isinf(clip));
+/// \return     The semantic mode represented by `clip`.
+inline RNNClipMode classify_rnn_clip(float clip) {
+    if (clip == 0.f || (clip > 0.f && std::isinf(clip))) {
+        return RNNClipMode::NONE;
+    }
+    if (clip > 0.f) {
+        return RNNClipMode::CLAMP;
+    }
+    return RNNClipMode::INVALID;
 }
 
 /// \brief      Tells whether two RNN `clip` attribute values are equivalent for RNN transformation matching.
 ///
-/// \note       All values reported by is_no_clip() are equivalent. Other values must match exactly. In particular,
-///             NaN is not equal to any value, including itself.
+/// \note       Values classified as RNNClipMode::NONE are equivalent. Other values must match exactly. In particular,
+///             `NaN` is not equal to any value, including itself.
 ///
 /// \param[in]  lhs  First `clip` attribute value.
 /// \param[in]  rhs  Second `clip` attribute value.
 ///
 /// \return     True if both values are equivalent for matching.
 inline bool are_clips_equal(float lhs, float rhs) {
-    const bool lhs_is_no_clip = is_no_clip(lhs);
-    const bool rhs_is_no_clip = is_no_clip(rhs);
-    if (lhs_is_no_clip || rhs_is_no_clip) {
-        return lhs_is_no_clip && rhs_is_no_clip;
+    const auto lhs_mode = classify_rnn_clip(lhs);
+    const auto rhs_mode = classify_rnn_clip(rhs);
+    if (lhs_mode == RNNClipMode::NONE || rhs_mode == RNNClipMode::NONE) {
+        return lhs_mode == rhs_mode;
     }
     return lhs == rhs;
-}
-
-/// \brief      Tells whether an RNN `clip` attribute value asks for an actual Clamp.
-///
-/// \note       Only a finite positive `clip` yields usable bounds `[-clip, clip]`. `0` and positive infinity mean
-///             "no clipping". Negative values, negative infinity, and `NaN` are invalid, but none of them may
-///             produce a Clamp: this preserves the long-standing `clip > 0` behavior and avoids invalid bounds.
-///
-/// \param[in]  clip  Value of the `clip` attribute.
-///
-/// \return     True if a Clamp with bounds `[-clip, clip]` has to be applied.
-inline bool requires_clip(float clip) {
-    return clip > 0.f && !std::isinf(clip);
 }
 
 enum class LSTMWeightsFormat {

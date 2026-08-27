@@ -58,7 +58,7 @@ ov::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
         Output<Node> o = split->output(3);
 
         auto clip = lstm_cell->get_clip();
-        if (op_util::requires_clip(clip)) {
+        if (op_util::classify_rnn_clip(clip) == op_util::RNNClipMode::CLAMP) {
             auto clamp_f = std::make_shared<v0::Clamp>(f, -clip, clip);
             auto clamp_i = std::make_shared<v0::Clamp>(i, -clip, clip);
             auto clamp_c = std::make_shared<v0::Clamp>(c, -clip, clip);

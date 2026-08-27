@@ -93,12 +93,12 @@ void GetGRUActivationParams(const std::shared_ptr<T>& op,
 }
 
 static float NormalizeRNNClip(float clip, const std::string& layer_name) {
-    const bool apply_clip = ov::op::util::requires_clip(clip);
-    if (!apply_clip && !ov::op::util::is_no_clip(clip)) {
+    const auto clip_mode = ov::op::util::classify_rnn_clip(clip);
+    if (clip_mode == ov::op::util::RNNClipMode::INVALID) {
         GPU_DEBUG_LOG << "[" << layer_name << "] Ignoring invalid RNN clip value " << clip
                       << "; using no clipping" << std::endl;
     }
-    return apply_clip ? clip : 0.0f;
+    return clip_mode == ov::op::util::RNNClipMode::CLAMP ? clip : 0.0f;
 }
 
 static void CreateGRUSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v5::GRUSequence>& op) {

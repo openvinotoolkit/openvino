@@ -35,15 +35,33 @@ constexpr size_t batch = 2;
 constexpr size_t input_size = 3;
 constexpr size_t hidden_size = 4;
 
-TEST(RNNClipUtilsTest, ClassifiesOnlyValidNoClipValues) {
+TEST(RNNClipUtilsTest, ClassifiesClipValues) {
+    using ov::op::util::classify_rnn_clip;
+    using ov::op::util::RNNClipMode;
+
     const auto infinity = std::numeric_limits<float>::infinity();
 
-    EXPECT_TRUE(ov::op::util::is_no_clip(0.f));
-    EXPECT_TRUE(ov::op::util::is_no_clip(infinity));
-    EXPECT_FALSE(ov::op::util::is_no_clip(1.f));
-    EXPECT_FALSE(ov::op::util::is_no_clip(-1.f));
-    EXPECT_FALSE(ov::op::util::is_no_clip(-infinity));
-    EXPECT_FALSE(ov::op::util::is_no_clip(std::numeric_limits<float>::quiet_NaN()));
+    EXPECT_EQ(RNNClipMode::NONE, classify_rnn_clip(0.f));
+    EXPECT_EQ(RNNClipMode::NONE, classify_rnn_clip(infinity));
+    EXPECT_EQ(RNNClipMode::CLAMP, classify_rnn_clip(1.f));
+    EXPECT_EQ(RNNClipMode::INVALID, classify_rnn_clip(-1.f));
+    EXPECT_EQ(RNNClipMode::INVALID, classify_rnn_clip(-infinity));
+    EXPECT_EQ(RNNClipMode::INVALID, classify_rnn_clip(std::numeric_limits<float>::quiet_NaN()));
+}
+
+TEST(RNNClipUtilsTest, ComparesClipValuesByMeaning) {
+    using ov::op::util::are_clips_equal;
+
+    const auto infinity = std::numeric_limits<float>::infinity();
+    const auto nan = std::numeric_limits<float>::quiet_NaN();
+
+    EXPECT_TRUE(are_clips_equal(0.f, infinity));
+    EXPECT_TRUE(are_clips_equal(infinity, 0.f));
+    EXPECT_TRUE(are_clips_equal(1.f, 1.f));
+    EXPECT_TRUE(are_clips_equal(-1.f, -1.f));
+    EXPECT_FALSE(are_clips_equal(0.f, 1.f));
+    EXPECT_FALSE(are_clips_equal(0.f, -1.f));
+    EXPECT_FALSE(are_clips_equal(nan, nan));
 }
 
 // Each *CellDecomposition pass inserts a Clamp only when `clip` actually requests clipping. `clip == 0` and

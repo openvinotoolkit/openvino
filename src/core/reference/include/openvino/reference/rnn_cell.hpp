@@ -79,7 +79,7 @@ void rnn_cell(const T* X,
                    op::AutoBroadcastType::NUMPY);
 
     // f(Xt*(Wi^T) + Ht-1*(Ri^T) + Wbi + Rbi)
-    if (op::util::requires_clip(clip)) {
+    if (op::util::classify_rnn_clip(clip) == op::util::RNNClipMode::CLAMP) {
         reference::clamp(i_t.data(), i_t.data(), static_cast<T>(-clip), static_cast<T>(clip), i_t.size());
     }
     if (activation_f == "relu") {

@@ -65,7 +65,7 @@ ov::pass::GRUCellDecomposition::GRUCellDecomposition() {
         auto add_r_2 = std::make_shared<v1::Add>(Xt_W_zrh->output(1), add_r_1);
 
         auto clip = gru_cell->get_clip();
-        const bool apply_clip = op_util::requires_clip(clip);
+        const bool apply_clip = op_util::classify_rnn_clip(clip) == op_util::RNNClipMode::CLAMP;
         std::shared_ptr<Node> clamp_z = add_z_2;
         std::shared_ptr<Node> clamp_r = add_r_2;
         if (apply_clip) {

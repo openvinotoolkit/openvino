@@ -53,14 +53,14 @@ public:
             OPENVINO_ASSERT(param_sz == 0 || a_sz == param_sz, "[GPU] Unexpected activation params count in lstm_cell impl: ", param_sz);
             for (size_t i = 0; i < a_sz; i++) {
                 params.activations.emplace_back(get_kernel_selector_activation_param(primitive->activations[i]),
-                                                         param_sz ? primitive->activation_params[i].a : 0.0f,
-                                                         param_sz ? primitive->activation_params[i].b : 0.0f);
+                                                param_sz ? primitive->activation_params[i].a : 0.0f,
+                                                param_sz ? primitive->activation_params[i].b : 0.0f);
             }
         }
 
         // Only a finite positive clip yields usable bounds; 0, inf and NaN must all leave the kernel unclamped,
         // so normalize them to 0 instead of forwarding a value the clamp activation cannot express.
-        const float clip = ov::op::util::requires_clip(primitive->clip) ? primitive->clip : 0.0f;
+        const float clip = ov::op::util::classify_rnn_clip(primitive->clip) == ov::op::util::RNNClipMode::CLAMP ? primitive->clip : 0.0f;
         if (clip > 0.0f) {
             params.activations.emplace_back(get_kernel_selector_activation_param(activation_func::clamp), -clip, clip);
         }

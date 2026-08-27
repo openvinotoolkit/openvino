@@ -114,7 +114,7 @@ void lstm_cell(const T* X,
     reference::split(reinterpret_cast<char*>(XHB.data()), all_gates_shape, sizeof(T), 1, 4, pointers.data());
 
     auto clip_activation = [&clip](std::vector<T>& gate, const std::string& activation, bool enable_clip = true) {
-        if (op::util::requires_clip(clip) && enable_clip) {
+        if (op::util::classify_rnn_clip(clip) == op::util::RNNClipMode::CLAMP && enable_clip) {
             reference::clamp(gate.data(), gate.data(), static_cast<T>(-clip), static_cast<T>(clip), gate.size());
         }
         if (activation == "relu") {
