@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 192,
+  "total": 193,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1880,6 +1880,15 @@
       "category": "Configuration",
       "signature_hash": "c0643d23262bbd29",
       "pr_number": "37656"
+    },
+    {
+      "investigation_id": "2026-08-27-15-18-59-000-33081754624",
+      "run_id": "33081754624",
+      "timestamp": "2026-08-27T15:18:59Z",
+      "title": "ARM64 Samples smoke test fails with ld.so inconsistency in _dl_close_worker",
+      "category": "Flaky Test",
+      "signature_hash": "698433af4622b768",
+      "pr_number": "37490"
     }
   ]
 }

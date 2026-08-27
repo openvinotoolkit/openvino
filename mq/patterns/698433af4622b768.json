@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "signature": "inconsistency detected by ld.so _dl_close_worker assertion imap->l_type == lt_loaded !imap->l_nodelete_active failed|Flaky Test",
+  "signature_hash": "698433af4622b768",
+  "title": "ARM64 Samples smoke test fails with ld.so inconsistency in _dl_close_worker",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-08-27T15:18:59Z",
+  "last_seen": "2026-08-27T15:18:59Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/33081754624"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/37490"],
+  "recent_timestamps": ["2026-08-27T15:18:59Z"],
+  "rerun_search_string": "Inconsistency detected by ld.so"
+}

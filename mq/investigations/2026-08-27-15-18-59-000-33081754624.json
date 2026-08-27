@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-27-15-18-59-000-33081754624",
+  "timestamp": "2026-08-27T15:18:59Z",
+  "run_id": "33081754624",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33081754624",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37490",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37490",
+  "author": "wilson-seok",
+  "category": "Flaky Test",
+  "title": "ARM64 Samples smoke test fails with ld.so inconsistency in _dl_close_worker",
+  "signature": "inconsistency detected by ld.so _dl_close_worker assertion imap->l_type == lt_loaded !imap->l_nodelete_active failed|Flaky Test",
+  "signature_hash": "698433af4622b768",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Samples / Samples",
+      "conclusion": "failure",
+      "symptom": "test_model_creation_sample[param3] (Python/CPU) aborted with ld.so assertion failure"
+    }
+  ],
+  "key_errors": [
+    "ERROR    root:samples_common_test_class.py:312 Inconsistency detected by ld.so: dl-close.c: 277: _dl_close_worker: Assertion `imap->l_type == lt_loaded && !imap->l_nodelete_active' failed!",
+    "FAILED install/tests/smoke_tests/test_model_creation_sample.py::Test_model_creation_sample::test[param3] - AssertionError: Sample execution failed",
+    "1 failed, 205 passed in 345.36s (0:05:45)"
+  ],
+  "root_cause": "The Python sample model_creation_sample.py crashed on ARM64 due to a glibc dynamic linker assertion in _dl_close_worker (dl-close.c:277). This is a known intermittent ARM64 glibc/ld.so race condition when Python's import machinery opens and closes shared libraries with dlopen/dlclose while another thread is active. It is not caused by the PR changes (which touch only a C++ transformation pass and its tests). Only 1 of 206 tests failed, and it passed in other parametrizations of the same test class, confirming this is a transient infrastructure/flaky issue.",
+  "reproduction_steps": "N/A - intermittent ld.so assertion triggered by ARM64 glibc race condition; not reproducible deterministically",
+  "recommended_actions": [
+    "Re-run the failed job - this is a transient flaky failure unrelated to the PR changes",
+    "If this occurs frequently, consider filing a glibc/ARM64 issue or pinning to a patched glibc version in the Docker image"
+  ],
+  "prevention_strategies": "This class of ld.so assertion failure is a known ARM64 glibc race condition. It cannot be prevented at the test level. Monitor frequency; if recurrence increases, escalate to the CI infra team to investigate glibc version or runner image updates.",
+  "historical_context": "This ld.so _dl_close_worker assertion failure is a known intermittent failure on ARM64 Linux runners. It is unrelated to the PR being merged."
+}
