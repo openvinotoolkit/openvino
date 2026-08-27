@@ -336,7 +336,7 @@ sdpa_config_t xehpg_q_h512_s64_2nd = {8, 16, 32, 8, 32, 1, 16, 2};
 sdpa_config_t xehpg_q_h512_s256_2nd = {16, 8, 32, 8, 16, 2, 16, 2};
 sdpa_config_t xehpg_q_h512_2nd = {16, 8, 16, 8, 32, 1, 32, 1};
 
-sdpa_config_t xehpg_h512_pa = {16, 16, 16, 16, 8, 2, 32, 2};
+sdpa_config_t xehpg_h512_pa = {16, 16, 16, 16, 32, 1, 32, 1};
 sdpa_config_t xehpg_h512 = {8, 16, 32, 16, 16, 2, 16, 2};
 sdpa_config_t xehpg_h512_2nd = {8, 8, 32, 8, 16, 1, 16, 1};
 
@@ -384,7 +384,7 @@ sdpa_config_t xehpc_h256 = {16, 32, 32, 32, 8, 4, 8, 4};
 sdpa_config_t xehpc_h256_s64 = {16, 32, 32, 32, 8, 1, 8, 1};
 sdpa_config_t xehpc_h256_2nd = {16, 16, 16, 16, 16, 1, 16, 1};
 
-sdpa_config_t xehpc_h512_pa = {16, 16, 16, 16, 16, 1, 32, 1};
+sdpa_config_t xehpc_h512_pa = {16, 16, 32, 16, 16, 2, 16, 2};
 sdpa_config_t xehpc_h512 = {32, 16, 64, 16, 8, 4, 8, 4};
 sdpa_config_t xehpc_h512_s64 = {16, 16, 64, 16, 8, 2, 8, 2};
 sdpa_config_t xehpc_h512_s128_2nd = {16, 16, 64, 16, 8, 1, 8, 1};
