@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-27-23-02-07-000-33117706378",
+  "timestamp": "2026-08-27T23:02:07Z",
+  "run_id": "33117706378",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33117706378",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37686",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37686",
+  "author": "olpipi",
+  "category": "Dependencies",
+  "title": "OpenVINO tokenizers wheel build fails - openvino~=2026.5.0.dev not yet available on pip",
+  "signature": "could not find a version that satisfies the requirement openvino dev tokenizers build dependencies failed|Dependencies",
+  "signature_hash": "8d60fd1266878935",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "OpenVINO tokenizers extension / OpenVINO tokenizers extension",
+      "conclusion": "failure",
+      "symptom": "pip cannot satisfy openvino~=2026.5.0.dev build dependency - package not yet published"
+    }
+  ],
+  "key_errors": [
+    "ERROR: Could not find a version that satisfies the requirement openvino~=2026.5.0.dev (from versions: ..., 2026.4.0.dev20260827)",
+    "ERROR: No matching distribution found for openvino~=2026.5.0.dev",
+    "ERROR: Failed to build 'file:///C:/actions-runner/_work/openvino/openvino/openvino_tokenizers' when installing build dependencies"
+  ],
+  "root_cause": "The openvino_tokenizers build system (pyproject.toml) specifies openvino~=2026.5.0.dev as a required build dependency. However, the latest available version on PyPI as of this run is 2026.4.0.dev20260827 - the 2026.5 dev release has not been published yet. This prevents pip from satisfying the build dependency, causing the tokenizers wheel build to fail. This is a pre-existing infrastructure/versioning issue unrelated to PR #37686 (which only modifies a C API test file). The fix requires either: (1) waiting for the 2026.5.0.dev nightly to be published, or (2) relaxing the version constraint in pyproject.toml.",
+  "reproduction_steps": "N/A - CI-environment specific; reproducible by running: pip install openvino~=2026.5.0.dev",
+  "recommended_actions": [
+    "Check if openvino_tokenizers/pyproject.toml has been updated to require openvino~=2026.5.0.dev prematurely",
+    "Relax the version pin or revert the pyproject.toml version constraint to match the latest available nightly",
+    "Alternatively wait for the 2026.5.0.dev nightly build to be published to PyPI",
+    "Re-queue PR #37686 once the openvino nightly is published or the constraint is fixed"
+  ],
+  "prevention_strategies": "Before bumping the required openvino version in pyproject.toml, verify the new nightly version is already available on PyPI. Add a CI pre-check that validates required dependencies are resolvable before starting the build.",
+  "historical_context": "This is the first recorded occurrence of this specific version constraint failure. Dependency resolution failures against PyPI nightly packages are a known risk when version numbers are bumped ahead of publication."
+}
