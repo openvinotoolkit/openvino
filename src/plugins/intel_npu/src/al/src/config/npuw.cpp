@@ -32,6 +32,18 @@ void intel_npu::registerNPUWKokoroOptions(OptionsDesc& desc) {
     });
 }
 
+const std::unordered_set<std::string>& intel_npu::cachedNPUWOptionKeys() {
+    static const std::unordered_set<std::string> keys = [] {
+        std::unordered_set<std::string> result;
+        for_each_cached_npuw_option([&](auto tag) {
+            using Opt = typename decltype(tag)::type;
+            result.insert(std::string(Opt::key()));
+        });
+        return result;
+    }();
+    return keys;
+}
+
 std::string ov::npuw::s11n::anyToString(const ov::Any& var) {
 #define HNDL(anyt, t)                                                \
     auto type = static_cast<int>(AnyType::anyt);                     \
