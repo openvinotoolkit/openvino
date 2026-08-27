@@ -78,6 +78,25 @@ struct LLMVariantSwitchTestAccess {
     static const auto& kvcache_request(const ov::npuw::LLMInferRequest& req) {
         return req.m_kvcache_request;
     }
+
+    static void validate_imported_kv_variants(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
+        compiled->validate_imported_kv_variants();
+    }
+
+    // Emulates a blob that stores the generate variants in descending KV cache size, which
+    // deserialize() would preserve verbatim.
+    static void reverse_generate_variants(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
+        std::reverse(compiled->m_generate_compiled_variants.begin(), compiled->m_generate_compiled_variants.end());
+        compiled->m_kvcache_compiled = compiled->m_generate_compiled_variants.back();
+    }
+
+    static void reverse_declared_kvcache_sizes(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
+        std::reverse(compiled->m_kvcache_sizes.begin(), compiled->m_kvcache_sizes.end());
+    }
+
+    static void drop_last_declared_kvcache_size(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
+        compiled->m_kvcache_sizes.pop_back();
+    }
 };
 
 }  // namespace ov::test::npuw
@@ -316,6 +335,68 @@ TEST_F(LLMInferRequestVariantSwitchTest, BlockKvVariantsExposeCompatibleBindings
     ASSERT_FALSE(small_value_block0.empty());
     EXPECT_EQ(small_key_block0, large_key_block0);
     EXPECT_EQ(small_value_block0, large_value_block0);
+}
+
+// The compile path emits the generate variants in strictly ascending KV cache size, which is the
+// only reason the continuous KV strategy may share back()'s past KV allocation with every other
+// variant. deserialize() restores them in blob order, so it has to re-check that property.
+TEST_F(LLMInferRequestVariantSwitchTest, AscendingImportedVariantsPassValidation) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+    ASSERT_EQ(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 2u);
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_kv_variants(compiled));
+}
+
+TEST_F(LLMInferRequestVariantSwitchTest, DescendingImportedVariantsAreRejected) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+    ASSERT_EQ(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 2u);
+
+    LLMVariantSwitchTestAccess::reverse_generate_variants(compiled);
+    LLMVariantSwitchTestAccess::reverse_declared_kvcache_sizes(compiled);
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_kv_variants(compiled), ov::Exception);
+}
+
+// The declared sizes and the variant tensor shapes are independent blob fields, so an ascending
+// size list must not be enough to accept a variant list whose real allocations shrink.
+TEST_F(LLMInferRequestVariantSwitchTest, ImportedVariantsContradictingDeclaredSizesAreRejected) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+    ASSERT_EQ(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 2u);
+
+    LLMVariantSwitchTestAccess::reverse_generate_variants(compiled);
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_kv_variants(compiled), ov::Exception);
+}
+
+TEST_F(LLMInferRequestVariantSwitchTest, ImportedVariantCountMismatchIsRejected) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+    ASSERT_EQ(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 2u);
+
+    LLMVariantSwitchTestAccess::drop_last_declared_kvcache_size(compiled);
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_kv_variants(compiled), ov::Exception);
+}
+
+// Defense in depth: even with the import check bypassed, sharing must not hand a variant a view
+// that is larger than the backing allocation.
+TEST_F(LLMInferRequestVariantSwitchTest, ContinuousKvSharingRejectsUndersizedAllocation) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+    ASSERT_EQ(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 2u);
+    ASSERT_FALSE(LLMVariantSwitchTestAccess::is_block_kv_cache(compiled));
+
+    LLMVariantSwitchTestAccess::reverse_generate_variants(compiled);
+
+    EXPECT_THROW(ov::npuw::LLMInferRequest req(compiled), ov::Exception);
 }
 
 }  // namespace
