@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 194,
+  "total": 195,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1900,6 +1900,17 @@
       "category": "External Service",
       "signature_hash": "77096fab85d0c146",
       "pr_number": "37531"
+    },
+    {
+      "investigation_id": "2026-08-27-16-04-41-000-33081710321",
+      "run_id": "33081710321",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33081710321",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-08-27T16:04:41Z",
+      "title": "NPU Models Tests fail with KeyError on aten.upsample_vec ops not in decomp table",
+      "category": "Flaky Test",
+      "signature_hash": "36b843d557b4160a",
+      "pr_number": "37616"
     }
   ]
 }

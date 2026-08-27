@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-27-16-04-41-000-33081710321",
+  "timestamp": "2026-08-27T16:04:41Z",
+  "run_id": "33081710321",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33081710321",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37616",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37616",
+  "author": "jade-cho",
+  "category": "Flaky Test",
+  "title": "NPU Models Tests fail with KeyError on aten.upsample_vec ops not in decomp table",
+  "signature": "keyerror opoverload op aten upsample vec not found in decomp table|Flaky Test",
+  "signature_hash": "36b843d557b4160a",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "NPU Models Tests / 3720",
+      "conclusion": "failure",
+      "symptom": "JAX/Flax Models Tests - NPU compile-only step failed due to KeyError on aten.upsample_nearest2d.vec and aten.upsample_bilinear2d.vec not in PyTorch FX decoder decomp table"
+    }
+  ],
+  "key_errors": [
+    "WARNING:root:Operation aten.upsample_nearest2d.vec not found in decomp table",
+    "KeyError: <OpOverload(op='aten.upsample_nearest2d', overload='vec')>",
+    "File: openvino/frontend/pytorch/fx_decoder.py, line 290, in from_exported_program: cls._decomp_table.pop(op)",
+    "WARNING:root:Operation aten.upsample_bilinear2d.vec not found in decomp table",
+    "KeyError: <OpOverload(op='aten.upsample_bilinear2d', overload='vec')>"
+  ],
+  "root_cause": "The NPU Models Tests / 3720 job attempted to pop 'aten.upsample_nearest2d.vec' and 'aten.upsample_bilinear2d.vec' from the PyTorch FX decoder decomp table during JAX/Flax model testing, but these ops were not present in the table for this PyTorch version on Windows. Despite the KeyErrors, the actual tests passed (4 passed, 7 skipped). The job is marked failure because the JAX/Flax step exits with a non-zero code due to the exception. This is a pre-existing intermittent issue with the decomp table pop logic in fx_decoder.py on certain PyTorch versions on Windows. The PR changes (GPU PagedAttention micro-SDPA fix) are completely unrelated to NPU/JAX/PyTorch frontend code.",
+  "reproduction_steps": "Run JAX/Flax model tests targeting NPU on Windows with a PyTorch version that does not include aten.upsample_nearest2d.vec and aten.upsample_bilinear2d.vec in the default decomp table.",
+  "recommended_actions": [
+    "Re-run the failed jobs - this failure is unrelated to the PR changes (GPU SDPA) and is a known intermittent issue",
+    "Long-term fix: update fx_decoder.py to use a safe pop (e.g., cls._decomp_table.pop(op, None)) instead of a bare pop that raises KeyError when the op is absent",
+    "Track the issue in the OpenVINO PyTorch FE: ensure the WARNING log does not translate to a hard failure when decomp table entries are simply missing"
+  ],
+  "prevention_strategies": "Guard cls._decomp_table.pop(op) in fx_decoder.py with a presence check or use .pop(op, None) to avoid raising KeyError when ops are absent from the decomp table in some PyTorch versions.",
+  "historical_context": "This same failure was previously observed on 2026-08-26 in run 33018808355 (PR #37611). The signature is identical: aten.upsample_nearest2d.vec and aten.upsample_bilinear2d.vec KeyError from fx_decoder.py line 290."
+}
