@@ -45,9 +45,10 @@ inline constexpr std::string_view k_igpu_utilization_metric = "IGPUUtilization";
 inline constexpr std::string_view k_igpu_utilization_fallback_metric = "GPUUtilization";
 inline constexpr std::string_view k_dgpu_utilization_metric = "DGPUUtilization";
 inline constexpr std::string_view k_npu_utilization_metric = "NPUUtilization";
-inline constexpr int k_low_power_mode_min_gear = 1;
+// EPO gears 1-3 request low-latency/performance operation (perf_curve_table);
+// gears 4-7 request low power operation (low_power_device).
+inline constexpr int k_low_power_mode_min_gear = 4;
 
-// EPO gear 0 is baseline; positive gears request reduced-power operation.
 inline constexpr bool is_low_power_gear(int gear) {
     return gear >= k_low_power_mode_min_gear;
 }

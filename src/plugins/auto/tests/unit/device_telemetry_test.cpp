@@ -57,10 +57,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
                          DeviceMonitorKeyTest::getTestCaseName);
 
 TEST(DeviceMonitorTest, low_power_mode_gear_mapping_matches_expected_policy) {
+    // Gears 1-3 request low-latency/performance operation (perf_curve_table); only
+    // gears 4-7 request low power operation (low_power_device).
     EXPECT_FALSE(device_monitor::is_low_power_gear(-1));
     EXPECT_FALSE(device_monitor::is_low_power_gear(0));
-    EXPECT_TRUE(device_monitor::is_low_power_gear(1));
-    EXPECT_TRUE(device_monitor::is_low_power_gear(2));
+    EXPECT_FALSE(device_monitor::is_low_power_gear(1));
+    EXPECT_FALSE(device_monitor::is_low_power_gear(2));
+    EXPECT_FALSE(device_monitor::is_low_power_gear(3));
+    EXPECT_TRUE(device_monitor::is_low_power_gear(4));
+    EXPECT_TRUE(device_monitor::is_low_power_gear(7));
 }
 
 TEST(DeviceMonitorTest, telemetry_client_low_power_mode_is_safe) {
