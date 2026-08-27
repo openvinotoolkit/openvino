@@ -1369,32 +1369,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         m_longrope_tables.rebuild_tables();
     }
 
-    if (is_moe) {
-        // Apply MoE configuration for prefill stage
-        const auto prefill_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>();
-        apply_moe_config(prefill_config, prefill_moe_hint, "PREFILL");
-
-        // Apply MoE configuration for generate stage
-        const auto generate_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_MOE_HINT>();
-        apply_moe_config(generate_config, generate_moe_hint, "GENERATE");
-
-        // Fold shape-compute chains (ShapeOf→Gather→Concat etc.) in the prefill model before
-        // online partitioning runs pattern matching (e.g. GPTOSSRouter).  Must run after
-        // ReshapeToStatic has made all shapes static so that ShapeOf bounds are resolvable.
-        ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(prefill_model);
-        for (auto&& model_variant : generate_model_variants) {
-            ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(model_variant);
-        }
-
-        if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
-            // Apply model transformations only to GENERATE stage (PREFILL doesn't support DEVICE_ROUTED
-            // transformations)
-            for (auto&& model_variant : generate_model_variants) {
-                ov::npuw::ApplyMoEDeviceRoutedTransforms().run_on_model(model_variant);
-            }
-        }
-    }
-
     // Regularize models for the better partitioning assuming it is a transformer
     // Apply these transformations to all variant models
     {
