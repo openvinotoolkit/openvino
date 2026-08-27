@@ -97,8 +97,8 @@ void InferRequestWrap::set_output_tensor(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value InferRequestWrap::get_tensor(const Napi::CallbackInfo& info) {
-    std::vector<std::string> allowed_signatures;
     try {
+        std::vector<std::string> allowed_signatures;
         const auto are_arguments_valid = ov::js::validate<Napi::String>(info, allowed_signatures) ||
                                          ov::js::validate<Napi::Object>(info, allowed_signatures);
         OPENVINO_ASSERT(are_arguments_valid, "'getTensor'", ov::js::get_parameters_error_msg(info, allowed_signatures));
@@ -117,8 +117,8 @@ Napi::Value InferRequestWrap::get_tensor(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value InferRequestWrap::get_input_tensor(const Napi::CallbackInfo& info) {
-    std::vector<std::string> allowed_signatures;
     try {
+        std::vector<std::string> allowed_signatures;
         const auto are_arguments_valid =
             ov::js::validate(info, allowed_signatures) || ov::js::validate<int>(info, allowed_signatures);
         OPENVINO_ASSERT(are_arguments_valid,
@@ -138,8 +138,8 @@ Napi::Value InferRequestWrap::get_input_tensor(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value InferRequestWrap::get_output_tensor(const Napi::CallbackInfo& info) {
-    std::vector<std::string> allowed_signatures;
     try {
+        std::vector<std::string> allowed_signatures;
         const auto are_arguments_valid =
             ov::js::validate(info, allowed_signatures) || ov::js::validate<int>(info, allowed_signatures);
         OPENVINO_ASSERT(are_arguments_valid,
@@ -287,7 +287,7 @@ Napi::Value InferRequestWrap::infer_async(const Napi::CallbackInfo& info) {
                                                       1,
                                                       context,
                                                       FinalizerCallback,
-                                                      (void*)nullptr);
+                                                      static_cast<void*>(nullptr));
         auto promise = context->deferred.Promise();
         context->native_thread = std::thread(perform_inference_thread, context);
         return promise;
