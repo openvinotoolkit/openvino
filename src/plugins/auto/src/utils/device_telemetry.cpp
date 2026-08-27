@@ -33,9 +33,9 @@ constexpr const char* k_dtt_gear_changed_path = "Platform.Features.DTT.Policy.EP
 namespace {
 
 std::optional<float> parse_utilization_from_aiselector_json_impl(const std::string& json_str,
-                                                                  const std::string& metric_key,
-                                                                  std::string_view metric_key_view,
-                                                                  const std::string& device_name) {
+                                                                 const std::string& metric_key,
+                                                                 std::string_view metric_key_view,
+                                                                 const std::string& device_name) {
     try {
         LOG_DEBUG_TAG("TelemetryClient: raw IPF response: %s", json_str.c_str());
         const auto parsed = nlohmann::json::parse(json_str);
@@ -229,8 +229,8 @@ std::optional<bool> TelemetryClient::is_low_power_mode() {
 
 #ifdef MULTIUNITTEST
 std::optional<float> parse_utilization_from_aiselector_json_for_test(const std::string& json_str,
-                                                                      const std::string& device_name,
-                                                                      const std::string& device_type) {
+                                                                     const std::string& device_name,
+                                                                     const std::string& device_type) {
     const auto metric_key_view = device_to_metric_key(device_name, device_type);
     if (metric_key_view.empty()) {
         return std::nullopt;

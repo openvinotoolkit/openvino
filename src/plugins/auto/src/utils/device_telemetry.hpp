@@ -57,7 +57,7 @@ inline constexpr bool has_prefix(std::string_view value, std::string_view prefix
 
 // CPU -> CPUUtilization; GPU(integrated/discrete) -> IGPU/DGPU; NPU -> NPUUtilization.
 inline constexpr std::string_view device_to_metric_key(std::string_view device_name,
-                                                        std::string_view device_type = {}) {
+                                                       std::string_view device_type = {}) {
     std::string_view metric_key;
     if (has_prefix(device_name, "CPU")) {
         metric_key = k_cpu_utilization_metric;
@@ -75,8 +75,8 @@ inline constexpr std::string_view device_to_metric_key(std::string_view device_n
 
 #if defined(MULTIUNITTEST) && defined(OV_AUTO_ENABLE_IPF)
 std::optional<float> parse_utilization_from_aiselector_json_for_test(const std::string& json_str,
-                                                                      const std::string& device_name,
-                                                                      const std::string& device_type = "");
+                                                                     const std::string& device_name,
+                                                                     const std::string& device_type = "");
 #endif
 
 }  // namespace device_monitor
