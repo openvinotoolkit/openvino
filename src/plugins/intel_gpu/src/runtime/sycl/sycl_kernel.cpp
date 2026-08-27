@@ -191,7 +191,7 @@ void sycl_kernel::launch(::sycl::handler& cgh,
     // SYCL nd_range<3>(r0,r1,r2) uses the opposite convention (dim 0 = slowest) and
     // passes OpenCL globalWorkSize={r2, r1, r0}.  To preserve the OpenCL IDs seen by
     // the kernel we must reverse the dimensions:
-    //   SYCL range<3>(g2, g1, g0) → OpenCL globalWorkSize = {g0, g1, g2}
+    //   SYCL range<3>(g2, g1, g0) -> OpenCL globalWorkSize = {g0, g1, g2}
     const size_t g0 = gws.size() > 0 ? gws[0] : 1;
     const size_t g1 = gws.size() > 1 ? gws[1] : 1;
     const size_t g2 = gws.size() > 2 ? gws[2] : 1;
