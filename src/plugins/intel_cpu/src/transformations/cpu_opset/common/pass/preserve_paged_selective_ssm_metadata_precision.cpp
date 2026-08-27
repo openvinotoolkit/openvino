@@ -41,123 +41,91 @@ bool is_paged_ssm_metadata_input(const ov::Input<ov::Node>& input) {
     return ov::is_type<ov::op::internal::PagedSelectiveSSM>(input.get_node()) && is_metadata_port(input.get_index());
 }
 
-NodeSet insert_extension_converts(const std::shared_ptr<ov::Model>& model) {
-    NodeSet existing_nodes;
-    for (const auto& node : model->get_ordered_ops()) {
-        existing_nodes.insert(node.get());
+void collect_i64_path(const ov::Output<ov::Node>& output, NodeList& path_nodes, NodeSet& path_node_set) {
+    if (output.get_element_type() != ov::element::i64) {
+        return;
     }
 
-    ov::pass::InsertConvertAfterExtension insert_convert(false);
-    for (const auto& node : model->get_ordered_ops()) {
-        insert_convert.apply(node);
+    const auto node = output.get_node_shared_ptr();
+    if (!path_node_set.insert(node.get()).second) {
+        return;
     }
-
-    NodeSet inserted_converts;
-    for (const auto& node : model->get_ordered_ops()) {
-        if (existing_nodes.count(node.get()) == 0 && ov::is_type<ov::op::v0::Convert>(node)) {
-            inserted_converts.insert(node.get());
-        }
+    path_nodes.push_back(node);
+    for (const auto& input : node->inputs()) {
+        collect_i64_path(input.get_source_output(), path_nodes, path_node_set);
     }
-    return inserted_converts;
 }
 
-bool collect_i64_path(ov::Input<ov::Node> input,
-                      const NodeSet& inserted_converts,
-                      NodeList& protected_nodes,
-                      NodeSet& protected_node_set) {
-    auto source = input.get_source_output();
+bool add_i32_boundaries(const std::shared_ptr<ov::Node>& node, const NodeSet& path_nodes) {
     bool changed = false;
-    if (inserted_converts.count(source.get_node()) != 0 && source.get_element_type() == ov::element::i32) {
-        const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(source.get_node_shared_ptr());
-        if (convert && convert->get_input_element_type(0) == ov::element::i64) {
-            source = convert->input_value(0);
-            input.replace_source_output(source);
-            changed = true;
+    for (const auto& output : node->outputs()) {
+        if (output.get_element_type() != ov::element::i64 && output.get_element_type() != ov::element::u64) {
+            continue;
         }
-    }
 
-    if (source.get_element_type() != ov::element::i64) {
-        return changed;
-    }
+        std::vector<ov::Input<ov::Node>> consumers;
+        for (const auto& input : output.get_target_inputs()) {
+            const auto* consumer = input.get_node();
+            if (path_nodes.count(consumer) == 0 && !is_paged_ssm_metadata_input(input) &&
+                !ov::is_type<ov::op::v0::Convert>(consumer) && !ov::is_type<ov::op::v0::Result>(consumer)) {
+                consumers.push_back(input);
+            }
+        }
+        if (consumers.empty()) {
+            continue;
+        }
 
-    const auto node = source.get_node_shared_ptr();
-    if (!protected_node_set.insert(node.get()).second) {
-        return changed;
-    }
-    protected_nodes.push_back(node);
-
-    for (auto producer_input : node->inputs()) {
-        changed = collect_i64_path(producer_input, inserted_converts, protected_nodes, protected_node_set) || changed;
+        const auto convert = std::make_shared<ov::op::v0::Convert>(output, ov::element::i32);
+        ov::copy_runtime_info(node, convert);
+        for (auto& input : consumers) {
+            input.replace_source_output(convert);
+        }
+        changed = true;
     }
     return changed;
 }
 
 bool preserve_metadata_precision(const std::shared_ptr<ov::Model>& model) {
-    const auto inserted_converts = insert_extension_converts(model);
     const auto ordered_ops = model->get_ordered_ops();
-
-    bool changed = !inserted_converts.empty();
-    NodeSet model_nodes;
-    model_nodes.reserve(ordered_ops.size());
-    NodeList protected_nodes;
-    NodeSet protected_node_set;
+    NodeList path_nodes;
+    NodeSet path_node_set;
     for (const auto& node : ordered_ops) {
-        model_nodes.insert(node.get());
         const auto paged_ssm = ov::as_type_ptr<ov::op::internal::PagedSelectiveSSM>(node);
-        if (paged_ssm) {
-            for (const auto port : paged_ssm_metadata_ports) {
-                changed = collect_i64_path(paged_ssm->input(input_port_index(port)),
-                                           inserted_converts,
-                                           protected_nodes,
-                                           protected_node_set) ||
-                          changed;
-            }
+        if (!paged_ssm) {
+            continue;
         }
-        const auto subgraph = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node);
-        if (subgraph) {
-            for (const auto& body : subgraph->get_functions()) {
-                if (body) {
-                    changed = preserve_metadata_precision(body) || changed;
-                }
-            }
+        for (const auto port : paged_ssm_metadata_ports) {
+            collect_i64_path(paged_ssm->input_value(input_port_index(port)), path_nodes, path_node_set);
         }
     }
 
-    for (const auto& node : protected_nodes) {
+    bool changed = false;
+    for (const auto& node : path_nodes) {
         if (!ov::is_conversion_disabled(node, ov::element::i64, ov::element::i32)) {
             ov::disable_conversion(node, ov::element::i64, ov::element::i32);
             changed = true;
         }
+        changed = add_i32_boundaries(node, path_node_set) || changed;
+    }
 
-        for (const auto& output : node->outputs()) {
-            if (output.get_element_type() != ov::element::i64) {
-                continue;
-            }
-
-            std::vector<ov::Input<ov::Node>> boundary_inputs;
-            for (const auto& target_input : output.get_target_inputs()) {
-                const auto* target_node = target_input.get_node();
-                if (!model_nodes.count(target_node) || protected_node_set.count(target_node) ||
-                    is_paged_ssm_metadata_input(target_input) || ov::is_type<ov::op::v0::Convert>(target_node) ||
-                    ov::is_type<ov::op::v0::Result>(target_node)) {
-                    continue;
-                }
-                boundary_inputs.push_back(target_input);
-            }
-
-            if (boundary_inputs.empty()) {
-                continue;
-            }
-
-            const auto convert = std::make_shared<ov::op::v0::Convert>(output, ov::element::i32);
-            ov::copy_runtime_info(node, convert);
-            for (auto& input : boundary_inputs) {
-                input.replace_source_output(convert);
-            }
-            changed = true;
+    ov::pass::InsertConvertAfterExtension insert_convert(false);
+    for (const auto& node : ordered_ops) {
+        if (path_node_set.count(node.get()) == 0) {
+            changed = insert_convert.apply(node) || changed;
         }
     }
 
+    for (const auto& node : ordered_ops) {
+        const auto subgraph = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node);
+        if (!subgraph) {
+            continue;
+        }
+        for (const auto& body : subgraph->get_functions()) {
+            if (body) {
+                changed = preserve_metadata_precision(body) || changed;
+            }
+        }
+    }
     return changed;
 }
 

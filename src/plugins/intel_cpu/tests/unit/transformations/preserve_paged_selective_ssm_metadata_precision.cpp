@@ -61,10 +61,11 @@ void run_cpu_i64_conversion(const std::shared_ptr<ov::Model>& model) {
     ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
     manager.register_pass<PreservePagedSelectiveSSMMetadataPrecision>();
-    manager.register_pass<ov::pass::ConvertPrecision>(precisions_map{{ov::element::i64, ov::element::i32}},
-                                                      type_to_fuse_map{},
-                                                      false,
-                                                      false);
+    manager.register_pass<ov::pass::ConvertPrecision>(
+        precisions_map{{ov::element::i64, ov::element::i32}, {ov::element::u64, ov::element::i32}},
+        type_to_fuse_map{},
+        false,
+        false);
     manager.register_pass<ov::pass::Validate>();
     EXPECT_TRUE(manager.run_passes(model));
 }
@@ -106,6 +107,29 @@ TEST(PreservePagedSelectiveSSMMetadataPrecisionTest, KeepsSharedUnknownExtension
     const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(unrelated->get_input_node_shared_ptr(shared_input_port));
     ASSERT_NE(convert, nullptr);
     EXPECT_EQ(convert->input_value(0).get_node_shared_ptr(), metadata);
+}
+
+TEST(PreservePagedSelectiveSSMMetadataPrecisionTest, ConvertsUnrelatedOutputOfProtectedExtension) {
+    auto extension = std::make_shared<ov::op::util::FrameworkNode>(ov::OutputVector{});
+    extension->set_output_type(0, ov::element::i64, ov::PartialShape{-1});
+    extension->set_output_type(1, ov::element::u64, ov::PartialShape{-1});
+    extension->cache_output_descriptor();
+
+    MetadataInputs metadata_inputs;
+    metadata_inputs.fill(extension->output(0));
+    auto graph = make_paged_graph(metadata_inputs);
+    auto zero = ov::op::v0::Constant::create(ov::element::u64, ov::Shape{1}, {uint64_t{0}});
+    auto unrelated = std::make_shared<ov::op::v1::Add>(extension->output(1), zero);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{graph.op, unrelated}, graph.computation_parameters);
+
+    run_cpu_i64_conversion(model);
+
+    EXPECT_EQ(graph.op->get_input_element_type(input_port_index(PagedSelectiveSSMInputPort::SubsequenceBegins)),
+              ov::element::i64);
+    EXPECT_EQ(unrelated->get_input_element_type(0), ov::element::i32);
+    const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(unrelated->get_input_node_shared_ptr(0));
+    ASSERT_NE(convert, nullptr);
+    EXPECT_EQ(convert->input_value(0), extension->output(1));
 }
 
 TEST(PreservePagedSelectiveSSMMetadataPrecisionTest, KeepsDerivedUnknownExtensionOutputI64) {
