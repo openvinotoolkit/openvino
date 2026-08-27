@@ -676,12 +676,112 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelSqueezeNoAxesInput) {
     }
 }
 
-TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelDynamicInputReject) {
-    auto input = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, 5, 5});
-    auto squeeze_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
-    auto squeeze = std::make_shared<v0::Squeeze>(input, squeeze_axis);
-    auto per_channel_const = v0::Constant::create(ov::element::f32, {1, 1, 5}, {0.5f});
-    auto add = std::make_shared<v1::Add>(squeeze, per_channel_const);
+TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelSqueezeDynamicDimension) {
+    const ov::PartialShape shape{1, -1, 5, 5};
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f32, shape);
+        auto squeeze_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+        auto squeeze = std::make_shared<v0::Squeeze>(input, squeeze_axis);
+        auto per_channel_const = v0::Constant::create(ov::element::f32, {1, 1, 5}, {0.5f});
+        auto add = std::make_shared<v1::Add>(squeeze, per_channel_const);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{input});
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f32, shape);
+        auto per_channel_const = v0::Constant::create(ov::element::f32, {1, 1, 1, 5}, {0.5f});
+        auto add = std::make_shared<v1::Add>(input, per_channel_const);
+        auto squeeze_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+        auto squeeze = std::make_shared<v0::Squeeze>(add, squeeze_axis);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{squeeze}, ov::ParameterVector{input});
+    }
+}
+
+TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelSqueezeDynamicTrailingDimensionsMultipleAxes) {
+    const ov::PartialShape shape{1, -1, 1, 5, -1, 1};
+    const std::vector<int64_t> axes{0, 2, -1};
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f32, shape);
+        auto squeeze_axes = v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
+        auto squeeze = std::make_shared<v0::Squeeze>(input, squeeze_axes);
+        auto per_channel_const = v0::Constant::create(ov::element::f32, {1, 5, 1}, {0.5f});
+        auto add = std::make_shared<v1::Add>(squeeze, per_channel_const);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{input});
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f32, shape);
+        auto per_channel_const = v0::Constant::create(ov::element::f32, {1, 1, 1, 5, 1, 1}, {0.5f});
+        auto add = std::make_shared<v1::Add>(input, per_channel_const);
+        auto squeeze_axes = v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
+        auto squeeze = std::make_shared<v0::Squeeze>(add, squeeze_axes);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{squeeze}, ov::ParameterVector{input});
+    }
+}
+
+TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelUnsqueezeDynamicDimensionsNegativeAxes) {
+    const ov::PartialShape shape{-1, 5, -1};
+    const std::vector<int64_t> axes{0, -1};
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f32, shape);
+        auto unsqueeze_axes = v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
+        auto unsqueeze = std::make_shared<v0::Unsqueeze>(input, unsqueeze_axes);
+        auto per_channel_const = v0::Constant::create(ov::element::f32, {1, 1, 5, 1, 1}, {0.5f});
+        auto add = std::make_shared<v1::Add>(unsqueeze, per_channel_const);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{input});
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f32, shape);
+        auto per_channel_const = v0::Constant::create(ov::element::f32, {1, 5, 1}, {0.5f});
+        auto add = std::make_shared<v1::Add>(input, per_channel_const);
+        auto unsqueeze_axes = v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
+        auto unsqueeze = std::make_shared<v0::Unsqueeze>(add, unsqueeze_axes);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{unsqueeze}, ov::ParameterVector{input});
+    }
+}
+
+TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelReshapeSymbolicTrailingDimension) {
+    auto trailing_dim = ov::Dimension::dynamic();
+    trailing_dim.set_symbol(std::make_shared<ov::Symbol>());
+    const ov::PartialShape shape{1, 5, trailing_dim};
+    const std::vector<int64_t> target_shape{5, 1, -1};
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f32, shape);
+        auto reshape_pattern =
+            std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{target_shape.size()}, target_shape);
+        auto reshape = std::make_shared<v1::Reshape>(input, reshape_pattern, false);
+        auto per_channel_const = v0::Constant::create(ov::element::f32, {5, 1, 1}, {0.5f});
+        auto add = std::make_shared<v1::Add>(reshape, per_channel_const);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{input});
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f32, shape);
+        auto per_channel_const = v0::Constant::create(ov::element::f32, {1, 5, 1}, {0.5f});
+        auto add = std::make_shared<v1::Add>(input, per_channel_const);
+        auto reshape_pattern =
+            std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{target_shape.size()}, target_shape);
+        auto reshape = std::make_shared<v1::Reshape>(add, reshape_pattern, false);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{reshape}, ov::ParameterVector{input});
+    }
+}
+
+TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelReshapeAnonymousDynamicTrailingDimensionReject) {
+    auto input = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 5, -1});
+    auto reshape_pattern =
+        v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{5, 1, -1});
+    auto reshape = std::make_shared<v1::Reshape>(input, reshape_pattern, false);
+    auto per_channel_const = v0::Constant::create(ov::element::f32, {5, 1, 1}, {0.5f});
+    auto add = std::make_shared<v1::Add>(reshape, per_channel_const);
 
     model = std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{input});
     manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
