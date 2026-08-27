@@ -314,11 +314,6 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
         const auto k_num_head = k_jitter.dim(get_transposed_channel(ChannelName::FEATURE, extended_input_k_transpose_order));
         auto v_head_size = v_jitter.dim(get_transposed_channel(ChannelName::X, extended_input_v_transpose_order));
 
-        // A remainder V output from a dynamic QKV split may lose its static head metadata while K keeps the shared size.
-        if (get_head_size(params.get_input_layout(2), extended_input_v_transpose_order) <= 0) {
-            v_head_size = k_head_size;
-        }
-
         // 4-bit KV-cache: K/V layouts have head_size/2 due to u4→i8 packing.
         // Override with logical head size from query (which is not packed).
         {
