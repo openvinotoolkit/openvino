@@ -4,6 +4,10 @@
 
 #pragma once
 
+#ifdef MULTIUNITTEST
+#define auto_plugin mock_auto_plugin
+#endif
+
 #ifdef OV_AUTO_ENABLE_IPF
 
 #    include <functional>
