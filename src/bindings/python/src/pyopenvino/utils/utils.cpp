@@ -7,6 +7,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl/filesystem.h>
 
+#include <cmath>
 #include <map>
 #include <set>
 #include <string>
@@ -184,6 +185,10 @@ py::object from_ov_any(const ov::Any& any) {
     else if (any.is<std::map<std::string, std::string>>()) {
         return py::cast(any.as<std::map<std::string, std::string>>());
     }
+    // Check for std::map<std::string, unsigned>
+    else if (any.is<std::map<std::string, unsigned>>()) {
+        return py::cast(any.as<std::map<std::string, unsigned>>());
+    }
     // Check for std::map<std::string, int>
     else if (any.is<std::map<std::string, int>>()) {
         return py::cast(any.as<std::map<std::string, int>>());
@@ -191,6 +196,10 @@ py::object from_ov_any(const ov::Any& any) {
     // Check for std::map<std::string, uint64_t>
     else if (any.is<std::map<std::string, uint64_t>>()) {
         return py::cast(any.as<std::map<std::string, uint64_t>>());
+    }
+    // Check for ov::intel_auto::PerfCurveTable (std::map<std::string, std::map<unsigned, float>>)
+    else if (any.is<ov::intel_auto::PerfCurveTable>()) {
+        return py::cast(any.as<ov::intel_auto::PerfCurveTable>());
     }
     // Check for std::map<element::Type, float>
     else if (any.is<std::map<ov::element::Type, float>>()) {
@@ -333,6 +342,34 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
         } else if (property.first == ov::hint::model.name()) {
             auto model = Common::utils::convert_to_model(property.second);
             properties_to_cpp[property.first] = std::static_pointer_cast<const ov::Model>(model);
+        } else if (property.first == ov::intel_auto::devices_utilization_threshold.name() &&
+                   py::isinstance<py::dict>(property.second)) {
+            std::map<std::string, unsigned> thresholds;
+            auto dict = py::cast<py::dict>(property.second);
+            for (const auto& item : dict) {
+                if (!py::isinstance<py::str>(item.first)) {
+                    OPENVINO_THROW("The key type of ",
+                                   ov::intel_auto::devices_utilization_threshold.name(),
+                                   " should be dict[str, int in [0, 100]] with string keys");
+                }
+                if (!py::isinstance<py::int_>(item.second) || py::isinstance<py::bool_>(item.second)) {
+                    OPENVINO_THROW("The value type of ",
+                                   ov::intel_auto::devices_utilization_threshold.name(),
+                                   " should be dict[str, int in [0, 100]] with integer values");
+                }
+                const auto key = py::str(item.first).cast<std::string>();
+                const auto value = py::cast<long long>(item.second);
+                if (value < 0 || value > 100) {
+                    OPENVINO_THROW("The value type of ",
+                                   ov::intel_auto::devices_utilization_threshold.name(),
+                                   " should be dict[str, int in [0, 100]]");
+                }
+                thresholds[key] = static_cast<unsigned>(value);
+            }
+            properties_to_cpp[property.first] = thresholds;
+        } else if (property.first == ov::intel_auto::perf_curve_table.name() &&
+                   py::isinstance<py::dict>(property.second)) {
+            properties_to_cpp[property.first] = property.second.cast<ov::intel_auto::PerfCurveTable>();
         } else {
             properties_to_cpp[property.first] = Common::utils::py_object_to_any(property.second);
         }

@@ -261,3 +261,271 @@ TEST(swiglu_gpu_test, swiglu_test_bfyx_static_clamp_swish_beta_up_add_val_gate_i
         EXPECT_NEAR(output_ptr[i], output_ref_ptr[i], 1e-3);
     }
 }
+
+// ============================================================================
+// BF16/F16 SwiGLU: reference computed in FP32 mirroring swiglu_gpu_opt/ref kernels.
+// Input layout [1, C, W] bfyx (contiguous: index = c*W + x), output [1, C, W_out].
+// Supports split mode (glu_stride > 2) and alternating mode (glu_stride == 2),
+// gate_idx 0/1 and all three GLU types, plus clamp / swish_beta / up_add_val.
+// ============================================================================
+static void swiglu_ref_typed(data_types dt, const memory::ptr input, memory::ptr output,
+                             int32_t C, int32_t W_out, int32_t glu_stride, int32_t gate_idx,
+                             ov::op::internal::GLU::GluType glu_type,
+                             float clamp_min, float clamp_max,
+                             float swish_beta, float up_add_val) {
+    cldnn::mem_lock<ov::bfloat16> src_bf16(input, get_test_stream());
+    cldnn::mem_lock<ov::float16> src_f16(input, get_test_stream());
+    cldnn::mem_lock<float> dst(output, get_test_stream());
+    // Input row holds two halves (gates + values): W = 2 * W_out always.
+    const int32_t W = 2 * W_out;
+
+    auto read = [&](size_t i) -> float {
+        return dt == data_types::bf16 ? static_cast<float>(src_bf16[i])
+                                      : static_cast<float>(src_f16[i]);
+    };
+
+    for (int32_t c = 0; c < C; ++c) {
+        for (int32_t x = 0; x < W_out; ++x) {
+            const size_t base = static_cast<size_t>(c) * W;
+            float gate, up;
+            if (glu_stride == 2) {
+                // alternating: pair is at (base + 2*x, base + 2*x + 1)
+                if (gate_idx == 0) {
+                    gate = read(base + 2 * x);
+                    up = read(base + 2 * x + 1);
+                } else {
+                    up = read(base + 2 * x);
+                    gate = read(base + 2 * x + 1);
+                }
+            } else {
+                // split: input row is blocks of 2*glu_stride: [stride gates | stride values].
+                // opt kernel: y = x + (x/stride)*stride => gate at 2*g*stride + i, value at +stride.
+                // (classic config glu_stride == W_out degenerates to gate=x, value=x+W_out).
+                const int32_t g = x / glu_stride;
+                const int32_t i = x % glu_stride;
+                const size_t gate_off = base + 2 * g * glu_stride + i;
+                if (gate_idx == 0) {
+                    gate = read(gate_off);
+                    up = read(gate_off + glu_stride);
+                } else {
+                    up = read(gate_off);
+                    gate = read(gate_off + glu_stride);
+                }
+            }
+            if (glu_type == ov::op::internal::GLU::GluType::Swish &&
+                (clamp_min > std::numeric_limits<float>::lowest() || clamp_max < std::numeric_limits<float>::max())) {
+                gate = std::min(clamp_max, gate);
+                up = std::min(clamp_max, std::max(clamp_min, up));
+            }
+            switch (glu_type) {
+            case ov::op::internal::GLU::GluType::Swish:
+                gate = gate / (1.0f + std::exp(-swish_beta * gate));
+                break;
+            case ov::op::internal::GLU::GluType::Gelu:
+                gate = 0.5f * gate * (1.0f + std::erf(gate * 0.7071067811865475f));
+                break;
+            case ov::op::internal::GLU::GluType::Gelu_Tanh:
+                gate = 0.5f * gate * (1.0f + std::tanh(0.79788458347320556640625f * gate * (1.0f + 0.044715f * gate * gate)));
+                break;
+            }
+            float res = (up + up_add_val) * gate;
+            dst[static_cast<size_t>(c) * W_out + x] = res;
+        }
+    }
+}
+
+// Runs a BF16/F16 swiglu network with forced kernel and compares against the FP32 reference.
+static void run_swiglu(data_types dt, const std::string& kernel_name, int32_t C, int32_t W_out, int32_t glu_stride,
+                       int32_t gate_idx, ov::op::internal::GLU::GluType glu_type,
+                       float clamp_min, float clamp_max, float swish_beta, float up_add_val,
+                       bool dynamic = false) {
+    auto& engine = get_test_engine();
+    // Split mode consumes 2*glu_stride inputs per glu_stride outputs (first half gates, second half
+    // values for the classic glu_stride == W_out config); alternating (glu_stride==2) also needs 2*W_out.
+    const int32_t W = 2 * W_out;
+
+    auto input_layout_static = layout{ov::PartialShape{1, C, W}, dt, format::bfyx};
+    auto input_mem = engine.allocate_memory({ov::PartialShape{1, C, W}, dt, format::bfyx});
+    auto output_ref = engine.allocate_memory({ov::PartialShape{1, C, W_out}, data_types::f32, format::bfyx});
+
+    // Generate random values (7 significand bits for bf16, 10 for f16)
+    if (dt == data_types::bf16)
+        tests::set_random_values<ov::bfloat16>(input_mem, true, 7, 100);
+    else
+        tests::set_random_values<ov::float16>(input_mem, true, 10, 100);
+
+    swiglu_ref_typed(dt, input_mem, output_ref, C, W_out, glu_stride, gate_idx, glu_type,
+                     clamp_min, clamp_max, swish_beta, up_add_val);
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_static));
+    topology.add(swiglu("swiglu", input_info("input"), -1, glu_stride,
+                        glu_type, gate_idx,
+                        clamp_min, clamp_max, swish_beta, up_add_val,
+                        cldnn::tensor(1, C, W_out, 1)));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    if (dynamic)
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplForcingMap forced{
+        {"swiglu", ov::intel_gpu::ImplementationDesc{format::bfyx, kernel_name}},
+    };
+    config.set_property(ov::intel_gpu::force_implementations(forced));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "swiglu");
+    auto output = outputs.at("swiglu").get_memory();
+
+    cldnn::mem_lock<ov::bfloat16> gpu_bf16(output, get_test_stream());
+    cldnn::mem_lock<ov::float16> gpu_f16(output, get_test_stream());
+    cldnn::mem_lock<float> ref_ptr(output_ref, get_test_stream());
+    auto read_gpu = [&](size_t i) -> float {
+        return dt == data_types::bf16 ? static_cast<float>(gpu_bf16[i])
+                                      : static_cast<float>(gpu_f16[i]);
+    };
+
+    // BF16 ~7 mantissa bits; F16 ~10 but accumulates in half on GPU -> slightly looser
+    float abs_floor = (dt == data_types::bf16) ? 0.25f : 0.05f;
+    float rel_tol = (dt == data_types::bf16) ? 0.01f : 0.03f;
+    for (size_t i = 0; i < output_ref->count(); ++i) {
+        float gpu_val = read_gpu(i);
+        float ref_val = ref_ptr[i];
+        float diff = std::abs(gpu_val - ref_val);
+        float tolerance = std::max(abs_floor, std::abs(ref_val) * rel_tol);
+        ASSERT_LE(diff, tolerance) << "Mismatch at i=" << i
+            << " gpu=" << gpu_val << " ref=" << ref_val << " diff=" << diff;
+    }
+}
+
+class swiglu_2dtype_test : public ::testing::TestWithParam<data_types> {};
+
+static std::string swiglu_2dtype_test_name(testing::TestParamInfo<data_types> info) {
+    return info.param == data_types::bf16 ? "bf16" : "f16";
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke, swiglu_2dtype_test,
+                         ::testing::Values(data_types::bf16, data_types::f16),
+                         swiglu_2dtype_test_name);
+
+// SwiGLU on the ref kernel, split mode, gate_idx=0, Swish
+TEST_P(swiglu_2dtype_test, ref_split_swish) {
+    run_swiglu(GetParam(), "swiglu_gpu_ref", /*C=*/4, /*W_out=*/512, /*glu_stride=*/512, /*gate_idx=*/0,
+               ov::op::internal::GLU::GluType::Swish, std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max(), 1.0f, 0.0f);
+}
+
+// SwiGLU on the opt kernel, alternating mode (glu_stride==2), gate_idx=0, Swish
+TEST_P(swiglu_2dtype_test, opt_alternating) {
+    run_swiglu(GetParam(), "swiglu_gpu_opt", /*C=*/4, /*W_out=*/512, /*glu_stride=*/2, /*gate_idx=*/0,
+               ov::op::internal::GLU::GluType::Swish, std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max(), 1.0f, 0.0f);
+}
+
+// SwiGLU on the ref kernel, alternating mode, gate_idx=1 (GPT-OSS style), Swish
+TEST_P(swiglu_2dtype_test, ref_alternating_gate_idx_1) {
+    run_swiglu(GetParam(), "swiglu_gpu_ref", /*C=*/4, /*W_out=*/512, /*glu_stride=*/2, /*gate_idx=*/1,
+               ov::op::internal::GLU::GluType::Swish, std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max(), 1.0f, 0.0f);
+}
+
+// SwiGLU on the opt kernel, alternating mode, gate_idx=1, Swish
+TEST_P(swiglu_2dtype_test, opt_alternating_gate_idx_1) {
+    run_swiglu(GetParam(), "swiglu_gpu_opt", /*C=*/4, /*W_out=*/512, /*glu_stride=*/2, /*gate_idx=*/1,
+               ov::op::internal::GLU::GluType::Swish, std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max(), 1.0f, 0.0f);
+}
+
+// SwiGLU on the opt kernel, split mode with block-interleaved stride 8
+// (exercises the opt kernel's y = x + (x/stride)*stride indexing)
+TEST_P(swiglu_2dtype_test, opt_split_block_stride) {
+    run_swiglu(GetParam(), "swiglu_gpu_opt", /*C=*/4, /*W_out=*/512, /*glu_stride=*/8, /*gate_idx=*/0,
+               ov::op::internal::GLU::GluType::Swish, std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max(), 1.0f, 0.0f);
+}
+
+// SwiGLU on the opt kernel, split mode, Gelu_Tanh activation
+TEST_P(swiglu_2dtype_test, opt_gelu_tanh) {
+    run_swiglu(GetParam(), "swiglu_gpu_opt", /*C=*/4, /*W_out=*/512, /*glu_stride=*/512, /*gate_idx=*/0,
+               ov::op::internal::GLU::GluType::Gelu_Tanh, std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max(), 1.0f, 0.0f);
+}
+
+// SwiGLU on the ref kernel, split mode, Gelu activation
+TEST_P(swiglu_2dtype_test, ref_gelu) {
+    run_swiglu(GetParam(), "swiglu_gpu_ref", /*C=*/4, /*W_out=*/512, /*glu_stride=*/512, /*gate_idx=*/0,
+               ov::op::internal::GLU::GluType::Gelu, std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max(), 1.0f, 0.0f);
+}
+
+// SwiGLU on the opt kernel, split mode, Swish with clamp + swish_beta + up_add_val
+TEST_P(swiglu_2dtype_test, opt_clamp_beta_up_add_val) {
+    run_swiglu(GetParam(), "swiglu_gpu_opt", /*C=*/4, /*W_out=*/512, /*glu_stride=*/512, /*gate_idx=*/0,
+               ov::op::internal::GLU::GluType::Swish, -0.7f, 7.0f, 1.2f, 1.0f);
+}
+
+// SwiGLU on the ref kernel, split mode, Swish with clamp + swish_beta + up_add_val
+TEST_P(swiglu_2dtype_test, ref_clamp_beta_up_add_val) {
+    run_swiglu(GetParam(), "swiglu_gpu_ref", /*C=*/4, /*W_out=*/512, /*glu_stride=*/512, /*gate_idx=*/1,
+               ov::op::internal::GLU::GluType::Swish, -0.7f, 7.0f, 1.2f, 1.0f);
+}
+
+// SwiGLU split mode on the opt kernel, matching the ViT action_expert MLP config
+// input [1,10,8192] -> output [1,10,4096]
+TEST_P(swiglu_2dtype_test, split_swish_large) {
+    run_swiglu(GetParam(), "swiglu_gpu_opt", /*C=*/10, /*W_out=*/4096, /*glu_stride=*/4096, /*gate_idx=*/0,
+               ov::op::internal::GLU::GluType::Swish, std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max(), 1.0f, 0.0f);
+}
+
+// SwiGLU with dynamic shape (auto kernel selection)
+TEST_P(swiglu_2dtype_test, dynamic) {
+    auto& engine = get_test_engine();
+    const auto dt = GetParam();
+    const int32_t C = 4, W_out = 512, glu_stride = 512, W = 2 * W_out;
+
+    auto input_layout_dyn = layout{ov::PartialShape{1, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+                                   dt, format::bfyx};
+    auto input_mem = engine.allocate_memory({ov::PartialShape{1, C, W}, dt, format::bfyx});
+    auto output_ref = engine.allocate_memory({ov::PartialShape{1, C, W_out}, data_types::f32, format::bfyx});
+
+    if (dt == data_types::bf16)
+        tests::set_random_values<ov::bfloat16>(input_mem, true, 7, 100);
+    else
+        tests::set_random_values<ov::float16>(input_mem, true, 10, 100);
+    swiglu_ref_typed(dt, input_mem, output_ref, C, W_out, glu_stride, 0,
+                     ov::op::internal::GLU::GluType::Swish, std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max(), 1.0f, 0.0f);
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dyn));
+    topology.add(swiglu("swiglu", input_info("input"), -1, glu_stride,
+                        ov::op::internal::GLU::GluType::Swish, 0,
+                        std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max(), 1.0f, 0.0f, cldnn::tensor(1, C, W_out, 1)));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+    auto inst = network.get_primitive("swiglu");
+    ASSERT_TRUE(inst->get_impl() != nullptr);
+    ASSERT_TRUE(inst->get_impl()->is_dynamic());
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "swiglu");
+    auto output = outputs.at("swiglu").get_memory();
+
+    cldnn::mem_lock<ov::bfloat16> gpu_bf16(output, get_test_stream());
+    cldnn::mem_lock<ov::float16> gpu_f16(output, get_test_stream());
+    cldnn::mem_lock<float> ref_ptr(output_ref, get_test_stream());
+    auto read_gpu = [&](size_t i) -> float {
+        return dt == data_types::bf16 ? static_cast<float>(gpu_bf16[i])
+                                      : static_cast<float>(gpu_f16[i]);
+    };
+
+    float abs_floor = (dt == data_types::bf16) ? 0.25f : 0.05f;
+    float rel_tol = (dt == data_types::bf16) ? 0.01f : 0.03f;
+    for (size_t i = 0; i < output_ref->count(); ++i) {
+        float gpu_val = read_gpu(i);
+        float ref_val = ref_ptr[i];
+        float diff = std::abs(gpu_val - ref_val);
+        float tolerance = std::max(abs_floor, std::abs(ref_val) * rel_tol);
+        ASSERT_LE(diff, tolerance) << "Mismatch at i=" << i
+            << " gpu=" << gpu_val << " ref=" << ref_val << " diff=" << diff;
+    }
+}

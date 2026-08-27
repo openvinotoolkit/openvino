@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -81,9 +80,7 @@ void InputDataVisitor::operator()(const std::string& path_str) {
             std::filesystem::create_directories(path.parent_path());
             dump_path_vec = {path};
         }
-        auto default_initialzer =
-                opts.global_initializer ? opts.global_initializer : std::make_shared<UniformGenerator>(0.0, 255.0);
-        auto layer_initializers = unpackWithDefault(initializers, input_names, default_initialzer);
+        auto layer_initializers = resolveInitializers(infer.input_layers, initializers, opts.global_initializer);
         providers = createRandomProviders(infer.input_layers, std::move(layer_initializers));
         for (uint32_t i = 0; i < infer.input_layers.size(); ++i) {
             metas[i].set(Dump{dump_path_vec[i]});
