@@ -133,7 +133,8 @@ std::optional<size_t> map_unsqueeze_axis(const std::shared_ptr<v0::Unsqueeze>& u
         return std::nullopt;
     }
 
-    return output_axis - static_cast<size_t>(std::distance(inserted_axes->begin(), inserted_axes->lower_bound(output_axis)));
+    return output_axis -
+           static_cast<size_t>(std::distance(inserted_axes->begin(), inserted_axes->lower_bound(output_axis)));
 }
 
 std::optional<int64_t> trailing_stride(const ov::PartialShape& shape, size_t axis) {

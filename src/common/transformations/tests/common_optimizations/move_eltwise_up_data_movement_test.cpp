@@ -777,8 +777,7 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelReshapeSymbolicTrailingDimensi
 
 TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelReshapeAnonymousDynamicTrailingDimensionReject) {
     auto input = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 5, -1});
-    auto reshape_pattern =
-        v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{5, 1, -1});
+    auto reshape_pattern = v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{5, 1, -1});
     auto reshape = std::make_shared<v1::Reshape>(input, reshape_pattern, false);
     auto per_channel_const = v0::Constant::create(ov::element::f32, {5, 1, 1}, {0.5f});
     auto add = std::make_shared<v1::Add>(reshape, per_channel_const);
