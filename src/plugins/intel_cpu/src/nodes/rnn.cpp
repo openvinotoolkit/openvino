@@ -313,8 +313,8 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
 
         auto rnnCellBase = ov::as_type_ptr<const ov::op::util::RNNCellBase>(op);
         if (rnnCellBase) {
-            // clip == 0 and clip == inf both mean "no clipping"; only a finite clip is unsupported
-            if (!ov::op::util::is_no_clip(rnnCellBase->get_clip())) {
+            // Only a finite positive clip requires fallback; invalid values are ignored as no-clip.
+            if (ov::op::util::requires_clip(rnnCellBase->get_clip())) {
                 errorMessage = "Clipping is not supported for RNN primitive.";
                 return false;
             }
@@ -540,6 +540,14 @@ RNN::RNN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
 
     auto rnnCellBase = ov::as_type_ptr<ov::op::util::RNNCellBase>(op);
     CPU_NODE_ASSERT(rnnCellBase, "does not have original layer for RNNCell.");
+    const float clip = rnnCellBase->get_clip();
+    if (!ov::op::util::requires_clip(clip) && !ov::op::util::is_no_clip(clip)) {
+        DEBUG_LOG("[",
+                  op->get_friendly_name(),
+                  "] Ignoring invalid RNN clip value ",
+                  clip,
+                  "; using no clipping");
+    }
 
     cell_type = ie2dnnl(op);
     if (!rnnCellBase->get_activations().empty()) {

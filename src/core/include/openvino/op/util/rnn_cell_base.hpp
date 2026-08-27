@@ -21,17 +21,15 @@ namespace util {
 ///
 /// \note       Per the RNN/GRU/LSTM specs the default `clip` is *infinity*, which means "clipping is not applied";
 ///             OpenVINO ops additionally treat `clip == 0` as no clipping (see RNNCellBase::clip), so both values
-///             must be handled identically. A negative `clip` cannot describe bounds `[-clip, clip]` either, so it
-///             is reported as no clipping too - this matches the long-standing `clip > 0` checks in the
-///             decomposition passes. `NaN` is not a valid clip value and is deliberately *not* reported here, so
-///             that support gates reject the op instead of assuming it needs no clipping; use requires_clip() to
-///             decide whether a Clamp has to be created.
+///             must be handled identically. Negative values, negative infinity, and `NaN` are invalid and are not
+///             reported as valid no-clipping requests. Use requires_clip() to decide whether a Clamp can be created;
+///             callers may reject invalid values or deliberately ignore them for backward compatibility.
 ///
 /// \param[in]  clip  Value of the `clip` attribute.
 ///
 /// \return     True if `clip` validly expresses "no clipping".
 inline bool is_no_clip(float clip) {
-    return clip <= 0.f || std::isinf(clip);
+    return clip == 0.f || (clip > 0.f && std::isinf(clip));
 }
 
 /// \brief      Tells whether two RNN `clip` attribute values are equivalent for RNN transformation matching.
@@ -54,10 +52,9 @@ inline bool are_clips_equal(float lhs, float rhs) {
 
 /// \brief      Tells whether an RNN `clip` attribute value asks for an actual Clamp.
 ///
-/// \note       Only a finite positive `clip` yields usable bounds `[-clip, clip]`. `0`, negative values and
-///             infinity all mean "no clipping" (see is_no_clip), and `NaN` is invalid - none of them may produce a
-///             Clamp, because `Clamp` rejects `min > max` and both `NaN` and a negative `clip` would trip that
-///             check instead of simply skipping the clipping.
+/// \note       Only a finite positive `clip` yields usable bounds `[-clip, clip]`. `0` and positive infinity mean
+///             "no clipping". Negative values, negative infinity, and `NaN` are invalid, but none of them may
+///             produce a Clamp: this preserves the long-standing `clip > 0` behavior and avoids invalid bounds.
 ///
 /// \param[in]  clip  Value of the `clip` attribute.
 ///

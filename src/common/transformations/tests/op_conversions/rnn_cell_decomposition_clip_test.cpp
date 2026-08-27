@@ -17,6 +17,7 @@
 #include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/rnn_cell.hpp"
+#include "openvino/op/util/rnn_cell_base.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/op_conversions/gru_cell_decomposition.hpp"
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
@@ -33,6 +34,17 @@ namespace {
 constexpr size_t batch = 2;
 constexpr size_t input_size = 3;
 constexpr size_t hidden_size = 4;
+
+TEST(RNNClipUtilsTest, ClassifiesOnlyValidNoClipValues) {
+    const auto infinity = std::numeric_limits<float>::infinity();
+
+    EXPECT_TRUE(ov::op::util::is_no_clip(0.f));
+    EXPECT_TRUE(ov::op::util::is_no_clip(infinity));
+    EXPECT_FALSE(ov::op::util::is_no_clip(1.f));
+    EXPECT_FALSE(ov::op::util::is_no_clip(-1.f));
+    EXPECT_FALSE(ov::op::util::is_no_clip(-infinity));
+    EXPECT_FALSE(ov::op::util::is_no_clip(std::numeric_limits<float>::quiet_NaN()));
+}
 
 // Each *CellDecomposition pass inserts a Clamp only when `clip` actually requests clipping. `clip == 0` and
 // `clip == inf` both mean "no clipping" per the RNN/GRU/LSTM specs, so neither value may produce a Clamp.
@@ -167,7 +179,9 @@ TEST_P(CellDecompositionClipTests, InvalidClipInsertsNoClamp) {
     // failure surfaces on its own instead of being masked by an uninitialized-model error from TearDown().
     test_skipped = true;
 
-    for (const float clip : {-1.f, std::numeric_limits<float>::quiet_NaN()}) {
+    for (const float clip : {-1.f,
+                             -std::numeric_limits<float>::infinity(),
+                             std::numeric_limits<float>::quiet_NaN()}) {
         auto invalid_clip_model = p.makeModel(clip);
 
         ov::pass::Manager invalid_clip_manager;
