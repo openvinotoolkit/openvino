@@ -767,11 +767,10 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
             }
 
             // Copy part 2 KV results
-            auto prefill_present_kv_chunk =
-                uu::make_tensor_slice(prefill_out_tensor,
-                                      pre_kv_dim,
-                                      0u,
-                                      static_cast<uint32_t>(m_tokens_in_present_chunk));
+            auto prefill_present_kv_chunk = uu::make_tensor_slice(prefill_out_tensor,
+                                                                  pre_kv_dim,
+                                                                  0u,
+                                                                  static_cast<uint32_t>(m_tokens_in_present_chunk));
 
             auto kvcache_last_kv_chunk = uu::make_tensor_slice(kvcache_in_tensor,
                                                                gen_kv_dim,
@@ -829,8 +828,8 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
         uint32_t src_seq_len = static_cast<uint32_t>(src_tensor->get_shape()[kv_dim]);
         OPENVINO_ASSERT(num_tokens <= src_seq_len);
         if (src_seq_len > num_tokens) {
-            const bool is_chunked_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill &&
-                                             request == m_prefill_request;
+            const bool is_chunked_prefill =
+                m_npuw_llm_compiled_model->m_use_chunk_prefill && request == m_prefill_request;
             const uint32_t src_start = is_chunked_prefill ? 0u : src_seq_len - num_tokens;
             auto src_slice = uu::make_tensor_slice(src_tensor, kv_dim, src_start, src_start + num_tokens);
             uu::copy_tensor_by_dim(src_slice, dst_slice, kv_dim, kv_dim);
@@ -1073,11 +1072,10 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                                                   pos_src_offset + static_cast<uint32_t>(current_prompts_len));
 
             ov::npuw::util::fill_tensor_bytes(pos_ids_in_tensor, 0u);
-            auto pos_ids_slice =
-                ov::npuw::util::make_tensor_slice(pos_ids_in_tensor,
-                                                  static_cast<uint32_t>(last_dim),
-                                                  0u,
-                                                  static_cast<uint32_t>(current_prompts_len));
+            auto pos_ids_slice = ov::npuw::util::make_tensor_slice(pos_ids_in_tensor,
+                                                                   static_cast<uint32_t>(last_dim),
+                                                                   0u,
+                                                                   static_cast<uint32_t>(current_prompts_len));
 
             // Copy with proper stride handling
             NPUW_ASSERT(pos_ids_slice._ptr &&
