@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "httpx HTTPStatusError Client error 429 Too Many Requests for url huggingface.co api models tree|External Service",
+  "signature_hash": "77096fab85d0c146",
+  "title": "LLM accuracy GPU tests fail with HuggingFace 429 Too Many Requests",
+  "category": "External Service",
+  "count": 1,
+  "first_seen": "2026-08-27T15:50:38Z",
+  "last_seen": "2026-08-27T15:50:38Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/33081663009"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37531"
+  ],
+  "recent_timestamps": [
+    "2026-08-27T15:50:38Z"
+  ],
+  "rerun_search_string": "429 Too Many Requests"
+}

@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-27-15-50-38-000-33081663009",
+  "timestamp": "2026-08-27T15:50:38Z",
+  "run_id": "33081663009",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33081663009",
+  "workflow_name": "LLM accuracy iGPU tests",
+  "pr_number": "37531",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37531",
+  "author": "StefaniaHergane",
+  "category": "External Service",
+  "title": "LLM accuracy GPU tests fail with HuggingFace 429 Too Many Requests",
+  "signature": "httpx HTTPStatusError Client error 429 Too Many Requests for url huggingface.co api models tree|External Service",
+  "signature_hash": "77096fab85d0c146",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "LLM accuracy iGPU tests / LLM accuracy GPU tests",
+      "conclusion": "failure",
+      "symptom": "httpx.HTTPStatusError: 429 Too Many Requests from huggingface.co"
+    }
+  ],
+  "key_errors": [
+    "httpx.HTTPStatusError: Client error '429 Too Many Requests' for url 'https://huggingface.co/api/models/Qwen/Qwen2-0.5B-Instruct/tree/...'",
+    "FAILED tests/llm/accuracy_conformance.py::test_accuracy_conformance[Qwen/Qwen2-0.5B-Instruct-INT8-GPU] - huggingface_hub.errors.HfHubHTTPError",
+    "FAILED tests/llm/accuracy_conformance.py::test_accuracy_conformance[Qwen/Qwen2-0.5B-Instruct-INT4-GPU] - huggingface_hub.errors.HfHubHTTPError"
+  ],
+  "root_cause": "The Hugging Face API rate-limited the CI runner with HTTP 429, preventing the test fixture from downloading model metadata for Qwen/Qwen2-0.5B-Instruct. This is a transient external service limitation unrelated to the PR changes (which only touched NPU functional tests). The rate limit is triggered when too many CI jobs concurrently query the HF API.",
+  "reproduction_steps": "N/A \u2014 rate limiting is environment-specific and non-deterministic.",
+  "recommended_actions": [
+    "Re-run the failed jobs once the rate limit window passes.",
+    "Add HF token authentication to the test environment for higher rate limits.",
+    "Add retry logic with exponential backoff for HuggingFace API calls in test fixtures."
+  ],
+  "prevention_strategies": "Authenticate with a HuggingFace token to raise rate limits. Add retry/backoff logic in model download steps to handle 429 responses gracefully.",
+  "historical_context": "No prior occurrences of this specific HuggingFace 429 pattern found in the investigation database."
+}
