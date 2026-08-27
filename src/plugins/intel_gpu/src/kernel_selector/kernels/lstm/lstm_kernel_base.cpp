@@ -9,7 +9,6 @@
 
 #include "common_tools.h"
 #include "kernel_selector_utils.h"
-#include "openvino/op/util/rnn_cell_base.hpp"
 
 namespace kernel_selector {
 
@@ -71,9 +70,7 @@ JitConstants LSTMKernelBase::GetJitConstants(const lstm_params& params) const {
         jit.Merge(MakeActivationJitConstants(aparams, params.inputs[0].GetDType(), asuffixes[i]));
     }
 
-    // Only a finite positive clip requests clamping. The plugin layer already
-    // normalizes 0/inf/NaN away, but guard here too so such a value never turns into a degenerate kernel clamp.
-    if (ov::op::util::classify_rnn_clip(params.clip) != ov::op::util::RNNClipMode::CLAMP) {
+    if (params.clip <= 0) {
         jit.AddConstants({
                 MakeJitConstant("ACTIVATION_PARAMS_CLIP", ""),
                 MakeJitConstant("ACTIVATION_CLIP(x, p)", "(x)"),

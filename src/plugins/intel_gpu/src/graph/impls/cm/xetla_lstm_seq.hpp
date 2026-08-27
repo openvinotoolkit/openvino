@@ -56,8 +56,8 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
 
         const auto& lstm_node = node.as<lstm_seq>();
         const auto& lstm_prim = lstm_node.get_primitive();
-        // clip == 0 and clip == inf both mean "no clipping"; only a finite clip is unsupported
-        if (ov::op::util::classify_rnn_clip(lstm_prim->clip) != ov::op::util::RNNClipMode::NONE) {
+        // Only a finite positive clip requests clipping and is unsupported; invalid values are ignored as no-clip.
+        if (ov::op::util::classify_rnn_clip(lstm_prim->clip) == ov::op::util::RNNClipMode::CLAMP) {
             return false;
         }
 
