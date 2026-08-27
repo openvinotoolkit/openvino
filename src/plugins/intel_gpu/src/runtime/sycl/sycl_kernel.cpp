@@ -138,16 +138,16 @@ void sycl_kernel::launch(::sycl::handler& cgh,
             if (!arg.mem) {
                 OPENVINO_THROW("[GPU] sycl_kernel::launch: null memory for BUFFER arg at index ", arg_idx);
             }
-            if (auto* gb = dynamic_cast<const gpu_buffer*>(arg.mem.get())) {
+            if (auto* gu = dynamic_cast<const gpu_usm*>(arg.mem.get())) {
+                // USM pointer: pass the device pointer directly.
+                void* ptr = gu->buffer_ptr();
+                cgh.set_arg(arg_idx, ptr);
+            } else if (auto* gb = dynamic_cast<const gpu_buffer*>(arg.mem.get())) {
                 // SYCL buffer: create a read-write accessor on the
                 // (sub-)buffer so the runtime registers the dependency and
                 // passes the cl_mem to the OpenCL kernel argument.
                 auto acc = const_cast<gpu_buffer*>(gb)->get_buffer().template get_access<::sycl::access::mode::read_write>(cgh);
                 cgh.set_arg(arg_idx, acc);
-            } else if (auto* gu = dynamic_cast<const gpu_usm*>(arg.mem.get())) {
-                // USM pointer: pass the device pointer directly.
-                void* ptr = gu->buffer_ptr();
-                cgh.set_arg(arg_idx, ptr);
             } else {
                 OPENVINO_THROW("[GPU] sycl_kernel::launch: unknown memory type at arg index ", arg_idx);
             }
