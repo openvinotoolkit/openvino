@@ -431,7 +431,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
             const int kv_global_start_h = (int)(kv_partition_idx * KV_PARTITION_SIZE);
             const int mask_from_min = (int)(past_q_lens + q_start + t_min_thread + 1) - kv_global_start_h;
             int mask_bound_i = mask_from_min < (int)partition_valid ? mask_from_min : (int)partition_valid;
-            if (t_max_thread >= (int)valid_count) {
+            if (t_min_thread >= (int)valid_count) {
+                mask_bound_i = (int)partition_valid;
+            } else if (t_max_thread >= (int)valid_count) {
                 mask_bound_i = 0;
             }
             const int mask_bound = mask_bound_i;

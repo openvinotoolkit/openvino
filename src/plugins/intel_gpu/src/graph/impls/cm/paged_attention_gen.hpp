@@ -8,6 +8,7 @@
 #include <array>
 #include <cstdlib>
 #include <memory>
+#include <array>
 #include <utility>
 #include <vector>
 
@@ -157,64 +158,50 @@ inline int get_small_q_marshal_chunks(int head_size) {
     return std::max(1, head_size / 16);
 }
 
-// A TILE_Q the kernel both accepts and marshals evenly.
-//
-// Legality is the Q_ROWS rule the kernel #errors on. Balance is the extra one: the marshal
-// hands out MARSHAL_CHUNKS_C chunks with a strided `c += MARSHAL_TG` loop, so when
-// WG_THREADS does not divide the chunk count the chunks pile up unevenly and every thread
-// waits on the slowest at the barrier. TILE_Q=6 at GQA-4 is the concrete trap: WG_THREADS=3
-// splits 8 chunks 3/3/2, turning a one-round marshal into three, and marshalling on fewer
-// threads was already measured slower (see pa_small_q.cm MARSHAL_TG). It is *correct* --
-// the strided loop still covers every chunk -- just slower than the rung below it.
-inline bool is_small_q_tile_q_balanced(int q_head_chunk_size, int tile_q, int head_size) {
-    if (tile_q < 1) {
+// Extra compiled TILE_Q rungs, beyond rung 0 (= get_small_q_tile_q, the shape's legal
+// maximum, which always exists). Each costs one more compiled pa_small_q + finalization pair
+// at model load, and buys the host a closer fit to the batch's q_len.
+inline constexpr std::array<int, 2> SMALL_Q_EXTRA_RUNG_TILE_Q = {8, 6};
+inline constexpr size_t SMALL_Q_RUNGS = SMALL_Q_EXTRA_RUNG_TILE_Q.size() + 1;
+
+// Is this TILE_Q something the kernel will accept for this shape?
+inline bool is_small_q_tile_q_legal(int q_head_chunk_size, int tile_q) {
+    if (tile_q < 1 || tile_q > static_cast<int>(SMALL_Q_THRESHOLD)) {
         return false;
     }
     const int q_rows = std::max(1, q_head_chunk_size) * tile_q;
-    if (q_rows > SMALL_Q_MAX_Q_ROWS || (q_rows > 8 && (q_rows % 8) != 0)) {
-        return false;
-    }
-    const int wg_threads = get_small_q_wg_threads(q_head_chunk_size, tile_q);
-    return (get_small_q_marshal_chunks(head_size) % wg_threads) == 0;
+    return q_rows <= SMALL_Q_MAX_Q_ROWS && (q_rows <= 8 || (q_rows % 8) == 0);
 }
 
-// The rung below get_small_q_tile_q, or 0 if there is none. Since WG_THREADS must divide the
-// (power-of-two) chunk count, the balanced rungs are the halvings of the top one: GQA-4 /
-// head 128 gives TILE_Q 16 -> 8 -> 4 -> 2.
-inline int get_small_q_tile_q_alt(int xe_arch, int q_head_chunk_size, int head_size) {
-    const int tile_q_max = get_small_q_tile_q(xe_arch, q_head_chunk_size);
-    for (int tile_q = tile_q_max - 1; tile_q >= 1; --tile_q) {
-        if (is_small_q_tile_q_balanced(q_head_chunk_size, tile_q, head_size)) {
-            return tile_q;
-        }
-    }
-    return 0;
-}
-
-// Pick between the two compiled TILE_Q variants for one batch of small-q q_lens.
+// Preference between legal rungs, lower is better.
 //
-// The alt (smaller) rung wins only when it costs nothing: it must not add a tile to any
-// subsequence -- an extra tile is an extra full marshal of the KV partition, the cost the
-// large TILE_Q was chosen for -- and it must strictly reduce padded rows. So this can only
-// ever delete dummy work, never trade one kind for another. At GQA-4 / head 128 (rungs 16
-// and 8): q_len 6 picks 8, q_len 16 picks 16, q_len 9..15 picks 16 (alt would double the
-// tiles), and a mixed batch of 6 and 16 picks 16.
-inline int pick_small_q_tile_q(int tile_q_max, int tile_q_alt, const std::vector<int>& q_lens) {
-    if (tile_q_alt < 1 || tile_q_alt >= tile_q_max || q_lens.empty()) {
-        return tile_q_max;
+// The cost is set by how the MARSHAL_CHUNKS_C = 8 marshal chunks divide across
+// WG_THREADS = q_rows / 8 -- not by TILE_Q, and not monotonically by thread count. Measured
+// main-kernel ms at 15 k context, GQA-4, head 128, partition 640 (so TILE_Q = 2 * threads):
+//
+//   threads   1      2      3      4      5      6      7      8
+//   chunks   8      4      3/3/2  2      2..1   2..1   2,1x6  1
+//   ms       0.968  0.590  0.523  0.555  0.713  0.890  0.984  0.820
+//
+// 3 threads is the global minimum and 8 is fine (one chunk each, the loop collapses), but
+// 5/6/7 are much worse -- 7 threads splits 8 chunks 2/1/1/1/1/1/1 and everyone waits on the
+// pair. So a *smaller* TILE_Q is not automatically better: q_len=4 prefers TILE_Q 6 over 4,
+// and q_len=12 prefers 16 over 12.
+//
+// These are one machine's numbers. The ordering follows chunk-division balance rather than
+// anything device-specific, so it should carry, but re-measure before trusting it on a part
+// with a different MARSHAL_CHUNKS_C (i.e. a different head size).
+inline int small_q_rung_rank(int wg_threads) {
+    switch (wg_threads) {
+    case 3: return 0;
+    case 4: return 1;
+    case 2: return 2;
+    case 5: return 3;
+    case 8: return 4;
+    case 6: return 5;
+    case 7: return 6;
+    default: return 7;  // 1 thread marshals all 8 chunks alone
     }
-    size_t tiles_max = 0;
-    size_t tiles_alt = 0;
-    for (const int q_len : q_lens) {
-        if (q_len < 1) {
-            continue;
-        }
-        tiles_max += static_cast<size_t>((q_len + tile_q_max - 1) / tile_q_max);
-        tiles_alt += static_cast<size_t>((q_len + tile_q_alt - 1) / tile_q_alt);
-    }
-    const bool no_extra_tiles = tiles_alt == tiles_max;
-    const bool fewer_padded_rows = tiles_alt * static_cast<size_t>(tile_q_alt) < tiles_max * static_cast<size_t>(tile_q_max);
-    return (no_extra_tiles && fewer_padded_rows) ? tile_q_alt : tile_q_max;
 }
 
 #define FIND_DEBUG_ACC 0
@@ -249,6 +236,7 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     size_t small_q_tile_count = 0;   // Number of SG tiles = ceil_div(small_q_token_count, TILE_Q)
     // small_q uses its own, larger partition size
     size_t small_q_num_of_partitions = 0;
+    int small_q_rung = 0;            // which compiled TILE_Q rung the batch selected
     int small_q_tile_q = 1;          // TILE_Q value chosen at JIT time (must match kernel)
     size_t small_q_max_kv_len = 0;   // Max kv_len across small-q subsequences (for partition count)
 
@@ -482,8 +470,43 @@ inline int get_small_q_tile_q_for_rung(const kernel_impl_params& params, int run
     const int xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
     const auto sq_partition_size = PagedAttentionGeneratorSmallQ::get_partition_size(desc->has_xattention);
     const auto chunk = static_cast<int>(get_single_token_q_chunking(params, *desc, sq_partition_size).q_head_chunk_size);
-    const int head_size = static_cast<int>(desc->k_head_size);
-    return rung == 0 ? get_small_q_tile_q(xe_arch, chunk) : get_small_q_tile_q_alt(xe_arch, chunk, head_size);
+    const int tile_q_max = get_small_q_tile_q(xe_arch, chunk);
+    if (rung == 0) {
+        return tile_q_max;
+    }
+    const size_t idx = static_cast<size_t>(rung) - 1;
+    if (rung < 1 || idx >= SMALL_Q_EXTRA_RUNG_TILE_Q.size()) {
+        return 0;
+    }
+    const int tile_q = SMALL_Q_EXTRA_RUNG_TILE_Q[idx];
+    // A rung at or above the shape's maximum is redundant with rung 0.
+    if (tile_q >= tile_q_max || !is_small_q_tile_q_legal(chunk, tile_q)) {
+        return 0;
+    }
+    return tile_q;
+}
+
+// Cheapest compiled rung whose TILE_Q still covers max_q_len, as a rung index. Rung 0 always
+// qualifies (its TILE_Q is the shape maximum, and SMALL_Q_THRESHOLD bounds q_len by it), so
+// this always returns something valid.
+inline int pick_small_q_rung(const kernel_impl_params& params, int max_q_len) {
+    const auto desc = params.typed_desc<paged_attention>();
+    const auto sq_partition_size = PagedAttentionGeneratorSmallQ::get_partition_size(desc->has_xattention);
+    const int chunk = static_cast<int>(get_single_token_q_chunking(params, *desc, sq_partition_size).q_head_chunk_size);
+    int best_rung = 0;
+    int best_rank = small_q_rung_rank(get_small_q_wg_threads(chunk, get_small_q_tile_q_for_rung(params, 0)));
+    for (size_t r = 1; r < SMALL_Q_RUNGS; ++r) {
+        const int tile_q = get_small_q_tile_q_for_rung(params, static_cast<int>(r));
+        if (tile_q < 1 || tile_q < max_q_len) {
+            continue;  // not compiled for this shape, or too small to hold the window
+        }
+        const int rank = small_q_rung_rank(get_small_q_wg_threads(chunk, tile_q));
+        if (rank < best_rank) {
+            best_rank = rank;
+            best_rung = static_cast<int>(r);
+        }
+    }
+    return best_rung;
 }
 
 //-----------------------------------------------------------------------------------------------------------------
