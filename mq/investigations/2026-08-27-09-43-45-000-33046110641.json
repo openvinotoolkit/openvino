@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-27-09-43-45-000-33046110641",
+  "timestamp": "2026-08-27T09:43:45Z",
+  "run_id": "33046110641",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33046110641",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "37611",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37611",
+  "author": "praasz",
+  "category": "Flaky Test",
+  "title": "LLM accuracy GPU test fails — Qwen2-0.5B-Instruct-INT8 metric drop exceeds threshold",
+  "signature": "metric drop exceeds threshold|Flaky Test",
+  "signature_hash": "47caedf70a4041f8",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "LLM accuracy iGPU tests / LLM accuracy GPU tests",
+      "conclusion": "failure",
+      "symptom": "AssertionError: Metric drop 0.05254477262496948 exceeds threshold 0.03 for Qwen/Qwen2-0.5B-Instruct-INT8-GPU"
+    }
+  ],
+  "key_errors": [
+    "FAILED tests/llm/accuracy_conformance.py::test_accuracy_conformance[Qwen/Qwen2-0.5B-Instruct-INT8-GPU] - AssertionError: Metric drop 0.05254477262496948 exceeds threshold 0.03",
+    "assert np.float32(0.052544773) <= 0.03"
+  ],
+  "root_cause": "The LLM accuracy conformance test for Qwen/Qwen2-0.5B-Instruct (INT8, GPU) measured a metric drop of ~0.0525, exceeding the allowed threshold of 0.03. This test evaluates model accuracy on iGPU hardware and is sensitive to hardware state, driver versions, and non-deterministic GPU execution. The PR under test (PR #37611) modifies only IR FE XML deserialization code (src/core/xml_util/src/xml_deserialize_util.cpp and frontend tests), which is entirely unrelated to GPU inference or quantization accuracy. The accuracy failure is not caused by the PR change — it is a hardware-sensitive, non-deterministic accuracy measurement that has failed on an unrelated merge-queue run.",
+  "reproduction_steps": "N/A — accuracy measurements on GPU hardware are environment-sensitive and not reproducible in a standard dev environment.",
+  "recommended_actions": [
+    "Re-run the failed job — the accuracy metric is non-deterministic and may pass on retry",
+    "Investigate whether the Qwen2-0.5B-Instruct-INT8 accuracy threshold (0.03) is set too tightly for this GPU configuration",
+    "Check recent GPU driver updates or hardware configuration changes on the CI runner that may affect accuracy measurements"
+  ],
+  "prevention_strategies": "Accuracy thresholds for LLM models on GPU should be calibrated with sufficient margin to account for non-determinism. Consider widening thresholds or adding test retries for accuracy conformance tests.",
+  "historical_context": "No prior records of this specific accuracy failure pattern in the investigation database. This is the first occurrence."
+}
