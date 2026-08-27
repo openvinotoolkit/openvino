@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-27-22-06-20-000-33117706429",
+  "timestamp": "2026-08-27T22:06:20Z",
+  "run_id": "33117706429",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33117706429",
+  "workflow_name": "OpenVINO tokenizers extension",
+  "pr_number": "37686",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37686",
+  "author": "olpipi",
+  "category": "Dependencies",
+  "title": "OpenVINO tokenizers wheel build fails - openvino~=2026.5.0.dev not yet available on pip",
+  "signature": "could not find a version that satisfies the requirement openvino dev tokenizers build dependencies failed|Dependencies",
+  "signature_hash": "8d60fd1266878935",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "OpenVINO tokenizers extension / OpenVINO tokenizers extension",
+      "conclusion": "failure",
+      "symptom": "pip cannot find openvino~=2026.5.0.dev; build dependencies install fails"
+    }
+  ],
+  "key_errors": [
+    "ERROR: Could not find a version that satisfies the requirement openvino~=2026.5.0.dev (from versions: ..., 2026.4.0.dev20260827)",
+    "ERROR: No matching distribution found for openvino~=2026.5.0.dev",
+    "error: subprocess-exited-with-error - pip subprocess to install build dependencies did not run successfully."
+  ],
+  "root_cause": "The openvino_tokenizers package requires openvino~=2026.5.0.dev as a build dependency, but the highest available dev version on the pip index is 2026.4.0.dev20260827. The nightly/dev 2026.5.x build has not been published yet. This is a pipeline dependency timing issue where the tokenizer wheel's version constraint is ahead of the published nightly package. The PR under test (fixing a C API test) is entirely unrelated to this failure.",
+  "reproduction_steps": "N/A - the failure depends on the nightly openvino package being published to the pip index.",
+  "recommended_actions": [
+    "Wait for the 2026.5.0.dev nightly OpenVINO package to be published and re-run the pipeline.",
+    "Check if openvino_tokenizers version constraint can be relaxed to allow the latest available dev build (2026.4.0.dev20260827).",
+    "Re-add the PR to the merge queue after the nightly package is available."
+  ],
+  "prevention_strategies": "Ensure that nightly OpenVINO package publishing is completed before merge queue jobs that depend on the dev version are triggered. Consider implementing a dependency availability check step before the tokenizers build.",
+  "historical_context": "This is the first recorded occurrence of this specific version mismatch pattern."
+}
