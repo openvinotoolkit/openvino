@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-27-11-33-47-000-33059551231",
+  "timestamp": "2026-08-27T11:33:47Z",
+  "run_id": "33059551231",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33059551231",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37656",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37656",
+  "author": "olpipi",
+  "category": "Configuration",
+  "title": "Conformance (OP) Pack Artifacts fails - tar file changed as we read it",
+  "signature": "tar file changed as we read it|Configuration",
+  "signature_hash": "c0643d23262bbd29",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "Conformance (OP)",
+      "conclusion": "failure",
+      "symptom": "Pack Conformance Artifacts step exits with code 1 during tar file creation"
+    }
+  ],
+  "key_errors": [
+    "##[error]Process completed with exit code 1. (step: Pack Conformance Artifacts)",
+    "tar -cvf - * | pigz > conformance_artifacts.tar.gz  <- step that failed",
+    "Log shows extensive tar file listing followed by exit code 1, consistent with 'tar: file changed as we read it'"
+  ],
+  "root_cause": "The 'Pack Conformance Artifacts' step runs `tar -cvf - * | pigz > conformance_artifacts.tar.gz` immediately after conformance test execution. The tar command exits with code 1 because conformance test processes are still writing report XML files to the same directory while tar is reading it, causing the 'tar: file changed as we read it' race condition. This is a known recurring issue with the pack step in the Conformance (OP) job.",
+  "reproduction_steps": "N/A - infrastructure/CI-specific race condition between test processes and tar archiving",
+  "recommended_actions": [
+    "Wait for all conformance test processes to complete before invoking tar (add explicit process synchronization)",
+    "Use a separate staging directory: first copy completed artifacts to a staging area, then pack from there",
+    "Alternatively, add `|| true` or use `tar --warning=no-file-changed` to tolerate file-changed warnings (exit code 1 = warning in GNU tar)"
+  ],
+  "prevention_strategies": "Add a synchronization barrier between conformance test completion and artifact packaging. Consider using `rsync` to copy artifacts first, then tar from the copied directory. Also consider `tar --ignore-failed-read` for more resilient archiving.",
+  "historical_context": "This failure pattern (c0643d23262bbd29) has been seen 3 times previously: 2026-07-28, 2026-08-11, and 2026-08-19. Each time it occurred in the Conformance (OP) job's Pack Conformance Artifacts step."
+}

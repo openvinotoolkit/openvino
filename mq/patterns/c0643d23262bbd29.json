@@ -4,20 +4,22 @@
   "signature_hash": "c0643d23262bbd29",
   "title": "Conformance (OP) Pack Artifacts fails - tar file changed as we read it",
   "category": "Configuration",
-  "count": 3,
+  "count": 4,
   "first_seen": "2026-07-28T14:11:02Z",
-  "last_seen": "2026-08-19T13:23:09Z",
+  "last_seen": "2026-08-27T11:33:47Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/33059551231",
     "https://github.com/openvinotoolkit/openvino/actions/runs/32250213011",
     "https://github.com/openvinotoolkit/openvino/actions/runs/31443907795",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30356512752"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37656",
     "https://github.com/openvinotoolkit/openvino/pull/37016",
     "https://github.com/openvinotoolkit/openvino/pull/37080"
   ],
   "recent_timestamps": [
-    "2026-08-19T13:23:09Z"
+    "2026-08-27T11:33:47Z"
   ],
   "rerun_search_string": null
 }
