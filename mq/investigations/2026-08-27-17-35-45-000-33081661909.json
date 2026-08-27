@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-27-17-35-45-000-33081661909",
+  "timestamp": "2026-08-27T17:35:45Z",
+  "run_id": "33081661909",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33081661909",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "37473",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37473",
+  "author": "olpipi",
+  "category": "External Service",
+  "title": "LLM accuracy CPU tests fail with HuggingFace 429 rate limit on model download",
+  "signature": "429 Too Many Requests you have reached your api rate limit|External Service",
+  "signature_hash": "391fe92c2ec33482",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "LLM accuracy CPU tests / LLM accuracy CPU tests",
+      "conclusion": "failure",
+      "symptom": "HuggingFace API returns 429 Too Many Requests when downloading Qwen2-0.5B-Instruct model"
+    }
+  ],
+  "key_errors": [
+    "huggingface_hub.errors.HfHubHTTPError: 429 Too Many Requests: you have reached your 'api' rate limit.\nRetry after 23 seconds (0/500 requests remaining in current 300s window).\nUrl: https://huggingface.co/api/models/Qwen/Qwen2-0.5B-Instruct/tree/...",
+    "FAILED tests/llm/accuracy_conformance.py::test_accuracy_conformance[Qwen/Qwen2-0.5B-Instruct-INT8-CPU]\nFAILED tests/llm/accuracy_conformance.py::test_accuracy_conformance[Qwen/Qwen2-0.5B-Instruct-INT4-CPU]\n===== 2 failed, 2 passed, 4 deselected, 20 warnings in 1054.30s (0:17:34) ======"
+  ],
+  "root_cause": "The LLM accuracy CPU tests fetch model weights from HuggingFace during test setup. The CI runner IP (4.155.215.89) hit the HuggingFace anonymous API rate limit (429 Too Many Requests, 0/500 requests remaining). This is an external service constraint unrelated to the PR's code changes (which only touched src/core/src/op/constant.cpp and src/core/tests/constant.cpp).",
+  "reproduction_steps": "N/A \u2014 rate limit is transient and IP/time-dependent.",
+  "recommended_actions": [
+    "Configure HF_TOKEN in CI secrets to authenticate with HuggingFace and avoid anonymous rate limits.",
+    "Pre-cache model weights in CI or use a local model mirror to avoid on-demand downloads.",
+    "Re-run the failed job \u2014 the rate limit window expires and the next attempt will likely succeed."
+  ],
+  "prevention_strategies": "Set HF_TOKEN in GitHub Actions secrets for the LLM accuracy test jobs to use authenticated HuggingFace API access, which has a much higher rate limit.",
+  "historical_context": "Same pattern (391fe92c2ec33482) observed previously on 2026-08-27T16:46:44Z in run 33081710335 (PR #37616). Second occurrence same day."
+}
