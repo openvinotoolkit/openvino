@@ -949,10 +949,11 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             state_sum =
                                 regular_tile_request->get_tensor(hfa_desc->_compiled_tile_model->inputs()[tile_in.d]);
                         }
-                        runtime::host_flash_attention::HFARuntimeContext::initialize_state_tensors(state_acc,
-                                                                                                   state_max,
-                                                                                                   state_sum,
-                                                                                                   attention_sink_tensor);
+                        runtime::host_flash_attention::HFARuntimeContext::initialize_state_tensors(
+                            state_acc,
+                            state_max,
+                            state_sum,
+                            attention_sink_tensor);
 
                         regular_tile_request->set_tensor(hfa_desc->_compiled_tile_model->inputs()[tile_in.q],
                                                          query_tensor);

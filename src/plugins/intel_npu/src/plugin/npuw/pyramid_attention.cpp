@@ -237,14 +237,10 @@ static void patch_attention_sink_slice_end(const std::shared_ptr<ov::Model>& mod
 
     if (end->get_element_type() == ov::element::i32) {
         sink_slice->input(2).replace_source_output(
-            ov::op::v0::Constant::create(ov::element::i32,
-                                          end->get_shape(),
-                                          std::vector<int32_t>{-1}));
+            ov::op::v0::Constant::create(ov::element::i32, end->get_shape(), std::vector<int32_t>{-1}));
     } else if (end->get_element_type() == ov::element::i64) {
         sink_slice->input(2).replace_source_output(
-            ov::op::v0::Constant::create(ov::element::i64,
-                                          end->get_shape(),
-                                          std::vector<int64_t>{-1}));
+            ov::op::v0::Constant::create(ov::element::i64, end->get_shape(), std::vector<int64_t>{-1}));
     }
 }
 

@@ -881,7 +881,8 @@ bool HostFlashAttention::resolve_attention_sink_parameter(const std::shared_ptr<
         return true;
     }
 
-    const auto sink_param = ov::as_type_ptr<ov::op::v0::Parameter>(skip_convert_nodes(pattern_nodes.attention_sink_node));
+    const auto sink_param =
+        ov::as_type_ptr<ov::op::v0::Parameter>(skip_convert_nodes(pattern_nodes.attention_sink_node));
     if (!sink_param) {
         LOG_WARN("Attention sink was not promoted to a function parameter");
         return false;
@@ -1454,8 +1455,7 @@ void HFARuntimeContext::clear_mask_cache() {
 namespace {
 
 template <typename StateType, typename SinkType>
-void broadcast_attention_sink_to_state_max(ov::SoPtr<ov::ITensor>& max,
-                                           const ov::SoPtr<ov::ITensor>& attention_sink) {
+void broadcast_attention_sink_to_state_max(ov::SoPtr<ov::ITensor>& max, const ov::SoPtr<ov::ITensor>& attention_sink) {
     const auto state_shape = max->get_shape();
     const auto sink_shape = attention_sink->get_shape();
     OPENVINO_ASSERT(sink_shape.size() <= state_shape.size(),

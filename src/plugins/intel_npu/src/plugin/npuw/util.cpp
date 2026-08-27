@@ -1114,16 +1114,14 @@ std::vector<ov::npuw::util::SDPAPatternNodes> find_sdpa_pattern_nodes_internal(c
             }
             current_node.add_node = scores_with_sink->get_input_node_shared_ptr(0);
             current_node.attention_sink_node = scores_with_sink->get_input_node_shared_ptr(1);
-            if (auto sink_broadcast =
-                    ov::as_type_ptr<ov::op::v1::Broadcast>(current_node.attention_sink_node)) {
+            if (auto sink_broadcast = ov::as_type_ptr<ov::op::v1::Broadcast>(current_node.attention_sink_node)) {
                 current_node.attention_sink_node = sink_broadcast->get_input_node_shared_ptr(0);
-            } else if (auto sink_broadcast =
-                           ov::as_type_ptr<ov::op::v3::Broadcast>(current_node.attention_sink_node)) {
+            } else if (auto sink_broadcast = ov::as_type_ptr<ov::op::v3::Broadcast>(current_node.attention_sink_node)) {
                 current_node.attention_sink_node = sink_broadcast->get_input_node_shared_ptr(0);
             }
         } else {
             LOG_DEBUG("Softmax input is neither Add nor attention-sink Concat(" << softmax_input->get_friendly_name()
-                                                                                  << "), skipping pattern check");
+                                                                                << "), skipping pattern check");
             continue;
         }
 
