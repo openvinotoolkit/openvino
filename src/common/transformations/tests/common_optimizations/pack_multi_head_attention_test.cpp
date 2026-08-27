@@ -54,9 +54,7 @@ std::shared_ptr<ov::Node> build_sdpa_preprocessing(const std::shared_ptr<ov::Nod
     return reshape;
 }
 
-std::shared_ptr<ov::Node> build_ROPE(const std::shared_ptr<ov::Node>& input,
-                                     const Shape& rope_shape,
-                                     bool swap_halves = false) {
+std::shared_ptr<ov::Node> build_ROPE(const std::shared_ptr<ov::Node>& input, const Shape& rope_shape) {
     std::vector<int64_t> rope_shape_vec(rope_shape.begin(), rope_shape.end());
     auto reshape_const = Constant::create(element::i64, Shape{rope_shape.size()}, rope_shape_vec);
     auto reshape = std::make_shared<Reshape>(input, reshape_const, false);
