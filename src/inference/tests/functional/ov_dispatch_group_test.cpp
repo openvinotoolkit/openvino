@@ -408,6 +408,19 @@ TEST_F(DispatchGroupTest, duplicate_fingerprint_from_one_candidate_throws) {
 
 // A second register_plugin for the same device name now appends a candidate (no opt-in flag),
 // forming a group that resolves per score exactly like the plugins.xml path.
+// Only a DIFFERENT library forms a group. Re-registering the same one still throws, so callers
+// that use that throw to register idempotently keep working and never get a bogus 1-library group.
+TEST_F(DispatchGroupTest, register_plugin_same_library_twice_still_throws) {
+    script("0,aa," + std::to_string(PREFERRED), "");
+    ov::Core core;
+    core.register_plugin(candidate_lib("a").string(), device);
+    OV_EXPECT_THROW(core.register_plugin(candidate_lib("a").string(), device),
+                    ov::Exception,
+                    ::testing::HasSubstr("is already registered as device \"" + device + "\""));
+    // Still a single-candidate device: it resolves without any probing.
+    EXPECT_EQ(resolved_tag(core), "A");
+}
+
 TEST_F(DispatchGroupTest, register_plugin_appends_dispatch_group_candidate) {
     script("0,aa," + std::to_string(SERVABLE), "0,aa," + std::to_string(PREFERRED));
     ov::Core core;

@@ -1665,11 +1665,22 @@ void ov::CoreImpl::register_plugin(const std::filesystem::path& plugin,
     std::lock_guard<std::mutex> dev_lock(get_mutex(device_name));
     std::lock_guard<std::mutex> lock(get_mutex());
 
-    // Another library under an already-registered name appends a dispatch-group candidate; the
+    // A DIFFERENT library under an already-registered name appends a dispatch-group candidate; the
     // enumeration probe picks the winner per device. (Proxy plugins keep their own handling.)
     auto it = m_plugin_registry.find(device_name);
     if (it != m_plugin_registry.end() && !is_proxy_device(device_name)) {
-        it->second.m_candidates.push_back({ov::util::get_plugin_path(plugin), properties, nullptr});
+        const auto lib_path = ov::util::get_plugin_path(plugin);
+        // A duplicated candidate enumerates the same devices with the same scores as the one
+        // already registered, so it could only ever shadow itself: reject it.
+        for (size_t i = 0; i < it->second.candidate_count(); ++i) {
+            if (it->second.candidate_lib(i) == lib_path)
+                OPENVINO_THROW("Library \"",
+                               lib_path.string(),
+                               "\" is already registered as device \"",
+                               device_name,
+                               "\". Sharing a device name requires registering a different library under it.");
+        }
+        it->second.m_candidates.push_back({lib_path, properties, nullptr});
         // Adding a candidate changes resolution: drop the cached merged device list and any
         // instance already created for this name (the bare single-candidate instance, or a
         // stale "<device>#N" winner) so the next request re-probes and re-selects.

@@ -224,9 +224,9 @@ TEST_P(RegisterPluginTestP, registerNewPluginNoThrows) {
     core.unload_plugin(mock_plugin_name);
 }
 
-// Registering a second library under an existing device name appends a dispatch-group candidate
-// instead of throwing, so that a device name can be served by more than one library.
-TEST(RegisterPluginTests, registerExistingPluginAppendsCandidate) {
+// Re-registering the SAME library under an existing device name still throws: only a different
+// library forms a dispatch group, so idempotent registration keeps working as before.
+TEST(RegisterPluginTests, registerExistingPluginThrows) {
     ov::Core core;
     auto plugin = std::make_shared<ov::test::utils::MockPlugin>();
     std::shared_ptr<ov::IPlugin> base_plugin = plugin;
@@ -236,13 +236,9 @@ TEST(RegisterPluginTests, registerExistingPluginAppendsCandidate) {
                                                         std::string("mock_engine") + OV_BUILD_POSTFIX);
     std::string mock_plugin_name{"MOCK_HARDWARE"};
     OV_ASSERT_NO_THROW(core.register_plugin(lib, mock_plugin_name));
-    OV_ASSERT_NO_THROW(core.register_plugin(lib, mock_plugin_name));
-
-    // The name now has two candidates, and selection is by score - so every candidate must export
-    // the enumeration probe. mock_engine does not, which is a hard error naming the library.
-    OV_EXPECT_THROW(std::ignore = core.get_property(mock_plugin_name, ov::supported_properties),
+    OV_EXPECT_THROW(core.register_plugin(lib, mock_plugin_name),
                     ov::Exception,
-                    ::testing::HasSubstr("does not export the device-enumeration probe"));
+                    ::testing::HasSubstr("is already registered as device \"" + mock_plugin_name + "\""));
 }
 
 inline std::string getPluginFile() {
