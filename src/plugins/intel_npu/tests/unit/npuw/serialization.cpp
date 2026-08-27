@@ -1156,67 +1156,112 @@ TEST(SerializationTest, ValidQuantUnpackGatherIndicesPass) {
 }
 
 TEST(SerializationTest, HostGatherDstIdxExactlyAtBoundFails) {
-    Gather hg{8, -1, -1};
-    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 0, 0, 8), ov::Exception);
+    Gather hg{8, 5, 0};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
 }
 
 TEST(SerializationTest, HostGatherDstIdxFarOOBFails) {
-    Gather hg{1000, -1, -1};
-    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 0, 0, 8), ov::Exception);
+    Gather hg{1000, 5, 0};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
 }
 
 TEST(SerializationTest, HostGatherDstIdxNegativeNonSentinelFails) {
-    Gather hg{-2, -1, -1};
-    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 0, 0, 8), ov::Exception);
+    Gather hg{-2, 5, 0};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
 }
 
 TEST(SerializationTest, HostGatherIdxIdxOOBFails) {
-    Gather hg{-1, -1, 8};
-    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 0, 0, 8), ov::Exception);
+    Gather hg{0, 5, 8};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
 }
 
 TEST(SerializationTest, HostGatherSrcIdxBelowParamBaseFails) {
-    Gather hg{-1, 1, -1};
+    Gather hg{0, 1, 0};
     EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
 }
 
 TEST(SerializationTest, HostGatherSrcIdxExactlyAtClosureEndFails) {
-    Gather hg{-1, 6, -1};
+    Gather hg{0, 6, 0};
     EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
 }
 
 TEST(SerializationTest, HostGatherSrcIdxFarPastClosureFails) {
-    Gather hg{-1, 1000, -1};
+    Gather hg{0, 1000, 0};
     EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
 }
 
 TEST(SerializationTest, HostGatherSrcIdxAtLastValidClosureSlotPasses) {
-    Gather hg{-1, 5, -1};
+    Gather hg{0, 5, 0};
     EXPECT_NO_THROW(expect_serialize_valid(hg, {-1, -1, -1, -1, -1}, 2, 4, 8));
 }
 
+TEST(SerializationTest, HostGatherActiveMissingSrcIdxFails) {
+    Gather hg{0, -1, 1};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherActiveMissingIdxIdxFails) {
+    Gather hg{0, 5, -1};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherInactiveNonSentinelSrcIdxFails) {
+    Gather hg{-1, 5, -1};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherInactiveNonSentinelIdxIdxFails) {
+    Gather hg{-1, -1, 1};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
 TEST(SerializationTest, QuantUnpackGatherDstIdxOOBFails) {
-    QuantUnpackGather qug{8, 0, -1, -1, 1};
+    QuantUnpackGather qug{8, 0, -1, 1, 1};
     EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
 }
 
 TEST(SerializationTest, QuantUnpackGatherSrcWIdxOOBFails) {
-    QuantUnpackGather qug{0, 8, -1, -1, 1};
+    QuantUnpackGather qug{0, 8, -1, 1, 1};
     EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
 }
 
 TEST(SerializationTest, QuantUnpackGatherSrcZIdxOOBFails) {
-    QuantUnpackGather qug{0, 1, 8, -1, 2};
+    QuantUnpackGather qug{0, 1, 8, 1, 1};
     EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
 }
 
 TEST(SerializationTest, QuantUnpackGatherSrcSIdxOOBFails) {
-    QuantUnpackGather qug{0, 1, -1, 8, 2};
+    QuantUnpackGather qug{0, 1, -1, 8, 1};
     EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
 }
 
 TEST(SerializationTest, QuantUnpackGatherIdxIdxOOBFails) {
-    QuantUnpackGather qug{0, 1, -1, -1, 8};
+    QuantUnpackGather qug{0, 1, -1, 1, 8};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, QuantUnpackGatherActiveMissingSrcWIdxFails) {
+    QuantUnpackGather qug{0, -1, -1, 1, 1};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, QuantUnpackGatherActiveMissingSrcSIdxFails) {
+    QuantUnpackGather qug{0, 1, -1, -1, 1};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, QuantUnpackGatherActiveMissingIdxIdxFails) {
+    QuantUnpackGather qug{0, 1, -1, 1, -1};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, QuantUnpackGatherActiveOptionalSrcZIdxPasses) {
+    QuantUnpackGather qug{0, 1, -1, 2, 3};
+    EXPECT_NO_THROW(expect_serialize_valid({-1, -1, -1}, qug, 0, 0, 8));
+}
+
+TEST(SerializationTest, QuantUnpackGatherInactiveNonSentinelSrcWIdxFails) {
+    QuantUnpackGather qug{-1, 1, -1, -1, -1};
     EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
 }
 
@@ -1235,6 +1280,10 @@ TEST(SerializationTest, ParamBaseClosureSizeExactlyAtBoundPasses) {
 
 TEST(SerializationTest, ParamBaseLargerThanInputsFails) {
     EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, {-1, -1, -1, -1, -1}, 9, 1, 8), ov::Exception);
+}
+
+TEST(SerializationTest, ParamBaseLargerThanInputsZeroClosureFails) {
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, {-1, -1, -1, -1, -1}, 9, 0, 8), ov::Exception);
 }
 
 TEST(SerializationTest, NoCompiledModelAllSentinelsPasses) {
@@ -1343,6 +1392,22 @@ TEST(SerializationTest, ReplacedByOutOfRangeFails) {
     // Submodel 0: replaced_by points to submodel 5 (out of range)
     auto sub0 = ov::npuw::CompiledModelDescTestAccessor::make();
     sub0.replaced_by = 5;
+
+    ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
+    submodels.push_back(std::move(sub0));
+
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_orc_submodels(submodels), ov::Exception);
+}
+
+TEST(SerializationTest, FunctionBodyWithCorruptedReplacedByFails) {
+    auto plugin = std::make_shared<NullPlugin>();
+    auto model = make_validation_model(8);
+
+    // Submodel 0: Function body that has a compiled_model, but its replaced_by field is corrupted (points OOB to 99)
+    auto sub0 = ov::npuw::CompiledModelDescTestAccessor::make();
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(sub0) =
+        ov::SoPtr<ov::ICompiledModel>{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+    sub0.replaced_by = 99;
 
     ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
     submodels.push_back(std::move(sub0));

@@ -917,6 +917,38 @@ void ov::npuw::validate_orc_submodel_indices(
         return;
     }
 
+    // Validate consistency of host_gather indices.
+    if (host_gather.dst_idx != -1) {
+        OPENVINO_ASSERT(host_gather.src_idx != -1,
+                        "ORC import: \"host_gather.src_idx\" cannot be -1 when \"host_gather.dst_idx\" is active");
+        OPENVINO_ASSERT(host_gather.idx_idx != -1,
+                        "ORC import: \"host_gather.idx_idx\" cannot be -1 when \"host_gather.dst_idx\" is active");
+    } else {
+        OPENVINO_ASSERT(host_gather.src_idx == -1,
+                        "ORC import: \"host_gather.src_idx\" must be -1 when \"host_gather.dst_idx\" is -1");
+        OPENVINO_ASSERT(host_gather.idx_idx == -1,
+                        "ORC import: \"host_gather.idx_idx\" must be -1 when \"host_gather.dst_idx\" is -1");
+    }
+
+    // Validate consistency of quant_unpack_gather indices.
+    if (quant_unpack_gather.dst_idx != -1) {
+        OPENVINO_ASSERT(quant_unpack_gather.idx_idx != -1,
+                        "ORC import: \"quant_unpack_gather.idx_idx\" cannot be -1 when \"quant_unpack_gather.dst_idx\" is active");
+        OPENVINO_ASSERT(quant_unpack_gather.src_w_idx != -1,
+                        "ORC import: \"quant_unpack_gather.src_w_idx\" cannot be -1 when \"quant_unpack_gather.dst_idx\" is active");
+        OPENVINO_ASSERT(quant_unpack_gather.src_s_idx != -1,
+                        "ORC import: \"quant_unpack_gather.src_s_idx\" cannot be -1 when \"quant_unpack_gather.dst_idx\" is active");
+    } else {
+        OPENVINO_ASSERT(quant_unpack_gather.idx_idx == -1,
+                        "ORC import: \"quant_unpack_gather.idx_idx\" must be -1 when \"quant_unpack_gather.dst_idx\" is -1");
+        OPENVINO_ASSERT(quant_unpack_gather.src_w_idx == -1,
+                        "ORC import: \"quant_unpack_gather.src_w_idx\" must be -1 when \"quant_unpack_gather.dst_idx\" is -1");
+        OPENVINO_ASSERT(quant_unpack_gather.src_s_idx == -1,
+                        "ORC import: \"quant_unpack_gather.src_s_idx\" must be -1 when \"quant_unpack_gather.dst_idx\" is -1");
+        OPENVINO_ASSERT(quant_unpack_gather.src_z_idx == -1,
+                        "ORC import: \"quant_unpack_gather.src_z_idx\" must be -1 when \"quant_unpack_gather.dst_idx\" is -1");
+    }
+
     // Validate indices that directly address compiled_model->inputs().
     auto check_input_idx = [&](int64_t idx, const char* field_name) {
         OPENVINO_ASSERT(idx == -1 || (idx >= 0 && static_cast<std::size_t>(idx) < n_model_inputs),
@@ -954,17 +986,15 @@ void ov::npuw::validate_orc_submodel_indices(
                         ")");
     }
 
-    // param_base + closure_size must not overflow compiled_model->inputs() (used in unpack_closure).
-    if (closure_size > 0) {
-        OPENVINO_ASSERT(param_base <= n_model_inputs && closure_size <= n_model_inputs - param_base,
-                        "ORC import: param_base (",
-                        param_base,
-                        ") + closure_size (",
-                        closure_size,
-                        ") exceeds n_model_inputs (",
-                        n_model_inputs,
-                        ")");
-    }
+    // param_base + closure_size must not overflow compiled_model->inputs() (used in unpack_closure and funcall prologue).
+    OPENVINO_ASSERT(param_base <= n_model_inputs && closure_size <= n_model_inputs - param_base,
+                    "ORC import: param_base (",
+                    param_base,
+                    ") + closure_size (",
+                    closure_size,
+                    ") exceeds n_model_inputs (",
+                    n_model_inputs,
+                    ")");
 }
 
 void ov::npuw::CompiledModel::validate_orc_submodels(const std::vector<CompiledModelDesc>& submodels) {
@@ -972,7 +1002,7 @@ void ov::npuw::CompiledModel::validate_orc_submodels(const std::vector<CompiledM
         const auto& subm = submodels[idx];
         ov::SoPtr<ov::ICompiledModel> effective_compiled_model = subm.compiled_model;
 
-        if (!effective_compiled_model && subm.replaced_by.has_value()) {
+        if (subm.replaced_by.has_value()) {
             const std::size_t target_idx = subm.replaced_by.value();
             OPENVINO_ASSERT(target_idx < submodels.size(),
                             "ORC import: submodel ",
