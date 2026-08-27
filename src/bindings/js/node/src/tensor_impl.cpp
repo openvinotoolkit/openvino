@@ -22,9 +22,8 @@ void TensorImpl::CleanupContext::release_owner() noexcept {
 // Releases the TSFN exactly once because both destructor and env cleanup may race here.
 void TensorImpl::CleanupContext::release_tsfn() noexcept {
     if (!tsfn_released.exchange(true)) {
-        const auto status = tsfn.Release();
+        [[maybe_unused]] const auto status = tsfn.Release();
         assert((status == napi_ok) && "TensorImpl: TSFN release failed");
-        static_cast<void>(status);
     }
 }
 
