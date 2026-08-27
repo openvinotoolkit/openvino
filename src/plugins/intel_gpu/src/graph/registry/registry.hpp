@@ -197,6 +197,7 @@ REGISTER_IMPLS(mlir_primitive);
 REGISTER_IMPLS(grouped_matmul);
 #ifdef ENABLE_TP_GPU
 REGISTER_IMPLS(tp_allreduce);
+REGISTER_IMPLS(tp_gather);
 #endif
 
 REGISTER_DEFAULT_IMPLS(assign, CPU_S, CPU_D);

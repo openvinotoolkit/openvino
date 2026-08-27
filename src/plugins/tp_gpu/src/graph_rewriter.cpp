@@ -13,6 +13,7 @@
 #include <unordered_set>
 
 #include "tp_gpu/op/tp_all_reduce.hpp"
+#include "tp_gpu/op/tp_gather.hpp"
 #include "tp_gpu/tp_device_coordinator.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/paged_attention.hpp"
@@ -513,6 +514,35 @@ ShardingPlan GraphRewriter::analyze(const std::shared_ptr<const ov::Model>& mode
                     "[TP_GPU] The query projection produces ", plan.hidden_size,
                     " features, which does not match ", plan.num_heads, " heads x ",
                     plan.head_dim, " head_dim");
+
+    // ---- 5) The vocabulary projection ----
+    //
+    // It is not part of any layer, so the walk above never classified it, but
+    // it is the single most expensive MatMul of a decode step: one row of
+    // logits costs a full pass over the vocabulary weight.  Accept it only in
+    // its plain form -- straight into a Result, nothing else reading it -- so
+    // that a bias or a second consumer leaves the graph alone.
+    for (const auto& result : model->get_results()) {
+        auto producer = result->input_value(0).get_node_shared_ptr();
+        if (ov::is_type<ov::op::v0::Convert>(producer)) {
+            producer = producer->input_value(0).get_node_shared_ptr();
+        }
+        auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(producer);
+        if (!matmul || classified.count(matmul.get()) != 0) {
+            continue;
+        }
+        if (matmul->output(0).get_target_inputs().size() != 1) {
+            continue;
+        }
+        const auto axes = weight_axes(matmul);
+        const auto& vocab = matmul->input_value(1).get_partial_shape()[axes.out_features];
+        if (!vocab.is_static()) {
+            continue;
+        }
+        plan.lm_head_name = matmul->get_friendly_name();
+        plan.lm_head_vocab = vocab.get_length();
+        break;
+    }
 
     return plan;
 }
@@ -1370,64 +1400,69 @@ std::shared_ptr<ov::Model> GraphRewriter::rewrite(const std::shared_ptr<const ov
     }
 
     // ------------------------------------------------------------------
-    // 3d) Trim the vocabulary projection on every rank but the first.
+    // 3d) Split the vocabulary projection across the ranks.
     //
-    //     The final MatMul turns the last hidden state into logits, and on a
-    //     sharded model nothing else reads it: every collective sits inside a
-    //     transformer layer, no Assign depends on it, and the infer request
-    //     collects outputs from rank 0 alone.  So ranks 1..N-1 read the whole
-    //     vocabulary weight once per token to produce a tensor that is thrown
-    //     away -- on an 8B model at four ranks that is 1.05 GB of reads, about
-    //     1.7 ms per token, and the same 1.05 GB sitting in each rank's VRAM.
+    //     It sits after the last collective and feeds nothing but the model's
+    //     Result, yet every rank computed all of it: one row of logits costs a
+    //     full pass over the vocabulary weight, 1.05 GB on an 8B model, and
+    //     the step is only over when the slowest rank is done.  Giving each
+    //     rank one band of output features turns that into 1/world_size of the
+    //     reads, and the slices are collected into rank 0 -- the only rank
+    //     whose outputs the infer request reads.
     //
-    //     Cutting the projection down to a single output row removes both and
-    //     leaves the graph valid; only that rank's logits become meaningless,
-    //     which no one reads.  TP_LM_HEAD_ALL_RANKS=1 keeps the full
-    //     projection everywhere for anyone who needs every rank to produce the
-    //     real thing.
+    //     Whether this happens at all is decided by shards_lm_head(), which
+    //     the collective count consults too; the two must agree, because the
+    //     gather occupies the id right after the last AllReduce.
     // ------------------------------------------------------------------
-    if (rank != 0 && std::getenv("TP_LM_HEAD_ALL_RANKS") == nullptr) {
-        std::set<std::string> sharded_names;
+    if (GraphRewriter::shards_lm_head(plan, tp_degree)) {
+        auto it = name_map.find(plan.lm_head_name);
+        OPENVINO_ASSERT(it != name_map.end(),
+                        "[TP_GPU] The vocabulary projection '", plan.lm_head_name,
+                        "' disappeared from the cloned model");
+        auto matmul = it->second;
+
+        const auto axes = weight_axes(matmul);
+        const int64_t vocab = plan.lm_head_vocab;
+        const int64_t band = vocab / tp_degree;
+        const int64_t start_idx = band * rank;
+        const int64_t end_idx = start_idx + band;
+
+        auto weight_output = matmul->input(1).get_source_output();
+        if (can_pre_slice_chain(weight_output, axes.out_features, vocab, start_idx, end_idx)) {
+            pre_slice_chain(matmul->input(1), axes.out_features, vocab, start_idx, end_idx);
+        } else {
+            auto sliced = insert_weight_slice(weight_output, axes.out_features, start_idx, end_idx);
+            matmul->input(1).replace_source_output(sliced);
+        }
+        matmul->validate_and_infer_types();
+
+        // The gather takes the id after the last AllReduce, which is exactly
+        // how many of them the plan produced.
+        uint32_t gather_id = 0;
         for (const auto& desc : plan.linears) {
-            sharded_names.insert(desc.matmul_name);
+            if (!desc.is_column_parallel)
+                ++gather_id;
         }
 
-        for (const auto& result : cloned->get_results()) {
-            auto producer = result->input(0).get_source_output().get_node_shared_ptr();
-            // Only the plain shape is accepted: a bias or any other consumer
-            // between the projection and the result would see the trimmed
-            // shape, and quietly reshaping someone else's graph is not worth
-            // the milliseconds.
-            if (ov::is_type<ov::op::v0::Convert>(producer)) {
-                producer = producer->input(0).get_source_output().get_node_shared_ptr();
-            }
-            auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(producer);
-            if (!matmul || sharded_names.count(matmul->get_friendly_name()) != 0) {
-                continue;
-            }
-            if (matmul->output(0).get_target_inputs().size() != 1) {
-                continue;
-            }
+        auto gather = std::make_shared<ov::tp_gpu::op::TPGather>(matmul->output(0),
+                                                                 /*group_id=*/0,
+                                                                 gather_id,
+                                                                 static_cast<uint32_t>(rank),
+                                                                 static_cast<uint32_t>(tp_degree),
+                                                                 /*axis=*/-1);
+        gather->set_friendly_name(matmul->get_friendly_name() + "/tp_gather");
 
-            auto weight_output = matmul->input(1).get_source_output();
-            const auto axes = weight_axes(matmul);
-            const auto& full_dim = weight_output.get_partial_shape()[axes.out_features];
-            if (!full_dim.is_static() || full_dim.get_length() < 2) {
+        auto targets = matmul->output(0).get_target_inputs();
+        for (const auto& target : targets) {
+            if (target.get_node() == gather.get())
                 continue;
-            }
-            const int64_t full = full_dim.get_length();
+            target.replace_source_output(gather->output(0));
+        }
 
-            if (can_pre_slice_chain(weight_output, axes.out_features, full, 0, 1)) {
-                pre_slice_chain(matmul->input(1), axes.out_features, full, 0, 1);
-            } else {
-                auto sliced = insert_weight_slice(weight_output, axes.out_features, 0, 1);
-                matmul->input(1).replace_source_output(sliced);
-            }
-            if (std::getenv("TP_PROF") != nullptr) {
-                std::cerr << "[TP] Rank " << rank << ": trimmed vocabulary projection '"
-                          << matmul->get_friendly_name() << "' from " << full
-                          << " rows to 1; this rank's logits are not produced" << std::endl;
-            }
+        if (std::getenv("TP_PROF") != nullptr) {
+            std::cerr << "[TP] Rank " << rank << ": vocabulary projection '" << plan.lm_head_name
+                      << "' split " << vocab << " -> " << band << " rows, gathered by collective "
+                      << gather_id << std::endl;
         }
     }
 
@@ -1439,11 +1474,24 @@ std::shared_ptr<ov::Model> GraphRewriter::rewrite(const std::shared_ptr<const ov
     return cloned;
 }
 
-int GraphRewriter::count_collectives(const ShardingPlan& plan) {
+bool GraphRewriter::shards_lm_head(const ShardingPlan& plan, int tp_degree) {
+    if (plan.lm_head_name.empty() || tp_degree <= 1) {
+        return false;
+    }
+    if (std::getenv("TP_LM_HEAD_ALL_RANKS") != nullptr) {
+        return false;
+    }
+    return plan.lm_head_vocab % static_cast<int64_t>(tp_degree) == 0;
+}
+
+int GraphRewriter::count_collectives(const ShardingPlan& plan, int tp_degree) {
     int count = 0;
     for (const auto& desc : plan.linears) {
         if (!desc.is_column_parallel)
             ++count;
+    }
+    if (shards_lm_head(plan, tp_degree)) {
+        ++count;
     }
     return count;
 }

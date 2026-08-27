@@ -107,6 +107,28 @@ public:
                            std::size_t n,
                            ov::element::Type dtype);
 
+    /// Collects each rank's slice of a row-major matrix into rank 0's buffer.
+    ///
+    /// Every rank holds `rows` x `slice_elems` elements of its own; rank 0's
+    /// buffer is `rows` x (`slice_elems` * world_size), and rank r's slice
+    /// belongs at column offset r * slice_elems of every row -- so the slices
+    /// are strided in the destination, not contiguous.
+    ///
+    /// Only rank 0's buffer is written.  That is what the vocabulary
+    /// projection needs: the infer request reads outputs from rank 0 alone,
+    /// so gathering there instead of to everyone saves world_size-1 transfers
+    /// per rank for a result nobody would look at.
+    ///
+    /// `out_dev` is the destination on rank 0 and ignored on every other rank.
+    /// Blocking, like allreduce: returns once every slice has landed.
+    virtual void gather_to_root(int collective_id,
+                                int rank,
+                                void* in_dev,
+                                void* out_dev,
+                                std::size_t rows,
+                                std::size_t slice_elems,
+                                ov::element::Type dtype);
+
 private:
     // Per-rank L0 state.
     struct RankState {
@@ -152,6 +174,17 @@ private:
     // Per-call inputs that select which plan applies:
     //   collective_id (slot index), in_ptr, out_ptr, n, dtype
     struct Plan {
+        // What the recorded lists do.  A collective id belongs to exactly one
+        // of these for the life of the model, so the two share the same slot,
+        // the same command lists and the same rendezvous.
+        enum class Kind { allreduce, gather };
+        Kind                        kind{Kind::allreduce};
+
+        // Gather only: rows of the matrix being collected, and how many
+        // elements of each row this rank contributes.  `n` stays the total
+        // element count of the local slice so the signature check is uniform.
+        std::size_t                 rows{0};
+        std::size_t                 slice_elems{0};
         // Signature
         std::vector<void*>          in_ptrs;        // [N]
         std::vector<void*>          out_ptrs;       // [N]
@@ -203,6 +236,15 @@ private:
                      std::size_t want_n,
                      ov::element::Type want_dtype) const {
             return n == want_n && dtype == want_dtype && in_ptrs == ins && out_ptrs == outs;
+        }
+
+        bool matches_gather(const std::vector<void*>& ins,
+                            const std::vector<void*>& outs,
+                            std::size_t want_rows,
+                            std::size_t want_slice,
+                            ov::element::Type want_dtype) const {
+            return kind == Kind::gather && rows == want_rows && slice_elems == want_slice &&
+                   dtype == want_dtype && in_ptrs == ins && out_ptrs == outs;
         }
     };
 
@@ -329,6 +371,12 @@ private:
     /// link carries 2*(N-1)/N of the payload instead of the funnel's (N-1)
     /// copies in and out of rank 0, so the cost per link stops growing with N.
     void record_ring_rank(Plan& plan, int rank);
+
+    /// Records one rank's contribution to a gather: a single strided copy of
+    /// its slice into the root's buffer.  Ranks write disjoint columns, so
+    /// unlike the ring there is nothing to order between them and no event is
+    /// needed -- the exit barrier is what keeps the root from reading early.
+    void record_gather_rank(Plan& plan, int rank);
 
     /// Records the direct two-rank exchange for one rank: push our input into
     /// the peer's staging, then reduce our input with what the peer pushed

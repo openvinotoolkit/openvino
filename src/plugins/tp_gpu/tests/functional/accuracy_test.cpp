@@ -273,6 +273,28 @@ TEST_P(TPGpuAccuracyTest, MatchesSingleGpuOnUnevenHeadSplit) {
     expect_close(reference, parallel);
 }
 
+// The vocabulary projection is split by output feature and the bands are
+// copied back into rank 0 -- the only rank whose outputs anyone reads.  A band
+// written at the wrong offset, or a rank whose slice never arrives, shows up
+// here as logits that stop matching partway along the vocabulary.
+TEST_P(TPGpuAccuracyTest, MatchesSingleGpuOnAVocabularyProjection) {
+    BlockConfig config;
+    auto model = make_block_with_lm_head(config, 768);  // divides by every world size under test
+
+    auto [reference, parallel] = run_both(model, make_input(config));
+    expect_close(reference, parallel);
+}
+
+// A vocabulary no world size divides has to stay whole on every rank, with no
+// gather inserted; the logits must come out right all the same.
+TEST_P(TPGpuAccuracyTest, MatchesSingleGpuOnAnIndivisibleVocabulary) {
+    BlockConfig config;
+    auto model = make_block_with_lm_head(config, 769);  // prime
+
+    auto [reference, parallel] = run_both(model, make_input(config));
+    expect_close(reference, parallel);
+}
+
 INSTANTIATE_TEST_SUITE_P(TPGpu,
                          TPGpuAccuracyTest,
                          ::testing::Combine(::testing::ValuesIn(world_sizes),
