@@ -1076,6 +1076,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         // To convert to f16 input to boolean which is converted to u8, add abs + ceiling + clamp before convert.
         type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
+        manager.register_pass<ov::intel_gpu::RecordPagedSelectiveSSMMetadataInputs>();
         manager.register_pass<ov::pass::ConvertPrecision>(int_convert_precision_map,
                                                           type_to_fuse,
                                                           keep_precision_sensitive_in_fp32_2,
