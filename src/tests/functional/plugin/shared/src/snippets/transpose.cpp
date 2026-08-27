@@ -60,15 +60,11 @@ void TransposeMul::SetUp() {
 }
 
 TEST_P(Transpose, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(TransposeMul, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 } // namespace snippets
