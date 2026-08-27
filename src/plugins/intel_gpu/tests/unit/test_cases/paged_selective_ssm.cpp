@@ -9,6 +9,7 @@
 #include <intel_gpu/primitives/paged_selective_ssm.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <numeric>
+#include <string>
 #include <vector>
 
 #include "paged_selective_ssm_inst.h"
@@ -20,6 +21,8 @@ using namespace ::tests;
 namespace {
 
 constexpr int32_t large_state_size = 32 * 1024 + 1;
+
+enum class expected_ssm_impl { any, jit, fallback };
 
 template <typename T>
 std::vector<T> make_test_values(size_t count, float scale, float shift = 0.f) {
@@ -48,7 +51,13 @@ struct paged_selective_ssm_test_params {
     int32_t invalid_metadata = 0;
     bool accumulation_test = false;
     float relative_output_tolerance = 5e-5f;
+    expected_ssm_impl expected_impl = expected_ssm_impl::any;
 };
+
+paged_selective_ssm_test_params expect_impl(paged_selective_ssm_test_params params, expected_ssm_impl expected) {
+    params.expected_impl = expected;
+    return params;
+}
 
 struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_selective_ssm_test_params> {
     template <typename T>
@@ -335,6 +344,14 @@ struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_sele
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         auto network = get_network(engine, topo, config, get_test_stream_ptr(), p.caching_test);
+        if (p.expected_impl != expected_ssm_impl::any) {
+            const auto primitive = network->get_primitive("paged_selective_ssm");
+            ASSERT_NE(primitive, nullptr);
+            auto* const impl = primitive->get_impl();
+            ASSERT_NE(impl, nullptr);
+            const bool is_jit = impl->get_kernel_name().find("jit_") != std::string::npos;
+            EXPECT_EQ(is_jit, p.expected_impl == expected_ssm_impl::jit) << "selected implementation: " << impl->get_kernel_name();
+        }
         network->set_input_data("A", A_mem);
         network->set_input_data("dt", dt_mem);
         network->set_input_data("B", B_mem);
@@ -426,7 +443,16 @@ INSTANTIATE_TEST_SUITE_P(
         paged_selective_ssm_test_params{{3, 2}, {1, 2}, {2, 0}, 4, 2, 8, 8, ov::element::f16, ov::element::i32, false},
         paged_selective_ssm_test_params{{2, 1}, {0, 3}, {2, 1}, 2, 1, 4, 16, ov::element::f32, ov::element::i64, false},
         paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 4, 16, ov::element::bf16, ov::element::i32, false},
-        paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 2, 513, ov::element::f32, ov::element::i32, false},
+        expect_impl(paged_selective_ssm_test_params{{8}, {0}, {8}, 64, 1, 64, 128, ov::element::f32, ov::element::i32, false}, expected_ssm_impl::jit),
+        paged_selective_ssm_test_params{{8}, {0}, {8}, 64, 1, 64, 128, ov::element::f16, ov::element::i32, false},
+        expect_impl(paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 4, 256, ov::element::f32, ov::element::i32, true, {}, false, true},
+                    expected_ssm_impl::jit),
+        paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 4, 256, ov::element::f16, ov::element::i32, false},
+        paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 4, 256, ov::element::bf16, ov::element::i32, false},
+        paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 4, 512, ov::element::f16, ov::element::i32, false},
+        paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 4, 512, ov::element::f32, ov::element::i32, false},
+        paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 4, 512, ov::element::bf16, ov::element::i32, false},
+        expect_impl(paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 2, 513, ov::element::f32, ov::element::i32, false}, expected_ssm_impl::fallback),
         paged_selective_ssm_test_params{{2, 3}, {1, 0}, {2, 3}, 4, 2, 4, 16, ov::element::f32, ov::element::i64, true},
         // Five page-aliasing cases from the published specification.
         paged_selective_ssm_test_params{{5}, {0}, {2}, 4, 2, 5, 17, ov::element::f32, ov::element::i32, false, {true}, true},
@@ -441,9 +467,15 @@ INSTANTIATE_TEST_SUITE_P(
         paged_selective_ssm_test_params{{0}, {0}, {2}, 2, 1, 2, 8, ov::element::f32, ov::element::i32, true, {true}, false},
         // Exercise binary serialization of the optimized implementation.
         paged_selective_ssm_test_params{{3, 2}, {1, 0}, {2, 2}, 4, 2, 4, 16, ov::element::f16, ov::element::i64, true, {true, true}, true, true},
-        paged_selective_ssm_test_params{{4, 2}, {3, 7}, {2, 3}, 4, 2, 3, 19, ov::element::f32, ov::element::i64, false, {true, false}, true, false, true},
+        expect_impl(
+            paged_selective_ssm_test_params{{4, 2}, {3, 7}, {2, 3}, 4, 2, 3, 19, ov::element::f32, ov::element::i64, false, {true, false}, true, false, true},
+            expected_ssm_impl::fallback),
         paged_selective_ssm_test_params{{3, 2}, {1, 0}, {2, 2}, 4, 2, 4, 16, ov::element::f16, ov::element::i32, true, {true, true}, true, false, false, 3},
         paged_selective_ssm_test_params{{32, 17, 5}, {3, 7, 1}, {4, 3, 2}, 8, 4, 16, 64, ov::element::f16, ov::element::i64, true},
+        // Exercise serialization of a dynamic-shape configuration eligible for the device-specific JIT kernels.
+        paged_selective_ssm_test_params{{32, 17, 5}, {3, 7, 1}, {4, 3, 2}, 8, 4, 16, 64, ov::element::f16, ov::element::i64, true, {}, false, true},
+        // Exercise serialization of the long dynamic recurrence that selects Xe2 dA precomputation.
+        paged_selective_ssm_test_params{{3072}, {0}, {3072}, 2, 1, 64, 128, ov::element::f16, ov::element::i32, true, {}, false, true},
         paged_selective_ssm_test_params{{128}, {0}, {32}, 4, 2, 8, 32, ov::element::f16, ov::element::i32, false},
         paged_selective_ssm_test_params{{128}, {0}, {32}, 4, 2, 8, 32, ov::element::bf16, ov::element::i32, false},
         paged_selective_ssm_test_params{{128}, {0}, {128}, 1, 1, 1, 1, ov::element::f16, ov::element::i32, false, {}, false, false, false, 1, 0, true},
@@ -451,6 +483,10 @@ INSTANTIATE_TEST_SUITE_P(
         paged_selective_ssm_test_params{{3}, {-7}, {2}, 2, 1, 4, 8, ov::element::f32, ov::element::i32, false},
         paged_selective_ssm_test_params{{3}, {0}, {2}, 2, 1, 4, 8, ov::element::f32, ov::element::i32, false, {}, false, false, false, 1, 1},
         paged_selective_ssm_test_params{{3}, {0}, {2}, 2, 1, 4, 8, ov::element::f16, ov::element::i64, false, {}, false, false, false, 1, 2},
+        expect_impl(paged_selective_ssm_test_params{{3}, {0}, {2}, 2, 1, 4, 64, ov::element::f32, ov::element::i32, false, {}, false, false, false, 1, 1},
+                    expected_ssm_impl::jit),
+        expect_impl(paged_selective_ssm_test_params{{3}, {0}, {2}, 2, 1, 4, 64, ov::element::f16, ov::element::i64, false, {}, false, false, false, 1, 2},
+                    expected_ssm_impl::jit),
         // Exercise local-memory-driven 4 -> 3 -> 2 -> 1 blocking and tails.
         paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 4, 5000, ov::element::f32, ov::element::i32, false},
         paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 3, 6000, ov::element::f32, ov::element::i32, false},
