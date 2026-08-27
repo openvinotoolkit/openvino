@@ -27,9 +27,8 @@ protected:
      * @param xmlFileContent Content of the XML file.
      * @param binFileContent Optional content of the BIN file. If not provided, the BIN file is not created.
      */
-    void createTemporalModelFile(
-        std::string xmlFileContent,
-        std::optional<std::vector<unsigned char>> binFileContent = std::vector<unsigned char>()) {
+    void createTemporalModelFile(std::string xmlFileContent,
+                                 std::optional<std::vector<unsigned char>> binFileContent = std::nullopt) {
         ASSERT_TRUE(xmlFileContent.size() > 0);
 
         if (std::ofstream xml_file(xmlFileName); xml_file.is_open()) {
