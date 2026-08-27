@@ -109,6 +109,9 @@ TEST(ConvertBatchedNmsToMulticlassNmsTest, ReplacesLoweredBatchedNmsOutputChain)
     EXPECT_EQ(multiclass_nms->get_attrs().keep_top_k, 100);
     EXPECT_EQ(multiclass_nms->get_input_element_type(0), ov::element::f32);
     EXPECT_EQ(multiclass_nms->get_input_element_type(1), ov::element::f32);
+    EXPECT_EQ(multiclass_nms->get_output_shape(0), ov::Shape({100, 6}));
+    EXPECT_EQ(multiclass_nms->get_output_shape(1), ov::Shape({100, 1}));
+    EXPECT_EQ(multiclass_nms->get_output_shape(2), ov::Shape({1}));
     EXPECT_EQ(valid_selected_indices->input_value(2), multiclass_nms->output(2));
 }
 
