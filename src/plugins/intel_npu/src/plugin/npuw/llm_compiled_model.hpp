@@ -109,6 +109,12 @@ private:
                                                          const ov::AnyMap& properties,
                                                          const ov::npuw::s11n::CompiledContext& ctx);
 
+    // Trust-boundary check for imported blobs: KVCacheDesc::dim is read verbatim from the stream
+    // and later used to subscript shape vectors in the KV-slice helpers. Reject any imported
+    // descriptor whose dim is not a valid axis of the restored KV tensors before it can be used.
+    // No-op when there are no KV tensors.
+    void validate_imported_kvcache_dim() const;
+
     std::string m_name;
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
