@@ -164,8 +164,7 @@ inline size_t micro_get_head_size(const kernel_impl_params& params, size_t qkv_i
         }
     } else {
         const auto desc = params.typed_desc<scaled_dot_product_attention>();
-        if (qkv_idx != 0 && desc->is_kv_compressed &&
-            data_type_traits::is_i4_u4(desc->quantization_attributes.quantization_dt)) {
+        if (qkv_idx != 0 && desc->is_kv_compressed && data_type_traits::is_i4_u4(desc->quantization_attributes.quantization_dt)) {
             return get_head_size(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));
         }
 
@@ -1284,8 +1283,10 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     const bool is_byte_packed_int4 = !config.is_paged_attention && data_type_traits::is_i4_u4(compressed_dt);
     if (is_byte_packed_int4)
         jit.make("IS_INT4_KV_CACHE", 1);
-    jit.make("KEY_ELEMENTS_PER_BYTE", elems_per_byte(compressed_dt.is_dynamic() ? K.data_type : compressed_dt));
-    jit.make("VAL_ELEMENTS_PER_BYTE", elems_per_byte(compressed_dt.is_dynamic() ? V.data_type : compressed_dt));
+    jit.make("KEY_ELEMENTS_PER_BYTE",
+             elems_per_byte(compressed_dt.is_dynamic() ? K.data_type : ov::element::Type(compressed_dt)));
+    jit.make("VAL_ELEMENTS_PER_BYTE",
+             elems_per_byte(compressed_dt.is_dynamic() ? V.data_type : ov::element::Type(compressed_dt)));
 
     int tile_k = gemm_kq.getSetting("wg_tile_m");
     int tile_q = gemm_kq.getSetting("wg_tile_n");
@@ -1657,9 +1658,8 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     problem.Tb_ext = convert_type(Q.data_type);
 
     // INT4 cache is byte-backed, so use its logical precision rather than the physical layout type.
-    const auto kv_cache_precision = is_paged_attention
-                                        ? params.get_program().get_config().get_kv_cache_precision()
-                                        : params.typed_desc<scaled_dot_product_attention>()->quantization_attributes.quantization_dt;
+    const auto kv_cache_precision = is_paged_attention ? params.get_program().get_config().get_kv_cache_precision()
+                                                       : params.typed_desc<scaled_dot_product_attention>()->quantization_attributes.quantization_dt;
     const bool is_int4_kv_cache = data_type_traits::is_i4_u4(kv_cache_precision);
 
     if (is_int4_kv_cache && (!is_paged_attention || !is_prefill)) {
@@ -1723,8 +1723,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         // quantization the key zero point is dropped with them; see micro_fold_key_scales_into_q(),
         // which get_jit_constants() consults as well so the two agree on whether the micro-kernel
         // takes quantization arguments.
-        const bool fold_key_scales_into_q =
-            micro_fold_key_scales_into_q(params, configuration.is_kv_compressed, use_asymmetric_quantization);
+        const bool fold_key_scales_into_q = micro_fold_key_scales_into_q(params, configuration.is_kv_compressed, use_asymmetric_quantization);
 
         if (configuration.is_kv_compressed && !kq_common_scales && !fold_key_scales_into_q) {
             const auto& key_cache_comp_scale = params.input_layouts[key_cache_id];
@@ -1871,9 +1870,9 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         // (Layout::T would give stride-1 = 2-byte intervals, which is wrong.)
         // This differs from K*Q where A = K[m=tokens, k=head_dim], scale is [tokens, 1],
         // and Layout::T is needed to get the token stride via ldkq.
-  
+
         opts_vs.scaleA = true;
-        opts_vs.offsetA = true; 
+        opts_vs.offsetA = true;
     } else {
         const auto value_cache_id = micro_get_value_cache_id(params);
 
