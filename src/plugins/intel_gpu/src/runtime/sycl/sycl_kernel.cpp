@@ -195,15 +195,21 @@ void sycl_kernel::launch(::sycl::handler& cgh,
     const size_t g0 = gws.size() > 0 ? gws[0] : 1;
     const size_t g1 = gws.size() > 1 ? gws[1] : 1;
     const size_t g2 = gws.size() > 2 ? gws[2] : 1;
-    const size_t l0 = lws.size() > 0 ? lws[0] : 1;
-    const size_t l1 = lws.size() > 1 ? lws[1] : 1;
-    const size_t l2 = lws.size() > 2 ? lws[2] : 1;
 
-    ::sycl::nd_range<3> ndr(
-        ::sycl::range<3>(g2, g1, g0),
-        ::sycl::range<3>(l2, l1, l0));
+    ::sycl::range<3> global_range(g2, g1, g0);
 
-    cgh.parallel_for(ndr, _compiled_kernel);
+    if (lws.empty()) {
+        // When no local work size is specified, let the SYCL runtime choose
+        // the optimal work-group size, matching OpenCL's LWS=NULL behavior.
+        cgh.parallel_for(global_range, _compiled_kernel);
+    } else {
+        const size_t l0 = lws[0];
+        const size_t l1 = lws.size() > 1 ? lws[1] : 1;
+        const size_t l2 = lws.size() > 2 ? lws[2] : 1;
+
+        ::sycl::nd_range<3> ndr(global_range, ::sycl::range<3>(l2, l1, l0));
+        cgh.parallel_for(ndr, _compiled_kernel);
+    }
 }
 
 void sycl_kernel::create_kernels(const ::sycl::context& ctx,
