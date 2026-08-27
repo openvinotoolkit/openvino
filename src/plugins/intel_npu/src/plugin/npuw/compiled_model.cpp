@@ -956,14 +956,12 @@ void ov::npuw::validate_orc_submodel_indices(
 
     // param_base + closure_size must not overflow compiled_model->inputs() (used in unpack_closure).
     if (closure_size > 0) {
-        OPENVINO_ASSERT(param_base + closure_size <= n_model_inputs,
+        OPENVINO_ASSERT(param_base <= n_model_inputs && closure_size <= n_model_inputs - param_base,
                         "ORC import: param_base (",
                         param_base,
                         ") + closure_size (",
                         closure_size,
-                        ") = ",
-                        param_base + closure_size,
-                        " exceeds n_model_inputs (",
+                        ") exceeds n_model_inputs (",
                         n_model_inputs,
                         ")");
     }
@@ -974,24 +972,23 @@ void ov::npuw::CompiledModel::validate_orc_submodels(const std::vector<CompiledM
         const auto& subm = submodels[idx];
         ov::SoPtr<ov::ICompiledModel> effective_compiled_model = subm.compiled_model;
 
-        std::size_t current_idx = idx;
-        std::unordered_set<std::size_t> visited;
-        while (!effective_compiled_model && submodels[current_idx].replaced_by.has_value()) {
-            visited.insert(current_idx);
-            const std::size_t target_idx = submodels[current_idx].replaced_by.value();
+        if (!effective_compiled_model && subm.replaced_by.has_value()) {
+            const std::size_t target_idx = subm.replaced_by.value();
             OPENVINO_ASSERT(target_idx < submodels.size(),
                             "ORC import: submodel ",
-                            current_idx,
+                            idx,
                             " replaced_by index ",
                             target_idx,
                             " is out of range [0, ",
                             submodels.size(),
                             ")");
-            OPENVINO_ASSERT(visited.find(target_idx) == visited.end(),
-                            "ORC import: cycle detected in replaced_by chain at submodel ",
-                            target_idx);
-            current_idx = target_idx;
-            effective_compiled_model = submodels[current_idx].compiled_model;
+            effective_compiled_model = submodels[target_idx].compiled_model;
+            OPENVINO_ASSERT(effective_compiled_model,
+                            "ORC import: submodel ",
+                            idx,
+                            " replaced_by target ",
+                            target_idx,
+                            " has no compiled model");
         }
 
         const auto& closure_desc = subm.closure.get();

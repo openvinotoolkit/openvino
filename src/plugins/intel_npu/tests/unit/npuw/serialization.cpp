@@ -1224,6 +1224,11 @@ TEST(SerializationTest, ParamBaseClosureSizeExceedsInputsFails) {
     EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, {-1, -1, -1, -1, -1}, 6, 4, 8), ov::Exception);
 }
 
+TEST(SerializationTest, ParamBaseClosureSizeOverflowWrapFails) {
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, {-1, -1, -1, -1, -1}, std::numeric_limits<std::size_t>::max(), 2, 8),
+                 ov::Exception);
+}
+
 TEST(SerializationTest, ParamBaseClosureSizeExactlyAtBoundPasses) {
     EXPECT_NO_THROW(expect_serialize_valid({-1, -1, -1}, {-1, -1, -1, -1, -1}, 4, 4, 8));
 }
@@ -1341,6 +1346,31 @@ TEST(SerializationTest, ReplacedByOutOfRangeFails) {
 
     ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
     submodels.push_back(std::move(sub0));
+
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_orc_submodels(submodels), ov::Exception);
+}
+
+TEST(SerializationTest, MultiHopReplacedByFails) {
+    auto plugin = std::make_shared<NullPlugin>();
+    auto model = make_validation_model(8);
+
+    // Submodel 0: function body with compiled_model
+    auto sub0 = ov::npuw::CompiledModelDescTestAccessor::make();
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(sub0) =
+        ov::SoPtr<ov::ICompiledModel>{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+
+    // Submodel 1: function call targeting submodel 0 (no compiled_model)
+    auto sub1 = ov::npuw::CompiledModelDescTestAccessor::make();
+    sub1.replaced_by = 0;
+
+    // Submodel 2: multi-hop function call targeting submodel 1 instead of function body submodel 0 directly
+    auto sub2 = ov::npuw::CompiledModelDescTestAccessor::make();
+    sub2.replaced_by = 1;
+
+    ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
+    submodels.push_back(std::move(sub0));
+    submodels.push_back(std::move(sub1));
+    submodels.push_back(std::move(sub2));
 
     EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_orc_submodels(submodels), ov::Exception);
 }
