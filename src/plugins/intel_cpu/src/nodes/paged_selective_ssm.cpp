@@ -21,6 +21,7 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/paged_selective_ssm_config.hpp"
 #include "nodes/node_config.h"
+#include "nodes/paged_selective_ssm_ports.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -35,20 +36,26 @@ namespace ov::intel_cpu::node {
 namespace {
 
 using InputPortBinding = std::pair<int, size_t>;
+constexpr auto output_port = output_port_index(PagedSelectiveSSMOutputPort::Output);
 
 constexpr std::array input_port_bindings{
-    InputPortBinding{ARG_PAGED_SSM_A, 0},
-    InputPortBinding{ARG_PAGED_SSM_DT, 1},
-    InputPortBinding{ARG_PAGED_SSM_B, 2},
-    InputPortBinding{ARG_PAGED_SSM_X, 3},
-    InputPortBinding{ARG_PAGED_SSM_C, 4},
-    InputPortBinding{ARG_PAGED_SSM_STATE, 5},
-    InputPortBinding{ARG_PAGED_SSM_SUBSEQUENCE_BEGINS, 6},
-    InputPortBinding{ARG_PAGED_SSM_BLOCK_INDICES, 7},
-    InputPortBinding{ARG_PAGED_SSM_BLOCK_INDICES_BEGINS, 8},
-    InputPortBinding{ARG_PAGED_SSM_NUM_PROCESSED_TOKENS, 9},
-    InputPortBinding{ARG_PAGED_SSM_CACHE_INTERVAL, 10},
+    InputPortBinding{ARG_PAGED_SSM_A, input_port_index(PagedSelectiveSSMInputPort::A)},
+    InputPortBinding{ARG_PAGED_SSM_DT, input_port_index(PagedSelectiveSSMInputPort::TimeStep)},
+    InputPortBinding{ARG_PAGED_SSM_B, input_port_index(PagedSelectiveSSMInputPort::InputProjection)},
+    InputPortBinding{ARG_PAGED_SSM_X, input_port_index(PagedSelectiveSSMInputPort::Input)},
+    InputPortBinding{ARG_PAGED_SSM_C, input_port_index(PagedSelectiveSSMInputPort::OutputProjection)},
+    InputPortBinding{ARG_PAGED_SSM_STATE, input_port_index(PagedSelectiveSSMInputPort::State)},
+    InputPortBinding{ARG_PAGED_SSM_SUBSEQUENCE_BEGINS, input_port_index(PagedSelectiveSSMInputPort::SubsequenceBegins)},
+    InputPortBinding{ARG_PAGED_SSM_BLOCK_INDICES, input_port_index(PagedSelectiveSSMInputPort::BlockIndices)},
+    InputPortBinding{ARG_PAGED_SSM_BLOCK_INDICES_BEGINS,
+                     input_port_index(PagedSelectiveSSMInputPort::BlockIndicesBegins)},
+    InputPortBinding{ARG_PAGED_SSM_NUM_PROCESSED_TOKENS,
+                     input_port_index(PagedSelectiveSSMInputPort::NumProcessedTokens)},
+    InputPortBinding{ARG_PAGED_SSM_CACHE_INTERVAL, input_port_index(PagedSelectiveSSMInputPort::CacheInterval)},
 };
+
+static_assert(input_port_bindings.size() == paged_ssm_input_count);
+static_assert(paged_ssm_output_count == 1);
 
 }  // namespace
 
@@ -61,23 +68,31 @@ PagedSelectiveSSM::PagedSelectiveSSM(const std::shared_ptr<ov::Node>& op, const 
 }
 
 void PagedSelectiveSSM::initSupportedPrimitiveDescriptors() {
-    const auto data_precision = getOriginalInputPrecisionAtPort(0);
+    const auto data_precision = getOriginalInputPrecisionAtPort(input_port_index(PagedSelectiveSSMInputPort::A));
     OPENVINO_ASSERT(any_of(data_precision, ov::element::f32, ov::element::f16, ov::element::bf16),
                     "PagedSelectiveSSM supports only f32/f16/bf16 data, got ",
                     data_precision,
                     ".");
-    for (size_t port = 1; port <= 5; ++port) {
-        OPENVINO_ASSERT(getOriginalInputPrecisionAtPort(port) == data_precision,
-                        "PagedSelectiveSSM requires one data precision on ports 0..5.");
+    for (const auto port : paged_ssm_computation_ports) {
+        OPENVINO_ASSERT(getOriginalInputPrecisionAtPort(input_port_index(port)) == data_precision,
+                        "PagedSelectiveSSM requires A, dt, B, x, and C to have one computation precision.");
     }
-    const auto index_precision = getOriginalInputPrecisionAtPort(6);
+    const auto state_precision = getOriginalInputPrecisionAtPort(input_port_index(PagedSelectiveSSMInputPort::State));
+    OPENVINO_ASSERT(any_of(state_precision, ov::element::f32, ov::element::f16, ov::element::bf16),
+                    "PagedSelectiveSSM supports only f32/f16/bf16 state, got ",
+                    state_precision,
+                    ".");
+    OPENVINO_ASSERT(getOriginalOutputPrecisionAtPort(output_port) == data_precision,
+                    "PagedSelectiveSSM output precision must match its computation precision.");
+    const auto index_precision =
+        getOriginalInputPrecisionAtPort(input_port_index(PagedSelectiveSSMInputPort::SubsequenceBegins));
     OPENVINO_ASSERT(any_of(index_precision, ov::element::i32, ov::element::i64),
                     "PagedSelectiveSSM supports only i32/i64 metadata, got ",
                     index_precision,
                     ".");
-    for (size_t port = 7; port <= 10; ++port) {
-        OPENVINO_ASSERT(getOriginalInputPrecisionAtPort(port) == index_precision,
-                        "PagedSelectiveSSM requires one metadata precision on ports 6..10.");
+    for (const auto port : paged_ssm_metadata_ports) {
+        OPENVINO_ASSERT(getOriginalInputPrecisionAtPort(input_port_index(port)) == index_precision,
+                        "PagedSelectiveSSM requires all metadata inputs to have one precision.");
     }
 
     const auto& creators_map = BlockedDescCreator::getCommonCreators();
@@ -86,8 +101,9 @@ void PagedSelectiveSSM::initSupportedPrimitiveDescriptors() {
         descs[arg_id] = creators_map.at(LayoutType::ncsp)
                             ->createSharedDesc(getOriginalInputPrecisionAtPort(port_id), getInputShapeAtPort(port_id));
     }
-    descs[ARG_PAGED_SSM_OUT] = creators_map.at(LayoutType::ncsp)
-                                   ->createSharedDesc(getOriginalOutputPrecisionAtPort(0), getOutputShapeAtPort(0));
+    descs[ARG_PAGED_SSM_OUT] =
+        creators_map.at(LayoutType::ncsp)
+            ->createSharedDesc(getOriginalOutputPrecisionAtPort(output_port), getOutputShapeAtPort(output_port));
 
     auto execution_context = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
     m_factory = std::make_shared<ExecutorFactory<PagedSelectiveSSMAttrs>>(m_attrs, execution_context, descs);
@@ -110,7 +126,7 @@ void PagedSelectiveSSM::bindMemoryArguments() {
     for (const auto& [arg_id, port_id] : input_port_bindings) {
         m_memory[arg_id] = getSrcMemoryAtPort(port_id);
     }
-    m_memory[ARG_PAGED_SSM_OUT] = getDstMemoryAtPort(0);
+    m_memory[ARG_PAGED_SSM_OUT] = getDstMemoryAtPort(output_port);
 }
 
 void PagedSelectiveSSM::createPrimitive() {

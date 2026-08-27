@@ -18,6 +18,7 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "utils/general_utils.h"
 
 ov::pass::InsertConvertAfterExtension::InsertConvertAfterExtension(bool convert_output_precision) {
@@ -35,7 +36,9 @@ ov::pass::InsertConvertAfterExtension::InsertConvertAfterExtension(bool convert_
         const auto ref = m.get_match_root();
 
         for (auto& output : ref->outputs()) {
-            if (ov::intel_cpu::any_of(output.get_element_type(), ov::element::i64, ov::element::u64)) {
+            const auto source_precision = output.get_element_type();
+            if (ov::intel_cpu::any_of(source_precision, ov::element::i64, ov::element::u64) &&
+                !ov::is_conversion_disabled(ref, source_precision, ov::element::i32)) {
                 auto targetInputs = output.get_target_inputs();
                 auto convert = std::make_shared<op::v0::Convert>(output, ov::element::i32);
 
