@@ -20,6 +20,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/properties.hpp"
 
 namespace {
 
@@ -189,7 +190,7 @@ TEST(smoke_GPUSelectiveSSMIntegration, SelectiveSSMDynamicModel) {
     ov::Core core;
     for (const auto& device : get_gpu_devices(core)) {
         SCOPED_TRACE(device);
-        auto request = core.compile_model(model, device).create_infer_request();
+        auto request = core.compile_model(model, device, ov::hint::inference_precision(ov::element::f32)).create_infer_request();
         for (const auto& test_case : cases) {
             const auto [batch, seq_len, num_heads, num_groups, head_dim, state_size] = test_case;
             SCOPED_TRACE(testing::Message() << "batch=" << batch << ", seq_len=" << seq_len << ", heads=" << num_heads << ", groups=" << num_groups
@@ -259,7 +260,7 @@ TEST(smoke_GPUSelectiveSSMIntegration, SelectiveSSMIndividualOutputs) {
     };
 
     const auto run = [&](ov::Core& core, const std::string& device, size_t seq_len, size_t output_index, bool dynamic) {
-        auto compiled_model = core.compile_model(make_model(seq_len, output_index, dynamic), device);
+        auto compiled_model = core.compile_model(make_model(seq_len, output_index, dynamic), device, ov::hint::inference_precision(ov::element::f32));
         auto request = compiled_model.create_infer_request();
         check(request, seq_len, output_index);
         std::stringstream blob;
@@ -270,7 +271,8 @@ TEST(smoke_GPUSelectiveSSMIntegration, SelectiveSSMIndividualOutputs) {
 
     const auto run_dynamic_sequence = [&](ov::Core& core, const std::string& device, size_t output_index) {
         static constexpr std::array<size_t, 5> sequence_lengths{0, 1, 9, 0, 3};
-        auto compiled_model = core.compile_model(make_model(sequence_lengths.front(), output_index, true), device);
+        auto compiled_model =
+            core.compile_model(make_model(sequence_lengths.front(), output_index, true), device, ov::hint::inference_precision(ov::element::f32));
         auto request = compiled_model.create_infer_request();
         for (const auto seq_len : sequence_lengths) {
             check(request, seq_len, output_index);
@@ -360,7 +362,7 @@ TEST(smoke_GPUSelectiveSSMIntegration, PagedSelectiveSSMDynamicModel) {
     ov::Core core;
     for (const auto& device : get_gpu_devices(core)) {
         SCOPED_TRACE(device);
-        auto compiled_model = core.compile_model(model, device);
+        auto compiled_model = core.compile_model(model, device, ov::hint::inference_precision(ov::element::f32));
         auto request = compiled_model.create_infer_request();
         const auto set_index_input = [&request](size_t index, const std::vector<int64_t>& values) {
             request.set_input_tensor(index, make_tensor<int64_t>(ov::element::i64, {values.size()}, values));
@@ -449,7 +451,7 @@ TEST(smoke_GPUSelectiveSSMIntegration, SelectiveSSMChainedState) {
     ov::Core core;
     for (const auto& device : get_gpu_devices(core)) {
         SCOPED_TRACE(device);
-        auto request = core.compile_model(model, device).create_infer_request();
+        auto request = core.compile_model(model, device, ov::hint::inference_precision(ov::element::f32)).create_infer_request();
         request.set_input_tensor(0, make_tensor<float>(ov::element::f32, {num_heads}, A));
         request.set_input_tensor(1, make_tensor<float>(ov::element::f32, {batch, seq_len, num_heads}, dt));
         request.set_input_tensor(2, make_tensor<float>(ov::element::f32, {batch, seq_len, num_groups, state_size}, B));
@@ -552,7 +554,7 @@ TEST(smoke_GPUSelectiveSSMIntegration, PagedSelectiveSSMChainedStateMutation) {
     ov::Core core;
     for (const auto& device : get_gpu_devices(core)) {
         SCOPED_TRACE(device);
-        auto compiled_model = core.compile_model(model, device);
+        auto compiled_model = core.compile_model(model, device, ov::hint::inference_precision(ov::element::f32));
         auto state_tensor = compiled_model.get_context().create_tensor(ov::element::f32, {state_blocks, num_heads, head_dim, state_size});
         state_tensor.copy_from(make_tensor<float>(ov::element::f32, {state_blocks, num_heads, head_dim, state_size}, state));
         auto request = compiled_model.create_infer_request();

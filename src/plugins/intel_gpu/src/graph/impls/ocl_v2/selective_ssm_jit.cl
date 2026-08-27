@@ -5,15 +5,10 @@
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/bf16_utils.cl"
+#include "selective_ssm_type_utils.cl"
 
 #if SSM_JIT_PRECOMPUTE_DA && !SSM_PAGED
 #    error "Precomputed dA is supported only by the paged SelectiveSSM JIT kernel"
-#endif
-
-#if INPUT0_IS_FP
-#    define SSM_TO_FLOAT(value) convert_float(value)
-#else
-#    define SSM_TO_FLOAT(value) _convert_as_bfloat16_float(value)
 #endif
 
 // Specialize tensor indexing for paged and dense layouts.
@@ -211,7 +206,7 @@ KERNEL(selective_ssm_jit)(OPTIONAL_SHAPE_INFO_ARG
 
     // Load the initial recurrence state into the selected private or SLM storage.
     const uint g = h / (SSM_NUM_HEADS / SSM_NUM_GROUPS);
-    const float A_lane = lane == 0 ? SSM_TO_FLOAT(A[SSM_A_INDEX]) : 0.0f;
+    const float A_lane = lane == 0 ? ssm_to_float(A[SSM_A_INDEX]) : 0.0f;
     const float A_value = sub_group_broadcast(A_lane, 0);
 #if !SSM_JIT_USE_SLM
     float private_state[SSM_HEAD_DIM_BLOCK][SSM_STATE_ITERATIONS];
@@ -225,7 +220,7 @@ KERNEL(selective_ssm_jit)(OPTIONAL_SHAPE_INFO_ARG
             const uint state_element = step * SSM_SUBGROUP_SIZE + lane;
             if (p < SSM_HEAD_DIM && state_element < SSM_STATE_SIZE) {
                 SSM_STATE_AT(p_offset, step, state_element) =
-                    SSM_TO_FLOAT(state[SSM_STATE_INDEX(initial_state_block, p, state_element)]);
+                    ssm_to_float(state[SSM_STATE_INDEX(initial_state_block, p, state_element)]);
             }
         }
     }
@@ -237,7 +232,7 @@ KERNEL(selective_ssm_jit)(OPTIONAL_SHAPE_INFO_ARG
 #else
         const uint token_idx = (uint)token;
 #endif
-        const float dt_lane = lane == 0 ? SSM_TO_FLOAT(dt[SSM_DT_INDEX(token_idx)]) : 0.0f;
+        const float dt_lane = lane == 0 ? ssm_to_float(dt[SSM_DT_INDEX(token_idx)]) : 0.0f;
         const float dt_value = sub_group_broadcast(dt_lane, 0);
 #if SSM_JIT_PRECOMPUTE_DA
         const float dA_lane = lane == 0 ? precomputed_dA[SSM_PRECOMPUTED_DA_INDEX(token_idx)] : 0.0f;
@@ -252,7 +247,7 @@ KERNEL(selective_ssm_jit)(OPTIONAL_SHAPE_INFO_ARG
         for (uint p_offset = 0; p_offset < SSM_HEAD_DIM_BLOCK; ++p_offset) {
             const uint p = p_base + p_offset;
             const float x_lane = lane == 0 && p < SSM_HEAD_DIM
-                                     ? SSM_TO_FLOAT(x[SSM_X_INDEX(token_idx, p)])
+                                     ? ssm_to_float(x[SSM_X_INDEX(token_idx, p)])
                                      : 0.0f;
             input_scales[p_offset] = sub_group_broadcast(x_lane, 0) * dt_value;
             partial[p_offset] = 0.0f;
@@ -262,8 +257,8 @@ KERNEL(selective_ssm_jit)(OPTIONAL_SHAPE_INFO_ARG
         for (uint step = 0; step < SSM_STATE_ITERATIONS; ++step) {
             const uint state_element = step * SSM_SUBGROUP_SIZE + lane;
             if (state_element < SSM_STATE_SIZE) {
-                const float b_value = SSM_TO_FLOAT(B[SSM_B_INDEX(token_idx, state_element)]);
-                const float c_value = SSM_TO_FLOAT(C[SSM_C_INDEX(token_idx, state_element)]);
+                const float b_value = ssm_to_float(B[SSM_B_INDEX(token_idx, state_element)]);
+                const float c_value = ssm_to_float(C[SSM_C_INDEX(token_idx, state_element)]);
 #pragma unroll
                 for (uint p_offset = 0; p_offset < SSM_HEAD_DIM_BLOCK; ++p_offset) {
                     if (p_base + p_offset < SSM_HEAD_DIM) {
@@ -337,7 +332,6 @@ KERNEL(selective_ssm_jit)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 }
 
-#undef SSM_TO_FLOAT
 #undef SSM_RUNTIME_INDEX
 #undef SSM_TOKEN_TYPE
 #undef SSM_COUNTDOWN_TYPE
