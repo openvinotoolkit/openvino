@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-27-22-25-53-000-33115293632",
+  "timestamp": "2026-08-27T22:25:53Z",
+  "run_id": "33115293632",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33115293632",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37690",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37690",
+  "author": "akladiev",
+  "category": "Dependencies",
+  "title": "OpenVINO tokenizers wheel build fails - openvino~=2026.5.0.dev not yet available on pip",
+  "signature": "could not find a version that satisfies the requirement openvino dev tokenizers build dependencies failed|Dependencies",
+  "signature_hash": "8d60fd1266878935",
+  "confidence": "High",
+  "failed_jobs": [
+    "OpenVINO tokenizers extension / OpenVINO tokenizers extension - Build tokenizers wheel (Windows) failed"
+  ],
+  "key_errors": [
+    "ERROR: Could not find a version that satisfies the requirement openvino~=2026.5.0.dev (from versions: ..., 2026.4.0.dev20260827)",
+    "ERROR: No matching distribution found for openvino~=2026.5.0.dev",
+    "installing build dependencies did not run successfully. exit code: 1"
+  ],
+  "root_cause": "The openvino_tokenizers package specifies openvino~=2026.5.0.dev as a build dependency, but the latest published version available on the pip proxy is 2026.4.0.dev20260827. The master branch version has been bumped to 2026.5.0.dev but the corresponding OpenVINO wheel has not yet been published to the pip index, causing the tokenizers wheel build step to fail on Windows.",
+  "reproduction_steps": "Run pip install on openvino_tokenizers from source with PIP_INDEX_URL pointing to the internal proxy - the build dependency resolution will fail because openvino~=2026.5.0.dev is not yet available.",
+  "recommended_actions": [
+    "Wait for the openvino 2026.5.0.dev wheel to be published to the pip index/proxy",
+    "Alternatively, temporarily pin the tokenizers build dependency back to 2026.4.0.dev",
+    "Check the version in openvino_tokenizers/pyproject.toml to understand the pin",
+    "This is a known recurring issue when a version bump in openvino precedes the pip package publication"
+  ],
+  "prevention_strategies": "Ensure openvino wheel publication precedes or is atomic with version bumps that affect tokenizers build deps. Consider a CI check that validates openvino version availability before kicking off tokenizers builds.",
+  "historical_context": "Same failure occurred earlier today in run 33117706429 for PR #37686. This is the second occurrence of this pattern."
+}
