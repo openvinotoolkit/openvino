@@ -311,12 +311,36 @@ class _(TransformConverterBase):
         ppp.input(input_idx).tensor().set_layout(Layout("NCHW"))
 
         input_shape = meta["input_shape"]
+        layout = meta["layout"]
 
-        input_shape[meta["layout"].get_index_by_name("H")] = -1
-        input_shape[meta["layout"].get_index_by_name("W")] = -1
+        input_shape[layout.get_index_by_name("H")] = -1
+        input_shape[layout.get_index_by_name("W")] = -1
 
         ppp.input(input_idx).tensor().set_shape(input_shape)
-        ppp.input(input_idx).preprocess().resize(resize_mode_map[transform.interpolation], target_h, target_w)
+
+        if transform.interpolation == InterpolationMode.NEAREST:
+            # Pillow (used by torchvision for PIL images) samples the source pixel at floor((x + 0.5) * scale),
+            # which corresponds to the `half_pixel` coordinate transformation with `round_prefer_ceil` rounding.
+            # ResizeAlgorithm.RESIZE_NEAREST rounds with `round_prefer_floor` and therefore selects a different
+            # source pixel whenever the mapped coordinate falls exactly halfway between two pixels.
+            axes = [layout.get_index_by_name("H"), layout.get_index_by_name("W")]
+
+            @custom_preprocess_function
+            def resize_nearest_pillow(output: Output) -> Callable:
+                return ops.interpolate(  # type: ignore
+                    output,
+                    np.array([target_h, target_w], dtype=np.int32),
+                    mode="nearest",
+                    shape_calculation_mode="sizes",
+                    coordinate_transformation_mode="half_pixel",
+                    nearest_mode="round_prefer_ceil",
+                    axes=np.array(axes, dtype=np.int32),
+                )
+
+            ppp.input(input_idx).preprocess().custom(resize_nearest_pillow)
+        else:
+            ppp.input(input_idx).preprocess().resize(resize_mode_map[transform.interpolation], target_h, target_w)
+
         meta["input_shape"] = input_shape
         meta["image_dimensions"] = (target_h, target_w)
 
