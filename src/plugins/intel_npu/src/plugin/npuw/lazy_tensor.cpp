@@ -9,6 +9,7 @@
 #include <variant>
 
 #include "logging.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/reference/convert.hpp"
@@ -76,7 +77,13 @@ ov::Tensor Const::eval() const {
         }
         m_mmaped_weights =
             std::make_shared<ov::npuw::s11n::Weights>(mapped_memory->data(), mapped_memory->size(), mapped_memory);
-        return ov::Tensor(m_cached_type, m_cached_shape, m_mmaped_weights->get_ptr(m_offset));
+        // offset/byte_size come from the imported blob; bound them before exposing a zero-copy
+        // view, and require byte_size to match shape*type so the view can't read past it
+        const auto wsz = m_mmaped_weights->size();
+        OPENVINO_ASSERT(m_offset <= wsz && m_byte_size <= wsz - m_offset, "[NPU] weight offset/size out of range");
+        ov::Tensor t(m_cached_type, m_cached_shape, m_mmaped_weights->get_ptr(m_offset));
+        OPENVINO_ASSERT(t.get_byte_size() == m_byte_size, "[NPU] weight byte_size does not match tensor shape");
+        return t;
     }
 
     NPUW_ASSERT(m_read_from_bin && "Underlying data should have been read first! Or the tensor is already detached.");
@@ -107,6 +114,9 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
     if (ctx.weights) {
         if (ctx.bf16_consts.find({m_offset, m_byte_size}) != ctx.bf16_consts.end()) {
             NPUW_ASSERT(m_cached_type == ov::element::f16);
+            // offset/byte_size come from the imported blob; bound them before the memcpy
+            const auto wsz = ctx.weights->size();
+            OPENVINO_ASSERT(m_offset <= wsz && m_byte_size <= wsz - m_offset, "[NPU] weight offset/size out of range");
             // Read original bf16 weight
             auto bf16_tensor = ov::Tensor(ov::element::bf16, m_cached_shape);
             NPUW_ASSERT(bf16_tensor.get_byte_size() == m_byte_size);
