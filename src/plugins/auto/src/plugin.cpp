@@ -791,12 +791,17 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
     };
     // low_power_device (driven by IPF/DTT OnEpoGearChanged) takes precedence over
     // devices_utilization_threshold whenever the platform is in low power mode.
+    // Match by exact device name (e.g. "NPU.5010") first, then fall back to the
+    // base device name (e.g. "NPU"), mirroring find_utilization_threshold.
     auto find_low_power_device = [&]() -> DeviceInformation* {
         if (low_power_device.empty()) {
             return nullptr;
         }
         auto it = std::find_if(valid_devices.begin(), valid_devices.end(), [&](const DeviceInformation& device) {
-            return device.device_name == low_power_device;
+            if (device.device_name == low_power_device) {
+                return true;
+            }
+            return ov::DeviceIDParser(device.device_name).get_device_name() == low_power_device;
         });
         if (it == valid_devices.end() || !get_low_power_mode().value_or(false)) {
             return nullptr;
