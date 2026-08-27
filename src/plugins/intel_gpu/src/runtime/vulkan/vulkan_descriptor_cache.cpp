@@ -78,7 +78,7 @@ vulkan_descriptor_cache::lookup_result vulkan_descriptor_cache::lookup_or_alloca
     }
 
     const auto descriptor_count = checked_u32(prepared.buffer_infos.size(), "descriptor count");
-    const auto descriptor_set = allocate(layout, descriptor_count);
+    auto* const descriptor_set = allocate(layout, descriptor_count);
     update(descriptor_set, prepared.buffer_infos);
     _sets.emplace(std::move(key), descriptor_set);
     return {descriptor_set, lookup_status::allocated};

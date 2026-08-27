@@ -62,8 +62,7 @@ inline ov::PartialShape extend_shape_to_rank_from_begin(const ov::PartialShape& 
 
 // Computes a lower-rank representation of a fused eltwise peer when collapsing its leading spatial
 // axes is an order-preserving reshape and the result broadcasts directly to the host layout.
-inline std::optional<ov::PartialShape> fold_higher_rank_fused_peer(const layout& peer_layout,
-                                                                   const layout& host_layout) {
+inline std::optional<ov::PartialShape> fold_higher_rank_fused_peer(const layout& peer_layout, const layout& host_layout) {
     const auto& peer_shape = peer_layout.get_partial_shape();
     const auto& host_shape = host_layout.get_partial_shape();
 
@@ -80,8 +79,7 @@ inline std::optional<ov::PartialShape> fold_higher_rank_fused_peer(const layout&
     const auto& host_format = host_layout.format;
     if (!format::is_default_format(peer_format) || !format::is_default_format(host_format))
         return std::nullopt;
-    OPENVINO_ASSERT(format::adjust_to_rank(peer_format, host_rank) == host_format,
-                    "Default format rank adjustment must match the host's default format");
+    OPENVINO_ASSERT(format::adjust_to_rank(peer_format, host_rank) == host_format, "Default format rank adjustment must match the host's default format");
 
     const auto peer_dims = peer_shape.to_shape();
     const auto host_dims = host_shape.to_shape();

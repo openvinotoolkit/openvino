@@ -135,11 +135,7 @@ memory_ptr vulkan_engine::create_hostbuffer(void* address, size_t size, allocati
     return wrap_imported_buffer(*this, layout, std::move(region), address);
 }
 
-memory_ptr vulkan_engine::create_hostbuffer(const void* address,
-                                            size_t size,
-                                            allocation_type type,
-                                            const layout layout,
-                                            bool host_read_only) {
+memory_ptr vulkan_engine::create_hostbuffer(const void* address, size_t size, allocation_type type, const layout layout, bool host_read_only) {
     static_cast<void>(host_read_only);
     return create_hostbuffer(const_cast<void*>(address), size, type, layout);
 }

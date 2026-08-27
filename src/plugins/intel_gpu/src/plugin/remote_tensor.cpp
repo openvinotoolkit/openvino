@@ -414,15 +414,12 @@ void RemoteTensorImpl::allocate() {
         if (m_va_mem.access == ov::intel_gpu::AccessMode::READ) {
             // host_read_only is set for the file-mmap case, since the host side will never write it either.
             m_memory_object = engine.create_hostbuffer(static_cast<const void*>(m_va_mem.ptr),
-                                            buffer_size,
-                                            allocation_type,
-                                            m_layout,
-                                            /*host_read_only=*/m_mapped_memory != nullptr);
+                                                       buffer_size,
+                                                       allocation_type,
+                                                       m_layout,
+                                                       /*host_read_only=*/m_mapped_memory != nullptr);
         } else {
-            m_memory_object = engine.create_hostbuffer(m_va_mem.ptr,
-                                            buffer_size,
-                                            allocation_type,
-                                            m_layout);
+            m_memory_object = engine.create_hostbuffer(m_va_mem.ptr, buffer_size, allocation_type, m_layout);
         }
         break;
     }
