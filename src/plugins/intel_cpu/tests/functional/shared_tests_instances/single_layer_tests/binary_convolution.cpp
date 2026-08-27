@@ -67,6 +67,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(ov::test::utils::DEVICE_CPU)),
     BinaryConvolutionLayerTest::getTestCaseName);
 
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_X86)
 const auto binConv2DParams_1x1_ExplicitPad = ::testing::Combine(
     ::testing::Values(std::vector<size_t>{1, 1}),        // kernel
     ::testing::Values(std::vector<size_t>{1, 1}),        // strides
@@ -86,5 +87,6 @@ INSTANTIATE_TEST_SUITE_P(
             std::vector<std::vector<ov::Shape>>{{{1, 256, 56, 56}}})),
         ::testing::Values(ov::test::utils::DEVICE_CPU)),
     BinaryConvolutionLayerTest::getTestCaseName);
+#endif  // defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_X86)
 
 }   // namespace
