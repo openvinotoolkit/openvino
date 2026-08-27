@@ -148,9 +148,9 @@ void ov::npuw::longrope::rerotate_keys(const KeyTensorLayout& layout,
 }
 
 ov::npuw::longrope::KeyTensorLayout ov::npuw::longrope::check_key_tensor(const ov::SoPtr<ov::ITensor>& tensor,
-                                                                        uint32_t seq_dim,
-                                                                        uint32_t num_tokens,
-                                                                        const RegimeDelta& delta) {
+                                                                         uint32_t seq_dim,
+                                                                         uint32_t num_tokens,
+                                                                         const RegimeDelta& delta) {
     OPENVINO_ASSERT(tensor, "NPUW: a past-key input of a LongRoPE model has no tensor bound to it.");
 
     const auto type = tensor->get_element_type();
