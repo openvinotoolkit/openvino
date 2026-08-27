@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "../ocl_v2/utils/jitter.hpp"
 #include "common_utils/jitter.hpp"
@@ -106,6 +107,14 @@ constexpr size_t SMALL_Q_THRESHOLD = 16;
 // marshalling the whole partition. The extra DPAS work from padding a short spec window up
 // to TILE_Q is cheap by comparison (DPAS is ~8 % of the kernel); the marshal is not.
 //
+// That said, padding is not free either, which is what get_small_q_tile_q_alt below exists
+// for. A row past valid_count is not an idle thread: nothing in pa_small_q.cm exits early on
+// it (the only guard is local_qg >= WG_THREADS), so a thread holding only dummy rows still
+// runs the whole online-softmax loop over every KV partition and the epilogue still writes
+// its HEAD_SIZE f32 of zeros and its -inf lse. At q_len=6 / GQA-4 / TILE_Q=16 that is 5 of 8
+// threads and 10 of 16 partial rows -- ~10 MB of garbage writes at 15 k context, against
+// ~32 MB of KV actually read. (Finalization does skip dummy rows, so the cost is write-side.)
+//
 // Constraints, mirrored by the kernel:
 //   * Q_ROWS <= 8, or Q_ROWS a multiple of 8   (ROWS_PER_THREAD is 8 above 8 rows)
 //   * Q_ROWS <= 64                             (WG_THREADS <= HEAD_SIZE/REG_K = 8 marshal chunks)
@@ -140,6 +149,72 @@ inline int get_small_q_tile_q(int xe_arch, int q_head_chunk_size) {
 inline int get_small_q_wg_threads(int q_head_chunk_size, int tile_q) {
     const int q_rows = std::max(1, q_head_chunk_size) * std::max(1, tile_q);
     return q_rows > 8 ? q_rows / 8 : 1;
+}
+
+// MARSHAL_CHUNKS_C in pa_small_q.cm: HEAD_SIZE / REG_K, with REG_K = SystolicDepth *
+// VNNI_WIDTH = 16 on every arch the kernel builds for.
+inline int get_small_q_marshal_chunks(int head_size) {
+    return std::max(1, head_size / 16);
+}
+
+// A TILE_Q the kernel both accepts and marshals evenly.
+//
+// Legality is the Q_ROWS rule the kernel #errors on. Balance is the extra one: the marshal
+// hands out MARSHAL_CHUNKS_C chunks with a strided `c += MARSHAL_TG` loop, so when
+// WG_THREADS does not divide the chunk count the chunks pile up unevenly and every thread
+// waits on the slowest at the barrier. TILE_Q=6 at GQA-4 is the concrete trap: WG_THREADS=3
+// splits 8 chunks 3/3/2, turning a one-round marshal into three, and marshalling on fewer
+// threads was already measured slower (see pa_small_q.cm MARSHAL_TG). It is *correct* --
+// the strided loop still covers every chunk -- just slower than the rung below it.
+inline bool is_small_q_tile_q_balanced(int q_head_chunk_size, int tile_q, int head_size) {
+    if (tile_q < 1) {
+        return false;
+    }
+    const int q_rows = std::max(1, q_head_chunk_size) * tile_q;
+    if (q_rows > SMALL_Q_MAX_Q_ROWS || (q_rows > 8 && (q_rows % 8) != 0)) {
+        return false;
+    }
+    const int wg_threads = get_small_q_wg_threads(q_head_chunk_size, tile_q);
+    return (get_small_q_marshal_chunks(head_size) % wg_threads) == 0;
+}
+
+// The rung below get_small_q_tile_q, or 0 if there is none. Since WG_THREADS must divide the
+// (power-of-two) chunk count, the balanced rungs are the halvings of the top one: GQA-4 /
+// head 128 gives TILE_Q 16 -> 8 -> 4 -> 2.
+inline int get_small_q_tile_q_alt(int xe_arch, int q_head_chunk_size, int head_size) {
+    const int tile_q_max = get_small_q_tile_q(xe_arch, q_head_chunk_size);
+    for (int tile_q = tile_q_max - 1; tile_q >= 1; --tile_q) {
+        if (is_small_q_tile_q_balanced(q_head_chunk_size, tile_q, head_size)) {
+            return tile_q;
+        }
+    }
+    return 0;
+}
+
+// Pick between the two compiled TILE_Q variants for one batch of small-q q_lens.
+//
+// The alt (smaller) rung wins only when it costs nothing: it must not add a tile to any
+// subsequence -- an extra tile is an extra full marshal of the KV partition, the cost the
+// large TILE_Q was chosen for -- and it must strictly reduce padded rows. So this can only
+// ever delete dummy work, never trade one kind for another. At GQA-4 / head 128 (rungs 16
+// and 8): q_len 6 picks 8, q_len 16 picks 16, q_len 9..15 picks 16 (alt would double the
+// tiles), and a mixed batch of 6 and 16 picks 16.
+inline int pick_small_q_tile_q(int tile_q_max, int tile_q_alt, const std::vector<int>& q_lens) {
+    if (tile_q_alt < 1 || tile_q_alt >= tile_q_max || q_lens.empty()) {
+        return tile_q_max;
+    }
+    size_t tiles_max = 0;
+    size_t tiles_alt = 0;
+    for (const int q_len : q_lens) {
+        if (q_len < 1) {
+            continue;
+        }
+        tiles_max += static_cast<size_t>((q_len + tile_q_max - 1) / tile_q_max);
+        tiles_alt += static_cast<size_t>((q_len + tile_q_alt - 1) / tile_q_alt);
+    }
+    const bool no_extra_tiles = tiles_alt == tiles_max;
+    const bool fewer_padded_rows = tiles_alt * static_cast<size_t>(tile_q_alt) < tiles_max * static_cast<size_t>(tile_q_max);
+    return (no_extra_tiles && fewer_padded_rows) ? tile_q_alt : tile_q_max;
 }
 
 #define FIND_DEBUG_ACC 0
@@ -320,7 +395,12 @@ public:
 // per-partition FA layout but indexes everything by a packed sel_idx.
 class PagedAttentionGeneratorSmallQ : public PagedAttentionGeneratorBase {
 public:
-    PagedAttentionGeneratorSmallQ() : PagedAttentionGeneratorBase("pa_small_q") {}
+    // rung selects which compiled TILE_Q this stage carries: 0 = get_small_q_tile_q,
+    // 1 = get_small_q_tile_q_alt. It is the rung and not the TILE_Q itself because the stage
+    // suffix has to be fixed at construction, where params (and so q_head_chunk_size) are not
+    // available yet; get_jit_constants resolves the concrete value. The suffix keeps the two
+    // variants on distinct entry points so they cannot collide in the kernel cache.
+    explicit PagedAttentionGeneratorSmallQ(int rung = 0) : PagedAttentionGeneratorBase("pa_small_q", "_cm_tq" + std::to_string(rung)), _rung(rung) {}
 
     // pa_small_q wants a *smaller* register file than the other PA kernels. It fits in ~150
     // registers, so 192 is not about spill: at 256 the file allows only 5 threads per XVE,
@@ -343,15 +423,39 @@ public:
     static size_t get_partition_size(const bool has_xattention = false) {
         return PagedAttentionGeneratorSingleToken::get_partition_size(has_xattention);
     }
+
+private:
+    int _rung = 0;
 };
 
 class PagedAttentionGeneratorSmallQFinalization : public PagedAttentionGeneratorBase {
 public:
-    PagedAttentionGeneratorSmallQFinalization() : PagedAttentionGeneratorBase("pa_small_q_finalization") {}
+    // Same rung indexing as PagedAttentionGeneratorSmallQ, and it must be kept in lockstep
+    // with it: pa_small_q writes partials at token_row = tile_idx * TILE_Q + t and this
+    // kernel decomposes token_row by TILE_Q, so the two stages are only ever executed as a
+    // matching pair.
+    explicit PagedAttentionGeneratorSmallQFinalization(int rung = 0)
+        : PagedAttentionGeneratorBase("pa_small_q_finalization", "_cm_tq" + std::to_string(rung)),
+          _rung(rung) {}
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
+
+private:
+    int _rung = 0;
 };
+
+// TILE_Q this stage rung resolves to for `params`, or 0 when the rung does not exist for this
+// shape (only rung 1 can be absent). Shared by both small-q stages so their JIT constants
+// cannot drift apart.
+inline int get_small_q_tile_q_for_rung(const kernel_impl_params& params, int rung) {
+    const auto desc = params.typed_desc<paged_attention>();
+    const int xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
+    const auto sq_partition_size = PagedAttentionGeneratorSmallQ::get_partition_size(desc->has_xattention);
+    const auto chunk = static_cast<int>(get_single_token_q_chunking(params, *desc, sq_partition_size).q_head_chunk_size);
+    const int head_size = static_cast<int>(desc->k_head_size);
+    return rung == 0 ? get_small_q_tile_q(xe_arch, chunk) : get_small_q_tile_q_alt(xe_arch, chunk, head_size);
+}
 
 //-----------------------------------------------------------------------------------------------------------------
 // XAttention Estimate generators

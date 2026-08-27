@@ -14,9 +14,16 @@
  * limitations under the License.
  *******************************************************************************/
 
-#include "cm_qq_bias_mask.hpp"
-
 namespace KERNEL_NAME {
+
+// Included *inside* the namespace, as pa_multi_token.cm does. KERNEL_NAME is the unique
+// entry-point name, so this is what keeps the helpers distinct when the same .cm is
+// instantiated more than once in one translation unit -- which happens whenever two stages
+// share a kernels_cache options bucket (the two TILE_Q rungs, or pa_multi_token's three
+// xattn block sizes). None of these headers are include-guarded, and they must not be: a
+// guard would define the helpers in the first namespace only and leave the later copies
+// unable to find them.
+#include "cm_qq_bias_mask.hpp"
 
 // Experimental sandbox copy of pa_small_q_ov.cm.
 // Keep stability-oriented changes in pa_small_q_ov.cm and stage more invasive

@@ -316,7 +316,19 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         OPENVINO_ASSERT(kernels.size() == 1, "Only the kernels of the single primitive should be allowed.");
         auto& kernel_vec = kernels.begin()->second;
         for (auto& [kernel, sub_kernel_idx] : kernel_vec) {
-            _stages[sub_kernel_idx]->kernel = kernel;
+            // sub_kernel_idx is a position in get_kernels_source(), which walks _order -- it is
+            // *not* a _stages index. The two only coincide while every declared stage is added,
+            // in declaration order; skipping or reordering an add_stage breaks that (and
+            // add_stage also drops a stage silently when get_kernel_data throws). Indexing
+            // _stages directly then assigns kernels to the wrong stages and leaves the tail
+            // ones null, which surfaces as a null Kernel::ptr deref on the first execute.
+            OPENVINO_ASSERT(sub_kernel_idx < _order.size(),
+                            "[GPU] Compiled kernel index ",
+                            sub_kernel_idx,
+                            " is out of range of the ",
+                            _order.size(),
+                            " activated stages.");
+            _stages[_order[sub_kernel_idx]]->kernel = kernel;
         }
     }
 

@@ -623,8 +623,10 @@ JitConstants PagedAttentionGeneratorSmallQ::get_jit_constants(const kernel_impl_
     // TILE_Q packs multiple q-tokens per workgroup; the kernel splits the resulting
     // Q_ROWS = Q_head_chunk_size * TILE_Q rows across WG_THREADS threads that share one
     // marshalled K/V tile through SLM. The helper enforces the legal Q_ROWS values.
-    const int xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
-    const int tile_q = get_small_q_tile_q(xe_arch, static_cast<int>(q_chunking.q_head_chunk_size));
+    // This stage carries one of two compiled rungs; the host picks between them per
+    // inference from the batch's q_lens (pick_small_q_tile_q).
+    const int tile_q = get_small_q_tile_q_for_rung(params, _rung);
+    OPENVINO_ASSERT(tile_q > 0, "pa_small_q stage rung ", _rung, " has no valid TILE_Q for this shape");
     jit.make("TILE_Q", tile_q);
 
     // ONLINE_TILE_STEPS: online-softmax tile granularity. Overridable via env
@@ -672,7 +674,7 @@ Arguments PagedAttentionGeneratorSmallQ::get_arguments_desc(const kernel_impl_pa
 }
 
 DispatchDataFunc PagedAttentionGeneratorSmallQ::get_dispatch_data_func() const {
-    return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+    return DispatchDataFunc{[rung = _rung](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
         OPENVINO_ASSERT(!params.is_dynamic());
         auto& wgs = kd.params.workGroups;
         const auto desc = params.typed_desc<paged_attention>();
@@ -721,13 +723,11 @@ JitConstants PagedAttentionGeneratorSmallQFinalization::get_jit_constants(const 
     jit.make("HEAD_SIZE", desc->k_head_size);
     jit.make("HEADS_NUM", desc->heads_num);
 
-    // Finalization decomposes token_row into (tile_idx, t_in_tile) via TILE_Q,
-    // so TILE_Q must match PagedAttentionGeneratorSmallQ.
-    const auto sq_partition_size = PagedAttentionGeneratorSingleToken::get_partition_size(desc->has_xattention);
-    const auto sq_q_chunking = get_single_token_q_chunking(params, *desc, sq_partition_size);
-    const int xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
-    const int tile_q = get_small_q_tile_q(xe_arch, static_cast<int>(sq_q_chunking.q_head_chunk_size));
-    std::cout << "tile_q = " << tile_q << std::endl;
+    // Finalization decomposes token_row into (tile_idx, t_in_tile) via TILE_Q, so TILE_Q must
+    // match the PagedAttentionGeneratorSmallQ stage of the same rung -- which is why both
+    // resolve it through the one helper.
+    const int tile_q = get_small_q_tile_q_for_rung(params, _rung);
+    OPENVINO_ASSERT(tile_q > 0, "pa_small_q_finalization stage rung ", _rung, " has no valid TILE_Q for this shape");
     jit.make("TILE_Q", tile_q);
     return jit;
 }

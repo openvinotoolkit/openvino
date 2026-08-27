@@ -92,6 +92,9 @@ public:
     Stage::Ptr xattn_estimate_gemmqk_256 = make_stage<XAttentionEstimateGEMMQK>(256);
     Stage::Ptr xattn_estimate_find_block_256 = make_stage<XAttentionEstimateFindBlock>(256);
     Stage::Ptr xattn_estimate_post_proc_256 = make_stage<XAttentionEstimatePostProc>(256);
+    // 2nd small q kernel for runtime wg threads opt
+    Stage::Ptr pa_small_q_alt = make_stage<PagedAttentionGeneratorSmallQ>(1);
+    Stage::Ptr pa_small_q_finalization_alt = make_stage<PagedAttentionGeneratorSmallQFinalization>(1);
 
     PagedAttentionCmImpl() : PrimitiveImplCM(PagedAttentionImplementationManager::get_type_info_static()) {
         m_rt_params = std::make_unique<PagedAttentionRuntimeParams>();
@@ -107,6 +110,12 @@ public:
         add_stage(pa_single_token_finalization, params);
         add_stage(pa_small_q, params);
         add_stage(pa_small_q_finalization, params);
+        if (get_small_q_tile_q_for_rung(params, 1) > 0) {
+            add_stage(pa_small_q_alt, params);
+            add_stage(pa_small_q_finalization_alt, params);
+            GPU_DEBUG_TRACE_DETAIL << "  small-q TILE_Q rungs: " << get_small_q_tile_q_for_rung(params, 0) << " and "
+                                   << get_small_q_tile_q_for_rung(params, 1) << std::endl;
+        }
         add_stage(pa_multi_token_1, params);
         if (desc->has_xattention) {
             add_stage(pa_multi_token_128, params);
@@ -282,7 +291,30 @@ public:
             const auto sq_partition_size = PagedAttentionGeneratorSingleToken::get_partition_size(desc->has_xattention);
             const auto sq_q_chunking = get_single_token_q_chunking(params, *desc, sq_partition_size);
             const int xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
-            const int small_q_tile_q = get_small_q_tile_q(xe_arch, static_cast<int>(sq_q_chunking.q_head_chunk_size));
+            const int sq_chunk = static_cast<int>(sq_q_chunking.q_head_chunk_size);
+            const int tile_q_max = get_small_q_tile_q(xe_arch, sq_chunk);
+
+            // TILE_Q is compiled into the small-q kernel pair, so the rung has to be settled
+            // before anything is counted with it. Pre-scan the small-q q_lens, pick, and let
+            // the loop below count tiles with the value the kernels will actually carry.
+            int small_q_tile_q = tile_q_max;
+            // The alt rung is only pickable if both of its stages were actually activated:
+            // tile_count, the partition buffer size and the dispatch below are all derived from
+            // the value picked here, so picking a TILE_Q whose kernels do not exist would size
+            // the work for one rung and run the other.
+            const bool alt_available = has_stage(pa_small_q_alt) && has_stage(pa_small_q_finalization_alt);
+            if (use_split_mixed && alt_available) {
+                const int tile_q_alt = get_small_q_tile_q_alt(xe_arch, sq_chunk, static_cast<int>(desc->k_head_size));
+                std::vector<int> small_q_lens;
+                for (size_t seq_id = 0; seq_id + 1 < subsequence_begins.size(); ++seq_id) {
+                    const auto q_len = std::max<int32_t>(subsequence_begins[seq_id + 1] - subsequence_begins[seq_id], 0);
+                    const auto past_len = std::max<int32_t>(past_lens[seq_id], 0);
+                    if (q_len > 1 && q_len <= static_cast<int32_t>(SMALL_Q_THRESHOLD) && past_len > 0) {
+                        small_q_lens.push_back(q_len);
+                    }
+                }
+                small_q_tile_q = pick_small_q_tile_q(tile_q_max, tile_q_alt, small_q_lens);
+            }
             rt_params->small_q_tile_q = small_q_tile_q;
 
             for (size_t subsequence_id = 0; subsequence_id + 1 < subsequence_begins.size(); ++subsequence_id) {
@@ -609,8 +641,24 @@ public:
                     res_event = {execute_stage(res_event, instance, pa_single_token_finalization)};
                 }
                 if (rt_params->small_q_token_count > 0) {
-                    res_event = {execute_stage(res_event, instance, pa_small_q)};
-                    res_event = {execute_stage(res_event, instance, pa_small_q_finalization)};
+                    // Both stages of the pair must carry the TILE_Q update_rt_params picked:
+                    // pa_small_q writes partials at tile_idx * TILE_Q + t and finalization
+                    // decomposes token_row by TILE_Q.
+                    // has_stage() and not just the TILE_Q comparison: add_stage() drops a stage
+                    // silently if get_kernel_data throws, so a rung whose TILE_Q matches is not
+                    // necessarily a rung that was compiled. Routing to an unactivated stage
+                    // reaches execute_stage with a null Kernel::ptr.
+                    const bool use_alt_tile_q =
+                        has_stage(pa_small_q_alt) && rt_params->small_q_tile_q == get_small_q_tile_q_for_rung(params, 1);
+                    OPENVINO_ASSERT(use_alt_tile_q || rt_params->small_q_tile_q == get_small_q_tile_q_for_rung(params, 0),
+                                    "No compiled pa_small_q stage for TILE_Q=",
+                                    rt_params->small_q_tile_q);
+                    Stage::Ptr& small_q = use_alt_tile_q ? pa_small_q_alt : pa_small_q;
+                    Stage::Ptr& small_q_finalization = use_alt_tile_q ? pa_small_q_finalization_alt : pa_small_q_finalization;
+                    GPU_DEBUG_TRACE_DETAIL << "Execute small-q stage with TILE_Q=" << rt_params->small_q_tile_q << " (rung " << (use_alt_tile_q ? 1 : 0)
+                                           << ")" << std::endl;
+                    res_event = {execute_stage(res_event, instance, small_q)};
+                    res_event = {execute_stage(res_event, instance, small_q_finalization)};
                 }
                 execute_multi_token_path();
             } else {
