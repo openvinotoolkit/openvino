@@ -18,9 +18,9 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/op.hpp"
 #include "openvino/op/paged_selective_ssm.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
@@ -35,23 +35,12 @@ struct PagedGraph {
     ov::ParameterVector computation_parameters;
 };
 
-class I64MetadataExtension : public ov::op::Op {
-public:
-    OPENVINO_OP("I64MetadataExtension");
-
-    I64MetadataExtension() {
-        constructor_validate_and_infer_types();
-    }
-
-    void validate_and_infer_types() override {
-        set_output_type(0, ov::element::i64, ov::PartialShape{-1});
-    }
-
-    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override {
-        check_new_args_count(this, new_args);
-        return std::make_shared<I64MetadataExtension>();
-    }
-};
+std::shared_ptr<ov::op::util::FrameworkNode> make_i64_metadata_extension() {
+    auto extension = std::make_shared<ov::op::util::FrameworkNode>(ov::OutputVector{});
+    extension->set_output_type(0, ov::element::i64, ov::PartialShape{-1});
+    extension->cache_output_descriptor();
+    return extension;
+}
 
 PagedGraph make_paged_graph(const MetadataInputs& metadata) {
     auto A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4});
@@ -78,7 +67,7 @@ void run_cpu_i64_conversion(const std::shared_ptr<ov::Model>& model) {
 }
 
 TEST(PreservePagedSelectiveSSMMetadataPrecisionTest, KeepsUnknownExtensionOutputI64) {
-    auto metadata = std::make_shared<I64MetadataExtension>();
+    auto metadata = make_i64_metadata_extension();
     MetadataInputs metadata_inputs;
     metadata_inputs.fill(metadata);
     auto graph = make_paged_graph(metadata_inputs);
