@@ -1,0 +1,132 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <gtest/gtest.h>
+
+#include <cstdint>
+#include <memory>
+#include <vector>
+
+#include "npuw_transformations/insert_vocab_sub128.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "partitioning/patterns/opt.hpp"
+
+namespace {
+
+std::shared_ptr<ov::Model> make_gather_model(bool mark_sub128) {
+    auto ids = std::make_shared<ov::opset10::Parameter>(ov::element::i32, ov::Shape{1});
+    auto weights = ov::opset10::Constant::create(ov::element::u8, ov::Shape{4, 2}, std::vector<uint8_t>(8, 200));
+    auto zero_point = ov::opset10::Constant::create(ov::element::u8, ov::Shape{4, 1}, std::vector<uint8_t>(4, 128));
+    auto scale = ov::opset10::Constant::create(ov::element::f16, ov::Shape{4, 1}, std::vector<float>(4, 1.0f));
+    auto axis = ov::opset10::Constant::create(ov::element::i32, ov::Shape{}, {0});
+
+    auto weight_convert = std::make_shared<ov::opset10::Convert>(weights, ov::element::f16);
+    auto zero_point_convert = std::make_shared<ov::opset10::Convert>(zero_point, ov::element::f16);
+    auto shift = ov::opset10::Constant::create(ov::element::f16, ov::Shape{}, {128.0f});
+    auto shifted_weight = std::make_shared<ov::opset10::Subtract>(weight_convert, shift);
+    auto shifted_zero_point = std::make_shared<ov::opset10::Subtract>(zero_point_convert, shift);
+    if (mark_sub128) {
+        ov::npuw::vocab_sub128::mark(shifted_weight);
+        ov::npuw::vocab_sub128::mark(shifted_zero_point);
+    }
+
+    auto dequantized = std::make_shared<ov::opset10::Subtract>(shifted_weight, shifted_zero_point);
+    auto scaled = std::make_shared<ov::opset10::Multiply>(dequantized, scale);
+    auto converted = std::make_shared<ov::opset10::Convert>(scaled, ov::element::f32);
+    auto gathered = std::make_shared<ov::opset10::Gather>(converted, ids, axis);
+    auto result = std::make_shared<ov::opset10::Result>(gathered);
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{ids});
+}
+
+std::size_t count_gathers(const std::shared_ptr<ov::Model>& model) {
+    std::size_t count = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (ov::is_type<ov::opset10::Gather>(node)) {
+            ++count;
+        }
+    }
+    return count;
+}
+
+bool run_lift(const std::shared_ptr<ov::Model>& model) {
+    ov::pass::GraphRewrite rewrite;
+    rewrite.add_matcher<ov::npuw::patterns::opt::DQLiftGatherAsymCW>();
+    return rewrite.run_on_model(model);
+}
+
+std::shared_ptr<ov::Model> make_parameter_gather_model(bool mark_sub128) {
+    constexpr std::size_t vocab_size = 4096;
+    constexpr std::size_t hidden_size = 2048;
+    auto ids = std::make_shared<ov::opset10::Parameter>(ov::element::i32, ov::Shape{1, 1});
+    auto weights = std::make_shared<ov::opset10::Parameter>(ov::element::u8, ov::Shape{vocab_size, hidden_size});
+    auto zero_point = std::make_shared<ov::opset10::Parameter>(ov::element::u8, ov::Shape{vocab_size, hidden_size});
+    auto scale = std::make_shared<ov::opset10::Parameter>(ov::element::f16, ov::Shape{vocab_size, hidden_size});
+    auto axis = ov::opset10::Constant::create(ov::element::i32, ov::Shape{}, {0});
+
+    auto gathered_weights = std::make_shared<ov::opset10::Gather>(weights, ids, axis);
+    auto gathered_zero_point = std::make_shared<ov::opset10::Gather>(zero_point, ids, axis);
+    auto gathered_scale = std::make_shared<ov::opset10::Gather>(scale, ids, axis);
+    auto weight_convert = std::make_shared<ov::opset10::Convert>(gathered_weights, ov::element::f16);
+    auto zero_point_convert = std::make_shared<ov::opset10::Convert>(gathered_zero_point, ov::element::f16);
+    auto shift = ov::opset10::Constant::create(ov::element::f16, ov::Shape{}, {128.0f});
+    auto shifted_weight = std::make_shared<ov::opset10::Subtract>(weight_convert, shift);
+    auto shifted_zero_point = std::make_shared<ov::opset10::Subtract>(zero_point_convert, shift);
+    if (mark_sub128) {
+        ov::npuw::vocab_sub128::mark(shifted_weight);
+        ov::npuw::vocab_sub128::mark(shifted_zero_point);
+    }
+
+    auto dequantized = std::make_shared<ov::opset10::Subtract>(shifted_weight, shifted_zero_point);
+    auto scaled = std::make_shared<ov::opset10::Multiply>(dequantized, gathered_scale);
+    auto converted = std::make_shared<ov::opset10::Convert>(scaled, ov::element::f16);
+    auto result = std::make_shared<ov::opset10::Result>(converted);
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{ids, weights, zero_point, scale});
+}
+
+bool run_unpack(const std::shared_ptr<ov::Model>& model) {
+    ov::npuw::patterns::opt::Context context;
+    ov::pass::GraphRewrite rewrite;
+    rewrite.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatheru>(std::ref(context));
+    return rewrite.run_on_model(model);
+}
+
+bool run_host_gather(const std::shared_ptr<ov::Model>& model) {
+    ov::npuw::patterns::opt::Context context;
+    ov::pass::GraphRewrite rewrite;
+    rewrite.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm<>>(std::ref(context));
+    return rewrite.run_on_model(model);
+}
+
+}  // namespace
+
+TEST(DQLiftGatherAsymCWTest, LiftsPairedMarkedSub128Shifts) {
+    const auto model = make_gather_model(true);
+
+    EXPECT_TRUE(run_lift(model));
+    EXPECT_EQ(count_gathers(model), 3);
+}
+
+TEST(DQLiftGatherAsymCWTest, RejectsUnmarkedSubtractions) {
+    const auto model = make_gather_model(false);
+
+    EXPECT_FALSE(run_lift(model));
+    EXPECT_EQ(count_gathers(model), 1);
+}
+
+TEST(DQUnpackDictGatheruTest, AcceptsPairedMarkedSub128Shifts) {
+    EXPECT_TRUE(run_unpack(make_parameter_gather_model(true)));
+}
+
+TEST(DQUnpackDictGatheruTest, RejectsUnmarkedSubtractions) {
+    EXPECT_FALSE(run_unpack(make_parameter_gather_model(false)));
+}
+
+TEST(HostGatherQuantAsymmTest, AcceptsPairedMarkedSub128Shifts) {
+    EXPECT_TRUE(run_host_gather(make_parameter_gather_model(true)));
+}
+
+TEST(HostGatherQuantAsymmTest, RejectsUnmarkedSubtractions) {
+    EXPECT_FALSE(run_host_gather(make_parameter_gather_model(false)));
+}

@@ -6,6 +6,7 @@
 
 #include "../../logging.hpp"
 #include "../../util.hpp"
+#include "../../npuw_transformations/insert_vocab_sub128.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
@@ -1079,7 +1080,9 @@ DQLiftGatherAsymCW::DQLiftGatherAsymCW() {
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
-    auto qsubz = opp::wrap_type<ov::op::v1::Subtract>({qcvtw, qcvtz});
+    auto qshiftw = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0)});
+    auto qshiftz = opp::optional<ov::op::v1::Subtract>({qcvtz->output(0)});
+    auto qsubz = opp::wrap_type<ov::op::v1::Subtract>({qshiftw, qshiftz});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsubz, qcoeff});
     auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
 
@@ -1097,6 +1100,15 @@ DQLiftGatherAsymCW::DQLiftGatherAsymCW() {
         auto matched_out_s = node_to_output.at(qcoeff);
         auto matched_out_ids = uat::_(node_to_output).at_or_at(cvtids, pids);
         const auto& matched_out_gather = node_to_output.at(gather);
+
+        if (node_to_output.count(qshiftw) != node_to_output.count(qshiftz)) {
+            return false;
+        }
+        if (node_to_output.count(qshiftw) &&
+            (!ov::npuw::vocab_sub128::is_marked(node_to_output.at(qshiftw).get_node_shared_ptr()) ||
+             !ov::npuw::vocab_sub128::is_marked(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
+            return false;
+        }
 
         // Replicate the compute part
         auto gather_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
@@ -1281,7 +1293,9 @@ DQUnpackDictGatheru::DQUnpackDictGatheru(Context::Ref ctx) {
 
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qgthrw});
     auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qgthrz});
-    auto qsubz = opp::wrap_type<ov::op::v1::Subtract>({qcvtw, qcvtz});
+    auto qshiftw = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0)});
+    auto qshiftz = opp::optional<ov::op::v1::Subtract>({qcvtz->output(0)});
+    auto qsubz = opp::wrap_type<ov::op::v1::Subtract>({qshiftw, qshiftz});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsubz, qgthrs});
     auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
 
@@ -1294,6 +1308,15 @@ DQUnpackDictGatheru::DQUnpackDictGatheru(Context::Ref ctx) {
         auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
         auto matched_out_ids = uat::_(node_to_output).at_or_at(cvtids, pids);
         auto matched_node_cvt = node_to_output.at(qcvtm).get_node_shared_ptr();
+
+        if (node_to_output.count(qshiftw) != node_to_output.count(qshiftz)) {
+            return false;
+        }
+        if (node_to_output.count(qshiftw) &&
+            (!ov::npuw::vocab_sub128::is_marked(node_to_output.at(qshiftw).get_node_shared_ptr()) ||
+             !ov::npuw::vocab_sub128::is_marked(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
+            return false;
+        }
 
         auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
         auto matched_qzerop = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qzerop);
@@ -1380,7 +1403,9 @@ HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_
 
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qgthrw});
     auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qgthrz});
-    auto qsubz = opp::wrap_type<ov::op::v1::Subtract>({qcvtw, qcvtz});
+    auto qshiftw = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0)});
+    auto qshiftz = opp::optional<ov::op::v1::Subtract>({qcvtz->output(0)});
+    auto qsubz = opp::wrap_type<ov::op::v1::Subtract>({qshiftw, qshiftz});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsubz, qgthrs});
     auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
 
@@ -1389,6 +1414,15 @@ HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_
         auto& node_to_output = m.get_pattern_value_map();
         const auto& matched_out_mul = node_to_output.at(qmuls);
         auto out_shape = matched_out_mul.get_shape();
+
+        if (node_to_output.count(qshiftw) != node_to_output.count(qshiftz)) {
+            return false;
+        }
+        if (node_to_output.count(qshiftw) &&
+            (!ov::npuw::vocab_sub128::is_marked(node_to_output.at(qshiftw).get_node_shared_ptr()) ||
+             !ov::npuw::vocab_sub128::is_marked(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
+            return false;
+        }
 
         if (out_shape.size() != 3 && out_shape.size() != 4) {
             return false;
