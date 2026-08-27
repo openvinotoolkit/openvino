@@ -561,14 +561,15 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::rotaryEmbe
     const bool is_partial_rotary = rotary_dim_val < head_size_val;
 
     ov::Output<ov::Node> rotary_input = input;
-    ov::Output<ov::Node> pass_through;
     if (is_partial_rotary) {
-        const auto part_split_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
-        const auto part_split_lengths =
-            v0::Constant::create(ov::element::i64, ov::Shape{2}, {rotary_dim_val, head_size_val - rotary_dim_val});
-        auto parts = register_new_node<v1::VariadicSplit>(input, part_split_axis, part_split_lengths)->outputs();
-        rotary_input = parts[0];
-        pass_through = parts[1];
+        // Slice out only the leading rotary_dim channels to feed the RoPE math below; the trailing
+        // pass-through channels are never materialized as a separate tensor - re-attaching them later is a
+        // ScatterUpdate into the original `input`, not a Concat (avoids holding a live pass_through copy).
+        const auto slice_start = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+        const auto slice_stop = v0::Constant::create(ov::element::i64, ov::Shape{1}, {rotary_dim_val});
+        const auto slice_step = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+        const auto slice_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+        rotary_input = register_new_node<v8::Slice>(input, slice_start, slice_stop, slice_step, slice_axis);
     }
 
     // Unsqueeze cos/sin to 4D [1, 1, seqlen, head_size/2] to match RoPE fusion pattern
@@ -628,8 +629,14 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::rotaryEmbe
     }
 
     if (is_partial_rotary) {
-        // Re-attach the untouched tail channels beyond rotary_dim.
-        output = register_new_node<v0::Concat>(ov::OutputVector{output, pass_through}, -1);
+        // Scatter the rotated channels back into `input` at [0, rotary_dim); channels beyond rotary_dim
+        // are left untouched since they were never sliced out.
+        const auto zero_s = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+        const auto one_s = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+        const auto rotary_dim_scalar = v0::Constant::create(ov::element::i64, ov::Shape{}, {rotary_dim_val});
+        const auto scatter_indices = register_new_node<v4::Range>(zero_s, rotary_dim_scalar, one_s, ov::element::i64);
+        const auto scatter_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+        output = register_new_node<v3::ScatterUpdate>(input, scatter_indices, output, scatter_axis);
     }
 
     return output.get_node_shared_ptr();

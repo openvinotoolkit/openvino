@@ -237,8 +237,20 @@ TEST_P(GroupQueryAttentionDecompositionTest, decomposes_to_sdpa) {
         }
     }
 
-    // The windowed rolling cache assembles the present buffer with ScatterUpdate; other paths do not.
-    EXPECT_EQ(count_ops_of_type<op::v3::ScatterUpdate>(model) > 0u, p.expects_scatter_update);
+    // The windowed rolling / static-cache paths assemble the present buffer with a ScatterUpdate along the
+    // sequence axis (2); other cache paths do not. (Partial rotary also emits an unrelated ScatterUpdate to
+    // re-attach pass-through channels along the last (channel) axis - filter cache writes by scatter axis.)
+    bool has_cache_scatter_update = false;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (auto su = as_type_ptr<op::v3::ScatterUpdate>(op)) {
+            auto axis_const = as_type_ptr<op::v0::Constant>(su->get_input_node_shared_ptr(3));
+            if (axis_const && axis_const->cast_vector<int64_t>() == std::vector<int64_t>{2}) {
+                has_cache_scatter_update = true;
+                break;
+            }
+        }
+    }
+    EXPECT_EQ(has_cache_scatter_update, p.expects_scatter_update);
 }
 
 INSTANTIATE_TEST_SUITE_P(GroupQueryAttentionDecomposition,
