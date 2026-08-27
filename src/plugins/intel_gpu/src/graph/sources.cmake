@@ -238,6 +238,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/include/tile_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/to_string_utils.h
     ${CMAKE_CURRENT_LIST_DIR}/include/tp_allreduce_inst.h
+    ${CMAKE_CURRENT_LIST_DIR}/include/tp_gather_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/unique_inst.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/variable.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/vl_sdpa_inst.h
@@ -364,6 +365,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/registry/strided_slice_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/tile_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/tp_allreduce_impls.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/registry/tp_gather_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/vl_sdpa_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/reorder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/reorg_yolo.cpp
@@ -402,6 +404,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/tile.cpp
     ${CMAKE_CURRENT_LIST_DIR}/topology.cpp
     ${CMAKE_CURRENT_LIST_DIR}/tp_allreduce.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/tp_gather.cpp
     ${CMAKE_CURRENT_LIST_DIR}/unique.cpp
     ${CMAKE_CURRENT_LIST_DIR}/vl_sdpa.cpp
 )

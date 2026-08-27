@@ -116,27 +116,6 @@ void erase_tp_keys(ov::AnyMap& config) {
     config.erase(communication_timeout_ms.name());
 }
 
-/// \brief Turns off dynamic quantization unless the caller asked otherwise.
-///
-/// DQ (DynamicQuantize) + oneDNN FC produces shape-dependent results: TP
-/// shards FC weights, changing K (row-parallel) and N (column-parallel)
-/// dimensions. oneDNN's internal BRGEMM kernel uses different tiling for
-/// different shapes, altering the i8*i4 accumulation order. At seq_len >= 80
-/// the BRGEMM JIT kernel switches, causing max_abs_diff to jump from ~0.04 to
-/// >1.0 -- unacceptable for LLM inference.
-///
-/// Disabling DQ (group_size=0) while keeping oneDNN enabled gives f16 FC with
-/// ~0.04 max_abs_diff, which is acceptable.
-///
-/// Import applies the same default: the rank blobs were produced under it, and
-/// the GPU plugin validates the import config against what it recorded.
-void apply_rank_defaults(ov::AnyMap& config) {
-    auto dq_key = ov::hint::dynamic_quantization_group_size.name();
-    if (config.find(dq_key) == config.end()) {
-        config[dq_key] = (uint64_t)0;
-    }
-}
-
 /// \brief Read-only, seekable stream over an already materialized blob.
 ///
 /// `import_model(ov::Tensor)` hands us the whole blob in memory. The rank
@@ -291,10 +270,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     //    The GPU plugin handles TPAllReduce as a CPU-fallback primitive that
     //    synchronizes via the shared coordinator object.
 
-    apply_rank_defaults(config);
-
     auto sharding_plan = GraphRewriter::analyze(model);
-    int num_collectives = GraphRewriter::count_collectives(sharding_plan);
+    int num_collectives = GraphRewriter::count_collectives(sharding_plan, static_cast<int>(tp_degree));
 
     if (std::getenv("TP_PROF") != nullptr) {
         const auto column_count = sharding_plan.linears.size() - static_cast<size_t>(num_collectives);
@@ -505,7 +482,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_blob(std::istream& blob, cons
     // The TP container is what we are reading right now. Forwarding it would
     // make the GPU plugin try to import the outer blob instead of its own.
     config.erase(ov::hint::compiled_blob.name());
-    apply_rank_defaults(config);
 
     // ---- Header ----
     char blob_magic[sizeof(tp_blob::magic)] = {};

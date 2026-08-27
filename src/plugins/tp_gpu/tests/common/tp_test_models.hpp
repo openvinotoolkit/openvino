@@ -196,6 +196,21 @@ inline std::shared_ptr<ov::Model> make_transformer_block(const BlockConfig& conf
     return std::make_shared<ov::Model>(ov::OutputVector{result}, sinks, ov::ParameterVector{data}, "TPTestBlock");
 }
 
+/// The same block, ending the way a full language model ends: the last hidden
+/// state goes straight into a projection over the vocabulary and from there
+/// into the only Result.  Nothing sits in between, which is the shape the
+/// rewriter accepts for splitting the projection across ranks.
+inline std::shared_ptr<ov::Model> make_block_with_lm_head(const BlockConfig& config, size_t vocab) {
+    auto block = make_transformer_block(config);
+    auto hidden = block->get_results()[0]->input_value(0);
+    auto logits = make_projection(hidden, config.hidden, vocab, config, /*with_bias=*/false, /*seed=*/8);
+    logits->set_friendly_name("lm_head");
+    return std::make_shared<ov::Model>(ov::OutputVector{logits},
+                                       block->get_sinks(),
+                                       block->get_parameters(),
+                                       "TPTestBlockWithLMHead");
+}
+
 /// The same block with PagedAttention in place of SDPA, laid out the way
 /// `SDPAToPagedAttention` leaves a converted model.
 ///

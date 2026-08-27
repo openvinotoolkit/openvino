@@ -1869,6 +1869,188 @@ void TPDeviceCoordinator::fail_collective(bool timed_out, int collective_id, int
     OPENVINO_THROW("[TP][L0] collective ", collective_id, " failed on rank ", rank, " at the ", stage);
 }
 
+void TPDeviceCoordinator::record_gather_rank(Plan& plan, int rank) {
+    const std::size_t elem = plan.dtype.size();
+    const std::size_t slice_bytes = checked_multiply(plan.slice_elems, elem, "gather slice");
+    const std::size_t full_bytes =
+        checked_multiply(slice_bytes, static_cast<std::size_t>(m_world_size), "gather row");
+
+    // A rank's slice is contiguous in its own buffer but strided in the
+    // root's: every row of the destination holds world_size slices side by
+    // side, and this rank owns one column band of it.  One region copy
+    // expresses that; the alternative is `rows` separate transfers, which at
+    // prompt length is hundreds of driver calls for the same bytes.
+    OPENVINO_ASSERT(full_bytes <= std::numeric_limits<uint32_t>::max(),
+                    "[TP][L0] gather row of ", full_bytes,
+                    " bytes exceeds the pitch a Level Zero region copy can express");
+    OPENVINO_ASSERT(plan.rows <= std::numeric_limits<uint32_t>::max(),
+                    "[TP][L0] gather of ", plan.rows, " rows exceeds the region copy height");
+
+    ze_copy_region_t dst_region{};
+    dst_region.originX = static_cast<uint32_t>(static_cast<std::size_t>(rank) * slice_bytes);
+    dst_region.originY = 0;
+    dst_region.originZ = 0;
+    dst_region.width   = static_cast<uint32_t>(slice_bytes);
+    dst_region.height  = static_cast<uint32_t>(plan.rows);
+    dst_region.depth   = 1;
+
+    ze_copy_region_t src_region{};
+    src_region.originX = 0;
+    src_region.originY = 0;
+    src_region.originZ = 0;
+    src_region.width   = static_cast<uint32_t>(slice_bytes);
+    src_region.height  = static_cast<uint32_t>(plan.rows);
+    src_region.depth   = 1;
+
+    ze_command_list_handle_t list = plan.compute_lists[rank];
+    ZE_THROW(ze_api()->zeCommandListAppendMemoryCopyRegion(
+        list,
+        plan.out_ptrs[0],
+        &dst_region,
+        static_cast<uint32_t>(full_bytes),
+        0,
+        plan.in_ptrs[rank],
+        &src_region,
+        static_cast<uint32_t>(slice_bytes),
+        0,
+        nullptr,
+        0,
+        nullptr));
+
+    close_list(list);
+}
+
+void TPDeviceCoordinator::gather_to_root(int collective_id,
+                                         int rank,
+                                         void* in_dev,
+                                         void* out_dev,
+                                         std::size_t rows,
+                                         std::size_t slice_elems,
+                                         ov::element::Type dtype) {
+    OPENVINO_ASSERT(m_ready, "[TP][L0] coordinator not initialized");
+    OPENVINO_ASSERT(collective_id >= 0 && collective_id < m_num_collectives,
+                    "[TP][L0] collective_id out of range: ", collective_id);
+    OPENVINO_ASSERT(rank >= 0 && rank < m_world_size, "[TP][L0] rank out of range: ", rank);
+    OPENVINO_ASSERT(in_dev != nullptr, "[TP][L0] gather called with a null source on rank ", rank);
+    OPENVINO_ASSERT(rank != 0 || out_dev != nullptr,
+                    "[TP][L0] gather called with a null destination on the root rank");
+    OPENVINO_ASSERT(rows > 0 && slice_elems > 0,
+                    "[TP][L0] gather of an empty slice (rows=", rows, ", slice=", slice_elems, ")");
+    OPENVINO_ASSERT(!m_use_immediate,
+                    "[TP][L0] gather is not implemented on the immediate command list path");
+    throw_if_aborted();
+
+    auto& rdz = *m_rendezvous[collective_id];
+    Plan* const slot = m_plans[collective_id].get();
+
+    // Enter barrier: publish this rank's slice and, on the root, the buffer
+    // everyone writes into.
+    {
+        std::unique_lock<std::mutex> lk(rdz.mtx);
+        rdz.in_ptrs[rank]  = in_dev;
+        rdz.out_ptrs[rank] = out_dev;
+        const uint64_t my_gen = rdz.enter_gen;
+        if (++rdz.arrived == m_world_size) {
+            rdz.arrived = 0;
+            rdz.enter_gen++;
+            rdz.cv.notify_all();
+        } else {
+            const auto outcome = wait_for_condition(lk, rdz.cv, m_collective_timeout, m_aborted,
+                                                    [&] { return rdz.enter_gen != my_gen; });
+            if (outcome != WaitOutcome::ready) {
+                lk.unlock();
+                fail_collective(outcome == WaitOutcome::timed_out, collective_id, rank,
+                                "gather enter barrier");
+            }
+        }
+    }
+
+    struct AbortOnFailure {
+        TPDeviceCoordinator* self;
+        int collective_id;
+        int rank;
+        bool armed{true};
+        ~AbortOnFailure() {
+            if (armed) {
+                self->abort_all("[TP][L0] rank " + std::to_string(rank) +
+                                " failed while gathering collective " +
+                                std::to_string(collective_id));
+            }
+        }
+    } abort_guard{this, collective_id, rank};
+
+    // Rank 0 records for everyone, because a recording needs the root's
+    // destination pointer, which only the barrier above has made visible.
+    if (rank == 0) {
+        OPENVINO_ASSERT(rdz.out_ptrs[0] != nullptr,
+                        "[TP][L0] gather ", collective_id, " has no destination on the root");
+        const bool recorded_matches =
+            slot->matches_gather(rdz.in_ptrs, rdz.out_ptrs, rows, slice_elems, dtype) &&
+            std::all_of(slot->recorded.begin(), slot->recorded.end(),
+                        [](uint8_t v) { return v != 0; });
+        if (!recorded_matches) {
+            slot->kind = Plan::Kind::gather;
+            slot->in_ptrs = rdz.in_ptrs;
+            slot->out_ptrs = rdz.out_ptrs;
+            slot->rows = rows;
+            slot->slice_elems = slice_elems;
+            slot->n = checked_multiply(rows, slice_elems, "gather slice");
+            slot->dtype = dtype;
+            for (int r = 0; r < m_world_size; ++r) {
+                auto& rs = m_ranks[r];
+                if (rs.compute_queue) {
+                    sync_queue(rs.compute_queue, "gather re-record: compute queue drain");
+                }
+                ZE_THROW(ze_api()->zeCommandListReset(slot->compute_lists[r]));
+                record_gather_rank(*slot, r);
+            }
+            std::fill(slot->recorded.begin(), slot->recorded.end(), 1);
+            std::fill(slot->recorded_scratch_generation.begin(),
+                      slot->recorded_scratch_generation.end(), m_scratch.generation);
+        }
+        std::unique_lock<std::mutex> lk(rdz.mtx);
+        rdz.done = true;
+        rdz.cv.notify_all();
+    } else {
+        std::unique_lock<std::mutex> lk(rdz.mtx);
+        const auto outcome = wait_for_condition(lk, rdz.cv, m_collective_timeout, m_aborted,
+                                                [&] { return rdz.done; });
+        if (outcome != WaitOutcome::ready) {
+            lk.unlock();
+            fail_collective(outcome == WaitOutcome::timed_out, collective_id, rank,
+                            "gather record phase");
+        }
+    }
+
+    // Ranks write disjoint columns, so there is nothing to order between them.
+    submit_rank(*slot, rank);
+    sync_rank(*slot, rank);
+    abort_guard.armed = false;
+
+    // Exit barrier: the root must not read its buffer until every slice has
+    // landed, and no rank may re-enter this slot while another is still here.
+    {
+        std::unique_lock<std::mutex> lk(rdz.mtx);
+        const uint64_t my_gen = rdz.exit_gen;
+        if (++rdz.departed == m_world_size) {
+            rdz.departed = 0;
+            rdz.done = false;
+            std::fill(rdz.in_ptrs.begin(), rdz.in_ptrs.end(), nullptr);
+            std::fill(rdz.out_ptrs.begin(), rdz.out_ptrs.end(), nullptr);
+            rdz.exit_gen++;
+            rdz.cv.notify_all();
+        } else {
+            const auto outcome = wait_for_condition(lk, rdz.cv, m_collective_timeout, m_aborted,
+                                                    [&] { return rdz.exit_gen != my_gen; });
+            if (outcome != WaitOutcome::ready) {
+                lk.unlock();
+                fail_collective(outcome == WaitOutcome::timed_out, collective_id, rank,
+                                "gather exit barrier");
+            }
+        }
+    }
+}
+
 void TPDeviceCoordinator::allreduce(int collective_id,                                    int rank,
                                     void* in_dev,
                                     void* out_dev,

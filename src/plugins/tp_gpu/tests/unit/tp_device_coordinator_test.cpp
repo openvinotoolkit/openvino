@@ -210,6 +210,29 @@ void run_collective(TPDeviceCoordinator& coord,
         t.join();
 }
 
+/// Same, for the gather.  Only the root's buffer is written, so the other
+/// ranks pass their own (ignored) destination.
+void run_gather(TPDeviceCoordinator& coord,
+                int collective_id,
+                const std::vector<void*>& ins,
+                const std::vector<void*>& outs,
+                size_t rows,
+                size_t slice_elems,
+                ov::element::Type dtype) {
+    const int ranks = static_cast<int>(ins.size());
+    std::vector<std::thread> threads;
+    threads.reserve(ranks);
+    for (int r = 0; r < ranks; ++r) {
+        threads.emplace_back([&, r] {
+            EXPECT_NO_THROW(
+                coord.gather_to_root(collective_id, r, ins[r], outs[r], rows, slice_elems, dtype))
+                << "rank " << r;
+        });
+    }
+    for (auto& t : threads)
+        t.join();
+}
+
 /// Number of elements differing from `expected` by more than `tolerance`.
 template <typename T>
 size_t count_mismatches(const std::vector<T>& values, float expected, float tolerance) {
@@ -268,6 +291,84 @@ TEST_F(TPDeviceCoordinatorTest, InitTeardownIsStable) {
         EXPECT_TRUE(coord->is_ready()) << "attempt " << attempt;
         coord.reset();
         shared.reset();
+    }
+}
+
+// The gather writes a strided band of the root's buffer, one band per rank.
+// The failure it is meant to catch is a wrong pitch or origin, which shows up
+// as a band landing at the wrong column rather than as garbage, so the check
+// is per element against the exact value that column should hold.
+TEST_F(TPDeviceCoordinatorTest, GatherToRootPlacesEveryRankSlice) {
+    Watchdog watchdog(30);
+    const int ranks = std::min(available_gpus, 4);
+    if (ranks < 2) {
+        GTEST_SKIP() << "needs at least 2 GPUs";
+    }
+
+    auto shared = make_shared_ctx(ranks);
+    auto coord = std::make_shared<TPDeviceCoordinator>(shared, ranks, 1);
+
+    // Deliberately not a round number of rows, and a slice that is not a
+    // multiple of anything convenient.  The value at each position is unique
+    // and stays below 2048, where f16 still counts integers exactly -- above
+    // that its spacing is 2 and the comparison would flag rounding, not
+    // misplacement.
+    constexpr size_t rows = 5;
+    constexpr size_t slice = 48;
+    const size_t full = slice * static_cast<size_t>(ranks);
+
+    std::vector<RankScratch> rs(ranks);
+    for (int r = 0; r < ranks; ++r)
+        rs[r].init(shared->context, shared->devices[r]);
+
+    std::vector<void*> ins(ranks), outs(ranks);
+    for (int r = 0; r < ranks; ++r) {
+        ins[r] = rs[r].alloc(rows * slice * sizeof(ov::float16));
+        outs[r] = rs[r].alloc(rows * full * sizeof(ov::float16));
+    }
+
+    // Rank r, row y, column x carries a value unique to that position, so a
+    // band landing at the wrong column or row is visible as such.
+    auto expected_at = [&](int r, size_t y, size_t x) {
+        return static_cast<float>(r * 256 + static_cast<int>(y) * 48 + static_cast<int>(x));
+    };
+    for (int r = 0; r < ranks; ++r) {
+        std::vector<ov::float16> host(rows * slice);
+        for (size_t y = 0; y < rows; ++y) {
+            for (size_t x = 0; x < slice; ++x) {
+                host[y * slice + x] = ov::float16(expected_at(r, y, x));
+            }
+        }
+        rs[r].copy_from_host(ins[r], host.data(), host.size() * sizeof(ov::float16));
+    }
+
+    std::vector<ov::float16> poison(rows * full, ov::float16(-1.0f));
+    rs[0].copy_from_host(outs[0], poison.data(), poison.size() * sizeof(ov::float16));
+
+    run_gather(*coord, 0, ins, outs, rows, slice, ov::element::f16);
+
+    std::vector<ov::float16> got(rows * full);
+    rs[0].copy_to_host(got.data(), outs[0], got.size() * sizeof(ov::float16));
+
+    size_t wrong = 0;
+    for (int r = 0; r < ranks; ++r) {
+        for (size_t y = 0; y < rows; ++y) {
+            for (size_t x = 0; x < slice; ++x) {
+                const float want = expected_at(r, y, x);
+                const float have = static_cast<float>(got[y * full + r * slice + x]);
+                if (std::fabs(have - want) > 0.5f) {
+                    ++wrong;
+                }
+            }
+        }
+    }
+    EXPECT_EQ(wrong, 0u) << "gathered matrix differs in " << wrong << " of " << (rows * full)
+                         << " elements";
+
+    for (int r = 0; r < ranks; ++r) {
+        ov::zeMemFree(shared->context, ins[r]);
+        ov::zeMemFree(shared->context, outs[r]);
+        rs[r].destroy();
     }
 }
 

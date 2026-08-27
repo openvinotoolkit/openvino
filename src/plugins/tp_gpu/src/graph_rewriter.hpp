@@ -47,6 +47,21 @@ struct ShardingPlan {
     int head_dim = 0;
     int hidden_size = 0;
     int intermediate_size = 0;
+
+    /// The vocabulary projection, when it can be split across ranks.
+    ///
+    /// It sits outside every layer and after the last collective, so the layer
+    /// walk never reaches it -- but it is the single most expensive MatMul in
+    /// a decode step, reading the whole vocabulary weight to produce one row of
+    /// logits.  Splitting it by output feature turns that into 1/world_size of
+    /// the reads per rank, at the price of one gather to collect the slices.
+    ///
+    /// Empty when the model has no such projection, when its vocabulary is not
+    /// divisible by the world size (the gather assumes equal slices), or when
+    /// its shape is not known statically.  In those cases every rank keeps the
+    /// whole projection, as before.
+    std::string lm_head_name;
+    int64_t lm_head_vocab = 0;
 };
 
 /// \brief Analyzes a transformer model and rewrites it for tensor parallelism.
@@ -78,7 +93,14 @@ public:
                                               uint32_t tp_degree);
 
     /// Count how many AllReduce collectives will be created (= number of row-parallel linears).
-    static int count_collectives(const ShardingPlan& plan);
+    static int count_collectives(const ShardingPlan& plan, int tp_degree);
+
+    /// Whether the vocabulary projection is split across `tp_degree` ranks.
+    /// The gather that collects the slices moves an equal band from each rank,
+    /// so an indivisible vocabulary is left replicated rather than special
+    /// cased.  Both the collective count and the rewrite ask this, so they
+    /// cannot disagree about whether the gather exists.
+    static bool shards_lm_head(const ShardingPlan& plan, int tp_degree);
 
     /// Ids of the variables `rewrite` shards along the kv-head axis.
     ///

@@ -87,6 +87,7 @@ void register_implementations() {
     REGISTER_OCL(sparse_fill_empty_rows);
 #ifdef ENABLE_TP_GPU
     REGISTER_OCL(tp_allreduce);
+    REGISTER_OCL(tp_gather);
 #endif
 }
 
