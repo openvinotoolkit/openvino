@@ -18,6 +18,8 @@
 #include "openvino/opsets/opset.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/string_view_streambuf.hpp"
+#include "openvino/xml_util/weights_provider.hpp"
 
 namespace ov::util {
 struct GenericLayerParams;
@@ -48,7 +50,7 @@ void str_to_container<std::vector<std::string>>(const std::string& value, std::v
 class XmlDeserializer : public ov::AttributeVisitor {
 public:
     explicit XmlDeserializer(const pugi::xml_node& node,
-                             const std::shared_ptr<ov::AlignedBuffer>& weights,
+                             const std::shared_ptr<WeightsProvider>& weights_provider,
                              const std::unordered_map<std::string, ov::OpSet>& opsets,
                              const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
                              std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
@@ -77,8 +79,8 @@ protected:
     virtual void set_constant_num_buffer(ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>& adapter);
 
     const pugi::xml_node& get_node() const;
-    const std::shared_ptr<ov::AlignedBuffer>& get_weights() const {
-        return m_weights;
+    const std::shared_ptr<WeightsProvider>& get_weights_provider() const {
+        return m_weights_provider;
     }
 
 private:
@@ -106,10 +108,8 @@ private:
 
     /// \brief Traverses xml node representation in order to create ov function for it.
     /// \param node xml node representation
-    /// \param weights weights attached to current node
     /// \return shared pointer to function representing input node
-    std::shared_ptr<ov::Model> parse_function(const pugi::xml_node& root,
-                                              const std::shared_ptr<ov::AlignedBuffer>& weights);
+    std::shared_ptr<ov::Model> parse_function(const pugi::xml_node& root);
     /// \brief Traverses xml node representation in order to get the purpose attribute of
     /// inputs/outputs in the body of Loop op. \param node xml node representation \return struct
     /// with value of purpuse attribute
@@ -119,7 +119,7 @@ private:
 
     std::shared_ptr<ov::Node> create_node(const ov::OutputVector& inputs,
                                           const pugi::xml_node& node,
-                                          const std::shared_ptr<ov::AlignedBuffer>& weights,
+                                          const std::shared_ptr<ov::util::WeightsProvider>& weights_provider,
                                           const GenericLayerParams& params);
 
     void read_meta_data(const std::shared_ptr<ov::Model>& model, const pugi::xml_node& meta_section);
@@ -130,17 +130,17 @@ private:
 
     virtual std::unique_ptr<XmlDeserializer> make_visitor(
         const pugi::xml_node& node,
-        const std::shared_ptr<ov::AlignedBuffer>& weights,
+        const std::shared_ptr<WeightsProvider>& weights_provider,
         const std::unordered_map<std::string, ov::OpSet>& opsets,
         const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
         std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
         size_t version) const {
-        return std::make_unique<XmlDeserializer>(node, weights, opsets, extensions, variables, version);
+        return std::make_unique<XmlDeserializer>(node, weights_provider, opsets, extensions, variables, version);
     }
 
     // -- DATA --
     const pugi::xml_node m_node;
-    const std::shared_ptr<ov::AlignedBuffer>& m_weights;
+    const std::shared_ptr<WeightsProvider> m_weights_provider;
     const std::unordered_map<std::string, ov::OpSet>& m_opsets;
     const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& m_extensions;
     std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& m_variables;
@@ -150,7 +150,6 @@ private:
     /// it will be used during Inputs/Outputs Description creation in SubGraph processing
     ///
     IoMap io_map;
-
     int64_t m_version;
 };
 

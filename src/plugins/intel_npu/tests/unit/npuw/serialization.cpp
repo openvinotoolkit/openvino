@@ -639,6 +639,30 @@ TEST(SerializationTest, OVTypes_HostFlashAttention) {
     expect_host_flash_attention_equal(var, res);
 }
 
+/**
+ * @brief Raw tile indices deserialize without validation; SIZE_MAX would OOB-index
+ * _compiled_tile_model->inputs() at attn_subgraph.cpp:372/915.
+ */
+TEST(SerializationTest, OVTypes_HostFlashAttention_OOBTileIndexRejected) {
+    using namespace ov::npuw::s11n;
+
+    ov::npuw::compiled::HostFlashAttention var;
+    var._sdpa_attention_info._query_size = 8;
+    var._sdpa_attention_info._context_size = 32;
+    var._sdpa_attention_info._k_seq_dim = 1;
+    var._sdpa_attention_info._v_seq_dim = 2;
+    var._sdpa_attention_info._sdpa_indices = {3, {4}, {5}, 6, 7, 8};
+    var._sdpa_attention_info._tile_input_indices = {9, 10, 11, 12, std::numeric_limits<std::size_t>::max(), 14, 15};
+    var._sdpa_attention_info._tile_output_indices = {0, 1, 2};
+    var._tile_size = 64;
+    var._can_use_tensor_view = true;
+
+    ov::npuw::compiled::HostFlashAttention res;
+    std::stringstream ss;
+    write(ss, var);
+    EXPECT_THROW(read(ss, res), ov::Exception);
+}
+
 TEST(SerializationTest, OVTypes_MoEExperts) {
     using namespace ov::npuw::s11n;
 
@@ -799,6 +823,61 @@ TEST(SerializationTest, OVTypes_Tensor_weightless_bf16_to_f16) {
 
     ASSERT_EQ(res.size(), 1);
     expect_tensors_equal(var, res.front());
+    std::filesystem::remove(file_path);
+}
+
+// The weightless-import mmap path in serialize_weightless() reads `byte_size` and `offset`
+// straight from the (untrusted) stream and then does
+//     std::memcpy(t.data(), ctx.weights->get_ptr(offset), byte_size);
+// without checking either
+//   (a) offset + byte_size <= ctx.weights->size()   (source / mmap over-read), or
+//   (b) byte_size <= t.get_byte_size()               (destination heap over-write).
+// Unlike the sibling consts_cache path (asserts t.get_byte_size() == byte_size) and the
+// bf16 path (asserts the bf16 buffer size), this branch validates neither, so a crafted
+// blob yields out-of-bounds read AND write -> memory corruption.
+//
+// This test crafts such a blob: a 4-byte destination tensor, an 8-byte backing weights
+// file, but byte_size = 64 KiB. Without importer-side validation this may corrupt the heap and crash
+// nondeterministically; with validation in place, read_weightless() is expected to throw (ov::AssertFailure)
+// instead of reaching the memcpy.
+TEST(SerializationTest, OVTypes_Tensor_weightless_mmap_oob_overflow) {
+    using namespace ov::npuw::s11n;
+
+    // Hand-craft the serialized weightless entry in the exact field order the importer
+    // reads it (serialize_weightless, is_weightless branch):
+    //   size, is_initialized, is_weightless, type_str, shape, byte_size, offset
+    std::stringstream ss;
+    write(ss, std::size_t(1));    // one tensor in the vector
+    write(ss, true);              // is_initialized
+    write(ss, true);              // is_weightless
+    write(ss, std::string("u8"));  // element type -> 1 byte / element
+    write(ss, ov::Shape{4});      // destination tensor: 4 bytes only
+    const std::size_t attacker_byte_size = 64 * 1024;  // >> dest (4) and >> weights file (8)
+    write(ss, attacker_byte_size);  // byte_size  (attacker-controlled, unchecked)
+    write(ss, std::size_t(0));    // offset      (attacker-controlled, unchecked)
+
+    // Tiny backing "weights" file: only 8 bytes get mmapped.
+    std::filesystem::path file_path = ov::test::utils::generateTestFilePrefix() + "_npuw_oob_weights.bin";
+    {
+        std::ofstream os(file_path, std::ios::binary);
+        const std::vector<uint8_t> tiny(8, 0xAB);
+        os.write(reinterpret_cast<const char*>(tiny.data()), static_cast<std::streamsize>(tiny.size()));
+    }
+
+    std::vector<ov::Tensor> res;
+    {
+        auto mapped = ov::load_mmap_object(file_path);
+        ASSERT_NE(mapped, nullptr);
+        auto weights = std::make_shared<Weights>(reinterpret_cast<char*>(mapped->data()), mapped->size(), mapped);
+
+        // No bf16 entry and empty consts_cache -> forces the unguarded mmap memcpy branch.
+        WeightsContext import_ctx(weights, file_path.string(), {}, {});
+
+        // memcpy reads 64 KiB from an 8-byte mmap region into a 4-byte tensor:
+        // out-of-bounds READ past the mapping AND out-of-bounds WRITE past the heap tensor.
+        ASSERT_THROW(read_weightless(ss, res, import_ctx), ov::AssertFailure);
+    }
+
     std::filesystem::remove(file_path);
 }
 

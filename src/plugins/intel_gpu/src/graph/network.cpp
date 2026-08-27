@@ -79,18 +79,18 @@ void dump_perf_data_raw(std::string dump_path, bool per_iter_mode, const std::li
     std::ofstream of(dump_path);
     if (of.is_open()) {
         of << perf_raw_csv_header;
-        for (auto& inst : exec_order) {
+        for (const auto& inst : exec_order) {
             auto prim_id = inst->id();
-            auto& perf_data = inst->get_profiling_data();
-            auto& perf_info = inst->get_profiling_info();
+            const auto& perf_data = inst->get_profiling_data();
+            const auto& perf_info = inst->get_profiling_info();
             std::vector<size_t> sorted_entries;
             std::transform(perf_data.begin(), perf_data.end(), std::back_inserter(sorted_entries),
             [](const std::pair<size_t, std::tuple<int64_t, size_t>>& e) {
                 return e.first;
             });
             std::sort(sorted_entries.begin(), sorted_entries.end(), [&](size_t a, size_t b) -> bool {
-                auto& a_info = perf_info.at(a);
-                auto& b_info = perf_info.at(b);
+                const auto& a_info = perf_info.at(a);
+                const auto& b_info = perf_info.at(b);
 
                 if (a_info.stage != b_info.stage) {
                     return static_cast<std::underlying_type<instrumentation::pipeline_stage>::type>(a_info.stage) <
@@ -105,27 +105,27 @@ void dump_perf_data_raw(std::string dump_path, bool per_iter_mode, const std::li
 
                 size_t total_out_size_a = 0;
                 size_t total_out_size_b = 0;
-                for (auto& ol : a_info.output_layouts) {
+                for (const auto& ol : a_info.output_layouts) {
                     total_out_size_a += ol.count();
                 }
-                for (auto& ol : b_info.output_layouts) {
+                for (const auto& ol : b_info.output_layouts) {
                     total_out_size_b += ol.count();
                 }
                 return total_out_size_a < total_out_size_b;
             });
             for (auto& hash : sorted_entries) {
-                auto& key = perf_info.at(hash);
-                auto& entry = perf_data.at(hash);
-                auto& time = std::get<0>(entry);
+                const auto& key = perf_info.at(hash);
+                const auto& entry = perf_data.at(hash);
+                const auto& time = std::get<0>(entry);
                 auto num_iters = per_iter_mode ? key.iteration_num : std::get<1>(entry);
                 int64_t time_avg = per_iter_mode ? time : time / num_iters;
                 std::string net_in_l_str = layouts_to_str(key.network_input_layouts);
                 std::string in_l_str = layouts_to_str(key.input_layouts);
                 std::string out_l_str = layouts_to_str(key.output_layouts);
-                std::string stage_suffix = "";
+                std::string stage_suffix;
                 if (key.cache_hit)
                     stage_suffix += " (cache_hit) ";
-                if (key.memalloc_info != "")
+                if (!key.memalloc_info.empty())
                     stage_suffix += " (" + key.memalloc_info + ") ";
                 of << prim_id << ","
                 << inst->desc()->type_string() << ","
@@ -334,7 +334,7 @@ void network::preallocate_shape_info_buffers() {
     const int alignment = 512;
 
     for (auto const& prim : _exec_order) {
-        auto& node = prim->get_node();
+        const auto& node = prim->get_node();
         int64_t shape_elements = align_to(node.get_total_shape_info_size(), alignment);
         sum += shape_elements;
     }
@@ -346,7 +346,7 @@ void network::preallocate_shape_info_buffers() {
     _shape_info_ptr = engine.allocate_memory(layout{{sum}, data_types::i32, format::bfyx}, false);
     size_t offset = 0;
     for (auto const& prim : _exec_order) {
-        auto& node = prim->get_node();
+        const auto& node = prim->get_node();
         const int64_t shape_elements = node.get_total_shape_info_size();
 
         if (shape_elements == 0)
@@ -366,7 +366,7 @@ void network::set_arguments() {
     for (auto const& prim : _exec_order) {
         if (!prim->is_dynamic()) {
             bool can_set_args = true;
-            for (auto& dep : prim->dependencies()) {
+            for (const auto& dep : prim->dependencies()) {
                 // Skip set args for nodes with dynamic & optimized_out dependency
                 // This is needed to handle dynamic -> static cases like
                 // (dynamic) -> reshape -> (static) -> some_op
@@ -459,7 +459,7 @@ void network::calculate_weights_cache_capacity() {
     size_t total_const_size = 0;
     size_t weights_const_size = 0;
     size_t required_mem_size = 0;
-    for (auto node : _program->get_processing_order()) {
+    for (auto* node : _program->get_processing_order()) {
         if (node->is_type<fully_connected>() || node->is_type<convolution>() || node->is_type<deconvolution>())
             weights_const_size += get_buffer_size(*node);
         else if (node->is_type<data>())
@@ -489,18 +489,18 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
     const auto& mem_orig = p_inst->output_memory_ptr();
 
     auto add_mdata_chain = [&](primitive_inst* p_inst) {
-        auto mdata_ptr = dynamic_cast<mutable_data_inst*>(p_inst);
+        auto* mdata_ptr = dynamic_cast<mutable_data_inst*>(p_inst);
         if (!mdata_ptr)
             return;
         // special handling for mutable data, which can share
         // its attached memory with both its inputs and outputs
-        for (auto& dep : p_inst->dependencies()) {
+        for (const auto& dep : p_inst->dependencies()) {
             // check dependencies
             if (dep.first->outputs_allocated() && mem_orig && eng.is_the_same_buffer(*mem_orig, dep.first->output_memory())) {
                 chain.push_back(const_cast<primitive_inst*>(dep.first));
             }
             // then second order dependencies
-            for (auto& second_dep : dep.first->dependencies()) {
+            for (const auto& second_dep : dep.first->dependencies()) {
                 if (second_dep.first->outputs_allocated() && mem_orig && eng.is_the_same_buffer(*mem_orig, second_dep.first->output_memory())) {
                     chain.push_back(const_cast<primitive_inst*>(second_dep.first));
                 }
@@ -510,7 +510,7 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
         //then users
         const auto& user_ids = mdata_ptr->get_user_ids();
         for (const auto& id : user_ids) {
-            auto usr_prim = get_primitive(id).get();
+            auto* usr_prim = get_primitive(id).get();
             if (usr_prim->outputs_allocated() && mem_orig && eng.is_the_same_buffer(*mem_orig, usr_prim->output_memory())) {
                 chain.push_back(usr_prim);
             }
@@ -526,17 +526,17 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
 
     // find all dependencies that are 'optimized'
     while (!candidates.empty()) {
-        auto cand = candidates.top();
+        const auto* cand = candidates.top();
         candidates.pop();
         // Add cand inst to the chain when cand's output is not allocated yet.
         if (!p_inst->outputs_allocated()
             || (cand->outputs_allocated() && eng.is_the_same_buffer(*mem_orig, cand->output_memory()))) {
-            auto nc_cand = const_cast<primitive_inst*>(cand);
+            auto* nc_cand = const_cast<primitive_inst*>(cand);
             chain.push_back(nc_cand);
             add_mdata_chain(nc_cand);
         }
 
-        for (auto& dep : cand->dependencies()) {
+        for (const auto& dep : cand->dependencies()) {
             if (dep.first->can_be_optimized()) {
                 candidates.push(dep.first);
             } else {
@@ -545,7 +545,7 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
                     // Add dep inst to the chain when dep's output is not allocated yet.
                     if (!p_inst->outputs_allocated()
                         || eng.is_the_same_buffer(*mem_orig, mem_dep)) {
-                        auto nc_dep = const_cast<primitive_inst*>(dep.first);
+                        auto* nc_dep = const_cast<primitive_inst*>(dep.first);
                         chain.push_back(nc_dep);
                         add_mdata_chain(nc_dep);
                     }
@@ -587,7 +587,7 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
 
         ret_ev.push_back(prim->set_output_memory(mem, (!prim->is_dynamic() || !is_remote)));
         if (!_reset_arguments &&
-            (prim->type() != cldnn::data::type_id() && !(prim->type() == cldnn::mutable_data::type_id() && prim->dependencies().empty()))) {
+            (prim->type() != cldnn::data::type_id() && (prim->type() != cldnn::mutable_data::type_id() || !prim->dependencies().empty()))) {
             prim->set_arguments();
         }
     }
@@ -612,15 +612,14 @@ bool network::does_node_need_lockable_output(const primitive_id& id) const {
     if (node.is_type<input_layout>()) {
         for (const auto& user : node.get_users()) {
             const auto& lockable_input_ids = user->get_lockable_input_ids();
-            if (lockable_input_ids.count(user->get_dependency_index(node))) {
+            if (lockable_input_ids.count(user->get_dependency_index(node)) != 0u) {
                 return true;
             }
         }
 
         return false;
-    } else {
-        return prim_inst->get_impl() ? prim_inst->get_impl()->is_cpu() : true;
     }
+    return prim_inst->get_impl() ? prim_inst->get_impl()->is_cpu() : true;
 }
 
 std::string network::get_implementation_info(const primitive_id& id) const {
@@ -633,9 +632,8 @@ std::string network::get_implementation_info(const primitive_id& id) const {
                 if (_program != nullptr) {
                     const auto& node = it->second->get_node();
                     return kernel_name + "__" + dt_to_str(_program->get_inference_precision(node));
-                } else {
-                    return kernel_name;
                 }
+                return kernel_name;
             }
         }
     } catch (...) { }
@@ -657,7 +655,7 @@ layout network::get_output_layout(const primitive_id& output_id) const {
 void network::allocate_primitives() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("allocate_primitives");
     const auto& ao = _program->get_allocating_order();
-    for (auto& node_id : ao) {
+    for (const auto& node_id : ao) {
         allocate_primitive_instance(_program->get_node(node_id));
     }
 
@@ -691,7 +689,7 @@ void network::configure_primitives_second_output() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("configure_primitives_second_output");
     std::map<cldnn::memory::ptr, std::vector<const cldnn::program_node*>> mutable_datas_ptrs;
     for (auto& inst : _primitives) {
-        auto& node = inst.second->get_node();
+        const auto& node = inst.second->get_node();
 
         if (!node.is_type<mutable_data>())
             continue;
@@ -703,10 +701,9 @@ void network::configure_primitives_second_output() {
         if (item.second.size() != 2)
             continue;
 
-        auto is_first_node_input_md = [&](const cldnn::program_node* first,
-                                          const cldnn::program_node* second) {
-            for (auto user : first->get_users()) {
-                for (auto next_user : user->get_users()) {
+        auto is_first_node_input_md = [&](const cldnn::program_node* first, const cldnn::program_node* second) {
+            for (const auto* user : first->get_users()) {
+                for (const auto* next_user : user->get_users()) {
                     if (next_user == second)
                         return true;
                 }
@@ -735,8 +732,8 @@ void network::build_insts_deps() {
 void network::build_exec_order() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("build_exec_order");
     if (!_is_dynamic) {
-        for (auto& node : _program->get_processing_order()) {
-            if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())) {
+        for (const auto& node : _program->get_processing_order()) {
+            if (!node->is_type<data>() && (!node->is_type<mutable_data>() || !node->get_dependencies().empty())) {
                 add_to_exec_order(node->id());
             }
         }
@@ -745,14 +742,15 @@ void network::build_exec_order() {
             return (node->is_dynamic() && node->is_type<concatenation>() && node->can_be_optimized());
         };
         auto is_allowed_pred_for_runtime_optimized_concat = [&](const program_node* node) {
-            return (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty()) &&
+            return (!node->is_type<data>() && (!node->is_type<mutable_data>() || !node->get_dependencies().empty()) &&
                     node->get_users().size() == 1 && is_runtime_optimized_concat(node->get_users().front()));
         };
-        for (auto& node : _program->get_processing_order()) {
-            if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())) {
+        for (const auto& node : _program->get_processing_order()) {
+            if (!node->is_type<data>() && (!node->is_type<mutable_data>() || !node->get_dependencies().empty())) {
                 if (is_allowed_pred_for_runtime_optimized_concat(node)) {
                     continue;
-                } else if (is_runtime_optimized_concat(node)) {
+                }
+                if (is_runtime_optimized_concat(node)) {
                     // For in-place concat applied at runtime, we need to do update_shape for all other predecessors of the concat user.
                     // i.e., We need to make sure that all the preds of them are already updated too.
                     for (auto dep : node->get_dependencies()) {
@@ -769,10 +767,7 @@ void network::build_exec_order() {
 
 bool network::contains_state(const std::string& variable_id) {
     auto it = _state_initializers.find(variable_id);
-    if (it != _state_initializers.end())
-        return true;
-    else
-        return false;
+    return it != _state_initializers.end();
 }
 
 memory& network::get_output_remote_memory(const primitive_id& id) const {
@@ -782,10 +777,7 @@ memory& network::get_output_remote_memory(const primitive_id& id) const {
 
 bool network::has_output_remote_memory_ptr(const primitive_id& id) const {
     auto it = _output_remote_mem_ptrs.find(id);
-    if (it != _output_remote_mem_ptrs.end())
-        return true;
-    else
-        return false;
+    return it != _output_remote_mem_ptrs.end();
 }
 
 void network::reset_output_remote_memory_ptrs() {
@@ -861,10 +853,11 @@ ov::intel_gpu::OutputMemoryBlock* network::get_output_memory_block(const primiti
 }
 
 void network::clear_output_memory_blocks() {
-    for (auto& [prim_id, block_ptr] : _output_memory_blocks) {
+    // Move map out first so _output_memory_blocks is empty even if invalidation throws.
+    auto blocks = std::move(_output_memory_blocks);
+    for (auto& [prim_id, block_ptr] : blocks) {
         invalidate_ext_block_compute_nodes(prim_id);
     }
-    _output_memory_blocks.clear();
 }
 
 void network::add_to_exec_order(const primitive_id& id) {
@@ -1044,10 +1037,10 @@ const program::graph_optimizer_info& network::get_optimizer_passes_info() const 
 
 std::map<primitive_id, primitive_id> network::get_ext_id_mapping() const {
     std::map<primitive_id, primitive_id> result;
-    for (auto& prim : _primitives) {
+    for (const auto& prim : _primitives) {
         result.emplace(prim.first, prim.second->get_node().get_primitive()->origin_op_name);
     }
-    for (auto& opt_id : _program->get_optimized_out()) {
+    for (const auto& opt_id : _program->get_optimized_out()) {
         std::string ext_id = opt_id;
         if (opt_id.find(":") != std::string::npos) {
             ext_id = opt_id.substr(opt_id.find(":") + 1, opt_id.length());
@@ -1094,8 +1087,8 @@ void network::allocate_primitive_instance(program_node const& node) {
     auto inst = node.type()->create_instance(*this, node);
 
     std::function<bool(const program_node&)> is_mutable_input = [&is_mutable_input](const program_node& node) {
-        for (auto& dep : node.get_dependencies()) {
-            const auto dep_node = dep.first;
+        for (const auto& dep : node.get_dependencies()) {
+            auto* const dep_node = dep.first;
             if (dep_node->is_type<input_layout>() || dep_node->is_type<mutable_data>() || (dep_node->is_type<read_value>() && !dep_node->can_be_optimized())) {
                 return true;
             }
