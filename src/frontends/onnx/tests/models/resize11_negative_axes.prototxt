@@ -30,28 +30,17 @@ graph {
     }
   }
   node {
-    output: "axes"
-    op_type: "Constant"
-    attribute {
-      name: "value"
-      t {
-        dims: 2
-        data_type: 7
-        int64_data: -2
-        int64_data: -1
-        name: "const_axes"
-      }
-      type: TENSOR
-    }
-  }
-  node {
     input: "X"
     input: "roi"
     input: "scales"
-    input: ""
-    input: "axes"
     output: "Y"
     op_type: "Resize"
+    attribute {
+      name: "axes"
+      ints: -2
+      ints: -1
+      type: INTS
+    }
     attribute {
       name: "mode"
       s: "nearest"
@@ -63,7 +52,7 @@ graph {
       type: STRING
     }
   }
-  name: "test_resize18_negative_axes"
+  name: "test_resize11_negative_axes"
   input {
     name: "X"
     type {
@@ -95,5 +84,5 @@ graph {
 }
 opset_import {
   domain: ""
-  version: 18
+  version: 11
 }
