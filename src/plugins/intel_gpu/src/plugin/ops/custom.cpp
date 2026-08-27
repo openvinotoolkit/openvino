@@ -49,7 +49,7 @@ public:
         m_values[name] = adapter.get();
     }
     void on_adapter(const std::string& name, ov::ValueAccessor<bool>& adapter) override {
-        m_values[name] = std::to_string(adapter.get());
+        m_values[name] = std::to_string(static_cast<int>(adapter.get()));
     }
     void on_adapter(const std::string& name, ov::ValueAccessor<int64_t>& adapter) override {
         m_values[name] = std::to_string(adapter.get());

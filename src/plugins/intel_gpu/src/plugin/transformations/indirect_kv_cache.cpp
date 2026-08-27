@@ -53,15 +53,14 @@ std::shared_ptr<ov::Node> make_kvcache_indirect(const std::shared_ptr<ov::intel_
                                                             kv_cache_node->get_concat_axis(),
                                                             gather_axis,
                                                             kv_cache_node->get_output_element_type(0));
-    } else {
-        return std::make_shared<ov::intel_gpu::op::KVCache>(gather_input_node,
-                                                            kv_cache_node->input(1).get_source_output(),
-                                                            beam_idx_node,
-                                                            kv_cache_node->get_variable(),
-                                                            kv_cache_node->get_concat_axis(),
-                                                            gather_axis,
-                                                            kv_cache_node->get_output_element_type(0));
     }
+    return std::make_shared<ov::intel_gpu::op::KVCache>(gather_input_node,
+                                                        kv_cache_node->input(1).get_source_output(),
+                                                        beam_idx_node,
+                                                        kv_cache_node->get_variable(),
+                                                        kv_cache_node->get_concat_axis(),
+                                                        gather_axis,
+                                                        kv_cache_node->get_output_element_type(0));
 }
 
 }  // namespace
