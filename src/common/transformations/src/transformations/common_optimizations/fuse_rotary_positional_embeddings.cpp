@@ -112,7 +112,7 @@ RoPEFusionFlux::RoPEFusionFlux(bool num_heads_transposed) {
 
     auto x1 = pattern::wrap_type<opset1::Reshape>({x, pattern::any_input()},
                                                   pattern::shape_matches("[" + num_heads_pattern + ", ?, 2]"));
-    auto split = pattern::wrap_type_strict<opset1::Split>(2, {x1, -1}, {{"num_splits", 2}});
+    auto split = pattern::wrap_type_strict<opset1::Split>({x1, -1}, {{"num_splits", 2}});
 
     // 3 versions of mulitply by -1 depending on transformations execution prior to this pass
     auto opt_squeeze = pattern::optional<opset1::Squeeze>({split->output(1), -1});
@@ -192,7 +192,7 @@ RoPEFusionGPTNEOX::RoPEFusionGPTNEOX(int rank) {
     auto x_or_cos2 = pattern::any_input(pattern::rank_equals(rank));
     auto t_sin = pattern::any_input(pattern::rank_equals(rank));
 
-    auto varsplit = pattern::wrap_type_strict<v1::VariadicSplit>(2, {x, rank - 1, {"half_ndims", "?"}});
+    auto varsplit = pattern::wrap_type_strict<v1::VariadicSplit>({x, rank - 1, {"half_ndims", "?"}});
 
     auto int32_max = std::numeric_limits<std::int32_t>::max();
 
@@ -345,7 +345,7 @@ RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
     MATCHER_SCOPE(RoPEFusionIOSlicing);
     auto int32_max = std::numeric_limits<std::int32_t>::max();
     auto data = pattern::any_input(pattern::rank_equals(4));
-    auto varsplit = pattern::wrap_type_strict<v1::VariadicSplit>(2, {data, 3, {"ndims", "?"}});
+    auto varsplit = pattern::wrap_type_strict<v1::VariadicSplit>({data, 3, {"ndims", "?"}});
 
     auto x = op_util::NewGenSlice(data, 0, "ndims", 1, 3);
     auto y = op_util::NewGenSlice(data, "ndims", int32_max, 1, 3);
@@ -463,15 +463,14 @@ RoPEFusionGPTJ::RoPEFusionGPTJ() {
     MATCHER_SCOPE(RoPEFusionGPTJ);
 
     auto gather_sin_cos = pattern::any_input(pattern::type_matches(ov::element::f32));
-    auto varsplit = pattern::wrap_type_strict<opset1::VariadicSplit>(2, {gather_sin_cos, -1, {"ndims/2", "-1"}});
+    auto varsplit = pattern::wrap_type_strict<opset1::VariadicSplit>({gather_sin_cos, -1, {"ndims/2", "-1"}});
     auto repeat_interleave_sin = repeat_interleave_pattern(varsplit->output(0));
     auto repeat_interleave_cos = repeat_interleave_pattern(varsplit->output(1));
 
     auto view_Reshape = pattern::any_input(pattern::rank_equals(4));
     auto slice_Slice_965 = op_util::NewGenSlice(view_Reshape, 0, "ndims", 1, 3);
     // view_Reshape : B,L,H,S
-    auto varsplit_view_Reshape =
-        pattern::wrap_type_strict<opset1::VariadicSplit>(2, {view_Reshape, 3, {"ndims", "end"}});
+    auto varsplit_view_Reshape = pattern::wrap_type_strict<opset1::VariadicSplit>({view_Reshape, 3, {"ndims", "end"}});
     // x interleave (-x[:,:,:, 1::2], x[:,:,:, 0::2])
     auto slice_Slice_1174 = op_util::NewGenSlice(slice_Slice_965 | varsplit_view_Reshape->output(0), 1, INT_MAX, 2, 3);
 
@@ -612,7 +611,7 @@ RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
     }
 
     auto slice0 = op_util::NewGenSlice(input_key, 0, "ndims", 1, 3);
-    auto var_split0 = pattern::wrap_type_strict<v1::VariadicSplit>(2, {input_key, 3, {"ndims", "end"}});
+    auto var_split0 = pattern::wrap_type_strict<v1::VariadicSplit>({input_key, 3, {"ndims", "end"}});
 
     // rotate half
     std::shared_ptr<ov::Node> reshape0 = nullptr;
@@ -635,7 +634,7 @@ RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
     auto x_even = pattern::wrap_type<v8::Gather>({reshape0, 0, -1}, {{"batch_dims", 0}});
     auto x_odd = pattern::wrap_type<v8::Gather>({reshape0, 1, -1}, {{"batch_dims", 0}});
 
-    auto var_split1 = pattern::wrap_type_strict<v1::VariadicSplit>(2, {cos_sin_cache, 0, {"0", "end"}});
+    auto var_split1 = pattern::wrap_type_strict<v1::VariadicSplit>({cos_sin_cache, 0, {"0", "end"}});
 
     std::shared_ptr<ov::Node> reshape1 = nullptr;
     if (support_2d_rope) {
@@ -795,8 +794,7 @@ RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
                                                    pattern::shape_matches("[?, head_cnt, 1, head_size]"),
                                                    {{"special_zero", false}});
 
-    auto vsplit = pattern::wrap_type_strict<op::v1::VariadicSplit>(2,
-                                                                   {reshape, 3, pattern::any_input()},
+    auto vsplit = pattern::wrap_type_strict<op::v1::VariadicSplit>({reshape, 3, pattern::any_input()},
                                                                    pattern::shape_matches("[?, head_cnt, 1, ndims]"));
     auto slice_1 = op_util::NewGenSlice(reshape, 0, "ndims", 1, 3) | vsplit->output(0);
 
@@ -926,8 +924,7 @@ RoPEFusionQwen::RoPEFusionQwen() {
         {{"special_zero", true}});
 
     auto ListUnpack_586_Split =
-        pattern::wrap_type_strict<v1::Split>(2,
-                                             {reshape_opt1(slice_Slice_543) | reshape_special, -2},
+        pattern::wrap_type_strict<v1::Split>({reshape_opt1(slice_Slice_543) | reshape_special, -2},
                                              {{"num_splits", 2}});
     auto Multiply_567527 =
         pattern::wrap_type<v1::Multiply>({ListUnpack_586_Split->output(1), -1.0f}, {{"auto_broadcast", "numpy"}});
@@ -1140,8 +1137,7 @@ RoPEFusionGPTOSS::RoPEFusionGPTOSS() {
     auto t_sin = pattern::any_input(pattern::shape_matches("[?, 1, ?, half_ndims]"));
 
     auto vsplit =
-        pattern::wrap_type_strict<op::v1::VariadicSplit>(2,
-                                                         {x, pattern::wrap_type<v0::Constant>(), {"half_ndims", "?"}},
+        pattern::wrap_type_strict<op::v1::VariadicSplit>({x, pattern::wrap_type<v0::Constant>(), {"half_ndims", "?"}},
                                                          pattern::shape_matches("[?, ?, ?, half_ndims]"));
     auto first_half_mul_cos =
         pattern::wrap_type<v1::Multiply>({vsplit->output(0), t_cos}, {{"auto_broadcast", "numpy"}});
@@ -1247,7 +1243,7 @@ RoPEFusionLtxVideo::RoPEFusionLtxVideo() {
                                                      pattern::shape_matches("[?, ?, half_rotary_ndims, 2]"));
 
     // Split along axis=-1 into real (out0) and imag (out1)
-    auto split = pattern::wrap_type_strict<v1::Split>(2, {x_reshape, pattern::wrap_type<v0::Constant>()});
+    auto split = pattern::wrap_type_strict<v1::Split>({x_reshape, pattern::wrap_type<v0::Constant>()});
 
     // Negate imaginary: Multiply(-1)
     auto neg_imag_mul = pattern::wrap_type<v1::Multiply>({split->output(1), pattern::wrap_type<v0::Constant>()});

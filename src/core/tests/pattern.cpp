@@ -1581,119 +1581,6 @@ TEST(pattern, predicate_syntactic_sugar) {
     ASSERT_NO_THROW(pattern::wrap_type<op::v0::Relu>("[-1,0,1]"));
 }
 
-TEST(pattern, output_index_matches_predicate) {
-    TestMatcher tm;
-
-    // Create a VariadicSplit with 3 outputs
-    auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 20, 30});
-    auto axis = op::v0::Constant::create(element::i64, {}, {-1});
-    auto split_lengths = op::v0::Constant::create(element::i64, {3}, {5, 10, 15});
-    auto variadic_split = std::make_shared<op::v1::VariadicSplit>(input, axis, split_lengths);
-    // Set output size to match the number of split lengths.
-    variadic_split->set_output_size(3);
-
-    // Test basic output_index_matches predicate functionality
-    auto pred_0 = pattern::output_index_matches(0);
-    auto pred_1 = pattern::output_index_matches(1);
-    auto pred_2 = pattern::output_index_matches(2);
-
-    // Test predicates directly
-    ASSERT_TRUE(pred_0(variadic_split->output(0)));
-    ASSERT_FALSE(pred_0(variadic_split->output(1)));
-    ASSERT_FALSE(pred_0(variadic_split->output(2)));
-
-    ASSERT_FALSE(pred_1(variadic_split->output(0)));
-    ASSERT_TRUE(pred_1(variadic_split->output(1)));
-    ASSERT_FALSE(pred_1(variadic_split->output(2)));
-
-    ASSERT_FALSE(pred_2(variadic_split->output(0)));
-    ASSERT_FALSE(pred_2(variadic_split->output(1)));
-    ASSERT_TRUE(pred_2(variadic_split->output(2)));
-
-    // Test vector version
-    auto pred_multi = pattern::output_index_matches({0, 2});
-    ASSERT_TRUE(pred_multi(variadic_split->output(0)));
-    ASSERT_FALSE(pred_multi(variadic_split->output(1)));
-    ASSERT_TRUE(pred_multi(variadic_split->output(2)));
-
-    // Test pattern matching specific output index
-    auto pattern_out0 = pattern::any_input(pattern::output_index_matches(0));
-    auto pattern_out1 = pattern::any_input(pattern::output_index_matches(1));
-    auto pattern_out2 = pattern::any_input(pattern::output_index_matches(2));
-    auto pattern_out3 = pattern::any_input(pattern::output_index_matches(3));  // non-existent output
-
-    // Test matching different outputs using match_value
-    ASSERT_TRUE(tm.match_value(pattern_out0, variadic_split->output(0)));
-    ASSERT_FALSE(tm.match_value(pattern_out0, variadic_split->output(1)));
-    ASSERT_FALSE(tm.match_value(pattern_out0, variadic_split->output(2)));
-
-    ASSERT_FALSE(tm.match_value(pattern_out1, variadic_split->output(0)));
-    ASSERT_TRUE(tm.match_value(pattern_out1, variadic_split->output(1)));
-    ASSERT_FALSE(tm.match_value(pattern_out1, variadic_split->output(2)));
-
-    ASSERT_FALSE(tm.match_value(pattern_out2, variadic_split->output(0)));
-    ASSERT_FALSE(tm.match_value(pattern_out2, variadic_split->output(1)));
-    ASSERT_TRUE(tm.match_value(pattern_out2, variadic_split->output(2)));
-
-    ASSERT_FALSE(tm.match_value(pattern_out3, variadic_split->output(0)));
-    ASSERT_FALSE(tm.match_value(pattern_out3, variadic_split->output(1)));
-    ASSERT_FALSE(tm.match_value(pattern_out3, variadic_split->output(2)));
-
-    // Test pattern matching multiple output indices - simplified test
-    auto pattern_multi = pattern::any_input(pattern::output_index_matches({0, 2}));
-
-    // Test with regular Matcher instead of TestMatcher
-    ov::pass::pattern::Matcher m1(pattern_multi);
-    ASSERT_TRUE(m1.match(variadic_split->output(0)));
-
-    ov::pass::pattern::Matcher m2(pattern_multi);
-    ASSERT_FALSE(m2.match(variadic_split->output(1)));
-
-    ov::pass::pattern::Matcher m3(pattern_multi);
-    ASSERT_TRUE(m3.match(variadic_split->output(2)));
-}
-
-TEST(pattern, wrap_type_with_output_index_constraint) {
-    TestMatcher tm;
-
-    // Create a VariadicSplit with 3 outputs
-    auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 20, 30});
-    auto axis = op::v0::Constant::create(element::i64, {}, {-1});
-    auto split_lengths = op::v0::Constant::create(element::i64, {3}, {5, 10, 15});
-    auto variadic_split = std::make_shared<op::v1::VariadicSplit>(input, axis, split_lengths);
-    // Explicitly set output size to 3 to ensure the VariadicSplit node produces the expected number of outputs.
-    // Although split_lengths has 3 elements, set_output_size(3) may be required for correct behavior in some cases.
-    variadic_split->set_output_size(3);
-
-    // Create reshapes that use different outputs
-    auto reshape_shape = op::v0::Constant::create(element::i64, {2}, {-1, 5});
-    auto reshape0 = std::make_shared<op::v1::Reshape>(variadic_split->output(0), reshape_shape, false);
-    auto reshape1 = std::make_shared<op::v1::Reshape>(variadic_split->output(1), reshape_shape, false);
-    auto reshape2 = std::make_shared<op::v1::Reshape>(variadic_split->output(2), reshape_shape, false);
-
-    // Create patterns that match Reshape with specific VariadicSplit output
-    auto vsplit_out0 = pattern::wrap_type<op::v1::VariadicSplit>(pattern::output_index_matches(0));
-    auto vsplit_out1 = pattern::wrap_type<op::v1::VariadicSplit>(pattern::output_index_matches(1));
-    auto vsplit_out2 = pattern::wrap_type<op::v1::VariadicSplit>(pattern::output_index_matches(2));
-
-    auto pattern_reshape_out0 = pattern::wrap_type<op::v1::Reshape>({vsplit_out0, pattern::any_input()});
-    auto pattern_reshape_out1 = pattern::wrap_type<op::v1::Reshape>({vsplit_out1, pattern::any_input()});
-    auto pattern_reshape_out2 = pattern::wrap_type<op::v1::Reshape>({vsplit_out2, pattern::any_input()});
-
-    // Test that patterns match only corresponding reshapes
-    ASSERT_TRUE(tm.match(pattern_reshape_out0, reshape0));
-    ASSERT_FALSE(tm.match(pattern_reshape_out0, reshape1));
-    ASSERT_FALSE(tm.match(pattern_reshape_out0, reshape2));
-
-    ASSERT_FALSE(tm.match(pattern_reshape_out1, reshape0));
-    ASSERT_TRUE(tm.match(pattern_reshape_out1, reshape1));
-    ASSERT_FALSE(tm.match(pattern_reshape_out1, reshape2));
-
-    ASSERT_FALSE(tm.match(pattern_reshape_out2, reshape0));
-    ASSERT_FALSE(tm.match(pattern_reshape_out2, reshape1));
-    ASSERT_TRUE(tm.match(pattern_reshape_out2, reshape2));
-}
-
 TEST(pattern, multi_output_edge_index_honored) {
     TestMatcher tm;
 
@@ -1708,7 +1595,6 @@ TEST(pattern, multi_output_edge_index_honored) {
     auto reshape1 = std::make_shared<op::v1::Reshape>(variadic_split->output(1), reshape_shape, false);
 
     auto split_p = pattern::wrap_type_strict<op::v1::VariadicSplit>(
-        2,
         {pattern::any_input(), pattern::any_input(), pattern::any_input()});
     auto reshape_p = pattern::wrap_type<op::v1::Reshape>({split_p->output(1), pattern::any_input()});
 
@@ -1724,7 +1610,7 @@ TEST(pattern, multi_output_shared_producer_identity_enforced) {
     auto split_lengths = op::v0::Constant::create(element::i64, {2}, {5, 5});
 
     // Pattern: ONE split node, both outputs referenced by index.
-    auto split_p = pattern::wrap_type_strict<op::v1::VariadicSplit>(2);
+    auto split_p = pattern::wrap_type_strict<op::v1::VariadicSplit>();
     auto concat_p = pattern::wrap_type<op::v0::Concat>({split_p->output(1), split_p->output(0)});
 
     // Positive control: both concat inputs come from the SAME split -> matches.
@@ -1746,13 +1632,6 @@ TEST(pattern, multi_output_shared_producer_identity_enforced) {
 }
 
 TEST(pattern, multi_output_single_node_index_honored) {
-    // A default WrapType has a single output: referencing output(1) throws.
-    {
-        auto split_p = pattern::wrap_type<op::v1::VariadicSplit>(
-            {pattern::any_input(), pattern::any_input(), pattern::any_input()});
-        EXPECT_THROW(split_p->output(1), ov::Exception);
-    }
-
     auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 20, 30});
     auto axis = op::v0::Constant::create(element::i64, {}, {0});
     auto split_lengths = op::v0::Constant::create(element::i64, {2}, {5, 5});
@@ -1770,7 +1649,6 @@ TEST(pattern, multi_output_single_node_index_honored) {
     */
     auto build_pattern = []() {
         auto split_p = pattern::wrap_type_strict<op::v1::VariadicSplit>(
-            2,
             {pattern::any_input(), pattern::any_input(), pattern::any_input()});
         auto neg_p = pattern::wrap_type<op::v1::Multiply>({split_p->output(1), pattern::any_input()});
         auto concat_p = pattern::wrap_type<op::v0::Concat>({neg_p, split_p->output(0)});
@@ -1812,7 +1690,6 @@ TEST(pattern, multi_output_callback_map_access) {
     auto concat = std::make_shared<op::v0::Concat>(OutputVector{neg, graph_split->output(0)}, 0);
 
     auto split_p = pattern::wrap_type_strict<op::v1::VariadicSplit>(
-        2,
         {pattern::any_input(), pattern::any_input(), pattern::any_input()});
     auto neg_p = pattern::wrap_type<op::v1::Multiply>({split_p->output(1), pattern::any_input()});
     auto concat_p = pattern::wrap_type<op::v0::Concat>({neg_p, split_p->output(0)});
@@ -1861,9 +1738,8 @@ TEST(pattern, wrap_type_strict_matches_subset_of_outputs) {
     auto neg = std::make_shared<op::v1::Multiply>(split->output(1), scale);
     auto concat = std::make_shared<op::v0::Concat>(OutputVector{neg, split->output(0)}, 0);
 
-    // Pattern producer sized to only TWO outputs, referencing output(0)/output(1).
+    // Pattern producer only references output(0)/output(1).
     auto split_p = pattern::wrap_type_strict<op::v1::VariadicSplit>(
-        2,
         {pattern::any_input(), pattern::any_input(), pattern::any_input()});
     auto neg_p = pattern::wrap_type<op::v1::Multiply>({split_p->output(1), pattern::any_input()});
     auto concat_p = pattern::wrap_type<op::v0::Concat>({neg_p, split_p->output(0)});
@@ -1872,37 +1748,14 @@ TEST(pattern, wrap_type_strict_matches_subset_of_outputs) {
     ASSERT_TRUE(tm.match(concat_p, concat));
 }
 
-TEST(pattern, wrap_type_strict_count_free_output_grows) {
-    auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 20, 30});
-    auto axis = op::v0::Constant::create(element::i64, {}, {0});
-    auto split_lengths = op::v0::Constant::create(element::i64, {2}, {5, 5});
-    auto scale = op::v0::Constant::create(element::f32, Shape{}, {-1.0f});
+TEST(pattern, wrap_type_strict_output_grows_through_base_handle) {
+    std::shared_ptr<ov::Node> strict_p = pattern::wrap_type_strict<op::v1::VariadicSplit>();
+    EXPECT_EQ(strict_p->get_output_size(), 1);
+    EXPECT_NO_THROW(strict_p->output(3));
+    EXPECT_EQ(strict_p->get_output_size(), 4);
 
-    // Count-free: the strict producer's output arity is never stated up front;
-    // referencing ->output(i) grows the placeholder outputs on demand.
-    auto split_p = pattern::wrap_type_strict<op::v1::VariadicSplit>();
-    auto neg_p = pattern::wrap_type<op::v1::Multiply>({split_p->output(1), pattern::any_input()});
-    auto concat_p = pattern::wrap_type<op::v0::Concat>({neg_p, split_p->output(0)});
-
-    // Correctly-wired graph: neg uses output(1), concat uses output(0) -> matches.
-    {
-        auto split = std::make_shared<op::v1::VariadicSplit>(input, axis, split_lengths);
-        split->set_output_size(2);
-        auto neg = std::make_shared<op::v1::Multiply>(split->output(1), scale);
-        auto concat = std::make_shared<op::v0::Concat>(OutputVector{neg, split->output(0)}, 0);
-
-        TestMatcher tm;
-        ASSERT_TRUE(tm.match(concat_p, concat));
-    }
-
-    // Swapped-wired graph: index mismatch is still honored -> must NOT match.
-    {
-        auto split = std::make_shared<op::v1::VariadicSplit>(input, axis, split_lengths);
-        split->set_output_size(2);
-        auto neg = std::make_shared<op::v1::Multiply>(split->output(0), scale);
-        auto concat = std::make_shared<op::v0::Concat>(OutputVector{neg, split->output(1)}, 0);
-
-        TestMatcher tm;
-        ASSERT_FALSE(tm.match(concat_p, concat));
-    }
+    // Non-strict pattern nodes keep the base out-of-range check.
+    std::shared_ptr<ov::Node> plain_p = pattern::wrap_type<op::v1::VariadicSplit>();
+    EXPECT_THROW(plain_p->output(1), ov::Exception);
+    EXPECT_EQ(plain_p->get_output_size(), 1);
 }

@@ -358,11 +358,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
     // TODO: Consider not specifying VariadicSplit as an input for Concat, it is not really used in the pattern, but
     // just sets more strict requirement for the graph. The risk with not specifying VariadicSplit is that it can be
     // ambiguous which part the matcher should take: KV merged part or where K and V are separate, requires experiments.
-    auto qkv_current_split_node = wrap_type_strict<v1::VariadicSplit>(2, {any_input(), any_input(), any_input()});
+    auto qkv_current_split_node = wrap_type_strict<v1::VariadicSplit>({any_input(), any_input(), any_input()});
     auto kv_current = qkv_current_split_node->output(1);
     std::shared_ptr<ov::Node> kv_past_var, kv_current2, kv_concat, kv_current_reshaped;
     std::tie(kv_past_var, kv_current2, kv_current_reshaped, kv_concat) = kv_read_and_concat(kv_current);
-    auto kv_concat_split = wrap_type_strict<v1::VariadicSplit>(2, {kv_concat, any_input(), any_input()});
+    auto kv_concat_split = wrap_type_strict<v1::VariadicSplit>({kv_concat, any_input(), any_input()});
 
     k_concat = std::make_shared<Or>(OutputVector{kv_concat_split->output(0), k_concat});
     v_concat = std::make_shared<Or>(OutputVector{kv_concat_split->output(1), v_concat});

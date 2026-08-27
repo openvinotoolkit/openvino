@@ -67,9 +67,6 @@ OPENVINO_API op::Predicate attrs_match(const Attributes& expected_attrs);
 OPENVINO_API op::Predicate shape_matches(const std::string& shape_notation);
 OPENVINO_API op::Predicate value_matches(const std::string& value_notation);
 
-OPENVINO_API op::Predicate output_index_matches(size_t expected_index);
-OPENVINO_API op::Predicate output_index_matches(const std::vector<size_t>& expected_indices);
-
 namespace op {
 
 class OPENVINO_API Pattern : public Node {
