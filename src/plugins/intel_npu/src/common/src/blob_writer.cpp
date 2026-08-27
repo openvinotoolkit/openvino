@@ -87,11 +87,11 @@ BlobWriter::BlobWriter(const std::shared_ptr<BlobReader>& blob_reader, const ov:
     m_logger.debug("Building the BlobWriter using the contents of a BlobReader");
 
     for (const SectionID& section_id : blob_reader->m_parsed_sections_order) {
-        // The CRE & offsets table sections are added by the write() method after writing all registered sections
+        // The CRE & manifest sections are added by the write() method after writing all registered sections
         // (jic the registered sections will alter the CRE/table). Therefore, these sections should be omitted here.
         OPENVINO_ASSERT(
-            section_id.type != PredefinedSectionType::OFFSETS_TABLE && section_id.type != PredefinedSectionType::CRE,
-            "By convention, the offsets table and CRE sections should not be found within the parsed sections order "
+            section_id.type != PredefinedSectionType::MANIFEST && section_id.type != PredefinedSectionType::CRE,
+            "By convention, the manifest and CRE sections should not be found within the parsed sections order "
             "attribute");
         register_section_from_blob_reader(blob_reader->retrieve_section(section_id));
         m_logger.debug("Registered section ID %s", section_id.to_string());
@@ -172,7 +172,7 @@ CRE BlobWriter::build_cre() const {
 void BlobWriter::write_section(std::ostream& stream,
                                const std::shared_ptr<ISection>& section,
                                const std::streampos stream_npu_region_start,
-                               OffsetsTable& offsets_table) const {
+                               Manifest& manifest) const {
     const std::optional<SectionID> section_id = section->get_section_id();
     OPENVINO_ASSERT(section_id.has_value(), "Missing section ID while writing the section");
     m_logger.debug("Writting the section identified as %s", section_id->to_string());
@@ -186,9 +186,9 @@ void BlobWriter::write_section(std::ostream& stream,
     stream.seekp(0, std::ios_base::end);
     const uint64_t length = static_cast<uint64_t>(blob_writer_interface.get_offset_relative_to_npu_region() - offset);
 
-    // All sections registered within the BlobWriter are automatically added to the table of offsets
+    // All sections registered within the BlobWriter are automatically added to the manifest
     // The instance ID should have been added by the writer. Therefore, the section ID should exist.
-    offsets_table.add_entry(section_id.value(), offset, length);
+    manifest.add_entry(section_id.value(), offset, length);
 }
 
 void BlobWriter::write_to(std::ostream& stream) const {
@@ -200,9 +200,9 @@ void BlobWriter::write_to(std::ostream& stream) const {
     std::queue<std::shared_ptr<ISection>> write_queue = m_write_queue;
     const std::streampos stream_npu_region_start = stream.tellp();
 
-    // The table of offsets corresponds to a single blob written into a stream. Therefore, this table should exist
+    // The manifest corresponds to a single blob written into a stream. Therefore, this object should exist
     // only within the scope of the writing session.
-    OffsetsTable offsets_table(m_logger.level());
+    Manifest manifest(m_logger.level());
 
     // The header
     stream.write(reinterpret_cast<const char*>(MAGIC_BYTES.data()), MAGIC_BYTES.size());
@@ -214,11 +214,11 @@ void BlobWriter::write_to(std::ostream& stream) const {
     stream.write(reinterpret_cast<const char*>(&npu_region_size),
                  sizeof(npu_region_size));  // placeholder
 
-    // Placeholder until the offsets table is fully populated and written into the blob
-    uint64_t offsets_table_location = 0;
-    uint64_t offsets_table_size = 0;
-    stream.write(reinterpret_cast<const char*>(&offsets_table_location), sizeof(offsets_table_location));
-    stream.write(reinterpret_cast<const char*>(&offsets_table_size), sizeof(offsets_table_size));
+    // Placeholder until the manifest is fully populated and written into the blob
+    uint64_t manifest_location = 0;
+    uint64_t manifest_size = 0;
+    stream.write(reinterpret_cast<const char*>(&manifest_location), sizeof(manifest_location));
+    stream.write(reinterpret_cast<const char*>(&manifest_size), sizeof(manifest_size));
 
     // The region of dynamic format (list of key-length-payload sections, any order & no restrictions w.r.t.
     // the content of the payload)
@@ -227,33 +227,33 @@ void BlobWriter::write_to(std::ostream& stream) const {
     // emphasize the fact that section writers cannot append to the "global" CRE
     const auto cre_section = std::make_shared<RuntimeRequirementsSection>(build_cre(), m_logger.level());
     cre_section->set_section_type_instance(FIRST_INSTANCE_ID);
-    write_section(stream, cre_section, stream_npu_region_start, offsets_table);
+    write_section(stream, cre_section, stream_npu_region_start, manifest);
 
     while (!write_queue.empty()) {
         const std::shared_ptr<ISection>& section = write_queue.front();
         write_queue.pop();
 
-        write_section(stream, section, stream_npu_region_start, offsets_table);
+        write_section(stream, section, stream_npu_region_start, manifest);
     }
 
-    // Write the table of offsets
-    offsets_table_location = get_offset_relative_to_npu_region(stream, stream_npu_region_start);
+    // Write the manifest
+    manifest_location = get_offset_relative_to_npu_region(stream, stream_npu_region_start);
 
-    const auto offsets_table_section = std::make_shared<OffsetsTableSection>(offsets_table, m_logger.level());
-    offsets_table_section->set_section_type_instance(FIRST_INSTANCE_ID);
-    write_section(stream, offsets_table_section, stream_npu_region_start, offsets_table);
+    const auto manifest_section = std::make_shared<ManifestSection>(manifest, m_logger.level());
+    manifest_section->set_section_type_instance(FIRST_INSTANCE_ID);
+    write_section(stream, manifest_section, stream_npu_region_start, manifest);
 
     npu_region_size = get_offset_relative_to_npu_region(stream, stream_npu_region_start);
-    offsets_table_size = npu_region_size - offsets_table_location;
+    manifest_size = npu_region_size - manifest_location;
 
-    // Go back to the beginning and write the size of the whole NPU region & the location of the offsets table
+    // Go back to the beginning and write the size of the whole NPU region & the location of the manifest
     stream.seekp(will_come_back_to_this_at_the_end);
     stream.write(reinterpret_cast<const char*>(&npu_region_size), sizeof(npu_region_size));
-    stream.write(reinterpret_cast<const char*>(&offsets_table_location), sizeof(offsets_table_location));
-    stream.write(reinterpret_cast<const char*>(&offsets_table_size), sizeof(offsets_table_size));
+    stream.write(reinterpret_cast<const char*>(&manifest_location), sizeof(manifest_location));
+    stream.write(reinterpret_cast<const char*>(&manifest_size), sizeof(manifest_size));
 
     m_logger.trace("NPU region size %lu", npu_region_size);
-    m_logger.trace("Offsets table location %lu; size %lu", offsets_table_location, offsets_table_size);
+    m_logger.trace("Manifest location %lu; size %lu", manifest_location, manifest_size);
 }
 
 }  // namespace intel_npu

@@ -18,6 +18,7 @@ RuntimeRequirementsSection::RuntimeRequirementsSection(const std::map<std::strin
       m_cre(cre),
       m_logger("RuntimeRequirementsSection", log_level) {}
 
+// TODO "sections_requirements" and CRE as string
 void RuntimeRequirementsSection::write(BlobWriterInterface& writer) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "RuntimeRequirementsSection::write");
 

@@ -84,8 +84,8 @@ std::ostream& operator<<(std::ostream& os, const SectionID& id) {
     case PredefinedSectionType::CRE:
         os << "CRE";
         break;
-    case PredefinedSectionType::OFFSETS_TABLE:
-        os << "OFFSETS_TABLE";
+    case PredefinedSectionType::MANIFEST:
+        os << "MANIFEST";
         break;
     case PredefinedSectionType::ELF_MAIN_SCHEDULE:
         os << "ELF_MAIN_SCHEDULE";
@@ -121,8 +121,8 @@ std::istream& operator>>(std::istream& is, SectionID& id) {
 
     if (type_string == "CRE") {
         id.type = PredefinedSectionType::CRE;
-    } else if (type_string == "OFFSETS_TABLE") {
-        id.type = PredefinedSectionType::OFFSETS_TABLE;
+    } else if (type_string == "MANIFEST") {
+        id.type = PredefinedSectionType::MANIFEST;
     }
     if (type_string == "ELF_MAIN_SCHEDULE") {
         id.type = PredefinedSectionType::ELF_MAIN_SCHEDULE;

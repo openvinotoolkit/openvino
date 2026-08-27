@@ -15,7 +15,7 @@
 #include "intel_npu/common/blob_reader_interface.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/isection_type_evaluator.hpp"
-#include "intel_npu/common/offsets_table.hpp"
+#include "intel_npu/common/manifest.hpp"
 #include "intel_npu/common/section_type_instance_evaluator.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 
@@ -116,7 +116,7 @@ private:
      */
     std::unordered_map<SectionID, SectionInstanceEvaluator> build_section_type_instance_evaluators(
         BlobSource& source,
-        const OffsetsTable& offsets_table,
+        const Manifest& manifest,
         const size_t npu_region_start,
         const size_t npu_region_size) const;
 

@@ -88,7 +88,7 @@ MockSectionWithTable::MockSectionWithTable(std::shared_ptr<MockSection_1> sectio
 
 MockSectionWithTable::MockSectionWithTable(std::shared_ptr<MockSection_1> section_1,
                                            std::unordered_map<SectionID, std::shared_ptr<ISection>> parsed_reachables,
-                                           OffsetsTable embedded_table)
+                                           Manifest embedded_table)
     : ISection(MockTypes::MOCK_WITH_TABLE),
       section_1(std::move(section_1)),
       parsed_reachables(std::move(parsed_reachables)),
@@ -106,7 +106,7 @@ void MockSectionWithTable::write(BlobWriterInterface& writer) {
     // reserve entries payload
     writer.write_from(&number_of_entries, sizeof(number_of_entries));
     const auto table_entries_pos = writer.get_offset_relative_to_current_section();
-    const uint64_t total_entry_bytes = number_of_entries * OffsetsTable::get_entry_size();
+    const uint64_t total_entry_bytes = number_of_entries * Manifest::get_entry_size();
     writer.add_padding(total_entry_bytes);
 
     // write the reachable sections
@@ -141,7 +141,7 @@ const std::unordered_map<SectionID, std::shared_ptr<ISection>>& MockSectionWithT
     return parsed_reachables;
 }
 
-OffsetsTable MockSectionWithTable::get_embedded_table() const {
+Manifest MockSectionWithTable::get_embedded_table() const {
     return embedded_table;
 }
 
@@ -168,7 +168,7 @@ std::shared_ptr<ISection> MockSectionWithTable::read(BlobReaderInterface& blob_r
     uint64_t number_of_entries;
     blob_reader.read_into_buffer(&number_of_entries, sizeof(number_of_entries));
 
-    OffsetsTable embedded;
+    Manifest embedded;
     std::vector<Entry> entries;
     for (uint64_t i = 0; i < number_of_entries; i++) {
         SectionType type;

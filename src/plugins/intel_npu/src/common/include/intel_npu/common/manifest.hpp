@@ -11,13 +11,13 @@
 namespace intel_npu {
 
 /**
- * @brief Table of offsets meant to be integrated within the NPU blob format.
- * @note Although this implementation is used by the main offsets table section of the NPU blob region, it can be reused
+ * @brief Manifest meant to be integrated within the NPU blob format.
+ * @note Although this implementation is used by the main manifest section of the NPU blob region, it can be reused
  * for use cases within the payload of other sections.
  */
-class OffsetsTable final {
+class Manifest final {
 public:
-    OffsetsTable(const ov::log::Level log_level = ov::log::Level::WARNING);
+    Manifest(const ov::log::Level log_level = ov::log::Level::WARNING);
 
     void add_entry(const SectionID id, const uint64_t offset, const uint64_t length);
 
@@ -36,7 +36,7 @@ public:
     bool empty() const;
 
 private:
-    friend class OffsetsTableSection;
+    friend class ManifestSection;
 
     /**
      * @brief From section IDs to offsets & lengths.
@@ -50,18 +50,18 @@ private:
     Logger m_logger;
 };
 
-class OffsetsTableSection final : public ISection {
+class ManifestSection final : public ISection {
 public:
-    OffsetsTableSection(const OffsetsTable& offsets_table, const ov::log::Level log_level = ov::log::Level::WARNING);
+    ManifestSection(const Manifest& manifest, const ov::log::Level log_level = ov::log::Level::WARNING);
 
     void write(BlobWriterInterface& writer) override;
 
-    OffsetsTable get_table() const;
+    Manifest get_table() const;
 
     static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
 
 private:
-    OffsetsTable m_offsets_table;
+    Manifest m_manifest;
 
     Logger m_logger;
 };

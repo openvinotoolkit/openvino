@@ -7,7 +7,7 @@
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/isection.hpp"
-#include "intel_npu/common/offsets_table.hpp"
+#include "intel_npu/common/manifest.hpp"
 
 using namespace intel_npu;
 
@@ -78,7 +78,7 @@ public:
 
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>& get_reachables() const;
 
-    OffsetsTable get_embedded_table() const;
+    Manifest get_embedded_table() const;
 
     static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
 
@@ -89,7 +89,7 @@ private:
     // called only in case of read method
     MockSectionWithTable(std::shared_ptr<MockSection_1> section_1,
                          std::unordered_map<SectionID, std::shared_ptr<ISection>> parsed_reachables,
-                         OffsetsTable embedded_table);
+                         Manifest embedded_table);
 
     struct Entry {
         SectionID id;
@@ -100,5 +100,5 @@ private:
     std::shared_ptr<MockSection_1> section_1;
     std::vector<std::shared_ptr<ISection>> reachables;
     std::unordered_map<SectionID, std::shared_ptr<ISection>> parsed_reachables;
-    OffsetsTable embedded_table;
+    Manifest embedded_table;
 };

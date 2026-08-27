@@ -41,7 +41,7 @@ BlobReader::BlobReader(const FilteredConfig& config)
       m_logger("BlobReader", config.get<LOG_LEVEL>()) {
     // Register the core sections
     register_reader(PredefinedSectionType::CRE, RuntimeRequirementsSection::read);
-    register_reader(PredefinedSectionType::OFFSETS_TABLE, OffsetsTableSection::read);
+    register_reader(PredefinedSectionType::MANIFEST, ManifestSection::read);
 }
 
 void BlobReader::register_reader(const SectionType type,
@@ -87,18 +87,18 @@ BlobReader::retrieve_sections_same_type(const SectionType type) const {
 
 std::unordered_map<SectionID, SectionInstanceEvaluator> BlobReader::build_section_type_instance_evaluators(
     BlobSource& source,
-    const OffsetsTable& offsets_table,
+    const Manifest& manifest,
     const size_t npu_region_start,
     const size_t npu_region_size) const {
     std::unordered_map<SectionID, SectionInstanceEvaluator> instance_evaluators;
-    const std::unordered_set<SectionID> all_section_ids = offsets_table.get_all_registered_section_ids();
+    const std::unordered_set<SectionID> all_section_ids = manifest.get_all_registered_section_ids();
 
     for (const SectionID& section_id : all_section_ids) {
         BlobReaderInterface reader(source,
                                    npu_region_start,
                                    npu_region_size,
-                                   offsets_table.lookup_offset(section_id).value(),
-                                   offsets_table.lookup_length(section_id).value(),
+                                   manifest.lookup_offset(section_id).value(),
+                                   manifest.lookup_length(section_id).value(),
                                    m_config);
 
         // Do not create any evaluator if no function has been provided. The CRE code will treat such cases as supported
@@ -150,52 +150,48 @@ void BlobReader::read(BlobSource& source) {
     // The magic and format version have been already checked within "get_npu_region_size"
     source.seekg(MAGIC_BYTES.size() + sizeof(FORMAT_VERSION) + sizeof(npu_region_size), std::ios::cur);
 
-    // Step 1: Read the table of offsets. First, get the location and size of the table from the header.
+    // Step 1: Read the manifest. First, get the location and size of the table from the header.
     // Then, use this information to parse the table.
-    uint64_t offsets_table_location;
-    uint64_t offsets_table_size;
+    uint64_t manifest_location;
+    uint64_t manifest_size;
 
-    const size_t dynamic_format_region_start =
-        source.tellg() + sizeof(offsets_table_location) + sizeof(offsets_table_size);
+    const size_t dynamic_format_region_start = source.tellg() + sizeof(manifest_location) + sizeof(manifest_size);
 
-    source.read_into_buffer(&offsets_table_location, sizeof(offsets_table_location));
-    seekg_with_bound_checking(source,
-                              source.tellg() + sizeof(offsets_table_location),
-                              npu_region_start,
-                              npu_region_size);
-    source.read_into_buffer(&offsets_table_size, sizeof(offsets_table_size));
-    m_logger.trace("Offsets table location %lu; size %lu", offsets_table_location, offsets_table_size);
+    source.read_into_buffer(&manifest_location, sizeof(manifest_location));
+    seekg_with_bound_checking(source, source.tellg() + sizeof(manifest_location), npu_region_start, npu_region_size);
+    source.read_into_buffer(&manifest_size, sizeof(manifest_size));
+    m_logger.trace("Manifest location %lu; size %lu", manifest_location, manifest_size);
 
-    seekg_with_bound_checking(source, offsets_table_location, npu_region_start, npu_region_size);
+    seekg_with_bound_checking(source, manifest_location, npu_region_start, npu_region_size);
 
-    OPENVINO_ASSERT(m_readers.count(PredefinedSectionType::OFFSETS_TABLE), "No reader found for the table of offsets");
-    parse_section(SectionID(PredefinedSectionType::OFFSETS_TABLE, FIRST_INSTANCE_ID),
+    OPENVINO_ASSERT(m_readers.count(PredefinedSectionType::MANIFEST), "No reader found for the manifest");
+    parse_section(MANIFEST_SECTION_ID,
                   source,
-                  offsets_table_size,
+                  manifest_size,
                   npu_region_start,
                   npu_region_size,
                   /*include_in_sections_order*/ false);
 
     // The offset table is required only within the scope of the read method
-    OffsetsTable offsets_table = std::dynamic_pointer_cast<OffsetsTableSection>(
-                                     m_parsed_sections.at(PredefinedSectionType::OFFSETS_TABLE).at(FIRST_INSTANCE_ID))
-                                     ->get_table();
-    m_logger.debug("Parsed the table of offsets");
+    Manifest manifest = std::dynamic_pointer_cast<ManifestSection>(
+                            m_parsed_sections.at(PredefinedSectionType::MANIFEST).at(FIRST_INSTANCE_ID))
+                            ->get_table();
+    m_logger.debug("Parsed the manifest");
 
     // Step 2: Look for the CRE and evaluate it
-    std::optional<uint64_t> cre_location = offsets_table.lookup_offset(CRE_SECTION_ID);
-    std::optional<uint64_t> cre_length = offsets_table.lookup_length(CRE_SECTION_ID);
+    std::optional<uint64_t> cre_location = manifest.lookup_offset(CRE_SECTION_ID);
+    std::optional<uint64_t> cre_length = manifest.lookup_length(CRE_SECTION_ID);
 
     std::unordered_map<SectionID, SectionInstanceEvaluator> section_instance_evaluators =
-        build_section_type_instance_evaluators(source, offsets_table, npu_region_start, npu_region_size);
+        build_section_type_instance_evaluators(source, manifest, npu_region_start, npu_region_size);
 
     // TODO test the negative branch as well
-    // TODO safeguards for multiple offsets tables/CREs?
+    // TODO safeguards for multiple manifests/CREs?
     if (cre_location.has_value()) {
         seekg_with_bound_checking(source, cre_location.value(), npu_region_start, npu_region_size);
 
-        OPENVINO_ASSERT(m_readers.count(PredefinedSectionType::CRE), "No reader found for the table of offsets");
-        parse_section(SectionID(PredefinedSectionType::CRE, FIRST_INSTANCE_ID),
+        OPENVINO_ASSERT(m_readers.count(PredefinedSectionType::CRE), "No reader found for the manifest");
+        parse_section(CRE_SECTION_ID,
                       source,
                       cre_length.value(),
                       npu_region_start,
@@ -209,7 +205,7 @@ void BlobReader::read(BlobSource& source) {
         OPENVINO_ASSERT(is_compatible, "The imported model is not compatible");
         m_logger.debug("CRE evaluation passed");
     } else {
-        m_logger.warning("The CRE section was not found within the table of offsets. Proceeding without performing any "
+        m_logger.warning("The CRE section was not found within the manifest. Proceeding without performing any "
                          "compatibility checks");
     }
 
@@ -217,9 +213,9 @@ void BlobReader::read(BlobSource& source) {
     size_t number_of_sections_encountered = 0;
     seekg_with_bound_checking(source, dynamic_format_region_start, npu_region_start, npu_region_size);
     while (source.tellg() < npu_region_start + npu_region_size) {
-        // The table of offsets & CRE have already been parsed
-        if (source.tellg() == offsets_table_location) {
-            seekg_with_bound_checking(source, source.tellg() + offsets_table_size, npu_region_start, npu_region_size);
+        // The manifest & CRE have already been parsed
+        if (source.tellg() == manifest_location) {
+            seekg_with_bound_checking(source, source.tellg() + manifest_size, npu_region_start, npu_region_size);
             continue;
         }
         if (source.tellg() == cre_location.value()) {
@@ -228,11 +224,11 @@ void BlobReader::read(BlobSource& source) {
             continue;
         }
 
-        const std::optional<SectionID> section_id = offsets_table.lookup_section_id(source.tellg());
+        const std::optional<SectionID> section_id = manifest.lookup_section_id(source.tellg());
         OPENVINO_ASSERT(section_id.has_value(),
                         "Did not find any section corresponding to the relative offset ",
                         source.tellg());
-        const std::optional<uint64_t> section_length = offsets_table.lookup_length(section_id.value());
+        const std::optional<uint64_t> section_length = manifest.lookup_length(section_id.value());
         ++number_of_sections_encountered;
 
         const size_t next_section_location = source.tellg() + section_length.value();
@@ -320,11 +316,11 @@ void BlobReader::read(BlobSource& source) {
     }
 
     OPENVINO_ASSERT(
-        number_of_sections_encountered == offsets_table.get_number_of_entries(),
-        "The number of sections encountered doesn't match the number of offsets table entries. Sections encountered: ",
+        number_of_sections_encountered == manifest.get_number_of_entries(),
+        "The number of sections encountered doesn't match the number of manifest entries. Sections encountered: ",
         number_of_sections_encountered,
-        ". Offsets table entries: ",
-        offsets_table.get_number_of_entries());
+        ". Manifest entries: ",
+        manifest.get_number_of_entries());
 }
 
 bool BlobReader::has_section_of_type(const SectionType section_type) const {

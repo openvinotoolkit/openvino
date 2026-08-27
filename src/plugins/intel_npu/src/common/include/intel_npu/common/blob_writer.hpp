@@ -12,7 +12,7 @@
 
 #include "blob_reader.hpp"
 #include "cre.hpp"
-#include "intel_npu/common/offsets_table.hpp"
+#include "intel_npu/common/manifest.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 
 namespace intel_npu {
@@ -152,12 +152,12 @@ private:
     /**
      * @brief Helper function that writes the given section to the stream.
      * @details Calls the "write" method of the given section to fill the payload. Then adds a new entry inside the
-     * table of offsets.
+     * manifest.
      */
     void write_section(std::ostream& stream,
                        const std::shared_ptr<ISection>& section,
                        const std::streampos stream_npu_region_start,
-                       OffsetsTable& offsets_table) const;
+                       Manifest& manifest) const;
 
     /**
      * @brief Tracks the next available instance ID for each section type. This should assure that the generated section

@@ -60,7 +60,7 @@ class BlobReaderInterface;
 namespace PredefinedSectionType {
 enum : SectionType {
     CRE = 100,
-    OFFSETS_TABLE = 101,
+    MANIFEST = 101,
     ELF_MAIN_SCHEDULE = 102,
     ELF_INIT_SCHEDULES = 103,
     DYNAMIC_SCHEDULE = 104,
@@ -73,7 +73,7 @@ enum : SectionType {
 
 static inline const std::unordered_set<SectionType> DEFAULT_SUPPORTED_SECTION_TYPES{
     PredefinedSectionType::CRE,
-    PredefinedSectionType::OFFSETS_TABLE,
+    PredefinedSectionType::MANIFEST,
     PredefinedSectionType::ELF_MAIN_SCHEDULE,
     PredefinedSectionType::ELF_INIT_SCHEDULES,  // TODO needs a check?
     PredefinedSectionType::DYNAMIC_SCHEDULE,    // TODO needs a check?
@@ -84,7 +84,7 @@ static inline const std::unordered_set<SectionType> DEFAULT_SUPPORTED_SECTION_TY
 
 // Only a single instance should exist within a blob. So, we may predefine these IDs for convenience.
 const SectionID CRE_SECTION_ID(PredefinedSectionType::CRE, 0);
-const SectionID OFFSETS_TABLE_SECTION_ID(PredefinedSectionType::OFFSETS_TABLE, 0);
+const SectionID MANIFEST_SECTION_ID(PredefinedSectionType::MANIFEST, 0);
 
 /**
  * @brief Interface that should be implemented by all blob section handlers. Its role is to standardize the

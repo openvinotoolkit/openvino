@@ -134,10 +134,10 @@ TEST(MockSections, GetROITensors) {
     reader.register_section_type_evaluator(std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE));
     reader.read(tensor);
 
-    auto offsets_section = std::dynamic_pointer_cast<OffsetsTableSection>(
-        reader.retrieve_first_section(PredefinedSectionType::OFFSETS_TABLE));
-    ASSERT_TRUE(offsets_section);
-    auto table = offsets_section->get_table();
+    auto manifest_section =
+        std::dynamic_pointer_cast<ManifestSection>(reader.retrieve_first_section(PredefinedSectionType::MANIFEST));
+    ASSERT_TRUE(manifest_section);
+    auto table = manifest_section->get_table();
 
     auto offset_1 = table.lookup_offset(SectionID(MockTypes::MOCK_1, 0)).value();
     auto length_1 = table.lookup_length(SectionID(MockTypes::MOCK_1, 0)).value();

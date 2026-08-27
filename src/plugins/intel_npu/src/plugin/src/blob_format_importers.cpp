@@ -496,7 +496,7 @@ public:
 private:
     /**
      * @brief Registers all blob sections readers known to the plugin.
-     * @note The CRE & OffsetsTable sections should have been already registered (e.g. in the BlobReader ctor) since
+     * @note The CRE & Manifest sections should have been already registered (e.g. in the BlobReader ctor) since
      * these sections are a core part of the format.
      */
     void register_known_sections() {
