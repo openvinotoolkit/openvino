@@ -31,15 +31,17 @@ void rerotate_planes(T* data,
                      size_t rows_per_token,
                      size_t head_dim,
                      size_t num_tokens,
-                     const ov::npuw::longrope::RegimeDelta& delta) {
+                     const float* delta_cos,
+                     const float* delta_sin,
+                     size_t half) {
     for (size_t o = 0; o < outer; ++o) {
         T* plane = data + o * seq_len * seq_stride;
         for (size_t t = 0; t < num_tokens; ++t) {
-            const float* dcos = delta.cos.data() + t * delta.half;
-            const float* dsin = delta.sin.data() + t * delta.half;
+            const float* dcos = delta_cos + t * half;
+            const float* dsin = delta_sin + t * half;
             T* token = plane + t * seq_stride;
             for (size_t r = 0; r < rows_per_token; ++r) {
-                rerotate_row(token + r * head_dim, dcos, dsin, delta.half);
+                rerotate_row(token + r * head_dim, dcos, dsin, half);
             }
         }
     }
@@ -104,10 +106,19 @@ ov::npuw::longrope::RegimeDelta ov::npuw::longrope::make_regime_delta(
 
 void ov::npuw::longrope::rerotate_keys(const KeyTensorLayout& layout,
                                        uint32_t num_tokens,
-                                       const RegimeDelta& delta) {
+                                       const RegimeDelta& delta,
+                                       size_t delta_row_offset) {
     if (delta.half == 0u || num_tokens == 0u) {
         return;
     }
+    OPENVINO_ASSERT((delta_row_offset + num_tokens) * delta.half <= delta.cos.size(),
+                    "NPUW: LongRoPE delta rows [",
+                    delta_row_offset,
+                    ", ",
+                    delta_row_offset + num_tokens,
+                    ") fall outside the delta built for this transition.");
+    const float* delta_cos = delta.cos.data() + delta_row_offset * delta.half;
+    const float* delta_sin = delta.sin.data() + delta_row_offset * delta.half;
     if (layout.type == ov::element::f16) {
         // f16 goes through the SIMD kernel: expressed with ov::float16 the loop would
         // spend all its time in that class's out-of-line float conversions.
@@ -118,8 +129,8 @@ void ov::npuw::longrope::rerotate_keys(const KeyTensorLayout& layout,
                                                      layout.seq_stride,
                                                      layout.rows_per_token,
                                                      layout.head_dim,
-                                                     delta.cos.data(),
-                                                     delta.sin.data(),
+                                                     delta_cos,
+                                                     delta_sin,
                                                      delta.half);
         }
     } else {
@@ -130,7 +141,9 @@ void ov::npuw::longrope::rerotate_keys(const KeyTensorLayout& layout,
                         layout.rows_per_token,
                         layout.head_dim,
                         num_tokens,
-                        delta);
+                        delta_cos,
+                        delta_sin,
+                        delta.half);
     }
 }
 
@@ -254,5 +267,40 @@ void ov::npuw::longrope::rerotate_cached_keys(const std::shared_ptr<ov::IAsyncIn
 
     ov::parallel_for(layouts.size(), [&](size_t idx) {
         rerotate_keys(layouts[idx], num_tokens, delta);
+    });
+}
+
+void ov::npuw::longrope::rerotate_cached_key_blocks(const std::vector<KeyBlock>& blocks,
+                                                    ov::npuw::patterns::pre_compute::LongRopeCosSin& tables,
+                                                    uint32_t seq_dim,
+                                                    uint32_t num_cached_tokens,
+                                                    int64_t first_position_id,
+                                                    bool to_long) {
+    // One delta for the whole conversation; each block reads the rows its own positions
+    // land on, so the blocks need not be contiguous or in any particular order.
+    const auto delta = make_regime_delta(tables, first_position_id, num_cached_tokens, to_long);
+    if (delta.half == 0u) {
+        return;
+    }
+
+    std::vector<KeyTensorLayout> layouts;
+    layouts.reserve(blocks.size());
+    for (const auto& block : blocks) {
+        OPENVINO_ASSERT(static_cast<size_t>(block.first_token) + block.num_tokens <= num_cached_tokens,
+                        "NPUW: a key block covering tokens [",
+                        block.first_token,
+                        ", ",
+                        block.first_token + block.num_tokens,
+                        ") reaches past the ",
+                        num_cached_tokens,
+                        " tokens the LongRoPE regime change was given.");
+        layouts.push_back(check_key_tensor(block.tensor, seq_dim, block.num_tokens, delta));
+    }
+
+    LOG_DEBUG("Re-rotating " << num_cached_tokens << " cached keys held in " << layouts.size() << " blocks into the "
+                             << (to_long ? "long" : "short") << "-factor LongRoPE regime.");
+
+    ov::parallel_for(layouts.size(), [&](size_t idx) {
+        rerotate_keys(layouts[idx], blocks[idx].num_tokens, delta, blocks[idx].first_token);
     });
 }

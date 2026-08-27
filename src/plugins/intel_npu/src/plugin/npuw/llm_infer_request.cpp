@@ -12,7 +12,6 @@
 #include "llm_block_kvcache_strategy.hpp"
 #include "llm_compiled_model.hpp"
 #include "llm_continuous_kvcache_strategy.hpp"
-#include "llm_longrope_kv.hpp"
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
@@ -1281,21 +1280,10 @@ void ov::npuw::LLMInferRequest::sync_longrope_kv_regime(const std::shared_ptr<ov
     if (num_cached_tokens > 0u && m_npuw_llm_compiled_model->m_longrope_tables.has_long) {
         // The KV layouts this rewrite cannot turn are rejected when the model is
         // compiled (see LLMCompiledModel), so a crossing that gets this far has to
-        // succeed for every live key: rerotate_cached_keys() throws rather than leave
-        // the cache half-turned, and m_longrope_long_regime below is only reached once
-        // it did not.
-        OPENVINO_ASSERT(!m_npuw_llm_compiled_model->m_is_block_kv_cache,
-                        "NPUW: the LongRoPE regime changed mid-conversation but a block-based KV cache cannot be "
-                        "re-rotated.");
+        // succeed for every live key: the strategy throws rather than leave the cache
+        // half-turned, and m_longrope_long_regime below is only reached once it did not.
         m_llm_profile["longrope:rerotate_kv"].record([&]() {
-            ov::npuw::longrope::rerotate_cached_keys(request,
-                                                     in_ports,
-                                                     m_kvcache_past_names,
-                                                     m_npuw_llm_compiled_model->m_longrope_tables,
-                                                     m_npuw_llm_compiled_model->m_kvcache_desc.dim,
-                                                     num_cached_tokens,
-                                                     m_first_position_id,
-                                                     is_long);
+            m_kvcache_strategy->rerotate_longrope_keys(request, in_ports, num_cached_tokens, is_long);
         });
     }
 

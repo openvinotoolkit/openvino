@@ -77,7 +77,14 @@ KeyTensorLayout check_key_tensor(const ov::SoPtr<ov::ITensor>& tensor,
 // packed past-key tensor, turning the rotate_half pair (j, j + half) of every head.
 // Channels beyond 2 * delta.half are pass-through in a partial-rotary model and were
 // never rotated, so they are left alone.
-void rerotate_keys(const KeyTensorLayout& layout, uint32_t num_tokens, const RegimeDelta& delta);
+//
+// delta_row_offset says which delta row the tensor's row 0 holds: zero for a cache that
+// starts at the beginning of the conversation, the block's own offset for one block of a
+// block-based cache.
+void rerotate_keys(const KeyTensorLayout& layout,
+                   uint32_t num_tokens,
+                   const RegimeDelta& delta,
+                   size_t delta_row_offset = 0u);
 
 // check_key_tensor() + rerotate_keys() for a single tensor.
 void rerotate_keys(const ov::SoPtr<ov::ITensor>& tensor,
@@ -106,6 +113,30 @@ void rerotate_cached_keys(const std::shared_ptr<ov::IAsyncInferRequest>& request
                           uint32_t num_tokens,
                           int64_t first_position_id,
                           bool to_long);
+
+// One key block of a block-based cache: the block's own tensor, plus where its rows sit
+// in the conversation. first_token is the index within the cache of the block's row 0,
+// num_tokens the number of live rows it holds.
+struct KeyBlock {
+    ov::SoPtr<ov::ITensor> tensor;
+    uint32_t first_token = 0;
+    uint32_t num_tokens = 0;
+};
+
+// rerotate_cached_keys() for a block-based cache, whose keys live in a pool of
+// fixed-size blocks rather than in one tensor per layer.
+//
+// Takes the blocks themselves rather than the request's ports: in block mode a port is
+// either a zero-copy view of a pooled block, a copy of one, or a dummy tensor shared by
+// every port that currently backs no token, so the pool is the only place where each
+// cached key exists exactly once. Every block is resolved and checked before the first
+// byte is written, as in the flat case.
+void rerotate_cached_key_blocks(const std::vector<KeyBlock>& blocks,
+                                patterns::pre_compute::LongRopeCosSin& tables,
+                                uint32_t seq_dim,
+                                uint32_t num_cached_tokens,
+                                int64_t first_position_id,
+                                bool to_long);
 
 }  // namespace longrope
 }  // namespace npuw

@@ -19,6 +19,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -28,6 +29,7 @@
 #include <vector>
 
 #include "executor.hpp"
+#include "llm_block_kvcache_strategy.hpp"
 #include "llm_compiled_model.hpp"
 #include "llm_infer_request.hpp"
 #include "llm_longrope_kv.hpp"
@@ -80,6 +82,21 @@ struct LLMLongRopeRegimeTestAccess {
 
     static const ov::npuw::LLMInferRequest::PortsMap& generate_in_ports(Request& req) {
         return req.m_kvcache_in_ports;
+    }
+
+    static ov::npuw::LLMBlockKVCacheStrategy& block_strategy(Request& req) {
+        auto* strategy = dynamic_cast<ov::npuw::LLMBlockKVCacheStrategy*>(req.m_kvcache_strategy.get());
+        OPENVINO_ASSERT(strategy != nullptr, "the request does not run on the block KV strategy");
+        return *strategy;
+    }
+
+    static const std::unordered_map<uint32_t, ov::npuw::LayerBlockManagers>& block_managers(
+        const ov::npuw::LLMBlockKVCacheStrategy& strategy) {
+        return strategy.m_kv_cache_block_managers;
+    }
+
+    static uint32_t block_size(const ov::npuw::LLMBlockKVCacheStrategy& strategy) {
+        return strategy.m_block_size;
     }
 };
 
@@ -243,13 +260,16 @@ std::vector<float> to_floats(const ov::SoPtr<ov::ITensor>& tensor) {
 // One conversation driver over a freshly compiled model with the given context limit.
 class LongRopePipeline {
 public:
-    explicit LongRopePipeline(int64_t context_limit) {
+    explicit LongRopePipeline(int64_t context_limit, const ov::AnyMap& extra_props = {}) {
         m_plugin = std::make_shared<NullPlugin>();
-        const ov::AnyMap props{{"NPUW_LLM", "YES"},
-                               {"NPUW_DEVICES", "CPU"},
-                               {"NPUW_LLM_MAX_PROMPT_LEN", "64"},
-                               {"NPUW_LLM_MIN_RESPONSE_LEN", "32"},
-                               {"NPUW_LLM_CACHE_ROPE", "YES"}};
+        ov::AnyMap props{{"NPUW_LLM", "YES"},
+                         {"NPUW_DEVICES", "CPU"},
+                         {"NPUW_LLM_MAX_PROMPT_LEN", "64"},
+                         {"NPUW_LLM_MIN_RESPONSE_LEN", "32"},
+                         {"NPUW_LLM_CACHE_ROPE", "YES"}};
+        for (const auto& [key, value] : extra_props) {
+            props[key] = value;
+        }
         m_compiled = std::make_shared<ov::npuw::LLMCompiledModel>(build_longrope_llm_test_model(context_limit),
                                                                   m_plugin,
                                                                   props,
@@ -481,6 +501,182 @@ TEST(LLMLongRopeRegime, RejectedTransitionLeavesTheCacheAndTheRegimeAlone) {
     EXPECT_NE(crossing.generate_keys(), before);
 }
 
+// A block-based cache holds the same keys in a pool of fixed-size blocks, so the turn has
+// to find them there instead of in one tensor per layer. Same observation trick as above,
+// but read out of the pool: a request port is either a view of a block, a copy of one, or
+// a dummy tensor shared by every port that currently backs no token.
+class LongRopeBlockCache : public ::testing::Test {
+protected:
+    // Block size follows the chunk size. The generate model's past KV is 95 rows, so two
+    // numbered blocks cover positions 0..63 and a tail block covers the rest - the prompt
+    // and crossing below are picked to populate the tail as well.
+    static ov::AnyMap block_props() {
+        return {{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"},
+                {"NPUW_LLM_PREFILL_ATTENTION_HINT", "PYRAMID"},
+                {"NPUW_LLM_GENERATE_ATTENTION_HINT", "PYRAMID"},
+                {"NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE", "YES"}};
+    }
+
+    struct PooledKeys {
+        ov::Shape block_shape;
+        std::vector<uint32_t> layer;
+        std::vector<uint32_t> first_token;  // where each block's row 0 sits in the cache
+        std::vector<uint32_t> live_tokens;
+        std::vector<std::vector<float>> data;
+    };
+
+    // Every live key block of every layer, layer-major and in block order.
+    static PooledKeys pooled_keys(ov::npuw::LLMInferRequest& req, uint32_t num_cached) {
+        auto& strategy = LLMLongRopeRegimeTestAccess::block_strategy(req);
+        const auto& managers = LLMLongRopeRegimeTestAccess::block_managers(strategy);
+        const uint32_t block_size = LLMLongRopeRegimeTestAccess::block_size(strategy);
+
+        std::vector<uint32_t> layers;
+        for (const auto& [layer_idx, unused] : managers) {
+            layers.push_back(layer_idx);
+        }
+        std::sort(layers.begin(), layers.end());
+
+        PooledKeys out;
+        for (const uint32_t layer_idx : layers) {
+            auto* manager = managers.at(layer_idx).key_manager.get();
+            EXPECT_NE(manager, nullptr);
+            const auto allocated = manager->get_allocated_blocks();
+            for (uint32_t first = 0u; first < num_cached; first += block_size) {
+                EXPECT_LT(first / block_size, allocated.size());
+                const auto tensor = manager->get_block_tensor(allocated[first / block_size]);
+                out.block_shape = tensor->get_shape();
+                out.layer.push_back(layer_idx);
+                out.first_token.push_back(first);
+                out.live_tokens.push_back(std::min(num_cached - first, block_size));
+                out.data.push_back(to_floats(tensor));
+            }
+        }
+        return out;
+    }
+
+    // The turn the request is expected to have applied, block by block: each block reads
+    // the delta rows its own positions land on.
+    static PooledKeys expected_turn(PooledKeys keys,
+                                    uint32_t seq_dim,
+                                    ov::npuw::patterns::pre_compute::LongRopeCosSin& tables,
+                                    uint32_t num_cached,
+                                    bool to_long) {
+        const auto delta = ov::npuw::longrope::make_regime_delta(tables, 0, num_cached, to_long);
+        for (size_t i = 0; i < keys.data.size(); ++i) {
+            auto tensor = ov::get_tensor_impl(
+                ov::Tensor(ov::element::f32, keys.block_shape, keys.data[i].data()));
+            const auto layout = ov::npuw::longrope::check_key_tensor(tensor, seq_dim, keys.live_tokens[i], delta);
+            ov::npuw::longrope::rerotate_keys(layout, keys.live_tokens[i], delta, keys.first_token[i]);
+        }
+        return keys;
+    }
+
+    static void run(LongRopePipeline& pipeline, size_t prompt, int64_t last_position) {
+        pipeline.prefill(prompt, 0);
+        for (int64_t position = static_cast<int64_t>(prompt); position <= last_position; ++position) {
+            pipeline.generate_step(static_cast<size_t>(position), position);
+        }
+    }
+
+    // Flat element indices of the rows a block actually holds a key in. The rows past
+    // them are never written, so two runs need not agree there.
+    static std::vector<size_t> live_elements(const ov::Shape& shape, uint32_t seq_dim, uint32_t live_tokens) {
+        size_t seq_stride = 1;
+        for (size_t d = seq_dim + 1; d < shape.size(); ++d) {
+            seq_stride *= shape[d];
+        }
+        const size_t seq_len = shape[seq_dim];
+        const size_t outer = ov::shape_size(shape) / (seq_len * seq_stride);
+        std::vector<size_t> indices;
+        indices.reserve(outer * live_tokens * seq_stride);
+        for (size_t o = 0; o < outer; ++o) {
+            for (size_t t = 0; t < live_tokens; ++t) {
+                for (size_t k = 0; k < seq_stride; ++k) {
+                    indices.push_back((o * seq_len + t) * seq_stride + k);
+                }
+            }
+        }
+        return indices;
+    }
+};
+
+// The crossing turns every cached key held in the pool, across both the numbered blocks
+// and the tail one, and leaves the tail port - which holds a copy of its block rather than
+// a view of it - agreeing with the block it was copied from.
+TEST_F(LongRopeBlockCache, CrossingTurnsEveryBlockOfThePool) {
+    constexpr size_t kPrompt = 64;    // two full blocks
+    constexpr int64_t kLimit = 100;   // crossed by the generate step at position 100
+    constexpr uint32_t kCached = 100; // rows in the cache when that step re-rotates, three
+                                      // full blocks plus four rows of the tail one
+
+    LongRopePipeline control(kUnreachableLimit, block_props());
+    run(control, kPrompt, kLimit);
+    ASSERT_FALSE(LLMLongRopeRegimeTestAccess::long_regime(control.request()));
+    const auto control_keys = pooled_keys(control.request(), kCached);
+    // The prompt must have reached past the numbered blocks, or the tail path goes untested.
+    ASSERT_GT(control_keys.first_token.back(), 0u);
+
+    LongRopePipeline crossing(kLimit, block_props());
+    run(crossing, kPrompt, kLimit);
+    EXPECT_TRUE(LLMLongRopeRegimeTestAccess::long_regime(crossing.request()));
+
+    const auto expected = expected_turn(control_keys,
+                                        LLMLongRopeRegimeTestAccess::seq_dim(crossing.request()),
+                                        LLMLongRopeRegimeTestAccess::tables(crossing.request()),
+                                        kCached,
+                                        true);
+    const auto actual = pooled_keys(crossing.request(), kCached);
+    const uint32_t seq_dim = LLMLongRopeRegimeTestAccess::seq_dim(crossing.request());
+    ASSERT_EQ(actual.data.size(), expected.data.size());
+    bool any_difference = false;
+    for (size_t i = 0; i < actual.data.size(); ++i) {
+        ASSERT_EQ(actual.data[i].size(), expected.data[i].size());
+        for (const size_t e : live_elements(actual.block_shape, seq_dim, actual.live_tokens[i])) {
+            ASSERT_NEAR(actual.data[i][e], expected.data[i][e], 2e-3f) << "block " << i << " element " << e;
+            any_difference = any_difference || actual.data[i][e] != control_keys.data[i][e];
+        }
+    }
+    // A turn that did nothing would trivially satisfy the comparison above.
+    EXPECT_TRUE(any_difference);
+
+    // The tail port is a copy, so an in-place turn of the pool alone would leave it stale.
+    const auto& past_names = LLMLongRopeRegimeTestAccess::past_names(crossing.request());
+    size_t tails_checked = 0;
+    for (const auto& name : past_names) {
+        if (!ov::npuw::util::isPastKeyParam(name) || name.find("block_tail") == std::string::npos) {
+            continue;
+        }
+        const uint32_t layer = static_cast<uint32_t>(std::stoi(name.substr(name.find('.') + 1)));
+        // The tail port of a layer holds that layer's last block, the one whose rows sit
+        // past the numbered ports.
+        size_t block = actual.data.size();
+        for (size_t i = 0; i < actual.data.size(); ++i) {
+            if (actual.layer[i] != layer) {
+                continue;
+            }
+            if (block == actual.data.size() || actual.first_token[i] > actual.first_token[block]) {
+                block = i;
+            }
+        }
+        ASSERT_LT(block, actual.data.size()) << "no pooled block for " << name;
+
+        const auto tail_tensor = LLMLongRopeRegimeTestAccess::generate_past(crossing.request(), name);
+        const auto tail = to_floats(tail_tensor);
+        // The tail is a shorter tensor than a block, so each side is indexed through its
+        // own shape.
+        const auto tail_idx = live_elements(tail_tensor->get_shape(), seq_dim, actual.live_tokens[block]);
+        const auto block_idx = live_elements(actual.block_shape, seq_dim, actual.live_tokens[block]);
+        ASSERT_EQ(tail_idx.size(), block_idx.size());
+        for (size_t i = 0; i < tail_idx.size(); ++i) {
+            ASSERT_FLOAT_EQ(tail[tail_idx[i]], actual.data[block][block_idx[i]]) << "tail " << name << " row " << i;
+        }
+        ++tails_checked;
+    }
+    EXPECT_GT(tails_checked, 0u);
+}
+
 // A KV layout the rewrite cannot turn is refused when the model is compiled, not at the
 // crossing token: by then there is no correct thing left to do.
 class LongRopeCompileRejection : public ::testing::Test {
@@ -513,17 +709,6 @@ protected:
         }
     }
 };
-
-TEST_F(LongRopeCompileRejection, BlockBasedKvCache) {
-    const ov::AnyMap block_props{{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
-                                 {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"},
-                                 {"NPUW_LLM_PREFILL_ATTENTION_HINT", "PYRAMID"},
-                                 {"NPUW_LLM_GENERATE_ATTENTION_HINT", "PYRAMID"},
-                                 {"NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE", "YES"}};
-    expect_longrope_rejection(kCrossingLimit, block_props);
-    // The same configuration is fine for a model whose long regime is out of reach.
-    EXPECT_NO_THROW(compile(kUnreachableLimit, block_props));
-}
 
 TEST_F(LongRopeCompileRejection, QuantizedKvCache) {
     expect_longrope_rejection(kCrossingLimit, {{ov::hint::kv_cache_precision.name(), ov::element::i8}});
