@@ -2627,6 +2627,19 @@ TEST_P(CachingTest, LoadMulti_race) {
             core.set_property(ov::cache_dir(cacheDir));
             OV_ASSERT_NO_THROW(m_testFunction(core));
         });
+        // Diagnostic only: runs strictly after the racy compile/import work above has fully
+        // finished, so it cannot mask or perturb the race itself. More than one distinct blob
+        // file here means the parallel per-device compiles computed *different* cache hashes
+        // for the very same Model - i.e. a hashing race - rather than a plain file-system or
+        // scheduling race. See CI failure https://github.com/openvinotoolkit/openvino/actions/runs/14498150718/job/40673857498
+        if (const auto blobs = ov::test::utils::listFilesWithExt(cacheDir, "blob"); blobs.size() != 1u) {
+            std::string blob_list;
+            for (const auto& blob : blobs) {
+                blob_list += blob + "; ";
+            }
+            ADD_FAILURE() << "iteration " << index << " (devCount=" << devCount << ") produced " << blobs.size()
+                          << " distinct cache blobs instead of 1: " << blob_list;
+        }
         index++;
     } while (duration_cast<milliseconds>(high_resolution_clock::now() - start).count() < TEST_DURATION_MS);
     std::cout << "Caching LoadMulti Test completed. Tried " << index << " times" << std::endl;
@@ -2670,6 +2683,19 @@ TEST_P(CachingTest, LoadMultiWithConfig_race) {
         testLoad([&](ov::Core& core) {
             OV_ASSERT_NO_THROW(m_testFunctionWithCfg(core, {{ov::cache_dir.name(), cacheDir}}));
         });
+        // Diagnostic only: runs strictly after the racy compile/import work above has fully
+        // finished, so it cannot mask or perturb the race itself. More than one distinct blob
+        // file here means the parallel per-device compiles computed *different* cache hashes
+        // for the very same Model - i.e. a hashing race - rather than a plain file-system or
+        // scheduling race. See CI failure https://github.com/openvinotoolkit/openvino/actions/runs/14498150718/job/40673857498
+        if (const auto blobs = ov::test::utils::listFilesWithExt(cacheDir, "blob"); blobs.size() != 1u) {
+            std::string blob_list;
+            for (const auto& blob : blobs) {
+                blob_list += blob + "; ";
+            }
+            ADD_FAILURE() << "iteration " << index << " (devCount=" << devCount << ") produced " << blobs.size()
+                          << " distinct cache blobs instead of 1: " << blob_list;
+        }
         index++;
     } while (duration_cast<milliseconds>(high_resolution_clock::now() - start).count() < TEST_DURATION_MS);
     std::cout << "Caching LoadMulti Test completed. Tried " << index << " times" << std::endl;
