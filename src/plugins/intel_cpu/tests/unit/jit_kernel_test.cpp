@@ -227,7 +227,7 @@ private:
             foreach(0, n, [&](const variable<size_t> & idx) {
                 _if((idx & 3) != a)
                 ._then([&] {
-                    s += idx + 3;
+                    s += idx + size_t(3);
                 })
                 ._else([&] {
                     s -= idx - 2;

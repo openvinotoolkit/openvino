@@ -6,6 +6,8 @@
 #include <memory>
 #include <vector>
 
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -15,9 +17,6 @@
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
-
-#include "node_context.hpp"
-#include "op_table.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -89,7 +88,10 @@ ov::Output<ov::Node> repeat_input_to_match(const NodeContext& context,
             }
 
             FRONT_END_OP_CONVERSION_CHECK(input_dim > 0 && target_dim > 0 && target_dim % input_dim == 0,
-                                          "DIV input shape ", input_shape, " cannot repeat to match ", target_shape);
+                                          "DIV input shape ",
+                                          input_shape,
+                                          " cannot repeat to match ",
+                                          target_shape);
 
             repeats[axis] = target_dim / input_dim;
             needs_repeat = needs_repeat || repeats[axis] != 1;

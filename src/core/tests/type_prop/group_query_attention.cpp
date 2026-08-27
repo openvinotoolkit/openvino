@@ -153,7 +153,7 @@ TEST(type_prop, group_query_attention_invalid_query_rank) {
 
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false),
                     ov::NodeValidationFailure,
-                    HasSubstr("query rank"));
+                    HasSubstr("Rank of `query` input"));
 }
 
 TEST(type_prop, group_query_attention_do_rotary_requires_cos_sin) {
