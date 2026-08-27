@@ -141,6 +141,32 @@ TEST(TensorTest, smoke_lazyAllocStaticInputGetTensorBeforeInfer) {
     OV_ASSERT_NO_THROW(request.infer());
 }
 
+TEST(TensorTest, smoke_lazyAllocStaticOutputReusesUserTensor) {
+    ov::Shape shape;
+    auto model = makeStaticInputModel(shape);
+
+    auto core = ov::Core();
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU);
+    auto request = compiled_model.create_infer_request();
+
+    ov::Tensor input(ov::element::f32, shape);
+    ov::Tensor output(ov::element::f32, shape);
+    request.set_input_tensor(input);
+    request.set_output_tensor(output);
+
+    for (float value : {1.0f, 2.0f}) {
+        std::fill_n(input.data<float>(), input.get_size(), value);
+
+        OV_ASSERT_NO_THROW(request.infer());
+
+        auto actual = request.get_output_tensor();
+        ASSERT_EQ(actual.data(), output.data());
+        for (size_t i = 0; i < actual.get_size(); ++i) {
+            ASSERT_FLOAT_EQ(actual.data<const float>()[i], value);
+        }
+    }
+}
+
 // AUTO_BATCH's shared buffer must be sized batch=N, not the slot's own batch=1 port. Checked
 // by value: an offset bug doesn't change the exposed shape, only which bytes get read/written.
 TEST(TensorTest, smoke_lazyAllocAutoBatchUsesBatchedShapeNotSlotShape) {
@@ -275,6 +301,67 @@ TEST(TensorTest, smoke_lazyAllocStaticInputConcurrentFirstGetTensorRace) {
         }
 
         // All racers must observe the same buffer.
+        const void* first = observed[0];
+        for (int t = 1; t < kThreads; ++t) {
+            if (observed[t] != first) {
+                failed.store(true);
+            }
+        }
+    }
+
+    ASSERT_FALSE(failed.load());
+}
+
+// Many threads race on the first get_tensor() of a fresh request; lazy output
+// materialization must collapse them into a single allocation.
+TEST(TensorTest, smoke_lazyAllocStaticOutputConcurrentFirstGetTensorRace) {
+    ov::Shape shape;
+    auto model = makeStaticInputModel(shape);
+
+    auto core = ov::Core();
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU);
+
+    constexpr int kThreads = 8;
+    constexpr int kIterations = 100;
+
+    std::atomic<bool> failed{false};
+
+    for (int iter = 0; iter < kIterations && !failed.load(); ++iter) {
+        auto request = compiled_model.create_infer_request();
+
+        std::atomic<int> ready{0};
+        std::atomic<bool> go{false};
+        std::vector<const void*> observed(kThreads, nullptr);
+
+        std::vector<std::thread> threads;
+        threads.reserve(kThreads);
+        for (int t = 0; t < kThreads; ++t) {
+            threads.emplace_back([&, t] {
+                ready.fetch_add(1, std::memory_order_acq_rel);
+                while (!go.load(std::memory_order_acquire)) {
+                    std::this_thread::yield();
+                }
+                try {
+                    auto out = request.get_output_tensor(0);
+                    if (out.get_shape() != shape || out.data() == nullptr) {
+                        failed.store(true);
+                    }
+                    observed[t] = out.data();
+                } catch (...) {
+                    failed.store(true);
+                }
+            });
+        }
+
+        while (ready.load(std::memory_order_acquire) < kThreads) {
+            std::this_thread::yield();
+        }
+        go.store(true, std::memory_order_release);
+
+        for (auto& th : threads) {
+            th.join();
+        }
+
         const void* first = observed[0];
         for (int t = 1; t < kThreads; ++t) {
             if (observed[t] != first) {

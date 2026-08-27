@@ -6,11 +6,10 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/op/constant.hpp"
-#include "openvino/op/multiply.hpp"
-
 #include "node_context.hpp"
 #include "op_table.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
 #include "utils.hpp"
 
 namespace ov {
