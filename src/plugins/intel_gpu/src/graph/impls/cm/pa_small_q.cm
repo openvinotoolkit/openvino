@@ -920,7 +920,16 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                     #pragma unroll
                     for (int b = 0; b < ONLINE_TILE_STEPS; ++b) {
                         const int blk_lo = (ki_base + b) * REG_N;
-                        if (kv_gs + blk_lo + REG_N <= (int)past_q_lens) {
+                        // Symmetric to the lower bound above: a tile fully past the spec
+                        // window (key_spec already >= qq_bias_spec_num for every column) has
+                        // no masked key either. Without this, every tile from the spec window
+                        // to the end of the partition still ran the full per-t mask-build loop
+                        // below only to have build_qq_bias_tree_mask_row's inner check discard
+                        // all REG_N lanes -- up to ~39 of 40 tiles per partition at KV_STEP=16 /
+                        // REG_N=16, since qq_bias_spec_num <= 16 means at most one tile ever
+                        // straddles the window.
+                        if (kv_gs + blk_lo + REG_N <= (int)past_q_lens ||
+                            kv_gs + blk_lo >= (int)past_q_lens + qq_bias_spec_num) {
                             continue;
                         }
                         // The mask depends only on query_spec, i.e. only on t -- not on which
