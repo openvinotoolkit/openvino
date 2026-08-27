@@ -1345,8 +1345,12 @@ TEST(SerializationTest, FuncallSubmodelHostGatherDstIdxOOBFails) {
     // Submodel 1: function call referencing submodel 0, but host_gather dst_idx=8 is out of bounds [0, 8)
     auto sub1 = ov::npuw::CompiledModelDescTestAccessor::make();
     sub1.replaced_by = 0;
-    Gather hg{8, -1, -1};
+    Gather hg{8, 0, 0};
     ov::npuw::CompiledModelDescTestAccessor::host_gather(sub1) = hg;
+    auto& closure1 = ov::npuw::CompiledModelDescTestAccessor::closure(sub1);
+    closure1.get().closure.resize(1);
+    closure1.get().closure_uid.resize(1, -1);
+    closure1.get().is_remote.resize(1, false);
 
     ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
     submodels.push_back(std::move(sub0));
