@@ -49,7 +49,7 @@ std::optional<SectionID> ISection::get_section_id() const {
 std::vector<CREToken> ISection::get_compatibility_requirements_subexpression(
     const std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>&
     /*all_registered_sections*/) const {
-    // By default, not requirements are added
+    // By default, no requirements are added
     return {};
 }
 

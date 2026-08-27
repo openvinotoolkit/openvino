@@ -67,14 +67,20 @@ enum : SectionType {
     IO_LAYOUTS = 105,
     BATCH_SIZE = 106,
     ENCRYPTED_SCHEDULES_FLAG = 107,
+    COMPILER_VERSION = 108,
 };
 };
 
 static inline const std::unordered_set<SectionType> DEFAULT_SUPPORTED_SECTION_TYPES{
     PredefinedSectionType::CRE,
+    PredefinedSectionType::OFFSETS_TABLE,
     PredefinedSectionType::ELF_MAIN_SCHEDULE,
-    PredefinedSectionType::ELF_INIT_SCHEDULES,
-    PredefinedSectionType::BATCH_SIZE};
+    PredefinedSectionType::ELF_INIT_SCHEDULES,  // TODO needs a check?
+    PredefinedSectionType::DYNAMIC_SCHEDULE,    // TODO needs a check?
+    PredefinedSectionType::IO_LAYOUTS,
+    PredefinedSectionType::BATCH_SIZE,
+    PredefinedSectionType::ENCRYPTED_SCHEDULES_FLAG,
+    PredefinedSectionType::COMPILER_VERSION};
 
 // Only a single instance should exist within a blob. So, we may predefine these IDs for convenience.
 const SectionID CRE_SECTION_ID(PredefinedSectionType::CRE, 0);

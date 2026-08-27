@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <functional>
-
 #include "intel_npu/common/isection.hpp"
 
 namespace intel_npu {

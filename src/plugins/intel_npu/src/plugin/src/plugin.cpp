@@ -589,6 +589,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         OPENVINO_THROW("Unexpected exception thrown upon attempting to create the \"CompiledModel\" object");
     }
 
+    blobWriter->register_section(
+        std::make_shared<CompilerVersionSection>(localConfig.get<COMPILER_VERSION>(), _logger.level()));
+
     // Registed the IO layouts section
     std::vector<ov::Layout> inputLayouts;
     std::vector<ov::Layout> outputLayouts;
