@@ -278,9 +278,13 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         // past_seqlen is a runtime value (derived from seqlens_k) and cannot be bounded at trace time, so a
         // caller that overruns the declared cache capacity would otherwise scatter past the end of the C
         // buffer. C and curr_seqlen are both statically known here (is_static_input), so clamp past_seqlen to
-        // the largest value that keeps the whole write in bounds, turning an out-of-bounds ScatterUpdate into
-        // a safe (if the caller mis-sized seqlens_k, silently truncated) write. Matches ORT's explicit runtime
-        // bound check (group_query_attention.cc:336-345).
+        // the largest value that keeps the whole write in bounds. Measured what an unclamped ScatterUpdate
+        // actually does on an overrun (PR #37653 review, sgbihu): CPU throws cleanly ("indices value that
+        // points to non-existing output tensor element"), but GPU hits an unhandled SEH access violation
+        // (0xc0000005) - a process crash, not a graceful error. The clamp trades a caller's mis-sized
+        // seqlens_k for a silently-truncated write instead of a device-dependent crash. ORT enforces the
+        // same bound with an explicit runtime check (group_query_attention.cc:336-345); OV has no
+        // graph-level assert primitive to replicate that hard-stop, so clamping is the safe substitute.
         const int64_t capacity = past_key.get_partial_shape()[2].get_length();
         const int64_t curr_len = K.get_partial_shape()[2].get_length();
         const auto max_past_seqlen =
