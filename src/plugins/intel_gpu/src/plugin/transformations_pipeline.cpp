@@ -127,6 +127,7 @@
 #include "plugin/transformations/expand_broadcast_reshape_sdpa_fusion.hpp"
 #include "plugin/transformations/disable_fp16_comp_direct_multiply_sin_cos.hpp"
 #include "plugin/transformations/disable_fp16_comp_gated_residual.hpp"
+#include "plugin/transformations/sdpa_select_mask_fusion.hpp"
 #include "plugin/transformations/disable_fp16_comp_rms.hpp"
 #include "plugin/transformations/swiglu_fusion_with_clamp.hpp"
 #include "plugin/transformations/disable_fp16_comp_cumsum_sin_gen.hpp"
@@ -840,6 +841,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // This runs right before "CommonOptimizations",
         // whose ConstantFolding folds the mask away when indices and depth are constants.
         manager.register_pass<ov::intel_gpu::DecomposeOneHotNonConstValues>();
+
+        // Convert decomposed-attention Select (where) masks into additive masks so the common
+        // ov::pass::SDPAFusion (registered inside the CommonOptimizations below) can fuse them.
+        manager.register_pass<ov::intel_gpu::SDPASelectMaskFusion>();
 
         manager.register_pass<ov::pass::CommonOptimizations>();
         pass_config->disable<ov::pass::GroupQueryAttentionDecomposition>();
