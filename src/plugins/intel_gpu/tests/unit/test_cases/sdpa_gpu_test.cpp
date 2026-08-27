@@ -284,26 +284,28 @@ TEST_P(sdpa_gpu_test, basic_caching) {
 }
 #endif
 
-TEST(sdpa_gpu_custom, dynamic_v_head_size_metadata) {
+TEST(sdpa_gpu_custom, dynamic_mismatched_v_head_size) {
     auto& engine = get_test_engine();
 
     const ov::PartialShape qk_shape{-1, 1, -1, 384};
     const ov::PartialShape v_shape{-1, 1, -1, -1};
-    const ov::Shape static_shape{1, 1, 16, 384};
+    const ov::Shape qk_static_shape{1, 1, 16, 384};
+    const ov::Shape v_static_shape{1, 1, 16, 256};
 
     const layout q_layout(qk_shape, data_types::f16, format::bfyx);
     const layout k_layout(qk_shape, data_types::f16, format::bfyx);
     const layout v_layout(v_shape, data_types::f16, format::bfyx);
-    const layout static_layout(static_shape, data_types::f16, format::bfyx);
+    const layout qk_static_layout(qk_static_shape, data_types::f16, format::bfyx);
+    const layout v_static_layout(v_static_shape, data_types::f16, format::bfyx);
 
-    auto q_mem = engine.allocate_memory(static_layout);
-    auto k_mem = engine.allocate_memory(static_layout);
-    auto v_mem = engine.allocate_memory(static_layout);
+    auto q_mem = engine.allocate_memory(qk_static_layout);
+    auto k_mem = engine.allocate_memory(qk_static_layout);
+    auto v_mem = engine.allocate_memory(v_static_layout);
 
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
     auto fill_random = [&](const memory::ptr& mem) {
-        auto data = rg.generate_random_1d<ov::float16>(static_layout.count(), -1.0f, 1.0f);
+        auto data = rg.generate_random_1d<ov::float16>(mem->get_layout().count(), -1.0f, 1.0f);
         set_values(mem, data);
     };
     fill_random(q_mem);
@@ -326,21 +328,36 @@ TEST(sdpa_gpu_custom, dynamic_v_head_size_metadata) {
                                               false));
     topology.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
 
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
-        {"sdpa", {format::type::bfyx, "sdpa_opt"}}
-    }));
+    auto run_network = [&](bool force_ref) {
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        if (force_ref) {
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+                {"sdpa", {format::type::bfyx, "sdpa_ref"}}
+            }));
+        }
 
-    auto network = get_network(engine, topology, config, get_test_stream_ptr(), false);
-    network->set_input_data("q", q_mem);
-    network->set_input_data("k", k_mem);
-    network->set_input_data("v", v_mem);
+        auto network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+        network->set_input_data("q", q_mem);
+        network->set_input_data("k", k_mem);
+        network->set_input_data("v", v_mem);
+        auto output = network->execute().at("result").get_memory();
+        return std::make_pair(network, output);
+    };
 
-    auto output = network->execute().at("result").get_memory();
+    auto [network, output] = run_network(false);
+    auto [ref_network, ref_output] = run_network(true);
+
+    ASSERT_NE(network->get_primitive_info("sdpa").find("sdpa_ref"), std::string::npos);
+    ASSERT_EQ(output->get_layout().get_shape(), v_static_shape);
+
     cldnn::mem_lock<ov::float16, mem_lock_type::read> output_data(output, get_test_stream());
-    for (size_t i = 0; i < output_data.size(); ++i)
-        ASSERT_TRUE(std::isfinite(static_cast<float>(output_data[i])));
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_output_data(ref_output, get_test_stream());
+    ASSERT_EQ(output_data.size(), ref_output_data.size());
+    for (size_t i = 0; i < output_data.size(); ++i) {
+        ASSERT_NEAR(static_cast<float>(output_data[i]), static_cast<float>(ref_output_data[i]), 1e-3f)
+            << "Mismatch at index " << i;
+    }
 }
 
 TEST(sdpa_gpu_custom, single_token_cond_attn_mask_clamp) {

@@ -57,7 +57,8 @@ struct SDPAOpt : public ImplementationManager {
 
         auto dim_size = desc->input_k_transpose_order.size();
         auto k_head_size = k_layout.get_partial_shape()[desc->input_k_transpose_order[dim_size - 1]];
-        if (k_head_size.is_dynamic()) {
+        auto v_head_size = v_layout.get_partial_shape()[desc->input_v_transpose_order[dim_size - 1]];
+        if (k_head_size.is_dynamic() || v_head_size.is_dynamic()) {
             return false;
         }
 
