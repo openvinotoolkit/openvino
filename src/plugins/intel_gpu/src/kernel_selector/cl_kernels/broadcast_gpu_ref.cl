@@ -335,7 +335,7 @@ KERNEL(broadcast_gpu_ref)(
                         FUSED_OPS
                         output[output_idx + offset] = FUSED_OPS_RESULT;
                     #else
-                        output[output_idx + offset] = TO_OUTPUT_TYPE(input[idx_pos + offset]);
+                        output[output_idx + offset] = TO_OUTPUT_TYPE(DECODE_INPUT0_COMPUTE_TYPE(input[idx_pos + offset]));
                     #endif
                 }
                 output_idx += OUTPUT_SIZE_X;
@@ -351,7 +351,7 @@ KERNEL(broadcast_gpu_ref)(
                         FUSED_OPS
                         out_v[offset] = FUSED_OPS_RESULT;
                     #else
-                        out_v[offset] = TO_OUTPUT_TYPE(input_vec[offset]);
+                        out_v[offset] = TO_OUTPUT_TYPE(DECODE_INPUT0_COMPUTE_TYPE(input_vec[offset]));
                     #endif
                 }
                 VSTORE(out_v, 0, &output[output_idx]);
@@ -371,7 +371,7 @@ KERNEL(broadcast_gpu_ref)(
                         output[out_pos + offset] = FUSED_OPS_RESULT;
                         offset += OUTPUT_SIZE_X;
                     #else
-                        output[out_pos + offset] = TO_OUTPUT_TYPE(input_val);
+                        output[out_pos + offset] = TO_OUTPUT_TYPE(DECODE_INPUT0_COMPUTE_TYPE(input_val));
                         offset += OUTPUT_SIZE_X;
                     #endif
                 }
@@ -415,7 +415,7 @@ KERNEL(broadcast_gpu_ref)(
             FUSED_OPS
             output[out_pos] = FUSED_OPS_RESULT;
         #else
-            output[out_pos] = TO_OUTPUT_TYPE(input[idx_pos]);
+            output[out_pos] = TO_OUTPUT_TYPE(DECODE_INPUT0_COMPUTE_TYPE(input[idx_pos]));
         #endif
     }
 }

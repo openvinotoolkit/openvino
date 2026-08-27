@@ -49,6 +49,14 @@ inline bool sdpa_has_runtime_attn_mask_input(const cldnn::kernel_impl_params& pa
     return !attn_mask_pshape.rank().is_static() || attn_mask_pshape.rank().get_length() > 1;
 }
 
+inline size_t ensure_positive_dim(int64_t value,
+                                  const char* dim_name,
+                                  const char* error_prefix = "SDPA: invalid non-positive ",
+                                  const char* error_suffix = "") {
+    OPENVINO_ASSERT(value > 0, error_prefix, dim_name, error_suffix);
+    return static_cast<size_t>(value);
+}
+
 inline size_t get_key_cache_id(const cldnn::scaled_dot_product_attention& desc) {
     size_t key_cache_id = desc.input_size();
 

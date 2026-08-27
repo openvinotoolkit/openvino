@@ -240,6 +240,57 @@ INSTANTIATE_TEST_SUITE_P(MappedMemory,
                                             ::testing::ValuesIn(std::vector<bool>{true, false})),
                          RangedMappingTest::test_name);
 
+class ReadWriteMappingTest : public ::testing::Test {
+protected:
+    std::filesystem::path m_file_path;
+    std::vector<uint8_t> m_content;
+    static constexpr size_t k_file_size = 128 * 1024;
+
+    void SetUp() override {
+        m_content = utils::make_modulo_sequence_pattern(k_file_size);
+        m_file_path = utils::generateTestFilePrefix() + "_rw_mapping";
+        ov::util::save_binary(m_file_path, m_content.data(), m_content.size());
+    }
+
+    void TearDown() override {
+        std::filesystem::remove(m_file_path);
+    }
+
+    std::vector<uint8_t> read_file() const {
+        std::vector<uint8_t> data(static_cast<size_t>(std::filesystem::file_size(m_file_path)));
+        std::ifstream is(m_file_path, std::ios::binary);
+        is.read(reinterpret_cast<char*>(data.data()), static_cast<std::streamsize>(data.size()));
+        return data;
+    }
+};
+
+TEST_F(ReadWriteMappingTest, writes_at_offset_leave_other_bytes_intact) {
+    constexpr size_t k_offset = 64 * 1024;
+    constexpr size_t k_size = 512;
+
+    auto expected = m_content;
+    std::fill_n(expected.begin() + k_offset, k_size, uint8_t{0x5A});
+    ASSERT_NE(expected, m_content);
+
+    {
+        auto mm = load_mmap_object(m_file_path, k_offset, k_size, false, MmapMode::READ_WRITE);
+        std::fill_n(reinterpret_cast<uint8_t*>(mm->data()), k_size, uint8_t{0x5A});
+    }
+
+    EXPECT_THAT(read_file(), ElementsAreArray(expected));
+}
+
+TEST_F(ReadWriteMappingTest, read_write_mappings_report_no_mapping_id) {
+    auto rw_whole = load_mmap_object(m_file_path, 0, auto_size, false, MmapMode::READ_WRITE);
+    auto rw_part = load_mmap_object(m_file_path, 128, 256, false, MmapMode::READ_WRITE);
+
+    ASSERT_NE(rw_whole, nullptr);
+    ASSERT_NE(rw_part, nullptr);
+
+    EXPECT_EQ(rw_whole->get_id(), no_mapping_id);
+    EXPECT_EQ(rw_part->get_id(), no_mapping_id);
+}
+
 class HintEvictTest : public ::testing::Test {
 protected:
     std::filesystem::path m_file_path;

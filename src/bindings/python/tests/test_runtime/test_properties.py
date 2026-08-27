@@ -615,6 +615,75 @@ def test_properties_devices_utilization_threshold():
     assert "incompatible function arguments" in str(e.value)
 
 
+def test_properties_perf_curve_table():
+    # Assert the property name is correctly registered
+    assert intel_auto.perf_curve_table == "PERF_CURVE_TABLE"
+
+    def check(value1, value2):
+        ret = intel_auto.perf_curve_table(value1)
+        assert ret[0] == "PERF_CURVE_TABLE"
+        assert ret[1].value == value2
+
+    # Nested dict form: device -> {utilization: score}
+    check({"CPU": {0: 0.0, 100: 100.0}}, {"CPU": {0: 0.0, 100: 100.0}})
+    check({"CPU": {50: 25.5}, "NPU": {50: 40.0}},
+          {"CPU": {50: 25.5}, "NPU": {50: 40.0}})
+
+    # String form is accepted and parsed to the same nested map.
+    check("{CPU:{0:0,100:100}}", {"CPU": {0: 0.0, 100: 100.0}})
+
+    # bool is accepted as int/float (bool is an int subclass in Python).
+    check({"CPU": {True: 1.0}}, {"CPU": {1: 1.0}})
+    check({"CPU": {10: True}}, {"CPU": {10: 1.0}})
+
+    # Type mismatches are rejected by pybind11's overload dispatch with TypeError.
+    with pytest.raises(TypeError) as e:
+        intel_auto.perf_curve_table({23: {0: 1.0}})
+    assert "incompatible function arguments" in str(e.value)
+
+    with pytest.raises(TypeError) as e:
+        intel_auto.perf_curve_table({"CPU": {0: "high"}})
+    assert "incompatible function arguments" in str(e.value)
+
+
+def test_properties_perf_curve_table_set_property_roundtrip():
+    core = Core()
+    # AUTO is a bundled virtual plugin; skip if it cannot be loaded in this environment.
+    try:
+        core.get_property("AUTO", props.supported_properties)
+    except RuntimeError:
+        pytest.skip("AUTO plugin is not available in this environment")
+
+    # Dict form: the helper builds a typed PerfCurveTable, so set/get round-trips to a dict.
+    expected = {"CPU": {0: 0.0, 100: 100.0}, "NPU": {50: 40.0}}
+    core.set_property("AUTO", intel_auto.perf_curve_table(expected))
+    assert core.get_property("AUTO", intel_auto.perf_curve_table) == expected
+
+    # Helper string form is parsed to the same typed map before it is set.
+    core.set_property("AUTO", intel_auto.perf_curve_table("{CPU:{0:0,100:100}}"))
+    assert core.get_property("AUTO", intel_auto.perf_curve_table) == {"CPU": {0: 0.0, 100: 100.0}}
+
+    # Raw string in a property dict exercises py_object_to_any -> validator parsing.
+    core.set_property("AUTO", {"PERF_CURVE_TABLE": "{NPU:{0:0,100:50}}"})
+    assert core.get_property("AUTO", intel_auto.perf_curve_table) == {"NPU": {0: 0.0, 100: 50.0}}
+
+    # Semantic rules are enforced by PerfCurveTableValidator at set_property time.
+    with pytest.raises(RuntimeError):
+        core.set_property("AUTO", intel_auto.perf_curve_table({"CPU": {}}))        # empty curve
+    with pytest.raises(RuntimeError):
+        core.set_property("AUTO", intel_auto.perf_curve_table({"XXX": {0: 1.0}}))  # non-whitelisted device
+    with pytest.raises(RuntimeError):
+        core.set_property("AUTO", {"PERF_CURVE_TABLE": "not-a-valid-table"})       # unparsable string
+
+
+def test_properties_low_power_device():
+    assert intel_auto.low_power_device == "LOW_POWER_DEVICE"
+
+    property_tuple = intel_auto.low_power_device("NPU")
+    assert property_tuple[0] == "LOW_POWER_DEVICE"
+    assert property_tuple[1].value == "NPU"
+
+
 def test_properties_streams():
     # Test extra Num class
     assert streams.Num().to_integer() == -1
