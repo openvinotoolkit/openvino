@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-27-21-36-44-000-33117706228",
+  "timestamp": "2026-08-27T21:36:44Z",
+  "run_id": "33117706228",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33117706228",
+  "workflow_name": "Android",
+  "pr_number": "37686",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37686",
+  "author": "olpipi",
+  "category": "Configuration",
+  "title": "Android CMake configure fails: openvino.genai requires OpenVINO 2026.5.0 but build reports 2026.4.0",
+  "signature": "could not find a configuration file for package openvino that is compatible with requested version|Configuration",
+  "signature_hash": "2a5d26de93cd9733",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build x64",
+      "conclusion": "failure",
+      "symptom": "CMake configure fails: openvino.genai requires OpenVINO 2026.5.0 but OpenVINOConfig.cmake reports 2026.4.0"
+    },
+    {
+      "name": "Build arm64",
+      "conclusion": "failure",
+      "symptom": "Same CMake configure failure as Build x64"
+    },
+    {
+      "name": "ci/gha_overall_status_android",
+      "conclusion": "failure",
+      "symptom": "Overall status check fails because both build jobs failed"
+    }
+  ],
+  "key_errors": [
+    "CMake Error at /__w/openvino/openvino/openvino.genai/CMakeLists.txt:60 (find_package):\n  Could not find a configuration file for package \"OpenVINO\" that is\n  compatible with requested version \"2026.5.0\".\n\n  The following configuration files were considered but not accepted:\n\n    /__w/openvino/openvino/build/OpenVINOConfig.cmake, version: 2026.4.0\n\n-- Configuring incomplete, errors occurred!\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The openvino.genai submodule (checked out alongside the OpenVINO source tree) declares find_package(OpenVINO 2026.5.0 REQUIRED) in its CMakeLists.txt:60, but the OpenVINO build in this merge-queue run produces an OpenVINOConfig.cmake that reports version 2026.4.0. This version mismatch causes CMake configuration to abort. The PR itself (fixing a C API test) does not touch CMake version files or the genai submodule, so the failure is a pre-existing incompatibility between the master branch CMake version declaration and the pinned openvino.genai submodule version.",
+  "reproduction_steps": "Clone openvinotoolkit/openvino, check out the merge-queue branch, configure with the same Android CMake flags. The genai submodule's CMakeLists.txt will fail to find the locally-built OpenVINO package.",
+  "recommended_actions": [
+    "Identify which commit bumped openvino.genai's required OpenVINO version to 2026.5.0 and whether the OpenVINO CMake version was supposed to be bumped at the same time.",
+    "Bump the OpenVINO project version in cmake/developer_package/version.cmake (or equivalent) from 2026.4.0 to 2026.5.0 if a version bump is due.",
+    "Alternatively, if openvino.genai was updated prematurely, revert or pin it to a version compatible with 2026.4.0.",
+    "Check whether the same failure occurs on other workflows (Linux, Windows) to determine scope."
+  ],
+  "prevention_strategies": "Enforce that openvino.genai submodule version updates are always paired with a matching OpenVINO version bump in the same PR (or landed atomically). Add a CI check that validates the OpenVINO version declared in the build matches the minimum required by all submodules.",
+  "historical_context": "No prior pattern found with this exact signature. This appears to be the first occurrence."
+}

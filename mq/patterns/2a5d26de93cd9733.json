@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "could not find a configuration file for package openvino that is compatible with requested version|Configuration",
+  "signature_hash": "2a5d26de93cd9733",
+  "title": "Android CMake configure fails: openvino.genai requires OpenVINO 2026.5.0 but build reports 2026.4.0",
+  "category": "Configuration",
+  "count": 1,
+  "first_seen": "2026-08-27T21:36:44Z",
+  "last_seen": "2026-08-27T21:36:44Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/33117706228"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37686"
+  ],
+  "recent_timestamps": [
+    "2026-08-27T21:36:44Z"
+  ],
+  "rerun_search_string": null
+}
