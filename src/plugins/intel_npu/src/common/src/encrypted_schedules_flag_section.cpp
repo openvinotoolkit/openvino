@@ -19,7 +19,7 @@ EncryptedSchedulesFlagSection::EncryptedSchedulesFlagSection(const bool applied_
 }
 
 std::vector<CREToken> EncryptedSchedulesFlagSection::get_compatibility_requirements_subexpression(
-    const std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>&
+    const std::unordered_map<SectionType, std::unordered_map<SectionID, std::shared_ptr<ISection>>>&
     /*all_registered_sections*/) const {
     m_logger.debug("Added the ENCRYPTED_SCHEDULES_FLAG section type to the CRE");
     return {get_section_type()};

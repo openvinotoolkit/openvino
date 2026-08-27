@@ -111,15 +111,15 @@ void MockSectionWithTable::write(BlobWriterInterface& writer) {
 
     // write the reachable sections
     std::vector<Entry> entries;
-    std::unordered_map<SectionType, SectionTypeInstance> counters;
+    std::unordered_map<SectionType, SectionID> counters;
     for (const auto& r : reachables) {
         const SectionType type = r->get_section_type();
-        const SectionTypeInstance instance = counters[type]++;
+        const SectionID instance = counters[type]++;
         const uint64_t offset = static_cast<uint64_t>(writer.get_offset_relative_to_current_section());
         r->write(writer);
         writer.seek_to_the_end();
         const uint64_t length = static_cast<uint64_t>(writer.get_offset_relative_to_current_section()) - offset;
-        entries.push_back({SectionID(type, instance), offset, length});
+        entries.push_back({type, instance, offset, length});
     }
 
     // go back to entries payload and write the actual entries
@@ -172,15 +172,15 @@ std::shared_ptr<ISection> MockSectionWithTable::read(BlobReaderInterface& blob_r
     std::vector<Entry> entries;
     for (uint64_t i = 0; i < number_of_entries; i++) {
         SectionType type;
-        SectionTypeInstance instance;
+        SectionID id;
         uint64_t offset, length;
         blob_reader.read_into_buffer(&type, sizeof(type));
-        blob_reader.read_into_buffer(&instance, sizeof(instance));
+        blob_reader.read_into_buffer(&id, sizeof(id));
         blob_reader.read_into_buffer(&offset, sizeof(offset));
         blob_reader.read_into_buffer(&length, sizeof(length));
-        const SectionID id(type, instance);
-        embedded.add_entry(id, offset, length);
-        entries.push_back({id, offset, length});
+
+        embedded.add_entry(type, id, offset, length);
+        entries.push_back({type, id, offset, length});
     }
 
     std::unordered_map<SectionID, std::shared_ptr<ISection>> parsed;

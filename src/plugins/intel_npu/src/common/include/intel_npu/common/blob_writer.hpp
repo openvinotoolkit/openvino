@@ -118,7 +118,7 @@ public:
      * used to distringuish between sections of the same type. This number is unique only among sections of the same
      * type.
      */
-    SectionTypeInstance register_section(const std::shared_ptr<ISection>& section);
+    SectionID register_section(const std::shared_ptr<ISection>& section);
 
     /**
      * @brief Writes all sections within the writing queue into the provided stream.
@@ -163,7 +163,7 @@ private:
      * @brief Tracks the next available instance ID for each section type. This should assure that the generated section
      * IDs (type + instance) are unique per compiled model.
      */
-    std::unordered_map<SectionType, SectionTypeInstance> m_next_type_instance_id;
+    SectionID m_next_section_id;
     /**
      * @brief Queue that holds all sections to be written at export time.
      */
@@ -171,8 +171,7 @@ private:
     /**
      * @brief An easy-to-access record of all sections registered so far.
      */
-    std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>
-        m_registered_sections;
+    std::unordered_map<SectionType, std::unordered_map<SectionID, std::shared_ptr<ISection>>> m_registered_sections;
 
     Logger m_logger;
 };

@@ -19,9 +19,11 @@ class Manifest final {
 public:
     Manifest(const ov::log::Level log_level = ov::log::Level::WARNING);
 
-    void add_entry(const SectionID id, const uint64_t offset, const uint64_t length);
+    void add_entry(const SectionID id, const SectionType type, const uint64_t offset, const uint64_t length);
 
     static size_t get_entry_size();
+
+    std::optional<SectionType> lookup_type(const SectionID id) const;
 
     std::optional<uint64_t> lookup_offset(const SectionID id) const;
 
@@ -39,9 +41,9 @@ private:
     friend class ManifestSection;
 
     /**
-     * @brief From section IDs to offsets & lengths.
+     * @brief From section IDs to section types, offsets & lengths.
      */
-    std::unordered_map<SectionID, std::pair<uint64_t, uint64_t>> m_table;
+    std::unordered_map<SectionID, std::tuple<SectionType, uint64_t, uint64_t>> m_table;
     /**
      * @brief From offsets to section IDs.
      */

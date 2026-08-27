@@ -92,6 +92,7 @@ private:
                          Manifest embedded_table);
 
     struct Entry {
+        SectionType type;
         SectionID id;
         uint64_t offset;
         uint64_t length;

@@ -24,30 +24,26 @@ SectionType ISection::get_section_type() const {
     return m_section_type;
 }
 
-std::optional<SectionTypeInstance> ISection::get_section_type_instance() const {
-    return m_section_type_instance;
+std::optional<SectionID> ISection::get_section_id() const {
+    return m_section_id;
 }
 
-void ISection::set_section_type_instance(const SectionTypeInstance type_instance) const {
-    OPENVINO_ASSERT(!m_section_type_instance.has_value(),
+void ISection::set_section_id(const SectionID id) const {
+    OPENVINO_ASSERT(!m_section_id.has_value(),
                     "Attempted to set an instance ID to a section that already had one. Section type: ",
                     m_section_type,
                     ", old instance ID: ",
-                    m_section_type_instance.value());
+                    m_section_id.value());
 
-    m_section_type_instance = type_instance;
+    m_section_id = id;
 }
 
 std::optional<SectionID> ISection::get_section_id() const {
-    if (!m_section_type_instance.has_value()) {
-        return std::nullopt;
-    }
-
-    return SectionID(m_section_type, m_section_type_instance.value());
+    return m_section_id;
 }
 
 std::vector<CREToken> ISection::get_compatibility_requirements_subexpression(
-    const std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>&
+    const std::unordered_map<SectionType, std::unordered_map<SectionID, std::shared_ptr<ISection>>>&
     /*all_registered_sections*/) const {
     // By default, no requirements are added
     return {};

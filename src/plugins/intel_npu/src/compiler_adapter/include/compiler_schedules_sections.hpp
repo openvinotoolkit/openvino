@@ -25,7 +25,7 @@ public:
                            const ov::log::Level log_level = ov::log::Level::WARNING);
 
     std::vector<CREToken> get_compatibility_requirements_subexpression(
-        const std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>&
+        const std::unordered_map<SectionType, std::unordered_map<SectionID, std::shared_ptr<ISection>>>&
             all_registered_sections) const override;
 
     /**
@@ -59,7 +59,7 @@ public:
                             const ov::log::Level log_level = ov::log::Level::WARNING);
 
     std::vector<CREToken> get_compatibility_requirements_subexpression(
-        const std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>&
+        const std::unordered_map<SectionType, std::unordered_map<SectionID, std::shared_ptr<ISection>>>&
             all_registered_sections) const override;
 
     /**
@@ -94,7 +94,7 @@ public:
                            const ov::log::Level log_level = ov::log::Level::WARNING);
 
     std::vector<CREToken> get_compatibility_requirements_subexpression(
-        const std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>&
+        const std::unordered_map<SectionType, std::unordered_map<SectionID, std::shared_ptr<ISection>>>&
             all_registered_sections) const override;
 
     /**

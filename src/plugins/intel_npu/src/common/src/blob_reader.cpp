@@ -15,7 +15,6 @@ constexpr uint32_t FORMAT_VERSION = 0x30000;  // 3.0;
 
 // The header: magic, format version, NPU region size, manifest location, manifest size
 constexpr size_t MINIMUM_BLOB_SIZE = MAGIC_BYTES.size() + sizeof(FORMAT_VERSION) + 3 * sizeof(uint64_t);
-constexpr intel_npu::SectionTypeInstance FIRST_INSTANCE_ID = 0;
 
 void seekg_with_bound_checking(intel_npu::BlobSource& source,
                                const size_t destination,
@@ -61,6 +60,7 @@ void BlobReader::register_section_type_instance_evaluate_fn(const SectionType ty
     m_logger.debug("Registered a section type instance evaluation function for section type %lu", type);
 }
 
+// TODO refactor
 std::shared_ptr<ISection> BlobReader::retrieve_section(const SectionID& id) const {
     auto type_search_result = m_parsed_sections.find(id.type);
     if (type_search_result != m_parsed_sections.end()) {
@@ -73,11 +73,15 @@ std::shared_ptr<ISection> BlobReader::retrieve_section(const SectionID& id) cons
 }
 
 std::shared_ptr<ISection> BlobReader::retrieve_first_section(const SectionType section_type) const {
-    return retrieve_section(SectionID(section_type, FIRST_INSTANCE_ID));
+    if (!m_parsed_sections.count(section_type) || m_parsed_sections.at(section_type).empty()) {
+        return nullptr;
+    }
+
+    return retrieve_section(m_parsed_sections.at(section_type).begin()->first);
 }
 
-std::optional<std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>
-BlobReader::retrieve_sections_same_type(const SectionType type) const {
+std::optional<std::unordered_map<SectionID, std::shared_ptr<ISection>>> BlobReader::retrieve_sections_same_type(
+    const SectionType type) const {
     auto type_search_result = m_parsed_sections.find(type);
     if (type_search_result != m_parsed_sections.end()) {
         return type_search_result->second;

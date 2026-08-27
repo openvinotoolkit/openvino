@@ -15,7 +15,7 @@ namespace {
 constexpr std::string_view MAGIC_BYTES = "OVNPU";
 constexpr uint32_t FORMAT_VERSION = 0x30000;  // 3.0;
 
-constexpr intel_npu::SectionTypeInstance FIRST_INSTANCE_ID = 0;
+constexpr size_t FIRST_INSTANCE_ID = 0;
 
 }  // namespace
 
@@ -78,12 +78,15 @@ void BlobWriterInterface::seek_to_the_end() {
     m_stream.get().seekp(0, std::ios_base::end);
 }
 
-BlobWriter::BlobWriter(const ov::log::Level log_level) : m_logger("BlobWriter", log_level) {
+BlobWriter::BlobWriter(const ov::log::Level log_level)
+    : m_next_section_id(FIRST_INSTANCE_ID),
+      m_logger("BlobWriter", log_level) {
     m_logger.debug("BlobWriter built from scratch");
 }
 
 BlobWriter::BlobWriter(const std::shared_ptr<BlobReader>& blob_reader, const ov::log::Level log_level)
-    : m_logger("BlobWriter", log_level) {
+    : m_next_section_id(FIRST_INSTANCE_ID),
+      m_logger("BlobWriter", log_level) {
     m_logger.debug("Building the BlobWriter using the contents of a BlobReader");
 
     for (const SectionID& section_id : blob_reader->m_parsed_sections_order) {
@@ -104,41 +107,32 @@ std::streamoff BlobWriter::get_offset_relative_to_npu_region(std::ostream& strea
     return stream.tellp() - stream_npu_region_start;
 }
 
-SectionTypeInstance BlobWriter::register_section(const std::shared_ptr<ISection>& section) {
+SectionID BlobWriter::register_section(const std::shared_ptr<ISection>& section) {
     const SectionType section_type = section->get_section_type();
-    if (!m_next_type_instance_id.count(section_type)) {
-        m_next_type_instance_id[section_type] = FIRST_INSTANCE_ID;
-    }
 
-    const SectionTypeInstance type_instance_id = m_next_type_instance_id[section_type]++;
-    section->set_section_type_instance(type_instance_id);
+    const SectionID section_id = m_next_section_id++;
+    section->set_section_type_instance(section_id);
     m_write_queue.push(section);
 
     if (m_registered_sections.count(section_type)) {
-        OPENVINO_ASSERT(!m_registered_sections.at(section_type).count(type_instance_id),
+        OPENVINO_ASSERT(!m_registered_sections.at(section_type).count(section_id),
                         "The same section ID has been attributed to two distinct sections");
     }
-    m_registered_sections[section_type][type_instance_id] = section;
+    m_registered_sections[section_type][section_id] = section;
 
     m_logger.debug("Registered section %s", section->get_section_id()->to_string());
 
-    return type_instance_id;
+    return section_id;
 }
 
 void BlobWriter::register_section_from_blob_reader(const std::shared_ptr<ISection>& section) {
     const SectionType section_type = section->get_section_type();
-    if (!m_next_type_instance_id.count(section_type)) {
-        m_next_type_instance_id[section_type] = FIRST_INSTANCE_ID;
-    }
 
     // Update the next instance ID to be used.
-    // Note: not sure if we really need to do this, since supposedly there won't be any other sections registered by
-    // the plugin in this case. A blob that was imported should already contain all the sections it needs.
-    OPENVINO_ASSERT(section->get_section_type_instance().has_value(),
-                    "Found a section parsed by a BlobReader object without an instance ID");
-    const SectionTypeInstance candidate = section->get_section_type_instance().value() + 1;
-    m_next_type_instance_id[section_type] =
-        candidate > m_next_type_instance_id[section_type] ? candidate + 1 : m_next_type_instance_id[section_type];
+    OPENVINO_ASSERT(section->get_section_id().has_value(),
+                    "Found a section parsed by a BlobReader object without an ID");
+    const SectionID candidate = section->get_section_id().value() + 1;
+    m_next_section_id = candidate > m_next_section_id ? candidate : m_next_section_id;
 
     m_write_queue.push(section);
 

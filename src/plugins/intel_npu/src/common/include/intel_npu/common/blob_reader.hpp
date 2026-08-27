@@ -79,7 +79,7 @@ public:
      * @note This should be called only after "read" was invoked.
      * @return All parsed sections of the given type if any, else "std::nullopt"
      */
-    std::optional<std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>> retrieve_sections_same_type(
+    std::optional<std::unordered_map<SectionID, std::shared_ptr<ISection>>> retrieve_sections_same_type(
         const SectionType type) const;
 
     /**
@@ -130,8 +130,7 @@ private:
     /**
      * @brief All sections obtained after parsing the compiled model.
      */
-    std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>
-        m_parsed_sections;
+    std::unordered_map<SectionType, std::unordered_map<SectionID, std::shared_ptr<ISection>>> m_parsed_sections;
 
     /**
      * @brief The order in which the sections have been parse.

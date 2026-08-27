@@ -12,7 +12,7 @@ namespace intel_npu {
 
 Manifest::Manifest(const ov::log::Level log_level) : m_logger("Manifest", log_level) {}
 
-void Manifest::add_entry(const SectionID id, const uint64_t offset, const uint64_t length) {
+void Manifest::add_entry(const SectionID id, const SectionType type, const uint64_t offset, const uint64_t length) {
     OPENVINO_ASSERT(!m_table.count(id), "The section ID already exists within the manifest. ID: ", id);
     OPENVINO_ASSERT(!m_reversed_table.count(offset),
                     "The offset is already in-use within the manifest. Offset: ",
@@ -20,31 +20,31 @@ void Manifest::add_entry(const SectionID id, const uint64_t offset, const uint64
                     ". ID: ",
                     id);
 
-    m_logger.debug("New entry added: section ID %s offset %lu, length %lu", id.to_string(), offset, length);
+    m_logger.debug("New entry added: section ID %zu, type %zu, offset %zu, length %zu", id, type, offset, length);
 
-    m_table[id] = std::make_pair<>(offset, length);
+    m_table[id] = std::make_tuple<>(type, offset, length);
     m_reversed_table[offset] = id;
 }
 
 size_t Manifest::get_entry_size() {
     // Type ID, instance ID, offset, length
-    return sizeof(SectionType) + sizeof(SectionTypeInstance) + 2 * sizeof(uint64_t);
+    return sizeof(SectionID) + sizeof(SectionType) + 2 * sizeof(uint64_t);
+}
+
+// TODO minor refactor?
+std::optional<SectionType> Manifest::lookup_type(const SectionID id) const {
+    const auto search_result = m_table.find(id);
+    return search_result != m_table.end() ? std::make_optional<>(std::get<0>(search_result->second)) : std::nullopt;
 }
 
 std::optional<uint64_t> Manifest::lookup_offset(const SectionID id) const {
     const auto search_result = m_table.find(id);
-    if (search_result != m_table.end()) {
-        return search_result->second.first;
-    }
-    return std::nullopt;
+    return search_result != m_table.end() ? std::make_optional<>(std::get<1>(search_result->second)) : std::nullopt;
 }
 
 std::optional<uint64_t> Manifest::lookup_length(const SectionID id) const {
     const auto search_result = m_table.find(id);
-    if (search_result != m_table.end()) {
-        return search_result->second.second;
-    }
-    return std::nullopt;
+    return search_result != m_table.end() ? std::make_optional<>(std::get<2>(search_result->second)) : std::nullopt;
 }
 
 std::optional<SectionID> Manifest::lookup_section_id(const uint64_t offset) const {
@@ -116,7 +116,7 @@ std::shared_ptr<ISection> ManifestSection::read(BlobReaderInterface& blob_reader
     size_t number_of_sections_in_table = section_length / entry_size;
     Manifest manifest(blob_reader.get_log_level());
     SectionType type;
-    SectionTypeInstance type_instance;
+    SectionID id;
     uint64_t offset;
     uint64_t length;
 
@@ -124,14 +124,14 @@ std::shared_ptr<ISection> ManifestSection::read(BlobReaderInterface& blob_reader
 
     while (number_of_sections_in_table--) {
         blob_reader.read_into_buffer(&type, sizeof(type));
-        blob_reader.read_into_buffer(&type_instance, sizeof(type_instance));
+        blob_reader.read_into_buffer(&id, sizeof(id));
         blob_reader.read_into_buffer(&offset, sizeof(offset));
         blob_reader.read_into_buffer(&length, sizeof(length));
 
-        const SectionID section_id(type, type_instance);
+        const SectionID section_id(type, id);
         manifest.add_entry(section_id, offset, length);
 
-        logger.trace("Read entry: section ID %s, offset %lu, length %lu", section_id.to_string(), offset, length);
+        logger.trace("Read entry: section ID %s, offset %lu, length %lu", id.to_string(), offset, length);
     }
 
     return std::make_shared<ManifestSection>(std::move(manifest), logger.level());

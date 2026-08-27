@@ -28,7 +28,7 @@ using SectionType = uint16_t;
 /**
  * @brief Used to distinguish multiple sections of the same type within the same compiled model.
  */
-using SectionTypeInstance = uint16_t;
+using SectionID = uint16_t;
 
 /**
  * @brief Uniquely identifies a section within a compiled model.
@@ -82,10 +82,6 @@ static inline const std::unordered_set<SectionType> DEFAULT_SUPPORTED_SECTION_TY
     PredefinedSectionType::ENCRYPTED_SCHEDULES_FLAG,
     PredefinedSectionType::COMPILER_VERSION};
 
-// Only a single instance should exist within a blob. So, we may predefine these IDs for convenience.
-const SectionID CRE_SECTION_ID(PredefinedSectionType::CRE, 0);
-const SectionID MANIFEST_SECTION_ID(PredefinedSectionType::MANIFEST, 0);
-
 /**
  * @brief Interface that should be implemented by all blob section handlers. Its role is to standardize the
  * identification of the section, along with the signatures of the read & writer handlers.
@@ -102,14 +98,6 @@ public:
     virtual void write(BlobWriterInterface& writer) = 0;
 
     SectionType get_section_type() const;
-
-    /**
-     * @brief Get the type instance ID
-     *
-     * @return Either the ID or a std::nullopt. This value exists only if the current section has been added to a
-     * BlobWriter writing queue.
-     */
-    std::optional<SectionTypeInstance> get_section_type_instance() const;
 
     /**
      * @brief Get the section ID, unique per compiled model.
@@ -132,7 +120,7 @@ public:
      * @return The subexpression describing the requirements of the current section.
      */
     virtual std::vector<CREToken> get_compatibility_requirements_subexpression(
-        const std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>&
+        const std::unordered_map<SectionType, std::unordered_map<SectionID, std::shared_ptr<ISection>>>&
             all_registered_sections) const;
 
     /**
@@ -159,19 +147,20 @@ private:
      * instance ID denotes, by convention, the order in which the sections of the given type have been registered to be
      * written in the blob.
      */
-    void set_section_type_instance(const SectionTypeInstance type_instance) const;
+    void set_section_id(const SectionID type_instance) const;
 
     SectionType m_section_type;
     /**
      * @note This value exists only if the current section has been added to a BlobWriter writing queue.
      */
-    mutable std::optional<SectionTypeInstance> m_section_type_instance;
+    mutable std::optional<SectionID> m_section_id;
 
+    // TODO is this necessary?
     /**
      * @brief Stores the result obtained after evaluating if the current section is supported based on its section
      * content. This result can then be returned in future calls, thus avoiding the need to reevaluate.
      */
-    mutable std::optional<bool> m_type_instance_supported;
+    mutable std::optional<bool> m_supported;
 };
 
 }  // namespace intel_npu
