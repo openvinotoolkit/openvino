@@ -1012,11 +1012,13 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
             lazy_closure.resize(closure_size);
             stream & cpu_closure_ids;
             serialize_weightless(stream, cpu_closures, ctx);
+            ov::npuw::s11n::validate_closure_ids(cpu_closure_ids, closure_desc.closure.size(), cpu_closures.size());
             std::size_t tidx = 0;
             for (const auto& idx : cpu_closure_ids) {
                 closure_desc.closure[idx] = std::move(cpu_closures[tidx++]);
             }
             stream & non_cpu_tensors_ids & non_cpu_tensors;
+            ov::npuw::s11n::validate_closure_ids(non_cpu_tensors_ids, lazy_closure.size(), non_cpu_tensors.size());
             std::size_t ltidx = 0;
             for (const auto& idx : non_cpu_tensors_ids) {
                 lazy_closure[idx] = std::move(non_cpu_tensors[ltidx++]);
@@ -1048,6 +1050,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
         } else {
             stream & cpu_closure_ids;
             closure_desc.closure.resize(closure_size);
+            ov::npuw::s11n::validate_closure_ids(cpu_closure_ids, closure_desc.closure.size());
             for (const auto& cidx : cpu_closure_ids) {
                 stream & closure_desc.closure[cidx];
             }

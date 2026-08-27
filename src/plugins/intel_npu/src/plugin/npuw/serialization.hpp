@@ -304,6 +304,18 @@ inline void read_weightless(std::istream& stream, std::vector<ov::Tensor>& var, 
     orc::serialize_weightless(stream_io, var, ctx);
 }
 
+// Bounds-check untrusted closure indices before they subscript a closure vector.
+// Throws on any index >= container_size, or (if given) payload_size != ids.size().
+inline void validate_closure_ids(const std::vector<std::size_t>& ids,
+                                 std::size_t container_size,
+                                 std::optional<std::size_t> payload_size = std::nullopt) {
+    OPENVINO_ASSERT(!payload_size || *payload_size == ids.size(),
+                    "[NPU] NPUW closure index/payload length mismatch in deserialized blob");
+    for (const auto idx : ids) {
+        OPENVINO_ASSERT(idx < container_size, "[NPU] NPUW closure index out of range in deserialized blob");
+    }
+}
+
 }  // namespace s11n
 
 }  // namespace npuw
