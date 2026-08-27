@@ -736,7 +736,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
                                            device,
                                            graph,
                                            blobFormatImporter->get_config(),
-                                           graph->get_batch_size());
+                                           blobFormatImporter->create_blob_writer());
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,

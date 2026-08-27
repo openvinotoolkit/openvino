@@ -111,11 +111,12 @@ void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
     if (!_propertiesManager->getConfig().get<EXPORT_RAW_BLOB>()) {
+        OPENVINO_ASSERT(blobWriter, "Cannot export non-raw blobs without a BlobWriter");
         _blobWriter->write_to(stream);
         return;
     }
 
-    if (!blob_contains_only_main_schedule(_blobWriter)) {
+    if (blobWriter && !blob_contains_only_main_schedule(_blobWriter)) {
         OPENVINO_THROW("Received a request to export the compiled model using the raw format, but multiple compiler "
                        "schedules have been found. The raw format supports only a single compiler schedule.");
     }

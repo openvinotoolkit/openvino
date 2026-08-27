@@ -7,7 +7,6 @@
 #include "batch_size_section.hpp"
 #include "compiler_schedules_sections.hpp"
 #include "intel_npu/common/blob_reader.hpp"
-#include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/encrypted_schedules_flag_section.hpp"
 #include "intel_npu/common/isection.hpp"
@@ -179,6 +178,8 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
     return std::make_shared<ov::Model>(results, parameters);
 }
 
+// TODO move importers in separate files, another new directory. do not expose them tho
+
 /**
  * @brief Class used to import a blob that contains only the compiler main schedule.
  */
@@ -200,6 +201,10 @@ public:
         }
 
         m_main_schedule = compiler_main_schedule.create_roi_tensor(blob_size);
+    }
+
+    std::shared_ptr<BlobWriter> create_blob_writer() override {
+        return nullptr;
     }
 
 private:
@@ -295,6 +300,10 @@ public:
         }
 
         register_compiler_version();
+    }
+
+    std::shared_ptr<BlobWriter> create_blob_writer() override {
+        return nullptr;
     }
 
 private:
@@ -417,6 +426,28 @@ public:
 
         m_blob_reader.read(npu_formatted_blob);
         verify_valid_sections();
+    }
+
+    std::shared_ptr<BlobWriter> create_blob_writer() override {
+        auto elfMainScheduleSection = std::dynamic_pointer_cast<ELFMainScheduleSection>(
+            m_blob_reader.retrieve_first_section(PredefinedSectionType::ELF_MAIN_SCHEDULE));
+
+        if (elfMainScheduleSection) {
+            auto initSchedulesSection = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
+                m_blob_reader.retrieve_first_section(PredefinedSectionType::ELF_INIT_SCHEDULES));
+
+            elfMainScheduleSection->set_graph(std::dynamic_pointer_cast<Graph>(m_graph));
+            if (initSchedulesSection) {
+                initSchedulesSection->set_graph(std::dynamic_pointer_cast<WeightlessGraph>(m_graph));
+            }
+        } else {
+            auto dynamicScheduleSection = std::dynamic_pointer_cast<DynamicScheduleSection>(
+                m_blob_reader.retrieve_first_section(PredefinedSectionType::DYNAMIC_SCHEDULE));
+            dynamicScheduleSection->set_graph(std::dynamic_pointer_cast<DynamicGraph>(m_graph));
+        }
+
+        // TODO consider rebuilding the section from scratch just like the v1; unify the flows
+        return std::make_shared<BlobWriter>(m_blob_reader);
     }
 
 private:
@@ -556,6 +587,8 @@ private:
         OPENVINO_ASSERT(dynamic_schedule_section, MISSING_MAIN_SCHEDULE_MESSAGE);
         return dynamic_schedule_section->get_blob_type();
     }
+
+    // TODO create blob writer function
 
     BlobReader m_blob_reader;
 };

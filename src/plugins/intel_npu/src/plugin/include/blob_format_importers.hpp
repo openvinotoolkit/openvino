@@ -8,6 +8,7 @@
 #include <string>
 
 #include "blob_source.hpp"
+#include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/npu.hpp"
@@ -67,11 +68,21 @@ public:
      */
     std::shared_ptr<ov::Model> create_dummy_model() const;
 
+    /**
+     * @brief Creates a new BlobWriter using the data parsed from the blob. The BlobWriter can later be used to
+     * re-export the blob.
+     *
+     * @return The BlobWriter if the imported compiled model is not a "raw blob". "nullptr" otherwise.
+     */
+    virtual std::shared_ptr<BlobWriter> create_blob_writer() = 0;
+
     FilteredConfig get_config() const;
 
     virtual ~IBlobFormatImporter() = default;
 
 protected:
+    std::shared_ptr<IGraph> m_graph;
+
     FilteredConfig m_config;
     Logger m_logger;
 
@@ -115,7 +126,6 @@ private:
      */
     std::shared_ptr<const ov::Model> m_original_model;
     std::optional<int> m_batch_size;
-    std::shared_ptr<IGraph> m_graph;
 };
 
 namespace blob_format_importer_factory {
