@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-27-22-42-34-000-33117706507",
+  "timestamp": "2026-08-27T22:42:34Z",
+  "run_id": "33117706507",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33117706507",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "37686",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37686",
+  "author": "olpipi",
+  "category": "Dependencies",
+  "title": "OpenVINO tokenizers wheel build fails - openvino~=2026.5.0.dev not yet available on pip",
+  "signature": "could not find a version that satisfies the requirement openvino dev tokenizers build dependencies failed|Dependencies",
+  "signature_hash": "8d60fd1266878935",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "OpenVINO tokenizers extension / OpenVINO tokenizers extension",
+      "conclusion": "failure",
+      "symptom": "pip cannot install openvino~=2026.5.0.dev build dependency - no matching version on index"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_24",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed because tokenizers job failed"
+    }
+  ],
+  "key_errors": [
+    "ERROR: Could not find a version that satisfies the requirement openvino~=2026.5.0.dev (from versions: ...2026.4.0.dev20260827)",
+    "ERROR: No matching distribution found for openvino~=2026.5.0.dev",
+    "error: subprocess-exited-with-error",
+    "pip subprocess to install build dependencies did not run successfully."
+  ],
+  "root_cause": "The openvino_tokenizers package requires openvino~=2026.5.0.dev as a build dependency. The latest available nightly version on the pip index is 2026.4.0.dev20260827, and 2026.5.0.dev does not yet exist. This means any PR that triggers the tokenizers build job will fail until a 2026.5.0.dev nightly is published. This is a pre-existing infrastructure/release pipeline issue unrelated to the PR changes (which only touch src/bindings/c/tests/ov_remote_context_test.cpp). The same failure has been seen in at least 2 prior merge-queue runs today.",
+  "reproduction_steps": "N/A - the failure requires 2026.5.0.dev to be published on PyPI/pip-proxy to resolve.",
+  "recommended_actions": [
+    "Wait for a 2026.5.0.dev nightly build of openvino to be published on the internal pip-proxy index.",
+    "Alternatively, lower the openvino version requirement in openvino_tokenizers/pyproject.toml from ~=2026.5.0.dev to ~=2026.4.0.dev until the nightly is available.",
+    "Re-queue the PR once the dependency is available."
+  ],
+  "prevention_strategies": "Align openvino_tokenizers version constraints with actually-published nightly versions. Consider a CI step that validates the required openvino dev version exists on the index before triggering the full tokenizers build.",
+  "historical_context": "Same failure seen in runs 33117706429 and 33115293632 on 2026-08-27. Pattern hash 8d60fd1266878935 has count=2 before this investigation."
+}

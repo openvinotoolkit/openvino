@@ -4,18 +4,20 @@
   "signature_hash": "8d60fd1266878935",
   "title": "OpenVINO tokenizers wheel build fails - openvino~=2026.5.0.dev not yet available on pip",
   "category": "Dependencies",
-  "count": 2,
+  "count": 3,
   "first_seen": "2026-08-27T22:06:20Z",
-  "last_seen": "2026-08-27T22:25:53Z",
+  "last_seen": "2026-08-27T22:42:34Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/33117706507",
     "https://github.com/openvinotoolkit/openvino/actions/runs/33115293632",
     "https://github.com/openvinotoolkit/openvino/actions/runs/33117706429"
   ],
   "affected_prs": [
-    "https://github.com/openvinotoolkit/openvino/pull/37690",
-    "https://github.com/openvinotoolkit/openvino/pull/37686"
+    "https://github.com/openvinotoolkit/openvino/pull/37686",
+    "https://github.com/openvinotoolkit/openvino/pull/37690"
   ],
   "recent_timestamps": [
+    "2026-08-27T22:42:34Z",
     "2026-08-27T22:25:53Z",
     "2026-08-27T22:06:20Z"
   ],

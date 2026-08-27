@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 200,
+  "total": 201,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1962,6 +1962,15 @@
       "category": "Dependencies",
       "signature_hash": "8d60fd1266878935",
       "pr_number": "37690"
+    },
+    {
+      "investigation_id": "2026-08-27-22-42-34-000-33117706507",
+      "run_id": "33117706507",
+      "timestamp": "2026-08-27T22:42:34Z",
+      "title": "OpenVINO tokenizers wheel build fails - openvino~=2026.5.0.dev not yet available on pip",
+      "category": "Dependencies",
+      "signature_hash": "8d60fd1266878935",
+      "pr_number": "37686"
     }
   ]
 }
