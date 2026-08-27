@@ -61,6 +61,8 @@ private:
     // Owns the heap-allocated callback passed to IPF as the event context; freed only after a
     // confirmed successful unregister to avoid a use-after-free if IPF still holds a stale reference.
     std::unique_ptr<IpfEventCallback> m_callback_context;
+    // Path currently registered for m_callback_context.
+    std::string m_registered_path;
 };
 
 }  // namespace device_monitor

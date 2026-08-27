@@ -73,6 +73,9 @@ IpfClientApiAdapter::IpfClientApiAdapter() {
 }
 
 IpfClientApiAdapter::~IpfClientApiAdapter() {
+    if (m_callback_context) {
+        unregister_event(m_registered_path);
+    }
     if (m_handle != nullptr) {
         IpfDestroy(m_handle);
         m_handle = nullptr;
@@ -101,6 +104,13 @@ bool IpfClientApiAdapter::register_event(const std::string& path, IpfEventCallba
     if (m_handle == nullptr) {
         return false;
     }
+    if (m_callback_context) {
+        // Reject re-registration while already active.
+        LOG_WARNING_TAG("IpfClientApiAdapter: register_event(%s) rejected, already registered for %s",
+                        path.c_str(),
+                        m_registered_path.c_str());
+        return false;
+    }
     m_callback_context = std::make_unique<IpfEventCallback>(std::move(callback));
     const ipf_err_t status = IpfRegisterEvent(m_handle, path.c_str(), &ipf_event_trampoline, m_callback_context.get());
     if (status != IpfError::IPF_ERR_OK) {
@@ -108,6 +118,7 @@ bool IpfClientApiAdapter::register_event(const std::string& path, IpfEventCallba
         m_callback_context.reset();
         return false;
     }
+    m_registered_path = path;
     LOG_INFO_TAG("IpfClientApiAdapter: registered for %s", path.c_str());
     return true;
 }
@@ -116,11 +127,19 @@ void IpfClientApiAdapter::unregister_event(const std::string& path) {
     if (m_handle == nullptr || !m_callback_context) {
         return;
     }
+    if (path != m_registered_path) {
+        // Ignore unregister for a path other than the one registered.
+        LOG_WARNING_TAG("IpfClientApiAdapter: unregister_event(%s) ignored, currently registered for %s",
+                        path.c_str(),
+                        m_registered_path.c_str());
+        return;
+    }
     const ipf_err_t status = IpfUnregisterEvent(m_handle, path.c_str(), &ipf_event_trampoline);
     if (status == IpfError::IPF_ERR_OK) {
         m_callback_context.reset();
+        m_registered_path.clear();
     } else {
-        // Unregister failed: intentionally leak context to prevent use-after-free.
+        // Leak the context; IPF may still hold a pointer to it.
         LOG_WARNING_TAG("IpfClientApiAdapter: IpfUnregisterEvent failed: %s, leaking callback context",
                         ipf_ef_error_str(status));
         (void)m_callback_context.release();

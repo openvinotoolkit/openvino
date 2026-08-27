@@ -115,11 +115,12 @@ void handle_gear_changed_event(const std::shared_ptr<std::atomic<int>>& shared_g
 
 }  // namespace
 
-// Depends only on IIpfClient; all direct IPF ClientApi (ClientApiC.h) calls live in ipf_client.cpp,
-// which keeps this class's business logic (parsing, gear/low-power mapping) mockable in unit tests.
+// Business logic; all direct IPF ClientApi calls live in ipf_client.cpp.
 class TelemetryClient::Impl {
 public:
-    explicit Impl(std::unique_ptr<IIpfClient> client) : m_client(std::move(client)) {}
+    // Falls back to a real adapter when client is null.
+    explicit Impl(std::unique_ptr<IIpfClient> client)
+        : m_client(client ? std::move(client) : std::make_unique<IpfClientApiAdapter>()) {}
 
     Impl() : Impl(std::make_unique<IpfClientApiAdapter>()) {}
 
