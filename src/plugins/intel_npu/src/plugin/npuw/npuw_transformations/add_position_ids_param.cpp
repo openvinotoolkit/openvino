@@ -156,7 +156,8 @@ public:
                     if (!handled_squeezes.insert(squeeze_node.get()).second) {
                         continue;
                     }
-                    OPENVINO_ASSERT(squeeze_node->get_output_size() == 1, "Squeeze node should have exactly one output");
+                    OPENVINO_ASSERT(squeeze_node->get_output_size() == 1,
+                                    "Squeeze node should have exactly one output");
                     for (auto&& consumer : squeeze_node->get_output_target_inputs(0)) {
                         consumer.replace_source_output(position_ids_squeezed->output(0));
                     }
