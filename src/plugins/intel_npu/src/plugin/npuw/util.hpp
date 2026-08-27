@@ -256,7 +256,7 @@ struct SDPAPatternNodes {
         LOG_DEBUG("  Add: " << (add_node ? add_node->get_friendly_name() : "null"));
         LOG_DEBUG("  Softmax: " << (softmax_node ? softmax_node->get_friendly_name() : "null"));
         LOG_DEBUG("  Softmax Slice: " << (softmax_slice_node ? softmax_slice_node->get_friendly_name() : "null"));
-          LOG_DEBUG("  Attention Sink: " << (attention_sink_node ? attention_sink_node->get_friendly_name() : "null"));
+        LOG_DEBUG("  Attention Sink: " << (attention_sink_node ? attention_sink_node->get_friendly_name() : "null"));
         LOG_DEBUG("  MatMul2: " << (matmul2_node ? matmul2_node->get_friendly_name() : "null"));
         LOG_DEBUG("  Key Concat: " << (past_key_concat_node ? past_key_concat_node->get_friendly_name() : "null"));
         LOG_DEBUG(
