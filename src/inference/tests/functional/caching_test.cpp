@@ -3552,7 +3552,8 @@ TEST_P(CachingTest, test_share_weight_create_ctx_multiple_compilation) {
 
 TEST_P(CachingTest, test_single_file_storage_shared_ctx_between_two_plugins) {
     if (m_type != TestLoadType::EModel || m_remoteContext) {
-        GTEST_SKIP() << "This test validates shared context handoff for compile_model(model, device) only";
+        // This test validates shared context handoff for compile_model(model, device) only
+        GTEST_SKIP();
     }
 
     const std::string writer_device = "mock_gpu";
