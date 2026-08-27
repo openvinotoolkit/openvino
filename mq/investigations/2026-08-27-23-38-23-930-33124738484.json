@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-27-23-38-23-930-33124738484",
+  "timestamp": "2026-08-27T23:38:23Z",
+  "run_id": "33124738484",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33124738484",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "37690",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37690",
+  "author": "akladiev",
+  "category": "Infrastructure",
+  "title": "Build job fails on Upload OpenVINO tests package artifact upload step",
+  "signature": "upload openvino tests package step failed|Infrastructure",
+  "signature_hash": "158f9fdacd50da48",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "Step 'Upload OpenVINO tests package' failed; all preceding build and pack steps succeeded"
+    }
+  ],
+  "key_errors": [
+    "Step 40: Upload OpenVINO tests package — status: failure (completed at 2026-08-27T23:33:10Z)",
+    "All preceding steps (build, CMake, pack) succeeded. Only the artifact upload step failed."
+  ],
+  "root_cause": "The Build/Build job completed all build, compilation, and packaging steps successfully (CMake configure, build, install, all pack steps). Only the final artifact upload step for the tests package (step 40) failed. This is consistent with a transient GitHub Actions artifact storage failure, such as a network timeout or temporary unavailability of the artifact backend. The second run attempt (attempt 2) was automatically triggered and is currently in progress (rebuild is underway). The ci/gha_overall_status_ubuntu_24 job failed as a downstream consequence of the build job failure.",
+  "reproduction_steps": "N/A - transient infrastructure failure not reproducible locally",
+  "recommended_actions": [
+    "Wait for the second run attempt (attempt 2, currently in progress) to complete.",
+    "If attempt 2 also fails on artifact upload, re-trigger the merge-queue run.",
+    "If the failure recurs for the same PR or multiple PRs, escalate to the infrastructure team."
+  ],
+  "prevention_strategies": "GitHub Actions artifact upload failures are transient infrastructure issues. Retry logic is the best mitigation. Consider adding retry wrappers around artifact upload steps for large packages.",
+  "historical_context": "A similar pattern (build job failing on artifact upload steps) was recorded on 2026-07-29 (run 30423049570). In that case, both 'Upload OpenVINO developer package' and 'Upload OpenVINO tests package' failed. The current failure only affected the tests package step, suggesting a slightly different transient event. Both cases indicate transient GitHub Actions artifact storage issues."
+}

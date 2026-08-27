@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "upload openvino tests package step failed|Infrastructure",
+  "signature_hash": "158f9fdacd50da48",
+  "title": "Build job fails on Upload OpenVINO tests package artifact upload step",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-08-27T23:38:23Z",
+  "last_seen": "2026-08-27T23:38:23Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/33124738484"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37690"
+  ],
+  "recent_timestamps": [
+    "2026-08-27T23:38:23Z"
+  ],
+  "rerun_search_string": "Upload OpenVINO tests package"
+}

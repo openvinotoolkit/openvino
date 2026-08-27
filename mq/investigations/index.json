@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 202,
+  "total": 203,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1982,6 +1982,17 @@
       "category": "Dependencies",
       "signature_hash": "8d60fd1266878935",
       "pr_number": "37686"
+    },
+    {
+      "investigation_id": "2026-08-27-23-38-23-930-33124738484",
+      "run_id": "33124738484",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33124738484",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+      "timestamp": "2026-08-27T23:38:23Z",
+      "title": "Build job fails on Upload OpenVINO tests package artifact upload step",
+      "category": "Infrastructure",
+      "signature_hash": "158f9fdacd50da48",
+      "pr_number": "37690"
     }
   ]
 }
