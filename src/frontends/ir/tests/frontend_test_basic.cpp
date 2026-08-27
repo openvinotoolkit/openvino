@@ -380,6 +380,66 @@ TEST_F(IRFrontendTests, model_with_missing_weights) {
     ASSERT_THROW(core.read_model(testModelV11, ov::Tensor()), ov::Exception);
 }
 
+TEST_F(IRFrontendTests, const_layer_with_missing_shape_attribute) {
+    std::string testModelV11 = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer id="0" name="value1" type="Const" version="opset1">
+            <data element_type="boolean" offset="0" size="1" />
+            <output>
+                <port id="0" precision="BOOL"/>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="1" version="opset1">
+            <input>
+                <port id="0" precision="BOOL"/>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+
+    std::vector<unsigned char> buffer(1, 0);
+    createTemporalModelFile(testModelV11, buffer);
+
+    OV_EXPECT_THROW(core.read_model(xmlFileName, binFileName),
+                    ov::Exception,
+                    testing::HasSubstr("Missing attribute 'shape' for Const"));
+}
+
+TEST_F(IRFrontendTests, const_layer_with_missing_element_type_attribute) {
+    std::string testModelV11 = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer id="0" name="value1" type="Const" version="opset1">
+            <data shape="1" offset="0" size="1" />
+            <output>
+                <port id="0" precision="BOOL"/>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="1" version="opset1">
+            <input>
+                <port id="0" precision="BOOL"/>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+
+    std::vector<unsigned char> buffer(1, 0);
+    createTemporalModelFile(testModelV11, buffer);
+
+    OV_EXPECT_THROW(core.read_model(xmlFileName, binFileName),
+                    ov::Exception,
+                    testing::HasSubstr("Missing attribute 'element_type' for Const"));
+}
+
 TEST_P(IRFrontendMMapTests, model_with_weights_reading_from_disk) {
     std::string xmlModel = R"V0G0N(
 <?xml version="1.0" ?>
