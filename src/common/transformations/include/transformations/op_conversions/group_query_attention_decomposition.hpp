@@ -57,8 +57,7 @@ protected:
                                                           const ov::Output<ov::Node>& external_bias,
                                                           const ov::Output<ov::Node>& bias_col_offset,
                                                           bool sliding_window_cache,
-                                                          float scale,
-                                                          bool is_static_input);
+                                                          float scale);
     // Reshape a flat KV-cache dequant scale so it broadcasts against a [B, kv_num_heads, S, head_size] tensor:
     // PER_CHANNEL -> [1, kv_num_heads, 1, head_size]; PER_TENSOR -> [1, 1, 1, 1].
     std::shared_ptr<ov::Node> make_kv_scale(const ov::Output<ov::Node>& scale,

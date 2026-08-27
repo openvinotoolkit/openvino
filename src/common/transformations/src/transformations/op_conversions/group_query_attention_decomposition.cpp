@@ -334,8 +334,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
                                           external_bias,
                                           bias_col_offset,
                                           node->get_sliding_window_cache(),
-                                          scale,
-                                          is_static_input);
+                                          scale);
 
     // head_sink (input 11) or smooth_softmax add an extra logit to the softmax denominator. SDPA models
     // this with its sink input: a [1, num_heads, 1, 1] tensor appended as one logit column, included in
@@ -440,8 +439,7 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_atten
     const ov::Output<ov::Node>& external_bias,
     const ov::Output<ov::Node>& bias_col_offset,
     bool,
-    float,
-    bool) {
+    float) {
     const bool has_bias = external_bias.get_node_shared_ptr() != nullptr;
     // A window is active for local_window_size >= 1; -1 disables it and 0 is rejected upstream (FE + op).
     const bool has_window = local_window_size >= 1;
