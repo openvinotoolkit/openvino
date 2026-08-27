@@ -124,6 +124,47 @@ namespace KERNEL_NAME {
 #define ONLINE_TILE_STEPS 1
 #endif
 
+// Issue V's raw load in the K chunk loop so both 2D-block loads are outstanding at once. V's
+// dequantize and V's prefetch stay in the V loop; only the undecoded tile is carried across,
+// which costs one uint8 REG_K x REG_N register (256 B) and not the whole V chain.
+//
+// A microbenchmark of this kernel's exact access pattern -- 16 token rows x 16 B at pitch 128,
+// from 256-token pages behind an index indirection, prefetch distance 1 -- reads 109 GB/s when
+// a thread drives one such stream and 133 GB/s when it drives two, against 133 GB/s for a plain
+// contiguous uint4 stream. One stream leaves memory-level parallelism on the table; two do not.
+//
+// Measured here over 20 interleaved rounds, main kernel ms, at the (context, partition) pairs
+// pick_small_q_partition produces, off -> on:
+//
+//   past 15360 part 640   0.765 -> 0.757   -1.1 %
+//   past  2048 part 384   0.135 -> 0.130   -3.5 %
+//   past  1024 part 256   0.067 -> 0.066   -1.8 %
+//   past   512 part 128   0.041 -> 0.040   -2.1 %
+//
+// Bit-exact -- reordering a load changes no value -- and no context regresses.
+//
+// Two neighbouring variants were measured and lost; do not "simplify" into either. Moving only
+// V's *prefetch* into the K loop costs no registers at all and loses 3.8-5.6 %, because it puts
+// the prefetch a whole K body ahead of its load and the line ages out of L1 -- the same reason
+// KV_PREFETCH_DIST 2 and 4 lose to 1. Moving load and prefetch together nets zero, the two
+// effects cancelling. Only separating them wins. Detail is in the sandbox copy of this kernel,
+// aboutSHW opencl/tests/pageatten/pa_small_q_ov_exp.cm.
+//
+// Requires one chunk per thread so that exactly one V tile is live: true at q_len=16 (8 threads
+// over 8 chunks) and false at q_len=6 (3 threads over 8), which is why this is gated rather
+// than unconditional. The rung mechanism compiles a separate variant per TILE_Q, so each rung
+// gets the right answer on its own.
+#ifndef MARSHAL_HOIST_V
+#if MARSHAL_CPT == 1 && ONLINE_TILE_STEPS == 1
+#define MARSHAL_HOIST_V 1
+#else
+#define MARSHAL_HOIST_V 0
+#endif
+#endif
+#if MARSHAL_HOIST_V && (MARSHAL_CPT != 1 || ONLINE_TILE_STEPS != 1)
+#error "MARSHAL_HOIST_V keeps one Vq live per thread; it needs MARSHAL_CPT == 1"
+#endif
+
 
 #define KV_PREFETCH_DIST 1
 
@@ -629,6 +670,11 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                     // K and V marshalled in separate loops so their working sets do not
                     // have to be live at the same time — this kernel already sits at
                     // 243/256 GRF, so overlapping them spills.
+#if MARSHAL_HOIST_V
+                    // Loaded by the K loop below, consumed by the V loop. One chunk per thread
+                    // (MARSHAL_CPT == 1, enforced at the define), so exactly one is live.
+                    matrix<uint8_t, REG_K, REG_N> Vq;
+#endif
                     #pragma nounroll
                     for (int c = local_qg; c < (int)MARSHAL_CHUNKS; c += MARSHAL_TG) {
                         const uint chunk_out = (li_m * MARSHAL_CHUNKS + c) * MARSHAL_CHUNK_BYTES;
@@ -654,6 +700,19 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                             pfK.set_block_y(tok_in_blk_next);
                             cm_prefetch(pfK);
                         }
+#if MARSHAL_HOIST_V
+                        // Immediately after K's load and before any of K's arithmetic, so the
+                        // two loads are in flight together. V's prefetch deliberately stays in
+                        // the V loop: hoisting it too cancels the gain, see the define.
+                        {
+                            lsc::block_2d_desc<uint8_t, 1, REG_K, REG_N> b2dVh(
+                                value + v_blk_base, KV_BLOCK_SIZE - 1,
+                                HEAD_SIZE * sizeof(uint8_t) - 1, kv_pitch - 1, 0, 0);
+                            b2dVh.set_block_x(c * REG_N);
+                            b2dVh.set_block_y(tok_in_blk);
+                            cm_load<lsc::Normal>(Vq.format<uint8_t>(), b2dVh);
+                        }
+#endif
 #if KV_CACHE_COMPRESSION == 2
                         // Per-channel scale/zp for exactly this chunk's REG_K channels, one
                         // vector per sub-block group. The metadata sits after the
@@ -723,6 +782,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                         const uint chunk_out = (li_m * MARSHAL_CHUNKS + c) * MARSHAL_CHUNK_BYTES;
 
                         // V: dequantize token rows, then VNNI-interleave row pairs.
+#if !MARSHAL_HOIST_V
                         matrix<uint8_t, REG_K, REG_N> Vq;
                         {
                             lsc::block_2d_desc<uint8_t, 1, REG_K, REG_N> b2dV(
@@ -732,6 +792,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                             b2dV.set_block_y(tok_in_blk);
                             cm_load<lsc::Normal>(Vq.format<uint8_t>(), b2dV);
                         }
+#endif
                         {
                             lsc::block_2d_desc<uint8_t, 1, REG_K, REG_N> pfV(
                                 value + v_blk_next, KV_BLOCK_SIZE - 1,
