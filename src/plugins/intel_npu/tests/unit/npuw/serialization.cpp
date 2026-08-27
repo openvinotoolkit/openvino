@@ -881,6 +881,32 @@ TEST(SerializationTest, OVTypes_Tensor_weightless_mmap_oob_overflow) {
     std::filesystem::remove(file_path);
 }
 
+// Guards CompiledModelDesc::serialize()'s deserialize path against attacker-controlled closure
+// indices that would otherwise subscript the closure vector out of bounds.
+TEST(SerializationTest, NPUW_ClosureIds_out_of_range_rejected) {
+    using namespace ov::npuw::s11n;
+
+    ASSERT_THROW(validate_closure_ids({2}, /*container_size=*/2), ov::AssertFailure);  // idx == size
+    ASSERT_THROW(validate_closure_ids({5}, /*container_size=*/2), ov::AssertFailure);
+    ASSERT_THROW(validate_closure_ids({0, 1, 9}, /*container_size=*/3), ov::AssertFailure);
+}
+
+TEST(SerializationTest, NPUW_ClosureIds_payload_mismatch_rejected) {
+    using namespace ov::npuw::s11n;
+
+    ASSERT_THROW(validate_closure_ids({0, 1}, /*container_size=*/4, /*payload_size=*/1), ov::AssertFailure);
+    ASSERT_THROW(validate_closure_ids({0}, /*container_size=*/4, /*payload_size=*/2), ov::AssertFailure);
+}
+
+TEST(SerializationTest, NPUW_ClosureIds_valid_accepted) {
+    using namespace ov::npuw::s11n;
+
+    ASSERT_NO_THROW(validate_closure_ids({0, 1, 2}, /*container_size=*/3, /*payload_size=*/3));
+    ASSERT_NO_THROW(validate_closure_ids({2, 0}, /*container_size=*/3, /*payload_size=*/2));
+    ASSERT_NO_THROW(validate_closure_ids({}, /*container_size=*/0));  // empty is legitimate
+    ASSERT_NO_THROW(validate_closure_ids({}, /*container_size=*/4, /*payload_size=*/0));
+}
+
 TEST(SerializationTest, OVTypes_OutputPort_roundtrips_into_parameter_pointer) {
     using namespace ov::npuw::s11n;
 
