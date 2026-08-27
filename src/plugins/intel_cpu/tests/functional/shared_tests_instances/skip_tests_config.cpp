@@ -23,7 +23,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // Skip platforms that do not support BF16 (i.e. sse, avx, avx2)
             std::regex(R"(.*(BF|bf)16.*(jit_avx(?!5)|jit_sse).*)"),
             // TODO: Incorrect blob sizes for node BinaryConvolution_X
-            std::regex(R"(.*BinaryConvolutionLayerTest.*)"),
+            std::regex(R"(.*smoke_BinaryConvolutionLayerTest.*)"),
             // TODO: 53618. BF16 gemm ncsp convolution crash
             std::regex(R"(.*_GroupConv.*_inFmts=nc.*_primitive=jit_gemm.*ENFORCE_BF16=YES.*)"),
             // TODO: 157596 convolution bf16 leftover test case
