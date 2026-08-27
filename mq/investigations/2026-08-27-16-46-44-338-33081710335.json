@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-27-16-46-44-338-33081710335",
+  "timestamp": "2026-08-27T16:46:44Z",
+  "run_id": "33081710335",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33081710335",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "37616",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37616",
+  "author": "jade-cho",
+  "category": "External Service",
+  "title": "LLM accuracy CPU tests fail with HuggingFace 429 rate limit on model download",
+  "signature": "429 Too Many Requests you have reached your api rate limit|External Service",
+  "signature_hash": "391fe92c2ec33482",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "LLM accuracy CPU tests / LLM accuracy CPU tests",
+      "conclusion": "failure",
+      "symptom": "HfHubHTTPError 429 Too Many Requests when downloading Qwen/Qwen2-0.5B-Instruct model"
+    }
+  ],
+  "key_errors": [
+    "huggingface_hub.errors.HfHubHTTPError: 429 Too Many Requests: you have reached your 'api' rate limit.\nRetry after 35 seconds (0/500 requests remaining in current 300s window).\nWe had to rate limit your IP (4.155.215.89). To continue using our service, create a HF account or login to your existing account, and make sure you pass a HF_TOKEN",
+    "FAILED tests/llm/accuracy_conformance.py::test_accuracy_conformance[Qwen/Qwen2-0.5B-Instruct-INT8-CPU]\nFAILED tests/llm/accuracy_conformance.py::test_accuracy_conformance[Qwen/Qwen2-0.5B-Instruct-INT4-CPU]"
+  ],
+  "root_cause": "The LLM accuracy CPU test job attempted to download the Qwen/Qwen2-0.5B-Instruct model from HuggingFace Hub. The HuggingFace API returned a 429 rate-limit error because the runner IP (4.155.215.89) exhausted the anonymous API rate limit (0/500 requests remaining in the current 300s window). This is an external service throttling issue unrelated to any code changes in the PR.",
+  "reproduction_steps": "N/A - external rate-limiting from HuggingFace.co; depends on IP and time of day",
+  "recommended_actions": [
+    "Re-run the failed jobs after the rate-limit window expires (35 seconds per error message)",
+    "Configure HF_TOKEN in the CI runner environment to use an authenticated HuggingFace account with higher rate limits",
+    "Consider caching model downloads to avoid re-fetching on each CI run"
+  ],
+  "prevention_strategies": "Set HF_TOKEN as a CI secret to avoid anonymous API rate limits on HuggingFace Hub. Implement model caching to avoid re-downloading models on every run.",
+  "historical_context": "This is the first recorded occurrence of this specific HuggingFace rate-limit pattern in the MQ CI database."
+}

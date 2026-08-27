@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 195,
+  "total": 196,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1910,6 +1910,17 @@
       "title": "NPU Models Tests fail with KeyError on aten.upsample_vec ops not in decomp table",
       "category": "Flaky Test",
       "signature_hash": "36b843d557b4160a",
+      "pr_number": "37616"
+    },
+    {
+      "investigation_id": "2026-08-27-16-46-44-338-33081710335",
+      "run_id": "33081710335",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33081710335",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+      "timestamp": "2026-08-27T16:46:44Z",
+      "title": "LLM accuracy CPU tests fail with HuggingFace 429 rate limit on model download",
+      "category": "External Service",
+      "signature_hash": "391fe92c2ec33482",
       "pr_number": "37616"
     }
   ]
