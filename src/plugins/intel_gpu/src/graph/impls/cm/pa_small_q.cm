@@ -842,10 +842,26 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                         if (kv_gs + blk_lo + REG_N <= (int)past_q_lens) {
                             continue;
                         }
+                        // The mask depends only on query_spec, i.e. only on t -- not on which
+                        // of the Q_head_chunk_size GQA heads a row carries. Building it per row
+                        // rebuilt the identical mask Q_head_chunk_size times (8 calls for 2
+                        // distinct masks at ROWS_PER_THREAD 8 / chunk 4), and each call is a
+                        // 16-iteration unrolled scalar-load loop inlined into the hottest loop
+                        // in the kernel. That cost ~0.133 ms -- 17 % of the kernel at q_len=16
+                        // and 27 % at q_len=6 -- even though the guard above means only about
+                        // one online tile in a thousand actually masks anything at a 15 k
+                        // context. The price was code size in the hot loop, not work.
+                        //
+                        // Build once per t, then apply to that t's rows. ROWS_PER_THREAD is a
+                        // multiple of Q_head_chunk_size (chunk divides q_heads_per_kv_head,
+                        // which divides 8) and subgroup_row_base is a multiple of
+                        // ROWS_PER_THREAD, so t is exactly base/chunk + tg. Verified
+                        // bit-identical to the per-row form over 96 configurations (q_len
+                        // 4/6/8/16 x chunk 1/2/4 x compr 1/2 x block 16/256 x four mask
+                        // patterns, three of which measurably change the result).
                         #pragma unroll
-                        for (int row = 0; row < ROWS_PER_THREAD; ++row) {
-                            const int global_row = subgroup_row_base + row;
-                            const int t = global_row / Q_head_chunk_size;
+                        for (int tg = 0; tg < (ROWS_PER_THREAD / Q_head_chunk_size); ++tg) {
+                            const int t = (int)(subgroup_row_base / Q_head_chunk_size) + tg;
                             if (t >= (int)valid_count) {
                                 continue;
                             }
@@ -858,9 +874,13 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                                                                    qq_bias_spec_num, query_spec,
                                                                    kv_gs + blk_lo,
                                                                    (int)past_q_lens);
-                            auto rsq = rS_tile[row].format<float, ONLINE_TILE_STEPS, REG_N>();
-                            auto blkq = rsq.row(b);
-                            blkq.merge(NEG_INF_QQ, mq);
+                            #pragma unroll
+                            for (int qi = 0; qi < Q_head_chunk_size; ++qi) {
+                                const int row = tg * Q_head_chunk_size + qi;
+                                auto rsq = rS_tile[row].format<float, ONLINE_TILE_STEPS, REG_N>();
+                                auto blkq = rsq.row(b);
+                                blkq.merge(NEG_INF_QQ, mq);
+                            }
                         }
                     }
                 }
