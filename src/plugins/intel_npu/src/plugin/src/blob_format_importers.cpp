@@ -48,6 +48,7 @@ constexpr std::string_view DECRYPTING_PAYLOAD_MESSAGE = "Decrypting the compiler
 constexpr std::string_view NEW_PAGE_ALIGNED_BUFFER_MESSAGE =
     "The compiler payload has been copied into a new, page aligned buffer";
 constexpr std::string_view MISSING_MAIN_SCHEDULE_MESSAGE = "The compiler main schedule is missing";
+constexpr std::string_view GRAPH_CLASS_MISMATCH_MESSAGE = "The blob type doesn't match the type of \"Graph\"";
 
 const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 
@@ -289,8 +290,73 @@ public:
         }
     }
 
+    // TODO tests for this
+    /**
+     * @brief Constructs a blob writer that can be used to re-export the blob.
+     * @details The sections are built using the content found within the V1 format.
+     */
     std::shared_ptr<BlobWriter> create_blob_writer() override {
-        return nullptr;
+        OPENVINO_ASSERT(m_graph, "Invalid state");
+
+        auto blob_writer = std::make_shared<BlobWriter>();
+
+        // Register the compiler schedules
+        const bool encryption_enabled = m_config.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
+                                        m_config.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr;
+        const std::optional<ov::EncryptionCallbacks> encryption_callbacks =
+            encryption_enabled ? std::make_optional<>(m_config.get<CACHE_ENCRYPTION_CALLBACKS>()) : std::nullopt;
+
+        switch (m_graph->get_kind()) {
+        case GraphKind::Dynamic: {
+            auto dynamic_graph = std::dynamic_pointer_cast<DynamicGraph>(m_graph);
+            OPENVINO_ASSERT(dynamic_graph, GRAPH_CLASS_MISMATCH_MESSAGE);
+            blob_writer->register_section(
+                std::make_shared<DynamicScheduleSection>(dynamic_graph, encryption_callbacks, m_logger.level()));
+            break;
+        }
+        case GraphKind::Weightless: {
+            auto weightless_graph = std::dynamic_pointer_cast<WeightlessGraph>(m_graph);
+            OPENVINO_ASSERT(weightless_graph, GRAPH_CLASS_MISMATCH_MESSAGE);
+            blob_writer->register_section(
+                std::make_shared<ELFInitSchedulesSection>(weightless_graph, encryption_callbacks, m_logger.level()));
+        }
+        case GraphKind::Weightful: {
+            auto graph = std::dynamic_pointer_cast<Graph>(m_graph);
+            OPENVINO_ASSERT(graph, GRAPH_CLASS_MISMATCH_MESSAGE);
+            blob_writer->register_section(
+                std::make_shared<ELFMainScheduleSection>(graph, encryption_callbacks, m_logger.level()));
+            break;
+        }
+        default: {
+            OPENVINO_THROW("Unsupported kind of \"Graph\"");
+        }
+        }
+
+        // Miscellaneous
+        if (m_batch_size.has_value()) {
+            blob_writer->register_section(std::make_shared<BatchSizeSection>(m_batch_size.value(), m_logger.level()));
+        }
+
+        const auto layouts = extract_layouts();
+        if (layouts.has_value()) {
+            blob_writer->register_section(
+                std::make_shared<IOLayoutsSection>(layouts->first, layouts->second, m_logger.level()));
+        }
+
+        const auto compiler_version = extract_compiler_version();
+        if (compiler_version.has_value()) {
+            blob_writer->register_section(
+                std::make_shared<CompilerVersionSection>(compiler_version.value(), m_logger.level()));
+        }
+
+        if (encryption_enabled) {
+            blob_writer->register_section(
+                std::make_shared<EncryptedSchedulesFlagSection>(encryption_enabled, m_logger.level()));
+        }
+
+        // TODO compatibility reqs section
+
+        return blob_writer;
     }
 
 private:
@@ -406,6 +472,7 @@ public:
     }
 
     std::shared_ptr<BlobWriter> create_blob_writer() override {
+        // Moving forward, the "Graph" object will manage the ownership of the compiler schedules
         auto elfMainScheduleSection = std::dynamic_pointer_cast<ELFMainScheduleSection>(
             m_blob_reader.retrieve_first_section(PredefinedSectionType::ELF_MAIN_SCHEDULE));
 
@@ -423,7 +490,6 @@ public:
             dynamicScheduleSection->set_graph(std::dynamic_pointer_cast<DynamicGraph>(m_graph));
         }
 
-        // TODO consider rebuilding the section from scratch just like the v1; unify the flows
         return std::make_shared<BlobWriter>(m_blob_reader);
     }
 
@@ -434,11 +500,14 @@ private:
      * these sections are a core part of the format.
      */
     void register_known_sections() {
+        // TODO shotgun surgery? should these correspond to the "supported" section types?
         m_blob_reader.register_reader(PredefinedSectionType::ELF_MAIN_SCHEDULE, ELFMainScheduleSection::read);
         m_blob_reader.register_reader(PredefinedSectionType::ELF_INIT_SCHEDULES, ELFInitSchedulesSection::read);
         m_blob_reader.register_reader(PredefinedSectionType::DYNAMIC_SCHEDULE, ELFInitSchedulesSection::read);
         m_blob_reader.register_reader(PredefinedSectionType::BATCH_SIZE, BatchSizeSection::read);
         m_blob_reader.register_reader(PredefinedSectionType::IO_LAYOUTS, IOLayoutsSection::read);
+        m_blob_reader.register_reader(PredefinedSectionType::ENCRYPTED_SCHEDULES_FLAG, IOLayoutsSection::read);
+        m_blob_reader.register_reader(PredefinedSectionType::COMPILER_VERSION, IOLayoutsSection::read);
 
         for (const SectionType type : DEFAULT_SUPPORTED_SECTION_TYPES) {
             m_blob_reader.register_section_type_evaluator(std::make_shared<SupportedSectionTypeEvaluator>(type));

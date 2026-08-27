@@ -82,6 +82,7 @@ public:
 
 protected:
     std::shared_ptr<IGraph> m_graph;
+    std::optional<int> m_batch_size;
 
     FilteredConfig m_config;
     Logger m_logger;
@@ -136,7 +137,6 @@ private:
      * @brief A potential source of weights for weights separation. Can be `nullptr`.
      */
     std::shared_ptr<const ov::Model> m_original_model;
-    std::optional<int> m_batch_size;
 };
 
 namespace blob_format_importer_factory {
