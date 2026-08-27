@@ -211,7 +211,7 @@ Node::Node(const std::string& type,
       name(std::move(name)),
       typeStr(type),
       type(TypeFromName(type)),
-      executeTaskId(openvino::itt::handle(name)) {
+      executeTaskId(openvino::itt::handle(this->name)) {
     parentEdges.reserve(inputShapes.size());
     childEdges.reserve(outputShapes.size());
 }
