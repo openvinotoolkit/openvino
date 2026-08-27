@@ -86,28 +86,60 @@ inline std::string get_pa_build_options() {
     return " -cmc -Qxcm_register_file_size=" + std::to_string(PA_CM_REGISTER_FILE_SIZE);
 }
 
-// TILE_Q: how many q-tokens each pa_small_q SG packs into the DPAS M dim.
-// Constraint: Q_head_chunk_size * TILE_Q <= 8 (DPAS RepeatCount cap).
-// Default: 2 on xe2/xe3 (satiates DPAS at Q_ROWS=8 for GQA-4), 1 on xe1
-// (register file half as big → wider M spills). Overridable via env
-// OV_GPU_PA_TILE_Q for testing.
+// Subsequences with q_len in (1, SMALL_Q_THRESHOLD] and past_len > 0 are routed
+// to pa_small_q in split-mixed mode. Bound matches the typical EAGLE/draft
+// spec_num = 16 and the Q_head_chunk_size × KV_PARTITION_STEP_NUM register
+// budget that fits the rS tile under -Qxcm_register_file_size.
+constexpr size_t SMALL_Q_THRESHOLD = 16;
+
+// TILE_Q: how many q-tokens one pa_small_q *workgroup* packs into the DPAS M dim.
 //
-// The caller is responsible for clamping to at most (8 / q_head_chunk_size).
-inline int get_small_q_tile_q_raw(int xe_arch) {
-    int default_val = (xe_arch >= 2) ? 2 : 1;
-    if (const char* env = std::getenv("OV_GPU_PA_TILE_Q")) {
-        int v = std::atoi(env);
-        if (v >= 1 && v <= 8) {
-            default_val = v;
-        }
-    }
-    return default_val;
-}
+// Q_ROWS = Q_head_chunk_size * TILE_Q is the workgroup's total q-row count. It is no longer
+// bounded by the DPAS RepeatCount cap of 8: the kernel splits Q_ROWS across
+// WG_THREADS = Q_ROWS / 8 threads of one workgroup, each issuing RepeatCount 8, and those
+// threads share the dequantized/transposed K/V tile through SLM. That sharing is the whole
+// point -- the marshal and the K/V traffic are per *tile*, not per q-row -- so a bigger
+// TILE_Q amortises the dominant cost even when it wastes q-rows.
+//
+// Concretely at spec_num=16, GQA-4: TILE_Q=16 gives one workgroup of 8 threads that marshals
+// the KV partition once, where TILE_Q=2 gave 8 independent single-thread workgroups each
+// marshalling the whole partition. The extra DPAS work from padding a short spec window up
+// to TILE_Q is cheap by comparison (DPAS is ~8 % of the kernel); the marshal is not.
+//
+// Constraints, mirrored by the kernel:
+//   * Q_ROWS <= 8, or Q_ROWS a multiple of 8   (ROWS_PER_THREAD is 8 above 8 rows)
+//   * Q_ROWS <= 64                             (WG_THREADS <= HEAD_SIZE/REG_K = 8 marshal chunks)
+//   * TILE_Q  <= SMALL_Q_THRESHOLD             (no subsequence routed here is longer)
+// Overridable downward via OV_GPU_PA_TILE_Q.
+inline constexpr int SMALL_Q_MAX_Q_ROWS = 64;
 
 inline int get_small_q_tile_q(int xe_arch, int q_head_chunk_size) {
-    int tile_q = get_small_q_tile_q_raw(xe_arch);
-    const int max_tile_q = std::max(1, 8 / std::max(1, q_head_chunk_size));
-    return std::min(tile_q, max_tile_q);
+    const int chunk = std::max(1, q_head_chunk_size);
+    int tile_q = std::min<int>(SMALL_Q_THRESHOLD, std::max(1, SMALL_Q_MAX_Q_ROWS / chunk));
+    if (const char* env = std::getenv("OV_GPU_PA_TILE_Q")) {
+        const int v = std::atoi(env);
+        if (v >= 1) {
+            tile_q = std::min(tile_q, v);
+        }
+    }
+    // Step down to a legal Q_ROWS. Terminates: chunk*1 <= 8 whenever chunk <= 8, and for
+    // chunk > 8 the loop lands on the first multiple-of-8 product.
+    while (tile_q > 1) {
+        const int q_rows = chunk * tile_q;
+        if (q_rows <= 8 || q_rows % 8 == 0) {
+            break;
+        }
+        --tile_q;
+    }
+    (void)xe_arch;
+    return tile_q;
+}
+
+// Threads per pa_small_q workgroup, i.e. lws[0]. Must match WG_THREADS in pa_small_q.cm,
+// which derives it from the same TILE_Q and Q_head_chunk_size; a mismatch is silent.
+inline int get_small_q_wg_threads(int q_head_chunk_size, int tile_q) {
+    const int q_rows = std::max(1, q_head_chunk_size) * std::max(1, tile_q);
+    return q_rows > 8 ? q_rows / 8 : 1;
 }
 
 #define FIND_DEBUG_ACC 0
@@ -123,11 +155,6 @@ constexpr int STRIDE = 16;
 enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
 enum class MixedRouteMode : uint8_t { MULTI = 0, SPLIT = 1 };
 
-// Subsequences with q_len in (1, SMALL_Q_THRESHOLD] and past_len > 0 are routed
-// to pa_small_q in split-mixed mode. Bound matches the typical EAGLE/draft
-// spec_num = 16 and the Q_head_chunk_size × KV_PARTITION_STEP_NUM register
-// budget that fits the rS tile under -Qxcm_register_file_size.
-constexpr size_t SMALL_Q_THRESHOLD = 16;
 struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     // common runtime state
     PagedAttentionStage stage;       // Current PA execution stage
@@ -294,6 +321,19 @@ public:
 class PagedAttentionGeneratorSmallQ : public PagedAttentionGeneratorBase {
 public:
     PagedAttentionGeneratorSmallQ() : PagedAttentionGeneratorBase("pa_small_q") {}
+
+    // pa_small_q wants a *smaller* register file than the other PA kernels. It fits in ~150
+    // registers, so 192 is not about spill: at 256 the file allows only 5 threads per XVE,
+    // while at 192 it allows 6 *and* leaves IGC enough slack to batch the consume phase's
+    // SLM reads (it emits LLLLDDDD instead of a strict LDLDLD chain, giving 4-way
+    // memory-level parallelism on SLM). Measured -8.4 % and -11.3 % against 160 in two
+    // paired batches; 256 measured +2.3 % / -1.0 %.
+    static constexpr int32_t REGISTER_FILE_SIZE = 192;
+    [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
+        return KernelGenerator::get_build_options(params) + " -cmc -Qxcm_register_file_size=" +
+               std::to_string(REGISTER_FILE_SIZE);
+    }
+
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;

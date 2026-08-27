@@ -620,8 +620,9 @@ JitConstants PagedAttentionGeneratorSmallQ::get_jit_constants(const kernel_impl_
     jit.make("Q_head_chunks_per_kv_head", q_chunking.q_head_chunks_per_kv_head);
     jit.make("Q_head_chunk_size", q_chunking.q_head_chunk_size);
 
-    // TILE_Q packs multiple q-tokens per SG. Constraint: Q_head_chunk_size*TILE_Q<=8
-    // (DPAS RepeatCount cap). Helper clamps automatically.
+    // TILE_Q packs multiple q-tokens per workgroup; the kernel splits the resulting
+    // Q_ROWS = Q_head_chunk_size * TILE_Q rows across WG_THREADS threads that share one
+    // marshalled K/V tile through SLM. The helper enforces the legal Q_ROWS values.
     const int xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
     const int tile_q = get_small_q_tile_q(xe_arch, static_cast<int>(q_chunking.q_head_chunk_size));
     jit.make("TILE_Q", tile_q);
@@ -682,11 +683,17 @@ DispatchDataFunc PagedAttentionGeneratorSmallQ::get_dispatch_data_func() const {
         const size_t partition_num = rtp->num_of_partitions;
 
         OPENVINO_ASSERT(rtp->q_chunking.q_head_chunks_per_kv_head > 0, "Invalid q_head_chunks_per_kv_head in runtime params");
-        // gws[0] = tile count (one SG per TILE_Q consecutive q-tokens of a subseq).
-        // selected_token_count scalar carries tile_count too (kernel indexes mapping triples).
+        // One *workgroup* per tile: its WG_THREADS threads split the tile's Q_ROWS q-rows
+        // and share the dequantized/transposed K/V tile through SLM, so the marshal runs once
+        // per tile instead of once per q-row-group. gws[0] is therefore tile_count scaled by
+        // the workgroup size, and the kernel takes the tile index from cm_group_id(0).
+        // selected_token_count scalar still carries tile_count (kernel indexes mapping triples).
         const size_t tile_count = rtp->small_q_tile_count;
-        wgs.global = {tile_count, kv_heads_num * static_cast<size_t>(rtp->q_chunking.q_head_chunks_per_kv_head), partition_num};
-        wgs.local = {1, 1, 1};
+        const int wg_threads = get_small_q_wg_threads(static_cast<int>(rtp->q_chunking.q_head_chunk_size),
+                                                      std::max(1, rtp->small_q_tile_q));
+        wgs.global = {tile_count * static_cast<size_t>(wg_threads),
+                      kv_heads_num * static_cast<size_t>(rtp->q_chunking.q_head_chunks_per_kv_head), partition_num};
+        wgs.local = {static_cast<size_t>(wg_threads), 1, 1};
 
         auto& scalars = kd.params.scalars;
         std::vector<size_t> scaler_value = {1, tile_count};
@@ -698,8 +705,8 @@ DispatchDataFunc PagedAttentionGeneratorSmallQ::get_dispatch_data_func() const {
 
         if (DEBUG_ENABLED) {
             std::cout << "PagedAttentionGeneratorSmallQ::get_dispatch_data_func: small_q_tokens=" << rtp->small_q_token_count << ", tile_count=" << tile_count
-                      << ", TILE_Q=" << rtp->small_q_tile_q << ", partition_num=" << partition_num << ", gws=[" << wgs.global[0] << ", " << wgs.global[1]
-                      << ", " << wgs.global[2] << "]\n";
+                      << ", TILE_Q=" << rtp->small_q_tile_q << ", wg_threads=" << wg_threads << ", partition_num=" << partition_num << ", gws=["
+                      << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << "], lws=[" << wgs.local[0] << ", 1, 1]\n";
         }
     }};
 }
@@ -720,6 +727,7 @@ JitConstants PagedAttentionGeneratorSmallQFinalization::get_jit_constants(const 
     const auto sq_q_chunking = get_single_token_q_chunking(params, *desc, sq_partition_size);
     const int xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
     const int tile_q = get_small_q_tile_q(xe_arch, static_cast<int>(sq_q_chunking.q_head_chunk_size));
+    std::cout << "tile_q = " << tile_q << std::endl;
     jit.make("TILE_Q", tile_q);
     return jit;
 }
