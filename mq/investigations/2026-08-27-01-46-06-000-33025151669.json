@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-27-01-46-06-000-33025151669",
+  "timestamp": "2026-08-27T01:46:06Z",
+  "run_id": "33025151669",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33025151669",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "37611",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37611",
+  "author": "praasz",
+  "category": "Flaky Test",
+  "title": "TestKerasLSTM test_keras_lstm_flags_float32 numerical accuracy mismatch with dropout",
+  "signature": "test keras lstm flags numerical mismatch with dropout float32|Flaky Test",
+  "signature_hash": "a284d27dfee44614",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+      "conclusion": "failure",
+      "symptom": "1 test failed: test_keras_lstm_flags_float32 with dropout - numerical accuracy mismatch"
+    }
+  ],
+  "key_errors": [
+    "FAILED test_tf2_keras_lstm.py::TestKerasLSTM::test_keras_lstm_flags_float32[ ie_device:CPU - params:{'input_shapes': [[4, 8, 3]], 'dropouts': (0.1, 0.3), 'units': 3, 'activation': 'relu', 'use_bias': False}",
+    "ie_res={'output_0': array([[ 1.1031965 ,  1.0756086 ,  0.2510016 ],[-1.4374479 , -0.77156425,  0.],[4.8897505 ,  0.,  -0.],[-0., -0., 0.]], dtype=float32)}; framework_res={'output_0': array([[ 1.1031965 ,  1.0756086 ,  0.2510016 ],[-1.4346725 , -0.88015115,  0.],[4.8902087 ,  0., -0.],[-0., -0., 0.]])}",
+    "= 1 failed, 2113 passed, 111 skipped, 6 xfailed, 27 xpassed, 2527 warnings in 689.76s ="
+  ],
+  "root_cause": "The LSTM test with non-zero dropout (0.1 and 0.3) produces slightly different numerical outputs between OpenVINO and TensorFlow. LSTM with dropout is inherently stochastic; when dropout is applied during inference with test=False semantics, small floating-point differences in the underlying RNN cell computation can accumulate across time steps. The PR under test (IR FE fix for missing XML attributes) does not touch LSTM or TF frontend code - this is an unrelated pre-existing numerical flakiness in the test that surfaces intermittently.",
+  "reproduction_steps": "pytest layer_tests/tensorflow2_keras_tests/test_tf2_keras_lstm.py::TestKerasLSTM::test_keras_lstm_flags_float32 -k 'dropouts=(0.1, 0.3)' --repeat=10",
+  "recommended_actions": [
+    "Re-run the failed TensorFlow Layer Tests job - this is a flaky numerical test unrelated to the PR changes",
+    "Consider adding a higher tolerance threshold for the LSTM+dropout test or marking it xfail/skip when dropout is non-zero",
+    "The PR changes (IR FE XML deserializer) are unrelated to this failure"
+  ],
+  "prevention_strategies": "Mark LSTM tests with non-zero dropout as xfail or increase the numerical tolerance threshold, as non-deterministic dropout makes exact comparison unreliable.",
+  "historical_context": "This is the first recorded instance of this specific LSTM dropout accuracy pattern. General TF layer test numerical flakiness has been seen before in the investigation history."
+}
