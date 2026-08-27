@@ -86,13 +86,11 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
                                   "GroupQueryAttention: local_window_size must be -1 (disabled) or >= 1, got ",
                                   local_window_size,
                                   ".");
-    // A windowed KV cache requires a real sliding window (local_window_size > 0), matching the ONNX
-    // Runtime precondition. batch > 1 is not handled by this decomposition (see the general
-    // batch_size == 1 check below). A multi-token step (prompt longer than the resident window, ORT's
-    // "staging" regime) IS handled: the decomposition picks the staging vs. in-place cache-write branch
-    // from the runtime past/total length (mirroring ORT's PlanWindowedKvCache), not from whether
-    // sequence_length happens to be a statically-known value, so a static multi-token shape (e.g. a
-    // fixed-size prefill/context graph) is not rejected here.
+    // A windowed KV cache requires a real sliding window (local_window_size > 0), matching the ONNX Runtime
+    // precondition. batch > 1 is not handled by this decomposition (see the batch_size == 1 check below).
+    // Multi-token steps (ORT's "staging" regime) are supported: the decomposition selects the staging vs.
+    // in-place cache-write branch from the runtime past/total length, mirroring ORT's PlanWindowedKvCache,
+    // so a static multi-token shape is not rejected here.
     if (sliding_window_cache != 0) {
         FRONT_END_OP_CONVERSION_CHECK(local_window_size >= 1,
                                       "GroupQueryAttention: sliding_window_cache=1 requires local_window_size >= 1.");

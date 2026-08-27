@@ -5589,9 +5589,6 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_softcap_unsupported_throws) {
     }
 }
 
-// The windowed cache supports only single-token decode (sequence_length == 1). A multi-token step is
-// the staging regime, which is not supported and must be rejected with a clear error (when the static
-// sequence_length is known) rather than silently diverging or building an ill-formed graph. Here seq=4.
 // qk_output (emit the QxK' matrix as a 4th output) is not produced by the decomposition, so a model that
 // requests it must be rejected at import rather than silently losing an output.
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_output_unsupported_throws) {
@@ -5921,10 +5918,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_staging) {
 }
 
 // Same S=6 / C=4 / W=2 crossing-eviction step as onnx_model_gqa_sliding_window_cache_staging above, but with
-// query's sequence_length declared as a static ONNX dim_value (6), not a dim_param reshaped dynamic post-import.
-// This exercises the FE conversion-time path directly (the static-shape guard used to reject this outright);
-// the decomposition picks the staging vs. in-place branch from the same "not a statically-known S==1" test
-// either way, so this must produce byte-identical results to the dynamic-shape version above.
+// query's sequence_length declared as a static ONNX dim_value (6) instead of a dynamic dim_param, exercising
+// the FE conversion-time path directly. The decomposition picks the staging vs. in-place branch from the
+// runtime past/total length, not static-ness of S, so results must be byte-identical to the dynamic version.
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_static_staging) {
     // Same pre-existing GPU present-cache-zeroing bug as onnx_model_gqa_sliding_window_cache_staging above
     // (this takes the identical staging branch) - fixed on the gqa_fixes branch / GPU PR #37659, not yet
@@ -5933,12 +5929,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_static_stagin
         GTEST_SKIP() << "GPU zeroes the staging present cache in the full graph; verified correct on "
                         "CPU/INTERPRETER. Fixed on gqa_fixes / GPU PR #37659, not yet on this branch.";
     }
-    // INTERPRETER computes present_key/present_value as shape [0] instead of the correct static [1,1,4,16]
-    // on this specific graph - unlike CPU, which evaluates the identical decomposition with byte-matching
-    // expected values, so the decomposition itself is verified correct. Only reproduces when BOTH query and
-    // past_key are fully static (the plain single-token in-place test and the dynamic-query staging test
-    // above both pass on INTERPRETER), so this looks like a template-backend constant-folding quirk specific
-    // to the staging branch under full staticness, not a decomposition bug. Needs follow-up; not blocking.
+    // INTERPRETER returns present_key/present_value with shape [0] instead of [1,1,4,16] on this fully-static
+    // staging graph, while CPU matches expected values exactly - a template-backend constant-folding quirk in
+    // this backend, not a decomposition bug. Needs follow-up; not blocking.
     if (std::string("${BACKEND_NAME}") == std::string("INTERPRETER")) {
         GTEST_SKIP() << "INTERPRETER computes present_key/present_value as shape [0] on this fully-static "
                         "staging graph; verified correct on CPU (exact expected-value match). Likely a "
