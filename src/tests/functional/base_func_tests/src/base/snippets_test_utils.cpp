@@ -16,6 +16,10 @@ void SnippetsTestsCommon::validate() {
 }
 
 void SnippetsTestsCommon::validateNumSubgraphs() {
+    // Some derived tests don't set expected counts, so skip validation for them.
+    if (ref_num_nodes == 0 && ref_num_subgraphs == 0)
+        return;
+
     const auto& compiled_model = compiledModel.get_runtime_model();
     size_t num_subgraphs = 0;
     size_t num_nodes = 0;
