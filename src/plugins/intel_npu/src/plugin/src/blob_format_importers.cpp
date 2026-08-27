@@ -6,6 +6,7 @@
 
 #include "batch_size_section.hpp"
 #include "compiler_schedules_sections.hpp"
+#include "compiler_version_section.hpp"
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/encrypted_schedules_flag_section.hpp"
@@ -231,34 +232,22 @@ private:
         return m_main_schedule;
     }
 
-    /**
-     * @note N/A
-     * @return Always std::nullopt
-     */
     std::optional<std::vector<ov::Tensor>> extract_init_schedules() const override {
         return std::nullopt;
     }
 
-    /**
-     * @note N/A
-     * @return Always std::nullopt
-     */
     std::optional<int> extract_batch_size() const override {
         return std::nullopt;
     }
 
-    /**
-     * @note N/A
-     * @return Always std::nullopt
-     */
     std::optional<std::pair<std::vector<ov::Layout>, std::vector<ov::Layout>>> extract_layouts() const override {
         return std::nullopt;
     }
 
-    /**
-     * @note N/A
-     * @return Always std::nullopt
-     */
+    std::optional<uint32_t> extract_compiler_version() const override {
+        return std::nullopt;
+    }
+
     std::optional<std::string> extract_compiler_compatibility_descriptor() const override {
         return std::nullopt;
     }
@@ -298,8 +287,6 @@ public:
             // ROI tensor to skip the NPU plugin metadata
             m_compiler_payload = npu_formatted_blob.create_roi_tensor(compiler_payload_size);
         }
-
-        register_compiler_version();
     }
 
     std::shared_ptr<BlobWriter> create_blob_writer() override {
@@ -379,6 +366,10 @@ private:
         return std::make_pair<>(input_layouts.value(), output_layouts.value());
     }
 
+    std::optional<uint32_t> extract_compiler_version() const override {
+        return m_metadata->get_compiler_version();
+    }
+
     std::optional<std::string> extract_compiler_compatibility_descriptor() const override {
         const std::optional<std::string_view> compatibility_descriptor = m_metadata->get_compatibility_descriptor();
         // Convert the descriptor to an owning string before the metadata is potentially destroyed
@@ -389,20 +380,6 @@ private:
 
     std::optional<BlobType> extract_blob_type() const override {
         return m_metadata->get_blob_type();
-    }
-
-    /**
-     * @brief Registers the compiler version inside the configuration attribute if the version is found within the
-     * metadata.
-     */
-    void register_compiler_version() {
-        std::optional<uint32_t> compiler_version = m_metadata->get_compiler_version();
-        if (compiler_version.has_value()) {
-            m_config.update({{ov::intel_npu::compiler_version.name(), std::to_string(compiler_version.value())}});
-            m_logger.debug("Imported model was compiled with compiler version: %u.%u",
-                           ONEAPI_VERSION_MAJOR(compiler_version.value()),
-                           ONEAPI_VERSION_MINOR(compiler_version.value()));
-        }
     }
 
     /**
@@ -573,6 +550,14 @@ private:
                                   : std::nullopt;
     }
 
+    std::optional<uint32_t> extract_compiler_version() const override {
+        const auto compiler_version_section = std::dynamic_pointer_cast<CompilerVersionSection>(
+            m_blob_reader.retrieve_first_section(PredefinedSectionType::COMPILER_VERSION));
+
+        return compiler_version_section ? std::make_optional<>(compiler_version_section->get_compiler_version())
+                                        : std::nullopt;
+    }
+
     std::optional<std::string> extract_compiler_compatibility_descriptor() const override {
         // TODO finish the compat string section
     }
@@ -604,12 +589,24 @@ IBlobFormatImporter::IBlobFormatImporter(const std::shared_ptr<const ov::Model>&
       m_logger(logger),
       m_original_model(original_model) {}
 
+void IBlobFormatImporter::register_compiler_version() {
+    std::optional<uint32_t> compiler_version = extract_compiler_version();
+    if (compiler_version.has_value()) {
+        m_config.update({{ov::intel_npu::compiler_version.name(), std::to_string(compiler_version.value())}});
+        m_logger.debug("Imported model was compiled with compiler version: %u.%u",
+                       ONEAPI_VERSION_MAJOR(compiler_version.value()),
+                       ONEAPI_VERSION_MINOR(compiler_version.value()));
+    }
+}
+
 std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const ov::SoPtr<IEngineBackend>& backend,
                                                           const std::string_view network_name,
                                                           const std::string_view device_name,
                                                           const std::shared_ptr<ov::ICore>& core) {
     OV_ITT_TASK_CHAIN(PARSE_AND_CREATE_GRAPH, itt::domains::NPUPlugin, "IBlobFormatImporter", "create_graph");
     m_logger.debug("Creating a graph");
+
+    register_compiler_version();
 
     OV_ITT_TASK_NEXT(PARSE_AND_CREATE_GRAPH, "decrypt_schedules");
     decrypt_schedules();

@@ -104,7 +104,7 @@ private:
     virtual std::optional<std::vector<ov::Tensor>> extract_init_schedules() const = 0;
 
     /**
-     * @brief If a batch size a stored, this method will be used to extract it.
+     * @brief If a batch size was stored, this method will be used to extract it.
      */
     virtual std::optional<int> extract_batch_size() const = 0;
 
@@ -115,11 +115,22 @@ private:
     virtual std::optional<std::pair<std::vector<ov::Layout>, std::vector<ov::Layout>>> extract_layouts() const = 0;
 
     /**
+     * @brief If a compiler version was stored, this method will be used to extract it.
+     */
+    virtual std::optional<uint32_t> extract_compiler_version() const = 0;
+
+    /**
      * @brief If a compiler compatibility string was stored, this method will be used to extract it.
      */
     virtual std::optional<std::string> extract_compiler_compatibility_descriptor() const = 0;
 
     virtual std::optional<BlobType> extract_blob_type() const = 0;
+
+    /**
+     * @brief Registers the compiler version inside the configuration attribute if a version is found within the
+     * blob.
+     */
+    void register_compiler_version();
 
     /**
      * @brief A potential source of weights for weights separation. Can be `nullptr`.
