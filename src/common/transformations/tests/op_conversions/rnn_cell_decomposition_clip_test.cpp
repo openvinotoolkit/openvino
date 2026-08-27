@@ -179,9 +179,7 @@ TEST_P(CellDecompositionClipTests, InvalidClipInsertsNoClamp) {
     // failure surfaces on its own instead of being masked by an uninitialized-model error from TearDown().
     test_skipped = true;
 
-    for (const float clip : {-1.f,
-                             -std::numeric_limits<float>::infinity(),
-                             std::numeric_limits<float>::quiet_NaN()}) {
+    for (const float clip : {-1.f, -std::numeric_limits<float>::infinity(), std::numeric_limits<float>::quiet_NaN()}) {
         auto invalid_clip_model = p.makeModel(clip);
 
         ov::pass::Manager invalid_clip_manager;
