@@ -4,7 +4,6 @@
 
 #include "disable_fp16_compression.hpp"
 
-#include <algorithm>
 #include <memory>
 #include <vector>
 
@@ -75,15 +74,31 @@ DisableFP16CompForGatedResidualPattern::DisableFP16CompForGatedResidualPattern()
         if (!residual_add)
             return false;
 
-        const auto add_inputs = residual_add->input_values();
-        const bool has_gated_branch = std::any_of(add_inputs.begin(),
-                                                  add_inputs.end(),
-                                                  [](const ov::Output<ov::Node>& input) {
-                                                      return ov::is_type<ov::op::v1::Multiply>(input.get_node());
-                                                  });
-        if (!has_gated_branch)
+        std::shared_ptr<ov::op::v1::Multiply> gated_branch;
+        for (const auto& input : residual_add->input_values()) {
+            gated_branch = ov::as_type_ptr<ov::op::v1::Multiply>(input.get_node_shared_ptr());
+            if (gated_branch)
+                break;
+        }
+        if (!gated_branch)
             return false;
 
+        for (const auto& input : gated_branch->input_values()) {
+            const auto producer = input.get_node_shared_ptr();
+            ov::disable_conversion(producer, element::f16);
+
+            const auto linear_add = ov::as_type_ptr<ov::op::v1::Add>(producer);
+            if (!linear_add)
+                continue;
+
+            for (const auto& linear_input : linear_add->input_values()) {
+                const auto linear_producer = linear_input.get_node_shared_ptr();
+                if (ov::is_type<ov::op::v0::MatMul>(linear_producer))
+                    ov::disable_conversion(linear_producer, element::f16);
+            }
+        }
+        ov::disable_conversion(gated_branch, element::f16);
+        ov::disable_conversion(residual_add, element::f16);
         ov::disable_conversion(mvn, element::f16);
         return true;
     };
