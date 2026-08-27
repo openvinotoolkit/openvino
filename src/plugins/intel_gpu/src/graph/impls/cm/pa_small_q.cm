@@ -58,12 +58,28 @@ namespace KERNEL_NAME {
 #define USE_LSC_BLOCK_2D_DESC 1
 #endif
 
+#if KV_STEP != REG_N
+    #error "KV_STEP must equal REG_N: one online tile is exactly one DPAS N-tile of keys"
+#endif
+
 #define SystolicDepth 8
 #define RepeatCount 1
 #define VNNI_WIDTH 2
 #define REG_K (SystolicDepth * VNNI_WIDTH)
 #define REG_M RepeatCount
 #define KV_PARTITION_STEP_NUM  (KV_PARTITION_SIZE / KV_STEP)
+
+// One online tile covers KV_STEP key positions, which is also the DPAS N width, so KV_STEP
+// must equal REG_N. A *cache block* holds KV_BLOCK_SIZE positions, which is 16 for the
+// legacy layout but 256 when xattention is enabled -- i.e. many online tiles per block. The
+// two must never be conflated: an online tile index is not a block index.
+#define STEPS_PER_BLOCK (KV_BLOCK_SIZE / KV_STEP)
+#if (KV_BLOCK_SIZE % KV_STEP) != 0
+    #error "KV_BLOCK_SIZE must be a whole number of KV_STEP online tiles"
+#endif
+#if (KV_PARTITION_SIZE % KV_STEP) != 0
+    #error "KV_PARTITION_SIZE must be a whole number of KV_STEP online tiles"
+#endif
 
 // Total q-rows handled by one SG. q_chunk Q-heads share one DPAS row; TILE_Q
 // q-tokens stack on top so DPAS RepeatCount = Q_ROWS = Q_head_chunk_size * TILE_Q.
@@ -267,6 +283,13 @@ namespace KERNEL_NAME {
 #if KV_CACHE_COMPRESSION
 #if KV_CACHE_COMPRESSION == 2
     #define GROUPS_PER_BLOCK (KV_BLOCK_SIZE / SUB_BLOCK_SIZE)
+    // Sub-block groups spanned by one online tile. 1 whenever SUB_BLOCK_SIZE >= KV_STEP,
+    // which is the usual case (both 16).
+    #if SUB_BLOCK_SIZE >= KV_STEP
+    #define GROUPS_PER_TILE 1
+    #else
+    #define GROUPS_PER_TILE (KV_STEP / SUB_BLOCK_SIZE)
+    #endif
     #define K_SCALE_ZP_SIZE (4 * GROUPS_PER_BLOCK)
     #define V_SCALE_ZP_SIZE 4
 #elif KV_CACHE_COMPRESSION == 1
@@ -389,7 +412,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const uint block_begin = block_indices_begins[orig_seq_idx];
     const uint block_end   = block_indices_begins[orig_seq_idx + 1];
 
-    const uint blocks_per_partition = (KV_PARTITION_SIZE / KV_BLOCK_SIZE);
     constexpr uint kv_pitch = HEAD_SIZE * sizeof(KV_ELEMENT_TYPE);
 
     constexpr uint per_v_block_element_num = KV_BLOCK_SIZE * KV_HEADS_NUM * (HEAD_SIZE + V_SCALE_ZP_SIZE);
@@ -511,8 +533,11 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
             return;
         }
 
-        const uint start_block_idx = block_begin + kv_partition_idx * blocks_per_partition;
-        if (kv_partition_idx * KV_PARTITION_SIZE >= kv_len_max || start_block_idx >= block_end) {
+        // Ordinal of the first cache block this partition touches. Derived from the key
+        // position rather than from a blocks-per-partition ratio, so it stays correct when a
+        // block is larger than a partition as well as smaller.
+        const uint first_blk_ord = (kv_partition_idx * KV_PARTITION_SIZE) / KV_BLOCK_SIZE;
+        if (kv_partition_idx * KV_PARTITION_SIZE >= kv_len_max || block_begin + first_blk_ord >= block_end) {
             #pragma unroll
             for (int row = 0; row < ROWS_PER_THREAD; row++) {
                 const int global_row = subgroup_row_base + row;
@@ -533,11 +558,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                 lse[lse_offset] = -3e38f;
             }
             return;
-        }
-
-        uint block_num = blocks_per_partition;
-        if (block_num > block_end - start_block_idx) {
-            block_num = block_end - start_block_idx;
         }
 
         uint leftover_size = 0;
@@ -589,21 +609,35 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
             // instead of sitting on every tile's critical path -- and it makes tile i+1's
             // prefetch address available with no load at all.
             vector<uint, KV_PARTITION_STEP_NUM> blk_idx_cache = 0;
+            // ...and the token offset of the tile *inside* that block. With KV_BLOCK_SIZE
+            // 256 and KV_STEP 16 a block spans 16 online tiles, so this is what tells the 2D
+            // descriptors which rows to read (set_block_y) and where the tile's per-token
+            // scale/zero-point live.
+            vector<uint, KV_PARTITION_STEP_NUM> tok_in_blk_cache = 0;
             #pragma unroll
             for (int ki = 0; ki < KV_PARTITION_STEP_NUM; ki++) {
-                uint kv_pos_end_in_block = 0;
-                const uint block_idx = ki;
-                if (block_idx < block_num) {
-                    const uint block_start_in_partition = block_idx * KV_BLOCK_SIZE;
-                    if (partition_valid > block_start_in_partition) {
-                        kv_pos_end_in_block = partition_valid - block_start_in_partition;
-                        if (kv_pos_end_in_block > KV_BLOCK_SIZE) {
-                            kv_pos_end_in_block = KV_BLOCK_SIZE;
-                        }
+                // Valid key positions in *this online tile*, in [0, KV_STEP]. Note this is a
+                // per-tile count, not a per-block one: the two coincide only when
+                // STEPS_PER_BLOCK == 1.
+                const uint pos_in_part = (uint)ki * KV_STEP;
+                uint tile_valid = 0;
+                if (partition_valid > pos_in_part) {
+                    tile_valid = partition_valid - pos_in_part;
+                    if (tile_valid > KV_STEP) {
+                        tile_valid = KV_STEP;
                     }
-                    blk_idx_cache[ki] = block_indices[start_block_idx + block_idx];
                 }
-                kv_pos_end_cache[ki] = kv_pos_end_in_block;
+                if (tile_valid > 0) {
+                    const uint pos_global = kv_partition_idx * KV_PARTITION_SIZE + pos_in_part;
+                    const uint blk_ord = pos_global / KV_BLOCK_SIZE;   // block ordinal in the sequence
+                    if (block_begin + blk_ord < block_end) {
+                        blk_idx_cache[ki] = block_indices[block_begin + blk_ord];
+                        tok_in_blk_cache[ki] = pos_global % KV_BLOCK_SIZE;
+                    } else {
+                        tile_valid = 0;
+                    }
+                }
+                kv_pos_end_cache[ki] = tile_valid;
             }
 
 
@@ -659,34 +693,51 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                     // address is harmless, so no guard is needed.
                     uint k_blk_next = 0;
                     uint v_blk_next = 0;
+                    uint tok_in_blk_next = 0;
                     if (ki_m + KV_PREFETCH_DIST < KV_PARTITION_STEP_NUM
-                        && (uint)(ki_m + KV_PREFETCH_DIST) < block_num) {
+                        && kv_pos_end_cache[ki_m + KV_PREFETCH_DIST] > 0) {
                         const uint bn = blk_idx_cache[ki_m + KV_PREFETCH_DIST];
+                        tok_in_blk_next = tok_in_blk_cache[ki_m + KV_PREFETCH_DIST];
                         k_blk_next = bn * per_k_block_element_num
                                    + kv_head_num_idx * (per_k_block_element_num / KV_HEADS_NUM);
                         v_blk_next = bn * per_v_block_element_num
                                    + kv_head_num_idx * (per_v_block_element_num / KV_HEADS_NUM);
                     }
-                    if ((uint)ki_m < block_num) {
+                    // Token offset of this online tile inside its cache block. Zero when
+                    // STEPS_PER_BLOCK == 1; a multiple of KV_STEP otherwise.
+                    const uint tok_in_blk = tok_in_blk_cache[ki_m];
+                    if (kv_pos_end_cache[ki_m] > 0) {
                         const uint kv_pos_end_in_block = kv_pos_end_cache[ki_m];
                         const uint blk_indices = blk_idx_cache[ki_m];
                         const uint k_base_offset = blk_indices * per_k_block_element_num
                                                  + kv_head_num_idx * (per_k_block_element_num / KV_HEADS_NUM);
                         k_blk_base = k_base_offset;
 #if KV_CACHE_COMPRESSION == 1
-                        vector<uint, KV_BLOCK_SIZE> k_scale_zp_block;
-                        cm_svm_block_read<uint, KV_BLOCK_SIZE>(
-                            (svmptr_t)(key + k_base_offset + KV_BLOCK_SIZE * HEAD_SIZE), k_scale_zp_block);
-                        auto k_scale_zp_half = k_scale_zp_block.format<half>();
+                        // Per-token scale/zp live after the KV_BLOCK_SIZE*HEAD_SIZE data
+                        // bytes as [KV_BLOCK_SIZE] halves of scale then [KV_BLOCK_SIZE] of
+                        // zero-point. Read only this tile's REG_N entries at its offset in
+                        // the block -- reading the whole block would be KV_BLOCK_SIZE*4 bytes
+                        // per thread per tile, which is 1 KiB at KV_BLOCK_SIZE 256.
+                        // tok_in_blk is a multiple of KV_STEP so the address is 32 B aligned.
+                        const uint k_szp = k_base_offset + KV_BLOCK_SIZE * HEAD_SIZE;
+                        vector<half, REG_N> k_scale_raw, k_zp_raw;
+                        cm_svm_block_read<half, REG_N>(
+                            (svmptr_t)(key + k_szp + tok_in_blk * sizeof(half)), k_scale_raw);
+                        cm_svm_block_read<half, REG_N>(
+                            (svmptr_t)(key + k_szp + (KV_BLOCK_SIZE + tok_in_blk) * sizeof(half)),
+                            k_zp_raw);
 #endif
 
                         const uint v_base_offset = blk_indices * per_v_block_element_num
                                                  + kv_head_num_idx * (per_v_block_element_num / KV_HEADS_NUM);
                         v_blk_base = v_base_offset;
-                        vector<uint, KV_BLOCK_SIZE> v_scale_zp_block;
-                        cm_svm_block_read<uint, KV_BLOCK_SIZE>(
-                            (svmptr_t)(value + v_base_offset + KV_BLOCK_SIZE * HEAD_SIZE), v_scale_zp_block);
-                        auto v_scale_zp_half = v_scale_zp_block.format<half>();
+                        const uint v_szp = v_base_offset + KV_BLOCK_SIZE * HEAD_SIZE;
+                        vector<half, REG_K> v_scale_raw, v_zp_raw;
+                        cm_svm_block_read<half, REG_K>(
+                            (svmptr_t)(value + v_szp + tok_in_blk * sizeof(half)), v_scale_raw);
+                        cm_svm_block_read<half, REG_K>(
+                            (svmptr_t)(value + v_szp + (KV_BLOCK_SIZE + tok_in_blk) * sizeof(half)),
+                            v_zp_raw);
 
                         // Vector-masked copy. The per-token loop above is semantically
                         // identical but IGC unrolls it into REG_N predicated *scalar*
@@ -704,11 +755,11 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                         vector<ushort, REG_N> lane_valid =
                             lane_idx < (ushort)kv_pos_end_in_block;
 #if KV_CACHE_COMPRESSION == 1
-                        k_scale.merge(k_scale_zp_half.select<REG_N, 1>(0), lane_valid);
-                        k_zp.merge(k_scale_zp_half.select<REG_N, 1>(KV_BLOCK_SIZE), lane_valid);
+                        k_scale.merge(k_scale_raw, lane_valid);
+                        k_zp.merge(k_zp_raw, lane_valid);
 #endif
-                        v_scale.merge(v_scale_zp_half.select<REG_N, 1>(0), lane_valid);
-                        v_zp.merge(v_scale_zp_half.select<REG_N, 1>(KV_BLOCK_SIZE), lane_valid);
+                        v_scale.merge(v_scale_raw, lane_valid);
+                        v_zp.merge(v_zp_raw, lane_valid);
                     }
 
                     // K and V marshalled in separate loops so their working sets do not
@@ -728,6 +779,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                                 key + k_blk_base, KV_BLOCK_SIZE - 1,
                                 HEAD_SIZE * sizeof(uint8_t) - 1, kv_pitch - 1, 0, 0);
                             b2dK.set_block_x(c * REG_K);
+                            b2dK.set_block_y(tok_in_blk);
                             cm_load<lsc::Normal>(Kq.format<uint8_t>(), b2dK);
                         }
                         {
@@ -735,6 +787,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                                 key + k_blk_next, KV_BLOCK_SIZE - 1,
                                 HEAD_SIZE * sizeof(uint8_t) - 1, kv_pitch - 1, 0, 0);
                             pfK.set_block_x(c * REG_K);
+                            pfK.set_block_y(tok_in_blk_next);
                             cm_prefetch(pfK);
                         }
 #if KV_CACHE_COMPRESSION == 2
@@ -745,19 +798,22 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                         // REG_K*2 = 32 B read at a 32 B-aligned address. With
                         // SUB_BLOCK_SIZE == KV_BLOCK_SIZE (GROUPS_PER_BLOCK == 1) it is one
                         // read each per chunk.
-                        matrix<half, GROUPS_PER_BLOCK, REG_K> kc_scale = 0.0f;
-                        matrix<half, GROUPS_PER_BLOCK, REG_K> kc_zp = 0.0f;
-                        if ((uint)ki_m < block_num) {
+                        matrix<half, GROUPS_PER_TILE, REG_K> kc_scale = 0.0f;
+                        matrix<half, GROUPS_PER_TILE, REG_K> kc_zp = 0.0f;
+                        if (kv_pos_end_cache[ki_m] > 0) {
                             const uint szp_base = k_blk_base + KV_BLOCK_SIZE * HEAD_SIZE;
+                            // Group of the tile's *first* token within the block. Only the
+                            // GROUPS_PER_TILE groups this tile actually spans are read.
+                            const uint g_base = tok_in_blk / SUB_BLOCK_SIZE;
                             #pragma unroll
-                            for (int g = 0; g < (int)GROUPS_PER_BLOCK; g++) {
+                            for (int g = 0; g < (int)GROUPS_PER_TILE; g++) {
                                 cm_svm_block_read<half, REG_K>(
                                     (svmptr_t)(key + szp_base
-                                               + (g * HEAD_SIZE + c * REG_K) * sizeof(half)),
+                                               + ((g_base + g) * HEAD_SIZE + c * REG_K) * sizeof(half)),
                                     kc_scale.row(g).format<half>());
                                 cm_svm_block_read<half, REG_K>(
                                     (svmptr_t)(key + szp_base
-                                               + ((GROUPS_PER_BLOCK + g) * HEAD_SIZE
+                                               + ((GROUPS_PER_BLOCK + g_base + g) * HEAD_SIZE
                                                   + c * REG_K) * sizeof(half)),
                                     kc_zp.row(g).format<half>());
                             }
@@ -776,6 +832,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                             KtNormal.row(col) = KtNormal.row(col) - kc_zp.row(col / SUB_BLOCK_SIZE);
                             KtNormal.row(col) = cm_mul<half>(KtNormal.row(col),
                                                              kc_scale.row(col / SUB_BLOCK_SIZE));
+                            // col is the token's index *within the online tile*, so
+                            // col / SUB_BLOCK_SIZE is its group relative to g_base above.
 #else
                             KtNormal.row(col) = KtNormal.row(col) - k_zp[col];
                             KtNormal.row(col) = cm_mul<half>(KtNormal.row(col), k_scale[col]);
@@ -807,6 +865,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                                 value + v_blk_base, KV_BLOCK_SIZE - 1,
                                 HEAD_SIZE * sizeof(uint8_t) - 1, kv_pitch - 1, 0, 0);
                             b2dV.set_block_x(c * REG_N);
+                            b2dV.set_block_y(tok_in_blk);
                             cm_load<lsc::Normal>(Vq.format<uint8_t>(), b2dV);
                         }
                         {
@@ -814,6 +873,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                                 value + v_blk_next, KV_BLOCK_SIZE - 1,
                                 HEAD_SIZE * sizeof(uint8_t) - 1, kv_pitch - 1, 0, 0);
                             pfV.set_block_x(c * REG_N);
+                            pfV.set_block_y(tok_in_blk_next);
                             cm_prefetch(pfV);
                         }
                         matrix<half, REG_K, REG_N> VmatNormal = 0;
@@ -1000,17 +1060,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                     const int ki = ki_base + li_v;
                     if (ki >= KV_PARTITION_STEP_NUM) {
                         continue;
-                    }
-
-                    bool block_valid = false;
-                    uint v_base_offset = 0;
-                    uint kv_pos_end_in_block = 0;
-                    const uint block_idx = ki;
-                    if (block_idx < block_num) {
-                        block_valid = true;
-                        const uint blk_indices = block_indices[start_block_idx + block_idx];
-                        v_base_offset = blk_indices * per_v_block_element_num + kv_head_num_idx * (per_v_block_element_num / KV_HEADS_NUM);
-                        kv_pos_end_in_block = kv_pos_end_cache[ki];
                     }
 
                     #pragma unroll
