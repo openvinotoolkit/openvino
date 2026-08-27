@@ -236,8 +236,8 @@ void convert_and_copy(const ov::ITensor* src, cldnn::memory::ptr dst, cldnn::str
             dst->copy_from(stream, *mem, blocking);
         } else {
             dst->copy_from(stream, src->data(), blocking);
-            return;
         }
+        return;
     }
 
     size_t size = ov::shape_size(src->get_shape());

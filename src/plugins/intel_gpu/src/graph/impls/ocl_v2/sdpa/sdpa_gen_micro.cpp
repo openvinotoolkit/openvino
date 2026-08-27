@@ -130,17 +130,23 @@ inline size_t micro_get_num_heads(const kernel_impl_params& params, size_t qkv_i
     } else {
         const auto desc = params.typed_desc<scaled_dot_product_attention>();
         switch (qkv_idx) {
-        case 0:
-            return get_num_heads(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));
-        case 1:
-            return get_num_heads(params.input_layouts[1], extend_order_in_num_heads_dim(desc->input_k_transpose_order));
-        case 2:
-            return get_num_heads(params.input_layouts[2], extend_order_in_num_heads_dim(desc->input_v_transpose_order));
+        case 0: {
+            const auto num_heads = get_num_heads(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));
+            return ensure_positive_dim(num_heads, "number of heads for Q");
+        }
+        case 1: {
+            const auto num_heads = get_num_heads(params.input_layouts[1], extend_order_in_num_heads_dim(desc->input_k_transpose_order));
+            return ensure_positive_dim(num_heads, "number of heads for K");
+        }
+        case 2: {
+            const auto num_heads = get_num_heads(params.input_layouts[2], extend_order_in_num_heads_dim(desc->input_v_transpose_order));
+            return ensure_positive_dim(num_heads, "number of heads for V");
+        }
         default:
             OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
         }
     }
-    return -1;
+    OPENVINO_THROW("[GPU] Invalid qkv index in micro_get_num_heads");
 }
 
 inline size_t micro_get_head_size(const kernel_impl_params& params, size_t qkv_idx) {
@@ -159,17 +165,23 @@ inline size_t micro_get_head_size(const kernel_impl_params& params, size_t qkv_i
     } else {
         const auto desc = params.typed_desc<scaled_dot_product_attention>();
         switch (qkv_idx) {
-        case 0:
-            return get_head_size(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));
-        case 1:
-            return get_head_size(params.input_layouts[1], extend_order_in_num_heads_dim(desc->input_k_transpose_order));
-        case 2:
-            return get_head_size(params.input_layouts[2], extend_order_in_num_heads_dim(desc->input_v_transpose_order));
+        case 0: {
+            const auto head_size = get_head_size(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));
+            return ensure_positive_dim(head_size, "head size for Q");
+        }
+        case 1: {
+            const auto head_size = get_head_size(params.input_layouts[1], extend_order_in_num_heads_dim(desc->input_k_transpose_order));
+            return ensure_positive_dim(head_size, "head size for K");
+        }
+        case 2: {
+            const auto head_size = get_head_size(params.input_layouts[2], extend_order_in_num_heads_dim(desc->input_v_transpose_order));
+            return ensure_positive_dim(head_size, "head size for V");
+        }
         default:
             OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
         }
     }
-    return -1;
+    OPENVINO_THROW("[GPU] Invalid qkv index in micro_get_head_size");
 }
 
 inline ov::Dimension micro_get_seq_length(const kernel_impl_params& params, int32_t qkv_idx) {
@@ -324,7 +336,7 @@ sdpa_config_t xehpg_q_h512_s64_2nd = {8, 16, 32, 8, 32, 1, 16, 2};
 sdpa_config_t xehpg_q_h512_s256_2nd = {16, 8, 32, 8, 16, 2, 16, 2};
 sdpa_config_t xehpg_q_h512_2nd = {16, 8, 16, 8, 32, 1, 32, 1};
 
-sdpa_config_t xehpg_h512_pa = {16, 16, 16, 16, 8, 2, 32, 2};
+sdpa_config_t xehpg_h512_pa = {16, 16, 16, 16, 32, 1, 32, 1};
 sdpa_config_t xehpg_h512 = {8, 16, 32, 16, 16, 2, 16, 2};
 sdpa_config_t xehpg_h512_2nd = {8, 8, 32, 8, 16, 1, 16, 1};
 
@@ -372,7 +384,7 @@ sdpa_config_t xehpc_h256 = {16, 32, 32, 32, 8, 4, 8, 4};
 sdpa_config_t xehpc_h256_s64 = {16, 32, 32, 32, 8, 1, 8, 1};
 sdpa_config_t xehpc_h256_2nd = {16, 16, 16, 16, 16, 1, 16, 1};
 
-sdpa_config_t xehpc_h512_pa = {16, 16, 16, 16, 16, 1, 32, 1};
+sdpa_config_t xehpc_h512_pa = {16, 16, 32, 16, 16, 2, 16, 2};
 sdpa_config_t xehpc_h512 = {32, 16, 64, 16, 8, 4, 8, 4};
 sdpa_config_t xehpc_h512_s64 = {16, 16, 64, 16, 8, 2, 8, 2};
 sdpa_config_t xehpc_h512_s128_2nd = {16, 16, 64, 16, 8, 1, 8, 1};
@@ -824,6 +836,10 @@ std::string SDPAMicroGenerator::get_build_options(const kernel_impl_params& para
     extra_options += " -Dcl_intel_global_float_atomic";
     extra_options += " -Dcl_intel_subgroup_matrix_multiply_accumulate";
     extra_options += " -Dcl_intel_subgroup_split_matrix_multiply_accumulate";
+    bool debug_pa_integrity_check = GPU_DEBUG_VALUE_OR(params.get_program().get_config().get_pa_integrity_check(), false);
+    if (debug_pa_integrity_check && !m_is_gqa_single_token) {
+        extra_options += " -DPA_INTEGRITY_CHECK=1";
+    }
 
     return base_options + extra_options;
 }
@@ -1213,7 +1229,8 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     auto Q_num_heads_dim = micro_get_num_heads(params, 0);
     auto K_num_heads_dim = micro_get_num_heads(params, 1);
 
-    jit.make("REMAINDER_K", !k_full);
+    const bool may_have_mixed_k_boundary = config.is_paged_attention && !m_is_prefill && !m_is_gqa_single_token;
+    jit.make("REMAINDER_K", !k_full || may_have_mixed_k_boundary);
     jit.make("KV_GROUP_SIZE", Q_num_heads_dim / K_num_heads_dim);
 
     if (d_full) {
@@ -1457,9 +1474,7 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
             }
 
             auto to_int32 = [](size_t value) {
-                if (value > static_cast<size_t>(std::numeric_limits<int32_t>::max())) {
-                    return static_cast<int32_t>(-1);
-                }
+                OPENVINO_ASSERT(value <= static_cast<size_t>(std::numeric_limits<int32_t>::max()), "[GPU] SDPA micro scalar value exceeds int32 range");
                 return static_cast<int32_t>(value);
             };
 
@@ -1552,6 +1567,17 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     }
     }
 
+    if (!is_prefill) {
+        const auto& wg_cfg = GPU_DEBUG_VALUE_OR(params.get_program().get_config().get_micro_sdpa_workgroup_config(), std::vector<int>{});
+        if (wg_cfg.size() >= 4) {
+            config->wg_m_kq = wg_cfg[0];
+            config->wg_n_kq = wg_cfg[1];
+            config->wg_m_vs = wg_cfg[2];
+            config->wg_n_vs = wg_cfg[3];
+        }
+    }
+    GPU_DEBUG_TRACE_DETAIL << "is_prefill=" << is_prefill << " single_token " << is_gqa_single_token << " Chosen config for xe_hpg: " << config->wg_m_kq << ", "
+                           << config->wg_n_kq << ", " << config->wg_m_vs << ", " << config->wg_n_vs << ", " << std::endl;
     OPENVINO_ASSERT(config != nullptr);
 
     /* Get device information */
