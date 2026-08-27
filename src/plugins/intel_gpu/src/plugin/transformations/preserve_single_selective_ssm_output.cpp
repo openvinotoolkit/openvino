@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "preserve_selective_ssm_precision.hpp"
+#include "preserve_single_selective_ssm_output.hpp"
 
 #include <string>
 
 #include "openvino/core/rt_info.hpp"
-#include "openvino/op/paged_selective_ssm.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/selective_ssm.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "transformations/rt_info/disable_precision_conversion.hpp"
 
 namespace ov::intel_gpu {
 
@@ -67,20 +65,6 @@ bool PreserveSingleSelectiveSSMOutput::run_on_model(const std::shared_ptr<ov::Mo
         changed = true;
     }
     return changed;
-}
-
-bool PreserveSelectiveSSMPrecision::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    for (const auto& node : model->get_ordered_ops()) {
-        if (!ov::is_type<ov::op::internal::SelectiveSSM>(node) && !ov::is_type<ov::op::internal::PagedSelectiveSSM>(node)) {
-            continue;
-        }
-
-        ov::disable_conversion(node, ov::element::dynamic, ov::element::dynamic);
-        for (size_t input = 0; input < node->get_input_size(); ++input) {
-            ov::disable_conversion(node->get_input_node_shared_ptr(input), ov::element::dynamic, ov::element::dynamic);
-        }
-    }
-    return false;
 }
 
 }  // namespace ov::intel_gpu
