@@ -1097,6 +1097,118 @@ TEST(SerializationTest, OVTypes_Tensor_weightless_mmap_oob_overflow) {
     std::filesystem::remove(file_path);
 }
 
+// Craft a Const whose blob-supplied offset/size exceeds the backing weights file and assert its
+// two weightless consumers -- the zero-copy view in eval() and the bf16 memcpy in read_weight() -- reject it.
+
+TEST(SerializationTest, OVTypes_LazyTensor_weightless_mmap_oob) {
+    using namespace ov::npuw::s11n;
+
+    auto constant = make_weightless_constant<float>(ov::element::f32, ov::Shape{4}, {1.0f, 2.0f, 3.0f, 4.0f}, 0);
+    ov::npuw::weights::LazyTensor var(constant);
+
+    std::stringstream ss;
+    write(ss, var);
+
+    std::filesystem::path file_path = ov::test::utils::generateTestFilePrefix() + "_npuw_lt_mmap_oob.bin";
+    {
+        std::ofstream os(file_path, std::ios::binary);
+        const std::vector<uint8_t> tiny(8, 0xAB);
+        os.write(reinterpret_cast<const char*>(tiny.data()), static_cast<std::streamsize>(tiny.size()));
+    }
+
+    {
+        ov::npuw::weights::LazyTensor res;
+        read(ss, res);
+
+        auto mapped = ov::load_mmap_object(file_path);
+        ASSERT_NE(mapped, nullptr);
+        auto weights = std::make_shared<Weights>(reinterpret_cast<char*>(mapped->data()), mapped->size(), mapped);
+
+        // Empty bf16_consts -> read_weight only records the path; the OOB read happens in eval().
+        WeightsContext import_ctx(weights, file_path.string(), {}, {});
+        res.read_weight(import_ctx);
+        EXPECT_THROW(res.eval(), ov::AssertFailure);
+
+        res.detach();  // release the mmap before removing the file (Windows handle)
+    }
+
+    std::filesystem::remove(file_path);
+}
+
+TEST(SerializationTest, OVTypes_LazyTensor_weightless_bf16_oob) {
+    using namespace ov::npuw::s11n;
+
+    auto constant = make_weightless_constant<ov::float16>(
+        ov::element::f16,
+        ov::Shape{4},
+        {ov::float16(1.0f), ov::float16(2.0f), ov::float16(3.0f), ov::float16(4.0f)},
+        0);
+    ov::npuw::weights::LazyTensor var(constant);
+
+    std::stringstream ss;
+    write(ss, var);
+
+    std::filesystem::path file_path = ov::test::utils::generateTestFilePrefix() + "_npuw_lt_bf16_oob.bin";
+    {
+        std::ofstream os(file_path, std::ios::binary);
+        const std::vector<uint8_t> tiny(4, 0xAB);
+        os.write(reinterpret_cast<const char*>(tiny.data()), static_cast<std::streamsize>(tiny.size()));
+    }
+
+    {
+        ov::npuw::weights::LazyTensor res;
+        read(ss, res);
+
+        auto mapped = ov::load_mmap_object(file_path);
+        ASSERT_NE(mapped, nullptr);
+        auto weights = std::make_shared<Weights>(reinterpret_cast<char*>(mapped->data()), mapped->size(), mapped);
+
+        // The bf16_consts entry drives read_weight into the guarded bf16 memcpy branch.
+        WeightsContext import_ctx(weights, file_path.string(), {}, {{0, constant->get_byte_size()}});
+        EXPECT_THROW(res.read_weight(import_ctx), ov::AssertFailure);
+    }
+
+    std::filesystem::remove(file_path);
+}
+
+TEST(SerializationTest, OVTypes_LazyTensor_weightless_mmap_valid) {
+    using namespace ov::npuw::s11n;
+
+    // Positive regression: a well-formed Const must still import through the mmap zero-copy path.
+    const std::vector<float> values = {1.0f, 2.0f};
+    auto constant = make_weightless_constant<float>(ov::element::f32, ov::Shape{2}, values, 0);
+    ov::npuw::weights::LazyTensor var(constant);
+
+    std::stringstream ss;
+    write(ss, var);
+
+    std::filesystem::path file_path = ov::test::utils::generateTestFilePrefix() + "_npuw_lt_mmap_valid.bin";
+    {
+        std::ofstream os(file_path, std::ios::binary);
+        os.write(reinterpret_cast<const char*>(values.data()),
+                 static_cast<std::streamsize>(values.size() * sizeof(float)));
+    }
+
+    {
+        ov::npuw::weights::LazyTensor res;
+        read(ss, res);
+
+        auto mapped = ov::load_mmap_object(file_path);
+        ASSERT_NE(mapped, nullptr);
+        auto weights = std::make_shared<Weights>(reinterpret_cast<char*>(mapped->data()), mapped->size(), mapped);
+
+        WeightsContext import_ctx(weights, file_path.string(), {}, {});
+        res.read_weight(import_ctx);
+
+        ov::Tensor expected(ov::element::f32, ov::Shape{2}, const_cast<float*>(values.data()));
+        expect_tensors_equal(expected, res.eval());
+
+        res.detach();  // release the mmap before removing the file (Windows handle)
+    }
+
+    std::filesystem::remove(file_path);
+}
+
 TEST(SerializationTest, OVTypes_OutputPort_roundtrips_into_parameter_pointer) {
     using namespace ov::npuw::s11n;
 
