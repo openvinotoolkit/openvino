@@ -18,10 +18,13 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/if.hpp"
 #include "openvino/op/paged_selective_ssm.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/validate.hpp"
 #include "transformations/convert_precision.hpp"
 
 namespace ov::intel_cpu::test {
@@ -56,12 +59,14 @@ PagedGraph make_paged_graph(const MetadataInputs& metadata) {
 
 void run_cpu_i64_conversion(const std::shared_ptr<ov::Model>& model) {
     ov::pass::Manager manager;
+    manager.set_per_pass_validation(false);
     manager.register_pass<PreservePagedSelectiveSSMMetadataPrecision>();
     manager.register_pass<ov::pass::ConvertPrecision>(precisions_map{{ov::element::i64, ov::element::i32}},
                                                       type_to_fuse_map{},
                                                       false,
                                                       false);
-    manager.run_passes(model);
+    manager.register_pass<ov::pass::Validate>();
+    EXPECT_TRUE(manager.run_passes(model));
 }
 
 TEST(PreservePagedSelectiveSSMMetadataPrecisionTest, KeepsUnknownExtensionOutputI64) {
@@ -216,6 +221,60 @@ TEST(PreservePagedSelectiveSSMMetadataPrecisionTest, LeavesI32MetadataUnchanged)
     EXPECT_FALSE(pass.run_on_model(model));
     for (const auto port : paged_ssm_metadata_ports) {
         EXPECT_EQ(graph.op->get_input_element_type(input_port_index(port)), ov::element::i32);
+    }
+}
+
+TEST(PreservePagedSelectiveSSMMetadataPrecisionTest, PreservesDefaultExtensionConversionWithoutPagedSSM) {
+    auto extension = make_i64_metadata_extension();
+    auto zero = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {int64_t{0}});
+    auto add = std::make_shared<ov::op::v1::Add>(extension, zero);
+    auto model = std::make_shared<ov::Model>(add->outputs(), ov::ParameterVector{});
+
+    run_cpu_i64_conversion(model);
+
+    EXPECT_EQ(add->get_input_element_type(0), ov::element::i32);
+    const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(add->get_input_node_shared_ptr(0));
+    ASSERT_NE(convert, nullptr);
+    EXPECT_EQ(convert->input_value(0).get_node_shared_ptr(), extension);
+}
+
+TEST(PreservePagedSelectiveSSMMetadataPrecisionTest, PreservesMetadataInsideSubgraph) {
+    auto metadata = make_i64_metadata_extension();
+    MetadataInputs metadata_inputs;
+    metadata_inputs.fill(metadata);
+    auto graph = make_paged_graph(metadata_inputs);
+    auto then_result = std::make_shared<ov::op::v0::Result>(graph.op);
+    auto then_body = std::make_shared<ov::Model>(ov::ResultVector{then_result}, graph.computation_parameters);
+
+    auto else_parameter =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, graph.op->get_output_partial_shape(0));
+    auto else_result = std::make_shared<ov::op::v0::Result>(else_parameter);
+    auto else_body = std::make_shared<ov::Model>(ov::ResultVector{else_result}, ov::ParameterVector{else_parameter});
+
+    auto condition = ov::op::v0::Constant::create(ov::element::boolean, ov::Shape{}, {true});
+    auto if_op = std::make_shared<ov::op::v8::If>(condition);
+    if_op->set_then_body(then_body);
+    if_op->set_else_body(else_body);
+
+    ov::ParameterVector outer_parameters;
+    for (const auto& body_parameter : graph.computation_parameters) {
+        auto outer_parameter = std::make_shared<ov::op::v0::Parameter>(body_parameter->get_element_type(),
+                                                                       body_parameter->get_partial_shape());
+        if_op->set_input(outer_parameter, body_parameter, nullptr);
+        outer_parameters.push_back(outer_parameter);
+    }
+    auto outer_else_parameter = std::make_shared<ov::op::v0::Parameter>(else_parameter->get_element_type(),
+                                                                        else_parameter->get_partial_shape());
+    if_op->set_input(outer_else_parameter, nullptr, else_parameter);
+    outer_parameters.push_back(outer_else_parameter);
+    auto if_result = if_op->set_output(then_result, else_result);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{if_result}, outer_parameters);
+
+    run_cpu_i64_conversion(model);
+
+    for (const auto port : paged_ssm_metadata_ports) {
+        EXPECT_EQ(graph.op->get_input_element_type(input_port_index(port)), ov::element::i64);
+        EXPECT_EQ(graph.op->input_value(input_port_index(port)).get_node_shared_ptr(), metadata);
     }
 }
 

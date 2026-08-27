@@ -21,7 +21,6 @@
 #include "openvino/op/paged_selective_ssm.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 
@@ -48,9 +47,10 @@ NodeSet insert_extension_converts(const std::shared_ptr<ov::Model>& model) {
         existing_nodes.insert(node.get());
     }
 
-    ov::pass::GraphRewrite rewrite;
-    rewrite.add_matcher<ov::pass::InsertConvertAfterExtension>(false);
-    rewrite.run_on_model(model);
+    ov::pass::InsertConvertAfterExtension insert_convert(false);
+    for (const auto& node : model->get_ordered_ops()) {
+        insert_convert.apply(node);
+    }
 
     NodeSet inserted_converts;
     for (const auto& node : model->get_ordered_ops()) {
@@ -61,7 +61,10 @@ NodeSet insert_extension_converts(const std::shared_ptr<ov::Model>& model) {
     return inserted_converts;
 }
 
-bool restore_i64_extension_path(ov::Input<ov::Node> input, const NodeSet& inserted_converts, NodeSet& visited_nodes) {
+bool collect_i64_path(ov::Input<ov::Node> input,
+                      const NodeSet& inserted_converts,
+                      NodeList& protected_nodes,
+                      NodeSet& protected_node_set) {
     auto source = input.get_source_output();
     bool changed = false;
     if (inserted_converts.count(source.get_node()) != 0 && source.get_element_type() == ov::element::i32) {
@@ -78,71 +81,45 @@ bool restore_i64_extension_path(ov::Input<ov::Node> input, const NodeSet& insert
     }
 
     const auto node = source.get_node_shared_ptr();
-    if (!visited_nodes.insert(node.get()).second) {
+    if (!protected_node_set.insert(node.get()).second) {
         return changed;
     }
+    protected_nodes.push_back(node);
 
     for (auto producer_input : node->inputs()) {
-        changed = restore_i64_extension_path(producer_input, inserted_converts, visited_nodes) || changed;
+        changed = collect_i64_path(producer_input, inserted_converts, protected_nodes, protected_node_set) || changed;
     }
     return changed;
 }
 
-void collect_i64_producers(const ov::Output<ov::Node>& output, NodeList& protected_nodes, NodeSet& protected_node_set) {
-    if (output.get_element_type() != ov::element::i64) {
-        return;
-    }
-
-    const auto node = output.get_node_shared_ptr();
-    if (!protected_node_set.insert(node.get()).second) {
-        return;
-    }
-    protected_nodes.push_back(node);
-
-    for (const auto& input : node->inputs()) {
-        if (input.get_element_type() == ov::element::i64) {
-            collect_i64_producers(input.get_source_output(), protected_nodes, protected_node_set);
-        }
-    }
-}
-
-bool protect_model(const std::shared_ptr<ov::Model>& model) {
+bool preserve_metadata_precision(const std::shared_ptr<ov::Model>& model) {
     const auto inserted_converts = insert_extension_converts(model);
-    auto ordered_ops = model->get_ordered_ops();
+    const auto ordered_ops = model->get_ordered_ops();
 
     bool changed = !inserted_converts.empty();
-    NodeSet visited_nodes;
-    for (const auto& node : ordered_ops) {
-        const auto paged_ssm = ov::as_type_ptr<ov::op::internal::PagedSelectiveSSM>(node);
-        if (!paged_ssm) {
-            continue;
-        }
-
-        for (const auto port : paged_ssm_metadata_ports) {
-            changed = restore_i64_extension_path(paged_ssm->input(input_port_index(port)),
-                                                 inserted_converts,
-                                                 visited_nodes) ||
-                      changed;
-        }
-    }
-
-    ordered_ops = model->get_ordered_ops();
     NodeSet model_nodes;
     model_nodes.reserve(ordered_ops.size());
-    for (const auto& node : ordered_ops) {
-        model_nodes.insert(node.get());
-    }
-
     NodeList protected_nodes;
     NodeSet protected_node_set;
     for (const auto& node : ordered_ops) {
+        model_nodes.insert(node.get());
         const auto paged_ssm = ov::as_type_ptr<ov::op::internal::PagedSelectiveSSM>(node);
-        if (!paged_ssm) {
-            continue;
+        if (paged_ssm) {
+            for (const auto port : paged_ssm_metadata_ports) {
+                changed = collect_i64_path(paged_ssm->input(input_port_index(port)),
+                                           inserted_converts,
+                                           protected_nodes,
+                                           protected_node_set) ||
+                          changed;
+            }
         }
-
-        for (const auto port : paged_ssm_metadata_ports) {
-            collect_i64_producers(paged_ssm->input_value(input_port_index(port)), protected_nodes, protected_node_set);
+        const auto subgraph = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node);
+        if (subgraph) {
+            for (const auto& body : subgraph->get_functions()) {
+                if (body) {
+                    changed = preserve_metadata_precision(body) || changed;
+                }
+            }
         }
     }
 
@@ -181,29 +158,13 @@ bool protect_model(const std::shared_ptr<ov::Model>& model) {
         }
     }
 
-    for (const auto& node : ordered_ops) {
-        const auto subgraph = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node);
-        if (!subgraph) {
-            continue;
-        }
-        for (size_t body_index = 0; body_index < subgraph->get_internal_subgraphs_size(); ++body_index) {
-            const auto& body = subgraph->get_function(body_index);
-            if (body) {
-                changed = protect_model(body) || changed;
-            }
-        }
-    }
-
     return changed;
 }
 
 }  // namespace
 
 bool PreservePagedSelectiveSSMMetadataPrecision::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    // A boundary Convert can temporarily give a shared consumer mixed input types. The immediately following
-    // ConvertPrecision pass legalizes its remaining i64 inputs, so validation must happen after that pass.
-    protect_model(model);
-    return false;
+    return preserve_metadata_precision(model);
 }
 
 }  // namespace ov::intel_cpu

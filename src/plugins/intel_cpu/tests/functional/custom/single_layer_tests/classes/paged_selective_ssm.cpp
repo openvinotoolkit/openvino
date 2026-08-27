@@ -489,8 +489,10 @@ void PagedSelectiveSSMLayerTest::SetUp() {
     auto p_B = std::make_shared<ov::op::v0::Parameter>(data_type, ov::PartialShape{-1, num_groups, state_size});
     auto p_x = std::make_shared<ov::op::v0::Parameter>(data_type, ov::PartialShape{-1, num_heads, head_dim});
     auto p_C = std::make_shared<ov::op::v0::Parameter>(data_type, ov::PartialShape{-1, num_groups, state_size});
+    // Keep the source model valid. ConvertPagedAttnInputs applies the requested state storage precision inside the
+    // CPU pipeline while computation parameters retain data_type through keep_const_precision.
     auto p_state =
-        std::make_shared<ov::op::v0::Parameter>(state_type, ov::PartialShape{-1, num_heads, head_dim, state_size});
+        std::make_shared<ov::op::v0::Parameter>(data_type, ov::PartialShape{-1, num_heads, head_dim, state_size});
     for (const auto& parameter : {p_A, p_dt, p_B, p_x, p_C, p_state}) {
         ov::enable_keep_const_precision(parameter);
     }
@@ -629,7 +631,9 @@ void PagedSelectiveSSMLayerTest::generate_inputs(const std::vector<ov::Shape>& t
                                                                                0.5f,
                                                                                1);
         } else if (ov::intel_cpu::is_paged_ssm_float_port(port)) {
-            tensor = ov::test::utils::create_and_fill_tensor(param->get_element_type(),
+            const auto tensor_type =
+                port == ov::intel_cpu::PagedSelectiveSSMInputPort::State ? state_type : param->get_element_type();
+            tensor = ov::test::utils::create_and_fill_tensor(tensor_type,
                                                              shape,
                                                              ov::test::utils::InputGenerateData(-0.5f, 1.0f, 1000, 1));
         } else if (port == ov::intel_cpu::PagedSelectiveSSMInputPort::SubsequenceBegins) {
