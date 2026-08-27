@@ -969,6 +969,45 @@ void ov::npuw::validate_orc_submodel_indices(
     }
 }
 
+void ov::npuw::CompiledModel::validate_orc_submodels(const std::vector<CompiledModelDesc>& submodels) {
+    for (std::size_t idx = 0; idx < submodels.size(); ++idx) {
+        const auto& subm = submodels[idx];
+        ov::SoPtr<ov::ICompiledModel> effective_compiled_model = subm.compiled_model;
+
+        std::size_t current_idx = idx;
+        std::unordered_set<std::size_t> visited;
+        while (!effective_compiled_model && submodels[current_idx].replaced_by.has_value()) {
+            visited.insert(current_idx);
+            const std::size_t target_idx = submodels[current_idx].replaced_by.value();
+            OPENVINO_ASSERT(target_idx < submodels.size(),
+                            "ORC import: submodel ",
+                            current_idx,
+                            " replaced_by index ",
+                            target_idx,
+                            " is out of range [0, ",
+                            submodels.size(),
+                            ")");
+            OPENVINO_ASSERT(visited.find(target_idx) == visited.end(),
+                            "ORC import: cycle detected in replaced_by chain at submodel ",
+                            target_idx);
+            current_idx = target_idx;
+            effective_compiled_model = submodels[current_idx].compiled_model;
+        }
+
+        const auto& closure_desc = subm.closure.get();
+        const std::size_t closure_size = closure_desc.closure.size();
+        const bool has_compiled_model = static_cast<bool>(effective_compiled_model);
+        const std::size_t n_model_inputs = has_compiled_model ? effective_compiled_model->inputs().size() : 0u;
+
+        validate_orc_submodel_indices(subm.host_gather,
+                                     subm.quant_unpack_gather,
+                                     subm.param_base,
+                                     closure_size,
+                                     has_compiled_model,
+                                     n_model_inputs);
+    }
+}
+
 void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Stream& stream,
                                                            const ov::npuw::s11n::WeightsContext& ctx,
                                                            std::optional<std::size_t> orc_device_index,
@@ -1068,12 +1107,14 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
 
         std::size_t closure_size = closure_desc.closure.size();
         stream & closure_size;
-        ov::npuw::validate_orc_submodel_indices(host_gather,
-                            quant_unpack_gather,
-                            param_base,
-                            closure_size,
-                            static_cast<bool>(compiled_model),
-                            compiled_model ? compiled_model->inputs().size() : 0u);
+        if (!is_fcall) {
+            ov::npuw::validate_orc_submodel_indices(host_gather,
+                                                   quant_unpack_gather,
+                                                   param_base,
+                                                   closure_size,
+                                                   static_cast<bool>(compiled_model),
+                                                   compiled_model ? compiled_model->inputs().size() : 0u);
+        }
         std::vector<ov::Tensor> cpu_closures;
         std::vector<std::size_t> cpu_closure_ids;
         std::vector<ov::npuw::weights::LazyTensor> non_cpu_tensors;
@@ -1116,12 +1157,14 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
 
         std::size_t closure_size = closure_desc.closure.size();
         stream & closure_size;
-        ov::npuw::validate_orc_submodel_indices(host_gather,
-                            quant_unpack_gather,
-                            param_base,
-                            closure_size,
-                            static_cast<bool>(compiled_model),
-                            compiled_model ? compiled_model->inputs().size() : 0u);
+        if (!is_fcall) {
+            ov::npuw::validate_orc_submodel_indices(host_gather,
+                                                   quant_unpack_gather,
+                                                   param_base,
+                                                   closure_size,
+                                                   static_cast<bool>(compiled_model),
+                                                   compiled_model ? compiled_model->inputs().size() : 0u);
+        }
         std::vector<std::size_t> cpu_closure_ids;
         if (stream.output()) {
             std::vector<ov::Tensor> cpu_closures;
@@ -1222,6 +1265,8 @@ void ov::npuw::CompiledModel::serialize_orc_container(std::ostream& stream,
                                                       const std::function<std::string(const std::string&)>& encrypt,
                                                       const ov::npuw::s11n::BF16Cache* bf16_consts) const {
     using namespace ov::npuw;
+
+    validate_orc_submodels(m_compiled_submodels);
 
     if (m_cfg.get<::intel_npu::NPUW_ENSURE_COMPATIBILITY>()) {
         if (encrypt) {
@@ -1466,6 +1511,8 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
     if (require_weights_bank && !have_weights) {
         OPENVINO_THROW("Missing ORC weights bank container");
     }
+
+    validate_orc_submodels(compiled->m_compiled_submodels);
 
     compiled->implement_properties();
     return compiled;

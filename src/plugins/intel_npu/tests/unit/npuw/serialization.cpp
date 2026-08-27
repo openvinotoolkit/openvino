@@ -1248,4 +1248,101 @@ TEST(SerializationTest, NoCompiledModelNonSentinelQuantDstIdxFails) {
     EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, {0, -1, -1, -1, -1}, 0, 0, 0), ov::Exception);
 }
 
+TEST(SerializationTest, FuncallSubmodelValidHostGatherPasses) {
+    auto plugin = std::make_shared<NullPlugin>();
+    auto model = make_validation_model(8);
+
+    // Submodel 0: function body
+    auto sub0 = ov::npuw::CompiledModelDescTestAccessor::make();
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(sub0) =
+        ov::SoPtr<ov::ICompiledModel>{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+
+    // Submodel 1: function call referencing submodel 0
+    auto sub1 = ov::npuw::CompiledModelDescTestAccessor::make();
+    sub1.replaced_by = 0;
+    Gather hg{5, 3, 6};
+    ov::npuw::CompiledModelDescTestAccessor::host_gather(sub1) = hg;
+    ov::npuw::CompiledModelDescTestAccessor::param_base(sub1) = 2;
+    auto& closure1 = ov::npuw::CompiledModelDescTestAccessor::closure(sub1);
+    closure1.get().closure.resize(4);
+    closure1.get().closure_uid.resize(4, -1);
+    closure1.get().is_remote.resize(4, false);
+
+    ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
+    submodels.push_back(std::move(sub0));
+    submodels.push_back(std::move(sub1));
+
+    std::stringstream ss;
+    auto stream = Stream::writer(ss);
+    EXPECT_NO_THROW(submodels[0].serialize(stream, {}));
+    EXPECT_NO_THROW(submodels[1].serialize(stream, {}));
+    EXPECT_NO_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_orc_submodels(submodels));
+}
+
+TEST(SerializationTest, FuncallSubmodelHostGatherDstIdxOOBFails) {
+    auto plugin = std::make_shared<NullPlugin>();
+    auto model = make_validation_model(8);
+
+    // Submodel 0: function body
+    auto sub0 = ov::npuw::CompiledModelDescTestAccessor::make();
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(sub0) =
+        ov::SoPtr<ov::ICompiledModel>{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+
+    // Submodel 1: function call referencing submodel 0, but host_gather dst_idx=8 is out of bounds [0, 8)
+    auto sub1 = ov::npuw::CompiledModelDescTestAccessor::make();
+    sub1.replaced_by = 0;
+    Gather hg{8, -1, -1};
+    ov::npuw::CompiledModelDescTestAccessor::host_gather(sub1) = hg;
+
+    ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
+    submodels.push_back(std::move(sub0));
+    submodels.push_back(std::move(sub1));
+
+    std::stringstream ss;
+    auto stream = Stream::writer(ss);
+    EXPECT_NO_THROW(submodels[0].serialize(stream, {}));
+    EXPECT_NO_THROW(submodels[1].serialize(stream, {}));
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_orc_submodels(submodels), ov::Exception);
+}
+
+TEST(SerializationTest, FuncallSubmodelClosureOverflowFails) {
+    auto plugin = std::make_shared<NullPlugin>();
+    auto model = make_validation_model(8);
+
+    // Submodel 0: function body with 8 inputs
+    auto sub0 = ov::npuw::CompiledModelDescTestAccessor::make();
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(sub0) =
+        ov::SoPtr<ov::ICompiledModel>{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+
+    // Submodel 1: function call referencing submodel 0, param_base=6 + closure_size=4 = 10 > 8
+    auto sub1 = ov::npuw::CompiledModelDescTestAccessor::make();
+    sub1.replaced_by = 0;
+    ov::npuw::CompiledModelDescTestAccessor::param_base(sub1) = 6;
+    auto& closure1 = ov::npuw::CompiledModelDescTestAccessor::closure(sub1);
+    closure1.get().closure.resize(4);
+    closure1.get().closure_uid.resize(4, -1);
+    closure1.get().is_remote.resize(4, false);
+
+    ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
+    submodels.push_back(std::move(sub0));
+    submodels.push_back(std::move(sub1));
+
+    std::stringstream ss;
+    auto stream = Stream::writer(ss);
+    EXPECT_NO_THROW(submodels[0].serialize(stream, {}));
+    EXPECT_NO_THROW(submodels[1].serialize(stream, {}));
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_orc_submodels(submodels), ov::Exception);
+}
+
+TEST(SerializationTest, ReplacedByOutOfRangeFails) {
+    // Submodel 0: replaced_by points to submodel 5 (out of range)
+    auto sub0 = ov::npuw::CompiledModelDescTestAccessor::make();
+    sub0.replaced_by = 5;
+
+    ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
+    submodels.push_back(std::move(sub0));
+
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_orc_submodels(submodels), ov::Exception);
+}
+
 // TODO: add tests on CompiledModel and LLMCompiledModel once tests have access to any model to test on

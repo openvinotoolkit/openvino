@@ -321,15 +321,23 @@ private:
     ov::npuw::s11n::WeightsContext m_import_weights_ctx;
 
     std::shared_future<void> m_eval_future;
+
+    static void validate_orc_submodels(const std::vector<CompiledModelDesc>& submodels);
 };
 
 struct CompiledModelDescTestAccessor {
-    static CompiledModel::CompiledModelDesc make() { return {}; }
-    static auto& compiled_model(CompiledModel::CompiledModelDesc& desc) { return desc.compiled_model; }
-    static auto& host_gather(CompiledModel::CompiledModelDesc& desc) { return desc.host_gather; }
-    static auto& quant_unpack_gather(CompiledModel::CompiledModelDesc& desc) { return desc.quant_unpack_gather; }
-    static auto& param_base(CompiledModel::CompiledModelDesc& desc) { return desc.param_base; }
-    static auto& closure(CompiledModel::CompiledModelDesc& desc) { return desc.closure; }
+    using SubmodelDesc = CompiledModel::CompiledModelDesc;
+    using SubmodelVec = std::vector<CompiledModel::CompiledModelDesc>;
+
+    static SubmodelDesc make() { return {}; }
+    static auto& compiled_model(SubmodelDesc& desc) { return desc.compiled_model; }
+    static auto& host_gather(SubmodelDesc& desc) { return desc.host_gather; }
+    static auto& quant_unpack_gather(SubmodelDesc& desc) { return desc.quant_unpack_gather; }
+    static auto& param_base(SubmodelDesc& desc) { return desc.param_base; }
+    static auto& closure(SubmodelDesc& desc) { return desc.closure; }
+    static void validate_orc_submodels(const SubmodelVec& submodels) {
+        CompiledModel::validate_orc_submodels(submodels);
+    }
 };
 
 // Validates that routing indices deserialized from an ORC blob are in bounds.
