@@ -226,6 +226,9 @@ ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config)
     queue_builder.set_supports_queue_families(queue_families_extension);
 
     _command_queue = queue_builder.build(context, device);
+    if (config.get_enable_profiling()) {
+        _device_clock = std::make_shared<device_clock_sync>(_engine.get_cl_device());
+    }
 }
 
 ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config, void *handle)
@@ -233,6 +236,9 @@ ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config, 
     , _engine(engine) {
     auto* casted_handle = static_cast<cl_command_queue>(handle);
     _command_queue = ocl_queue_type(casted_handle, true);
+    if (config.get_enable_profiling()) {
+        _device_clock = std::make_shared<device_clock_sync>(_engine.get_cl_device());
+    }
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -349,7 +355,7 @@ event::ptr ocl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool 
         sync_events(deps, is_output);
         return std::make_shared<ocl_event>(_last_barrier_ev, _last_barrier);
     }
-    return std::make_shared<ocl_user_event>(_engine.get_cl_context(), true);
+    return std::make_shared<ocl_user_event>(_engine.get_cl_context(), true, _device_clock);
 }
 
 event::ptr ocl_stream::group_events(std::vector<event::ptr> const& deps) {
@@ -359,7 +365,7 @@ event::ptr ocl_stream::group_events(std::vector<event::ptr> const& deps) {
 }
 
 event::ptr ocl_stream::create_user_event(bool set) {
-    return std::make_shared<ocl_user_event>(_engine.get_cl_context(), set);
+    return std::make_shared<ocl_user_event>(_engine.get_cl_context(), set, _device_clock);
 }
 
 event::ptr ocl_stream::create_base_event() {
