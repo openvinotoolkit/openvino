@@ -131,6 +131,7 @@ SDPATransposeFusion::SDPATransposeFusion() {
                     sdpa->get_quantization_attrs(),
                         sdpa->get_output_type(),
                         sdpa->get_causal_mask_alignment());
+                new_sdpa->set_sliding_window_size(sdpa->get_sliding_window_size());
             } else {
                 new_sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(
                     sdpa->input_values(),
@@ -141,6 +142,7 @@ SDPATransposeFusion::SDPATransposeFusion() {
                     new_out_order,
                         sdpa->get_output_type(),
                         sdpa->get_causal_mask_alignment());
+                new_sdpa->set_sliding_window_size(sdpa->get_sliding_window_size());
             }
             sdpa_node = sdpa;
         } else {

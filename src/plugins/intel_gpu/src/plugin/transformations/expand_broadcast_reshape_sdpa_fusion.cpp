@@ -366,6 +366,7 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
                                order_d,
                                ov::element::dynamic,
                                sdpa->get_causal_mask_alignment());
+        sdpa_new->set_sliding_window_size(sdpa->get_sliding_window_size());
 
         sdpa_new->set_friendly_name(sdpa->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), sdpa_new);

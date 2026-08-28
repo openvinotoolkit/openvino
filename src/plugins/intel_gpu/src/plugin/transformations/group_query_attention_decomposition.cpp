@@ -27,7 +27,7 @@ std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_sdpa(const ov::
     }
 
     const auto order = op::SDPA::default_order(query.get_partial_shape().rank().get_length());
-    return register_new_node<op::SDPA>(inputs,
+    auto sdpa = register_new_node<op::SDPA>(inputs,
                                        is_causal,
                                        order,
                                        order,
@@ -35,6 +35,13 @@ std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_sdpa(const ov::
                                        order,
                                        ov::element::dynamic,
                                        op::SDPA::CausalMaskAlignment::LOWER_RIGHT);
+    if (m_local_window_size >= 1) {
+        sdpa->set_sliding_window_size(m_local_window_size);
+        std::cout << "[GPU GQA] set sliding_window_size=" << m_local_window_size << " on op::SDPA" << std::endl;
+    }
+    std::cout << "[GPU GQA] make_sdpa: is_causal=" << is_causal << " mask=" << (mask.get_node() ? "yes" : "null")
+              << " m_local_window_size=" << m_local_window_size << std::endl;
+    return sdpa;
 }
 
 std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_attention_mask(
@@ -49,6 +56,8 @@ std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_attention_mask(
     bool sliding_window_cache,
     float scale,
     bool is_static_input) {
+    m_local_window_size = local_window_size;
+
     if (!sliding_window_cache && !external_bias.get_node() && scale == 0.0f && !is_static_input) {
         return nullptr;
     }

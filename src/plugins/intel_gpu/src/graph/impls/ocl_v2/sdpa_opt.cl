@@ -1051,9 +1051,9 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
         }
     } else {
         for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-#if defined(IS_PAGED_ATTENTION) && SLIDING_WINDOW_SIZE != 0
-            if ((source_seq_idx + i > target_seq_idx) ||
-                (target_seq_idx >= SLIDING_WINDOW_SIZE && source_seq_idx + i < target_seq_idx - SLIDING_WINDOW_SIZE))
+#if SLIDING_WINDOW_SIZE != 0
+            if ((source_seq_idx + i > target_seq_idx + causal_offset) ||
+                (target_seq_idx + causal_offset >= SLIDING_WINDOW_SIZE && source_seq_idx + i < target_seq_idx + causal_offset - SLIDING_WINDOW_SIZE + 1))
 #else
             if (source_seq_idx + i > target_seq_idx + causal_offset)
 #endif
@@ -1399,6 +1399,10 @@ KERNEL(sdpa_opt)(
             this_work_item_seq_range_temp.max = max(bi_dir_range.max, sliding_window_range.max);
             this_work_item_seq_range_temp.subgroup_max = max(bi_dir_range.subgroup_max, sliding_window_range.subgroup_max);
         #endif //< HAS_TOKEN_TYPE_IDS && SLIDING_WINDOW_SIZE
+    #else //< !IS_PAGED_ATTENTION
+        #if SLIDING_WINDOW_SIZE != 0
+            this_work_item_seq_range_temp.min = max(0, this_work_item_seq_range_temp.max - SLIDING_WINDOW_SIZE + 1);
+        #endif
     #endif //< IS_PAGED_ATTENTION
 
     const SEQ_RANGE this_work_item_seq_range = this_work_item_seq_range_temp;

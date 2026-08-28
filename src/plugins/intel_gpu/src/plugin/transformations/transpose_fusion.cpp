@@ -306,6 +306,9 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
 
         auto sdpa_new =
             std::make_shared<op::SDPA>(inputs, sdpa->get_causal(), order_q, order_k, order_v, order_output, ov::element::dynamic, causal_mask_alignment);
+        if (auto gpu_sdpa = ov::as_type_ptr<op::SDPA>(sdpa)) {
+            sdpa_new->set_sliding_window_size(gpu_sdpa->get_sliding_window_size());
+        }
 
         sdpa_new->set_friendly_name(sdpa->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), sdpa_new);
