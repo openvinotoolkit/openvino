@@ -86,6 +86,18 @@ struct ReduceImplementationManager : public ImplementationManager {
         if (!one_of(in_layout.format.value, supported_formats) || !one_of(out_layout.format.value, supported_formats))
             return false;
 
+        // oneDNN derives its memory descriptor rank from format::dimension(), so a partial shape
+        // that outranks its own format would be silently truncated into a wrong-rank descriptor.
+        if (in_layout.get_partial_shape().size() > in_layout.format.dimension() ||
+            out_layout.get_partial_shape().size() > out_layout.format.dimension())
+            return false;
+
+        // The output format is normalized to the input format's rank before descriptor creation.
+        // Only the default planar formats have a counterpart at every supported rank.
+        if (in_layout.format.dimension() != out_layout.format.dimension() &&
+            !format::is_default_format(out_layout.format))
+            return false;
+
         if (!is_supported_pad(in_layout) || !is_supported_pad(out_layout))
             return false;
 
