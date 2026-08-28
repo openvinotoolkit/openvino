@@ -372,6 +372,47 @@ TEST(slice_gpu_i8, bfyx) {
         ASSERT_EQ(expected_results[i], output_ptr[i]) << "i=" << i;
 }
 
+// uint8 Slice: dedicated small-value case, following the i8 test above. Covers the u8 output path
+// enabled for a quantized KV cache (GroupQueryAttention int4-as-u8-packed dynamic Slice+Concat).
+TEST(slice_gpu_u8, bfyx) {
+    auto& engine = get_test_engine();
+
+    // input [1,1,2,4] u8, slice axis 2 -> [1,1,1,4] (second row).
+    auto input = engine.allocate_memory({ov::PartialShape{1, 1, 2, 4}, data_types::u8, format::bfyx});
+    auto start = engine.allocate_memory({ov::PartialShape{1}, data_types::i64, format::bfyx});
+    auto stop = engine.allocate_memory({ov::PartialShape{1}, data_types::i64, format::bfyx});
+    auto step = engine.allocate_memory({ov::PartialShape{1}, data_types::i64, format::bfyx});
+    auto axes = engine.allocate_memory({ov::PartialShape{1}, data_types::i64, format::bfyx});
+
+    set_values<uint8_t>(input, {1, 2, 3, 4, 250, 251, 252, 253});
+    set_values<int64_t>(start, {1});
+    set_values<int64_t>(stop, {2});
+    set_values<int64_t>(step, {1});
+    set_values<int64_t>(axes, {2});
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(data("start", start));
+    topology.add(data("stop", stop));
+    topology.add(data("step", step));
+    topology.add(data("axes", axes));
+    topology.add(slice("slice", {input_info("input"), input_info("start"), input_info("stop"), input_info("step"), input_info("axes")}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    cldnn::network network(engine, topology, config);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("slice").get_memory();
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    std::vector<uint8_t> expected_results = {250, 251, 252, 253};
+    ASSERT_EQ(output_ptr.size(), expected_results.size());
+    for (size_t i = 0; i < expected_results.size(); ++i)
+        ASSERT_EQ(expected_results[i], output_ptr[i]) << "i=" << i;
+}
+
 // f8e4m3 Slice: values are exactly representable, so the sliced (byte-moved) result is exact. Covers
 // the f8 output path enabled for a quantized KV cache (GroupQueryAttention f8e4m3 dynamic Slice+Concat).
 TEST(slice_gpu_f8e4m3, bfyx) {
