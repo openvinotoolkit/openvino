@@ -555,17 +555,16 @@ bool crop_in_place_optimization::match(const program_node& node,
     if (node.is_constant())
         return false;
 
-    // Dynamic rank-2 VariadicSplit sub-views feeding another crop can form chained
+    // Dynamic VariadicSplit sub-views feeding another crop can form chained
     // padded views that are unsafe for the current in-place optimization.
     // VariadicSplit shape inference also requires constant axis and split lengths.
     const auto& crop_node = node.as<crop>();
-    const auto crop_rank = crop_layout.get_partial_shape().rank();
     const bool has_crop_user =
         std::any_of(node.get_users().begin(), node.get_users().end(), [](const program_node* user) {
             return user->is_type<crop>();
         });
     if ((crop_node.get_primitive()->op_mode == cldnn::crop_ngraph_op_mode::variadic_split) &&
-        ((dyn_aware && crop_rank.is_static() && crop_rank.get_length() == 2 && has_crop_user) ||
+        ((dyn_aware && has_crop_user) ||
          !crop_node.get_dependency(1).is_constant() || !crop_node.get_dependency(2).is_constant()))
         return false;
 
