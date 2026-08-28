@@ -288,7 +288,9 @@ int get_stream_processor_group_id(int numa_node_id, int stream_id, int group_cou
 
 int get_num_processor_groups() {
 #if defined(_WIN32)
-    return static_cast<int>(GetActiveProcessorGroupCount());
+    // GetActiveProcessorGroupCount() returns 0 on failure; normalize to a single group so callers can
+    // rely on the count being at least 1 (matching get_stream_processor_group_id's group_count <= 1 path).
+    return std::max<int>(1, static_cast<int>(GetActiveProcessorGroupCount()));
 #else
     return 1;
 #endif
