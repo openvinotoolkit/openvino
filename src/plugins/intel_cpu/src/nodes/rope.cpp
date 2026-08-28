@@ -110,7 +110,7 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
         jcp.src_prc = precision_of<T>::value;
         jcp.dst_prc = precision_of<T>::value;
         jcp.rotary_ndims = config.rotary_ndims;
-        jcp.interleave = false;
+        jcp.mode = jit_rotary_compile_params::Mode::ROTATE_HALF;
         jcp.cos_sin_ndims = config.cos_sin_ndims;
         m_rotaryKernel = createJitKernel(jcp);
     }
@@ -203,7 +203,7 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
         jcp.src_prc = precision_of<T>::value;
         jcp.dst_prc = precision_of<T>::value;
         jcp.rotary_ndims = config.rotary_ndims;
-        jcp.interleave = true;
+        jcp.mode = jit_rotary_compile_params::Mode::INTERLEAVE;
         jcp.mix_cos_sin = false;
         m_rotaryKernel = createJitKernel(jcp, true);
     }
@@ -258,7 +258,7 @@ struct RoPE::RoPEExecutorLtxVideo : public RoPE::Executor {
         jcp.src_prc = precision_of<T>::value;
         jcp.dst_prc = precision_of<T>::value;
         jcp.rotary_ndims = config.rotary_ndims;
-        jcp.is_ltx_video = true;
+        jcp.mode = jit_rotary_compile_params::Mode::LTX_VIDEO;
         m_rotaryKernel = createJitKernel(jcp, true);
     }
 
@@ -306,7 +306,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
         jcp.src_prc = precision_of<T>::value;
         jcp.dst_prc = precision_of<T>::value;
         jcp.rotary_ndims = config.rotary_ndims;
-        jcp.interleave = true;
+        jcp.mode = jit_rotary_compile_params::Mode::INTERLEAVE;
         // if use precomputed rope cache then it's mixed
         // otherwise rope has separate cos/sin inputs
         jcp.mix_cos_sin = config.use_rope_cache;
@@ -421,7 +421,7 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
         jcp.src_prc = precision_of<T>::value;
         jcp.dst_prc = precision_of<T>::value;
         jcp.rotary_ndims = config.rotary_ndims;
-        jcp.interleave = false;
+        jcp.mode = jit_rotary_compile_params::Mode::ROTATE_HALF;
         m_rotaryKernel = createJitKernel(jcp);
     }
 

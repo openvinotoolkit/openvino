@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -26,13 +27,17 @@
 namespace ov::intel_cpu::kernel {
 
 struct jit_rotary_compile_params {
+    enum class Mode : uint8_t {
+        ROTATE_HALF,
+        INTERLEAVE,
+        LTX_VIDEO,
+    };
     ov::element::Type src_prc;
     ov::element::Type dst_prc;
     size_t rotary_ndims = 0UL;
     size_t cos_sin_ndims = 0UL;
-    bool interleave = false;
+    Mode mode = Mode::ROTATE_HALF;
     bool mix_cos_sin = false;
-    bool is_ltx_video = false;
 };
 
 struct jit_rotary_call_args {

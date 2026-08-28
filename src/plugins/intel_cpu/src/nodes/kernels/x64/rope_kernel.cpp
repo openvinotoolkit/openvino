@@ -31,20 +31,21 @@ void jit_rotary_kernel<isa>::generate() {
     uni_vpxor(vmm_src1, vmm_src1, vmm_src1);
     uni_vpxor(vmm_cos, vmm_cos, vmm_cos);
     uni_vpxor(vmm_sin, vmm_sin, vmm_sin);
-    if (m_jcp.interleave || m_jcp.is_ltx_video) {
+    using Mode = jit_rotary_compile_params::Mode;
+    if (m_jcp.mode != Mode::ROTATE_HALF) {
         // dst: 0-2 4-6 8-10 12-14 16-18 20-22 24-26 28-30 ->
         // lower 64bit/128 lane
         //      0-2        4-6        8-10       12-14
         // higher 64bit/128 lane
         //           16-18      20-22      24-26       28-30
         static const uint64_t mask_zmm[] = {0, 4, 1, 5, 2, 6, 3, 7};
-        if (!m_jcp.is_ltx_video && isa == cpu_isa_t::avx512_core) {
+        if (m_jcp.mode == Mode::INTERLEAVE && isa == cpu_isa_t::avx512_core) {
             mov(reg_tmp, reinterpret_cast<uintptr_t>(mask_zmm));
             uni_vmovups(vmm_idx, ptr[reg_tmp]);
         }
         auto half_rotary_ndims = m_jcp.rotary_ndims / 2;
         for (size_t i = 0; i < half_rotary_ndims / vec_size; i++) {
-            if (m_jcp.is_ltx_video) {
+            if (m_jcp.mode == Mode::LTX_VIDEO) {
                 rotary_ltx_video(vec_size);
             } else {
                 rotary_interleave(vec_size);
