@@ -182,6 +182,8 @@ private:
                                  // rather than this object's local snapshot.
                                  const ov::npuw::s11n::BF16Cache* bf16_consts = nullptr) const;
     void ensure_phase0_compatibility() const;
+    // Range-checks the parameter/result/interconnect index maps restored from a blob
+    void validate_io_links() const;
 
     // This is used for removing too long output tensor names to fix some compilation issues
     // NB: These two methods has nothing to do with this particular class and should be
