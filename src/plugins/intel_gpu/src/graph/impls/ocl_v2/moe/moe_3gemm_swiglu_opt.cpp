@@ -872,7 +872,6 @@ public:
                                 int num_grouped_experts,
                                 std::vector<int32_t>& tokens_per_expert_cpu,
                                 std::vector<int32_t>& tokens_lens_per_expert_cpu,
-                                std::vector<int32_t>& experts_id_cpu,
                                 std::vector<int32_t>& grouped_offsets_cpu,
                                 std::vector<int32_t>& row_lut_cpu,
                                 int& num_actually_used_experts,
@@ -922,7 +921,6 @@ public:
             running_offset += n;
             grouped_offsets_cpu[s] = running_offset;
             if (n > 0) {
-                experts_id_cpu[experts_iter] = s;
                 tokens_lens_per_expert_cpu[experts_iter] = n;
                 ++experts_iter;
                 ++num_actually_used_experts;
@@ -932,16 +930,6 @@ public:
                 }
             }
         }
-
-        // Upload remapped topk_ids to GPU for scatter_reduce kernel
-        auto& engine = instance.get_network().get_engine();
-        size_t topk_bytes = topk_count * sizeof(uint32_t);
-        if (!scratch._expert_index_buffer || scratch._expert_index_buffer->size() < topk_bytes) {
-            auto remap_layout = batch_mem_ptr->get_layout();
-            scratch._expert_index_buffer = engine.allocate_memory(remap_layout, allocation_type::usm_host, false);
-        }
-        scratch._expert_index_buffer->copy_from(stream, remapped.data(), 0, 0, topk_bytes, true);
-        batch_mem_ptr = scratch._expert_index_buffer;
 
         set_otd_weight_pointers(instance, scratch);
         return true;
@@ -1360,24 +1348,24 @@ public:
         //         scratch.y = down(scratch.gate) * routing_weights
         internal_buffers.emplace_back(layout_down_out, false);  // 2: up/gate input, scratch.x has same layout with down output (GPU-only)
         layout routing_layout(ov::Shape{max_batch}, data_type, cldnn::format::bfyx);
-        internal_buffers.emplace_back(routing_layout, true);      // 3: routing_weights
+        internal_buffers.emplace_back(routing_layout, false);     // 3: routing_weights
         internal_buffers.emplace_back(layout_gateup_out, false);  // 4: gate output, scratch.gate has same layout with up (GPU-only)
 
         // expert masks for gpu
         layout index_layout(ov::Shape{expert_num, token_num}, ov::element::i32, cldnn::format::bfyx);
-        internal_buffers.emplace_back(index_layout, true);  // 5: expert_mask_batch
-        internal_buffers.emplace_back(index_layout, true);  // 6: expert_mask_topk
+        internal_buffers.emplace_back(index_layout, false);  // 5: expert_mask_batch
+        internal_buffers.emplace_back(index_layout, false);  // 6: expert_mask_topk
 
         GPU_DEBUG_TRACE_DETAIL << "[DEBUG] get_internal_buffer_descs(): use_micro_gemm_prefill=" << use_micro_gemm_prefill
                                << ", use_grouped_gemm_prefill=" << use_grouped_gemm_prefill << std::endl;
         // for micro_gemm
         if (use_micro_gemm_prefill && token_num > 1) {
             layout layout_micro_gemm(ov::Shape{expert_num, token_num}, ov::element::i32, cldnn::format::bfyx);
-            internal_buffers.emplace_back(layout_micro_gemm, true);  // 7: experts_ids for each activated expert
-            internal_buffers.emplace_back(layout_micro_gemm, true);  // 8: token start offset idx (input gather tokens) for each activated expert
-            internal_buffers.emplace_back(layout_micro_gemm, true);  // 9: token len (input gather tokens) for each activated expert
+            internal_buffers.emplace_back(layout_micro_gemm, false);  // 7: experts_ids for each activated expert
+            internal_buffers.emplace_back(layout_micro_gemm, false);  // 8: token start offset idx (input gather tokens) for each activated expert
+            internal_buffers.emplace_back(layout_micro_gemm, false);  // 9: token len (input gather tokens) for each activated expert
             layout layout_token_idx(ov::Shape{token_num * max_topk}, ov::element::i32, cldnn::format::bfyx);
-            internal_buffers.emplace_back(layout_token_idx, true);  // 10: token idx per expert
+            internal_buffers.emplace_back(layout_token_idx, false);  // 10: token idx per expert
             layout layout_actual_used_expert_num(ov::Shape{1}, ov::element::i32, cldnn::format::bfyx);
             internal_buffers.emplace_back(layout_actual_used_expert_num, false);  // 11: actual_used_expert_num
         }
@@ -1386,17 +1374,17 @@ public:
             // Buffers 7-9 and 11 fed the base scatter_reduce kernel, which the grouped path replaced
             // with the row_lut kernel. The slots stay to keep the shared indices, the storage does not.
             layout layout_unused(ov::Shape{1}, ov::element::i32, cldnn::format::bfyx);
-            internal_buffers.emplace_back(layout_unused, true);  // 7: activated expert ids (unused here)
-            internal_buffers.emplace_back(layout_unused, true);  // 8: token start offset per activated expert (unused here)
-            internal_buffers.emplace_back(layout_unused, true);  // 9: token len per activated expert (unused here)
+            internal_buffers.emplace_back(layout_unused, false);  // 7: activated expert ids (unused here)
+            internal_buffers.emplace_back(layout_unused, false);  // 8: token start offset per activated expert (unused here)
+            internal_buffers.emplace_back(layout_unused, false);  // 9: token len per activated expert (unused here)
             layout layout_token_idx(ov::Shape{token_num * max_topk}, ov::element::i32, cldnn::format::bfyx);
-            internal_buffers.emplace_back(layout_token_idx, true);  // 10: flat token idx per expert (for gather)
-            internal_buffers.emplace_back(layout_unused, false);    // 11: actual_used_expert_num (unused here)
+            internal_buffers.emplace_back(layout_token_idx, false);  // 10: flat token idx per expert (for gather)
+            internal_buffers.emplace_back(layout_unused, false);     // 11: actual_used_expert_num (unused here)
             // int32_t end-offsets per expert for OneDNN grouped memory descriptor
             // offsets[e] = sum(n_0..n_e), the exclusive end index of expert e in the flat buffer
             layout layout_grouped_offsets(ov::Shape{expert_num}, ov::element::i32, cldnn::format::bfyx);
-            internal_buffers.emplace_back(layout_grouped_offsets, true);  // 12: grouped end-offsets
-            internal_buffers.emplace_back(layout_token_idx, false);       // 13: row_lut
+            internal_buffers.emplace_back(layout_grouped_offsets, false);  // 12: grouped end-offsets
+            internal_buffers.emplace_back(layout_token_idx, false);        // 13: row_lut
         }
         return internal_buffers;
     }
@@ -2311,7 +2299,7 @@ public:
     //  grouped_matmul(scratch.x, W_up)          -> scratch.up         [total, inter]
     //  silu(scratch.gate) * scratch.up          -> scratch.gate       [total, inter]
     //  grouped_matmul(scratch.gate, W_down)     -> scratch.y          [total, hidden]
-    //  scatter_reduce(scratch.y, topk_id, topk_weights) -> output     [token_num, hidden]
+    //  scatter_reduce(scratch.y, topk_weights, row_lut) -> output     [token_num, hidden]
     //
     // Note: "total" = token_num * max_topk, sorted by expert assignment.
     //
@@ -2346,9 +2334,8 @@ public:
         cldnn::event::ptr ret_event = events.empty() ? nullptr : events[0];
         // Flat list of source token indices per expert – input for prefill_gather
         std::vector<int32_t> tokens_per_expert_cpu(static_cast<size_t>(token_num) * max_topk, -1);
-        // Compact per-activated-expert metadata reused by scatter_reduce
+        // Per-activated-expert token counts, reduced to the OneDNN max-group-size dispatch hint
         std::vector<int32_t> tokens_lens_per_expert_cpu(num_grouped_experts, 0);
-        std::vector<int32_t> experts_id_cpu(num_grouped_experts, -1);
         // int32_t cumulative end-offsets per expert/slot for OneDNN grouped GEMM
         // offsets[e] = sum(n_0..n_e) = exclusive end of expert/slot e in the flat buffer.
         // This is the s32 format expected by dnnl::memory::desc::grouped().
@@ -2366,7 +2353,6 @@ public:
                                     num_grouped_experts,
                                     tokens_per_expert_cpu,
                                     tokens_lens_per_expert_cpu,
-                                    experts_id_cpu,
                                     grouped_offsets_cpu,
                                     row_lut_cpu,
                                     num_actually_used_experts,
@@ -2387,7 +2373,6 @@ public:
                 running_offset += n;
                 grouped_offsets_cpu[e] = running_offset;  // exclusive end of expert e
                 if (n > 0) {
-                    experts_id_cpu[experts_iter] = e;
                     tokens_lens_per_expert_cpu[experts_iter] = n;
                     ++experts_iter;
                     ++num_actually_used_experts;
@@ -2413,7 +2398,7 @@ public:
                                << ", max_tokens_per_expert=" << max_tokens_per_expert << ", num_actually_used_experts=" << num_actually_used_experts
                                << std::endl;
 
-        // Upload metadata: token list for gather, row_lut for scatter_reduce, end-offsets for OneDNN.
+        // Upload metadata: token list for gather, end-offsets for OneDNN. row_lut was uploaded above.
         intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT]
             ->copy_from(stream, tokens_per_expert_cpu.data(), 0, 0, tokens_per_expert_cpu.size() * sizeof(int32_t), true);
         intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS]
