@@ -22,6 +22,13 @@ using namespace cldnn;
 
 namespace {
 
+bool is_timm_debug_node(const program_node& node) {
+    const auto& id = node.id();
+    return id.find("stages.0.blocks.0.norm/aten::layer_norm/MVN") != std::string::npos ||
+           id.find("stages.0.blocks.0/aten::permute/Transpose_1") != std::string::npos ||
+           id.find("stages.0.blocks.1.conv_dw/aten::_convolution/GroupConvolution") != std::string::npos;
+}
+
 void print_selected_formats(const program_node& n) {
     std::stringstream ss;
     ov::write_all_to_stream(ss, "select_preferred_formats:", n.id(), ":\n");
@@ -159,6 +166,14 @@ void select_preferred_formats::run(program& p) {
         if (factory) {
             try {
                 auto fmts = factory->query_formats(*n);
+                if (is_timm_debug_node(*n)) {
+                    GPU_DEBUG_LOG << "[select_preferred_formats] TIMM query_formats node=" << n->id();
+                    for (size_t i = 0; i < fmts.first.size(); i++)
+                        GPU_DEBUG_LOG << " in" << i << "=" << fmt_to_str(fmts.first[i]);
+                    for (size_t i = 0; i < fmts.second.size(); i++)
+                        GPU_DEBUG_LOG << " out" << i << "=" << fmt_to_str(fmts.second[i]);
+                    GPU_DEBUG_LOG << " impl_type=" << static_cast<int>(factory->get_impl_type()) << std::endl;
+                }
                 for (size_t i = 0; i < fmts.first.size(); i++) {
                     n->set_preferred_input_fmt(i, fmts.first[i]);
                 }
@@ -172,6 +187,14 @@ void select_preferred_formats::run(program& p) {
                 if (factory->get_impl_type() == impl_types::onednn && (n->is_type<convolution>() || n->is_type<deconvolution>())) {
                     optimize_conv_permute(*n);
                     optimize_permute_conv(*n);
+                }
+                if (is_timm_debug_node(*n)) {
+                    GPU_DEBUG_LOG << "[select_preferred_formats] TIMM selected node=" << n->id();
+                    for (size_t i = 0; i < n->get_preferred_input_fmts().size(); i++)
+                        GPU_DEBUG_LOG << " in" << i << "=" << fmt_to_str(n->get_preferred_input_fmts()[i]);
+                    for (size_t i = 0; i < n->get_preferred_output_fmts().size(); i++)
+                        GPU_DEBUG_LOG << " out" << i << "=" << fmt_to_str(n->get_preferred_output_fmts()[i]);
+                    GPU_DEBUG_LOG << std::endl;
                 }
             } catch (std::exception& exception) {
                 GPU_DEBUG_LOG << "WARNING(select_preferred_formats): " << exception.what() << std::endl;
