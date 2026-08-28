@@ -39,13 +39,15 @@ ov::MmapMode to_util_mmap_mode(ov::intel_gpu::AccessMode access) {
 }
 
 ContextType get_default_context_type() {
-    #ifdef OV_GPU_WITH_ZE_RT
-        return ContextType::ZE;
-    #elif defined(OV_GPU_WITH_OCL_RT)
-        return ContextType::OCL;
-    #else
-        #error "Expected OpenVINO GPU runtime macros to be defined"
-    #endif
+#ifdef OV_GPU_WITH_ZE_RT
+    return ContextType::ZE;
+#elif defined(OV_GPU_WITH_OCL_RT)
+    return ContextType::OCL;
+#elif defined(OV_GPU_WITH_SYCL_RT)
+    return ContextType::OCL;
+#else
+#    error "Expected OpenVINO GPU runtime macros to be defined"
+#endif
 }
 
 }  // namespace
