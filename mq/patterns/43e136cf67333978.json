@@ -4,10 +4,11 @@
   "signature_hash": "43e136cf67333978",
   "title": "CachingTest LoadMultiWithConfig_race flaky failure on Windows",
   "category": "Flaky Test",
-  "count": 8,
+  "count": 9,
   "first_seen": "2026-07-13T10:41:15Z",
-  "last_seen": "2026-08-24T22:00:50Z",
+  "last_seen": "2026-08-28T21:27:20Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/33205788344",
     "https://github.com/openvinotoolkit/openvino/actions/runs/32773741534",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30928353875",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30904967401",
@@ -18,6 +19,7 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/29234771303"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37653",
     "https://github.com/openvinotoolkit/openvino/pull/37500",
     "https://github.com/openvinotoolkit/openvino/pull/37197",
     "https://github.com/openvinotoolkit/openvino/pull/36684",
@@ -27,7 +29,7 @@
     "https://github.com/openvinotoolkit/openvino/pull/36488"
   ],
   "recent_timestamps": [
-    "2026-08-24T22:00:50Z"
+    "2026-08-28T21:27:20Z"
   ],
   "rerun_search_string": "Actual function call count doesnt match EXPECT_CALL import_model Expected called times Actual called times unsatisfied and active"
 }

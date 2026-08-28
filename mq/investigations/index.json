@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 205,
+  "total": 206,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -2011,6 +2011,17 @@
       "category": "External Service",
       "signature_hash": "391fe92c2ec33482",
       "pr_number": "37694"
+    },
+    {
+      "investigation_id": "2026-08-28-21-27-20-000-33205788344",
+      "run_id": "33205788344",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33205788344",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-08-28T21:27:20Z",
+      "title": "CachingTest LoadMultiWithConfig_race flaky failure on Windows",
+      "category": "Flaky Test",
+      "signature_hash": "43e136cf67333978",
+      "pr_number": "37653"
     }
   ]
 }

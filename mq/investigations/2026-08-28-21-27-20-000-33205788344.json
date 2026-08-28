@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-28-21-27-20-000-33205788344",
+  "timestamp": "2026-08-28T21:27:20Z",
+  "run_id": "33205788344",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33205788344",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37653",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37653",
+  "author": "ankitm3k",
+  "category": "Flaky Test",
+  "title": "CachingTest LoadMultiWithConfig_race flaky failure on Windows",
+  "signature": "Actual function call count doesnt match EXPECT_CALL import_model Expected called times Actual called times unsatisfied and active|Flaky Test",
+  "signature_hash": "43e136cf67333978",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "C++ unit tests / C++ unit tests",
+      "conclusion": "failure",
+      "symptom": "CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache failed (1 of 379 tests)"
+    },
+    {
+      "name": "NPU Models Tests / 5010",
+      "conclusion": "failure",
+      "symptom": "TensorFlow Models Tests - NPU compile-only (convert_model) step failed; warnings for aten.upsample_nearest2d.vec not in decomp table (non-blocking)"
+    }
+  ],
+  "key_errors": [
+    "[  FAILED  ] 1 test, listed below:\n[  FAILED  ] CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache, where GetParam() = ((4-byte object <02-00 00-00>, \"ByModelName\", false), \"testCache\")\n 1 FAILED TEST\n##[error]Process completed with exit code 1.",
+    "WARNING:root:Operation aten.upsample_nearest2d.vec not found in decomp table\nKeyError: <OpOverload(op='aten.upsample_nearest2d', overload='vec')>\nWARNING:root:Operation aten.upsample_bilinear2d.vec not found in decomp table\nKeyError: <OpOverload(op='aten.upsample_bilinear2d', overload='vec')>"
+  ],
+  "root_cause": "The CachingTest.LoadMultiWithConfig_race is a known intermittently-failing Windows test that exercises multi-threaded model loading with a mock plugin. It uses GMock EXPECT_CALL to assert the exact number of import_model calls across threads, but under Windows CI runner scheduling, the thread interleaving varies enough to sometimes produce a different call count than expected. This is unrelated to the PR changes (ONNX FE GroupQueryAttention). It has been observed 8 times previously across unrelated PRs. The NPU TF test step failure appears to be a secondary pre-existing issue with aten ops not in the decomp table (warnings only) or a model-hub connectivity issue.",
+  "reproduction_steps": "N/A - race condition is non-deterministic and Windows-runner-specific. To reproduce: run the ov_core_unit_tests binary with filter CachingTest multiple times on a Windows machine.",
+  "recommended_actions": [
+    "Re-trigger the failed CI run - the race condition is transient and the test should pass on retry.",
+    "Track the LoadMultiWithConfig_race flakiness via the existing issue tracker and consider adding GTEST_SKIP() or reducing thread concurrency in the mock test."
+  ],
+  "prevention_strategies": "The LoadMultiWithConfig_race test is a known flaky test on Windows. Consider marking it with GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST or reducing expected call counts to ranges. This failure has occurred 8+ times across unrelated PRs and is not caused by the PR under test.",
+  "historical_context": "This exact test (CachingTest.LoadMultiWithConfig_race) has failed 8 times previously in the merge queue: runs 32773741534, 30928353875, 30904967401, 30891410624, 30540715415, 29813410817, 29341562536, 29234771303. It is a pre-existing flaky test unrelated to the ONNX FE / transformations changes in PR #37653."
+}
