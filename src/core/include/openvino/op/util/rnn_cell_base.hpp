@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cmath>
 #include <cstddef>
 #include <memory>
 #include <string>
@@ -16,6 +17,49 @@
 namespace ov {
 namespace op {
 namespace util {
+enum class RNNClipMode {
+    NONE,
+    CLAMP,
+    INVALID,
+};
+
+/// \brief      Classifies an RNN `clip` attribute value.
+///
+/// \note       Per the RNN/GRU/LSTM specs the default `clip` is positive infinity, which means "clipping is not
+///             applied". OpenVINO ops additionally treat `clip == 0` as no clipping. Only finite positive values
+///             describe valid Clamp bounds; negative values, negative infinity, and `NaN` are invalid.
+///
+/// \param[in]  clip  Value of the `clip` attribute.
+///
+/// \return     The semantic mode represented by `clip`.
+inline RNNClipMode classify_rnn_clip(float clip) {
+    if (clip == 0.f || (clip > 0.f && std::isinf(clip))) {
+        return RNNClipMode::NONE;
+    }
+    if (clip > 0.f) {
+        return RNNClipMode::CLAMP;
+    }
+    return RNNClipMode::INVALID;
+}
+
+/// \brief      Tells whether two RNN `clip` attribute values are equivalent for RNN transformation matching.
+///
+/// \note       Values classified as RNNClipMode::NONE are equivalent. Other values must match exactly. In particular,
+///             `NaN` is not equal to any value, including itself.
+///
+/// \param[in]  lhs  First `clip` attribute value.
+/// \param[in]  rhs  Second `clip` attribute value.
+///
+/// \return     True if both values are equivalent for matching.
+inline bool are_clips_equal(float lhs, float rhs) {
+    const auto lhs_mode = classify_rnn_clip(lhs);
+    const auto rhs_mode = classify_rnn_clip(rhs);
+    if (lhs_mode == RNNClipMode::NONE || rhs_mode == RNNClipMode::NONE) {
+        return lhs_mode == rhs_mode;
+    }
+    return lhs == rhs;
+}
+
 enum class LSTMWeightsFormat {
     FICO,  // IE
     ICOF,  // PyTorch
