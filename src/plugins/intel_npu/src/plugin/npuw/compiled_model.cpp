@@ -289,6 +289,53 @@ void pre_load_transform(const std::shared_ptr<ov::Model>& model, const ov::AnyMa
     }
     model->validate_nodes_and_infer_types();
 }
+
+// Closure metadata read back from a blob is fully attacker-controlled: the closure size,
+// the per-slot ids and the parallel is_remote/closure_uid vectors are all separate records
+// in the stream. Reject anything that breaks the invariant the writer maintains
+// (is_remote.size() == closure_uid.size() == closure.size(), every id < closure size)
+// before the ids are used to index into the closure vectors.
+void validate_closure_meta(const std::vector<bool>& is_remote,
+                           const std::vector<int64_t>& closure_uid,
+                           std::size_t closure_size) {
+    if (is_remote.size() != closure_size || closure_uid.size() != closure_size) {
+        OPENVINO_THROW("NPU NPUW: inconsistent serialized closure metadata - closure size is ",
+                       closure_size,
+                       " but is_remote has ",
+                       is_remote.size(),
+                       " and closure_uid has ",
+                       closure_uid.size(),
+                       " elements");
+    }
+}
+
+void validate_closure_ids(const std::vector<std::size_t>& ids, std::size_t closure_size, const char* what) {
+    for (const auto& idx : ids) {
+        if (idx >= closure_size) {
+            OPENVINO_THROW("NPU NPUW: serialized ",
+                           what,
+                           " index (",
+                           idx,
+                           ") is out of bounds for a closure of size ",
+                           closure_size);
+        }
+    }
+}
+
+// The id vector and the tensor payload that follows it are two independent stream
+// records - a short payload would otherwise be walked past its end while filling the
+// slots named by the ids.
+void validate_closure_payload(std::size_t ids_size, std::size_t payload_size, const char* what) {
+    if (ids_size != payload_size) {
+        OPENVINO_THROW("NPU NPUW: serialized ",
+                       what,
+                       " index count (",
+                       ids_size,
+                       ") does not match the number of serialized tensors (",
+                       payload_size,
+                       ")");
+    }
+}
 }  // anonymous namespace
 
 std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
@@ -1008,15 +1055,23 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
             serialize_weightless(stream, cpu_closures, ctx);
             stream & non_cpu_tensors_ids & non_cpu_tensors;
         } else {
+            validate_closure_meta(closure_desc.is_remote, closure_desc.closure_uid, closure_size);
             closure_desc.closure.resize(closure_size);
             lazy_closure.resize(closure_size);
+            // Validate each id vector as soon as it is read, before decoding the payload it
+            // describes - a malformed blob is then rejected without allocating those tensors.
             stream & cpu_closure_ids;
+            validate_closure_ids(cpu_closure_ids, closure_size, "CPU closure");
             serialize_weightless(stream, cpu_closures, ctx);
+            validate_closure_payload(cpu_closure_ids.size(), cpu_closures.size(), "CPU closure");
             std::size_t tidx = 0;
             for (const auto& idx : cpu_closure_ids) {
                 closure_desc.closure[idx] = std::move(cpu_closures[tidx++]);
             }
-            stream & non_cpu_tensors_ids & non_cpu_tensors;
+            stream & non_cpu_tensors_ids;
+            validate_closure_ids(non_cpu_tensors_ids, closure_size, "non-CPU closure");
+            stream & non_cpu_tensors;
+            validate_closure_payload(non_cpu_tensors_ids.size(), non_cpu_tensors.size(), "non-CPU closure");
             std::size_t ltidx = 0;
             for (const auto& idx : non_cpu_tensors_ids) {
                 lazy_closure[idx] = std::move(non_cpu_tensors[ltidx++]);
@@ -1046,7 +1101,9 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
                 stream & tensor;
             }
         } else {
+            validate_closure_meta(closure_desc.is_remote, closure_desc.closure_uid, closure_size);
             stream & cpu_closure_ids;
+            validate_closure_ids(cpu_closure_ids, closure_size, "CPU closure");
             closure_desc.closure.resize(closure_size);
             for (const auto& cidx : cpu_closure_ids) {
                 stream & closure_desc.closure[cidx];

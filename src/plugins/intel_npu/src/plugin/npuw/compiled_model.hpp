@@ -31,6 +31,10 @@ namespace intel_npu {
 class Plugin;
 }
 
+// Test-only accessor for CompiledModelDesc, which is private to CompiledModel.
+// Defined by the closure deserialization regression tests, never in production code.
+struct NpuwClosureS11nTestAccess;
+
 namespace ov {
 namespace npuw {
 class ICompiledModel : public ov::ICompiledModel {
@@ -143,6 +147,9 @@ private:
     friend class LLMCompiledModel;
     friend class LLMInferRequest;
     friend class moe::MoEExecutor;
+    // Lets the closure deserialization regression tests drive CompiledModelDesc::serialize()
+    // with hand-crafted (malformed) streams - the writer can never emit such blobs itself.
+    friend struct ::NpuwClosureS11nTestAccess;
 
     bool compile_for_success(std::size_t id, const std::vector<std::string>& devices);
     ov::SoPtr<ov::ICompiledModel> compile_submodel(const std::shared_ptr<ov::Model>& submodel,
