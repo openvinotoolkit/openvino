@@ -31,9 +31,9 @@ public:
     PluginPropertyManager& operator=(const PluginPropertyManager& other) = delete;
 
     void setProperty(const ov::AnyMap& properties);
-    ov::Any getProperty(const std::string& name, const ov::AnyMap& arguments = {});
-    bool isPropertySupported(const std::string& name, const ov::AnyMap& arguments = {});
-    bool isPropertyAvailable(const std::string& name, const ov::AnyMap& arguments = {});
+    ov::Any getProperty(const std::string& name, const ov::AnyMap& arguments = {}) const;
+    bool isPropertySupported(const std::string& name, const ov::AnyMap& arguments = {}) const;
+    bool isPropertyAvailable(const std::string& name, const ov::AnyMap& arguments = {}) const;
 
 private:
     void registerProperties();

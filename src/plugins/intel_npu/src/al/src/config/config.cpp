@@ -268,16 +268,6 @@ void Config::remove(std::string key) {
     _impl.erase(key);
 }
 
-void Config::removeCompileTimeConfigs() {
-    for (auto it = _impl.begin(); it != _impl.end();) {
-        if (_desc->get(it->first).mode() == OptionMode::CompileTime) {
-            it = _impl.erase(it);
-        } else {
-            ++it;
-        }
-    }
-}
-
 void Config::update(const ConfigMap& options) {
     for (const auto& p : options) {
         _log.trace("Update option '%s' to value '%s'", p.first.c_str(), p.second.c_str());

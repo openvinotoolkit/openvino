@@ -156,6 +156,10 @@ ov::intel_npu::CompilerType determine_compiler_type(const ov::AnyMap& properties
     return config->get<COMPILER_TYPE>();
 }
 
+// Validate and apply runtime properties to the plugin config using the following rules:
+// 1. Skip compile-time options unless a compiler type is explicitly provided.
+// 2. Reject unsupported or incompatible properties for the current backend/device/compiler context.
+// 3. Update the filtered config only with the properties that are valid for this execution.
 void apply_properties_to_config(FilteredConfig& config,
                                 const ov::AnyMap& properties,
                                 const std::unique_ptr<PluginPropertyManager>& propertiesManager,
@@ -168,6 +172,7 @@ void apply_properties_to_config(FilteredConfig& config,
 
     bool hasCompilerType = properties.find(ov::intel_npu::compiler_type.name()) != properties.end();
     if (!hasCompilerType) {
+        // Avoid applying compile-time options unless a compiler type is explicitly set.
         config.remove(ov::intel_npu::compiler_type.name());
         config.removeCompileTimeConfigs();
     }

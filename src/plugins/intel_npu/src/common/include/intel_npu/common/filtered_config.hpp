@@ -79,6 +79,13 @@ public:
     bool hasInternal(std::string_view key) const;
 
     /**
+     * @brief Removes all compile-time and internal compiler configuration entries.
+     * This is used when a compiler type is not explicitly selected and the config must be reset
+     * to a runtime-only state.
+     */
+    void removeCompileTimeConfigs();
+
+    /**
      * @brief Retrieves an internal configuration value by its key.
      * @param key The key of the internal configuration to retrieve.
      * @return The value associated with the specified internal configuration key.
