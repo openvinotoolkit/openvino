@@ -75,7 +75,8 @@ public:
                         GroupQueryAttentionQuantType v_quant_type = GroupQueryAttentionQuantType::NONE,
                         int64_t local_window_size = -1,
                         bool sliding_window_cache = false,
-                        bool smooth_softmax = false);
+                        bool smooth_softmax = false,
+                        bool causal = true);
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
@@ -123,6 +124,12 @@ public:
     bool is_kv_quantized() const {
         return m_kv_cache_bit_width != 0 && m_k_quant_type != GroupQueryAttentionQuantType::NONE;
     }
+    // When true (the ONNX Runtime default), each query only attends to keys at or before its own position
+    // (plus the optional sliding window). When false, attention is bidirectional: every query attends to all
+    // valid keys up to total_sequence_length (only the unused cache tail beyond it is masked).
+    bool get_causal() const {
+        return m_causal;
+    }
 
 private:
     int64_t m_num_heads = 0;
@@ -136,6 +143,7 @@ private:
     int64_t m_local_window_size = -1;
     bool m_sliding_window_cache = false;
     bool m_smooth_softmax = false;
+    bool m_causal = true;
 };
 
 }  // namespace ov::op::internal
