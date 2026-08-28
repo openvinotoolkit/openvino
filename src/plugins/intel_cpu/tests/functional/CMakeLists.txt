@@ -44,9 +44,6 @@ target_include_directories(cpuUtils PRIVATE ${CPU_UTILS_INCLUDE_PATHS})
 set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src)
 set(DEPENDENCIES openvino_intel_cpu_plugin openvino_template_extension)
 set(LINK_LIBRARIES funcSharedTests cpuUtils openvino::snippets ov_snippets_models openvino::reference)
-set_property(
-    SOURCE custom/single_layer_tests/classes/paged_selective_ssm.cpp
-    APPEND PROPERTY INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino_intel_cpu_plugin,INCLUDE_DIRECTORIES>)
 
 if(ENABLE_OV_ONNX_FRONTEND)
     list(APPEND DEFINES TEST_MODELS="${TEST_MODEL_ZOO}")

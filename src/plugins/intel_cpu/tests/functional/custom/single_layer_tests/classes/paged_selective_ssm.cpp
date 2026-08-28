@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "nodes/paged_selective_ssm.h"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/paged_selective_ssm.hpp"
@@ -26,6 +25,31 @@
 #include "utils/precision_support.h"
 
 namespace {
+enum class InputPort : size_t {
+    A,
+    TimeStep,
+    InputProjection,
+    Input,
+    OutputProjection,
+    State,
+    SubsequenceBegins,
+    BlockIndices,
+    BlockIndicesBegins,
+    NumProcessedTokens,
+    CacheInterval,
+    Count,
+};
+
+constexpr size_t input_port_index(InputPort port) noexcept {
+    return static_cast<size_t>(port);
+}
+
+constexpr bool is_float_port(InputPort port) noexcept {
+    return port <= InputPort::State;
+}
+
+inline constexpr size_t input_count = input_port_index(InputPort::Count);
+
 template <typename DataT, typename StateT, typename IndexT>
 void run_reference(const std::vector<DataT>& A,
                    const std::vector<DataT>& dt,
@@ -192,25 +216,21 @@ std::vector<ov::Tensor> calculate_typed_refs(const std::map<std::shared_ptr<ov::
                                              const ov::element::Type& data_type,
                                              const ov::element::Type& state_type) {
     const auto& params = function->get_parameters();
-    const auto tensor_for = [&](ov::intel_cpu::PagedSelectiveSSMInputPort port) -> const ov::Tensor& {
-        return host_inputs.at(params.at(ov::intel_cpu::input_port_index(port)));
+    const auto tensor_for = [&](InputPort port) -> const ov::Tensor& {
+        return host_inputs.at(params.at(input_port_index(port)));
     };
 
-    auto A = tensor_to_vector<DataT>(tensor_for(ov::intel_cpu::PagedSelectiveSSMInputPort::A));
-    auto dt = tensor_to_vector<DataT>(tensor_for(ov::intel_cpu::PagedSelectiveSSMInputPort::TimeStep));
-    auto B = tensor_to_vector<DataT>(tensor_for(ov::intel_cpu::PagedSelectiveSSMInputPort::InputProjection));
-    auto x = tensor_to_vector<DataT>(tensor_for(ov::intel_cpu::PagedSelectiveSSMInputPort::Input));
-    auto C = tensor_to_vector<DataT>(tensor_for(ov::intel_cpu::PagedSelectiveSSMInputPort::OutputProjection));
-    auto state = tensor_to_vector<StateT>(tensor_for(ov::intel_cpu::PagedSelectiveSSMInputPort::State));
-    auto subsequence_begins =
-        tensor_to_vector<IndexT>(tensor_for(ov::intel_cpu::PagedSelectiveSSMInputPort::SubsequenceBegins));
-    auto block_indices = tensor_to_vector<IndexT>(tensor_for(ov::intel_cpu::PagedSelectiveSSMInputPort::BlockIndices));
-    auto block_indices_begins =
-        tensor_to_vector<IndexT>(tensor_for(ov::intel_cpu::PagedSelectiveSSMInputPort::BlockIndicesBegins));
-    auto num_processed_tokens =
-        tensor_to_vector<IndexT>(tensor_for(ov::intel_cpu::PagedSelectiveSSMInputPort::NumProcessedTokens));
-    auto cache_interval =
-        tensor_to_vector<IndexT>(tensor_for(ov::intel_cpu::PagedSelectiveSSMInputPort::CacheInterval));
+    auto A = tensor_to_vector<DataT>(tensor_for(InputPort::A));
+    auto dt = tensor_to_vector<DataT>(tensor_for(InputPort::TimeStep));
+    auto B = tensor_to_vector<DataT>(tensor_for(InputPort::InputProjection));
+    auto x = tensor_to_vector<DataT>(tensor_for(InputPort::Input));
+    auto C = tensor_to_vector<DataT>(tensor_for(InputPort::OutputProjection));
+    auto state = tensor_to_vector<StateT>(tensor_for(InputPort::State));
+    auto subsequence_begins = tensor_to_vector<IndexT>(tensor_for(InputPort::SubsequenceBegins));
+    auto block_indices = tensor_to_vector<IndexT>(tensor_for(InputPort::BlockIndices));
+    auto block_indices_begins = tensor_to_vector<IndexT>(tensor_for(InputPort::BlockIndicesBegins));
+    auto num_processed_tokens = tensor_to_vector<IndexT>(tensor_for(InputPort::NumProcessedTokens));
+    auto cache_interval = tensor_to_vector<IndexT>(tensor_for(InputPort::CacheInterval));
 
     std::vector<DataT> ref_output;
     run_reference(A,
@@ -230,10 +250,10 @@ std::vector<ov::Tensor> calculate_typed_refs(const std::map<std::shared_ptr<ov::
                   state_size,
                   ref_output);
 
-    ov::Tensor output_tensor(data_type, tensor_for(ov::intel_cpu::PagedSelectiveSSMInputPort::Input).get_shape());
+    ov::Tensor output_tensor(data_type, tensor_for(InputPort::Input).get_shape());
     std::copy(ref_output.begin(), ref_output.end(), output_tensor.data<DataT>());
 
-    ov::Tensor state_tensor(state_type, tensor_for(ov::intel_cpu::PagedSelectiveSSMInputPort::State).get_shape());
+    ov::Tensor state_tensor(state_type, tensor_for(InputPort::State).get_shape());
     std::copy(state.begin(), state.end(), state_tensor.data<StateT>());
 
     return {output_tensor, state_tensor};
@@ -542,18 +562,14 @@ void PagedSelectiveSSMLayerTest::generate_inputs(const std::vector<ov::Shape>& t
                  state_type,
                  index_type,
                  device] = GetParam();
-    const auto shape_for = [&](ov::intel_cpu::PagedSelectiveSSMInputPort port) -> const ov::Shape& {
-        return targetInputStaticShapes.at(ov::intel_cpu::input_port_index(port));
+    const auto shape_for = [&](InputPort port) -> const ov::Shape& {
+        return targetInputStaticShapes.at(input_port_index(port));
     };
-    OPENVINO_ASSERT(targetInputStaticShapes.size() == ov::intel_cpu::paged_ssm_input_count);
-    const auto num_sequences =
-        static_cast<int32_t>(shape_for(ov::intel_cpu::PagedSelectiveSSMInputPort::NumProcessedTokens).front());
-    OPENVINO_ASSERT(shape_for(ov::intel_cpu::PagedSelectiveSSMInputPort::SubsequenceBegins).front() ==
-                    static_cast<size_t>(num_sequences + 1));
-    OPENVINO_ASSERT(shape_for(ov::intel_cpu::PagedSelectiveSSMInputPort::BlockIndicesBegins).front() ==
-                    static_cast<size_t>(num_sequences + 1));
-    OPENVINO_ASSERT(shape_for(ov::intel_cpu::PagedSelectiveSSMInputPort::CacheInterval).front() ==
-                    static_cast<size_t>(num_sequences));
+    OPENVINO_ASSERT(targetInputStaticShapes.size() == input_count);
+    const auto num_sequences = static_cast<int32_t>(shape_for(InputPort::NumProcessedTokens).front());
+    OPENVINO_ASSERT(shape_for(InputPort::SubsequenceBegins).front() == static_cast<size_t>(num_sequences + 1));
+    OPENVINO_ASSERT(shape_for(InputPort::BlockIndicesBegins).front() == static_cast<size_t>(num_sequences + 1));
+    OPENVINO_ASSERT(shape_for(InputPort::CacheInterval).front() == static_cast<size_t>(num_sequences));
     const bool use_alternate_metadata = static_cast<size_t>(num_sequences) != seq_lengths.size();
     auto active_seq_lengths = seq_lengths;
     auto active_processed_tokens = num_processed_tokens_param;
@@ -613,38 +629,37 @@ void PagedSelectiveSSMLayerTest::generate_inputs(const std::vector<ov::Shape>& t
     }
 
     for (size_t input_index = 0; input_index < params.size(); ++input_index) {
-        const auto port = static_cast<ov::intel_cpu::PagedSelectiveSSMInputPort>(input_index);
+        const auto port = static_cast<InputPort>(input_index);
         const auto& param = params[input_index];
         const auto& shape = targetInputStaticShapes[input_index];
         ov::Tensor tensor;
 
-        if (port == ov::intel_cpu::PagedSelectiveSSMInputPort::A) {
+        if (port == InputPort::A) {
             tensor = ov::test::utils::create_and_fill_tensor_real_distribution(param->get_element_type(),
                                                                                shape,
                                                                                -0.5f,
                                                                                0.2f,
                                                                                1);
-        } else if (port == ov::intel_cpu::PagedSelectiveSSMInputPort::TimeStep) {
+        } else if (port == InputPort::TimeStep) {
             tensor = ov::test::utils::create_and_fill_tensor_real_distribution(param->get_element_type(),
                                                                                shape,
                                                                                0.0f,
                                                                                0.5f,
                                                                                1);
-        } else if (ov::intel_cpu::is_paged_ssm_float_port(port)) {
-            const auto tensor_type =
-                port == ov::intel_cpu::PagedSelectiveSSMInputPort::State ? state_type : param->get_element_type();
+        } else if (is_float_port(port)) {
+            const auto tensor_type = port == InputPort::State ? state_type : param->get_element_type();
             tensor = ov::test::utils::create_and_fill_tensor(tensor_type,
                                                              shape,
                                                              ov::test::utils::InputGenerateData(-0.5f, 1.0f, 1000, 1));
-        } else if (port == ov::intel_cpu::PagedSelectiveSSMInputPort::SubsequenceBegins) {
+        } else if (port == InputPort::SubsequenceBegins) {
             tensor = make_index_tensor(subsequence_begins, index_type);
-        } else if (port == ov::intel_cpu::PagedSelectiveSSMInputPort::BlockIndices) {
+        } else if (port == InputPort::BlockIndices) {
             tensor = make_index_tensor(block_indices, index_type);
-        } else if (port == ov::intel_cpu::PagedSelectiveSSMInputPort::BlockIndicesBegins) {
+        } else if (port == InputPort::BlockIndicesBegins) {
             tensor = make_index_tensor(block_indices_begins, index_type);
-        } else if (port == ov::intel_cpu::PagedSelectiveSSMInputPort::NumProcessedTokens) {
+        } else if (port == InputPort::NumProcessedTokens) {
             tensor = make_index_tensor(num_processed_tokens, index_type);
-        } else if (port == ov::intel_cpu::PagedSelectiveSSMInputPort::CacheInterval) {
+        } else if (port == InputPort::CacheInterval) {
             tensor = make_index_tensor(cache_interval, index_type);
         } else {
             OPENVINO_THROW("Unexpected PagedSelectiveSSM input port ", input_index, ".");
@@ -654,7 +669,7 @@ void PagedSelectiveSSMLayerTest::generate_inputs(const std::vector<ov::Shape>& t
         ov::Tensor host_tensor(tensor.get_element_type(), tensor.get_shape());
         tensor.copy_to(host_tensor);
         host_inputs[param] = host_tensor;
-        if (use_remote_tensors && ov::intel_cpu::is_paged_ssm_float_port(port)) {
+        if (use_remote_tensors && is_float_port(port)) {
             auto remote_tensor = remote_context.create_tensor(param->get_element_type(), shape);
             remote_tensor.copy_from(tensor);
             inputs[param] = remote_tensor;
@@ -713,8 +728,7 @@ std::vector<ov::Tensor> PagedSelectiveSSMLayerTest::calculate_refs() {
 std::vector<ov::Tensor> PagedSelectiveSSMLayerTest::get_plugin_outputs() {
     auto outputs = SubgraphBaseTest::get_plugin_outputs();
 
-    const auto& state_param = function->get_parameters().at(
-        ov::intel_cpu::input_port_index(ov::intel_cpu::PagedSelectiveSSMInputPort::State));
+    const auto& state_param = function->get_parameters().at(input_port_index(InputPort::State));
     const auto actual_state_tensor = inferRequest.get_tensor(state_param);
     ov::Tensor host_state_tensor(actual_state_tensor.get_element_type(), actual_state_tensor.get_shape());
     actual_state_tensor.copy_to(host_state_tensor);
@@ -773,25 +787,20 @@ TEST(PagedSelectiveSSMFunctionalTest, RejectsMalformedMetadataBeforeExecution) {
     for (const auto& test_case : cases) {
         SCOPED_TRACE(test_case.name);
         auto request = compiled_model.create_infer_request();
-        const auto set_input = [&](ov::intel_cpu::PagedSelectiveSSMInputPort port, const ov::Tensor& tensor) {
-            request.set_input_tensor(ov::intel_cpu::input_port_index(port), tensor);
+        const auto set_input = [&](InputPort port, const ov::Tensor& tensor) {
+            request.set_input_tensor(input_port_index(port), tensor);
         };
-        set_input(ov::intel_cpu::PagedSelectiveSSMInputPort::A, make_f32_tensor({1}, {-0.2F}));
-        set_input(ov::intel_cpu::PagedSelectiveSSMInputPort::TimeStep, make_f32_tensor({1, 1}, {0.1F}));
-        set_input(ov::intel_cpu::PagedSelectiveSSMInputPort::InputProjection, make_f32_tensor({1, 1, 1}, {0.2F}));
-        set_input(ov::intel_cpu::PagedSelectiveSSMInputPort::Input, make_f32_tensor({1, 1, 1}, {0.3F}));
-        set_input(ov::intel_cpu::PagedSelectiveSSMInputPort::OutputProjection, make_f32_tensor({1, 1, 1}, {0.4F}));
-        set_input(ov::intel_cpu::PagedSelectiveSSMInputPort::State, make_f32_tensor({2, 1, 1, 1}, {0.F, 0.F}));
-        set_input(ov::intel_cpu::PagedSelectiveSSMInputPort::SubsequenceBegins,
-                  make_index_tensor(test_case.subsequences, ov::element::i32));
-        set_input(ov::intel_cpu::PagedSelectiveSSMInputPort::BlockIndices,
-                  make_index_tensor(test_case.blocks, ov::element::i32));
-        set_input(ov::intel_cpu::PagedSelectiveSSMInputPort::BlockIndicesBegins,
-                  make_index_tensor(test_case.block_begins, ov::element::i32));
-        set_input(ov::intel_cpu::PagedSelectiveSSMInputPort::NumProcessedTokens,
-                  make_index_tensor(test_case.processed, ov::element::i32));
-        set_input(ov::intel_cpu::PagedSelectiveSSMInputPort::CacheInterval,
-                  make_index_tensor(test_case.intervals, ov::element::i32));
+        set_input(InputPort::A, make_f32_tensor({1}, {-0.2F}));
+        set_input(InputPort::TimeStep, make_f32_tensor({1, 1}, {0.1F}));
+        set_input(InputPort::InputProjection, make_f32_tensor({1, 1, 1}, {0.2F}));
+        set_input(InputPort::Input, make_f32_tensor({1, 1, 1}, {0.3F}));
+        set_input(InputPort::OutputProjection, make_f32_tensor({1, 1, 1}, {0.4F}));
+        set_input(InputPort::State, make_f32_tensor({2, 1, 1, 1}, {0.F, 0.F}));
+        set_input(InputPort::SubsequenceBegins, make_index_tensor(test_case.subsequences, ov::element::i32));
+        set_input(InputPort::BlockIndices, make_index_tensor(test_case.blocks, ov::element::i32));
+        set_input(InputPort::BlockIndicesBegins, make_index_tensor(test_case.block_begins, ov::element::i32));
+        set_input(InputPort::NumProcessedTokens, make_index_tensor(test_case.processed, ov::element::i32));
+        set_input(InputPort::CacheInterval, make_index_tensor(test_case.intervals, ov::element::i32));
         EXPECT_THROW(request.infer(), ov::Exception);
     }
 }
