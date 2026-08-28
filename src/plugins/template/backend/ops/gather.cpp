@@ -65,6 +65,8 @@ bool evaluate_node<ov::op::v8::Gather>(std::shared_ptr<ov::Node> node,
         return evaluate<ov::element::f64>(ov::as_type_ptr<ov::op::v8::Gather>(node), outputs, inputs);
     case ov::element::f32:
         return evaluate<ov::element::f32>(ov::as_type_ptr<ov::op::v8::Gather>(node), outputs, inputs);
+    case ov::element::f8e4m3:
+        return evaluate<ov::element::f8e4m3>(ov::as_type_ptr<ov::op::v8::Gather>(node), outputs, inputs);
     case ov::element::i4:
         return evaluate<ov::element::i4>(ov::as_type_ptr<ov::op::v8::Gather>(node), outputs, inputs);
     case ov::element::i8:
