@@ -594,7 +594,7 @@ def patched_dataclass_outputs(model: torch.nn.Module):
 
     @functools.wraps(orig_forward)
     def forward(*args, **kwargs):
-        return _dataclasses_to_tuples(orig_forward(*args, **kwargs))
+        return _dataclasses_to_dicts(orig_forward(*args, **kwargs))
 
     model.forward = forward
     try:
@@ -603,16 +603,16 @@ def patched_dataclass_outputs(model: torch.nn.Module):
         model.forward = orig_forward
 
 
-def _dataclasses_to_tuples(value):
-    """Recursively convert bare ``@dataclass`` instances in ``value`` into tuples."""
+def _dataclasses_to_dicts(value):
+    """Recursively convert bare ``@dataclass`` instances in ``value`` into dicts, keyed by field name."""
     if dataclasses.is_dataclass(value) and not isinstance(value, (type, list, tuple, dict)):
-        return tuple(_dataclasses_to_tuples(getattr(value, f.name))
-                     for f in dataclasses.fields(value)
-                     if getattr(value, f.name) is not None)
+        return {f.name: _dataclasses_to_dicts(getattr(value, f.name))
+                for f in dataclasses.fields(value)
+                if getattr(value, f.name) is not None}
     if type(value) in (list, tuple):
-        return type(value)(_dataclasses_to_tuples(v) for v in value)
+        return type(value)(_dataclasses_to_dicts(v) for v in value)
     if type(value) is dict:
-        return {k: _dataclasses_to_tuples(v) for k, v in value.items()}
+        return {k: _dataclasses_to_dicts(v) for k, v in value.items()}
     return value
 
 
