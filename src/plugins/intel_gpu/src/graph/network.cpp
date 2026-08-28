@@ -250,7 +250,7 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     preallocate_shape_info_buffers();
     add_default_output_chains();
 
-    if (!_internal && get_config().get_record_replay()) {
+    if (!_internal && (get_config().get_record_replay() || get_config().get_record_replay_dynamic_wip())) {
         OPENVINO_ASSERT(is_recording_supported(), "[GPU] Record and replay is not supported on the provided model");
         OPENVINO_ASSERT(_stream->get_recorder() != nullptr, "[GPU] Stream recording is not supported by the current stream implementation");
         _record_replay_session = std::make_shared<record_replay_session>(*_stream);
