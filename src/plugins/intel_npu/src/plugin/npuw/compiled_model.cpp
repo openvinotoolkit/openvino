@@ -211,9 +211,10 @@ void validate_closure_metadata_sizes(std::size_t closure_size,
                                      std::size_t lazy_closure_size,
                                      std::size_t is_remote_size,
                                      std::size_t closure_uid_size) {
-    NPUW_ASSERT(lazy_closure_size == closure_size);
-    NPUW_ASSERT(is_remote_size == closure_size);
-    NPUW_ASSERT(closure_uid_size == closure_size);
+    NPUW_ASSERT(lazy_closure_size == closure_size &&
+                "Malformed ORC blob: lazy_closure size does not match closure size");
+    NPUW_ASSERT(is_remote_size == closure_size && "Malformed ORC blob: is_remote size does not match closure size");
+    NPUW_ASSERT(closure_uid_size == closure_size && "Malformed ORC blob: closure_uid size does not match closure size");
 }
 }  // anonymous namespace
 
@@ -1004,10 +1005,6 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
                                             closure_size,
                                             closure_desc.is_remote.size(),
                                             closure_desc.closure_uid.size());
-            NPUW_ASSERT(closure_desc.closure_uid.size() == closure_size &&
-                        "Malformed ORC blob: closure_uid size does not match closure size");
-            NPUW_ASSERT(closure_desc.is_remote.size() == closure_size &&
-                        "Malformed ORC blob: is_remote size does not match closure size");
         }
         std::vector<ov::Tensor> cpu_closures;
         std::vector<std::size_t> cpu_closure_ids;
@@ -1062,10 +1059,6 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
                                             closure_size,
                                             closure_desc.is_remote.size(),
                                             closure_desc.closure_uid.size());
-            NPUW_ASSERT(closure_desc.closure_uid.size() == closure_size &&
-                        "Malformed ORC blob: closure_uid size does not match closure size");
-            NPUW_ASSERT(closure_desc.is_remote.size() == closure_size &&
-                        "Malformed ORC blob: is_remote size does not match closure size");
         }
         std::vector<std::size_t> cpu_closure_ids;
         if (stream.output()) {
