@@ -730,9 +730,9 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
     std::list<DeviceInformation> valid_devices = get_valid_device(meta_devices, model_precision);
 
     if (!perf_curve_table.empty()) {
-        LOG_DEBUG_TAG("PERF_CURVE_TABLE contains %u device curves", static_cast<unsigned>(perf_curve_table.size()));
+        LOG_DEBUG_TAG("PERF_CURVE_TABLE contains %lu device curves", static_cast<unsigned long>(perf_curve_table.size()));
         for (const auto& [device_key, curve] : perf_curve_table) {
-            LOG_DEBUG_TAG("PERF_CURVE_TABLE[%s] contains %u points", device_key.c_str(), static_cast<unsigned>(curve.size()));
+            LOG_DEBUG_TAG("PERF_CURVE_TABLE[%s] contains %lu points", device_key.c_str(), static_cast<unsigned long>(curve.size()));
             for (const auto& [utilization, score] : curve) {
                 LOG_DEBUG_TAG("PERF_CURVE_TABLE[%s]: utilization=%u, score=%lf",
                               device_key.c_str(),
