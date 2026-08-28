@@ -951,6 +951,11 @@ bool ov::npuw::util::starts_with_past_lincache(const std::string& input_name) {
     return ov::npuw::util::starts_with(input_name, past_lin_conv_cache) ||
            ov::npuw::util::starts_with(input_name, past_lin_ssm_cache);
 }
+
+bool ov::npuw::util::is_pa_kv_cache_name(const std::string& input_name) {
+    return ov::npuw::util::starts_with(input_name, "key_cache.") ||
+           ov::npuw::util::starts_with(input_name, "value_cache.");
+}
 void ov::npuw::util::fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val) {
     auto* tensor_data = reinterpret_cast<uint8_t*>(tensor->data());
     const size_t byte_size = tensor->get_byte_size();

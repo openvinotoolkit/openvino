@@ -3,13 +3,13 @@
 //
 
 #include <memory>
+
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/topk.hpp"
-
-#include "node_context.hpp"
-#include "op_table.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -44,15 +44,9 @@ OutputVector translate_argsort(const NodeContext& context) {
     const int64_t axis = in_ps.rank().is_static() ? in_ps.rank().get_length() - 1 : 3;
     auto k = std::make_shared<ov::op::v0::Squeeze>(get_dimensions(input, {(int)axis}),
                                                    ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
-    auto topk = std::make_shared<ov::op::v11::TopK>(input,
-                                                    k,
-                                                    axis,
-                                                    mode,
-                                                    ov::op::v11::TopK::SortType::SORT_VALUES,
-                                                    index_type,
-                                                    false);
+    auto indices = make_topk_indices(input, k, axis, mode, index_type);
 
-    return rename_outputs_with_suffix({topk->output(1)}, context.get_name());
+    return rename_outputs_with_suffix({indices}, context.get_name());
 }
 
 }  // namespace op
