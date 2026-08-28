@@ -30,6 +30,8 @@
 
 A pass that is beneficial regardless of the backend belongs in common transformations, **not** duplicated per plugin. Express device-specific behavior as a pass parameter (e.g. a list of supported precisions) instead of forking the pass.
 
+New files are not picked up automatically: list the `.cpp` in [src/sources.cmake](../src/sources.cmake) and the `.hpp` in [include/sources.cmake](../include/sources.cmake).
+
 ## Quick checklist
 
 1. Pick the right base class: `MatcherPass` for local rewrites, `ModelPass` when nodes outside the matched pattern are modified
@@ -122,11 +124,12 @@ ov::pass::MyFusion::MyFusion() {
 
 Use `OV_CAPTURE_CPY_AND_THIS` in the callback lambda capture list instead of `[=]` or `[&]`.
 
-Three mechanics are worth remembering:
+A few mechanics are worth remembering:
 
 - **One matcher per `MatcherPass`.** `register_matcher` is called exactly once. Several matchers belong in a `GraphRewrite`.
 - **The callback return value is meaningful.** Return `true` when the match root was replaced — no other matcher will be tried on that root. Return `false` when the graph was left untouched.
 - **Nodes created by the callback are not re-matched by default.** If they should be picked up by the other matchers of the same `GraphRewrite`, report them with `register_new_node` (in topological order).
+- **A pass must be idempotent.** The same matcher can be applied again — to nodes the callback created, on a repeated run of the pipeline, or from another container. Running the pass twice must leave the graph unchanged the second time.
 
 ## Pattern matching
 
@@ -305,6 +308,8 @@ This also simplifies the matcher: build the node unconditionally, fold it, and u
 Prefer `replace_node` with a cloned node over a sequence of `replace_source_output` calls: the latter is easy to get partially wrong and loses the original node's identity. Note that `replace_node` requires both nodes to have the same number of output ports and throws otherwise.
 
 `replace_output_update_name` copies the runtime info of the eliminated node onto the replacement, and keeps the friendly name when the output feeds a `Result`. It refuses the replacement and returns `false` when a tensor name would be lost, so check the return value instead of assuming the node is gone.
+
+A node that is about to be removed or whose output semantics change must not be shared: verify its consumer count — preferably in the pattern, with `consumers_count(1)` — before rewriting it, otherwise the other consumers silently get different values. Rewiring a single input edge of the match root is the opposite case and needs no such guard: the other consumers of the producer are untouched.
 
 ### Preserve runtime info and friendly names
 
