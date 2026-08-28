@@ -109,7 +109,9 @@ public:
         const ipf_err_t status = IpfCreate(nullptr, &m_handle);
         if (status != IpfError::IPF_ERR_OK) {
             m_handle = nullptr;
-            LOG_WARNING_TAG("TelemetryClient: IPF ClientApi initialization failed: %s", ipf_ef_error_str(status));
+            LOG_WARNING_TAG("TelemetryClient: IPF ClientApi initialization failed: %s: %s",
+                            ipf_ef_error_str(status),
+                            IpfGetLastErrorMessage());
             return;
         }
         LOG_INFO_TAG("TelemetryClient: IPF ClientApi initialized successfully");
@@ -124,8 +126,9 @@ public:
                     m_callback_context.reset();
                 } else {
                     // Unregister failed: intentionally leak context to prevent use-after-free.
-                    LOG_WARNING_TAG("TelemetryClient: IpfUnregisterEvent failed: %s, leaking callback context",
-                                    ipf_ef_error_str(unreg_status));
+                    LOG_WARNING_TAG("TelemetryClient: IpfUnregisterEvent failed: %s: %s, leaking callback context",
+                                    ipf_ef_error_str(unreg_status),
+                                    IpfGetLastErrorMessage());
                     (void)m_callback_context.release();
                 }
             }
@@ -166,9 +169,10 @@ public:
             const ipf_err_t reg_status =
                 IpfRegisterEvent(m_handle, k_dtt_gear_changed_path, gear_changed_callback, m_callback_context.get());
             if (reg_status != IpfError::IPF_ERR_OK) {
-                LOG_WARNING_TAG("TelemetryClient: failed to register for %s: %s",
+                LOG_WARNING_TAG("TelemetryClient: failed to register for %s: %s: %s",
                                 k_dtt_gear_changed_path,
-                                ipf_ef_error_str(reg_status));
+                                ipf_ef_error_str(reg_status),
+                                IpfGetLastErrorMessage());
                 m_callback_context.reset();
             } else {
                 m_gear_event_registered = true;
@@ -200,13 +204,19 @@ private:
         size_t len = 0;
         ipf_err_t status = query_fn(m_handle, path, nullptr, &len);
         if (status != IpfError::IPF_ERR_BUFFERTOOSMALL || len == 0) {
-            LOG_WARNING_TAG("TelemetryClient: IPF query(%s) size query failed: %s", path, ipf_ef_error_str(status));
+            LOG_WARNING_TAG("TelemetryClient: IPF query(%s) size query failed: %s: %s",
+                            path,
+                            ipf_ef_error_str(status),
+                            IpfGetLastErrorMessage());
             return {};
         }
         std::vector<char> buf(len);
         status = query_fn(m_handle, path, buf.data(), &len);
         if (status != IpfError::IPF_ERR_OK) {
-            LOG_WARNING_TAG("TelemetryClient: IPF query(%s) failed: %s", path, ipf_ef_error_str(status));
+            LOG_WARNING_TAG("TelemetryClient: IPF query(%s) failed: %s: %s",
+                            path,
+                            ipf_ef_error_str(status),
+                            IpfGetLastErrorMessage());
             return {};
         }
         std::string result(buf.data(), len);
