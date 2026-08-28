@@ -1030,23 +1030,27 @@ void network::invalidate_stream_recording() {
 }
 
 bool network::is_recording_supported() const {
-    // Record & replay re-submits a fixed sequence of GPU kernels with frozen dispatch and memory bindings.
-    // It is only safe when every iteration produces the exact same command stream.
+    // Record & replay re-submits a fixed sequence of GPU commands.
+    // Only safe when recording iteration produces self-contained GPU command stream that remains valid across iterations.
 
-    // when model is dynamic it is not safe to fully skip prepare_primitive and execute logic on replay iterations
+    // Ignore checks below to allow record & replay for dynamic networks
+    if (get_config().get_record_replay_dynamic_wip())
+        return true;
+
+    // When model is dynamic it is not safe to fully skip prepare_primitive and execute logic on replay iterations
     if (_is_dynamic)
         return false;
 
-    // variable state might invalidate recording when updated
+    // Variable state might invalidate recording when updated
     if (!_variables_state_info.empty())
         return false;
 
     for (const auto& inst : _exec_order) {
-        // loop/condition run inner networks based on host-side logic which is not recorded
+        // Inner network execution (loop/condition primitives) is based on host-side logic
         if (inst->has_inner_networks())
             return false;
 
-        // check for any implementations that are not replay safe
+        // Check for any implementations that are not replay safe
         const auto* impl = inst->get_impl();
         if (impl && !impl->is_replay_safe())
             return false;

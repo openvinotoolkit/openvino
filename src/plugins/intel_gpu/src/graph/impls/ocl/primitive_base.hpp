@@ -78,7 +78,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
 
     bool is_cpu() const override { return false; }
 
-    bool is_replay_safe() const override { return !this->is_dynamic(); }
+    bool is_replay_safe() const override { return true; }
 
     // Cache blob format:
     //     [ kernel_selector::kernel_data ]

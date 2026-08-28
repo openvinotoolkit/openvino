@@ -86,7 +86,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     bool is_cpu() const override { return false; }
     bool is_onednn() const override { return true; }
 
-    bool is_replay_safe() const override { return !this->is_dynamic(); }
+    bool is_replay_safe() const override { return true; }
 
     // Cache blob format:
     //     [ dnnl::primitive_attr ]
