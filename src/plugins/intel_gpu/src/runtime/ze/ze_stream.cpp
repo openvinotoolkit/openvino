@@ -250,15 +250,16 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
         use_counter_based_events = false;
     }
 
-    // Here passing reference to not fully formed object is safe because event factories do not call virtual methods for stream
-    m_user_ev_factory = std::make_shared<ze_event_factory>(*this);
+    // Passing reference to not fully formed object is safe here because ze_command_recorder does not call virtual methods for stream
+    m_recorder = std::make_shared<ze_command_recorder>(*this);
+
+    m_user_ev_factory = std::make_shared<ze_event_factory>(engine, m_profiling_enabled);
     if (use_counter_based_events) {
-        m_ev_factory = std::make_shared<ze_counter_based_event_factory>(*this);
+        m_ev_factory = std::make_shared<ze_counter_based_event_factory>(engine, m_profiling_enabled);
     } else {
         // If counter based events are not supported or not used, use the same factory for both user and base events
         m_ev_factory = m_user_ev_factory;
     }
-    m_recorder = std::make_shared<ze_command_recorder>(*this);
     GPU_DEBUG_INFO << "[GPU] Created Level Zero stream ("
         << "index=" << index
         << ", use_cp_offload=" << use_cp_offload
@@ -274,14 +275,15 @@ ze_stream::ze_stream(const ze_engine& engine, const ExecutionConfig& config, ze_
     const auto &info = engine.get_device_info();
     bool use_counter_based_events = m_queue_type == QueueTypes::in_order && info.supports_counter_based_events;
 
-    // Here passing reference to not fully formed object is safe because event factories do not call virtual methods for stream
-    m_user_ev_factory = std::make_shared<ze_event_factory>(*this);
+    // Passing reference to not fully formed object is safe here because ze_command_recorder does not call virtual methods for stream
+    m_recorder = std::make_shared<ze_command_recorder>(*this);
+
+    m_user_ev_factory = std::make_shared<ze_event_factory>(engine, m_profiling_enabled);
     if (use_counter_based_events) {
-        m_ev_factory = std::make_shared<ze_counter_based_event_factory>(*this);
+        m_ev_factory = std::make_shared<ze_counter_based_event_factory>(engine, m_profiling_enabled);
     } else {
         m_ev_factory = m_user_ev_factory;
     }
-    m_recorder = std::make_shared<ze_command_recorder>(*this);
     GPU_DEBUG_INFO << "[GPU] Created L0 stream from existing command list ("
         << "use_counter_based_events=" << use_counter_based_events
         << ")" << std::endl;
@@ -391,6 +393,7 @@ void ze_stream::wait() {
 
 event::ptr ze_stream::create_user_event(bool set) {
     auto ev = m_user_ev_factory->create_event(++m_queue_counter);
+    ev->set_command_recorder(get_recorder());
     if (set)
         ev->set();
 
@@ -398,7 +401,9 @@ event::ptr ze_stream::create_user_event(bool set) {
 }
 
 event::ptr ze_stream::create_base_event() {
-    return m_ev_factory->create_event(++m_queue_counter);
+    auto ev =  m_ev_factory->create_event(++m_queue_counter);
+    ev->set_command_recorder(get_recorder());
+    return ev;
 }
 
 std::unique_ptr<surfaces_lock> ze_stream::create_surfaces_lock(const std::vector<memory::ptr> &mem) const {

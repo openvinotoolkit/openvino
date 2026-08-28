@@ -11,12 +11,12 @@
 using namespace cldnn;
 using namespace ze;
 
-ze_event_factory::ze_event_factory(const ze_stream &ze_stream, uint32_t capacity)
-: ze_base_event_factory(ze_stream)
+ze_event_factory::ze_event_factory(const ze_engine &ze_engine, bool enable_profiling, uint32_t capacity)
+: ze_base_event_factory(ze_engine, enable_profiling)
 , m_capacity(capacity)
 , m_num_used(0) { }
 
-event::ptr ze_event_factory::create_event(uint64_t queue_stamp) {
+std::shared_ptr<ze_base_event> ze_event_factory::create_event(uint64_t queue_stamp) {
     std::lock_guard<std::mutex> lock(_mutex);
 
     if (m_num_used >= m_capacity || m_current_pool.is_empty()) {

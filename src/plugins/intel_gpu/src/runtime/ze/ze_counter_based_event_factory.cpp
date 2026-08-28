@@ -23,13 +23,13 @@ namespace {
     }
 }
 
-ze_counter_based_event_factory::ze_counter_based_event_factory(const ze_stream &ze_stream)
-    : ze_base_event_factory(ze_stream) {
-    auto driver_handle = ze_stream.get_engine().get_driver().handle();
+ze_counter_based_event_factory::ze_counter_based_event_factory(const ze_engine &ze_engine, bool enable_profiling)
+    : ze_base_event_factory(ze_engine, enable_profiling) {
+    auto driver_handle = ze_engine.get_driver().handle();
     std::call_once(counter_based_ev_init_flag, find_function_address, driver_handle);
 }
 
-event::ptr ze_counter_based_event_factory::create_event(uint64_t queue_stamp) {
+std::shared_ptr<ze_base_event> ze_counter_based_event_factory::create_event(uint64_t queue_stamp) {
     std::lock_guard<std::mutex> lock(_mutex);
     const auto &engine = get_engine();
 
