@@ -12,29 +12,26 @@
 
 namespace ov::npuw {
 
-// Patch pass for genuine hybrid SWA decoder models (mixed sliding and full-attention layers).
+// Model pass for hybrid SWA decoders (mixed sliding and full-attention layers).
 //
-// Responsibilities (single pass):
-// 1) Externalize sliding-layer SDPA mask inputs to one model input:
+// Responsibilities:
+// 1) Externalize sliding SDPA mask input as one model parameter:
 //    "sliding_window_attention_mask".
 // 2) Shrink past_key_values seq_len for sliding layers only.
-// 3) Shrink externalized mask key-axis to match the same post-concat KV width.
-// 4) Privatize and patch KV-length-dependent shape inputs (Broadcast/Reshape/Slice) so
-//    cross-layer CSE/shared shape subgraphs cannot leak sliding sizes into full-attention layers.
+// 3) Shrink externalized mask width to the same post-concat KV width.
+// 4) Privatize and patch KV-length-dependent shape constants (Broadcast/Reshape/Slice)
+//    to prevent cross-layer shared-shape leakage from sliding layers into full-attention
+//    layers.
 //
-// Sizing rule:
-//   new_past =
-//     0                              if input_size >= kvcache_size
-//     window_size                    if window_size < kvcache_size
-//     kvcache_size - input_size      otherwise
-//   new_kv_total = new_past + input_size
+// SWA contract:
+// - new_past = window_size
+// - new_kv_total = input_size + window_size
 //
-// Examples:
-// - generate: kvcache=192, input=1, window=32  -> new_past=32, new_kv_total=33
-// - chunk prefill: kvcache=192, input=32, window=32 -> new_past=32, new_kv_total=64
+// Pass ordering:
+// - Run after ReshapeToStatic.
+// - Run before DecomposeGQA / V-tensor optimization passes.
 //
-// Must run AFTER ReshapeToStatic and BEFORE DecomposeGQA / V-tensor optimization passes.
-// Runs once per model variant (prefill and each generate kv-size bucket).
+// Executed once per model variant (prefill and each generate KV-size bucket).
 class PatchSlidingWindowKVLayout : public ov::pass::ModelPass {
     ov::npuw::util::SwaLayout m_swa_layout;
     uint32_t m_kvcache_size;

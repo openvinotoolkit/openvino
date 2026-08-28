@@ -50,7 +50,7 @@ std::shared_ptr<ov::Model> build_hybrid_model() {
 
 }  // namespace
 
-// Both generate and prefill externalize only sliding mask input.
+// Hybrid model invariant: both generate and prefill expose only the sliding-mask input.
 TEST_F(PatchSlidingWindowKVLayoutTest, PrefillAndGenerate_ExternalizeOnlySlidingMask) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
@@ -67,7 +67,7 @@ TEST_F(PatchSlidingWindowKVLayoutTest, PrefillAndGenerate_ExternalizeOnlySliding
     EXPECT_EQ(count_inputs(prefill.model, "global_attention_mask"), 0u);
 }
 
-// Non-hybrid model should not gain sliding_window_attention_mask.
+// Baseline invariant: non-hybrid models must not gain sliding_window_attention_mask.
 TEST_F(PatchSlidingWindowKVLayoutTest, NonHybridModel_NoMaskExternalized) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
@@ -81,7 +81,7 @@ TEST_F(PatchSlidingWindowKVLayoutTest, NonHybridModel_NoMaskExternalized) {
     EXPECT_EQ(count_inputs(generate.model, "global_attention_mask"), 0u);
 }
 
-// Step 1: only sliding layers shrink past KV axis.
+// Layer-selective invariant: only sliding layers shrink the past-KV sequence axis.
 TEST_F(PatchSlidingWindowKVLayoutTest, GenerateModel_OnlySlidingLayersPastKVShrunk) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
@@ -101,7 +101,7 @@ TEST_F(PatchSlidingWindowKVLayoutTest, GenerateModel_OnlySlidingLayersPastKVShru
     EXPECT_EQ((*full_past)[2], 191u);
 }
 
-// Step 1b: generate mask width equals new_kv_total.
+// Generate invariant: sliding mask width matches the post-concat KV total width.
 TEST_F(PatchSlidingWindowKVLayoutTest, GenerateModel_SlidingMaskWidthShrunkToNewKvTotal) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
@@ -117,7 +117,7 @@ TEST_F(PatchSlidingWindowKVLayoutTest, GenerateModel_SlidingMaskWidthShrunkToNew
     EXPECT_EQ(mask_shape->back(), 33u);
 }
 
-// Step 1b: prefill uses the same width invariant.
+// Prefill invariant: sliding mask width follows the same post-concat KV width rule.
 TEST_F(PatchSlidingWindowKVLayoutTest, PrefillModel_SlidingMaskWidthShrunkToNewKvTotal) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
@@ -158,7 +158,7 @@ TEST_F(PatchSlidingWindowKVLayoutTest, GenerateModel_OnlySlidingLayersPastKVTagg
     EXPECT_EQ(full_input->get_node()->get_rt_info().count(ov::npuw::util::NPUW_KV_CACHE_SLIDING_RT_KEY), 0u);
 }
 
-// Sliding SDPA consumes externalized mask; full-attention SDPA does not.
+// Input-source invariant: sliding SDPA consumes the externalized mask, full-attention SDPA does not.
 TEST_F(PatchSlidingWindowKVLayoutTest, GenerateModel_SlidingSDPAUsesExternalizedMask_FullSDPADoesNot) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
@@ -185,4 +185,42 @@ TEST_F(PatchSlidingWindowKVLayoutTest, GenerateModel_SlidingSDPAUsesExternalized
     // Full-attention layers (1, 3): mask input is NOT the externalized Parameter.
     EXPECT_FALSE(is_sliding_mask_param(sdpa_map.at(1)->input_value(3).get_node()));
     EXPECT_FALSE(is_sliding_mask_param(sdpa_map.at(3)->input_value(3).get_node()));
+}
+
+// With default prefill hint and chunk size equal to max prompt length,
+// prefill drops empty past KV inputs while generate keeps window-sized past; both externalize SWA mask.
+TEST_F(PatchSlidingWindowKVLayoutTest, PrefillAndGenerate_ExpectedPastAndMaskBehaviorForPromptAndTotalKv) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_hybrid_model(),
+                                                     {{"NPUW_LLM_MAX_PROMPT_LEN", "128"},
+                                                      {"NPUW_LLM_MIN_RESPONSE_LEN", "64"},
+                                                      {"NPUW_LLM_PREFILL_CHUNK_SIZE", "128"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_sub_model(recorder, "_prefill");
+    const auto& generate = require_sub_model_containing(recorder, "_kv");
+
+    EXPECT_EQ(count_inputs(prefill.model, "sliding_window_attention_mask"), 1u);
+    EXPECT_EQ(count_inputs(generate.model, "sliding_window_attention_mask"), 1u);
+
+    const auto input_ids_shape = input_shape(prefill.model, "input_ids");
+    ASSERT_TRUE(input_ids_shape.has_value()) << "input_ids not found in prefill model";
+
+    const auto prefill_mask_shape = input_shape(prefill.model, "sliding_window_attention_mask");
+    ASSERT_TRUE(prefill_mask_shape.has_value()) << "sliding_window_attention_mask not found in prefill model";
+    const auto generate_mask_shape = input_shape(generate.model, "sliding_window_attention_mask");
+    ASSERT_TRUE(generate_mask_shape.has_value()) << "sliding_window_attention_mask not found in generate model";
+
+    EXPECT_EQ(count_inputs(prefill.model, "past_key_values.0.key"), 0u);
+
+    const auto generate_sliding_past = input_shape(generate.model, "past_key_values.0.key");
+    ASSERT_TRUE(generate_sliding_past.has_value()) << "past_key_values.0.key not found in generate model";
+    EXPECT_EQ((*generate_sliding_past)[2], kWindowSize);
+
+    EXPECT_EQ(prefill_mask_shape->back(), input_ids_shape->back());
+    EXPECT_EQ(prefill_mask_shape->back(), 128u);
+    EXPECT_EQ(generate_mask_shape->back(), 33u);
 }

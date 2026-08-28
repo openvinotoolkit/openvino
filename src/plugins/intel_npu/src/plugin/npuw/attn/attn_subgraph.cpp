@@ -917,33 +917,16 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         auto attention_mask_tensor = hfa_inputs.at(sdpa_in.attention_mask);
                         auto present_value_tensor = hfa_inputs.at(sdpa_in.present_value);
 
-                        // `total_kv_length` bounds how many past KV tiles get processed. It must be BOTH:
-                        // (a) no larger than what THIS layer's bound tensors can actually supply
-                        //     (`block_sum`, the sum of `past_key_blocks`' + present tile's live shapes) -
-                        //     required for a sliding-window layer, whose past KV blocks are capped at
-                        //     `window_size` independent of conversation length. Using the raw global
-                        //     position here would compute more tiles than the layer can supply once the
-                        //     conversation exceeds the window.
-                        // (b) no larger than the conversation's actual valid length
-                        //     (`state.hfa_selector->context_length()`, the ABSOLUTE position shared by
-                        //     all layers) - required for a GLOBAL (non-SWA) layer: block capacity is
-                        //     allocated at block granularity, so `block_sum` can exceed the conversation's
-                        //     real valid length (e.g. a partially-filled last block still reports its
-                        //     rounded-up capacity via `get_shape()`).
-                        //
-                        // `total_kv_length = min(context_length(), block_sum)` satisfies both at once, with no
-                        // per-layer/SWA-vs-global special-casing needed:
-                        //   - Global layer: block_sum == context_length() (blocks grow 1:1 with the
-                        //     conversation, no cap) -> min picks either, matches the original optimal behavior.
-                        //   - SWA layer, within window: block_sum == context_length() (not yet capped) -> same
-                        //     as above.
-                        //   - SWA layer, past window: block_sum < context_length() (capped at window_size) ->
-                        //     min picks block_sum, avoiding the crash this fix originally addressed.
-                        int64_t block_sum = static_cast<int64_t>(present_key_tensor->get_shape()[K_SEQ_DIM]);
+                        // total_kv_length controls how many KV tiles HFA processes.
+                        // Use min(global_context_length, layer_bound_kv_length) to satisfy both constraints:
+                        // 1) Global layers: do not exceed real conversation length when block capacity is rounded up.
+                        // 2) SWA layers: do not exceed KV that is actually bound in layer tensors.
+                        int64_t layer_bound_kv_length = static_cast<int64_t>(present_key_tensor->get_shape()[K_SEQ_DIM]);
                         for (const auto& k_block : past_key_blocks) {
-                            block_sum += static_cast<int64_t>(k_block->get_shape()[K_SEQ_DIM]);
+                            layer_bound_kv_length += static_cast<int64_t>(k_block->get_shape()[K_SEQ_DIM]);
                         }
-                        const int64_t total_kv_length = std::min(state.hfa_selector->context_length(), block_sum);
+                        const int64_t global_context_length = state.hfa_selector->context_length();
+                        const int64_t total_kv_length = std::min(global_context_length, layer_bound_kv_length);
                         const int64_t num_tiles = total_kv_length / tile_size;
                         OPENVINO_ASSERT(total_kv_length % tile_size == 0,
                                         "HFA total KV length must be multiple of tile size for now");
