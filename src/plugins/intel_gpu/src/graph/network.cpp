@@ -9,6 +9,7 @@
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
+#include "intel_gpu/primitives/permute.hpp"
 
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/memory.hpp"
@@ -431,7 +432,7 @@ event::ptr network::set_input_data(const primitive_id& id, memory::ptr data, boo
 void network::add_default_output_chains() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("add_default_output_chains");
     for (auto& output : _outputs) {
-        add_output_chain(output);
+        add_output_chain(output, _output_chains, false);
     }
 }
 
@@ -481,7 +482,7 @@ void network::calculate_weights_cache_capacity() {
     }
 }
 
-network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<primitive_inst>& p_inst) {
+network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<primitive_inst>& p_inst, output_chains_map& output_chains, bool is_remote) {
     std::vector<primitive_inst*> chain;
     std::stack<const primitive_inst*> candidates;
     auto& eng = get_engine();
@@ -536,6 +537,11 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
             add_mdata_chain(nc_cand);
         }
 
+        // A runtime-skippable permute may need to execute after its concrete shape is known.
+        // Keep a remote output bound to the permute without aliasing its input producer.
+        if (is_remote && cand->get_node().is_type<permute>() && cand->get_node().is_runtime_skippable())
+            continue;
+
         for (const auto& dep : cand->dependencies()) {
             if (dep.first->can_be_optimized()) {
                 candidates.push(dep.first);
@@ -556,7 +562,7 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
 
     std::sort(chain.begin(), chain.end());
     chain.erase(std::unique(chain.begin(), chain.end()), chain.end());
-    return _output_chains.insert({ p_inst->id(), chain }).first;
+    return output_chains.insert({p_inst->id(), chain}).first;
 }
 
 std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memory::ptr mem_new, bool is_remote) {
@@ -573,11 +579,12 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
     }
 
     auto& eng = get_engine();
-    // locate primitive chain for this output
-    // if no chain found - add it
-    auto o_iter = _output_chains.find(id);
-    if (o_iter == _output_chains.end()) {
-        o_iter = add_output_chain(p_inst);
+    // Remote outputs need a conservative chain because a runtime-skippable
+    // permute may become executable after shape inference.
+    auto& output_chains = is_remote ? _remote_output_chains : _output_chains;
+    auto o_iter = output_chains.find(id);
+    if (o_iter == output_chains.end()) {
+        o_iter = add_output_chain(p_inst, output_chains, is_remote);
     }
 
     for (auto& prim : o_iter->second) {
@@ -790,11 +797,13 @@ void network::invalidate_output_memory_chain(const primitive_id& id) {
     auto p_inst = find_primitive(id);
     p_inst->clear_output_memory();
 
-    auto o_iter = _output_chains.find(id);
-    if (o_iter != _output_chains.end()) {
-        for (auto* prim : o_iter->second) {
-            if (prim != p_inst.get()) {
-                prim->clear_output_memory();
+    for (auto* output_chains : {&_output_chains, &_remote_output_chains}) {
+        auto o_iter = output_chains->find(id);
+        if (o_iter != output_chains->end()) {
+            for (auto* prim : o_iter->second) {
+                if (prim != p_inst.get()) {
+                    prim->clear_output_memory();
+                }
             }
         }
     }

@@ -273,6 +273,7 @@ private:
     size_t _weights_cache_capacity = 1;
 
     output_chains_map _output_chains;
+    output_chains_map _remote_output_chains;
 
     std::shared_ptr<ShapePredictor> _shape_predictor;
 
@@ -284,7 +285,7 @@ private:
     void invalidate_output_memory_chain(const primitive_id& id);
     void add_default_output_chains();
     void calculate_weights_cache_capacity();
-    output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
+    output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst, output_chains_map& output_chains, bool is_remote);
     void set_variables_state_info(const std::string& variable_id,
                                   const layout& variable_layout,
                                   ov::element::Type user_specified_type,
