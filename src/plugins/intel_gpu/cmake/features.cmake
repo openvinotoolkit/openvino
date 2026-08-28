@@ -2,93 +2,69 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# GPU_RUNTIME_TYPES selects the compiled runtimes. GPU_DEFAULT_RUNTIME selects
-# the default one. GPU_RT_TYPE remains as a backwards-compatible alias for the
-# default runtime.
+# GPU_RUNTIME_TYPE selects the runtime compiled into the GPU plugin.
 set(OV_GPU_SUPPORTED_RUNTIMES ZE OCL SYCL VULKAN)
-if(APPLE OR ANDROID)
+if(APPLE OR ANDROID OR AARCH64)
     set(OV_GPU_DEFAULT_RT "VULKAN")
 else()
     set(OV_GPU_DEFAULT_RT "OCL")
 endif()
 
-ov_option_enum(GPU_RT_TYPE
-               "Legacy default GPU runtime. Supported values: OCL, SYCL, ZE, VULKAN (L0 is accepted as ZE alias)"
-               ${OV_GPU_DEFAULT_RT}
-               ALLOWED_VALUES ZE OCL L0 SYCL VULKAN)
-
-if(GPU_RT_TYPE STREQUAL "L0")
-    set(GPU_RT_TYPE "ZE" CACHE STRING "Legacy default GPU runtime" FORCE)
+# Import the upstream GPU_RT_TYPE spelling when configuring an existing build
+# tree or invoking an older build script. New configurations expose only the
+# descriptive GPU_RUNTIME_TYPE option.
+if(DEFINED GPU_RUNTIME_TYPE)
+    set(_ov_gpu_requested_runtime "${GPU_RUNTIME_TYPE}")
+elseif(DEFINED GPU_RT_TYPE)
+    set(_ov_gpu_requested_runtime "${GPU_RT_TYPE}")
+elseif(DEFINED GPU_DEFAULT_RUNTIME)
+    set(_ov_gpu_requested_runtime "${GPU_DEFAULT_RUNTIME}")
+elseif(DEFINED GPU_RUNTIME_TYPES)
+    set(_ov_gpu_requested_runtime "${GPU_RUNTIME_TYPES}")
+else()
+    set(_ov_gpu_requested_runtime "${OV_GPU_DEFAULT_RT}")
 endif()
 
-set(GPU_RUNTIME_TYPES "${GPU_RT_TYPE}" CACHE STRING
-    "Semicolon-separated GPU runtimes compiled into the GPU plugin")
-set(GPU_DEFAULT_RUNTIME "${GPU_RT_TYPE}" CACHE STRING
-    "Default GPU runtime; must be present in GPU_RUNTIME_TYPES")
-set_property(CACHE GPU_DEFAULT_RUNTIME PROPERTY STRINGS ${OV_GPU_SUPPORTED_RUNTIMES})
-list(APPEND OV_OPTIONS GPU_RUNTIME_TYPES GPU_DEFAULT_RUNTIME)
-set(OV_OPTIONS "${OV_OPTIONS}" CACHE INTERNAL "A list of OpenVINO cmake options")
-
-# Normalize the compiled runtime list before validating it.
-set(_ov_gpu_normalized_runtimes ${GPU_RUNTIME_TYPES})
-list(TRANSFORM _ov_gpu_normalized_runtimes STRIP)
-list(TRANSFORM _ov_gpu_normalized_runtimes TOUPPER)
-list(TRANSFORM _ov_gpu_normalized_runtimes REPLACE "^L0$" "ZE")
-list(REMOVE_DUPLICATES _ov_gpu_normalized_runtimes)
-
-if(NOT _ov_gpu_normalized_runtimes)
-    message(FATAL_ERROR "GPU_RUNTIME_TYPES must contain at least one runtime")
+list(LENGTH _ov_gpu_requested_runtime _ov_gpu_requested_runtime_count)
+if(NOT _ov_gpu_requested_runtime_count EQUAL 1)
+    message(FATAL_ERROR "GPU_RUNTIME_TYPE selects exactly one runtime")
 endif()
 
-foreach(_ov_gpu_runtime IN LISTS _ov_gpu_normalized_runtimes)
-    if(NOT _ov_gpu_runtime IN_LIST OV_GPU_SUPPORTED_RUNTIMES)
-        message(FATAL_ERROR
-            "Unsupported GPU runtime '${_ov_gpu_runtime}'. Supported values: ${OV_GPU_SUPPORTED_RUNTIMES}")
-    endif()
-endforeach()
+string(STRIP "${_ov_gpu_requested_runtime}" _ov_gpu_requested_runtime)
+string(TOUPPER "${_ov_gpu_requested_runtime}" _ov_gpu_requested_runtime)
+if(_ov_gpu_requested_runtime STREQUAL "L0")
+    set(_ov_gpu_requested_runtime "ZE")
+endif()
 
-if((APPLE OR ANDROID) AND "OCL" IN_LIST _ov_gpu_normalized_runtimes)
+list(REMOVE_ITEM OV_OPTIONS GPU_RT_TYPE GPU_RUNTIME_TYPES GPU_DEFAULT_RUNTIME)
+set(OV_OPTIONS "${OV_OPTIONS}" CACHE INTERNAL "A list of OpenVINO cmake options" FORCE)
+
+ov_option_enum(GPU_RUNTIME_TYPE
+               "GPU runtime compiled into the plugin. Supported values: OCL, SYCL, ZE, VULKAN"
+               ${_ov_gpu_requested_runtime}
+               ALLOWED_VALUES ZE OCL SYCL VULKAN)
+
+if((APPLE OR ANDROID) AND GPU_RUNTIME_TYPE STREQUAL "OCL")
     message(FATAL_ERROR "GPU OCL runtime is not supported on Apple or Android platforms")
 endif()
 
-set(GPU_RUNTIME_TYPES "${_ov_gpu_normalized_runtimes}" CACHE STRING
-    "Semicolon-separated GPU runtimes compiled into the GPU plugin" FORCE)
-
-# Normalize and validate the default runtime.
-string(STRIP "${GPU_DEFAULT_RUNTIME}" GPU_DEFAULT_RUNTIME)
-string(TOUPPER "${GPU_DEFAULT_RUNTIME}" GPU_DEFAULT_RUNTIME)
-if(GPU_DEFAULT_RUNTIME STREQUAL "L0")
-    set(GPU_DEFAULT_RUNTIME "ZE")
-endif()
-if(NOT GPU_DEFAULT_RUNTIME IN_LIST OV_GPU_SUPPORTED_RUNTIMES)
-    message(FATAL_ERROR
-        "Unsupported GPU_DEFAULT_RUNTIME '${GPU_DEFAULT_RUNTIME}'. Supported values: ${OV_GPU_SUPPORTED_RUNTIMES}")
-endif()
-if(NOT GPU_DEFAULT_RUNTIME IN_LIST GPU_RUNTIME_TYPES)
-    message(FATAL_ERROR
-        "GPU_DEFAULT_RUNTIME '${GPU_DEFAULT_RUNTIME}' must be present in GPU_RUNTIME_TYPES '${GPU_RUNTIME_TYPES}'")
-endif()
-set(GPU_DEFAULT_RUNTIME "${GPU_DEFAULT_RUNTIME}" CACHE STRING
-    "Default GPU runtime; must be present in GPU_RUNTIME_TYPES" FORCE)
-set(GPU_RT_TYPE "${GPU_DEFAULT_RUNTIME}" CACHE STRING "Legacy default GPU runtime" FORCE)
+# Preserve the established upstream spelling for existing automation without
+# exposing multiple runtime-selection knobs to new configurations.
+set(GPU_RT_TYPE "${GPU_RUNTIME_TYPE}" CACHE STRING "Deprecated alias for GPU_RUNTIME_TYPE" FORCE)
+set_property(CACHE GPU_RT_TYPE PROPERTY STRINGS ZE OCL SYCL VULKAN)
+mark_as_advanced(GPU_RT_TYPE)
+unset(GPU_RUNTIME_TYPES CACHE)
+unset(GPU_DEFAULT_RUNTIME CACHE)
 
 # Expose one boolean for each runtime to keep downstream conditions simple.
 foreach(_ov_gpu_runtime IN LISTS OV_GPU_SUPPORTED_RUNTIMES)
     set(OV_GPU_RUNTIME_${_ov_gpu_runtime}_ENABLED OFF)
 endforeach()
-foreach(_ov_gpu_runtime IN LISTS GPU_RUNTIME_TYPES)
-    set(OV_GPU_RUNTIME_${_ov_gpu_runtime}_ENABLED ON)
-endforeach()
+set(OV_GPU_RUNTIME_${GPU_RUNTIME_TYPE}_ENABLED ON)
 
 set(GPU_ONEDNN_RUNTIME "")
-if(GPU_DEFAULT_RUNTIME MATCHES "^(OCL|ZE|SYCL)$")
-    set(GPU_ONEDNN_RUNTIME "${GPU_DEFAULT_RUNTIME}")
-elseif(OV_GPU_RUNTIME_OCL_ENABLED)
-    set(GPU_ONEDNN_RUNTIME "OCL")
-elseif(OV_GPU_RUNTIME_ZE_ENABLED)
-    set(GPU_ONEDNN_RUNTIME "ZE")
-elseif(OV_GPU_RUNTIME_SYCL_ENABLED)
-    set(GPU_ONEDNN_RUNTIME "SYCL")
+if(GPU_RUNTIME_TYPE MATCHES "^(OCL|ZE|SYCL)$")
+    set(GPU_ONEDNN_RUNTIME "${GPU_RUNTIME_TYPE}")
 endif()
 
 if(ANDROID OR
