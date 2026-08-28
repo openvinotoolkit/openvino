@@ -97,6 +97,10 @@ set(OV_CORE_TESTS_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/weight_sharing_util_test.cpp
 )
 
+if(ENABLE_TESTS_PER_SOURCE)
+    list(APPEND OV_CORE_TESTS_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/file_load_benchmark.cpp)
+endif()
+
 include(conditional_compilation/sources.cmake)
 include(frontend/sources.cmake)
 include(pass/sources.cmake)
@@ -187,18 +191,5 @@ endif()
 
 ov_build_target_faster(${TARGET_NAME} PCH)
 
-# - standalone per-source executable,
-# - excluded from ov_core_unit_tests.
-# - ENABLE_TESTS_PER_SOURCE has to be set to ON else no-op
-# - new target name ov_file_load_benchmark -> ov_core_unit_tests_file_load_benchmark
-ov_add_test_target_per_source(
-    NAME ${TARGET_NAME}
-    SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/file_load_benchmark.cpp
-    LINK_LIBRARIES
-        common_test_utils
-        openvino::util
-    INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}
-    LABELS OV UNIT CORE
-)
 
 add_subdirectory(frontend)
