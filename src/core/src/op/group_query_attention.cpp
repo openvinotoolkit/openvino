@@ -207,23 +207,15 @@ void GroupQueryAttention::validate_and_infer_types() {
                           !m_sliding_window_cache || m_local_window_size >= 1,
                           "GroupQueryAttention: sliding_window_cache requires local_window_size >= 1, got ",
                           m_local_window_size);
-    // Windowed cache: single-token decode (sequence_length == 1) is always correct, and a multi-token step
-    // that fits inside the window (past + current <= capacity) also decomposes correctly. The unmodeled case
-    // is a multi-token step that crosses a window eviction (the staging regime ONNX Runtime runs against a
-    // temporary larger buffer). Whether a step crosses depends on the past length, which is a runtime value
-    // (derived from seqlens_k), so it cannot be decided from shapes alone. A dynamic sequence_length is
-    // therefore left enabled (CPU/GPU): at runtime it is typically decode or fitting prefill, and rejecting it
-    // would disable those. A *statically* known sequence_length > 1 is a genuine multi-token graph whose
-    // correctness we cannot guarantee (it may cross an eviction at runtime), so reject it up front; only
-    // sequence_length == 1 is provably safe statically.
-    if (m_sliding_window_cache && sequence_len.is_static()) {
-        NODE_VALIDATION_CHECK(this,
-                              sequence_len.get_length() == 1,
-                              "GroupQueryAttention: sliding_window_cache with a statically known sequence length is "
-                              "only supported for single-token decode (sequence_length == 1), got ",
-                              sequence_len.get_length(),
-                              " (the multi-token staging regime is not yet modelled).");
-    }
+    // Windowed cache: single-token decode (sequence_length == 1) always fits inside the window and is handled
+    // by the in-place Gather + ScatterUpdate assembly. Any other step (a multi-token prefill/staging chunk,
+    // whether or not it actually crosses a window eviction at runtime) is handled by the staging branch, which
+    // seeds a temporary over-sized buffer with the resident survivors, appends the new tokens, runs attention
+    // against it, and writes back only the surviving tail - the same math ONNX Runtime's own
+    // PlanWindowedKvCache/staging path uses, verified against it. That branch is chosen from whether
+    // sequence_length is provably 1, not from whether it is statically known: a *statically* known
+    // sequence_length > 1 takes the identical staging branch a dynamic sequence_length resolving to the same
+    // runtime value would, so it is not rejected here.
 
     // The decomposition derives a scalar past length (past_seqlen = total - current) and assumes a single
     // batch entry ("Only consider batch is 1"); with batch_size > 1 the per-batch past lengths differ and the
