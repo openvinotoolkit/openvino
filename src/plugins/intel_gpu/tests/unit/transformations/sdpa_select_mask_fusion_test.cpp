@@ -10,7 +10,6 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/pass/manager.hpp"
@@ -29,6 +28,7 @@ namespace intel_gpu {
 
 namespace {
 constexpr float NEG_INF = -65504.0f;
+const float NEG_INF_ADD = -std::numeric_limits<float>::infinity();
 
 // scores [1, H, S, S], boolean where-mask cond broadcastable as [1, 1, S, S]
 constexpr int64_t H = 4;
@@ -56,7 +56,7 @@ TEST_F(TransformationTestsF, SDPASelectMaskFusion_BasicSelectToAdd) {
         auto scores = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, scores_shape);
         auto cond = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, cond_shape);
         auto zero = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
-        auto neg_inf = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {NEG_INF});
+        auto neg_inf = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {NEG_INF_ADD});
         auto add_mask = std::make_shared<ov::op::v1::Select>(cond, zero, neg_inf);
         auto add = std::make_shared<ov::op::v1::Add>(scores, add_mask);
         auto softmax = std::make_shared<ov::op::v8::Softmax>(add, -1);
@@ -88,7 +88,7 @@ TEST_F(TransformationTestsF, SDPASelectMaskFusion_SelectThroughReshapeToSoftmax)
         auto scores = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, scores_shape);
         auto cond = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, cond_shape);
         auto zero = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
-        auto neg_inf = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {NEG_INF});
+        auto neg_inf = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {NEG_INF_ADD});
         auto add_mask = std::make_shared<ov::op::v1::Select>(cond, zero, neg_inf);
         auto add = std::make_shared<ov::op::v1::Add>(scores, add_mask);
         auto rs_c = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, new_shape);

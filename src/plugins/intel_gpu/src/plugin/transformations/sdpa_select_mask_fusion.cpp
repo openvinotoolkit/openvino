@@ -4,6 +4,7 @@
 
 #include "sdpa_select_mask_fusion.hpp"
 
+#include <limits>
 #include <memory>
 
 #include "openvino/core/graph_util.hpp"
@@ -29,14 +30,24 @@ namespace v1 = ov::op::v1;
 namespace v8 = ov::op::v8;
 
 namespace {
+// Minimum magnitude for the Select "else" constant to be treated as -inf.
+// Attention masks frequently saturate -inf to -FP16_MAX (-65504) during
+// precision conversion; any value at or below this threshold softmaxes to ~0,
+// so rewriting it into an additive mask stays equivalent.
+constexpr float kNegInfThreshold = -1e4f;
+
+bool is_softmax(const ov::Node* n) {
+    return ov::is_type<v1::Softmax>(n) || ov::is_type<v8::Softmax>(n);
+}
+
 bool feeds_softmax(const ov::Output<ov::Node>& out) {
     for (const auto& in : out.get_target_inputs()) {
         auto* consumer = in.get_node();
-        if (ov::is_type<v8::Softmax>(consumer))
+        if (is_softmax(consumer))
             return true;
         if (ov::is_type<v1::Reshape>(consumer)) {
             for (const auto& in2 : consumer->output(0).get_target_inputs()) {
-                if (ov::is_type<v8::Softmax>(in2.get_node()))
+                if (is_softmax(in2.get_node()))
                     return true;
             }
         }
@@ -78,17 +89,17 @@ ov::intel_gpu::SDPASelectMaskFusion::SDPASelectMaskFusion() {
         if (!neg_inf_const || ov::shape_size(neg_inf_const->get_shape()) != 1)
             return false;
         const float neg_inf_val = neg_inf_const->cast_vector<float>()[0];
-        // Accept values down to -1e4 to accommodate -inf saturated to -FP16_MAX (-65504).
-        if (neg_inf_val > -1e4f)
+        // Accept values down to the threshold to accommodate -inf saturated to -FP16_MAX (-65504).
+        if (neg_inf_val > kNegInfThreshold)
             return false;
 
         // The rewrite is only equivalent once normalized by a following Softmax.
         if (!feeds_softmax(pm.at(select_m)))
             return false;
 
-        // additive_mask = Select(mask, 0, neg_inf); result = scores + additive_mask.
+        // additive_mask = Select(mask, 0, -inf); result = scores + additive_mask.
         auto zero = v0::Constant::create(et, ov::Shape{}, {0.0f});
-        auto neg_inf_new = v0::Constant::create(et, ov::Shape{}, {neg_inf_val});
+        auto neg_inf_new = v0::Constant::create(et, ov::Shape{}, {-std::numeric_limits<float>::infinity()});
         auto add_mask = std::make_shared<v1::Select>(cond_out, zero, neg_inf_new);
         auto add = std::make_shared<v1::Add>(scores_out, add_mask);
         add->set_friendly_name(select_node->get_friendly_name());
