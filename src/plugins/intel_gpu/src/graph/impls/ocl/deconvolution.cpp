@@ -93,7 +93,16 @@ public:
 
             input_layout.set_partial_shape(input_pshape);
             weights_layout.set_partial_shape(weights_pshape);
-            weights_layout.format = format::adjust_to_rank(weights_layout.format, weights_pshape.size());
+            // format::adjust_to_rank() requires an exact pre-registered format at the new rank
+            // with the same dims order as the *current* weights format, which doesn't exist for
+            // exotic formats like byfx (assigned by the O/I-swap permute-fusion optimizer to
+            // grouped deconv weights). Resolve directly to the canonical grouped/non-grouped
+            // weights format instead: for depthwise (groups == channels) weights -- the only
+            // grouped 1d case this promotion is needed for -- O/G == I/G == 1, so whatever O/I
+            // swap the current format encodes is a no-op on those singleton dims, and it's safe
+            // to normalize straight to goiyx/oizyx.
+            const auto& primitive = impl_params.typed_desc<deconvolution>();
+            weights_layout.format = format::get_default_format(weights_pshape.size(), /*is_weights=*/true, primitive->grouped_weights_shape);
             output_layout.set_partial_shape(output_pshape);
 
             updated_impl_params.weights_layout = weights_layout;

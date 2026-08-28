@@ -10,6 +10,7 @@
 #include <intel_gpu/primitives/crop.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/permute.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
 using namespace cldnn;
@@ -3235,6 +3236,81 @@ TEST(deconvolution_gpu_test, dw_1d_stride2_kernel_gt_stride_no_output_gaps) {
     // transposed convolution: out[i*stride + k] += in[i] * w[k]. With an all-ones kernel and
     // kernel_size(4) > stride(2), every one of the 8 output positions per channel receives
     // contributions from at least two different input samples, so none can legitimately be zero.
+    std::vector<float> expected = {
+        1.f, 1.f, 3.f, 3.f, 5.f, 5.f, 3.f, 3.f,
+        10.f, 10.f, 30.f, 30.f, 50.f, 50.f, 30.f, 30.f
+    };
+    ASSERT_EQ(output_mem->count(), expected.size());
+    for (size_t i = 0; i < expected.size(); i++) {
+        ASSERT_FLOAT_EQ(expected[i], output_ptr[i]) << "at flattened index " << i;
+    }
+}
+
+TEST(deconvolution_gpu_test, dw_1d_stride2_kernel_gt_stride_permuted_weight_format) {
+    // Regression test for a real-model-only crash: ProgramBuilder::CreateGroupConvolutionBackpropDataOp
+    // always inserts a `permute` to swap the O/I weight dims before the deconv (see
+    // ops/convolution.cpp). When the weight is a Constant with a single user, the
+    // prepare_primitive_fusing optimizer pass (with optimize_data(true)) fuses that permute
+    // directly into the constant's cldnn format tag (e.g. bfyx -> byfx) instead of materializing
+    // a physical transpose. This test reproduces that exact topology shape so the weight layout
+    // deconvolution_impl actually sees at kernel-param time carries a non-default, permuted
+    // format, which previously crashed format::adjust_to_rank() with
+    // "Can't adjust format byfx to the new rank (5)".
+    auto& engine = get_test_engine();
+
+    const int32_t groups = 2;   // groups == channels: fully depthwise, matches the real bug.
+    const int32_t kernel_size = 4;
+    const int32_t stride = 2;
+    const int32_t input_length = 3;
+
+    ov::PartialShape input_pshape = {1, groups, input_length};
+    ov::PartialShape weights_pshape = {groups, 1, 1, kernel_size};  // [G, O/G, I/G, K]
+
+    layout in_layout{ ov::PartialShape::dynamic(input_pshape.size()), data_types::f32, format::bfyx };
+    layout weights_layout{ weights_pshape, data_types::f32, format::bfyx };
+
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    set_values(weights_mem, std::vector<float>(groups * kernel_size, 1.0f));
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(data("weights", weights_mem));
+    // Swap O/I (indices 1, 2), exactly as CreateGroupConvolutionBackpropDataOp does.
+    topology.add(permute("weights_permuted", input_info("weights"), { 0, 2, 1, 3 }));
+    topology.add(deconvolution("deconv",
+                               input_info("input"),
+                               "weights_permuted",
+                               "",
+                               static_cast<uint32_t>(groups),
+                               ov::Strides{ static_cast<size_t>(stride) },
+                               ov::CoordinateDiff{ 0 },
+                               ov::Strides{ 1 },
+                               ov::CoordinateDiff{ 0 },
+                               ov::CoordinateDiff{ 0 },
+                               ov::CoordinateDiff{ 0 },
+                               true /* grouped_weights_shape */));
+    topology.add(reorder("out", input_info("deconv"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+
+    auto input_mem = engine.allocate_memory({ input_pshape, data_types::f32, format::bfyx });
+    set_values(input_mem, { 1.f, 2.f, 3.f,
+                           10.f, 20.f, 30.f });
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
+
+    auto output_mem = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
+
+    // Same expected values as dw_1d_stride2_kernel_gt_stride_no_output_gaps: for a depthwise
+    // weight (O/G == I/G == 1), swapping O and I is a no-op on the actual values.
     std::vector<float> expected = {
         1.f, 1.f, 3.f, 3.f, 5.f, 5.f, 3.f, 3.f,
         10.f, 10.f, 30.f, 30.f, 50.f, 50.f, 30.f, 30.f
