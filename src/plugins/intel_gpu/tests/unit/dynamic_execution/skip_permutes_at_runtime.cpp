@@ -119,6 +119,42 @@ TEST(skip_permute_at_runtime, dynamic_remote_output_does_not_alias_producer) {
     }
 }
 
+TEST(skip_permute_at_runtime, dynamic_remote_output_forces_runtime_skippable_permute) {
+    auto& engine = get_test_engine();
+    const auto dynamic_layout = layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx};
+    topology topology(input_layout("input", dynamic_layout),
+                      activation("producer", input_info("input"), activation_func::relu),
+                      permute("permute", input_info("producer"), {0, 2, 1}),
+                      reorder("output", input_info("permute"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    auto permute_inst = network.get_primitive("permute");
+    ASSERT_TRUE(permute_inst->can_be_optimized());
+    ASSERT_TRUE(permute_inst->get_node().is_runtime_skippable());
+
+    auto input_mem = engine.allocate_memory({{1, 1, 3}, data_types::f32, format::bfyx});
+    set_values(input_mem, std::vector<float>{6.f, 7.f, 8.f});
+    auto output_remote_mem = engine.allocate_memory({{1, 3, 1}, data_types::f32, format::bfyx});
+    set_values(output_remote_mem, std::vector<float>{-1.f, -1.f, -1.f});
+
+    network.set_input_data("input", input_mem);
+    network.set_output_memory("output", output_remote_mem, true);
+    auto outputs = network.execute();
+
+    ASSERT_FALSE(permute_inst->can_be_optimized());
+    ASSERT_EQ(outputs.at("output").get_memory()->buffer_ptr(), output_remote_mem->buffer_ptr());
+    ASSERT_NE(network.get_primitive("producer")->output_memory_ptr()->buffer_ptr(), output_remote_mem->buffer_ptr());
+
+    mem_lock<float> output_ptr(output_remote_mem, get_test_stream());
+    for (size_t i = 0; i < 3; ++i) {
+        ASSERT_EQ(output_ptr[i], static_cast<float>(i + 6)) << "Mismatch at index " << i;
+    }
+}
+
 TEST(skip_permute_at_runtime, dynamic_non_remote_output_preserves_optimized_chain) {
     auto& engine = get_test_engine();
     const auto dynamic_layout = layout{ov::PartialShape{1, ov::Dimension(1, 3), ov::Dimension(1, 3)}, data_types::f32, format::bfyx};
@@ -170,10 +206,12 @@ TEST(skip_permute_at_runtime, dynamic_output_chain_caches_are_isolated_by_remote
 
     auto remote_output = engine.allocate_memory({{1, 3, 1}, data_types::f32, format::bfyx});
     network.set_output_memory("output", remote_output, true);
+    ASSERT_TRUE(network.has_output_remote_memory_ptr("output"));
     ASSERT_NE(network.get_primitive("producer")->output_memory_ptr()->buffer_ptr(), remote_output->buffer_ptr());
 
     auto final_output = engine.allocate_memory({{1, 3, 1}, data_types::f32, format::bfyx});
     network.set_output_memory("output", final_output);
+    ASSERT_FALSE(network.has_output_remote_memory_ptr("output"));
     ASSERT_EQ(network.get_primitive("producer")->output_memory_ptr()->buffer_ptr(), final_output->buffer_ptr());
 
     auto input_mem = engine.allocate_memory({{1, 1, 3}, data_types::f32, format::bfyx});
