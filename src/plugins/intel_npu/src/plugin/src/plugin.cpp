@@ -156,11 +156,15 @@ ov::intel_npu::CompilerType determine_compiler_type(const ov::AnyMap& properties
     return config->get<COMPILER_TYPE>();
 }
 
+enum class ConfigMergeMode { Compile, Import };
+
 // Validate and apply runtime properties to the plugin config using the following rules:
-// 1. Skip compile-time options unless a compiler type is explicitly provided.
-// 2. Reject unsupported or incompatible properties for the current backend/device/compiler context.
-// 3. Update the filtered config only with the properties that are valid for this execution.
-void apply_properties_to_config(FilteredConfig& config,
+// 1. In import mode, reject unknown properties immediately.
+// 2. In compiler mode, allow compiler-specific/internal properties to pass validation and be stored separately.
+// 3. Reject unsupported or incompatible properties for the current backend/device/compiler context.
+// 4. Update the filtered config only with the properties that are valid for this execution.
+void apply_properties_to_config(ConfigMergeMode mode,
+                                FilteredConfig& config,
                                 const ov::AnyMap& properties,
                                 const std::unique_ptr<PluginPropertyManager>& propertiesManager,
                                 intel_npu::Logger& logger) {
@@ -168,13 +172,6 @@ void apply_properties_to_config(FilteredConfig& config,
         OPENVINO_SUPPRESS_DEPRECATED_START
         logger.warning(intel_npu::ENABLE_CPU_PINNING::deprecationMessage());
         OPENVINO_SUPPRESS_DEPRECATED_END
-    }
-
-    bool hasCompilerType = properties.find(ov::intel_npu::compiler_type.name()) != properties.end();
-    if (!hasCompilerType) {
-        // Avoid applying compile-time options unless a compiler type is explicitly set.
-        config.remove(ov::intel_npu::compiler_type.name());
-        config.removeCompileTimeConfigs();
     }
 
     std::map<std::string, std::string> cfgsToSet;
@@ -185,8 +182,7 @@ void apply_properties_to_config(FilteredConfig& config,
         }
 
         if (!config.hasOpt(value.first)) {
-            if (!config.hasInternal(value.first) &&
-                (!hasCompilerType || !propertiesManager->isPropertyAvailable(value.first, properties))) {
+            if (!config.hasInternal(value.first) && !propertiesManager->isPropertyAvailable(value.first, properties)) {
                 OPENVINO_THROW("[ NOT_FOUND ] Option '", value.first, "' is not supported for current configuration");
             }
 
@@ -194,7 +190,7 @@ void apply_properties_to_config(FilteredConfig& config,
             continue;
         } else {
             const bool isCompileTimeProperty = config.getOpt(value.first).mode() == OptionMode::CompileTime;
-            if (isCompileTimeProperty && !hasCompilerType) {
+            if (isCompileTimeProperty && mode == ConfigMergeMode::Import) {
                 logger.warning("Property '%s' is recognized as a compiler option, will not be used for current "
                                "configuration.",
                                value.first.c_str());
@@ -448,7 +444,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     FilteredConfig localConfig = [&]() {
         std::shared_lock<std::shared_mutex> lock(_configMutex);
         FilteredConfig cfg = *_config;
-        apply_properties_to_config(cfg, localProperties, _propertiesManager, _logger);
+        apply_properties_to_config(ConfigMergeMode::Compile, cfg, localProperties, _propertiesManager, _logger);
         return cfg;
     }();
 
@@ -789,13 +785,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
     _backend->updateInfo(properties);
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "fork_local_config");
-    properties.erase(ov::intel_npu::compiler_type.name());
     std::string deviceId;
     FilteredConfig localConfig = [&]() {
         std::shared_lock<std::shared_mutex> lock(_configMutex);
         deviceId = determine_device_id(properties, _config);
         FilteredConfig cfg = *_config;
-        apply_properties_to_config(cfg, properties, _propertiesManager, _logger);
+
+        apply_properties_to_config(ConfigMergeMode::Import, cfg, properties, _propertiesManager, _logger);
+        // remove compiler type from the config as it is not needed on the import path
+        cfg.remove(ov::intel_npu::compiler_type.name());
+        // remove compile-time configs as they are not needed on the import path
+        cfg.removeCompileTimeConfigs();
         return cfg;
     }();
 
@@ -885,7 +885,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     FilteredConfig localConfig = [&]() {
         std::shared_lock<std::shared_mutex> lock(_configMutex);
         FilteredConfig cfg = *_config;
-        apply_properties_to_config(cfg, localProperties, _propertiesManager, _logger);
+        apply_properties_to_config(ConfigMergeMode::Compile, cfg, localProperties, _propertiesManager, _logger);
         return cfg;
     }();
 

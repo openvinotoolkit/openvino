@@ -780,16 +780,15 @@ TEST_P(CheckCompilerPropertyWhenImporting, CheckImportWithCompilerProperty) {
 
     ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
     ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
-    ASSERT_EQ(logs.find("Property 'NPU_PLATFORM' is recognized as a compiler option, will not be used for current "
+    ASSERT_NE(logs.find("Property 'NPU_PLATFORM' is recognized as a compiler option, will not be used for current "
                         "configuration."),
               std::string::npos);
     ASSERT_NE(logs.find("Property 'NPU_QDQ_OPTIMIZATION' is recognized as a compiler option, will not be used for "
                         "current configuration."),
               std::string::npos);
 
-    std::string platform;
-    OV_ASSERT_NO_THROW(platform = imported_model.get_property(ov::intel_npu::platform));
-    ASSERT_EQ(platform, "5010");
+    ASSERT_THROW(imported_model.get_property(ov::intel_npu::platform),
+                 ov::Exception);  // Expect to throw due to unsupported property
     ASSERT_THROW(imported_model.get_property(ov::intel_npu::qdq_optimization),
                  ov::Exception);  // Expect to throw due to unsupported property
 }
@@ -828,16 +827,15 @@ TEST_P(CheckCompilerPropertyWhenImporting, CheckImportWithCompilerPropertyAfterC
 
     ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
     ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
-    ASSERT_EQ(logs.find("Property 'NPU_PLATFORM' is recognized as a compiler option, will not be used for current "
+    ASSERT_NE(logs.find("Property 'NPU_PLATFORM' is recognized as a compiler option, will not be used for current "
                         "configuration."),
               std::string::npos);
     ASSERT_NE(logs.find("Property 'NPU_QDQ_OPTIMIZATION' is recognized as a compiler option, will not be used for "
                         "current configuration."),
               std::string::npos);
 
-    std::string platform;
-    OV_ASSERT_NO_THROW(platform = imported_model.get_property(ov::intel_npu::platform));
-    ASSERT_EQ(platform, "5010");
+    ASSERT_THROW(imported_model.get_property(ov::intel_npu::platform),
+                 ov::Exception);  // Expect to throw due to unsupported property
     ASSERT_THROW(imported_model.get_property(ov::intel_npu::qdq_optimization),
                  ov::Exception);  // Expect to throw due to unsupported property
 }
