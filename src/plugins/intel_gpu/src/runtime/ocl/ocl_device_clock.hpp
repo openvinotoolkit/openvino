@@ -39,6 +39,10 @@ public:
                                                 const anchor& late,
                                                 std::chrono::nanoseconds host_ts);
 
+    /// @brief False when the device has no usable timer, i.e. no start timestamp can
+    /// ever be synthesized.
+    bool is_valid() const;
+
     /// @brief Re-samples the correlation if the last sample is older than
     /// @p min_interval. Does the driver query, so it must stay off the inference
     /// path - call it only when profiling data is collected.

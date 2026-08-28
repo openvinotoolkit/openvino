@@ -202,6 +202,14 @@ void set_arguments_impl(ocl_kernel_type& kernel,
     }
 }
 
+std::shared_ptr<device_clock_sync> make_device_clock(const ocl_engine& engine, const ExecutionConfig& config) {
+    if (!config.get_enable_profiling())
+        return nullptr;
+
+    auto clock = std::make_shared<device_clock_sync>(engine.get_cl_device());
+    return clock->is_valid() ? clock : nullptr;
+}
+
 }  // namespace
 
 ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config)
@@ -226,9 +234,7 @@ ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config)
     queue_builder.set_supports_queue_families(queue_families_extension);
 
     _command_queue = queue_builder.build(context, device);
-    if (config.get_enable_profiling()) {
-        _device_clock = std::make_shared<device_clock_sync>(_engine.get_cl_device());
-    }
+    _device_clock = make_device_clock(_engine, config);
 }
 
 ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config, void *handle)
@@ -236,9 +242,7 @@ ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config, 
     , _engine(engine) {
     auto* casted_handle = static_cast<cl_command_queue>(handle);
     _command_queue = ocl_queue_type(casted_handle, true);
-    if (config.get_enable_profiling()) {
-        _device_clock = std::make_shared<device_clock_sync>(_engine.get_cl_device());
-    }
+    _device_clock = make_device_clock(_engine, config);
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU

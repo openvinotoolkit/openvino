@@ -60,6 +60,11 @@ device_clock_sync::anchor device_clock_sync::sample(const cl::Device& device) {
     return best;
 }
 
+bool device_clock_sync::is_valid() const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_base.valid;
+}
+
 void device_clock_sync::refresh_if_stale(std::chrono::nanoseconds min_interval) {
     {
         std::lock_guard<std::mutex> lock(m_mutex);
