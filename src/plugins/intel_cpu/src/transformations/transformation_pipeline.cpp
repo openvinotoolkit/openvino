@@ -146,10 +146,9 @@
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
 // CPU specific transformations
-#include "transformations/cpu_opset/common/pass/convert_to_paged_selective_ssm.hpp"
+#include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/ngram_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/permute_slice_n_interpolation.hpp"
-#include "transformations/cpu_opset/common/pass/preserve_paged_selective_ssm_metadata_precision.hpp"
 #include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
 #include "transformations/cpu_opset/convert_to_cpu_specific_opset.hpp"
@@ -622,12 +621,13 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         CPU_LPT_SCOPE(LowPrecisionTransformations_Part2);
         CPU_REGISTER_PASS_COMMON(manager, ov::pass::low_precision::ConvertSubtractConstant, defaultPrecisions);
     }
-    // Common ConvertPrecision pass handles only a limited set of OpenVINO operations to match the precisions supported
-    // by the plugin. The preservation pass aligns unsupported extension outputs with that policy while keeping exact
-    // i64 values on PagedSelectiveSSM metadata paths.
+    // Common ConvertPrecision pass handles only a limited set of opevino operations to match the list of precisions
+    // supported by the plugin. However, if the extension operation produces an output precision that is not natively
+    // supported, this may lead to inconsistency during element type propagation. This transformation is called before
+    // the ConvertPrecision pass to align the actual precisions with the list of supported ones.
     constexpr bool convert_input_output_precision = false;
-    CPU_REGISTER_PASS_COMMON(manager, PreservePagedSelectiveSSMMetadataPrecision);
-    // Do not insert pass::Validate between pass::PreservePagedSelectiveSSMMetadataPrecision and pass::ConvertPrecision.
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::InsertConvertAfterExtension, convert_input_output_precision);
+    // Do not insert pass::Validate between pass::InsertConvertAfterExtension and pass::ConvertPrecision.
     // This may result in the loss of the original Element type of the Output .
     // element type convert is disabled.
     CPU_REGISTER_PASS_COMMON(manager,
@@ -680,7 +680,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         }
     };
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPagedAttnInputs, cacheConfig, update_paged_attention_shape_func);
-    CPU_REGISTER_PASS_COMMON(manager, ConvertToPagedSelectiveSSM);
     CPU_REGISTER_PASS_COMMON(manager, SwapConvertTranspose);
     CPU_REGISTER_PASS_X64(manager, ConvertToInteraction);
     CPU_REGISTER_PASS_X64(manager, ConvertInteractionInt8);

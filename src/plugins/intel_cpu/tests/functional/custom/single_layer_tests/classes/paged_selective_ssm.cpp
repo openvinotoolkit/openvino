@@ -748,51 +748,6 @@ TEST_P(PagedSelectiveSSMLayerTest, Inference) {
     CheckNumberOfNodesWithType(runtime_model, {"Loop"}, 0);
 }
 
-TEST(PagedSelectiveSSMFunctionalTest, PreservesLargeI64MetadataDuringExecution) {
-    constexpr size_t token_count = 3;
-    constexpr size_t physical_block_count = 3;
-    constexpr int64_t large_processed_token_count = int64_t{1} << 32;
-    constexpr float untouched_state = -100.F;
-
-    auto model = make_paged_validation_model(token_count, physical_block_count, ov::element::i64);
-    ov::Core core;
-    auto compiled_model = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
-    auto request = compiled_model.create_infer_request();
-    const auto set_input = [&](ov::intel_cpu::PagedSelectiveSSMInputPort port, const ov::Tensor& tensor) {
-        request.set_input_tensor(ov::intel_cpu::input_port_index(port), tensor);
-    };
-
-    set_input(ov::intel_cpu::PagedSelectiveSSMInputPort::A, make_f32_tensor({1}, {-0.2F}));
-    set_input(ov::intel_cpu::PagedSelectiveSSMInputPort::TimeStep,
-              make_f32_tensor({token_count, 1}, {0.1F, 0.1F, 0.1F}));
-    set_input(ov::intel_cpu::PagedSelectiveSSMInputPort::InputProjection,
-              make_f32_tensor({token_count, 1, 1}, {0.2F, 0.2F, 0.2F}));
-    set_input(ov::intel_cpu::PagedSelectiveSSMInputPort::Input,
-              make_f32_tensor({token_count, 1, 1}, {0.3F, 0.3F, 0.3F}));
-    set_input(ov::intel_cpu::PagedSelectiveSSMInputPort::OutputProjection,
-              make_f32_tensor({token_count, 1, 1}, {0.4F, 0.4F, 0.4F}));
-    set_input(ov::intel_cpu::PagedSelectiveSSMInputPort::State,
-              make_f32_tensor({physical_block_count, 1, 1, 1}, {0.F, untouched_state, untouched_state}));
-    set_input(ov::intel_cpu::PagedSelectiveSSMInputPort::SubsequenceBegins,
-              make_index_tensor(std::vector<int64_t>{0, token_count}, ov::element::i64));
-    set_input(ov::intel_cpu::PagedSelectiveSSMInputPort::BlockIndices,
-              make_index_tensor(std::vector<int64_t>{0, 1, 2}, ov::element::i64));
-    set_input(ov::intel_cpu::PagedSelectiveSSMInputPort::BlockIndicesBegins,
-              make_index_tensor(std::vector<int64_t>{0, physical_block_count}, ov::element::i64));
-    set_input(ov::intel_cpu::PagedSelectiveSSMInputPort::NumProcessedTokens,
-              make_index_tensor(std::vector<int64_t>{large_processed_token_count}, ov::element::i64));
-    set_input(ov::intel_cpu::PagedSelectiveSSMInputPort::CacheInterval,
-              make_index_tensor(std::vector<int64_t>{3}, ov::element::i64));
-
-    request.infer();
-
-    const auto state_port = ov::intel_cpu::input_port_index(ov::intel_cpu::PagedSelectiveSSMInputPort::State);
-    const auto state = request.get_tensor(model->get_parameters().at(state_port));
-    ASSERT_EQ(state.get_size(), physical_block_count);
-    EXPECT_NE(state.data<const float>()[1], untouched_state);
-    EXPECT_NE(state.data<const float>()[2], untouched_state);
-}
-
 TEST(PagedSelectiveSSMFunctionalTest, RejectsMalformedMetadataBeforeExecution) {
     struct MetadataCase {
         const char* name;
