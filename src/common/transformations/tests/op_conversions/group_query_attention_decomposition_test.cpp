@@ -268,12 +268,12 @@ TEST(GroupQueryAttentionOpValidation, rejects_local_window_size_zero) {
                     testing::HasSubstr("local_window_size must be -1"));
 }
 
-TEST(GroupQueryAttentionOpValidation, rejects_static_multi_token_windowed_cache) {
-    // A statically-known sequence_length > 1 with a windowed cache may cross an eviction at runtime
-    // (the unmodeled staging regime), so it is rejected up front.
-    OV_EXPECT_THROW(make_gqa_op(1, /*seq*/ 4, 8, /*window*/ 2, /*swc*/ true),
-                    ov::NodeValidationFailure,
-                    testing::HasSubstr("single-token decode"));
+TEST(GroupQueryAttentionOpValidation, allows_static_multi_token_windowed_cache) {
+    // A statically-known sequence_length > 1 with a windowed cache (e.g. a fixed-size prefill/context
+    // graph) takes the same staging branch a dynamic sequence_length resolving to the same runtime value
+    // would, so it is not rejected: whether a step crosses a window eviction is a runtime property
+    // (derived from seqlens_k), not something decidable - or worth gating - from the static shape alone.
+    EXPECT_NO_THROW(make_gqa_op(1, /*seq*/ 4, 8, /*window*/ 2, /*swc*/ true));
 }
 
 TEST(GroupQueryAttentionOpValidation, rejects_static_batch_greater_than_one) {
