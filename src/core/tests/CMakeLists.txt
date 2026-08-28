@@ -187,14 +187,18 @@ endif()
 
 ov_build_target_faster(${TARGET_NAME} PCH)
 
-if(ENABLE_TESTS_PER_SOURCE)
-    set(BENCHMARK_TARGET_NAME ov_file_load_benchmark)
-    add_executable(${BENCHMARK_TARGET_NAME} EXCLUDE_FROM_ALL
-        ${CMAKE_CURRENT_SOURCE_DIR}/file_load_benchmark.cpp)
-    target_link_libraries(${BENCHMARK_TARGET_NAME} PRIVATE
+# - standalone per-source executable,
+# - excluded from ov_core_unit_tests.
+# - ENABLE_TESTS_PER_SOURCE has to be set to ON else no-op
+# - new target name ov_file_load_benchmark -> ov_core_unit_tests_file_load_benchmark
+ov_add_test_target_per_source(
+    NAME ${TARGET_NAME}
+    SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/file_load_benchmark.cpp
+    LINK_LIBRARIES
         common_test_utils
-        openvino::util)
-    target_include_directories(${BENCHMARK_TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-endif()
+        openvino::util
+    INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}
+    LABELS OV UNIT CORE
+)
 
 add_subdirectory(frontend)
