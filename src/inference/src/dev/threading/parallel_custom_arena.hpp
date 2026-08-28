@@ -121,12 +121,17 @@ using binding_oberver_ptr = std::unique_ptr<binding_observer, binding_observer_d
 
 #    if defined(_WIN32)
 // Spreads streams across Windows processor groups without core pinning: soft-binds an entering thread
-// to a processor group (full group mask) and restores its previous group affinity on scheduler exit.
+// to a processor group (full active mask) and restores its previous group affinity on scheduler exit.
 class group_affinity_observer : public tbb::task_scheduler_observer {
-    int my_group_id;
+    GROUP_AFFINITY my_group_affinity{};
+    bool my_valid = false;
 
 public:
     group_affinity_observer(tbb::task_arena& ta, int group_id);
+
+    bool valid() const {
+        return my_valid;
+    }
 
     void on_scheduler_entry(bool) override;
     void on_scheduler_exit(bool) override;

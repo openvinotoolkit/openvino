@@ -228,46 +228,59 @@ static binding_oberver_ptr construct_binding_observer(tbb::task_arena& ta, int n
 #    endif  // USE_TBBBIND_2_5
 
 #    if defined(_WIN32)
-// Previous group affinity per worker thread so each shared TBB worker restores its own state on exit.
-static thread_local GROUP_AFFINITY g_prev_group_affinity;
-static thread_local bool g_has_prev_group_affinity = false;
+// LIFO stack of previous group affinities per worker thread, so nested group arenas restore correctly.
+static thread_local std::vector<GROUP_AFFINITY> g_prev_group_affinity_stack;
 
-group_affinity_observer::group_affinity_observer(tbb::task_arena& ta, int group_id)
-    : tbb::task_scheduler_observer(ta),
-      my_group_id(group_id) {}
+// Query the authoritative active processor mask of a processor group; Windows does not guarantee the
+// active processors form a contiguous low-bit range, so the mask cannot be reconstructed from a count.
+static bool get_group_active_affinity(WORD group_id, GROUP_AFFINITY& group_affinity) {
+    DWORD len = 0;
+    if (GetLogicalProcessorInformationEx(RelationGroup, nullptr, &len) || GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+        return false;
+    }
+    std::vector<char> buffer(len);
+    auto* info = reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(buffer.data());
+    if (!GetLogicalProcessorInformationEx(RelationGroup, info, &len) || info->Relationship != RelationGroup) {
+        return false;
+    }
+    if (group_id >= info->Group.ActiveGroupCount) {
+        return false;
+    }
+    group_affinity = GROUP_AFFINITY{};
+    group_affinity.Group = group_id;
+    group_affinity.Mask = info->Group.GroupInfo[group_id].ActiveProcessorMask;
+    return true;
+}
+
+group_affinity_observer::group_affinity_observer(tbb::task_arena& ta, int group_id) : tbb::task_scheduler_observer(ta) {
+    my_valid = group_id >= 0 && get_group_active_affinity(static_cast<WORD>(group_id), my_group_affinity);
+}
 
 void group_affinity_observer::on_scheduler_entry(bool) {
-    const DWORD group_processors = GetActiveProcessorCount(static_cast<WORD>(my_group_id));
-    if (group_processors == 0) {
-        return;
-    }
-    GROUP_AFFINITY group_affinity;
-    group_affinity.Group = static_cast<WORD>(my_group_id);
-    group_affinity.Mask = (group_processors >= sizeof(KAFFINITY) * CHAR_BIT)
-                              ? ~static_cast<KAFFINITY>(0)
-                              : ((static_cast<KAFFINITY>(1) << group_processors) - 1);
-    group_affinity.Reserved[0] = 0;
-    group_affinity.Reserved[1] = 0;
-    group_affinity.Reserved[2] = 0;
-    GROUP_AFFINITY previous_affinity;
-    if (SetThreadGroupAffinity(GetCurrentThread(), &group_affinity, &previous_affinity)) {
-        g_prev_group_affinity = previous_affinity;
-        g_has_prev_group_affinity = true;
+    GROUP_AFFINITY previous_affinity{};
+    if (SetThreadGroupAffinity(GetCurrentThread(), &my_group_affinity, &previous_affinity)) {
+        g_prev_group_affinity_stack.push_back(previous_affinity);
+    } else if (GetThreadGroupAffinity(GetCurrentThread(), &previous_affinity)) {
+        // Keep entry/exit balanced even if the bind failed: restoring this value on exit is a no-op.
+        g_prev_group_affinity_stack.push_back(previous_affinity);
     }
 }
 
 void group_affinity_observer::on_scheduler_exit(bool) {
-    if (g_has_prev_group_affinity) {
-        SetThreadGroupAffinity(GetCurrentThread(), &g_prev_group_affinity, NULL);
-        g_has_prev_group_affinity = false;
+    if (!g_prev_group_affinity_stack.empty()) {
+        SetThreadGroupAffinity(GetCurrentThread(), &g_prev_group_affinity_stack.back(), NULL);
+        g_prev_group_affinity_stack.pop_back();
     }
 }
 
 static group_affinity_observer_ptr construct_group_affinity_observer(tbb::task_arena& ta, const constraints& c) {
     group_affinity_observer_ptr observer{};
     if (c.processor_group >= 0 && GetActiveProcessorGroupCount() > 1) {
-        observer.reset(new group_affinity_observer{ta, c.processor_group});
-        observer->observe(true);
+        group_affinity_observer_ptr candidate{new group_affinity_observer{ta, c.processor_group}};
+        if (candidate->valid()) {
+            candidate->observe(true);
+            observer = std::move(candidate);
+        }
     }
     return observer;
 }
