@@ -148,7 +148,6 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
 #endif
 }
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
 static int get_feature_block_size(const cldnn::format& fmt) {
     const auto& order = cldnn::format::internal_order(fmt);
     int f_bs = 1;
@@ -160,7 +159,17 @@ static int get_feature_block_size(const cldnn::format& fmt) {
     }
     return f_bs;
 }
-#endif // ENABLE_ONEDNN_FOR_GPU
+
+// True when the format pads the feature axis up to a block boundary and the logical feature
+// count does not fill the last block, i.e. the allocation contains physical lanes that no
+// kernel ever writes. Those lanes are zero right after alloc_memory(), and a consumer that
+// reads whole feature blocks (oneDNN, and the blocked OCL convolution kernels) relies on it.
+static bool has_unwritten_feature_lanes(const cldnn::layout& l) {
+    if (!cldnn::format::is_blocked(l.format))
+        return false;
+    const int f_bs = get_feature_block_size(l.format);
+    return f_bs > 1 && (l.feature() % f_bs) != 0;
+}
 
 memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
                                                   const primitive_id& prim_id,
@@ -171,9 +180,6 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
                                                   bool reset,
                                                   bool is_dynamic) {
     const auto layout_bytes_count = layout.bytes_count();
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    const int f_block_size = get_feature_block_size(layout.format);
-#endif // ENABLE_ONEDNN_FOR_GPU
     auto it = _non_padded_pool.lower_bound(layout_bytes_count);
     while (it != _non_padded_pool.end()) {
         const auto& mem_layout = it->second._memory->get_layout();
@@ -184,11 +190,16 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
             layout.format != format::fs_b_yx_fsv32 &&
             ((layout.format != format::b_fs_yx_fsv32 && layout.format != format::b_fs_zyx_fsv32) ||
              (layout.feature() % 32 == 0)) &&
-#ifdef ENABLE_ONEDNN_FOR_GPU
-            (!format::is_blocked(layout.format) || layout.feature() % f_block_size == 0 ||
-             (mem_layout.format == layout.format &&
-              mem_layout.feature() % f_block_size == layout.feature() % f_block_size)) &&
-#endif // ENABLE_ONEDNN_FOR_GPU
+            // A blocked layout whose feature count does not fill the last block owns physical
+            // lanes that its producer never writes; consumers that read whole feature blocks
+            // require them to stay zero. This pool matches records by byte size alone, so a
+            // record written by a differently shaped tenant would place that tenant's data
+            // inside our unwritten lanes. Only an identical layout is safe: both tenants then
+            // write the same region and leave the same lanes at the zeros alloc_memory() put
+            // there. (The old guard was oneDNN-only and accepted any record with a matching
+            // feature remainder, which still differs in lane offsets once the spatial dims
+            // differ.)
+            (!has_unwritten_feature_lanes(layout) || mem_layout == layout) &&
             !has_conflict(it->second._users, restrictions))) {
             it->second._users.insert(memory_user(MEM_USER(unique_id, network_id, prim_id, layout_bytes_count)));
             auto ret_mem = _engine->reinterpret_buffer(*it->second._memory, layout);
@@ -222,24 +233,23 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
                                               uint32_t network_id,
                                               const memory_restricter<uint32_t>& restrictions,
                                               allocation_type type) {
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    const int f_block_size = get_feature_block_size(layout.format);
-#endif // ENABLE_ONEDNN_FOR_GPU
     auto first_level_cache = _padded_pool.find(layout);
     if (first_level_cache != _padded_pool.end()) {
         for (auto& rec_list : first_level_cache->second) {
             const auto& mem_layout = rec_list._memory->get_layout();
             if (rec_list._network_id == network_id &&
                 rec_list._type == type &&
-                ((layout.format != format::b_fs_yx_fsv32 && layout.format != format::b_fs_zyx_fsv32) ||
-                 (layout.feature() % 32 == 0)) &&
-#ifdef ENABLE_ONEDNN_FOR_GPU
-                (!format::is_blocked(layout.format) || layout.feature() % f_block_size == 0 ||
-                 mem_layout.feature() % f_block_size == layout.feature() % f_block_size) &&
-#endif // ENABLE_ONEDNN_FOR_GPU
-                // TODO: check if this condition always correct
-                layout.feature() <= mem_layout.feature() &&
-                layout.batch() <= mem_layout.batch() &&
+                // A padded buffer may only be reused by a request with the *same* layout.
+                // padded_pool_comparer keys this pool on format / data_type / spatial(0) /
+                // spatial(1) / data_padding only, so one bucket holds records that differ in
+                // batch, feature and z, and this list used to accept any record with
+                // feature()/batch() >= the request. Two tenants with different feature counts
+                // address the same allocation with different strides, so one tenant's data
+                // region lands inside the other's padding halo - and nothing ever writes zeros
+                // back into it, leaving a padded convolution reading garbage in its border
+                // ring. An exact match means the halo is written by nobody and keeps the zeros
+                // that alloc_memory() put there, at no per-iteration cost.
+                mem_layout == layout &&
                 mem_layout.format != format::fs_b_yx_fsv32 &&
                 layout.format != format::fs_b_yx_fsv32 &&
                 !has_conflict(rec_list._users, restrictions)) {
