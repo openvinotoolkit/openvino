@@ -252,13 +252,22 @@ static bool get_group_active_affinity(WORD group_id, GROUP_AFFINITY& group_affin
     return true;
 }
 
-group_affinity_observer::group_affinity_observer(tbb::task_arena& ta, int group_id) : tbb::task_scheduler_observer(ta) {
-    my_valid = group_id >= 0 && get_group_active_affinity(static_cast<WORD>(group_id), my_group_affinity);
+group_affinity_observer::group_affinity_observer(tbb::task_arena& ta, int group_id)
+    : tbb::task_scheduler_observer(ta),
+      my_group_id(group_id) {
+    GROUP_AFFINITY group_affinity{};
+    if (group_id >= 0 && get_group_active_affinity(static_cast<WORD>(group_id), group_affinity)) {
+        my_group_mask = static_cast<uint64_t>(group_affinity.Mask);
+        my_valid = true;
+    }
 }
 
 void group_affinity_observer::on_scheduler_entry(bool) {
+    GROUP_AFFINITY group_affinity{};
+    group_affinity.Group = static_cast<WORD>(my_group_id);
+    group_affinity.Mask = static_cast<KAFFINITY>(my_group_mask);
     GROUP_AFFINITY previous_affinity{};
-    if (SetThreadGroupAffinity(GetCurrentThread(), &my_group_affinity, &previous_affinity)) {
+    if (SetThreadGroupAffinity(GetCurrentThread(), &group_affinity, &previous_affinity)) {
         g_prev_group_affinity_stack.push_back(previous_affinity);
     } else if (GetThreadGroupAffinity(GetCurrentThread(), &previous_affinity)) {
         // Keep entry/exit balanced even if the bind failed: restoring this value on exit is a no-op.
