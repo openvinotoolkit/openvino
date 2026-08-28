@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "lstm_seq_inst.h"
 #include "rnn_seq.hpp"
+
 #include "lstm/lstm_cell_and_seq_kernel_selector.h"
 #include "lstm/lstm_kernel_base.h"
+#include "lstm_seq_inst.h"
 #include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/util/rnn_cell_base.hpp"
+#include "primitive_base.hpp"
 #include "registry/implementation_manager.hpp"
 
 namespace cldnn {
@@ -55,20 +56,23 @@ public:
         if (!primitive->activations.empty()) {
             auto a_sz = primitive->activations.size();
             auto param_sz = primitive->activation_params.size();
-            OPENVINO_ASSERT(param_sz == 0|| a_sz == param_sz, "[GPU] Unexpected activation params count in lstm_seq impl: ", param_sz);
+            OPENVINO_ASSERT(param_sz == 0 || a_sz == param_sz, "[GPU] Unexpected activation params count in lstm_seq impl: ", param_sz);
             for (size_t i = 0; i < a_sz; i++) {
                 params.activations.emplace_back(get_kernel_selector_activation_param(primitive->activations[i]),
-                                                         param_sz ? primitive->activation_params[i].a : 0.0f,
-                                                         param_sz ? primitive->activation_params[i].b : 0.0f);
+                                                param_sz ? primitive->activation_params[i].a : 0.0f,
+                                                param_sz ? primitive->activation_params[i].b : 0.0f);
             }
         }
 
-        if (primitive->clip > 0.0f) {
-            params.activations.emplace_back(get_kernel_selector_activation_param(activation_func::clamp), -primitive->clip, primitive->clip);
+        // Only a finite positive clip yields usable bounds; 0, inf and NaN must all leave the kernel unclamped,
+        // so normalize them to 0 instead of forwarding a value the clamp activation cannot express.
+        const float clip = ov::op::util::classify_rnn_clip(primitive->clip) == ov::op::util::RNNClipMode::CLAMP ? primitive->clip : 0.0f;
+        if (clip > 0.0f) {
+            params.activations.emplace_back(get_kernel_selector_activation_param(activation_func::clamp), -clip, clip);
         }
 
         params.SetOffsetOrder(static_cast<int32_t>(primitive->offset_order));
-        params.clip = primitive->clip;
+        params.clip = clip;
         params.direction = primitive->direction;
         return params;
     }
