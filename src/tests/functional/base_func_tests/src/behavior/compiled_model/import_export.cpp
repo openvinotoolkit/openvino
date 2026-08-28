@@ -303,7 +303,8 @@ TEST_P(OVClassCompiledModelImportExportTestP, smoke_ImportNetworkThrowWithDevice
     // Import model with wrong format throws exception
     OV_EXPECT_THROW((ie.import_model(wrongStm, target_device)),
                     ov::Exception,
-                    testing::HasSubstr("device xml header"));
+                    testing::AnyOf(testing::HasSubstr("device xml header"),
+                                   testing::HasSubstr("requirements header")));
 }
 
 //

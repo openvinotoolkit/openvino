@@ -347,6 +347,13 @@ void ensure_hfa_requests(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
         const auto tile_input = hfa->_compiled_tile_model->inputs()[input_idx];
         const auto final_tile_input = hfa->_compiled_final_tile_model->inputs()[input_idx];
 
+        // Regular tile KV inputs (f16) differ from final tile KV inputs (f32).
+        // Skip sharing for mismatched dtypes — those ports will be set per-tile
+        // in process_tile at runtime.
+        if (tile_input.get_element_type() != final_tile_input.get_element_type()) {
+            continue;
+        }
+
         auto main_tensor = state.base_request->get_tensor(final_tile_input);
         state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE]->set_tensor(tile_input, main_tensor);
 
@@ -368,6 +375,9 @@ void ensure_hfa_requests(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
         });
 
     const auto& tile_in = hfa->_sdpa_attention_info._tile_input_indices;
+    const auto n_tile_in = hfa->_compiled_tile_model->inputs().size();
+    OPENVINO_ASSERT(tile_in.acc < n_tile_in && tile_in.max < n_tile_in && tile_in.d < n_tile_in,
+                    "HFA tile input index out of range");
     auto state_acc = state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE]->get_tensor(
         hfa->_compiled_tile_model->inputs()[tile_in.acc]);
     auto state_max = state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE]->get_tensor(
@@ -546,6 +556,8 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                      !get_request(ctx).attention_no_copy();
                                 if (do_copy && ov::shape_size(shape) > 0) {
                                     const auto& dst = ctx.target_request->get_tensor(iport);
+                                    NPUW_ASSERT(dst._ptr && "target request returned null tensor for KV param port — "
+                                                            "request may be uninitialized");
                                     dst->set_shape(shape);
                                     view->copy_to(dst._ptr);
                                 } else if (do_copy && ov::shape_size(shape) == 0) {
@@ -742,6 +754,9 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                 ctx.target_request->set_tensor(mask_iport, view);
                             } else {
                                 const auto& dst = ctx.target_request->get_tensor(mask_iport);
+                                NPUW_ASSERT(
+                                    dst._ptr &&
+                                    "target request returned null tensor for mask port — request may be uninitialized");
                                 dst->set_shape(view->get_shape());
                                 view->copy_to(dst._ptr);
                             }
@@ -775,11 +790,15 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                      ATTN_KV_DIM,
                                                      full_mask_shape[ATTN_KV_DIM] - present_len,
                                                      present_len);
+                            NPUW_ASSERT(present_dst_view._ptr && "null tensor view for present mask segment — target "
+                                                                 "request tensor may be uninitialized or zero-sized");
                             present_src_view->copy_to(present_dst_view._ptr);
 
                             if (past_len > 0) {
                                 const auto& past_dst_view = ov::npuw::util::view(dst, ATTN_KV_DIM, 0, past_len);
                                 const auto& past_src_view = ov::npuw::util::view(graph_mask, ATTN_KV_DIM, 0, past_len);
+                                NPUW_ASSERT(past_dst_view._ptr && "null tensor view for past mask segment — target "
+                                                                  "request tensor may be uninitialized or zero-sized");
                                 past_src_view->copy_to(past_dst_view._ptr);
                             }
                             state.cached_attention_mask = dst;
@@ -792,7 +811,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         const auto pyramid_id = state.pyramid_selector->pyramid_id();
                         const std::size_t dyn_mask_idx = pyramid->mask_idx_at(pyramid_id);
                         const std::size_t dyn_query_size = pyramid->query_size_at(pyramid_id);
-                        auto mask_iport = pyramid->_compiled_models[pyramid_id]->inputs()[dyn_mask_idx];
+                        auto mask_iport = pyramid->_compiled_models[pyramid_id]->inputs().at(dyn_mask_idx);
                         const auto& graph_mask = io.inputs.at(dyn_mask_idx);
                         const auto this_case = state.pyramid_selector->this_case();
                         const auto present_len = dyn_query_size;
@@ -905,6 +924,13 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             final_tile_request->get_tensor(hfa_desc->_compiled_final_tile_model->outputs()[0]);
                         const auto& tile_in = sdpa_info._tile_input_indices;
                         const auto& tile_out = sdpa_info._tile_output_indices;
+                        const auto n_in = hfa_desc->_compiled_tile_model->inputs().size();
+                        const auto n_out = hfa_desc->_compiled_tile_model->outputs().size();
+                        OPENVINO_ASSERT(
+                            tile_in.q < n_in && tile_in.acc < n_in && tile_in.max < n_in && tile_in.d < n_in,
+                            "HFA tile input index out of range");
+                        OPENVINO_ASSERT(tile_out.acc < n_out && tile_out.max < n_out && tile_out.d < n_out,
+                                        "HFA tile output index out of range");
 
                         ov::SoPtr<ov::ITensor> state_acc, state_max, state_sum;
                         if (state.hfa_runtime_ctx && state.hfa_runtime_ctx->has_state_buffers()) {
@@ -977,6 +1003,12 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                            tile_length)) {
                                 request->set_tensor(model->inputs()[tile_in.k], k_source);
                             } else if (hfa_desc->_can_use_tensor_view) {
+                                OPENVINO_ASSERT(k_tile_buffer->get_element_type() == k_source->get_element_type(),
+                                                "HFA K tile dtype mismatch: source=",
+                                                k_source->get_element_type(),
+                                                " tile_buffer=",
+                                                k_tile_buffer->get_element_type(),
+                                                ".  Tile model was not constructed with the correct KV dtype.");
                                 request->set_tensor(model->inputs()[tile_in.k],
                                                     ov::npuw::util::view(k_source, K_SEQ_DIM, kv_offset, tile_length));
                             } else {
@@ -990,6 +1022,12 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                            tile_length)) {
                                 request->set_tensor(model->inputs()[tile_in.v], v_source);
                             } else if (hfa_desc->_can_use_tensor_view) {
+                                OPENVINO_ASSERT(v_tile_buffer->get_element_type() == v_source->get_element_type(),
+                                                "HFA V tile dtype mismatch: source=",
+                                                v_source->get_element_type(),
+                                                " tile_buffer=",
+                                                v_tile_buffer->get_element_type(),
+                                                ".  Tile model was not constructed with the correct KV dtype.");
                                 request->set_tensor(model->inputs()[tile_in.v],
                                                     ov::npuw::util::view(v_source, V_SEQ_DIM, kv_offset, tile_length));
                             } else {
@@ -1202,22 +1240,25 @@ void serialize_compiled_state(v1::subgraphs::Context& context,
                 std::string model_str = ss.str();
                 stream & model_str;
             }
-        } else if (num_models > 0) {
+        } else {
             mutable_pyramid->_compiled_models.resize(num_models);
-            NPUW_ASSERT(submodel_ctx != nullptr);
-            for (size_t i = 0; i < num_models - 1; ++i) {
-                std::string model_str;
-                stream & model_str;
-                std::stringstream ss(model_str);
-                mutable_pyramid->_compiled_models[i] =
-                    submodel_ctx->plugin->get_core()->import_model(ss,
-                                                                   submodel_ctx->device,
-                                                                   submodel_ctx->import_config);
+            if (num_models > 0) {
+                NPUW_ASSERT(submodel_ctx != nullptr);
+                for (size_t i = 0; i < num_models - 1; ++i) {
+                    std::string model_str;
+                    stream & model_str;
+                    std::stringstream ss(model_str);
+                    mutable_pyramid->_compiled_models[i] =
+                        submodel_ctx->plugin->get_core()->import_model(ss,
+                                                                       submodel_ctx->device,
+                                                                       submodel_ctx->import_config);
+                }
+                if (submodel_ctx->compiled_model) {
+                    mutable_pyramid->_compiled_models[num_models - 1] = submodel_ctx->compiled_model;
+                    LOG_DEBUG("Reused compiled_model for the last pyramid attention model");
+                }
             }
-            if (submodel_ctx->compiled_model) {
-                mutable_pyramid->_compiled_models[num_models - 1] = submodel_ctx->compiled_model;
-                LOG_DEBUG("Reused compiled_model for the last pyramid attention model");
-            }
+            mutable_pyramid->validate_port_indices();
         }
     }
 

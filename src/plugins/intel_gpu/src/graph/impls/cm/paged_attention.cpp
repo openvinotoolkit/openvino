@@ -132,7 +132,7 @@ public:
     void update_xattn_rt_params(const primitive_inst& instance) {
         const auto& params = *instance.get_impl_params();
         const auto desc = params.typed_desc<paged_attention>();
-        auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
+        auto* rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
 
         const size_t block_size = get_xattn_block_size(params);
         const uint32_t block_wg_n = XAttentionEstimateGeneratorBase::get_block_wg_n(params);
@@ -254,7 +254,7 @@ public:
 
         const auto& params = *instance.get_impl_params();
         OPENVINO_ASSERT(!params.is_dynamic());
-        auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
+        auto* rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         const auto& desc = params.typed_desc<paged_attention>();
         rt_params->batch_size_in_sequences = get_batch_size_in_sequences(params.input_layouts);
         rt_params->single_token_selected_count = 0;
@@ -331,7 +331,7 @@ public:
 
     void prepare_multi_token_mapping(primitive_inst& instance) {
         const auto& params = *instance.get_impl_params();
-        auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
+        auto* rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         OPENVINO_ASSERT(rt_params != nullptr);
         if (rt_params->multi_token_wg_count == 0) {
             return;
@@ -374,7 +374,7 @@ public:
     }
 
     void prepare_single_token_selected_ids(primitive_inst& instance) {
-        auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
+        auto* rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         OPENVINO_ASSERT(rt_params != nullptr);
         OPENVINO_ASSERT(rt_params->stage == PagedAttentionStage::GENERATE, "prepare_single_token_selected_ids is expected only for generate/decode stage");
         auto& stream = instance.get_network().get_stream();
@@ -395,7 +395,7 @@ public:
 
     void prepare_split_mixed_selected_ids_and_mapping(primitive_inst& instance) {
         const auto& params = *instance.get_impl_params();
-        auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
+        auto* rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         OPENVINO_ASSERT(rt_params != nullptr);
         OPENVINO_ASSERT(rt_params->stage == PagedAttentionStage::MIXED && m_mixed_route_mode == MixedRouteMode::SPLIT,
                         "prepare_split_mixed_selected_ids_and_mapping must be used only in split mixed mode");
@@ -505,7 +505,7 @@ public:
     }
 
     void prepare_xattn_metadata(primitive_inst& instance) {
-        auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
+        auto* rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         OPENVINO_ASSERT(rt_params != nullptr);
         if (!rt_params->enable_xattn_estimation || m_xattn_meta.empty())
             return;
@@ -550,7 +550,7 @@ public:
         const auto desc = params.typed_desc<paged_attention>();
 
         update_stages_flags(instance);
-        auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
+        auto* rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         OPENVINO_ASSERT(rt_params != nullptr);
 
         GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::execute():  stage = " << static_cast<int>(rt_params->stage) << std::endl;
@@ -643,7 +643,7 @@ public:
         std::vector<BufferDescriptor> internal_buffers;
 
         const auto desc = params.typed_desc<paged_attention>();
-        auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
+        auto* rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         // Assume rt_params are updated, because get_internal_buffer_descs surely occurs after update_rt_params.
         OPENVINO_ASSERT(rt_params != nullptr);
 
@@ -800,7 +800,7 @@ private:
         constexpr int32_t block_size_128 = 128;
         constexpr int32_t block_size_256 = 256;
 
-        const auto rt_params = static_cast<const PagedAttentionRuntimeParams*>(m_rt_params.get());
+        const auto* const rt_params = static_cast<const PagedAttentionRuntimeParams*>(m_rt_params.get());
         OPENVINO_ASSERT(rt_params != nullptr, "PagedAttention runtime params are not initialized");
         OPENVINO_ASSERT(rt_params->enable_xattn_estimation, "XAttention block size must be accessed only when enable_xattn_estimation is true");
 

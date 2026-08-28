@@ -17,7 +17,7 @@ void basic_memory_dependencies::run(program& p) {
     auto itr = p.get_processing_order().begin();
     std::vector<size_t> past_outputs;
     while (itr != p.get_processing_order().end()) {
-        auto& node = *itr;
+        const auto& node = *itr;
         itr++;
 
         // data primitive can't be reused
@@ -59,7 +59,7 @@ void basic_memory_dependencies::run(program& p) {
                     }
                     root->can_share_buffer(false);
 
-                    for (auto& user : node->get_users()) {
+                    for (const auto& user : node->get_users()) {
                         add_memory_dependency(user, &eltw_node);
                         add_memory_dependency(user, node);
                     }
@@ -75,7 +75,7 @@ void basic_memory_dependencies::run(program& p) {
             past_outputs.push_back(node->get_unique_id());
             if (node->is_type<mutable_data>()) {
                 // if output is mutable data, then propagate output flag to its dependencies
-                for (auto& dep : node->get_dependencies()) {
+                for (const auto& dep : node->get_dependencies()) {
                     dep.first->set_output(true);
                 }
             }

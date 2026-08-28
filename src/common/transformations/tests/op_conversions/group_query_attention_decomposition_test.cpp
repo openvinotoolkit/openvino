@@ -38,30 +38,10 @@ constexpr int64_t NUM_HEADS = 2;
 constexpr int64_t KV_NUM_HEADS = 1;
 constexpr int64_t HEAD_SIZE = 16;
 
-// Stand-in for an absent optional input. The decomposition detects missing inputs by node description
-// ("NullNode"), matching the ONNX frontend's NullNode, so a filler must report the same description
-// rather than be a real Parameter (which would be treated as a supplied position_ids / bias / etc.).
-// Declared without the OPENVINO_OP macro so no export/visibility attributes are applied to this
-// test-local type (the macro's RTTI attributes are rejected under -Werror on some toolchains).
-class NullNode : public op::Op {
-public:
-    static const ov::DiscreteTypeInfo& get_type_info_static() {
-        static const ov::DiscreteTypeInfo info{"NullNode", "test"};
-        return info;
-    }
-    const ov::DiscreteTypeInfo& get_type_info() const override {
-        return get_type_info_static();
-    }
-    std::string description() const override {
-        return "NullNode";
-    }
-    NullNode() {
-        set_output_size(1);
-    }
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector&) const override {
-        return std::make_shared<NullNode>();
-    }
-};
+std::shared_ptr<op::v0::Constant> make_absent_optional_input() {
+    // Optional ONNX inputs are represented as an empty tensor.
+    return op::v0::Constant::create(element::dynamic, Shape{0}, {});
+}
 
 // Chainable so each test case reads as a one-liner without C++20 designated initializers.
 struct GqaParams {
@@ -75,6 +55,7 @@ struct GqaParams {
     bool smooth_softmax = false;
     bool head_sink = false;
     bool attention_bias = false;
+    Dimension bias_kv_len = Dimension::dynamic();
     Dimension past_len = Dimension::dynamic();
     Dimension seq_len = 1;
     // Expected decomposed structure.
@@ -113,8 +94,11 @@ struct GqaParams {
         expected_sdpa_inputs = 6;
         return *this;
     }
-    GqaParams& bias() {
+    // kv_len lets a case declare the bias narrower than the buffer it will be added against (e.g. a
+    // static preallocated cache wider than total_sequence_length), reproducing a kv_len/bias-width mismatch.
+    GqaParams& bias(const Dimension& kv_len = Dimension::dynamic()) {
         attention_bias = true;
+        bias_kv_len = kv_len;
         return *this;
     }
     GqaParams& shape(const Dimension& seq, const Dimension& past) {
@@ -128,7 +112,8 @@ struct GqaParams {
 std::shared_ptr<Model> make_gqa_model(const GqaParams& p) {
     const auto f32 = element::f32;
     const int64_t stored_head = p.kv_cache_bit_width == 4 ? HEAD_SIZE / 2 : HEAD_SIZE;  // 4-bit packs 2/byte
-    const std::string quant = p.kv_cache_bit_width == 0 ? "NONE" : "PER_TENSOR";
+    const auto quant = p.kv_cache_bit_width == 0 ? op::internal::GroupQueryAttentionQuantType::NONE
+                                                 : op::internal::GroupQueryAttentionQuantType::PER_TENSOR;
 
     OutputVector args;
     ParameterVector params;
@@ -139,7 +124,7 @@ std::shared_ptr<Model> make_gqa_model(const GqaParams& p) {
     };
     auto pad_to = [&](size_t idx) {
         while (args.size() < idx)
-            args.push_back(std::make_shared<NullNode>());  // absent optional input
+            args.push_back(make_absent_optional_input());  // absent optional input
     };
 
     // The internal op receives Q/K/V already transposed to [batch, heads, seq, head_size] (the ONNX FE
@@ -157,7 +142,7 @@ std::shared_ptr<Model> make_gqa_model(const GqaParams& p) {
     }
     if (p.attention_bias) {
         pad_to(10);
-        add(f32, PartialShape{1, NUM_HEADS, p.seq_len, -1});  // 10: attention_bias
+        add(f32, PartialShape{1, NUM_HEADS, p.seq_len, p.bias_kv_len});  // 10: attention_bias
     }
     if (p.head_sink) {
         pad_to(11);
@@ -210,8 +195,8 @@ std::shared_ptr<GroupQueryAttention> make_gqa_op(const Dimension& batch,
                                                  /*do_rotary*/ false,
                                                  /*rotary_interleaved*/ false,
                                                  /*kv_cache_bit_width*/ 0,
-                                                 "NONE",
-                                                 "NONE",
+                                                 op::internal::GroupQueryAttentionQuantType::NONE,
+                                                 op::internal::GroupQueryAttentionQuantType::NONE,
                                                  local_window_size,
                                                  sliding_window_cache,
                                                  /*smooth_softmax*/ false);
@@ -250,6 +235,7 @@ INSTANTIATE_TEST_SUITE_P(GroupQueryAttentionDecomposition,
                                          GqaParams{"rotary"}.rotary(),
                                          GqaParams{"rotary_interleaved"}.rotary(/*interleaved*/ true),
                                          GqaParams{"static_past_scatter"}.shape(1, 8),
+                                         GqaParams{"static_past_scatter_bias"}.shape(1, 8).bias(5),
                                          GqaParams{"sliding_window"}.window(2),
                                          GqaParams{"attention_bias"}.bias(),
                                          GqaParams{"sliding_window_bias"}.window(2).bias(),
@@ -282,12 +268,12 @@ TEST(GroupQueryAttentionOpValidation, rejects_local_window_size_zero) {
                     testing::HasSubstr("local_window_size must be -1"));
 }
 
-TEST(GroupQueryAttentionOpValidation, rejects_static_multi_token_windowed_cache) {
-    // A statically-known sequence_length > 1 with a windowed cache may cross an eviction at runtime
-    // (the unmodeled staging regime), so it is rejected up front.
-    OV_EXPECT_THROW(make_gqa_op(1, /*seq*/ 4, 8, /*window*/ 2, /*swc*/ true),
-                    ov::NodeValidationFailure,
-                    testing::HasSubstr("single-token decode"));
+TEST(GroupQueryAttentionOpValidation, allows_static_multi_token_windowed_cache) {
+    // A statically-known sequence_length > 1 with a windowed cache (e.g. a fixed-size prefill/context
+    // graph) takes the same staging branch a dynamic sequence_length resolving to the same runtime value
+    // would, so it is not rejected: whether a step crosses a window eviction is a runtime property
+    // (derived from seqlens_k), not something decidable - or worth gating - from the static shape alone.
+    EXPECT_NO_THROW(make_gqa_op(1, /*seq*/ 4, 8, /*window*/ 2, /*swc*/ true));
 }
 
 TEST(GroupQueryAttentionOpValidation, rejects_static_batch_greater_than_one) {

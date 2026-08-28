@@ -43,6 +43,18 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
     _propertiesManager = std::make_unique<CompiledModelPropertyManager>(localConfig, _graph, _batchSize, _logger);
 
+    OPENVINO_ASSERT(_graph != nullptr, "Invalid graph handle! Failed to initialize compiled model!");
+    _logger.info("The current compiled model is a %s one", to_string(_graph->get_kind()));
+
+    // Immediate-init path: when weights load is not deferred, initialize the graph now.
+    // The deferred path (CREATE_EXECUTOR off or DEFER_WEIGHTS_LOAD on) is handled in create_infer_request().
+    const FilteredConfig& modelConfig = _propertiesManager->getConfig();
+    if (modelConfig.get<CREATE_EXECUTOR>() && !modelConfig.get<DEFER_WEIGHTS_LOAD>()) {
+        _graph->initialize(modelConfig);
+    } else {
+        _logger.info("Graph initialize is deferred; weights will be loaded on the first infer request creation.");
+    }
+
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
 }
 
@@ -136,7 +148,8 @@ void CompiledModel::export_model(std::ostream& stream) const {
                                            outputLayouts,
                                            compilerVersion,
                                            blobSizeAfterEncryption,
-                                           _graph->get_compatibility_descriptor())
+                                           _graph->get_compatibility_descriptor(),
+                                           _graph->get_blob_type())
             .write(stream);
     }
 }
