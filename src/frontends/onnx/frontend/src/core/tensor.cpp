@@ -519,6 +519,7 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
         if (shape_elements == 0 && !m_shape.empty()) {
             constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, std::vector<uint8_t>{});
         } else {
+            // A failsafe constant holds no external data, so it has no offset there
             has_weightless_offset = false;
             constant = common::make_failsafe_constant(ov_type);
         }
