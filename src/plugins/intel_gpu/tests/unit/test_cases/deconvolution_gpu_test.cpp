@@ -3159,6 +3159,158 @@ TEST(deconvolution_gpu_onednn, spatial_1d) {
     }
 }
 
+// Regression test for a GPU-only functional bug found while debugging silent/attenuated audio
+// output from MiniMax-H3's audio VAE decoder on GPU (see
+// pack_minimax_h3_bundle/minimax_h3_gpu_blank_video_silent_audio_handoff_zh.md). The decoder's
+// Snake/anti-alias-filter upsample stage is a 1D depthwise (groups == channels)
+// GroupConvolutionBackpropData with kernel_size(12) > stride(2), fed with a dynamic-length input
+// (1D op mapped to a 2D cldnn primitive with a single-element ov::Strides, matching how
+// ProgramBuilder::CreateGroupConvolutionBackpropDataOp constructs it for a dynamic-shape 1D op --
+// see src/plugins/intel_gpu/src/plugin/ops/convolution.cpp). For any output position, a correctly
+// implemented deconv must overlap-add contributions from multiple input samples whenever
+// kernel_size > stride; the observed regression left every other output element exactly zero,
+// as if only a single kernel tap were ever applied per output position (both the specialized
+// b_fs_zyx_fsv16_dw kernel and the plain OCL reference kernel showed the identical wrong result,
+// and disabling onednn made no difference -- ruling out any single specific implementation and
+// pointing at the shared weight/stride-to-kernel_selector-params conversion for this exact
+// "1D op with explicit group dim" shape). Uses a small, hand-computed-in-Python ground truth
+// (all-ones kernel over [1,2,3]/[10,20,30] inputs, stride 2, kernel size 4) so any exact-zero
+// output element unambiguously fails the test, independent of which GPU kernel gets selected.
+TEST(deconvolution_gpu_test, dw_1d_stride2_kernel_gt_stride_no_output_gaps) {
+    auto& engine = get_test_engine();
+
+    const int32_t groups = 2;   // groups == channels: fully depthwise, matches the real bug
+    const int32_t kernel_size = 4;   // kernel_size > stride: every output position must overlap-add
+    const int32_t stride = 2;
+    const int32_t input_length = 3;
+
+    ov::PartialShape input_pshape = {1, groups, input_length};
+    ov::PartialShape weights_pshape = {groups, 1, 1, kernel_size};  // [G, O/G, I/G, K], matches
+                                                                    // ProgramBuilder's grouped 1D
+                                                                    // deconv weight shape.
+
+    layout in_layout{ ov::PartialShape::dynamic(input_pshape.size()), data_types::f32, format::bfyx };
+    layout weights_layout{ weights_pshape, data_types::f32, format::bfyx };
+
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    set_values(weights_mem, std::vector<float>(groups * kernel_size, 1.0f));
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(data("weights", weights_mem));
+    topology.add(deconvolution("deconv",
+                               input_info("input"),
+                               "weights",
+                               "",
+                               static_cast<uint32_t>(groups),
+                               ov::Strides{ static_cast<size_t>(stride) },
+                               ov::CoordinateDiff{ 0 },
+                               ov::Strides{ 1 },
+                               ov::CoordinateDiff{ 0 },
+                               ov::CoordinateDiff{ 0 },
+                               ov::CoordinateDiff{ 0 },
+                               true /* grouped_weights_shape, matches weights_have_group_dim=true
+                                       in CreateGroupConvolutionBackpropDataOp */));
+    topology.add(reorder("out", input_info("deconv"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+
+    auto input_mem = engine.allocate_memory({ input_pshape, data_types::f32, format::bfyx });
+    set_values(input_mem, { 1.f, 2.f, 3.f,
+                           10.f, 20.f, 30.f });
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
+
+    auto output_mem = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
+
+    // Ground truth computed independently in Python via the textbook "scatter" definition of
+    // transposed convolution: out[i*stride + k] += in[i] * w[k]. With an all-ones kernel and
+    // kernel_size(4) > stride(2), every one of the 8 output positions per channel receives
+    // contributions from at least two different input samples, so none can legitimately be zero.
+    std::vector<float> expected = {
+        1.f, 1.f, 3.f, 3.f, 5.f, 5.f, 3.f, 3.f,
+        10.f, 10.f, 30.f, 30.f, 50.f, 50.f, 30.f, 30.f
+    };
+    ASSERT_EQ(output_mem->count(), expected.size());
+    for (size_t i = 0; i < expected.size(); i++) {
+        ASSERT_FLOAT_EQ(expected[i], output_ptr[i]) << "at flattened index " << i;
+    }
+}
+
+TEST(deconvolution_gpu_test, nongrouped_1d_stride2_kernel_gt_stride) {
+    // Regression coverage for a 1d, non-grouped deconvolution with stride > 1: the existing
+    // spatial_1d test family only ever exercises stride=1, so this combination was previously
+    // untested even though it is unaffected by the grouped-weights axis-mapping bug (see
+    // dw_1d_stride2_kernel_gt_stride_no_output_gaps above).
+    auto& engine = get_test_engine();
+
+    const int32_t groups = 1;
+    const int32_t kernel_size = 4;
+    const int32_t stride = 2;
+    const int32_t input_length = 3;
+
+    ov::PartialShape input_pshape = {1, groups, input_length};
+    ov::PartialShape weights_pshape = {1, 1, kernel_size};  // [O, I, K], non-grouped.
+
+    layout in_layout{ ov::PartialShape::dynamic(input_pshape.size()), data_types::f32, format::bfyx };
+    layout weights_layout{ weights_pshape, data_types::f32, format::bfyx };
+
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    set_values(weights_mem, std::vector<float>(kernel_size, 1.0f));
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(data("weights", weights_mem));
+    topology.add(deconvolution("deconv",
+                               input_info("input"),
+                               "weights",
+                               "",
+                               static_cast<uint32_t>(groups),
+                               ov::Strides{ static_cast<size_t>(stride) },
+                               ov::CoordinateDiff{ 0 },
+                               ov::Strides{ 1 },
+                               ov::CoordinateDiff{ 0 },
+                               ov::CoordinateDiff{ 0 },
+                               ov::CoordinateDiff{ 0 },
+                               false /* grouped_weights_shape, matches weights_have_group_dim=false
+                                        in CreateConvolutionBackpropDataOp */));
+    topology.add(reorder("out", input_info("deconv"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+
+    auto input_mem = engine.allocate_memory({ input_pshape, data_types::f32, format::bfyx });
+    set_values(input_mem, { 1.f, 2.f, 3.f });
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
+
+    auto output_mem = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
+
+    // Same scatter formula as dw_1d_stride2_kernel_gt_stride_no_output_gaps, single channel.
+    std::vector<float> expected = {
+        1.f, 1.f, 3.f, 3.f, 5.f, 5.f, 3.f, 3.f
+    };
+    ASSERT_EQ(output_mem->count(), expected.size());
+    for (size_t i = 0; i < expected.size(); i++) {
+        ASSERT_FLOAT_EQ(expected[i], output_ptr[i]) << "at flattened index " << i;
+    }
+}
+
 TEST(deconvolution_gpu_onednn, input_b_fs_zyx_fsv16_output_bfzyx_stride2_nopad) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)

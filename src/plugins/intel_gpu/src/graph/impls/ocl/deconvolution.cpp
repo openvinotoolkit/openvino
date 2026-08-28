@@ -71,6 +71,40 @@ public:
 
         return params;
     }
+
+    static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
+        auto updated_impl_params = canonicalize_fused_shapes(impl_params);
+
+        auto& input_layout = updated_impl_params.input_layouts[0];
+        auto& weights_layout = updated_impl_params.input_layouts[1];
+        auto& output_layout = updated_impl_params.output_layouts[0];
+
+        auto input_pshape = input_layout.get_partial_shape();
+        auto weights_pshape = weights_layout.get_partial_shape();
+        auto output_pshape = output_layout.get_partial_shape();
+        // For 1d deconvolution we need to extend weights shape and format
+        // as by default it will be bfyx which is converted to oiyx (or oiyx-shaped goiyx)
+        // instead of a properly-grouped format, so a grouped 1d weight's kernel-size axis
+        // ends up on a different cldnn spatial axis than the data tensor's real spatial axis.
+        if (input_pshape.size() == 3) {
+            input_pshape.insert(input_pshape.end(), 1);
+            weights_pshape.insert(weights_pshape.end(), 1);
+            output_pshape.insert(output_pshape.end(), 1);
+
+            input_layout.set_partial_shape(input_pshape);
+            weights_layout.set_partial_shape(weights_pshape);
+            weights_layout.format = format::adjust_to_rank(weights_layout.format, weights_pshape.size());
+            output_layout.set_partial_shape(output_pshape);
+
+            updated_impl_params.weights_layout = weights_layout;
+        }
+
+        return updated_impl_params;
+    }
+
+    kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {
+        return static_canonicalize_shapes(impl_params);
+    }
 };
 
 namespace detail {
