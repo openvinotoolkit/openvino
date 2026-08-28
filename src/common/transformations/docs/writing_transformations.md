@@ -13,12 +13,7 @@
   - [Pattern blocks](#pattern-blocks)
 - [Writing the callback](#writing-the-callback)
 - [Modifying the graph](#modifying-the-graph)
-- [Low precision specifics](#low-precision-specifics)
-- [Internal operations (`ov_ops`)](#internal-operations-ov_ops)
-- [Registering the pass in a pipeline](#registering-the-pass-in-a-pipeline)
-- [Performance considerations](#performance-considerations)
 - [Documenting the pass](#documenting-the-pass)
-- [Naming](#naming)
 - [Testing](#testing)
 - [Reusable utilities](#reusable-utilities)
 - [What NOT to do](#what-not-to-do)
@@ -37,13 +32,6 @@
 
 A pass that is beneficial regardless of the backend belongs in common transformations, **not** duplicated per plugin. Express device-specific behavior as a pass parameter (e.g. a list of supported precisions) instead of forking the pass.
 
-Build and run the corresponding tests with:
-
-```bash
-cmake --build build --target ov_transformations_tests -j$(nproc)
-./bin/ov_transformations_tests --gtest_filter="MyTransformation*"
-```
-
 ## Quick checklist
 
 1. Pick the right base class: `MatcherPass` for local rewrites, `ModelPass` when nodes outside the matched pattern are modified
@@ -53,9 +41,8 @@ cmake --build build --target ov_transformations_tests -j$(nproc)
 5. Call `copy_runtime_info` for every created node and preserve friendly names
 6. Solve the general problem — no topology-specific proxies, no hardcoded model-specific values
 7. Justify every restriction (consumer count, per-tensor only, const-only, static-shape-only)
-8. Register the pass in **all** pipelines that need it
-9. Describe what the pass does and why in the header, with a subgraph scheme
-10. Add tests per [Writing transformation tests](./writing_tests.md)
+8. Describe what the pass does and why in the header, with a subgraph scheme
+9. Add tests per [Writing transformation tests](./writing_tests.md)
 
 ## Choosing the pass type
 
@@ -335,86 +322,47 @@ new_node->set_friendly_name(old_node->get_friendly_name());
 
 Attributes already applied by dedicated markup passes (`keep_const_precision`, `DisableFP16Compression`, precision attributes) must not be re-applied ad hoc inside an unrelated transformation — fix the markup pass instead.
 
-### Recreate `TypeRelaxed` nodes by cloning
-
-A `TypeRelaxed<T>` node carries `_input_data_types` / `_output_data_types`. Constructing a fresh `TypeRelaxed<T>` and patching only the output precision loses the input configuration and forces spurious `Convert` insertion:
-
-```cpp
-// Avoid
-auto multiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(parent, scales);
-NetworkHelper::setOutDataPrecisionForTypeRelaxed(multiply, dq.multiply->get_output_element_type(0));
-
-// Prefer — clones both input and output type configuration
-auto multiply = dq.multiply->clone_with_new_inputs({parent, scales});
-```
-
 ### Let the framework clean up
 
-Dead consumers left behind by a rewrite are removed by the next `Validate` run. Do not add manual clean-up code.
+Dead consumers left behind by a rewrite are removed by the next `Validate` run. Add manual clean-up code only in case of strong justification.
 
 ### Respect the operation specification
 
 A rewrite must match the documented semantics of the operations involved. For example, `FakeQuantize` output shape always equals its data-input shape, so an eltwise operation that relies on broadcasting to a constant's shape cannot be fused into it — no matter what the eltwise type is. Gate the transformation on the *semantic* property, never on a proxy such as an operation type name or the presence of a neighboring node.
 
-## Low precision specifics
-
-When rebuilding dequantization arithmetic:
-
-- compute in the precision that cannot overflow — typically the multiply-constant precision, which is always floating point — not in the subtract-constant precision, which may be low precision;
-- align precisions with `foldConvert` / `ov::fundamental_type_for` instead of hardcoding them;
-- express limits with `std::numeric_limits<T>` (e.g. `std::numeric_limits<ov::float16>::max()`), never as literals;
-- validate that constant values are representable in the target data type before transforming (e.g. a `Pad` value outside the `u8` range must block the transformation);
-- consider inserting `Round` before `Convert` when converting float values to an integer bias.
-
-Additional LPT-specific guidance: [low_precision_transformations tests README](../../low_precision_transformations/tests/README.md).
-
-## Internal operations (`ov_ops`)
-
-- Do not expose a constructor that leaves the op unconfigured, nor setters that mutate its configuration after construction. Configuration is passed once, at construction.
-- Override `visit_attributes` for any op with custom attributes. It is required for `ov::Model` serialization/deserialization (model caching) and enables generic passes such as `ov::pass::SharedOpOptimization`.
-- `validate_and_infer_types` must reject configurations that the specification or the implementations do not support, with an actionable message. Accepting an invalid configuration and silently ignoring part of it is a defect.
-- Absent optional inputs follow the shared convention: `element::dynamic` element type with an empty shape.
-- Use semantic types: `bool` for flags, `std::optional<T>` instead of sentinel values, no default argument values that are used at a single call site.
-- Type-propagation tests belong in [src/core/tests/type_prop/](../../../core/tests/type_prop/).
-
-## Registering the pass in a pipeline
-
-- `InitNodeInfo` must remain the first pass of a pipeline; `Validate` should remain the last one — its cost is low and it catches precision/shape-inference breakage introduced by the pipeline.
-- A pass that is a prerequisite of another pass must be registered in **every** pipeline where that pass runs: `CommonOptimizations`, `MOCTransformations`, the CPU/GPU/NPU pipelines, and the plugin FQ-stripping pipelines.
-- Before adding a registration, check whether the pass already runs earlier in the same pipeline.
-- Changing the position of a pass must be assessed against existing consumers. Moving SDPA decomposition earlier, for example, breaks `SDPAWithKVCache` fusion in the CPU plugin and therefore all LLM scenarios.
-- Prefer reordering the pipeline over adding a pass that compensates for the current order (or over relaxing a pattern to tolerate a node that an earlier pass would have removed).
-- Keep plugin pipeline files from growing without bound: extract sets of related callbacks into their own translation unit.
-
-## Performance considerations
-
-Transformations run at compile time, but they determine the executed graph:
-
-- **Quantized paths.** Replacing a fused quantized primitive with a decomposed sequence can be a regression even when it helps the compressed-weights case. Gate the transformation on the model not being quantized when that applies.
-- **Plugin post-op fusion.** Inserting a `Transpose`/`Reshape` between a layer and its bias or activation breaks plugin fusing. Place the inserted node so the fusable chain stays intact (e.g. after the bias, not between bias and MatMul).
-- **No-op rewrites.** A transformation should not fire when its output is equivalent to its input — for example, inserting a transpose when `H * W == 1`.
-- **Over-broad markup.** A generic "disable precision conversion" pass may cover far more subgraphs than required. Prefer targeted per-pattern passes.
-- **Memory.** Keep the weight-decompression subgraph unfolded where that is the memory-efficient form, and fold constants deliberately rather than accidentally materializing large tensors.
-
 ## Documenting the pass
 
-Each pass header states: what the pass does, why it is needed, and a scheme of the matched and produced subgraph with optional nodes marked.
+Each pass header states: what the pass does, why it is needed, a before/after scheme of the matched and produced subgraph with optional nodes marked, and the conditions under which the rewrite is applied. An excerpt from [broadcast_matmul_fusion.hpp](../include/transformations/common_optimizations/broadcast_matmul_fusion.hpp):
 
 ```cpp
 /**
  * @ingroup ov_transformation_common_api
- * @brief Moves the dequantization Multiply from the Convolution output to its weights.
+ * @brief Removes a redundant Broadcast that expands one MatMul input's batch dimensions.
  *
- * Needed to avoid f16 overflow in the Convolution accumulator on ARM/ACL.
+ * Matches the Data -> Broadcast -> MatMul pattern, with the Broadcast on either MatMul
+ * input and Data being an arbitrary input (not necessarily a Constant). MatMul broadcasts
+ * the batch (leading) dimensions of its operands implicitly, so an explicit Broadcast that
+ * only expands those dimensions is redundant.
  *
  * Before:                          After:
  *
- *   Conv(u8 act, i8 w)               Conv(u8 act, i8 w * dq_scale)
- *          │
- *   Multiply(dq_scale)
+ *     Data          Other              Data          Other
+ *       │             │                  │             │
+ *   ┌───┴─────┐       │                  │             │
+ *   │Broadcast│       │                  │             │
+ *   └───┬─────┘       │                  │             │
+ *       │             │                  │             │
+ *       └──────┬──────┘                  └──────┬──────┘
+ *           ┌──┴───┐                         ┌──┴───┐
+ *           │MatMul│                         │MatMul│
+ *           └──────┘                         └──────┘
  *
- * The transformation is skipped when the scale is per-channel on a non-output axis,
- * since folding it into the weights would change the result.
+ * The Broadcast is removed only when it does not change the MatMul result:
+ *  - the matrix (last two) dimensions are left intact by the Broadcast;
+ *  - for every expanded batch dimension, the other MatMul operand carries the same
+ *    dimension, proven equal by static value or by shape symbol; an unlabeled dynamic
+ *    dimension is never assumed compatible, since that could hide a runtime batch mismatch
+ *    the Broadcast would have rejected.
  */
 ```
 
@@ -425,14 +373,6 @@ Rules for comments:
 - Document non-obvious numeric criteria (tolerance formulas, relative vs absolute comparisons) with at least a pseudo-formula.
 - Avoid enumerating specific operation types in a description when the list may grow ("value-preserving ops" instead of "Reshape, Squeeze, Unsqueeze").
 - Avoid mentioning exact precisions when the pass is parameterized by a precision list.
-
-## Naming
-
-- Pass and variable names describe *what* is done and *when*, not the model that motivated the change. `FallbackUnsupportedLPConvToFP16` beats `ConvertConvDQScales`; `DisableBF16CompForLtxVideoRopePattern` beats `MarkSinCosInputsPrecision`.
-- Rename when behavior broadens: a `gptoss_gemma3_mask` variable that now also covers gemma4 becomes `mask`.
-- Align the suffix with existing passes: `*Fusion`, `*Decomposition`, `*Elimination`, `Convert*To*`.
-- Pattern node labels end with `_m` (`conv_m`, `weights_m`) — the convention that distinguishes pattern nodes from matched nodes in the callback.
-- Name pattern dimensions after their meaning (`hidden_in`, `seq_len`), not `?`.
 
 ## Testing
 
@@ -449,19 +389,14 @@ Contributors using an AI agent can apply the `ov-transformation-tests` skill to 
 
 ## Reusable utilities
 
-Search for an existing utility before adding a helper or a pass. Frequently missed candidates:
+Search for an existing utility before adding a helper or a pass. Start with these headers:
 
-| Need | Existing utility |
-|------|------------------|
-| Fuse identical sibling operations (horizontal fusion) | `ov::pass::SharedOpOptimization` |
-| Walk a producer / consumer chain | `ov::op::util::visit_path`, `ov::op::util::visit_path_forward` |
-| Replace one output by another, keeping names | `ov::replace_output_update_name` |
-| Fold a subgraph to a constant if possible | `ov::util::get_constant_from_source`, `ov::op::util::clone_try_fold` |
-| Compare two constants | `ov::compare_constants` |
-| Compare FakeQuantize parameters | `ov::op::util::have_same_fake_quantize_params` |
-| Multi-type check | `ov::is_type_any_of<T1, T2>(node)` |
-| Compare possibly-dynamic dimensions | `ov::symbol::util::dims_are_equal` |
-| Extract a subgraph into a standalone model (debug builds) | `ov::util::extract_subgraph` |
+- [transformations/utils/utils.hpp](../include/transformations/utils/utils.hpp) — the most frequently needed `ov::op::util` helpers: node creation and folding, graph traversal (`visit_path`, `visit_path_forward`), constant and FakeQuantize comparison, shape checks.
+- [openvino/core/graph_util.hpp](../../../core/include/openvino/core/graph_util.hpp) — graph modification and inspection: `replace_node`, `replace_output_update_name`, `compare_constants`, `topological_sort`.
+- [openvino/core/rt_info.hpp](../../../core/include/openvino/core/rt_info.hpp) — `copy_runtime_info` overloads.
+- [openvino/core/validation_util.hpp](../../../core/dev_api/openvino/core/validation_util.hpp) — `get_constant_from_source`, axis and shape normalization.
+- [openvino/core/type.hpp](../../../core/include/openvino/core/type.hpp) — `is_type`, `is_type_any_of`, `as_type_ptr`.
+- [transformations/symbolic_transformations/utils.hpp](../include/transformations/symbolic_transformations/utils.hpp) — symbol-aware dimension and shape comparison for dynamic shapes.
 
 If an existing utility is insufficient, extend it — do not fork it. Duplicated non-trivial logic diverges, and fixes then land in only one copy.
 
@@ -475,7 +410,6 @@ If an existing utility is insufficient, extend it — do not fork it. Duplicated
 - Do **not** `return false` on a broken invariant — assert
 - Do **not** traverse the graph manually in a callback or a plugin pipeline when a pattern or `visit_path` fits
 - Do **not** create a node without `copy_runtime_info`, or drop friendly names
-- Do **not** construct a fresh `TypeRelaxed<T>` where `clone_with_new_inputs` is meant
 - Do **not** clean up dead nodes manually — `Validate` does it
 - Do **not** gate a transformation on a proxy signal (op type name, neighboring node, model-specific shape)
 - Do **not** hardcode precisions, thresholds or model-specific values — parameterize
