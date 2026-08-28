@@ -49,7 +49,8 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
                                          GroupQueryAttentionQuantType v_quant_type,
                                          int64_t local_window_size,
                                          bool sliding_window_cache,
-                                         bool smooth_softmax)
+                                         bool smooth_softmax,
+                                         bool causal)
     : Op(args),
       m_num_heads(num_heads),
       m_kv_num_heads(kv_num_heads),
@@ -61,7 +62,8 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
       m_v_quant_type(v_quant_type),
       m_local_window_size(local_window_size),
       m_sliding_window_cache(sliding_window_cache),
-      m_smooth_softmax(smooth_softmax) {
+      m_smooth_softmax(smooth_softmax),
+      m_causal(causal) {
     constructor_validate_and_infer_types();
 }
 
@@ -207,6 +209,13 @@ void GroupQueryAttention::validate_and_infer_types() {
                           !m_sliding_window_cache || m_local_window_size >= 1,
                           "GroupQueryAttention: sliding_window_cache requires local_window_size >= 1, got ",
                           m_local_window_size);
+    // causal=0 (bidirectional) is mutually exclusive with a sliding window, matching the ONNX Runtime
+    // precondition (gqa_attention_base.h: causal_ || local_window_size_ == -1).
+    NODE_VALIDATION_CHECK(this,
+                          m_causal || m_local_window_size == -1,
+                          "GroupQueryAttention: local_window_size requires causal=1, got causal=0 and "
+                          "local_window_size=",
+                          m_local_window_size);
     // Windowed cache: single-token decode (sequence_length == 1) always fits inside the window and is handled
     // by the in-place Gather + ScatterUpdate assembly. Any other step (a multi-token prefill/staging chunk,
     // whether or not it actually crosses a window eviction at runtime) is handled by the staging branch, which
@@ -287,6 +296,7 @@ void GroupQueryAttention::validate_and_infer_types() {
 
 bool GroupQueryAttention::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(GroupQueryAttention_visit_attributes);
+    visitor.on_attribute("causal", m_causal);
     visitor.on_attribute("do_rotary", m_do_rotary);
     visitor.on_attribute("k_quant_type", m_k_quant_type);
     visitor.on_attribute("kv_cache_bit_width", m_kv_cache_bit_width);
@@ -315,7 +325,8 @@ std::shared_ptr<ov::Node> GroupQueryAttention::clone_with_new_inputs(const ov::O
                                                  m_v_quant_type,
                                                  m_local_window_size,
                                                  m_sliding_window_cache,
-                                                 m_smooth_softmax);
+                                                 m_smooth_softmax,
+                                                 m_causal);
 }
 
 }  // namespace ov::op::internal

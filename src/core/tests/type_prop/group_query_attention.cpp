@@ -255,5 +255,53 @@ TEST(type_prop, group_query_attention_quantized_kv_requires_quantized_cache_type
         HasSubstr("quantized KV cache element type"));
 }
 
+// ---------- causal ----------
+
+TEST(type_prop, group_query_attention_causal_defaults_true) {
+    const auto args = make_valid_gqa_args();
+    const auto op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false);
+    EXPECT_TRUE(op->get_causal());
+}
+
+TEST(type_prop, group_query_attention_bidirectional_without_window_is_valid) {
+    const auto args = make_valid_gqa_args();
+    const auto op =
+        std::make_shared<op::internal::GroupQueryAttention>(args,
+                                                            6,
+                                                            2,
+                                                            1.0f,
+                                                            false,
+                                                            false,
+                                                            /*kv_cache_bit_width*/ 0,
+                                                            op::internal::GroupQueryAttentionQuantType::NONE,
+                                                            op::internal::GroupQueryAttentionQuantType::NONE,
+                                                            /*local_window_size*/ -1,
+                                                            /*sliding_window_cache*/ false,
+                                                            /*smooth_softmax*/ false,
+                                                            /*causal*/ false);
+    EXPECT_FALSE(op->get_causal());
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 4, 48}));
+}
+
+TEST(type_prop, group_query_attention_causal_false_rejects_window) {
+    const auto args = make_valid_gqa_args();
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GroupQueryAttention>(
+                        args,
+                        6,
+                        2,
+                        1.0f,
+                        false,
+                        false,
+                        /*kv_cache_bit_width*/ 0,
+                        op::internal::GroupQueryAttentionQuantType::NONE,
+                        op::internal::GroupQueryAttentionQuantType::NONE,
+                        /*local_window_size*/ 2,
+                        /*sliding_window_cache*/ false,
+                        /*smooth_softmax*/ false,
+                        /*causal*/ false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("local_window_size requires causal=1"));
+}
+
 }  // namespace testing
 }  // namespace ov

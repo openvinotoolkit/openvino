@@ -38,14 +38,18 @@ private:
                                                  const ov::Output<ov::Node>& capacity_scalar,
                                                  int64_t local_window_size);
 
-    // Additive float attention mask for SDPA: causal mask, plus an optional sliding-window band
-    // (local_window_size >= 0) masking keys older than the window, optionally fused with an external bias.
-    // Masked positions use the compute type's finite lowest() so a fully-masked row cannot softmax to NaN.
+    // Additive float attention mask for SDPA. When causal is true: causal mask, plus an optional sliding-window
+    // band (local_window_size >= 1) masking keys older than the window. When causal is false (bidirectional):
+    // no query-relative masking; only the unused cache tail beyond total_sequence_length (past + current) is
+    // masked (local_window_size is always -1 in this case, enforced upstream). Either way the result is
+    // optionally fused with an external bias. Masked positions use the compute type's finite lowest() so a
+    // fully-masked row cannot softmax to NaN.
     std::shared_ptr<ov::Node> make_attention_mask(const ov::Output<ov::Node>& curr_seqlen_scalar,
                                                   const ov::Output<ov::Node>& kv_len_scalar,
                                                   const ov::Output<ov::Node>& kv_len_1d,
                                                   const ov::Output<ov::Node>& past_seqlen,
                                                   const ov::element::Type& compute_type,
+                                                  bool causal,
                                                   int64_t local_window_size,
                                                   const ov::Output<ov::Node>& external_bias,
                                                   const ov::Output<ov::Node>& bias_col_offset);

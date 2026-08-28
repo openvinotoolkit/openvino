@@ -5467,6 +5467,73 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_equals_causal_when_
     test_case.run_with_tolerance_as_fp();
 }
 
+// causal=0 (bidirectional): every query attends to all valid keys, not just k <= q. Output matches
+// ONNX Runtime (MLAS CPU, causal=0) run against the same query/cache split.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_causal_bidirectional) {
+    const auto model = convert_model("com.microsoft/gqa_causal_bidirectional.onnx");
+
+    std::vector<float> expected_output = {
+        0.835323f,  0.141426f,  -0.716575f, 0.183820f,  0.110312f,  -0.472860f, -0.283830f, 1.274872f,  -0.368640f,
+        -0.920300f, 0.384538f,  0.151699f,  -0.114322f, 0.627885f,  0.386892f,  0.460673f,  0.775386f,  0.170116f,
+        -0.647210f, 0.477085f,  -0.209098f, 0.088937f,  0.219232f,  0.918672f,  -0.165271f, -1.380370f, -0.805253f,
+        0.599758f,  -0.238036f, 0.647694f,  0.236465f,  -0.114835f, 0.522801f,  -0.384009f, 0.249278f,  0.194326f,
+        0.192918f,  -0.384589f, 0.091830f,  0.538561f,  -0.539031f, -0.736515f, 0.056842f,  0.358661f,  -0.196808f,
+        0.026687f,  0.202320f,  0.776961f,  0.529779f,  -0.415570f, 0.008920f,  0.234566f,  0.171438f,  -0.424543f,
+        0.274885f,  0.576314f,  -0.324155f, -1.069859f, -0.148582f, 0.270502f,  -0.189003f, 0.390507f,  0.221920f,
+        0.513277f,  0.758482f,  0.069074f,  -0.587188f, 0.344906f,  -0.045838f, -0.179893f, 0.072326f,  0.988206f,
+        -0.242467f, -1.202527f, -0.321804f, 0.393656f,  -0.188665f, 0.627272f,  0.285900f,  0.154855f,  0.310463f,
+        -0.662996f, 1.135608f,  0.216411f,  0.200450f,  -0.164241f, 0.215993f,  -0.032357f, -0.850289f, -0.333808f,
+        -0.158269f, 0.683606f,  -0.282794f, -0.761042f, 0.034373f,  1.155105f,  0.413673f,  -0.342667f, 1.253691f,
+        0.238900f,  0.083796f,  0.106136f,  -0.160001f, 0.078662f,  -1.166455f, 0.136124f,  -0.026595f, 0.961300f,
+        -0.311426f, -1.282412f, 0.015627f,  1.365237f,  0.573372f,  -0.273704f, -0.057114f, 0.317745f,  0.048871f,
+        -0.221081f, 0.281314f,  0.590687f,  -0.321818f, -1.107932f, -0.402041f, 0.431164f,  -0.219438f, 0.346153f,
+        0.198345f,  0.369227f};
+
+    std::vector<float> expected_present_key = {
+        -1.651076f, 0.535429f,  -2.064415f, -0.662159f, -1.204220f, 1.461976f,  1.766161f,  -0.329414f,
+        0.840733f,  -0.179986f, 0.568062f,  -0.752837f, -1.708339f, -1.803099f, 0.383122f,  2.247595f,
+        2.259947f,  0.869039f,  -0.342117f, -0.471927f, -0.864490f, 0.374370f,  0.391546f,  -1.443122f,
+        0.486335f,  -0.569472f, 1.426721f,  0.156844f,  1.717730f,  -0.458127f, -0.287984f, 0.299808f,
+        -0.929324f, 0.411797f,  1.860056f,  -1.497274f, 0.476338f,  1.112291f,  -0.696591f, 0.582970f,
+        -1.070892f, -0.812209f, -0.817080f, 0.192308f,  -0.090981f, 0.954115f,  -0.940279f, -0.131276f,
+        -1.040131f, 0.022778f,  0.682829f,  -0.740296f, -0.049672f, 0.718557f,  -0.126909f, -0.519137f,
+        0.973093f,  0.097020f,  0.396565f,  1.171393f,  1.145316f,  -0.347204f, -0.525430f, 0.284309f};
+
+    std::vector<float> expected_present_value = {
+        0.269412f,  -0.524605f, 1.912019f,  0.237302f,  0.101434f,  0.252578f,  -0.132377f, -0.309476f,
+        -1.434963f, 0.501624f,  -0.094775f, 1.193086f,  -0.368818f, -1.906370f, -0.099611f, 1.699537f,
+        1.055948f,  0.565883f,  -1.233524f, 0.182901f,  0.022245f,  -0.429069f, -0.648105f, 1.747577f,
+        -0.390386f, -0.845923f, 0.637113f,  0.130623f,  -0.075814f, 0.781302f,  0.488625f,  0.362190f,
+        0.961076f,  0.560777f,  -1.324641f, 0.665204f,  -0.478418f, 0.385387f,  0.300680f,  1.219319f,
+        0.116560f,  -1.853806f, -1.369860f, 0.731154f,  -0.258316f, 1.137979f,  0.273439f,  -0.749066f,
+        -0.132788f, -1.899861f, 1.275362f,  0.019361f,  0.736378f,  -1.172917f, 1.288204f,  -0.588263f,
+        -0.107667f, -1.401425f, -0.166950f, -0.229804f, -0.185361f, 0.438505f,  0.060346f,  0.975783f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sliding_window_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 16}, expected_present_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 16}, expected_present_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// ONNX Runtime rejects local_window_size >= 1 together with causal=0 (gqa_attention_base.h:101); the FE
+// must mirror that precondition rather than silently combining a sliding window with bidirectional attention.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_causal_window_conflict_throws) {
+    try {
+        convert_model("com.microsoft/gqa_causal_window_conflict.onnx");
+        FAIL() << "ONNX Importer did not reject local_window_size with causal=0 for GroupQueryAttention";
+    } catch (const std::exception& e) {
+        EXPECT_THAT(e.what(), testing::HasSubstr("causal"));
+    } catch (...) {
+        FAIL() << "Unexpected exception type thrown";
+    }
+}
+
 // External attention_bias (input 10) combined with a sliding window: the window band must be added on
 // top of the caller-supplied bias. Exercises the additive-band branch of make_attention_mask. Output
 // matches ONNX Runtime (MLAS CPU).

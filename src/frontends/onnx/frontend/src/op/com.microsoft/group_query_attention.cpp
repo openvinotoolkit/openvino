@@ -47,6 +47,7 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     const auto scale = node.get_attribute_value<float>("scale", 0.0f);
     const auto do_rotary = node.get_attribute_value<int64_t>("do_rotary", 0);
     const auto rotary_interleaved = node.get_attribute_value<int64_t>("rotary_interleaved", 0);
+    const auto causal = node.get_attribute_value<int64_t>("causal", 1);
     // Quantized KV cache attributes (com.microsoft spec). Default to the unquantized (float KV) behavior.
     const auto kv_cache_bit_width = node.get_attribute_value<int64_t>("kv_cache_bit_width", 0);
     const auto parse_quant_type = [&](const std::string& quant_type_name) {
@@ -80,6 +81,17 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         "supported.");
 
     // Reject spec attributes whose semantics are not implemented by the OpenVINO decomposition.
+    FRONT_END_OP_CONVERSION_CHECK(causal == 0 || causal == 1,
+                                  "GroupQueryAttention: causal must be 0 or 1, got ",
+                                  causal,
+                                  ".");
+    // causal == 0 selects bidirectional attention (no query-relative masking, only the buffer tail beyond
+    // total_sequence_length is masked); ONNX Runtime does not allow combining that with a sliding window.
+    FRONT_END_OP_CONVERSION_CHECK(causal == 1 || local_window_size == -1,
+                                  "GroupQueryAttention: local_window_size requires causal=1, got causal=0 and "
+                                  "local_window_size=",
+                                  local_window_size,
+                                  ".");
     // local_window_size == -1 disables the window; a value >= 1 selects a sliding window. A window of
     // size 0 is an empty attention (every query masks all keys) and is not a valid ONNX Runtime config.
     FRONT_END_OP_CONVERSION_CHECK(local_window_size == -1 || local_window_size >= 1,
@@ -221,7 +233,8 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
                                                            v_quant_type,
                                                            local_window_size,
                                                            sliding_window_cache != 0,
-                                                           smooth_softmax != 0)
+                                                           smooth_softmax != 0,
+                                                           causal != 0)
         ->outputs();
 }
 

@@ -16,6 +16,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/parameter.hpp"
@@ -54,6 +55,7 @@ struct GqaParams {
     bool sliding_window_cache = false;
     bool smooth_softmax = false;
     bool head_sink = false;
+    bool causal = true;
     bool attention_bias = false;
     Dimension bias_kv_len = Dimension::dynamic();
     Dimension past_len = Dimension::dynamic();
@@ -92,6 +94,10 @@ struct GqaParams {
     GqaParams& sink_head() {
         head_sink = true;
         expected_sdpa_inputs = 6;
+        return *this;
+    }
+    GqaParams& bidirectional() {
+        causal = false;
         return *this;
     }
     // kv_len lets a case declare the bias narrower than the buffer it will be added against (e.g. a
@@ -165,7 +171,8 @@ std::shared_ptr<Model> make_gqa_model(const GqaParams& p) {
                                                            quant,
                                                            p.local_window_size,
                                                            p.sliding_window_cache,
-                                                           p.smooth_softmax);
+                                                           p.smooth_softmax,
+                                                           p.causal);
     ResultVector results;
     for (size_t i = 0; i < gqa->get_output_size(); ++i)
         results.push_back(std::make_shared<op::v0::Result>(gqa->output(i)));
@@ -178,7 +185,8 @@ std::shared_ptr<GroupQueryAttention> make_gqa_op(const Dimension& batch,
                                                  const Dimension& seq,
                                                  const Dimension& past,
                                                  int64_t local_window_size,
-                                                 bool sliding_window_cache) {
+                                                 bool sliding_window_cache,
+                                                 bool causal = true) {
     const auto f32 = element::f32;
     auto q = std::make_shared<op::v0::Parameter>(f32, PartialShape{batch, NUM_HEADS, seq, HEAD_SIZE});
     auto k = std::make_shared<op::v0::Parameter>(f32, PartialShape{batch, KV_NUM_HEADS, seq, HEAD_SIZE});
@@ -199,7 +207,8 @@ std::shared_ptr<GroupQueryAttention> make_gqa_op(const Dimension& batch,
                                                  op::internal::GroupQueryAttentionQuantType::NONE,
                                                  local_window_size,
                                                  sliding_window_cache,
-                                                 /*smooth_softmax*/ false);
+                                                 /*smooth_softmax*/ false,
+                                                 causal);
 }
 
 }  // namespace
@@ -244,7 +253,8 @@ INSTANTIATE_TEST_SUITE_P(GroupQueryAttentionDecomposition,
                                          GqaParams{"i8_per_tensor"}.quant(8, element::i8),
                                          GqaParams{"i4_per_tensor"}.quant(4, element::u8),
                                          GqaParams{"f8e4m3_per_tensor"}.quant(8, element::f8e4m3),
-                                         GqaParams{"windowed_cache"}.windowed_roll(3, 4)),
+                                         GqaParams{"windowed_cache"}.windowed_roll(3, 4),
+                                         GqaParams{"bidirectional"}.bidirectional()),
                          [](const testing::TestParamInfo<GqaParams>& i) {
                              return i.param.name;
                          });
@@ -292,6 +302,19 @@ TEST(GroupQueryAttentionOpValidation, allows_dynamic_sequence_with_windowed_cach
 TEST(GroupQueryAttentionOpValidation, allows_dynamic_batch) {
     // A dynamic batch dimension cannot be checked from shapes and stays enabled.
     EXPECT_NO_THROW(make_gqa_op(Dimension::dynamic(), 1, 8, /*window*/ -1, /*swc*/ false));
+}
+
+TEST(GroupQueryAttentionOpValidation, rejects_local_window_size_with_causal_false) {
+    // causal=0 (bidirectional) is mutually exclusive with a sliding window, matching ONNX Runtime
+    // (gqa_attention_base.h: causal_ || local_window_size_ == -1).
+    OV_EXPECT_THROW(make_gqa_op(1, 1, 8, /*window*/ 2, /*swc*/ false, /*causal*/ false),
+                    ov::NodeValidationFailure,
+                    testing::HasSubstr("local_window_size requires causal=1"));
+}
+
+TEST(GroupQueryAttentionOpValidation, allows_bidirectional_without_window) {
+    // causal=0 with the window disabled (the only combination the FE ever produces) must construct cleanly.
+    EXPECT_NO_THROW(make_gqa_op(1, 4, 8, /*window*/ -1, /*swc*/ false, /*causal*/ false));
 }
 
 // --- Decomposed constant values -------------------------------------------------------------------
@@ -362,4 +385,15 @@ TEST(GroupQueryAttentionValues, head_sink_reshapes_input_to_per_head_sink) {
     auto shape_const = as_type_ptr<op::v0::Constant>(sink_reshape->get_input_node_shared_ptr(1));
     ASSERT_NE(shape_const, nullptr);
     EXPECT_EQ(shape_const->cast_vector<int64_t>(), (std::vector<int64_t>{1, -1, 1, 1}));
+}
+
+TEST(GroupQueryAttentionValues, bidirectional_mask_has_no_causal_comparison) {
+    auto model = make_gqa_model(GqaParams{"bidir"}.bidirectional());
+    decompose(model);
+
+    // causal=0 must not emit the query-relative Greater(hori, vert) causal comparison; only the single
+    // GreaterEqual against the total-length (past + current) threshold remains, and it does not depend
+    // on the query row.
+    EXPECT_EQ(count_ops_of_type<op::v1::Greater>(model), 0u);
+    EXPECT_EQ(count_ops_of_type<op::v1::GreaterEqual>(model), 1u);
 }

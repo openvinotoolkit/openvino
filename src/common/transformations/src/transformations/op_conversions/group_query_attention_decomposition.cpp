@@ -89,6 +89,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto rotary_interleaved = node->get_rotary_interleaved();
     const auto local_window_size = node->get_local_window_size();
     const auto smooth_softmax = node->get_smooth_softmax();
+    const auto causal = node->get_causal();
     // TODO: add softcap support
 
     const auto has_input = [&](const GQAInputs input_pos) {
@@ -330,6 +331,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
                                           concat_kv_len,
                                           mask_past_seqlen,
                                           T,
+                                          causal,
                                           local_window_size,
                                           external_bias,
                                           bias_col_offset);
@@ -414,38 +416,55 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_atten
     const ov::Output<ov::Node>& kv_len_1d,
     const ov::Output<ov::Node>& past_seqlen,
     const ov::element::Type& compute_type,
+    bool causal,
     int64_t local_window_size,
     const ov::Output<ov::Node>& external_bias,
     const ov::Output<ov::Node>& bias_col_offset) {
     const bool has_bias = external_bias.get_node_shared_ptr() != nullptr;
     // A window is active for local_window_size >= 1; -1 disables it and 0 is rejected upstream (FE + op).
+    // A window is only ever paired with causal=1 (enforced upstream by the FE and the op), so it is only
+    // considered on the causal branch below.
     const bool has_window = local_window_size >= 1;
 
     const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
     const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
     const auto two = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
 
-    // Key positions [1, kv_len] and absolute query positions [curr, 1]. Coordinates are cache-relative
-    // (past_seqlen is the resident past length), which matches the distance-only ONNX Runtime rule.
+    // Key positions [1, kv_len]. Coordinates are cache-relative (past_seqlen is the resident past length),
+    // which matches the distance-only ONNX Runtime rule.
     const auto zero_scalar = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
     const auto one_scalar = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
     std::shared_ptr<ov::Node> hori_range =
         register_new_node<v4::Range>(zero_scalar, kv_len_scalar, one_scalar, ov::element::i64);
     hori_range = register_new_node<v0::Unsqueeze>(hori_range, zero);
-    std::shared_ptr<ov::Node> vert_range =
-        register_new_node<v4::Range>(zero_scalar, curr_seqlen_scalar, one_scalar, ov::element::i64);
-    vert_range = register_new_node<v0::Unsqueeze>(vert_range, one);
-    vert_range = register_new_node<v1::Add>(vert_range, past_seqlen);
 
-    // Causal mask (future keys: k > q), OR-ed with the optional sliding-window band (keys older than the
-    // window: (q - k) >= local_window_size). This is applied unconditionally; an external attention_bias
-    // is added on top of it, matching ONNX Runtime (the bias does not replace the causal/window mask).
-    std::shared_ptr<ov::Node> masked = register_new_node<v1::Greater>(hori_range, vert_range);
-    if (has_window) {
-        const auto distance = register_new_node<v1::Subtract>(vert_range, hori_range);
-        const auto window = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {local_window_size}));
-        const auto too_old = register_new_node<v1::GreaterEqual>(distance, window);
-        masked = register_new_node<v1::LogicalOr>(masked, too_old);
+    std::shared_ptr<ov::Node> masked;
+    if (causal) {
+        // Absolute query positions [curr, 1]. Causal mask (future keys: k > q), OR-ed with the optional
+        // sliding-window band (keys older than the window: (q - k) >= local_window_size). This is applied
+        // unconditionally; an external attention_bias is added on top of it, matching ONNX Runtime (the bias
+        // does not replace the causal/window mask).
+        std::shared_ptr<ov::Node> vert_range =
+            register_new_node<v4::Range>(zero_scalar, curr_seqlen_scalar, one_scalar, ov::element::i64);
+        vert_range = register_new_node<v0::Unsqueeze>(vert_range, one);
+        vert_range = register_new_node<v1::Add>(vert_range, past_seqlen);
+
+        masked = register_new_node<v1::Greater>(hori_range, vert_range);
+        if (has_window) {
+            const auto distance = register_new_node<v1::Subtract>(vert_range, hori_range);
+            const auto window =
+                register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {local_window_size}));
+            const auto too_old = register_new_node<v1::GreaterEqual>(distance, window);
+            masked = register_new_node<v1::LogicalOr>(masked, too_old);
+        }
+    } else {
+        // Bidirectional attention: every query attends to all valid keys. Only the unused cache tail beyond
+        // total_sequence_length (past + current) is masked, matching ONNX Runtime's visible_length ==
+        // total_seqlen for causal=0. The mask does not depend on the query row, so it broadcasts as [1, kv_len]
+        // instead of materializing a full [curr, kv_len] tensor.
+        const auto past_scalar = register_new_node<v0::Squeeze>(past_seqlen);
+        const auto total_scalar = register_new_node<v1::Add>(past_scalar, curr_seqlen_scalar);
+        masked = register_new_node<v1::GreaterEqual>(hori_range, total_scalar);
     }
 
     const auto typed_zero = register_new_node(v0::Constant::create(compute_type, ov::Shape{}, {0}));
