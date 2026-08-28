@@ -5847,6 +5847,42 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_smooth_softmax) {
     test_case.run_with_tolerance_as_fp();
 }
 
+// ONNX Runtime's GroupQueryAttention schema declares smooth_softmax's default as -1 (contrib_defs/bert_defs.cc),
+// but both its CPU and CUDA kernels only enable the sink path on an exact 1 (gqa_attention_base.h,
+// GetAttrOrDefault<int64_t>("smooth_softmax", 0) == 1) - -1 is treated identically to absent/0, i.e. disabled.
+// A graph that never set the attribute explicitly can still end up with -1 baked in (e.g. schema-default
+// materialization during export), so this must decompose the same as the plain (non-sink) path, not the
+// sink path onnx_model_gqa_smooth_softmax exercises above.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_smooth_softmax_negative_one_is_disabled) {
+    const auto model = convert_model("com.microsoft/gqa_smooth_softmax_sentinel.onnx");
+
+    std::vector<float> expected_output = {
+        -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f,
+        -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.318165f, 0.124472f,
+        0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,
+        0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.223169f, -0.033279f, 0.285355f,  0.755670f,
+        -0.142297f, 0.185552f,  -0.567998f, 1.446860f,  0.189834f,  -1.403443f, 0.920896f,  0.631242f,  0.451579f,
+        0.475252f,  -0.094618f, -0.632560f, -0.174186f, -0.114620f, 0.308297f,  0.741198f,  -0.229624f, -0.433955f,
+        -0.582185f, 1.105163f,  0.513368f,  -1.405174f, 0.890326f,  0.459447f,  0.220691f,  0.135793f,  0.236369f,
+        -0.735763f, -0.916030f, 0.169364f,  0.744224f,  0.098714f,  -0.674760f, 0.340823f,  -0.161425f, 0.371981f,
+        -0.647726f, -1.187438f, 0.167276f,  0.441306f,  0.963017f,  0.117072f,  -0.215601f, 0.233242f,  -0.800164f,
+        0.042054f,  0.744694f,  0.123655f,  -0.759933f, -0.533470f, -0.209123f, -0.030549f, -0.139180f, -1.204685f,
+        0.176414f,  0.214857f,  0.606022f,  -0.331558f, 0.254124f,  0.029913f,  -0.939657f, 0.172058f,  0.883547f,
+        -0.156979f, -0.967515f, -0.053405f, -0.159229f, -0.084546f, -0.818667f, -0.761607f, -0.160362f, 0.333833f,
+        0.840787f,  -0.138559f, 0.052502f,  0.667249f,  -0.849203f, 0.177679f,  0.743201f,  0.060907f,  -0.718495f,
+        0.379690f,  -0.213628f, 0.432319f,  -0.764489f, -0.983679f, 0.111276f,  0.487376f,  0.924402f,  0.181732f,
+        -0.199088f, 0.391633f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, expected_output);
+    test_case.run_with_tolerance_as_fp();
+}
+
 // head_sink provides a per-head logit added to the softmax denominator (via SDPA's sink input).
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_head_sink) {
     const auto model = convert_model("com.microsoft/gqa_head_sink.onnx");

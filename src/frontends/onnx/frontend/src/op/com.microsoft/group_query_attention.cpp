@@ -234,6 +234,9 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         }
     }
 
+    // smooth_softmax's ONNX schema default is -1, not 0, yet ORT's own CPU/CUDA kernels enable it only when
+    // the value is exactly 1. Comparing == 1 (not != 0) keeps a graph that never set the attribute from
+    // silently getting the smooth-softmax sink path.
     return std::make_shared<internal::GroupQueryAttention>(ov_op_inputs,
                                                            num_heads,
                                                            kv_num_heads,
@@ -245,7 +248,7 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
                                                            v_quant_type,
                                                            local_window_size,
                                                            sliding_window_cache != 0,
-                                                           smooth_softmax != 0,
+                                                           smooth_softmax == 1,
                                                            causal != 0)
         ->outputs();
 }
