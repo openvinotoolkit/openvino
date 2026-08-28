@@ -4717,13 +4717,15 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i4kv_sliding_window_cache) {
 // CUDA-only there), so the reference is an independent numpy oracle mirroring the decomposition
 // (dequant f8 -> window mask -> SDPA) that also confirms the rolling buffer equals the full-length
 // cache + local_window_size. Capacity C=4, local_window_size=2, absolute past 5; present keeps the
-// last 2 f8 rows + the new token, tail zeroed.
+// last 2 f8 rows + the new token, tail zeroed. Runs on CPU and GPU (both now have an f8e4m3 Gather
+// kernel for the windowed present assembly).
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_f8e4m3fnkv_sliding_window_cache) {
-    // The windowed present assembly gathers f8e4m3 KV rows; the GPU plugin and the TEMPLATE reference
-    // have no f8e4m3 Gather kernel yet, so this path is exercised on CPU only. (Non-windowed f8 GQA,
-    // which does not gather the f8 cache, runs on all three backends.)
-    if (s_device != ov::test::utils::DEVICE_CPU) {
-        GTEST_SKIP() << "f8e4m3 Gather for the windowed KV-cache assembly is only supported on CPU.";
+    // TEMPLATE hits a pre-existing shape-inference quirk on this fully-static graph ("to_shape was
+    // called on a dynamic shape"), the same class of INTERPRETER-only issue documented on
+    // onnx_model_gqa_sliding_window_cache_static_staging below; verified correct on CPU/GPU.
+    if (s_device == ov::test::utils::DEVICE_TEMPLATE) {
+        GTEST_SKIP() << "TEMPLATE hits a pre-existing dynamic-shape quirk on this fully-static "
+                        "f8e4m3 windowed-cache graph; verified correct on CPU/GPU. Needs follow-up.";
     }
     auto model = convert_model("com.microsoft/gqa_f8e4m3fnkv_swc.onnx");
     model->reshape({{"query", ov::PartialShape{1, 1, 64}},
