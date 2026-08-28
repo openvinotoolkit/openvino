@@ -365,14 +365,26 @@ TEST(bf16_onednn_ops, concatenation_bf16) {
 }
 
 // =====================================================
-// TEST: Reduce (sum) bf16
+// TEST: Reduce bf16 (parameterized over reduce_mode)
+// Covers sum (unrestricted dtype branch) and sum_square/l1/l2
+// (dtype-gated branch enabled for bf16 on Xe2+).
 // =====================================================
-TEST(bf16_onednn_ops, reduce_sum_bf16) {
+struct reduce_bf16_params {
+    reduce_mode mode;
+    float tolerance;
+    const char* name;
+};
+
+class bf16_onednn_reduce : public ::testing::TestWithParam<reduce_bf16_params> {};
+
+TEST_P(bf16_onednn_reduce, mode) {
+    const auto& p = GetParam();
+
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         GTEST_SKIP() << "BF16 oneDNN requires XMX/DPAS support (Xe-HPG+)";
 
-    tests::random_generator rg("bf16_reduce");
+    tests::random_generator rg(std::string("bf16_reduce_") + p.name);
 
     const int batch = 1, features = 16, in_y = 4, in_x = 4;
     auto input_bf16 = generate_bf16_data(rg, batch * features * in_y * in_x);
@@ -380,13 +392,13 @@ TEST(bf16_onednn_ops, reduce_sum_bf16) {
     std::vector<float> input_f32(input_bf16.size());
     for (size_t i = 0; i < input_bf16.size(); ++i) input_f32[i] = static_cast<float>(input_bf16[i]);
 
-    // BF16 path
+    // BF16 path (force oneDNN reduce to ensure validate_impl is exercised)
     auto input_mem_bf16 = engine.allocate_memory({ data_types::bf16, format::bfyx, { batch, features, in_x, in_y } });
     set_values(input_mem_bf16, input_bf16);
 
     topology tp_bf16;
     tp_bf16.add(input_layout("input", input_mem_bf16->get_layout()));
-    tp_bf16.add(reduce("reduce", input_info("input"), reduce_mode::sum, {2, 3}, true));
+    tp_bf16.add(reduce("reduce", input_info("input"), p.mode, {2, 3}, true));
     tp_bf16.add(reorder("output", input_info("reduce"), format::bfyx, data_types::f32));
 
     auto result_bf16 = run_network_get_f32_output(engine, tp_bf16, "input", input_mem_bf16, "output", "reduce");
@@ -397,13 +409,26 @@ TEST(bf16_onednn_ops, reduce_sum_bf16) {
 
     topology tp_f32;
     tp_f32.add(input_layout("input", input_mem_f32->get_layout()));
-    tp_f32.add(reduce("reduce", input_info("input"), reduce_mode::sum, {2, 3}, true));
+    tp_f32.add(reduce("reduce", input_info("input"), p.mode, {2, 3}, true));
     tp_f32.add(reorder("output", input_info("reduce"), format::bfyx, data_types::f32));
 
     auto result_f32 = run_network_get_f32_output(engine, tp_f32, "input", input_mem_f32, "output");
 
-    compare_outputs(result_f32, result_bf16, 0.05f);
+    compare_outputs(result_f32, result_bf16, p.tolerance);
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    bf16_onednn_ops,
+    bf16_onednn_reduce,
+    ::testing::Values(
+        reduce_bf16_params{ reduce_mode::sum,        0.05f, "sum" },
+        reduce_bf16_params{ reduce_mode::l1,         0.05f, "l1" },
+        reduce_bf16_params{ reduce_mode::l2,         0.05f, "l2" },
+        reduce_bf16_params{ reduce_mode::sum_square, 0.05f, "sum_square" }
+    ),
+    [](const ::testing::TestParamInfo<reduce_bf16_params>& info) {
+        return std::string(info.param.name);
+    });
 
 // =====================================================
 // TEST: Deconvolution bf16
