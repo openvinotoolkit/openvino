@@ -10,6 +10,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <tuple>
@@ -225,7 +226,7 @@ TEST(smoke_GPUSelectiveSSMIntegration, SelectiveSSMIndividualOutputs) {
     constexpr size_t head_dim = 3;
     constexpr size_t state_size = 5;
 
-    const auto make_model = [batch, num_heads, num_groups, head_dim, state_size](size_t seq_len, size_t output_index, bool dynamic) {
+    const auto make_model = [](size_t seq_len, size_t output_index, bool dynamic) {
         const auto shape = [dynamic](const ov::Shape& static_shape) {
             return dynamic ? ov::PartialShape::dynamic(static_shape.size()) : ov::PartialShape{static_shape};
         };
@@ -298,6 +299,8 @@ TEST(smoke_GPUSelectiveSSMIntegration, SelectiveSSMIndividualOutputs) {
 }
 
 TEST(smoke_GPUSelectiveSSMIntegration, PagedSelectiveSSMDynamicModel) {
+    constexpr int64_t max_plugin_metadata = std::numeric_limits<int32_t>::max();
+
     struct PagedCase {
         std::vector<int64_t> subsequences;
         std::vector<int64_t> blocks;
@@ -353,7 +356,7 @@ TEST(smoke_GPUSelectiveSSMIntegration, PagedSelectiveSSMDynamicModel) {
         {{0, 3, 5}, {0, 1, 2, 3, 4, 5}, {0, 3, 6}, {0, 1}, {2, 2}, 6, 4, 2, 3, 5},
         {{0, 1}, {1, 1}, {0, 2}, {4}, {2}, 2, 4, 2, 3, 5},
         {{0, 2, 7}, {5, 2, 1, 4, 0, 3}, {0, 2, 6}, {1, 7}, {3, 2}, 6, 6, 3, 5, 33},
-        {{0, 2}, {0, 1}, {0, 2}, {4294967297}, {4294967296}, 2, 2, 1, 1, 513},
+        {{0, 2}, {0, 1}, {0, 2}, {max_plugin_metadata - 1}, {max_plugin_metadata}, 2, 2, 1, 1, 513},
         {{0, 0}, {}, {0, 0}, {0}, {2}, 1, 2, 1, 4, 9},
         {{0, 1}, {0, 1}, {0, 2}, {0}, {1}, 2, 1, 1, 1, 8192},
         {{0, 3, 5}, {0, 1, 2, 3, 4, 5}, {0, 3, 6}, {0, 1}, {2, 2}, 6, 4, 2, 3, 5},

@@ -112,7 +112,6 @@
 #include "intel_gpu/op/fully_connected.hpp"
 #include "transformations/common_optimizations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
-#include "plugin/transformations/preserve_paged_selective_ssm_metadata_width.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
 #include "plugin/transformations/reduce_fc_dimensions.hpp"
 #include "plugin/transformations/sink_reshape.hpp"
@@ -1076,7 +1075,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         // To convert to f16 input to boolean which is converted to u8, add abs + ceiling + clamp before convert.
         type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
-        manager.register_pass<ov::intel_gpu::RecordPagedSelectiveSSMMetadataInputs>();
         manager.register_pass<ov::pass::ConvertPrecision>(int_convert_precision_map,
                                                           type_to_fuse,
                                                           keep_precision_sensitive_in_fp32_2,
@@ -1795,7 +1793,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::ConstantsReduce>();
 
-        manager.register_pass<ov::intel_gpu::PreservePagedSelectiveSSMMetadataWidth>();
         manager.register_pass<ov::intel_gpu::PreserveSingleSelectiveSSMOutput>();
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until

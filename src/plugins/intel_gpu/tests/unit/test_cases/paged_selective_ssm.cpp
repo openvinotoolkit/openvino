@@ -40,7 +40,7 @@ struct paged_selective_ssm_test_params {
     ov::element::Type precision;
     ov::element::Type index_precision;
     bool dynamic_shapes;
-    std::vector<bool> alias_first_write = {};
+    std::vector<bool> alias_first_write;
     bool reverse_blocks = false;
     bool caching_test = false;
     bool padded_layouts = false;

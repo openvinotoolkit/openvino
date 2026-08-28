@@ -573,33 +573,21 @@ TEST_F(ConvertPagedAttnInputsStateTableTest, ConvertPagedSelectiveSSMPrecision) 
                                                                num_processed_tokens,
                                                                cache_interval});
 
-    // Replicate GPU pipeline: clear keep_const_precision on all nodes
-    for (auto& node : local_model->get_ops()) {
-        ov::disable_keep_const_precision(node);
-    }
-
     ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
     cacheConfig.inferencePrecision = ov::element::f16;
 
     ov::pass::Manager local_manager;
-
-    precisions_map fp_convert_precision_map = {{ov::element::f64, ov::element::f32},
-                                               {ov::element::f32, ov::element::f16}};
-    type_to_fuse_map empty_fuse_map = {};
-    local_manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
-                                                            empty_fuse_map,
-                                                            /*keep_precision_sensitive_in_fp32*/ true,
-                                                            /*convert_input_output_precision*/ false,
-                                                            /*store_original_precision_as_rt_attribute*/ true);
-
     auto update_paged_attention_shape_func =
         [](const ov::element::Type&, const bool, const size_t, int64_t&, int64_t&) {};
     local_manager.register_pass<ov::pass::ConvertPagedAttnInputs>(cacheConfig, update_paged_attention_shape_func);
     local_manager.run_passes(local_model);
 
-    // Verify no Convert node between Parameter and PagedSelectiveSSM
+    for (size_t input = 0; input < 5; ++input) {
+        EXPECT_EQ(paged_ssm->get_input_element_type(input), element::f32);
+    }
     EXPECT_TRUE(ov::is_type<v0::Parameter>(paged_ssm->get_input_node_shared_ptr(5)));
     EXPECT_EQ(selective_ssm_state_table->get_element_type(), ov::element::f16);
+    EXPECT_EQ(paged_ssm->get_output_element_type(0), element::f32);
 }
 
 }  // namespace
