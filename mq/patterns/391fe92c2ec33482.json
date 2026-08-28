@@ -4,20 +4,21 @@
   "signature_hash": "391fe92c2ec33482",
   "title": "LLM accuracy CPU tests fail with HuggingFace 429 rate limit on model download",
   "category": "External Service",
-  "count": 2,
+  "count": 3,
   "first_seen": "2026-08-27T16:46:44Z",
-  "last_seen": "2026-08-27T17:35:45Z",
+  "last_seen": "2026-08-28T15:27:21Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/33178944609",
     "https://github.com/openvinotoolkit/openvino/actions/runs/33081661909",
     "https://github.com/openvinotoolkit/openvino/actions/runs/33081710335"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37694",
     "https://github.com/openvinotoolkit/openvino/pull/37473",
     "https://github.com/openvinotoolkit/openvino/pull/37616"
   ],
   "recent_timestamps": [
-    "2026-08-27T17:35:45Z",
-    "2026-08-27T16:46:44Z"
+    "2026-08-28T15:27:21Z"
   ],
   "rerun_search_string": "429 Too Many Requests"
 }

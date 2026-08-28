@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-28-15-27-21-000-33178944609",
+  "timestamp": "2026-08-28T15:27:21Z",
+  "run_id": "33178944609",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33178944609",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "37694",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37694",
+  "author": "v-Golubev",
+  "category": "External Service",
+  "title": "LLM accuracy CPU tests fail with HuggingFace 429 rate limit on model download",
+  "signature": "429 Too Many Requests you have reached your api rate limit|External Service",
+  "signature_hash": "391fe92c2ec33482",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "LLM accuracy CPU tests / LLM accuracy CPU tests",
+      "conclusion": "failure",
+      "symptom": "HuggingFace 429 rate limit hit when downloading Qwen/Qwen2-0.5B-Instruct model"
+    }
+  ],
+  "key_errors": [
+    "huggingface_hub.errors.HfHubHTTPError: 429 Too Many Requests: you have reached your 'api' rate limit.\nRetry after 3 seconds (0/500 requests remaining in current 300s window).\nUrl: https://huggingface.co/api/models/Qwen/Qwen2-0.5B-Instruct/revision/main.",
+    "We had to rate limit your IP (4.155.215.89). To continue using our service, create a HF account or login to your existing account, and make sure you pass a HF_TOKEN if you're using the API.",
+    "====== 2 failed, 2 passed, 4 deselected, 12 warnings in 806.95s (0:13:26) ======"
+  ],
+  "root_cause": "The HuggingFace Hub API rate-limited the CI runner IP when trying to download/check the Qwen/Qwen2-0.5B-Instruct model metadata. The cache was empty (model not found in local cache), so the test attempted a live API call which was rejected with HTTP 429. This is an external service transient failure unrelated to the PR changes, which only touch Snippets CPU functional test infrastructure.",
+  "reproduction_steps": "N/A - rate limiting is external to the repository and not reproducible on demand.",
+  "recommended_actions": [
+    "Re-run the failed 'LLM accuracy CPU tests' job; rate limiting is transient and typically clears within minutes.",
+    "Ensure HF_TOKEN is correctly provisioned on CI runners so anonymous rate limits do not apply.",
+    "Pre-cache the Qwen/Qwen2-0.5B-Instruct model on the runner before the accuracy tests to avoid live API calls."
+  ],
+  "prevention_strategies": "Ensure the HuggingFace model cache (HF_HUB_CACHE=/mnt/caches/huggingface) is pre-populated with required models before merge-queue runs. Use authenticated HF_TOKEN to get higher rate limits. Consider retry logic in the test runner for transient 429 errors.",
+  "historical_context": "This is the 3rd occurrence of this pattern (signature 391fe92c2ec33482). Previously seen on 2026-08-27 in runs 33081661909 and 33081710335."
+}
