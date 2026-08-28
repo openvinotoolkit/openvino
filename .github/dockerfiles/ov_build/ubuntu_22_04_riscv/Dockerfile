@@ -43,34 +43,46 @@ RUN apt-get update && \
     # install compilers to build OpenVINO for RISC-V 64
     apt-get install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu binutils-riscv64-linux-gnu && \
     apt-get install \
-        curl \
-        git \
-        cmake \
-        ccache \
-        ninja-build \
-        fdupes \
-        patchelf \
-        ca-certificates \
-        gpg-agent \
-        tzdata \
-        # parallel gzip
-        pigz \
-        # Python \
-        python3-dev \
-        python3-pip \
-        python3-venv \
-        python3-distutils \
-        # Compilers
-        gcc \
-        g++ \
-        # For clang-tidy validation
-        clang-format-18 \
-        clang-tidy-18 \
-        libomp-18-dev \
-        libncursesw6:riscv64 \
-        libtinfo6:riscv64 && \
+    curl \
+    git \
+    cmake \
+    ccache \
+    ninja-build \
+    fdupes \
+    patchelf \
+    ca-certificates \
+    gpg-agent \
+    tzdata \
+    procps \
+    # parallel gzip
+    pigz \
+    # Python \
+    python3-dev \
+    python3-pip \
+    python3-venv \
+    python3-distutils \
+    # Compilers
+    gcc \
+    g++ \
+    # For clang-tidy validation
+    clang-format-18 \
+    clang-tidy-18 \
+    libomp-18-dev && \
+    # Pin ncurses/tinfo to the jammy release-pocket version for both arches. The
+    # amd64 and riscv64 (ports) mirrors update these multiarch "same" packages on
+    # different schedules, so an updated version is often available for only one
+    # arch, causing a "Breaks" version conflict. The release-pocket version is the
+    # one version guaranteed to exist on both mirrors permanently.
+    NCURSES_VERSION=$(apt-cache madison libtinfo6 | awk -F'|' '$3 ~ / jammy\/main / {gsub(/ /, "", $2); print $2; exit}') && \
+    apt-get install --allow-downgrades \
+    libncurses6=${NCURSES_VERSION} \
+    libncursesw6=${NCURSES_VERSION} \
+    libtinfo6=${NCURSES_VERSION} \
+    libncurses6:riscv64=${NCURSES_VERSION} \
+    libncursesw6:riscv64=${NCURSES_VERSION} \
+    libtinfo6:riscv64=${NCURSES_VERSION} && \
     apt-get install \
-        libpython3-dev:riscv64 && \
+    libpython3-dev:riscv64 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 

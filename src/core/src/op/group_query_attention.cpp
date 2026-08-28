@@ -129,26 +129,26 @@ void GroupQueryAttention::validate_and_infer_types() {
             return;
         }
 
-        const auto& pshape = get_input_partial_shape(pos);
-        const auto& rank = pshape.rank();
-        const bool rank_ok =
-            rank.is_dynamic() || allowed_ranks.size() == 0 || ov::util::is_rank_compatible_any_of(rank, allowed_ranks);
-        NODE_VALIDATION_CHECK(this,
-                              rank_ok,
-                              "GroupQueryAttention expects ",
-                              input_name(input),
-                              " rank to be one of the allowed values, got shape ",
-                              pshape);
-
+        const auto& rank = get_input_partial_shape(pos).rank();
         const auto& type = get_input_element_type(pos);
-        const bool type_ok = type.is_dynamic() || allowed_types.size() == 0 ||
-                             std::find(allowed_types.begin(), allowed_types.end(), type) != allowed_types.end();
+
+        NODE_VALIDATION_CHECK(
+            this,
+            rank.is_dynamic() || allowed_ranks.size() == 0 || ov::util::is_rank_compatible_any_of(rank, allowed_ranks),
+            "Rank of `",
+            input_name(input),
+            "` input is not compatible with allowed ranks; got ",
+            rank,
+            ".");
+
         NODE_VALIDATION_CHECK(this,
-                              type_ok,
-                              "GroupQueryAttention expects ",
+                              type.is_dynamic() || allowed_types.empty() ||
+                                  std::find(allowed_types.begin(), allowed_types.end(), type) != allowed_types.end(),
+                              "Element type of `",
                               input_name(input),
-                              " element type to be one of the allowed values, got ",
-                              type);
+                              "` input is not compatible with allowed element types; got ",
+                              type,
+                              ".");
     };
 
     const auto integral_types = []() {
@@ -207,23 +207,15 @@ void GroupQueryAttention::validate_and_infer_types() {
                           !m_sliding_window_cache || m_local_window_size >= 1,
                           "GroupQueryAttention: sliding_window_cache requires local_window_size >= 1, got ",
                           m_local_window_size);
-    // Windowed cache: single-token decode (sequence_length == 1) is always correct, and a multi-token step
-    // that fits inside the window (past + current <= capacity) also decomposes correctly. The unmodeled case
-    // is a multi-token step that crosses a window eviction (the staging regime ONNX Runtime runs against a
-    // temporary larger buffer). Whether a step crosses depends on the past length, which is a runtime value
-    // (derived from seqlens_k), so it cannot be decided from shapes alone. A dynamic sequence_length is
-    // therefore left enabled (CPU/GPU): at runtime it is typically decode or fitting prefill, and rejecting it
-    // would disable those. A *statically* known sequence_length > 1 is a genuine multi-token graph whose
-    // correctness we cannot guarantee (it may cross an eviction at runtime), so reject it up front; only
-    // sequence_length == 1 is provably safe statically.
-    if (m_sliding_window_cache && sequence_len.is_static()) {
-        NODE_VALIDATION_CHECK(this,
-                              sequence_len.get_length() == 1,
-                              "GroupQueryAttention: sliding_window_cache with a statically known sequence length is "
-                              "only supported for single-token decode (sequence_length == 1), got ",
-                              sequence_len.get_length(),
-                              " (the multi-token staging regime is not yet modelled).");
-    }
+    // Windowed cache: single-token decode (sequence_length == 1) always fits inside the window and is handled
+    // by the in-place Gather + ScatterUpdate assembly. Any other step (a multi-token prefill/staging chunk,
+    // whether or not it actually crosses a window eviction at runtime) is handled by the staging branch, which
+    // seeds a temporary over-sized buffer with the resident survivors, appends the new tokens, runs attention
+    // against it, and writes back only the surviving tail - the same math ONNX Runtime's own
+    // PlanWindowedKvCache/staging path uses, verified against it. That branch is chosen from whether
+    // sequence_length is provably 1, not from whether it is statically known: a *statically* known
+    // sequence_length > 1 takes the identical staging branch a dynamic sequence_length resolving to the same
+    // runtime value would, so it is not rejected here.
 
     // The decomposition derives a scalar past length (past_seqlen = total - current) and assumes a single
     // batch entry ("Only consider batch is 1"); with batch_size > 1 the per-batch past lengths differ and the

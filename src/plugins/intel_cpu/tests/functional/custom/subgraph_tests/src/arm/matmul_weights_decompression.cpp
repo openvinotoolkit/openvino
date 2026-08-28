@@ -91,6 +91,27 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeightsGrp_Kleidiai,
                        ::testing::Values(true)),
     MatmulWeightsDecompression::getTestCaseName);
 
+const std::vector<MatMulDecompressionShapeParams> input_shapes_with_groups = {  
+    {{{}, {{1, 7, 256}}}, {256, 128}, 32lu},  // group_size = 32  
+    {    {{-1, -1, -1}, {{10, 40, 64}, {11, 40, 64}}}, // data_shape
+        {64, 128},  // weights_shape
+        32lu},   // group_size = 16  
+}; 
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeightsGrp_Kleidiai_asym,  
+                         MatmulWeightsDecompression,  
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_with_groups),  
+                                            ::testing::Values(ov::element::u4),  
+                                            ::testing::ValuesIn(decompression_precisions),  
+                                            ::testing::Values(ov::element::dynamic),  
+                                            ::testing::Values(true),  
+                                            ::testing::Values(DecompressionType::full),  // group-wise requires full  
+                                            ::testing::Values(DecompressionType::full),  // asymmetric with zero-point  
+                                            ::testing::Values(false),  
+                                            ::testing::Values(enable_dyn_quant_config_kleidiai),  
+                                            ::testing::ValuesIn(fusing_params),  
+                                            ::testing::Values(true)),  // should_use_decompression_impl() can also be passed
+                         MatmulWeightsDecompression::getTestCaseName);
 
 const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8, ov::element::i8};
 

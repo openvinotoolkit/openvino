@@ -1989,6 +1989,9 @@ public:
         case data_types::f16:
             fill_random_typed<ov::float16>(mem, -127, 127, 2);
             break;
+        case data_types::bf16:
+            fill_random_typed<ov::bfloat16>(mem, -127, 127, 2);
+            break;
         case data_types::i8:
             fill_random_typed<int8_t>(mem, -127, 127, 1);
             break;
@@ -2065,17 +2068,28 @@ INSTANTIATE_TEST_SUITE_P(batching_test,
                         crop_batching_input_test,
                         ::testing::ValuesIn(std::vector<crop_input_test_params>{
                             crop_input_test_params{ data_types::f16, {3, 4, 2, 2},     {1, 4, 2, 2},     format::b_fs_yx_fsv4 },
+                            crop_input_test_params{ data_types::bf16, {3, 4, 2, 2},     {1, 4, 2, 2},     format::b_fs_yx_fsv4 },
                             crop_input_test_params{ data_types::f16, {3, 16, 2, 2},    {1, 16, 2, 2},    format::b_fs_yx_fsv16 },
+                            crop_input_test_params{ data_types::bf16, {3, 16, 2, 2},    {1, 16, 2, 2},    format::b_fs_yx_fsv16 },
                             crop_input_test_params{ data_types::f16, {3, 20, 2, 2},    {1, 20, 2, 2},    format::b_fs_yx_fsv16 },
+                            crop_input_test_params{ data_types::bf16, {3, 20, 2, 2},    {1, 20, 2, 2},    format::b_fs_yx_fsv16 },
                             crop_input_test_params{ data_types::i8,  {3, 8, 2, 2},     {1, 8, 2, 2},     format::b_fs_yx_fsv32 },
                             crop_input_test_params{ data_types::f16, {3, 4, 2, 3, 2},  {1, 4, 2, 3, 2},  format::b_fs_zyx_fsv4 },
+                            crop_input_test_params{ data_types::bf16, {3, 4, 2, 3, 2},  {1, 4, 2, 3, 2},  format::b_fs_zyx_fsv4 },
                             crop_input_test_params{ data_types::f16, {3, 16, 3, 2, 2}, {1, 16, 3, 2, 2}, format::b_fs_zyx_fsv16 },
+                            crop_input_test_params{ data_types::bf16, {3, 16, 3, 2, 2}, {1, 16, 3, 2, 2}, format::b_fs_zyx_fsv16 },
                             crop_input_test_params{ data_types::u8,  {3, 32, 1, 2, 2}, {1, 32, 1, 2, 2}, format::b_fs_zyx_fsv32 },
                             crop_input_test_params{ data_types::f16, {3, 20, 3, 2, 2}, {1, 16, 3, 2, 2}, format::b_fs_zyx_fsv16 },
+                            crop_input_test_params{ data_types::bf16, {3, 20, 3, 2, 2}, {1, 16, 3, 2, 2}, format::b_fs_zyx_fsv16 },
                             crop_input_test_params{ data_types::f16, {3, 4, 4, 2, 2},  {1, 4, 4, 2, 2},  format::b_fs_zyx_fsv32 },
+                            crop_input_test_params{ data_types::bf16, {3, 4, 4, 2, 2},  {1, 4, 4, 2, 2},  format::b_fs_zyx_fsv32 },
                             crop_input_test_params{ data_types::f16, {64, 16, 2, 2},   {32, 16, 2, 2},   format::bs_fs_yx_bsv32_fsv16 },
+                            crop_input_test_params{ data_types::bf16, {64, 16, 2, 2},   {32, 16, 2, 2},   format::bs_fs_yx_bsv32_fsv16 },
                             crop_input_test_params{ data_types::f16, {3, 16, 2, 2},    {1, 16, 2, 2},    format::bs_fs_yx_bsv32_fsv16 },
+                            crop_input_test_params{ data_types::bf16, {3, 16, 2, 2},    {1, 16, 2, 2},    format::bs_fs_yx_bsv32_fsv16 },
                             crop_input_test_params{ data_types::f16, {3, 32, 2, 2},    {1, 32, 2, 2},    format::bs_fs_yx_bsv16_fsv16 },
+                            crop_input_test_params{ data_types::bf16, {3, 32, 2, 2},    {1, 32, 2, 2},    format::bs_fs_yx_bsv16_fsv16 },
                             crop_input_test_params{ data_types::f16, {3, 16, 3, 2, 2}, {1, 16, 3, 2, 2}, format::bs_fs_zyx_bsv32_fsv16 },
+                            crop_input_test_params{ data_types::bf16, {3, 16, 3, 2, 2}, {1, 16, 3, 2, 2}, format::bs_fs_zyx_bsv32_fsv16 },
                             crop_input_test_params{ data_types::i8,  {3, 32, 1, 2, 2}, {1, 32, 1, 2, 2}, format::bs_fs_zyx_bsv16_fsv32 },
                         }));

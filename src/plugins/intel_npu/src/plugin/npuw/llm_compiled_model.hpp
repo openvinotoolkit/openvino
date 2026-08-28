@@ -8,6 +8,7 @@
 
 #include "compiled_model.hpp"
 #include "npuw_transformations/kv_axes_position.hpp"
+#include "partitioning/patterns/pre_compute.hpp"
 
 namespace ov {
 namespace test {
@@ -140,6 +141,13 @@ private:
     uint64_t m_prefix_caching_block_size = 0;
     uint64_t m_prefix_caching_max_num_blocks = 0;
     uint64_t m_longrope_context_limit = 0;
+
+    // Host-side LongRoPE cos/sin coefficient tables used to fill the npuw_lr_cos/
+    // npuw_lr_sin model inputs at runtime (see LongRopeCosSin, pre_compute.hpp) -
+    // only valid (is_valid() == true) when the model matched LongRopePatternPhi_v5.
+    // Sized to the longest LUT in the model; prefill and the smaller generate
+    // variants take its leading rows. Part of the exported blob (see serialize()).
+    ov::npuw::patterns::pre_compute::LongRopeCosSin m_longrope_tables;
 
     // Continuous prefill support. Opted in via NPUW_LLM_ENABLE_CONTINUOUS_PREFILL and
     // mutually exclusive with hash prefix caching, which fails compilation.

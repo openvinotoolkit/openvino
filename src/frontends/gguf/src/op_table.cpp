@@ -20,7 +20,6 @@
 #include "openvino/op/softplus.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/tanh.hpp"
-
 #include "utils.hpp"
 
 namespace ov {
@@ -55,8 +54,6 @@ std::unordered_map<std::string, CreatorFunction> get_supported_ops() {
         {"GGML_OP_MUL", op::translate_1to1_match_2_inputs<v1::Multiply>},
         {"GGML_OP_MUL_MAT", op::translate_mulmat},
         {"GGML_OP_MUL_MAT_ID", op::translate_mul_mat_id},
-        // A GGML_OP_NONE leaf is a weight if the decoder marks it as one (see translate_weight);
-        // otherwise it is a model input, resolved to a Parameter before the walk.
         {"GGML_OP_NONE", op::translate_weight},
         {"GGML_OP_NORM", op::translate_norm},
         {"GGML_OP_PAD", op::translate_pad},

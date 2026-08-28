@@ -17,15 +17,16 @@
 
 #define IN_VEC_TYPE                     MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE)
 #define TO_IN_VEC_TYPE(x)               CAT(convert_, IN_VEC_TYPE)(x)
+#define DECODE_IN_VEC_TYPE(x)           DECODE_INPUT0_COMPUTE_VECTOR_TYPE(x, VEC_SIZE)
 #define ACC_VEC_TYPE                    MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, VEC_SIZE)
 #define TO_ACC_VEC_TYPE(x)              CAT(convert_, ACC_VEC_TYPE)(x)
 #define OUT_VEC_TYPE                    MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE)
 
 #ifdef RTE_OUTPUT
     #define TO_OUT_VEC_TYPE(x)          CAT(CAT(convert_, OUT_VEC_TYPE), _rte)(x)
-    #define TO_OUTPUT_TYPE(x)           CAT(CAT(convert_, OUTPUT_TYPE), _rte)(x)
+    #define TO_OUTPUT_COMPUTE_TYPE(x)           CAT(CAT(convert_, OUTPUT_TYPE), _rte)(x)
 #else
-    #define TO_OUT_VEC_TYPE(x)          CAT(convert_, OUT_VEC_TYPE)(x)
+    #define TO_OUT_VEC_TYPE(x)          TO_OUTPUT_VECTOR_TYPE(x, VEC_SIZE)
 #endif
 
 inline float FUNC(get_original_coordinate)(float num, float scale, int length_resized, int length_original)
@@ -159,10 +160,10 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
                                     {
 #if VEC_BLOCK_SIZE == 8
                                         MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_BLOCK_SIZE) input_vec = vload8(0, &input[INPUT0_GET_INDEX(b, f+fp, y, x)]);
-                                        sum = fma(convert_float8(input_vec), (float8)w, sum);
+                                        sum = fma(convert_float8(DECODE_INPUT0_COMPUTE_VECTOR_TYPE(input_vec, 8)), (float8)w, sum);
 #else
                                         MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_BLOCK_SIZE) input_vec = vload16(0, &input[INPUT0_GET_INDEX(b, f+fp, y, x)]);
-                                        sum = fma(convert_float16(input_vec), (float16)w, sum);
+                                        sum = fma(convert_float16(DECODE_INPUT0_COMPUTE_VECTOR_TYPE(input_vec, 16)), (float16)w, sum);
 #endif
                                     }
                                 }  // w != 0;
@@ -185,7 +186,7 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
                 out[f] = FUSED_OPS_RESULT;
                 #undef OF_ID
 #else
-                out[f] = ACTIVATION(TO_OUTPUT_TYPE(res), ACTIVATION_PARAMS);
+                out[f] = TO_OUTPUT_TYPE(ACTIVATION(TO_OUTPUT_COMPUTE_TYPE(res), ACTIVATION_PARAMS));
 #endif
             }
         } else {
@@ -197,7 +198,7 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
                 out[f] = FUSED_OPS_RESULT;
                 #undef OF_ID
 #else
-                out[f] = ACTIVATION(TO_OUTPUT_TYPE(res), ACTIVATION_PARAMS);
+                out[f] = TO_OUTPUT_TYPE(ACTIVATION(TO_OUTPUT_COMPUTE_TYPE(res), ACTIVATION_PARAMS));
 #endif
             }
         }
@@ -251,6 +252,13 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
 #else
         in_vec_t res = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, iy, ix));
 #endif
+
+#if HAS_FUSED_OPS
+        FUSED_OPS;
+        OUT_VEC_TYPE out = FUSED_OPS_RESULT;
+#else
+        OUT_VEC_TYPE out = TO_OUT_VEC_TYPE(ACTIVATION(DECODE_IN_VEC_TYPE(res), ACTIVATION_PARAMS));
+#endif // #if HAS_FUSED_OPS
 #elif defined(SAMPLE_TYPE_INTERP)
     unroll_for (uint out_x = 0; out_x < OUTPUT_X_BLOCK_SIZE; out_x++) {
         const ACCUMULATOR_TYPE ix = TO_ACCUMULATOR_TYPE(SCALES[4]) * (x + out_x);
@@ -276,12 +284,9 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
         const in_vec_t bottom_right = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, bottom_y_index, right_x_index));
 #endif
 
-        const acc_vec_t top    = TO_ACC_VEC_TYPE(top_left) + (TO_ACC_VEC_TYPE(top_right) - TO_ACC_VEC_TYPE(top_left)) * dx;
-        const acc_vec_t bottom = TO_ACC_VEC_TYPE(bottom_left) + (TO_ACC_VEC_TYPE(bottom_right) - TO_ACC_VEC_TYPE(bottom_left)) * dx;
+        const acc_vec_t top    = TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(top_left)) + (TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(top_right)) - TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(top_left))) * dx;
+        const acc_vec_t bottom = TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(bottom_left)) + (TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(bottom_right)) - TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(bottom_left))) * dx;
         acc_vec_t res = top + (bottom - top) * dy;
-#else // defined(SAMPLE_TYPE_LINEAR_ONNX)
-#error [clDNN resample_opt.cl]: unsupported resample type
-#endif
 
 #if HAS_FUSED_OPS
         FUSED_OPS;
@@ -289,6 +294,9 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
 #else
         OUT_VEC_TYPE out = TO_OUT_VEC_TYPE(ACTIVATION(res, ACTIVATION_PARAMS));
 #endif // #if HAS_FUSED_OPS
+#else // defined(SAMPLE_TYPE_LINEAR_ONNX)
+#error [clDNN resample_opt.cl]: unsupported resample type
+#endif
 
 #if OUTPUT_DIMS == 5
         WRITE_FUNC(output, OUTPUT_GET_INDEX(b, feature_block, z, y, (x + out_x)), out);

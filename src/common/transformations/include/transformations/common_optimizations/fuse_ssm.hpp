@@ -84,7 +84,7 @@ public:
 class TRANSFORMATIONS_API FuseSSMLoop : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("FuseSSMLoop");
-    FuseSSMLoop();
+    FuseSSMLoop(size_t& fused_count);
 };
 
 /// This pass transforms a loop-based SSM sub-graph into a single internal `SelectiveSSM` operation.
@@ -124,6 +124,13 @@ public:
     OPENVINO_MODEL_PASS_RTTI("SelectiveSSMFusion");
     SelectiveSSMFusion() = default;
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+
+    size_t get_fused_count() const {
+        return m_fused_count;
+    }
+
+private:
+    size_t m_fused_count = 0;
 };
 
 }  // namespace ov::pass
