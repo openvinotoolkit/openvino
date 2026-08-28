@@ -576,6 +576,8 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
 
     if (is_remote) {
         _output_remote_mem_ptrs[id] = mem_new;
+    } else {
+        _output_remote_mem_ptrs.erase(id);
     }
 
     auto& eng = get_engine();
@@ -785,6 +787,12 @@ memory& network::get_output_remote_memory(const primitive_id& id) const {
 bool network::has_output_remote_memory_ptr(const primitive_id& id) const {
     auto it = _output_remote_mem_ptrs.find(id);
     return it != _output_remote_mem_ptrs.end();
+}
+
+bool network::is_output_remote_memory(const memory& mem) const {
+    return std::any_of(_output_remote_mem_ptrs.begin(), _output_remote_mem_ptrs.end(), [&](const auto& output) {
+        return output.second && get_engine().is_the_same_buffer(mem, *output.second);
+    });
 }
 
 void network::reset_output_remote_memory_ptrs() {

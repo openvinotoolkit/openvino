@@ -1737,6 +1737,10 @@ void primitive_inst::do_runtime_skip_permute() {
             prev_dim = permute_dest[i];
         }
     }
+    // Remote output chains stop at runtime-skippable permutes, so skipping here would leave the bound memory unwritten.
+    if (can_skip && output_memory_ptr() && get_network().is_output_remote_memory(*output_memory_ptr()))
+        can_skip = false;
+
     GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_permute] " << id() << " : can_be_optimized ? " << can_skip << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "            - Input layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
