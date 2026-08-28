@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-28-00-21-53-000-33124736389",
+  "timestamp": "2026-08-28T00:21:53Z",
+  "run_id": "33124736389",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33124736389",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "37622",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37622",
+  "author": "Prithviraj-R",
+  "category": "Network",
+  "title": "Artifact download fails with ECONNREFUSED on self-hosted runner",
+  "signature": "Failed to ListArtifacts: Unable to make request: ECONNREFUSED|Network",
+  "signature_hash": "1808e665f1f70825",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Samples / Samples",
+      "conclusion": "failure",
+      "symptom": "Download OpenVINO artifacts failed: ECONNREFUSED on ListArtifacts"
+    }
+  ],
+  "key_errors": [
+    "##[error]Action failed with error: Failed to ListArtifacts: Unable to make request: ECONNREFUSED",
+    "##[error]Unable to download artifact(s): Failed to ListArtifacts: Unable to make request: ECONNREFUSED"
+  ],
+  "root_cause": "The self-hosted runner lost network connectivity to GitHub's artifact service endpoints when trying to download the 'openvino_package' artifact. The ECONNREFUSED error indicates the TCP connection was actively refused, likely due to a transient runner networking issue, a GitHub Actions backend blip, or a runner-level proxy/firewall interruption. This is unrelated to the PR code changes.",
+  "reproduction_steps": "N/A",
+  "recommended_actions": [
+    "Re-run the failed 'Samples / Samples' job \u2014 transient ECONNREFUSED failures resolve on retry",
+    "Check runner health if the failure persists across multiple retries"
+  ],
+  "prevention_strategies": "Implement retry logic in the custom download-artifact action for ECONNREFUSED transient errors.",
+  "historical_context": "This exact pattern (ECONNREFUSED on ListArtifacts) has occurred 4 times total (first seen 2026-07-01). Prior occurrences on runs 29522352360, 29426291440, 28532884711 all resolved on re-run."
+}
