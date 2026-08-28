@@ -994,6 +994,7 @@ TEST_P(RoiTensorsTestsRun, RunStridedTensorWithDynamicBoundedBatching) {
     }
 }
 
+//Need check this test if pass?
 TEST_P(RoiTensorsTestsRun, TryToCompileStridedTensorWithDynamicBoundsExpectedThrow) {
     auto model_shape = PartialShape{ov::Dimension(1, 10), 5, ov::Dimension(2, 15), 9};
     ov::CompiledModel compiled_model;
