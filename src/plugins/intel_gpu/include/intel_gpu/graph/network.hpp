@@ -8,6 +8,7 @@
 
 #include "intel_gpu/graph/topology.hpp"
 #include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/graph/record_replay_session.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -241,7 +242,7 @@ private:
     program::ptr _program;
     engine& _engine;
     stream::ptr _stream;
-    command_list::ptr _cmd_list = nullptr;
+    record_replay_session::ptr _record_replay_session = nullptr;
     std::unique_ptr<memory_pool> _memory_pool;
     bool _internal;
     bool _is_primary_stream;
@@ -249,7 +250,6 @@ private:
     bool _enable_profiling = false;
     bool _reset_arguments;
     bool _reuse_variable_mem = false;
-    bool _is_recording_valid = false;
 
     /* Common memory pointer for shape_info */
     memory::ptr _shape_info_ptr;

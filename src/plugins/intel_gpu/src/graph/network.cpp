@@ -253,7 +253,7 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     if (!_internal && get_config().get_record_replay()) {
         OPENVINO_ASSERT(is_recording_supported(), "[GPU] Record and replay is not supported on the provided model");
         OPENVINO_ASSERT(_stream->get_recorder() != nullptr, "[GPU] Stream recording is not supported by the current stream implementation");
-        _cmd_list = _stream->get_recorder()->create_command_list();
+        _record_replay_session = std::make_shared<record_replay_session>(*_stream);
     }
 }
 
@@ -966,21 +966,12 @@ bool network::has_event(const primitive_id& id) const {
 
 void network::execute_impl(const std::vector<event::ptr>& events) {
     auto &net_stream = get_stream();
-    bool started_recording = false;
-    if (_cmd_list != nullptr) {
-        if (!events.empty()) {
-            static_cast<void>(net_stream.enqueue_marker(events));
-        }
-        if (_is_recording_valid) {
-            for (auto& inst : _exec_order) {
-                inst->reset_out_event();
-            }
-            _cmd_list->enqueue();
-            GPU_DEBUG_TRACE_DETAIL << "[GPU][REC] Replayed last iteration" << std::endl;
+    auto exec_mode = network_exec_mode::immediate;
+    if (_record_replay_session) {
+        exec_mode =_record_replay_session->begin_iteration(events, _exec_order);
+        if (exec_mode == network_exec_mode::replay) {
             return;
         }
-        net_stream.get_recorder()->start_recording(_cmd_list);
-        started_recording = true;
     }
     set_arguments();
 
@@ -997,7 +988,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 
         inst->clear_events();
 
-        if (!started_recording && inst->is_input()) {
+        if (exec_mode == network_exec_mode::immediate && inst->is_input()) {
             inst->add_dep_events(events);
         }
 
@@ -1008,10 +999,8 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         if (needs_flushing && executed_prims % flush_frequency == 0)
             net_stream.flush();
     }
-    if (started_recording) {
-        auto cmd_list = net_stream.get_recorder()->stop_recording();
-        _is_recording_valid = (cmd_list == _cmd_list);
-        GPU_DEBUG_TRACE_DETAIL << "[GPU][REC] Stream recording " << (_is_recording_valid ? "succeeded" : "failed") << std::endl;
+    if (exec_mode == network_exec_mode::record) {
+        _record_replay_session->end_iteration();
     }
 
     // Using output of previous network as input to another one may cause hazard (in OOOQ mode) if user would not
@@ -1026,7 +1015,9 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 }
 
 void network::invalidate_stream_recording() {
-    _is_recording_valid = false;
+    if (_record_replay_session) {
+        _record_replay_session->invalidate();
+    }
 }
 
 bool network::is_recording_supported() const {
