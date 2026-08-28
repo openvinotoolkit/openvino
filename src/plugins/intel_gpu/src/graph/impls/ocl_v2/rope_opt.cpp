@@ -20,6 +20,7 @@ size_t get_vec_size(const RuntimeParams& params) {
     size_t vec_size = 1;
     switch (input.data_type) {
     case ov::element::f16:
+    case ov::element::bf16:
         vec_size = 16;
         break;
     case ov::element::f32:
@@ -107,11 +108,14 @@ protected:
             }
         }
         jit.make("VEC_SIZE", get_vec_size(params));
-        if (params.get_input_layout(0).data_type != params.get_input_layout(1).data_type) {
+        if (in_l.data_type == ov::element::bf16) {
+            jit.add(make_type_jit_constants("ACCUMULATOR", ov::element::f32));
+        } else if (params.get_input_layout(0).data_type != params.get_input_layout(1).data_type) {
             jit.add(make_type_jit_constants("ACCUMULATOR", params.get_input_layout(1).data_type));
         } else {
             jit.add(make_type_jit_constants("ACCUMULATOR", params.get_input_layout(0).data_type));
         }
+
         return jit;
     }
 
