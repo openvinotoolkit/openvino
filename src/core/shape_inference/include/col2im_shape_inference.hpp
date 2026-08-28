@@ -5,9 +5,10 @@
 #pragma once
 
 #include <cmath>
-#include <limits>
 
+#include "dimension_util.hpp"
 #include "openvino/op/col2im.hpp"
+#include "openvino/util/math_util.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -66,27 +67,25 @@ std::vector<TRShape> shape_infer(const Col2Im* op,
         //                   ^
         const size_t C_idx = is_batched ? 1 : 0;
         const auto kernel_val = ov::op::get_input_const_data_as<TRShape, int64_t>(op, 2, tensor_accessor);
-        if (kernel_val) {
+        if (kernel_val && data_shape[C_idx].is_static()) {
+            int64_t divisor;
             NODE_SHAPE_INFER_CHECK(op,
                                    input_shapes,
-                                   (*kernel_val)[0] > 0 && (*kernel_val)[1] > 0,
-                                   "kernel_size elements must be positive non-zero values.");
-            NODE_SHAPE_INFER_CHECK(op,
-                                   input_shapes,
-                                   (*kernel_val)[0] <= std::numeric_limits<int64_t>::max() / (*kernel_val)[1],
+                                   !ov::util::mul_overflow<int64_t>((*kernel_val)[0], (*kernel_val)[1], divisor),
                                    "kernel_size product overflows int64.");
-            if (data_shape[C_idx].is_static()) {
-                const auto& dividend = data_shape[C_idx].get_length();
-                const auto divisor = (*kernel_val)[0] * (*kernel_val)[1];
-                output_shape[idx] = dividend / divisor;
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   divisor > 0,
+                                   "kernel_size elements must be positive non-zero values.");
+            // Dimension division yields an empty dimension when it is not evenly divisible.
+            output_shape[idx] = data_shape[C_idx] / static_cast<typename TShape::value_type::value_type>(divisor);
 
-                NODE_SHAPE_INFER_CHECK(
-                    op,
-                    input_shapes,
-                    dividend % divisor == 0,
-                    "First non-batch dimension is not evenly divisible by Product(kernel_shape). Got: ",
-                    data_shape[C_idx].get_length());
-            }
+            NODE_SHAPE_INFER_CHECK(
+                op,
+                input_shapes,
+                !ov::util::dim::is_empty(output_shape[idx]),
+                "First non-batch dimension is not evenly divisible by Product(kernel_shape). Got: ",
+                data_shape[C_idx]);
         }
 
         // output_shape: (N, C, H, W)
@@ -110,11 +109,7 @@ std::vector<TRShape> shape_infer(const Col2Im* op,
                     using TVal = typename TShape::value_type::value_type;
                     TVal L_calculated = 1;
                     for (size_t d = 0; d < spatial_dims; ++d) {
-                        NODE_SHAPE_INFER_CHECK(op,
-                                               input_shapes,
-                                               strides[d] != 0,
-                                               "strides must be non-zero at dimension ",
-                                               d);
+                        NODE_SHAPE_INFER_CHECK(op, input_shapes, strides[d] != 0, "strides must be non-zero.");
                         L_calculated *= (((*output_size_val)[d].get_length() + pads_begin[d] + pads_end[d] -
                                           dilations[d] * ((*kernel_val)[d] - 1) - 1) /
                                          strides[d]) +

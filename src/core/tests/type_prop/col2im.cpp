@@ -461,5 +461,19 @@ TEST_F(TypePropCol2ImTest, kernel_size_overflow_product) {
         HasSubstr("kernel_size product overflows"));
 }
 
+TEST_F(TypePropCol2ImTest, kernel_size_product_wraps_to_zero) {
+    const auto data = std::make_shared<Parameter>(element::i64, PartialShape{1, 12, 81});
+    const auto output_size = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int64_t>{16, 16});
+    // Both elements are positive, but their product wraps around to exactly 0 without the overflow guard.
+    constexpr int64_t two_pow_32 = int64_t{1} << 32;
+    const auto kernel_size =
+        std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int64_t>{two_pow_32, two_pow_32});
+
+    OV_EXPECT_THROW(
+        std::ignore = make_op(data, output_size, kernel_size, Strides{1, 1}, Strides{1, 1}, Shape{0, 0}, Shape{0, 0}),
+        ov::NodeValidationFailure,
+        HasSubstr("kernel_size product overflows"));
+}
+
 }  // namespace test
 }  // namespace ov
