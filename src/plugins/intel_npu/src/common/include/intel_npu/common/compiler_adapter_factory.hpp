@@ -5,6 +5,7 @@
 #pragma once
 
 #include <atomic>
+#include <cstdint>
 #include <memory>
 #include <string_view>
 #include <vector>
@@ -26,10 +27,18 @@ public:
         std::string_view platform,
         const std::shared_ptr<OptionSupportCache>& optionSupportCache = nullptr) const;
 
-    static const std::vector<ov::intel_npu::CompilerType>& getSupportedCompilerTypes();
+    void decideCompilerType(ov::intel_npu::CompilerType& compilerType, std::string_view platform);
+
+    const std::vector<ov::intel_npu::CompilerType>& getSupportedCompilerTypes() const;
 
 private:
-    inline static std::atomic<bool> _pluginCompilerIsPresent{true};
+    enum class PluginCompilerPresence : std::uint8_t {
+        UNKNOWN = 0,
+        PRESENT = 1,
+        ABSENT = 2,
+    };
+
+    inline static std::atomic<PluginCompilerPresence> _pluginCompilerPresence{PluginCompilerPresence::UNKNOWN};
 };
 
 }  // namespace intel_npu

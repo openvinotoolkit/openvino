@@ -342,7 +342,7 @@ std::optional<ov::intel_npu::CompilerType> PluginPropertyManager::resolveCompile
             _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
         CompilerAdapterFactory factory;
-        (void)factory.getCompiler(_backend, compilerType, compilationPlatform);
+        factory.decideCompilerType(compilerType, compilationPlatform);
         return compilerType;
     } catch (const std::exception& ex) {
         _logger.warning("Failed to resolve compiler type: %s. Compiler-dependent properties will be unsupported.",
