@@ -152,8 +152,12 @@ public:
     };
 
     // Rejects routing tables restored from an untrusted blob which refer to
-    // submodels or ports that do not exist.
+    // submodels or ports that do not exist, or which don't cover every global
+    // input/output the imported model actually has (init_gio()/report_io() index
+    // both vectors by the model's real port count, not by the vector's own size).
     static void validate_import_routing_tables(const std::vector<SubmodelPorts>& submodels,
+                                               std::size_t num_global_inputs,
+                                               std::size_t num_global_outputs,
                                                const std::vector<ToSubmodel>& inputs_to_submodels_inputs,
                                                const std::vector<ToSubmodel>& outputs_to_submodels_outputs,
                                                const std::map<std::size_t, std::vector<ToSubmodel>>& param_subscribers,

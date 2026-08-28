@@ -1362,6 +1362,31 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         have_weights = true;
     };
 
+    // Every routing table below is dereferenced unchecked by finalize_weights_bank()/
+    // reconstruct_closure() (both reached from consume_weights_bank()), so validation
+    // must run immediately after all Subgraph sections are read and before either of
+    // them executes - not after consume_weights_bank(), which is too late.
+    auto validate_submodels_read_so_far = [&]() {
+        std::vector<SubmodelPorts> submodel_ports;
+        submodel_ports.reserve(compiled->m_compiled_submodels.size());
+        for (const auto& desc : compiled->m_compiled_submodels) {
+            SubmodelPorts ports;
+            ports.replaced_by = desc.replaced_by;
+            if (desc.compiled_model) {
+                ports.num_inputs = desc.compiled_model->inputs().size();
+                ports.num_outputs = desc.compiled_model->outputs().size();
+            }
+            submodel_ports.push_back(std::move(ports));
+        }
+        validate_import_routing_tables(submodel_ports,
+                                       compiled->inputs().size(),
+                                       compiled->outputs().size(),
+                                       compiled->m_inputs_to_submodels_inputs,
+                                       compiled->m_outputs_to_submodels_outputs,
+                                       compiled->m_param_subscribers,
+                                       compiled->m_submodels_input_to_prev_output);
+    };
+
     if (encrypted) {
         root.expect_end();
 
@@ -1371,6 +1396,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
                peek_child_header(decrypted_stream).type == CompiledModelDesc::kOrcType) {
             consume_submodel(decrypted_stream);
         }
+        validate_submodels_read_so_far();
         if (require_weights_bank) {
             if (decrypted_stream.peek() == std::char_traits<char>::eof()) {
                 OPENVINO_THROW("Missing ORC weights bank container");
@@ -1381,6 +1407,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         while (!root.done() && peek_child_header(stream).type == CompiledModelDesc::kOrcType) {
             consume_submodel(stream);
         }
+        validate_submodels_read_so_far();
         if (require_weights_bank) {
             if (root.done()) {
                 OPENVINO_THROW("Missing ORC weights bank container");
@@ -1396,34 +1423,37 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         OPENVINO_THROW("Missing ORC weights bank container");
     }
 
-    std::vector<SubmodelPorts> submodel_ports;
-    submodel_ports.reserve(compiled->m_compiled_submodels.size());
-    for (const auto& desc : compiled->m_compiled_submodels) {
-        SubmodelPorts ports;
-        ports.replaced_by = desc.replaced_by;
-        if (desc.compiled_model) {
-            ports.num_inputs = desc.compiled_model->inputs().size();
-            ports.num_outputs = desc.compiled_model->outputs().size();
-        }
-        submodel_ports.push_back(std::move(ports));
-    }
-    validate_import_routing_tables(submodel_ports,
-                                   compiled->m_inputs_to_submodels_inputs,
-                                   compiled->m_outputs_to_submodels_outputs,
-                                   compiled->m_param_subscribers,
-                                   compiled->m_submodels_input_to_prev_output);
-
     compiled->implement_properties();
     return compiled;
 }
 
 void ov::npuw::CompiledModel::validate_import_routing_tables(
     const std::vector<SubmodelPorts>& submodels,
+    std::size_t num_global_inputs,
+    std::size_t num_global_outputs,
     const std::vector<ToSubmodel>& inputs_to_submodels_inputs,
     const std::vector<ToSubmodel>& outputs_to_submodels_outputs,
     const std::map<std::size_t, std::vector<ToSubmodel>>& param_subscribers,
     const std::map<ToSubmodel, ToSubmodel>& submodels_input_to_prev_output) {
     const auto num_submodels = submodels.size();
+
+    // init_gio()/report_io() iterate the model's real input()/output() count and index
+    // these vectors positionally, so a short or padded vector is just as unsafe as a
+    // dangling entry inside it.
+    if (inputs_to_submodels_inputs.size() != num_global_inputs) {
+        OPENVINO_THROW("Imported NPUW model: global input mapping has ",
+                       inputs_to_submodels_inputs.size(),
+                       " entries but the model has ",
+                       num_global_inputs,
+                       " input(s)");
+    }
+    if (outputs_to_submodels_outputs.size() != num_global_outputs) {
+        OPENVINO_THROW("Imported NPUW model: global output mapping has ",
+                       outputs_to_submodels_outputs.size(),
+                       " entries but the model has ",
+                       num_global_outputs,
+                       " output(s)");
+    }
 
     for (std::size_t idx = 0; idx < num_submodels; ++idx) {
         const auto& replaced_by = submodels[idx].replaced_by;
@@ -1435,6 +1465,16 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(
                            " while only ",
                            num_submodels,
                            " submodel(s) are present");
+        }
+        // An in-range index is not enough: request construction (e.g. JustInferRequest)
+        // dereferences the target's compiled_model unconditionally, so it must actually
+        // be a function body - not an optimized-out submodel or another call site.
+        if (replaced_by && !submodels[replaced_by.value()].num_inputs) {
+            OPENVINO_THROW("Imported NPUW model: submodel ",
+                           idx,
+                           " is replaced by submodel ",
+                           replaced_by.value(),
+                           " which is not a compiled function body");
         }
     }
 
@@ -1487,6 +1527,15 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(
         check("global output mapping", link, false, false);
     }
     for (const auto& kvp : param_subscribers) {
+        // The key is a global input index consumed unchecked by init_gio()/bind_global_params()
+        // as m_npuw_model->inputs()[param_idx] - just as untrusted as the subscriber values.
+        if (kvp.first >= num_global_inputs) {
+            OPENVINO_THROW("Imported NPUW model: parameter subscriber refers to global input ",
+                           kvp.first,
+                           " while the model has only ",
+                           num_global_inputs,
+                           " input(s)");
+        }
         for (const auto& link : kvp.second) {
             check("parameter subscriber", link, true, false);
         }

@@ -14,8 +14,10 @@
 #include <vector>
 
 #include "compiled_model.hpp"
+#include "attn/attn_subgraph.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
+#include "moe/moe_subgraph.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "orc.hpp"
 #include "orc/schema_npuw.hpp"
@@ -100,7 +102,12 @@ Tables make_valid_tables() {
 
 // Mirrors CompiledModelDesc::serialize() for a submodel that carries no compiled
 // blob of its own - the only shape a test can produce without a real NPU device.
-void write_submodel(std::ostream& buffer, std::optional<std::size_t> replaced_by) {
+// `closure_uid` also fixes the closure/is_remote/closure_size triple: a non-empty
+// vector produces a bank-backed closure entry that reconstruct_closure() resolves
+// through submodel_device(replaced_by) - the unchecked sink this file guards against.
+void write_submodel(std::ostream& buffer,
+                    std::optional<std::size_t> replaced_by,
+                    std::vector<int64_t> closure_uid = {}) {
     orc::with_leaf_section(buffer, static_cast<orc::TypeId>(orc::schema_npuw::Subgraph::ID), 0u, [&] {
         auto stream = orc::Stream::writer(buffer);
 
@@ -116,20 +123,36 @@ void write_submodel(std::ostream& buffer, std::optional<std::size_t> replaced_by
         stream & replaced_by & param_base & forced_to_fcall & gather_dst & gather_src & gather_idx & quant_dst &
             quant_w & quant_z & quant_s & quant_idx & spatial;
 
-        std::vector<bool> is_remote;
-        std::vector<int64_t> closure_uid;
+        // Mirrors CompiledModelDesc::serialize()'s is_fcall gate: a genuine call site
+        // (replaced_by set, no compiled_model of its own) skips this section; anything
+        // else - including this harness's stand-in for an ordinary submodel - must write
+        // it, with an empty context standing in for "no MoE/attention state".
+        if (!replaced_by.has_value()) {
+            ov::npuw::v1::subgraphs::Context empty_context;
+            ov::npuw::moe::serialize_compiled_state(empty_context, stream, nullptr);
+            ov::npuw::attn::serialize_compiled_state(empty_context, stream, nullptr);
+        }
+
+        std::vector<bool> is_remote(closure_uid.size(), false);
         stream & is_remote & closure_uid;
 
         std::vector<ov::Tensor> scales, zerops;
-        std::size_t closure_size = 0u;
-        std::vector<std::size_t> cpu_closure_ids;
+        std::size_t closure_size = closure_uid.size();
+        std::vector<std::size_t> cpu_closure_ids;  // none of the closure entries are host-resident
         stream & scales & zerops & closure_size & cpu_closure_ids;
     });
 }
 
+// One forged Subgraph section: an optional function-body reference plus an
+// optional bank-backed closure entry (see write_submodel()).
+struct SubmodelSpec {
+    std::optional<std::size_t> replaced_by;
+    std::vector<int64_t> closure_uid;
+};
+
 // Produces exactly what CompiledModel::export_model() would, except the routing
 // tables and the submodels are whatever the caller asks for.
-std::string make_blob(const Tables& tables, const std::vector<std::optional<std::size_t>>& submodels) {
+std::string make_blob(const Tables& tables, const std::vector<SubmodelSpec>& submodels) {
     std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
     orc::write_file_header(buffer, orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA);
 
@@ -166,8 +189,8 @@ std::string make_blob(const Tables& tables, const std::vector<std::optional<std:
             stream & bf16_consts;
         });
 
-        for (const auto& replaced_by : submodels) {
-            write_submodel(buffer, replaced_by);
+        for (const auto& submodel : submodels) {
+            write_submodel(buffer, submodel.replaced_by, submodel.closure_uid);
         }
 
         orc::with_leaf_section(buffer, ov::npuw::weights::Bank::kOrcType, ov::npuw::weights::Bank::kOrcVersion, [&] {
@@ -181,11 +204,12 @@ std::string make_blob(const Tables& tables, const std::vector<std::optional<std:
     return buffer.str();
 }
 
-// A single submodel acting as its own function body - the shape every test below
-// uses unless it needs to forge the function-body reference itself.
-const std::vector<std::optional<std::size_t>> kOneSubmodel{std::optional<std::size_t>{0u}};
+// A single ordinary (non-function) submodel - the shape every test below uses unless
+// it needs to forge the function-body reference itself. replaced_by is unset, matching
+// a real ordinary submodel.
+const std::vector<SubmodelSpec> kOneSubmodel{SubmodelSpec{std::nullopt, {}}};
 
-void import_blob(const Tables& tables, const std::vector<std::optional<std::size_t>>& submodels = kOneSubmodel) {
+void import_blob(const Tables& tables, const std::vector<SubmodelSpec>& submodels = kOneSubmodel) {
     const auto plugin = std::make_shared<NullPlugin>();
     auto bytes = make_blob(tables, submodels);
     std::stringstream stream(bytes, std::ios::in | std::ios::out | std::ios::binary);
@@ -223,15 +247,57 @@ TEST(NpuwImportRoutingValidation, GlobalOutputMappingOutOfRange) {
     EXPECT_THROW(import_blob(tables), ov::Exception);
 }
 
+// init_gio() indexes both vectors by the model's real input()/output() count, not by
+// the vector's own size - a short vector reaches an unchecked .at() there, and
+// report_io() indexes an oversized one straight into the model's port array.
+TEST(NpuwImportRoutingValidation, GlobalInputMappingWrongCardinality) {
+    auto tables = make_valid_tables();
+    tables.inputs = {};
+    EXPECT_THROW(import_blob(tables), ov::Exception);
+
+    tables = make_valid_tables();
+    tables.inputs = {ToSubmodel{0, 0}, ToSubmodel{0, 0}};
+    EXPECT_THROW(import_blob(tables), ov::Exception);
+}
+
+TEST(NpuwImportRoutingValidation, GlobalOutputMappingWrongCardinality) {
+    auto tables = make_valid_tables();
+    tables.outputs = {};
+    EXPECT_THROW(import_blob(tables), ov::Exception);
+
+    tables = make_valid_tables();
+    tables.outputs = {ToSubmodel{0, 0}, ToSubmodel{0, 0}};
+    EXPECT_THROW(import_blob(tables), ov::Exception);
+}
+
 TEST(NpuwImportRoutingValidation, ParamSubscriberOutOfRange) {
     auto tables = make_valid_tables();
     tables.param_subscribers[0] = {ToSubmodel{0, 0}, ToSubmodel{9, 0}};
     EXPECT_THROW(import_blob(tables), ov::Exception);
 }
 
+// The subscriber map's key (a global input index) is just as untrusted as its values -
+// bind_global_params() indexes m_npuw_model->inputs()[param_idx] with it unchecked.
+TEST(NpuwImportRoutingValidation, ParamSubscriberKeyOutOfRange) {
+    auto tables = make_valid_tables();
+    tables.param_subscribers[9] = {ToSubmodel{0, 0}};
+    EXPECT_THROW(import_blob(tables), ov::Exception);
+}
+
 // A dangling function-body reference is a second unchecked index into m_compiled_submodels.
 TEST(NpuwImportRoutingValidation, ReplacedBySubmodelIndexOutOfRange) {
-    EXPECT_THROW(import_blob(make_valid_tables(), {std::optional<std::size_t>{0x100000u}}), ov::Exception);
+    EXPECT_THROW(import_blob(make_valid_tables(), {SubmodelSpec{std::optional<std::size_t>{0x100000u}, {}}}),
+                ov::Exception);
+}
+
+// The dangling replaced_by is also dereferenced by reconstruct_closure(), which runs
+// as part of consume_weights_bank() - i.e. before validate_import_routing_tables() used
+// to run. A non-empty (bank-backed) closure entry makes reconstruct_closure() actually
+// resolve that index via submodel_device(), so this only passes if validation happens
+// before consume_weights_bank(), not after it.
+TEST(NpuwImportRoutingValidation, ReplacedBySubmodelIndexOutOfRangeWithClosureEntry) {
+    EXPECT_THROW(import_blob(make_valid_tables(), {SubmodelSpec{std::optional<std::size_t>{0x100000u}, {0}}}),
+                ov::Exception);
 }
 
 // NO_LINK is a legal placeholder for a global input which no submodel consumes,
@@ -271,7 +337,21 @@ std::vector<SubmodelPorts> make_submodel_ports(std::size_t count,
 }
 
 void validate(const std::vector<SubmodelPorts>& submodels, const Tables& t) {
-    CM::validate_import_routing_tables(submodels, t.inputs, t.outputs, t.param_subscribers, t.links);
+    CM::validate_import_routing_tables(submodels, t.inputs.size(), t.outputs.size(), t.inputs, t.outputs,
+                                       t.param_subscribers, t.links);
+}
+
+// An in-range replaced_by is not enough: request construction dereferences the
+// target's compiled_model unconditionally, so the target must actually be a compiled
+// function body (i.e. have known ports), not an optimized-out submodel or another
+// call site missing its own compiled model.
+TEST(NpuwImportRoutingValidation, ReplacedByTargetIsNotCompiledFunctionBody) {
+    auto submodels = make_submodel_ports(2);
+    submodels[0].num_inputs.reset();
+    submodels[0].num_outputs.reset();
+    submodels[1].replaced_by = 0;
+
+    EXPECT_THROW(validate(submodels, make_valid_tables()), ov::Exception);
 }
 
 TEST(NpuwImportRoutingValidation, LinkConsumerPortIndexOutOfRange) {
