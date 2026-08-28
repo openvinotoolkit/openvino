@@ -16,6 +16,7 @@
 #if OV_THREAD_USE_TBB
 
 #    include <cstddef>
+#    include <cstdint>
 #    include <memory>
 #    include <mutex>
 #    include <type_traits>
@@ -96,7 +97,7 @@ struct constraints {
     int processor_group = -1;
 };
 
-#if USE_TBBBIND_2_5
+#    if USE_TBBBIND_2_5
 class binding_handler;
 class binding_observer : public tbb::task_scheduler_observer {
     binding_handler* my_binding_handler;
@@ -117,13 +118,14 @@ struct binding_observer_deleter {
 };
 
 using binding_oberver_ptr = std::unique_ptr<binding_observer, binding_observer_deleter>;
-#endif
+#    endif
 
 #    if defined(_WIN32)
 // Spreads streams across Windows processor groups without core pinning: soft-binds an entering thread
 // to a processor group (full active mask) and restores its previous group affinity on scheduler exit.
 class group_affinity_observer : public tbb::task_scheduler_observer {
-    GROUP_AFFINITY my_group_affinity{};
+    int my_group_id = -1;
+    uint64_t my_group_mask = 0;
     bool my_valid = false;
 
 public:
@@ -152,9 +154,9 @@ class task_arena {
     tbb::task_arena my_task_arena;
     std::once_flag my_initialization_state;
     detail::constraints my_constraints;
-#if USE_TBBBIND_2_5
+#    if USE_TBBBIND_2_5
     detail::binding_oberver_ptr my_binding_observer;
-#endif
+#    endif
 #    if defined(_WIN32)
     detail::group_affinity_observer_ptr my_group_affinity_observer;
     std::once_flag my_group_observer_state;
