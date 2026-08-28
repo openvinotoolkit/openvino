@@ -47,6 +47,7 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "partitioning/online/group.hpp"
 #include "partitioning/online/snapshot.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "partitioning/patterns/sdpa.hpp"
 
 namespace {
@@ -219,15 +220,8 @@ static SharedVCacheModel build_shared_vcache_model() {
     const Shape mask_sh    = {1, 1, 1, 5};
     const Shape attn_sh    = {1, 2, 1, 5};  // query x K^T output
 
-    ParameterVector params;
     ResultVector results;
 
-    auto make_param = [&](const std::string& name, const Shape& shape, element::Type et = element::f16) {
-        auto p = std::make_shared<op::v0::Parameter>(et, shape);
-        p->set_friendly_name(name);
-        params.push_back(p);
-        return p;
-    };
     auto make_result = [&](Output<Node> out, const std::string& name) {
         auto r = std::make_shared<op::v0::Result>(out);
         r->set_friendly_name(name);
@@ -235,8 +229,8 @@ static SharedVCacheModel build_shared_vcache_model() {
     };
 
     // --- K-path ---
-    auto past_k = make_param("past_k", kv_past);
-    auto new_k  = make_param("new_k",  kv_new);
+    auto past_k = ov::test::utils::create_param(element::f16, kv_past, "past_k");
+    auto new_k  = ov::test::utils::create_param(element::f16, kv_new,  "new_k");
     auto concat1 = std::make_shared<op::v0::Concat>(OutputVector{past_k, new_k}, /*axis=*/2);
     concat1->set_friendly_name("concat1");
 
@@ -249,13 +243,13 @@ static SharedVCacheModel build_shared_vcache_model() {
     auto transpose1 = std::make_shared<op::v1::Transpose>(multiply1, perm_k);
 
     // --- Q×K^T matmul ---
-    auto query_k  = make_param("query_k", query_sh, element::f32);
+    auto query_k  = ov::test::utils::create_param(element::f32, query_sh, "query_k");
     auto matmul1  = std::make_shared<op::v0::MatMul>(query_k, transpose1);
 
     // --- Attention mask and softmax ---
     // SeparateVCache shares the same pattern as QuantizedSDPAWithGlobalMask, so the Add
     // must consume the global attention mask chain (consumes_global_mask predicate).
-    auto mask_global  = make_param("attention_mask_global", mask_sh, element::f32);
+    auto mask_global  = ov::test::utils::create_param(element::f32, mask_sh, "attention_mask_global");
     auto mask_convert = std::make_shared<op::v0::Convert>(mask_global, element::f32);
     auto tile_repeats = op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1});
     auto mask_tile    = std::make_shared<op::v0::Tile>(mask_convert, tile_repeats);
@@ -265,8 +259,8 @@ static SharedVCacheModel build_shared_vcache_model() {
     auto softmax  = std::make_shared<op::v8::Softmax>(add, /*axis=*/3);
 
     // --- V-cache (shared between two consumers) ---
-    auto past_v   = make_param("past_v", kv_past);
-    auto new_v    = make_param("new_v",  kv_new);
+    auto past_v   = ov::test::utils::create_param(element::f16, kv_past, "past_v");
+    auto new_v    = ov::test::utils::create_param(element::f16, kv_new,  "new_v");
     auto concat2_node = std::make_shared<op::v0::Concat>(OutputVector{past_v, new_v}, /*axis=*/2);
     concat2_node->set_friendly_name("concat2");
 
@@ -287,13 +281,14 @@ static SharedVCacheModel build_shared_vcache_model() {
     auto reshape2 = std::make_shared<op::v1::Reshape>(transpose_out, r2_shape, false);
 
     // --- Extra consumer: another head reusing the same V-cache chain ---
-    auto extra_q    = make_param("extra_q", attn_sh, element::f32);
+    auto extra_q    = ov::test::utils::create_param(element::f32, attn_sh, "extra_q");
     auto extra_matmul = std::make_shared<op::v0::MatMul>(extra_q, multiply2_node);
     extra_matmul->set_friendly_name("extra_matmul");
 
     make_result(reshape2->output(0), "out_head0");
     make_result(extra_matmul->output(0), "out_extra");
 
+    ParameterVector params = {past_k, new_k, query_k, mask_global, past_v, new_v, extra_q};
     auto model = std::make_shared<Model>(results, params, "shared_vcache");
     model->validate_nodes_and_infer_types();
     return {model, concat2_node, multiply2_node};
@@ -306,23 +301,16 @@ static std::shared_ptr<Model> build_unshared_vcache_model() {
     const Shape query_sh = {1, 2, 1, 8};
     const Shape mask_sh  = {1, 1, 1, 5};
 
-    ParameterVector params;
     ResultVector results;
 
-    auto make_param = [&](const std::string& name, const Shape& shape, element::Type et = element::f16) {
-        auto p = std::make_shared<op::v0::Parameter>(et, shape);
-        p->set_friendly_name(name);
-        params.push_back(p);
-        return p;
-    };
     auto make_result = [&](Output<Node> out, const std::string& name) {
         auto r = std::make_shared<op::v0::Result>(out);
         r->set_friendly_name(name);
         results.push_back(r);
     };
 
-    auto past_k   = make_param("past_k", kv_past);
-    auto new_k    = make_param("new_k",  kv_new);
+    auto past_k   = ov::test::utils::create_param(element::f16, kv_past, "past_k");
+    auto new_k    = ov::test::utils::create_param(element::f16, kv_new,  "new_k");
     auto concat1  = std::make_shared<op::v0::Concat>(OutputVector{past_k, new_k}, 2);
     auto convert1 = std::make_shared<op::v0::Convert>(concat1, element::f32);
     auto scale_k  = op::v0::Constant::create(element::f32, Shape{1}, {0.5f});
@@ -330,10 +318,10 @@ static std::shared_ptr<Model> build_unshared_vcache_model() {
     auto perm_k   = op::v0::Constant::create(element::i64, Shape{4}, {0, 1, 3, 2});
     auto transpose1   = std::make_shared<op::v1::Transpose>(multiply1, perm_k);
 
-    auto query_k  = make_param("query_k", query_sh, element::f32);
+    auto query_k  = ov::test::utils::create_param(element::f32, query_sh, "query_k");
     auto matmul1  = std::make_shared<op::v0::MatMul>(query_k, transpose1);
 
-    auto mask_global  = make_param("attention_mask_global", mask_sh, element::f32);
+    auto mask_global  = ov::test::utils::create_param(element::f32, mask_sh, "attention_mask_global");
     auto mask_convert = std::make_shared<op::v0::Convert>(mask_global, element::f32);
     auto tile_repeats = op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1});
     auto mask_tile    = std::make_shared<op::v0::Tile>(mask_convert, tile_repeats);
@@ -342,8 +330,8 @@ static std::shared_ptr<Model> build_unshared_vcache_model() {
     auto add     = std::make_shared<op::v1::Add>(matmul1, mask_reshape);
     auto softmax = std::make_shared<op::v8::Softmax>(add, 3);
 
-    auto past_v   = make_param("past_v", kv_past);
-    auto new_v    = make_param("new_v",  kv_new);
+    auto past_v   = ov::test::utils::create_param(element::f16, kv_past, "past_v");
+    auto new_v    = ov::test::utils::create_param(element::f16, kv_new,  "new_v");
     auto concat2  = std::make_shared<op::v0::Concat>(OutputVector{past_v, new_v}, 2);
     auto convert2 = std::make_shared<op::v0::Convert>(concat2, element::f32);
     auto scale_v  = op::v0::Constant::create(element::f32, Shape{1}, {0.5f});
@@ -359,6 +347,7 @@ static std::shared_ptr<Model> build_unshared_vcache_model() {
 
     make_result(reshape2->output(0), "out");
 
+    ParameterVector params = {past_k, new_k, query_k, mask_global, past_v, new_v};
     auto model = std::make_shared<Model>(results, params, "unshared_vcache");
     model->validate_nodes_and_infer_types();
     return model;
@@ -418,15 +407,8 @@ static SharedKCacheModel build_shared_kcache_model() {
     const Shape query_sh   = {1, 2, 1, 8};
     const Shape mask_sh    = {1, 1, 1, 5};
 
-    ParameterVector params;
     ResultVector results;
 
-    auto make_param = [&](const std::string& name, const Shape& shape, element::Type et = element::f16) {
-        auto p = std::make_shared<op::v0::Parameter>(et, shape);
-        p->set_friendly_name(name);
-        params.push_back(p);
-        return p;
-    };
     auto make_result = [&](Output<Node> out, const std::string& name) {
         auto r = std::make_shared<op::v0::Result>(out);
         r->set_friendly_name(name);
@@ -434,8 +416,8 @@ static SharedKCacheModel build_shared_kcache_model() {
     };
 
     // --- K-cache chain (shared between two consumers) ---
-    auto past_k = make_param("past_k", kv_past);
-    auto new_k  = make_param("new_k",  kv_new);
+    auto past_k = ov::test::utils::create_param(element::f16, kv_past, "past_k");
+    auto new_k  = ov::test::utils::create_param(element::f16, kv_new,  "new_k");
     auto concat1 = std::make_shared<op::v0::Concat>(OutputVector{past_k, new_k}, /*axis=*/2);
     concat1->set_friendly_name("concat1");
     auto convert1 = std::make_shared<op::v0::Convert>(concat1, element::f32);
@@ -447,11 +429,11 @@ static SharedKCacheModel build_shared_kcache_model() {
     transpose1->set_friendly_name("transpose1");
 
     // --- Q×K^T matmul (pattern consumer) ---
-    auto query_k  = make_param("query_k", query_sh, element::f32);
+    auto query_k  = ov::test::utils::create_param(element::f32, query_sh, "query_k");
     auto matmul1  = std::make_shared<op::v0::MatMul>(query_k, transpose1);
 
     // --- Attention mask and softmax (global-mask chain, required by the pattern) ---
-    auto mask_global  = make_param("attention_mask_global", mask_sh, element::f32);
+    auto mask_global  = ov::test::utils::create_param(element::f32, mask_sh, "attention_mask_global");
     auto mask_convert = std::make_shared<op::v0::Convert>(mask_global, element::f32);
     auto tile_repeats = op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1});
     auto mask_tile    = std::make_shared<op::v0::Tile>(mask_convert, tile_repeats);
@@ -461,8 +443,8 @@ static SharedKCacheModel build_shared_kcache_model() {
     auto softmax  = std::make_shared<op::v8::Softmax>(add, /*axis=*/3);
 
     // --- V-cache (NOT shared) ---
-    auto past_v   = make_param("past_v", kv_past);
-    auto new_v    = make_param("new_v",  kv_new);
+    auto past_v   = ov::test::utils::create_param(element::f16, kv_past, "past_v");
+    auto new_v    = ov::test::utils::create_param(element::f16, kv_new,  "new_v");
     auto concat2  = std::make_shared<op::v0::Concat>(OutputVector{past_v, new_v}, /*axis=*/2);
     auto convert2 = std::make_shared<op::v0::Convert>(concat2, element::f32);
     auto scale_v  = op::v0::Constant::create(element::f32, Shape{1}, {0.5f});
@@ -477,13 +459,14 @@ static SharedKCacheModel build_shared_kcache_model() {
     auto reshape2 = std::make_shared<op::v1::Reshape>(transpose_out, r2_shape, false);
 
     // --- Extra consumer: another head reusing the same K-transpose ---
-    auto extra_q      = make_param("extra_q", query_sh, element::f32);
+    auto extra_q      = ov::test::utils::create_param(element::f32, query_sh, "extra_q");
     auto extra_matmul = std::make_shared<op::v0::MatMul>(extra_q, transpose1);
     extra_matmul->set_friendly_name("extra_matmul");
 
     make_result(reshape2->output(0), "out_head0");
     make_result(extra_matmul->output(0), "out_extra");
 
+    ParameterVector params = {past_k, new_k, query_k, mask_global, past_v, new_v, extra_q};
     auto model = std::make_shared<Model>(results, params, "shared_kcache");
     model->validate_nodes_and_infer_types();
     return {model, transpose1};
@@ -539,19 +522,11 @@ static QuantizedSDPAWithGlobalMaskModel build_sdpa_decomposed1_model() {
     const Shape query_sh = {1, 2, 1, 8};
     const Shape mask_sh  = {1, 1, 1, 5};
 
-    ParameterVector params;
     ResultVector results;
 
-    auto make_param = [&](const std::string& name, const Shape& shape, element::Type et = element::f16) {
-        auto p = std::make_shared<op::v0::Parameter>(et, shape);
-        p->set_friendly_name(name);
-        params.push_back(p);
-        return p;
-    };
-
     // K-path
-    auto past_k   = make_param("past_k", kv_past);
-    auto new_k    = make_param("new_k",  kv_new);
+    auto past_k   = ov::test::utils::create_param(element::f16, kv_past, "past_k");
+    auto new_k    = ov::test::utils::create_param(element::f16, kv_new,  "new_k");
     auto concat1  = std::make_shared<op::v0::Concat>(OutputVector{past_k, new_k}, 2);
     concat1->set_friendly_name("concat1");
     auto convert1 = std::make_shared<op::v0::Convert>(concat1, element::f32);
@@ -563,13 +538,13 @@ static QuantizedSDPAWithGlobalMaskModel build_sdpa_decomposed1_model() {
     transpose1->set_friendly_name("transpose1");
 
     // Q×K^T
-    auto query    = make_param("query", query_sh, element::f32);
+    auto query    = ov::test::utils::create_param(element::f32, query_sh, "query");
     auto matmul1  = std::make_shared<op::v0::MatMul>(query, transpose1);
     matmul1->set_friendly_name("matmul1");
 
     // Mask path: the updated QuantizedSDPAWithGlobalMask predicate (consumes_global_mask) requires
     // Reshape(Tile(Convert(Parameter("..attention_mask_global..")))) as Add's second input.
-    auto mask_global  = make_param("attention_mask_global", mask_sh, element::f32);
+    auto mask_global  = ov::test::utils::create_param(element::f32, mask_sh, "attention_mask_global");
     auto mask_convert = std::make_shared<op::v0::Convert>(mask_global, element::f32);
     auto tile_repeats = op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1});
     auto mask_tile    = std::make_shared<op::v0::Tile>(mask_convert, tile_repeats);
@@ -582,8 +557,8 @@ static QuantizedSDPAWithGlobalMaskModel build_sdpa_decomposed1_model() {
     softmax->set_friendly_name("softmax");
 
     // V-path
-    auto past_v   = make_param("past_v", kv_past);
-    auto new_v    = make_param("new_v",  kv_new);
+    auto past_v   = ov::test::utils::create_param(element::f16, kv_past, "past_v");
+    auto new_v    = ov::test::utils::create_param(element::f16, kv_new,  "new_v");
     auto concat2  = std::make_shared<op::v0::Concat>(OutputVector{past_v, new_v}, 2);
     concat2->set_friendly_name("concat2");
     auto convert2 = std::make_shared<op::v0::Convert>(concat2, element::f32);
@@ -605,6 +580,7 @@ static QuantizedSDPAWithGlobalMaskModel build_sdpa_decomposed1_model() {
     reshape2->set_friendly_name("reshape2");
 
     auto result = std::make_shared<op::v0::Result>(reshape2);
+    ParameterVector params = {past_k, new_k, query, mask_global, past_v, new_v};
     auto model  = std::make_shared<Model>(ResultVector{result}, params, "sdpa_decomposed1");
     model->validate_nodes_and_infer_types();
     return {model, new_k, new_v};

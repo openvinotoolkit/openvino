@@ -5,6 +5,7 @@
 
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "internal_properties.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/add.hpp"
@@ -61,30 +62,21 @@ public:
         return result.str();
     }
 
-    static std::shared_ptr<ov::op::v0::Parameter> make_param(const PartialShape& pshape,
-                                                             element::Type element_type,
-                                                             const std::string& name) {
-        auto param = std::make_shared<v0::Parameter>(element_type, pshape);
-        param->set_friendly_name(name);
-        param->get_output_tensor(0).set_names({name});
-        return param;
-    }
-
     std::shared_ptr<ov::Model> get_pa_model(ov::element::Type data_type,
                                             ov::Dimension::value_type head_size,
                                             ov::Dimension::value_type head_num,
                                             int32_t sliding_window_size = 0) {
-        auto q = make_param(PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, data_type, "q");
-        auto k = make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "k");
-        auto v = make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "v");
-        auto key_cache = make_param(PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic()},
-                                    ov::element::dynamic, "key_cache.0");
-        auto value_cache = make_param(PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic()},
-                                      ov::element::dynamic, "value_cache.0");
-        auto past_lens = make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "past_lens");
-        auto subsequence_begins = make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "subsequence_begins");
-        auto block_indices = make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "block_indices");
-        auto block_indices_begins = make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "block_indices_begins");
+        auto q = utils::create_param(data_type, PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, "q");
+        auto k = utils::create_param(data_type, PartialShape{ov::Dimension::dynamic(), head_num * head_size}, "k");
+        auto v = utils::create_param(data_type, PartialShape{ov::Dimension::dynamic(), head_num * head_size}, "v");
+        auto key_cache = utils::create_param(ov::element::dynamic,
+                                             PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic()}, "key_cache.0");
+        auto value_cache = utils::create_param(ov::element::dynamic,
+                                               PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic()}, "value_cache.0");
+        auto past_lens = utils::create_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "past_lens");
+        auto subsequence_begins = utils::create_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "subsequence_begins");
+        auto block_indices = utils::create_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "block_indices");
+        auto block_indices_begins = utils::create_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "block_indices_begins");
 
         float scale_value = 1.0f / std::sqrt(static_cast<float>(head_size));
         auto scale = std::make_shared<v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{scale_value});
@@ -105,7 +97,7 @@ public:
         auto adaptive_rkv_diversity_block_set_indices = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
         auto adaptive_rkv_diversity_block_set_indices_begins = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
 
-        auto token_type_ids = make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "token_type_ids");
+        auto token_type_ids = utils::create_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "token_type_ids");
         auto qq_bias = std::make_shared<v0::Constant>(ov::element::u8, Shape{0}, std::vector<uint8_t>{0});
         auto qq_bias_begins = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
         ParameterVector params = {q, k, v, key_cache, value_cache, past_lens,

@@ -36,6 +36,7 @@
 #include <unordered_map>
 
 #include "npuw_transformations/kv_cache_compressed.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
@@ -97,20 +98,13 @@ std::shared_ptr<Model> build_sdpa_model(size_t num_sdpa) {
     for (size_t n = 0; n < num_sdpa; ++n) {
         const std::string idx = std::to_string(n);
 
-        auto make_param = [&](const std::string& name, const Shape& shape) {
-            auto p = std::make_shared<op::v0::Parameter>(element::f32, shape);
-            p->set_friendly_name(name);
-            p->output(0).get_tensor().set_names({name});
-            params.push_back(p);
-            return p;
-        };
-
-        auto past_key = make_param("past_key_values." + idx + ".key",   past_shape);
-        auto past_val = make_param("past_key_values." + idx + ".value", past_shape);
-        auto query    = make_param("query."    + idx, new_token_shape);
-        auto new_key  = make_param("new_key."  + idx, new_token_shape);
-        auto new_val  = make_param("new_value." + idx, new_token_shape);
-        auto mask     = make_param("mask."     + idx, mask_shape);
+        auto past_key = ov::test::utils::create_param(element::f32, past_shape,      "past_key_values." + idx + ".key");
+        auto past_val = ov::test::utils::create_param(element::f32, past_shape,      "past_key_values." + idx + ".value");
+        auto query    = ov::test::utils::create_param(element::f32, new_token_shape, "query."     + idx);
+        auto new_key  = ov::test::utils::create_param(element::f32, new_token_shape, "new_key."   + idx);
+        auto new_val  = ov::test::utils::create_param(element::f32, new_token_shape, "new_value." + idx);
+        auto mask     = ov::test::utils::create_param(element::f32, mask_shape,      "mask."      + idx);
+        params.insert(params.end(), {past_key, past_val, query, new_key, new_val, mask});
 
         // Build SDPA: Q @ K^T -> Add(mask) -> Softmax -> @ V
         auto concat_key = std::make_shared<op::v0::Concat>(OutputVector{past_key, new_key}, 2);
@@ -144,16 +138,7 @@ std::shared_ptr<Model> build_sdpa_model_with_hanging_past_consumers() {
     const Shape new_token_shape = {1, 4, 1, 64};
     const Shape mask_shape      = {1, 1, 1, 9};
 
-    ParameterVector params;
     ResultVector results;
-
-    auto make_param = [&](const std::string& name, const Shape& shape) {
-        auto p = std::make_shared<op::v0::Parameter>(element::f32, shape);
-        p->set_friendly_name(name);
-        p->output(0).get_tensor().set_names({name});
-        params.push_back(p);
-        return p;
-    };
 
     auto make_result = [&](Output<Node> out, const std::string& name) {
         auto r = std::make_shared<op::v0::Result>(out);
@@ -162,12 +147,13 @@ std::shared_ptr<Model> build_sdpa_model_with_hanging_past_consumers() {
         results.push_back(r);
     };
 
-    auto past_key = make_param("past_key_values.0.key", past_shape);
-    auto past_val = make_param("past_key_values.0.value", past_shape);
-    auto query = make_param("query.0", new_token_shape);
-    auto new_key = make_param("new_key.0", new_token_shape);
-    auto new_val = make_param("new_value.0", new_token_shape);
-    auto mask = make_param("mask.0", mask_shape);
+    auto past_key = ov::test::utils::create_param(element::f32, past_shape, "past_key_values.0.key");
+    auto past_val = ov::test::utils::create_param(element::f32, past_shape, "past_key_values.0.value");
+    auto query = ov::test::utils::create_param(element::f32, new_token_shape, "query.0");
+    auto new_key = ov::test::utils::create_param(element::f32, new_token_shape, "new_key.0");
+    auto new_val = ov::test::utils::create_param(element::f32, new_token_shape, "new_value.0");
+    auto mask = ov::test::utils::create_param(element::f32, mask_shape, "mask.0");
+    ParameterVector params = {past_key, past_val, query, new_key, new_val, mask};
 
     auto concat_key = std::make_shared<op::v0::Concat>(OutputVector{past_key, new_key}, 2);
     auto concat_val = std::make_shared<op::v0::Concat>(OutputVector{past_val, new_val}, 2);
@@ -499,16 +485,8 @@ std::shared_ptr<Model> build_decode_step_model(size_t window) {
     const Shape new_value_shape = {1, 1, D, 1};
     const Shape mask_shape      = {1, 1, 1, window + 1};
 
-    ParameterVector params;
     ResultVector   results;
 
-    auto make_param = [&](const std::string& n, const Shape& s) {
-        auto p = std::make_shared<op::v0::Parameter>(element::f32, s);
-        p->set_friendly_name(n);
-        p->output(0).get_tensor().set_names({n});
-        params.push_back(p);
-        return p;
-    };
     auto make_result = [&](Output<Node> out, const std::string& n) {
         auto r = std::make_shared<op::v0::Result>(out);
         r->set_friendly_name(n);
@@ -516,12 +494,13 @@ std::shared_ptr<Model> build_decode_step_model(size_t window) {
         results.push_back(r);
     };
 
-    auto past_key = make_param("past_key_values.0.key",   past_key_shape);
-    auto past_val = make_param("past_key_values.0.value", past_val_shape);
-    auto query    = make_param("query.0",    new_key_shape);
-    auto new_key  = make_param("new_key.0",  new_key_shape);
-    auto new_val  = make_param("new_value.0", new_value_shape);
-    auto mask     = make_param("mask.0",     mask_shape);
+    auto past_key = ov::test::utils::create_param(element::f32, past_key_shape,  "past_key_values.0.key");
+    auto past_val = ov::test::utils::create_param(element::f32, past_val_shape,  "past_key_values.0.value");
+    auto query    = ov::test::utils::create_param(element::f32, new_key_shape,   "query.0");
+    auto new_key  = ov::test::utils::create_param(element::f32, new_key_shape,   "new_key.0");
+    auto new_val  = ov::test::utils::create_param(element::f32, new_value_shape, "new_value.0");
+    auto mask     = ov::test::utils::create_param(element::f32, mask_shape,      "mask.0");
+    ParameterVector params = {past_key, past_val, query, new_key, new_val, mask};
 
     auto concat_key = std::make_shared<op::v0::Concat>(OutputVector{past_key, new_key}, 2);
     auto concat_val = std::make_shared<op::v0::Concat>(OutputVector{past_val, new_val}, 3);

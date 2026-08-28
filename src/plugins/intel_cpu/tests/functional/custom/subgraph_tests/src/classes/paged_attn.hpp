@@ -17,7 +17,6 @@ using PagedAttnTestParams = std::tuple<ElementType, InputShapes, bool, bool, boo
 class PagedAttnTestBase : public testing::WithParamInterface<PagedAttnTestParams>, virtual public ov::test::SubgraphBaseTest, public CPUTestUtils::CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<PagedAttnTestParams>& obj);
-    static std::shared_ptr<ov::op::v0::Parameter> make_param(const PartialShape& pshape, element::Type element_type, const std::string& name);
     std::shared_ptr<ov::Model> get_model(ov::element::Type data_type, bool enable_xattn, ov::Dimension::value_type head_size = 64, ov::Dimension::value_type head_num = 8, bool use_sink_input = true, int32_t sliding_window = 0, bool add_shared_reader = false);
     virtual std::shared_ptr<ov::Model> get_ref_model(ov::element::Type data_type,
                                                     ov::Dimension::value_type head_size = 64,

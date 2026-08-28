@@ -752,8 +752,10 @@ TEST_F(TransformationTestsF, SDPAToPA_Opt125m_General) {
         auto block_indices = ov::test::utils::create_param(element::i32, PartialShape{DYN});
         auto subsequence_begins = ov::test::utils::create_param(element::i32, PartialShape{DYN});
         auto past_lens = ov::test::utils::create_param(element::i32, PartialShape{DYN});
-        auto value_cache_0 = ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "value_cache.0");
-        auto key_cache_0 = ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "key_cache.0");
+        auto value_cache_0 =
+            ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "value_cache.0");
+        auto key_cache_0 =
+            ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "key_cache.0");
         auto input_ids = ov::test::utils::create_param(element::i64, PartialShape{DYN});
         auto position_ids = ov::test::utils::create_param(element::i64, PartialShape{DYN});
         auto score_aggregation_window = ov::test::utils::create_param(element::i32, PartialShape{DYN});
@@ -770,15 +772,15 @@ TEST_F(TransformationTestsF, SDPAToPA_Opt125m_General) {
         auto adaptive_rkv_diversity_block_set_indices_begins = makeConst(element::i32, Shape{0}, {0});
 
         ParameterVector params{score_aggregation_window,
-                                       max_context_len,
-                                       block_indices_begins,
-                                       block_indices,
-                                       subsequence_begins,
-                                       past_lens,
-                                       value_cache_0,
-                                       key_cache_0,
-                                       input_ids,
-                                       position_ids};
+                               max_context_len,
+                               block_indices_begins,
+                               block_indices,
+                               subsequence_begins,
+                               past_lens,
+                               value_cache_0,
+                               key_cache_0,
+                               input_ids,
+                               position_ids};
 
         auto input_ids_unsqueezed = makeOP<v0::Unsqueeze>({input_ids, 1});
         auto position_ids_unsqueezed = makeOP<v0::Unsqueeze>({position_ids, -1});
@@ -911,8 +913,10 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
         auto block_indices = ov::test::utils::create_param(element::i32, PartialShape{DYN});
         auto subsequence_begins = ov::test::utils::create_param(element::i32, PartialShape{DYN});
         auto past_lens = ov::test::utils::create_param(element::i32, PartialShape{DYN});
-        auto value_cache_0 = ov::test::utils::create_param(element::dynamic, ov::PartialShape{DYN, DYN, DYN, DYN}, "value_cache.0");
-        auto key_cache_0 = ov::test::utils::create_param(element::dynamic, ov::PartialShape{DYN, DYN, DYN, DYN}, "key_cache.0");
+        auto value_cache_0 =
+            ov::test::utils::create_param(element::dynamic, ov::PartialShape{DYN, DYN, DYN, DYN}, "value_cache.0");
+        auto key_cache_0 =
+            ov::test::utils::create_param(element::dynamic, ov::PartialShape{DYN, DYN, DYN, DYN}, "key_cache.0");
         auto input_ids = ov::test::utils::create_param(element::i64, PartialShape{DYN});
         auto position_ids = ov::test::utils::create_param(element::i64, PartialShape{DYN});
         auto score_aggregation_window = ov::test::utils::create_param(element::i32, PartialShape{DYN});
@@ -929,15 +933,15 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
         auto adaptive_rkv_diversity_block_set_indices_begins = makeConst(element::i32, ov::Shape({0}), {0});
 
         ParameterVector params{score_aggregation_window,
-                                       max_context_len,
-                                       block_indices_begins,
-                                       block_indices,
-                                       subsequence_begins,
-                                       past_lens,
-                                       value_cache_0,
-                                       key_cache_0,
-                                       input_ids,
-                                       position_ids};
+                               max_context_len,
+                               block_indices_begins,
+                               block_indices,
+                               subsequence_begins,
+                               past_lens,
+                               value_cache_0,
+                               key_cache_0,
+                               input_ids,
+                               position_ids};
 
         // Inputs pre-processing:
         auto max_context_len_i64 = makeOP<v0::Convert>({max_context_len}, {dest_type_i64});
@@ -1477,16 +1481,16 @@ TEST_P(SDPAToPAEliminateDropBatchTest, SDPAToPA_EliminateDropBatch_CollapsesToRe
         auto select = std::make_shared<v8::Gather>(data,
                                                    v0::Constant::create(element::i64, Shape{}, {0}),
                                                    v0::Constant::create(element::i64, Shape{}, {0}));
-        model = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(select)},
-                                        ParameterVector{position_ids});
+        model =
+            std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(select)}, ParameterVector{position_ids});
         manager.register_pass<pass::EliminateDropBatch>();
     }
     {
         auto position_ids = ov::test::utils::create_param(element::i64, PartialShape{DYN}, "position_ids");
         auto data = wrap_optional(position_ids, wrappers);
         auto reshape = std::make_shared<v1::Reshape>(data, v0::Constant::create(element::i64, Shape{1}, {-1}), false);
-        model_ref = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(reshape)},
-                                            ParameterVector{position_ids});
+        model_ref =
+            std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(reshape)}, ParameterVector{position_ids});
     }
 
     comparator.enable(FunctionsComparator::ATTRIBUTES);
@@ -1510,8 +1514,7 @@ TEST_F(SDPAToPATest, SDPAToPA_EliminateDropBatch_ReconnectsDownstreamConsumer) {
                                                    v0::Constant::create(element::i64, Shape{}, {0}),
                                                    v0::Constant::create(element::i64, Shape{}, {0}));
         auto add = std::make_shared<v1::Add>(select, v0::Constant::create(element::i64, Shape{}, {1}));
-        model =
-            std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(add)}, ParameterVector{position_ids});
+        model = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(add)}, ParameterVector{position_ids});
         manager.register_pass<pass::EliminateDropBatch>();
     }
     {
@@ -1549,8 +1552,7 @@ TEST_P(SDPAToPAEliminateDropBatchNegativeTest, SDPAToPA_EliminateDropBatch_NotAB
         v0::Constant::create(element::i64, Shape{test_case.indices.size()}, test_case.indices),
         v0::Constant::create(element::i64, Shape{}, {test_case.axis}),
         test_case.batch_dims);
-    model =
-        std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(select)}, ParameterVector{position_ids});
+    model = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(select)}, ParameterVector{position_ids});
     manager.register_pass<pass::EliminateDropBatch>();
 
     comparator.enable(FunctionsComparator::ATTRIBUTES);
@@ -1618,16 +1620,16 @@ TEST_P(SDPAToPARoPEUnsqueezeAxisReplacerTest, SDPAToPA_RoPEUnsqueezeAxisReplacer
         auto positions = ov::test::utils::create_param(element::f32, PartialShape{DYN}, "positions");
         auto broadcast = build_rope_broadcast(positions, test_case.use_sin, test_case.with_broadcast);
         auto unsqueeze = std::make_shared<v0::Unsqueeze>(broadcast, v0::Constant::create(element::i32, Shape{1}, {0}));
-        model = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(unsqueeze)},
-                                        ParameterVector{positions});
+        model =
+            std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(unsqueeze)}, ParameterVector{positions});
         manager.register_pass<pass::RoPEUnsqueezeAxisReplacer>();
     }
     {
         auto positions = ov::test::utils::create_param(element::f32, PartialShape{DYN}, "positions");
         auto broadcast = build_rope_broadcast(positions, test_case.use_sin, test_case.with_broadcast);
         auto unsqueeze = std::make_shared<v0::Unsqueeze>(broadcast, v0::Constant::create(element::i32, Shape{1}, {1}));
-        model_ref = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(unsqueeze)},
-                                            ParameterVector{positions});
+        model_ref =
+            std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(unsqueeze)}, ParameterVector{positions});
     }
 
     comparator.enable(FunctionsComparator::ATTRIBUTES);
@@ -1654,8 +1656,7 @@ TEST_P(SDPAToPARoPEUnsqueezeAxisReplacerNegativeTest, SDPAToPA_RoPEUnsqueezeAxis
     auto broadcast = build_rope_broadcast(positions, false, true);
     auto unsqueeze =
         std::make_shared<v0::Unsqueeze>(broadcast, v0::Constant::create(element::i32, Shape{1}, {GetParam()}));
-    model =
-        std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(unsqueeze)}, ParameterVector{positions});
+    model = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(unsqueeze)}, ParameterVector{positions});
     manager.register_pass<pass::RoPEUnsqueezeAxisReplacer>();
 
     comparator.enable(FunctionsComparator::ATTRIBUTES);
@@ -1712,8 +1713,7 @@ TEST_F(SDPAToPATest, SDPAToPA_PositionIDsReplacer_RedirectsDetachedPositions) {
                                                               v0::Constant::create(element::i64, Shape{}, {1}),
                                                               element::i64);
         auto sum = build_position_embedding_sum(detached_positions);
-        model =
-            std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(sum)}, ParameterVector{position_ids});
+        model = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(sum)}, ParameterVector{position_ids});
         manager.register_pass<pass::PositionIDsReplacer>(unsqueezed);
     }
     {
@@ -1907,12 +1907,15 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
 
     {
         auto max_context_len = ov::test::utils::create_param(element::i32, PartialShape{}, "max_context_len");
-        auto block_indices_begins = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices_begins");
+        auto block_indices_begins =
+            ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices_begins");
         auto block_indices = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices");
         auto subsequence_begins = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "subsequence_begins");
         auto past_lens = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "past_lens");
-        auto value_cache_0 = ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "value_cache.0");
-        auto key_cache_0 = ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "key_cache.0");
+        auto value_cache_0 =
+            ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "value_cache.0");
+        auto key_cache_0 =
+            ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "key_cache.0");
         auto input_ids = ov::test::utils::create_param(element::i64, PartialShape{DYN}, "input_ids");
         auto score_aggregation_window = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
         auto rotated_block_indices = makeConst(element::i32, ov::Shape({0}), {0});
@@ -1927,13 +1930,13 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
         auto adaptive_rkv_diversity_block_set_indices_begins = makeConst(element::i32, ov::Shape({0}), {0});
 
         ParameterVector params{max_context_len,
-                                                  block_indices_begins,
-                                                  block_indices,
-                                                  subsequence_begins,
-                                                  past_lens,
-                                                  value_cache_0,
-                                                  key_cache_0,
-                                                  input_ids};
+                               block_indices_begins,
+                               block_indices,
+                               subsequence_begins,
+                               past_lens,
+                               value_cache_0,
+                               key_cache_0,
+                               input_ids};
 
         auto Constant88 = makeConst(element::u8, ov::Shape({125696, 5120}), MOCK_VALUE);
         auto Convert89 = makeOP<opset1::Convert>({Constant88}, {{"destination_type", "f16"}});
@@ -2237,12 +2240,15 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
 
     {
         auto max_context_len = ov::test::utils::create_param(element::i32, PartialShape{}, "max_context_len");
-        auto block_indices_begins = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices_begins");
+        auto block_indices_begins =
+            ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices_begins");
         auto block_indices = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices");
         auto subsequence_begins = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "subsequence_begins");
         auto past_lens = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "past_lens");
-        auto value_cache_0 = ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "value_cache.0");
-        auto key_cache_0 = ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "key_cache.0");
+        auto value_cache_0 =
+            ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "value_cache.0");
+        auto key_cache_0 =
+            ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "key_cache.0");
         auto inputs_embeds = ov::test::utils::create_param(element::f32, PartialShape{DYN, DYN}, "inputs_embeds");
         auto position_ids = ov::test::utils::create_param(element::i64, PartialShape{DYN}, "position_ids");
         auto score_aggregation_window = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
@@ -2258,14 +2264,14 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto adaptive_rkv_diversity_block_set_indices_begins = makeConst(element::i32, ov::Shape({0}), {0});
 
         ParameterVector params{max_context_len,
-                                                  block_indices_begins,
-                                                  block_indices,
-                                                  subsequence_begins,
-                                                  past_lens,
-                                                  value_cache_0,
-                                                  key_cache_0,
-                                                  inputs_embeds,
-                                                  position_ids};
+                               block_indices_begins,
+                               block_indices,
+                               subsequence_begins,
+                               past_lens,
+                               value_cache_0,
+                               key_cache_0,
+                               inputs_embeds,
+                               position_ids};
 
         auto Constant_16156 =
             makeConst(element::f32,
@@ -2588,12 +2594,15 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
     }
     {
         auto max_context_len = ov::test::utils::create_param(element::i32, PartialShape{}, "max_context_len");
-        auto block_indices_begins = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices_begins");
+        auto block_indices_begins =
+            ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices_begins");
         auto block_indices = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices");
         auto subsequence_begins = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "subsequence_begins");
         auto past_lens = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "past_lens");
-        auto value_cache_0 = ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "value_cache.0");
-        auto key_cache_0 = ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "key_cache.0");
+        auto value_cache_0 =
+            ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "value_cache.0");
+        auto key_cache_0 =
+            ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "key_cache.0");
         auto inputs_ids = ov::test::utils::create_param(element::i64, PartialShape{DYN}, "inputs_ids");
         auto position_ids = ov::test::utils::create_param(element::i64, PartialShape{DYN}, "position_ids");
         auto score_aggregation_window = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
@@ -2609,14 +2618,14 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
         auto adaptive_rkv_diversity_block_set_indices_begins = makeConst(element::i32, ov::Shape({0}), {0});
 
         ParameterVector params{max_context_len,
-                                       block_indices_begins,
-                                       block_indices,
-                                       subsequence_begins,
-                                       past_lens,
-                                       value_cache_0,
-                                       key_cache_0,
-                                       inputs_ids,
-                                       position_ids};
+                               block_indices_begins,
+                               block_indices,
+                               subsequence_begins,
+                               past_lens,
+                               value_cache_0,
+                               key_cache_0,
+                               inputs_ids,
+                               position_ids};
 
         auto Constant = makeConst(element::f32, ov::Shape({1, 1, 3072}), MOCK_VALUE);
         auto Constant1 = makeConst(element::u8, ov::Shape({WEIGHTS, 3072}), MOCK_VALUE);
@@ -2924,12 +2933,15 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
     }
     {
         auto max_context_len = ov::test::utils::create_param(element::i32, PartialShape{}, "max_context_len");
-        auto block_indices_begins = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices_begins");
+        auto block_indices_begins =
+            ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices_begins");
         auto block_indices = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices");
         auto subsequence_begins = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "subsequence_begins");
         auto past_lens = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "past_lens");
-        auto value_cache_0 = ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "value_cache.0");
-        auto key_cache_0 = ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "key_cache.0");
+        auto value_cache_0 =
+            ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "value_cache.0");
+        auto key_cache_0 =
+            ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "key_cache.0");
         auto input_ids = ov::test::utils::create_param(element::i64, PartialShape{DYN}, "inputs_ids");
         auto position_ids = ov::test::utils::create_param(element::i64, PartialShape{DYN}, "position_ids");
         auto score_aggregation_window = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
@@ -2945,14 +2957,14 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto adaptive_rkv_diversity_block_set_indices_begins = makeConst(element::i32, ov::Shape({0}), {0});
 
         ParameterVector params{max_context_len,
-                                       block_indices_begins,
-                                       block_indices,
-                                       subsequence_begins,
-                                       past_lens,
-                                       value_cache_0,
-                                       key_cache_0,
-                                       input_ids,
-                                       position_ids};
+                               block_indices_begins,
+                               block_indices,
+                               subsequence_begins,
+                               past_lens,
+                               value_cache_0,
+                               key_cache_0,
+                               input_ids,
+                               position_ids};
 
         auto Constant1 = makeConst(element::f16, ov::Shape({51200, 4096}), MOCK_VALUE);
         auto Convert0 = makeOP<opset1::Convert>({Constant1}, {{"destination_type", "f32"}});
@@ -3441,12 +3453,15 @@ TEST_F(SDPAToPATest, SDPAToPA_gpt_oss_General) {
 
     {
         auto max_context_len = ov::test::utils::create_param(element::i32, PartialShape{}, "max_context_len");
-        auto block_indices_begins = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices_begins");
+        auto block_indices_begins =
+            ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices_begins");
         auto block_indices = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices");
         auto subsequence_begins = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "subsequence_begins");
         auto past_lens = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "past_lens");
-        auto value_cache_0 = ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "value_cache.0");
-        auto key_cache_0 = ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "key_cache.0");
+        auto value_cache_0 =
+            ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "value_cache.0");
+        auto key_cache_0 =
+            ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "key_cache.0");
         auto input_ids = ov::test::utils::create_param(element::i64, PartialShape{DYN}, "inputs_ids");
         auto position_ids = ov::test::utils::create_param(element::i64, PartialShape{DYN}, "position_ids");
 
@@ -3463,14 +3478,14 @@ TEST_F(SDPAToPATest, SDPAToPA_gpt_oss_General) {
         auto adaptive_rkv_diversity_block_set_indices_begins = makeConst(element::i32, ov::Shape({0}), {0});
 
         ParameterVector params{max_context_len,
-                                       block_indices_begins,
-                                       block_indices,
-                                       subsequence_begins,
-                                       past_lens,
-                                       value_cache_0,
-                                       key_cache_0,
-                                       input_ids,
-                                       position_ids};
+                               block_indices_begins,
+                               block_indices,
+                               subsequence_begins,
+                               past_lens,
+                               value_cache_0,
+                               key_cache_0,
+                               input_ids,
+                               position_ids};
 
         auto Constant0 = makeConst(element::f32,
                                    ov::Shape({
@@ -4573,12 +4588,15 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2) {
     }
     {
         auto max_context_len = ov::test::utils::create_param(element::i32, PartialShape{}, "max_context_len");
-        auto block_indices_begins = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices_begins");
+        auto block_indices_begins =
+            ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices_begins");
         auto block_indices = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices");
         auto subsequence_begins = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "subsequence_begins");
         auto past_lens = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "past_lens");
-        auto value_cache_0 = ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "value_cache.0");
-        auto key_cache_0 = ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "key_cache.0");
+        auto value_cache_0 =
+            ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "value_cache.0");
+        auto key_cache_0 =
+            ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "key_cache.0");
         auto input_ids = ov::test::utils::create_param(element::i64, PartialShape{DYN}, "inputs_ids");
         auto position_ids = ov::test::utils::create_param(element::i64, PartialShape{DYN}, "position_ids");
 
@@ -5361,14 +5379,14 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2) {
 
         auto res = make_shared<v0::Result>(Transpose20);
         ParameterVector params{max_context_len,
-                                       block_indices_begins,
-                                       block_indices,
-                                       subsequence_begins,
-                                       past_lens,
-                                       value_cache_0,
-                                       key_cache_0,
-                                       input_ids,
-                                       position_ids};
+                               block_indices_begins,
+                               block_indices,
+                               subsequence_begins,
+                               past_lens,
+                               value_cache_0,
+                               key_cache_0,
+                               input_ids,
+                               position_ids};
 
         model_ref = std::make_shared<ov::Model>(OutputVector{res}, SinkVector{Assign0, Assign1, Assign2}, params);
 
@@ -5593,14 +5611,18 @@ TEST_F(SDPAToPATest, SDPAToPA_jais_13b_General) {
     }
     {
         auto max_context_len = ov::test::utils::create_param(element::i32, PartialShape{}, "max_context_len");
-        auto block_indices_begins = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices_begins");
+        auto block_indices_begins =
+            ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices_begins");
         auto block_indices = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices");
         auto subsequence_begins = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "subsequence_begins");
         auto past_lens = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "past_lens");
-        auto value_cache_0 = ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "value_cache.0");
-        auto key_cache_0 = ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "key_cache.0");
+        auto value_cache_0 =
+            ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "value_cache.0");
+        auto key_cache_0 =
+            ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "key_cache.0");
         auto input_ids = ov::test::utils::create_param(element::i64, PartialShape{DYN}, "inputs_ids");
-        auto score_aggregation_window = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "score_aggregation_window");
+        auto score_aggregation_window =
+            ov::test::utils::create_param(element::i32, PartialShape{DYN}, "score_aggregation_window");
         auto position_ids = ov::test::utils::create_param(element::i64, PartialShape{DYN}, "position_ids");
         auto Constant0 = makeConst(element::f32,
                                    ov::Shape({
@@ -5774,15 +5796,15 @@ TEST_F(SDPAToPATest, SDPAToPA_jais_13b_General) {
 
         auto res = make_shared<v0::Result>(Transpose6);
         ParameterVector params{max_context_len,
-                                       block_indices_begins,
-                                       block_indices,
-                                       subsequence_begins,
-                                       past_lens,
-                                       value_cache_0,
-                                       key_cache_0,
-                                       input_ids,
-                                       score_aggregation_window,
-                                       position_ids};
+                               block_indices_begins,
+                               block_indices,
+                               subsequence_begins,
+                               past_lens,
+                               value_cache_0,
+                               key_cache_0,
+                               input_ids,
+                               score_aggregation_window,
+                               position_ids};
 
         model_ref = std::make_shared<ov::Model>(OutputVector{res}, params);
 
@@ -5999,13 +6021,17 @@ TEST_F(SDPAToPATest, SDPATOPATest_Qwen2_5_VL_General) {
     }
     {
         auto max_context_len = ov::test::utils::create_param(element::i32, PartialShape{}, "max_context_len");
-        auto block_indices_begins = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices_begins");
+        auto block_indices_begins =
+            ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices_begins");
         auto block_indices = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices");
         auto subsequence_begins = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "subsequence_begins");
         auto past_lens = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "past_lens");
-        auto value_cache_0 = ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "value_cache.0");
-        auto key_cache_0 = ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "key_cache.0");
-        auto score_aggregation_window = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "score_aggregation_window");
+        auto value_cache_0 =
+            ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "value_cache.0");
+        auto key_cache_0 =
+            ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "key_cache.0");
+        auto score_aggregation_window =
+            ov::test::utils::create_param(element::i32, PartialShape{DYN}, "score_aggregation_window");
         auto inputs_embeds = ov::test::utils::create_param(element::f32, PartialShape{DYN, DYN}, "inputs_embeds");
         auto position_ids = ov::test::utils::create_param(element::i64, PartialShape{3, DYN}, "position_ids");
         auto Unsqueeze0 = makeOP<v0::Unsqueeze>({inputs_embeds, 1});
@@ -6190,15 +6216,15 @@ TEST_F(SDPAToPATest, SDPATOPATest_Qwen2_5_VL_General) {
         auto res = make_shared<v0::Result>(Transpose5);
 
         ParameterVector params{max_context_len,
-                                       block_indices_begins,
-                                       block_indices,
-                                       subsequence_begins,
-                                       past_lens,
-                                       value_cache_0,
-                                       key_cache_0,
-                                       inputs_embeds,
-                                       score_aggregation_window,
-                                       position_ids};
+                               block_indices_begins,
+                               block_indices,
+                               subsequence_begins,
+                               past_lens,
+                               value_cache_0,
+                               key_cache_0,
+                               inputs_embeds,
+                               score_aggregation_window,
+                               position_ids};
 
         model_ref = std::make_shared<ov::Model>(OutputVector{res}, params);
 
@@ -6356,12 +6382,15 @@ TEST_F(SDPAToPATest, SDPAToPA_Gemma3_TokenTypeIds) {
 
     {
         auto max_context_len = ov::test::utils::create_param(element::i32, PartialShape{}, "max_context_len");
-        auto block_indices_begins = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices_begins");
+        auto block_indices_begins =
+            ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices_begins");
         auto block_indices = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "block_indices");
         auto subsequence_begins = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "subsequence_begins");
         auto past_lens = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "past_lens");
-        auto value_cache_0 = ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "value_cache.0");
-        auto key_cache_0 = ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "key_cache.0");
+        auto value_cache_0 =
+            ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "value_cache.0");
+        auto key_cache_0 =
+            ov::test::utils::create_param(element::dynamic, PartialShape{DYN, DYN, DYN, DYN}, "key_cache.0");
         auto input_ids = ov::test::utils::create_param(element::i64, PartialShape{DYN}, "input_ids");
         auto position_ids = ov::test::utils::create_param(element::i64, PartialShape{DYN}, "position_ids");
         auto token_type_ids_param = ov::test::utils::create_param(element::i64, PartialShape{1, DYN}, "token_type_ids");
@@ -6379,15 +6408,15 @@ TEST_F(SDPAToPATest, SDPAToPA_Gemma3_TokenTypeIds) {
         auto adaptive_rkv_diversity_block_set_indices_begins = makeConst(element::i32, ov::Shape({0}), {0});
 
         ParameterVector params{max_context_len,
-                                       block_indices_begins,
-                                       block_indices,
-                                       subsequence_begins,
-                                       past_lens,
-                                       value_cache_0,
-                                       key_cache_0,
-                                       input_ids,
-                                       position_ids,
-                                       token_type_ids_param};
+                               block_indices_begins,
+                               block_indices,
+                               subsequence_begins,
+                               past_lens,
+                               value_cache_0,
+                               key_cache_0,
+                               input_ids,
+                               position_ids,
+                               token_type_ids_param};
 
         auto Constant0 = makeConst(element::f32, ov::Shape({32000, 128}), MOCK_VALUE);
         auto Unsqueeze_ids = makeOP<v0::Unsqueeze>({input_ids, 1});
@@ -6709,7 +6738,8 @@ TEST(SDPAToPA, Gemma3n_SharedKVCache_TwoLayersSameReadValue) {
     auto beam_idx = ov::test::utils::create_param(element::i32, PartialShape{DYN}, "beam_idx");
     auto position_ids = ov::test::utils::create_param(element::i64, PartialShape{DYN, DYN}, "position_ids");
     auto attention_mask = ov::test::utils::create_param(element::i64, PartialShape{DYN, DYN}, "attention_mask");
-    auto inputs_embeds = ov::test::utils::create_param(element::f32, PartialShape{DYN, DYN, hidden_size}, "inputs_embeds");
+    auto inputs_embeds =
+        ov::test::utils::create_param(element::f32, PartialShape{DYN, DYN, hidden_size}, "inputs_embeds");
     ParameterVector params{beam_idx, position_ids, attention_mask, inputs_embeds};
 
     auto ShapeOf0 = makeOP<v3::ShapeOf>({inputs_embeds}, {{"output_type", "i64"}});
@@ -7115,7 +7145,8 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2_EliminateConvPaddingMaskGating) {
         auto convert = makeOP<v0::Convert>({unsqueeze}, {{"destination_type", "f32"}});
         auto multiply = makeOP<v1::Multiply>({convert, 1024.0f}, {{"auto_broadcast", "numpy"}});
         auto add = makeOP<v1::Add>({multiply, 1024.0f}, {{"auto_broadcast", "numpy"}});
-        auto multiply_gate_param = ov::test::utils::create_param(element::f32, PartialShape{DYN, DYN, DYN}, "gate_param");
+        auto multiply_gate_param =
+            ov::test::utils::create_param(element::f32, PartialShape{DYN, DYN, DYN}, "gate_param");
         auto multiply_gate = makeOP<v1::Multiply>({multiply_gate_param, add}, {{"auto_broadcast", "numpy"}});
 
         auto matmul_param = ov::test::utils::create_param(element::f32, PartialShape{48, 16}, "weights");
@@ -7134,7 +7165,8 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2_EliminateConvPaddingMaskGating) {
         model->remove_parameter(params[0]);
     }
     {
-        auto multiply_gate_param = ov::test::utils::create_param(element::f32, PartialShape{DYN, DYN, DYN}, "gate_param");
+        auto multiply_gate_param =
+            ov::test::utils::create_param(element::f32, PartialShape{DYN, DYN, DYN}, "gate_param");
         auto matmul_param = ov::test::utils::create_param(element::f32, PartialShape{48, 16}, "weights");
         auto matmul =
             makeOP<v0::MatMul>({matmul_param, multiply_gate_param}, {{"transpose_a", false}, {"transpose_b", true}});
@@ -7155,7 +7187,8 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2_EliminateConvPaddingMaskGating_NoAdd) {
         auto unsqueeze = makeOP<v0::Unsqueeze>({slice, 1});
         auto convert = makeOP<v0::Convert>({unsqueeze}, {{"destination_type", "f32"}});
         auto multiply = makeOP<v1::Multiply>({convert, 1024.0f}, {{"auto_broadcast", "numpy"}});
-        auto multiply_gate_param = ov::test::utils::create_param(element::f32, PartialShape{DYN, DYN, DYN}, "gate_param");
+        auto multiply_gate_param =
+            ov::test::utils::create_param(element::f32, PartialShape{DYN, DYN, DYN}, "gate_param");
         auto multiply_gate = makeOP<v1::Multiply>({multiply_gate_param, multiply}, {{"auto_broadcast", "numpy"}});
 
         auto matmul_param = ov::test::utils::create_param(element::f32, PartialShape{48, 16}, "weights");
@@ -7174,7 +7207,8 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2_EliminateConvPaddingMaskGating_NoAdd) {
         model->remove_parameter(params[0]);
     }
     {
-        auto multiply_gate_param = ov::test::utils::create_param(element::f32, PartialShape{DYN, DYN, DYN}, "gate_param");
+        auto multiply_gate_param =
+            ov::test::utils::create_param(element::f32, PartialShape{DYN, DYN, DYN}, "gate_param");
         auto matmul_param = ov::test::utils::create_param(element::f32, PartialShape{48, 16}, "weights");
         auto matmul =
             makeOP<v0::MatMul>({matmul_param, multiply_gate_param}, {{"transpose_a", false}, {"transpose_b", true}});
@@ -7194,7 +7228,8 @@ TEST_F(SDPAToPATest, SDPAToPA_EliminateConvPaddingMaskGating_GraniteMamba) {
         auto slice = makeOP<v8::Slice>({attention_mask, {0}, {1}, {1}, {1}});
         auto unsqueeze = makeOP<v0::Unsqueeze>({slice, 1});
         auto convert = makeOP<v0::Convert>({unsqueeze}, {{"destination_type", "f32"}});
-        auto multiply_gate_param = ov::test::utils::create_param(element::f32, PartialShape{DYN, DYN, DYN}, "gate_param");
+        auto multiply_gate_param =
+            ov::test::utils::create_param(element::f32, PartialShape{DYN, DYN, DYN}, "gate_param");
         auto multiply_gate = makeOP<v1::Multiply>({multiply_gate_param, convert}, {{"auto_broadcast", "numpy"}});
 
         auto matmul_param = ov::test::utils::create_param(element::f32, PartialShape{48, 16}, "weights");
@@ -7213,7 +7248,8 @@ TEST_F(SDPAToPATest, SDPAToPA_EliminateConvPaddingMaskGating_GraniteMamba) {
         model->remove_parameter(params[0]);
     }
     {
-        auto multiply_gate_param = ov::test::utils::create_param(element::f32, PartialShape{DYN, DYN, DYN}, "gate_param");
+        auto multiply_gate_param =
+            ov::test::utils::create_param(element::f32, PartialShape{DYN, DYN, DYN}, "gate_param");
         auto matmul_param = ov::test::utils::create_param(element::f32, PartialShape{48, 16}, "weights");
         auto matmul =
             makeOP<v0::MatMul>({matmul_param, multiply_gate_param}, {{"transpose_a", false}, {"transpose_b", true}});

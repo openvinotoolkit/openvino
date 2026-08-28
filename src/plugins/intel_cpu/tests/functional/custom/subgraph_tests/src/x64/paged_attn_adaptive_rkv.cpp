@@ -7,6 +7,7 @@
 
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "internal_properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -70,15 +71,6 @@ public:
     bool kForceByToken;
     bool kQuantByChannel;
 
-    static std::shared_ptr<ov::op::v0::Parameter> make_param(const PartialShape& pshape,
-                                                             element::Type element_type,
-                                                             const std::string& name) {
-        auto param = std::make_shared<v0::Parameter>(element_type, pshape);
-        param->set_friendly_name(name);
-        param->get_output_tensor(0).set_names({name});
-        return param;
-    }
-
     void SetUp() override {
         const auto& p = GetParam();
         kHeadSize = p.head_size;
@@ -127,15 +119,15 @@ public:
         const auto bs = static_cast<int64_t>(kBlockSize);
         const auto nb = static_cast<int64_t>(kNumBlocks);
 
-        auto q = make_param(PartialShape{1, hs * hn}, ov::element::f32, "q");
-        auto k = make_param(PartialShape{1, hs * hn}, ov::element::f32, "k");
-        auto v = make_param(PartialShape{1, hs * hn}, ov::element::f32, "v");
-        auto key_cache = make_param(PartialShape{nb, hn, bs, hs}, ov::element::f32, "key_cache.0");
-        auto value_cache = make_param(PartialShape{nb, hn, bs, hs}, ov::element::f32, "value_cache.0");
-        auto past_lens = make_param(PartialShape{1}, ov::element::i32, "past_lens");
-        auto subsequence_begins = make_param(PartialShape{2}, ov::element::i32, "subsequence_begins");
-        auto block_indices = make_param(PartialShape{nb}, ov::element::i32, "block_indices");
-        auto block_indices_begins = make_param(PartialShape{2}, ov::element::i32, "block_indices_begins");
+        auto q = utils::create_param(ov::element::f32, PartialShape{1, hs * hn}, "q");
+        auto k = utils::create_param(ov::element::f32, PartialShape{1, hs * hn}, "k");
+        auto v = utils::create_param(ov::element::f32, PartialShape{1, hs * hn}, "v");
+        auto key_cache = utils::create_param(ov::element::f32, PartialShape{nb, hn, bs, hs}, "key_cache.0");
+        auto value_cache = utils::create_param(ov::element::f32, PartialShape{nb, hn, bs, hs}, "value_cache.0");
+        auto past_lens = utils::create_param(ov::element::i32, PartialShape{1}, "past_lens");
+        auto subsequence_begins = utils::create_param(ov::element::i32, PartialShape{2}, "subsequence_begins");
+        auto block_indices = utils::create_param(ov::element::i32, PartialShape{nb}, "block_indices");
+        auto block_indices_begins = utils::create_param(ov::element::i32, PartialShape{2}, "block_indices_begins");
 
         auto scale = std::make_shared<v0::Constant>(ov::element::f32, Shape{}, std::vector<float>{0.5f});
         auto sliding_window = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});

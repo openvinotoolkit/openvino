@@ -130,8 +130,10 @@ std::shared_ptr<ov::op::v0::Parameter> create_param(ov::element::Type et,
                                                     const ov::PartialShape& shape,
                                                     const std::string& name) {
     auto p = std::make_shared<ov::op::v0::Parameter>(et, shape);
-    p->set_friendly_name(name);
-    p->get_output_tensor(0).set_names({name});
+    if (!name.empty()) {
+        p->set_friendly_name(name);
+        p->get_output_tensor(0).set_names({name});
+    }
     return p;
 }
 
