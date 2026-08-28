@@ -6,6 +6,12 @@ if (NOT ENABLE_INTEL_GPU)
     return()
 endif()
 
+include(cmake/features.cmake)
+
+if(OV_GPU_RUNTIME_ZE_ENABLED OR OV_GPU_RUNTIME_SYCL_ENABLED)
+    ov_add_zero_loader()
+endif()
+
 set (TARGET_NAME "openvino_intel_gpu_plugin")
 
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/utils.cmake)

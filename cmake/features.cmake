@@ -27,7 +27,14 @@ if(ENABLE_TESTS)
     enable_testing()
 endif()
 
-include("${CMAKE_CURRENT_LIST_DIR}/../src/plugins/intel_gpu/cmake/features.cmake")
+if(X86_64)
+    set(ENABLE_INTEL_GPU_DEFAULT ON)
+else()
+    set(ENABLE_INTEL_GPU_DEFAULT OFF)
+endif()
+
+ov_dependent_option (ENABLE_INTEL_GPU "GPU plugin for OpenVINO Runtime" ${ENABLE_INTEL_GPU_DEFAULT}
+    "X86_64 OR AARCH64;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
 
 ov_dependent_option (ENABLE_INTEL_NPU "NPU plugin for OpenVINO runtime" ON "X86_64;WIN32 OR LINUX OR ANDROID" OFF)
 # matches ENABLE_INTEL_NPU_COMPILER default: internal NPU tools aren't built for static libs
@@ -204,12 +211,6 @@ if(NOT BUILD_SHARED_LIBS AND ENABLE_OV_TF_FRONTEND)
     set(FORCE_FRONTENDS_USE_PROTOBUF ON)
 else()
     set(FORCE_FRONTENDS_USE_PROTOBUF OFF)
-endif()
-
-if(ENABLE_INTEL_NPU OR (ENABLE_INTEL_GPU AND OV_GPU_NEEDS_LEVEL_ZERO_LOADER))
-    set(ENABLE_OV_ZERO_LOADER ON)
-else()
-    set(ENABLE_OV_ZERO_LOADER OFF)
 endif()
 
 #

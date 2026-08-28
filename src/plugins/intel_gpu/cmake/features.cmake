@@ -2,8 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-include_guard(GLOBAL)
-
 # GPU_RUNTIME_TYPES selects the compiled runtimes. GPU_DEFAULT_RUNTIME selects
 # the default one. GPU_RT_TYPE remains as a backwards-compatible alias for the
 # default runtime.
@@ -81,27 +79,6 @@ endforeach()
 foreach(_ov_gpu_runtime IN LISTS GPU_RUNTIME_TYPES)
     set(OV_GPU_RUNTIME_${_ov_gpu_runtime}_ENABLED ON)
 endforeach()
-
-set(OV_GPU_NEEDS_LEVEL_ZERO_LOADER OFF)
-if(OV_GPU_RUNTIME_ZE_ENABLED OR OV_GPU_RUNTIME_SYCL_ENABLED)
-    set(OV_GPU_NEEDS_LEVEL_ZERO_LOADER ON)
-endif()
-
-if(X86_64)
-    set(ENABLE_INTEL_GPU_DEFAULT ON)
-else()
-    set(ENABLE_INTEL_GPU_DEFAULT OFF)
-endif()
-
-set(OV_GPU_PLATFORM_SUPPORTED OFF)
-if((X86_64 OR AARCH64) AND
-   (NOT APPLE OR OV_GPU_RUNTIME_VULKAN_ENABLED) AND
-   NOT WINDOWS_STORE AND
-   NOT WINDOWS_PHONE)
-    set(OV_GPU_PLATFORM_SUPPORTED ON)
-endif()
-
-ov_dependent_option (ENABLE_INTEL_GPU "GPU plugin for OpenVINO Runtime" ${ENABLE_INTEL_GPU_DEFAULT} "OV_GPU_PLATFORM_SUPPORTED" OFF)
 
 set(GPU_ONEDNN_RUNTIME "")
 if(GPU_DEFAULT_RUNTIME MATCHES "^(OCL|ZE|SYCL)$")
