@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -70,26 +69,6 @@ inline constexpr std::array paged_ssm_metadata_ports{
     PagedSelectiveSSMInputPort::CacheInterval,
 };
 
-inline bool is_paged_ssm_computation_port(PagedSelectiveSSMInputPort port) noexcept {
-    return std::any_of(paged_ssm_computation_ports.begin(),
-                       paged_ssm_computation_ports.end(),
-                       [port](PagedSelectiveSSMInputPort computation_port) {
-                           return port == computation_port;
-                       });
-}
-
-inline bool is_paged_ssm_metadata_port(PagedSelectiveSSMInputPort port) noexcept {
-    return std::any_of(paged_ssm_metadata_ports.begin(),
-                       paged_ssm_metadata_ports.end(),
-                       [port](PagedSelectiveSSMInputPort metadata_port) {
-                           return port == metadata_port;
-                       });
-}
-
-inline bool is_paged_ssm_float_port(PagedSelectiveSSMInputPort port) noexcept {
-    return is_paged_ssm_computation_port(port) || port == PagedSelectiveSSMInputPort::State;
-}
-
 namespace node {
 
 class PagedSelectiveSSM : public Node {
@@ -101,7 +80,7 @@ public:
         return getType() == Type::PagedSelectiveSSM;
     }
     bool isExecutable() const override {
-        return !isInputTensorAtPortEmpty(3);
+        return !isInputTensorAtPortEmpty(input_port_index(PagedSelectiveSSMInputPort::Input));
     }
 
     void createPrimitive() override;

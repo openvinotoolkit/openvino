@@ -14,10 +14,13 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/paged_selective_ssm.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -760,6 +763,33 @@ TEST_P(PagedSelectiveSSMLayerTest, Inference) {
     const auto runtime_model = compiledModel.get_runtime_model();
     CheckNumberOfNodesWithType(runtime_model, {"PagedSelectiveSSM"}, 1);
     CheckNumberOfNodesWithType(runtime_model, {"Loop"}, 0);
+}
+
+TEST(PagedSelectiveSSMFunctionalTest, AlignsComputationPrecisionAfterCpuLowering) {
+    if (!ov::intel_cpu::hasHardwareSupport(ov::element::bf16)) {
+        GTEST_SKIP() << "CPU does not support bf16 inference.";
+    }
+
+    auto model = make_paged_validation_model();
+    const auto a_parameter = model->get_parameters().at(input_port_index(InputPort::A));
+    const auto a_constant = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {-0.2F});
+    a_parameter->output(0).replace(a_constant->output(0));
+    model->remove_parameter(a_parameter);
+    const auto result = model->get_results().front();
+    const auto weights = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1}, {1.F});
+    const auto matmul = std::make_shared<ov::op::v0::MatMul>(result->input_value(0), weights, false, false);
+    result->input(0).replace_source_output(matmul);
+
+    ov::Core core;
+    const auto compiled_model = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::bf16));
+    const auto runtime_model = compiled_model.get_runtime_model();
+    CheckNumberOfNodesWithType(runtime_model, {"PagedSelectiveSSM"}, 1);
+    for (const auto& node : runtime_model->get_ops()) {
+        const auto& rt_info = node->get_rt_info();
+        if (rt_info.at(ov::exec_model_info::LAYER_TYPE).as<std::string>() == "PagedSelectiveSSM") {
+            EXPECT_EQ(rt_info.at(ov::exec_model_info::RUNTIME_PRECISION).as<ov::element::Type>(), ov::element::bf16);
+        }
+    }
 }
 
 TEST(PagedSelectiveSSMFunctionalTest, RejectsMalformedMetadataBeforeExecution) {

@@ -67,30 +67,40 @@ PagedSelectiveSSM::PagedSelectiveSSM(const std::shared_ptr<ov::Node>& op, const 
 }
 
 void PagedSelectiveSSM::initSupportedPrimitiveDescriptors() {
-    const auto data_precision = getOriginalInputPrecisionAtPort(input_port_index(PagedSelectiveSSMInputPort::A));
+    const auto data_precision = getOriginalInputPrecisionAtPort(input_port_index(PagedSelectiveSSMInputPort::Input));
     OPENVINO_ASSERT(any_of(data_precision, ov::element::f32, ov::element::f16, ov::element::bf16),
                     "PagedSelectiveSSM supports only f32/f16/bf16 data, got ",
                     data_precision,
                     ".");
-    for (const auto port : paged_ssm_computation_ports) {
-        OPENVINO_ASSERT(getOriginalInputPrecisionAtPort(input_port_index(port)) == data_precision,
-                        "PagedSelectiveSSM requires A, dt, B, x, and C to have one computation precision.");
+    std::array<ov::element::Type, paged_ssm_input_count> input_precisions;
+    for (size_t port = 0; port < paged_ssm_input_count; ++port) {
+        input_precisions[port] = getOriginalInputPrecisionAtPort(port);
     }
-    const auto state_precision = getOriginalInputPrecisionAtPort(input_port_index(PagedSelectiveSSMInputPort::State));
+
+    // BF16 precision enforcement preserves constant A in f32 while lowering the activation path. The executor uses
+    // one DataT, selected by x, so regular CPU reorders convert the remaining computation inputs to that precision.
+    for (const auto port : paged_ssm_computation_ports) {
+        const auto port_index = input_port_index(port);
+        OPENVINO_ASSERT(any_of(input_precisions[port_index], ov::element::f32, ov::element::f16, ov::element::bf16),
+                        "PagedSelectiveSSM supports only f32/f16/bf16 computation inputs, got ",
+                        input_precisions[port_index],
+                        " at port ",
+                        port_index,
+                        ".");
+        input_precisions[port_index] = data_precision;
+    }
+    const auto state_precision = input_precisions[input_port_index(PagedSelectiveSSMInputPort::State)];
     OPENVINO_ASSERT(any_of(state_precision, ov::element::f32, ov::element::f16, ov::element::bf16),
                     "PagedSelectiveSSM supports only f32/f16/bf16 state, got ",
                     state_precision,
                     ".");
-    OPENVINO_ASSERT(getOriginalOutputPrecisionAtPort(output_port) == data_precision,
-                    "PagedSelectiveSSM output precision must match its computation precision.");
-    const auto index_precision =
-        getOriginalInputPrecisionAtPort(input_port_index(PagedSelectiveSSMInputPort::SubsequenceBegins));
+    const auto index_precision = input_precisions[input_port_index(PagedSelectiveSSMInputPort::SubsequenceBegins)];
     OPENVINO_ASSERT(any_of(index_precision, ov::element::i32, ov::element::i64),
                     "PagedSelectiveSSM supports only i32/i64 metadata, got ",
                     index_precision,
                     ".");
     for (const auto port : paged_ssm_metadata_ports) {
-        OPENVINO_ASSERT(getOriginalInputPrecisionAtPort(input_port_index(port)) == index_precision,
+        OPENVINO_ASSERT(input_precisions[input_port_index(port)] == index_precision,
                         "PagedSelectiveSSM requires all metadata inputs to have one precision.");
     }
 
@@ -98,11 +108,10 @@ void PagedSelectiveSSM::initSupportedPrimitiveDescriptors() {
     MemoryDescArgs descs;
     for (const auto& [arg_id, port_id] : input_port_bindings) {
         descs[arg_id] = creators_map.at(LayoutType::ncsp)
-                            ->createSharedDesc(getOriginalInputPrecisionAtPort(port_id), getInputShapeAtPort(port_id));
+                            ->createSharedDesc(input_precisions[port_id], getInputShapeAtPort(port_id));
     }
     descs[ARG_PAGED_SSM_OUT] =
-        creators_map.at(LayoutType::ncsp)
-            ->createSharedDesc(getOriginalOutputPrecisionAtPort(output_port), getOutputShapeAtPort(output_port));
+        creators_map.at(LayoutType::ncsp)->createSharedDesc(data_precision, getOutputShapeAtPort(output_port));
 
     auto execution_context = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
     m_factory = std::make_shared<ExecutorFactory<PagedSelectiveSSMAttrs>>(m_attrs, execution_context, descs);
