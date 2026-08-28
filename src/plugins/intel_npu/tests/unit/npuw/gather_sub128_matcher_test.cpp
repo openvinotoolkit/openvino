@@ -8,14 +8,13 @@
 #include <memory>
 #include <vector>
 
-#include "npuw_transformations/insert_vocab_sub128.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "partitioning/patterns/opt.hpp"
 
 namespace {
 
-std::shared_ptr<ov::Model> make_gather_model(bool mark_sub128) {
+std::shared_ptr<ov::Model> make_gather_model(float shift_value) {
     auto ids = std::make_shared<ov::opset10::Parameter>(ov::element::i32, ov::Shape{1});
     auto weights = ov::opset10::Constant::create(ov::element::u8, ov::Shape{4, 2}, std::vector<uint8_t>(8, 200));
     auto zero_point = ov::opset10::Constant::create(ov::element::u8, ov::Shape{4, 1}, std::vector<uint8_t>(4, 128));
@@ -24,13 +23,9 @@ std::shared_ptr<ov::Model> make_gather_model(bool mark_sub128) {
 
     auto weight_convert = std::make_shared<ov::opset10::Convert>(weights, ov::element::f16);
     auto zero_point_convert = std::make_shared<ov::opset10::Convert>(zero_point, ov::element::f16);
-    auto shift = ov::opset10::Constant::create(ov::element::f16, ov::Shape{}, {128.0f});
+    auto shift = ov::opset10::Constant::create(ov::element::f16, ov::Shape{}, {shift_value});
     auto shifted_weight = std::make_shared<ov::opset10::Subtract>(weight_convert, shift);
     auto shifted_zero_point = std::make_shared<ov::opset10::Subtract>(zero_point_convert, shift);
-    if (mark_sub128) {
-        ov::npuw::vocab_sub128::mark(shifted_weight);
-        ov::npuw::vocab_sub128::mark(shifted_zero_point);
-    }
 
     auto dequantized = std::make_shared<ov::opset10::Subtract>(shifted_weight, shifted_zero_point);
     auto scaled = std::make_shared<ov::opset10::Multiply>(dequantized, scale);
@@ -56,7 +51,7 @@ bool run_lift(const std::shared_ptr<ov::Model>& model) {
     return rewrite.run_on_model(model);
 }
 
-std::shared_ptr<ov::Model> make_parameter_gather_model(bool mark_sub128) {
+std::shared_ptr<ov::Model> make_parameter_gather_model(float shift_value) {
     constexpr std::size_t vocab_size = 4096;
     constexpr std::size_t hidden_size = 2048;
     auto ids = std::make_shared<ov::opset10::Parameter>(ov::element::i32, ov::Shape{1, 1});
@@ -70,13 +65,9 @@ std::shared_ptr<ov::Model> make_parameter_gather_model(bool mark_sub128) {
     auto gathered_scale = std::make_shared<ov::opset10::Gather>(scale, ids, axis);
     auto weight_convert = std::make_shared<ov::opset10::Convert>(gathered_weights, ov::element::f16);
     auto zero_point_convert = std::make_shared<ov::opset10::Convert>(gathered_zero_point, ov::element::f16);
-    auto shift = ov::opset10::Constant::create(ov::element::f16, ov::Shape{}, {128.0f});
+    auto shift = ov::opset10::Constant::create(ov::element::f16, ov::Shape{}, {shift_value});
     auto shifted_weight = std::make_shared<ov::opset10::Subtract>(weight_convert, shift);
     auto shifted_zero_point = std::make_shared<ov::opset10::Subtract>(zero_point_convert, shift);
-    if (mark_sub128) {
-        ov::npuw::vocab_sub128::mark(shifted_weight);
-        ov::npuw::vocab_sub128::mark(shifted_zero_point);
-    }
 
     auto dequantized = std::make_shared<ov::opset10::Subtract>(shifted_weight, shifted_zero_point);
     auto scaled = std::make_shared<ov::opset10::Multiply>(dequantized, gathered_scale);
@@ -101,32 +92,32 @@ bool run_host_gather(const std::shared_ptr<ov::Model>& model) {
 
 }  // namespace
 
-TEST(DQLiftGatherAsymCWTest, LiftsPairedMarkedSub128Shifts) {
-    const auto model = make_gather_model(true);
+TEST(DQLiftGatherAsymCWTest, LiftsPairedSub128Shifts) {
+    const auto model = make_gather_model(128.0f);
 
     EXPECT_TRUE(run_lift(model));
     EXPECT_EQ(count_gathers(model), 3);
 }
 
-TEST(DQLiftGatherAsymCWTest, RejectsUnmarkedSubtractions) {
-    const auto model = make_gather_model(false);
+TEST(DQLiftGatherAsymCWTest, RejectsNon128Subtractions) {
+    const auto model = make_gather_model(127.0f);
 
     EXPECT_FALSE(run_lift(model));
     EXPECT_EQ(count_gathers(model), 1);
 }
 
-TEST(DQUnpackDictGatheruTest, AcceptsPairedMarkedSub128Shifts) {
-    EXPECT_TRUE(run_unpack(make_parameter_gather_model(true)));
+TEST(DQUnpackDictGatheruTest, AcceptsPairedSub128Shifts) {
+    EXPECT_TRUE(run_unpack(make_parameter_gather_model(128.0f)));
 }
 
-TEST(DQUnpackDictGatheruTest, RejectsUnmarkedSubtractions) {
-    EXPECT_FALSE(run_unpack(make_parameter_gather_model(false)));
+TEST(DQUnpackDictGatheruTest, RejectsNon128Subtractions) {
+    EXPECT_FALSE(run_unpack(make_parameter_gather_model(127.0f)));
 }
 
-TEST(HostGatherQuantAsymmTest, AcceptsPairedMarkedSub128Shifts) {
-    EXPECT_TRUE(run_host_gather(make_parameter_gather_model(true)));
+TEST(HostGatherQuantAsymmTest, AcceptsPairedSub128Shifts) {
+    EXPECT_TRUE(run_host_gather(make_parameter_gather_model(128.0f)));
 }
 
-TEST(HostGatherQuantAsymmTest, RejectsUnmarkedSubtractions) {
-    EXPECT_FALSE(run_host_gather(make_parameter_gather_model(false)));
+TEST(HostGatherQuantAsymmTest, RejectsNon128Subtractions) {
+    EXPECT_FALSE(run_host_gather(make_parameter_gather_model(127.0f)));
 }

@@ -6,7 +6,6 @@
 
 #include "../../logging.hpp"
 #include "../../util.hpp"
-#include "../../npuw_transformations/insert_vocab_sub128.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
@@ -18,6 +17,25 @@ namespace ov {
 namespace npuw {
 namespace patterns {
 namespace opt {
+
+namespace {
+
+bool is_subtract_128(const std::shared_ptr<ov::Node>& node) {
+    const auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(node);
+    if (subtract == nullptr) {
+        return false;
+    }
+
+    const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(subtract->input_value(1).get_node_shared_ptr());
+    if (constant == nullptr || ov::shape_size(constant->get_shape()) != 1) {
+        return false;
+    }
+
+    const auto value = constant->cast_vector<double>();
+    return value.front() == 128.0;
+}
+
+}  // namespace
 
 void Context::permute(const PPtr& orig_param, const Context::Axes& order) {
     closures_to_permute[orig_param] = order;
@@ -1104,9 +1122,8 @@ DQLiftGatherAsymCW::DQLiftGatherAsymCW() {
         if (node_to_output.count(qshiftw) != node_to_output.count(qshiftz)) {
             return false;
         }
-        if (node_to_output.count(qshiftw) &&
-            (!ov::npuw::vocab_sub128::is_marked(node_to_output.at(qshiftw).get_node_shared_ptr()) ||
-             !ov::npuw::vocab_sub128::is_marked(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
+        if (node_to_output.count(qshiftw) && (!is_subtract_128(node_to_output.at(qshiftw).get_node_shared_ptr()) ||
+                                             !is_subtract_128(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
             return false;
         }
 
@@ -1312,9 +1329,8 @@ DQUnpackDictGatheru::DQUnpackDictGatheru(Context::Ref ctx) {
         if (node_to_output.count(qshiftw) != node_to_output.count(qshiftz)) {
             return false;
         }
-        if (node_to_output.count(qshiftw) &&
-            (!ov::npuw::vocab_sub128::is_marked(node_to_output.at(qshiftw).get_node_shared_ptr()) ||
-             !ov::npuw::vocab_sub128::is_marked(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
+        if (node_to_output.count(qshiftw) && (!is_subtract_128(node_to_output.at(qshiftw).get_node_shared_ptr()) ||
+                                             !is_subtract_128(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
             return false;
         }
 
@@ -1418,9 +1434,8 @@ HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_
         if (node_to_output.count(qshiftw) != node_to_output.count(qshiftz)) {
             return false;
         }
-        if (node_to_output.count(qshiftw) &&
-            (!ov::npuw::vocab_sub128::is_marked(node_to_output.at(qshiftw).get_node_shared_ptr()) ||
-             !ov::npuw::vocab_sub128::is_marked(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
+        if (node_to_output.count(qshiftw) && (!is_subtract_128(node_to_output.at(qshiftw).get_node_shared_ptr()) ||
+                                             !is_subtract_128(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
             return false;
         }
 

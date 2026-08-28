@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "openvino/core/node.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov::npuw {
@@ -15,8 +16,10 @@ namespace vocab_sub128 {
 inline constexpr const char* marker = "npuw::vocab_sub128";
 inline constexpr const char* friendly_name_suffix = "_npuw_vocab_sub128";
 
-void mark(const std::shared_ptr<ov::Node>& node);
-bool is_marked(const std::shared_ptr<const ov::Node>& node);
+inline void mark(const std::shared_ptr<ov::Node>& node) {
+    node->get_rt_info()[marker] = true;
+    node->set_friendly_name(node->get_friendly_name() + friendly_name_suffix);
+}
 
 }  // namespace vocab_sub128
 

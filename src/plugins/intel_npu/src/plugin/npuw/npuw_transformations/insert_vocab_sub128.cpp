@@ -19,19 +19,6 @@
 
 namespace opp = ov::pass::pattern;
 
-namespace ov::npuw::vocab_sub128 {
-
-void mark(const std::shared_ptr<ov::Node>& node) {
-    node->get_rt_info()[marker] = true;
-    node->set_friendly_name(node->get_friendly_name() + friendly_name_suffix);
-}
-
-bool is_marked(const std::shared_ptr<const ov::Node>& node) {
-    return node != nullptr && node->get_rt_info().count(marker) > 0;
-}
-
-}  // namespace ov::npuw::vocab_sub128
-
 namespace {
 
 class InsertVocabSub128Matcher final : public ov::pass::MatcherPass {
