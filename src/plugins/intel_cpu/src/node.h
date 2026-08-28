@@ -873,6 +873,8 @@ private:
     Type type;
     int execIndex = -1;
 
+    openvino::itt::handle_t executeTaskId = nullptr;
+
     PerfCount perfCounter;
     PerfCounters profiling;
 
