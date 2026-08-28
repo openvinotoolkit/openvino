@@ -43,10 +43,13 @@ TEST_P(pad_test_three_input, shape_infer) {
     auto pads_end_prim = std::make_shared<input_layout>("pads_end", p.pads_end_layout);
 
     int32_t non_constant_input_mask = border::PAD_NON_CONST_INPUT::BEGIN | border::PAD_NON_CONST_INPUT::END;
-    auto border_prim = std::make_shared<border>("output", std::vector<input_info>{input_info("input"), input_info("pads_begin"), input_info("pads_end")},
+    auto border_prim = std::make_shared<border>("output",
+                                                std::vector<input_info>{input_info("input"), input_info("pads_begin"), input_info("pads_end")},
                                                 non_constant_input_mask,
-                                                std::vector<int64_t>{}, std::vector<int64_t>{},
-                                                p.pad_mode, p.pad_value);
+                                                ov::CoordinateDiff{},
+                                                ov::CoordinateDiff{},
+                                                p.pad_mode,
+                                                p.pad_value);
     cldnn::program prog(engine);
 
     auto pads_begin_mem = engine.allocate_memory(p.pads_begin_layout);
@@ -351,8 +354,8 @@ TEST_P(pad_test_non_constant_input_begin_end_with_data, shape_infer) {
     auto begin_mem = engine.allocate_memory(p.pads_begin_layout);
     auto end_mem = engine.allocate_memory(p.pads_end_layout);
 
-    set_values<int64_t>(begin_mem, p.pads_begin_data);
-    set_values<int64_t>(end_mem, p.pads_end_data);
+    set_values<ov::CoordinateDiff::value_type>(begin_mem, p.pads_begin_data);
+    set_values<ov::CoordinateDiff::value_type>(end_mem, p.pads_end_data);
     auto impl_params = border_node.get_kernel_impl_params();
     impl_params->memory_deps = {
         {1, begin_mem},

@@ -168,7 +168,7 @@ ResampleKernelBase::DispatchData ResampleKernelPilRef::SetDefaultForKernel(Kerne
     case ResampleKernelPilRef::eCalcHorizontalCoefficients: {
         auto outputHorizontalSize = ExtractDim(arg.outputs[0], arg.axes[eHorizontal]).v;
         dispatchData.gws = std::vector<std::size_t>{outputHorizontalSize, 1, 1};
-        dispatchData.lws = std::vector<std::size_t>{std::min(outputHorizontalSize, arg.engineInfo.maxWorkGroupSize), 1, 1};
+        dispatchData.lws = std::vector<std::size_t>{std::min<size_t>(outputHorizontalSize, arg.engineInfo.maxWorkGroupSize), 1, 1};
         return dispatchData;
     }
     case ResampleKernelPilRef::eResampleHorizontal: {
@@ -185,7 +185,7 @@ ResampleKernelBase::DispatchData ResampleKernelPilRef::SetDefaultForKernel(Kerne
     case ResampleKernelPilRef::eCalcVerticalCoefficients: {
         auto outputVerticalSize = ExtractDim(arg.outputs[0], arg.axes[eVertical]).v;
         dispatchData.gws = std::vector<std::size_t>{outputVerticalSize, 1, 1};
-        dispatchData.lws = std::vector<std::size_t>{std::min(outputVerticalSize, arg.engineInfo.maxWorkGroupSize), 1, 1};
+        dispatchData.lws = std::vector<std::size_t>{std::min<size_t>(outputVerticalSize, arg.engineInfo.maxWorkGroupSize), 1, 1};
         return dispatchData;
     }
     case ResampleKernelPilRef::eResampleVertical: {

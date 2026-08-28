@@ -35,7 +35,7 @@ NonMaxSuppressionKernelRef::DispatchData SetDefault(const non_max_suppression_pa
 
     const auto& input = params.inputs[1];
     if (idx == 0) {
-        const size_t boxesGroupSize = std::min(params.inputs[0].Feature().v, params.engineInfo.maxWorkGroupSize);
+        const size_t boxesGroupSize = std::min<size_t>(params.inputs[0].Feature().v, params.engineInfo.maxWorkGroupSize);
         dispatchData.gws = {input.Batch().v, input.Feature().v, boxesGroupSize};
         dispatchData.lws = {1, 1, boxesGroupSize};
     } else if (idx == 1) {

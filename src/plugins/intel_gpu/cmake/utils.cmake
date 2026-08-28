@@ -2,16 +2,37 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-function(ov_gpu_set_runtime_interface_for TARGET_NAME)
-    if(GPU_RT_TYPE STREQUAL "ZE")
+function(ov_gpu_set_runtime_definitions_for TARGET_NAME)
+    if(GPU_RUNTIME_TYPE STREQUAL "ZE")
         target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_ZE_RT=1)
-        target_link_libraries(${TARGET_NAME} PRIVATE openvino::zero_loader)
-    elseif(GPU_RT_TYPE STREQUAL "OCL")
+    elseif(GPU_RUNTIME_TYPE STREQUAL "OCL")
         target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_OCL_RT=1)
-        target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::OpenCL)
-    elseif(GPU_RT_TYPE STREQUAL "SYCL")
+    elseif(GPU_RUNTIME_TYPE STREQUAL "SYCL")
         target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_SYCL_RT=1)
     else()
-        message(FATAL_ERROR "Invalid GPU runtime type: `${GPU_RT_TYPE}` Only `ZE`, `OCL` and `SYCL` are supported")
+        message(FATAL_ERROR "Invalid GPU runtime type: `${GPU_RUNTIME_TYPE}`")
     endif()
+endfunction()
+
+function(ov_gpu_set_opencl_api_version_for TARGET_NAME)
+    target_compile_definitions(${TARGET_NAME} PRIVATE
+        CL_TARGET_OPENCL_VERSION=${INTEL_GPU_TARGET_OCL_VERSION})
+endfunction()
+
+function(ov_gpu_link_runtime_dependencies_for TARGET_NAME)
+    if(GPU_RUNTIME_TYPE STREQUAL "ZE")
+        target_link_libraries(${TARGET_NAME} PRIVATE openvino::zero_loader)
+    elseif(GPU_RUNTIME_TYPE STREQUAL "OCL")
+        target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::OpenCL)
+    elseif(GPU_RUNTIME_TYPE STREQUAL "SYCL")
+        # SYCL toolchain dependencies are attached by add_sycl_to_target.
+    else()
+        message(FATAL_ERROR "Invalid GPU runtime type: `${GPU_RUNTIME_TYPE}`")
+    endif()
+endfunction()
+
+function(ov_gpu_set_runtime_interface_for TARGET_NAME)
+    ov_gpu_set_runtime_definitions_for(${TARGET_NAME})
+    ov_gpu_link_runtime_dependencies_for(${TARGET_NAME})
+    ov_gpu_set_opencl_api_version_for(${TARGET_NAME})
 endfunction()

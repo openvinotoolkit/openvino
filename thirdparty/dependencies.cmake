@@ -72,7 +72,13 @@ endif()
 # LevelZero
 #
 
-if(ENABLE_OV_ZERO_LOADER)
+# NPU and GPU request the shared loader from their own CMake entry points.
+# Keep target creation idempotent for combined-plugin builds.
+function(ov_add_zero_loader)
+    if(TARGET openvino::zero_loader)
+        return()
+    endif()
+
     if(ENABLE_SYSTEM_LEVEL_ZERO)
         pkg_search_module(level_zero QUIET
                           IMPORTED_TARGET
@@ -85,7 +91,9 @@ if(ENABLE_OV_ZERO_LOADER)
     endif()
 
     if(NOT level_zero_FOUND)
-        add_subdirectory(thirdparty/level_zero EXCLUDE_FROM_ALL)
+        add_subdirectory("${OpenVINO_SOURCE_DIR}/thirdparty/level_zero"
+                         "${OpenVINO_BINARY_DIR}/thirdparty/level_zero"
+                         EXCLUDE_FROM_ALL)
         add_library(LevelZero::LevelZero ALIAS ze_loader)
         ov_developer_package_export_targets(
             TARGET ze_loader
@@ -101,7 +109,10 @@ if(ENABLE_OV_ZERO_LOADER)
     endif()
     get_target_property(ZE_INCLUDE_DIRS LevelZero::LevelZero INTERFACE_INCLUDE_DIRECTORIES)
     target_include_directories(level_zero_headers INTERFACE ${ZE_INCLUDE_DIRS})
-endif()
+
+    add_subdirectory("${OpenVINO_SOURCE_DIR}/src/common/zero_loader"
+                     "${OpenVINO_BINARY_DIR}/src/common/zero_loader")
+endfunction()
 
 #
 # OpenCL

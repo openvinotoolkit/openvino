@@ -41,13 +41,16 @@ file(GLOB_RECURSE SOURCES_WITH_OCL_RT
     "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/device_test.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/engine_test.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/events_test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/jitter_test.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/network_test.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/usm_memory_test.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_cases/convert_color_gpu_test.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_cases/cl_mem_input_test.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_cases/mem_perf_test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_cases/moe_offload_lru_cache_test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_cases/moe_offload_weight_provider_test.cpp"
   )
-if (NOT GPU_RT_TYPE STREQUAL "OCL")
+if (NOT OV_GPU_RUNTIME_OCL_ENABLED)
     foreach (SOURCE_FILE IN LISTS SOURCES_WITH_OCL_RT)
         list (REMOVE_ITEM SOURCES_MAIN ${SOURCE_FILE})
     endforeach()
@@ -57,7 +60,7 @@ file(GLOB_RECURSE SOURCES_WITH_ZE_RT
     "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/ze/*.cpp"
   )
 
-if (NOT GPU_RT_TYPE STREQUAL "ZE")
+if (NOT OV_GPU_RUNTIME_ZE_ENABLED)
     foreach (SOURCE_FILE IN LISTS SOURCES_WITH_ZE_RT)
         list (REMOVE_ITEM SOURCES_MAIN ${SOURCE_FILE})
     endforeach()
@@ -67,7 +70,7 @@ file(GLOB_RECURSE SOURCES_WITH_SYCL_RT
   "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/sycl/*.cpp"
   )
 
-if (NOT GPU_RT_TYPE STREQUAL "SYCL")
+if (NOT OV_GPU_RUNTIME_SYCL_ENABLED)
   foreach (SOURCE_FILE IN LISTS SOURCES_WITH_SYCL_RT)
     list (REMOVE_ITEM SOURCES_MAIN ${SOURCE_FILE})
   endforeach()

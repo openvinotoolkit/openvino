@@ -6,6 +6,12 @@ if (NOT ENABLE_INTEL_GPU)
     return()
 endif()
 
+include(cmake/features.cmake)
+
+if(OV_GPU_RUNTIME_ZE_ENABLED OR OV_GPU_RUNTIME_SYCL_ENABLED)
+    ov_add_zero_loader()
+endif()
+
 set (TARGET_NAME "openvino_intel_gpu_plugin")
 
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/utils.cmake)
@@ -94,13 +100,13 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:__cplusplus")
 endif()
 
-if(GPU_RT_TYPE STREQUAL "SYCL" AND NOT OV_GPU_WITH_SYCL)
-    message(FATAL_ERROR "GPU_RT_TYPE is set to SYCL, but SYCL is not available for the selected compiler/environment.")
+if(OV_GPU_RUNTIME_SYCL_ENABLED AND NOT OV_GPU_WITH_SYCL)
+    message(FATAL_ERROR "GPU_RUNTIME_TYPE selects SYCL, but SYCL is not available for the selected compiler/environment.")
 endif()
 
 # When -fsycl and -flto are both active, archive members are emitted in a format
 # that the linker cannot read from static libraries ("archive member is neither ET_REL nor LLVM bitcode").
-if(OV_GPU_WITH_SYCL AND ENABLE_LTO)
+if(OV_GPU_RUNTIME_SYCL_ENABLED AND ENABLE_LTO)
     message(FATAL_ERROR "Intel GPU plugin with SYCL is not supported with ENABLE_LTO=ON")
 endif()
 
@@ -114,9 +120,7 @@ if(ENABLE_GPU_DEBUG_CAPS)
 endif()
 
 set(INTEL_GPU_TARGET_OCL_VERSION "300"
-  CACHE STRING "Target version of OpenCL which should be used by GPU plugin")
-
-add_definitions(-DCL_TARGET_OPENCL_VERSION=${INTEL_GPU_TARGET_OCL_VERSION})
+    CACHE STRING "Target version of OpenCL which should be used by GPU plugin")
 
 set(MAIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")

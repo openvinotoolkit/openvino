@@ -4,7 +4,10 @@
 
 set(TARGET_NAME "openvino_intel_gpu_graph")
 
-if(ENABLE_CM_FOR_GPU)
+set(OV_GPU_CM_IMPLS_ENABLED OFF)
+if(ENABLE_CM_FOR_GPU AND
+   (OV_GPU_RUNTIME_OCL_ENABLED OR OV_GPU_RUNTIME_ZE_ENABLED OR OV_GPU_RUNTIME_SYCL_ENABLED))
+    set(OV_GPU_CM_IMPLS_ENABLED ON)
     add_compile_definitions(ENABLE_CM_FOR_GPU)
 endif()
 
@@ -38,12 +41,18 @@ set(COMMON_LINK_LIBRARIES openvino::shape_inference # for tensor accessor
                           openvino::itt
                           openvino::runtime::dev
                           openvino::runtime
-                          OpenCL::OpenCL # Onednn needs OCL headers even when running Level Zero
 )
 
-if(GPU_RT_TYPE STREQUAL "ZE")
+if(ENABLE_ONEDNN_FOR_GPU)
+    # oneDNN GPU adapters expose OpenCL types in their private headers.
+    list(APPEND COMMON_LINK_LIBRARIES OpenCL::NewHeaders)
+endif()
+
+if(OV_GPU_RUNTIME_ZE_ENABLED)
     # Onednn needs ZE headers
     list(APPEND COMMON_LINK_LIBRARIES openvino::zero_loader)
+elseif(OV_GPU_RUNTIME_SYCL_ENABLED)
+    list(APPEND COMMON_LINK_LIBRARIES LevelZero::Headers)
 endif()
 
 define_property(GLOBAL PROPERTY EXTRA_LINK_LIBRARIES_GLOBAL BRIEF_DOCS "All link libs" FULL_DOCS "Link libraries collection from all backends")
@@ -88,12 +97,13 @@ macro(ov_gpu_add_backend_target)
     target_compile_options(${TARGET_NAME} PRIVATE ${COMMON_COMPILE_OPTIONS})
     target_compile_definitions(${TARGET_NAME} PRIVATE ${TARGET_DEFINITIONS})
     ov_set_threading_interface_for(${TARGET_NAME})
-    ov_gpu_set_runtime_interface_for(${TARGET_NAME})
+    ov_gpu_set_runtime_definitions_for(${TARGET_NAME})
 
     # We use onednn headers all over the graph module, so we have to append includes to all backends and add a dependency between targets
     if (ENABLE_ONEDNN_FOR_GPU)
         target_include_directories(${ARG_NAME} SYSTEM BEFORE PRIVATE $<TARGET_PROPERTY:onednn_gpu_tgt,INTERFACE_INCLUDE_DIRECTORIES>)
         add_dependencies(openvino_intel_gpu_${IMPL_TYPE}_obj onednn_gpu_tgt)
+        ov_gpu_set_opencl_api_version_for(${ARG_NAME})
     endif()
 
     # The graph backend implementations are compiled in these per-backend OBJECT
@@ -118,7 +128,7 @@ add_test(NAME TestOCLCodePreprocessing
          WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 foreach(IMPL_TYPE IN LISTS AVAILABLE_IMPL_TYPES)
-    if(IMPL_TYPE STREQUAL "cm" AND NOT ENABLE_CM_FOR_GPU)
+    if(IMPL_TYPE STREQUAL "cm" AND NOT OV_GPU_CM_IMPLS_ENABLED)
         continue()
     endif()
     add_subdirectory(impls/${IMPL_TYPE})
@@ -154,7 +164,10 @@ ov_build_target_faster(${TARGET_NAME} PCH)
 target_compile_options(${TARGET_NAME} PRIVATE ${COMMON_COMPILE_OPTIONS})
 
 ov_set_threading_interface_for(${TARGET_NAME})
-ov_gpu_set_runtime_interface_for(${TARGET_NAME})
+ov_gpu_set_runtime_definitions_for(${TARGET_NAME})
+if(ENABLE_ONEDNN_FOR_GPU)
+    ov_gpu_set_opencl_api_version_for(${TARGET_NAME})
+endif()
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 

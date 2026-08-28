@@ -46,15 +46,17 @@ add_custom_target(run_ocl_codegen ALL DEPENDS "${CODEGEN_INCDIR}/${KERNEL_SOURCE
 ov_gpu_add_backend_target(
     NAME ${TARGET_NAME}
     INCLUDES $<BUILD_INTERFACE:${CODEGEN_INCDIR}>
+    LINK_LIBRARIES OpenCL::OpenCL
     BYPASS
         ADDITIONAL_SOURCE_DIRS ${CODEGEN_INCDIR}
         DEPENDENCIES run_ocl_codegen
         ADD_CLANG_FORMAT
 )
+ov_gpu_set_opencl_api_version_for(${TARGET_NAME})
 
 ov_build_target_faster(${TARGET_NAME} PCH)
 
-if(GPU_RT_TYPE STREQUAL "SYCL")
+if(OV_GPU_RUNTIME_SYCL_ENABLED)
     # Some sources include oneDNN headers that require SYCL backend support.
     # Without the SYCL compilation flag, the compiler will fail with "Unsupported compiler" error.
     add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES)

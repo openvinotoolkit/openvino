@@ -64,7 +64,7 @@ CommonDispatchData GatherNonzeroKernelGroup::SetDefault(const gather_nonzero_par
     const auto& input = params.inputs[0];
 
     // Set 1 work group to avoid synchornization issue for summation of nonzero counting.
-    size_t max_dim_size = std::min(input.LogicalSize(), params.engineInfo.maxWorkGroupSize);
+    size_t max_dim_size = std::min<size_t>(input.LogicalSize(), params.engineInfo.maxWorkGroupSize);
     dispatchData.lws = dispatchData.gws = {max_dim_size, 1, 1};
 
     return dispatchData;
