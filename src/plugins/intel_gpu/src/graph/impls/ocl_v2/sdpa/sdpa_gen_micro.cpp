@@ -1050,6 +1050,9 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
 
         // QQ_BIAS is a paged-attention-only feature.
         jit.make("HAS_QQ_BIAS", 0);
+
+        jit.make("SLIDING_WINDOW_SIZE", config.sliding_window);
+        GPU_DEBUG_TRACE_DETAIL << "[SDPA micro] non-PA sliding_window = " << config.sliding_window << "\n";
     }
     const auto& device_info = params.get_device_info();
 
@@ -1082,6 +1085,10 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
 
     size_t scale_input_idx = 4;
     jit.make("IS_CAUSAL", config.is_causal);
+    jit.make("CAUSAL_MASK_LOWER_RIGHT", config.causal_lower_right);
+    GPU_DEBUG_TRACE_DETAIL << "[SDPA micro] IS_CAUSAL=" << config.is_causal
+                          << " SLIDING_WINDOW_SIZE=" << config.sliding_window
+                          << " is_paged_attention=" << config.is_paged_attention << "\n";
     if (!config.is_paged_attention) {
         const bool has_attn_mask_input = sdpa_has_runtime_attn_mask_input(params);
         if (config.has_const_attn_mask_val) {

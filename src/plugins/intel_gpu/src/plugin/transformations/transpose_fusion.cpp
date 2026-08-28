@@ -235,10 +235,14 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(m.get_match_root());
+        auto gpu_sdpa = ov::as_type_ptr<op::SDPA>(m.get_match_root());
 
         if (!sdpa || transformation_callback(sdpa)) {
             return false;
         }
+
+        const auto causal_mask_alignment = gpu_sdpa ? gpu_sdpa->get_causal_mask_alignment()
+                                                    : op::SDPA::CausalMaskAlignment::UPPER_LEFT;
 
         auto order_q = op::SDPA::default_order(sdpa->get_input_partial_shape(0).size());
         auto order_k = op::SDPA::default_order(sdpa->get_input_partial_shape(1).size());
@@ -300,7 +304,11 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
             inputs.push_back(sdpa->get_input_source_output(4));
         }
 
-        auto sdpa_new = std::make_shared<op::SDPA>(inputs, sdpa->get_causal(), order_q, order_k, order_v, order_output);
+        auto sdpa_new =
+            std::make_shared<op::SDPA>(inputs, sdpa->get_causal(), order_q, order_k, order_v, order_output, ov::element::dynamic, causal_mask_alignment);
+        if (auto gpu_sdpa = ov::as_type_ptr<op::SDPA>(sdpa)) {
+            sdpa_new->set_sliding_window_size(gpu_sdpa->get_sliding_window_size());
+        }
 
         sdpa_new->set_friendly_name(sdpa->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), sdpa_new);

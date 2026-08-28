@@ -228,6 +228,8 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         #if !IS_GQA_SINGLE_TOKEN
             causal_k = min(k, past_len + (int)wg_j0 + ugemm_kq_wg_tile_n);
         #endif
+    #elif !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
+        causal_k = min(k, k- q + (int)wg_j0 + ugemm_kq_wg_tile_n);
     #else
         causal_k = min(k, (int)wg_j0 + ugemm_kq_wg_tile_n);
     #endif
@@ -982,6 +984,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             col_offset += k - q;
             causal_q_begin += k - q;
         #endif
+    #elif !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
+        col_offset += k - q;
+        causal_q_begin += k - q;
     #endif
 
     #if HAS_TOKEN_TYPE_IDS && IS_PAGED_ATTENTION && IS_PREFILL
@@ -1521,5 +1526,16 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     tile_store_block_rem_q(A_tile_half, A, q, lda, sg_i0_vs, sg_j0_vs);
 #else
     tile_store(A_tile_half, A, d, q, lda, sg_i0_vs, sg_j0_vs);
+#endif
+
+#if SLIDING_WINDOW_SIZE && !IS_PAGED_ATTENTION
+    // DEBUG: write after final store so values survive; only first thread writes
+    if (get_group_id(0) == 0 && get_group_id(1) == 0 && get_group_id(2) == 0
+        && sg_ij == 0 && get_sub_group_local_id() == 0) {
+        A[0] = (half)window_k_begin;
+        A[1] = (half)window_k0_begin;
+        A[2] = (half)SLIDING_WINDOW_SIZE;
+        A[3] = (half)causal_k;
+    }
 #endif
 }
