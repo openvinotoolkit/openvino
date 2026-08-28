@@ -41,7 +41,7 @@ public:
     // `weights` / `qtypes` are the parser's tensor tables; they are referenced, not copied, and
     // must outlive the emitter.
     GraphEmitter(std::unordered_map<std::string, ov::Tensor>& weights,
-                 std::unordered_map<std::string, gguf_tensor_type>& qtypes,
+                 std::unordered_map<std::string, GgufTensorType>& qtypes,
                  std::string arch);
 
     // ---- graph under construction ----
@@ -66,7 +66,7 @@ public:
     std::unordered_map<std::string, ov::Tensor>& weights() {
         return m_weights;
     }
-    std::unordered_map<std::string, gguf_tensor_type>& qtypes() {
+    std::unordered_map<std::string, GgufTensorType>& qtypes() {
         return m_qtypes;
     }
 
@@ -118,7 +118,7 @@ public:
     // `extracted` maps "<base>.weight"/".scales"/".zp" -> tensor; `qtype` is the ggml type.
     void emit_weight_op(const std::string& node_name,
                         const std::unordered_map<std::string, ov::Tensor>& extracted,
-                        gguf_tensor_type qtype,
+                        GgufTensorType qtype,
                         const ov::PartialShape& shape_4d);
 
     // `ggml_name` is the full tensor name ending in ".weight" (the name translators reference).
@@ -141,7 +141,7 @@ public:
 
 private:
     std::unordered_map<std::string, ov::Tensor>& m_weights;
-    std::unordered_map<std::string, gguf_tensor_type>& m_qtypes;
+    std::unordered_map<std::string, GgufTensorType>& m_qtypes;
     // Architecture name, used only to make a missing-tensor diagnostic actionable.
     std::string m_arch;
 

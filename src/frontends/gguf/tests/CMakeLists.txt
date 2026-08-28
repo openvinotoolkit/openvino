@@ -4,6 +4,15 @@
 
 set(TARGET_NAME ov_gguf_frontend_tests)
 
+if(NOT BUILD_SHARED_LIBS)
+    # This target compiles the frontend's own sources directly (white-box access to internal
+    # helpers) and links openvino::runtime, which in static builds already bundles every
+    # registered frontend via ov_target_link_frontends() -- the duplicate frontend.cpp objects
+    # then conflict at link time. No other frontend's tests compile their own sources this way,
+    # so skip only here rather than changing that shared static-build mechanism.
+    return()
+endif()
+
 # Compile the frontend sources directly into the test binary instead of linking the
 # installed library. Explicit source lists (no GLOB); keep in sync when adding sources.
 set(FE_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../src")
@@ -78,6 +87,7 @@ set(FRONTEND_SRCS
 )
 
 set(TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_adapt_to_genai.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_arch_conversion.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_dequant_vs_ggml.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_extensions.cpp"

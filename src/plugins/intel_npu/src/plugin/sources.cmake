@@ -120,8 +120,6 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/convert_kvcache_to_precision.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/conv_to_matmul.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/conv_to_matmul.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/decompose_gqa.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/decompose_gqa.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/detect_causal_mask.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/detect_causal_mask.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/drop_zp_subtract.cpp
@@ -158,6 +156,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/orc.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/orc.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/orc/schema_npuw.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pa_compiled_model.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pa_compiled_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/partitioning/online/compiler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/partitioning/online/compiler.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/partitioning/online/graph.cpp

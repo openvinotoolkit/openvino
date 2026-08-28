@@ -25,6 +25,7 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
+#include "pa_compiled_model.hpp"
 #include "partitioning/patterns/opt.hpp"
 #include "pipelines/kokoro/kokoro_compiled_model.hpp"
 #include "plugin.hpp"
@@ -300,6 +301,7 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     auto use_flux2_key = ov::intel_npu::npuw::flux2::enabled.name();
     auto use_gqa_key = ov::intel_npu::npuw::gqa::enabled.name();
     auto use_llm_key = ov::intel_npu::npuw::llm::enabled.name();
+    auto use_pa_key = ov::intel_npu::npuw::pa::enabled.name();
     auto use_kokoro_key = ov::intel_npu::npuw::kokoro::enabled.name();
 
     // Drop CACHE_DIR from the config
@@ -317,6 +319,9 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     } else if (properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true) {
         LOG_INFO("ov::npuw::LLMCompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, config);
+    } else if (properties.count(use_pa_key) && properties.at(use_pa_key).as<bool>() == true) {
+        LOG_INFO("ov::npuw::PACompiledModel will be created.");
+        compiled_model = std::make_shared<ov::npuw::PACompiledModel>(model, plugin, config);
     } else if (properties.count(use_kokoro_key) && properties.at(use_kokoro_key).as<bool>() == true) {
         LOG_INFO("ov::npuw::KokoroCompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::KokoroCompiledModel>(model, plugin, config);
@@ -985,6 +990,12 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
 
         std::size_t closure_size = closure_desc.closure.size();
         stream & closure_size;
+        if (stream.input()) {
+            NPUW_ASSERT(closure_desc.closure_uid.size() == closure_size &&
+                        "Malformed ORC blob: closure_uid size does not match closure size");
+            NPUW_ASSERT(closure_desc.is_remote.size() == closure_size &&
+                        "Malformed ORC blob: is_remote size does not match closure size");
+        }
         std::vector<ov::Tensor> cpu_closures;
         std::vector<std::size_t> cpu_closure_ids;
         std::vector<ov::npuw::weights::LazyTensor> non_cpu_tensors;
@@ -1007,13 +1018,19 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
             lazy_closure.resize(closure_size);
             stream & cpu_closure_ids;
             serialize_weightless(stream, cpu_closures, ctx);
+            NPUW_ASSERT(cpu_closure_ids.size() == cpu_closures.size() &&
+                        "Malformed ORC blob: CPU closure ids count does not match CPU closure tensor count");
             std::size_t tidx = 0;
             for (const auto& idx : cpu_closure_ids) {
+                NPUW_ASSERT(idx < closure_size && "Malformed ORC blob: CPU closure index is out of range");
                 closure_desc.closure[idx] = std::move(cpu_closures[tidx++]);
             }
             stream & non_cpu_tensors_ids & non_cpu_tensors;
+            NPUW_ASSERT(non_cpu_tensors_ids.size() == non_cpu_tensors.size() &&
+                        "Malformed ORC blob: non-CPU closure ids count does not match non-CPU tensor count");
             std::size_t ltidx = 0;
             for (const auto& idx : non_cpu_tensors_ids) {
+                NPUW_ASSERT(idx < closure_size && "Malformed ORC blob: non-CPU closure index is out of range");
                 lazy_closure[idx] = std::move(non_cpu_tensors[ltidx++]);
             }
             for (std::size_t cidx = 0; cidx < closure_desc.closure.size(); ++cidx) {
@@ -1027,6 +1044,12 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
 
         std::size_t closure_size = closure_desc.closure.size();
         stream & closure_size;
+        if (stream.input()) {
+            NPUW_ASSERT(closure_desc.closure_uid.size() == closure_size &&
+                        "Malformed ORC blob: closure_uid size does not match closure size");
+            NPUW_ASSERT(closure_desc.is_remote.size() == closure_size &&
+                        "Malformed ORC blob: is_remote size does not match closure size");
+        }
         std::vector<std::size_t> cpu_closure_ids;
         if (stream.output()) {
             std::vector<ov::Tensor> cpu_closures;
@@ -1044,6 +1067,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
             stream & cpu_closure_ids;
             closure_desc.closure.resize(closure_size);
             for (const auto& cidx : cpu_closure_ids) {
+                NPUW_ASSERT(cidx < closure_size && "Malformed ORC blob: CPU closure index is out of range");
                 stream & closure_desc.closure[cidx];
             }
         }

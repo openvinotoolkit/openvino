@@ -73,7 +73,7 @@ std::shared_ptr<GgufGraph> build_ggml_graph_from_gguf(const std::string& file) {
     // Decide the family FIRST: the metadata key layout differs per family, so reading any
     // decoder hyperparameter before this point would misreport an mmproj file as a broken LLM.
     const ModelKind kind = detect_model_kind(metadata);
-    OPENVINO_ASSERT(kind == ModelKind::Decoder,
+    OPENVINO_ASSERT(kind == ModelKind::DECODER,
                     "[GGUF] this file holds a ",
                     model_kind_name(kind),
                     " model; the native GGUF builder currently implements the decoder family only. "
