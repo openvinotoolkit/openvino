@@ -99,7 +99,9 @@ public:
             return;
         }
         try {
-            (*sp)->store(std::stoi(gear_str));
+            const int gear = std::stoi(gear_str);
+            (*sp)->store(gear);
+            LOG_WARNING_TAG("TelemetryClient: EPO gear changed to %d", gear);
         } catch (const std::exception&) {
             LOG_WARNING_TAG("TelemetryClient: EPO gear value is not an integer: %s", gear_str.c_str());
         }
