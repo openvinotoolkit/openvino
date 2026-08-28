@@ -1352,6 +1352,9 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
                peek_child_header(decrypted_stream).type == CompiledModelDesc::kOrcType) {
             consume_submodel(decrypted_stream);
         }
+        // Reject malformed index maps before anything (starting with the closure
+        // reconstruction below) starts subscripting with them
+        compiled->validate_io_links();
         if (require_weights_bank) {
             if (decrypted_stream.peek() == std::char_traits<char>::eof()) {
                 OPENVINO_THROW("Missing ORC weights bank container");
@@ -1362,6 +1365,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         while (!root.done() && peek_child_header(stream).type == CompiledModelDesc::kOrcType) {
             consume_submodel(stream);
         }
+        compiled->validate_io_links();
         if (require_weights_bank) {
             if (root.done()) {
                 OPENVINO_THROW("Missing ORC weights bank container");
@@ -1379,6 +1383,123 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
 
     compiled->implement_properties();
     return compiled;
+}
+
+void ov::npuw::CompiledModel::validate_io_links() const {
+    // On the compilation path these index maps are derived from the real graph
+    // (see the orderedSubgraphs loop in the main constructor), on the import path
+    // they are restored verbatim from the blob. Their entries are then used as raw
+    // subscripts into the model's and the subrequests' port vectors (see
+    // IBaseInferRequest::bind_global_params()), so every decoded index has to be
+    // range-checked here - before any infer request is created.
+    const auto num_submodels = m_compiled_submodels.size();
+
+    // The port indices of a link always address the "real" model of the referred
+    // subgraph: for a function call, that's the function body its subrequest is
+    // created from. Returns nullptr for optimized-out subgraphs - those have no
+    // ports to check, and the links pointing to them are skipped at run time.
+    auto real_model_of = [&](const ToSubmodel& link, const char* what, std::size_t at) -> const ov::ICompiledModel* {
+        if (link.first >= num_submodels) {
+            OPENVINO_THROW("NPU NPUW: ",
+                           what,
+                           " ",
+                           at,
+                           " refers to subgraph ",
+                           link.first,
+                           " while the model has only ",
+                           num_submodels,
+                           " subgraph(s)");
+        }
+        const auto real_idx = m_compiled_submodels[link.first].replaced_by.value_or(link.first);
+        if (real_idx >= num_submodels) {
+            OPENVINO_THROW("NPU NPUW: subgraph ", link.first, " is replaced by a non-existing subgraph ", real_idx);
+        }
+        return m_compiled_submodels[real_idx].compiled_model._ptr.get();
+    };
+    auto check_input_link = [&](const ToSubmodel& link, const char* what, std::size_t at) {
+        const auto* model = real_model_of(link, what, at);
+        if (!model) {
+            return;
+        }
+        const auto num_inputs = model->inputs().size();
+        if (link.second >= num_inputs) {
+            OPENVINO_THROW("NPU NPUW: ",
+                           what,
+                           " ",
+                           at,
+                           " refers to input ",
+                           link.second,
+                           " of subgraph ",
+                           link.first,
+                           " which has only ",
+                           num_inputs,
+                           " input(s)");
+        }
+    };
+    auto check_output_link = [&](const ToSubmodel& link, const char* what, std::size_t at) {
+        const auto* model = real_model_of(link, what, at);
+        if (!model) {
+            return;
+        }
+        const auto num_outputs = model->outputs().size();
+        if (link.second >= num_outputs) {
+            OPENVINO_THROW("NPU NPUW: ",
+                           what,
+                           " ",
+                           at,
+                           " refers to output ",
+                           link.second,
+                           " of subgraph ",
+                           link.first,
+                           " which has only ",
+                           num_outputs,
+                           " output(s)");
+        }
+    };
+
+    // Every model port must have its link - this is what init_gio() walks over
+    if (m_inputs_to_submodels_inputs.size() < inputs().size()) {
+        OPENVINO_THROW("NPU NPUW: got only ",
+                       m_inputs_to_submodels_inputs.size(),
+                       " parameter link(s) for ",
+                       inputs().size(),
+                       " model input(s)");
+    }
+    if (m_outputs_to_submodels_outputs.size() < outputs().size()) {
+        OPENVINO_THROW("NPU NPUW: got only ",
+                       m_outputs_to_submodels_outputs.size(),
+                       " result link(s) for ",
+                       outputs().size(),
+                       " model output(s)");
+    }
+
+    for (std::size_t i = 0; i < m_inputs_to_submodels_inputs.size(); i++) {
+        if (m_inputs_to_submodels_inputs[i] == NO_LINK) {
+            continue;  // This parameter is read by no subgraph - legal, see report_io()
+        }
+        check_input_link(m_inputs_to_submodels_inputs[i], "parameter link", i);
+    }
+    for (std::size_t i = 0; i < m_outputs_to_submodels_outputs.size(); i++) {
+        // Unlike parameters, every result must be produced by some subgraph - NO_LINK
+        // is not accepted here and is reported as a dangling subgraph reference
+        check_output_link(m_outputs_to_submodels_outputs[i], "result link", i);
+    }
+    for (const auto& subscribers : m_param_subscribers) {
+        if (subscribers.first >= inputs().size()) {
+            OPENVINO_THROW("NPU NPUW: parameter subscription for input ",
+                           subscribers.first,
+                           " while the model has only ",
+                           inputs().size(),
+                           " input(s)");
+        }
+        for (const auto& to_submodel : subscribers.second) {
+            check_input_link(to_submodel, "subscription of parameter", subscribers.first);
+        }
+    }
+    for (const auto& link : m_submodels_input_to_prev_output) {
+        check_input_link(link.first, "interconnect into subgraph", link.first.first);
+        check_output_link(link.second, "interconnect out of subgraph", link.second.first);
+    }
 }
 
 void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& enc_ctx) const {

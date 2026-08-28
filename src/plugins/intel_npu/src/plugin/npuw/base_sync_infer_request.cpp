@@ -457,9 +457,12 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         std::tie(param_idx, sub_in_idx) = it;
         LOG_DEBUG("Processing " << param_idx << " -> " << sub_in_idx << std::endl);
 
-        const auto& g_port = m_npuw_model->inputs()[param_idx];
+        // Both indices originate from the model's index maps, which may come from a
+        // blob - use at() so malformed metadata fails cleanly instead of reading past
+        // the port vectors (CompiledModel::validate_io_links() is the primary guard)
+        const auto& g_port = m_npuw_model->inputs().at(param_idx);
         const auto& g_tnsr = get_tensor(g_port);
-        const auto& s_port = request->get_inputs()[sub_in_idx];
+        const auto& s_port = request->get_inputs().at(sub_in_idx);
         LOG_DEBUG("Processing " << g_port << " -> " << s_port << "...");
         LOG_BLOCK();
 
