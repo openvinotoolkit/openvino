@@ -19,6 +19,12 @@ namespace ocl {
 /// calling clGetDeviceAndHostTimer() per event, which costs a driver round trip.
 class device_clock_sync {
 public:
+    struct anchor {
+        std::chrono::nanoseconds host{0};
+        std::chrono::nanoseconds device{0};
+        bool valid = false;
+    };
+
     static constexpr std::chrono::nanoseconds default_refresh_interval = std::chrono::milliseconds(100);
 
     explicit device_clock_sync(const cl::Device& device);
@@ -26,6 +32,12 @@ public:
     static std::chrono::nanoseconds host_now() {
         return std::chrono::steady_clock::now().time_since_epoch();
     }
+
+    /// @brief Maps @p host_ts through @p base, refined by @p late when the anchors are
+    /// far enough apart and imply a plausible rate. Pure; exposed for testing.
+    static std::chrono::nanoseconds interpolate(const anchor& base,
+                                                const anchor& late,
+                                                std::chrono::nanoseconds host_ts);
 
     /// @brief Re-samples the correlation if the last sample is older than
     /// @p min_interval. Does the driver query, so it must stay off the inference
@@ -36,12 +48,6 @@ public:
     std::optional<std::chrono::nanoseconds> to_device(std::chrono::nanoseconds host_ts) const;
 
 private:
-    struct anchor {
-        std::chrono::nanoseconds host{0};
-        std::chrono::nanoseconds device{0};
-        bool valid = false;
-    };
-
     static anchor sample(const cl::Device& device);
 
     // Immutable after construction, so sample() may read it without the lock.

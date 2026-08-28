@@ -75,22 +75,21 @@ void device_clock_sync::refresh_if_stale(std::chrono::nanoseconds min_interval) 
     const auto fresh = sample(m_device);
 
     std::lock_guard<std::mutex> lock(m_mutex);
-    if (fresh.valid && fresh.host > m_base.host)
+    // Concurrent samplers may finish out of order; never step back to an older anchor.
+    if (fresh.valid && fresh.host > m_base.host && fresh.host > m_late.host)
         m_late = fresh;
 }
 
-std::optional<std::chrono::nanoseconds> device_clock_sync::to_device(std::chrono::nanoseconds host_ts) const {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    if (!m_base.valid)
-        return std::nullopt;
-
-    auto delta = host_ts - m_base.host;
+std::chrono::nanoseconds device_clock_sync::interpolate(const anchor& base,
+                                                        const anchor& late,
+                                                        std::chrono::nanoseconds host_ts) {
+    auto delta = host_ts - base.host;
 
     // A second anchor gives the rate as well as the offset, cancelling drift.
-    if (m_late.valid) {
-        const auto span = m_late.host - m_base.host;
+    if (late.valid) {
+        const auto span = late.host - base.host;
         if (span > min_rate_span) {
-            const double rate = static_cast<double>((m_late.device - m_base.device).count()) /
+            const double rate = static_cast<double>((late.device - base.device).count()) /
                                 static_cast<double>(span.count());
             if (rate > min_plausible_rate && rate < max_plausible_rate) {
                 delta = std::chrono::nanoseconds(
@@ -99,5 +98,13 @@ std::optional<std::chrono::nanoseconds> device_clock_sync::to_device(std::chrono
         }
     }
 
-    return m_base.device + delta;
+    return base.device + delta;
+}
+
+std::optional<std::chrono::nanoseconds> device_clock_sync::to_device(std::chrono::nanoseconds host_ts) const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (!m_base.valid)
+        return std::nullopt;
+
+    return interpolate(m_base, m_late, host_ts);
 }
