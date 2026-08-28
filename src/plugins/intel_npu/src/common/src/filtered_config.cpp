@@ -74,6 +74,18 @@ bool FilteredConfig::hasInternal(std::string_view key) const {
     return _internal_compiler_configs.count(std::string(key)) != 0;
 }
 
+void FilteredConfig::removeCompileTimeConfigs() {
+    for (auto it = _impl.begin(); it != _impl.end();) {
+        if (_desc->get(it->first).mode() == OptionMode::CompileTime) {
+            it = _impl.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    _internal_compiler_configs.clear();
+}
+
 std::string FilteredConfig::getInternal(std::string key) const {
     if (_internal_compiler_configs.count(key) == 0) {
         OPENVINO_THROW(std::string("Internal compiler option " + key + " does not exist! "));

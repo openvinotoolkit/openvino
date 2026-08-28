@@ -274,7 +274,7 @@ struct PLATFORM final : OptionBase<PLATFORM, std::string> {
     }
 
     static OptionMode mode() {
-        return OptionMode::Both;
+        return OptionMode::CompileTime;
     }
 
     static ov::PropertyMutability mutability() {
