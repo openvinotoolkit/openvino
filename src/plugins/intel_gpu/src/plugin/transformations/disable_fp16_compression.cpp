@@ -74,30 +74,33 @@ DisableFP16CompForGatedResidualPattern::DisableFP16CompForGatedResidualPattern()
         if (!residual_add)
             return false;
 
-        std::shared_ptr<ov::op::v1::Multiply> gated_branch;
+        bool multiply_found = false;
         for (const auto& input : residual_add->input_values()) {
-            gated_branch = ov::as_type_ptr<ov::op::v1::Multiply>(input.get_node_shared_ptr());
-            if (gated_branch)
-                break;
-        }
-        if (!gated_branch)
-            return false;
-
-        for (const auto& input : gated_branch->input_values()) {
-            const auto producer = input.get_node_shared_ptr();
-            ov::disable_conversion(producer, element::f16);
-
-            const auto linear_add = ov::as_type_ptr<ov::op::v1::Add>(producer);
-            if (!linear_add)
+            const auto multiply = ov::as_type_ptr<ov::op::v1::Multiply>(input.get_node_shared_ptr());
+            if (!multiply)
                 continue;
 
-            for (const auto& linear_input : linear_add->input_values()) {
-                const auto linear_producer = linear_input.get_node_shared_ptr();
-                if (ov::is_type<ov::op::v0::MatMul>(linear_producer))
-                    ov::disable_conversion(linear_producer, element::f16);
+            multiply_found = true;
+            for (const auto& multiply_input : multiply->input_values()) {
+                const auto producer = multiply_input.get_node_shared_ptr();
+                ov::disable_conversion(producer, element::f16);
+
+                const auto linear_add = ov::as_type_ptr<ov::op::v1::Add>(producer);
+                if (!linear_add)
+                    continue;
+
+                for (const auto& linear_input : linear_add->input_values()) {
+                    const auto linear_producer = linear_input.get_node_shared_ptr();
+                    if (ov::is_type<ov::op::v0::MatMul>(linear_producer))
+                        ov::disable_conversion(linear_producer, element::f16);
+                }
             }
+
+            ov::disable_conversion(multiply, element::f16);
         }
-        ov::disable_conversion(gated_branch, element::f16);
+        if (!multiply_found)
+            return false;
+
         ov::disable_conversion(residual_add, element::f16);
         ov::disable_conversion(mvn, element::f16);
         return true;

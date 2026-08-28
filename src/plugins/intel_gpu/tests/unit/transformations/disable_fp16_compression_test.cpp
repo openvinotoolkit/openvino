@@ -257,6 +257,49 @@ TEST(TransformationTests, DisableFP16CompForGatedResidual_MultiplyFirst_Positive
     ASSERT_TRUE(ov::is_conversion_disabled(mvn, ov::element::f16));
 }
 
+TEST(TransformationTests, DisableFP16CompForGatedResidual_TwoMultiplyInputs) {
+    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 128});
+    auto residual_scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.5f});
+    auto scaled_residual = std::make_shared<ov::op::v1::Multiply>(residual, residual_scale);
+    scaled_residual->set_friendly_name("scaled_residual");
+
+    auto gate = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 128});
+    auto branch_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 64});
+    auto branch_weights = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{64, 128});
+    auto branch_matmul = std::make_shared<ov::op::v0::MatMul>(branch_input, branch_weights);
+    branch_matmul->set_friendly_name("branch_matmul");
+    auto branch_bias = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{128}, {0});
+    auto branch = std::make_shared<ov::op::v1::Add>(branch_matmul, branch_bias);
+    branch->set_friendly_name("branch");
+    auto gated_branch = std::make_shared<ov::op::v1::Multiply>(gate, branch);
+    gated_branch->set_friendly_name("gated_branch");
+
+    auto add = std::make_shared<ov::op::v1::Add>(scaled_residual, gated_branch);
+    add->set_friendly_name("residual_add");
+    auto axes = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {-1});
+    auto mvn =
+        std::make_shared<ov::op::v6::MVN>(add, axes, true, 1e-6, ov::op::MVNEpsMode::INSIDE_SQRT);
+    mvn->set_friendly_name("mvn");
+
+    auto model = std::make_shared<ov::Model>(
+        ov::OutputVector{mvn},
+        ov::ParameterVector{residual, gate, branch_input, branch_weights});
+    ov::pass::Manager manager;
+    manager.register_pass<DisableFP16CompForGatedResidualPattern>();
+    precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
+    manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map, type_to_fuse_map{}, true, false, true);
+    manager.run_passes(model);
+
+    for (const auto& op : {std::static_pointer_cast<ov::Node>(scaled_residual),
+                           std::static_pointer_cast<ov::Node>(branch_matmul),
+                           std::static_pointer_cast<ov::Node>(branch),
+                           std::static_pointer_cast<ov::Node>(gated_branch),
+                           std::static_pointer_cast<ov::Node>(add),
+                           std::static_pointer_cast<ov::Node>(mvn)}) {
+        EXPECT_EQ(op->get_output_element_type(0), ov::element::f32) << op->get_friendly_name();
+    }
+}
+
 TEST(TransformationTests, DisableFP16CompForGatedResidual_FP16_NoOp) {
     auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 32, 128});
     auto gate = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 1, 128});
