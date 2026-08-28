@@ -86,27 +86,17 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
                                   "GroupQueryAttention: local_window_size must be -1 (disabled) or >= 1, got ",
                                   local_window_size,
                                   ".");
-    // A windowed KV cache requires a real sliding window (local_window_size > 0), matching the ONNX
-    // Runtime precondition. The staging regime (prompt longer than the buffer) and batch > 1 are not
-    // handled by this decomposition; the decode / fitting-prefill path is.
+    // A windowed KV cache requires a real sliding window (local_window_size > 0), matching the ONNX Runtime
+    // precondition. batch > 1 is not handled by this decomposition (see the batch_size == 1 check below).
+    // Multi-token steps (ORT's "staging" regime) are supported: the decomposition selects the staging vs.
+    // in-place cache-write branch from the runtime past/total length, mirroring ORT's PlanWindowedKvCache,
+    // so a static multi-token shape is not rejected here.
     if (sliding_window_cache != 0) {
         FRONT_END_OP_CONVERSION_CHECK(local_window_size >= 1,
                                       "GroupQueryAttention: sliding_window_cache=1 requires local_window_size >= 1.");
         FRONT_END_OP_CONVERSION_CHECK(
             common::is_input_valid(onnx_op_inputs, 3) && common::is_input_valid(onnx_op_inputs, 4),
             "GroupQueryAttention: sliding_window_cache=1 requires past_key and past_value.");
-        // Only single-token decode (sequence_length == 1) is supported for the windowed cache: it always
-        // stays within the window and matches ONNX Runtime exactly. Any multi-token step is the staging
-        // regime (ORT runs it against a temporary larger buffer), which this decomposition does not model
-        // and would otherwise either crash or silently diverge. Reject a static sequence_length > 1.
-        const auto& q_ps = onnx_op_inputs[0].get_partial_shape();
-        if (q_ps.rank().is_static() && q_ps.rank().get_length() == 3 && q_ps[1].is_static()) {
-            FRONT_END_OP_CONVERSION_CHECK(q_ps[1].get_length() == 1,
-                                          "GroupQueryAttention: sliding_window_cache=1 is only supported for "
-                                          "single-token decode (sequence_length == 1), got sequence_length = ",
-                                          q_ps[1].get_length(),
-                                          " (multi-token staging regime is not supported).");
-        }
         // The windowed cache-end arithmetic uses gap = capacity - local_window_size + 1, which must be >= 1;
         // with capacity < local_window_size it would divide by zero (or a negative gap) at inference. The ONNX
         // Runtime precondition is the same: a cache capacity of at least local_window_size. Enforce it here

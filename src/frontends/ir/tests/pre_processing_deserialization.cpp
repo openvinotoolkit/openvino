@@ -74,12 +74,92 @@ TEST_F(IRFrontendTestsPreProcessing, pre_processing) {
     ASSERT_TRUE(!!model);
 }
 
-namespace ov {
-namespace test {
+namespace ov::test {
 
 using testing::ElementsAre;
 using testing::Property;
 using testing::UnorderedElementsAre;
+
+namespace {
+std::string build_model_with_pre_process(const std::string& channels_xml) {
+    return R"V0G0N(<?xml version="1.0" ?>
+<net name="Network" version="10">
+    <pre-process mean-precision="FP32" reference-layer-name="input">
+)V0G0N" + channels_xml +
+           R"V0G0N(
+    </pre-process>
+    <layers>
+        <layer name="input" type="Parameter" id="0" version="opset1">
+            <data shape="1,3,22,22" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="1" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+}
+}  // namespace
+
+TEST_F(IRFrontendTestsPreProcessing, pre_processing_offset_without_weights_throws) {
+    const auto xml_model = build_model_with_pre_process(R"V0G0N(
+        <channel id="0">
+            <mean offset="0" size="1936"/>
+        </channel>
+        <channel id="1">
+            <mean offset="1936" size="1936"/>
+        </channel>
+        <channel id="2">
+            <mean offset="3872" size="1936"/>
+        </channel>)V0G0N");
+
+    createTemporalModelFile(xml_model, std::nullopt);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(core.read_model(xmlFileName), Exception, "Weights are required");
+}
+
+TEST_F(IRFrontendTestsPreProcessing, pre_processing_mean_value_without_weights_still_applied) {
+    const auto xml_model = build_model_with_pre_process(R"V0G0N(
+        <channel id="0">
+            <mean value="1.1"/>
+        </channel>
+        <channel id="1">
+            <mean value="2.2"/>
+        </channel>
+        <channel id="2">
+            <mean value="3.3"/>
+        </channel>)V0G0N");
+
+    createTemporalModelFile(xml_model, std::nullopt);
+
+    std::shared_ptr<Model> model;
+    OV_ASSERT_NO_THROW(model = core.read_model(xmlFileName));
+    ASSERT_TRUE(!!model);
+
+    const auto param = model->get_parameters().at(0);
+    const auto consumers = param->output(0).get_target_inputs();
+    ASSERT_EQ(consumers.size(), 1u);
+    const auto consumer_node = consumers.begin()->get_node();
+    EXPECT_EQ(std::string(consumer_node->get_type_name()), "Subtract");
+}
 
 TEST_F(IRFrontendTestsPreProcessing, check_tensor_names_after_read_and_pre_post_processing) {
     std::string xml_model = R"V0G0N(
@@ -168,5 +248,4 @@ TEST_F(IRFrontendTestsPreProcessing, check_tensor_names_after_read_and_pre_post_
                             // After PPP (inserts convert node) the tensor names stay on model's input.
                             Property("Output 1", &Output<Node>::get_names, testing::IsEmpty())));
 }
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test
