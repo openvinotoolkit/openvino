@@ -25,8 +25,6 @@
 | Device-agnostic optimizations | [src/common/transformations/src/transformations/common_optimizations/](../src/transformations/common_optimizations/) |
 | Opset conversions / decompositions | [src/common/transformations/src/transformations/op_conversions/](../src/transformations/op_conversions/) |
 | FP16/BF16 compression markup | [src/common/transformations/src/transformations/fp16_compression/](../src/transformations/fp16_compression/) |
-| Low precision (LPT) | [src/common/low_precision_transformations/](../../low_precision_transformations/) |
-| Internal operations | [src/common/transformations/include/ov_ops/](../include/ov_ops/) |
 | Reusable pattern blocks | [src/common/transformations/include/transformations/pattern_blocks/](../include/transformations/pattern_blocks/) |
 | Plugin-specific passes | `src/plugins/<plugin>/src/transformations/` |
 
@@ -39,7 +37,7 @@ A pass that is beneficial regardless of the backend belongs in common transforma
 3. Prefer built-in predicates (`shape_matches`, `type_matches_any`, `attrs_match`, …) over custom lambdas
 4. Access mandatory pattern nodes with `pattern_map.at(label)`; assert on invariants instead of `return false`
 5. Call `copy_runtime_info` for every created node and preserve friendly names
-6. Solve the general problem — no topology-specific proxies, no hardcoded model-specific values
+6. Try to solve the general problem —  topology-specific proxies and hardcoded model-specific values are permissible with strong argumentation only
 7. Justify every restriction (consumer count, per-tensor only, const-only, static-shape-only)
 8. Describe what the pass does and why in the header, with a subgraph scheme
 9. Add tests per [Writing transformation tests](./writing_tests.md)
@@ -51,27 +49,13 @@ A pass that is beneficial regardless of the backend belongs in common transforma
 | `ov::pass::MatcherPass` | The rewrite touches only nodes contained in the matched pattern. This is the default choice. |
 | `ov::pass::ModelPass` | The rewrite modifies nodes outside the pattern (consumers of the match root, distant producers, model inputs/outputs/sinks), or needs global model state. |
 | `ov::pass::GraphRewrite` | Several independent matchers should run in one graph traversal. Prefer this over branching on variants inside a single callback. |
-| `ov::pass::BackwardGraphRewrite` | The matchers require bottom-up traversal. |
+| `ov::pass::BackwardGraphRewrite` | The matchers require bottom-up traversal, most commonly because the pattern root is optional. |
 
-Two rules follow from this table:
+Several rules follow from this table:
 
-- **A pass has a single responsibility.** Long `if (is_4d) … else if (is_5d) …` chains inside one callback signal that the pass is doing two jobs — split them into separate matchers registered in one `GraphRewrite`, sharing a common helper.
-- **A pass that requires a specific traversal order should encapsulate that requirement**, so call sites cannot register it incorrectly:
-
-```cpp
-class ov::pass::RMSFusion : public ov::pass::BackwardGraphRewrite {
-public:
-    OPENVINO_GRAPH_REWRITE_RTTI("RMSFusion");
-    RMSFusion() {
-        add_matcher<RMSFusionMatcher>();
-    }
-
-private:
-    class RMSFusionMatcher;   // implementation detail
-};
-```
-
-Prefer composing existing generic passes over re-implementing their effect inline. For example, a conversion pass should emit the straightforward `Transpose -> MatMul -> Transpose` form and let `TransposeToReshape`, `TransposeFusion` and `ReshapeFusion` clean it up, instead of open-coding transpose elimination.
+- **A pass has a single responsibility.** Long `if (case_1) … else if (case_2) …` chains inside one callback signal that the pass is doing two jobs — split them into separate matchers registered in one `GraphRewrite`, sharing a common helper.
+- **Register the matcher in a `BackwardGraphRewrite` when the pattern root is optional.** `GraphRewrite` visits nodes in topological order, so a matcher whose root is an `optional<...>` node fires on the shorter variant as soon as the optional node's producer is reached, and the full pattern is never tried. Backward traversal reaches the optional tail first and matches the complete pattern. Encapsulate this in the pass itself — expose the matcher as a standalone `MatcherPass` and register it inside a `BackwardGraphRewrite` container.
+- Prefer composing existing generic passes over re-implementing their effect inline.
 
 ## Anatomy of a MatcherPass
 
@@ -109,7 +93,7 @@ Source — `MATCHER_SCOPE`, pattern, callback, registration:
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
-#include "openvino/op/matmul.hpp"
+#include "openvino/op/convolution.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
@@ -138,9 +122,15 @@ ov::pass::MyFusion::MyFusion() {
 
 Use `OV_CAPTURE_CPY_AND_THIS` in the callback lambda capture list instead of `[=]` or `[&]`.
 
+Three mechanics are worth remembering:
+
+- **One matcher per `MatcherPass`.** `register_matcher` is called exactly once. Several matchers belong in a `GraphRewrite`.
+- **The callback return value is meaningful.** Return `true` when the match root was replaced — no other matcher will be tried on that root. Return `false` when the graph was left untouched.
+- **Nodes created by the callback are not re-matched by default.** If they should be picked up by the other matchers of the same `GraphRewrite`, report them with `register_new_node` (in topological order).
+
 ## Pattern matching
 
-**Every condition that decides whether the pass applies must be expressed in the pattern** — operation type, rank, shape, element type, attribute values, constness, staticness. The callback is responsible only for *building the replacement*.
+**Every condition that decides whether the pass applies must be expressed in the pattern** — operation type, rank, shape, element type, attribute values, whether an input has to be a `Constant`, whether a shape has to be static. The callback is responsible only for *building the replacement*.
 
 Conditions in the pattern are self-documenting, composable, enforced by the matcher (so the callback needs no defensive code), and — crucially — visible in [matcher logs](./debug_capabilities/matcher_logging.md), which turns "why didn't my pass fire?" into a log-reading exercise instead of a debugging session.
 
@@ -178,6 +168,8 @@ ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
 ```
 
 The same rule applies to plugin pipelines: manual model traversal used to decide whether to register a pass should instead become a pass parameter plus a pattern predicate.
+
+A pattern is a single-rooted graph: the node passed to `Matcher` is the root, and pattern nodes that neither feed the root nor are the root itself do not participate in matching at all. A predicate attached to such a dangling node is silently ignored.
 
 ### Predicate reference
 
@@ -304,31 +296,46 @@ This also simplifies the matcher: build the node unconditionally, fold it, and u
 
 | Task | Helper |
 |------|--------|
-| Replace one output by another, preserving tensor names | `ov::replace_output_update_name(old_out, new_out)` |
+| Eliminate a node, reconnecting consumers to its input | `ov::replace_output_update_name(old_out, new_out)` |
 | Replace a node by a new one | `ov::replace_node(old_node, new_node)` |
 | Rebuild a node with different inputs | `node->clone_with_new_inputs({...})` |
+| Insert a node after an existing one | build `new_node` on top of `node->clone_with_new_inputs(node->input_values())`, then `ov::replace_node(node, new_node)` |
 | Rewire a single input edge | `node->input(i).replace_source_output(new_out)` |
 
-Prefer `replace_node` with a cloned node over a sequence of `replace_source_output` calls: the latter is easy to get partially wrong and loses the original node's identity.
+Prefer `replace_node` with a cloned node over a sequence of `replace_source_output` calls: the latter is easy to get partially wrong and loses the original node's identity. Note that `replace_node` requires both nodes to have the same number of output ports and throws otherwise.
+
+`replace_output_update_name` copies the runtime info of the eliminated node onto the replacement, and keeps the friendly name when the output feeds a `Result`. It refuses the replacement and returns `false` when a tensor name would be lost, so check the return value instead of assuming the node is gone.
 
 ### Preserve runtime info and friendly names
 
+Runtime info carries precision markup, fusing hints and provenance that downstream passes and plugins rely on. It is **not** propagated automatically, and losing it changes behavior silently — `TransformationTestsF`'s `RUNTIME_KEYS` check exists to catch exactly that.
+
 ```cpp
-ov::copy_runtime_info({old_node_1, old_node_2}, {new_node_1, new_node_2});
+ov::copy_runtime_info(transpose, reshape);          // 1:1  — node replaced by a node
+ov::copy_runtime_info(div, {pow, mul});             // 1:N  — node replaced by a subgraph
+ov::copy_runtime_info({conv, bias}, {conv_fused});  // N:1  — subgraph fused into a node
+ov::copy_runtime_info({a, b, c}, {e, f});           // N:M  — anything else
+
 new_node->set_friendly_name(old_node->get_friendly_name());
 ```
 
-`copy_runtime_info` must be called for every created node. Runtime info carries precision markup, fusing hints and provenance that downstream passes and plugins rely on; losing it changes behavior silently and is caught by `TransformationTestsF`'s `RUNTIME_KEYS` check.
+When a pass performs several independent fusions or decompositions, call `copy_runtime_info` once per fusion — not once for all created nodes.
+
+`copy_runtime_info` overwrites destination attributes whose keys are also present in the sources. To let the destination's own attributes participate in the merge instead of being overwritten, list the destination among the sources: `copy_runtime_info({a, b, c}, {a, b})`.
+
+When a subgraph is replaced by another subgraph, the original friendly name goes to the **last** node of the replacement.
 
 Attributes already applied by dedicated markup passes (`keep_const_precision`, `DisableFP16Compression`, precision attributes) must not be re-applied ad hoc inside an unrelated transformation — fix the markup pass instead.
+
+### Fold the constant subgraphs you create if possible
+
+Folding in place, shown in [Compute constants with OV ops](#compute-constants-with-ov-ops-not-raw-buffers), is targeted and cheaper than relying on a later full-model `ov::pass::ConstantFolding` run in general case. If a foldable subgraph is intentionally left in the graph, make sure `ov::pass::ConstantFolding` runs after the pass in every pipeline that registers it.
 
 ### Let the framework clean up
 
 Dead consumers left behind by a rewrite are removed by the next `Validate` run. Add manual clean-up code only in case of strong justification.
 
-### Respect the operation specification
-
-A rewrite must match the documented semantics of the operations involved. For example, `FakeQuantize` output shape always equals its data-input shape, so an eltwise operation that relies on broadcasting to a constant's shape cannot be fused into it — no matter what the eltwise type is. Gate the transformation on the *semantic* property, never on a proxy such as an operation type name or the presence of a neighboring node.
+If a pass changes shapes or element types, make sure a `Validate` pass runs after it: shapes and types are not revalidated automatically, and the following passes would otherwise observe stale ones. `ov::pass::Manager` inserts `Validate` after every registered pass while per-pass validation is enabled; pipelines that call `set_per_pass_validation(false)` must register it explicitly.
 
 ## Documenting the pass
 
@@ -405,18 +412,18 @@ If an existing utility is insufficient, extend it — do not fork it. Duplicated
 - Do **not** put matching conditions in the callback when a predicate can express them
 - Do **not** write a custom predicate lambda before checking the [predicate reference](#predicate-reference)
 - Do **not** hand-roll `Or` chains where `optional<>` or `operator|` applies
-- Do **not** re-check what the matcher guarantees (`as_type_ptr` + null check, input-count checks, duplicated shape checks)
-- Do **not** use `operator[]` or `count()`-guarded access for mandatory pattern-map entries
+- Do **not** re-check what the matcher guarantees (mandatory nodes existance, input-count checks, duplicated shape checks)
 - Do **not** `return false` on a broken invariant — assert
 - Do **not** traverse the graph manually in a callback or a plugin pipeline when a pattern or `visit_path` fits
+- Do **not** modify nodes that come after the match root in topological order from a `MatcherPass` callback — use a `ModelPass`
+- Do **not** pass a `shared_ptr<Node>` as an input when the producer type is unknown or has several outputs — pass the explicit output port
+- Do **not** target an older opset unless the pass is a downgrade transformation
 - Do **not** create a node without `copy_runtime_info`, or drop friendly names
-- Do **not** clean up dead nodes manually — `Validate` does it
-- Do **not** gate a transformation on a proxy signal (op type name, neighboring node, model-specific shape)
-- Do **not** hardcode precisions, thresholds or model-specific values — parameterize
-- Do **not** add a restriction (consumer count, per-tensor, const-only, static-shape-only) without a documented reason
+- Do **not** clean up dead nodes manually without a strong justification — `Validate` does it
+- Do **not** gate a transformation on a proxy signal without strong justification (ops count, neighboring node name)
+- Do **not** add a restriction (consumer count, per-tensor, const-only, static-shape-only) without reason
 - Do **not** duplicate a device-agnostic pass per plugin — parameterize one common pass
 - Do **not** grow a pass with variant branches — split into matchers under a `GraphRewrite`
-- Do **not** mix unrelated changes into the PR; split refactors into follow-ups
 
 ## See also
 
