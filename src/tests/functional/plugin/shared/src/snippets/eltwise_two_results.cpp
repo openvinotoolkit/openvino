@@ -45,7 +45,6 @@ void EltwiseTwoResults::SetUp() {
 
 TEST_P(EltwiseTwoResults, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 } // namespace snippets

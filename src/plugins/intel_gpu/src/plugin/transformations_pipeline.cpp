@@ -105,7 +105,7 @@
 #include "plugin/transformations/keep_gqa_kv_scale_precision.hpp"
 #include "plugin/transformations/keep_moe_3gemm_const_precision.hpp"
 #include "plugin/transformations/keep_xattention_threshold_precision.hpp"
-#include "plugin/transformations/preserve_selective_ssm_precision.hpp"
+#include "plugin/transformations/preserve_single_selective_ssm_output.hpp"
 #include "plugin/transformations/kv_cache_compression.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
@@ -771,7 +771,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // (the intact op requires fp32 scales; it is decomposed later in CommonOptimizations).
         manager.register_pass<ov::intel_gpu::KeepGQAKVScalePrecision>();
         manager.register_pass<ov::intel_gpu::EliminateEmptySelectiveSSM>();
-        manager.register_pass<ov::intel_gpu::PreserveSelectiveSSMPrecision>();
 
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
                                                           empty_fuse_map,
@@ -1018,7 +1017,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         return false;
                     }
 
-                    if (lstm_seq->get_clip() > 0.f) {
+                    // Only a finite positive clip requires decomposition; invalid values are ignored as no-clip.
+                    if (ov::op::util::classify_rnn_clip(lstm_seq->get_clip()) == ov::op::util::RNNClipMode::CLAMP) {
                         return false;
                     }
 
@@ -1142,7 +1142,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
             }
             if (const auto& lstm_cell_v1 = ov::as_type_ptr<const ov::op::v0::LSTMCell>(node)) {
-                return lstm_cell_v1->get_clip() == 0.0f && lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+                // clip == 0 and clip == inf both mean "no clipping" (see RNNCellBase::clip), so treat inf as no-clip
+                return ov::op::util::classify_rnn_clip(lstm_cell_v1->get_clip()) == ov::op::util::RNNClipMode::NONE &&
+                       lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
             }
             return false;
         };
@@ -1153,8 +1155,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // (WA) We can ignore real sequence_lengths input for batch_size == 1 case when seq_length in first input is dynamic.
         // This WA applies to GRUSequence only.
         // RNN Sequence is not supported in GPU plugin and is always converted to TensorIterator
-        // LSTM Sequence supported with clip == 0, and activations have default values (sigmoid, tanh, tanh)
-        // GRU Sequence supported with clip == 0, and activations have default values (sigmoid, tanh)
+        // LSTM Sequence is supported when clipping is not required and activations have default values.
+        // GRU Sequence is supported when clipping is not required and activations have default values.
         auto isSequencePrimitiveSupported = [](const_node_ptr &node) -> bool {
             const auto& data = node->input(0);
             const auto& data_pshape = data.get_partial_shape();
@@ -1165,22 +1167,20 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
             if (const auto& gru_seq = ov::as_type_ptr<const ov::op::v5::GRUSequence>(node)) {
                 bool is_batch_one_with_dynamic_seq_len = data_pshape[0] == 1 && !data_pshape[1].is_static();
-                return gru_seq->get_clip() == 0.0f &&
-                    gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
-                    max_seq_len != 1 &&
-                    (!ov::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(0),
-                                                        gru_seq->get_input_node_shared_ptr(2)) ||
-                    is_batch_one_with_dynamic_seq_len) &&
-                    gru_seq->get_linear_before_reset();
+                // Invalid clip values are ignored as no-clip by the native primitive.
+                return ov::op::util::classify_rnn_clip(gru_seq->get_clip()) != ov::op::util::RNNClipMode::CLAMP &&
+                       gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} && max_seq_len != 1 &&
+                       (!ov::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(0), gru_seq->get_input_node_shared_ptr(2)) ||
+                        is_batch_one_with_dynamic_seq_len) &&
+                       gru_seq->get_linear_before_reset();
             }
             if (const auto& lstm_seq = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(node)) {
                 if (!data_pshape[1].is_static())
                     return false;
-                return (lstm_seq->get_clip() == 0.0f &&
-                    lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
-                    max_seq_len != 1 &&
-                    !ov::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(0),
-                                                        lstm_seq->get_input_node_shared_ptr(3)));
+                // Invalid clip values are ignored as no-clip by the native primitive.
+                return (ov::op::util::classify_rnn_clip(lstm_seq->get_clip()) != ov::op::util::RNNClipMode::CLAMP &&
+                        lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} && max_seq_len != 1 &&
+                        !ov::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(0), lstm_seq->get_input_node_shared_ptr(3)));
             }
             return false;
         };

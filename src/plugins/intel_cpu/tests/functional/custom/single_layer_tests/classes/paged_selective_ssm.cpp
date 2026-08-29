@@ -330,6 +330,16 @@ void PagedSelectiveSSMLayerTest::SetUp() {
                  data_type,
                  index_type,
                  device] = GetParam();
+    if (device.find("CPU") != std::string::npos) {
+        // Skip BF16/F16 tests if not support
+        if ((data_type == ov::element::bf16) && !with_cpu_x86_avx512_core_amx_bf16()) {
+            GTEST_SKIP();
+        }
+        if ((data_type == ov::element::f16) && !with_cpu_x86_avx512_core_fp16()) {
+            GTEST_SKIP();
+        }
+    }
+
     targetDevice = device;
     this->data_type = data_type;
     configuration[ov::hint::inference_precision.name()] = data_type;
@@ -413,10 +423,6 @@ void PagedSelectiveSSMLayerTest::SetUp() {
     auto p_C = std::make_shared<ov::op::v0::Parameter>(data_type, ov::PartialShape{-1, num_groups, state_size});
     auto p_state =
         std::make_shared<ov::op::v0::Parameter>(data_type, ov::PartialShape{-1, num_heads, head_dim, state_size});
-    // The state table is mutable, and PagedSelectiveSSM requires one type for the complete data group.
-    for (const auto& parameter : {p_A, p_dt, p_B, p_x, p_C, p_state}) {
-        ov::enable_keep_const_precision(parameter);
-    }
     auto p_subseq = std::make_shared<ov::op::v0::Parameter>(index_type, ov::PartialShape{-1});
     auto p_blocks = std::make_shared<ov::op::v0::Parameter>(index_type, ov::PartialShape{-1});
     auto p_block_begins = std::make_shared<ov::op::v0::Parameter>(index_type, ov::PartialShape{-1});

@@ -4,6 +4,8 @@
 
 #include "node/include/tensor_impl.hpp"
 
+#include <cassert>
+
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -11,33 +13,30 @@ namespace ov {
 namespace js {
 
 // Drops one native owner of the shared cleanup state and deletes it on the last release.
-void TensorImpl::CleanupContext::release_owner() {
+void TensorImpl::CleanupContext::release_owner() noexcept {
     if (owners.fetch_sub(1) == 1) {
         delete this;
     }
 }
 
 // Releases the TSFN exactly once because both destructor and env cleanup may race here.
-void TensorImpl::CleanupContext::release_tsfn() {
+void TensorImpl::CleanupContext::release_tsfn() noexcept {
     if (!tsfn_released.exchange(true)) {
-        const auto status = tsfn.Release();
-        OPENVINO_ASSERT(status == napi_ok || status == napi_closing,
-                        "TensorImpl: failed to release ThreadSafeFunction.");
+        [[maybe_unused]] const auto status = tsfn.Release();
+        assert((status == napi_ok) && "TensorImpl: TSFN release failed");
     }
 }
 
 // Unregisters the async cleanup hook exactly once to avoid double removal during shutdown.
-void TensorImpl::CleanupContext::remove_cleanup_hook() {
+void TensorImpl::CleanupContext::remove_cleanup_hook() noexcept {
     if (cleanup_handle != nullptr && !cleanup_handle_removed.exchange(true)) {
-        const auto status = napi_remove_async_cleanup_hook(cleanup_handle);
-        OPENVINO_ASSERT(status == napi_ok, "TensorImpl: failed to remove async cleanup hook.");
+        napi_remove_async_cleanup_hook(cleanup_handle);
     }
 }
 
 // Handles Node environment teardown by forcing TSFN shutdown through the cleanup hook path.
-void TensorImpl::CleanupContext::cleanup_hook(napi_async_cleanup_hook_handle handle, void* data) {
+void TensorImpl::CleanupContext::cleanup_hook(napi_async_cleanup_hook_handle /*handle*/, void* data) noexcept {
     auto* cleanup_ctx = static_cast<TensorImpl::CleanupContext*>(data);
-    cleanup_ctx->cleanup_handle = handle;
     cleanup_ctx->release_tsfn();
     cleanup_ctx->remove_cleanup_hook();
 }

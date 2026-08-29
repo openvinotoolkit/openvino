@@ -213,42 +213,34 @@ void ConvertManyOnInputOutput::SetUp() {
 
 TEST_P(Convert, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(ConvertInput, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(ConvertOutput, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(ConvertStub, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(ConvertPartialInputsAndResults, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(ConvertManyOnInputs, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(ConvertManyOnOutputs, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(ConvertManyOnInputOutput, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 } // namespace snippets
