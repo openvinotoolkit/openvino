@@ -101,7 +101,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 endif()
 
 if(OV_GPU_RUNTIME_SYCL_ENABLED AND NOT OV_GPU_WITH_SYCL)
-    message(FATAL_ERROR "GPU_RUNTIME_TYPE selects SYCL, but SYCL is not available for the selected compiler/environment.")
+    message(FATAL_ERROR "GPU_RT_TYPE selects SYCL, but SYCL is not available for the selected compiler/environment.")
 endif()
 
 # When -fsycl and -flto are both active, archive members are emitted in a format

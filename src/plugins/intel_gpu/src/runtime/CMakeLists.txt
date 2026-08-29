@@ -141,7 +141,7 @@ if(OV_GPU_RUNTIME_VULKAN_ENABLED)
     set_property(SOURCE runtime_backend_registry.cpp APPEND PROPERTY
         COMPILE_DEFINITIONS OV_GPU_WITH_VULKAN_RT=1)
 endif()
-if(GPU_RUNTIME_TYPE STREQUAL "VULKAN")
+if(GPU_RT_TYPE STREQUAL "VULKAN")
     set_property(SOURCE runtime_backend_registry.cpp APPEND PROPERTY
         COMPILE_DEFINITIONS OV_GPU_DEFAULT_VULKAN_RT=1)
 endif()
