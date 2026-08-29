@@ -1982,7 +1982,9 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx,
     auto qzerop = opp::wrap_type<ov::op::v0::Constant>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
-    auto qsub = opp::wrap_type<ov::op::v1::Subtract>({qcvtw, qcvtz});
+    auto qshiftw = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0), opp::any_input()});
+    auto qshiftz = opp::optional<ov::op::v1::Subtract>({qcvtz->output(0), opp::any_input()});
+    auto qsub = opp::wrap_type<ov::op::v1::Subtract>({qshiftw, qshiftz});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsub, qcoeff});
     // The Convert between Multiply and MatMul is optional (some models omit it when Multiply is already f32)
     auto qcvtm = opp::optional<ov::op::v0::Convert>({qmuls});
@@ -2019,6 +2021,14 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx,
         auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
 
         auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
+
+        if (node_to_output.count(qshiftw) != node_to_output.count(qshiftz)) {
+            return false;
+        }
+        if (node_to_output.count(qshiftw) && (!is_subtract_128(node_to_output.at(qshiftw).get_node_shared_ptr()) ||
+                                             !is_subtract_128(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
+            return false;
+        }
 
         // Standard layout: weight [OC, IC], scale [OC, 1], transpose_b=true
         const bool standard_layout = qcoeff_shape.size() == 2 && qcoeff_shape[1] == 1 &&
