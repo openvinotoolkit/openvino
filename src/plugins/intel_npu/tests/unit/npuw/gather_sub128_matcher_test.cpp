@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "openvino/opsets/opset10.hpp"
@@ -51,7 +52,8 @@ bool run_lift(const std::shared_ptr<ov::Model>& model) {
     return rewrite.run_on_model(model);
 }
 
-std::shared_ptr<ov::Model> make_parameter_gather_model(float shift_value) {
+std::shared_ptr<ov::Model> make_parameter_gather_model(std::optional<float> weight_shift,
+                                                       std::optional<float> zero_point_shift) {
     constexpr std::size_t vocab_size = 4096;
     constexpr std::size_t hidden_size = 2048;
     auto ids = std::make_shared<ov::opset10::Parameter>(ov::element::i32, ov::Shape{1, 1});
@@ -65,15 +67,26 @@ std::shared_ptr<ov::Model> make_parameter_gather_model(float shift_value) {
     auto gathered_scale = std::make_shared<ov::opset10::Gather>(scale, ids, axis);
     auto weight_convert = std::make_shared<ov::opset10::Convert>(gathered_weights, ov::element::f16);
     auto zero_point_convert = std::make_shared<ov::opset10::Convert>(gathered_zero_point, ov::element::f16);
-    auto shift = ov::opset10::Constant::create(ov::element::f16, ov::Shape{}, {shift_value});
-    auto shifted_weight = std::make_shared<ov::opset10::Subtract>(weight_convert, shift);
-    auto shifted_zero_point = std::make_shared<ov::opset10::Subtract>(zero_point_convert, shift);
+    ov::Output<ov::Node> dequantized_weight = weight_convert;
+    ov::Output<ov::Node> dequantized_zero_point = zero_point_convert;
+    if (weight_shift.has_value()) {
+        auto shift = ov::opset10::Constant::create(ov::element::f16, ov::Shape{}, {weight_shift.value()});
+        dequantized_weight = std::make_shared<ov::opset10::Subtract>(weight_convert, shift);
+    }
+    if (zero_point_shift.has_value()) {
+        auto shift = ov::opset10::Constant::create(ov::element::f16, ov::Shape{}, {zero_point_shift.value()});
+        dequantized_zero_point = std::make_shared<ov::opset10::Subtract>(zero_point_convert, shift);
+    }
 
-    auto dequantized = std::make_shared<ov::opset10::Subtract>(shifted_weight, shifted_zero_point);
+    auto dequantized = std::make_shared<ov::opset10::Subtract>(dequantized_weight, dequantized_zero_point);
     auto scaled = std::make_shared<ov::opset10::Multiply>(dequantized, gathered_scale);
     auto converted = std::make_shared<ov::opset10::Convert>(scaled, ov::element::f16);
     auto result = std::make_shared<ov::opset10::Result>(converted);
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{ids, weights, zero_point, scale});
+}
+
+std::shared_ptr<ov::Model> make_parameter_gather_model(float shift_value) {
+    return make_parameter_gather_model(shift_value, shift_value);
 }
 
 bool run_unpack(const std::shared_ptr<ov::Model>& model) {
@@ -112,6 +125,18 @@ TEST(DQUnpackDictGatheruTest, AcceptsPairedSub128Shifts) {
 
 TEST(DQUnpackDictGatheruTest, RejectsNon128Subtractions) {
     EXPECT_FALSE(run_unpack(make_parameter_gather_model(127.0f)));
+}
+
+TEST(DQUnpackDictGatheruTest, RejectsWeightOnlySub128Shift) {
+    EXPECT_FALSE(run_unpack(make_parameter_gather_model(128.0f, std::nullopt)));
+}
+
+TEST(DQUnpackDictGatheruTest, RejectsZeroPointOnlySub128Shift) {
+    EXPECT_FALSE(run_unpack(make_parameter_gather_model(std::nullopt, 128.0f)));
+}
+
+TEST(DQUnpackDictGatheruTest, RejectsMixedSub128AndNon128Shifts) {
+    EXPECT_FALSE(run_unpack(make_parameter_gather_model(128.0f, 127.0f)));
 }
 
 TEST(HostGatherQuantAsymmTest, AcceptsPairedSub128Shifts) {
