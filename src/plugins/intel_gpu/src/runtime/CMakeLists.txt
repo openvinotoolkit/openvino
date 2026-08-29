@@ -55,6 +55,13 @@ function(ov_gpu_configure_runtime_target TARGET)
     target_include_directories(${TARGET} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<BUILD_INTERFACE:${INCLUDE_DIR}>)
+    # Keep runtime OBJECT libraries out of the static plugin registration cycle.
+    # They need OpenVINO headers for compilation, while the final archive owns
+    # the actual openvino::runtime::dev link dependency.
+    target_include_directories(${TARGET} PRIVATE
+        $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>)
 
     target_compile_options(${TARGET} PRIVATE
       $<$<CONFIG:Release>:
@@ -67,9 +74,10 @@ function(ov_gpu_configure_runtime_target TARGET)
         >
       >)
 
-    target_link_libraries(${TARGET} PRIVATE
-        openvino::itt
-        openvino::runtime::dev)
+    target_link_libraries(${TARGET} PRIVATE openvino::itt)
+    if(NOT BUILD_SHARED_LIBS)
+        target_compile_definitions(${TARGET} PRIVATE OPENVINO_STATIC_LIBRARY)
+    endif()
     if(ENABLE_ONEDNN_FOR_GPU)
         ov_target_link_libraries_as_system(${TARGET} PUBLIC onednn_gpu_tgt)
     endif()
@@ -125,6 +133,7 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 ov_gpu_configure_runtime_target(${TARGET_NAME})
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime::dev)
 
 # Keep Vulkan backend-selection macros on the single composition source that
 # consumes them. Other runtime and GPU sources receive no Vulkan preprocessor state.
