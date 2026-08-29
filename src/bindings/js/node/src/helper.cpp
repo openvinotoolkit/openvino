@@ -349,24 +349,26 @@ Napi::Object cpp_to_js(const Napi::Env& env, const ov::Version& version) {
     return version_obj;
 }
 
-ov::TensorVector parse_input_data(const Napi::Value& input) {
-    ov::TensorVector parsed_input;
+ParsedInputData parse_input_data(const Napi::Value& input) {
     if (input.IsArray()) {
+        ov::TensorVector parsed_input;
         auto inputs = input.As<Napi::Array>();
         for (uint32_t i = 0; i < inputs.Length(); ++i) {
             parsed_input.emplace_back(cast_to_tensor(static_cast<Napi::Value>(inputs[i])));
         }
+        return parsed_input;
     } else if (input.IsObject()) {
+        NamedInputData parsed_input;
         auto inputs = input.ToObject();
         const auto& keys = inputs.GetPropertyNames();
         for (uint32_t i = 0; i < keys.Length(); ++i) {
-            auto value = inputs.Get(static_cast<Napi::Value>(keys[i]).ToString().Utf8Value());
-            parsed_input.emplace_back(cast_to_tensor(static_cast<Napi::Value>(value)));
+            auto name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
+            parsed_input.emplace_back(name, cast_to_tensor(inputs.Get(name)));
         }
+        return parsed_input;
     } else {
         OPENVINO_THROW("parse_input_data(): wrong arg");
     }
-    return parsed_input;
 }
 
 ov::Tensor get_request_tensor(ov::InferRequest& infer_request, const std::string key) {

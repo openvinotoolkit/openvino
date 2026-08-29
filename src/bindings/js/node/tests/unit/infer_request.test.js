@@ -141,6 +141,37 @@ describe("ov.InferRequest tests", () => {
     });
   });
 
+  it("inferAsync() assigns object inputs by name", async () => {
+    const { addModel } = testModels;
+    const core = new ov.Core();
+    const modelXml = (await fs.readFile(addModel.xml, "utf8"))
+      .replace('type="Add"', 'type="Subtract"')
+      .replaceAll("data1", "z_lhs")
+      .replaceAll("data2", "a_rhs");
+    const model = core.readModelSync(Buffer.from(modelXml));
+    const compiled = core.compileModelSync(model, "CPU");
+    const inputNames = compiled.inputs.map((input) => input.anyName);
+    assert.deepStrictEqual(inputNames, ["z_lhs", "a_rhs"]);
+    const tensors = new Map(
+      inputNames.map((name, index) => [
+        name,
+        new ov.Tensor(ov.element.f32, [2, 1], new Float32Array(2).fill(index === 0 ? 11 : 3)),
+      ]),
+    );
+    const infer = async (inputs) => {
+      const result = await compiled.createInferRequest().inferAsync(inputs);
+      return Object.values(result)[0].data[0];
+    };
+    const namedInputs = (names) =>
+      Object.fromEntries(names.map((name) => [name, tensors.get(name)]));
+    const positionalInputs = (names) => names.map((name) => tensors.get(name));
+
+    assert.strictEqual(await infer(namedInputs(inputNames)), 8);
+    assert.strictEqual(await infer(namedInputs(inputNames.toReversed())), 8);
+    assert.strictEqual(await infer(positionalInputs(inputNames)), 8);
+    assert.strictEqual(await infer(positionalInputs(inputNames.toReversed())), -8);
+  });
+
   describe("BigInt InferRequest support", () => {
     let core, originalModel, compiledModel, inferRequest;
 
