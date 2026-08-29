@@ -457,8 +457,8 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_atten
     int64_t local_window_size,
     const ov::Output<ov::Node>& external_bias,
     const ov::Output<ov::Node>& bias_col_offset,
-    bool,
-    float) {
+    [[maybe_unused]] bool sliding_window_cache,
+    [[maybe_unused]] float scale) {
     const bool has_bias = external_bias.get_node_shared_ptr() != nullptr;
     // A window is active for local_window_size >= 1; -1 disables it and 0 is rejected upstream (FE + op).
     // A window is only ever paired with causal=1 (enforced upstream by the FE and the op), so it is only

@@ -19,7 +19,7 @@ constexpr int64_t num_heads = 2;
 constexpr int64_t kv_num_heads = 1;
 constexpr int64_t head_size = 16;
 
-std::shared_ptr<ov::Model> make_gqa_model(const ov::Dimension& past_len) {
+std::shared_ptr<ov::Model> make_gqa_model(const ov::Dimension& past_len, bool causal = true) {
     const auto f32 = ov::element::f32;
     auto query = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1, num_heads, 1, head_size});
     auto key = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1, kv_num_heads, 1, head_size});
@@ -43,7 +43,8 @@ std::shared_ptr<ov::Model> make_gqa_model(const ov::Dimension& past_len) {
                                                                       ov::op::internal::GroupQueryAttentionQuantType::NONE,
                                                                       -1,
                                                                       false,
-                                                                      false);
+                                                                      false,
+                                                                      causal);
     ov::ResultVector results;
     for (const auto& output : gqa->outputs()) {
         results.push_back(std::make_shared<ov::op::v0::Result>(output));
@@ -58,8 +59,8 @@ std::shared_ptr<ov::Model> make_gqa_model(const ov::Dimension& past_len) {
                                                            total_sequence_length});
 }
 
-std::shared_ptr<ov::intel_gpu::op::SDPA> decompose_and_get_sdpa(const ov::Dimension& past_len) {
-    auto model = make_gqa_model(past_len);
+std::shared_ptr<ov::intel_gpu::op::SDPA> decompose_and_get_sdpa(const ov::Dimension& past_len, bool causal = true) {
+    auto model = make_gqa_model(past_len, causal);
     ov::pass::Manager manager;
     manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>();
     manager.run_passes(model);
@@ -91,6 +92,14 @@ TEST(GroupQueryAttentionDecompositionTest, uses_causal_sdpa_without_explicit_mas
 
 TEST(GroupQueryAttentionDecompositionTest, builds_explicit_mask_for_static_input) {
     const auto sdpa = decompose_and_get_sdpa(8);
+
+    ASSERT_NE(sdpa, nullptr);
+    EXPECT_EQ(sdpa->get_input_size(), 4u);
+    EXPECT_FALSE(sdpa->get_causal());
+}
+
+TEST(GroupQueryAttentionDecompositionTest, builds_explicit_mask_for_bidirectional_attention) {
+    const auto sdpa = decompose_and_get_sdpa(ov::Dimension::dynamic(), false);
 
     ASSERT_NE(sdpa, nullptr);
     EXPECT_EQ(sdpa->get_input_size(), 4u);

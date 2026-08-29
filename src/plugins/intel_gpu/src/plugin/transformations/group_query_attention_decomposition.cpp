@@ -43,12 +43,13 @@ std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_attention_mask(
     const ov::Output<ov::Node>& kv_len_1d,
     const ov::Output<ov::Node>& past_seqlen,
     const ov::element::Type& compute_type,
+    bool causal,
     int64_t local_window_size,
     const ov::Output<ov::Node>& external_bias,
     const ov::Output<ov::Node>& bias_col_offset,
     bool sliding_window_cache,
     float scale) {
-    if (!sliding_window_cache && !external_bias.get_node() && scale == 0.0f) {
+    if (causal && !sliding_window_cache && !external_bias.get_node() && scale == 0.0f) {
         return nullptr;
     }
 
@@ -57,6 +58,7 @@ std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_attention_mask(
                                                                             kv_len_1d,
                                                                             past_seqlen,
                                                                             compute_type,
+                                                                            causal,
                                                                             local_window_size,
                                                                             external_bias,
                                                                             bias_col_offset,
