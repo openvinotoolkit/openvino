@@ -25,9 +25,7 @@ static bool is_shape_of_subgraph_root(program_node& node) {
         return true;
     }
 
-    // Root marked via ov::mark_as_shape_of_subgraph_root(): a data-dependent shape/index scalar
-    // (e.g. GroupQueryAttention's windowed-cache eviction bounds) that must not be fused with
-    // regular eltwise chains and needs the same correctness-focused execution as a real shape_of.
+    // Marked via "gpu_shape_of_subgraph_root" rt_info (e.g. GQA's windowed-cache eviction bound).
     if (node.get_primitive()->is_shape_of_subgraph_root) {
         return true;
     }

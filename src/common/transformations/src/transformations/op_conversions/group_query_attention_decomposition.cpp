@@ -44,7 +44,6 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/util/shape_of_subgraph_root_attribute.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
@@ -425,11 +424,8 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::windowed_c
     const auto evicted = register_new_node<v1::Subtract>(seqlen_scalar, reclaimed);
     const auto overflowed = register_new_node<v1::Greater>(seqlen_scalar, capacity_scalar);
     const auto end = register_new_node<v1::Select>(overflowed, evicted, seqlen_scalar);
-    // This resident-row-count is a data-dependent index (feeds Slice/Gather/ScatterUpdate bounds
-    // below), not real tensor data. Mark it so plugins that protect ShapeOf-derived index chains
-    // from elementwise fusion (which can otherwise mis-execute this arithmetic under dynamic
-    // shapes) extend that same protection here.
-    ov::mark_as_shape_of_subgraph_root(end);
+    // Data-dependent index (feeds Slice/Gather/ScatterUpdate bounds); GPU protects it from fusion.
+    end->get_rt_info()["gpu_shape_of_subgraph_root"] = true;
     return end;
 }
 

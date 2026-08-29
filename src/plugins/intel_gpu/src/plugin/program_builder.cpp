@@ -4,7 +4,6 @@
 
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
-#include "openvino/op/util/shape_of_subgraph_root_attribute.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -292,7 +291,7 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
 
     prim->origin_op_name = op.get_friendly_name();
     prim->origin_op_type_name = op.get_type_name();
-    prim->is_shape_of_subgraph_root = op.get_rt_info().count(ov::ShapeOfSubgraphRoot::get_type_info_static()) != 0;
+    prim->is_shape_of_subgraph_root = op.get_rt_info().count("gpu_shape_of_subgraph_root") != 0;
 
     if (this->m_config.get_enable_weightless()) {
         if (auto* data_prim = dynamic_cast<cldnn::data*>(prim.get())) {

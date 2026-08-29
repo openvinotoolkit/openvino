@@ -6111,13 +6111,6 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_staging) {
 // the FE conversion-time path directly. The decomposition picks the staging vs. in-place branch from the
 // runtime past/total length, not static-ness of S, so results must be byte-identical to the dynamic version.
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_static_staging) {
-    // Same pre-existing GPU present-cache-zeroing bug as onnx_model_gqa_sliding_window_cache_staging above
-    // (this takes the identical staging branch) - fixed on the gqa_fixes branch / GPU PR #37659, not yet
-    // present here. Drop this skip once that fix lands on this branch.
-    if (s_device == ov::test::utils::DEVICE_GPU) {
-        GTEST_SKIP() << "GPU zeroes the staging present cache in the full graph; verified correct on "
-                        "CPU/INTERPRETER. Fixed on gqa_fixes / GPU PR #37659, not yet on this branch.";
-    }
     // INTERPRETER returns present_key/present_value with shape [0] instead of [1,1,4,16] on this fully-static
     // staging graph, while CPU matches expected values exactly - a template-backend constant-folding quirk in
     // this backend, not a decomposition bug. Needs follow-up; not blocking.
