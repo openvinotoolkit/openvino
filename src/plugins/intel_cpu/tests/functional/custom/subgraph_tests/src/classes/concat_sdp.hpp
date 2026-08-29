@@ -61,15 +61,12 @@ protected:
     int m_iter = 0;
     size_t m_accum_L_q = 0;
     // Iteration indices at which the KV-cache states are reset before the infer, i.e. the
-    // first prompt of a new conversation. Iteration 0 is implicitly a conversation start.
+    // first prompt of a new conversation. Iteration 0 is implicitly a conversation start
     std::set<size_t> m_resetBefore;
 };
 
 // Same subgraph as ConcatSDPTest, but the iteration list is split into several conversations
-// by `reset_state` calls, with a different batch in each conversation. This covers the case
-// where a new conversation reuses the (larger) cache buffer allocated by the previous one,
-// so the cache is not reallocated while the per-batch scale/zp buffer still has to follow
-// the new batch.
+// by `reset_state` calls, with a different batch in each conversation
 class ConcatSDPResetStateTest : public ConcatSDPTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConcatSDPTestParams>& obj);
