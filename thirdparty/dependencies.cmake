@@ -180,7 +180,8 @@ if(ENABLE_INTEL_GPU)
             set_property(TARGET opencl_new_headers APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES
                 $<BUILD_INTERFACE:${opencl_dir}>)
             set_target_properties(opencl_new_headers PROPERTIES
-                INTERFACE_COMPILE_DEFINITIONS OV_GPU_USE_OPENCL_HPP)
+                INTERFACE_COMPILE_DEFINITIONS
+                    "OV_GPU_USE_OPENCL_HPP;OV_GPU_OPENCL_HPP_HAS_UUID;OV_GPU_OPENCL_HPP_HAS_BUS_INFO")
         endif()
     endforeach()
 endif()
