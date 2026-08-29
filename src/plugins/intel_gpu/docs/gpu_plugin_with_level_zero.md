@@ -5,7 +5,7 @@ OpenVINO GPU plugin can be compiled with **experimental** Level Zero support. Wh
 ## How to build with Level Zero support
 
 1. Configure cmake with the following additional option:
-    - `-DGPU_RUNTIME_TYPE=ZE`
+    - `-DGPU_RT_TYPE=ZE`
 2. Build OpenVINO
     - `cmake --build . --config Release`
 
