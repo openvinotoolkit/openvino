@@ -24,6 +24,15 @@ function(ov_gpu_set_opencl_api_version_for TARGET_NAME)
         CL_TARGET_OPENCL_VERSION=${INTEL_GPU_TARGET_OCL_VERSION})
 endfunction()
 
+function(ov_gpu_use_header_target_for TARGET_NAME HEADER_TARGET)
+    target_include_directories(${TARGET_NAME} PRIVATE
+        $<TARGET_PROPERTY:${HEADER_TARGET},INTERFACE_INCLUDE_DIRECTORIES>)
+    target_compile_definitions(${TARGET_NAME} PRIVATE
+        $<TARGET_PROPERTY:${HEADER_TARGET},INTERFACE_COMPILE_DEFINITIONS>)
+    target_compile_options(${TARGET_NAME} PRIVATE
+        $<TARGET_PROPERTY:${HEADER_TARGET},INTERFACE_COMPILE_OPTIONS>)
+endfunction()
+
 function(ov_gpu_link_runtime_dependencies_for TARGET_NAME)
     if(GPU_RUNTIME_TYPE STREQUAL "ZE")
         target_link_libraries(${TARGET_NAME} PRIVATE openvino::zero_loader)
