@@ -61,10 +61,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTest,
                                             ::testing::Values<int64_t>(8, 2, 1)),
                          ConcatSDPTest::getTestCaseName);
 
-// Conversations are separated by `reset_state`; a declared past length of 0 marks a new one.
-// Conversation B reuses the cache buffer grown by A (so the cache is not reallocated and the
-// per-batch scale/zp buffer has to follow B's batch on its own), and then decodes past that
-// buffer so the subsequent growth copies the scale/zp of the previous, larger batch.
 const std::vector<std::vector<InputShape>> resetStateInputShapes = {
     // A: batch 1, 40 tokens -> B: batch 4, 15 + 9 tokens -> C: batch 2, 10 + 1 tokens
     {
