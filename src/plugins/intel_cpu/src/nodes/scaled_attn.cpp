@@ -2899,16 +2899,13 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         };
         internal_mem_k->redefineDesc(reset_desc(k_kvcache_precision, S_cache));
         internal_mem_v->redefineDesc(reset_desc(v_kvcache_precision, SV_cache));
-        // The cache buffer is reused here because it is large enough in total elements, but the scale/zp
-        // buffer is laid out per batch, so it has to follow the new shape instead of being reinterpreted
+
         const bool need_k_szp = is_quantized_cache(k_kvcache_precision) && !is_k_turboq;
         const bool need_v_szp = is_quantized_cache(v_kvcache_precision) && !is_v_turboq;
         if (need_k_szp || need_v_szp) {
             auto reset_scale_zp = [&](const ov::Extensions::Cpu::CacheSpec& quant_param,
                                       size_t hidden_states,
                                       size_t cache_max_size) {
-                // Size it to the token capacity of the reused cache buffer, because later decode steps grow the
-                // cache in place and never revisit this branch
                 const size_t capacity_L = cache_max_size / (B * H * hidden_states);
                 PlainTensor scale_zp;
                 scale_zp.resize<float>(compute_scale_zp_shape(quant_param,
