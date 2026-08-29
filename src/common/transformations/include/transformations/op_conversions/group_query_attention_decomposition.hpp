@@ -56,7 +56,7 @@ protected:
                                                           const ov::Output<ov::Node>& kv_len_1d,
                                                           const ov::Output<ov::Node>& past_seqlen,
                                                           const ov::element::Type& compute_type,
-                                                  bool causal,
+                                                          bool causal,
                                                           int64_t local_window_size,
                                                           const ov::Output<ov::Node>& external_bias,
                                                           const ov::Output<ov::Node>& bias_col_offset,
