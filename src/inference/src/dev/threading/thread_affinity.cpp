@@ -126,6 +126,11 @@ bool pin_thread_to_vacant_core(int thrIdx,
                                int ncores,
                                const CpuSet& procMask,
                                const std::vector<int>& cpu_ids) {
+    // Guard: if cpu_ids is empty (e.g. restricted process affinity, VM, THREADING=SEQ),
+    // skip pinning silently instead of crashing with out-of-bounds access.
+    if (cpu_ids.empty()) {
+        return false;
+    }
     auto proc_type_table = get_proc_type_table();
     if (proc_type_table.size() > 1) {
         int cores_in_numa = proc_type_table[1][MAIN_CORE_PROC] + proc_type_table[1][HYPER_THREADING_PROC] +
