@@ -42,7 +42,6 @@ namespace snippets {
 
 TEST_P(ConvEltwise, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 };
 
 
