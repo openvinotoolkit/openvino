@@ -1098,8 +1098,8 @@ DQLiftGatherAsymCW::DQLiftGatherAsymCW() {
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
-    auto qshiftw = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0)});
-    auto qshiftz = opp::optional<ov::op::v1::Subtract>({qcvtz->output(0)});
+    auto qshiftw = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0), opp::any_input()});
+    auto qshiftz = opp::optional<ov::op::v1::Subtract>({qcvtz->output(0), opp::any_input()});
     auto qsubz = opp::wrap_type<ov::op::v1::Subtract>({qshiftw, qshiftz});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsubz, qcoeff});
     auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
@@ -1310,8 +1310,8 @@ DQUnpackDictGatheru::DQUnpackDictGatheru(Context::Ref ctx) {
 
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qgthrw});
     auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qgthrz});
-    auto qshiftw = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0)});
-    auto qshiftz = opp::optional<ov::op::v1::Subtract>({qcvtz->output(0)});
+    auto qshiftw = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0), opp::any_input()});
+    auto qshiftz = opp::optional<ov::op::v1::Subtract>({qcvtz->output(0), opp::any_input()});
     auto qsubz = opp::wrap_type<ov::op::v1::Subtract>({qshiftw, qshiftz});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsubz, qgthrs});
     auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
@@ -1419,8 +1419,8 @@ HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_
 
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qgthrw});
     auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qgthrz});
-    auto qshiftw = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0)});
-    auto qshiftz = opp::optional<ov::op::v1::Subtract>({qcvtz->output(0)});
+    auto qshiftw = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0), opp::any_input()});
+    auto qshiftz = opp::optional<ov::op::v1::Subtract>({qcvtz->output(0), opp::any_input()});
     auto qsubz = opp::wrap_type<ov::op::v1::Subtract>({qshiftw, qshiftz});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsubz, qgthrs});
     auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
