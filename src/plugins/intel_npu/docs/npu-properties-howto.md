@@ -260,7 +260,7 @@ at this point, the npu plugin will take care of registering and managing the opt
 It ensures that it is enabled or disabled based in the current system/environment/application configuration. 
 
 ## Step 4. Link the new property to the new option
-Fourth step is to create and register the Property (which is basicly the interface to this configuration option) for both Plugin and CompiledModel (if needed) 
+Fourth step is to create and register the Property (which is basically the interface to this configuration option) for both Plugin and CompiledModel (if needed) 
 ### For plugin
 npu_plugin/plugin/src/plugin_property_manager.cpp > function PluginPropertyManager::registerProperties()
 ```cpp
