@@ -1022,6 +1022,70 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateBicubicPillow_LayoutAlign_Test, Interp
             ::testing::ValuesIn(filterPillowAdditionalConfig())),
     InterpolateLayerCPUTest::getTestCaseName);
 
+std::vector<CPUSpecificParams> filterCPUInfoForDevice_HalfPixelPrecision() {
+    std::vector<CPUSpecificParams> resCPUParams;
+    if (ov::with_cpu_x86_avx512f()) {
+        resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x}, {nhwc}, {"jit_avx512"}, "jit_avx512"});
+    } else if (ov::with_cpu_x86_avx2()) {
+        resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x}, {nhwc}, {"jit_avx2"}, "jit_avx2"});
+        resCPUParams.push_back(CPUSpecificParams{{nchw, x, x}, {nchw}, {"jit_avx2"}, "jit_avx2"});
+    } else if (ov::with_cpu_x86_sse42()) {
+        resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x}, {nhwc}, {"jit_sse42"}, "jit_sse42"});
+        resCPUParams.push_back(CPUSpecificParams{{nchw, x, x}, {nchw}, {"jit_sse42"}, "jit_sse42"});
+    } else {
+        resCPUParams.push_back(CPUSpecificParams{{nchw, x, x}, {nchw}, {"ref"}, "ref"});
+    }
+    return resCPUParams;
+}
+
+const std::vector<ov::op::v11::Interpolate::CoordinateTransformMode>
+    coordinateTransformModes_HalfPixelPrecision = {
+        ov::op::v11::Interpolate::CoordinateTransformMode::HALF_PIXEL,
+        ov::op::v11::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL,
+        ov::op::v11::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN,
+};
+
+const std::vector<size_t> pads4D_zero = {0, 0, 0, 0};
+
+const std::vector<std::vector<int64_t>> axes4D_allDims = {{0, 1, 2, 3}};
+
+const std::vector<ShapeParams> shapeParams4D_HalfPixelPrecision = {
+    ShapeParams{
+        ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
+        InputShape{{}, {{1, 1, 4, 4}}},
+        ov::test::utils::InputLayerType::CONSTANT,
+        {{1, 1, 1024, 1024}},
+        axes4D_allDims.front()
+    },
+    ShapeParams{
+        ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
+        InputShape{{}, {{1, 1, 5, 5}}},
+        ov::test::utils::InputLayerType::CONSTANT,
+        {{1, 1, 1337, 1337}},
+        axes4D_allDims.front()
+    },
+};
+
+const auto interpolateCases_HalfPixelPrecision = ::testing::Combine(
+        ::testing::Values(ov::op::v11::Interpolate::InterpolateMode::NEAREST),
+        ::testing::ValuesIn(coordinateTransformModes_HalfPixelPrecision),
+        ::testing::ValuesIn(defNearestModes()),
+        ::testing::ValuesIn(antialias()),
+        ::testing::Values(pads4D_zero),
+        ::testing::Values(pads4D_zero),
+        ::testing::ValuesIn(cubeCoefs()));
+
+INSTANTIATE_TEST_SUITE_P(smoke_InterpolateHalfPixel_PrecisionRegression,
+                         InterpolateLayerCPUTest,
+                         ::testing::Combine(
+                                 interpolateCases_HalfPixelPrecision,
+                                 ::testing::ValuesIn(shapeParams4D_HalfPixelPrecision),
+                                 ::testing::Values(ElementType::f32),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice_HalfPixelPrecision()),
+                                 ::testing::Values(emptyFusingSpec),
+                                 ::testing::Values(ov::AnyMap())),
+                         InterpolateLayerCPUTest::getTestCaseName);
+
 }  // namespace
 }  // namespace Interpolate
 }  // namespace test

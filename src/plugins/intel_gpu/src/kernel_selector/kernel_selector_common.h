@@ -198,7 +198,7 @@ inline std::uint64_t create_hash(const unsigned char* begin, const unsigned char
     constexpr auto mul_factor = static_cast<std::uint64_t>(UINT64_C(1099511628211));
 
     std::uint64_t acc = start_acc;
-    for (auto elem_it = begin; elem_it != end; ++elem_it) {
+    for (const auto* elem_it = begin; elem_it != end; ++elem_it) {
         acc ^= static_cast<std::uint64_t>(*elem_it);
         acc *= mul_factor;
     }

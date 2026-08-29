@@ -10,6 +10,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 
 #include <memory>
 
@@ -37,10 +38,10 @@ DisableFP16CompForGemma3RMSPattern::DisableFP16CompForGemma3RMSPattern() {
 
         auto rms_post = pattern_map.at(rms_post_m).get_node_shared_ptr();
         if (rms_post) {
-            ov::disable_fp16_compression(rms_post);
+            ov::disable_conversion(rms_post, element::f16);
         }
 
-        ov::disable_fp16_compression(rms);
+        ov::disable_conversion(rms, element::f16);
         return true;
     };
 

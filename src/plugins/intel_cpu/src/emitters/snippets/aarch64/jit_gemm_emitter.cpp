@@ -10,7 +10,6 @@
 #include <cstdint>
 #include <memory>
 #include <set>
-#include <unordered_set>
 #include <variant>
 #include <vector>
 
@@ -23,6 +22,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
@@ -44,15 +44,16 @@ jit_gemm_emitter::jit_gemm_emitter(jit_generator* h,
                                    [[maybe_unused]] const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache)
     : jit_binary_call_emitter(h, isa, expr->get_live_regs()) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-    GemmKernelKaiConfig kernel_config;
 
     const auto gemm_node = as_type_ptr<GemmCPU>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(gemm_node, "Expected GemmCPU node");
     const auto& input_prc = gemm_node->get_input_element_type(0);
     if (input_prc == element::f16) {
-        m_kernel_executor_kai = kernel_table->register_kernel<GemmF16KaiKernelExecutor>(expr, kernel_config);
+        m_kernel_executor_kai = kernel_table->register_kernel<GemmF16KaiKernelExecutor>(expr, GemmKernelKaiConfig{});
     } else if (input_prc == element::f32) {
-        m_kernel_executor_kai = kernel_table->register_kernel<GemmF32KaiKernelExecutor>(expr, kernel_config);
+        m_kernel_executor_kai = kernel_table->register_kernel<GemmF32KaiKernelExecutor>(expr, GemmKernelKaiConfig{});
+    } else if (input_prc == element::i8 || input_prc == element::u8) {
+        m_kernel_executor_kai = kernel_table->register_kernel<GemmI8KaiKernelExecutor>(expr, GemmI8KernelKaiConfig{});
     } else {
         OV_CPU_JIT_EMITTER_THROW("Unexpected precision for GemmKai executor: ", input_prc);
     }
@@ -71,6 +72,10 @@ std::set<std::vector<element::Type>> jit_gemm_emitter::get_supported_precisions(
     std::set<std::vector<element::Type>> result{{element::f32, element::f32}};
     if (ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
         result.insert({element::f16, element::f16});
+    }
+    if (ov::with_cpu_arm_dotprod() || ov::with_cpu_arm_i8mm()) {
+        result.insert({element::i8, element::i8});
+        result.insert({element::u8, element::i8});
     }
     return result;
 }
@@ -101,8 +106,8 @@ void jit_gemm_emitter::emit_call(const std::shared_ptr<ExecutorT>& kernel_execut
     OV_CPU_JIT_EMITTER_ASSERT(kernel_executor, "GemmKai executor is not initialized");
 
     const auto& call_address_reg = get_call_address_reg();
-    std::unordered_set<size_t> exclude_spill = {};
-    store_context(exclude_spill);
+    EmitABIRegSpills spill(h);
+    spill.preamble(get_regs_to_spill());
 
     auto reserved_stack_size = ov::intel_cpu::rnd_up(sizeof(typename ExecutorT::call_args), sp_alignment);
     emit_stack_preserve(reserved_stack_size);
@@ -139,7 +144,7 @@ void jit_gemm_emitter::emit_call(const std::shared_ptr<ExecutorT>& kernel_execut
 
     emit_stack_restore(reserved_stack_size);
 
-    restore_context(exclude_spill);
+    spill.postamble();
 }
 
 bool jit_gemm_emitter::is_f16_executor() const {

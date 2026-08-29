@@ -16,6 +16,13 @@
 #include <unordered_map>
 #include <vector>
 
+#include <openvino/core/op_extension.hpp>
+#include <openvino/op/group_query_attention.hpp>
+#include <ov_ops/dynamic_quantize.hpp>
+#include <ov_ops/rms.hpp>
+#include <ov_ops/rotary_positional_embeddings.hpp>
+
+#include "intel_npu/ops/flash_attention_tile.hpp"
 #include "tools_helpers.hpp"
 
 static constexpr char help_message[] = "Optional. Print the usage message.";
@@ -462,6 +469,16 @@ int main(int argc, char* argv[]) {
             core.set_property(FLAGS_d, ov::log::level(level));
         }
 
+        // Register custom op extensions so the IR reader can deserialize NPU-specific ops
+        // (e.g. FlashAttentionTile in the "intel_npu" opset). Mirrors the compiler-side
+        // deserialization path in vpux_compiler/src/frontend/model_preprocessor.cpp.
+        core.add_extension(std::vector<ov::Extension::Ptr>{
+            std::make_shared<ov::OpExtension<ov::op::internal::RMS>>(),
+            std::make_shared<ov::OpExtension<ov::op::internal::RoPE>>(),
+            std::make_shared<ov::OpExtension<ov::op::internal::GroupQueryAttention>>(),
+            std::make_shared<ov::OpExtension<ov::op::internal::DynamicQuantize>>(),
+            std::make_shared<ov::OpExtension<ov::intel_npu::op::FlashAttentionTile>>()});
+
         std::cout << "Reading model" << std::endl;
         auto model = core.read_model(FLAGS_m);
         auto inputs_info = std::const_pointer_cast<ov::Model>(model)->inputs();
@@ -490,7 +507,7 @@ int main(int argc, char* argv[]) {
             configs["PERF_COUNT"] = "YES";
         }
         if (FLAGS_raw_blob) {
-            if (FLAGS_d == "NPU") {
+            if (FLAGS_d.find("NPU") != std::string::npos) {
                 // set only if was not previously parsed from config
                 if (configs.find("NPU_EXPORT_RAW_BLOB") == configs.end()) {
                     configs["NPU_EXPORT_RAW_BLOB"] = "YES";

@@ -20,7 +20,7 @@
 #include "scatter_update/scatter_elements_update_kernel_ref.h"
 #include "openvino/core/dimension.hpp"
 
-#include <limits.h>
+#include <climits>
 
 namespace cldnn {
 namespace ocl {
@@ -70,7 +70,7 @@ struct stages_helper {
 
     void save(BinaryOutputBuffer& ob) const {
         ob << stages.size();
-        for (auto& stage : stages) {
+        for (const auto& stage : stages) {
             ob << static_cast<uint8_t>(stage);
         }
     }
@@ -93,12 +93,11 @@ struct stages_helper {
         return {};
     }
 
-    size_t get_index(kv_stage stage) const noexcept {
+    size_t get_index(kv_stage stage) const {
         const auto idx = try_get_index(stage);
         OPENVINO_ASSERT(idx.has_value(), "expect stage ", static_cast<uint8_t>(stage), " exist");
         return *idx;
     }
-
 };
 
 struct kv_cache_impl : multi_stage_primitive<kv_cache> {
@@ -117,7 +116,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::kv_cache_impl)
 
-    kv_cache_impl() {}
+    kv_cache_impl() = default;
 
     kv_cache_impl(const kv_cache_impl& other)
         : parent(other)
@@ -177,6 +176,12 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
                 auto& scale_zp_concat_kernel_selector = kernel_selector_t::Instance();
                 auto scale_zp_concat_kernel_impl = scale_zp_concat_kernel_selector.GetImplementation(_kernels_data[*scale_concat_stage].kernelName);
                 scale_zp_concat_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[*scale_concat_stage]);
+            }
+
+            if (const auto zp_concat_stage = stages.try_get_index(kv_stage::zp_concat)) {
+                auto& zp_concat_kernel_selector = kernel_selector_t::Instance();
+                auto zp_concat_kernel_impl = zp_concat_kernel_selector.GetImplementation(_kernels_data[*zp_concat_stage].kernelName);
+                zp_concat_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[*zp_concat_stage]);
             }
         }
     }
@@ -344,7 +349,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             (_kernels_data[dq_stage].update_dispatch_data_func)(dq_params, _kernels_data[dq_stage]);
             execute_stage(events, instance, res_events, dq_stage);
 
-            auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable);
+            auto* compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable);
             OPENVINO_ASSERT(compressed_cache_variable != nullptr, "compressed_cache_variable should not be null.");
             compressed_cache_variable->get_compression_scale_state()->set();
 
@@ -358,32 +363,31 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             GPU_DEBUG_TRACE_DETAIL << desc->id  << " : Output is same as variable memory! Skip copying " << std::endl;
             // When primitive is optimized, concat kernel writes directly to variable memory
             return stream.aggregate_events(res_events, res_events.size() > 1);
-        } else {
-            // Otherwise, we need to copy result from out buffer to state memory
-            GPU_DEBUG_TRACE_DETAIL << desc->id  << " : Copying output to variable memory" << std::endl;
-
-            stream.enqueue_barrier();
-
-            std::vector<event::ptr> res_events;
-            auto out = instance.get_network().get_engine().reinterpret_buffer(instance.output_memory(0), variable.get_memory()->get_layout());
-            res_events.push_back(variable.get_memory()->copy_from(stream, *out, false));
-
-            if (desc->compressed) {
-                auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable);
-                OPENVINO_ASSERT(compressed_cache_variable != nullptr, "compressed_cache_variable is nullptr!!!");
-                auto scale_state = compressed_cache_variable->get_compression_scale_state();
-                auto out_scale_mem = instance.get_network().get_engine().reinterpret_buffer(instance.output_memory(2), scale_state->get_memory()->get_layout());
-                res_events.push_back(scale_state->get_memory()->copy_from(stream, *out_scale_mem, false));
-
-                if (desc->get_compression_zp_inputs_num() > 0) {
-                    auto zp_state = compressed_cache_variable->get_compression_zp_state();
-                    auto out_zp_mem = instance.get_network().get_engine().reinterpret_buffer(instance.output_memory(3), zp_state->get_memory()->get_layout());
-                    res_events.push_back(zp_state->get_memory()->copy_from(stream, *out_zp_mem, false));
-                }
-            }
-
-            return stream.aggregate_events(res_events, res_events.size() > 1);
         }
+        // Otherwise, we need to copy result from out buffer to state memory
+        GPU_DEBUG_TRACE_DETAIL << desc->id << " : Copying output to variable memory" << std::endl;
+
+        stream.enqueue_barrier();
+
+        std::vector<event::ptr> copy_events;
+        auto out = instance.get_network().get_engine().reinterpret_buffer(instance.output_memory(0), variable.get_memory()->get_layout());
+        copy_events.push_back(variable.get_memory()->copy_from(stream, *out, false));
+
+        if (desc->compressed) {
+            auto* compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable);
+            OPENVINO_ASSERT(compressed_cache_variable != nullptr, "compressed_cache_variable is nullptr!!!");
+            auto scale_state = compressed_cache_variable->get_compression_scale_state();
+            auto out_scale_mem = instance.get_network().get_engine().reinterpret_buffer(instance.output_memory(2), scale_state->get_memory()->get_layout());
+            copy_events.push_back(scale_state->get_memory()->copy_from(stream, *out_scale_mem, false));
+
+            if (desc->get_compression_zp_inputs_num() > 0) {
+                auto zp_state = compressed_cache_variable->get_compression_zp_state();
+                auto out_zp_mem = instance.get_network().get_engine().reinterpret_buffer(instance.output_memory(3), zp_state->get_memory()->get_layout());
+                copy_events.push_back(zp_state->get_memory()->copy_from(stream, *out_zp_mem, false));
+            }
+        }
+
+        return stream.aggregate_events(copy_events, copy_events.size() > 1);
     }
 
     static layout get_beam_table_layout(const kernel_impl_params& impl_param) {

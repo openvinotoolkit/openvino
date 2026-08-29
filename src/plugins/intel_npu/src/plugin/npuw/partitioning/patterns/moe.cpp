@@ -4,6 +4,10 @@
 
 #include "moe.hpp"
 
+#include <functional>
+#include <optional>
+#include <utility>
+
 #include "../../logging.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
@@ -16,6 +20,237 @@ namespace patterns {
 namespace moe {
 
 namespace opp = ov::pass::pattern;
+
+namespace {
+
+using NodeToGroupMapPtr = ov::npuw::online::detail::OVNodeToGroupMapPtr;
+
+void isolate_node(const std::shared_ptr<ov::Node>& node,
+                  const std::string& isol_tag,
+                  const NodeToGroupMapPtr& node_to_gptr) {
+    if (node && node_to_gptr->count(node)) {
+        node_to_gptr->at(node)->isolate(isol_tag);
+    }
+}
+
+// Scan output_multiply's middle dimensions (all dims except dim-0=num_experts and last=hidden).
+// If any middle dim > 1 it is the token count (prefill). If all are 1, it is decoding.
+// Shape layouts:  GPT-OSS [N, token, 1, H]  /  Qwen3 [N, 1, token, H]
+bool is_decoding_stage(const std::shared_ptr<ov::Node>& output_multiply) {
+    const auto shape = output_multiply->get_output_partial_shape(0);
+    if (!shape.rank().is_static()) {
+        return false;
+    }
+    const auto rank = shape.rank().get_length();
+    for (int64_t i = 1; i < rank - 1; ++i) {
+        const auto& d = shape[i];
+        if (d.is_static() && d.get_length() != 1) {
+            return false;  // prefill: found token dim > 1
+        }
+    }
+    return true;  // all middle dims are 1 → decoding
+}
+
+// After output_multiply, find the first ReduceSum consumer and isolate it.
+void isolate_reduce_sum_after(const std::shared_ptr<ov::Node>& output_multiply,
+                              const std::string& isol_tag,
+                              const NodeToGroupMapPtr& node_to_gptr) {
+    std::shared_ptr<ov::Node> reduce_sum;
+    for (auto& out : output_multiply->outputs()) {
+        for (auto& in : out.get_target_inputs()) {
+            auto consumer = in.get_node()->shared_from_this();
+            if (std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(consumer)) {
+                reduce_sum = consumer;
+                break;
+            }
+        }
+        if (reduce_sum)
+            break;
+    }
+    if (reduce_sum && node_to_gptr->count(reduce_sum)) {
+        node_to_gptr->at(reduce_sum)->isolate(isol_tag);
+        LOG_DEBUG("  ReduceSum successfully isolated");
+    } else if (reduce_sum) {
+        LOG_WARN("  ReduceSum found but not in node_to_gptr map");
+    } else {
+        LOG_WARN("  No ReduceSum found after Multiply (unexpected for decoding stage)");
+    }
+}
+
+// Extract K from a TopK node's constant second input and write it to rt_info
+// under the RT_INFO_MOE_K key so that PartitioningCallbacks::find_node_with_rt_info
+// can retrieve it during the partition stage.  Returns true on success.
+// Shared across all Router MatcherPass implementations for consistency checking:
+// expected_k is updated on first call and checked for consistency on subsequent calls;
+// OPENVINO_THROW is raised if two matched layers carry different K values.
+bool tag_topk_k(const std::shared_ptr<ov::Node>& topk_node, std::optional<size_t>& expected_k) {
+    auto k_input = topk_node->input_value(1);
+    auto k_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(k_input.get_node_shared_ptr());
+    if (!k_const) {
+        return false;
+    }
+    auto k_data = k_const->cast_vector<int64_t>();
+    if (k_data.empty() || k_data[0] <= 0) {
+        LOG_WARN("Router TopK K value is non-positive or empty (" << (k_data.empty() ? 0 : k_data[0])
+                                                                  << "); skipping tag");
+        return false;
+    }
+    const size_t k_value = static_cast<size_t>(k_data[0]);
+    if (expected_k.has_value() && expected_k.value() != k_value) {
+        OPENVINO_THROW("NPUW: Inconsistent MoE K values across layers: ",
+                       expected_k.value(),
+                       " vs ",
+                       k_value,
+                       ". All MoE layers in a model must share the same K.");
+    }
+    expected_k = k_value;
+    topk_node->get_rt_info()[RT_INFO_MOE_K] = k_value;
+    LOG_DEBUG("Router: tagged TopK '" << topk_node->get_friendly_name() << "' with K=" << k_value);
+    return true;
+}
+
+// Shared callback factory for all Router MatcherPass implementations.
+// Validates the matched TopK node and tags it with RT_INFO_MOE_K for K-value propagation.
+// An optional guard predicate may reject the match by returning false.
+// The only difference between Router implementations is the pattern graph structure;
+// all use this helper for TopK validation and K-tagging logic.
+std::function<bool(ov::pass::pattern::Matcher&)> make_router_k_callback(
+    const std::shared_ptr<ov::Node>& topk_pattern,
+    const char* class_name,
+    std::function<bool(const std::shared_ptr<ov::Node>&)> guard = {}) {
+    auto expected_k = std::make_shared<std::optional<size_t>>();
+    return [topk_pattern, class_name, guard, expected_k](ov::pass::pattern::Matcher& m) -> bool {
+        auto& node_to_output = m.get_pattern_value_map();
+        auto matched_topk = node_to_output.at(topk_pattern).get_node_shared_ptr();
+        auto topk_node = std::dynamic_pointer_cast<ov::op::v11::TopK>(matched_topk);
+        if (!topk_node || topk_node->get_mode() != ov::op::v11::TopK::Mode::MAX) {
+            return false;
+        }
+        if (guard && !guard(matched_topk)) {
+            return false;
+        }
+        if (!tag_topk_k(matched_topk, *expected_k)) {
+            LOG_WARN(class_name << ": failed to extract K from TopK '" << matched_topk->get_friendly_name()
+                                << "'; MoE transformation will be skipped");
+        }
+        return false;
+    };
+}
+
+// Shared data structure for router score pattern nodes (from MatMul to Divide).
+struct RouterScorePattern {
+    std::shared_ptr<ov::Node> matmul;
+    std::shared_ptr<ov::Node> topk;
+    std::shared_ptr<ov::Node> reduce_sum;
+    std::shared_ptr<ov::Node> divide;
+};
+
+// Builds the shared router score computation pattern (MatMul -> Softmax -> TopK -> ReduceSum -> Divide).
+// MatMul inputs are unconstrained (any_input) to support both quantized and non-quantized weight paths.
+// Returned pattern nodes can be used by different Router implementations (Qwen3, Gemma4, etc.).
+RouterScorePattern build_shared_router_score_pattern() {
+    auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
+    auto softmax = opp::wrap_type<ov::op::v8::Softmax>({matmul});
+    auto topk = opp::wrap_type<ov::op::v11::TopK>({softmax, opp::any_input()});
+    auto reduce_sum = opp::wrap_type<ov::op::v1::ReduceSum>({topk, opp::any_input()});
+    auto divide = opp::wrap_type<ov::op::v1::Divide>({topk, reduce_sum});
+    return {matmul, topk, reduce_sum, divide};
+}
+
+// Builds the shared router tail pattern (Scatter -> Transpose -> Reshape -> Unsqueeze).
+// Pattern root is Unsqueeze; this helper encapsulates the tail logic common to all Router implementations.
+std::shared_ptr<ov::Node> build_shared_router_tail(const std::shared_ptr<ov::Node>& scatter_input) {
+    auto transpose = opp::wrap_type<ov::op::v1::Transpose>({scatter_input, opp::any_input()});
+    auto reshape = opp::wrap_type<ov::op::v1::Reshape>({transpose, opp::any_input()});
+    auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({reshape, opp::any_input()});
+    return unsqueeze;
+}
+
+// Builds the pattern graph and callback for a SwiGLU-style expert layer with a
+// parameterised gate activation operator (template parameter ActivationOp).
+// Returns (Matcher, callback) so the caller can invoke its own register_matcher().
+//
+// Pattern structure (parameterised by activation operator):
+//   Tile -> Reshape1
+//   Reshape1 -> MatMul_gate (dequant: Multiply->Convert) -> ActivationOp
+//   Reshape1 -> MatMul_up   (dequant: Multiply->Convert)
+//   ActivationOp * MatMul_up -> MatMul_down (dequant: Multiply->Convert) -> Reshape2
+//   Reshape2 * router_score -> output_multiply   [pattern root]
+//
+// Isolation strategy (applied in callback):
+// - Prefill (token_count > 1): Isolate up to output_multiply; ReduceSum stays in downstream
+// - Decoding (token_count == 1): Isolate including ReduceSum (self-contained expert subgraph)
+template <typename ActivationOp>
+std::pair<std::shared_ptr<opp::Matcher>, std::function<bool(opp::Matcher&)>> make_swiglu_expert_matcher(
+    const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
+    const std::string& isol_tag,
+    const char* expert_name) {
+    auto tile = opp::wrap_type<ov::op::v0::Tile>({opp::any_input(), opp::any_input()});
+    auto reshape1 = opp::wrap_type<ov::op::v1::Reshape>({tile, opp::any_input()});
+
+    // Gate projection: dequantized weights -> MatMul -> activation
+    auto gate_w_mul = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
+    auto gate_w_cvt = opp::wrap_type<ov::op::v0::Convert>({gate_w_mul});
+    auto matmul_gate = opp::wrap_type<ov::op::v0::MatMul>({reshape1, gate_w_cvt});
+    auto activation = opp::wrap_type<ActivationOp>({matmul_gate});
+
+    // Up projection: dequantized weights -> MatMul
+    auto up_w_mul = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
+    auto up_w_cvt = opp::wrap_type<ov::op::v0::Convert>({up_w_mul});
+    auto matmul_up = opp::wrap_type<ov::op::v0::MatMul>({reshape1, up_w_cvt});
+
+    // SwiGLU merge: activation(gate) * up
+    auto merge = opp::wrap_type<ov::op::v1::Multiply>({activation, matmul_up});
+
+    // Down projection: dequantized weights -> MatMul -> Reshape
+    auto down_w_mul = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
+    auto down_w_cvt = opp::wrap_type<ov::op::v0::Convert>({down_w_mul});
+    auto matmul_down = opp::wrap_type<ov::op::v0::MatMul>({merge, down_w_cvt});
+    auto reshape2 = opp::wrap_type<ov::op::v1::Reshape>({matmul_down, opp::any_input()});
+
+    // Pattern root: expert output * scattered router scores
+    auto output_multiply = opp::wrap_type<ov::op::v1::Multiply>({reshape2, opp::any_input()});
+
+    auto node_to_gptr = snapshot->getNodeToGroupMap();
+
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+        auto matched_output_multiply = node_to_output.at(output_multiply).get_node_shared_ptr();
+        const bool is_decoding = is_decoding_stage(matched_output_multiply);
+        LOG_DEBUG(expert_name << " Expert pattern matched (" << (is_decoding ? "Decoding" : "Prefill") << " stage)");
+
+        auto isolate = [&](const std::shared_ptr<ov::Node>& pattern_node) {
+            isolate_node(node_to_output.at(pattern_node).get_node_shared_ptr(), isol_tag, node_to_gptr);
+        };
+
+        isolate(tile);
+        isolate(reshape1);
+        isolate(gate_w_mul);
+        isolate(gate_w_cvt);
+        isolate(matmul_gate);
+        isolate(activation);
+        isolate(up_w_mul);
+        isolate(up_w_cvt);
+        isolate(matmul_up);
+        isolate(merge);
+        isolate(down_w_mul);
+        isolate(down_w_cvt);
+        isolate(matmul_down);
+        isolate(reshape2);
+        isolate_node(matched_output_multiply, isol_tag, node_to_gptr);
+
+        if (is_decoding) {
+            isolate_reduce_sum_after(matched_output_multiply, isol_tag, node_to_gptr);
+        }
+
+        return false;
+    };
+
+    return {std::make_shared<opp::Matcher>(output_multiply, std::string("Tag") + expert_name + "Expert"),
+            std::move(callback)};
+}
+
+}  // namespace
 
 /*
     GPT-OSS Expert Pattern:
@@ -55,7 +290,6 @@ namespace opp = ov::pass::pattern;
 GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
     LOG_DEBUG("GPTOSSExpert pattern matcher registered with tag: " << isol_tag);
 
-    // Input preparation
     auto tile = opp::wrap_type<ov::op::v0::Tile>({opp::any_input(), opp::any_input()});
     auto reshape1 = opp::wrap_type<ov::op::v1::Reshape>({tile, opp::any_input()});
 
@@ -80,7 +314,7 @@ GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
     auto clamp = opp::wrap_type<ov::op::v0::Clamp>({other_slice});
     auto add2 = opp::wrap_type<ov::op::v1::Add>({clamp, opp::any_input()});
 
-    // Merge branches - awq_multiply will be Swish if not matched, or AWQ Multiply if matched
+    // awq_multiply aliases Swish when not matched.
     auto multiply1 = opp::wrap_type<ov::op::v1::Multiply>({add2, awq_multiply});
 
     // Second MatMul (down projection) - weights path: Multiply -> Convert -> MatMul
@@ -89,7 +323,6 @@ GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
     auto matmul2 = opp::wrap_type<ov::op::v0::MatMul>({multiply1, weights_convert2});
     auto add3 = opp::wrap_type<ov::op::v1::Add>({matmul2, opp::any_input()});
 
-    // Output reshape - Multiply
     auto reshape2 = opp::wrap_type<ov::op::v1::Reshape>({add3, opp::any_input()});
     auto output_multiply = opp::wrap_type<ov::op::v1::Multiply>({reshape2, opp::any_input()});
 
@@ -98,17 +331,8 @@ GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
 
-        auto matched_tile = node_to_output.at(tile).get_node_shared_ptr();
-        auto matched_reshape1 = node_to_output.at(reshape1).get_node_shared_ptr();
-        auto matched_weights_multiply1 = node_to_output.at(weights_multiply1).get_node_shared_ptr();
-        auto matched_weights_convert1 = node_to_output.at(weights_convert1).get_node_shared_ptr();
-        auto matched_matmul1 = node_to_output.at(matmul1).get_node_shared_ptr();
-        auto matched_add1 = node_to_output.at(add1).get_node_shared_ptr();
-        auto matched_slice = node_to_output.at(slice).get_node_shared_ptr();
-        auto matched_minimum = node_to_output.at(minimum).get_node_shared_ptr();
-        auto matched_swish = node_to_output.at(swish).get_node_shared_ptr();
-
         // Check if optional AWQ multiply was matched
+        auto matched_swish = node_to_output.at(swish).get_node_shared_ptr();
         std::shared_ptr<ov::Node> matched_awq_multiply = nullptr;
         if (node_to_output.count(awq_multiply) > 0) {
             auto awq_multiply_value = node_to_output.at(awq_multiply);
@@ -121,88 +345,46 @@ GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
             LOG_DEBUG("Normal model: No AWQ multiply after Swish");
         }
 
-        auto matched_other_slice = node_to_output.at(other_slice).get_node_shared_ptr();
-        auto matched_clamp = node_to_output.at(clamp).get_node_shared_ptr();
-        auto matched_add2 = node_to_output.at(add2).get_node_shared_ptr();
-        auto matched_multiply1 = node_to_output.at(multiply1).get_node_shared_ptr();
-        auto matched_weights_multiply2 = node_to_output.at(weights_multiply2).get_node_shared_ptr();
-        auto matched_weights_convert2 = node_to_output.at(weights_convert2).get_node_shared_ptr();
-        auto matched_matmul2 = node_to_output.at(matmul2).get_node_shared_ptr();
-        auto matched_add3 = node_to_output.at(add3).get_node_shared_ptr();
-        auto matched_reshape2 = node_to_output.at(reshape2).get_node_shared_ptr();
         auto matched_output_multiply = node_to_output.at(output_multiply).get_node_shared_ptr();
 
-        // Check if this is decoding stage by examining shape[rank-2]
-        auto output_shape = matched_output_multiply->get_output_partial_shape(0);
-        LOG_DEBUG("Expert Multiply output_shape: " << output_shape);
-        bool is_decoding = false;
+        LOG_DEBUG("Expert Multiply output_shape: " << matched_output_multiply->get_output_partial_shape(0));
+        const bool is_decoding = is_decoding_stage(matched_output_multiply);
+        LOG_DEBUG("GPT-OSS Expert pattern matched (" << (is_decoding ? "Decoding" : "Prefill") << " stage)");
 
-        if (output_shape.rank().is_static() && output_shape.rank().get_length() >= 2) {
-            auto rank = output_shape.rank().get_length();
-            auto token_dim = output_shape[rank - 2];
+        auto isolate = [&](const std::shared_ptr<ov::Node>& pattern_node) {
+            isolate_node(node_to_output.at(pattern_node).get_node_shared_ptr(), isol_tag, node_to_gptr);
+        };
 
-            if (token_dim.is_static() && token_dim.get_length() == 1) {
-                is_decoding = true;
-                LOG_DEBUG("GPT-OSS Expert pattern matched (Decoding stage): single token");
-            } else if (token_dim.is_static()) {
-                LOG_DEBUG("GPT-OSS Expert pattern matched (Prefill stage): token_count=" << token_dim.get_length());
-            }
-        }
-
-        // Isolate all common expert nodes
-        node_to_gptr->at(matched_tile)->isolate(isol_tag);
-        node_to_gptr->at(matched_reshape1)->isolate(isol_tag);
-        node_to_gptr->at(matched_weights_multiply1)->isolate(isol_tag);
-        node_to_gptr->at(matched_weights_convert1)->isolate(isol_tag);
-        node_to_gptr->at(matched_matmul1)->isolate(isol_tag);
-        node_to_gptr->at(matched_add1)->isolate(isol_tag);
-        node_to_gptr->at(matched_slice)->isolate(isol_tag);
-        node_to_gptr->at(matched_minimum)->isolate(isol_tag);
-        node_to_gptr->at(matched_swish)->isolate(isol_tag);
+        isolate(tile);
+        isolate(reshape1);
+        isolate(weights_multiply1);
+        isolate(weights_convert1);
+        isolate(matmul1);
+        isolate(add1);
+        isolate(slice);
+        isolate(minimum);
+        isolate_node(matched_swish, isol_tag, node_to_gptr);
 
         // Isolate AWQ multiply if it exists
-        if (matched_awq_multiply && node_to_gptr->count(matched_awq_multiply)) {
-            node_to_gptr->at(matched_awq_multiply)->isolate(isol_tag);
+        if (matched_awq_multiply) {
+            isolate_node(matched_awq_multiply, isol_tag, node_to_gptr);
             LOG_DEBUG("AWQ multiply after Swish isolated");
         }
 
-        node_to_gptr->at(matched_other_slice)->isolate(isol_tag);
-        node_to_gptr->at(matched_clamp)->isolate(isol_tag);
-        node_to_gptr->at(matched_add2)->isolate(isol_tag);
-        node_to_gptr->at(matched_multiply1)->isolate(isol_tag);
-        node_to_gptr->at(matched_weights_multiply2)->isolate(isol_tag);
-        node_to_gptr->at(matched_weights_convert2)->isolate(isol_tag);
-        node_to_gptr->at(matched_matmul2)->isolate(isol_tag);
-        node_to_gptr->at(matched_add3)->isolate(isol_tag);
-        node_to_gptr->at(matched_reshape2)->isolate(isol_tag);
-        node_to_gptr->at(matched_output_multiply)->isolate(isol_tag);
+        isolate(other_slice);
+        isolate(clamp);
+        isolate(add2);
+        isolate(multiply1);
+        isolate(weights_multiply2);
+        isolate(weights_convert2);
+        isolate(matmul2);
+        isolate(add3);
+        isolate(reshape2);
+        isolate_node(matched_output_multiply, isol_tag, node_to_gptr);
 
-        // If decoding stage, find and isolate ReduceSum after Multiply
         if (is_decoding) {
             LOG_DEBUG("Decoding stage detected, searching for ReduceSum to isolate...");
-            std::shared_ptr<ov::Node> matched_reduce_sum = nullptr;
-
-            for (auto& output : matched_output_multiply->outputs()) {
-                for (auto& input : output.get_target_inputs()) {
-                    auto consumer = input.get_node()->shared_from_this();
-                    if (auto reduce_sum = std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(consumer)) {
-                        matched_reduce_sum = reduce_sum;
-                        LOG_DEBUG("  Found ReduceSum after Multiply, isolating for decoding stage");
-                        break;
-                    }
-                }
-                if (matched_reduce_sum)
-                    break;
-            }
-
-            if (matched_reduce_sum && node_to_gptr->count(matched_reduce_sum)) {
-                node_to_gptr->at(matched_reduce_sum)->isolate(isol_tag);
-                LOG_DEBUG("  ReduceSum successfully isolated");
-            } else if (matched_reduce_sum) {
-                LOG_WARN("  ReduceSum found but not in node_to_gptr map");
-            } else {
-                LOG_WARN("  No ReduceSum found after Multiply (unexpected for decoding stage)");
-            }
+            isolate_reduce_sum_after(matched_output_multiply, isol_tag, node_to_gptr);
         }
 
         return false;
@@ -212,160 +394,190 @@ GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
 }
 
 /*
-    GPT-OSS Router Pattern:
+    GPT-OSS Router Pattern (constant-folded variant):
 
-    Matches MoE router layer (16 nodes: 9 pattern-matched + 7 manual retrieval)
-    Pattern: weights -> Multiply -> Convert -> MatMul -> Add -> TopK -> Softmax -> Slice
-                                                             \-> Convert -> ShapeOf -/
-    Manual: Add -> ShapeOf -> Broadcast -> Scatter -> Transpose -> Reshape -> Unsqueeze
+    All ShapeOf nodes in the router are constant-folded before this pattern runs.
+    The resulting graph is:
+
+        weights -> Multiply -> Convert -> MatMul -> Add -> TopK
+                                                          |\-> output(0) values -> Softmax -> Slice
+                                                          \-> output(1) indices -> Convert (indices)
+
+    Slice -> ScatterElementsUpdate -> Transpose -> Reshape -> Unsqueeze
+    Broadcast (zero base for Scatter, shape fed by folded Const)
+
+    Pattern root is ScatterElementsUpdate to avoid matching other TopK+Slice subgraphs.
+    No isolation; only TopK K value is extracted via RT_INFO_MOE_K.
 */
-GPTOSSRouter::GPTOSSRouter(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
-    LOG_DEBUG("GPTOSSRouter pattern matcher registered with tag: " << isol_tag);
+GPTOSSRouter::GPTOSSRouter([[maybe_unused]] const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
+                           [[maybe_unused]] const std::string& isol_tag) {
+    LOG_DEBUG("GPTOSSRouter pattern matcher registered (K-extraction only, no isolation)");
 
-    // Pattern-matched nodes (9 total)
+    // TopK output(1)->Convert (indices) cannot be expressed in wrap_type
+    // (always binds output(0)), so Scatter port 1 uses any_input().
     auto weights_multiply = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
     auto weights_convert2 = opp::wrap_type<ov::op::v0::Convert>({weights_multiply});
     auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), weights_convert2});
     auto add = opp::wrap_type<ov::op::v1::Add>({matmul, opp::any_input()});
     auto topk = opp::wrap_type<ov::op::v11::TopK>({add, opp::any_input()});
-    auto softmax = opp::wrap_type<ov::op::v8::Softmax>({topk});
-    auto topk_convert = opp::wrap_type<ov::op::v0::Convert>({topk});
-    auto shapeof_topk = opp::wrap_type<ov::op::v3::ShapeOf>({topk_convert});
+    auto softmax = opp::wrap_type<ov::op::v8::Softmax>({topk});  // connects to topk->output(0)
 
-    // Pattern root
+    // Shape inputs use any_input(): ShapeOf nodes are constant-folded.
     auto slice = opp::wrap_type<ov::op::v8::Slice>(
-        {softmax, opp::any_input(), shapeof_topk, opp::any_input(), opp::any_input()});
+        {softmax, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
 
-    auto node_to_gptr = snapshot->getNodeToGroupMap();
+    // Pattern root. port 1: TopK indices (any_input() — wrap_type binds output(0) only).
+    auto scatter = opp::wrap_type<ov::op::v12::ScatterElementsUpdate>(
+        {opp::any_input(), opp::any_input(), slice, opp::any_input()});
 
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
-        auto& node_to_output = m.get_pattern_value_map();
+    // Shared across layers to detect inconsistent K values.
+    register_matcher(std::make_shared<opp::Matcher>(scatter, "TagGPTOSSRouter"),
+                     make_router_k_callback(topk, "GPTOSSRouter", [](const std::shared_ptr<ov::Node>& node) {
+                         const auto& name = node->get_friendly_name();
+                         return name.find(MLP_ROUTER_NAME) != std::string::npos ||
+                                name.find(MLP_EXPERT_NAME) != std::string::npos;
+                     }));
+}
 
-        // Validate TopK mode (MAX) and Router keywords
-        auto matched_topk = node_to_output.at(topk).get_node_shared_ptr();
-        auto topk_node = std::dynamic_pointer_cast<ov::op::v11::TopK>(matched_topk);
-        if (!topk_node || topk_node->get_mode() != ov::op::v11::TopK::Mode::MAX) {
-            return false;
-        }
+/*
+    Qwen3 Expert Pattern:
 
-        std::string topk_name = matched_topk->get_friendly_name();
-        // Check if node name contains MoE router/expert patterns
-        bool is_router = (topk_name.find(MLP_ROUTER_NAME) != std::string::npos ||
-                          topk_name.find(MLP_EXPERT_NAME) != std::string::npos);
-        if (!is_router) {
-            return false;
-        }
+    Input preparation:
+        Tile -> Reshape1
 
-        LOG_DEBUG("GPT-OSS Router pattern matched: " << topk_name);
+    Gate projection (SwiGLU gate branch):
+        Reshape1 -> MatMul_gate (with weights: Multiply -> Convert) -> Swish
 
-        // Get pattern-matched nodes
-        auto matched_weights_multiply = node_to_output.at(weights_multiply).get_node_shared_ptr();
-        auto matched_weights_convert2 = node_to_output.at(weights_convert2).get_node_shared_ptr();
-        auto matched_matmul = node_to_output.at(matmul).get_node_shared_ptr();
-        auto matched_add = node_to_output.at(add).get_node_shared_ptr();
-        auto matched_softmax = node_to_output.at(softmax).get_node_shared_ptr();
-        auto matched_topk_convert = node_to_output.at(topk_convert).get_node_shared_ptr();
-        auto matched_shapeof_topk = node_to_output.at(shapeof_topk).get_node_shared_ptr();
-        auto matched_slice = node_to_output.at(slice).get_node_shared_ptr();
+    Up projection (SwiGLU up branch):
+        Reshape1 -> MatMul_up  (with weights: Multiply -> Convert)
 
-        // Manual retrieval (7 nodes): helper function
-        auto find_consumer_by_type =
-            [](const std::shared_ptr<ov::Node>& node,
-               const std::function<bool(const std::shared_ptr<ov::Node>&)>& pred) -> std::shared_ptr<ov::Node> {
-            for (auto& output : node->outputs()) {
-                for (auto& input : output.get_target_inputs()) {
-                    auto consumer = input.get_node()->shared_from_this();
-                    if (pred(consumer)) {
-                        return consumer;
-                    }
-                }
-            }
-            return nullptr;
-        };
+    SwiGLU merge:
+        Swish + MatMul_up -> Multiply_swiglu
 
-        auto matched_scatter = find_consumer_by_type(matched_slice, [](const std::shared_ptr<ov::Node>& n) {
-            return std::dynamic_pointer_cast<ov::op::v3::ScatterElementsUpdate>(n) ||
-                   std::dynamic_pointer_cast<ov::op::v12::ScatterElementsUpdate>(n);
-        });
-        if (!matched_scatter) {
-            LOG_DEBUG("Router pattern: ScatterElementsUpdate not found");
-            return false;
-        }
+    Down projection:
+        Multiply_swiglu -> MatMul_down (with weights: Multiply -> Convert) -> Reshape2
 
-        // Retrieve Broadcast and ShapeOf
-        auto broadcast_node = matched_scatter->input_value(0).get_node_shared_ptr();
-        auto matched_broadcast = std::dynamic_pointer_cast<ov::op::v3::Broadcast>(broadcast_node);
-        if (!matched_broadcast) {
-            LOG_DEBUG("Router pattern: Broadcast not found");
-            return false;
-        }
+    Output (scaled by router scores):
+        Reshape2 * router_score -> Multiply_output   <-- pattern root
+        (router_score = opp::any_input(), produced entirely by Qwen3Router)
 
-        std::shared_ptr<ov::Node> matched_shapeof = nullptr;
-        for (size_t i = 0; i < matched_broadcast->inputs().size(); ++i) {
-            auto input_node = matched_broadcast->input_value(i).get_node_shared_ptr();
-            if (std::dynamic_pointer_cast<ov::op::v3::ShapeOf>(input_node)) {
-                matched_shapeof = input_node;
-                break;
-            }
-        }
-        if (!matched_shapeof) {
-            LOG_DEBUG("Router pattern: ShapeOf not found");
-            return false;
-        }
+    Expert isolates: Tile, Reshape1, weight-dequant nodes, MatMuls, SwiGLU Multiply, Reshape2, output Multiply.
+    Router isolates: Softmax, TopK, ReduceSum, Divide, Scatter, Transpose, Reshape, Unsqueeze.
+    Shape-compute chains (ShapeOf->Gather->...) stay outside both as subgraph parameters.
+*/
+Qwen3Expert::Qwen3Expert(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
+    LOG_DEBUG("Qwen3Expert pattern matcher registered with tag: " << isol_tag);
+    auto [matcher, callback] = make_swiglu_expert_matcher<ov::op::v4::Swish>(snapshot, isol_tag, "Qwen3");
+    register_matcher(std::move(matcher), std::move(callback));
+}
 
-        // Retrieve output chain (Transpose -> Reshape -> Unsqueeze)
-        auto matched_transpose = find_consumer_by_type(matched_scatter, [](const std::shared_ptr<ov::Node>& n) {
-            return std::dynamic_pointer_cast<ov::op::v1::Transpose>(n) != nullptr;
-        });
-        if (!matched_transpose) {
-            LOG_DEBUG("Router pattern: Transpose not found");
-            return false;
-        }
+/*
+    Qwen3 Router Pattern:
 
-        auto matched_reshape = find_consumer_by_type(matched_transpose, [](const std::shared_ptr<ov::Node>& n) {
-            return std::dynamic_pointer_cast<ov::op::v1::Reshape>(n) != nullptr;
-        });
-        if (!matched_reshape) {
-            LOG_DEBUG("Router pattern: Reshape not found");
-            return false;
-        }
+    Shared score computation (MatMul -> Softmax -> TopK -> ReduceSum -> Divide):
+        MatMul inputs may be quantized or non-quantized; pattern uses any_input() for flexibility
 
-        auto matched_unsqueeze = find_consumer_by_type(matched_reshape, [](const std::shared_ptr<ov::Node>& n) {
-            return std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(n) != nullptr;
-        });
-        if (!matched_unsqueeze) {
-            LOG_DEBUG("Router pattern: Unsqueeze not found");
-            return false;
-        }
+    Qwen3-specific scores path:
+        optional<Convert>({topk})  -> TopK indices may pass through Convert
+        optional<Slice>({divide})  -> Divide output may pass through Slice before scatter
 
-        // Isolate all 16 nodes
-        auto isolate_if_exists = [&](const std::shared_ptr<ov::Node>& node) {
-            if (node && node_to_gptr->count(node)) {
-                node_to_gptr->at(node)->isolate(isol_tag);
-            }
-        };
+    Scatter to full expert dimension:
+        ScatterElementsUpdate -> Transpose -> Reshape -> Unsqueeze   <-- pattern root
 
-        isolate_if_exists(matched_weights_multiply);
-        isolate_if_exists(matched_weights_convert2);
-        isolate_if_exists(matched_matmul);
-        isolate_if_exists(matched_add);
-        isolate_if_exists(matched_topk);
-        isolate_if_exists(matched_softmax);
-        isolate_if_exists(matched_topk_convert);
-        isolate_if_exists(matched_shapeof_topk);
-        isolate_if_exists(matched_slice);
-        isolate_if_exists(matched_shapeof);
-        isolate_if_exists(matched_broadcast);
-        isolate_if_exists(matched_scatter);
-        isolate_if_exists(matched_transpose);
-        isolate_if_exists(matched_reshape);
-        isolate_if_exists(matched_unsqueeze);
+    Key difference from GPT-OSS: Softmax is BEFORE TopK (not after).
+*/
+Qwen3Router::Qwen3Router([[maybe_unused]] const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
+                         [[maybe_unused]] const std::string& isol_tag) {
+    LOG_DEBUG("Qwen3Router pattern matcher registered (K-extraction only, no isolation)");
 
-        LOG_DEBUG("Router pattern isolated");
-        return false;
-    };
+    // Use shared score computation: MatMul -> Softmax -> TopK -> ReduceSum -> Divide
+    auto score_nodes = build_shared_router_score_pattern();
 
-    register_matcher(std::make_shared<opp::Matcher>(slice, "TagGPTOSSRouter"), std::move(callback));
+    // Qwen3-specific: optional Convert on TopK indices and optional Slice on Divide
+    auto topk_to_scatter = opp::optional<ov::op::v0::Convert>({score_nodes.topk});
+    auto divide_to_scatter = opp::optional<ov::op::v8::Slice>(
+        {score_nodes.divide, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
+
+    // Scatter inputs: any_input() for zero_broadcast, topk_to_scatter for indices, divide_to_scatter for scores
+    auto scatter_input = opp::wrap_type<ov::op::v12::ScatterElementsUpdate>(
+        {opp::any_input(), topk_to_scatter, divide_to_scatter, opp::any_input()});
+    auto unsqueeze = build_shared_router_tail(scatter_input);
+
+    // Shared K-value extraction and validation callback.
+    register_matcher(std::make_shared<opp::Matcher>(unsqueeze, "TagQwen3Router"),
+                     make_router_k_callback(score_nodes.topk, "Qwen3Router"));
+}
+
+/*
+    Gemma4 Expert Pattern:
+
+    Input:
+        Tile -> Reshape1
+
+    Gate projection (with weights Convert1) -> Gelu:
+        Reshape1 -> MatMul1 (Multiply -> Convert) -> Gelu
+
+    Up projection (with weights Convert2):
+        Reshape1 -> MatMul2 (Multiply -> Convert)
+
+    SwiGLU merge:
+        Gelu + MatMul2 -> Multiply1
+
+    Down projection (with weights Convert3) -> Reshape2:
+        Multiply1 -> MatMul3 (Multiply -> Convert) -> Reshape2
+
+    Output:
+        Reshape2 -> Multiply2 (with scattered router scores)   <-- pattern root
+
+    Isolation strategy:
+    - Prefill (token_count > 1): Isolate up to Multiply2; ReduceSum stays in downstream
+    - Decoding (token_count == 1): Isolate including ReduceSum
+
+    Key differences from Qwen3Expert:
+    - Gate activation is Gelu (Qwen3Expert uses Swish)
+*/
+Gemma4Expert::Gemma4Expert(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
+    auto [matcher, callback] = make_swiglu_expert_matcher<ov::op::v7::Gelu>(snapshot, isol_tag, "Gemma4");
+    register_matcher(std::move(matcher), std::move(callback));
+}
+
+/*
+    Gemma4 Router Pattern:
+
+    Shared score computation (MatMul -> Softmax -> TopK -> ReduceSum -> Divide):
+        MatMul inputs may be quantized or non-quantized; pattern uses any_input() for flexibility
+
+    Gemma4-specific scores path (per-expert learned scale):
+        Gather(per_expert_scale, topk_indices) -> Multiply(Divide, Gather) -> Slice
+        per-expert scale is combined with renormalized scores before scatter
+
+    Scatter to full expert dimension:
+        ScatterElementsUpdate -> Transpose -> Reshape -> Unsqueeze   <-- pattern root
+
+    Key difference from Qwen3Router:
+    - Per-expert learned scale applied via Gather+Multiply before scatter (mandatory in Gemma4)
+*/
+Gemma4Router::Gemma4Router([[maybe_unused]] const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
+                           [[maybe_unused]] const std::string& isol_tag) {
+    // Use shared score computation: MatMul -> Softmax -> TopK -> ReduceSum -> Divide
+    auto score_nodes = build_shared_router_score_pattern();
+
+    // Gemma4-specific: Per-expert learned scale via Gather, then Multiply and Slice
+    // TopK output(1) (indices) goes through Convert before Gather port 1;
+    // wrap_type can only express output(0), so both use any_input().
+    auto gather = opp::wrap_type<ov::op::v8::Gather>({opp::any_input(), opp::any_input(), opp::any_input()});
+    auto scores_multiply = opp::wrap_type<ov::op::v1::Multiply>({score_nodes.divide, gather});
+    auto slice = opp::wrap_type<ov::op::v8::Slice>(
+        {scores_multiply, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
+
+    // Scatter inputs: any_input() for indices and zero_broadcast, slice for scores
+    auto scatter_input = opp::wrap_type<ov::op::v12::ScatterElementsUpdate>(
+        {opp::any_input(), opp::any_input(), slice, opp::any_input()});
+    auto unsqueeze = build_shared_router_tail(scatter_input);
+
+    // Shared K-value extraction and validation callback.
+    register_matcher(std::make_shared<opp::Matcher>(unsqueeze, "TagGemma4Router"),
+                     make_router_k_callback(score_nodes.topk, "Gemma4Router"));
 }
 
 }  // namespace moe

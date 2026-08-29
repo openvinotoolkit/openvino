@@ -53,7 +53,6 @@ struct experimental_detectron_generate_proposals_single_image
            int64_t pre_nms_count,
            int64_t post_nms_count) :
             primitive_base{id, {input_im_info, input_anchors, input_deltas, input_scores}},
-            output_roi_scores{},
             min_size{min_size},
             nms_threshold{nms_threshold},
             pre_nms_count{pre_nms_count},

@@ -6,7 +6,7 @@
 
 #include "openvino/core/shape_util.hpp"
 #include "openvino/core/type/element_iterator.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/math_util.hpp"
 
 namespace ov::util {
 namespace {

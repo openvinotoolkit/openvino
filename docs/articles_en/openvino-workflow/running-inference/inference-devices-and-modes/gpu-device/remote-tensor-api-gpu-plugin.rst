@@ -233,6 +233,19 @@ For more details, see the code snippets below:
                :language: cpp
                :fragment: [wrap_usm_pointer]
 
+         .. tab-item:: CPU pointer
+            :sync: cpu-pointer
+
+            Use this overload when your application owns a CPU virtual address, for example memory
+            allocated with ``ov::util::aligned_alloc`` or memory mapped from a file. On the OpenCL
+            backend, the pointer address and allocation size must be aligned to
+            ``ov::intel_gpu::cacheline_size``. The memory must remain valid for the whole lifetime of
+            the created remote tensor.
+
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation.cpp
+               :language: cpp
+               :fragment: [wrap_cpu_pointer]
+
          .. tab-item:: cl_mem
             :sync: cl-mem
 
@@ -253,6 +266,33 @@ For more details, see the code snippets below:
             .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation.cpp
                :language: cpp
                :fragment: [wrap_cl_image]
+
+         .. tab-item:: external shared handle
+            :sync: external-shared-handle
+
+            Use this overload when your application already owns an OS-level shared memory handle
+            (for example, DX12 NT handle on Windows or DMA-BUF file descriptor on Linux).
+
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation.cpp
+               :language: cpp
+               :fragment: [wrap_shared_handle]
+
+            The ``shape`` and ``element type`` must describe the same memory layout as the external buffer.
+            The handle must remain valid for the whole lifetime of the created remote tensor.
+
+         .. tab-item:: file
+            :sync: file
+
+            Use this overload to wrap tensor data stored in a file. The access mode is declared in the
+            descriptor: ``AccessMode::READ`` maps the file read-only and may only be used as an inference
+            input, while ``AccessMode::READ_WRITE`` requires a writable file, may be used as an inference
+            output, and makes changes done through the tensor visible in the file. The plugin keeps the
+            mapping alive for the whole lifetime of the created remote tensor, so the file must not
+            otherwise be modified until the tensor is destroyed.
+
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation.cpp
+               :language: cpp
+               :fragment: [wrap_file]
 
          .. tab-item:: biplanar NV12 surface
             :sync: biplanar-nv12-surface

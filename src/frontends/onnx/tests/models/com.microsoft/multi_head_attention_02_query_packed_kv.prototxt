@@ -1,0 +1,44 @@
+ir_version: 10
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "query"
+    input: "key"
+    output: "output"
+    name: "MultiHeadAttention_02_query_packed_kv"
+    op_type: "MultiHeadAttention"
+    attribute {
+      name: "num_heads"
+      i: 2
+      type: INT
+    }
+    domain: "com.microsoft"
+  }
+  name: "multi_head_attention_02_query_packed_kv"
+  input {
+    name: "query"
+    type { tensor_type { elem_type: 1
+      shape { dim { dim_value: 1 } dim { dim_value: 4 } dim { dim_value: 6 } } } }
+  }
+  input {
+    name: "key"
+    type { tensor_type { elem_type: 1
+      shape {
+        dim { dim_value: 1 }
+        dim { dim_value: 4 }
+        dim { dim_value: 2 }
+        dim { dim_value: 2 }
+        dim { dim_value: 3 }
+      } } }
+  }
+  output {
+    name: "output"
+    type { tensor_type { elem_type: 1
+      shape { dim { dim_value: 1 } dim { dim_value: 4 } dim { dim_value: 6 } } } }
+  }
+}
+opset_import { version: 11 }
+opset_import {
+  domain: "com.microsoft"
+  version: 1
+}

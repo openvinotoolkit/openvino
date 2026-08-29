@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "intel_npu/common/filtered_config.hpp"
+#include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
@@ -19,7 +20,8 @@ namespace intel_npu {
 
 class VCLCompilerImpl final : public std::enable_shared_from_this<VCLCompilerImpl> {
 public:
-    VCLCompilerImpl(const std::string& library_dir);
+    VCLCompilerImpl(const std::string& libraryDir,
+                    const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt);
     ~VCLCompilerImpl();
 
     /**
@@ -37,11 +39,12 @@ public:
     /**
      * @brief Compiles the model, weights separation enabled. All init schedules along with the main one are compiled in
      * the same scope.
-     * @return An ov::Tensor object for each init schedule, followed by another one corresponding to the main
-     * part.
+     * @return A pair containing one ov::Tensor for each init schedule, followed by another one corresponding to the
+     * main part, and an optional compatibility string for the compiled blobs.
      */
-    std::vector<ov::Tensor> compileWsOneShot(const std::shared_ptr<ov::Model>& model,
-                                             const FilteredConfig& config) const;
+    std::pair<std::vector<ov::Tensor>, std::optional<std::string>> compileWsOneShot(
+        const std::shared_ptr<ov::Model>& model,
+        const FilteredConfig& config) const;
     /**
      * @brief Sequential compilation of Init(s) and Main
      *
@@ -53,12 +56,12 @@ public:
      *                          Allocate W3 -> Init2
      *
      * This is why there is an additional parameter callNumber:
-     * Compiler should somehow understand wich Init(or Main) to return
+     * Compiler should somehow understand which Init (or Main) to return
      * Plugin does not know total numbers of Init schedules
      */
-    ov::Tensor compileWsIterative(const std::shared_ptr<ov::Model>& model,
-                                  const FilteredConfig& config,
-                                  size_t callNumber) const;
+    std::pair<ov::Tensor, std::optional<std::string>> compileWsIterative(const std::shared_ptr<ov::Model>& model,
+                                                                         const FilteredConfig& config,
+                                                                         size_t callNumber) const;
     /**
      * @brief Returns information about supported layers of the network passed
      * @param model The model to be queried
@@ -81,25 +84,19 @@ public:
 
     /**
      * @brief Returns the compiler supported options list
-     * @return false if the API is not supported, true otherwise
      */
-    bool get_supported_options(std::vector<char>& options) const;
-
-    bool is_option_supported(std::string option, std::optional<std::string> optValue = std::nullopt) const;
-
-    std::shared_ptr<void> getLinkedLibrary() const;
+    void get_supported_options(std::vector<char>& options) const;
 
     /**
-     * @brief Validates the compatibility descriptor against the current device information.
-     * This function is used as a fallback check when the driver on the system does not support the required API
-     * @param compatibilityDescriptor The compatibility descriptor (string) to be validated
-     * @param in_device_desc Pointer to a device descriptor containing the device ID, number of
-     * tiles and stepping information
-     * @return false if the platform does not meet the requirements specified in the compatibility descriptor,
-     * true if the platform is compatible
+     * @brief Checks whether the given option and value are supported by the compiler
+     * @param option The option name to check
+     * @param optValue The option value to validate
+     * @return true if the option and value are supported, false otherwise
      */
-    bool validate_compatibility_descriptor(const std::string& compatibilityDescriptor,
-                                           vcl_device_desc_t* in_device_desc) const;
+    bool is_option_supported(const std::string& option,
+                             const std::optional<std::string>& optValue = std::nullopt) const;
+
+    std::shared_ptr<void> getLinkedLibrary() const;
 
 private:
     /**

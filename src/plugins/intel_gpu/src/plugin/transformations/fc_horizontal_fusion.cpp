@@ -51,9 +51,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                 return true;
             if (ov::as_type_ptr<ov::op::v0::Convert>(node) && ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0)))
                 return true;
-            if (ov::as_type_ptr<ov::op::v1::Transpose>(node) && ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0)))
-                return true;
-            return false;
+            return ov::as_type_ptr<ov::op::v1::Transpose>(node) && ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0));
         };
         auto is_placeholder = [](const std::shared_ptr<ov::Node> node) {
             return ov::as_type_ptr<op::Placeholder>(node);
@@ -70,6 +68,15 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             const auto& fc_user = ov::as_type_ptr<op::FullyConnectedCompressed>(u);
             if (!fc_user)
                 continue;
+
+            // Skip horizontal fusion when the weight is not a constant. The fused-weight Concat
+            // created during fusion relies on constant-folding at compile time; with a non-constant
+            // weight (e.g. weights provided as runtime inputs) it cannot fold, survives to program
+            // build, and may hit formats/types without a Concat implementation. Even when a Concat
+            // impl exists, concatenating weights on every inference is pure overhead with no benefit.
+            if (!is_constant(fc_user->get_input_node_shared_ptr(1)))
+                return false;
+
             auto num_inputs = fc_user->inputs().size();
             if (num_inputs >= 5)
                 nodes_with_zp++;
@@ -120,12 +127,15 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                     zp_nodes.push_back(fc_user->get_input_node_shared_ptr(4));
             }
         }
-        // fc weight is already transposed to [N, K]
+        // Weight layout depends on transpose_b: [N, K] when transpose_b=true (default),
+        // [K, N] when transpose_b=false.
         const size_t weight_idx = 1;
         if (fc_nodes[0]->get_input_shape(weight_idx).size() != 2)
             return false;
-        const size_t n_axis = 0;
-        const size_t k_axis = 1;
+        const bool transpose_b = fc_nodes[0]->get_transpose_b();
+        // n_axis is the output (N) dimension, k_axis the contraction (K) dimension.
+        const size_t n_axis = transpose_b ? 0 : 1;
+        const size_t k_axis = transpose_b ? 1 : 0;
         auto weight_dtype = fc_nodes[0]->get_input_element_type(weight_idx);
         auto k_size = fc_nodes[0]->get_input_shape(weight_idx)[k_axis];
         std::vector<int64_t> orig_n_sizes;
@@ -135,13 +145,15 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                 return false;
             if (weight_dtype != fc->get_input_element_type(weight_idx))
                 return false;
+            if (transpose_b != fc->get_transpose_b())
+                return false;
             orig_n_sizes.push_back(fc->get_input_shape(weight_idx)[n_axis]);
         }
         ov::OutputVector weight_nodes_as_output_vector;
         for (size_t i = 0; i < weight_nodes.size(); ++i) {
             weight_nodes_as_output_vector.push_back(weight_nodes[i]->output(0));
         }
-        auto fused_weight = std::make_shared<ov::op::v0::Concat>(weight_nodes_as_output_vector, 0);
+        auto fused_weight = std::make_shared<ov::op::v0::Concat>(weight_nodes_as_output_vector, transpose_b ? 0 : 1);
         fused_weight->set_friendly_name(weight_nodes[0]->get_friendly_name() + "_fused_weight");
         ov::copy_runtime_info(weight_nodes, fused_weight);
 
@@ -228,7 +240,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         }
 
         std::shared_ptr<ov::Node> fused_zps;
-        if (zp_nodes.size() > 0) {
+        if (!zp_nodes.empty()) {
             // scalar zp
             auto zp_shape = zp_nodes[0]->get_output_shape(0);
             bool is_scalar = (ov::shape_size(zp_nodes[0]->get_output_shape(0)) == 1);
@@ -278,13 +290,15 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                                                                     fused_bias,
                                                                     fused_scale,
                                                                     fused_zps,
-                                                                    fc_nodes[0]->get_output_type());
+                                                                    fc_nodes[0]->get_output_type(),
+                                                                    transpose_b);
         else
             new_fc = std::make_shared<op::FullyConnectedCompressed>(input_node,
                                                                     fused_weight,
                                                                     fused_bias,
                                                                     fused_scale,
-                                                                    fc_nodes[0]->get_output_type());
+                                                                    fc_nodes[0]->get_output_type(),
+                                                                    transpose_b);
 
         auto new_fc_name = fc_nodes[0]->get_friendly_name() + "_fused_" + std::to_string(fc_nodes.size()) + "FCs";
         new_fc->set_friendly_name(new_fc_name);
@@ -335,7 +349,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                 can_be_merged = false;
                 break;
             }
-            auto target_node = output.get_target_inputs().begin()->get_node();
+            auto* target_node = output.get_target_inputs().begin()->get_node();
             if (!ov::is_type<ov::op::v1::Multiply>(target_node)) {
                 can_be_merged = false;
                 break;
@@ -366,7 +380,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             ov::NodeVector fused_mul_nodes;
             output_split->input(0).replace_source_output(new_mul);
             for (auto& output : output_split->outputs()) {
-                auto target_node = output.get_target_inputs().begin()->get_node();
+                auto* target_node = output.get_target_inputs().begin()->get_node();
                 fused_mul_nodes.push_back(target_node->shared_from_this());
                 ov::replace_output_update_name(target_node->output(0), output);
             }

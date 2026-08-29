@@ -1,0 +1,69 @@
+ir_version: 7
+graph {
+  node {
+    input: "a"
+    input: "b"
+    input: "c"
+    output: "seq"
+    op_type: "SequenceConstruct"
+  }
+  node {
+    input: "seq"
+    output: "len"
+    op_type: "SequenceLength"
+  }
+  name: "sal_sequence_length_static_n"
+  input {
+    name: "a"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "b"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "c"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "len"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 15
+}

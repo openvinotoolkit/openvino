@@ -15,18 +15,33 @@ namespace threading {
 
 void get_cur_stream_info(const int stream_id,
                          const bool cpu_pinning,
-                         const std::vector<std::vector<int>> proc_type_table,
-                         const std::vector<std::vector<int>> streams_info_table,
+                         const std::vector<std::vector<int>>& proc_type_table,
+                         const std::vector<std::vector<int>>& streams_info_table,
                          StreamCreateType& stream_type,
                          int& concurrency,
-                         int& core_type,
+                         std::vector<int>& core_types,
                          int& numa_node_id,
                          int& socket_id,
                          int& max_threads_per_core) {
+    const auto append_core_type = [](std::vector<int>& proc_core_types, int proc_core_type) {
+        if (std::find(proc_core_types.begin(), proc_core_types.end(), proc_core_type) == proc_core_types.end()) {
+            proc_core_types.push_back(proc_core_type);
+        }
+    };
+    const auto get_bindable_core_type_count = [](const std::vector<std::vector<int>>& available_proc_type_table) {
+        if (available_proc_type_table.empty()) {
+            return 0;
+        }
+
+        return static_cast<int>(available_proc_type_table[0][MAIN_CORE_PROC] > 0) +
+               static_cast<int>(available_proc_type_table[0][EFFICIENT_CORE_PROC] > 0) +
+               static_cast<int>(available_proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0);
+    };
+
     int stream_total = 0;
     size_t stream_info_id = 0;
     bool pinning = cpu_pinning;
-    bool ecore_used = false;
+    core_types.clear();
     for (size_t i = 0; i < streams_info_table.size(); i++) {
         stream_total += std::abs(streams_info_table[i][NUMBER_OF_STREAMS]);
         if (stream_id < stream_total) {
@@ -35,17 +50,18 @@ void get_cur_stream_info(const int stream_id,
         }
     }
     concurrency = streams_info_table[stream_info_id][THREADS_PER_STREAM];
-    core_type = streams_info_table[stream_info_id][PROC_TYPE];
+    int core_type = streams_info_table[stream_info_id][PROC_TYPE];
     numa_node_id = streams_info_table[stream_info_id][STREAM_NUMA_NODE_ID];
     socket_id = streams_info_table[stream_info_id][STREAM_SOCKET_ID];
     max_threads_per_core = 1;
     if (core_type == ALL_PROC) {
         for (size_t i = stream_info_id + 1; i < streams_info_table.size(); i++) {
             if (streams_info_table[i][NUMBER_OF_STREAMS] == 0) {
-                if (streams_info_table[i][PROC_TYPE] == EFFICIENT_CORE_PROC) {
-                    ecore_used = true;
-                } else if (streams_info_table[i][PROC_TYPE] == HYPER_THREADING_PROC) {
+                if (streams_info_table[i][PROC_TYPE] == HYPER_THREADING_PROC) {
                     max_threads_per_core = 2;
+                    append_core_type(core_types, MAIN_CORE_PROC);
+                } else {
+                    append_core_type(core_types, streams_info_table[i][PROC_TYPE]);
                 }
             } else {
                 break;
@@ -53,24 +69,27 @@ void get_cur_stream_info(const int stream_id,
         }
     } else if (core_type == HYPER_THREADING_PROC) {
         max_threads_per_core = 2;
+        append_core_type(core_types, MAIN_CORE_PROC);
     }
 
 #if defined(__APPLE__)
     pinning = false;
 #endif
+    if (core_type != ALL_PROC && core_types.empty()) {
+        append_core_type(core_types, core_type == HYPER_THREADING_PROC ? MAIN_CORE_PROC : core_type);
+    }
+
     if (pinning) {
         stream_type = STREAM_WITH_OBSERVE;
     } else {
         stream_type = STREAM_WITHOUT_PARAM;
         // Pcore only or Ecore only with no cpu binding in hybrid cores machine
-        if ((proc_type_table[0][EFFICIENT_CORE_PROC] > 0 || proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0) &&
-            core_type != ALL_PROC) {
-            stream_type = STREAM_WITH_CORE_TYPE;
-        } else if ((proc_type_table[0][EFFICIENT_CORE_PROC] > 0 || proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0) &&
-                   core_type == ALL_PROC &&
-                   !ecore_used) {  // Latency mode and enable hyper threading in hybrid cores machine
-            stream_type = STREAM_WITH_CORE_TYPE;
-            core_type = MAIN_CORE_PROC;
+        if (!proc_type_table.empty() &&
+            (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 || proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0)) {
+            const auto bindable_core_types = get_bindable_core_type_count(proc_type_table);
+            if (!core_types.empty() && core_types.size() < static_cast<size_t>(bindable_core_types)) {
+                stream_type = STREAM_WITH_CORE_TYPE;
+            }
         } else if (proc_type_table.size() > 1 && numa_node_id >= 0 &&
                    // Both commands "numactl" and "docker run --cpuset-cpus" can restrict the use of numa nodes.
                    // Some situation of numa_node_id differs from the original numa_node_id may cause oneTBB to crash

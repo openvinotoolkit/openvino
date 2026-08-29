@@ -35,10 +35,6 @@ struct PERFORMANCE_HINT final : OptionBase<PERFORMANCE_HINT, ov::hint::Performan
         return ov::PropertyMutability::RW;
     }
 
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(0, 0);
-    }
-
     static OptionMode mode() {
         return OptionMode::Both;
     }
@@ -120,10 +116,6 @@ struct PERFORMANCE_HINT_NUM_REQUESTS final : OptionBase<PERFORMANCE_HINT_NUM_REQ
         return ov::PropertyMutability::RW;
     }
 
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(0, 0);
-    }
-
     static OptionMode mode() {
         return OptionMode::RunTime;
     }
@@ -140,10 +132,6 @@ struct INFERENCE_PRECISION_HINT final : OptionBase<INFERENCE_PRECISION_HINT, ov:
 
     static ov::element::Type defaultValue() {
         return ov::element::f16;
-    }
-
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(5, 4);
     }
 
     static bool isPublic() {
@@ -190,10 +178,6 @@ struct PERF_COUNT final : OptionBase<PERF_COUNT, bool> {
         return ov::PropertyMutability::RW;
     }
 
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(0, 0);
-    }
-
     static OptionMode mode() {
         return OptionMode::Both;
     }
@@ -212,10 +196,6 @@ struct LOG_LEVEL final : OptionBase<LOG_LEVEL, ov::log::Level> {
         return "OV_NPU_LOG_LEVEL";
     }
 
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(0, 0);
-    }
-
     static OptionMode mode() {
         return OptionMode::Both;
     }
@@ -230,6 +210,47 @@ struct LOG_LEVEL final : OptionBase<LOG_LEVEL, ov::log::Level> {
 
     static bool isPublic() {
         return true;
+    }
+};
+
+// The option is intentionally left without a default value: an unset option means it inherits LOG_LEVEL, which
+// cannot be expressed from defaultValue() alone (it has no visibility of other options). resolve() implements
+// that fallback.
+struct COMPILE_LOG_LEVEL final : OptionBase<COMPILE_LOG_LEVEL, ov::log::Level> {
+    static std::string_view key() {
+        return ov::intel_npu::compile_log_level.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "ov::log::Level";
+    }
+
+    static std::string_view envVar() {
+        return "OV_NPU_COMPILE_LOG_LEVEL";
+    }
+
+    // RunTime despite its name: this is a plugin-side knob, never serialized to the compiler under its own key.
+    // serializeConfig() resolves it and forwards the result to the compiler under the compiler-understood
+    // LOG_LEVEL key instead.
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+
+    static bool isPublic() {
+        return false;
+    }
+
+    /**
+     * @brief Returns the effective compile log level.
+     * @param config The configuration to resolve the compile log level against.
+     * @return The explicitly-set COMPILE_LOG_LEVEL when present (via property or OV_NPU_COMPILE_LOG_LEVEL env
+     * var), otherwise the plugin LOG_LEVEL it inherits from.
+     */
+    static ov::log::Level resolve(const Config& config) {
+        if (config.has<COMPILE_LOG_LEVEL>()) {
+            return config.get<COMPILE_LOG_LEVEL>();
+        }
+        return config.get<LOG_LEVEL>();
     }
 };
 
@@ -250,10 +271,6 @@ struct PLATFORM final : OptionBase<PLATFORM, std::string> {
 
     static bool isPublic() {
         return true;
-    }
-
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(0, 0);
     }
 
     static OptionMode mode() {
@@ -280,10 +297,6 @@ struct DEVICE_ID final : OptionBase<DEVICE_ID, std::string> {
 
     static ov::PropertyMutability mutability() {
         return ov::PropertyMutability::RW;
-    }
-
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(0, 0);
     }
 
     static OptionMode mode() {
@@ -432,10 +445,6 @@ struct BATCH_MODE final : OptionBase<BATCH_MODE, ov::intel_npu::BatchMode> {
 
     static ov::intel_npu::BatchMode defaultValue() {
         return ov::intel_npu::BatchMode::AUTO;
-    }
-
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(5, 5);
     }
 
     static bool isPublic() {
@@ -766,10 +775,6 @@ struct TURBO final : OptionBase<TURBO, bool> {
         return true;
     }
 
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(7, 21);
-    }
-
     static OptionMode mode() {
         return OptionMode::Both;
     }
@@ -877,10 +882,6 @@ struct COMPILATION_MODE final : OptionBase<COMPILATION_MODE, std::string> {
         return "";
     }
 
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(0, 0);
-    }
-
     static OptionMode mode() {
         return OptionMode::CompileTime;
     }
@@ -905,10 +906,6 @@ struct EXECUTION_MODE_HINT final : OptionBase<EXECUTION_MODE_HINT, ov::hint::Exe
 
     static ov::hint::ExecutionMode defaultValue() {
         return ov::hint::ExecutionMode::PERFORMANCE;
-    }
-
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(5, 6);
     }
 
     static OptionMode mode() {
@@ -939,10 +936,6 @@ struct DYNAMIC_SHAPE_TO_STATIC final : OptionBase<DYNAMIC_SHAPE_TO_STATIC, bool>
         return false;
     }
 
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(0, 0);
-    }
-
     static OptionMode mode() {
         return OptionMode::CompileTime;
     }
@@ -963,10 +956,6 @@ struct COMPILATION_MODE_PARAMS final : OptionBase<COMPILATION_MODE_PARAMS, std::
 
     static std::string defaultValue() {
         return {};
-    }
-
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(0, 0);
     }
 
     static OptionMode mode() {
@@ -1003,10 +992,6 @@ struct TILES final : OptionBase<TILES, int64_t> {
         return true;
     }
 
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(5, 4);
-    }
-
     static ov::PropertyMutability mutability() {
         return ov::PropertyMutability::RW;
     }
@@ -1031,10 +1016,6 @@ struct STEPPING final : OptionBase<STEPPING, int64_t> {
         return -1;
     }
 
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(5, 3);
-    }
-
     static OptionMode mode() {
         return OptionMode::CompileTime;
     }
@@ -1055,10 +1036,6 @@ struct MAX_TILES final : OptionBase<MAX_TILES, int64_t> {
 
     static std::vector<std::string_view> deprecatedKeys() {
         return {};
-    }
-
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(5, 3);
     }
 
     static int64_t defaultValue() {
@@ -1091,10 +1068,6 @@ struct DMA_ENGINES final : OptionBase<DMA_ENGINES, int64_t> {
         return -1;
     }
 
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(0, 0);
-    }
-
     static OptionMode mode() {
         return OptionMode::CompileTime;
     }
@@ -1121,10 +1094,6 @@ struct BACKEND_COMPILATION_PARAMS final : OptionBase<BACKEND_COMPILATION_PARAMS,
 
     static std::string defaultValue() {
         return {};
-    }
-
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(0, 0);
     }
 
     static OptionMode mode() {
@@ -1155,10 +1124,6 @@ struct COMPILATION_NUM_THREADS final : OptionBase<COMPILATION_NUM_THREADS, int32
         }
     }
 
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(0, 0);
-    }
-
     static OptionMode mode() {
         return OptionMode::CompileTime;
     }
@@ -1183,10 +1148,6 @@ struct COMPILER_DYNAMIC_QUANTIZATION final : OptionBase<COMPILER_DYNAMIC_QUANTIZ
 
     static OptionMode mode() {
         return OptionMode::CompileTime;
-    }
-
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(7, 1);
     }
 
     static bool isPublic() {
@@ -1249,10 +1210,6 @@ struct QDQ_OPTIMIZATION final : OptionBase<QDQ_OPTIMIZATION, bool> {
 
     static bool isPublic() {
         return true;
-    }
-
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(7, 20);
     }
 };
 
@@ -1345,10 +1302,6 @@ struct BATCH_COMPILER_MODE_SETTINGS final : OptionBase<BATCH_COMPILER_MODE_SETTI
 
     static OptionMode mode() {
         return OptionMode::CompileTime;
-    }
-
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(7, 4);
     }
 
     static bool isPublic() {
@@ -1508,7 +1461,7 @@ struct SHARED_COMMON_QUEUE final : OptionBase<SHARED_COMMON_QUEUE, bool> {
     }
 
     static bool defaultValue() {
-        return true;
+        return false;
     }
 
     static OptionMode mode() {

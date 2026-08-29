@@ -49,7 +49,7 @@ ReorgYolo::ReorgYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
     const auto reorgYolo = ov::as_type_ptr<const ov::op::v0::ReorgYolo>(op);
     const auto strides = reorgYolo->get_strides();
     CPU_NODE_ASSERT(!strides.empty(), "has empty strides");
-    stride = strides[0];
+    stride = static_cast<int>(strides[0]);
 }
 
 void ReorgYolo::initSupportedPrimitiveDescriptors() {
@@ -71,10 +71,10 @@ void ReorgYolo::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto* dst_data = getDstDataAtPortAs<float>(0);
 
     const auto& inDims = getParentEdgeAt(0)->getMemory().getStaticDims();
-    int IW = (inDims.size() > 3) ? inDims[3] : 1;
-    int IH = (inDims.size() > 2) ? inDims[2] : 1;
-    int IC = (inDims.size() > 1) ? inDims[1] : 1;
-    int B = (!inDims.empty()) ? inDims[0] : 1;
+    int IW = (inDims.size() > 3) ? static_cast<int>(inDims[3]) : 1;
+    int IH = (inDims.size() > 2) ? static_cast<int>(inDims[2]) : 1;
+    int IC = (inDims.size() > 1) ? static_cast<int>(inDims[1]) : 1;
+    int B = (!inDims.empty()) ? static_cast<int>(inDims[0]) : 1;
 
     int ic_off = IC / (stride * stride);
     int ih_off = IH * stride;

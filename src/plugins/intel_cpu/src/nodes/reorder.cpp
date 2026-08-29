@@ -8,7 +8,6 @@
 #include <oneapi/dnnl/dnnl_types.h>
 
 #include <algorithm>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -53,6 +52,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "thread_pool_imp.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
@@ -145,7 +145,7 @@ void Reorder::initSupportedPrimitiveDescriptors() {
             // oneDNN JIT reorder shows bad perf for nspc to ncsp reorder case so we fallback on simple c++
             // implementation
             isNspc2NcspCase = true;
-        } else if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && any_of(inShape.getRank(), 4U, 5U) &&
+        } else if (!ov::with_cpu_x86_avx2() && any_of(inShape.getRank(), 4U, 5U) &&
                    config.inConfs[0].getMemDesc()->hasLayoutType(LayoutType::ncsp) &&
                    config.outConfs[0].getMemDesc()->hasLayoutType(LayoutType::nspc) &&
                    config.inConfs[0].getMemDesc()->getPrecision() == config.outConfs[0].getMemDesc()->getPrecision() &&
@@ -312,7 +312,7 @@ void Reorder::prepareParams() {
             if (dstStrides.back() != 1) {
                 return false;
             }
-            for (int i = inDims.size() - 1; i > 0; i--) {
+            for (int i = static_cast<int>(inDims.size()) - 1; i > 0; i--) {
                 if (dstStrides[i - 1] != dstStrides[i] * inDims[dstOrder[i]] && dstOrder[i] != channelDim) {
                     return false;
                 }
@@ -600,11 +600,11 @@ void Reorder::reorderData(const IMemory& input,
                 tmpBuff.resize(output.getSize());
 
                 const auto outPrc = DnnlExtensionUtils::DataTypeToElementType(output.getDataType());
-                cpu_convert(data,
-                            tmpBuff.data(),
-                            DnnlExtensionUtils::DataTypeToElementType(input.getDataType()),
-                            outPrc,
-                            input.getDesc().getShape().getElementsCount());
+                cpu_parallel_convert(data,
+                                     tmpBuff.data(),
+                                     DnnlExtensionUtils::DataTypeToElementType(input.getDataType()),
+                                     outPrc,
+                                     input.getDesc().getShape().getElementsCount());
 
                 auto tmpDesc = input.getDesc().cloneWithNewPrecision(outPrc);
                 Memory tmpMem(engine, tmpDesc, tmpBuff.data());

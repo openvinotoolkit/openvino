@@ -148,6 +148,7 @@ public:
     CommandQueue& operator=(const CommandQueue&) = delete;
     CommandQueue& operator=(CommandQueue&&) = delete;
 
+    void setWorkloadType(ze_command_queue_workload_type_t workloadType) const;
     void executeCommandList(CommandList& command_list) const;
     void executeCommandList(CommandList& command_list, Fence& fence) const;
     ~CommandQueue();

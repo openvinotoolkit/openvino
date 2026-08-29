@@ -35,7 +35,7 @@ protected:
 
 private:
     void initFromInputs() override;
-    void getIndices(size_t embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) override;
+    void getIndices(size_t embIndex, const int*& indices, size_t& size, size_t& weightsIdx, bool& withWeight) override;
 
     const int* _indices = nullptr;
     size_t _batch = 0;

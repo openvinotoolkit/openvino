@@ -9,6 +9,7 @@
 #include <string_view>
 
 #include "async_infer_request.hpp"
+#include "compiled_model_property_manager.hpp"
 #include "executor.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/itt.hpp"
@@ -38,13 +39,21 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     // Support for specific properties might depend on the characteristics of the compiled model.
     // Adjust lower level config availability to influence the supported properties list if needed
     FilteredConfig localConfig = config;
-    if (!_graph->get_compatibility_descriptor().has_value()) {
-        _logger.debug("Graph's compatibility descriptor has no value. Disabling RUNTIME_REQUIREMENTS property.");
-        localConfig.enable(ov::runtime_requirements.name(), false);
-    }
 
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
-    _propertiesManager = std::make_unique<Properties>(PropertiesType::COMPILED_MODEL, localConfig);
+    _propertiesManager = std::make_unique<CompiledModelPropertyManager>(localConfig, _graph, _batchSize, _logger);
+
+    OPENVINO_ASSERT(_graph != nullptr, "Invalid graph handle! Failed to initialize compiled model!");
+    _logger.info("The current compiled model is a %s one", to_string(_graph->get_kind()));
+
+    // Immediate-init path: when weights load is not deferred, initialize the graph now.
+    // The deferred path (CREATE_EXECUTOR off or DEFER_WEIGHTS_LOAD on) is handled in create_infer_request().
+    const FilteredConfig& modelConfig = _propertiesManager->getConfig();
+    if (modelConfig.get<CREATE_EXECUTOR>() && !modelConfig.get<DEFER_WEIGHTS_LOAD>()) {
+        _graph->initialize(modelConfig);
+    } else {
+        _logger.info("Graph initialize is deferred; weights will be loaded on the first infer request creation.");
+    }
 
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
 }
@@ -105,12 +114,6 @@ void CompiledModel::export_model(std::ostream& stream) const {
             encryptedBlobStr =
                 _propertiesManager->getConfig().get<CACHE_ENCRYPTION_CALLBACKS>().encrypt(tmpBlobStr);  // +2x blob size
             blobSizeAfterEncryption = encryptedBlobStr.size();
-            if (blobSizeAfterEncryption.value() % utils::STANDARD_PAGE_SIZE != 0) {
-                _logger.warning("Encrypted blob size %" PRIu64
-                                " is not page aligned, memory optimization when reading this blob "
-                                "won't be applied",
-                                blobSizeAfterEncryption.value());
-            }
         }  // -1x blob size when deallocating temporary blob string
         stream.write(encryptedBlobStr.c_str(), encryptedBlobStr.size());
     }  // -1x blob size when deallocating encrypted blob string
@@ -145,7 +148,8 @@ void CompiledModel::export_model(std::ostream& stream) const {
                                            outputLayouts,
                                            compilerVersion,
                                            blobSizeAfterEncryption,
-                                           _graph->get_compatibility_descriptor())
+                                           _graph->get_compatibility_descriptor(),
+                                           _graph->get_blob_type())
             .write(stream);
     }
 }
@@ -216,43 +220,6 @@ void CompiledModel::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
-    // special cases
-    if (name == ov::model_name.name()) {
-        OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
-        return _graph->get_metadata().name;
-    } else if (name == ov::runtime_requirements.name()) {
-        // Reading the (dummy) property content to check if it is supported
-        _propertiesManager->getProperty(name);
-
-        auto compatibilityDescriptor = _graph->get_compatibility_descriptor();
-        if (compatibilityDescriptor.has_value()) {
-            const auto descriptorView = compatibilityDescriptor.value();
-            _logger.debug("Runtime requirements from the graph %.*s length: %zu",
-                          static_cast<int>(descriptorView.size()),
-                          descriptorView.data(),
-                          descriptorView.size());
-        }
-
-        std::ostringstream requirementsString;
-        Metadata<CURRENT_METADATA_VERSION>(
-            0,  // no real blob
-            CURRENT_OPENVINO_VERSION,
-            std::nullopt,  // weightless blobs are not supported
-            _batchSize,
-            std::nullopt,  // input_layouts are not relevant for the compatibility check
-            std::nullopt,  // output_layouts are not relevant for the compatibility check
-            std::nullopt,  // skip compiler version as well since it is already included in runtime requirements string
-            std::nullopt,  // skip encrypted blob size since it is not relevant for the compatibility check
-            compatibilityDescriptor)
-            .write_as_text(requirementsString);
-        _logger.debug("Runtime requirements string: %s length: %zu",
-                      requirementsString.str().c_str(),
-                      requirementsString.str().length());
-
-        return requirementsString.str();
-    }
-
-    // default behaviour
     return _propertiesManager->getProperty(name);
 }
 

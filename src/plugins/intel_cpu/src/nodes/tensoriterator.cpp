@@ -84,7 +84,7 @@ static void redefineToMemories(const std::vector<MemoryPtr>& to_mems, const Memo
 }
 
 // this method get all memory ptrs of childs of one port to redefine descs for them
-static std::vector<MemoryPtr> getToMemories(const Node* node, const size_t port) {
+static std::vector<MemoryPtr> getToMemories(const Node* node, const int port) {
     std::vector<MemoryPtr> memories;
     for (auto& edge : node->getChildEdgesAtPort(port)) {
         memories.push_back(edge->getMemoryPtr());
@@ -126,7 +126,7 @@ public:
         auto abs_stride = std::abs(stride);
         auto sign_of_stride = stride < 0 ? -1 : 1;
 
-        iter_count = full_dims[axis] / abs_stride;
+        iter_count = static_cast<int>(full_dims[axis] / abs_stride);
 
         full_dims[axis] = abs_stride;
         OPENVINO_ASSERT(full_dims == part_dims, "Shape mismatch for tensor iterator port");
@@ -686,6 +686,7 @@ void TensorIterator::execute(const dnnl::stream& strm) {
 
     bool continue_cond = initial_cond_check->getStatus() != 0;
     int max_num_iter = trip_count_check->getStatus();
+    const bool has_executed = max_num_iter != 0 && continue_cond;
 
     for (auto& mapper : first_mappers) {
         mapper.second->execute(strm, -1);
@@ -710,7 +711,9 @@ void TensorIterator::execute(const dnnl::stream& strm) {
     }
 
     for (auto& mapper : last_mappers) {
-        mapper->execute(strm, -1);
+        // If the body has produced nothing, a loop carried dependency output keeps its initial value
+        const bool use_initial_value = !has_executed && mapper.zeroIterMapper;
+        (use_initial_value ? mapper.zeroIterMapper : mapper.mapper)->execute(strm, -1);
     }
 }
 
@@ -720,6 +723,7 @@ void TensorIterator::executeDynamicImpl(const dnnl::stream& strm) {
 
     bool continue_cond = initial_cond_check->getStatus() != 0;
     int max_num_iter = trip_count_check->getStatus();
+    const bool has_executed = max_num_iter != 0 && continue_cond;
 
     for (auto& mapper : first_mappers) {
         mapper.second->execute(strm, -1);
@@ -749,7 +753,7 @@ void TensorIterator::executeDynamicImpl(const dnnl::stream& strm) {
         }
     }
 
-    reshapeAndFillOutput(strm);
+    reshapeAndFillOutput(strm, !has_executed);
 }
 
 /* *==============* Prepare reorders, edges between body and TI *==============* */
@@ -778,8 +782,18 @@ void TensorIterator::prepareOutputPorts() {
         auto& from_mem = output_mem[map_rule.to];
 
         if (map_rule.axis == -1) {
-            last_mappers.emplace_back(
-                std::make_shared<BackEdgePortHelper>(context->getParamsCache(), from_mem, to_mem));
+            LastPortMapper mappers{std::make_shared<BackEdgePortHelper>(context->getParamsCache(), from_mem, to_mem),
+                                   nullptr};
+
+            // a loop carried dependency output falls back to its initial value in case of zero iterations
+            const auto initial_value_port = getInitialValueInputPort(map_rule);
+            if (initial_value_port != -1) {
+                mappers.zeroIterMapper = std::make_shared<BackEdgePortHelper>(context->getParamsCache(),
+                                                                              getSrcMemoryAtPort(initial_value_port),
+                                                                              to_mem);
+            }
+
+            last_mappers.emplace_back(std::move(mappers));
         } else {
             after_mappers.emplace_back(std::make_shared<PortIteratorHelper>(context->getParamsCache(),
                                                                             from_mem,
@@ -893,9 +907,65 @@ void TensorIterator::reshapeSubgraphInput() {
     }
 }
 
-void TensorIterator::reshapeAndFillOutput(const dnnl::stream& strm) {
+// Returns the external input port which holds the initial value of the loop carried dependency the given
+// output port is bound to, i.e. the merged input the body output of this port is connected back to.
+// -1 is returned in case the given output port is not a loop carried dependency.
+int TensorIterator::getInitialValueInputPort(const PortMap& outputMapRule) const {
+    if (outputMapRule.axis != -1) {
+        return -1;
+    }
+
+    const auto back_edge = std::find_if(backEdges.begin(), backEdges.end(), [&](const PortMap& rule) {
+        return rule.from == outputMapRule.to;
+    });
+    if (back_edge == backEdges.end()) {
+        return -1;
+    }
+
+    // back edges are created for merged inputs only, so the corresponding input port map is not iterable
+    const auto input_rule = std::find_if(inputPortMap.begin(), inputPortMap.end(), [&](const PortMap& rule) {
+        return rule.to == back_edge->to && rule.axis == -1;
+    });
+    if (input_rule == inputPortMap.end()) {
+        return -1;
+    }
+
+    return input_rule->from;
+}
+
+// If the body never executed, a loop carried dependency keeps its initial value: fill the output from
+// the corresponding node input directly, since the body output memory has neither a valid shape nor data.
+bool TensorIterator::fillOutputByInitialValue(const dnnl::stream& strm, const PortMap& outputMapRule) {
+    const auto initial_value_port = getInitialValueInputPort(outputMapRule);
+    if (initial_value_port == -1) {
+        return false;
+    }
+
+    auto from_mem = getSrcMemoryAtPort(initial_value_port);
+    const auto& new_dims = from_mem->getStaticDims();
+
+    const auto base_desc = getBaseMemDescAtOutputPort(outputMapRule.from);
+    if (base_desc->getShape().getRank() != new_dims.size()) {
+        return false;
+    }
+
+    auto to_mems = getToMemories(this, outputMapRule.from);
+    const bool has_zero_dims = std::count(std::begin(new_dims), std::end(new_dims), 0) > 0;
+    redefineToMemories(to_mems, base_desc->cloneWithNewDims(new_dims, has_zero_dims));
+
+    BackEdgePortHelper mapper(context->getParamsCache(), from_mem, to_mems.front());
+    mapper.execute(strm, -1);
+
+    return true;
+}
+
+void TensorIterator::reshapeAndFillOutput(const dnnl::stream& strm, const bool zeroIterations) {
     for (auto map_rule : outputPortMap) {
         if (map_rule.axis == -1) {
+            if (zeroIterations && fillOutputByInitialValue(strm, map_rule)) {
+                continue;
+            }
+
             auto to_mems = getToMemories(this, map_rule.from);
             auto& from_mem = output_mem[map_rule.to];
 

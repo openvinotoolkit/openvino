@@ -30,7 +30,7 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/xml_util/constant_writer.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 
 namespace ov::util {
 

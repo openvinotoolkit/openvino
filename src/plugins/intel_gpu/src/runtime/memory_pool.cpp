@@ -34,7 +34,7 @@ memory::ptr memory_pool::alloc_memory(const layout& layout, allocation_type type
     return _engine->allocate_memory(layout, type, reset);
 }
 
-memory_pool::~memory_pool() {}
+memory_pool::~memory_pool() = default;
 
 bool memory_pool::has_conflict(const memory_set& mem_cand,
                                const memory_restricter<uint32_t>& restrictions) {
@@ -82,9 +82,8 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
 
                 //entry found and processed - so return
                 return;
-            } else {
-                ++it;
             }
+            ++it;
         }
     }
     {
@@ -119,9 +118,8 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
 
                     //entry found and processed - so return
                     break;
-                } else {
-                    list_itr++;
                 }
+                list_itr++;
             }
 
             if (list.empty()) {
@@ -196,9 +194,8 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
             auto ret_mem = _engine->reinterpret_buffer(*it->second._memory, layout);
             ret_mem->from_memory_pool = true;
             return ret_mem;
-        } else {
-            ++it;
         }
+        ++it;
     }
     GPU_DEBUG_LOG << "[" << prim_id << "(" << unique_id << "): output]" << std::endl;
     // didn't find anything for you? create new resource
@@ -316,13 +313,12 @@ memory::ptr memory_pool::get_memory(const layout& layout,
         }
 #endif
         return mem;
-    } else if (!layout.data_padding || is_dynamic) {
+    }
+    if (!layout.data_padding || is_dynamic) {
         // non-padded buffers. For dynamic shape, use non-padded pool even if it has padding because we will reset the buffer if it is reused
         return get_from_non_padded_pool(layout, prim_id, unique_id, network_id, restrictions, type, reset, is_dynamic);
-    } else {
-        // padded buffers
+    }  // padded buffers
         return get_from_padded_pool(layout, prim_id, unique_id, network_id, restrictions, type);
-    }
 }
 
 void memory_pool::clear_pool_for_network(uint32_t network_id) {
@@ -433,9 +429,9 @@ size_t memory_pool::get_total_mem_pool_size(allocation_type type) {
     const auto total_mem_size = total_mem_size_no_reusable + total_mem_size_non_padded_pool + total_mem_size_padded_pool;
     if (type == allocation_type::usm_host) {
         return host_mem_size;
-    } else {
-        return (total_mem_size - host_mem_size);
     }
+    return (total_mem_size - host_mem_size);
+
 #else
     return 0;
 #endif

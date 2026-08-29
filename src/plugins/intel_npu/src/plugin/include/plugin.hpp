@@ -9,12 +9,13 @@
 #include <string>
 
 #include "backends_registry.hpp"
+#include "blob_source.hpp"
+#include "compiler_option_support_helper.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "metadata.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
-#include "properties.hpp"
+#include "plugin_property_manager.hpp"
 
 namespace intel_npu {
 
@@ -65,23 +66,12 @@ private:
     void update_log_level(const ov::AnyMap& properties) const;
 
     /**
-     * @brief Parses the compiled model found within the stream and tensor and returns a wrapper over the L0 handle that
-     * can be used for running predictions.
-     * @details The binary data corresponding to the compiled model is made of NPU plugin metadata, the schedule of
-     * the model and its weights. If weights separation has been enabled, the size of the weights is reduced, and there
-     * will be one or multiple weights initialization schedules found there as well.
-     *
-     * @param tensorBig Contains the whole binary object.
-     * @param metadata Parsed metadata at the end of the blob. Can be nullptr if compatibility checks were disabled.
-     * @param properties Configuration taking the form of an "ov::AnyMap".
-     * @return A compiled model
+     * @brief Looks for "DISABLE_VERSION_CHECK" and "IMPORT_RAW_BLOB" to determine whether or not the blob to be
+     * imported should be treated as a "raw" one (i.e. the whole blob is a compiler main schedule).
      */
-    std::shared_ptr<ov::ICompiledModel> parse(const ov::Tensor& tensorBig,
-                                              std::unique_ptr<MetadataBase> metadata,
-                                              const ov::AnyMap& properties) const;
+    bool should_import_raw_blob(const ov::AnyMap& properties) const;
 
-    ov::CompatibilityCheck validate_compatibility_descriptor(ov::intel_npu::CompilerType compilerType,
-                                                             const ov::AnyMap& arguments) const;
+    std::shared_ptr<ov::ICompiledModel> import_model(BlobSource& blobSource, ov::AnyMap& properties) const;
 
     std::unique_ptr<BackendsRegistry> _backendsRegistry;
 
@@ -90,7 +80,8 @@ private:
     ov::SoPtr<IEngineBackend> _backend;
 
     mutable Logger _logger;
-    std::unique_ptr<Properties> _propertiesManager;
+    std::unique_ptr<PluginPropertyManager> _propertiesManager;
+    std::shared_ptr<CompilerOptionSupportHelper> _compilerOptionSupportHelper;
 
     static std::atomic<int> _compiledModelLoadCounter;
 };

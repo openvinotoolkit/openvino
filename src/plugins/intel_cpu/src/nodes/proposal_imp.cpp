@@ -20,14 +20,14 @@ static void enumerate_proposals_cpu(const float* bottom4d,
                                     const float* d_anchor4d,
                                     const float* anchors,
                                     float* proposals,
-                                    const int num_anchors,
-                                    const int bottom_H,
-                                    const int bottom_W,
+                                    const size_t num_anchors,
+                                    const size_t bottom_H,
+                                    const size_t bottom_W,
                                     const float img_H,
                                     const float img_W,
                                     const float min_box_H,
                                     const float min_box_W,
-                                    const int feat_stride,
+                                    const size_t feat_stride,
                                     const float box_coordinate_scale,
                                     const float box_size_scale,
                                     float coordinates_offset,
@@ -35,7 +35,7 @@ static void enumerate_proposals_cpu(const float* bottom4d,
                                     bool swap_xy,
                                     bool clip_before_nms,
                                     const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
-    const int bottom_area = bottom_H * bottom_W;
+    const auto bottom_area = bottom_H * bottom_W;
 
     const float* p_anchors_wm = anchors + 0 * num_anchors;
     const float* p_anchors_hm = anchors + 1 * num_anchors;
@@ -51,7 +51,7 @@ static void enumerate_proposals_cpu(const float* bottom4d,
 
         float* p_proposal = proposals + (h * bottom_W + w) * num_anchors * 5;
 
-        for (int anchor = 0; anchor < num_anchors; ++anchor) {
+        for (size_t anchor = 0; anchor < num_anchors; ++anchor) {
             const float dx = p_box[(anchor * 4 + 0) * bottom_area] / box_coordinate_scale;
             const float dy = p_box[(anchor * 4 + 1) * bottom_area] / box_coordinate_scale;
 
@@ -118,7 +118,7 @@ static void enumerate_proposals_cpu(const float* bottom4d,
 
 static void unpack_boxes(const float* p_proposals,
                          float* unpacked_boxes,
-                         int pre_nms_topn,
+                         size_t pre_nms_topn,
                          bool store_prob,
                          const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     if (store_prob) {
@@ -139,17 +139,17 @@ static void unpack_boxes(const float* p_proposals,
     }
 }
 
-static void nms_cpu(const int num_boxes,
+static void nms_cpu(const size_t num_boxes,
                     int is_dead[],
                     const float* boxes,
                     int index_out[],
                     int* const num_out,
-                    const int base_index,
+                    const size_t base_index,
                     const float nms_thresh,
-                    const int max_num_out,
+                    const size_t max_num_out,
                     float coordinates_offset) {
-    const int num_proposals = num_boxes;
-    int count = 0;
+    const size_t num_proposals = num_boxes;
+    size_t count = 0;
 
     const float* x0 = boxes + 0 * num_proposals;
     const float* y0 = boxes + 1 * num_proposals;
@@ -166,17 +166,17 @@ static void nms_cpu(const int num_boxes,
     __m256 vc_nms_thresh = _mm256_set1_ps(nms_thresh);
 #endif
 
-    for (int box = 0; box < num_boxes; ++box) {
+    for (size_t box = 0; box < num_boxes; ++box) {
         if (is_dead[box]) {
             continue;
         }
 
-        index_out[count++] = base_index + box;
+        index_out[count++] = static_cast<int>(base_index + box);
         if (count == max_num_out) {
             break;
         }
 
-        int tail = box + 1;
+        size_t tail = box + 1;
 
 #if defined(HAVE_AVX2)
         __m256 vx0i = _mm256_set1_ps(x0[box]);
@@ -267,16 +267,16 @@ static void nms_cpu(const int num_boxes,
         }
     }
 
-    *num_out = count;
+    *num_out = static_cast<int>(count);
 }
 
-static void retrieve_rois_cpu(const int num_rois,
+static void retrieve_rois_cpu(const size_t num_rois,
                               const int item_index,
-                              const int num_proposals,
+                              const size_t num_proposals,
                               const float* proposals,
                               const int roi_indices[],
                               float* rois,
-                              int post_nms_topn_,
+                              const size_t post_nms_topn_,
                               bool normalize,
                               float img_h,
                               float img_w,
@@ -323,7 +323,7 @@ static void retrieve_rois_cpu(const int num_rois,
     });
 
     if (num_rois < post_nms_topn_) {
-        for (int i = 5 * num_rois; i < 5 * post_nms_topn_; i++) {
+        for (size_t i = 5 * num_rois; i < 5 * post_nms_topn_; i++) {
             rois[i] = 0.F;
         }
 
@@ -351,8 +351,8 @@ void proposal_exec(const float* input0,
     auto store_prob = p_prob_item != nullptr;
 
     // bottom shape: (2 x num_anchors) x H x W
-    const int bottom_H = dims0[2];
-    const int bottom_W = dims0[3];
+    const auto bottom_H = dims0[2];
+    const auto bottom_W = dims0[3];
 
     // input image height & width
     const float img_H = img_info[conf.swap_xy ? 1 : 0];
@@ -367,10 +367,10 @@ void proposal_exec(const float* input0,
     const float min_box_W = conf.min_size_ * scale_W;
 
     // number of all proposals = num_anchors * H * W
-    const int num_proposals = conf.anchors_shape_0 * bottom_H * bottom_W;
+    const auto num_proposals = conf.anchors_shape_0 * bottom_H * bottom_W;
 
     // number of top-n proposals before NMS
-    const int pre_nms_topn = std::min<int>(num_proposals, conf.pre_nms_topn_);
+    const auto pre_nms_topn = std::min(num_proposals, conf.pre_nms_topn_);
 
     // number of final RoIs
     int num_rois = 0;
@@ -387,12 +387,12 @@ void proposal_exec(const float* input0,
         float score;
     };
     std::vector<ProposalBox> proposals_(num_proposals);
-    const int unpacked_boxes_buffer_size = store_prob ? 5 * pre_nms_topn : 4 * pre_nms_topn;
+    const auto unpacked_boxes_buffer_size = store_prob ? 5 * pre_nms_topn : 4 * pre_nms_topn;
     std::vector<float> unpacked_boxes(unpacked_boxes_buffer_size);
     std::vector<int> is_dead(pre_nms_topn);
 
     // Execute
-    int nn = dims0[0];
+    int nn = static_cast<int>(dims0[0]);
     for (int n = 0; n < nn; ++n) {
         enumerate_proposals_cpu(p_bottom_item + num_proposals + n * num_proposals * 2,
                                 p_d_anchor_item + n * num_proposals * 4,

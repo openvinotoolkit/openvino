@@ -118,11 +118,11 @@ std::optional<MemoryPtr> acl_fc_executor::convertWeightPrecision(const MemoryPtr
     const auto* data = static_cast<const uint8_t*>(input->getData());
     std::vector<uint8_t> tmpBuff;
     tmpBuff.resize(output->getSize());
-    cpu_convert(data,
-                tmpBuff.data(),
-                DnnlExtensionUtils::DataTypeToElementType(input->getDataType()),
-                weightPrecision,
-                input->getSize() / input->getDesc().getPrecision().size());
+    cpu_parallel_convert(data,
+                         tmpBuff.data(),
+                         DnnlExtensionUtils::DataTypeToElementType(input->getDataType()),
+                         weightPrecision,
+                         input->getSize() / input->getDesc().getPrecision().size());
 
     return std::make_shared<Memory>(output->getPrimitive().get_engine(),
                                     output->getDesc().cloneWithNewPrecision(weightPrecision),

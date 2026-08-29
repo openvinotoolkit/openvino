@@ -18,6 +18,7 @@
 #include "acl_utils.hpp"
 #include "cpu_memory.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/interpolate.hpp"
 #include "openvino/core/except.hpp"
 #include "utils/debug_capabilities.h"
@@ -197,6 +198,7 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
 bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupported(const ov::intel_cpu::InterpolateAttrs& interpolateAttrs,
                                                                const std::vector<MemoryDescPtr>& srcDescs,
                                                                const std::vector<MemoryDescPtr>& dstDescs) const {
+    VERIFY(aclSupported({srcDescs[0], dstDescs[0]}), UNSUPPORTED_ACL_COMMON_PRECONDITION);
     if (srcDescs[0]->getShape().getDims().size() != 4U) {
         DEBUG_LOG("ACL Interpolate does not support src shape rank: ", srcDescs[0]->getShape().getDims().size());
         return false;

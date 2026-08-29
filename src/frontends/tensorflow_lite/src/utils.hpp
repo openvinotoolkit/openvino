@@ -21,7 +21,8 @@ ov::PartialShape get_ov_shape(const flatbuffers::Vector<int32_t>* tf_shape,
                               const flatbuffers::Vector<int32_t>* tf_shape_sig);
 std::shared_ptr<QuantizationInfo> get_quantization(const tflite::QuantizationParameters* tf_quantization);
 void apply_quantization(ov::Output<ov::Node>& output, ov::element::Type type);
-void dequantize_inputs(OutputVector& deq_inputs);
+void dequantize_inputs(OutputVector& deq_inputs,
+                       const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderBase>& decoder = nullptr);
 std::shared_ptr<SparsityInfo> get_sparsity(const flatbuffers::Vector<int32_t>* tf_shape,
                                            const tflite::SparsityParameters* tf_sparsity,
                                            const ov::element::Type target_type,

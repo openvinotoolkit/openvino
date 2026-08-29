@@ -20,7 +20,7 @@ namespace {
 
 #    define NUMA_ALL -1
 
-struct LinuxCpuStreamTypeCase {
+struct CpuStreamTypeCase {
     bool _cpu_pinning;
     int _numa_nodes;
     std::vector<std::vector<int>> _cpu_mapping_table;
@@ -28,13 +28,13 @@ struct LinuxCpuStreamTypeCase {
     std::vector<std::vector<int>> _streams_info_table;
     std::vector<StreamCreateType> _stream_type;
     std::vector<int> _concurrency;
-    std::vector<int> _core_type;
+    std::vector<std::vector<int>> _core_type;
     std::vector<int> _numa_node_id;
     std::vector<int> _max_threads_per_core;
 };
 
-class LinuxCpuStreamTypeTests : public ov::test::TestsCommon,
-                                public testing::WithParamInterface<std::tuple<LinuxCpuStreamTypeCase>> {
+class CpuStreamTypeTests : public ov::test::TestsCommon,
+                           public testing::WithParamInterface<std::tuple<CpuStreamTypeCase>> {
 public:
     void SetUp() override {
         auto test_data = std::get<0>(GetParam());
@@ -42,7 +42,7 @@ public:
         std::vector<std::vector<int>> stream_processor_ids;
         std::vector<StreamCreateType> test_stream_types;
         std::vector<int> test_concurrencys;
-        std::vector<int> test_core_types;
+        std::vector<std::vector<int>> test_core_types;
         std::vector<int> test_numa_node_ids;
         std::vector<int> test_max_threads_per_cores;
         int streams = 0;
@@ -57,11 +57,10 @@ public:
                                                    test_data._proc_type_table,
                                                    stream_processor_ids,
                                                    NOT_USED);
-
         for (auto i = 0; i < streams; i++) {
             StreamCreateType test_stream_type;
             int test_concurrency;
-            int test_core_type;
+            std::vector<int> test_core_type;
             int test_numa_node_id;
             int test_socket_id = 0;
             int test_max_threads_per_core;
@@ -90,7 +89,7 @@ public:
     }
 };
 
-LinuxCpuStreamTypeCase _2sockets_72cores_nobinding_36streams = {
+CpuStreamTypeCase _2sockets_72cores_nobinding_36streams = {
     false,  // param[in]: cpu_pinning
     2,      // param[in]: number of numa nodes
     // param[in]: cpu_mapping_table, {PROCESSOR_ID, SOCKET_ID, CORE_ID, CORE_TYPE, GROUP_ID, Used}
@@ -151,19 +150,19 @@ LinuxCpuStreamTypeCase _2sockets_72cores_nobinding_36streams = {
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
     // param[out]: core_type per stream used in new task_arena
     {
-        MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC,
-        MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC,
-        MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC,
-        MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC,
-        MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC,
-        MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC, MAIN_CORE_PROC,
+        {MAIN_CORE_PROC}, {MAIN_CORE_PROC}, {MAIN_CORE_PROC}, {MAIN_CORE_PROC}, {MAIN_CORE_PROC}, {MAIN_CORE_PROC},
+        {MAIN_CORE_PROC}, {MAIN_CORE_PROC}, {MAIN_CORE_PROC}, {MAIN_CORE_PROC}, {MAIN_CORE_PROC}, {MAIN_CORE_PROC},
+        {MAIN_CORE_PROC}, {MAIN_CORE_PROC}, {MAIN_CORE_PROC}, {MAIN_CORE_PROC}, {MAIN_CORE_PROC}, {MAIN_CORE_PROC},
+        {MAIN_CORE_PROC}, {MAIN_CORE_PROC}, {MAIN_CORE_PROC}, {MAIN_CORE_PROC}, {MAIN_CORE_PROC}, {MAIN_CORE_PROC},
+        {MAIN_CORE_PROC}, {MAIN_CORE_PROC}, {MAIN_CORE_PROC}, {MAIN_CORE_PROC}, {MAIN_CORE_PROC}, {MAIN_CORE_PROC},
+        {MAIN_CORE_PROC}, {MAIN_CORE_PROC}, {MAIN_CORE_PROC}, {MAIN_CORE_PROC}, {MAIN_CORE_PROC}, {MAIN_CORE_PROC},
     },
     // param[out]: numa_node_id per stream used in new task_arena
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
     // param[out]: max_threads_per_core per stream used in new task_arena
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 };
-LinuxCpuStreamTypeCase _2sockets_72cores_nobinding_9streams = {
+CpuStreamTypeCase _2sockets_72cores_nobinding_9streams = {
     false,
     2,
     {
@@ -223,20 +222,20 @@ LinuxCpuStreamTypeCase _2sockets_72cores_nobinding_9streams = {
     },
     {4, 4, 4, 4, 4, 4, 4, 4, 4},
     {
-        MAIN_CORE_PROC,
-        MAIN_CORE_PROC,
-        MAIN_CORE_PROC,
-        MAIN_CORE_PROC,
-        MAIN_CORE_PROC,
-        MAIN_CORE_PROC,
-        MAIN_CORE_PROC,
-        MAIN_CORE_PROC,
-        ALL_PROC,
+        {MAIN_CORE_PROC},
+        {MAIN_CORE_PROC},
+        {MAIN_CORE_PROC},
+        {MAIN_CORE_PROC},
+        {MAIN_CORE_PROC},
+        {MAIN_CORE_PROC},
+        {MAIN_CORE_PROC},
+        {MAIN_CORE_PROC},
+        {MAIN_CORE_PROC},
     },
     {0, 0, 0, 0, 1, 1, 1, 1, NUMA_ALL},
     {1, 1, 1, 1, 1, 1, 1, 1, 1},
 };
-LinuxCpuStreamTypeCase _2sockets_72cores_binding_9streams = {
+CpuStreamTypeCase _2sockets_72cores_binding_9streams = {
     true,
     2,
     {
@@ -296,20 +295,20 @@ LinuxCpuStreamTypeCase _2sockets_72cores_binding_9streams = {
     },
     {4, 4, 4, 4, 4, 4, 4, 4, 4},
     {
-        MAIN_CORE_PROC,
-        MAIN_CORE_PROC,
-        MAIN_CORE_PROC,
-        MAIN_CORE_PROC,
-        MAIN_CORE_PROC,
-        MAIN_CORE_PROC,
-        MAIN_CORE_PROC,
-        MAIN_CORE_PROC,
-        ALL_PROC,
+        {MAIN_CORE_PROC},
+        {MAIN_CORE_PROC},
+        {MAIN_CORE_PROC},
+        {MAIN_CORE_PROC},
+        {MAIN_CORE_PROC},
+        {MAIN_CORE_PROC},
+        {MAIN_CORE_PROC},
+        {MAIN_CORE_PROC},
+        {MAIN_CORE_PROC},
     },
     {0, 0, 0, 0, 1, 1, 1, 1, NUMA_ALL},
     {1, 1, 1, 1, 1, 1, 1, 1, 1},
 };
-LinuxCpuStreamTypeCase _1sockets_4cores_nobinding = {
+CpuStreamTypeCase _1sockets_4cores_nobinding = {
     false,
     1,
     {
@@ -326,11 +325,11 @@ LinuxCpuStreamTypeCase _1sockets_4cores_nobinding = {
     {{1, ALL_PROC, 8, 0, 0}, {0, MAIN_CORE_PROC, 4, 0, 0}, {0, HYPER_THREADING_PROC, 4, 0, 0}},
     {STREAM_WITHOUT_PARAM},
     {8},
-    {ALL_PROC},
+    {{MAIN_CORE_PROC}},
     {0},
     {2},
 };
-LinuxCpuStreamTypeCase _1sockets_4cores_binding = {
+CpuStreamTypeCase _1sockets_4cores_binding = {
     true,
     1,
     {
@@ -353,16 +352,16 @@ LinuxCpuStreamTypeCase _1sockets_4cores_binding = {
     },
     {1, 1, 1, 1},
     {
-        MAIN_CORE_PROC,
-        MAIN_CORE_PROC,
-        MAIN_CORE_PROC,
-        MAIN_CORE_PROC,
+        {MAIN_CORE_PROC},
+        {MAIN_CORE_PROC},
+        {MAIN_CORE_PROC},
+        {MAIN_CORE_PROC},
     },
     {0, 0, 0, 0},
     {1, 1, 1, 1},
 };
 
-LinuxCpuStreamTypeCase _1sockets_12cores_pcore_nobinding = {
+CpuStreamTypeCase _1sockets_12cores_pcore_nobinding = {
     false,
     1,
     {
@@ -381,11 +380,11 @@ LinuxCpuStreamTypeCase _1sockets_12cores_pcore_nobinding = {
     {{1, MAIN_CORE_PROC, 8, 0, 0}},
     {STREAM_WITH_CORE_TYPE},
     {8},
-    {MAIN_CORE_PROC},
+    {{MAIN_CORE_PROC}},
     {0},
     {1},
 };
-LinuxCpuStreamTypeCase _1sockets_12cores_pcore_nobinding_hyper_threading = {
+CpuStreamTypeCase _1sockets_12cores_pcore_nobinding_hyper_threading = {
     false,
     1,
     {
@@ -404,11 +403,11 @@ LinuxCpuStreamTypeCase _1sockets_12cores_pcore_nobinding_hyper_threading = {
     {{1, ALL_PROC, 16, 0, 0}, {0, MAIN_CORE_PROC, 8, 0, 0}, {0, HYPER_THREADING_PROC, 8, 0, 0}},
     {STREAM_WITH_CORE_TYPE},
     {16},
-    {MAIN_CORE_PROC},
+    {{MAIN_CORE_PROC}},
     {0},
     {2},
 };
-LinuxCpuStreamTypeCase _1sockets_12cores_pcore_binding = {
+CpuStreamTypeCase _1sockets_12cores_pcore_binding = {
     true,
     1,
     {
@@ -431,13 +430,13 @@ LinuxCpuStreamTypeCase _1sockets_12cores_pcore_binding = {
     },
     {4, 4},
     {
-        MAIN_CORE_PROC,
-        MAIN_CORE_PROC,
+        {MAIN_CORE_PROC},
+        {MAIN_CORE_PROC},
     },
     {0, 0},
     {1, 1},
 };
-LinuxCpuStreamTypeCase _1sockets_12cores_pcore_binding_hyper_threading = {
+CpuStreamTypeCase _1sockets_12cores_pcore_binding_hyper_threading = {
     true,
     1,
     {
@@ -460,13 +459,13 @@ LinuxCpuStreamTypeCase _1sockets_12cores_pcore_binding_hyper_threading = {
     },
     {8, 8},
     {
-        MAIN_CORE_PROC,
-        HYPER_THREADING_PROC,
+        {MAIN_CORE_PROC},
+        {MAIN_CORE_PROC},
     },
     {0, 0},
     {1, 2},
 };
-LinuxCpuStreamTypeCase _1sockets_12cores_ecore_nobinding = {
+CpuStreamTypeCase _1sockets_12cores_ecore_nobinding = {
     false,
     1,
     {
@@ -489,13 +488,13 @@ LinuxCpuStreamTypeCase _1sockets_12cores_ecore_nobinding = {
     },
     {2, 2},
     {
-        EFFICIENT_CORE_PROC,
-        EFFICIENT_CORE_PROC,
+        {EFFICIENT_CORE_PROC},
+        {EFFICIENT_CORE_PROC},
     },
     {0, 0},
     {1, 1},
 };
-LinuxCpuStreamTypeCase _1sockets_12cores_ecore_binding = {
+CpuStreamTypeCase _1sockets_12cores_ecore_binding = {
     true,
     1,
     {
@@ -520,15 +519,15 @@ LinuxCpuStreamTypeCase _1sockets_12cores_ecore_binding = {
     },
     {1, 1, 1, 1},
     {
-        EFFICIENT_CORE_PROC,
-        EFFICIENT_CORE_PROC,
-        EFFICIENT_CORE_PROC,
-        EFFICIENT_CORE_PROC,
+        {EFFICIENT_CORE_PROC},
+        {EFFICIENT_CORE_PROC},
+        {EFFICIENT_CORE_PROC},
+        {EFFICIENT_CORE_PROC},
     },
     {0, 0, 0, 0},
     {1, 1, 1, 1},
 };
-LinuxCpuStreamTypeCase _1sockets_24cores_all_proc = {
+CpuStreamTypeCase _1sockets_24cores_all_proc = {
     false,
     1,
     {
@@ -553,11 +552,11 @@ LinuxCpuStreamTypeCase _1sockets_24cores_all_proc = {
     {{1, ALL_PROC, 24, 0, 0}, {0, MAIN_CORE_PROC, 8, 0, 0}, {0, EFFICIENT_CORE_PROC, 16, 0, 0}},
     {STREAM_WITHOUT_PARAM},
     {24},
-    {ALL_PROC},
+    {{MAIN_CORE_PROC, EFFICIENT_CORE_PROC}},
     {0},
     {1},
 };
-LinuxCpuStreamTypeCase _1sockets_24cores_all_proc_hyper_threading = {
+CpuStreamTypeCase _1sockets_24cores_all_proc_hyper_threading = {
     false,
     1,
     {
@@ -585,15 +584,44 @@ LinuxCpuStreamTypeCase _1sockets_24cores_all_proc_hyper_threading = {
      {0, EFFICIENT_CORE_PROC, 16, 0, 0}},
     {STREAM_WITHOUT_PARAM},
     {32},
-    {ALL_PROC},
+    {{MAIN_CORE_PROC, EFFICIENT_CORE_PROC}},
     {0},
     {2},
 };
 
-TEST_P(LinuxCpuStreamTypeTests, LinuxCpuStreamType) {}
+CpuStreamTypeCase _1sockets_32cores_all_proc_bind_subset_of_core_kinds = {
+    false,
+    1,
+    {},
+    {{32, 8, 16, 8, 0, 0, 0}},
+    {{1, ALL_PROC, 24, 0, 0}, {0, MAIN_CORE_PROC, 8, 0, 0}, {0, EFFICIENT_CORE_PROC, 16, 0, 0}},
+    {STREAM_WITH_CORE_TYPE},
+    {24},
+    {{MAIN_CORE_PROC, EFFICIENT_CORE_PROC}},
+    {0},
+    {1},
+};
+
+CpuStreamTypeCase _1sockets_32cores_all_proc_skip_binding_all_core_kinds = {
+    false,
+    1,
+    {},
+    {{32, 8, 16, 8, 0, 0, 0}},
+    {{1, ALL_PROC, 32, 0, 0},
+     {0, MAIN_CORE_PROC, 8, 0, 0},
+     {0, EFFICIENT_CORE_PROC, 16, 0, 0},
+     {0, LP_EFFICIENT_CORE_PROC, 8, 0, 0}},
+    {STREAM_WITHOUT_PARAM},
+    {32},
+    {{MAIN_CORE_PROC, EFFICIENT_CORE_PROC, LP_EFFICIENT_CORE_PROC}},
+    {0},
+    {1},
+};
+
+TEST_P(CpuStreamTypeTests, CpuStreamType) {}
 
 INSTANTIATE_TEST_SUITE_P(CpuStreamType,
-                         LinuxCpuStreamTypeTests,
+                         CpuStreamTypeTests,
                          testing::Values(_2sockets_72cores_nobinding_36streams,
                                          _2sockets_72cores_nobinding_9streams,
                                          _2sockets_72cores_binding_9streams,
@@ -606,6 +634,8 @@ INSTANTIATE_TEST_SUITE_P(CpuStreamType,
                                          _1sockets_12cores_ecore_nobinding,
                                          _1sockets_12cores_ecore_binding,
                                          _1sockets_24cores_all_proc,
-                                         _1sockets_24cores_all_proc_hyper_threading));
+                                         _1sockets_24cores_all_proc_hyper_threading,
+                                         _1sockets_32cores_all_proc_bind_subset_of_core_kinds,
+                                         _1sockets_32cores_all_proc_skip_binding_all_core_kinds));
 #endif
 }  // namespace

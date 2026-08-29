@@ -171,48 +171,6 @@ GemmaRoPE::GemmaRoPE(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot
     };
     register_matcher(std::make_shared<opp::Matcher>(sin_cos, "TagGemmaRoPE"), std::move(callback));
 }
-//------------------------------------------------------------------------------
-// Pattern: Interpolate in downsampling case
-//
-// Matches any Interpolate (v4/v11) node. The callback inspects the actual
-// partial shapes: if at least one spatial dimension shrinks (input > output),
-// the node is marked as "avoid" for the given device.
-//
-DownsampleInterpolate::DownsampleInterpolate(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
-                                             const std::string& avoid_device) {
-    auto interpolate = opp::wrap_type<ov::op::v4::Interpolate, ov::op::v11::Interpolate>();
-
-    auto node_to_gptr = snapshot->getNodeToGroupMap();
-
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
-        auto& node_to_output = m.get_pattern_value_map();
-        auto matched_node = node_to_output.at(interpolate).get_node_shared_ptr();
-
-        // Compare input and output spatial shapes to detect downsampling
-        const auto& in_shape = matched_node->get_input_partial_shape(0);
-        const auto& out_shape = matched_node->get_output_partial_shape(0);
-
-        if (in_shape.rank().is_static() && out_shape.rank().is_static() &&
-            in_shape.rank().get_length() == out_shape.rank().get_length()) {
-            bool is_downsample = false;
-            // Check spatial dimensions (skip batch and channel: indices 2..rank-1)
-            for (auto i = 2; i < in_shape.rank().get_length(); ++i) {
-                if (in_shape[i].is_static() && out_shape[i].is_static() &&
-                    in_shape[i].get_length() > out_shape[i].get_length()) {
-                    is_downsample = true;
-                    break;
-                }
-            }
-            if (is_downsample) {
-                LOG_DEBUG("Avoiding downsampling Interpolate: " << matched_node->get_friendly_name());
-                node_to_gptr->at(matched_node)->avoid(avoid_device);
-            }
-        }
-
-        return false;  // root hasn't changed
-    };
-    register_matcher(std::make_shared<opp::Matcher>(interpolate, "TagDownsampleInterpolateAvoid"), std::move(callback));
-}
 
 //------------------------------------------------------------------------------
 // Pattern: FloorMod and its direct input producer

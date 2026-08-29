@@ -16,7 +16,7 @@ public:
 
     embedding_bag_kernel_selector();
 
-    virtual ~embedding_bag_kernel_selector() {}
+    ~embedding_bag_kernel_selector() override = default;
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

@@ -229,7 +229,7 @@ $env:COPILOT_GITHUB_TOKEN = 'ghp_<your-token>'
 Individual skills are also available as **slash commands** directly in the
 VS Code Copilot Chat panel — no terminal or CLI required.
 
-Each skill maps to a `.prompt.md` file in [`.github/prompts/`](../prompts/).
+Each skill maps to a `.prompt.md` file in [`.github/prompts/`](../../prompts/).
 VS Code discovers these automatically and exposes them as `/skill-name`.
 
 | Command | What it does |
@@ -263,6 +263,6 @@ step-by-step workflow defined in the corresponding skill file.
 
 ## See also
 
-- Agent definitions: [`.github/agents-prototype/`](../agents-prototype/)
-- Skill prompts: [`.github/prompts/`](../prompts/)
+- Agent definitions: [`.github/agents-prototype/`](../../agents-prototype/)
+- Skill prompts: [`.github/prompts/`](../../prompts/)
 - Copilot CLI reference: https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference

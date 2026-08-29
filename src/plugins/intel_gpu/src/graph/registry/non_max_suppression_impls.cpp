@@ -48,25 +48,20 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<non_m
 
                 if (one_of(boxes_layout.format, supported_blocked_fmts)) {
                     return true;
-                } else {
-                    const auto& nms_node = node.as<non_max_suppression>();
-                    if (nms_node.get_primitive()->rotation != non_max_suppression::Rotation::NONE) {
-                        return true;
-                    } else {
-                        if (scores_layout.is_dynamic()) {
-                            return false;
-                        } else {
-                            const size_t kBatchNum = static_cast<size_t>(scores_layout.get_partial_shape()[0].get_length());
-                            const size_t kClassNum = static_cast<size_t>(scores_layout.get_partial_shape()[1].get_length());
-                            const size_t kNStreams =
-                                    static_cast<size_t>(node.get_program().get_config().get_num_streams());
-                            const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
-                            return kKeyValue > 64;
-                        }
-                    }
                 }
-
-                return true;
+                const auto& nms_node = node.as<non_max_suppression>();
+                if (nms_node.get_primitive()->rotation != non_max_suppression::Rotation::NONE) {
+                    return true;
+                }
+                if (scores_layout.is_dynamic()) {
+                    return false;
+                }
+                const size_t kBatchNum = static_cast<size_t>(scores_layout.get_partial_shape()[0].get_length());
+                const size_t kClassNum = static_cast<size_t>(scores_layout.get_partial_shape()[1].get_length());
+                const size_t kNStreams =
+                        static_cast<size_t>(node.get_program().get_config().get_num_streams());
+                const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
+                return kKeyValue > 64;
         })
         OV_GPU_GET_INSTANCE_CPU(non_max_suppression, shape_types::static_shape)
     };

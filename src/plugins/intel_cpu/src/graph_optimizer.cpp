@@ -36,7 +36,6 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "node.h"
 #include "nodes/bin_conv.h"
-#include "nodes/common/cpu_convert.h"
 #include "nodes/concat.h"
 #include "nodes/conv.h"
 #include "nodes/deconv.h"
@@ -269,9 +268,15 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
         }
         auto parentNode = node->getParentEdgeAt(0)->getParent();
         auto scaleNode = node->getParentEdgeAt(1)->getParent();
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+        if (none_of(parentNode->getType(), Type::Convolution, Type::MatMul, Type::FullyConnected)) {
+            return false;
+        }
+#else
         if (none_of(parentNode->getType(), Type::Convolution, Type::MatMul, Type::Deconvolution)) {
             return false;
         }
+#endif
         if (!scaleNode->isConstant()) {
             return false;
         }

@@ -71,7 +71,7 @@ size_t GetTileWidth(const permute_params& params) {
         if (std::any_of(supported.begin(), supported.end(), [halved](size_t s) { return s == halved; }) || supported.empty())
             min_divisor = halved;
     }
-    if (input_type == Datatype::F16) {
+    if (input_type == Datatype::F16 || input_type == Datatype::BF16) {
         min_divisor = min_divisor * 2;
     }
     if (input_type == Datatype::INT8 || input_type == Datatype::UINT8) {
@@ -93,12 +93,14 @@ size_t GetTileSize(const permute_params& params) {
 ParamsKey PermuteKernel_f_y_axes::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::INT64);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
@@ -211,10 +213,7 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
         if (order.size() != 4) {
             return false;
         }
-        if (order[0] != 0 || order[1] != 3 || order[2] != 2 || order[3] != 1) {
-            return false;
-        }
-        return true;
+        return order[0] == 0 && order[1] == 3 && order[2] == 2 && order[3] == 1;
     };
 
     const auto& params = dynamic_cast<const permute_params&>(p);
@@ -244,8 +243,8 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
         const auto feature_block_size = GetFeatureBlockSize(params);
         const auto tile_size = GetTileSize(params);
         const auto subgroup_size = Is3DTranspose(params) ? feature_block_size : tile_size;
-        if (!(IsSIMDSizeSupported(params.engineInfo, subgroup_size) &&
-              (in_layout == DataLayout::b_fs_yx_fsv32 || in_layout == DataLayout::b_fs_yx_fsv16))) {
+        if (!IsSIMDSizeSupported(params.engineInfo, subgroup_size) ||
+              (in_layout != DataLayout::b_fs_yx_fsv32 && in_layout != DataLayout::b_fs_yx_fsv16)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }

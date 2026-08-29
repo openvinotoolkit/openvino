@@ -1,0 +1,57 @@
+ir_version: 7
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "src_tokens"
+    input: "cur_tokens"
+    input: "prev_suffix_match_idx"
+    input: "pred_tokens"
+    output: "tokens"
+    output: "suffix_match_idx"
+    name: "BifurcationDetector_1"
+    op_type: "BifurcationDetector"
+    attribute {
+      name: "min_ngram_size"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "max_ngram_size"
+      i: 1
+      type: INT
+    }
+    domain: "com.microsoft"
+  }
+  name: "test_graph"
+  input {
+    name: "src_tokens"
+    type { tensor_type { elem_type: 7 shape { dim { dim_param: "S" } } } }
+  }
+  input {
+    name: "cur_tokens"
+    type { tensor_type { elem_type: 7 shape { dim { dim_param: "C" } } } }
+  }
+  input {
+    name: "prev_suffix_match_idx"
+    type { tensor_type { elem_type: 7 shape { } } }
+  }
+  input {
+    name: "pred_tokens"
+    type { tensor_type { elem_type: 7 shape { dim { dim_param: "P" } } } }
+  }
+  output {
+    name: "tokens"
+    type { tensor_type { elem_type: 7 shape { dim { dim_param: "T" } } } }
+  }
+  output {
+    name: "suffix_match_idx"
+    type { tensor_type { elem_type: 7 shape { } } }
+  }
+}
+opset_import {
+  version: 13
+}
+opset_import {
+  domain: "com.microsoft"
+  version: 1
+}

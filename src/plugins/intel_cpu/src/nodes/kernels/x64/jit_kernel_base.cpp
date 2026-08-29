@@ -419,10 +419,10 @@ void JitKernelBase::fillRestWorkMask(const Xbyak::Xmm& xmmDstMask,
     Xbyak::Label lEnd;
     auto r32Ones = getReg32();
     Xbyak::Reg64 r64Ones(r32Ones.getIdx());
-    auto elPerVec = x64::cpu_isa_traits_t<x64::sse41>::vlen / typeSize;
+    auto elPerVec = static_cast<uint32_t>(x64::cpu_isa_traits_t<x64::sse41>::vlen / typeSize);
 
     mov(r64Ones, 0xFFFFFFFFFFFFFFFF);
-    for (uint64_t i = 0; i < elPerVec; i++) {
+    for (uint32_t i = 0; i < elPerVec; i++) {
         cmp(rWorkRest, i);
         jle(lEnd, T_NEAR);
 
@@ -444,7 +444,7 @@ void JitKernelBase::fillRestWorkMask(const Xbyak::Ymm& ymmDstMask,
                                      const uint64_t typeSize) {
     OPENVINO_ASSERT(any_of(typeSize, 1U, 2U, 4U, 8U), "Could not fill data with type size ", typeSize);
     Xbyak::Label lEnd;
-    auto elPerVec = x64::cpu_isa_traits_t<x64::sse41>::vlen / typeSize;
+    auto elPerVec = static_cast<uint32_t>(x64::cpu_isa_traits_t<x64::sse41>::vlen / typeSize);
     auto r32Ones = getReg32();
     Xbyak::Reg64 r64Ones(r32Ones.getIdx());
     Xbyak::Xmm xmmDstMask(ymmDstMask.getIdx());
@@ -453,7 +453,7 @@ void JitKernelBase::fillRestWorkMask(const Xbyak::Ymm& ymmDstMask,
     uni_vpxor(ymmDstMask, ymmDstMask, ymmDstMask);
     for (uint8_t i = 0; i < 2; i++) {
         Xbyak::Label lPerm;
-        for (uint64_t j = 0; j < elPerVec; j++) {
+        for (uint32_t j = 0; j < elPerVec; j++) {
             cmp(rWorkRest, i * elPerVec + j);
             jle(i == 0 ? lEnd : lPerm, T_NEAR);
 

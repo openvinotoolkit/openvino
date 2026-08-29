@@ -29,8 +29,8 @@ ov_add_test_target(
         DEPENDENCIES
             openvino_intel_gpu_plugin
         LINK_LIBRARIES
-            openvino::reference
             funcSharedTests
+            openvino::reference
             OpenCL::NewHeaders # should come before OpenCL::OpenCL
             OpenCL::OpenCL
         LABELS
@@ -52,11 +52,36 @@ endif()
 if(libva_FOUND)
     target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_LIBVA)
     target_link_libraries(${TARGET_NAME} PRIVATE PkgConfig::libva)
+
+    # VA surface interop tests need a VADisplay of their own. The DRM backend is the only one
+    # which works headless, so these tests are enabled only when libva-drm is available.
+    pkg_search_module(libva_drm QUIET IMPORTED_TARGET libva-drm)
+    if(libva_drm_FOUND AND EXISTS "${libva_INCLUDEDIR}/va/va.h")
+        target_include_directories(${TARGET_NAME} PRIVATE "${libva_INCLUDEDIR}/va")
+        target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_LIBVA_DRM OV_GPU_USE_SYSTEM_LIBVA_HEADERS)
+        target_link_libraries(${TARGET_NAME} PRIVATE PkgConfig::libva_drm)
+    endif()
 endif()
 
 if(WIN32)
-    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_DX11)
-    target_link_libraries(${TARGET_NAME} PRIVATE d3d11 dxgi)
+    include(CheckIncludeFileCXX)
+    # DX11 and DX12 SDK headers may be available independently; enable each
+    # interop test set only when its corresponding header is present to avoid
+    # build breaks on environments that ship only one of the SDKs.
+    check_include_file_cxx(d3d11.h OV_GPU_FUNC_TESTS_HAVE_D3D11_H)
+    check_include_file_cxx(d3d12.h OV_GPU_FUNC_TESTS_HAVE_D3D12_H)
+
+    if(OV_GPU_FUNC_TESTS_HAVE_D3D11_H)
+        target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_DX11)
+        target_link_libraries(${TARGET_NAME} PRIVATE d3d11)
+    endif()
+    if(OV_GPU_FUNC_TESTS_HAVE_D3D12_H)
+        target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_DX12)
+        target_link_libraries(${TARGET_NAME} PRIVATE d3d12)
+    endif()
+    if(OV_GPU_FUNC_TESTS_HAVE_D3D11_H OR OV_GPU_FUNC_TESTS_HAVE_D3D12_H)
+        target_link_libraries(${TARGET_NAME} PRIVATE dxgi dxguid)
+    endif()
 endif()
 
 ov_build_target_faster(${TARGET_NAME} PCH)

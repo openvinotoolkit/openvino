@@ -15,7 +15,11 @@
 //
 
 #ifndef OPENVINO_DEPRECATED
-#    define OPENVINO_DEPRECATED(msg) [[deprecated(msg)]]
+#    if defined(__GNUC__) && !defined(__clang__)
+#        define OPENVINO_DEPRECATED(msg) __attribute__((deprecated(msg)))
+#    else
+#        define OPENVINO_DEPRECATED(msg) [[deprecated(msg)]]
+#    endif
 #endif
 #ifndef OPENVINO_ENUM_DEPRECATED
 #    define OPENVINO_ENUM_DEPRECATED(msg) OPENVINO_DEPRECATED(msg)

@@ -31,12 +31,10 @@ void rms_ref(const memory::ptr input, const memory::ptr gamma, memory::ptr outpu
     if (gamma) {
         weight = std::make_unique<cldnn::mem_lock<T>>(gamma, get_test_stream());
     }
+    const bool scalar_gamma = gamma && gamma->count() == 1;
 
-    // RMS normalization across the last (innermost populated) dimension.
-    // For bfyx with x_size > 1 (rank 4): normalize across X per (b, f, y).
-    // For bfyx with x_size == 1 (rank 3 mapped to bfyx): normalize across Y per (b, f).
-    // This matches the kernel behavior based on ov_input_rank.
-    bool norm_over_x = (x_size > 1);
+    // RMS normalization follows the last logical axis, including rank-4 inputs with X == 1.
+    bool norm_over_x = input_layout.get_partial_shape().size() >= 4;
     uint32_t outer_y = norm_over_x ? y_size : 1;
     uint32_t norm_size = norm_over_x ? x_size : y_size;
 
@@ -60,7 +58,7 @@ void rms_ref(const memory::ptr input, const memory::ptr gamma, memory::ptr outpu
                     auto t = tensor(batch(b), feature(f), spatial(x, y, 0, 0));
                     size_t offset = input_layout.get_linear_offset(t);
 
-                    float gamma_val = weight ? static_cast<float>((*weight)[n]) : 1.0f;
+                    float gamma_val = weight ? static_cast<float>((*weight)[scalar_gamma ? 0 : n]) : 1.0f;
                     dst[offset] = static_cast<T>(rms * static_cast<float>(src[offset]) * gamma_val);
                 }
             }
@@ -105,6 +103,164 @@ TEST(rms_gpu_test, rms_test_bfyx_ref) {
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
         EXPECT_NEAR(output_ptr[i], output_ref_ptr[i], 1e-3);
+    }
+}
+
+TEST(rms_gpu_test, rms_test_bfyx_ref_last_axis_by_rank) {
+    auto& engine = get_test_engine();
+    const std::vector<ov::PartialShape> input_shapes = {
+        {8},
+        {2, 8},
+        {2, 3, 8},
+        {2, 3, 4, 8},
+    };
+
+    for (const auto& input_shape : input_shapes) {
+        const auto rank = input_shape.size();
+        const auto norm_size = static_cast<size_t>(input_shape[rank - 1].get_length());
+        auto input = engine.allocate_memory({input_shape, data_types::f32, format::bfyx});
+        auto gamma = engine.allocate_memory({ov::PartialShape{static_cast<int64_t>(norm_size)},
+                             data_types::f32,
+                             format::bfyx});
+
+        std::vector<float> input_values(input->count());
+        std::vector<float> gamma_values(norm_size);
+        for (size_t index = 0; index < input_values.size(); ++index) {
+            input_values[index] = static_cast<float>(index % 13) - 6.0f;
+        }
+        for (size_t index = 0; index < gamma_values.size(); ++index) {
+            gamma_values[index] = 0.5f + static_cast<float>(index) * 0.125f;
+        }
+        set_values(input, input_values);
+        set_values(gamma, gamma_values);
+
+        constexpr float epsilon = 1e-5f;
+        std::vector<float> expected(input_values.size());
+        for (size_t offset = 0; offset < input_values.size(); offset += norm_size) {
+            float sum_squares = 0.0f;
+            for (size_t index = 0; index < norm_size; ++index) {
+                sum_squares += input_values[offset + index] * input_values[offset + index];
+            }
+            const float rms = 1.0f / std::sqrt(sum_squares / norm_size + epsilon);
+            for (size_t index = 0; index < norm_size; ++index) {
+                expected[offset + index] = input_values[offset + index] * rms * gamma_values[index];
+            }
+        }
+
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(input_layout("gamma", gamma->get_layout()));
+        topology.add(rms("rms", input_info("input"), input_info("gamma"), epsilon));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+            {"rms", {format::bfyx, "rms_gpu_ref"}}
+        }));
+        network network(engine, topology, config);
+        network.set_input_data("input", input);
+        network.set_input_data("gamma", gamma);
+
+        auto output = network.execute().at("rms").get_memory();
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        for (size_t index = 0; index < expected.size(); ++index) {
+            EXPECT_NEAR(output_ptr[index], expected[index], 1e-4f)
+                << " rank=" << rank << " index=" << index;
+        }
+    }
+}
+
+TEST(rms_gpu_test, rms_test_bfyx_ref_rank4_scalar_gamma_dyn) {
+    auto& engine = get_test_engine();
+
+    const ov::PartialShape input_shape{1, 3, 4, 8};
+    auto input_layout_dynamic = layout{ov::PartialShape{-1, -1, 4, 8}, data_types::f32, format::bfyx};
+    auto input = engine.allocate_memory({input_shape, data_types::f32, format::bfyx});
+    auto gamma = engine.allocate_memory({ov::PartialShape{1}, data_types::f32, format::bfyx});
+    auto output_ref = engine.allocate_memory({input_shape, data_types::f32, format::bfyx});
+
+    std::vector<float> input_values(input->count());
+    for (size_t index = 0; index < input_values.size(); ++index) {
+        input_values[index] = static_cast<float>(index % 17) - 8.0f;
+    }
+    set_values(input, input_values);
+    set_values(gamma, {3.875f});
+    rms_ref<float>(input, gamma, output_ref, 1e-5f);
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(input_layout("gamma", gamma->get_layout()));
+    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"rms", {format::bfyx, "rms_gpu_ref"}}
+    }));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    network.set_input_data("gamma", gamma);
+
+    auto impl = network.get_primitive("rms")->get_impl();
+    ASSERT_NE(impl, nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+    ASSERT_EQ(impl->get_kernel_name(), "rms_gpu_ref");
+
+    auto output = network.execute().at("rms").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
+    for (size_t index = 0; index < output_ref->count(); ++index) {
+        EXPECT_NEAR(output_ptr[index], output_ref_ptr[index], 1e-4f) << " index=" << index;
+    }
+}
+
+TEST(rms_gpu_test, rms_test_bfyx_opt_rank4_scalar_gamma_dyn) {
+    auto& engine = get_test_engine();
+
+    for (const int64_t hidden_size : {1, 128, 2560}) {
+        const ov::PartialShape input_shape{1, 3, 4, hidden_size};
+        auto input_layout_dynamic = layout{ov::PartialShape{-1, -1, 4, hidden_size},
+                                           data_types::f32,
+                                           format::bfyx};
+        auto input = engine.allocate_memory({input_shape, data_types::f32, format::bfyx});
+        auto gamma = engine.allocate_memory({ov::PartialShape{1}, data_types::f32, format::bfyx});
+        auto output_ref = engine.allocate_memory({input_shape, data_types::f32, format::bfyx});
+
+        std::vector<float> input_values(input->count());
+        for (size_t index = 0; index < input_values.size(); ++index) {
+            input_values[index] = static_cast<float>(index % 17) - 8.0f;
+        }
+        set_values(input, input_values);
+        constexpr float gamma_value = 3.875f;
+        constexpr float epsilon = 1e-5f;
+        set_values(gamma, {gamma_value});
+        rms_ref<float>(input, gamma, output_ref, epsilon);
+
+        topology topology;
+        topology.add(input_layout("input", input_layout_dynamic));
+        topology.add(input_layout("gamma", gamma->get_layout()));
+        topology.add(rms("rms", input_info("input"), input_info("gamma"), epsilon));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+            {"rms", {format::bfyx, "rms_gpu_bfyx_opt"}}
+        }));
+        network network(engine, topology, config);
+        network.set_input_data("input", input);
+        network.set_input_data("gamma", gamma);
+
+        auto impl = network.get_primitive("rms")->get_impl();
+        ASSERT_NE(impl, nullptr);
+        ASSERT_TRUE(impl->is_dynamic());
+        ASSERT_EQ(impl->get_kernel_name(), "rms_gpu_bfyx_opt");
+
+        auto output = network.execute().at("rms").get_memory();
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
+        for (size_t index = 0; index < output_ref->count(); ++index) {
+            EXPECT_NEAR(output_ptr[index], output_ref_ptr[index], 1e-4f)
+                << " hidden_size=" << hidden_size << " index=" << index;
+        }
     }
 }
 

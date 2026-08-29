@@ -174,6 +174,54 @@ static constexpr Property<CacheQuantMode, PropertyMutability::RW> key_cache_quan
 
 static constexpr Property<CacheQuantMode, PropertyMutability::RW> value_cache_quant_mode{"VALUE_CACHE_QUANT_MODE"};
 
+/**
+ * @brief KV cache quantization algorithm.
+ * Selects SCALAR vs TURBO for integer cache precision (u8/u4); defaults to SCALAR when unset.
+ * No effect for floating-point cache precision.
+ */
+enum class CacheQuantAlgorithm {
+    SCALAR = 0,  // Per-group affine scale/zero-point (metadata in k_scale_zp / v_scale_zp)
+    TURBO = 1,   // TurboQuant: random orthogonal rotation + Lloyd-Max codebook + per-head norm
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const CacheQuantAlgorithm& alg) {
+    switch (alg) {
+    case CacheQuantAlgorithm::SCALAR:
+        return os << "SCALAR";
+    case CacheQuantAlgorithm::TURBO:
+        return os << "TURBO";
+    default:
+        OPENVINO_THROW("Unsupported cache quant algorithm");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, CacheQuantAlgorithm& alg) {
+    std::string str;
+    is >> str;
+    if (str == "SCALAR") {
+        alg = CacheQuantAlgorithm::SCALAR;
+    } else if (str == "TURBO") {
+        alg = CacheQuantAlgorithm::TURBO;
+    } else {
+        OPENVINO_THROW("Unsupported cache quant algorithm: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Define quantization algorithm for key cache.
+ * Set both key_cache_quant_alg and value_cache_quant_alg to the same value
+ * for symmetric K/V; differ them for asymmetric configs.
+ */
+static constexpr Property<CacheQuantAlgorithm, PropertyMutability::RW> key_cache_quant_alg{"KEY_CACHE_QUANT_ALG"};
+
+/**
+ * @brief Define quantization algorithm for value cache. See key_cache_quant_alg.
+ */
+static constexpr Property<CacheQuantAlgorithm, PropertyMutability::RW> value_cache_quant_alg{"VALUE_CACHE_QUANT_ALG"};
+
 using WeightSharingCtxPtr = std::shared_ptr<const weight_sharing::Context>;
 
 /**

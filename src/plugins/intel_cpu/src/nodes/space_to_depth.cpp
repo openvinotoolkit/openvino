@@ -6,7 +6,6 @@
 
 #include <cmath>
 #include <common/utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -33,6 +32,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/space_to_depth.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "openvino/util/pp.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
@@ -129,11 +129,11 @@ void SpaceToDepth::initSupportedPrimitiveDescriptors() {
     ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
 
     impl_desc_type impl_type = impl_desc_type::ref;
-    if (cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
+    if (ov::with_cpu_x86_avx512_core()) {
         impl_type = impl_desc_type::jit_avx512;
-    } else if (cpu::x64::mayiuse(cpu::x64::avx2)) {
+    } else if (ov::with_cpu_x86_avx2()) {
         impl_type = impl_desc_type::jit_avx2;
-    } else if (cpu::x64::mayiuse(cpu::x64::sse41)) {
+    } else if (ov::with_cpu_x86_sse42()) {
         impl_type = impl_desc_type::jit_sse42;
     }
 
@@ -166,7 +166,9 @@ void SpaceToDepth::initSupportedPrimitiveDescriptors() {
     }
     supportedTypes.push_back(LayoutType::ncsp);
     auto creators = BlockedDescCreator::getCommonCreators();
-    auto range = BlockedDescCreator::makeFilteredRange(creators, inputDataShape.getRank(), supportedTypes);
+    auto range = BlockedDescCreator::makeFilteredRange(creators,
+                                                       static_cast<unsigned>(inputDataShape.getRank()),
+                                                       supportedTypes);
 
     for (auto itr = range.first; itr != range.second; ++itr) {
         config.inConfs[0].setMemDesc(itr->second->createSharedDesc(precision, inputDataShape));
@@ -324,7 +326,7 @@ void SpaceToDepth::execute([[maybe_unused]] const dnnl::stream& strm) {
     CPU_NODE_ASSERT(execPtr, "doesn't have a compiled executor.");
     const auto* srcData = getSrcDataAtPortAs<const uint8_t>(0);
     auto* dstData = getDstDataAtPortAs<uint8_t>(0);
-    const int MB = getSrcMemoryAtPort(0)->getStaticDims()[0];
+    const auto MB = static_cast<int>(getSrcMemoryAtPort(0)->getStaticDims()[0]);
     execPtr->exec(srcData, dstData, MB, context->getCpuParallel());
 }
 

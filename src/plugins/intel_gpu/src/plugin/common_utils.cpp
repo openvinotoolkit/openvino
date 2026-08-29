@@ -135,11 +135,11 @@ void convert_and_copy(const void* src_ptr, ov::element::Type src_et, void* dst_p
         if (src_et == s_et && dst_et == d_et) {                                                                                             \
             if (static_cast<bool>(layout.data_padding)) {                                                                                   \
                 return convert_and_copy_padded_source(static_cast<const s_type*>(src_ptr), static_cast<d_type*>(dst_ptr), layout);          \
-            } else if (transpose) {                                                                                                         \
-                return convert_and_copy_transposed(static_cast<const s_type*>(src_ptr), static_cast<d_type*>(dst_ptr), layout.get_shape()); \
-            } else {                                                                                                                        \
-                return convert_and_copy_no_pad(static_cast<const s_type*>(src_ptr), static_cast<d_type*>(dst_ptr), size);                   \
             }                                                                                                                               \
+            if (transpose) {                                                                                                                \
+                return convert_and_copy_transposed(static_cast<const s_type*>(src_ptr), static_cast<d_type*>(dst_ptr), layout.get_shape()); \
+            }                                                                                                                               \
+            return convert_and_copy_no_pad(static_cast<const s_type*>(src_ptr), static_cast<d_type*>(dst_ptr), size);                        \
         }
 
     // For unsupported inputs
@@ -201,8 +201,9 @@ bool is_supported(ov::element::Type_t et) {
         case ov::element::Type_t::u32: return true; // converted to i32
         case ov::element::Type_t::u64: return true; // converted to i32
         case ov::element::Type_t::nf4: return false;
-        case ov::element::Type_t::f8e4m3: return false;
-        case ov::element::Type_t::f8e5m2: return false;
+        case ov::element::Type_t::f4e2m1: return true;
+        case ov::element::Type_t::f8e4m3: return true;
+        case ov::element::Type_t::f8e5m2: return true;
         case ov::element::Type_t::string: return false;
         default: return false;
     }
@@ -230,13 +231,13 @@ void convert_and_copy(const ov::ITensor* src, cldnn::memory::ptr dst, cldnn::str
     auto dst_et = dst->get_layout().data_type;
 
     if (dst_et == src_et && !transpose) {
-        if (auto remote = dynamic_cast<const ov::intel_gpu::RemoteTensorImpl*>(src)) {
+        if (const auto* remote = dynamic_cast<const ov::intel_gpu::RemoteTensorImpl*>(src)) {
             auto mem = remote->get_original_memory();
             dst->copy_from(stream, *mem, blocking);
         } else {
             dst->copy_from(stream, src->data(), blocking);
-            return;
         }
+        return;
     }
 
     size_t size = ov::shape_size(src->get_shape());
@@ -257,7 +258,7 @@ void convert_and_copy(const cldnn::memory::ptr src, ov::ITensor* dst, const cldn
     const void* src_ptr = src_lock.data();
     void* dst_ptr = nullptr;
 
-    if (auto remote = dynamic_cast<const ov::intel_gpu::RemoteTensorImpl*>(dst)) {
+    if (const auto* remote = dynamic_cast<const ov::intel_gpu::RemoteTensorImpl*>(dst)) {
         auto mem = remote->get_original_memory();
         dst_lock.reset(new cldnn::mem_lock<uint8_t>(mem, stream));
         dst_ptr = dst_lock->data();
@@ -295,7 +296,7 @@ void convert_and_copy(const ov::ITensor* src, ov::ITensor* dst, const cldnn::str
     std::unique_ptr<cldnn::mem_lock<uint8_t>> dst_lock = nullptr;
     ov::Tensor tmp_tensor;
 
-    if (auto remote = dynamic_cast<const ov::intel_gpu::RemoteTensorImpl*>(src)) {
+    if (const auto* remote = dynamic_cast<const ov::intel_gpu::RemoteTensorImpl*>(src)) {
         auto mem = remote->get_original_memory();
         src_lock.reset(new cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read>(mem, stream));
         src_ptr = src_lock->data();
@@ -307,11 +308,11 @@ void convert_and_copy(const ov::ITensor* src, ov::ITensor* dst, const cldnn::str
         src_ptr = src->data();
     }
 
-    if (auto remote = dynamic_cast<const ov::intel_gpu::RemoteTensorImpl*>(dst)) {
+    if (const auto* remote = dynamic_cast<const ov::intel_gpu::RemoteTensorImpl*>(dst)) {
         auto mem = remote->get_original_memory();
         dst_lock.reset(new cldnn::mem_lock<uint8_t>(mem, stream));
         dst_ptr = dst_lock->data();
-    } else if (auto remote = dynamic_cast<ov::IRemoteTensor*>(dst)) {
+    } else if (auto* remote = dynamic_cast<ov::IRemoteTensor*>(dst)) {
         tmp_tensor = ov::Tensor(dst_et, src->get_shape());
         ::convert_and_copy(src_ptr,
                            src_et,

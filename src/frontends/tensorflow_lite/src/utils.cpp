@@ -132,12 +132,24 @@ void ov::frontend::tensorflow_lite::apply_quantization(ov::Output<ov::Node>& out
     return;
 }
 
-void ov::frontend::tensorflow_lite::dequantize_inputs(OutputVector& deq_inputs) {
+void ov::frontend::tensorflow_lite::dequantize_inputs(OutputVector& deq_inputs,
+                                                      const std::shared_ptr<DecoderBase>& decoder) {
+    // Dequantization is performed in floating point. Most TFLite models compute in f32, but fully
+    // float16 models keep activations and dequantized weights in f16. Derive the dequantization type
+    // from the operation's float output type so operands stay consistent, falling back to f32.
+    auto dequantized_type = element::f32;
+    auto op_decoder = std::dynamic_pointer_cast<DecoderBaseOperation>(decoder);
+    if (op_decoder && op_decoder->get_output_size() > 0) {
+        const auto out_type = op_decoder->get_output_tensor_type(0);
+        if (out_type.is_real())
+            dequantized_type = out_type;
+    }
+
     for (auto& deq_input : deq_inputs) {
         auto input = deq_input.get_node_shared_ptr();
         if (!ov::is_type<ov::frontend::tensorflow_lite::TFLQuantize>(input))
             continue;
-        deq_input = std::make_shared<opset10::Convert>(deq_input, element::f32);
+        deq_input = std::make_shared<opset10::Convert>(deq_input, dequantized_type);
     }
 }
 

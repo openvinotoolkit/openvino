@@ -20,7 +20,7 @@
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/shape_util.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/math_util.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
@@ -296,7 +296,7 @@ MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims& dims) 
     }
 
     // TODO [DS]: add stride recalculation for strided blobs
-    for (int i = strides.size() - 2; i >= 0; i--) {
+    for (auto i = static_cast<int>(strides.size() - 2); i >= 0; i--) {
         if (strides[i] == Shape::UNDEFINED_DIM) {
             break;
         }

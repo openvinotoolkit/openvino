@@ -60,7 +60,7 @@ public:
                 };
                 weight_dims[3] = present_v_dims[length_index];
                 auto offset = weight_dims_size - attn_mask_dims_size;
-                for (int i = attn_mask_dims_size - 1; i >= 0; i--) {
+                for (int i = static_cast<int>(attn_mask_dims_size) - 1; i >= 0; i--) {
                     attn_mask_ok = attn_mask_ok && check_broadcast(attn_mask_dims[i], weight_dims[i + offset]);
                 }
             } else {

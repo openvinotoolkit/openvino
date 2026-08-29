@@ -6,7 +6,7 @@
 
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 
 namespace ov::test {
 

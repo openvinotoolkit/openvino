@@ -67,9 +67,9 @@ EltwiseStatefulExecutor::EltwiseStatefulExecutor(EltwiseAttrs attrs,
         eltwiseImplType = EltwiseImplType::reference;
     }
 
-    size_t inputNum = memory.size() - 1;  // -1 for output
+    auto inputNum = static_cast<int>(memory.size()) - 1;  // -1 for output
 
-    for (size_t i = 0; i < inputNum; i++) {
+    for (int i = 0; i < inputNum; i++) {
         const auto desc = memory.at(i + ARG_SRC)->getDescWithType<BlockedMemoryDesc>();
         m_srcOffsets.push_back(desc->getOffsetPadding() * desc->getPrecision().size());
     }
@@ -77,7 +77,7 @@ EltwiseStatefulExecutor::EltwiseStatefulExecutor(EltwiseAttrs attrs,
     const auto desc = memory.at(ARG_DST)->getDescWithType<BlockedMemoryDesc>();
     m_dstOffset = desc->getOffsetPadding() * desc->getPrecision().size();
 
-    for (size_t i = 0; i < inputNum; ++i) {
+    for (int i = 0; i < inputNum; ++i) {
         m_inpPrc.push_back(memory.at(i + ARG_SRC)->getDesc().getPrecision());
     }
     m_outPrc = memory.at(ARG_DST)->getDesc().getPrecision();
@@ -231,16 +231,16 @@ void EltwiseStatefulExecutor::updateExecutionParams(const std::vector<VectorDims
     }
     // offsets recalculation
     auto offset_out_calc = [](VectorDims& offset, const VectorDims& dims) {
-        int k = 1;
-        for (int i = offset.size() - 1; i >= 0; i--) {
+        size_t k = 1;
+        for (auto i = static_cast<int>(offset.size()) - 1; i >= 0; i--) {
             offset[i] = k;
             k *= dims[i];
         }
     };
 
     auto offset_in_calc = [](VectorDims& offset, const VectorDims& inDims, const VectorDims& dims_out) {
-        int k = 1;
-        for (int i = offset.size() - 1; i >= 0; i--) {
+        size_t k = 1;
+        for (auto i = static_cast<int>(offset.size()) - 1; i >= 0; i--) {
             offset[i] = (inDims[i] == dims_out[i]) ? k : 0;
             k *= inDims[i];
         }

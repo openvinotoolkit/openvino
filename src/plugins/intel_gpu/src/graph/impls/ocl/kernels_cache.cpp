@@ -5,7 +5,9 @@
 #include "kernels_cache.hpp"
 #include <regex>
 
+#ifdef ENABLE_CM_FOR_GPU
 #include "impls/cm/utils/kernels_db.hpp"
+#endif
 #include "impls/ocl_v2/utils/kernels_db.hpp"
 #include "intel_gpu/runtime/kernel_args.hpp"
 #include "openvino/util/pp.hpp"
@@ -52,12 +54,12 @@ std::mutex cacheAccessMutex;
 
 std::string join_strings(const std::vector<std::string> &strings) {
     size_t total_size = 0;
-    for (auto &str : strings) {
+    for (const auto& str : strings) {
         total_size += str.size();
     }
     std::string acc_str;
     acc_str.reserve(total_size);
-    for (auto &str : strings) {
+    for (const auto& str : strings) {
         acc_str.append(str);
     }
     return acc_str;
@@ -113,11 +115,11 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
     std::map<std::string, std::tuple<int32_t, std::vector<batch_program>>> program_buckets;
 
     for (const auto& k : kernels_source_code) {
-        auto& code = k.second;
+        const auto& code = k.second;
         bool dump_custom_program = code.dump_custom_program;
 
         for (size_t kernel_part_idx = 0; kernel_part_idx < code.kernel_strings.size(); kernel_part_idx++) {
-            auto& kernel_string = code.kernel_strings[kernel_part_idx];
+            const auto& kernel_string = code.kernel_strings[kernel_part_idx];
             std::string full_code = kernel_string->jit + kernel_string->str + kernel_string->undefs;
             std::string entry_point = kernel_string->entry_point;
             std::string options = kernel_string->options;
@@ -131,7 +133,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
             std::string key = options;
 
-            if (batch_compilation == false) {
+            if (!batch_compilation) {
                 key += " __PROGRAM__" + std::to_string(program_buckets.size());
             }
 
@@ -209,9 +211,14 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                     for (auto& header : new_headers) {
                         if (std::find(all_headers.begin(), all_headers.end(), header) == all_headers.end()) {
                             all_headers.push_front(header);
-                            std::string_view header_code = prog.language == kernel_language::OCLC_V2
+                            std::string_view header_code =
+#ifdef ENABLE_CM_FOR_GPU
+                                prog.language == kernel_language::OCLC_V2
                                 ? ov::intel_gpu::ocl::SourcesDB::get_kernel_header(header)
                                 : ov::intel_gpu::cm::SourcesDB::get_kernel_header(header);
+#else
+                                ov::intel_gpu::ocl::SourcesDB::get_kernel_header(header);
+#endif
                             sources_to_process.push_back(std::string(header_code) + "\n");
                         }
                     }
@@ -277,7 +284,7 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
         return;
     }
 
-    std::string current_dump_file_name = "";
+    std::string current_dump_file_name;
     if (dump_sources) {
         current_dump_file_name = std::move(dump_sources_dir);
         if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
@@ -293,7 +300,7 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
     if (dump_sources) {
         dump_file.open(current_dump_file_name);
         if (dump_file.good()) {
-            for (auto& s : batch.source)
+            for (const auto& s : batch.source)
                 dump_file << s;
         }
     }
@@ -310,7 +317,7 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
     } else {
         auto combined_source = join_strings(batch.source);
         _builder->build_kernels(combined_source.data(), combined_source.size(), KernelFormat::SOURCE, batch.options, kernels);
-        OPENVINO_ASSERT(kernels.size() > 0, "[GPU] Expected to compile more than 0 kernels in the batch");
+        OPENVINO_ASSERT(!kernels.empty(), "[GPU] Expected to compile more than 0 kernels in the batch");
         OPENVINO_ASSERT(kernels.size() == batch.kernels_counter, "[GPU] Number of compiled kernels is different than kernel batch size");
         if (dump_sources && dump_file.good()) {
             dump_file << "\n/* Build Log:\n";
@@ -347,7 +354,7 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
             auto entry_point = k->get_id();
             const auto& iter = batch.entry_point_to_id.find(entry_point);
             if (iter != batch.entry_point_to_id.end()) {
-                auto& params = iter->second.first;
+                const auto& params = iter->second.first;
                 auto kernel_part_idx = iter->second.second;
                 if (compiled_kernels.find(params) != compiled_kernels.end()) {
                     compiled_kernels[params].push_back(std::make_pair(k, kernel_part_idx));
@@ -380,11 +387,11 @@ std::vector<kernel::ptr> kernels_cache::get_kernels(const kernel_impl_params& pa
     }
     auto res = _kernels.find(params);
     OPENVINO_ASSERT(_kernels.end() != res, "Kernel for {" + current_node_id + "} is not found in the kernel cache!");
-    OPENVINO_ASSERT(res->second.size() != 0, "Number of kernels should not be zero for " + current_node_id);
+    OPENVINO_ASSERT(!res->second.empty(), "Number of kernels should not be zero for " + current_node_id);
 
     std::vector<kernel::ptr> kernels(res->second.size());
-    for (auto& k : res->second) {
-        auto& kernel_ptr = k.first;
+    for (const auto& k : res->second) {
+        const auto& kernel_ptr = k.first;
         auto kernel_part_idx = k.second;
         kernels[kernel_part_idx] = kernel_ptr->clone(_reuse_kernels);
     }
@@ -486,7 +493,7 @@ std::string kernels_cache::get_cached_kernel_id(kernel::ptr kernel) const {
 std::vector<std::string> kernels_cache::get_cached_kernel_ids(const std::vector<kernel::ptr>& kernels) const {
     std::vector<std::string> kernel_ids;
 
-    for (auto& kernel : kernels) {
+    for (const auto& kernel : kernels) {
         auto key = get_cached_kernel_id(kernel);
         kernel_ids.emplace_back(key);
     }
@@ -497,7 +504,7 @@ std::vector<std::string> kernels_cache::get_cached_kernel_ids(const std::vector<
 void kernels_cache::add_to_cached_kernels(const std::vector<kernel::ptr>& kernels) {
     static std::atomic<uint32_t> id_gen{0};
 
-    for (auto& kernel : kernels) {
+    for (const auto& kernel : kernels) {
         auto program_binaries = kernel->get_binary();
 
         std::lock_guard<std::mutex> lock(_mutex);
@@ -526,7 +533,7 @@ void kernels_cache::save(BinaryOutputBuffer& ob) const {
         return magic == ELF_MAGIC;
     };
 
-    for (auto& cached_binary : _cached_binaries) {
+    for (const auto& cached_binary : _cached_binaries) {
         auto is_zebin_binary = is_zebin(cached_binary.first);
 
         ob << cached_binary.second;

@@ -24,12 +24,8 @@ static size_t get_subgroup_size(gpu_arch arch) {
     case gpu_arch::xe_hp:
     case gpu_arch::xe_hpg:
         return 8;
-    case gpu_arch::xe_hpc:
-    case gpu_arch::xe2:
-    case gpu_arch::xe3:
-        return 16;
     default:
-        return 8;
+        return 16;
     }
 }
 
@@ -179,7 +175,7 @@ static micro::Type convert_type(ov::element::Type t) {
 
 std::mutex MoE3GemmMicroGenerator::mtx;
 std::unordered_map<MoE3GemmMicroGenerator::GemmCacheKey, micro::Package, MoE3GemmMicroGenerator::GemmCacheKeyHash> MoE3GemmMicroGenerator::s_gemm_cache;
-void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params, micro::Package& gemm_moe, MoE3GemmMicroKernelType type) noexcept {
+void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params, micro::Package& gemm_moe, MoE3GemmMicroKernelType type) {
     std::lock_guard<std::mutex> l(mtx);
 
     int wei_idx, scale_idx, zp_idx;

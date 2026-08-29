@@ -25,6 +25,14 @@
 using namespace cldnn;
 using namespace ::tests;
 
+TEST(random_generator, stable_string_seed) {
+    EXPECT_EQ(stable_string_seed("stable_seed_smoke"), 7887508638987879372ull);
+    EXPECT_EQ(stable_string_seed("fully_connected_gpu_testcompressed_int4_scale"), 13889489938136785405ull);
+    EXPECT_EQ(stable_string_seed("fully_connected_gpu_testcompressed_int4_scale_dynamic"), 2972366682048250579ull);
+    EXPECT_NE(stable_string_seed("stable_seed_smoke"),
+              stable_string_seed("stable_seed_smoke_cached"));
+}
+
 /* Basic test to show how the program can be build and run within internal tests
    in similar way as it is done in tests utilizing clDNN API */
 TEST(basic, test1) {

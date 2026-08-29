@@ -70,16 +70,25 @@ void PagedCacheManager::parse_cache_layout_or_throw(OperatorState& st,
 
     st.num_blocks = static_cast<std::size_t>(key_cache_shape[0]);
     st.num_kv_heads = static_cast<std::size_t>(key_cache_shape[1]);
-    st.block_size = static_cast<std::size_t>(key_cache_shape[2]);
-    st.key_head_size = static_cast<std::size_t>(key_cache_shape[3]);
-
-    if (value_cache_shape[0] != key_cache_shape[0] || value_cache_shape[1] != key_cache_shape[1] ||
-        value_cache_shape[2] != key_cache_shape[2]) {
-        OPENVINO_THROW("PagedCacheManager: key_cache and value_cache layout mismatch");
-    }
+    st.block_size = static_cast<std::size_t>(value_cache_shape[2]);
     st.value_head_size = static_cast<std::size_t>(value_cache_shape[3]);
 
-    if (st.num_blocks == 0 || st.num_kv_heads == 0 || st.block_size == 0) {
+    if (value_cache_shape[0] != key_cache_shape[0] || value_cache_shape[1] != key_cache_shape[1]) {
+        OPENVINO_THROW("PagedCacheManager: key_cache and value_cache layout mismatch");
+    }
+
+    if (key_cache_shape[2] == value_cache_shape[2]) {
+        st.key_head_size = static_cast<std::size_t>(key_cache_shape[3]);
+        st.key_cache_layout = KeyCacheLayout::BLOCK_MAJOR;
+    } else if (key_cache_shape[3] == value_cache_shape[2]) {
+        st.key_head_size = static_cast<std::size_t>(key_cache_shape[2]);
+        st.key_cache_layout = KeyCacheLayout::HEAD_MAJOR;
+    } else {
+        OPENVINO_THROW("PagedCacheManager: unsupported key_cache layout");
+    }
+
+    if (st.num_blocks == 0 || st.num_kv_heads == 0 || st.block_size == 0 || st.key_head_size == 0 ||
+        st.value_head_size == 0) {
         OPENVINO_THROW("PagedCacheManager: cache shape has zero dimension");
     }
 
@@ -417,7 +426,25 @@ bool PagedCacheManager::ensure_operator(std::uintptr_t node_key,
     st.value_cache = ov::AlignedBuffer{value_bytes};
 
     if (key_cache_init) {
-        std::memcpy(st.key_cache.get_ptr(), key_cache_init, key_bytes);
+        if (st.key_cache_layout == KeyCacheLayout::BLOCK_MAJOR) {
+            std::memcpy(st.key_cache.get_ptr(), key_cache_init, key_bytes);
+        } else {
+            auto* dst = static_cast<std::uint8_t*>(st.key_cache.get_ptr());
+            const auto* src = static_cast<const std::uint8_t*>(key_cache_init);
+            for (std::size_t b = 0; b < st.num_blocks; ++b) {
+                for (std::size_t h = 0; h < st.num_kv_heads; ++h) {
+                    const std::size_t src_head_base = (b * st.num_kv_heads + h) * st.key_head_size * st.block_size;
+                    const std::size_t dst_head_base = (b * st.num_kv_heads + h) * st.block_size * st.key_head_size;
+                    for (std::size_t t = 0; t < st.block_size; ++t) {
+                        for (std::size_t d = 0; d < st.key_head_size; ++d) {
+                            const std::size_t src_elem = src_head_base + d * st.block_size + t;
+                            const std::size_t dst_elem = dst_head_base + t * st.key_head_size + d;
+                            std::memcpy(dst + dst_elem * elem_bytes, src + src_elem * elem_bytes, elem_bytes);
+                        }
+                    }
+                }
+            }
+        }
     } else {
         std::memset(st.key_cache.get_ptr(), 0, key_bytes);
     }

@@ -24,11 +24,20 @@
 #    include "nodes/executors/type_mask.hpp"
 #    include "openvino/core/type/element_type.hpp"
 #endif
+
+#if defined(OV_CPU_WITH_KLEIDIAI)
+#    include "implementation_utils.hpp"
+#    include "nodes/executors/debug_messages.hpp"
+#    include "nodes/executors/executor.hpp"
+#    include "nodes/executors/kleidiai/kleidiai_gathermatmul.hpp"
+#    include "utils/general_utils.h"
+#endif
 namespace ov::intel_cpu {
+
+using namespace ov::element;
 
 #if defined(OV_CPU_WITH_DNNL) && defined(OPENVINO_ARCH_X86_64)
 
-using namespace ov::element;
 using namespace TypeMaskAlias;
 using namespace executor;
 
@@ -80,6 +89,7 @@ static const MappingNotation gatherMatmulMappingNotation{
 template <>
 const std::vector<ExecutorImplementation<GatherMatmulAttrs>>& getImplementations() {
     static const std::vector<ExecutorImplementation<GatherMatmulAttrs>> gathermatmulImplementations{
+
         OV_CPU_INSTANCE_DNNL_X64(
             "gathermatmul_dnnl",
             ExecutorType::Dnnl,
@@ -98,6 +108,23 @@ const std::vector<ExecutorImplementation<GatherMatmulAttrs>>& getImplementations
             },
             AcceptsAnyShape<GatherMatmulAttrs>,
             CreateDefault<GatherMatmulDnnlExecutor, GatherMatmulAttrs>{}
+        )
+         OV_CPU_INSTANCE_KLEIDIAI(
+            "gathermatmul_kleidiai",
+            ExecutorType::Kleidiai,
+            OperationType::GatherMatmul,
+            // supports
+            [](const GatherMatmulConfig& config) -> bool {
+                VERIFY(all_of(f32, srcType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
+                VERIFY(any_of(weiType(config), i8, i4, f32), UNSUPPORTED_WEI_PRECISIONS);
+                VERIFY(implication(hasBias(config), biaType(config) == f32), UNSUPPORTED_SRC_PRECISIONS);
+                VERIFY(weiRank(config) == 3U, UNSUPPORTED_WEI_RANK);
+                VERIFY(GatherMatMulKleidiAIExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+                return true;
+            },
+            HasNoOptimalConfig<GatherMatmulAttrs>{},
+            AcceptsAnyShape<GatherMatmulAttrs>,
+            CreateDefault<GatherMatMulKleidiAIExecutor, GatherMatmulAttrs>{}
         )
     };
     return gathermatmulImplementations;

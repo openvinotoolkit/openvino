@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/shape_of.hpp"
 #include "utils.hpp"
+#include "utils_quantize.hpp"
 
 namespace ov {
 namespace frontend {
@@ -71,19 +71,6 @@ inline void set_u4(uint8_t* data, size_t idx, uint8_t val) {
         data[byte_idx] = (data[byte_idx] & 0x0F) | static_cast<uint8_t>((val & 0x0F) << 4);
     else
         data[byte_idx] = (data[byte_idx] & 0xF0) | (val & 0x0F);
-}
-
-Output<Node> low_precision_subgraph(const NodeContext& context,
-                                    const Output<Node>& x,
-                                    const Output<Node>& weights,
-                                    const Output<Node>& zero_points,
-                                    const Output<Node>& scales,
-                                    const Output<Node>& out_shape) {
-    ov::pass::NodeRegistry reg;
-    auto weight = ov::decomposition::low_precision_dequantize(reg, weights, scales, zero_points, out_shape);
-    weight = reg.make<v1::ConvertLike>(weight, x);
-    context.mark_nodes(reg.get());
-    return weight;
 }
 
 uint32_t rearrange_awq_bits(uint32_t num) {
@@ -335,6 +322,35 @@ OutputVector translate_linear_bitnet(const NodeContext& context) {
     }
     return {matmul};
 };
+
+OutputVector translate_linear_ct(const NodeContext& context) {
+    // ov_ext::ct_gemm(input, weight_packed, weight_scale, group_size, sym,
+    //                 weight_zero_point?, bias?)
+    num_inputs_check(context, 5, 7);
+    auto x = context.get_input(0);
+    auto weight_packed = context.get_input(1);
+    auto scales = context.get_input(2);
+    const auto group_size = context.const_input<int64_t>(3);
+    const auto sym = context.const_input<bool>(4);
+
+    Output<Node> zp;
+    if (!sym) {
+        FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(5), "CT asymmetric gemm requires weight_zero_point.");
+        zp = context.get_input(5);
+    }
+    // [in_features, out_features]
+    auto weight = dequantize_ct_weight(context, weight_packed, scales, sym, group_size, x, zp);
+
+    auto matmul = context.mark_node(std::make_shared<v0::MatMul>(x, weight, false, false));
+    if (!context.input_is_none(6)) {
+        auto bias = context.get_input(6);
+        if (bias.get_element_type() == element::f16 || bias.get_element_type() == element::bf16) {
+            bias = context.mark_node(std::make_shared<v1::ConvertLike>(bias, x));
+        }
+        matmul = context.mark_node(std::make_shared<v1::Add>(matmul, bias));
+    }
+    return {matmul};
+}
 
 OutputVector translate_bmm_ext(const NodeContext& context) {
     // ov_ext::bmm - batch matrix multiplication for 16-bit models

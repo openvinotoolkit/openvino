@@ -46,7 +46,7 @@ struct GatedMLPImplementationManager : public ImplementationManager {
         if (!is_supported_pad(src_layout) || !is_supported_pad(out_layout))
             LOG_AND_RETURN_FALSE_GATED(node);
 
-        if (src_layout.data_type != data_types::f16 && src_layout.data_type != data_types::f32)
+        if (src_layout.data_type != data_types::f16 && src_layout.data_type != data_types::bf16 && src_layout.data_type != data_types::f32)
             LOG_AND_RETURN_FALSE_GATED(node);
 
         return true;

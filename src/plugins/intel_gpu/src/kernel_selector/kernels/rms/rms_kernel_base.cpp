@@ -21,18 +21,55 @@ bool RMSKernelBase::Validate(const Params& p) const {
 JitConstants RMSKernelBase::GetJitConstants(const rms_params& params, RMSKernelBase::DispatchData) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
+    const auto normalization_axis = GetNormalizationAxis(params);
     jit.AddConstant(MakeJitConstant("EPSILON", params.epsilon));
     jit.AddConstant(MakeJitConstant("ELEMENTWISE_AFFINE", params.elementwise_affine));
+    jit.AddConstant(MakeJitConstant("INPUT_RANK", params.ov_input_rank));
+    jit.AddConstants({
+        MakeJitConstant("NORMALIZE_BATCH", normalization_axis == Tensor::DataChannelName::BATCH),
+        MakeJitConstant("NORMALIZE_FEATURE", normalization_axis == Tensor::DataChannelName::FEATURE),
+        MakeJitConstant("NORMALIZE_Y", normalization_axis == Tensor::DataChannelName::Y),
+        MakeJitConstant("NORMALIZE_X", normalization_axis == Tensor::DataChannelName::X),
+    });
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 
     return jit;
+}
+
+Tensor::DataChannelName RMSKernelBase::GetNormalizationAxis(const rms_params& params) {
+    switch (params.ov_input_rank) {
+        case 1: return Tensor::DataChannelName::BATCH;
+        case 2: return Tensor::DataChannelName::FEATURE;
+        case 3: return Tensor::DataChannelName::Y;
+        default: return Tensor::DataChannelName::X;
+    }
+}
+
+const char* RMSKernelBase::GetNormalizationAxisName(Tensor::DataChannelName axis) {
+    switch (axis) {
+        case Tensor::DataChannelName::BATCH: return "b";
+        case Tensor::DataChannelName::FEATURE: return "f";
+        case Tensor::DataChannelName::Y: return "y";
+        case Tensor::DataChannelName::X: return "x";
+        default: OPENVINO_THROW("Unsupported RMS normalization axis");
+    }
 }
 
 RMSKernelBase::DispatchData RMSKernelBase::SetDefault(const rms_params& params) const {
     DispatchData dispatchData;
     const auto& output = params.outputs[0];
 
-    dispatchData.gws = {output.Batch().v, output.Feature().v, 1};
+    switch (GetNormalizationAxis(params)) {
+        case Tensor::DataChannelName::BATCH:
+            dispatchData.gws = {1, 1, 1};
+            break;
+        case Tensor::DataChannelName::FEATURE:
+            dispatchData.gws = {output.Batch().v, 1, 1};
+            break;
+        default:
+            dispatchData.gws = {output.Batch().v, output.Feature().v, 1};
+            break;
+    }
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;

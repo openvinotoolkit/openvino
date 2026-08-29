@@ -23,6 +23,8 @@ public:
 
     AsyncInferRequest& operator=(const AsyncInferRequest&) = delete;
 
+    void cancel() override;
+
     ~AsyncInferRequest();
 
 private:

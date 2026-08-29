@@ -13,7 +13,7 @@
 
 namespace cldnn {
 
-typedef std::map<primitive_id, std::shared_ptr<primitive>> topology_map;
+using topology_map = std::map<primitive_id, std::shared_ptr<primitive>>;
 
 struct topology {
 public:

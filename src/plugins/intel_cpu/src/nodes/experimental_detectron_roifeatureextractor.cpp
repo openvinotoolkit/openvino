@@ -45,27 +45,27 @@ struct PreCalc {
 };
 
 template <typename T>
-void pre_calc_for_bilinear_interpolate(const int height,
-                                       const int width,
-                                       const int pooled_height,
-                                       const int pooled_width,
-                                       const int iy_upper,
-                                       const int ix_upper,
+void pre_calc_for_bilinear_interpolate(const size_t height,
+                                       const size_t width,
+                                       const size_t pooled_height,
+                                       const size_t pooled_width,
+                                       const size_t iy_upper,
+                                       const size_t ix_upper,
                                        T roi_start_h,
                                        T roi_start_w,
                                        T bin_size_h,
                                        T bin_size_w,
-                                       int roi_bin_grid_h,
-                                       int roi_bin_grid_w,
+                                       const size_t roi_bin_grid_h,
+                                       const size_t roi_bin_grid_w,
                                        std::vector<PreCalc<T>>& pre_calc) {
-    int pre_calc_index = 0;
-    for (int ph = 0; ph < pooled_height; ph++) {
-        for (int pw = 0; pw < pooled_width; pw++) {
-            for (int iy = 0; iy < iy_upper; iy++) {
+    size_t pre_calc_index = 0;
+    for (size_t ph = 0; ph < pooled_height; ph++) {
+        for (size_t pw = 0; pw < pooled_width; pw++) {
+            for (size_t iy = 0; iy < iy_upper; iy++) {
                 const T yy = roi_start_h + ph * bin_size_h +
                              static_cast<T>(static_cast<T>(iy) + static_cast<T>(.5f)) * bin_size_h /
                                  static_cast<T>(roi_bin_grid_h);  // e.g., 0.5, 1.5
-                for (int ix = 0; ix < ix_upper; ix++) {
+                for (size_t ix = 0; ix < ix_upper; ix++) {
                     const T xx = roi_start_w + pw * bin_size_w +
                                  static_cast<T>(static_cast<T>(ix) + static_cast<T>(.5f)) * bin_size_w /
                                      static_cast<T>(roi_bin_grid_w);
@@ -93,15 +93,15 @@ void pre_calc_for_bilinear_interpolate(const int height,
                     int y_high = 0;
                     int x_high = 0;
 
-                    if (y_low >= height - 1) {
-                        y_high = y_low = height - 1;
+                    if (y_low >= static_cast<int>(height) - 1) {
+                        y_high = y_low = static_cast<int>(height) - 1;
                         y = static_cast<T>(y_low);
                     } else {
                         y_high = y_low + 1;
                     }
 
-                    if (x_low >= width - 1) {
-                        x_high = x_low = width - 1;
+                    if (x_low >= static_cast<int>(width) - 1) {
+                        x_high = x_low = static_cast<int>(width) - 1;
                         x = static_cast<T>(x_low);
                     } else {
                         x_high = x_low + 1;
@@ -117,10 +117,10 @@ void pre_calc_for_bilinear_interpolate(const int height,
                     T w4 = ly * lx;
 
                     // save weights and indices
-                    PreCalc<T> pc{(y_low * width) + x_low,
-                                  (y_low * width) + x_high,
-                                  (y_high * width) + x_low,
-                                  (y_high * width) + x_high,
+                    PreCalc<T> pc{(y_low * static_cast<int>(width)) + x_low,
+                                  (y_low * static_cast<int>(width)) + x_high,
+                                  (y_high * static_cast<int>(width)) + x_low,
+                                  (y_high * static_cast<int>(width)) + x_high,
                                   w1,
                                   w2,
                                   w3,
@@ -135,12 +135,12 @@ void pre_calc_for_bilinear_interpolate(const int height,
 }
 
 template <typename T>
-void ROIAlignForward_cpu_kernel(const int nthreads,
+void ROIAlignForward_cpu_kernel(const size_t nthreads,
                                 const T* bottom_data,
                                 const T& spatial_scale,
-                                const int channels,
-                                const int height,
-                                const int width,
+                                const size_t channels,
+                                const size_t height,
+                                const size_t width,
                                 const int pooled_height,
                                 const int pooled_width,
                                 const int sampling_ratio,
@@ -150,10 +150,10 @@ void ROIAlignForward_cpu_kernel(const int nthreads,
                                 const std::shared_ptr<CpuParallel>& cpu_parallel) {
     int roi_cols = 4;
 
-    int n_rois = nthreads / channels / pooled_width / pooled_height;
+    auto n_rois = nthreads / channels / pooled_width / pooled_height;
     // (n, c, ph, pw) is an element in the pooled output
     cpu_parallel->parallel_for(n_rois, [&](size_t n) {
-        int index_n = n * channels * pooled_width * pooled_height;
+        auto index_n = n * channels * pooled_width * pooled_height;
 
         // roi could have 4 or 5 columns
         const T* offset_bottom_rois = bottom_rois + n * roi_cols;
@@ -203,8 +203,8 @@ void ROIAlignForward_cpu_kernel(const int nthreads,
                                           roi_bin_grid_w,
                                           pre_calc);
 
-        for (int c = 0; c < channels; c++) {
-            int index_n_c = index_n + c * pooled_width * pooled_height;
+        for (int c = 0; c < static_cast<int>(channels); c++) {
+            auto index_n_c = static_cast<int>(index_n) + c * pooled_width * pooled_height;
             const T* offset_bottom_data = bottom_data + (roi_batch_ind * channels + c) * height * width;
             int pre_calc_index = 0;
 
@@ -231,48 +231,49 @@ void ROIAlignForward_cpu_kernel(const int nthreads,
     });
 }
 
-void redistribute_rois(const float* rois, int* level_ids, const int num_rois, const int levels_num) {
+void redistribute_rois(const float* rois, int* level_ids, const size_t num_rois, const size_t levels_num) {
     const float canonical_scale = 224.0F;
     const int canonical_level = 2;
+    const auto levels_num_int = static_cast<int>(levels_num);
 
-    for (int i = 0; i < num_rois; ++i) {
+    for (size_t i = 0; i < num_rois; ++i) {
         const float x0 = rois[4 * i + 0];
         const float y0 = rois[4 * i + 1];
         const float x1 = rois[4 * i + 2];
         const float y1 = rois[4 * i + 3];
 
-        int target_level = levels_num;
+        int target_level = levels_num_int;
         float area = (x1 - x0) * (y1 - y0);
         if (area > 0) {
             area = std::sqrt(area) / canonical_scale;
             area = std::log2(area + 1e-6F);
             target_level = static_cast<int>(std::floor(area + canonical_level));
-            target_level = (std::max)(0, (std::min)(levels_num - 1, target_level));
+            target_level = std::max(0, std::min(levels_num_int - 1, target_level));
         }
 
         level_ids[i] = target_level;
     }
 }
 
-void reord(const float* src_data, const int* ranks, const int n, const int step, float* dst_data, int* dst_mapping) {
+void reord(const float* src_data, const int* ranks, const size_t n, const int step, float* dst_data, int* dst_mapping) {
     std::iota(dst_mapping, dst_mapping + n, 0);
     std::sort(dst_mapping, dst_mapping + n, [&ranks](size_t i1, size_t i2) {
         return ranks[i1] < ranks[i2];
     });
-    for (int i = 0; i < n; ++i) {
-        const int j = dst_mapping[i];
+    for (size_t i = 0; i < n; ++i) {
+        const size_t j = dst_mapping[i];
         assert(0 <= j && j < n);
         cpu_memcpy(dst_data + i * step, src_data + j * step, sizeof(float) * step);
     }
 }
 
-void split_points(const std::vector<int>& ids, std::vector<int>& rois_per_level, const int levels_num) {
+void split_points(const std::vector<int>& ids, std::vector<int>& rois_per_level, const size_t levels_num) {
     rois_per_level.clear();
     rois_per_level.resize(levels_num, 0);
     for (int id : ids) {
         rois_per_level[id]++;
     }
-    for (int i = 1; i < levels_num; ++i) {
+    for (size_t i = 1; i < levels_num; ++i) {
         rois_per_level[i] += rois_per_level[i - 1];
     }
     rois_per_level.insert(rois_per_level.begin(), 0);
@@ -331,10 +332,10 @@ void ExperimentalDetectronROIFeatureExtractor::initSupportedPrimitiveDescriptors
 
 void ExperimentalDetectronROIFeatureExtractor::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto& cpu_parallel = context->getCpuParallel();
-    const int levels_num = inputShapes.size() - INPUT_FEATURES_START;
-    const int num_rois = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
-    const int channels_num = getParentEdgeAt(INPUT_FEATURES_START)->getMemory().getStaticDims()[1];
-    const int feaxels_per_roi = pooled_height_ * pooled_width_ * channels_num;
+    const auto levels_num = inputShapes.size() - INPUT_FEATURES_START;
+    const auto num_rois = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
+    const auto channels_num = getParentEdgeAt(INPUT_FEATURES_START)->getMemory().getStaticDims()[1];
+    const auto feaxels_per_roi = pooled_height_ * pooled_width_ * channels_num;
 
     const auto* input_rois = getSrcDataAtPortAs<const float>(INPUT_ROIS);
     auto* output_rois_features = getDstDataAtPortAs<float>(OUTPUT_ROI_FEATURES);
@@ -354,13 +355,13 @@ void ExperimentalDetectronROIFeatureExtractor::execute([[maybe_unused]] const dn
     split_points(level_ids, rois_per_level, levels_num + 1);
 
     std::vector<float> output_rois_features_temp(feaxels_per_roi * num_rois, 0);
-    for (int i = 0; i < levels_num; ++i) {
-        const int level_rois_offset = rois_per_level[i];
-        const int level_rois_num = rois_per_level[i + 1] - level_rois_offset;
+    for (size_t i = 0; i < levels_num; ++i) {
+        const auto level_rois_offset = rois_per_level[i];
+        const auto level_rois_num = rois_per_level[i + 1] - level_rois_offset;
         if (level_rois_num > 0) {
             const auto* featuremap = getSrcDataAtPortAs<const float>(INPUT_FEATURES_START + i);
-            const int featuremap_height = getParentEdgeAt(INPUT_FEATURES_START + i)->getMemory().getStaticDims()[2];
-            const int featuremap_width = getParentEdgeAt(INPUT_FEATURES_START + i)->getMemory().getStaticDims()[3];
+            const auto featuremap_height = getParentEdgeAt(INPUT_FEATURES_START + i)->getMemory().getStaticDims()[2];
+            const auto featuremap_width = getParentEdgeAt(INPUT_FEATURES_START + i)->getMemory().getStaticDims()[3];
             ROIAlignForward_cpu_kernel<float>(feaxels_per_roi * level_rois_num,
                                               featuremap,
                                               1.0F / pyramid_scales_[i],
@@ -381,7 +382,7 @@ void ExperimentalDetectronROIFeatureExtractor::execute([[maybe_unused]] const dn
     reord(output_rois_features_temp.data(),
           original_rois_mapping.data(),
           num_rois,
-          feaxels_per_roi,
+          static_cast<int>(feaxels_per_roi),
           output_rois_features,
           dummy_mapping.data());
     if (output_rois != nullptr) {

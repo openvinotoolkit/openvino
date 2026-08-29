@@ -584,16 +584,22 @@ TEST_P(IRFrontendMMapTests, read_model_get_weights_map) {
         ov::save_model(model, xmlFileName);
     }
 
-    const auto model = core.read_model(xmlFileName, binFileName, {ov::enable_mmap(GetParam())});
+    const auto is_mmap_enabled = GetParam();
+    const auto model = core.read_model(xmlFileName, binFileName, {ov::enable_mmap(is_mmap_enabled)});
 
     const auto wt_sources = ov::wsh::Extension::get_weight_sources(*model);
-    ASSERT_GE(wt_sources.size(), 1);
-
     const auto wt_map = ov::wsh::Extension::get_weight_registry(*model);
-    ASSERT_GE(wt_map.size(), 1);
-
-    const auto& wt_meta_map = wt_map.begin()->second;
-    EXPECT_EQ(wt_meta_map.size(), 2);
+    if (is_mmap_enabled) {
+        ASSERT_EQ(wt_sources.size(), 1);
+        ASSERT_EQ(wt_map.size(), 1);
+        EXPECT_EQ(wt_map.begin()->second.size(), 2);
+    } else {
+        ASSERT_EQ(wt_sources.size(), 2);
+        ASSERT_EQ(wt_map.size(), 2);
+        for (const auto& [key, wt_meta_map] : wt_map) {
+            EXPECT_EQ(wt_meta_map.size(), 1);
+        }
+    }
 }
 
 INSTANTIATE_TEST_SUITE_P(EnableMMapPropery, IRFrontendMMapTests, ::testing::Bool());
@@ -1832,4 +1838,103 @@ TEST_F(IRFrontendTests, VeryShortValidModel) {
     ASSERT_TRUE(!!model);
     OV_ASSERT_NO_THROW(version = model->get_rt_info().at("version").as<int64_t>());
     ASSERT_EQ(11, version);
+}
+
+TEST_F(IRFrontendTests, string_const_offset_overflow_is_rejected) {
+    std::string xmlModel = R"V0G0N(
+<?xml version="1.0" ?>
+<net name="Network" version="11">
+    <layers>
+        <layer id="0" name="str_const" type="Const" version="opset1">
+            <data element_type="string" shape="1" offset="18446744073709551615" size="1"/>
+            <output>
+                <port id="0" precision="STRING">
+                    <dim>1</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="output" type="Result" version="opset1">
+            <input>
+                <port id="0" precision="STRING">
+                    <dim>1</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+
+    std::vector<unsigned char> buffer(16, 0);
+    createTemporalModelFile(xmlModel, buffer);
+
+    ASSERT_THROW(core.read_model(xmlFileName, binFileName), ov::Exception);
+}
+
+TEST_F(IRFrontendTests, string_const_size_exceeds_weights_is_rejected) {
+    std::string xmlModel = R"V0G0N(
+<?xml version="1.0" ?>
+<net name="Network" version="11">
+    <layers>
+        <layer id="0" name="str_const" type="Const" version="opset1">
+            <data element_type="string" shape="1" offset="0" size="17"/>
+            <output>
+                <port id="0" precision="STRING">
+                    <dim>1</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="output" type="Result" version="opset1">
+            <input>
+                <port id="0" precision="STRING">
+                    <dim>1</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+
+    std::vector<unsigned char> buffer(16, 0);
+    createTemporalModelFile(xmlModel, buffer);
+
+    ASSERT_THROW(core.read_model(xmlFileName, binFileName), ov::Exception);
+}
+
+TEST_F(IRFrontendTests, string_const_offset_plus_size_overflow_is_rejected) {
+    std::string xmlModel = R"V0G0N(
+<?xml version="1.0" ?>
+<net name="Network" version="11">
+    <layers>
+        <layer id="0" name="str_const" type="Const" version="opset1">
+            <data element_type="string" shape="1" offset="18446744073709551605" size="13"/>
+            <output>
+                <port id="0" precision="STRING">
+                    <dim>1</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="output" type="Result" version="opset1">
+            <input>
+                <port id="0" precision="STRING">
+                    <dim>1</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+
+    std::vector<unsigned char> buffer(16, 0);
+    createTemporalModelFile(xmlModel, buffer);
+
+    ASSERT_THROW(core.read_model(xmlFileName, binFileName), ov::Exception);
 }

@@ -31,6 +31,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/topk.hpp"
@@ -85,6 +86,7 @@ using ConvertTiledMoeBlockToGatherMatmulsParams = std::tuple<MoEType,           
                                                              AdditionalConsumersMode,  // additional_consumers_mode
                                                              bool,                     // use_gelu_gate (3GeMM only)
                                                              bool,                     // norm_before_tile (3GeMM only)
+                                                             bool,                     // reduce_sum_keep_dims
                                                              bool>;  // transformation_should_be_applied
 
 inline std::shared_ptr<ov::Node> build_matmul_weights(const ov::Shape& weights_shape,
@@ -106,6 +108,7 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(bool use_scatter_v12,
                                                        bool use_broadcast_v3,
                                                        bool skip_unsqueeze,
                                                        bool matmul_transpose_b,
+                                                       bool reduce_sum_keep_dims,
                                                        AdditionalConsumersMode additional_consumers_mode) {
     // Fixed values that don't affect pass behavior
     const auto expert_alpha = 1.625f;
@@ -294,10 +297,18 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(bool use_scatter_v12,
 
     auto mul3 = std::make_shared<ov::op::v1::Multiply>(end_reshape, routing_weights_final);
 
-    auto reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(
-        mul3,
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}),
-        false);
+    std::shared_ptr<ov::Node> reduce_sum = nullptr;
+    if (reduce_sum_keep_dims) {
+        auto reduce_dim_constant =
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+        auto reduce_sum_w_keep_dims = std::make_shared<ov::op::v1::ReduceSum>(mul3, reduce_dim_constant, true);
+        reduce_sum = std::make_shared<ov::op::v0::Squeeze>(reduce_sum_w_keep_dims, reduce_dim_constant);
+    } else {
+        reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(
+            mul3,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}),
+            false);
+    }
 
     ov::ParameterVector params = {input};
     ov::ResultVector results = {std::make_shared<ov::op::v0::Result>(reduce_sum)};
@@ -317,7 +328,8 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(bool use_scatter_v12,
 inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraphRef(bool use_scatter_v12,
                                                           bool use_broadcast_v3,
                                                           bool skip_unsqueeze,
-                                                          bool matmul_transpose_b) {
+                                                          bool matmul_transpose_b,
+                                                          bool reduce_sum_keep_dims) {
     // Fixed values that don't affect pass behavior
     const auto expert_alpha = 1.625f;
     const auto expert_beta = 7.0f;
@@ -434,10 +446,19 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraphRef(bool use_scatter_v12,
 
     auto mul3 = std::make_shared<ov::op::v1::Multiply>(down_gathered_mm, router_unsqueeze);
 
-    auto reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(
-        mul3,
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}),
-        false);
+    std::shared_ptr<ov::Node> reduce_sum = nullptr;
+    if (reduce_sum_keep_dims) {
+        auto reduce_dim_constant =
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+        auto reduce_sum_w_keep_dims = std::make_shared<ov::op::v1::ReduceSum>(mul3, reduce_dim_constant, true);
+        reduce_sum = std::make_shared<ov::op::v0::Squeeze>(reduce_sum_w_keep_dims, reduce_dim_constant);
+
+    } else {
+        reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(
+            mul3,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}),
+            false);
+    }
 
     const auto number_of_experts_const =
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {static_cast<int64_t>(number_of_experts)});
@@ -469,7 +490,8 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(bool use_scatter_v12,
                                                        AdditionalConsumersMode additional_consumers_mode,
                                                        GateActivationType gate_activation = GateActivationType::SWISH,
                                                        bool norm_before_tile = false,
-                                                       bool use_normalized_router = true) {
+                                                       bool use_normalized_router = true,
+                                                       bool reduce_sum_keep_dims = false) {
     // Fixed values that don't affect pass behavior
     const ov::PartialShape input_shape = {-1, -1, 256};
     const size_t topk = 4;
@@ -656,10 +678,18 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(bool use_scatter_v12,
 
     auto mul3 = std::make_shared<ov::op::v1::Multiply>(end_reshape, routing_weights_final);
 
-    auto reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(
-        mul3,
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}),
-        false);
+    std::shared_ptr<ov::Node> reduce_sum = nullptr;
+    if (reduce_sum_keep_dims) {
+        auto reduce_dim_constant =
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+        auto reduce_sum_w_keep_dims = std::make_shared<ov::op::v1::ReduceSum>(mul3, reduce_dim_constant, true);
+        reduce_sum = std::make_shared<ov::op::v0::Squeeze>(reduce_sum_w_keep_dims, reduce_dim_constant);
+    } else {
+        reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(
+            mul3,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}),
+            false);
+    }
 
     auto final_reshape_const = ov::op::v0::Constant::create(ov::element::i64,
                                                             ov::Shape{2},
@@ -695,7 +725,8 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraphRef(
     bool matmul_transpose_b,
     GateActivationType gate_activation = GateActivationType::SWISH,
     bool norm_before_tile = false,
-    bool use_normalized_router = true) {
+    bool use_normalized_router = true,
+    bool reduce_sum_keep_dims = false) {
     // Fixed values that don't affect pass behavior
     const ov::PartialShape input_shape = {-1, -1, 256};
     const size_t topk = 4;
@@ -812,10 +843,19 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraphRef(
 
     auto mul3 = std::make_shared<ov::op::v1::Multiply>(down_gathered_mm, router_unsqueeze);
 
-    auto reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(
-        mul3,
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}),
-        false);
+    std::shared_ptr<ov::Node> reduce_sum = nullptr;
+    if (reduce_sum_keep_dims) {
+        auto reduce_dim_constant =
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+        auto reduce_sum_w_keep_dims = std::make_shared<ov::op::v1::ReduceSum>(mul3, reduce_dim_constant, true);
+        reduce_sum = std::make_shared<ov::op::v0::Squeeze>(reduce_sum_w_keep_dims, reduce_dim_constant);
+
+    } else {
+        reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(
+            mul3,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}),
+            false);
+    }
 
     const auto number_of_experts_const =
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {static_cast<int64_t>(number_of_experts)});
@@ -861,13 +901,15 @@ public:
                      additional_consumers_mode,
                      use_gelu_gate,
                      norm_before_tile,
+                     reduce_sum_keep_dims,
                      should_be_applied] = obj.param;
         std::ostringstream result;
         result << "MoEType_" << moe_type << "_ScatterV" << (use_scatter_v12 ? "12" : "3") << "_BroadcastV"
                << (use_broadcast_v3 ? "3" : "1") << "_SkipUnsqueeze_" << (skip_unsqueeze ? "true" : "false")
                << "_MatMulTransposeB_" << (matmul_transpose_b ? "true" : "false") << "_AdditionalConsumers_"
                << additional_consumers_mode << "_GeluGate_" << (use_gelu_gate ? "true" : "false") << "_NormBeforeTile_"
-               << (norm_before_tile ? "true" : "false") << "_shouldBeApplied_"
+               << (norm_before_tile ? "true" : "false") << "_reduce_sum_keep_dims_"
+               << (reduce_sum_keep_dims ? "true" : "false") << "_shouldBeApplied_"
                << (should_be_applied ? "true" : "false");
         return result.str();
     }
@@ -883,6 +925,7 @@ protected:
                      additional_consumers_mode,
                      use_gelu_gate,
                      norm_before_tile,
+                     reduce_sum_keep_dims,
                      should_be_applied] = this->GetParam();
 
         // 3GeMM-only params must be false for MoE2GeMM
@@ -899,6 +942,7 @@ protected:
                                          use_broadcast_v3,
                                          skip_unsqueeze,
                                          matmul_transpose_b,
+                                         reduce_sum_keep_dims,
                                          additional_consumers_mode);
             break;
         case MoEType::MoE3GeMM:
@@ -909,7 +953,8 @@ protected:
                                          additional_consumers_mode,
                                          gate_act,
                                          norm_before_tile,
-                                         use_normalized_router);
+                                         use_normalized_router,
+                                         reduce_sum_keep_dims);
             break;
         default:
             OPENVINO_THROW("Unexpected MoEType value");
@@ -920,8 +965,11 @@ protected:
         if (should_be_applied) {
             switch (moe_type) {
             case MoEType::MoE2GeMM:
-                model_ref =
-                    initMoE2GeMMSubgraphRef(use_scatter_v12, use_broadcast_v3, skip_unsqueeze, matmul_transpose_b);
+                model_ref = initMoE2GeMMSubgraphRef(use_scatter_v12,
+                                                    use_broadcast_v3,
+                                                    skip_unsqueeze,
+                                                    matmul_transpose_b,
+                                                    reduce_sum_keep_dims);
                 break;
             case MoEType::MoE3GeMM:
                 model_ref = initMoE3GeMMSubgraphRef(use_scatter_v12,
@@ -930,7 +978,8 @@ protected:
                                                     matmul_transpose_b,
                                                     gate_act,
                                                     norm_before_tile,
-                                                    use_normalized_router);
+                                                    use_normalized_router,
+                                                    reduce_sum_keep_dims);
                 break;
             default:
                 OPENVINO_THROW("Unexpected MoEType value");
@@ -945,6 +994,7 @@ const std::vector<MoEType> moe_types = {MoEType::MoE2GeMM, MoEType::MoE3GeMM};
 const std::vector<bool> scatter_versions = {false, true};    // false = v3, true = v12
 const std::vector<bool> broadcast_versions = {false, true};  // false = v1, true = v3
 const std::vector<bool> skip_unsqueeze_versions = {false, true};
+const std::vector<bool> reduce_sum_keep_dims = {false, true};  // if true, reduce_sum is followed by squeeze.
 
 INSTANTIATE_TEST_SUITE_P(ConvertTiledMoeBlockToGatherMatmulsTest_positive_cases,
                          ConvertTiledMoeBlockToGatherMatmulsTest,
@@ -956,6 +1006,7 @@ INSTANTIATE_TEST_SUITE_P(ConvertTiledMoeBlockToGatherMatmulsTest_positive_cases,
                                             ::testing::Values(AdditionalConsumersMode::NO),
                                             ::testing::Values(false),
                                             ::testing::Values(false),
+                                            ::testing::ValuesIn(reduce_sum_keep_dims),
                                             ::testing::Values(true)),
                          ConvertTiledMoeBlockToGatherMatmulsTest::getTestCaseName);
 
@@ -969,6 +1020,7 @@ INSTANTIATE_TEST_SUITE_P(ConvertTiledMoeBlockToGatherMatmulsTest_3gemm_specific_
                                             ::testing::Values(AdditionalConsumersMode::NO),
                                             ::testing::Values(false, true),
                                             ::testing::Values(false, true),
+                                            ::testing::ValuesIn(reduce_sum_keep_dims),
                                             ::testing::Values(true)),
                          ConvertTiledMoeBlockToGatherMatmulsTest::getTestCaseName);
 
@@ -982,6 +1034,7 @@ INSTANTIATE_TEST_SUITE_P(ConvertTiledMoeBlockToGatherMatmulsTest_negative_cases_
                                             ::testing::Values(AdditionalConsumersMode::NO),
                                             ::testing::Values(false),
                                             ::testing::Values(false),
+                                            ::testing::ValuesIn(reduce_sum_keep_dims),
                                             ::testing::Values(false)),
                          ConvertTiledMoeBlockToGatherMatmulsTest::getTestCaseName);
 
@@ -995,6 +1048,7 @@ INSTANTIATE_TEST_SUITE_P(ConvertTiledMoeBlockToGatherMatmulsTest_negative_cases_
                                             ::testing::Values(AdditionalConsumersMode::MATMULS,
                                                               AdditionalConsumersMode::AFTER_MATMULS,
                                                               AdditionalConsumersMode::REDUCE),
+                                            ::testing::Values(false),
                                             ::testing::Values(false),
                                             ::testing::Values(false),
                                             ::testing::Values(false)),

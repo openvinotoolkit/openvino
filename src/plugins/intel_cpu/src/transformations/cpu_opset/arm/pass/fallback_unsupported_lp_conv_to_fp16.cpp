@@ -55,7 +55,7 @@ ov::intel_cpu::FallbackUnsupportedLPConvToFP16::FallbackUnsupportedLPConvToFP16(
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        const auto conv_out = conv_mul_add_fq->get_anchor("convolution", pattern_map);
+        const auto conv_out = conv_mul_add_fq->get_anchor("gemm", pattern_map);
         const auto mul_out = conv_mul_add_fq->get_anchor("multiply", pattern_map);
         const auto add_out = conv_mul_add_fq->get_anchor("add", pattern_map);
         const auto fq_out = conv_mul_add_fq->get_anchor("fake_quantize", pattern_map);

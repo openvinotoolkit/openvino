@@ -164,7 +164,7 @@ bool GatherNDKernelRef::Validate(const Params& p) const {
         }
     }
 
-    for (auto& fused_op : params.fused_ops) {
+    for (const auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
             DO_NOT_USE_THIS_KERNEL(p.layerID);
     }

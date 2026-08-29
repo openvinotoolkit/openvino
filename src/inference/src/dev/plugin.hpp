@@ -27,6 +27,10 @@ class Plugin {
 
 public:
     Plugin() = default;
+    Plugin(const Plugin&) = default;
+    Plugin& operator=(const Plugin&) = default;
+    Plugin(Plugin&&) = default;
+    Plugin& operator=(Plugin&&) = default;
 
     ~Plugin();
 

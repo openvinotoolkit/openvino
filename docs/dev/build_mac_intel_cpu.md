@@ -20,7 +20,7 @@ The software was validated on:
   % brew install python@3.11
   ```
   - **arm64** Select universal2 installer from [Python releases](https://www.python.org/downloads/macos/) download page and install `python-3.X.Y-macos11.pkg` image. This allows to have universal python libraries of OpenVINO Python API (build x86_64) .
-- [CMake](https://cmake.org/download/) 3.13 or higher and other development tools:
+- [CMake](https://cmake.org/download/) 3.26 or higher and other development tools:
   ```sh
   % brew install cmake scons fdupes git-lfs ninja
   ```

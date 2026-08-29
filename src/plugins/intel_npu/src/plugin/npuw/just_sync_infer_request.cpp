@@ -705,6 +705,24 @@ void ov::npuw::JustInferRequest::start_subrequest(std::size_t idx) {
     m_subrequests[idx]->start_async();
 }
 
+void ov::npuw::JustInferRequest::propagate_params_to_subrequests() {
+    // Handle m_subrequests (primary subrequests for all real subgraphs).
+    IBaseInferRequest::propagate_params_to_subrequests();
+
+    // When function pipelining is active, m_funcall_pipeline[real_idx].subrequest is a
+    // "reserve" request swapped with the primary after each funcall epilogue.  It may
+    // hold live block tensor refs from the last executed or pre-prepared inference step
+    // and must be cleared here, otherwise release() cannot free device memory.
+    if (!m_use_function_pipelining) {
+        return;
+    }
+    for (std::size_t idx = 0; idx < m_funcall_pipeline.size(); ++idx) {
+        if (m_funcall_pipeline[idx].subrequest) {
+            bind_global_params(idx, m_funcall_pipeline[idx].subrequest);
+        }
+    }
+}
+
 void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
@@ -999,6 +1017,7 @@ void ov::npuw::JustInferRequest::unsafe_infer_spatial(std::size_t real_idx, std:
             auto out_view =
                 ov::npuw::util::view(m_spatial_io[real_idx].input_tails.at(param.idx), param.dim, 0, spatial.tail_size);
 
+            NPUW_ASSERT(out_view._ptr && "null view of spatial input tail tensor — m_spatial_io may be uninitialized");
             in_view->copy_to(out_view._ptr);
             r->set_tensor(iport, m_spatial_io[real_idx].input_tails.at(param.idx));
         }  // for(params)
@@ -1023,6 +1042,7 @@ void ov::npuw::JustInferRequest::unsafe_infer_spatial(std::size_t real_idx, std:
                                                  spatial.out_dim,
                                                  offset,
                                                  spatial.tail_size);
+            NPUW_ASSERT(out_view._ptr && "null view of spatial output tensor — m_spatial_io may be uninitialized");
             in_view->copy_to(out_view._ptr);
         }  // for(outputs)
     }

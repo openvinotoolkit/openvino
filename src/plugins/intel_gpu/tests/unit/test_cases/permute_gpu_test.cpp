@@ -1895,6 +1895,12 @@ void TiledPermuteTest::compare_value(ov::float16 a, ov::float16 b) const {
     ASSERT_FLOAT_EQ(static_cast<float>(a), static_cast<float>(b));
 }
 
+// bf16 format
+template<>
+void TiledPermuteTest::compare_value(ov::bfloat16 a, ov::bfloat16 b) const {
+    ASSERT_FLOAT_EQ(static_cast<float>(a), static_cast<float>(b));
+}
+
 template<>
 void TiledPermuteTest::set_random_values<int8_t>(const cldnn::memory::ptr mem) const {
     // tests::set_random_values<int8_t>() is not supported
@@ -1903,6 +1909,17 @@ void TiledPermuteTest::set_random_values<int8_t>(const cldnn::memory::ptr mem) c
     cldnn::mem_lock<int8_t> ptr(mem, get_test_stream());
     for (auto it = ptr.begin(); it != ptr.end(); ++it) {
         *it = static_cast<int8_t>(uid(gen));
+    }
+}
+
+template<>
+void TiledPermuteTest::set_random_values<ov::bfloat16>(const cldnn::memory::ptr mem) const {
+    // tests::set_random_values<ov::bfloat16>() is not supported
+    std::mt19937 gen;
+    static std::uniform_real_distribution<float> urd(std::numeric_limits<ov::bfloat16>::lowest(), std::numeric_limits<ov::bfloat16>::max());
+    cldnn::mem_lock<ov::bfloat16> ptr(mem, get_test_stream());
+    for (auto it = ptr.begin(); it != ptr.end(); ++it) {
+        *it = static_cast<ov::bfloat16>(urd(gen));
     }
 }
 
@@ -2025,6 +2042,11 @@ TEST_P(permute_tile_fsv_4d, f16) {
     run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv);
 }
 
+TEST_P(permute_tile_fsv_4d, bf16) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::bf16>(p.sizes, p.format_fsv);
+}
+
 TEST_P(permute_tile_fsv_4d, f32) {
     auto p = GetParam();
     run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv);
@@ -2083,6 +2105,11 @@ INSTANTIATE_TEST_SUITE_P(, permute_tile_fsv_5d,
 TEST_P(permute_tile_fsv_5d, f16) {
     auto p = GetParam();
     run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv);
+}
+
+TEST_P(permute_tile_fsv_5d, bf16) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::bf16>(p.sizes, p.format_fsv);
 }
 
 TEST_P(permute_tile_fsv_5d, f32) {
@@ -2277,6 +2304,11 @@ TEST_P(permute_tile_fsv_4d, f16_cached) {
     run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
 }
 
+TEST_P(permute_tile_fsv_4d, bf16_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::bf16>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
+}
+
 TEST_P(permute_tile_fsv_4d, f32_cached) {
     auto p = GetParam();
     run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
@@ -2300,6 +2332,11 @@ TEST_P(permute_tile_fsv_4d, i64_cached) {
 TEST_P(permute_tile_fsv_5d, f16_cached) {
     auto p = GetParam();
     run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
+}
+
+TEST_P(permute_tile_fsv_5d, bf16_cached) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::bf16>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4_fsv", {}, true);
 }
 
 TEST_P(permute_tile_fsv_5d, f32_cached) {
@@ -2368,10 +2405,58 @@ TEST_P(permute_f_y_axes_tile, combined) {
     auto p = GetParam();
     run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
     run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
+    run_test<cldnn::data_types::bf16>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
     run_test<cldnn::data_types::u8>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
     run_test<cldnn::data_types::i8>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
     run_test<cldnn::data_types::i32>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
     run_test<cldnn::data_types::i64>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
+}
+
+// permute_xy_swap kernel: optimized 4D X<->Y transpose ({0, 1, 3, 2}).
+// Constraints (see PermuteKernel_xy_swap::Validate):
+//   * 4D plain bfyx layout only.
+//   * Order must be {0, 1, 3, 2}.
+//   * No dynamic shapes; pitches must equal logical dims.
+// X and Y need NOT be tile-aligned: when no supported tile size (32/16)
+// divides both X and Y, the kernel uses a WG_DIM tile with per-tile
+// remainder handling.
+// Sizes here use the test convention {B, F, Y, X}.
+class permute_xy_swap : public TiledPermuteTest {};
+
+INSTANTIATE_TEST_SUITE_P(smoke_permute_xy_swap,
+                         permute_xy_swap,
+                         ::testing::ValuesIn(std::vector<TiledPermuteParam>{
+                             // tile=32 path (both X and Y divisible by 32)
+                             {{1, 1, 32, 32}, format::bfyx},
+                             {{1, 4, 64, 32}, format::bfyx},
+                             {{2, 8, 32, 64}, format::bfyx},
+                             {{4, 4, 64, 64}, format::bfyx},
+                             // tile=16 path (X or Y not divisible by 32 but both by 16)
+                             {{1, 1, 16, 16}, format::bfyx},
+                             {{1, 8, 16, 32}, format::bfyx},
+                             {{2, 4, 48, 48}, format::bfyx},
+                             {{1, 16, 16, 64}, format::bfyx},
+                             // larger / batched
+                             {{1, 32, 128, 64}, format::bfyx},
+                             {{4, 16, 64, 128}, format::bfyx},
+                             // remainder path (X and/or Y not tile-aligned)
+                             {{1, 16, 72, 256}, format::bfyx},  // Y=72 ragged (pi05 K-transpose)
+                             {{1, 16, 256, 72}, format::bfyx},  // X=72 ragged (reverse)
+                             {{2, 3, 72, 100}, format::bfyx},   // both X and Y ragged
+                             {{1, 1, 17, 33}, format::bfyx},    // both ragged, small
+                             {{3, 5, 100, 72}, format::bfyx},   // both ragged, batched
+                             {{1, 8, 24, 40}, format::bfyx},    // both ragged (24, 40)
+                         }),
+                         TiledPermuteTest::PrintToStringParamName);
+
+TEST_P(permute_xy_swap, combined) {
+    auto p = GetParam();
+    run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_xy_swap", {0, 1, 3, 2});
+    run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv, "permute_xy_swap", {0, 1, 3, 2});
+    run_test<cldnn::data_types::bf16>(p.sizes, p.format_fsv, "permute_xy_swap", {0, 1, 3, 2});
+    run_test<cldnn::data_types::u8>(p.sizes, p.format_fsv, "permute_xy_swap", {0, 1, 3, 2});
+    run_test<cldnn::data_types::i8>(p.sizes, p.format_fsv, "permute_xy_swap", {0, 1, 3, 2});
+    run_test<cldnn::data_types::i32>(p.sizes, p.format_fsv, "permute_xy_swap", {0, 1, 3, 2});
 }
 
 struct TiledPerformancePermuteTest : TiledPermuteTest

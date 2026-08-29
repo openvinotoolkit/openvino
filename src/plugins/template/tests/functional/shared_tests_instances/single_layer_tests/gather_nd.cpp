@@ -52,4 +52,22 @@ TEST_F(GatherNDLayerTemplateTest, smoke_dynamic_v8_nonzero) {
 
     run();
 }
+
+TEST_F(GatherNDLayerTemplateTest, smoke_static_v5_nonzero) {
+    const auto input_shapes =
+        std::vector<InputShape>{InputShape{ov::PartialShape({8, 32}), std::vector<ov::Shape>{ov::Shape{8, 32}}}};
+    init_input_shapes(input_shapes);
+    function = make_nonzero_gather_model<op::v5::GatherND>(inputDynamicShapes.at(0), 0);
+
+    run();
+}
+
+TEST_F(GatherNDLayerTemplateTest, smoke_static_v8_nonzero) {
+    const auto input_shapes =
+        std::vector<InputShape>{InputShape{ov::PartialShape({8, 32}), std::vector<ov::Shape>{ov::Shape{8, 32}}}};
+    init_input_shapes(input_shapes);
+    function = make_nonzero_gather_model<op::v8::GatherND>(inputDynamicShapes.at(0), 0);
+
+    run();
+}
 }  // namespace ov::test

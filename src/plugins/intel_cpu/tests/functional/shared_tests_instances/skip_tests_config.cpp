@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/visibility.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+
+#include "openvino/core/visibility.hpp"
 #include "openvino/runtime/system_conf.hpp"
-#include "utils/precision_support.h"
 #include "snippets/utils.hpp"
+#include "utils/arm_isa_support.h"
+#include "utils/precision_support.h"
 #if defined(OPENVINO_ARCH_RISCV64)
-#   include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
+#    include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #endif
 #include <string>
 #include <vector>
@@ -61,6 +63,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*OVClassQueryModelTest.*QueryModelWithDeviceID.*)"),
             // Issue 67214
             std::regex(R"(smoke_PrePostProcess.*resize_and_convert_layout_i8.*)"),
+            // TODO: Implement RGBtoNV12/BGRtoNV12 in CPU plugin.
+            std::regex(R"(.*smoke_PostProcess.*convert_color_(rgb|bgr)_to_nv12.*)"),
             // Issue: 69086
             // need to add support convert BIN -> FP32
             // if we set output precision as BIN, when we create output blob precision looks like UNSPECIFIED
@@ -334,6 +338,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*WeightlessCacheAccuracy.*)"),
 #endif
 #if defined(OPENVINO_ARCH_ARM)
+            // GatherMatmul is not supported on 32-bit ARM
+            std::regex(R"(.*smoke_GroupedMatMul.*)"),
             // Issue: 144998
             std::regex(R"(.*smoke_CachingSupportCase_CPU.*_(i8|u8).*)"),
             std::regex(R"(.*smoke_Hetero_CachingSupportCase.*_(i8|u8).*)"),
@@ -383,6 +389,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*InterpolateLayerCPUTest.*CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)"),
             std::regex(R"(.*MatMulLayerCPUTest.*CompareWithRefs.*)"),
             std::regex(R"(.*MatmulWeightsDecompression.*CompareWithRefs.*)"),
+            std::regex(R"(.*Conv1x1WeightCompressedToMatmulTest.*)"),
             std::regex(R"(.*MvnLayerCPUTest.*CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)"),
             std::regex(R"(.*NonInputInPlaceTest.*CompareWithRefs.*)"),
             std::regex(R"(.*OVClassCompiledModelGetPropertyTest_EXEC_DEVICES.*CanGetExecutionDeviceInfo.*)"),
@@ -433,7 +440,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*smoke_(static|dynamic)Shapes4D(C(16|32))?(_Transpose|_PermutePerChannels)/TransposeLayerCPUTest.CompareWithRefs.*netPRC=f32.*INFERENCE_PRECISION_HINT=f16.*)"),
             std::regex(R"(.*smoke_(static|dynamic)_1D/GatherLayerTestCPU.CompareWithRefs.*)"),
             std::regex(R"(.*smoke_RDFT_CPU_(1|2|4)D/RDFTTestCPU.CompareWithRefs.*)"),
-            std::regex(R"(.*smoke_CompareWithRefs(Numpy|None)_dynamic/SelectLayerCPUTest.CompareWithRefs.*)"),
             std::regex(R"(.*smoke_Check/ConvPoolActivTest.CompareWithRefs.*)"),
             std::regex(R"(.*smoke_Conv_Sum_(1x1_)?Broadcast(_FP32|_Strided|_INT8|_Several_Consumers|_StaticShape)?/Conv(1x1)?Sum(InPlace(Test(Int8|SeveralConsumers)?|Strided)?|(Unsupported)?BroadcastTest).CompareWithRefs.*)"),
             std::regex(R"(.*smoke_ReshapeFc/ReshapeFcCPUTest.CompareWithRefs.*)"),
@@ -475,7 +481,17 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*proposal_params/.*)"),
             // Quantized models unsupported
             std::regex(R"(.*Quantized.*)"),
-            std::regex(R"(smoke_Snippets(?!_(Eltwise|ThreeInputsEltwise|PrecisionPropagation_Convertion|Convert.*|Select|BroadcastSelect|Transpose[^/_]*|Reduce|Softmax(?=/)|AddSoftmax)(/|_)).*)"),
+            std::regex(R"(.*smoke_Snippets_MatMul.*)"),
+            std::regex(R"(.*smoke_Snippets_MatMult.*)"),
+            std::regex(R"(.*smoke_Snippets_ExplicitTransposeMatMul.*)"),
+            std::regex(R"(.*smoke_Snippets_Dyn.*Mat.*)"),
+            std::regex(R"(.*smoke_Snippets_FullyConnected.*)"),
+            std::regex(R"(.*smoke_Snippets_MHA.*)"),
+            std::regex(R"(.*smoke_Snippets_MLP.*)"),
+            std::regex(R"(.*smoke_Snippets_GatedMLP.*)"),
+            std::regex(R"(.*smoke_Snippets_SoftmaxSum.*\?\..*)"),
+            std::regex(R"(.*smoke_Snippets_FQDecomposition.*Swish.*)"),
+            std::regex(R"(.*smoke_Snippets_GroupNormalization.*)"),
             std::regex(R"(.*smoke_Snippets_TransposeMatMulBias/ExplicitTransposeMatMulBias.*)"),
             std::regex(R"(.*_enforceSnippets=1.*)"),
 #endif
@@ -503,7 +519,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // of ConvertSaturation when converting larger integer to smaller integer to align with c++ standard and ngraph reference.
             std::regex(R"(.*smoke_EltwiseChain_MergeConvert_int8/.*Op0=Prod.*Conversion=i8.*)"),
             // Tests to be enabled on ARM64
-            std::regex(R"(smoke_Snippets_ConvAdd/ConvEltwise.CompareWithRefImpl.*)"),
             std::regex(R"(smoke_Snippets_GroupNormalization.*)"),
 #endif
 #if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_X86_64) && !defined(OPENVINO_ARCH_RISCV64)
@@ -653,6 +668,9 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.emplace_back(std::regex(R"(.*smoke_Snippets_Convert.*_IT=\([^)]*f16[^)]*\).*)"));
             patterns.emplace_back(std::regex(R"(.*smoke_Snippets_Convert.*_OT=\([^)]*f16[^)]*\).*)"));
         }
+        if (!ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
+            patterns.emplace_back(std::regex(R"(.*ConvertCPULayerTest.*f16.*)"));
+        }
 #endif
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         if (!ov::with_cpu_x86_avx2()) {
@@ -669,9 +687,15 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.emplace_back(std::regex(R"(.*ConvertCPULayerTest.*f16.*)"));
         }
 #elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
-        if (!ov::intel_cpu::hasIntDotProductSupport()) {
-            patterns.emplace_back(std::regex(R"(.*smoke_MatMulCompressedWeights_Kleidiai.*)"));
+        if (!ov::intel_cpu::hasArmISASupport(ov::intel_cpu::ArmISA::DOTPROD)) {
+            patterns.emplace_back(std::regex(R"(.*smoke_MatMulCompressedWeights(Grp)?_Kleidiai.*)"));
         }
+        if (!ov::with_cpu_arm_dotprod() && !ov::with_cpu_arm_i8mm()) {
+            patterns.emplace_back(std::regex(R"(.*smoke_GroupedMatMul_Compressed.*)"));
+            patterns.emplace_back(std::regex(R"(.*Conv1x1WeightCompressedToMatmul.*)"));
+        }
+        // Accuracy issue in case of odd K
+        patterns.emplace_back(std::regex(R"(.*smoke_GroupedMatMul_Compressed_CornerCases.*WET=i4.*)"));
         if (!ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
             // Skip fp16 tests for paltforms that don't support fp16 precision
             patterns.emplace_back(std::regex(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)"));

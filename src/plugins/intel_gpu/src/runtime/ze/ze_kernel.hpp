@@ -7,7 +7,7 @@
 #include "intel_gpu/runtime/kernel.hpp"
 #include "openvino/core/except.hpp"
 #include "ze_common.hpp"
-#include "ze_kernel_holder.hpp"
+#include "ze_resource.hpp"
 
 #include <memory>
 
@@ -16,8 +16,8 @@ namespace ze {
 
 class ze_kernel : public kernel {
 public:
-    static void create_kernels_from_module(std::shared_ptr<ze_module_holder> module, std::vector<kernel::ptr> &out) {
-        ze_module_handle_t module_handle = module->get_module_handle();
+    static void create_kernels_from_module(ze_module_resource module_holder, ze_module_build_log_resource build_log_holder, std::vector<kernel::ptr> &out) {
+        ze_module_handle_t module_handle = module_holder.handle();
         uint32_t kernel_count = 0;
         OV_ZE_EXPECT(ze::zeModuleGetKernelNames(module_handle, &kernel_count, nullptr));
         std::vector<const char*> kernel_names(kernel_count);
@@ -37,22 +37,28 @@ public:
             kernel_desc.pKernelName = name_cstr;
             ze_kernel_handle_t kernel_handle;
             OV_ZE_EXPECT(ze::zeKernelCreate(module_handle, &kernel_desc, &kernel_handle));
-            auto kernel_holder = std::make_shared<ze_kernel_holder>(kernel_handle, module);
-            out.push_back(std::make_shared<ze_kernel>(kernel_holder, name));
+            ze_kernel_resource kernel_holder(kernel_handle);
+            out.push_back(std::make_shared<ze_kernel>(module_holder, kernel_holder, name, build_log_holder));
         }
     }
 
-    ze_kernel(std::shared_ptr<ze_kernel_holder> kernel, const std::string& kernel_id)
-        : m_kernel(kernel)
-        , m_kernel_id(kernel_id) { }
+    ze_kernel(ze_module_resource module_res, ze_kernel_resource kernel_res, const std::string& kernel_id, ze_module_build_log_resource build_log)
+        : m_module(std::move(module_res))
+        , m_build_log(std::move(build_log))
+        , m_kernel(std::move(kernel_res))
+        , m_kernel_id(kernel_id) {
+            // Allow empty build log holder
+            OPENVINO_ASSERT(!m_kernel.is_empty(), "[GPU] Attempt to create kernel with empty kernel resource");
+            OPENVINO_ASSERT(!m_module.is_empty(), "[GPU] Attempt to create kernel with empty module resource");
+        }
 
-    ze_kernel_handle_t get_kernel_handle() const { return m_kernel->get_kernel_handle(); }
-    ze_module_handle_t get_module_handle() const { return m_kernel->get_module()->get_module_handle(); }
+    ze_kernel_handle_t get_kernel_handle() const { return m_kernel.handle(); }
+    ze_module_handle_t get_module_handle() const { return m_module.handle(); }
     std::string get_id() const override { return m_kernel_id; }
 
     std::shared_ptr<kernel> clone(bool reuse_kernel_handle = false) const override {
         if (reuse_kernel_handle) {
-            return std::make_shared<ze_kernel>(m_kernel, m_kernel_id);
+            return std::make_shared<ze_kernel>(m_module, m_kernel, m_kernel_id, m_build_log);
         } else {
             ze_kernel_handle_t cloned_handle;
             ze_module_handle_t module_handle = get_module_handle();
@@ -62,8 +68,8 @@ public:
             descriptor.flags = 0;
             descriptor.pKernelName = m_kernel_id.c_str();
             OV_ZE_EXPECT(ze::zeKernelCreate(module_handle, &descriptor, &cloned_handle));
-            auto kernel_holder = std::make_shared<ze_kernel_holder>(cloned_handle, m_kernel->get_module());
-            return std::make_shared<ze_kernel>(kernel_holder, m_kernel_id);
+            ze_kernel_resource kernel_holder(cloned_handle);
+            return std::make_shared<ze_kernel>(m_module, kernel_holder, m_kernel_id, m_build_log);
         }
     }
 
@@ -87,7 +93,10 @@ public:
     }
 
     std::string get_build_log() const override {
-        ze_module_build_log_handle_t build_log_handle = m_kernel->get_module()->get_build_log_handle();
+        if (m_build_log.is_empty()) {
+            return {};
+        }
+        ze_module_build_log_handle_t build_log_handle = m_build_log.handle();
         size_t log_size = 0;
         OV_ZE_EXPECT(ze::zeModuleBuildLogGetString(build_log_handle, &log_size, nullptr));
 
@@ -97,7 +106,10 @@ public:
     }
 
 private:
-    std::shared_ptr<ze_kernel_holder> m_kernel;
+    // To ensure correct lifetime, drop kernel first then build log and module
+    ze_module_resource m_module;
+    ze_module_build_log_resource m_build_log;
+    ze_kernel_resource m_kernel;
     std::string m_kernel_id;
 };
 

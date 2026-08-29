@@ -579,6 +579,15 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v16::SparseFil
     return std::make_shared<ov::Model>(results, ov::ParameterVector{values, indices, default_value}, "SparseFillEmptyRowsGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v17::GroupedMatMul> &node) {
+    // Case: 3D × 3D (batched uniform groups)
+    const auto mat_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{3, 4, 64});
+    const auto mat_b = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{3, 128, 64});
+    const auto groupedMatMulNode = std::make_shared<ov::op::v17::GroupedMatMul>(mat_a, mat_b);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(groupedMatMulNode)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{mat_a, mat_b}, "GroupedMatMulGraph");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v4::Interpolate> &node) {
     using InterpolateAttrs = op::v4::Interpolate::InterpolateAttrs;
     using InterpolateMode = op::v4::Interpolate::InterpolateMode;
@@ -1743,6 +1752,21 @@ std::shared_ptr<ov::Model> generateConvertColor(const std::shared_ptr<ov::op::Op
     return std::make_shared<ov::Model>(results, ParameterVector{params}, "ConvertColorGraph");
 }
 
+std::shared_ptr<ov::Model> generateConvertColorToNV12(const std::shared_ptr<ov::op::Op> &node) {
+    const auto params = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, Shape{1, 4, 2, 3});
+    std::shared_ptr<ov::Node> convert;
+    if (ov::is_type<ov::op::v17::RGBtoNV12>(node)) {
+        convert = std::make_shared<ov::op::v17::RGBtoNV12>(params);
+    } else if (ov::is_type<ov::op::v17::BGRtoNV12>(node)) {
+        convert = std::make_shared<ov::op::v17::BGRtoNV12>(params);
+    } else {
+        return nullptr;
+    }
+
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(convert)};
+    return std::make_shared<ov::Model>(results, ParameterVector{params}, "ConvertColorToNV12Graph");
+}
+
 std::shared_ptr<ov::Model> generateMultiSubGraph(const std::shared_ptr<ov::op::Op> &node) {
     if (ov::is_type<ov::op::v8::If>(node)) {
         auto cond = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, Shape{1});
@@ -2227,6 +2251,8 @@ std::shared_ptr<ov::Model> generateGraph() {
     } else if (ov::is_type<ov::op::util::ConvertColorNV12Base>(node) ||
                ov::is_type<ov::op::util::ConvertColorI420Base>(node)) {
         return generateConvertColor(node);
+    } else if (ov::is_type<ov::op::util::ConvertColorToNV12Base>(node)) {
+        return generateConvertColorToNV12(node);
     } else if (ov::is_type<ov::op::util::MulticlassNmsBase>(node)) {
         return generateMulticlassNmsBase(node);
     } else if (ov::is_type<ov::op::util::ReadValueBase>(node)) {

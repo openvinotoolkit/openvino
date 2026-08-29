@@ -14,7 +14,7 @@ class ConvolutionKernel_mmad_b_fs_yx_fsv32_dw : public ConvolutionKernelBase {
 public:
     using Parent = ConvolutionKernelBase;
     ConvolutionKernel_mmad_b_fs_yx_fsv32_dw() : ConvolutionKernelBase("convolution_gpu_mmad_b_fs_yx_fsv32_dw") {}
-    virtual ~ConvolutionKernel_mmad_b_fs_yx_fsv32_dw() {}
+    ~ConvolutionKernel_mmad_b_fs_yx_fsv32_dw() override = default;
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
@@ -42,6 +42,6 @@ private:
     };
 
     AutoTuneOption GetAutoTuneOptions(const Params& arg, int autoTuneIndex) const;
-    std::vector<AutoTuneOption> autoTuneOptions = {};
+    std::vector<AutoTuneOption> autoTuneOptions;
 };
 }  // namespace kernel_selector

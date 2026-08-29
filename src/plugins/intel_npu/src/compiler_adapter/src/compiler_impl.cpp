@@ -40,6 +40,21 @@ UsedVersion getUsedVclVersion(uint16_t pluginMajor, uint16_t pluginMinor, const 
     return {usedMajor, usedMinor};
 }
 
+void checkVclVersion(const UsedVersion& usedVersion, const vcl_version_info_t& loadedVersion) {
+    if (usedVersion.Major < VCL_COMPILER_VERSION_MAJOR ||
+        (usedVersion.Major == VCL_COMPILER_VERSION_MAJOR && usedVersion.Minor < VCL_COMPILER_VERSION_MINOR)) {
+        OPENVINO_THROW("Unsupported VCL version: ",
+                       loadedVersion.major,
+                       ".",
+                       loadedVersion.minor,
+                       ", please use VCL ",
+                       VCL_COMPILER_VERSION_MAJOR,
+                       ".",
+                       VCL_COMPILER_VERSION_MINOR,
+                       " or later");
+    }
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -80,6 +95,45 @@ static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
     return logContent;
 }
 
+static std::optional<std::string> getVCLCompatibilityString(vcl_executable_handle_t executable,
+                                                            vcl_log_handle_t logHandle) {
+    uint64_t compatibilityStringSize = 0;
+    auto result = vclExecutableGetCompatibilityString(executable, nullptr, &compatibilityStringSize);
+    if (result == VCL_RESULT_ERROR_UNSUPPORTED_FEATURE) {
+        return std::nullopt;
+    }
+    if (result != VCL_RESULT_SUCCESS || compatibilityStringSize == 0) {
+        OPENVINO_THROW("Failed to get compatibility string size. vclExecutableGetCompatibilityString result: 0x",
+                       std::hex,
+                       uint64_t(result),
+                       " - ",
+                       getLatestVCLLog(logHandle));
+    }
+
+    if (compatibilityStringSize > std::numeric_limits<size_t>::max()) {
+        OPENVINO_THROW("Compatibility string size is too large to allocate a local buffer");
+    }
+    std::string compatibilityString(static_cast<size_t>(compatibilityStringSize), '\0');
+    result = vclExecutableGetCompatibilityString(executable, compatibilityString.data(), &compatibilityStringSize);
+    if (result != VCL_RESULT_SUCCESS) {
+        OPENVINO_THROW("Failed to get compatibility string. vclExecutableGetCompatibilityString result: 0x",
+                       std::hex,
+                       uint64_t(result),
+                       " - ",
+                       getLatestVCLLog(logHandle));
+    }
+    if (compatibilityStringSize > compatibilityString.size()) {
+        OPENVINO_THROW("Returned compatibility string size exceeds the allocated buffer size");
+    }
+
+    const size_t outSize = static_cast<size_t>(compatibilityStringSize);
+    compatibilityString.resize(outSize);
+    if (outSize > 0 && compatibilityString[outSize - 1] == '\0') {
+        compatibilityString.resize(outSize - 1);
+    }
+    return compatibilityString;
+}
+
 #define THROW_ON_FAIL_FOR_VCL(step, ret, logHandle)     \
     {                                                   \
         vcl_result_t result = ret;                      \
@@ -94,13 +148,14 @@ static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
         }                                               \
     }
 
-VCLCompilerImpl::VCLCompilerImpl(const std::string& library_dir)
+VCLCompilerImpl::VCLCompilerImpl(const std::string& libraryDir,
+                                 const std::optional<IDevice::DeviceProperties>& deviceProperties)
     : _logHandle(nullptr),
       _logger("VCLCompilerImpl", Logger::global().level()) {
     _logger.debug("VCLCompilerImpl constructor start");
 
     // Load VCL library
-    (void)VCLApi::getInstance(library_dir);
+    (void)VCLApi::getInstance(libraryDir);
 
     // Initialize the VCL API
     THROW_ON_FAIL_FOR_VCL("vclGetVersion", vclGetVersion(&_vclVersion, &_vclProfilingVersion), nullptr);
@@ -125,16 +180,34 @@ VCLCompilerImpl::VCLCompilerImpl(const std::string& library_dir)
     compilerDesc.version = _vclVersion;
     compilerDesc.debugLevel = static_cast<__vcl_log_level_t>(static_cast<int>(Logger::global().level()) + 1);
 
-    // This information cannot be determined during the initialization phase; set device desc default value, the related
-    // info will be processed in compile phase if passed by user.
-    _logger.info("Device description is not provided, using default values");
-    uint32_t defaultTileCount = std::numeric_limits<uint32_t>::max();
-    vcl_device_desc_t device_desc = {sizeof(vcl_device_desc_t),
-                                     0x00,
-                                     std::numeric_limits<uint16_t>::max(),
-                                     defaultTileCount};
+    vcl_device_desc_t vclDeviceDesc = {};
+    if (deviceProperties.has_value()) {
+        constexpr auto invalidRevision = std::numeric_limits<uint16_t>::max();
+        const auto revision = deviceProperties->subdeviceId >= invalidRevision
+                                  ? invalidRevision
+                                  : static_cast<uint16_t>(deviceProperties->subdeviceId);
+
+        if (revision == invalidRevision) {
+            _logger.warning("Device subdeviceId %u does not fit into VCL revision field; using invalid revision "
+                            "sentinel instead",
+                            deviceProperties->subdeviceId);
+        }
+
+        _logger.info("Device description is provided, using deviceID: 0x%X, subdeviceID: %u, maxTiles: %u",
+                     deviceProperties->deviceId,
+                     deviceProperties->subdeviceId,
+                     deviceProperties->numSlices);
+        vclDeviceDesc = {sizeof(vcl_device_desc_t), deviceProperties->deviceId, revision, deviceProperties->numSlices};
+    } else {
+        // This information cannot be determined during the initialization phase; set device desc default value, the
+        // related info will be processed in compile phase if passed by user.
+        _logger.info("Device description is not provided, using default values");
+        uint32_t defaultTileCount = std::numeric_limits<uint32_t>::max();
+        vclDeviceDesc = {sizeof(vcl_device_desc_t), 0x00, std::numeric_limits<uint16_t>::max(), defaultTileCount};
+    }
+
     THROW_ON_FAIL_FOR_VCL("vclCompilerCreate",
-                          vclCompilerCreate(&compilerDesc, &device_desc, &_compilerHandle, &_logHandle),
+                          vclCompilerCreate(&compilerDesc, &vclDeviceDesc, &_compilerHandle, &_logHandle),
                           nullptr);
     THROW_ON_FAIL_FOR_VCL("vclCompilerGetProperties",
                           vclCompilerGetProperties(_compilerHandle, &_compilerProperties),
@@ -183,6 +256,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     /// Check the linked vcl version whether supported in plugin
     UsedVersion usedVersion = getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion);
     _logger.debug("the finally used compiler vcl version is %d.%d", usedVersion.Major, usedVersion.Minor);
+    checkVclVersion(usedVersion, _vclVersion);
 
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
@@ -225,86 +299,88 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                                      serializedIR.size,
                                      buildFlags.c_str(),
                                      buildFlags.size()};
+    // Support only the lastest VCL api
+    auto allocator = std::make_shared<vcl_allocator_2>();
+    uint8_t* blob = nullptr;
+    uint64_t blobSize = 0;
+    vcl_executable_handle_t executable = nullptr;
 
-    if (usedVersion.Major > 7 || (usedVersion.Major == 7 && usedVersion.Minor >= 7)) {
-        // Support only the lastest VCL api
-        auto allocator = std::make_shared<vcl_allocator_3>();
-        uint8_t* blob = nullptr;
-        size_t blobSize = 0;
-        uint8_t* compatibilityStringBuffer = nullptr;
-        size_t compatibilityStringSize = 0;
-
-        auto result = vclAllocatedExecutableCreate3(_compilerHandle,
-                                                    exeDesc,
-                                                    allocator.get(),
-                                                    &blob,
-                                                    &blobSize,
-                                                    &compatibilityStringBuffer,
-                                                    &compatibilityStringSize);
-        if (result != VCL_RESULT_SUCCESS) {
-            // Check if allocations were performed before throwing exception
-            auto tracked_allocations = allocator->m_info;
-            for (const auto& [buffer, size] : tracked_allocations) {
-                allocator->deallocate(allocator.get(), buffer);
-            }
-            OPENVINO_THROW("Compilation failed. vclAllocatedExecutableCreate3 result: 0x",
-                           std::hex,
-                           uint64_t(result),
-                           " - ",
-                           getLatestVCLLog(_logHandle));
+    auto result =
+        vclAllocatedExecutableCreate4(_compilerHandle, exeDesc, allocator.get(), &blob, &blobSize, &executable);
+    if (result != VCL_RESULT_SUCCESS) {
+        // Check if allocations were performed before throwing exception
+        auto tracked_allocations = allocator->m_info;
+        for (const auto& [buffer, size] : tracked_allocations) {
+            allocator->deallocate(allocator.get(), buffer);
         }
-
-        OPENVINO_ASSERT(blobSize != 0 && blob != nullptr,
-                        "Failed to create VCL executable, the blob size is zero or the blob is null");
-
-        // Retrieve the real allocated size for the blob from the allocator
-        auto it = std::find_if(allocator->m_info.begin(),
-                               allocator->m_info.end(),
-                               [blob](const std::pair<uint8_t*, size_t>& item) {
-                                   return item.first == blob;
-                               });
-
-        OPENVINO_ASSERT(it != allocator->m_info.end(), "Failed to find the allocated blob in the allocator records");
-        size_t alignedBlobSize = it->second;
-
-        // The allocated size from VCL will be equal or smaller than the allocated size in allocator
-        _logger.debug("Blob size from VCL: %zu ptr %p", blobSize, static_cast<void*>(blob));
-        _logger.debug("Allocated vector size: %zu ptr: %p", alignedBlobSize, static_cast<void*>(blob));
-
-        ov::Tensor alignedBlob = make_tensor_from_aligned_addr(blob, alignedBlobSize, allocator);
-        allocator->m_info.erase(it);
-
-        std::optional<std::string> compatibilityString;
-
-        // Populate compatibility string only when VCL provides a buffer.
-        if (compatibilityStringBuffer != nullptr) {
-            OPENVINO_ASSERT(compatibilityStringSize != 0,
-                            "Failed to create VCL executable, the compatibility descriptor size is zero");
-            compatibilityString =
-                std::string(reinterpret_cast<char*>(compatibilityStringBuffer), compatibilityStringSize);
-            _logger.debug("Compatibility string from VCL: %s", compatibilityString->c_str());
-
-            allocator->deallocate(allocator.get(), compatibilityStringBuffer);
+        if (executable != nullptr) {
+            vclExecutableDestroy(executable);
         }
-
-        return std::make_pair<ov::Tensor, std::optional<std::string>>(std::move(alignedBlob),
-                                                                      std::move(compatibilityString));
-    } else {
-        OPENVINO_THROW("Unsupported VCL version: ",
-                       _vclVersion.major,
-                       ".",
-                       _vclVersion.minor,
-                       ", please use VCL 7.7 or later");
+        OPENVINO_THROW("Compilation failed. vclAllocatedExecutableCreate4 result: 0x",
+                       std::hex,
+                       uint64_t(result),
+                       " - ",
+                       getLatestVCLLog(_logHandle));
     }
+    OPENVINO_ASSERT(executable != nullptr, "Failed to create VCL executable, executable handle is null");
+    OPENVINO_ASSERT(blobSize != 0 && blob != nullptr,
+                    "Failed to create VCL executable, the blob size is zero or the blob is null");
+
+    // Retrieve the real allocated size for the blob from the allocator
+    auto it = std::find_if(allocator->m_info.begin(),
+                           allocator->m_info.end(),
+                           [blob](const std::pair<uint8_t*, size_t>& item) {
+                               return item.first == blob;
+                           });
+
+    OPENVINO_ASSERT(it != allocator->m_info.end(), "Failed to find the allocated blob in the allocator records");
+    size_t alignedBlobSize = it->second;
+
+    // The allocated size from VCL will be equal or smaller than the allocated size in allocator
+    _logger.debug("Blob size from VCL: %zu ptr %p", static_cast<size_t>(blobSize), static_cast<void*>(blob));
+    _logger.debug("Allocated vector size: %zu ptr: %p", alignedBlobSize, static_cast<void*>(blob));
+
+    ov::Tensor alignedBlob = make_tensor_from_aligned_addr(blob, alignedBlobSize, allocator);
+    allocator->m_info.erase(it);
+
+    std::optional<std::string> compatibilityString;
+    try {
+        compatibilityString = getVCLCompatibilityString(executable, _logHandle);
+    } catch (...) {
+        vclExecutableDestroy(executable);
+        throw;
+    }
+    if (!compatibilityString.has_value()) {
+        // Some compilation modes (e.g. HostCompile_Interpreter) do not produce a compatibility descriptor.
+        _logger.info("vclExecutableGetCompatibilityString is not supported for this executable (0x%x); "
+                     "compatibility string will be absent",
+                     uint32_t(VCL_RESULT_ERROR_UNSUPPORTED_FEATURE));
+    } else {
+        _logger.debug("Compatibility string from VCL: %s", compatibilityString->c_str());
+    }
+
+    result = vclExecutableDestroy(executable);
+    if (result != VCL_RESULT_SUCCESS) {
+        OPENVINO_THROW("Failed to destroy VCL executable. vclExecutableDestroy result: 0x",
+                       std::hex,
+                       uint64_t(result),
+                       " - ",
+                       getLatestVCLLog(_logHandle));
+    }
+
+    return std::make_pair<ov::Tensor, std::optional<std::string>>(std::move(alignedBlob),
+                                                                  std::move(compatibilityString));
 }
 
-std::vector<ov::Tensor> VCLCompilerImpl::compileWsOneShot(const std::shared_ptr<ov::Model>& model,
-                                                          const FilteredConfig& config) const {
+std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::compileWsOneShot(
+    const std::shared_ptr<ov::Model>& model,
+    const FilteredConfig& config) const {
     _logger.debug("compileWsOneShot start");
 
     /// Check the linked vcl version whether supported in plugin
     UsedVersion usedVersion = getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion);
     _logger.debug("the finally used compiler vcl version is %d.%d", usedVersion.Major, usedVersion.Minor);
+    checkVclVersion(usedVersion, _vclVersion);
 
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
@@ -348,14 +424,27 @@ std::vector<ov::Tensor> VCLCompilerImpl::compileWsOneShot(const std::shared_ptr<
                                      buildFlags.size()};
     _logger.debug("compiler vcl version: %d.%d", _vclVersion.major, _vclVersion.minor);
 
-    _logger.debug("Using vclAllocatedExecutableCreateWSOneShot");
-    auto allocator = std::make_shared<vcl_allocator_3>();
+    _logger.debug("Using vclAllocatedExecutableCreateWSOneShot2");
+    auto allocator = std::make_shared<vcl_allocator_2>();
+    vcl_executable_handle_t executable = nullptr;
 
-    THROW_ON_FAIL_FOR_VCL("vclAllocatedExecutableCreateWSOneShot",
-                          vclAllocatedExecutableCreateWSOneShot(_compilerHandle, exeDesc, allocator.get()),
-                          _logHandle);
+    auto result = vclAllocatedExecutableCreateWSOneShot2(_compilerHandle, exeDesc, allocator.get(), &executable);
+    if (result != VCL_RESULT_SUCCESS) {
+        if (executable != nullptr) {
+            vclExecutableDestroy(executable);
+        }
+        OPENVINO_THROW("Compilation failed. vclAllocatedExecutableCreateWSOneShot2 result: 0x",
+                       std::hex,
+                       uint64_t(result),
+                       " - ",
+                       getLatestVCLLog(_logHandle));
+    }
+    if (executable == nullptr) {
+        OPENVINO_THROW("Failed to create VCL executable, executable handle is null");
+    }
 
     if (allocator->m_info.size() == 0) {
+        vclExecutableDestroy(executable);
         OPENVINO_THROW("Failed to create VCL executable, blobCount is zero");
     }
 
@@ -366,17 +455,42 @@ std::vector<ov::Tensor> VCLCompilerImpl::compileWsOneShot(const std::shared_ptr<
     // Clean up m_info, delegating actual physical frees strictly to the Tensor/Deleter from now on.
     allocator->m_info.clear();
 
-    return initMainTensors;
+    std::optional<std::string> compatibilityString;
+    try {
+        compatibilityString = getVCLCompatibilityString(executable, _logHandle);
+    } catch (...) {
+        vclExecutableDestroy(executable);
+        throw;
+    }
+    if (!compatibilityString.has_value()) {
+        _logger.info("vclExecutableGetCompatibilityString is not supported for this executable (0x%x); "
+                     "compatibility string will be absent",
+                     uint32_t(VCL_RESULT_ERROR_UNSUPPORTED_FEATURE));
+    } else {
+        _logger.debug("Compatibility string from VCL: %s", compatibilityString->c_str());
+    }
+
+    result = vclExecutableDestroy(executable);
+    if (result != VCL_RESULT_SUCCESS) {
+        OPENVINO_THROW("Failed to destroy executable. vclExecutableDestroy result: 0x",
+                       std::hex,
+                       uint64_t(result),
+                       " - ",
+                       getLatestVCLLog(_logHandle));
+    }
+
+    return std::make_pair(std::move(initMainTensors), std::move(compatibilityString));
 }
 
-ov::Tensor VCLCompilerImpl::compileWsIterative(const std::shared_ptr<ov::Model>& model,
-                                               const FilteredConfig& config,
-                                               size_t callNumber) const {
+std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compileWsIterative(
+    const std::shared_ptr<ov::Model>& model,
+    const FilteredConfig& config,
+    size_t callNumber) const {
     _logger.debug("compileWsIterative start");
     FilteredConfig updatedConfig = config;
     updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber)}});
-    // The compatibility descriptor is not supported in this case
-    return compile(model, updatedConfig, true).first;
+    // Return the compatibility descriptor together with the compiled blob.
+    return compile(model, updatedConfig, true);
 }
 
 std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(const std::vector<uint8_t>& profData,
@@ -491,43 +605,34 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     return result;
 }
 
-bool VCLCompilerImpl::get_supported_options(std::vector<char>& options) const {
+void VCLCompilerImpl::get_supported_options(std::vector<char>& options) const {
     _logger.debug("get_supported_options start");
     size_t str_size = 0;
-    try {
-        THROW_ON_FAIL_FOR_VCL("vclGetCompilerSupportedOptions",
-                              vclGetCompilerSupportedOptions(_compilerHandle, nullptr, &str_size),
-                              _logHandle);
+    THROW_ON_FAIL_FOR_VCL("vclGetCompilerSupportedOptions",
+                          vclGetCompilerSupportedOptions(_compilerHandle, nullptr, &str_size),
+                          _logHandle);
 
-        if (str_size == 0) {
-            _logger.debug("Option list size 0!");
-            return true;
-        }
-
-        _logger.debug("obtain list");
-        options.resize(str_size);
-        THROW_ON_FAIL_FOR_VCL("vclGetCompilerSupportedOptions",
-                              vclGetCompilerSupportedOptions(_compilerHandle, options.data(), &str_size),
-                              _logHandle);
-
-        _logger.debug("Option list size %d, got option list", str_size);
-
-        return true;
-    } catch (const std::exception& e) {
-        // The API is only supported in new version, just add log here
-        _logger.debug("Exception in get_supported_options: %s", e.what());
+    if (str_size == 0) {
+        _logger.debug("Option list size 0!");
+        return;
     }
 
-    return false;
+    _logger.debug("obtain list");
+    options.resize(str_size);
+    THROW_ON_FAIL_FOR_VCL("vclGetCompilerSupportedOptions",
+                          vclGetCompilerSupportedOptions(_compilerHandle, options.data(), &str_size),
+                          _logHandle);
+
+    _logger.debug("Option list size %d, got option list", str_size);
 }
 
-bool VCLCompilerImpl::is_option_supported(std::string option, std::optional<std::string> optValue) const {
+bool VCLCompilerImpl::is_option_supported(const std::string& option, const std::optional<std::string>& optValue) const {
     try {
         const char* optname_ch = option.c_str();
         const char* optvalue_ch = optValue.has_value() ? optValue.value().c_str() : nullptr;
         _logger.debug("is_option_supported start for option: %s, value: %s",
                       optname_ch,
-                      optValue ? optvalue_ch : "null");
+                      optvalue_ch ? optvalue_ch : "null");
         THROW_ON_FAIL_FOR_VCL("vclGetCompilerIsOptionSupported",
                               vclGetCompilerIsOptionSupported(_compilerHandle, optname_ch, optvalue_ch),
                               _logHandle);
@@ -537,41 +642,6 @@ bool VCLCompilerImpl::is_option_supported(std::string option, std::optional<std:
         _logger.debug("Exception in is_option_supported: %s", e.what());
     }
     _logger.debug("option: %s is not supported", option.c_str());
-    return false;
-}
-
-bool VCLCompilerImpl::validate_compatibility_descriptor(const std::string& compatibilityDescriptor,
-                                                        vcl_device_desc_t* in_device_desc) const {
-    vcl_compiler_desc_t compilerDesc;
-    compilerDesc.version = _vclVersion;
-    compilerDesc.debugLevel = static_cast<vcl_log_level_t>(static_cast<int>(Logger::global().level()) + 1);
-
-    // Create a temporary compiler instance for the query to pass the correct device description.
-    // The private compiler instance used by this class was created with default device description.
-    vcl_log_handle_t logHandle = nullptr;
-    vcl_compiler_handle_t compilerHandle = nullptr;
-    try {
-        THROW_ON_FAIL_FOR_VCL("vclCompilerCreate",
-                              vclCompilerCreate(&compilerDesc, in_device_desc, &compilerHandle, &logHandle),
-                              nullptr);
-
-        const char* optname_ch = ov::compatibility_check.name();
-        const char* optvalue_ch = compatibilityDescriptor.c_str();
-        _logger.debug("is_option_supported start for option: %s, value: %s", optname_ch, optvalue_ch);
-        THROW_ON_FAIL_FOR_VCL("vclGetCompilerIsOptionSupported",
-                              vclGetCompilerIsOptionSupported(compilerHandle, optname_ch, optvalue_ch),
-                              logHandle);
-        if (compilerHandle) {
-            vclCompilerDestroy(compilerHandle);
-        }
-        return true;
-    } catch (const std::exception& e) {
-        _logger.debug("Exception in is_option_supported: %s", e.what());
-        if (compilerHandle) {
-            vclCompilerDestroy(compilerHandle);
-        }
-    }
-
     return false;
 }
 

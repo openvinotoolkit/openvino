@@ -8,18 +8,10 @@ endif()
 
 set(TARGET_NAME "openvino_intel_cpu_plugin")
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # C4267, 4244 issues from oneDNN headers conversion from 'XXX' to 'YYY', possible loss of data
-    ov_add_compiler_flags(/wd4018)
-    ov_add_compiler_flags(/wd4267)
-    ov_add_compiler_flags(/wd4244)
-    # mkldnn headers: '<<': result of 32-bit shift implicitly converted to 64 bits
-    ov_add_compiler_flags(/wd4334)
-    # oneDNN arm64: unary minus operator applied to unsigned type, result still unsigned
-    ov_add_compiler_flags(/wd4146)
-elseif (OV_COMPILER_IS_INTEL_LLVM AND WIN32)
+if (OV_COMPILER_IS_INTEL_LLVM AND WIN32)
     ov_add_compiler_flags("/Wno-microsoft-include")
 endif()
+
 if(NOT BUILD_SHARED_LIBS)
     # Symbols are located in both src and include folders
     file(GLOB_RECURSE onednn_files
@@ -67,7 +59,7 @@ if(NOT BUILD_SHARED_LIBS)
     # redefine all collected symbols
     foreach(onednn_symbol IN LISTS onednn_symbols)
         if(NOT onednn_symbol MATCHES "^#.+")
-            add_compile_definitions(${onednn_symbol}=ov_cpu_${onednn_symbol})
+            list(APPEND onednn_renamed_definitions ${onednn_symbol}=ov_cpu_${onednn_symbol})
         endif()
     endforeach()
 endif()
@@ -183,6 +175,10 @@ if(NOT X86_64)
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/x64/*)
 endif()
 
+if(X86_64 OR AARCH64)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/common/shape_inference_fallback.cpp)
+endif()
+
 if(NOT (AARCH64 OR ARM))
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/arm/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/aarch64/*
@@ -195,6 +191,7 @@ endif()
 if(NOT AARCH64)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/aarch64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/aarch64/subgraph.*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/kleidiai/*)
 endif()
 
@@ -238,6 +235,10 @@ ov_add_plugin(NAME ${TARGET_NAME}
               ADD_CLANG_FORMAT
               ADD_CLANG_TIDY)
 
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(${TARGET_NAME} PRIVATE ${onednn_renamed_definitions})
+endif()
+
 # give a different file name depending on target platform architecture
 if(ARM OR AARCH64)
     set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "openvino_arm_cpu_plugin")
@@ -278,7 +279,11 @@ endif()
 # since many files include x64 related headers unconditionally.
 add_definitions(-DXBYAK64)
 
+# disable strict check for memory register size in Xbyak to avoid compilation errors on some platforms
+add_definitions(-DXBYAK_STRICT_CHECK_MEM_REG_SIZE=0)
+
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/third_party/xbyak)
 
 # Temporal solution to use template reference implementations in cases where optimizied implementation
 # is not (yet) needed.
@@ -332,9 +337,19 @@ cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
                     src/nodes/kernels/scaled_attn/mha_kv_cache_codec.cpp
         API         src/nodes/kernels/scaled_attn/mha_kv_cache_codec.hpp
-        NAME        mha_kv_cache
+        NAME        mha_kv_cache turboq_head_bytes
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
+                    src/nodes/kernels/scaled_attn/codecs/turboq_quantize.cpp
+        API         src/nodes/kernels/scaled_attn/codecs/turboq_quantize.hpp
+        NAME        turboq_quantize_head turboq_quantize
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+## turboq_rotation.cpp holds scalar setup only (sign cache, env parsing);
+## SIMD WHT butterfly is inline in turboq_rotation.hpp and gets ISA-specialized
+## when included by cross-compiled translation units.
 
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F ANY
@@ -390,6 +405,7 @@ ov_build_target_faster(${TARGET_NAME} PCH PCH_EXCLUDE ${PCH_EXCLUDE_FILES})
 if(BUILD_SHARED_LIBS)
     add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
     target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
+    target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/third_party/xbyak)
 
     set(CPU_OBJ_LINK_SYSTEM LIBRARIES dnnl openvino::pugixml)
     if(RISCV64)

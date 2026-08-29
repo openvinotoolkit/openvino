@@ -25,7 +25,11 @@
 #endif
 #define OV_GPU_WITH_COMMON 1
 #define OV_GPU_WITH_CPU 1
-#define OV_GPU_WITH_CM 1
+#ifdef ENABLE_CM_FOR_GPU
+    #define OV_GPU_WITH_CM 1
+#else
+    #define OV_GPU_WITH_CM 0
+#endif
 
 #ifdef EXPAND
 #undef EXPAND
@@ -149,6 +153,7 @@ REGISTER_IMPLS(gated_mlp);
 REGISTER_IMPLS(gather);
 REGISTER_IMPLS(gather_nd);
 REGISTER_IMPLS(gated_delta_net);
+REGISTER_IMPLS(selective_ssm);
 REGISTER_IMPLS(gemm);
 REGISTER_IMPLS(group_normalization);
 REGISTER_IMPLS(loop);
@@ -156,9 +161,11 @@ REGISTER_IMPLS(lora);
 REGISTER_IMPLS(lstm_cell);
 REGISTER_IMPLS(lstm_seq);
 REGISTER_IMPLS(gru_seq);
+REGISTER_IMPLS(mvn);
 REGISTER_IMPLS(non_max_suppression);
 REGISTER_IMPLS(paged_attention);
 REGISTER_IMPLS(paged_gated_delta_net);
+REGISTER_IMPLS(paged_selective_ssm);
 REGISTER_IMPLS(pa_kv_reorder);
 REGISTER_IMPLS(paged_causal_conv1d);
 REGISTER_IMPLS(pooling);
@@ -181,12 +188,14 @@ REGISTER_IMPLS(tile);
 REGISTER_IMPLS(col2im);
 REGISTER_IMPLS(vl_sdpa);
 REGISTER_IMPLS(moe_3gemm_fused_compressed);
+REGISTER_IMPLS(moe_router_fused);
 REGISTER_IMPLS(moe_mask_gen);
 REGISTER_IMPLS(moe_mask_gen_reshape);
 REGISTER_IMPLS(moe_gemm);
 REGISTER_IMPLS(moe_scatter_reduction);
 REGISTER_IMPLS(moe_gather);
 REGISTER_IMPLS(gather_matmul);
+REGISTER_IMPLS(grouped_matmul);
 
 REGISTER_DEFAULT_IMPLS(assign, CPU_S, CPU_D);
 REGISTER_DEFAULT_IMPLS(read_value, CPU_S, CPU_D);
@@ -216,7 +225,6 @@ REGISTER_DEFAULT_IMPLS(lrn, OCL_S);
 REGISTER_DEFAULT_IMPLS(multiclass_nms, OCL_S);
 REGISTER_DEFAULT_IMPLS(multinomial, OCL_S);
 REGISTER_DEFAULT_IMPLS(mutable_data, OCL_S);
-REGISTER_DEFAULT_IMPLS(mvn, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(matrix_nms, OCL_S);
 REGISTER_DEFAULT_IMPLS(normalize, OCL_S);
 REGISTER_DEFAULT_IMPLS(one_hot, OCL_S);

@@ -18,7 +18,10 @@ public:
     using parent::parent;
 
     program_node& input(size_t index = 0) const { return get_dependency(index); }
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        // cu_seq_lens is input index 3; dispatch_data_func reads it via mem_lock.
+        return {3};
+    }
 };
 using vl_sdpa_node = typed_program_node<vl_sdpa>;
 
@@ -39,10 +42,6 @@ public:
     static std::string to_string(const vl_sdpa_node& node);
 
     typed_primitive_inst(network& network, const vl_sdpa_node& node);
-
-    void get_mask_seqlens_from_memory(std::vector<int32_t>& cu_seqlens) const;
-
-    memory::ptr cu_seqlens_memory_ptr() const { return dep_memory_ptr(3); }
 };
 
 using vl_sdpa_inst = typed_primitive_inst<vl_sdpa>;

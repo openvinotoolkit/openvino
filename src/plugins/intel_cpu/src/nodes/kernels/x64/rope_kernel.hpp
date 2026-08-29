@@ -4,22 +4,24 @@
 
 #pragma once
 
-#include <xbyak/xbyak.h>
-
-#include <common/utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
-#include <cpu/x64/jit_generator.hpp>
 #include <cstddef>
 #include <memory>
 #include <unordered_map>
 #include <vector>
 
-#include "emitters/plugin/x64/jit_emitter.hpp"
 #include "jit_kernel_base.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/visibility.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
-#endif
+#    include <xbyak/xbyak.h>
+
+#    include <common/utils.hpp>
+#    include <cpu/x64/cpu_isa_traits.hpp>
+#    include <cpu/x64/jit_generator.hpp>
+
+#    include "emitters/plugin/x64/jit_emitter.hpp"
+#endif  // OPENVINO_ARCH_X86_64
 
 namespace ov::intel_cpu::kernel {
 

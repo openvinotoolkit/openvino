@@ -52,7 +52,7 @@ static int get_cl_map_type(mem_lock_type type) {
 
 gpu_buffer::gpu_buffer(ocl_engine* engine,
                        const layout& layout)
-    : lockable_gpu_mem(), memory(engine, layout, allocation_type::cl_mem, nullptr)
+    : memory(engine, layout, allocation_type::cl_mem, nullptr)
     , _buffer(engine->get_cl_context(), CL_MEM_READ_WRITE, size()) {
     m_mem_tracker = std::make_shared<MemoryTracker>(engine, _buffer.get(), layout.bytes_count(), allocation_type::cl_mem);
 }
@@ -61,11 +61,11 @@ gpu_buffer::gpu_buffer(ocl_engine* engine,
                        const layout& new_layout,
                        const cl::Buffer& buffer,
                        std::shared_ptr<MemoryTracker> mem_tracker)
-    : lockable_gpu_mem(), memory(engine, new_layout, allocation_type::cl_mem, mem_tracker)
+    : memory(engine, new_layout, allocation_type::cl_mem, mem_tracker)
     , _buffer(buffer) {}
 
 void* gpu_buffer::lock(const stream& stream, mem_lock_type type) {
-    auto& cl_stream = downcast<const ocl_stream>(stream);
+    const auto& cl_stream = downcast<const ocl_stream>(stream);
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
         try {
@@ -79,7 +79,7 @@ void* gpu_buffer::lock(const stream& stream, mem_lock_type type) {
 }
 
 void gpu_buffer::unlock(const stream& stream) {
-    auto& cl_stream = downcast<const ocl_stream>(stream);
+    const auto& cl_stream = downcast<const ocl_stream>(stream);
     std::lock_guard<std::mutex> locker(_mutex);
     _lock_count--;
     if (0 == _lock_count) {
@@ -122,8 +122,9 @@ event::ptr gpu_buffer::fill(stream& stream, unsigned char pattern, const std::ve
     return ev;
 }
 
-shared_mem_params gpu_buffer::get_internal_params() const {
-    auto cl_engine = downcast<const ocl_engine>(_engine);
+shared_mem_params gpu_buffer::get_internal_params(runtime_types rt_type) const {
+    OPENVINO_ASSERT(rt_type == runtime_types::ocl, "[GPU] Can not provide internal params for non-OCL runtime");
+    const auto* cl_engine = downcast<const ocl_engine>(_engine);
     return {shared_mem_type::shared_mem_buffer, static_cast<shared_handle>(cl_engine->get_cl_context().get()), nullptr,
             static_cast<shared_handle>(_buffer.get()),
 #ifdef _WIN32
@@ -141,9 +142,9 @@ event::ptr gpu_buffer::copy_from(stream& stream, const void* data_ptr, size_t sr
 
     check_boundaries(SIZE_MAX, src_offset, _bytes_count, dst_offset, size, "gpu_buffer::copy_from(void*)");
 
-    auto cl_stream = downcast<ocl_stream>(&stream);
-    auto cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
-    auto src_ptr = reinterpret_cast<const char*>(data_ptr) + src_offset;
+    auto* cl_stream = downcast<ocl_stream>(&stream);
+    auto* cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
+    const auto* src_ptr = reinterpret_cast<const char*>(data_ptr) + src_offset;
 
     TRY_CATCH_CL_ERROR(cl_stream->get_cl_queue().enqueueWriteBuffer(_buffer, blocking, dst_offset, size, src_ptr, nullptr, cl_event))
 
@@ -163,15 +164,15 @@ event::ptr gpu_buffer::copy_from(stream& stream, const memory& src_mem, size_t s
         case allocation_type::usm_device: {
             // If other is gpu_usm, down cast to gpu_buffer is not possible.
             // But it can read as host ptr if it's allocation type is either usm_host or usm_shared.
-            auto usm_mem = downcast<const gpu_usm>(&src_mem);
+            const auto* usm_mem = downcast<const gpu_usm>(&src_mem);
             return copy_from(stream, usm_mem->buffer_ptr(), src_offset, dst_offset, size, blocking);
         }
         case allocation_type::cl_mem: {
             OPENVINO_ASSERT(!src_mem.get_layout().format.is_image_2d());
 
-            auto cl_stream = downcast<ocl_stream>(&stream);
-            auto cl_mem_buffer = downcast<const gpu_buffer>(&src_mem);
-            auto ev_ocl = &downcast<ocl_event>(result_event.get())->get();
+            auto* cl_stream = downcast<ocl_stream>(&stream);
+            const auto* cl_mem_buffer = downcast<const gpu_buffer>(&src_mem);
+            auto* ev_ocl = &downcast<ocl_event>(result_event.get())->get();
 
             TRY_CATCH_CL_ERROR(
                 cl_stream->get_cl_queue().enqueueCopyBuffer(cl_mem_buffer->get_buffer(), get_buffer(), src_offset, dst_offset, size, nullptr, ev_ocl));
@@ -193,9 +194,9 @@ event::ptr gpu_buffer::copy_to(stream& stream, void* data_ptr, size_t src_offset
 
     check_boundaries(_bytes_count, src_offset, SIZE_MAX, dst_offset, size, "gpu_buffer::copy_to(void*)");
 
-    auto cl_stream = downcast<ocl_stream>(&stream);
-    auto cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
-    auto dst_ptr = reinterpret_cast<char*>(data_ptr) + dst_offset;
+    auto* cl_stream = downcast<ocl_stream>(&stream);
+    auto* cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
+    auto* dst_ptr = reinterpret_cast<char*>(data_ptr) + dst_offset;
 
     TRY_CATCH_CL_ERROR(cl_stream->get_cl_queue().enqueueReadBuffer(_buffer, blocking, src_offset, size, dst_ptr, nullptr, cl_event));
 
@@ -219,9 +220,19 @@ dnnl::memory gpu_buffer::get_onednn_grouped_memory(dnnl::memory::desc desc, cons
 }
 #endif
 
+gpu_buffer_from_handle::~gpu_buffer_from_handle() {
+    try {
+        const auto* cl_engine = downcast<const ocl_engine>(_engine);
+        cl_engine->release_external_memory(static_cast<cl_mem>(_buffer.get()));
+    } catch (const std::exception& ex) {
+        GPU_DEBUG_LOG << "[GPU] ~gpu_buffer_from_handle: release_external_memory failed: " << ex.what() << std::endl;
+    } catch (...) {
+        GPU_DEBUG_LOG << "[GPU] ~gpu_buffer_from_handle: release_external_memory failed: unknown exception" << std::endl;
+    }
+}
+
 gpu_image2d::gpu_image2d(ocl_engine* engine, const layout& layout)
-    : lockable_gpu_mem()
-    , memory(engine, layout, allocation_type::cl_mem, nullptr)
+    : memory(engine, layout, allocation_type::cl_mem, nullptr)
     , _width(0)
     , _height(0)
     , _row_pitch(0)
@@ -284,7 +295,7 @@ gpu_image2d::gpu_image2d(ocl_engine* engine,
                          const layout& new_layout,
                          const cl::Image2D& buffer,
                          std::shared_ptr<MemoryTracker> mem_tracker)
-    : lockable_gpu_mem(), memory(engine, new_layout, allocation_type::cl_mem, mem_tracker),
+    : memory(engine, new_layout, allocation_type::cl_mem, mem_tracker),
       _buffer(buffer) {
     _width = _buffer.getImageInfo<CL_IMAGE_WIDTH>();
     _height = _buffer.getImageInfo<CL_IMAGE_HEIGHT>();
@@ -326,7 +337,7 @@ event::ptr gpu_image2d::fill(stream& stream, unsigned char pattern, const std::v
 }
 
 void* gpu_image2d::lock(const stream& stream, mem_lock_type type) {
-    auto& cl_stream = downcast<const ocl_stream>(stream);
+    const auto& cl_stream = downcast<const ocl_stream>(stream);
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
         try {
@@ -347,7 +358,7 @@ void* gpu_image2d::lock(const stream& stream, mem_lock_type type) {
 }
 
 void gpu_image2d::unlock(const stream& stream) {
-    auto& cl_stream = downcast<const ocl_stream>(stream);
+    const auto& cl_stream = downcast<const ocl_stream>(stream);
     std::lock_guard<std::mutex> locker(_mutex);
     _lock_count--;
     if (0 == _lock_count) {
@@ -361,8 +372,9 @@ void gpu_image2d::unlock(const stream& stream) {
 }
 
 
-shared_mem_params gpu_image2d::get_internal_params() const {
-    auto cl_engine = downcast<const ocl_engine>(_engine);
+shared_mem_params gpu_image2d::get_internal_params(runtime_types rt_type) const {
+    OPENVINO_ASSERT(rt_type == runtime_types::ocl, "[GPU] gpu_image2d can not provide internal params for non-OCL runtime");
+    const auto* cl_engine = downcast<const ocl_engine>(_engine);
     return {shared_mem_type::shared_mem_image, static_cast<shared_handle>(cl_engine->get_cl_context().get()), nullptr,
             static_cast<shared_handle>(_buffer.get()),
 #ifdef _WIN32
@@ -381,9 +393,9 @@ event::ptr gpu_image2d::copy_from(stream& stream, const void* data_ptr, size_t s
     OPENVINO_ASSERT(dst_offset == 0, "[GPU] Unsupported dst_offset value for gpu_image2d::copy_from() function");
     OPENVINO_ASSERT(size == _bytes_count, "[GPU] Unsupported data_size value for gpu_image2d::copy_from() function");
 
-    auto cl_stream = downcast<ocl_stream>(&stream);
-    auto cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
-    auto src_ptr = reinterpret_cast<const char*>(data_ptr) + src_offset;
+    auto* cl_stream = downcast<ocl_stream>(&stream);
+    auto* cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
+    const auto* src_ptr = reinterpret_cast<const char*>(data_ptr) + src_offset;
 
     TRY_CATCH_CL_ERROR(
         cl_stream->get_cl_queue().enqueueWriteImage(_buffer, blocking, {0, 0, 0}, {_width, _height, 1}, _row_pitch, _slice_pitch, src_ptr, nullptr, cl_event));
@@ -401,9 +413,9 @@ event::ptr gpu_image2d::copy_from(stream& stream, const memory& src_mem, size_t 
     OPENVINO_ASSERT(dst_offset == 0, "[GPU] Unsupported dst_offset value for gpu_image2d::copy_from() function");
     OPENVINO_ASSERT(size == _bytes_count, "[GPU] Unsupported data_size value for gpu_image2d::copy_from() function");
 
-    auto cl_stream = downcast<ocl_stream>(&stream);
-    auto cl_event = &downcast<ocl_event>(result_event.get())->get();
-    auto cl_image_mem = downcast<const gpu_image2d>(&src_mem);
+    auto* cl_stream = downcast<ocl_stream>(&stream);
+    auto* cl_event = &downcast<ocl_event>(result_event.get())->get();
+    const auto* cl_image_mem = downcast<const gpu_image2d>(&src_mem);
 
     TRY_CATCH_CL_ERROR(
         cl_stream->get_cl_queue().enqueueCopyImage(cl_image_mem->get_buffer(), get_buffer(), {0, 0, 0}, {0, 0, 0}, {_width, _height, 1}, nullptr, cl_event));
@@ -422,9 +434,9 @@ event::ptr gpu_image2d::copy_to(stream& stream, void* data_ptr, size_t src_offse
     OPENVINO_ASSERT(src_offset == 0, "[GPU] Unsupported src_offset value for gpu_image2d::copy_from() function");
     OPENVINO_ASSERT(size == _bytes_count, "[GPU] Unsupported data_size value for gpu_image2d::copy_from() function");
 
-    auto cl_stream = downcast<ocl_stream>(&stream);
-    auto cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
-    auto dst_ptr = reinterpret_cast<char*>(data_ptr) + dst_offset;
+    auto* cl_stream = downcast<ocl_stream>(&stream);
+    auto* cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
+    auto* dst_ptr = reinterpret_cast<char*>(data_ptr) + dst_offset;
 
     TRY_CATCH_CL_ERROR(
         cl_stream->get_cl_queue().enqueueReadImage(_buffer, blocking, {0, 0, 0}, {_width, _height, 1}, _row_pitch, _slice_pitch, dst_ptr, nullptr, cl_event));
@@ -440,8 +452,9 @@ gpu_media_buffer::gpu_media_buffer(ocl_engine* engine,
     surface(params.surface),
     plane(params.plane) { }
 
-shared_mem_params gpu_media_buffer::get_internal_params() const {
-    auto cl_engine = downcast<const ocl_engine>(_engine);
+shared_mem_params gpu_media_buffer::get_internal_params(runtime_types rt_type) const {
+    OPENVINO_ASSERT(rt_type == runtime_types::ocl, "[GPU] gpu_media_buffer can not provide internal params for non-OCL runtime");
+    const auto* cl_engine = downcast<const ocl_engine>(_engine);
     return {shared_mem_type::shared_mem_vasurface, static_cast<shared_handle>(cl_engine->get_cl_context().get()), device,
             static_cast<shared_handle>(_buffer.get()), surface, plane };
 }
@@ -455,7 +468,8 @@ gpu_dx_buffer::gpu_dx_buffer(ocl_engine* engine,
     device(params.user_device),
     resource(params.mem) { }
 
-shared_mem_params gpu_dx_buffer::get_internal_params() const {
+shared_mem_params gpu_dx_buffer::get_internal_params(runtime_types rt_type) const {
+    OPENVINO_ASSERT(rt_type == runtime_types::ocl, "[GPU] gpu_dx_buffer can not provide internal params for non-OCL runtime");
     auto cl_engine = downcast<const ocl_engine>(_engine);
     return {shared_mem_type::shared_mem_dxbuffer, static_cast<shared_handle>(cl_engine->get_cl_context().get()), device,
             static_cast<shared_handle>(_buffer.get()), resource, 0 };
@@ -463,22 +477,19 @@ shared_mem_params gpu_dx_buffer::get_internal_params() const {
 #endif
 
 gpu_usm::gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& buffer, allocation_type type, std::shared_ptr<MemoryTracker> mem_tracker)
-    : lockable_gpu_mem()
-    , memory(engine, new_layout, type, mem_tracker)
+    : memory(engine, new_layout, type, mem_tracker)
     , _buffer(buffer)
     , _host_buffer(engine->get_usm_helper()) {
 }
 
 gpu_usm::gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& buffer, std::shared_ptr<MemoryTracker> mem_tracker)
-    : lockable_gpu_mem()
-    , memory(engine, new_layout, detect_allocation_type(engine, buffer), mem_tracker)
+    : memory(engine, new_layout, detect_allocation_type(engine, buffer), mem_tracker)
     , _buffer(buffer)
     , _host_buffer(engine->get_usm_helper()) {
 }
 
 gpu_usm::gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type)
-    : lockable_gpu_mem()
-    , memory(engine, layout, type, nullptr)
+    : memory(engine, layout, type, nullptr)
     , _buffer(engine->get_usm_helper())
     , _host_buffer(engine->get_usm_helper()) {
     auto actual_bytes_count = _bytes_count;
@@ -510,7 +521,7 @@ gpu_usm::gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type)
 void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
-        auto& cl_stream = downcast<const ocl_stream>(stream);
+        const auto& cl_stream = downcast<const ocl_stream>(stream);
         if (get_allocation_type() == allocation_type::usm_device) {
             GPU_DEBUG_LOG << "Copy usm_device buffer to host buffer." << std::endl;
             _host_buffer.allocateHost(_bytes_count);
@@ -543,7 +554,7 @@ void gpu_usm::unlock(const stream& stream) {
     if (0 == _lock_count) {
         if (get_allocation_type() == allocation_type::usm_device) {
             if (_copy_back_to_device) {
-                auto& cl_stream = downcast<const ocl_stream>(stream);
+                const auto& cl_stream = downcast<const ocl_stream>(stream);
                 try {
                     cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(), _buffer.get(), _host_buffer.get(), _bytes_count, CL_TRUE);
                 } catch (cl::Error const& err) {
@@ -596,10 +607,10 @@ event::ptr gpu_usm::copy_from(stream& stream, const void* data_ptr, size_t src_o
 
     check_boundaries(SIZE_MAX, src_offset, _bytes_count, dst_offset, size, "gpu_usm::copy_from(void*)");
 
-    auto cl_stream = downcast<ocl_stream>(&stream);
-    auto cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
-    auto src_ptr = reinterpret_cast<const char*>(data_ptr) + src_offset;
-    auto dst_ptr = reinterpret_cast<char*>(buffer_ptr()) + dst_offset;
+    auto* cl_stream = downcast<ocl_stream>(&stream);
+    auto* cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
+    const auto* src_ptr = reinterpret_cast<const char*>(data_ptr) + src_offset;
+    auto* dst_ptr = reinterpret_cast<char*>(buffer_ptr()) + dst_offset;
 
     TRY_CATCH_CL_ERROR(cl_stream->get_usm_helper().enqueue_memcpy(cl_stream->get_cl_queue(), dst_ptr, src_ptr, size, blocking, nullptr, cl_event));
 
@@ -613,18 +624,19 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& src_mem, size_t src_
 
     check_boundaries(src_mem.size(), src_offset, _bytes_count, dst_offset, size, "gpu_usm::copy_from(memory&)");
 
-    auto cl_stream = downcast<ocl_stream>(&stream);
-    auto cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
+    auto* cl_stream = downcast<ocl_stream>(&stream);
+    auto* cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
 
     if (src_mem.get_allocation_type() == allocation_type::cl_mem) {
-        auto cl_mem_buffer = downcast<const gpu_buffer>(&src_mem);
-        auto dst_ptr = reinterpret_cast<char*>(buffer_ptr());
+        const auto* cl_mem_buffer = downcast<const gpu_buffer>(&src_mem);
+        auto* dst_ptr = reinterpret_cast<char*>(buffer_ptr());
 
         return cl_mem_buffer->copy_to(stream, dst_ptr, src_offset, dst_offset, size, blocking);
-    } else if (memory_capabilities::is_usm_type(src_mem.get_allocation_type())) {
-        auto usm_mem = downcast<const gpu_usm>(&src_mem);
-        auto src_ptr = reinterpret_cast<const char*>(usm_mem->buffer_ptr()) + src_offset;
-        auto dst_ptr = reinterpret_cast<char*>(buffer_ptr()) + dst_offset;
+    }
+    if (memory_capabilities::is_usm_type(src_mem.get_allocation_type())) {
+        const auto* usm_mem = downcast<const gpu_usm>(&src_mem);
+        const auto* src_ptr = reinterpret_cast<const char*>(usm_mem->buffer_ptr()) + src_offset;
+        auto* dst_ptr = reinterpret_cast<char*>(buffer_ptr()) + dst_offset;
 
         TRY_CATCH_CL_ERROR(cl_stream->get_usm_helper().enqueue_memcpy(cl_stream->get_cl_queue(), dst_ptr, src_ptr, size, blocking, nullptr, cl_event));
     } else {
@@ -646,10 +658,10 @@ event::ptr gpu_usm::copy_to(stream& stream, void* data_ptr, size_t src_offset, s
 
     check_boundaries(_bytes_count, src_offset, SIZE_MAX, dst_offset, size, "gpu_usm::copy_to(void*)");
 
-    auto cl_stream = downcast<ocl_stream>(&stream);
-    auto cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
-    auto src_ptr = reinterpret_cast<const char*>(buffer_ptr()) + src_offset;
-    auto dst_ptr = reinterpret_cast<char*>(data_ptr) + dst_offset;
+    auto* cl_stream = downcast<ocl_stream>(&stream);
+    auto* cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
+    const auto* src_ptr = reinterpret_cast<const char*>(buffer_ptr()) + src_offset;
+    auto* dst_ptr = reinterpret_cast<char*>(data_ptr) + dst_offset;
 
     TRY_CATCH_CL_ERROR(cl_stream->get_usm_helper().enqueue_memcpy(cl_stream->get_cl_queue(), dst_ptr, src_ptr, size, blocking, nullptr, cl_event));
 
@@ -682,8 +694,9 @@ dnnl::memory gpu_usm::get_onednn_grouped_memory(dnnl::memory::desc desc, const m
 }
 #endif
 
-shared_mem_params gpu_usm::get_internal_params() const {
-    auto cl_engine = downcast<const ocl_engine>(_engine);
+shared_mem_params gpu_usm::get_internal_params(runtime_types rt_type) const {
+    OPENVINO_ASSERT(rt_type == runtime_types::ocl, "[GPU] gpu_usm can not provide internal params for non-OCL runtime");
+    const auto* cl_engine = downcast<const ocl_engine>(_engine);
     return {
         shared_mem_type::shared_mem_usm,  // shared_mem_type
         static_cast<shared_handle>(cl_engine->get_cl_context().get()),  // context handle
@@ -733,12 +746,11 @@ std::vector<cl_mem> ocl_surfaces_lock::get_handles(std::vector<memory::ptr> mem)
 }
 
 ocl_surfaces_lock::ocl_surfaces_lock(std::vector<memory::ptr> mem, const stream& stream)
-    : surfaces_lock()
-    , _handles(get_handles(mem))
+    : _handles(get_handles(mem))
     , _lock(nullptr) {
     cl_int err = CL_SUCCESS;
 
-    auto& cl_stream = downcast<const ocl_stream>(stream);
+    const auto& cl_stream = downcast<const ocl_stream>(stream);
     auto queue = cl_stream.get_cl_queue();
     _lock.reset(new cl::SharedSurfLock(queue.get(), _handles, &err));
     // TODO: err code for some reason is 32766

@@ -96,6 +96,96 @@ TEST(PagedCacheManagerTest, BasicAllocateAndResolve) {
     EXPECT_FLOAT_EQ(vp[0], 2.f);
 }
 
+TEST(PagedCacheManagerTest, SupportsGpuKeyCacheLayout) {
+    constexpr std::size_t num_blocks = 3;
+    constexpr std::size_t kv_heads = 2;
+    constexpr std::size_t block_size = 2;
+    constexpr std::size_t key_head_size = 4;
+    constexpr std::size_t value_head_size = 3;
+
+    const ov::Shape key_shape{num_blocks, kv_heads, key_head_size, block_size};
+    const ov::Shape value_shape{num_blocks, kv_heads, block_size, value_head_size};
+    std::vector<float> key_data(num_blocks * kv_heads * key_head_size * block_size, 0.f);
+    std::vector<float> value_data(num_blocks * kv_heads * block_size * value_head_size, 0.f);
+
+    auto key_offset = [=](std::size_t block, std::size_t head, std::size_t dim, std::size_t token) {
+        return (((block * kv_heads + head) * key_head_size + dim) * block_size) + token;
+    };
+    auto value_offset = [=](std::size_t block, std::size_t head, std::size_t token, std::size_t dim) {
+        return (((block * kv_heads + head) * block_size + token) * value_head_size) + dim;
+    };
+
+    for (std::size_t block = 0; block < num_blocks; ++block) {
+        for (std::size_t head = 0; head < kv_heads; ++head) {
+            for (std::size_t token = 0; token < block_size; ++token) {
+                for (std::size_t dim = 0; dim < key_head_size; ++dim) {
+                    const auto value = 1000 * block + 100 * head + 10 * token + dim;
+                    key_data[key_offset(block, head, dim, token)] = static_cast<float>(value);
+                }
+                for (std::size_t dim = 0; dim < value_head_size; ++dim) {
+                    const auto value = 2000 * block + 100 * head + 10 * token + dim;
+                    value_data[value_offset(block, head, token, dim)] = static_cast<float>(value);
+                }
+            }
+        }
+    }
+
+    auto mgr = std::make_unique<PagedCacheManager>(ov::element::f32, EvictionPolicy::FIFO, /*max_cache_bytes=*/0);
+    std::vector<std::int32_t> block_indices{0, 1};
+    std::vector<std::int32_t> block_begins{0, 2};
+    std::vector<std::int32_t> past_lens{static_cast<std::int32_t>(block_indices.size() * block_size)};
+
+    ASSERT_TRUE(mgr->ensure_operator(NODE,
+                                     key_data.data(),
+                                     value_data.data(),
+                                     key_shape,
+                                     value_shape,
+                                     block_indices.data(),
+                                     block_indices.size(),
+                                     block_begins.data(),
+                                     block_begins.size(),
+                                     past_lens.data(),
+                                     past_lens.size()));
+
+    EXPECT_EQ(mgr->block_size(NODE), block_size);
+    EXPECT_EQ(mgr->key_head_size(NODE), key_head_size);
+    EXPECT_EQ(mgr->value_head_size(NODE), value_head_size);
+
+    PagedCacheManager::TokenAddress addr;
+    ASSERT_TRUE(mgr->resolve_token(NODE, 0, 2, addr));
+    EXPECT_EQ(addr.block, 1);
+    EXPECT_EQ(addr.offset, 0);
+
+    const float* cached_key = mgr->key_ptr<float>(NODE, addr, 1);
+    ASSERT_NE(cached_key, nullptr);
+    for (std::size_t dim = 0; dim < key_head_size; ++dim) {
+        EXPECT_FLOAT_EQ(cached_key[dim], static_cast<float>(1100 + dim));
+    }
+
+    const float* cached_value = mgr->value_ptr<float>(NODE, addr, 1);
+    ASSERT_NE(cached_value, nullptr);
+    for (std::size_t dim = 0; dim < value_head_size; ++dim) {
+        EXPECT_FLOAT_EQ(cached_value[dim], static_cast<float>(2100 + dim));
+    }
+
+    std::vector<float> key_row{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f};
+    std::vector<float> value_row{11.f, 12.f, 13.f, 14.f, 15.f, 16.f};
+    mgr->write_token_kv<float>(NODE, 0, 4, key_row.data(), value_row.data());
+
+    ASSERT_TRUE(mgr->resolve_token(NODE, 0, 4, addr));
+    const float* written_key = mgr->key_ptr<float>(NODE, addr, 1);
+    ASSERT_NE(written_key, nullptr);
+    for (std::size_t dim = 0; dim < key_head_size; ++dim) {
+        EXPECT_FLOAT_EQ(written_key[dim], key_row[key_head_size + dim]);
+    }
+
+    const float* written_value = mgr->value_ptr<float>(NODE, addr, 1);
+    ASSERT_NE(written_value, nullptr);
+    for (std::size_t dim = 0; dim < value_head_size; ++dim) {
+        EXPECT_FLOAT_EQ(written_value[dim], value_row[value_head_size + dim]);
+    }
+}
+
 // FIFO eviction: fills all blocks then forces eviction from oldest
 TEST(PagedCacheManagerTest, FIFOEvictionWorks) {
     // 4 blocks, block_size=2 -> can hold 8 tokens total

@@ -42,6 +42,9 @@ runs:
         path: "${{ github.action_path }}/requirements.txt"
         update-setuptools: "false"
         update-wheel: "false"
+      env:
+        PIP_INDEX_URL: ${{ startsWith(runner.name, 'aks-') && 'http://pip-proxy.pip-proxy.svc.cluster.local/simple/' || '' }}
+        PIP_TRUSTED_HOST: ${{ startsWith(runner.name, 'aks-') && 'pip-proxy.pip-proxy.svc.cluster.local' || '' }}
 
     - name: Set up Docker Buildx
       id: buildx

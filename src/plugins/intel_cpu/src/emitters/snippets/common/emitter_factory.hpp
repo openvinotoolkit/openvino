@@ -11,8 +11,10 @@
 #include <vector>
 
 #include "cache/multi_cache.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/gelu.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/target_machine.hpp"
 
@@ -161,5 +163,36 @@ EmitterFactory(GetHost, Isa, Wrap) -> EmitterFactory<GetHost, Isa, Wrap, void>;
 template <typename GetHost, typename Isa, typename Wrap, typename GetKernelExecutorTable>
 EmitterFactory(GetHost, Isa, Wrap, GetKernelExecutorTable, MultiCacheWeakPtr)
     -> EmitterFactory<GetHost, Isa, Wrap, GetKernelExecutorTable>;
+
+#define CREATE_GELU_V7_EMITTER(e_type_erf, e_type_tanh)                                           \
+    {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+         const auto& n = expr->get_node();                                                        \
+         const auto& gelu = ov::as_type_ptr<ov::op::v7::Gelu>(n);                                 \
+         if (gelu == nullptr) {                                                                   \
+             OPENVINO_THROW("Can't cast to ov::op::v7::Gelu");                                    \
+         }                                                                                        \
+         const auto approximationMode = gelu->get_approximation_mode();                           \
+         if (approximationMode == ov::op::GeluApproximationMode::ERF) {                           \
+             return std::make_shared<e_type_erf>(h.get(), isa, n);                                \
+         }                                                                                        \
+         if (approximationMode == ov::op::GeluApproximationMode::TANH) {                          \
+             return std::make_shared<e_type_tanh>(h.get(), isa, n);                               \
+         }                                                                                        \
+         OPENVINO_THROW("Unsupported Gelu approximation mode");                                   \
+     },                                                                                           \
+     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {             \
+         const auto& gelu = ov::as_type_ptr<ov::op::v7::Gelu>(n);                                 \
+         if (gelu == nullptr) {                                                                   \
+             OPENVINO_THROW("Can't cast to ov::op::v7::Gelu");                                    \
+         }                                                                                        \
+         const auto approximationMode = gelu->get_approximation_mode();                           \
+         if (approximationMode == ov::op::GeluApproximationMode::ERF) {                           \
+             return e_type_erf::get_supported_precisions(n);                                      \
+         }                                                                                        \
+         if (approximationMode == ov::op::GeluApproximationMode::TANH) {                          \
+             return e_type_tanh::get_supported_precisions(n);                                     \
+         }                                                                                        \
+         OPENVINO_THROW("Unsupported Gelu approximation mode");                                   \
+     }}
 
 }  // namespace ov::intel_cpu

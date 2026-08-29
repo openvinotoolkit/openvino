@@ -62,7 +62,7 @@ KERNEL(gather_ref)(
     const uint output_idx = GET_INDEX(OUTPUT,,ORDER);
 
 #if COMPRESSED_WEIGHTS
-    OUTPUT_TYPE val = OUTPUT_VAL_ZERO;
+    OUTPUT_COMPUTE_TYPE val_compute = OUTPUT_VAL_ZERO;
 
     #if GATHER_AXIS_SHAPE_INFO_INDEX
         bool need_decompress = (INPUT_AXIS_INDEX >= 0 && INPUT_AXIS_INDEX < shape_info[GATHER_AXIS_SHAPE_INFO_INDEX]) ? true : false;
@@ -75,43 +75,47 @@ KERNEL(gather_ref)(
     if (need_decompress) {
         #if DECOMPRESSION_ZP_TERM
             #if DECOMPRESSION_ZP_SCALAR
-                OUTPUT_TYPE zp = DECOMPRESSION_ZP_VALUE;
+                OUTPUT_COMPUTE_TYPE zp = DECOMPRESSION_ZP_VALUE;
             #else
                 const uint zp_offset = dictionary_idx / DECOMPRESSION_ZP_GROUP_SIZE;
-                OUTPUT_TYPE zp = TO_OUTPUT_TYPE(decompression_zp[zp_offset]);
+                OUTPUT_COMPUTE_TYPE zp = TO_OUTPUT_COMPUTE_TYPE(DECODE_DECOMPRESSION_ZP_COMPUTE_TYPE(decompression_zp[zp_offset]));
             #endif
         #else
-            OUTPUT_TYPE zp = OUTPUT_VAL_ZERO;
+            OUTPUT_COMPUTE_TYPE zp = OUTPUT_VAL_ZERO;
         #endif
         const uint decomp_offset = dictionary_idx / DECOMPRESSION_SCALE_GROUP_SIZE;
-        DECOMPRESSION_SCALE_TYPE scale = decompression_scale[decomp_offset];
+        DECOMPRESSION_SCALE_COMPUTE_TYPE scale = DECODE_DECOMPRESSION_SCALE_COMPUTE_TYPE(decompression_scale[decomp_offset]);
 
         #if COMPRESSED_WEIGHTS_INT8
-            OUTPUT_TYPE val_compressed = dictionary[dictionary_idx];
-            val = (val_compressed - zp) * scale;
+            OUTPUT_COMPUTE_TYPE val_compressed = dictionary[dictionary_idx];
+            val_compute = (val_compressed - zp) * scale;
         #elif COMPRESSED_WEIGHTS_INT4
             INPUT0_TYPE val_packed = dictionary[dictionary_idx / 2];
-            MAKE_VECTOR_TYPE(OUTPUT_TYPE, 2) val_unpacked = UNPACK_INT4x2(OUTPUT_TYPE, *((INT4_PACKED_TYPE*)&val_packed));
+            MAKE_VECTOR_TYPE(OUTPUT_COMPUTE_TYPE, 2) val_unpacked = UNPACK_INT4x2(OUTPUT_COMPUTE_TYPE, *((INT4_PACKED_TYPE*)&val_packed));
 
-            OUTPUT_TYPE val_compressed = ((OUTPUT_TYPE*)(&val_unpacked))[dictionary_idx % 2];
-            val = (val_compressed - zp) * scale;
+            OUTPUT_COMPUTE_TYPE val_compressed = ((OUTPUT_COMPUTE_TYPE*)(&val_unpacked))[dictionary_idx % 2];
+            val_compute = (val_compressed - zp) * scale;
         #endif
     }
+	// Variable val for fused ops
+	OUTPUT_TYPE val = TO_OUTPUT_TYPE(val_compute);
 #else
     #if GATHER_AXIS_SHAPE_INFO_INDEX
-        INPUT0_TYPE val = (INPUT_AXIS_INDEX >= 0 && INPUT_AXIS_INDEX < shape_info[GATHER_AXIS_SHAPE_INFO_INDEX]) ? dictionary[dictionary_idx] : 0;
+        INPUT0_COMPUTE_TYPE val_compute = (INPUT_AXIS_INDEX >= 0 && INPUT_AXIS_INDEX < shape_info[GATHER_AXIS_SHAPE_INFO_INDEX]) ? DECODE_INPUT0_COMPUTE_TYPE(dictionary[dictionary_idx]) : 0;
     #elif AXIS_DIM
-        INPUT0_TYPE val = (INPUT_AXIS_INDEX >= 0 && INPUT_AXIS_INDEX < AXIS_DIM) ? dictionary[dictionary_idx] : 0;
+        INPUT0_COMPUTE_TYPE val_compute = (INPUT_AXIS_INDEX >= 0 && INPUT_AXIS_INDEX < AXIS_DIM) ? DECODE_INPUT0_COMPUTE_TYPE(dictionary[dictionary_idx]) : 0;
     #else
-        INPUT0_TYPE val = dictionary[dictionary_idx];
+        INPUT0_COMPUTE_TYPE val_compute = DECODE_INPUT0_COMPUTE_TYPE(dictionary[dictionary_idx]);
     #endif
+	// Variable val for fused ops
+	INPUT0_TYPE val = TO_INPUT0_TYPE(val_compute);
 #endif
 
 #if HAS_FUSED_OPS
     FUSED_OPS;
-    output[output_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT);
+    output[output_idx] = FUSED_OPS_RESULT;
 #else
-    output[output_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
+    output[output_idx] = TO_OUTPUT_TYPE(ACTIVATION(val_compute, ACTIVATION_PARAMS));
 #endif
 }
 

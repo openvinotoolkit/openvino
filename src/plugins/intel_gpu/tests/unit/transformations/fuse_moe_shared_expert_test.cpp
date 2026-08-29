@@ -73,7 +73,7 @@ TEST_F(TransformationTestsF, FuseMOESharedExpertWithSigmoidGating) {
     {
         // tokens:32, hidden_size:2048, inter_size:768, experts:128, topk:8
         auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
-        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{128, 1, 32, 1});
+        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 8});
         auto routing_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{32, 8});
 
         // MOE expert decompression chains
@@ -126,7 +126,7 @@ TEST_F(TransformationTestsF, FuseMOESharedExpertWithSigmoidGating) {
     {
         // Expected: MOE with 10 inputs (shared expert weights absorbed)
         auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
-        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{128, 1, 32, 1});
+        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 8});
         auto routing_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{32, 8});
 
         auto hidden_states_f32 = std::make_shared<ov::op::v0::Convert>(hidden_states, element::f32);
@@ -165,7 +165,7 @@ TEST_F(TransformationTestsF, FuseMOESharedExpertWithoutGating) {
     {
         // Same as above but without sigmoid gating (shared_down output goes through Add directly)
         auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
-        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{128, 1, 32, 1});
+        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 8});
         auto routing_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{32, 8});
 
         auto gate_decompressed = create_decompression_chain(
@@ -206,7 +206,7 @@ TEST_F(TransformationTestsF, FuseMOESharedExpertWithoutGating) {
     }
     {
         auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
-        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{128, 1, 32, 1});
+        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 8});
         auto routing_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{32, 8});
 
         auto hidden_states_f32 = std::make_shared<ov::op::v0::Convert>(hidden_states, element::f32);
@@ -245,7 +245,7 @@ TEST_F(TransformationTestsF, FuseMOESharedExpertSymmetricWithGating) {
     disable_rt_info_check();
     {
         auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
-        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{128, 1, 32, 1});
+        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 8});
         auto routing_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{32, 8});
 
         // MOE expert sym-quant decompression chains (no Subtract)
@@ -295,7 +295,7 @@ TEST_F(TransformationTestsF, FuseMOESharedExpertSymmetricWithGating) {
     }
     {
         auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
-        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{128, 1, 32, 1});
+        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 8});
         auto routing_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{32, 8});
 
         auto hidden_states_f32 = std::make_shared<ov::op::v0::Convert>(hidden_states, element::f32);
@@ -334,7 +334,7 @@ TEST_F(TransformationTestsF, FuseMOECompressedSharedExpertWithSigmoidGating) {
     {
         // tokens:32, hidden_size:2048, inter_size:768, experts:128, topk:8
         auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
-        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{128, 1, 32, 1});
+        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 8});
         auto routing_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{32, 8});
 
         // MOE compressed weights (no decompression chains)
@@ -396,7 +396,7 @@ TEST_F(TransformationTestsF, FuseMOECompressedSharedExpertWithSigmoidGating) {
     {
         // Expected: MOECompressed with shared expert weights absorbed
         auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 2048});
-        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{128, 1, 32, 1});
+        auto routing_weights = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{32, 8});
         auto routing_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{32, 8});
 
         auto wei_gate = op::v0::Constant::create(element::u4, Shape{128, 768, 16, 128}, {1});

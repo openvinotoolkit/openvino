@@ -28,7 +28,7 @@ template <typename T>
 void prelu(const T* arg, const T* slope, T* out, const Shape& arg_shape, const Shape& slope_shape) {
     Shape slope_shape_tmp = slope_shape;
     const auto channel_dim_idx = arg_shape.size() > 1 ? 1 : 0;
-    if (slope_shape.size() == 1 && arg_shape[channel_dim_idx] == slope_shape[0]) {
+    if (!arg_shape.empty() && slope_shape.size() == 1 && arg_shape[channel_dim_idx] == slope_shape[0]) {
         Shape channel_slope_shape(arg_shape.size(), 1);
         channel_slope_shape[channel_dim_idx] = slope_shape[0];
         std::swap(slope_shape_tmp, channel_slope_shape);

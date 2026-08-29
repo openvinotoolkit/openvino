@@ -195,7 +195,7 @@ void NonZero::executeSpecified() {
             size_t outputIndex = std::accumulate(nonZeroCounts.begin(), nonZeroCounts.begin() + ithr, size_t{0});
             for_1d(ithr, nthr, inShape.getElementsCount(), [&](size_t i) {
                 if (src[i] != zero) {
-                    dst[outputIndex] = i;
+                    dst[outputIndex] = static_cast<int>(i);
                     outputIndex++;
                 }
             });

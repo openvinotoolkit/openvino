@@ -11,7 +11,7 @@ from collections.abc import Callable
 from typing import Any
 
 import torch
-from openvino.frontend.pytorch import ModuleExtension, gptq
+from openvino.frontend.pytorch import ModuleExtension, compressed_tensors, gptq
 from openvino.frontend.pytorch.patch_model import (
     patch_model, unpatch_model, patch_model_for_export)
 
@@ -128,6 +128,8 @@ def _build_quantized_extensions(
         # GPTQ is handled separately — not via ModuleExtension for TorchScript,
         # and via attribute-based patching for torch.export (see _patch_gptq_for_export).
         return None
+    elif quant_type == "compressed-tensors":
+        return compressed_tensors.build_extensions(for_export)  # type: ignore
     else:
         raise RuntimeError(f"Unknown quantization type: {quant_type}.")
     return extensions

@@ -34,15 +34,14 @@ ISTFTKernelBase::DispatchData ISTFTKernelBase::SetDefault(const ISTFT_params& pa
     CommonDispatchData dispatchData;
     const auto inLayout = params.inputs.front().GetLayout();
     const auto input0 = params.inputs.front();
-    const auto input1 = params.inputs[1];
     const auto& output = params.outputs.front();
     const auto outLayout = output.GetLayout();
 
     OPENVINO_ASSERT(output.Dimentions() == 4);
 
     std::vector<std::vector<Tensor::DataChannelName>> dimsByGws;
-    dispatchData.gws = {input0.Batch().v, input0.Y().v, input1.X().v};
-    dimsByGws = {{Tensor::DataChannelName::BATCH}, {Tensor::DataChannelName::Y}, {Tensor::DataChannelName::X}};
+    dispatchData.gws = {input0.Batch().v, output.X().v, 1};
+    dimsByGws = {{Tensor::DataChannelName::BATCH}, {Tensor::DataChannelName::X}, {Tensor::DataChannelName::X}};
 
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, inLayout, outLayout, dimsByGws);
 

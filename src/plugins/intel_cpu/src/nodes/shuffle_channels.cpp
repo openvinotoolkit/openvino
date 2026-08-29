@@ -6,7 +6,6 @@
 
 #include <cmath>
 #include <common/utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -30,13 +29,13 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 
 using namespace dnnl;
 
 using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu::node {
 
@@ -92,7 +91,7 @@ ShuffleChannels::ShuffleChannels(const std::shared_ptr<ov::Node>& op, const Grap
     auto shuffleChannels = ov::as_type_ptr<const ov::op::v0::ShuffleChannels>(op);
     attrs.group = shuffleChannels->get_group();
     attrs.axis = static_cast<int>(shuffleChannels->get_axis());
-    attrs.dataRank = getInputShapeAtPort(0).getRank();
+    attrs.dataRank = static_cast<int>(getInputShapeAtPort(0).getRank());
     if (attrs.axis < 0) {
         attrs.axis += attrs.dataRank;
     }
@@ -110,13 +109,13 @@ void ShuffleChannels::initSupportedPrimitiveDescriptors() {
     }
 
     auto impl_type = []() {
-        if (mayiuse(cpu::x64::avx512_core)) {
+        if (ov::with_cpu_x86_avx512_core()) {
             return impl_desc_type::jit_avx512;
         }
-        if (mayiuse(cpu::x64::avx2)) {
+        if (ov::with_cpu_x86_avx2()) {
             return impl_desc_type::jit_avx2;
         }
-        if (mayiuse(cpu::x64::sse41)) {
+        if (ov::with_cpu_x86_sse42()) {
             return impl_desc_type::jit_sse42;
         }
         return impl_desc_type::ref;
@@ -310,7 +309,7 @@ void ShuffleChannels::executeDynamicImpl(const dnnl::stream& strm) {
 void ShuffleChannels::execute([[maybe_unused]] const dnnl::stream& strm) {
     CPU_NODE_ASSERT(execPtr, "doesn't have a compiled executor.");
 
-    int MB = (attrs.axis != 0) ? getSrcMemoryAtPort(0)->getStaticDims()[0] : -1;
+    int MB = (attrs.axis != 0) ? static_cast<int>(getSrcMemoryAtPort(0)->getStaticDims()[0]) : -1;
 
     const auto* srcData = getSrcDataAtPortAs<const uint8_t>(0);
     auto* dstData = getDstDataAtPortAs<uint8_t>(0);

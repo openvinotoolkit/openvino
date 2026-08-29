@@ -35,8 +35,8 @@ public:
         uint64_t channelsNum = 1LU;
         std::vector<float> srcHeightF{1.F};
         std::vector<float> srcWidthF{1.F};
-        std::vector<int> srcWidthB{1LU};
-        std::vector<int> dataTypeSize{1LU};
+        std::vector<int> srcWidthB{1};
+        std::vector<int> dataTypeSize{1};
         std::vector<float> srcHeightMul2F{1.F};
         std::vector<float> srcWidthMul2F{1.F};
         std::vector<float> srcHeightMul2Sub1F{1.F};
@@ -53,7 +53,7 @@ public:
         uint64_t gridBatchStepB = 0LU;
         uint64_t dstBatchStepB = 0LU;
         uint64_t workAmount = 0LU;
-        std::vector<int> buffer;
+        std::vector<uint8_t> buffer;
     };
 
 protected:

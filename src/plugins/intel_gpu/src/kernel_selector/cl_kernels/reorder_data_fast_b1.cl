@@ -122,13 +122,8 @@ KERNEL (reorder_data_fast_b1)(
     const uint b = data_idx - tmp_data_idx * OUTPUT_BATCH_NUM;
     data_idx = tmp_data_idx;
 
-#if defined FILL_FEATURE_PADDING
-    tmp_data_idx = data_idx / PADDED_FEATURE_NUM;
-    const uint f = data_idx - tmp_data_idx * PADDED_FEATURE_NUM;
-#else
     tmp_data_idx = data_idx / OUTPUT_FEATURE_NUM;
     const uint f = data_idx - tmp_data_idx * OUTPUT_FEATURE_NUM;
-#endif
     data_idx = tmp_data_idx;
 
     tmp_data_idx = data_idx / OUTPUT_SIZE_X;
@@ -178,35 +173,11 @@ KERNEL (reorder_data_fast_b1)(
     const uint x = data_idx - tmp_data_idx * OUTPUT_SIZE_X;
     data_idx = tmp_data_idx;
 
-#if defined FILL_FEATURE_PADDING
-    tmp_data_idx  = data_idx / PADDED_FEATURE_NUM;
-    const uint f = data_idx - tmp_data_idx * PADDED_FEATURE_NUM;
-#else
     tmp_data_idx  = data_idx / OUTPUT_FEATURE_NUM;
     const uint f = data_idx - tmp_data_idx * OUTPUT_FEATURE_NUM;
-#endif
     const uint z = 0;
     const uint w = 0;
 #endif
-#endif
-
-#if defined FILL_FEATURE_PADDING
-    // For blocked output formats with unaligned features, zero-fill padding positions.
-    // This prevents NaN propagation when pooled/reused memory contains NaN values,
-    // since NaN * 0 = NaN in IEEE 754.
-    // Cannot use get_output_index(b,f,...) because OUTPUT_GET_INDEX may be JIT-optimized
-    // to a constant when the tensor is scalar (LogicalSize()==1), or use clamping that
-    // wraps out-of-range feature values. Use OUTPUT_GET_INDEX_RAW which always calls the
-    // actual layout-specific index function.
-    if (f >= OUTPUT_FEATURE_NUM) {
-#if defined OUTPUT_LAYOUT_B_FS_ZYX_FSV16
-        const uint output_idx = OUTPUT_GET_INDEX_RAW(b, f, z, y, x);
-#else
-        const uint output_idx = OUTPUT_GET_INDEX_RAW(b, f, y, x);
-#endif
-        output[output_idx] = TO_OUTPUT_REORDER_TYPE(0);
-        return;
-    }
 #endif
 
 #if CHANGE_DATA_TYPE_ONLY
@@ -219,15 +190,15 @@ KERNEL (reorder_data_fast_b1)(
 #endif
 
 #if   defined MEAN_SUBTRACT_INSIDE_PARAMS
-    float res = TO_MEAN_TYPE(input[input_idx]);
+    float res = TO_MEAN_TYPE(LOAD_(input_idx));
     res -= VALUE_TO_SUBTRACT[f % VALUE_TO_SUBTRACT_SIZE];
 #elif defined MEAN_SUBTRACT_IN_BUFFER
-    MEAN_SUBTRACT_TYPE res = TO_MEAN_TYPE(input[input_idx]);
+    MEAN_SUBTRACT_COMPUTE_TYPE res = TO_MEAN_TYPE(LOAD_(input_idx));
     uint8 msv = RESHAPE_DIMS(INPUT0, MEAN_SUBTRACT, b, f, 0, 0, w, z, y, x);
-    res -= mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv.s0, msv.s1, msv.s6, msv.s7)];
+    res -= DECODE_MEAN_SUBTRACT_COMPUTE_TYPE(mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv.s0, msv.s1, msv.s6, msv.s7)]);
 #else
-    CALC_TYPE res = TO_CALC_TYPE(input[input_idx]);
+    CALC_TYPE res = TO_CALC_TYPE(LOAD_(input_idx));
 #endif
 
-    output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE_SAT(res), ACTIVATION_PARAMS_TYPED);
+    STORE_(output_idx, res);
 }

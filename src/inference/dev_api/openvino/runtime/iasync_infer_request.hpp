@@ -214,7 +214,7 @@ private:
             _this->m_callback = m_callback;
         }
         IAsyncInferRequest* _this = nullptr;
-        std::function<void(std::exception_ptr)> m_callback;
+        std::shared_ptr<std::function<void(std::exception_ptr)>> m_callback;
     };
 
     void run_first_stage(const Pipeline::iterator itBeginStage,
@@ -230,7 +230,7 @@ private:
         check_tensors();
         InferState state = InferState::IDLE;
         {
-            std::lock_guard<std::mutex> lock{m_mutex};
+            std::lock_guard lock{m_mutex};
             state = m_state;
             switch (m_state) {
             case InferState::BUSY:
@@ -277,7 +277,7 @@ private:
     std::shared_ptr<ov::threading::ITaskExecutor>
         m_sync_callback_executor;  //!< Used to run post inference callback in synchronous pipline
     mutable std::mutex m_mutex;
-    std::function<void(std::exception_ptr)> m_callback;
+    std::shared_ptr<std::function<void(std::exception_ptr)>> m_callback;
 };
 
 }  // namespace ov

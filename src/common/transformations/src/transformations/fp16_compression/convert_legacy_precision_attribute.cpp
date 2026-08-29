@@ -6,14 +6,16 @@
 
 #include "itt.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 
 bool ov::pass::ConvertLegacyPrecisionAttribute::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(ConvertLegacyPrecisionAttribute);
     bool changed = false;
     for (const auto& node : model->get_ordered_ops()) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         if (node->get_rt_info().count(DisableFP16Compression::get_type_info_static())) {
             node->get_rt_info().erase(DisableFP16Compression::get_type_info_static());  // remove legacy attribute
+            OPENVINO_SUPPRESS_DEPRECATED_END
             disable_conversion(node, element::f16);
             changed = true;
         }

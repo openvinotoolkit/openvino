@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -28,6 +27,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/deformable_psroi_pooling.hpp"
 #include "openvino/op/psroi_pooling.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "selective_build.h"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/bfloat16.hpp"
@@ -36,7 +36,6 @@
 
 using namespace dnnl;
 using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
 
 namespace ov::intel_cpu::node {
@@ -124,7 +123,7 @@ PSROIPooling::PSROIPooling(const std::shared_ptr<ov::Node>& op, const GraphConte
         spatialBinsX = static_cast<size_t>(defPsroi->get_spatial_bins_x());
         spatialBinsY = static_cast<size_t>(defPsroi->get_spatial_bins_y());
         transStd = defPsroi->get_trans_std();
-        partSize = static_cast<size_t>(defPsroi->get_part_size());
+        partSize = static_cast<int>(defPsroi->get_part_size());
         // temporary workaround due to incorrect usage of group_size in the nGraph operation for the
         // DeformablePSROIPooling
         pooledHeight = groupSize;
@@ -149,13 +148,13 @@ void PSROIPooling::initSupportedPrimitiveDescriptors() {
     }
 
     impl_desc_type impl_type = [&]() {
-        if (mayiuse(cpu::x64::avx512_core)) {
+        if (ov::with_cpu_x86_avx512_core()) {
             return impl_desc_type::jit_avx512;
         }
-        if (mayiuse(cpu::x64::avx2)) {
+        if (ov::with_cpu_x86_avx2()) {
             return impl_desc_type::jit_avx2;
         }
-        if (mayiuse(cpu::x64::sse41)) {
+        if (ov::with_cpu_x86_sse42()) {
             return impl_desc_type::jit_sse42;
         }
         return impl_desc_type::ref;
@@ -207,13 +206,13 @@ inline float bilinearInterp(const inputType* data, const float x, const float y,
 
 void PSROIPooling::unpackParams(const BlockedMemoryDesc& srcDesc,
                                 const BlockedMemoryDesc& dstDesc,
-                                int& hInputStride,
-                                int& wInputStride,
-                                int& hOutputStride,
-                                int& wOutputStride,
-                                int& inBlockSize,
-                                int& outBlockSize,
-                                int& outBlockCount,
+                                size_t& hInputStride,
+                                size_t& wInputStride,
+                                size_t& hOutputStride,
+                                size_t& wOutputStride,
+                                size_t& inBlockSize,
+                                size_t& outBlockSize,
+                                size_t& outBlockCount,
                                 uint64_t& inputChannelsPadding,
                                 uint64_t& outputChannelsPadding) {
     const bool inpIsBlk = srcDesc.hasLayoutType(LayoutType::nCsp16c) || srcDesc.hasLayoutType(LayoutType::nCsp8c);
@@ -235,8 +234,8 @@ void PSROIPooling::unpackParams(const BlockedMemoryDesc& srcDesc,
                     expectedOutBlockDimsSize,
                     ")");
 
-    inBlockSize = (inpIsBlk ? srcDesc.getBlockDims()[4] : 1);
-    outBlockSize = (outIsBlk ? dstDesc.getBlockDims()[4] : 1);
+    inBlockSize = inpIsBlk ? srcDesc.getBlockDims()[4] : 1;
+    outBlockSize = outIsBlk ? dstDesc.getBlockDims()[4] : 1;
     inputChannelsPadding = srcDesc.getBlockDims()[1] * inBlockSize;
     outputChannelsPadding = dstDesc.getBlockDims()[1] * outBlockSize;
     outBlockCount = outputChannelsPadding / outBlockSize;
@@ -278,13 +277,13 @@ void PSROIPooling::executeAverage(const inputType* srcData,
                                   const BlockedMemoryDesc& srcDesc,
                                   const BlockedMemoryDesc& dstDesc) {
     const auto& cpu_parallel = context->getCpuParallel();
-    int inBlockSize = 0;
-    int outBlockSize = 0;
-    int outBlockCount = 0;
-    int hInputStride = 0;
-    int wInputStride = 0;
-    int hOutputStride = 0;
-    int wOutputStride = 0;
+    size_t inBlockSize = 0;
+    size_t outBlockSize = 0;
+    size_t outBlockCount = 0;
+    size_t hInputStride = 0;
+    size_t wInputStride = 0;
+    size_t hOutputStride = 0;
+    size_t wOutputStride = 0;
     uint64_t inputChannelsPadding = 0;
     uint64_t outputChannelsPadding = 0;
     unpackParams(srcDesc,
@@ -298,77 +297,81 @@ void PSROIPooling::executeAverage(const inputType* srcData,
                  outBlockCount,
                  inputChannelsPadding,
                  outputChannelsPadding);
-    const float roiStartW = round(bottomRois[1]) * spatialScale;
-    const float roiStartH = round(bottomRois[2]) * spatialScale;
-    const float roiEndW = round(bottomRois[3] + 1.0F) * spatialScale;
-    const float roiEndH = round(bottomRois[4] + 1.0F) * spatialScale;
+    const float roiStartW = std::round(bottomRois[1]) * spatialScale;
+    const float roiStartH = std::round(bottomRois[2]) * spatialScale;
+    const float roiEndW = std::round(bottomRois[3] + 1.0F) * spatialScale;
+    const float roiEndH = std::round(bottomRois[4] + 1.0F) * spatialScale;
     // Force too small ROIs to be 1x1
     const float roiWidth = std::max<float>(roiEndW - roiStartW, 0.1F);  // avoid 0
     const float roiHeight = std::max<float>(roiEndH - roiStartH, 0.1F);
 
-    auto avgPsroi =
-        [&]([[maybe_unused]] int c, int h, int w, int binOffIn, int binOffOut, int inBlkRes, int outBlkRes) {
-            float binSizeH = roiHeight / static_cast<float>(pooledHeight);
-            float binSizeW = roiWidth / static_cast<float>(pooledWidth);
+    auto avgPsroi = [&](int h, int w, size_t binOffIn, size_t binOffOut, size_t inBlkRes, size_t outBlkRes) {
+        float binSizeH = roiHeight / static_cast<float>(pooledHeight);
+        float binSizeW = roiWidth / static_cast<float>(pooledWidth);
 
-            auto hStart = static_cast<int>(floor(static_cast<float>(h + 0) * binSizeH + roiStartH));
-            auto hEnd = static_cast<int>(ceil(static_cast<float>(h + 1) * binSizeH + roiStartH));
+        auto hStart = static_cast<int>(std::floor(static_cast<float>(h) * binSizeH + roiStartH));
+        auto hEnd = static_cast<int>(std::ceil(static_cast<float>(h + 1) * binSizeH + roiStartH));
 
-            hStart = std::min<int>(std::max<int>(hStart, 0), height);
-            hEnd = std::min<int>(std::max<int>(hEnd, 0), height);
-            auto wStart = static_cast<int>(floor(static_cast<float>(w + 0) * binSizeW + roiStartW));
-            auto wEnd = static_cast<int>(ceil(static_cast<float>(w + 1) * binSizeW + roiStartW));
+        hStart = std::min<int>(std::max<int>(hStart, 0), height);
+        hEnd = std::min<int>(std::max<int>(hEnd, 0), height);
+        auto wStart = static_cast<int>(std::floor(static_cast<float>(w) * binSizeW + roiStartW));
+        auto wEnd = static_cast<int>(std::ceil(static_cast<float>(w + 1) * binSizeW + roiStartW));
 
-            wStart = std::min<int>(std::max<int>(wStart, 0), width);
-            wEnd = std::min<int>(std::max<int>(wEnd, 0), width);
+        wStart = std::min<int>(std::max<int>(wStart, 0), width);
+        wEnd = std::min<int>(std::max<int>(wEnd, 0), width);
 
-            const auto binArea = static_cast<float>((hEnd - hStart) * (wEnd - wStart));
+        const auto binArea = static_cast<float>((hEnd - hStart) * (wEnd - wStart));
 
-            size_t dstIndex = binOffOut + h * hOutputStride + w * wOutputStride + outBlkRes;
-            dstData[dstIndex] = 0;
-            if (static_cast<bool>(binArea)) {
-                float outSum = 0.0F;
-                const int heightIndexBound = hEnd * hInputStride;
-                const int widthIndexBound = wEnd * wInputStride;
-                for (int hh = hStart * hInputStride; hh < heightIndexBound; hh += hInputStride) {
-                    for (int ww = wStart * wInputStride; ww < widthIndexBound; ww += wInputStride) {
-                        outSum += srcData[binOffIn + hh + ww + inBlkRes];
-                    }
+        size_t dstIndex =
+            binOffOut + static_cast<size_t>(h) * hOutputStride + static_cast<size_t>(w) * wOutputStride + outBlkRes;
+        dstData[dstIndex] = 0;
+        if (static_cast<bool>(binArea)) {
+            float outSum = 0.0F;
+            const size_t heightIndexBound = static_cast<size_t>(hEnd) * hInputStride;
+            const size_t widthIndexBound = static_cast<size_t>(wEnd) * wInputStride;
+            for (size_t hh = static_cast<size_t>(hStart) * hInputStride; hh < heightIndexBound; hh += hInputStride) {
+                for (size_t ww = static_cast<size_t>(wStart) * wInputStride; ww < widthIndexBound; ww += wInputStride) {
+                    outSum += srcData[binOffIn + hh + ww + inBlkRes];
                 }
-                dstData[dstIndex] = outSum / binArea;
             }
-        };
+            dstData[dstIndex] = outSum / binArea;
+        }
+    };
     if (srcDesc.hasLayoutType(LayoutType::nspc)) {
         cpu_parallel->parallel_for2d(nh, nw, [&](int h, int w) {
-            const int binOffsetOutput = n * nc * nh * nw;
-            const int binOffsetInput = roiBatchInd * channels * height * width;
+            const size_t binOffsetOutput = static_cast<size_t>(n) * nc * nh * nw;
+            const size_t binOffsetInput = static_cast<size_t>(roiBatchInd) * channels * height * width;
             for (int c = 0; c < nc; c++) {
-                const int gc = (c * groupSize + h) * groupSize + w;
-                avgPsroi(c, h, w, 0, 0, binOffsetInput + gc, binOffsetOutput + c);
+                const size_t gc = (static_cast<size_t>(c) * groupSize + h) * groupSize + w;
+                avgPsroi(h, w, binOffsetInput + gc, binOffsetOutput + c, 0, 0);
             }
         });
     } else if (srcDesc.hasLayoutType(LayoutType::ncsp)) {
         cpu_parallel->parallel_for3d(nc, nh, nw, [&](int c, int h, int w) {
-            const int gc = (c * groupSize + h) * groupSize + w;
-            const int outputBlockResidual = (dstDesc.hasLayoutType(LayoutType::ncsp) ? 0 : c % inBlockSize);
-            const int outputBlockIdx = (c / outBlockSize) * outBlockSize;
-            const int binOffsetInput = (roiBatchInd * inputChannelsPadding + gc) * height * width;
-            const int binOffsetOutput = (n * outputChannelsPadding + outputBlockIdx) * nh * nw;
-            avgPsroi(c, h, w, 0, outputBlockResidual, binOffsetInput, binOffsetOutput);
+            const size_t gc = (static_cast<size_t>(c) * groupSize + h) * groupSize + w;
+            const size_t outputBlockResidual =
+                dstDesc.hasLayoutType(LayoutType::ncsp) ? 0 : static_cast<size_t>(c) % inBlockSize;
+            const size_t outputBlockIdx = (static_cast<size_t>(c) / outBlockSize) * outBlockSize;
+            const size_t binOffsetInput =
+                (static_cast<size_t>(roiBatchInd) * inputChannelsPadding + gc) * height * width;
+            const size_t binOffsetOutput = (static_cast<size_t>(n) * outputChannelsPadding + outputBlockIdx) * nh * nw;
+            avgPsroi(h, w, binOffsetInput, binOffsetOutput, 0, outputBlockResidual);
         });
     } else {  // nChw16c, nChw8c
-        cpu_parallel->parallel_for3d(outBlockCount, nh, nw, [&](int blkIdx, int h, int w) {
-            int cStart = blkIdx * outBlockSize;
-            int cEnd = (blkIdx == outBlockCount - 1 ? nc : cStart + outBlockSize);
-            for (int c = cStart; c < cEnd; c++) {
-                const int gc = (c * groupSize + h) * groupSize + w;
-                const int inputBlockResidual = (srcDesc.hasLayoutType(LayoutType::ncsp) ? 0 : gc % inBlockSize);
-                const int outputBlockResidual = (dstDesc.hasLayoutType(LayoutType::ncsp) ? 0 : c % inBlockSize);
-                const int inputBlockIdx = (gc / inBlockSize) * inBlockSize;
-                const int outputBlockIdx = (c / outBlockSize) * outBlockSize;
-                const int binOffsetInput = (roiBatchInd * inputChannelsPadding + inputBlockIdx) * height * width;
-                const int binOffsetOutput = (n * outputChannelsPadding + outputBlockIdx) * nh * nw;
-                avgPsroi(c, h, w, inputBlockResidual, outputBlockResidual, binOffsetInput, binOffsetOutput);
+        cpu_parallel->parallel_for3d(outBlockCount, nh, nw, [&](size_t blkIdx, int h, int w) {
+            const size_t cStart = blkIdx * outBlockSize;
+            const size_t cEnd = blkIdx == (outBlockCount - 1LU) ? static_cast<size_t>(nc) : cStart + outBlockSize;
+            for (size_t c = cStart; c < cEnd; c++) {
+                const size_t gc = (c * groupSize + h) * groupSize + w;
+                const size_t inputBlockResidual = srcDesc.hasLayoutType(LayoutType::ncsp) ? 0 : gc % inBlockSize;
+                const size_t outputBlockResidual = dstDesc.hasLayoutType(LayoutType::ncsp) ? 0 : c % inBlockSize;
+                const size_t inputBlockIdx = (gc / inBlockSize) * inBlockSize;
+                const size_t outputBlockIdx = (c / outBlockSize) * outBlockSize;
+                const size_t binOffsetInput =
+                    (static_cast<size_t>(roiBatchInd) * inputChannelsPadding + inputBlockIdx) * height * width;
+                const size_t binOffsetOutput =
+                    (static_cast<size_t>(n) * outputChannelsPadding + outputBlockIdx) * nh * nw;
+                avgPsroi(h, w, binOffsetInput, binOffsetOutput, inputBlockResidual, outputBlockResidual);
             }
         });
     }
@@ -383,13 +386,13 @@ void PSROIPooling::executeBilinear(const inputType* srcData,
                                    const BlockedMemoryDesc& srcDesc,
                                    const BlockedMemoryDesc& dstDesc) {
     const auto& cpu_parallel = context->getCpuParallel();
-    int inBlockSize = 0;
-    int outBlockSize = 0;
-    int outBlockCount = 0;
-    int hInputStride = 0;
-    int wInputStride = 0;
-    int hOutputStride = 0;
-    int wOutputStride = 0;
+    size_t inBlockSize = 0;
+    size_t outBlockSize = 0;
+    size_t outBlockCount = 0;
+    size_t hInputStride = 0;
+    size_t wInputStride = 0;
+    size_t hOutputStride = 0;
+    size_t wOutputStride = 0;
     uint64_t inputChannelsPadding = 0;
     uint64_t outputChannelsPadding = 0;
     unpackParams(srcDesc,
@@ -412,11 +415,12 @@ void PSROIPooling::executeBilinear(const inputType* srcData,
     size_t numBins = spatialBinsX * spatialBinsY;
     const int binCount = nh * nw;
 
-    auto bilinearPsroi = [&](int c, int h, int w, int binOffOut, int outBlkRes) {
+    auto bilinearPsroi = [&](size_t c, int h, int w, size_t binOffOut, size_t outBlkRes) {
         float accum = 0.0F;
-        int binOffIn = 0;
-        int inBlkRes = 0;
-        size_t dstIndex = binOffOut + h * hOutputStride + w * wOutputStride + outBlkRes;
+        size_t binOffIn = 0;
+        size_t inBlkRes = 0;
+        size_t dstIndex =
+            binOffOut + static_cast<size_t>(h) * hOutputStride + static_cast<size_t>(w) * wOutputStride + outBlkRes;
         dstData[dstIndex] = 0;
 
         for (size_t binY = 0; binY < spatialBinsY; binY++) {
@@ -430,11 +434,12 @@ void PSROIPooling::executeBilinear(const inputType* srcData,
             for (size_t binX = 0; binX < spatialBinsX; binX++) {
                 size_t gc = c + (binY * spatialBinsX + binX) * nc;
                 if (srcDesc.hasLayoutType(LayoutType::nspc)) {
-                    binOffIn = roiBatchInd * channels * height * width + gc;
+                    binOffIn = static_cast<size_t>(roiBatchInd) * channels * height * width + gc;
                     inBlkRes = 0;
                 } else {  // nchw, nChw16c, nChw8c
-                    const int inputBlockIdx = (gc / inBlockSize) * inBlockSize;
-                    binOffIn = (roiBatchInd * inputChannelsPadding + inputBlockIdx) * height * width;
+                    const size_t inputBlockIdx = (gc / inBlockSize) * inBlockSize;
+                    binOffIn =
+                        (static_cast<size_t>(roiBatchInd) * inputChannelsPadding + inputBlockIdx) * height * width;
                     inBlkRes =
                         ((srcDesc.hasLayoutType(LayoutType::nCsp16c) || srcDesc.hasLayoutType(LayoutType::nCsp8c))
                              ? gc % inBlockSize
@@ -489,7 +494,7 @@ void PSROIPooling::executeBilinear(const inputType* srcData,
     };
 
     if (srcDesc.hasLayoutType(LayoutType::nspc)) {
-        const int binOffsetOutput = currentRoi * nc * nh * nw;
+        const size_t binOffsetOutput = static_cast<size_t>(currentRoi) * nc * nh * nw;
         cpu_parallel->parallel_for2d(nh, nw, [&](int h, int w) {
             for (int c = 0; c < nc; c++) {
                 bilinearPsroi(c, h, w, 0, binOffsetOutput + c);
@@ -497,16 +502,23 @@ void PSROIPooling::executeBilinear(const inputType* srcData,
         });
     } else if (srcDesc.hasLayoutType(LayoutType::ncsp)) {
         cpu_parallel->parallel_for3d(nc, nh, nw, [&](int c, int h, int w) {
-            bilinearPsroi(c, h, w, 0, (currentRoi * outputChannelsPadding + c) * binCount);
+            bilinearPsroi(
+                c,
+                h,
+                w,
+                0,
+                (static_cast<size_t>(currentRoi) * outputChannelsPadding + c) * static_cast<size_t>(binCount));
         });
     } else {  // nChw16c, nChw8c
-        cpu_parallel->parallel_for3d(outBlockCount, nh, nw, [&](int blkIdx, int h, int w) {
-            int cStart = blkIdx * outBlockSize;
-            int cEnd = (blkIdx == outBlockCount - 1 ? nc : cStart + outBlockSize);
-            for (int c = cStart; c < cEnd; c++) {
-                const int outputBlockIdx = (c / inBlockSize) * inBlockSize;
-                const int binOffsetOutput = (currentRoi * outputChannelsPadding + outputBlockIdx) * binCount;
-                const int outputBlockResidual =
+        cpu_parallel->parallel_for3d(outBlockCount, nh, nw, [&](size_t blkIdx, int h, int w) {
+            const size_t cStart = blkIdx * outBlockSize;
+            const size_t cEnd = blkIdx == (outBlockCount - 1LU) ? static_cast<size_t>(nc) : cStart + outBlockSize;
+            for (size_t c = cStart; c < cEnd; c++) {
+                const size_t outputBlockIdx = (c / inBlockSize) * inBlockSize;
+                const size_t binOffsetOutput =
+                    (static_cast<size_t>(currentRoi) * outputChannelsPadding + outputBlockIdx) *
+                    static_cast<size_t>(binCount);
+                const size_t outputBlockResidual =
                     ((srcDesc.hasLayoutType(LayoutType::nCsp16c) || srcDesc.hasLayoutType(LayoutType::nCsp8c))
                          ? c % inBlockSize
                          : 0);
@@ -526,10 +538,10 @@ void PSROIPooling::executeBilinearDeformable(const inputType* srcData,
                                              const int currentRoi,
                                              const int roiBatchInd) {
     const auto& cpu_parallel = context->getCpuParallel();
-    const float roiStartW = round(bottomRois[1]) * spatialScale - 0.5F;
-    const float roiStartH = round(bottomRois[2]) * spatialScale - 0.5F;
-    const float roiEndW = (round(bottomRois[3]) + 1.0F) * spatialScale - 0.5F;
-    const float roiEndH = (round(bottomRois[4]) + 1.0F) * spatialScale - 0.5F;
+    const float roiStartW = std::round(bottomRois[1]) * spatialScale - 0.5F;
+    const float roiStartH = std::round(bottomRois[2]) * spatialScale - 0.5F;
+    const float roiEndW = (std::round(bottomRois[3]) + 1.0F) * spatialScale - 0.5F;
+    const float roiEndH = (std::round(bottomRois[4]) + 1.0F) * spatialScale - 0.5F;
     // Force too small ROIs to be 1x1
     const float roiWidth = std::max<float>(roiEndW - roiStartW, 0.1F);  // avoid 0
     const float roiHeight = std::max<float>(roiEndH - roiStartH, 0.1F);
@@ -543,8 +555,8 @@ void PSROIPooling::executeBilinearDeformable(const inputType* srcData,
         float subBinSizeH = binSizeH / static_cast<float>(spatialBinsY);
         float subBinSizeW = binSizeW / static_cast<float>(spatialBinsX);
 
-        int partH = h * partSize / pooledHeight;
-        int partW = w * partSize / pooledWidth;
+        int partH = h * partSize / static_cast<int>(pooledHeight);
+        int partW = w * partSize / static_cast<int>(pooledWidth);
         int classId = c / channelsEachClass;
         float transX =
             noTrans ? 0
@@ -561,10 +573,10 @@ void PSROIPooling::executeBilinearDeformable(const inputType* srcData,
 
         float sum = 0;
         int count = 0;
-        int gw = w * groupSize / pooledWidth;
-        int gh = h * groupSize / pooledHeight;
-        gw = (std::min)((std::max)(gw, 0), static_cast<int>(groupSize - 1));
-        gh = (std::min)((std::max)(gh, 0), static_cast<int>(groupSize - 1));
+        int gw = w * static_cast<int>(groupSize) / static_cast<int>(pooledWidth);
+        int gh = h * static_cast<int>(groupSize) / static_cast<int>(pooledHeight);
+        gw = (std::min)((std::max)(gw, 0), static_cast<int>(groupSize) - 1);
+        gh = (std::min)((std::max)(gh, 0), static_cast<int>(groupSize) - 1);
 
         const inputType* offsetBottomData = srcData + (roiBatchInd * channels) * height * width;
         for (size_t ih = 0; ih < spatialBinsY; ih++) {
@@ -609,7 +621,7 @@ void PSROIPooling::executeSpecified() {
     //  for Deformable PSROIPooling
     const float* bottomTrans = nullptr;
     int numClasses = 1;
-    int channelsEachClass = outputDim;
+    auto channelsEachClass = static_cast<int>(outputDim);
     if (!noTrans) {
         const auto mem = getSrcMemoryAtPort(2);
         bottomTrans = mem->getDataAs<const float>();
@@ -620,7 +632,7 @@ void PSROIPooling::executeSpecified() {
     cpu_parallel->parallel_for(realRois, [&](int currentRoi) {
         const float* bottomRois = bottomRoisBeginning + currentRoi * 5;
         auto roiBatchInd = static_cast<int>(bottomRois[0]);
-        OPENVINO_ASSERT(roiBatchInd <= inBatchNum, "required batch index > batch amount");
+        OPENVINO_ASSERT(roiBatchInd <= static_cast<int>(inBatchNum), "required batch index > batch amount");
         if (getAlgorithm() == Algorithm::PSROIPoolingAverage) {
             executeAverage(srcData, dstData, bottomRois, currentRoi, roiBatchInd, *srcDesc, *dstDesc);
         } else if (getAlgorithm() == Algorithm::PSROIPoolingBilinear) {

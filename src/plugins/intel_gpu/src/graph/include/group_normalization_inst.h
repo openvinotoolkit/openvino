@@ -31,7 +31,7 @@ public:
 
         if (impl_param.has_fused_primitives()) {
             output_type = impl_param.get_output_element_type();
-            for (auto& desc : impl_param.fused_desc) {
+            for (const auto& desc : impl_param.fused_desc) {
                 if (desc.is_type<reorder>()) {
                     out_format = desc.output_layout.format;
                 }

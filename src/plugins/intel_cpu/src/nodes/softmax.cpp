@@ -7,6 +7,7 @@
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include <oneapi/dnnl/dnnl_types.h>
 
+#include <common/primitive_hashing.hpp>
 #include <common/utils.hpp>
 #include <cstddef>
 #include <memory>
@@ -16,7 +17,6 @@
 #include <string>
 #include <vector>
 
-#include "common/primitive_hashing_utils.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "graph_context.h"
@@ -173,7 +173,7 @@ void SoftMax::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                                                 algorithm::softmax_accurate,
                                                 in_candidate,
                                                 in_candidate,
-                                                axis,
+                                                static_cast<int>(axis),
                                                 *attr,
                                                 true);
 
@@ -199,7 +199,7 @@ void SoftMax::prepareParams() {
                                                          algorithm::softmax_accurate,
                                                          key.inp0->getDnnlDesc(),
                                                          key.inp0->getDnnlDesc(),
-                                                         key.axis,
+                                                         static_cast<int>(key.axis),
                                                          key.attr,
                                                          true);
 

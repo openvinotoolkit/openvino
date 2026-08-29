@@ -25,11 +25,11 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto primitive = impl_param.typed_desc<dft>();
         auto params = get_default_params<kernel_selector::dft_params>(impl_param);
-        auto& memory_deps = impl_param.memory_deps;
+        const auto& memory_deps = impl_param.memory_deps;
 
         bool allow_new_shape_infer = impl_param.get_program().is_new_shape_infer();
         if (allow_new_shape_infer && primitive->axes.empty() && primitive->signal_size.empty()) {
-            if (memory_deps.count(1)) {
+            if (memory_deps.count(1) != 0u) {
                 auto axes_mem = memory_deps.at(1);
                 cldnn::mem_lock<uint8_t, mem_lock_type::read> axes_lock(axes_mem, impl_param.get_stream());
 
@@ -44,7 +44,7 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
                 params.axes = axes;
             }
 
-            if (memory_deps.count(2)) {
+            if (memory_deps.count(2) != 0u) {
                 auto signal_size_mem = memory_deps.at(2);
                 cldnn::mem_lock<uint8_t, mem_lock_type::read> signal_size_lock(signal_size_mem, impl_param.get_stream());
 

@@ -1,11 +1,11 @@
-const core = require('@actions/core');
-const fs = require('fs/promises');
-const path = require('path');
-const {
+import * as core from '@actions/core';
+import fs from 'fs/promises';
+import path from 'path';
+import {
   getSortedCacheFiles,
   humanReadableFileSize,
   calculateTotalSize
-} = require('./utils');
+} from './utils.js';
 
 // Function to remove old files if their combined size exceeds the allowed size
 async function cleanUp() {
@@ -86,6 +86,4 @@ async function cleanUp() {
   }
 }
 
-module.exports = {
-  cleanUp
-};
+export { cleanUp };

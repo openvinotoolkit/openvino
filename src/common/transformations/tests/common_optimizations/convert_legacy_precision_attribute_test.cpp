@@ -15,7 +15,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 
 namespace ov::test {
 
@@ -24,12 +24,16 @@ TEST(ConvertLegacyPrecisionAttributeTest, basic_migration) {
     auto data_1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 10});
     auto data_2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 1});
     auto matmul = std::make_shared<op::v0::MatMul>(data_1, data_2);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     matmul->get_rt_info()[DisableFP16Compression::get_type_info_static()] = DisableFP16Compression{};
+    OPENVINO_SUPPRESS_DEPRECATED_END
     auto result = std::make_shared<op::v0::Result>(matmul);
     auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data_1, data_2});
 
     // Verify legacy attribute is present before the pass
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ASSERT_TRUE(matmul->get_rt_info().count(DisableFP16Compression::get_type_info_static()));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     pass::Manager m;
     m.register_pass<pass::ConvertLegacyPrecisionAttribute>();
@@ -39,7 +43,9 @@ TEST(ConvertLegacyPrecisionAttributeTest, basic_migration) {
 
     const auto& rt_info = matmul->get_rt_info();
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ASSERT_FALSE(rt_info.count(DisableFP16Compression::get_type_info_static()));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     ASSERT_TRUE(rt_info.count(DisablePrecisionConversion::get_type_info_static()));
 
     // Verify the map content: {dynamic -> {f16}}
@@ -65,7 +71,9 @@ TEST(ConvertLegacyPrecisionAttributeTest, no_legacy_attribute) {
     ASSERT_FALSE(res);
 
     const auto& rt_info = matmul->get_rt_info();
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ASSERT_FALSE(rt_info.count(DisableFP16Compression::get_type_info_static()));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     ASSERT_FALSE(rt_info.count(DisablePrecisionConversion::get_type_info_static()));
     ASSERT_FALSE(is_conversion_disabled(matmul, element::f16));
 }
@@ -76,8 +84,10 @@ TEST(ConvertLegacyPrecisionAttributeTest, multiple_nodes) {
     auto data_2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 1});
     auto add = std::make_shared<op::v1::Add>(data_1, data_1);
     auto matmul = std::make_shared<op::v0::MatMul>(add, data_2);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     add->get_rt_info()[DisableFP16Compression::get_type_info_static()] = DisableFP16Compression{};
     matmul->get_rt_info()[DisableFP16Compression::get_type_info_static()] = DisableFP16Compression{};
+    OPENVINO_SUPPRESS_DEPRECATED_END
     auto result = std::make_shared<op::v0::Result>(matmul);
     auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data_1, data_2});
 
@@ -88,11 +98,15 @@ TEST(ConvertLegacyPrecisionAttributeTest, multiple_nodes) {
     ASSERT_TRUE(res);
 
     // Both nodes should be migrated
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ASSERT_FALSE(add->get_rt_info().count(DisableFP16Compression::get_type_info_static()));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     ASSERT_TRUE(add->get_rt_info().count(DisablePrecisionConversion::get_type_info_static()));
     ASSERT_TRUE(is_conversion_disabled(add, element::f16));
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ASSERT_FALSE(matmul->get_rt_info().count(DisableFP16Compression::get_type_info_static()));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     ASSERT_TRUE(matmul->get_rt_info().count(DisablePrecisionConversion::get_type_info_static()));
     ASSERT_TRUE(is_conversion_disabled(matmul, element::f16));
 }

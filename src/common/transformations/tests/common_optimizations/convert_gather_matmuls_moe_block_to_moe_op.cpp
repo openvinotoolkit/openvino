@@ -395,14 +395,7 @@ inline std::shared_ptr<ov::Model> build_3gemm_bgm_to_moe_reference_model(
                                                        op::v11::TopK::SortType::SORT_VALUES,
                                                        element::i64);
     auto topk_indices = router_topk->output(1);
-    auto chosen_experts = router_topk->output(0);
-
-    // Compact routing (stays as-is, becomes MOE input 1)
-    auto router_transpose = std::make_shared<op::v1::Transpose>(
-        chosen_experts,
-        op::v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{1, 0}));
-    auto router_unsqueeze =
-        std::make_shared<op::v0::Unsqueeze>(router_transpose, op::v0::Constant::create(element::i32, Shape{}, {-1}));
+    auto routing = router_topk->output(0);
 
     // Weights
     auto gate_w =
@@ -413,7 +406,7 @@ inline std::shared_ptr<ov::Model> build_3gemm_bgm_to_moe_reference_model(
         op::v0::Constant::create(element::f32, Shape{number_of_experts, hidden_size, intermediate_size}, {1.0f});
 
     // MOE op with compact routing
-    ov::OutputVector moe_inputs = {input, router_unsqueeze, topk_indices, gate_w, up_w, down_w};
+    ov::OutputVector moe_inputs = {input, routing, topk_indices, gate_w, up_w, down_w};
     ov::op::internal::MOE::Config config;
     config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
     config.activation_type = activation_type;
@@ -723,14 +716,7 @@ inline std::shared_ptr<ov::Model> build_3gemm_bgm_to_moe_reference_model_multipl
                                                        op::v11::TopK::SortType::SORT_VALUES,
                                                        element::i64);
     auto topk_indices = router_topk->output(1);
-    auto chosen_experts = router_topk->output(0);
-
-    // Compact routing
-    auto router_transpose = std::make_shared<op::v1::Transpose>(
-        chosen_experts,
-        op::v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{1, 0}));
-    auto router_unsqueeze =
-        std::make_shared<op::v0::Unsqueeze>(router_transpose, op::v0::Constant::create(element::i32, Shape{}, {-1}));
+    auto routing = router_topk->output(0);
 
     // Weights
     auto gate_w =
@@ -741,7 +727,7 @@ inline std::shared_ptr<ov::Model> build_3gemm_bgm_to_moe_reference_model_multipl
         op::v0::Constant::create(element::f32, Shape{number_of_experts, hidden_size, intermediate_size}, {1.0f});
 
     // MOE op — hidden_states input is the layernorm Multiply output (NOT the Parameter)
-    ov::OutputVector moe_inputs = {layernorm_mul, router_unsqueeze, topk_indices, gate_w, up_w, down_w};
+    ov::OutputVector moe_inputs = {layernorm_mul, routing, topk_indices, gate_w, up_w, down_w};
     ov::op::internal::MOE::Config config;
     config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
     config.activation_type = activation_type;

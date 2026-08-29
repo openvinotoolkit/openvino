@@ -14,6 +14,7 @@ namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API TransposeSinking;
+class TRANSFORMATIONS_API TransposeFQ;
 class TRANSFORMATIONS_API TransposeConvert;
 class TRANSFORMATIONS_API TransposeEltwise;
 class TRANSFORMATIONS_API TransposeReduction;
@@ -22,6 +23,16 @@ class TRANSFORMATIONS_API TransposeFuse;
 
 }  // namespace pass
 }  // namespace ov
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief TransposeFQ transformation sinks Transpose through FakeQuantize
+ */
+class ov::pass::TransposeFQ : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("TransposeFQ");
+    TransposeFQ();
+};
 
 /**
  * @ingroup ov_transformation_common_api
@@ -83,6 +94,7 @@ class ov::pass::TransposeSinking : public ov::pass::GraphRewrite {
 public:
     OPENVINO_GRAPH_REWRITE_RTTI("TransposeSinking");
     TransposeSinking() {
+        add_matcher<ov::pass::TransposeFQ>();
         add_matcher<ov::pass::TransposeFQReduction>();
         add_matcher<ov::pass::TransposeReduction>();
         add_matcher<ov::pass::TransposeConvert>();

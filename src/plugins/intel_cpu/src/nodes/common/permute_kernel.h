@@ -28,12 +28,12 @@ struct PermuteParams {
 };
 
 struct jit_permute_config_params {
-    uint32_t ndims = 0U;
+    size_t ndims = 0U;
     VectorDims dst_block_dims;
     VectorDims src_strides;
     VectorDims dst_strides;
     int n = 0;
-    int data_size = 0;
+    size_t data_size = 0;
 
     bool supported_dynamic_batch = false;
 };

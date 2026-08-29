@@ -4,7 +4,12 @@
 
 #pragma once
 
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <future>
+#include <mutex>
+#include <thread>
 
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
@@ -39,9 +44,7 @@ TEST_P(OVInferRequestCallbackTests, syncInferDoesNotCallCompletionCallback) {
     ASSERT_FALSE(is_called);
 }
 
-// test that can wait all callbacks on dtor
-// Ticket: 151980
-TEST_P(OVInferRequestCallbackTests, DISABLED_canStartSeveralAsyncInsideCompletionCallbackWithSafeDtor) {
+TEST_P(OVInferRequestCallbackTests, canStartSeveralAsyncInsideCompletionCallbackWithSafeDtor) {
     const int NUM_ITER = 10;
     struct TestUserData {
         std::atomic<int> numIter = {0};
@@ -65,7 +68,8 @@ TEST_P(OVInferRequestCallbackTests, DISABLED_canStartSeveralAsyncInsideCompletio
     auto future = data.promise.get_future();
     OV_ASSERT_NO_THROW(req.start_async());
     OV_ASSERT_NO_THROW(req.wait());
-    future.wait();
+    ASSERT_EQ(future.wait_for(std::chrono::seconds(30)), std::future_status::ready)
+        << "Timed out waiting for callback completion";
     auto callbackStatus = future.get();
     ASSERT_TRUE(callbackStatus);
     auto dataNumIter = data.numIter - 1;
@@ -120,6 +124,66 @@ TEST_P(OVInferRequestCallbackTests, ImplDoesNotCopyCallback) {
     }
     OV_ASSERT_NO_THROW(req.start_async());
     OV_ASSERT_NO_THROW(req.wait());
+}
+
+TEST_P(OVInferRequestCallbackTests, CallbackStartsNextInferWithSleepWithoutMissingCallbacks) {
+    ov::InferRequest req;
+    OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+    OV_ASSERT_NO_THROW(req.get_input_tensor());
+
+    constexpr size_t callback_iterations = 10;
+    constexpr auto callback_sleep = std::chrono::milliseconds(50);
+    constexpr auto test_timeout = std::chrono::seconds(30);
+
+    std::atomic<size_t> checkout_count{0};
+    std::atomic<size_t> callback_count{0};
+    std::atomic<size_t> callback_start_failures{0};
+    std::atomic<size_t> callback_exception_count{0};
+
+    std::mutex done_mutex;
+    std::condition_variable done_cv;
+    bool done = false;
+
+    OV_ASSERT_NO_THROW(req.set_callback([&](std::exception_ptr ex) {
+        if (ex != nullptr) {
+            callback_exception_count.fetch_add(1, std::memory_order_relaxed);
+        }
+
+        const auto current_callback = callback_count.fetch_add(1, std::memory_order_relaxed) + 1;
+
+        if (current_callback < callback_iterations) {
+            try {
+                checkout_count.fetch_add(1, std::memory_order_relaxed);
+                req.start_async();
+                std::this_thread::sleep_for(callback_sleep);
+            } catch (...) {
+                callback_start_failures.fetch_add(1, std::memory_order_relaxed);
+                std::lock_guard<std::mutex> lock(done_mutex);
+                done = true;
+                done_cv.notify_one();
+            }
+        } else {
+            std::lock_guard<std::mutex> lock(done_mutex);
+            done = true;
+            done_cv.notify_one();
+        }
+    }));
+
+    checkout_count.fetch_add(1, std::memory_order_relaxed);
+    OV_ASSERT_NO_THROW(req.start_async());
+
+    {
+        std::unique_lock<std::mutex> lock(done_mutex);
+        ASSERT_TRUE(done_cv.wait_for(lock, test_timeout, [&]() {
+            return done;
+        }));
+    }
+
+    OV_ASSERT_NO_THROW(req.wait());
+    EXPECT_EQ(callback_start_failures.load(std::memory_order_relaxed), 0);
+    EXPECT_EQ(callback_exception_count.load(std::memory_order_relaxed), 0);
+    EXPECT_EQ(checkout_count.load(std::memory_order_relaxed), callback_iterations);
+    EXPECT_EQ(callback_count.load(std::memory_order_relaxed), callback_iterations);
 }
 
 }  // namespace behavior

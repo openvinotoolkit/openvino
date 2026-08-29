@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,10 +15,15 @@
 /*
  * Test suite for Device-Routed MoE Transformation
  *
- * Testing Strategy:
- * - BasicTransformation: Verify Gather insertion in quantized weights and shape updates
- * - MultiLayerMoE: Test independent transformation of multiple layers
- * - AWQActivationMultiply: Test AWQ activation scaling support
+ * GPT-OSS tests (create_complete_moe_graph):
+ * - BasicTransformation:       Gather insertion in quantized weights; shape updates
+ * - MultiLayerMoE:             Independent transformation of multiple layers
+ * - AWQActivationMultiply:     AWQ activation-scale Multiply support
+ * - NegativeNoSoftmax:         Transformation skipped when Softmax is absent
+ *
+ * Qwen3 tests (create_qwen3_moe_graph):
+ * - Qwen3BasicTransformation:         Gather insertion for Qwen3 SwiGLU expert
+ * - RouterBroadcastChainShapeUpdate:  Reshape shape[0] updated after transpose replacement
  */
 
 // Uncomment to save debug XML files during test execution
@@ -283,8 +288,12 @@ std::shared_ptr<Model> create_complete_moe_graph(size_t num_experts = 32,
     auto output_multiply = std::make_shared<op::v1::Multiply>(reshape2, router_scores_output);
     output_multiply->set_friendly_name("__module.model." + layer_id + "mlp.experts/aten::mul/Multiply");
 
-    // Result
-    auto result = std::make_shared<op::v0::Result>(output_multiply);
+    // ReduceSum over expert dim — required by detect_router_by_topology step 3.
+    auto reduce_axis = op::v0::Constant::create(element::i64, Shape{1}, {0});
+    auto reduce_sum = std::make_shared<op::v1::ReduceSum>(output_multiply, reduce_axis);
+    reduce_sum->set_friendly_name("__module.model." + layer_id + "mlp.experts/aten::sum/ReduceSum");
+
+    auto result = std::make_shared<op::v0::Result>(reduce_sum);
     result->set_friendly_name(layer_id + "output");
 
     return std::make_shared<Model>(ResultVector{result}, ParameterVector{shared_input});
@@ -537,6 +546,223 @@ TEST_F(DeviceRoutedMoETransformTest, NegativeNoSoftmax) {
     auto repeats_const = std::dynamic_pointer_cast<op::v0::Constant>(tile->input_value(1).get_node_shared_ptr());
     auto repeats_data = repeats_const->cast_vector<int64_t>();
     EXPECT_EQ(repeats_data[0], num_experts) << "Tile repeats should remain unchanged";
+}
+
+// ============================================================================
+// Qwen3 graph builder
+// ============================================================================
+
+// Qwen3-style MoE graph (decoding stage, token_count=1).
+// Router: Input -> MatMul -> Softmax -> TopK -> ReduceSum -> Divide
+//         -> Scatter -> Transpose -> Reshape([N,1,1]) -> Unsqueeze -> [N,1,1,1]
+// Expert: Input -> Tile -> Reshape([N,1,H]) -> gate/up/down MatMuls (SwiGLU)
+//         -> Reshape([N,1,1,H]) -> Multiply(router) -> ReduceSum
+// Weights: Const(i4) -> Convert(f16) -> Multiply(scale) -> Convert(f32) -> MatMul
+// 2 Gathers per MatMul (weight + scale) x 3 MatMuls = 6 total.
+std::shared_ptr<Model> create_qwen3_moe_graph(size_t num_experts = 4,
+                                              int64_t k_value = 2,
+                                              size_t hidden_dim = 8,
+                                              size_t intermediate_dim = 4) {
+    auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, hidden_dim});
+    input->set_friendly_name("qwen3_input");
+
+    // --- Router ---
+    // NF4 weight chain: i4 [N,H] -> f16 -> Multiply(scale[N,1]) -> f32 -> MatMul
+    auto rw = op::v0::Constant::create(element::i4,
+                                       Shape{num_experts, hidden_dim},
+                                       std::vector<int8_t>(num_experts * hidden_dim, 1));
+    auto rw_f16 = std::make_shared<op::v0::Convert>(rw, element::f16);
+    auto rs = op::v0::Constant::create(element::f16, Shape{num_experts, 1}, std::vector<float>(num_experts, 1.0f));
+    auto rw_scaled = std::make_shared<op::v1::Multiply>(rw_f16, rs);
+    auto rw_f32 = std::make_shared<op::v0::Convert>(rw_scaled, element::f32);
+    auto router_mm = std::make_shared<op::v0::MatMul>(input, rw_f32, false, true);
+
+    // Softmax -> TopK (Softmax BEFORE TopK, Qwen3 style)
+    auto softmax = std::make_shared<op::v8::Softmax>(router_mm, 1);
+    auto k_c = op::v0::Constant::create(element::i64, Shape{}, {k_value});
+    auto topk =
+        std::make_shared<op::v11::TopK>(softmax, k_c, -1, op::v11::TopK::Mode::MAX, op::v11::TopK::SortType::NONE);
+
+    // Renormalize: ReduceSum(values) -> Divide
+    auto rs_ax = op::v0::Constant::create(element::i64, Shape{1}, {1});
+    auto reduce_router = std::make_shared<op::v1::ReduceSum>(topk->output(0), rs_ax, true);
+    auto divide = std::make_shared<op::v1::Divide>(topk->output(0), reduce_router);
+
+    // Scatter back to full expert dimension
+    auto zero = op::v0::Constant::create(element::f32, Shape{}, {0.0f});
+    auto bcast_shp = op::v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{1LL, (int64_t)num_experts});
+    auto broadcast = std::make_shared<op::v3::Broadcast>(zero, bcast_shp);
+    auto sc_ax = op::v0::Constant::create(element::i64, Shape{1}, {1});
+    auto scatter = std::make_shared<op::v12::ScatterElementsUpdate>(broadcast, topk->output(1), divide, sc_ax);
+
+    // Transpose [1,N] -> [N,1]
+    auto tp_ord = op::v0::Constant::create(element::i32, Shape{2}, {1, 0});
+    auto transpose = std::make_shared<op::v1::Transpose>(scatter, tp_ord);
+
+    // Reshape [N,1] -> [N,1,1]  (shape[0] = num_experts, fixed by transform_router_broadcast_chain)
+    auto r_shp = op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{(int64_t)num_experts, 1LL, 1LL});
+    auto router_reshape = std::make_shared<op::v1::Reshape>(transpose, r_shp, false);
+
+    // Unsqueeze dim 3: [N,1,1] -> [N,1,1,1]
+    auto us_ax = op::v0::Constant::create(element::i64, Shape{1}, {3});
+    auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(router_reshape, us_ax);
+
+    // --- Expert ---
+    // Helper: build INT4 weight dequantization chain: Const(i4,[d0,d1,d2])->f16->Multiply(scale)->f32
+    auto make_weight = [](size_t d0, size_t d1, size_t d2) {
+        auto w = op::v0::Constant::create(element::i4, Shape{d0, d1, d2}, std::vector<int8_t>(d0 * d1 * d2, 1));
+        auto wf = std::make_shared<op::v0::Convert>(w, element::f16);
+        auto sc = op::v0::Constant::create(element::f16, Shape{d0, d1, 1}, std::vector<float>(d0 * d1, 1.0f));
+        auto ws = std::make_shared<op::v1::Multiply>(wf, sc);
+        return std::make_shared<op::v0::Convert>(ws, element::f32);
+    };
+
+    // Tile [1,H] -> [N,H]
+    auto tile_rep = op::v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{(int64_t)num_experts, 1LL});
+    auto tile = std::make_shared<op::v0::Tile>(input, tile_rep);
+
+    // Reshape [N,H] -> [N,1,H]  (shape[0] = num_experts)
+    auto rs1_shp = op::v0::Constant::create(element::i64,
+                                            Shape{3},
+                                            std::vector<int64_t>{(int64_t)num_experts, 1LL, (int64_t)hidden_dim});
+    auto reshape1 = std::make_shared<op::v1::Reshape>(tile, rs1_shp, false);
+
+    // Gate: [N,I,H] weights -> [N,1,H] x [N,I,H]^T -> [N,1,I] -> Swish
+    auto gate_w = make_weight(num_experts, intermediate_dim, hidden_dim);
+    auto matmul_gate = std::make_shared<op::v0::MatMul>(reshape1, gate_w, false, true);
+    auto swish = std::make_shared<op::v4::Swish>(matmul_gate);
+
+    // Up: [N,I,H] weights -> [N,1,H] x [N,I,H]^T -> [N,1,I]
+    auto up_w = make_weight(num_experts, intermediate_dim, hidden_dim);
+    auto matmul_up = std::make_shared<op::v0::MatMul>(reshape1, up_w, false, true);
+
+    // SwiGLU
+    auto swiglu = std::make_shared<op::v1::Multiply>(swish, matmul_up);
+
+    // Down: [N,H,I] weights -> [N,1,I] x [N,H,I]^T -> [N,1,H]
+    auto down_w = make_weight(num_experts, hidden_dim, intermediate_dim);
+    auto matmul_down = std::make_shared<op::v0::MatMul>(swiglu, down_w, false, true);
+
+    // Reshape [N,1,H] -> [N,1,1,H]  (shape[0] = num_experts)
+    auto rs2_shp = op::v0::Constant::create(element::i64,
+                                            Shape{4},
+                                            std::vector<int64_t>{(int64_t)num_experts, 1LL, 1LL, (int64_t)hidden_dim});
+    auto reshape2 = std::make_shared<op::v1::Reshape>(matmul_down, rs2_shp, false);
+
+    // Output multiply: [N,1,1,H] * [N,1,1,1] -> [N,1,1,H]
+    auto output_multiply = std::make_shared<op::v1::Multiply>(reshape2, unsqueeze);
+
+    // ReduceSum over expert dim — required by detect_router_by_topology step 3.
+    auto final_ax = op::v0::Constant::create(element::i64, Shape{1}, {0});
+    auto final_reduce = std::make_shared<op::v1::ReduceSum>(output_multiply, final_ax);
+
+    auto result = std::make_shared<op::v0::Result>(final_reduce);
+    return std::make_shared<Model>(ResultVector{result}, ParameterVector{input});
+}
+
+// ============================================================================
+// Qwen3 tests
+// ============================================================================
+
+// Test 5: Qwen3 basic transformation
+// Verifies 6 Gather nodes inserted, Tile repeats[0] and Reshape dim[0] updated to k_value.
+TEST_F(DeviceRoutedMoETransformTest, Qwen3BasicTransformation) {
+    constexpr size_t num_experts = 4;
+    constexpr int64_t k_value = 2;
+    constexpr size_t hidden_dim = 8;
+    constexpr size_t intermediate_dim = 4;
+
+    auto model = create_qwen3_moe_graph(num_experts, k_value, hidden_dim, intermediate_dim);
+    save_model(model, "qwen3_moe_basic_before");
+
+    EXPECT_EQ(count_nodes<op::v8::Gather>(model), 0u) << "No Gather before transformation";
+    EXPECT_EQ(count_nodes<op::v0::Tile>(model), 1u) << "One Tile before transformation";
+
+    ov::pass::Manager manager;
+    manager.register_pass<DeviceRoutedMoETransform>();
+    manager.run_passes(model);
+
+    EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
+    save_model(model, "qwen3_moe_basic_after");
+
+    // 2 Gathers per MatMul (weight + scale) x 3 MatMuls = 6
+    auto gathers = find_gather_nodes(model);
+    EXPECT_EQ(gathers.size(), 6u) << "Expected 6 Gather nodes (weight+scale per gate/up/down MatMul)";
+
+    // Tile repeats[0] must be updated to k_value
+    for (const auto& node : model->get_ordered_ops()) {
+        if (auto tile = std::dynamic_pointer_cast<op::v0::Tile>(node)) {
+            auto rep = std::dynamic_pointer_cast<op::v0::Constant>(tile->input_value(1).get_node_shared_ptr());
+            ASSERT_NE(rep, nullptr);
+            EXPECT_EQ(rep->cast_vector<int64_t>()[0], k_value) << "Tile repeats[0] should be updated to k=" << k_value;
+        }
+    }
+
+    // All Reshape shape constants where dim[0] > 1 must be updated to k_value
+    for (const auto& node : model->get_ordered_ops()) {
+        if (auto reshape = std::dynamic_pointer_cast<op::v1::Reshape>(node)) {
+            auto shp = std::dynamic_pointer_cast<op::v0::Constant>(reshape->input_value(1).get_node_shared_ptr());
+            if (!shp)
+                continue;
+            auto d = shp->cast_vector<int64_t>();
+            if (!d.empty() && d[0] > 1) {
+                EXPECT_EQ(d[0], k_value) << "Reshape expert dim should be updated to k=" << k_value;
+            }
+        }
+    }
+}
+
+// Test 6: Router broadcast chain Reshape shape fix (Qwen3-specific)
+// After transform_transpose replaces Scatter->Transpose with router_scores [1,k],
+// transform_router_broadcast_chain must update Reshape shape[0] from num_experts to k_value.
+TEST_F(DeviceRoutedMoETransformTest, RouterBroadcastChainShapeUpdate) {
+    constexpr size_t num_experts = 4;
+    constexpr int64_t k_value = 2;
+    constexpr size_t hidden_dim = 8;
+    constexpr size_t intermediate_dim = 4;
+
+    auto model = create_qwen3_moe_graph(num_experts, k_value, hidden_dim, intermediate_dim);
+
+    // Before: locate the 3-element Reshape [num_experts, 1, 1] in the router broadcast chain
+    auto find_router_reshape_shape = [&]() -> std::shared_ptr<op::v0::Constant> {
+        for (const auto& node : model->get_ordered_ops()) {
+            if (auto reshape = std::dynamic_pointer_cast<op::v1::Reshape>(node)) {
+                auto shp = std::dynamic_pointer_cast<op::v0::Constant>(reshape->input_value(1).get_node_shared_ptr());
+                if (!shp)
+                    continue;
+                auto d = shp->cast_vector<int64_t>();
+                if (d.size() == 3 && d[0] == (int64_t)num_experts && d[1] == 1 && d[2] == 1)
+                    return shp;
+            }
+        }
+        return nullptr;
+    };
+
+    auto before_shp = find_router_reshape_shape();
+    ASSERT_NE(before_shp, nullptr) << "Router broadcast Reshape [N,1,1] should exist before transform";
+    EXPECT_EQ(before_shp->cast_vector<int64_t>()[0], (int64_t)num_experts);
+
+    ov::pass::Manager manager;
+    manager.register_pass<DeviceRoutedMoETransform>();
+    manager.run_passes(model);
+
+    EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
+
+    // After: the Reshape in the chain must now have shape [k_value, 1, 1]
+    bool found = false;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (auto reshape = std::dynamic_pointer_cast<op::v1::Reshape>(node)) {
+            auto shp = std::dynamic_pointer_cast<op::v0::Constant>(reshape->input_value(1).get_node_shared_ptr());
+            if (!shp)
+                continue;
+            auto d = shp->cast_vector<int64_t>();
+            if (d.size() == 3 && d[0] == k_value && d[1] == 1 && d[2] == 1) {
+                found = true;
+            }
+        }
+    }
+    EXPECT_TRUE(found) << "Router broadcast Reshape shape[0] must be updated from " << num_experts
+                       << " to k=" << k_value;
 }
 
 }  // namespace

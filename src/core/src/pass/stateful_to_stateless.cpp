@@ -145,7 +145,7 @@ bool ov::pass::StatefulToStateless::run_on_model(const std::shared_ptr<ov::Model
                 auto variable_name = read_value->get_variable_id();
                 variables.push_back(Variable(context, variable_name));
                 future_params[variable_name] = gather;
-                processed_variable_ids.insert(variable_name);
+                processed_variable_ids.insert(std::move(variable_name));
             }
         }
         model->remove_parameter(beam_idx);
@@ -165,7 +165,7 @@ bool ov::pass::StatefulToStateless::run_on_model(const std::shared_ptr<ov::Model
                 // For models with Linear Attention, ReadValue for Conv and SSM caches connects directly to the useful
                 // Ops after.
                 future_params[variable_name] = read_value;
-                processed_variable_ids.insert(variable_name);
+                processed_variable_ids.insert(std::move(variable_name));
             }
         }
     }

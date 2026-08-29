@@ -20,7 +20,7 @@ public:
     bool is_set(size_t idx) const {
         size_t storage_idx = idx >> 6;
         uint64_t mask = 1ULL << (idx & 0x3F);
-        return storage[storage_idx] & mask;
+        return (storage[storage_idx] & mask) != 0u;
     }
     void set(size_t idx) {
         size_t storage_idx = idx >> 6;
@@ -72,7 +72,7 @@ void oooq_memory_dependencies::run(program& p) {
     // giving us mapping of node to set of all users that can be reached from this node.
     auto& processing_order = p.get_processing_order();
     std::list<program_node*> processing_order_except_const;
-    for (auto n : processing_order) {
+    for (auto* n : processing_order) {
         if (!n->is_type<data>()) {
             processing_order_except_const.push_back(n);
         }
@@ -81,7 +81,7 @@ void oooq_memory_dependencies::run(program& p) {
     // maps program nodes to bimap vector ids
     auto user_map = std::unordered_map<program_node*, unsigned int>();
     unsigned int processing_order_idx = 0;
-    for (auto node : processing_order_except_const) {
+    for (auto* node : processing_order_except_const) {
         user_map[node] = processing_order_idx++;
     }
     unsigned int num_nodes = static_cast<unsigned int>(user_map.size());
@@ -164,7 +164,7 @@ void oooq_memory_dependencies::run(program& p) {
                 add_memory_dependency(*itr_A, *itr_B);
                 add_memory_dependency(*itr_B, *itr_A);
             } else {
-                for (auto u : (*itr_A)->get_users()) {
+                for (auto* u : (*itr_A)->get_users()) {
                     if (u != (*itr_B) && !are_connected(B, user_map[u]) && !are_connected(user_map[u], B)) {
                         add_memory_dependency(*itr_A, *itr_B);
                         add_memory_dependency(*itr_B, *itr_A);

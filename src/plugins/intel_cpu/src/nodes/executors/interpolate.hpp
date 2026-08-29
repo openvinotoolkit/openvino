@@ -69,8 +69,8 @@ inline VectorDims getPaddedInputShape(const VectorDims& srcDims,
                                       const std::vector<int>& padBegin,
                                       const std::vector<int>& padEnd) {
     VectorDims paddedShape;
-    int dataRank = srcDims.size();
-    for (int i = 0; i < dataRank; i++) {
+    size_t dataRank = srcDims.size();
+    for (size_t i = 0; i < dataRank; i++) {
         paddedShape.push_back(srcDims[i] + padBegin[i] + padEnd[i]);
     }
     return paddedShape;
