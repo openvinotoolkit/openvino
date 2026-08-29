@@ -61,8 +61,6 @@ public:
             const auto shift = ov::op::v0::Constant::create(compute_type, ov::Shape{}, {128});
             const auto shifted_weight = std::make_shared<ov::op::v1::Subtract>(weight_convert, shift);
             const auto shifted_zerop = std::make_shared<ov::op::v1::Subtract>(zerop_convert, shift);
-            ov::npuw::vocab_sub128::mark(shifted_weight);
-            ov::npuw::vocab_sub128::mark(shifted_zerop);
             subtract->input(0).replace_source_output(shifted_weight);
             subtract->input(1).replace_source_output(shifted_zerop);
             return true;
