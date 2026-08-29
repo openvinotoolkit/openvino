@@ -6,9 +6,13 @@ set(OV_GPU_SUPPORTED_RUNTIMES ZE OCL SYCL)
 set(OV_GPU_DEFAULT_RT OCL)
 
 ov_option_enum(GPU_RT_TYPE
-               "GPU runtime compiled into the plugin"
+               "GPU runtime compiled into the plugin (L0 is accepted as a ZE alias)"
                ${OV_GPU_DEFAULT_RT}
-               ALLOWED_VALUES ${OV_GPU_SUPPORTED_RUNTIMES})
+               ALLOWED_VALUES ${OV_GPU_SUPPORTED_RUNTIMES} L0)
+
+if(GPU_RT_TYPE STREQUAL "L0")
+    set(GPU_RT_TYPE ZE CACHE STRING "GPU runtime compiled into the plugin" FORCE)
+endif()
 
 foreach(_ov_gpu_runtime IN LISTS OV_GPU_SUPPORTED_RUNTIMES)
     set(OV_GPU_RUNTIME_${_ov_gpu_runtime}_ENABLED OFF)
