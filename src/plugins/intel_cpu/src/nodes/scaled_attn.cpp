@@ -2903,20 +2903,19 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         const bool need_k_szp = is_quantized_cache(k_kvcache_precision) && !is_k_turboq;
         const bool need_v_szp = is_quantized_cache(v_kvcache_precision) && !is_v_turboq;
         if (need_k_szp || need_v_szp) {
-            auto reset_scale_zp = [&](const ov::Extensions::Cpu::CacheSpec& quant_param,
-                                      size_t hidden_states,
-                                      size_t cache_max_size) {
-                const size_t capacity_L = cache_max_size / (B * H * hidden_states);
-                PlainTensor scale_zp;
-                scale_zp.resize<float>(compute_scale_zp_shape(quant_param,
-                                                              hidden_states,
-                                                              B,
-                                                              H,
-                                                              std::max(capacity_L, (L0 + L1) * 2),
-                                                              order,
-                                                              real_order));
-                return scale_zp;
-            };
+            auto reset_scale_zp =
+                [&](const ov::Extensions::Cpu::CacheSpec& quant_param, size_t hidden_states, size_t cache_max_size) {
+                    const size_t capacity_L = cache_max_size / (B * H * hidden_states);
+                    PlainTensor scale_zp;
+                    scale_zp.resize<float>(compute_scale_zp_shape(quant_param,
+                                                                  hidden_states,
+                                                                  B,
+                                                                  H,
+                                                                  std::max(capacity_L, (L0 + L1) * 2),
+                                                                  order,
+                                                                  real_order));
+                    return scale_zp;
+                };
             if (need_k_szp) {
                 m_k_state->set_scale_zp(reset_scale_zp(m_key_spec, S, m_k_state->internal_state_max_size()));
             }
