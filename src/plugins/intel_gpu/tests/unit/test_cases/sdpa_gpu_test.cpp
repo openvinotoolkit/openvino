@@ -285,7 +285,7 @@ TEST_P(sdpa_gpu_test, basic_caching) {
 
 // Test that an explicit causal attention mask produces the same result as is_causal=true.
 static void run_sdpa_causal_mask(int batch, int q_num_heads, int kv_num_heads,
-                                     int seq_q, int seq_kv, int head_size) {
+                                 int seq_q, int seq_kv, int head_size, bool causal_lower_right = true) {
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
     auto& engine = get_test_engine();
@@ -297,11 +297,11 @@ static void run_sdpa_causal_mask(int batch, int q_num_heads, int kv_num_heads,
     auto v_data = rg.generate_random_1d<ov::float16>(
         static_cast<size_t>(batch) * kv_num_heads * seq_kv * head_size, -1.0f, 1.0f);
 
-    // Build causal attention mask with lower right triangular: shape [1, 1, seq_q, seq_kv]
+    // Build causal attention mask with the requested alignment: shape [1, 1, seq_q, seq_kv]
     // 0 for valid positions (row >= col offset), -inf for masked positions.
     const size_t mask_size = static_cast<size_t>(seq_q) * seq_kv;
     std::vector<ov::float16> mask_data(mask_size);
-    const int col_offset = seq_kv - seq_q;
+    const int col_offset = causal_lower_right ? seq_kv - seq_q : 0;
     for (int r = 0; r < seq_q; ++r) {
         for (int c = 0; c < seq_kv; ++c) {
             if (c <= r + col_offset) {
@@ -355,17 +355,34 @@ static void run_sdpa_causal_mask(int batch, int q_num_heads, int kv_num_heads,
         return net->execute().at("result").get_memory();
     };
 
-    // --- Optimized path: is_causal=true with CAUSAL_MASK_LOWER_RIGHT , no mask input, dynamic shapes ---
+    // --- Optimized path: is_causal=true, no mask input, dynamic shapes ---
     auto make_opt_output = [&]() {
         topology topo;
         topo.add(input_layout("q", q_dyn_layout));
         topo.add(input_layout("k", kv_dyn_layout));
         topo.add(input_layout("v", kv_dyn_layout));
-        auto prim = scaled_dot_product_attention("sdpa",
-                                                 {input_info("q"), input_info("k"), input_info("v")},
-                                                 true, -1,
-                                                 {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3},
-                                                 {}, false, true);
+        auto prim = causal_lower_right
+                        ? scaled_dot_product_attention("sdpa",
+                                                       {input_info("q"), input_info("k"), input_info("v")},
+                                                       true,
+                                                       -1,
+                                                       {0, 1, 2, 3},
+                                                       {0, 1, 2, 3},
+                                                       {0, 1, 2, 3},
+                                                       {0, 1, 2, 3},
+                                                       {},
+                                                       false,
+                                                       true)
+                        : scaled_dot_product_attention("sdpa",
+                                                       {input_info("q"), input_info("k"), input_info("v")},
+                                                       true,
+                                                       -1,
+                                                       {0, 1, 2, 3},
+                                                       {0, 1, 2, 3},
+                                                       {0, 1, 2, 3},
+                                                       {0, 1, 2, 3},
+                                                       {},
+                                                       false);
         topo.add(prim);
         topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
 
@@ -397,6 +414,10 @@ static void run_sdpa_causal_mask(int batch, int q_num_heads, int kv_num_heads,
 
 TEST(sdpa_gpu_causal_mask, prefill_40q_40kv_512seq) {
     run_sdpa_causal_mask(1, 40, 40, 512, 512, 128);
+}
+
+TEST(sdpa_gpu_causal_mask, prefill_upper_left_default_40q_40kv_512seq) {
+    run_sdpa_causal_mask(1, 40, 40, 512, 512, 128, false);
 }
 
 TEST(sdpa_gpu_causal_mask, decode_40q_40kv_512seq) {
