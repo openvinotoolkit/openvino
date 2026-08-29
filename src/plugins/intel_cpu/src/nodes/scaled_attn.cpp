@@ -2775,8 +2775,6 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
     // Grow the norm buffer if needed; preserve old content for L0 tokens so subsequent
     // decodes see the correct norms (this path grows in place, no beam reorder).
     auto grow_meta_data = [&](PlainTensor& meta_data) {
-        // The buffer is laid out per batch, so a batch change needs a new one even when the
-        // token capacity would still be enough.
         if (meta_data && meta_data.size(0) == B && meta_data.size(1) == H && meta_data.size(2) >= L0 + L1) {
             return;
         }
