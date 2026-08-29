@@ -43,16 +43,9 @@ set(COMMON_LINK_LIBRARIES openvino::shape_inference # for tensor accessor
                           openvino::runtime
 )
 
-if(ENABLE_ONEDNN_FOR_GPU)
-    # oneDNN GPU adapters expose OpenCL types in their private headers.
-    list(APPEND COMMON_LINK_LIBRARIES OpenCL::NewHeaders)
-endif()
-
 if(OV_GPU_RUNTIME_ZE_ENABLED)
     # Onednn needs ZE headers
     list(APPEND COMMON_LINK_LIBRARIES openvino::zero_loader)
-elseif(OV_GPU_RUNTIME_SYCL_ENABLED)
-    list(APPEND COMMON_LINK_LIBRARIES LevelZero::Headers)
 endif()
 
 define_property(GLOBAL PROPERTY EXTRA_LINK_LIBRARIES_GLOBAL BRIEF_DOCS "All link libs" FULL_DOCS "Link libraries collection from all backends")
@@ -101,9 +94,14 @@ macro(ov_gpu_add_backend_target)
 
     # We use onednn headers all over the graph module, so we have to append includes to all backends and add a dependency between targets
     if (ENABLE_ONEDNN_FOR_GPU)
+        # oneDNN GPU adapters expose OpenCL types in their private headers.
+        ov_gpu_use_header_target_for(${ARG_NAME} OpenCL::NewHeaders)
         target_include_directories(${ARG_NAME} SYSTEM BEFORE PRIVATE $<TARGET_PROPERTY:onednn_gpu_tgt,INTERFACE_INCLUDE_DIRECTORIES>)
         add_dependencies(openvino_intel_gpu_${IMPL_TYPE}_obj onednn_gpu_tgt)
         ov_gpu_set_opencl_api_version_for(${ARG_NAME})
+    endif()
+    if(OV_GPU_RUNTIME_SYCL_ENABLED)
+        ov_gpu_use_header_target_for(${ARG_NAME} LevelZero::Headers)
     endif()
 
     # The graph backend implementations are compiled in these per-backend OBJECT
@@ -166,7 +164,11 @@ target_compile_options(${TARGET_NAME} PRIVATE ${COMMON_COMPILE_OPTIONS})
 ov_set_threading_interface_for(${TARGET_NAME})
 ov_gpu_set_runtime_definitions_for(${TARGET_NAME})
 if(ENABLE_ONEDNN_FOR_GPU)
+    ov_gpu_use_header_target_for(${TARGET_NAME} OpenCL::NewHeaders)
     ov_gpu_set_opencl_api_version_for(${TARGET_NAME})
+endif()
+if(OV_GPU_RUNTIME_SYCL_ENABLED)
+    ov_gpu_use_header_target_for(${TARGET_NAME} LevelZero::Headers)
 endif()
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
