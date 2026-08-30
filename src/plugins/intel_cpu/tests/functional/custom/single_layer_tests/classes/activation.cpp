@@ -353,7 +353,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Sqrt,                  {{}}},
         {RoundHalfToEven,       {{}}},
         {RoundHalfAwayFromZero, {{}}},
-#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
         {IsFinite,              {{}}},
         {IsInf,                 {{false, false}, {false, true}, {true, false}, {true, true}}},
         {IsNaN,                 {{}}},
