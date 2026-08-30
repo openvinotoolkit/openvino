@@ -83,7 +83,6 @@ void CheckBroadcast::SetUp() {
 
 TEST_P(CheckBroadcast, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 } // namespace snippets

@@ -197,6 +197,14 @@ struct IdleGuard<NotBusyPriorityWorkerRequests> {
 };
 
 class Plugin;
+
+// Selection-policy inputs consumed by Plugin::select_device: a hard filter (utilization thresholds)
+// applied first, then a ranking (performance curves) applied to the survivors.
+struct DeviceSelectionPolicy {
+    std::unordered_map<std::string, unsigned> utilization_thresholds;
+    ov::intel_auto::PerfCurveTable            perf_curve_table;
+};
+
 class ScheduleContext : public std::enable_shared_from_this<ScheduleContext>  {
 public:
     using Ptr = std::shared_ptr<ScheduleContext>;
@@ -222,7 +230,8 @@ public:
     std::mutex                                     m_fallback_mutex;
     SoCompiledModel                                m_hw_compiled_model;
     std::string                                    m_model_precision;
-    std::unordered_map<std::string, unsigned>      m_utilization_thresholds;
+    DeviceSelectionPolicy                          m_selection_policy;
+    std::string                                    m_low_power_device;
     // hold the resource of static variable to avoid the unexpected destruction.
     std::shared_ptr<std::mutex>                                          m_mtx;
     std::shared_ptr<std::map<unsigned int, std::list<std::string>>>      m_priority_map;

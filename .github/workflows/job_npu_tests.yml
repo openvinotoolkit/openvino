@@ -13,10 +13,10 @@ on:
         required: false
         default: '{"TF_FE":{"test":true},"JAX_FE":{"test":true},"PyTorch_FE":{"test":true}}'
       npu-platforms:
-        description: 'JSON list of NPU platforms to compile for (offline), each runs on its own runner. e.g. ["3720","4000","5010","5020"]'
+        description: 'JSON list of NPU platforms to compile for (offline), each runs on its own runner. e.g. ["3720","4000","5010","5020","6010"]'
         type: string
         required: false
-        default: '["3720","4000","5010","5020"]'
+        default: '["3720","4000","5010","5020","6010"]'
       model-scope:
         description: 'Scope of models for testing (pytest marker)'
         type: string
@@ -33,7 +33,7 @@ env:
 
 jobs:
   NPU_Models_Tests:
-    name: NPU Models tests (${{ matrix.npu-platform }})
+    name: ${{ matrix.npu-platform }}
     timeout-minutes: 40
     strategy:
       # one runner per NPU platform; keep going even if one platform fails.
@@ -98,13 +98,13 @@ jobs:
           wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
           wheels-to-install: 'openvino'
 
+      - name: Install certifi and set SSL_CERT_FILE for model downloading
+        run: python3 -m pip install certifi && echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
+
       # --- TensorFlow ---------------------------------------------------------
       - name: Install TF Models tests requirements
         if: fromJSON(inputs.affected-components).TF_FE.test
         run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_tensorflow
-
-      - name: Set SSL_CERT_FILE for model downloading
-        run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
       - name: TensorFlow Models Tests - NPU compile-only (convert_model)
         if: fromJSON(inputs.affected-components).TF_FE.test

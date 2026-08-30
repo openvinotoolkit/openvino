@@ -140,11 +140,15 @@ CommonDispatchData DynamicQuantizeKernelOpt::SetDefault(const dynamic_quantize_p
     } else if (mode == DynQuanMode::LARGE_GS) {
         auto vec_size = get_match_vector_size(params);
         auto bf_size = get_input_bf_size(params);
-        size_t total_block_num = bf_size.second / (simd * vec_size);
+        const size_t total_block_num = bf_size.second / (simd * vec_size);
         size_t batch = bf_size.first;
         size_t block_num = (total_block_num > 32) ? 32 : total_block_num;
+        size_t dispatch_block_num = total_block_num;
+#ifdef OV_GPU_WITH_ZE_RT
+        dispatch_block_num = Align(dispatch_block_num, block_num); //align for ZE RT
+#endif
 
-        dispatchData.gws = {simd, total_block_num, batch};
+        dispatchData.gws = {simd, dispatch_block_num, batch};
         dispatchData.lws = {simd, block_num, 1};
     } else if (mode == DynQuanMode::PER_TOKEN) {
         auto vec_size = get_match_vector_size(params);

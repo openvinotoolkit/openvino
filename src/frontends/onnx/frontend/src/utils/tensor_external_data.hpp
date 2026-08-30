@@ -75,6 +75,14 @@ public:
         return m_data_location;
     }
 
+    /// \brief      Object contains a data offset after construction. Method allows read-only access to this
+    ///             information.
+    ///
+    /// \return     Returns a stored offset (in bytes) of the data in the external file
+    uint64_t offset() const {
+        return m_offset;
+    }
+
 private:
     std::string m_data_location{};
     uint64_t m_offset = 0;

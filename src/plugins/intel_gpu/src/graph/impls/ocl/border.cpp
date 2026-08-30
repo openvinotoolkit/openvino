@@ -162,7 +162,7 @@ protected:
 namespace detail {
 
 attach_border_impl::attach_border_impl() {
-    auto types = {data_types::f32, data_types::f16, data_types::i32, data_types::i8, data_types::u8};
+    auto types = {data_types::f32, data_types::f16, data_types::bf16, data_types::i32, data_types::i8, data_types::u8};
 
     auto formats = {
         format::yxfb,
