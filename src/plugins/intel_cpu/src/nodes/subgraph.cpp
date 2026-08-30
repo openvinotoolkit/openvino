@@ -73,6 +73,8 @@
 #    include "executors/riscv64/subgraph.hpp"
 #    include "openvino/core/except.hpp"
 #    include "snippets/lowered/pass/insert_loops.hpp"
+#    include "transformations/snippets/riscv64/pass/brgemm_to_brgemm_cpu.hpp"
+#    include "transformations/snippets/riscv64/pass/lowered/brgemm_cpu_blocking.hpp"
 #else
 #    include "emitters/snippets/cpu_runtime_configurator.hpp"
 #    include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
@@ -81,11 +83,12 @@
 #endif
 
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(SNIPPETS_DEBUG_CAPS)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64) || \
+    defined(SNIPPETS_DEBUG_CAPS)
 #    include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
 #    include "snippets/lowered/pass/mark_loops.hpp"
 #endif
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
 #    include "snippets/pass/propagate_precision.hpp"
 #endif
 
@@ -590,6 +593,14 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
 #    define SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(PASS_PLACE, TARGET_PASS, PASS, ...)
 #endif  // OPENVINO_ARCH_ARM64
 
+#if defined(OPENVINO_ARCH_RISCV64)
+#    define SNIPPETS_REGISTER_PASS_RELATIVE_RISCV64(PASS_PLACE, TARGET_PASS, PASS, ...)            \
+        backend_passes.emplace_back(PassPosition(PASS_PLACE, TARGET_PASS::get_type_info_static()), \
+                                    std::make_shared<PASS>(__VA_ARGS__))
+#else
+#    define SNIPPETS_REGISTER_PASS_RELATIVE_RISCV64(PASS_PLACE, TARGET_PASS, PASS, ...)
+#endif  // OPENVINO_ARCH_RISCV64
+
     SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(Place::PipelineStart, ConvertToSwishCPU);
     SNIPPETS_REGISTER_PASS_RELATIVE_COMMON(Place::After,
                                            ov::snippets::pass::Canonicalization,
@@ -639,6 +650,9 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
     SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::Before,
                                           ov::snippets::pass::PropagatePrecision,
                                           ov::intel_cpu::pass::BrgemmToGemmCPU);
+    SNIPPETS_REGISTER_PASS_RELATIVE_RISCV64(Place::Before,
+                                            ov::snippets::pass::PropagatePrecision,
+                                            ov::intel_cpu::pass::BrgemmToBrgemmCPU);
     if (has_domain_sensitive_ops()) {
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
         const auto cpu_config =
@@ -688,6 +702,7 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
 #undef SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64
 #undef SNIPPETS_REGISTER_PASS_RELATIVE_X86_64
 #undef SNIPPETS_REGISTER_PASS_RELATIVE_ARM64
+#undef SNIPPETS_REGISTER_PASS_RELATIVE_RISCV64
 
     return backend_passes;
 }
@@ -732,6 +747,9 @@ Subgraph::getControlFlowPasses() {  // NOLINT(readability-convert-member-functio
     SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
                                           ov::snippets::lowered::pass::MarkLoops,
                                           ov::intel_cpu::pass::GemmCPUBlocking);
+    SNIPPETS_REGISTER_PASS_RELATIVE_RISCV64(Place::After,
+                                            ov::snippets::lowered::pass::MarkLoops,
+                                            ov::intel_cpu::pass::BrgemmCPUBlocking);
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
                                            ov::intel_cpu::pass::BrgemmCPUBlocking,
                                            ov::intel_cpu::pass::ParallelizeGatedMlpNLoops);
@@ -747,7 +765,7 @@ Subgraph::getControlFlowPasses() {  // NOLINT(readability-convert-member-functio
                                               ov::snippets::lowered::pass::InsertPerfCountVerbose,
                                               getName());
         SNIPPETS_REGISTER_PASS_RELATIVE_RISCV64(Place::After,
-                                                ov::snippets::lowered::pass::MarkLoops,
+                                                ov::intel_cpu::pass::BrgemmCPUBlocking,
                                                 ov::snippets::lowered::pass::InsertPerfCountVerbose,
                                                 getName());
     }
