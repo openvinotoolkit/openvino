@@ -114,10 +114,10 @@ function(ov_download_tbb)
         # build oneTBB with gcc 4.8 (glibc 2.17)
         # NOTE: if this archive name/version changes, update the TBB direct-download example in docs/dev/static_libraries.md
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "oneapi-tbb-2021.13.3-lin-try-lock.tgz"
+                ARCHIVE_LIN "oneapi-tbb-2021.13.1-lin-release.tgz"
                 TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "b850f9482da61aa478be6b5da0361b9c9ef2e6201456dfaba2f112698f2e5bb0"
+                SHA256 "93cf8ada4793044697f76179247c6a35ca0e47ee2a3a228fc9ed91703aa79730"
                 USE_NEW_LOCATION TRUE)
     elseif(YOCTO_AARCH64)
         RESOLVE_DEPENDENCY(TBB
