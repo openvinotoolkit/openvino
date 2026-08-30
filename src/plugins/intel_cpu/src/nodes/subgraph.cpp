@@ -266,7 +266,7 @@ static impl_desc_type getImplType(dnnl::impl::cpu::aarch64::cpu_isa_t isa) {
         return impl_desc_type::jit_sve256;
     case sve_128:
         return impl_desc_type::jit_sve128;
-    case asimd:
+    case dnnl::impl::cpu::aarch64::asimd:
         return impl_desc_type::jit_asimd;
     default:
         return impl_desc_type::unknown;

@@ -6,6 +6,7 @@
 
 #include <xbyak_aarch64/xbyak_aarch64_reg.h>
 
+#include <algorithm>
 #include <common/c_types_map.hpp>
 #include <cpu/aarch64/cpu_isa_traits.hpp>
 #include <cpu/aarch64/jit_generator.hpp>
@@ -419,12 +420,10 @@ bool CPUTargetMachine::supports_current_isa(const std::shared_ptr<ov::Model>& bo
         return true;
     }
 
-    for (const auto& op : body->get_ordered_ops()) {
-        if (has(op->get_type_info()) && !is_sve_compatible(op)) {
-            return false;
-        }
-    }
-    return true;
+    const auto ordered_ops = body->get_ordered_ops();
+    return std::all_of(ordered_ops.begin(), ordered_ops.end(), [this](const auto& op) {
+        return !has(op->get_type_info()) || is_sve_compatible(op);
+    });
 }
 
 snippets::CompiledSnippetPtr CPUTargetMachine::get_snippet() {

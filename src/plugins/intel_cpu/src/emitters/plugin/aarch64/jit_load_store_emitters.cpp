@@ -141,9 +141,7 @@ void jit_load_emitter::emit_impl(const std::vector<size_t>& in_idxs, const std::
 
 template <cpu_isa_t isa>
 void jit_load_emitter::load_qbyte(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const {
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto src = XReg(in_idxs[0]);
-    auto dst = TReg(out_idxs[0]);
     auto dst_s = SReg(out_idxs[0]);
     auto dst_d = DReg(out_idxs[0]);
 
@@ -183,9 +181,7 @@ void jit_load_emitter::load_qbyte(const std::vector<size_t>& in_idxs, const std:
 
 template <cpu_isa_t isa>
 void jit_load_emitter::load_dbyte(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const {
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto src = XReg(in_idxs[0]);
-    auto dst = TReg(out_idxs[0]);
     auto dst_h = HReg(out_idxs[0]);
     auto dst_s = SReg(out_idxs[0]);
     auto dst_d = DReg(out_idxs[0]);
@@ -228,9 +224,7 @@ void jit_load_emitter::load_dbyte(const std::vector<size_t>& in_idxs, const std:
 
 template <cpu_isa_t isa>
 void jit_load_emitter::load_byte(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const {
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto src = XReg(in_idxs[0]);
-    auto dst = TReg(out_idxs[0]);
     auto dst_b = BReg(out_idxs[0]);
     auto dst_h = HReg(out_idxs[0]);
     auto dst_s = SReg(out_idxs[0]);
@@ -276,11 +270,8 @@ void jit_load_emitter::emit_isa(const std::vector<size_t>& in_idxs, const std::v
     OV_CPU_JIT_EMITTER_ASSERT(
         any_of(src_prc_, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8),
         "Unsupported precision.");
-    constexpr auto max_load_num = dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::vlen / sizeof(float);
+    constexpr auto max_load_num = static_cast<int>(dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::vlen / sizeof(float));
     OV_CPU_JIT_EMITTER_ASSERT(load_num_ <= max_load_num, "Unexpected number of elements to load.");
-
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    const auto dst = TReg(out_idxs[0]);
 
     switch (src_prc_) {
     case ov::element::f32:
@@ -346,8 +337,6 @@ void jit_store_emitter::emit_impl(const std::vector<size_t>& in_idxs, const std:
 
 template <cpu_isa_t isa>
 void jit_store_emitter::store_qbyte(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const {
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    auto src = TReg(in_idxs[0]);
     auto src_s = SReg(in_idxs[0]);
     auto src_d = DReg(in_idxs[0]);
     auto src_q = QReg(in_idxs[0]);
@@ -389,8 +378,6 @@ void jit_store_emitter::store_qbyte(const std::vector<size_t>& in_idxs, const st
 
 template <cpu_isa_t isa>
 void jit_store_emitter::store_dbyte(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const {
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    auto src = TReg(in_idxs[0]);
     auto src_h = HReg(in_idxs[0]);
     auto src_s = SReg(in_idxs[0]);
     auto src_d = DReg(in_idxs[0]);
@@ -437,8 +424,6 @@ void jit_store_emitter::store_dbyte(const std::vector<size_t>& in_idxs, const st
 
 template <cpu_isa_t isa>
 void jit_store_emitter::store_byte(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const {
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    auto src = TReg(in_idxs[0]);
     auto src_b = BReg(in_idxs[0]);
     auto src_h = HReg(in_idxs[0]);
     auto src_s = SReg(in_idxs[0]);
@@ -488,10 +473,9 @@ void jit_store_emitter::emit_isa(const std::vector<size_t>& in_idxs, const std::
     OV_CPU_JIT_EMITTER_ASSERT(
         any_of(dst_prc_, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8),
         "Unsupported precision.");
-    constexpr auto max_store_num = dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::vlen / sizeof(float);
+    constexpr auto max_store_num =
+        static_cast<int>(dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::vlen / sizeof(float));
     OV_CPU_JIT_EMITTER_ASSERT(store_num_ <= max_store_num, "Unexpected number of elements to store.");
-
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto data_idxs = in_idxs;
     if (src_prc_ != dst_prc_) {
         OV_CPU_JIT_EMITTER_ASSERT(!aux_vec_idxs.empty(), "Store conversion requires an auxiliary vector register.");
