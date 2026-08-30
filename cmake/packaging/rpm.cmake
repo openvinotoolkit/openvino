@@ -63,6 +63,12 @@ macro(ov_cpack_settings)
     # take release version into account
     if(DEFINED CPACK_RPM_PACKAGE_RELEASE)
         set(cpack_full_ver "${cpack_full_ver}-${CPACK_RPM_PACKAGE_RELEASE}")
+
+        # rpm's native distribution release tag (e.g. .el8, .el9) is appended by rpmbuild
+        # itself when CPACK_RPM_PACKAGE_RELEASE_DIST is enabled, so reflect it here as well
+        if(CPACK_RPM_PACKAGE_RELEASE_DIST)
+            string(APPEND cpack_full_ver "%{?dist}")
+        endif()
     endif()
 
     # take epoch version into account
@@ -97,6 +103,7 @@ macro(ov_cpack_settings)
         2026.1.0
         2026.2.0
         2026.3.0
+        2026.4.0
         )
 
     ov_check_conflicts_versions(conflicting_versions)

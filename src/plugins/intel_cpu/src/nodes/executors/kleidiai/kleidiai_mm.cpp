@@ -53,11 +53,21 @@ static bool useDynamicQuantizationImpl(const FCAttrs& attrs, const MemoryDescPtr
         return false;
     }
 
-    return weightDesc->getPrecision() == element::i8 || weightDesc->getPrecision() == element::i4;
+    return weightDesc->getPrecision() == element::i8 || weightDesc->getPrecision() == element::i4 ||
+           weightDesc->getPrecision() == element::u4;
 }
 
 bool MatMulKleidiAIExecutor::supports(const FCConfig& config) {
     VERIFY(hasArmISASupport(ArmISA::ASIMD), UNSUPPORTED_ISA);
+
+    // ASYM INT4 groupwise kernel is N×K only (no K×N variant); it cannot
+    // consume non-transposed weights, and scale/zero-point repacking for that
+    // layout isn't implemented. Reject so another executor is selected.
+    const auto& weiPrec = config.descs.at(ARG_WEI)->getPrecision();
+    if (weiPrec == element::u4 && config.attrs.weightsNonTransposed) {
+        return false;
+    }
+
     return config.descs.at(ARG_WEI)->getPrecision() == element::f32 ||
            useDynamicQuantizationImpl(config.attrs, config.descs.at(ARG_WEI));
 }
@@ -68,6 +78,11 @@ bool MatMulKleidiAIExecutor::isGroupQuantizationEnabled(const MemoryArgs& memory
         return false;
     }
     return (scales[1] > 1);
+}
+
+bool MatMulKleidiAIExecutor::isAsymmetricQuantizationEnabled(const MemoryArgs& memory) {
+    const auto zpIt = memory.find(ARG_WEI | ARG_ATTR_ZERO_POINTS);
+    return zpIt != memory.end() && zpIt->second != nullptr && !zpIt->second->getDesc().empty();
 }
 
 MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
@@ -99,108 +114,141 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
     originalWeightsDesc = std::make_shared<CpuBlockedMemoryDesc>(originalWeightsDesc->getPrecision(), Shape{wgtDims2D});
     auto dnnlSrcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(originalWeightsDesc);
 
-    bool isTransposed = false;
-    float* rhs_scales = nullptr;
+    kernelLookupKey = 0;
 
-    // Whether dynamic quantization is enabled
     const bool useDynamicQuant = useDynamicQuantizationImpl(attrs, originalWeightsDesc);
-
     if (!useDynamicQuant) {
-        _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::F32_NEON_MLA>>(N, K);
-
-        auto dstDesc = originalWeightsDesc->cloneWithNewPrecision(memory.at(ARG_SRC)->getDescPtr()->getPrecision());
-        auto dnnlDstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc);
-
-        if (!attrs.weightsNonTransposed) {
-            dnnlDstDesc = acl_fc_executor::makeTransposedWeightDescriptor(dnnlDstDesc, dnnlSrcDesc);
-            aclfcAttrs.isWeightsRepacked = true;
-        }
-        MemoryCPtr packedWeights =
-            acl_fc_executor::reorderWeights(memory, context, aclfcAttrs, dnnlSrcDesc, dnnlDstDesc);
-        const size_t rhsPackedSize = _kernel->get_rhsPackedSize();
-        auto rhsPackedDesc = std::make_shared<CpuBlockedMemoryDesc>(u8, Shape({rhsPackedSize}));
-        rhsPackedMem = std::make_shared<Memory>(context->getEngine(), rhsPackedDesc);
-
-        _kernel->packData(false, packedWeights, biasMem, hasBias, nullptr, rhsPackedMem);
+        kernelLookupKey = kernelLookup::WEIGHT_FP32;
     } else {
-        MemoryPtr weightsMemory = memory.at(ARG_WEI);
-        isTransposed = attrs.weightsNonTransposed;
-        // Check if weights are in int4 or int8
-        if (weightsMemory->getDescPtr()->getPrecision() == element::i4) {
-            if (isGroupQuantizationEnabled(memory)) {
-                if (hasArmISASupport(ArmISA::I8MM)) {
-                    _kernel =
-                        std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_IMM_GROUP>>(N,
-                                                                                                           K,
-                                                                                                           lhsPackedMem,
-                                                                                                           memory);
-                } else {
-                    _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_DOTPROD_GROUP>>(
-                        N,
-                        K,
-                        lhsPackedMem,
-                        memory);
-                }
-            } else {
-                if (hasArmISASupport(ArmISA::I8MM)) {
-                    _kernel =
-                        std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_IMM>>(N,
-                                                                                                     K,
-                                                                                                     lhsPackedMem);
-                } else {
-                    _kernel =
-                        std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_DOTPROD>>(N,
-                                                                                                         K,
-                                                                                                         lhsPackedMem);
-                }
-            }
-            const size_t rhsPackedSize = _kernel->get_rhsPackedSize();
-            auto rhsPackedDesc = std::make_shared<CpuBlockedMemoryDesc>(i8, Shape({rhsPackedSize}));
-            rhsPackedMem = std::make_shared<Memory>(context->getEngine(), rhsPackedDesc);
+        const auto weightPrecision = memory.at(ARG_WEI)->getDescPtr()->getPrecision();
+        if (weightPrecision == element::i4 || weightPrecision == element::u4) {
+            kernelLookupKey |= kernelLookup::WEIGHT_INT4;
+        } else if (weightPrecision == element::i8) {
+            kernelLookupKey |= kernelLookup::WEIGHT_INT8;
         } else {
-            if (hasArmISASupport(ArmISA::I8MM)) {
-                _kernel =
-                    std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I8_NEON_IMM>>(N, K, lhsPackedMem);
-            } else {
-                _kernel =
-                    std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I8_NEON_DOTPROD>>(N,
-                                                                                                     K,
-                                                                                                     lhsPackedMem);
-            }
-
-            if (!attrs.weightsNonTransposed) {
-                auto dnnlSrcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(originalWeightsDesc);
-                auto dnnlDstDesc = acl_fc_executor::makeTransposedWeightDescriptor(dnnlSrcDesc, dnnlSrcDesc);
-                weightsMemory = acl_fc_executor::reorderData(dnnlSrcDesc, dnnlDstDesc, memory.at(ARG_WEI), context);
-            }
-            const size_t rhsPackedSize = _kernel->get_rhsPackedSize();
-            auto rhsPackedDesc = std::make_shared<CpuBlockedMemoryDesc>(i8, Shape({rhsPackedSize}));
-            rhsPackedMem = std::make_shared<Memory>(context->getEngine(), rhsPackedDesc);
+            OPENVINO_THROW_NOT_IMPLEMENTED("Unsupported weight format by KleidiAI executor: ", weightPrecision);
         }
 
-        rhs_scales = static_cast<float*>(memory.at(ARG_WEI | ARG_ATTR_SCALES)->getData());
+        if (hasArmISASupport(ArmISA::I8MM)) {
+            kernelLookupKey |= kernelLookup::ISA_I8MM;
+        } else if (hasArmISASupport(ArmISA::DOTPROD)) {
+            kernelLookupKey |= kernelLookup::ISA_DOTPROD;
+        } else {
+            OPENVINO_THROW_NOT_IMPLEMENTED("KleidiAI quantized kernels require Arm dotprod or i8mm support.");
+        }
 
+        kernelLookupKey |= isGroupQuantizationEnabled(memory) ? kernelLookup::QUANT_GROUP : kernelLookup::QUANT_CHANNEL;
+        kernelLookupKey |=
+            isAsymmetricQuantizationEnabled(memory) ? kernelLookup::QUANT_ASYMMETRIC : kernelLookup::QUANT_SYMMETRIC;
+    }
+
+    const auto createPackedMemory = [&](size_t size, const element::Type& precision) {
+        auto desc = std::make_shared<CpuBlockedMemoryDesc>(precision, Shape({size}));
+        rhsPackedMem = std::make_shared<Memory>(context->getEngine(), desc);
+    };
+
+    const auto packQuantizedWeights = [&](bool isTransposed, const MemoryCPtr& weightsMemory) {
+        createPackedMemory(_kernel->get_rhsPackedSize(), i8);
+        auto* rhsScales = static_cast<float*>(memory.at(ARG_WEI | ARG_ATTR_SCALES)->getData());
         std::vector<float> transposedScales;
-        // When the weight's Transpose was elided by the graph optimizer (weightsNonTransposed==true,
-        // see FuseFCAndTransposeOnWeights), the per-group decompression scales feeding this FC were
-        // transposed together with the weights (ConvertFullyConnectedToFullyConnectedCompressed::
-        // process_compressed_weights) and had that Transpose elided the same way. Their physical layout
-        // is therefore still [numGroups, N] instead of the canonical [N, numGroups] the KAI group
-        // kernels expect, so it must be repacked here before use.
         if (isTransposed && isGroupQuantizationEnabled(memory)) {
             const auto numGroups = memory.at(ARG_WEI | ARG_ATTR_SCALES)->getDesc().getShape().getStaticDims()[1];
             transposedScales.resize(N * numGroups);
             for (size_t g = 0; g < numGroups; ++g) {
                 for (size_t n = 0; n < N; ++n) {
-                    transposedScales[n * numGroups + g] = rhs_scales[g * N + n];
+                    transposedScales[n * numGroups + g] = rhsScales[g * N + n];
                 }
             }
-            rhs_scales = transposedScales.data();
+            rhsScales = transposedScales.data();
+        }
+        _kernel->packData(isTransposed, weightsMemory, biasMem, hasBias, rhsScales, rhsPackedMem);
+    };
+
+    switch (kernelLookupKey) {
+    case WEIGHT_FP32: {
+        _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::F32_NEON_MLA>>(N, K);
+
+        auto dstDesc = originalWeightsDesc->cloneWithNewPrecision(memory.at(ARG_SRC)->getDescPtr()->getPrecision());
+        auto dnnlDstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc);
+        if (!attrs.weightsNonTransposed) {
+            dnnlDstDesc = acl_fc_executor::makeTransposedWeightDescriptor(dnnlDstDesc, dnnlSrcDesc);
+            aclfcAttrs.isWeightsRepacked = true;
         }
 
-        _kernel->packData(isTransposed, weightsMemory, biasMem, hasBias, rhs_scales, rhsPackedMem);
+        const MemoryCPtr packedWeights =
+            acl_fc_executor::reorderWeights(memory, context, aclfcAttrs, dnnlSrcDesc, dnnlDstDesc);
+        createPackedMemory(_kernel->get_rhsPackedSize(), u8);
+        _kernel->packData(false, packedWeights, biasMem, hasBias, nullptr, rhsPackedMem);
+        break;
     }
-    // Create scratchpad to initialize memory for LHS in update()
+
+    case WEIGHT_INT4 | ISA_I8MM | QUANT_GROUP | QUANT_SYMMETRIC:
+        _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_IMM_GROUP>>(N,
+                                                                                                     K,
+                                                                                                     lhsPackedMem,
+                                                                                                     memory);
+        packQuantizedWeights(attrs.weightsNonTransposed, memory.at(ARG_WEI));
+        break;
+
+    case WEIGHT_INT4 | ISA_DOTPROD | QUANT_GROUP | QUANT_SYMMETRIC:
+        _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_DOTPROD_GROUP>>(N,
+                                                                                                         K,
+                                                                                                         lhsPackedMem,
+                                                                                                         memory);
+        packQuantizedWeights(attrs.weightsNonTransposed, memory.at(ARG_WEI));
+        break;
+
+    case WEIGHT_INT4 | ISA_I8MM | QUANT_GROUP | QUANT_ASYMMETRIC:
+        _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_IMM_GROUP_ASYM>>(N,
+                                                                                                          K,
+                                                                                                          lhsPackedMem,
+                                                                                                          memory);
+        packQuantizedWeights(attrs.weightsNonTransposed, memory.at(ARG_WEI));
+        break;
+
+    case WEIGHT_INT4 | ISA_DOTPROD | QUANT_GROUP | QUANT_ASYMMETRIC:
+        _kernel =
+            std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_DOTPROD_GROUP_ASYM>>(N,
+                                                                                                        K,
+                                                                                                        lhsPackedMem,
+                                                                                                        memory);
+        packQuantizedWeights(attrs.weightsNonTransposed, memory.at(ARG_WEI));
+        break;
+
+    case WEIGHT_INT4 | ISA_I8MM | QUANT_CHANNEL | QUANT_SYMMETRIC:
+        _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_IMM>>(N, K, lhsPackedMem);
+        packQuantizedWeights(attrs.weightsNonTransposed, memory.at(ARG_WEI));
+        break;
+
+    case WEIGHT_INT4 | ISA_DOTPROD | QUANT_CHANNEL | QUANT_SYMMETRIC:
+        _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_DOTPROD>>(N, K, lhsPackedMem);
+        packQuantizedWeights(attrs.weightsNonTransposed, memory.at(ARG_WEI));
+        break;
+
+    case WEIGHT_INT8 | ISA_DOTPROD | QUANT_CHANNEL | QUANT_SYMMETRIC:
+    case WEIGHT_INT8 | ISA_I8MM | QUANT_CHANNEL | QUANT_SYMMETRIC: {
+        const bool useI8MM = (kernelLookupKey & ISA_I8MM) != 0;
+        if (useI8MM) {
+            _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I8_NEON_IMM>>(N, K, lhsPackedMem);
+        } else {
+            _kernel =
+                std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I8_NEON_DOTPROD>>(N, K, lhsPackedMem);
+        }
+
+        MemoryPtr weightsMemory = memory.at(ARG_WEI);
+        if (!attrs.weightsNonTransposed) {
+            const auto srcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(originalWeightsDesc);
+            const auto dstDesc = acl_fc_executor::makeTransposedWeightDescriptor(srcDesc, srcDesc);
+            weightsMemory = acl_fc_executor::reorderData(srcDesc, dstDesc, memory.at(ARG_WEI), context);
+        }
+        packQuantizedWeights(false, weightsMemory);
+        break;
+    }
+
+    default:
+        OPENVINO_THROW_NOT_IMPLEMENTED("Unsupported KleidiAI kernel configuration. Lookup key: ", kernelLookupKey);
+    }
+
     scratchPad = context->getScratchPad();
 }
 

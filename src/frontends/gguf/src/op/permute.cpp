@@ -5,16 +5,18 @@
 #include <climits>
 #include <cstdint>
 #include <memory>
+
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/transpose.hpp"
-
-#include "node_context.hpp"
-#include "op_table.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -25,46 +27,90 @@ namespace op {
 OutputVector translate_permute(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
 
-    int op_case = context.get_attribute<int>("op_case", 0);
+    int op_case = context.get_op_case();
     FRONT_END_CHECK_IMPLEMENTED(op_case == 1 || op_case == 2 || op_case == 3 || op_case == 4,
                                 "Unsupported PERMUTE case");
 
     ov::Output<Node> res;
     auto src = context.get_input(0);
-    auto perm = ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3});
+    auto perm_order = context.get_attribute<std::vector<int64_t>>("perm", {0, 2, 1, 3});
+    auto perm = ov::op::v0::Constant::create(ov::element::i64, {perm_order.size()}, perm_order);
 
     if (op_case == 1) {
         res = std::make_shared<ov::op::v1::Transpose>(src, perm);
     } else if (op_case == 4) {
         auto output_shape = context.get_output_shape().to_shape();
-        auto n_heads = ov::op::v0::Constant::create(ov::element::i64, {1}, {output_shape[1]});
-        auto head_size = ov::op::v0::Constant::create(ov::element::i64, {1}, {output_shape[3]});
-        auto n_seq_active = context.has_input("n_seq_active")
-                                ? context.get_input("n_seq_active")
-                                : ov::op::v0::Constant::create(ov::element::i64, {1}, {output_shape[0]});
-        auto neg_one = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+        const auto n_heads = static_cast<int64_t>(output_shape[1]);
+        const auto head_size = static_cast<int64_t>(output_shape[3]);
 
-        auto new_shape =
-            std::make_shared<ov::op::v0::Concat>(ov::OutputVector{n_seq_active, neg_one, n_heads, head_size}, 0);
+        ov::Output<Node> reshaped;
+        if (context.has_input("n_seq_active")) {
+            // n_seq_active is a Parameter, so a Reshape pattern built from it has no known value
+            // bounds; folding it into a single Concat with n_heads/head_size would make the whole
+            // pattern dynamic, reaching SDPA with a dynamic head size and forcing the GPU plugin to
+            // decompose SDPA into Gemm+SoftMax. Splitting into two reshapes keeps the head layout
+            // in an all-constant pattern that survives shape inference; both are metadata-only, so
+            // this costs no extra data movement.
+            auto neg_one = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+            auto src_shape = std::make_shared<ov::op::v3::ShapeOf>(src, ov::element::i64);
+            auto seq_count =
+                std::make_shared<ov::op::v8::Gather>(src_shape,
+                                                     ov::op::v0::Constant::create(ov::element::i64, {1}, {0}),
+                                                     ov::op::v0::Constant::create(ov::element::i64, {}, {0}));
+            auto seq_pattern = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{seq_count, neg_one}, 0);
+            auto by_seq = std::make_shared<ov::op::v1::Reshape>(src, seq_pattern, false);
 
-        auto reshaped = std::make_shared<ov::op::v1::Reshape>(src, new_shape, true);
+            auto head_pattern =
+                ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, -1, n_heads, head_size});
+            reshaped = std::make_shared<ov::op::v1::Reshape>(by_seq, head_pattern, true);
+        } else {
+            auto new_shape = ov::op::v0::Constant::create(
+                ov::element::i64,
+                {4},
+                std::vector<int64_t>{static_cast<int64_t>(output_shape[0]), -1, n_heads, head_size});
+            reshaped = std::make_shared<ov::op::v1::Reshape>(src, new_shape, true);
+        }
         res = std::make_shared<ov::op::v1::Transpose>(reshaped, perm);
     } else {
         auto cache_shape = src.get_partial_shape();
         auto output_shape = context.get_output_shape().to_shape();
         int64_t head_size = output_shape[3];
         int64_t n_heads = output_shape[1];
+
+        // Validation/integration graphs can surface the cache VIEW as an already expanded
+        // [n_seq, ctx, n_head, head_size] tensor. In that form no layout-restoring Reshape is
+        // needed; applying the legacy flattened-cache reshape would multiply the element count by
+        // n_head (most visibly with several parallel sequences).
+        const bool cache_is_expanded = cache_shape.rank().is_static() && cache_shape.rank().get_length() == 4 &&
+                                       cache_shape[2].is_static() && cache_shape[3].is_static() &&
+                                       cache_shape[2].get_length() == n_heads &&
+                                       cache_shape[3].get_length() == head_size;
+        if (cache_is_expanded) {
+            ov::Output<Node> active_cache = src;
+            const int64_t n_seq = cache_shape[0].is_static() ? cache_shape[0].get_length() : -1;
+            if (n_seq != 1) {
+                auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+                auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+                Output<Node> seq_active_start;
+                Output<Node> seq_active_end;
+                if (context.has_input("seq_active_start")) {
+                    seq_active_start = context.get_input("seq_active_start");
+                    seq_active_end = context.get_input("seq_active_end");
+                } else {
+                    const int64_t start = context.get_attribute<int64_t>("view_seq_offset", 0);
+                    seq_active_start = ov::op::v0::Constant::create(ov::element::i64, {1}, {start});
+                    seq_active_end = ov::op::v0::Constant::create(ov::element::i64,
+                                                                  {1},
+                                                                  {start + static_cast<int64_t>(output_shape[0])});
+                }
+                active_cache = std::make_shared<ov::op::v8::Slice>(src, seq_active_start, seq_active_end, one, zero);
+            }
+            res = std::make_shared<ov::op::v1::Transpose>(active_cache, perm);
+            return rename_outputs_with_suffix({res}, context.get_name());
+        }
+
         int64_t ctx_per_seq = cache_shape[2].is_static() ? cache_shape[2].get_length() : -1;
         int64_t n_seq = cache_shape[1].get_length();
-
-        Output<Node> attention_size;
-        if (!context.has_input("attention_size")) {
-            attention_size = ov::op::v0::Constant::create(ov::element::i64, {1}, {output_shape[2]});
-        } else if (op_case == 2) {
-            attention_size = context.get_input("attention_size");
-        } else {
-            attention_size = context.get_input("attention_size_swa");
-        }
 
         Output<Node> seq_active_start;
         Output<Node> seq_active_end;
@@ -73,6 +119,8 @@ OutputVector translate_permute(const NodeContext& context) {
             seq_active_end = context.get_input("seq_active_end");
         } else {
             int64_t n_seq_active = output_shape[0];
+            // The decoder exposes the view's sequence-axis start as a typed attribute (already in
+            // elements); the op translators never touch raw ggml strides/offsets.
             int64_t seq_active_start_val = context.get_attribute<int64_t>("view_seq_offset", 0);
             int64_t seq_active_end_val = seq_active_start_val + n_seq_active;
             seq_active_start = ov::op::v0::Constant::create(ov::element::i64, {1}, {seq_active_start_val});
@@ -81,8 +129,8 @@ OutputVector translate_permute(const NodeContext& context) {
 
         // 1. reshape to [n_seq, ctx_per_seq, n_heads, head_size]
         // 2. slice out the active sequences
-        // 3. slice out the attention part in each sequence
-        // 4. permute
+        // 3. permute. The cache input is already bound with the runtime
+        // attention extent; masked positions remain harmless.
         auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
         auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
 
@@ -90,9 +138,16 @@ OutputVector translate_permute(const NodeContext& context) {
             src,
             ov::op::v0::Constant::create(ov::element::i64, {4}, {n_seq, ctx_per_seq, n_heads, head_size}),
             false);
-        auto slice1 = std::make_shared<ov::op::v8::Slice>(src_reshaped, seq_active_start, seq_active_end, one, zero);
-        auto slice2 = std::make_shared<ov::op::v8::Slice>(slice1, zero, attention_size, one, one);
-        res = std::make_shared<ov::op::v1::Transpose>(slice2, perm);
+        // A singleton cache can only have the active range [0, 1). Avoid expressing that no-op as
+        // a runtime-bounded Slice: the CPU plugin can infer an empty first dimension for this
+        // otherwise-static case, which then propagates through SDPA as a zero-token output. Keep
+        // the slice for genuine multi-sequence caches where selecting the active window matters.
+        ov::Output<Node> active_cache = src_reshaped;
+        if (n_seq != 1) {
+            active_cache =
+                std::make_shared<ov::op::v8::Slice>(src_reshaped, seq_active_start, seq_active_end, one, zero);
+        }
+        res = std::make_shared<ov::op::v1::Transpose>(active_cache, perm);
     }
     return rename_outputs_with_suffix({res}, context.get_name());
 }

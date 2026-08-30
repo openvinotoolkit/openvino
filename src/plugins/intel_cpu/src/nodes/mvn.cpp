@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
-#include <common/primitive_hashing_utils.hpp>
+#include <common/primitive_hashing.hpp>
 #include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>

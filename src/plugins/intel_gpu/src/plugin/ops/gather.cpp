@@ -104,8 +104,8 @@ void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const i
     bool is_indices_constant = static_cast<bool>(indices_constant);
 
     if (is_static && axis == 0 && input_rank > 1 && indices.get_partial_shape().rank().get_length() == 0 &&
-        out_shape_original.size() + 1 == input_shape.size() &&
-        std::equal(input_shape.begin()+1, input_shape.end(), out_shape_original.begin()) && is_indices_constant) {
+        out_shape.size() == static_cast<size_t>(input_rank) &&
+        std::equal(input_shape.begin()+1, input_shape.end(), out_shape.begin()+1) && is_indices_constant) {
         // Gather -> Crop
         // this Gather simply divides an input tensor along Batch axis
         auto get_crop_layer_name = [&](std::string name, size_t idx)->std::string {

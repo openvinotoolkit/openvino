@@ -38,14 +38,18 @@ private:
                                                  const ov::Output<ov::Node>& capacity_scalar,
                                                  int64_t local_window_size);
 
-    // Additive float attention mask for SDPA: causal mask, plus an optional sliding-window band
-    // (local_window_size >= 0) masking keys older than the window, optionally fused with an external bias.
-    // Masked positions use the compute type's finite lowest() so a fully-masked row cannot softmax to NaN.
+    // Additive float attention mask for SDPA. When causal is true: causal mask, plus an optional sliding-window
+    // band (local_window_size >= 1) masking keys older than the window. When causal is false (bidirectional):
+    // no query-relative masking; only the unused cache tail beyond total_sequence_length (past + current) is
+    // masked (local_window_size is always -1 in this case, enforced upstream). Either way the result is
+    // optionally fused with an external bias. Masked positions use the compute type's finite lowest() so a
+    // fully-masked row cannot softmax to NaN.
     std::shared_ptr<ov::Node> make_attention_mask(const ov::Output<ov::Node>& curr_seqlen_scalar,
                                                   const ov::Output<ov::Node>& kv_len_scalar,
                                                   const ov::Output<ov::Node>& kv_len_1d,
                                                   const ov::Output<ov::Node>& past_seqlen,
                                                   const ov::element::Type& compute_type,
+                                                  bool causal,
                                                   int64_t local_window_size,
                                                   const ov::Output<ov::Node>& external_bias,
                                                   const ov::Output<ov::Node>& bias_col_offset);
@@ -53,13 +57,13 @@ private:
     // PER_CHANNEL -> [1, kv_num_heads, 1, head_size]; PER_TENSOR -> [1, 1, 1, 1].
     std::shared_ptr<ov::Node> make_kv_scale(const ov::Output<ov::Node>& scale,
                                             int64_t kv_num_heads,
-                                            const std::string& quant_type);
+                                            ov::op::internal::GroupQueryAttentionQuantType quant_type);
     // Dequantize a quantized (i8/u8/f8e4m3) KV cache to compute_type: x = q * scale (symmetric, zero point = 0).
     std::shared_ptr<ov::Node> dequantize_kv(const ov::Output<ov::Node>& quantized,
                                             const ov::Output<ov::Node>& scale,
                                             int64_t kv_num_heads,
                                             int64_t kv_cache_bit_width,
-                                            const std::string& quant_type,
+                                            ov::op::internal::GroupQueryAttentionQuantType quant_type,
                                             const ov::element::Type& compute_type);
     // Quantize current float KV tokens into the cache type: integer i8/u8 uses clamp(round(x / scale))
     // (round-half-to-even); f8e4m3 uses clamp(x / scale, +/-448) then Convert (no integer round).
@@ -67,6 +71,6 @@ private:
                                           const ov::Output<ov::Node>& scale,
                                           int64_t kv_num_heads,
                                           int64_t kv_cache_bit_width,
-                                          const std::string& quant_type,
+                                          ov::op::internal::GroupQueryAttentionQuantType quant_type,
                                           const ov::element::Type& cache_type);
 };
