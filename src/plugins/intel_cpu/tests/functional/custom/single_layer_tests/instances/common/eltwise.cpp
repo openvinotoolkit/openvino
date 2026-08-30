@@ -283,7 +283,7 @@ static const std::vector<std::vector<InputShape>> bitwise_in_shapes_2D_broadcast
 
 static std::string bitwiseExpectedPrimitive() {
 #if defined(OPENVINO_ARCH_ARM64)
-    return "jit_asimd";
+    return "jit";
 #else
     return {};
 #endif
@@ -291,7 +291,7 @@ static std::string bitwiseExpectedPrimitive() {
 
 static std::string bitwiseI32ExpectedPrimitive() {
 #if defined(OPENVINO_ARCH_ARM64)
-    return "jit_asimd.+$/";
+    return "jit.+$/";
 #else
     return "*_I32";
 #endif

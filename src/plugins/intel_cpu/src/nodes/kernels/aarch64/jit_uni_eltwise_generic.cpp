@@ -387,6 +387,11 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
     }
     case ov::element::i8:
     case ov::element::u8: {
+        if (src_prc == dst_prc) {
+            utils::load_vector(data.b, data.b16, ptr_reg, ptr_offset, broadcast, this);
+            break;
+        }
+
         // Stability-first: always lane-wise for i8/u8 to avoid crossing boundaries in tails.
         const size_t lane_count = cpu_isa_traits<isa>::vlen / dst_prc.size();
         utils::load_vector(data.b, data.s, ptr_reg, ptr_offset, broadcast, this, lane_count);
@@ -452,6 +457,10 @@ void jit_uni_eltwise_generic<isa>::load_scalar(const SReg& data,
     case ov::element::i8: {
         ldr(Xbyak_aarch64::BReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
 
+        if (src_prc == dst_prc) {
+            break;
+        }
+
         // scalar is loaded, operates with vector
         TReg vec(data.getIdx());
         sshll(vec.h8, vec.b8, 0);
@@ -460,6 +469,10 @@ void jit_uni_eltwise_generic<isa>::load_scalar(const SReg& data,
     }
     case ov::element::u8: {
         ldr(Xbyak_aarch64::BReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
+
+        if (src_prc == dst_prc) {
+            break;
+        }
 
         // scalar is loaded, operates with vector
         TReg vec(data.getIdx());
