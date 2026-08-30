@@ -128,7 +128,7 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
 
     #ifdef ASYMMETRIC_WEIGHTS_QUANTIZATION
         int weights_zp_val = as_int((FILTER_TYPE_4)weights_zp[f]);
-        #if FILTER_IFM_NUM % PACK != 0
+        #if CHECK_GROUPED_IFM_TAIL && (FILTER_IFM_NUM % PACK != 0)
             int weights_zp_vec_partial;
             weights_zp_vec_partial = weights_zp_val;
             FILTER_TYPE* wzp_p = (FILTER_TYPE*)&weights_zp_vec_partial;
@@ -178,13 +178,12 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
         #endif
         #ifdef SHOULD_USE_DATA_ZP
             #if INPUT0_LAYOUT_B_FS_YX_FSV16
-                #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % PACK != 0))
+                #if (CHECK_GROUPED_IFM_TAIL && (FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % PACK != 0))
                     INPUT0_TYPE* input_zp_int8_arr = (INPUT0_TYPE*) &data_zp_val;
-                    uint valid_ifm_in_pack = (kd + 1) * PACK <= FILTER_IFM_NUM ? PACK : (FILTER_IFM_NUM % PACK);
-                    for (uint v = 0; v < valid_ifm_in_pack; v++) {
+                    unroll_for (uint v = 0; v < FILTER_IFM_NUM % PACK; v++) {
                         input_zp_int8_arr[v] = activations_zp[feature_location + v];
                     }
-                    for (uint v = valid_ifm_in_pack; v < PACK; v++) {
+                    unroll_for (uint v = FILTER_IFM_NUM % PACK; v < PACK; v++) {
                         input_zp_int8_arr[v] = 0;
                     }
                 #else
@@ -211,7 +210,7 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
             #endif
 
             #if INPUT0_LAYOUT_B_FS_YX_FSV16
-                #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % PACK != 0))
+                #if (CHECK_GROUPED_IFM_TAIL && (FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % PACK != 0))
                     #ifdef SHOULD_USE_DATA_ZP
                         if (input_on_padding) {
                             in[reg] = data_zp_val;
@@ -219,13 +218,12 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
                     #endif
                     INPUT0_TYPE* input_int8_arr = (INPUT0_TYPE*) &in[reg];
                     in_addr = in_start_addr + reg * INPUT0_Y_PITCH * FSV;
-                    uint valid_ifm_in_pack_input = (kd + 1) * PACK <= FILTER_IFM_NUM ? PACK : (FILTER_IFM_NUM % PACK);
-                    for (uint v = 0; v < valid_ifm_in_pack_input; v++) {
+                    unroll_for (uint v = 0; v < FILTER_IFM_NUM % PACK; v++) {
                         int f_addr = ((feature_location + v) / FSV + INPUT0_PAD_BEFORE_FEATURE_NUM / FSV) * \
                                       INPUT0_FEATURE_PITCH * FSV  + (feature_location + v) % FSV;
                         input_int8_arr[v] = conv_input[in_addr + f_addr];
                     }
-                    for (uint v = valid_ifm_in_pack_input; v < PACK; v++) {
+                    unroll_for (uint v = FILTER_IFM_NUM % PACK; v < PACK; v++) {
                         input_int8_arr[v] = 0;
                     }
                     #ifdef SHOULD_USE_DATA_ZP
@@ -239,7 +237,7 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
                     #endif
                         in[reg] = *(__global PACKED_TYPE*)(conv_input + in_addr);
                         in_addr += (INPUT0_SIZE_X + IWPAD) * 16;
-                 #endif
+                #endif
             #else
                 #ifdef BLOCK_LOAD_INPUTS
                     in[reg] = AS_PACKED_TYPE(_sub_group_block_read((const __global uint*) &conv_input[in_addr]));
@@ -270,7 +268,7 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
             }
         #endif
 
-        #if FILTER_IFM_NUM % PACK != 0
+        #if CHECK_GROUPED_IFM_TAIL && (FILTER_IFM_NUM % PACK != 0)
             if ((kd + 1) * PACK >= ALIGN(FILTER_IFM_NUM, PACK)) {
                 for (int pf = 0; pf < NUM_FILTERS; pf++) {
                     FILTER_TYPE* w_p = (FILTER_TYPE*)&w[pf];
