@@ -71,6 +71,7 @@ jobs:
       build-type: 'Release'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
       build-additional-python-wheels: true
+      build-samples: true
       cmake-options: >-
             -G 'Ninja Multi-Config'
             -DENABLE_PYTHON=ON
@@ -142,16 +143,6 @@ jobs:
           set-pip-install-path: 'false'
           self-hosted-runner: 'true'
           use-pip-proxy: 'true'
-
-      # Test with the short names of the arguments
-      - name: Build cpp samples
-        run: |
-          & ${{ env.SAMPLES_INSTALL_DIR }}/cpp/build_samples.ps1 -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/cpp_samples
-
-      # Test with the full names of the arguments
-      - name: Build c samples
-        run: |
-          & ${{ env.SAMPLES_INSTALL_DIR }}/c/build_samples.ps1 -InstallDirectory ${{ env.INSTALL_DIR }} -BuildDirectory ${{ env.BUILD_DIR }}/c_samples
 
       # Install Python benchmark_app by installing openvino-*.whl
       - name: Install OpenVINO Python wheels

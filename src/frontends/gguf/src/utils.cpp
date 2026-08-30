@@ -7,6 +7,8 @@
 #include <cmath>
 #include <cstddef>
 #include <memory>
+#include <string>
+
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/convert.hpp"
@@ -22,7 +24,6 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
-#include <string>
 
 namespace ov {
 namespace frontend {
@@ -34,6 +35,18 @@ void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_
     FRONT_END_OP_CONVERSION_CHECK(input_size <= max_inputs, "Got more inputs than expected");
 }
 
+int non_cont_dim(std::vector<size_t> ne, std::vector<size_t> nb) {
+    const auto dim = static_cast<int>(nb.size() - 1);
+    size_t bytes = nb[dim];
+    for (int i = dim; i > 0; i--) {
+        bytes *= ne[i];
+        if (bytes != nb[i - 1]) {
+            return i;
+        }
+    }
+    return 0;
+}
+
 std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::op::v3::ShapeOf>& shape,
                                          const std::vector<int>& dims) {
     using namespace ov::op;
@@ -42,8 +55,8 @@ std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::op::v3::Shape
     return std::make_shared<v8::Gather>(shape, dims_const, zero);
 }
 
-std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::Node>& node, const std::vector<int>& dims) {
-    return get_dimensions(std::make_shared<ov::op::v3::ShapeOf>(node), dims);
+std::shared_ptr<ov::Node> get_dimensions(const ov::Output<ov::Node>& output, const std::vector<int>& dims) {
+    return get_dimensions(std::make_shared<ov::op::v3::ShapeOf>(output), dims);
 }
 
 OutputVector rename_outputs_with_suffix(const OutputVector& outputs, const std::string& suffix) {
@@ -55,6 +68,22 @@ OutputVector rename_outputs_with_suffix(const OutputVector& outputs, const std::
         node->set_friendly_name(name);
     }
     return outputs;
+}
+
+ov::Output<ov::Node> make_topk_indices(const ov::Output<ov::Node>& input,
+                                       const ov::Output<ov::Node>& k,
+                                       int64_t axis,
+                                       ov::op::v11::TopK::Mode mode,
+                                       const ov::element::Type& index_type,
+                                       bool stable) {
+    auto topk = std::make_shared<ov::op::v11::TopK>(input,
+                                                    k,
+                                                    axis,
+                                                    mode,
+                                                    ov::op::v11::TopK::SortType::SORT_VALUES,
+                                                    index_type,
+                                                    stable);
+    return topk->output(1);  // indices
 }
 
 namespace {
@@ -106,8 +135,16 @@ void gguf_rope_yarn_corr_dims(int n_dims,
 std::pair<ov::Output<Node>, ov::Output<Node>> make_sin_cos(const RopeConfig& rope_config,
                                                            std::shared_ptr<ov::Node> inp_pos,
                                                            std::shared_ptr<ov::Node> rope_freqs_weight,
-                                                           bool imrope) {
-    if (imrope) {
+                                                           bool imrope,
+                                                           bool stateful) {
+    if (stateful) {
+        inp_pos =
+            std::make_shared<ov::op::v0::Squeeze>(inp_pos, ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
+        inp_pos = std::make_shared<ov::op::v0::Convert>(inp_pos, ov::element::f32);
+        auto pos_perm =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{2, 1, 0});
+        inp_pos = std::make_shared<ov::op::v1::Transpose>(inp_pos, pos_perm);
+    } else if (imrope) {
         inp_pos = std::make_shared<ov::op::v0::Convert>(inp_pos, ov::element::f32);
         auto pos_shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{5}, {0, 0, 0, 4, -1});
         inp_pos = std::make_shared<ov::op::v1::Reshape>(inp_pos, pos_shape, true);
@@ -158,9 +195,27 @@ std::pair<ov::Output<Node>, ov::Output<Node>> make_sin_cos(const RopeConfig& rop
         for (size_t i = 1; i < factor.size(); i++) {
             factor[i] = theta_scale * factor[i - 1];
         }
-        freq_factors =
-            std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1, 1, 1, factor.size()}, factor);
+        if (stateful) {
+            freq_factors =
+                std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1, 1, factor.size()}, factor);
+        } else {
+            freq_factors =
+                std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1, 1, 1, factor.size()}, factor);
+        }
         if (rope_freqs_weight) {
+            // rope_freqs_weight has shape [N] for the model's maximum n_dims/2. When this
+            // ROPE op uses a smaller n_dims (e.g. gemma4 SWA layers), slice to n_dims_half.
+            auto rfw_shape = rope_freqs_weight->get_output_partial_shape(0);
+            if (rfw_shape.is_static() && rfw_shape.size() == 1 &&
+                rfw_shape[0].get_length() > static_cast<int64_t>(n_dims_half)) {
+                auto start = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+                auto stop = ov::op::v0::Constant::create(ov::element::i64, {1}, {static_cast<int64_t>(n_dims_half)});
+                auto step = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+                auto axes = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+                rope_freqs_weight = std::make_shared<ov::op::v8::Slice>(rope_freqs_weight, start, stop, step, axes)
+                                        ->output(0)
+                                        .get_node_shared_ptr();
+            }
             freq_factors = std::make_shared<ov::op::v1::Divide>(freq_factors, rope_freqs_weight);
         }
 
@@ -173,7 +228,12 @@ std::pair<ov::Output<Node>, ov::Output<Node>> make_sin_cos(const RopeConfig& rop
             theta = theta_interp;
         } else {
             auto ramp_mix = rope_yarn_ramp_mix(n_dims, corr_dims, ext_factor);
-            Output<Node> one = ov::op::v0::Constant::create(ov::element::f32, Shape{1, 1, 1, 1}, {1.0f});
+            Output<Node> one;
+            if (stateful) {
+                one = ov::op::v0::Constant::create(ov::element::f32, Shape{1, 1, 1}, {1.0f});
+            } else {
+                one = ov::op::v0::Constant::create(ov::element::f32, Shape{1, 1, 1, 1}, {1.0f});
+            }
             auto one_minus_ramp = std::make_shared<ov::op::v1::Subtract>(one, ramp_mix);
 
             theta =
@@ -200,6 +260,8 @@ ov::Output<ov::Node> process_view_input(const NodeContext& context, int input_in
     // Only works for VIEW operations that slice at the lowest dimension
     // If the VIEW also reshape the result, `slice_len` should be provided
     auto input = context.get_input(input_index);
+    // The decoder already returns the view start offset in ELEMENTS (it divides ggml's raw byte
+    // offset by the element size), so no stride division is needed here.
     int64_t split_addr = context.get_input_view_element_offset(input_index);
 
     auto begin = ov::op::v0::Constant::create(ov::element::i64, {1}, {split_addr});

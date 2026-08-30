@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gmock/gmock-matchers.h>
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
 #include <algorithm>
 #include <array>
 #include <cstddef>
 #include <exception>
-#include <gmock/gmock-matchers.h>
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
 #include <memory>
 #include <random>
 #include <thread>
@@ -16,6 +17,7 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
+#include "compiler_option_support_helper.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/filtered_config.hpp"
@@ -179,8 +181,11 @@ public:
             }
         }
 
-        propertiesManager =
-            std::make_unique<PluginPropertyManager>(npu_config, backend, ::intel_npu::Logger::global());
+        propertiesManager = std::make_unique<PluginPropertyManager>(
+            npu_config,
+            backend,
+            std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend, CompilerAdapterFactory()),
+            ::intel_npu::Logger::global());
     }
 
     void TearDown() override {

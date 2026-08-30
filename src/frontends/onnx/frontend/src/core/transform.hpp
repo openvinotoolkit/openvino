@@ -38,8 +38,7 @@ static const std::vector<std::string> legacy_ops_to_fixup = {"DeformableConv2D",
                                                              "GroupNorm",
                                                              "Normalize",
                                                              "PriorBox",
-                                                             "PriorBoxClustered",
-                                                             "Swish"};
+                                                             "PriorBoxClustered"};
 
 /// \brief Add support for models with custom operators mistakenly registered in
 ///        "ai.onnx" domain.

@@ -586,8 +586,8 @@ TransposeSplitMatcher::TransposeSplitMatcher() {
         // This produces 3 outputs of shape [-1, 1, H, S] instead of [1, -1, H, S]
         auto new_split_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
         auto new_split = std::make_shared<ov::op::v1::Split>(input_node, new_split_axis, split->get_num_splits());
-         ov::copy_runtime_info(m.get_matched_nodes(), new_split);
-         ov::replace_node(split, new_split);
+        ov::copy_runtime_info(m.get_matched_nodes(), new_split);
+        ov::replace_node(split, new_split);
         return true;
     };
 

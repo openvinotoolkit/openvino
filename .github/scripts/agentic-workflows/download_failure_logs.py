@@ -18,6 +18,7 @@ import json
 import os
 import re
 import sys
+import urllib.parse
 import urllib.request
 from typing import TYPE_CHECKING, Any, TextIO
 
@@ -45,8 +46,11 @@ def download_job_log(job: "WorkflowJob") -> None:
     """Download the log for a single failed job and pre-locate error hints."""
     log_file = os.path.join(LOG_DIR, f"job-{job.id}.log")
     print(f"Downloading log for job {job.id}...")
+    logs_url = job.logs_url()
     try:
-        with urllib.request.urlopen(job.logs_url()) as response:
+        if urllib.parse.urlsplit(logs_url).scheme not in ("http", "https"):
+            raise ValueError(f"unexpected log URL scheme: '{logs_url}'")
+        with urllib.request.urlopen(logs_url) as response:  # nosec B310 - scheme restricted to http(s) above
             content = response.read().decode("utf-8", "replace")
     except Exception:
         content = "(log download failed)\n"
