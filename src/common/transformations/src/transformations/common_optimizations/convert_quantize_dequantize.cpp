@@ -138,9 +138,9 @@ ConvertQuantizeDequantize::ConvertQuantizeDequantize(const ov::element::TypeVect
 #define PRECISION_LIMITS_FOR(type)                                                                           \
     {                                                                                                        \
         ov::element::type,                                                                                   \
-            std::make_pair(                                                                                  \
+            std::pair<float, float>{                                                                        \
                 static_cast<float>(std::numeric_limits<ov::fundamental_type_for<ov::element::type>>::min()), \
-                static_cast<float>(std::numeric_limits<ov::fundamental_type_for<ov::element::type>>::max())) \
+                static_cast<float>(std::numeric_limits<ov::fundamental_type_for<ov::element::type>>::max())} \
     }
 
         static const std::unordered_map<ov::element::Type_t, std::pair<float, float>> supported_intervals{
@@ -154,7 +154,7 @@ ConvertQuantizeDequantize::ConvertQuantizeDequantize(const ov::element::TypeVect
         // check if (out_low_val, out_high_val) pair is mapped on the expected precision ranges
         auto interval_it = supported_intervals.find(type);
         if (interval_it == supported_intervals.end() ||
-            interval_it->second != std::make_pair(out_low_val, out_high_val)) {
+            interval_it->second != std::pair<float, float>{out_low_val, out_high_val}) {
             return false;
         }
 

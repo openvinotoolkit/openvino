@@ -986,7 +986,7 @@ std::tuple<int, int, int, int> ROIPooling::ROIPoolingExecutor::getBordersForMaxM
     return std::make_tuple(hstart, hend, wstart, wend);
 }
 
-std::pair<float, float> ROIPooling::ROIPoolingExecutor::getXYForBilinearMode(const float roi_start_h,
+std::array<float, 2> ROIPooling::ROIPoolingExecutor::getXYForBilinearMode(const float roi_start_h,
                                                                              const float roi_end_h,
                                                                              const float roi_start_w,
                                                                              const float roi_end_w,
@@ -1023,7 +1023,7 @@ std::pair<float, float> ROIPooling::ROIPoolingExecutor::getXYForBilinearMode(con
         in_x = 0.5F * (roi_start_w + roi_end_w) * static_cast<float>(iw - 1);
     }
 
-    return std::make_pair(in_x, in_y);
+    return {in_x, in_y};
 }
 
 template <typename T>

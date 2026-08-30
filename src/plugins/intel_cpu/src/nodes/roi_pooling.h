@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <memory>
@@ -119,7 +120,7 @@ private:
                                                                    int ow,
                                                                    int pooled_h,
                                                                    int pooled_w);
-        static std::pair<float, float> getXYForBilinearMode(float roi_start_h,
+        static std::array<float, 2> getXYForBilinearMode(float roi_start_h,
                                                             float roi_end_h,
                                                             float roi_start_w,
                                                             float roi_end_w,

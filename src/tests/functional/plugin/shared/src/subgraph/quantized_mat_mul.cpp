@@ -42,8 +42,8 @@ void QuantMatMulTest::SetUp() {
                                 std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(inputShape1))};
 
     auto makeFakeQuantizeNode = [element_type = element_type](size_t quantLevels,
-                                                              QuantRange inputRange,
-                                                              QuantRange outputRange,
+                                                              const QuantRange& inputRange,
+                                                              const QuantRange& outputRange,
                                                               ov::test::utils::QuantizationGranularity quantGranularity,
                                                               const ov::Output<ov::Node>& in,
                                                               ov::Shape inputShape,
