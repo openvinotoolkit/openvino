@@ -50,7 +50,7 @@ When calling sub-agents, use paths relative to ``:
 ## Code Quality Mandate
 
 **Every sub-agent MUST follow the project coding standards** defined in
-[`.github/copilot-instructions.md`](.github/copilot-instructions.md) before producing any patch or PR.
+[`.github/copilot-instructions.md`](../copilot-instructions.md) before producing any patch or PR.
 
 Pass this instruction explicitly when invoking each sub-agent:
 
@@ -68,8 +68,8 @@ When a sub-agent reports failure or unexpected behaviour, load the relevant skil
 
 | Symptom | Skill | Path |
 |---------|-------|------|
-| MatcherPass not firing, pattern not matched, callback never triggers | `debug-matcher-pass` | `skills/debug-matcher-pass/SKILL.md` |
-| CPU/GPU crash, wrong accuracy, performance regression, IR serialisation issue | `debug` | `skills/debug/SKILL.md` |
+| MatcherPass not firing, pattern not matched, callback never triggers | `debug-matcher-pass` | [`.agents/skills/ov-debug-matcher-pass/SKILL.md`](../../.agents/skills/ov-debug-matcher-pass/SKILL.md) |
+| CPU/GPU crash, wrong accuracy, performance regression, IR serialisation issue | `debug` | [`.agents/skills/ov-debug/SKILL.md`](../../.agents/skills/ov-debug/SKILL.md) |
 
 Load the relevant skill and include its diagnosis steps in the sub-agent's retry prompt.
 

@@ -22,6 +22,18 @@ namespace ov::intel_npu::npuw {
 
 inline constexpr ov::Property<ov::FileHandleProvider> weights_handle_provider{"NPUW_WEIGHTS_HANDLE_PROVIDER"};
 
+namespace llm {
+
+// Read-only compiled-model capability: continuous prefill is active for this
+// compiled model. Not a config option, so it is declared by hand rather than
+// generated from npuw_option_defs.inc. GenAI probes it by name; capability must
+// not be inferred from query_state() containing npuw_stored_tokens_state, which
+// every plugin build publishes.
+inline constexpr ov::Property<bool, ov::PropertyMutability::RO> continuous_prefill_supported{
+    "NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED"};
+
+}  // namespace llm
+
 }  // namespace ov::intel_npu::npuw
 
 #define INTEL_NPU_NPUW_DECLARE_PROPERTY_ALIAS(OPT, NS_PATH, NAME)                                 \

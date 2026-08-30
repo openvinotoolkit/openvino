@@ -35,6 +35,7 @@ struct PyramidValidationContiguousResult {
     size_t query_length = 0;
     size_t full_context_length = 0;
     size_t past_kv_length = 0;
+    bool data_left_aligned = false;
     std::map<std::string, size_t> past_key_sequence_dims;
     std::map<std::string, size_t> past_value_sequence_dims;
 
@@ -100,6 +101,7 @@ struct PyramidAttention {
     std::vector<std::shared_ptr<ov::Model>> _models;
     size_t _query_length = 0;
     size_t _full_context_length = 0;
+    bool _data_left_aligned = false;
 
     // Block mode only: global KV block parameter indices (block_0..block_N).
     // Global (full-model) KV block parameter indices (block0..blockN).
@@ -183,6 +185,8 @@ struct PyramidAttention {
     std::size_t full_context_size = 0u;
     /// Whether non-last pyramid models were compiled with strided-input support.
     bool _can_use_tensor_view = false;
+
+    bool _data_left_aligned = false;
     /// Temporary storage for models pending compilation; cleared by set_compiled_models().
     std::vector<std::shared_ptr<ov::Model>> _models_to_compile;
 
@@ -215,6 +219,11 @@ struct PyramidAttention {
     // Appends enable_strides_for input names for pyramid model 0 to 'out'.
     // No-op in block mode (block ports are bound directly, not via strided views).
     virtual void collect_strided_input_names(const ov::Model& model, std::string& out) const = 0;
+
+    // Validates that all port indices in _attention_infos are within bounds of the
+    // corresponding compiled model's inputs(). Throws ov::Exception on violation.
+    // Must be called after _compiled_models is fully populated (import path).
+    virtual void validate_port_indices() const = 0;
 
     // Non-virtual shared methods
     void set_compiled_models(std::vector<ov::SoPtr<ov::ICompiledModel>>&& compiled_models);
@@ -260,6 +269,7 @@ struct PyramidAttentionContiguous final : PyramidAttention {
     }
     std::optional<std::size_t> kv_param_dim(size_t pyramid_id, size_t input_idx) const override;
     void collect_strided_input_names(const ov::Model& model, std::string& out) const override;
+    void validate_port_indices() const override;
 };
 
 // Concrete subclass for block-split KV cache mode (after SplitKVCacheIntoBlocks).
@@ -303,6 +313,7 @@ struct PyramidAttentionBlock final : PyramidAttention {
         return std::nullopt;
     }
     void collect_strided_input_names(const ov::Model&, std::string&) const override {}  // no-op
+    void validate_port_indices() const override;
 };
 
 }  // namespace compiled
@@ -354,7 +365,9 @@ public:
     }
 };
 
-// Define pyramid model selection based on position ids
+// Define pyramid model selection based on position ids.
+// Handles the regular (contiguous) case where the KV update step matches the query
+// length, e.g. the SDPADecomposed pattern.
 class PositionIDs final : public Selector {
     std::size_t m_position_ids_idx = 0u;
     int64_t m_current_length = 0;
@@ -373,6 +386,31 @@ class PositionIDs final : public Selector {
 
 public:
     static Selector::Ptr find(const compiled::PyramidAttention& d, const ov::ISyncInferRequest& rq);
+};
+
+// Define pyramid model selection based on position ids for attention patterns where the
+// KV update step (pyramid_step) differs from the query length - e.g. QuantizedSDPAWithGlobalMask,
+// where a large query is matched against a smaller-granularity KV cache update.
+// Equivalent to PositionIDs, except past/current sequence length are derived from
+// pyramid_step instead of query_size. Constructed only via PositionIDs::find().
+class GlobalPositionIDs final : public Selector {
+    std::size_t m_position_ids_idx = 0u;
+    int64_t m_current_length = 0;
+    int64_t m_past_length = 0;
+    std::size_t m_query_size = 0u;
+    std::size_t m_pyramid_step = 0u;
+
+    // Store pyramid attention reference for pyramid model selection
+    const compiled::PyramidAttention* m_pyramid_attention = nullptr;
+
+    const ov::ISyncInferRequest& m_rq;
+
+    GlobalPositionIDs(std::size_t param_idx, const compiled::PyramidAttention& d, const ov::ISyncInferRequest& rq);
+    void prepare(int64_t past_len) override;
+    int64_t length() const override;
+    int64_t past_length() const override;
+
+    friend class PositionIDs;  // constructed only via PositionIDs::find()
 };
 
 }  // namespace pyramid_attention

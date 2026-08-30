@@ -103,7 +103,7 @@ struct RNNParams : public primitive_base<PType> {
         seed = hash_combine(seed, !B.pid.empty());
         seed = hash_combine(seed, clip);
         seed = hash_range(seed, activations.begin(), activations.end());
-        for (auto& act_param : activation_params) {
+        for (const auto& act_param : activation_params) {
             seed = hash_combine(seed, act_param.a);
             seed = hash_combine(seed, act_param.b);
         }
@@ -177,7 +177,7 @@ struct lstm_seq : public RNNParams<lstm_seq> {
     using vec_activation = std::vector<activation_func>;
     using vec_activation_param = std::vector<activation_additional_params>;
     using RNNParams::RNNParams;
-    lstm_seq() : RNNParams() {
+    lstm_seq() {
         weights = W.pid;
         input = x.pid;
     }

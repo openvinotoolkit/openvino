@@ -4,7 +4,7 @@
 
 set(TARGET_NAME openvino_shutdown)
 
-add_library(${TARGET_NAME} STATIC shutdown.cpp)
+add_library(${TARGET_NAME} STATIC ${CMAKE_CURRENT_SOURCE_DIR}/shutdown.cpp)
 
 add_library(openvino::shutdown ALIAS ${TARGET_NAME})
 target_include_directories(${TARGET_NAME} PUBLIC

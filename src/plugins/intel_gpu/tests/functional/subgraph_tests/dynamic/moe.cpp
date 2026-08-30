@@ -87,7 +87,7 @@ protected:
     void SetUp() override {
         const auto& [moe_params, pattern_type, routing_type, wp, dp, sp, dm, ds, rd, gs, gi, fgm, act, pes, lnm, uwd] = GetParam();
         if (fgm) {
-            set_disable_moe_opt();
+            set_disable_moe_fusion();
         }
         targetDevice = ov::test::utils::DEVICE_GPU;
         // MoE fusion (and the GatherMatmul-based fallback) is gated on supports_immad.
@@ -201,24 +201,24 @@ protected:
     void TearDown() override {
         ov::test::SubgraphBaseTest::TearDown();
         if (std::get<11>(GetParam())) {
-            unset_disable_moe_opt();
+            unset_disable_moe_fusion();
         }
     }
 
 private:
-    static void set_disable_moe_opt() {
+    static void set_disable_moe_fusion() {
 #ifdef _WIN32
-        _putenv_s("OV_GPU_DISABLE_MOE_OPT", "1");
+        _putenv_s("OV_GPU_MOE_DISABLE_FUSION", "1");
 #else
-        ::setenv("OV_GPU_DISABLE_MOE_OPT", "1", 1);
+        ::setenv("OV_GPU_MOE_DISABLE_FUSION", "1", 1);
 #endif
     }
 
-    static void unset_disable_moe_opt() {
+    static void unset_disable_moe_fusion() {
 #ifdef _WIN32
-        _putenv_s("OV_GPU_DISABLE_MOE_OPT", "");
+        _putenv_s("OV_GPU_MOE_DISABLE_FUSION", "");
 #else
-        ::unsetenv("OV_GPU_DISABLE_MOE_OPT");
+        ::unsetenv("OV_GPU_MOE_DISABLE_FUSION");
 #endif
     }
 };

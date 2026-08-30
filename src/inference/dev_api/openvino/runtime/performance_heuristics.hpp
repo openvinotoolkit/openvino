@@ -12,8 +12,8 @@
 #include <cfloat>
 #include <memory>
 
-#include "openvino/runtime/common.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/runtime/common.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {

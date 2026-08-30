@@ -7,101 +7,57 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <queue>
-#include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
-#include "openvino/opsets/opset8_decl.hpp"
-#include "openvino/pass/manager.hpp"
-#include "transformations/init_node_info.hpp"
-#include "transformations/utils/utils.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 using namespace ov;
-using namespace testing;
 
-TEST(TransformationTests, ConvertConvertLike) {
-    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
+class ConvertConvertLikeTransformTests : public TransformationTestsF {
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        manager.register_pass<ov::pass::ConvertConvertLike>();
+    }
+};
+
+TEST_F(ConvertConvertLikeTransformTests, ConvertLikeWithConstant) {
     {
         auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{3, 1, 2});
         auto like = opset8::Constant::create(element::i32, Shape{1}, {1});
         auto cvtlike = std::make_shared<opset8::ConvertLike>(data, like);
-
-        f = std::make_shared<ov::Model>(OutputVector{cvtlike}, ParameterVector{data});
-
-        pass::Manager m;
-        m.register_pass<ov::pass::InitNodeInfo>();
-        m.register_pass<ov::pass::ConvertConvertLike>();
-        m.run_passes(f);
-        OV_ASSERT_NO_THROW(check_rt_info(f));
+        model = std::make_shared<ov::Model>(OutputVector{cvtlike}, ParameterVector{data});
     }
-
     {
         auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{3, 1, 2});
         auto cvt = std::make_shared<opset8::Convert>(data, element::i32);
-
-        f_ref = std::make_shared<ov::Model>(OutputVector{cvt}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{cvt}, ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertConvertLike2) {
-    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
+TEST_F(ConvertConvertLikeTransformTests, ConvertLikeWithNodeOutput) {
     {
         auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{3, 1, 2});
         auto data2 = std::make_shared<opset8::Parameter>(element::i8, Shape{1});
         auto constant = opset8::Constant::create(element::i8, Shape{}, {1});
         auto like = std::make_shared<opset8::Add>(data2, constant);
         auto cvtlike = std::make_shared<opset8::ConvertLike>(data, like);
-
-        f = std::make_shared<ov::Model>(OutputVector{cvtlike}, ParameterVector{data, data2});
-
-        pass::Manager m;
-        m.register_pass<ov::pass::InitNodeInfo>();
-        m.register_pass<ov::pass::ConvertConvertLike>();
-        m.run_passes(f);
-        OV_ASSERT_NO_THROW(check_rt_info(f));
+        model = std::make_shared<ov::Model>(OutputVector{cvtlike}, ParameterVector{data, data2});
     }
-
     {
         auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{3, 1, 2});
         auto cvt = std::make_shared<opset8::Convert>(data, element::i8);
-
-        f_ref = std::make_shared<ov::Model>(OutputVector{cvt}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{cvt}, ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertConvertLike_Negative) {
-    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
-    {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{3, 1, 2});
-        auto like = std::make_shared<opset8::Parameter>(element::dynamic, Shape{1});
-        auto cvtlike = std::make_shared<opset8::ConvertLike>(data, like);
-
-        f = std::make_shared<ov::Model>(OutputVector{cvtlike}, ParameterVector{data, like});
-
-        pass::Manager m;
-        m.register_pass<ov::pass::InitNodeInfo>();
-        m.register_pass<ov::pass::ConvertConvertLike>();
-        m.run_passes(f);
-        OV_ASSERT_NO_THROW(check_rt_info(f));
-    }
-
-    {
-        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{3, 1, 2});
-        auto like = std::make_shared<opset8::Parameter>(element::dynamic, Shape{1});
-        auto cvtlike = std::make_shared<opset8::ConvertLike>(data, like);
-
-        f_ref = std::make_shared<ov::Model>(OutputVector{cvtlike}, ParameterVector{data, like});
-    }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+TEST_F(ConvertConvertLikeTransformTests, ConvertLikeWithDynamicType_Negative) {
+    auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{3, 1, 2});
+    auto like = std::make_shared<opset8::Parameter>(element::dynamic, Shape{1});
+    auto cvtlike = std::make_shared<opset8::ConvertLike>(data, like);
+    model = std::make_shared<ov::Model>(OutputVector{cvtlike}, ParameterVector{data, like});
 }

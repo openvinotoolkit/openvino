@@ -284,7 +284,7 @@ extended `supports` predicate form that takes `MemoryFormatFilter`:
 
 ## JIT Eltwise Emitters
 
-For ops routed through the `Eltwise` node (see "Fast Path" in [**cpu_op_implementation**](skills/add-cpu-op/step2-implementation.md)), JIT execution uses **eltwise emitter classes** rather than the executor framework. Each ISA has its own emitter base class.
+For ops routed through the `Eltwise` node (see "Fast Path" in [**cpu_op_implementation**](step2-implementation.md)), JIT execution uses **eltwise emitter classes** rather than the executor framework. Each ISA has its own emitter base class.
 
 ### Emitter Class Pattern
 

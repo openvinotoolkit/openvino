@@ -45,6 +45,8 @@ const char* MICROSOFT_DOMAIN = "com.microsoft";
 const char* PYTORCH_ATEN_DOMAIN = "org.pytorch.aten";
 const char* MMDEPLOY_DOMAIN = "mmdeploy";
 const char* AIONNX_ML_DOMAIN = "ai.onnx.ml";
+const char* AIONNX_CONTRIB_DOMAIN = "ai.onnx.contrib";
+const char* AIONNX_DOMAIN = "";
 
 // Central storage of supported translators for operations
 typedef std::unordered_map<std::string, DomainOpset> SupportedOps;
@@ -265,8 +267,20 @@ OperatorsBridge::OperatorsBridge() {
     // custom ops
 }
 
-const std::vector<std::string> get_supported_ops_via_tokenizers() {
-    return {"StringNormalizer", "LabelEncoder", "Tokenizer", "TfIdfVectorizer"};
+const std::vector<std::pair<std::string, std::string>>& get_supported_ops_via_tokenizers() {
+    // op_type -> domain, empty domain (AIONNX_DOMAIN) denotes the default ONNX opset ("ai.onnx")
+    static const std::vector<std::pair<std::string, std::string>> ops{
+        {"StringNormalizer", AIONNX_DOMAIN},
+        {"TfIdfVectorizer", AIONNX_DOMAIN},
+        {"LabelEncoder", AIONNX_ML_DOMAIN},
+        {"Tokenizer", MICROSOFT_DOMAIN},
+        {"SentencepieceTokenizer", AIONNX_CONTRIB_DOMAIN},
+        {"SentencepieceDecoder", AIONNX_CONTRIB_DOMAIN},
+        {"VectorToString", AIONNX_CONTRIB_DOMAIN},
+        {"StringJoin", AIONNX_CONTRIB_DOMAIN},
+        {"StringSplit", AIONNX_CONTRIB_DOMAIN},
+    };
+    return ops;
 }
 #undef REGISTER_OPERATOR
 #undef REGISTER_OPERATOR_WITH_DOMAIN

@@ -208,7 +208,6 @@ ov::intel_cpu::ConvertInteractionInt8::ConvertInteractionInt8() {
         }
 
         auto interaction_node = std::make_shared<InteractionNode>(features_node);
-        interaction_node->set_friendly_name(final_concat_node->get_friendly_name());
         auto fq_inter_node = dense_fq_node->clone_with_new_inputs({interaction_node,
                                                                    dense_fq_node->input_value(1),
                                                                    dense_fq_node->input_value(2),

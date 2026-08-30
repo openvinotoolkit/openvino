@@ -130,17 +130,23 @@ inline size_t micro_get_num_heads(const kernel_impl_params& params, size_t qkv_i
     } else {
         const auto desc = params.typed_desc<scaled_dot_product_attention>();
         switch (qkv_idx) {
-        case 0:
-            return get_num_heads(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));
-        case 1:
-            return get_num_heads(params.input_layouts[1], extend_order_in_num_heads_dim(desc->input_k_transpose_order));
-        case 2:
-            return get_num_heads(params.input_layouts[2], extend_order_in_num_heads_dim(desc->input_v_transpose_order));
+        case 0: {
+            const auto num_heads = get_num_heads(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));
+            return ensure_positive_dim(num_heads, "number of heads for Q");
+        }
+        case 1: {
+            const auto num_heads = get_num_heads(params.input_layouts[1], extend_order_in_num_heads_dim(desc->input_k_transpose_order));
+            return ensure_positive_dim(num_heads, "number of heads for K");
+        }
+        case 2: {
+            const auto num_heads = get_num_heads(params.input_layouts[2], extend_order_in_num_heads_dim(desc->input_v_transpose_order));
+            return ensure_positive_dim(num_heads, "number of heads for V");
+        }
         default:
             OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
         }
     }
-    return -1;
+    OPENVINO_THROW("[GPU] Invalid qkv index in micro_get_num_heads");
 }
 
 inline size_t micro_get_head_size(const kernel_impl_params& params, size_t qkv_idx) {
@@ -159,17 +165,23 @@ inline size_t micro_get_head_size(const kernel_impl_params& params, size_t qkv_i
     } else {
         const auto desc = params.typed_desc<scaled_dot_product_attention>();
         switch (qkv_idx) {
-        case 0:
-            return get_head_size(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));
-        case 1:
-            return get_head_size(params.input_layouts[1], extend_order_in_num_heads_dim(desc->input_k_transpose_order));
-        case 2:
-            return get_head_size(params.input_layouts[2], extend_order_in_num_heads_dim(desc->input_v_transpose_order));
+        case 0: {
+            const auto head_size = get_head_size(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));
+            return ensure_positive_dim(head_size, "head size for Q");
+        }
+        case 1: {
+            const auto head_size = get_head_size(params.input_layouts[1], extend_order_in_num_heads_dim(desc->input_k_transpose_order));
+            return ensure_positive_dim(head_size, "head size for K");
+        }
+        case 2: {
+            const auto head_size = get_head_size(params.input_layouts[2], extend_order_in_num_heads_dim(desc->input_v_transpose_order));
+            return ensure_positive_dim(head_size, "head size for V");
+        }
         default:
             OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
         }
     }
-    return -1;
+    OPENVINO_THROW("[GPU] Invalid qkv index in micro_get_head_size");
 }
 
 inline ov::Dimension micro_get_seq_length(const kernel_impl_params& params, int32_t qkv_idx) {
@@ -178,18 +190,17 @@ inline ov::Dimension micro_get_seq_length(const kernel_impl_params& params, int3
     }
     if (params.is_type<paged_attention>()) {
         return ov::Dimension(params.input_layouts[qkv_idx].get_partial_shape()[0]);
-    } else {
-        const auto desc = params.typed_desc<scaled_dot_product_attention>();
-        switch (qkv_idx) {
-        case 0:
-            return get_seq_length(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));
-        case 1:
-            return get_seq_length(params.input_layouts[1], extend_order_in_num_heads_dim(desc->input_k_transpose_order));
-        case 2:
-            return get_seq_length(params.input_layouts[2], extend_order_in_num_heads_dim(desc->input_v_transpose_order));
-        default:
-            OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
-        }
+    }
+    const auto desc = params.typed_desc<scaled_dot_product_attention>();
+    switch (qkv_idx) {
+    case 0:
+        return get_seq_length(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));
+    case 1:
+        return get_seq_length(params.input_layouts[1], extend_order_in_num_heads_dim(desc->input_k_transpose_order));
+    case 2:
+        return get_seq_length(params.input_layouts[2], extend_order_in_num_heads_dim(desc->input_v_transpose_order));
+    default:
+        OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
     }
     return ov::Dimension();
 }
@@ -209,25 +220,24 @@ inline ov::Dimension micro_get_aligned_seq_length(const kernel_impl_params& para
             aligned_seq_len += align_to(prompt_length, target_seq_len_block_size);
         }
         return aligned_seq_len;
-    } else {
-        const auto desc = params.typed_desc<scaled_dot_product_attention>();
-        switch (qkv_idx) {
-        case 0:
-            return get_seq_length(params.input_layouts[0], desc->input_q_transpose_order);
-        case 1:
-            return get_seq_length(params.input_layouts[1], desc->input_k_transpose_order);
-        case 2:
-            return get_seq_length(params.input_layouts[2], desc->input_v_transpose_order);
-        default:
-            OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
-        }
+    }
+    const auto desc = params.typed_desc<scaled_dot_product_attention>();
+    switch (qkv_idx) {
+    case 0:
+        return get_seq_length(params.input_layouts[0], desc->input_q_transpose_order);
+    case 1:
+        return get_seq_length(params.input_layouts[1], desc->input_k_transpose_order);
+    case 2:
+        return get_seq_length(params.input_layouts[2], desc->input_v_transpose_order);
+    default:
+        OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
     }
     return ov::Dimension();
 }
 
 inline size_t micro_get_input_num(const kernel_impl_params& params, const sdpa_configuration& config) {
     auto data_inputs_num = config.input_num;
-    bool is_paged_attention = params.is_type<paged_attention>() ? true : false;
+    bool is_paged_attention = params.is_type<paged_attention>();
     if (!is_paged_attention) {
         auto desc = params.typed_desc<scaled_dot_product_attention>();
         data_inputs_num = get_data_inputs_num(*desc);
@@ -239,20 +249,18 @@ inline size_t micro_get_key_cache_id(const kernel_impl_params& params) {
     if (params.is_type<paged_attention>()) {
         const size_t key_cache_id = 3;  // Key cache inputs
         return key_cache_id;
-    } else {
-        auto desc = params.typed_desc<scaled_dot_product_attention>();
-        return get_key_cache_id(*desc);
     }
+    auto desc = params.typed_desc<scaled_dot_product_attention>();
+    return get_key_cache_id(*desc);
 }
 
 inline size_t micro_get_value_cache_id(const kernel_impl_params& params) {
     if (params.is_type<paged_attention>()) {
         const size_t value_cache_id = 4;  // Value cache inputs
         return value_cache_id;
-    } else {
-        auto desc = params.typed_desc<scaled_dot_product_attention>();
-        return get_value_cache_id(*desc);
     }
+    auto desc = params.typed_desc<scaled_dot_product_attention>();
+    return get_value_cache_id(*desc);
 }
 
 struct sdpa_config_t {
@@ -328,7 +336,7 @@ sdpa_config_t xehpg_q_h512_s64_2nd = {8, 16, 32, 8, 32, 1, 16, 2};
 sdpa_config_t xehpg_q_h512_s256_2nd = {16, 8, 32, 8, 16, 2, 16, 2};
 sdpa_config_t xehpg_q_h512_2nd = {16, 8, 16, 8, 32, 1, 32, 1};
 
-sdpa_config_t xehpg_h512_pa = {16, 16, 16, 16, 8, 2, 32, 2};
+sdpa_config_t xehpg_h512_pa = {16, 16, 16, 16, 32, 1, 32, 1};
 sdpa_config_t xehpg_h512 = {8, 16, 32, 16, 16, 2, 16, 2};
 sdpa_config_t xehpg_h512_2nd = {8, 8, 32, 8, 16, 1, 16, 1};
 
@@ -376,7 +384,7 @@ sdpa_config_t xehpc_h256 = {16, 32, 32, 32, 8, 4, 8, 4};
 sdpa_config_t xehpc_h256_s64 = {16, 32, 32, 32, 8, 1, 8, 1};
 sdpa_config_t xehpc_h256_2nd = {16, 16, 16, 16, 16, 1, 16, 1};
 
-sdpa_config_t xehpc_h512_pa = {16, 16, 16, 16, 16, 1, 32, 1};
+sdpa_config_t xehpc_h512_pa = {16, 16, 32, 16, 16, 2, 16, 2};
 sdpa_config_t xehpc_h512 = {32, 16, 64, 16, 8, 4, 8, 4};
 sdpa_config_t xehpc_h512_s64 = {16, 16, 64, 16, 8, 2, 8, 2};
 sdpa_config_t xehpc_h512_s128_2nd = {16, 16, 64, 16, 8, 1, 8, 1};
@@ -462,7 +470,8 @@ sdpa_config_t* choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
         if (seq <= 256)
             return &xehpg_h32_s256;
         return &xehpg_h32;
-    } else if (head_size <= 64) {
+    }
+    if (head_size <= 64) {
         if (seq <= 0 && is_pa)
             return is_prefill ? &xehpg_h64 : &xehpg_h64_pa;
         if (quantized) {
@@ -472,15 +481,14 @@ sdpa_config_t* choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
                 if (seq <= 128)
                     return &xehpg_q_h64_s128_2nd;
                 return &xehpg_q_h64_2nd;
-            } else {
-                if (seq <= 32)
-                    return &xehpg_q_h64_s32;
-                if (seq <= 64)
-                    return &xehpg_q_h64_s64;
-                if (seq <= 128)
-                    return &xehpg_q_h64_s128;
-                return &xehpg_q_h64;
             }
+            if (seq <= 32)
+                return &xehpg_q_h64_s32;
+            if (seq <= 64)
+                return &xehpg_q_h64_s64;
+            if (seq <= 128)
+                return &xehpg_q_h64_s128;
+            return &xehpg_q_h64;
         }
         if (thin_q)
             return &xehpg_h64_2nd;
@@ -489,7 +497,8 @@ sdpa_config_t* choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
         if (seq <= 128)
             return &xehpg_h64_s128;
         return &xehpg_h64;
-    } else if (head_size <= 128) {
+    }
+    if (head_size <= 128) {
         if (seq <= 0 && is_pa)
             return is_prefill ? &xehpg_h128 : &xehpg_h128_pa;
         if (quantized) {
@@ -514,7 +523,8 @@ sdpa_config_t* choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
         if (seq <= 32)
             return &xehpg_h128_s32;
         return &xehpg_h128;
-    } else if (head_size <= 256) {
+    }
+    if (head_size <= 256) {
         if (seq <= 0 && is_pa)
             return is_prefill ? &xehpg_h256 : &xehpg_h256_pa;
         if (thin_q) {
@@ -541,7 +551,8 @@ sdpa_config_t* choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
         if (seq <= 128)
             return &xehpg_h256_s128;
         return &xehpg_h256;
-    } else if (head_size <= 512) {
+    }
+    if (head_size <= 512) {
         if (seq <= 0 && is_pa)
             return is_prefill ? &xehpg_h512 : &xehpg_h512_pa;
         if (quantized) {
@@ -577,7 +588,8 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
         if (seq <= 32)
             return &xehpc_h32_s32;
         return &xehpc_h32;
-    } else if (head_size <= 64) {
+    }
+    if (head_size <= 64) {
         if (seq <= 0 && is_pa)
             return is_prefill ? &xehpc_h64 : (thin_q ? &xehpc_h64_pa_2nd : &xehpc_h64_pa);
         if (thin_q) {
@@ -609,7 +621,8 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
         if (seq <= 64)
             return &xehpc_h64_s64;
         return &xehpc_h64;
-    } else if (head_size <= 128) {
+    }
+    if (head_size <= 128) {
         if (seq <= 0 && is_pa)
             return is_prefill ? &xehpc_h128 : &xehpc_h128_pa;
         if (quantized) {
@@ -643,7 +656,8 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
         if (seq <= 64)
             return &xehpc_h128_s64;
         return &xehpc_h128;
-    } else if (head_size <= 256) {
+    }
+    if (head_size <= 256) {
         if (seq <= 0 && is_pa)
             return is_prefill ? &xehpc_h256 : &xehpc_h256_pa;
         if (thin_q)
@@ -651,7 +665,8 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
         if (seq <= 64)
             return &xehpc_h256_s64;
         return &xehpc_h256;
-    } else if (head_size <= 512) {
+    }
+    if (head_size <= 512) {
         if (seq <= 0 && is_pa)
             return is_prefill ? &xehpc_h512 : &xehpc_h512_pa;
         if (thin_q) {
@@ -821,6 +836,10 @@ std::string SDPAMicroGenerator::get_build_options(const kernel_impl_params& para
     extra_options += " -Dcl_intel_global_float_atomic";
     extra_options += " -Dcl_intel_subgroup_matrix_multiply_accumulate";
     extra_options += " -Dcl_intel_subgroup_split_matrix_multiply_accumulate";
+    bool debug_pa_integrity_check = GPU_DEBUG_VALUE_OR(params.get_program().get_config().get_pa_integrity_check(), false);
+    if (debug_pa_integrity_check && !m_is_gqa_single_token) {
+        extra_options += " -DPA_INTEGRITY_CHECK=1";
+    }
 
     return base_options + extra_options;
 }
@@ -1045,7 +1064,8 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     const auto v_head_size = micro_get_head_size(params, 2);
 
     const auto d_max = get_d_max(k_head_size);
-    const auto batch = out_ps[0] * out_ps[1];
+    const auto head_num = micro_get_num_heads(params, 0);
+    const auto batch = out_ps[0] * static_cast<ov::Dimension>(head_num);
 
     auto ldq = k_head_size * ov::element::Type(Q.data_type).size();
     auto ldk = k_head_size * ov::element::Type(K.data_type).size();
@@ -1074,6 +1094,10 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     } else {
         jit.make("WITH_ATTN_MASK", 0);
         jit.make("PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size);
+        const auto desc = params.typed_desc<paged_attention>();
+        if (desc->has_token_type_ids && m_is_prefill) {
+            jit.make("HAS_TOKEN_TYPE_IDS", 1);
+        }
     }
 
     if (config.has_const_scale_val) {
@@ -1205,7 +1229,8 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     auto Q_num_heads_dim = micro_get_num_heads(params, 0);
     auto K_num_heads_dim = micro_get_num_heads(params, 1);
 
-    jit.make("REMAINDER_K", !k_full);
+    const bool may_have_mixed_k_boundary = config.is_paged_attention && !m_is_prefill && !m_is_gqa_single_token;
+    jit.make("REMAINDER_K", !k_full || may_have_mixed_k_boundary);
     jit.make("KV_GROUP_SIZE", Q_num_heads_dim / K_num_heads_dim);
 
     if (d_full) {
@@ -1364,6 +1389,10 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
                 {ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});  // qq_bias_begins                              // qq_bias_num
         }
 
+        if (desc->has_token_type_ids && m_is_prefill) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::TOKEN_TYPE_IDS});  // token_type_ids
+        }
+
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});  // blocked_indexes_start_and_gws_mapping
     } else {
         args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::KEY});    // K
@@ -1421,7 +1450,7 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
             auto head_num = micro_get_num_heads(params, 0);
 
             if (params.is_type<paged_attention>()) {
-                auto pa_rt_params = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+                auto* pa_rt_params = static_cast<PagedAttentionRuntimeParams*>(rt_params);
                 if (pa_rt_params->stage == PagedAttentionStage::GENERATE)
                     head_num = micro_get_num_heads(params, 1);
             }
@@ -1440,14 +1469,12 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
                 wgs.global[1] *= head_num;
                 wgs.global[2] *= 1;
             } else {
-                wgs.global[1] *= out_ps[1].get_length();
+                wgs.global[1] *= head_num;
                 wgs.global[2] *= out_ps[0].get_length();
             }
 
             auto to_int32 = [](size_t value) {
-                if (value > static_cast<size_t>(std::numeric_limits<int32_t>::max())) {
-                    return static_cast<int32_t>(-1);
-                }
+                OPENVINO_ASSERT(value <= static_cast<size_t>(std::numeric_limits<int32_t>::max()), "[GPU] SDPA micro scalar value exceeds int32 range");
                 return static_cast<int32_t>(value);
             };
 
@@ -1467,7 +1494,7 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
 }
 
 size_t SDPAMicroGenerator::get_tile_qsize(const KernelData& kernel_data) {
-    OPENVINO_ASSERT(kernel_data.micro_kernels.size() > 0, "[GPU] Invalid kernels passed to get_tile_qsize() function");
+    OPENVINO_ASSERT(!kernel_data.micro_kernels.empty(), "[GPU] Invalid kernels passed to get_tile_qsize() function");
 
     const auto& gemms = kernel_data.micro_kernels;
     const auto wg_tile_q = gemms[kq_id]->p.getSetting("wg_tile_n");
@@ -1491,7 +1518,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     const auto& Q = params.input_layouts[0];
     const auto& K = (is_paged_attention && !is_prefill) ? params.input_layouts[3] : params.input_layouts[1];
     const auto& V = (is_paged_attention && !is_prefill) ? params.input_layouts[4] : params.input_layouts[2];
-    auto& out = params.output_layouts[0];
+    const auto& out = params.output_layouts[0];
     const auto& out_ps = out.get_partial_shape();
     const auto& device_info = params.get_device_info();
 
@@ -1502,7 +1529,8 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     const ov::Dimension n_keys = micro_get_seq_length(params, 1);
     const ov::Dimension n_queries = micro_get_seq_length(params, 0);
     const ov::Dimension n_values = ov::Dimension(v_head_size);
-    const auto batch = out_ps[0] * out_ps[1];
+    const auto head_num = micro_get_num_heads(params, 0);
+    const auto batch = out_ps[0] * static_cast<ov::Dimension>(head_num);
 
     GPU_DEBUG_TRACE_DETAIL << "\nconfiguration.is_kv_compressed = " << configuration.is_kv_compressed << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "k_head_size = " << k_head_size << ", v_head_size = " << v_head_size << ", d_max = " << d_max << ", batch = " << batch << "\n";
@@ -1539,6 +1567,17 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     }
     }
 
+    if (!is_prefill) {
+        const auto& wg_cfg = GPU_DEBUG_VALUE_OR(params.get_program().get_config().get_micro_sdpa_workgroup_config(), std::vector<int>{});
+        if (wg_cfg.size() >= 4) {
+            config->wg_m_kq = wg_cfg[0];
+            config->wg_n_kq = wg_cfg[1];
+            config->wg_m_vs = wg_cfg[2];
+            config->wg_n_vs = wg_cfg[3];
+        }
+    }
+    GPU_DEBUG_TRACE_DETAIL << "is_prefill=" << is_prefill << " single_token " << is_gqa_single_token << " Chosen config for xe_hpg: " << config->wg_m_kq << ", "
+                           << config->wg_n_kq << ", " << config->wg_m_vs << ", " << config->wg_n_vs << ", " << std::endl;
     OPENVINO_ASSERT(config != nullptr);
 
     /* Get device information */

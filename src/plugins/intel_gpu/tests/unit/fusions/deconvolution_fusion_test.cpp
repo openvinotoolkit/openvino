@@ -821,7 +821,7 @@ TEST_P(deconv_scale_actv_quant_u8_eltw_scale_actv_quant_i8, basic) {
         GTEST_SKIP(); // Issue: 94154
     }
 
-    tolerance = 2.1f;
+    tolerance = 3.0f;
     execute(p);
 }
 

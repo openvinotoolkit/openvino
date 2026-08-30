@@ -6,8 +6,12 @@
 
 #pragma once
 
+#include <optional>
+
 #include "compiler_impl.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
+#include "intel_npu/common/npu.hpp"
+#include "intel_npu/common/option_support_cache.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -17,7 +21,9 @@ namespace intel_npu {
 
 class PluginCompilerAdapter final : public ICompilerAdapter {
 public:
-    PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct);
+    PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                          const std::shared_ptr<OptionSupportCache>& optionSupportCache = nullptr,
+                          const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt);
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
                                     const FilteredConfig& config) const override;
@@ -27,7 +33,7 @@ public:
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
                               const FilteredConfig& config) const override;
 
-    std::optional<std::vector<std::string>> get_supported_options() const override;
+    std::vector<std::string> get_supported_options() const override;
 
     bool is_option_supported(const std::string& optName,
                              const std::optional<std::string>& optValue = std::nullopt) const override;
@@ -36,7 +42,7 @@ public:
 
 private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
-
+    std::shared_ptr<OptionSupportCache> _optionSupportCache;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
     ov::SoPtr<VCLCompilerImpl> _compiler;
 

@@ -25,6 +25,7 @@
 #include "transformations/common_optimizations/dropout_with_random_uniform_replacer.hpp"
 #include "transformations/common_optimizations/eliminate_unsqueeze_gather.hpp"
 #include "transformations/common_optimizations/fq_concat_fusion.hpp"
+#include "transformations/common_optimizations/fq_eliminate_sequential.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/fq_reshape_fusion.hpp"
 #include "transformations/common_optimizations/fuse_clamp_and_fake_quantize.hpp"
@@ -256,6 +257,8 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(fq_fusions, AddFakeQuantizeFusion)
     ADD_MATCHER(fq_fusions, MulFakeQuantizeFusion)
     fq_fusions->set_name("ov::pass::FakeQuantizeFusions");
+
+    REGISTER_PASS(manager, FakeQuantizeEliminateSequential)
 
     // Temporary transformation to allow for PyTorch frontend to
     // partially support bitwise operators with boolean inputs for plugins

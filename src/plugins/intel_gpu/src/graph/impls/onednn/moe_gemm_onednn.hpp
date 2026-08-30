@@ -173,11 +173,7 @@ struct MoEGemmImplementationManager : public ImplementationManager {
             const auto& scale_shape = params.input_layouts[moe_cfg.weight_scale_idx].get_shape();
             auto num_scale_groups = (scale_shape.size() >= 3) ? scale_shape[2] : 1;
             moe_cfg.weight_group_size = (num_scale_groups == 1) ? -1 : static_cast<int32_t>(k / num_scale_groups);
-            if (static_cast<int32_t>(params.input_layouts.size()) > moe_cfg.weight_zp_idx) {
-                moe_cfg.is_weight_symmetric_quantized = false;
-            } else {
-                moe_cfg.is_weight_symmetric_quantized = true;
-            }
+            moe_cfg.is_weight_symmetric_quantized = static_cast<int32_t>(params.input_layouts.size()) <= moe_cfg.weight_zp_idx;
         }
         moe_cfg.has_batch_dim = desc->has_batch_dim;
         return moe_cfg;

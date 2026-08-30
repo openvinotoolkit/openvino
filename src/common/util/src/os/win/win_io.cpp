@@ -11,7 +11,11 @@ bool io_populate_mmap(void* /*ptr*/, size_t /*size*/, size_t /*offset*/, size_t 
     return false;
 }
 
-std::error_code io_read_into(FileHandle /*handle*/, void* /*dst*/, size_t /*file_offset*/, size_t /*size*/, size_t /*queue_depth*/) noexcept {
+std::error_code io_read_into(FileHandle /*handle*/,
+                             void* /*dst*/,
+                             size_t /*file_offset*/,
+                             size_t /*size*/,
+                             size_t /*queue_depth*/) noexcept {
     // CVS-186707
     return std::make_error_code(std::errc::function_not_supported);
 }

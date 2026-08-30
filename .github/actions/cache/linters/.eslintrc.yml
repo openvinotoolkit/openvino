@@ -43,6 +43,7 @@ rules:
     'i18n-text/no-en': 'off',
     'import/no-commonjs': 'off',
     'import/no-namespace': 'off',
+    'import/extensions': 'off',
     'no-console': 'off',
     'no-unused-vars': 'warn',
     'prettier/prettier': 'error',

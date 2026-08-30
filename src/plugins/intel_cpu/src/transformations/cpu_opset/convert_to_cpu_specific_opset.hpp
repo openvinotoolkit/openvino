@@ -14,7 +14,6 @@
 #include "common/pass/convert_to_power_static.hpp"
 #include "common/pass/convert_to_swish_cpu.hpp"
 #include "common/pass/fc_bias_fusion.hpp"
-#include "common/pass/move_fc_reshape_to_weights.hpp"
 #include "common/pass/move_readvalue_inputs_to_subgraph.hpp"
 #include "common/pass/rnn_sequences_optimization.hpp"
 #include "config.h"
@@ -28,6 +27,7 @@
 #include "openvino/pass/validate.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include "transformations/common_optimizations/convert_tiled_moe_block_to_gather_matmuls.hpp"
+#include "transformations/common_optimizations/move_fc_reshape_to_weights.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
 #include "transformations/common_optimizations/transpose_to_reshape.hpp"
@@ -91,7 +91,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
         });
 
     CPU_REGISTER_PASS_X64(manager, pass::ConvertFCToFCQuantizedLegacy);
-    CPU_REGISTER_PASS_COMMON(manager, MoveFCReshapeToWeights);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::MoveFCReshapeToWeights<ov::op::internal::FullyConnected>);
     CPU_REGISTER_PASS_COMMON(manager, AlignMatMulInputRanks);
     CPU_REGISTER_PASS_COMMON(manager, ConvertTileToSeqTiles);
     CPU_REGISTER_PASS_COMMON(manager, ConvertToPowerStatic);

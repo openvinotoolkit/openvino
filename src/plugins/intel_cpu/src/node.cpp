@@ -79,7 +79,8 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
       engine(context->getEngine()),
       name(op->get_friendly_name()),
       typeStr(op->get_type_name()),
-      type(TypeFromName(op->get_type_name())) {
+      type(TypeFromName(op->get_type_name())),
+      executeTaskId(openvino::itt::handle(this->name)) {
     for (size_t i = 0; i < op->get_input_size(); i++) {
         const auto& shape = op->get_input_partial_shape(i);
         OPENVINO_ASSERT(!shape.rank().is_dynamic(),
@@ -209,7 +210,8 @@ Node::Node(const std::string& type,
       engine(ctx->getEngine()),
       name(std::move(name)),
       typeStr(type),
-      type(TypeFromName(type)) {
+      type(TypeFromName(type)),
+      executeTaskId(openvino::itt::handle(this->name)) {
     parentEdges.reserve(inputShapes.size());
     childEdges.reserve(outputShapes.size());
 }
@@ -823,7 +825,8 @@ void Node::updateDynamicParams() {
 }
 
 void Node::execute(const dnnl::stream& strm, int numaId) {
-    OV_ITT_SCOPED_TASK_BASE(itt::domains::ov_op_cpu_details, getName());
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::ov_op_cpu_details, executeTaskId);
+
     if (isDynamicNode()) {
         executeDynamic(strm, numaId);
     } else {

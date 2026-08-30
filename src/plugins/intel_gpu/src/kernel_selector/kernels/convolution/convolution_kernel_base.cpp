@@ -17,7 +17,7 @@ bool ConvolutionKernelBase::Validate(const Params& p) const {
 
     const convolution_params& params = static_cast<const convolution_params&>(p);
 
-    for (auto& fused_op : params.fused_ops) {
+    for (const auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
             DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
@@ -266,7 +266,7 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
 }
 
 bool CheckConvolutionPaddedInputDesc(const convolution_params& params, const DataTensor& reqDesc) {
-    assert(params.inputs.size() >= 1);
+    assert(!params.inputs.empty());
 
     bool properPadding = reqDesc.X().pad.before <= params.inputs[0].X().pad.before &&
                          reqDesc.Y().pad.before <= params.inputs[0].Y().pad.before &&
@@ -284,7 +284,7 @@ bool CheckConvolutionPaddedInputDesc(const convolution_params& params, const Dat
 }
 
 static DataTensor GetConvolutionBFYXPaddedTensor(const convolution_params& cp) {
-    assert(cp.inputs.size() >= 1);
+    assert(!cp.inputs.empty());
     auto ndims = cp.inputs[0].GetDims().size();
 
     DataTensor t = cp.inputs[0];
@@ -341,11 +341,7 @@ bool ConvolutionCheckInput(const Params& p) {
     const bool bProperInputDesc = CheckConvolutionPaddedInputDesc(params, req_input);
     const bool bInputPadded = params.allowInputReordering || bProperInputDesc;
 
-    if (!bInputPadded) {
-        return false;
-    }
-
-    return true;
+    return bInputPadded;
 }
 
 bool ConvolutionUpdateInputParams(convolution_params& params) {
@@ -399,11 +395,11 @@ JitConstants ConvolutionKernelBase::GetFusedPrimitivesJitConstants(const convolu
 Datatype ConvolutionKernelBase::GetPackedType(Datatype dt, size_t pack_size) const {
     if (dt == Datatype::UINT8) {
         return pack_size == 4 ? Datatype::UINT32 : pack_size == 2 ? Datatype::UINT16 : dt;
-    } else if (dt == Datatype::INT8) {
-        return pack_size == 4 ?  Datatype::INT32 : pack_size == 2 ? Datatype::INT16 : dt;
-    } else {
-        return dt;
     }
+    if (dt == Datatype::INT8) {
+        return pack_size == 4 ?  Datatype::INT32 : pack_size == 2 ? Datatype::INT16 : dt;
+    }
+    return dt;
 }
 
 Datatype ConvolutionKernelBase::GetPackedInputType(const convolution_params& params) const {
@@ -433,7 +429,8 @@ Datatype ConvolutionKernelBase::GetActivationType(const convolution_params& para
         params.outputs[0].GetDType() == Datatype::INT8) {
         if (params.inputs[0].GetDType() == Datatype::F32) {
             return Datatype::F32;
-        } else if (params.inputs[0].GetDType() == Datatype::F16) {
+        }
+        if (params.inputs[0].GetDType() == Datatype::F16) {
             return Datatype::F16;
         }
     }

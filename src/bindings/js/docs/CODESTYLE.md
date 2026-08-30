@@ -6,7 +6,7 @@ This article presents the coding standards for JavaScript and TypeScript parts o
 
 For C++ codestyle rules, refer to [this document](https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/coding_style.md).
 
-Make sure your IDE has ESLint plugin installed. Its rules are specified in the [.eslint-global.js file](../.eslintrc-global.js). Keep in mind that your PR will not be approved if it does not meet the following requirements.
+Make sure your IDE has ESLint plugin installed. Its rules are specified in the `.eslintrc-global.js` file. Keep in mind that your PR will not be approved if it does not meet the following requirements.
 
 
 ## General Rules

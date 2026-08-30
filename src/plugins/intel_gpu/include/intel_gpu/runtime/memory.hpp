@@ -58,7 +58,11 @@ struct memory {
 
     size_t size() const { return _bytes_count; }
     size_t count() const { return _layout.count(); }
-    virtual shared_mem_params get_internal_params() const = 0;
+    /// @brief Return internal params for specified runtime type
+    virtual shared_mem_params get_internal_params(runtime_types rt_type) const = 0;
+    shared_mem_params get_internal_params() const {
+        return get_internal_params(get_default_runtime_type());
+    }
     virtual bool is_allocated_by(const engine& engine) const { return &engine == _engine && _type != allocation_type::unknown; }
     engine* get_engine() const { return _engine; }
     const layout& get_layout() const { return _layout; }
@@ -78,11 +82,7 @@ struct memory {
             return true;
         }
 
-        if (_bytes_count == l.bytes_count()) {
-            return false;
-        }
-
-        return true;
+        return _bytes_count != l.bytes_count();
     }
 
     // Device <== Host
@@ -156,7 +156,7 @@ struct simple_attached_memory : memory {
     void unlock(const stream& /* stream */) override {}
     event::ptr fill(stream& /* stream */, unsigned char, const std::vector<event::ptr>&, bool) override { return nullptr; }
     event::ptr fill(stream& /* stream */, const std::vector<event::ptr>&, bool) override { return nullptr; }
-    shared_mem_params get_internal_params() const override { return { shared_mem_type::shared_mem_empty, nullptr, nullptr, nullptr,
+    shared_mem_params get_internal_params(runtime_types rt_type) const override { return { shared_mem_type::shared_mem_empty, nullptr, nullptr, nullptr,
 #ifdef _WIN32
         nullptr,
 #else
@@ -247,28 +247,28 @@ inline std::vector<T> read_vector(cldnn::memory::ptr mem, const cldnn::stream& s
     if (mem->get_allocation_type() == allocation_type::usm_host || mem->get_allocation_type() == allocation_type::usm_shared) {
         switch (mem_dtype) {
             case data_types::i32: {
-                auto p_mem = reinterpret_cast<int32_t*>(mem->buffer_ptr());
+                auto* p_mem = reinterpret_cast<int32_t*>(mem->buffer_ptr());
                 for (size_t i = 0; i < mem->count(); ++i) {
                     out_vecs.push_back(static_cast<T>(p_mem[i]));
                 }
                 break;
             }
             case data_types::i64: {
-                auto p_mem = reinterpret_cast<int64_t*>(mem->buffer_ptr());
+                auto* p_mem = reinterpret_cast<int64_t*>(mem->buffer_ptr());
                 for (size_t i = 0; i < mem->count(); ++i) {
                     out_vecs.push_back(static_cast<T>(p_mem[i]));
                 }
                 break;
             }
             case data_types::f16: {
-                auto p_mem = reinterpret_cast<uint16_t*>(mem->buffer_ptr());
+                auto* p_mem = reinterpret_cast<uint16_t*>(mem->buffer_ptr());
                 for (size_t i = 0; i < mem->count(); ++i) {
                     out_vecs.push_back(static_cast<T>(ov::float16::from_bits(p_mem[i])));
                 }
                 break;
             }
             case data_types::f32: {
-                auto p_mem = reinterpret_cast<float*>(mem->buffer_ptr());
+                auto* p_mem = reinterpret_cast<float*>(mem->buffer_ptr());
                 for (size_t i = 0; i < mem->count(); ++i) {
                     out_vecs.push_back(static_cast<T>(p_mem[i]));
                 }

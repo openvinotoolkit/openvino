@@ -13,7 +13,7 @@ class ActivationKernelOpt : public ActivationKernelBase {
 public:
     using Parent = ActivationKernelBase;
     ActivationKernelOpt() : Parent("activation_opt") {}
-    virtual ~ActivationKernelOpt() {}
+    ~ActivationKernelOpt() override = default;
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

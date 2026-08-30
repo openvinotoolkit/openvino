@@ -10,11 +10,12 @@
 #include <string>
 #include <vector>
 
+#include "compiler_option_support_helper.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
+#include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "metrics.hpp"
 #include "property_registration.hpp"
 
 namespace intel_npu {
@@ -22,8 +23,8 @@ namespace intel_npu {
 class PluginPropertyManager final {
 public:
     PluginPropertyManager(const FilteredConfig& config,
-                          const std::shared_ptr<Metrics>& metrics,
                           const ov::SoPtr<IEngineBackend>& backend,
+                          const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper,
                           Logger& logger);
 
     PluginPropertyManager& operator=(const PluginPropertyManager& other) = delete;
@@ -37,7 +38,7 @@ public:
     }
 
     FilteredConfig getConfigWithCompilerPropertiesDisabled(const ov::AnyMap& properties) const;
-    FilteredConfig getConfigForSpecificCompiler(const ov::AnyMap& properties, const ICompilerAdapter* compiler) const;
+    FilteredConfig getConfigForSpecificCompiler(const ov::AnyMap& properties) const;
 
     std::string determinePlatform(const ov::AnyMap& properties) const;
     std::string determineDeviceId(const ov::AnyMap& properties) const;
@@ -47,8 +48,8 @@ private:
     PluginPropertyManager(const PluginPropertyManager& other);
     struct CopyState {
         FilteredConfig config;
-        std::shared_ptr<Metrics> metrics;
         ov::SoPtr<IEngineBackend> backend;
+        std::shared_ptr<CompilerOptionSupportHelper> optionSupportHelper;
         Logger& logger;
         ov::intel_npu::CompilerType currentlyUsedCompiler;
         ov::intel_npu::CompilerType _compilerForCompatibilityCheck;
@@ -66,8 +67,8 @@ private:
 
     mutable FilteredConfig _config;
 
-    std::shared_ptr<Metrics> _metrics;
     ov::SoPtr<IEngineBackend> _backend;
+    std::shared_ptr<CompilerOptionSupportHelper> _compilerOptionSupportHelper;
     Logger& _logger;
 
     mutable ov::intel_npu::CompilerType _currentlyUsedCompiler = ov::intel_npu::CompilerType::PREFER_PLUGIN;

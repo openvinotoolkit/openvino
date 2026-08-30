@@ -8,7 +8,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/reference/utils/coordinate_range.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/math_util.hpp"
 
 namespace ov {
 namespace reference {

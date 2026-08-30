@@ -121,6 +121,9 @@ struct CompiledPipeline;
 struct InferContext;
 struct PartitioningCallbacks {
     std::function<std::shared_ptr<ov::Model>(const std::string&)> find_tagged_model;
+    // Find the first node carrying the given rt_info key, searching across all
+    // registered function models.  Returns nullptr when the key is not found.
+    std::function<std::shared_ptr<ov::Node>(const std::string&)> find_node_with_rt_info;
 };
 
 struct CompileContext {

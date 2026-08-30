@@ -194,7 +194,7 @@ struct onednn_matmul {
 template <typename... TTypes>
 class tuple_hasher {
 private:
-    typedef std::tuple<TTypes...> Tuple;
+    using Tuple = std::tuple<TTypes...>;
     template <int N>
     size_t hash(Tuple& value) const {
         return 0;
@@ -287,7 +287,7 @@ struct onednn_linear {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("onednn_linear::forward()"));
         dnnl::memory::dim M = m;
 
-        if (!(m_batch == 0 || m_batch == M)) {
+        if (m_batch != 0 && m_batch != M) {
             OPENVINO_THROW("onednn_linear::forward(): invalid batch size m_batch=", m_batch, " M=", M);
         }
 

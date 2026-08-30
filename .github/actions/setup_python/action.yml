@@ -5,10 +5,11 @@ inputs:
     description: 'Python version to install'
     required: true
   pip-cache-path:
-    description: 'Path on share where the pip cache is stored'
+    description: 'Path of a directory to store the pip cache for a specific pip version. Sets `PIP_CACHE_DIR` env variable if not empty'
     required: false
-  should-setup-pip-paths:
-    description: 'If the action should setup `PIP_CACHE_DIR` & `PIP_INSTALL_PATH` env variables'
+    default: ''
+  set-pip-install-path:
+    description: 'If the action should set `PIP_INSTALL_PATH` env variable'
     required: false
     default: 'false'
   self-hosted-runner:
@@ -17,6 +18,10 @@ inputs:
     default: 'true'
   allow-prereleases:
     description: 'If pre-release versions of Python are allowed'
+    required: false
+    default: 'false'
+  use-pip-proxy:
+    description: 'Configure pip to use caching proxy. Available only for self-hosted runners in the cloud, i.e. not available for iGPU runners'
     required: false
     default: 'false'
 runs:
@@ -49,19 +54,38 @@ runs:
         python-version: ${{ inputs.version }}
         allow-prereleases: ${{ inputs.allow-prereleases }}
 
-    - if: ${{ inputs.should-setup-pip-paths == 'true' && runner.os != 'Windows' }}
-      name: Setup pip variables (cache and install path)
+    - if: ${{ inputs.set-pip-install-path == 'true' && runner.os != 'Windows' }}
+      name: Set PIP_INSTALL_PATH env variable
+      shell: bash
+      run: |
+        echo "PIP_INSTALL_PATH=$(python3 -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')" >> $GITHUB_ENV
+
+    - if: ${{ inputs.pip-cache-path != '' && runner.os != 'Windows' }}
+      name: Set PIP_CACHE_DIR env variable
       shell: bash
       run: |
         PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
         echo "Using pip version: ${PIP_VER}"
         echo "PIP_CACHE_DIR=${{ inputs.pip-cache-path }}/${PIP_VER}" >> $GITHUB_ENV
-        echo "PIP_INSTALL_PATH=$(python3 -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')" >> $GITHUB_ENV
 
-    - if: ${{ inputs.should-setup-pip-paths == 'true' && runner.os == 'Windows' }}
-      name: Setup pip cache path
+    - if: ${{ inputs.pip-cache-path != '' && runner.os == 'Windows' }}
+      name: Set PIP_CACHE_DIR env variable
       shell: pwsh
       run: |
         $pipVersion = python3 -c "import pip; print(pip.__version__)"
         Write-Host "Using pip version: $pipVersion"
         "PIP_CACHE_DIR=${{ inputs.pip-cache-path }}/$pipVersion" >> $env:GITHUB_ENV
+
+    - if: ${{ inputs.self-hosted-runner == 'true' && inputs.use-pip-proxy == 'true' && runner.os == 'Linux' }}
+      name: Configure pip to use caching proxy
+      shell: bash
+      run: |
+        echo "PIP_INDEX_URL=http://pip-proxy.pip-proxy.svc.cluster.local/simple/" >> "$GITHUB_ENV"
+        echo "PIP_TRUSTED_HOST=pip-proxy.pip-proxy.svc.cluster.local" >> "$GITHUB_ENV"
+
+    - if: ${{ inputs.self-hosted-runner == 'true' && inputs.use-pip-proxy == 'true' && runner.os == 'Windows' }}
+      name: Configure pip to use caching proxy
+      shell: pwsh
+      run: |
+        echo "PIP_INDEX_URL=http://pip-proxy.pip-proxy.svc.cluster.local/simple/" >> "$env:GITHUB_ENV"
+        echo "PIP_TRUSTED_HOST=pip-proxy.pip-proxy.svc.cluster.local" >> "$env:GITHUB_ENV"

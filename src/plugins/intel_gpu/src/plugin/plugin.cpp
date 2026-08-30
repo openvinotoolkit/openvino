@@ -190,7 +190,6 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
         if (weight_path.extension() != ".bin" && !is_weightless_cache_attributes_set(cloned_model))
             set_weightless_cache_attributes(cloned_model);
     }
-
     transform_model(cloned_model, config_copy, context);
 
     // Transformations for some reason may drop output tensor names, so here we copy those from the original model
@@ -223,7 +222,7 @@ std::mutex singleton_default_contexts_mutex;
 std::map<std::string, RemoteContextImpl::Ptr> Plugin::get_default_contexts() const {
     std::call_once(m_default_contexts_once, [this]() {
         std::lock_guard<std::mutex> lock(singleton_default_contexts_mutex);
-        for (auto& device : m_device_map) {
+        for (const auto& device : m_device_map) {
             const auto device_name = get_device_name() + "." + device.first;
 
             // If already initialized, use existing one
@@ -256,7 +255,7 @@ Plugin::Plugin() {
     }
 
     // Set common info for compiled_model_runtime_properties
-    auto& ov_version = ov::get_openvino_version();
+    const auto& ov_version = ov::get_openvino_version();
     m_compiled_model_runtime_properties["OV_VERSION"] = ov_version.buildNumber;
 }
 
@@ -451,7 +450,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
             // If some app modifies ov::Model before compile_model(), and
             // the constants are changed, and such modification is not done before import_model(),
             // weightless caching will not produce correct result.
-            if (auto& orig_model = config.get_model(); orig_model != nullptr) {
+            if (const auto& orig_model = config.get_model(); orig_model != nullptr) {
                 if (!is_weightless_cache_attributes_set(orig_model)) {
                     create_weightless_cache_attributes(orig_model, config);
                 }
@@ -499,14 +498,17 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     // earler than querying actual ID to avoid exceptions when no devices are found
     if (name == ov::supported_properties) {
         return decltype(ov::supported_properties)::value_type {get_supported_properties()};
-    } else if (ov::internal::supported_properties == name) {
+    }
+    if (ov::internal::supported_properties == name) {
         return decltype(ov::internal::supported_properties)::value_type{get_supported_internal_properties()};
-    } else if (name == ov::available_devices) {
+    }
+    if (name == ov::available_devices) {
         std::vector<std::string> available_devices = { };
         for (const auto& dev : m_device_map)
             available_devices.push_back(dev.first);
         return decltype(ov::available_devices)::value_type {available_devices};
-    } else if (name == ov::internal::caching_properties) {
+    }
+    if (name == ov::internal::caching_properties) {
         return decltype(ov::internal::caching_properties)::value_type(get_caching_properties());
     }
 
@@ -525,7 +527,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         auto model_format = ov::Any(model_runtime_info);
         return decltype(ov::internal::compiled_model_runtime_properties)::value_type(
             std::move(model_format.as<std::string>()));
-    } else if (name == ov::internal::compiled_model_runtime_properties_supported.name()) {
+    }
+    if (name == ov::internal::compiled_model_runtime_properties_supported.name()) {
         ov::Any res = true;
         prepare_actual_runtime_info();
         auto it = options.find(ov::internal::compiled_model_runtime_properties.name());
@@ -535,7 +538,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         }
         ov::AnyMap input_map = it->second.as<ov::AnyMap>();
         // Check common info of compiled_model_runtime_properties
-        for (auto& item : m_compiled_model_runtime_properties) {
+        for (const auto& item : m_compiled_model_runtime_properties) {
             auto it = input_map.find(item.first);
             if (it == input_map.end() || it->second.as<std::string>() != item.second.as<std::string>()) {
                 res = false;
@@ -613,21 +616,29 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
 
     if (name == ov::intel_gpu::device_total_mem_size) {
         return decltype(ov::intel_gpu::device_total_mem_size)::value_type {device_info.max_global_mem_size};
-    } else if (name == ov::intel_gpu::device_max_alloc_mem_size) {
+    }
+    if (name == ov::intel_gpu::device_max_alloc_mem_size) {
         return decltype(ov::intel_gpu::device_max_alloc_mem_size)::value_type {device_info.max_alloc_mem_size};
-    } else if (name == ov::device::type) {
+    }
+    if (name == ov::device::type) {
         auto dev_type = device_info.dev_type == cldnn::device_type::discrete_gpu ? ov::device::Type::DISCRETE : ov::device::Type::INTEGRATED;
         return decltype(ov::device::type)::value_type {dev_type};
-    } else if (name == ov::device::gops) {
+    }
+    if (name == ov::device::gops) {
         std::map<element::Type, float> gops;
         gops[element::i8] = device->get_gops(cldnn::data_types::i8);
         gops[element::u8] = device->get_gops(cldnn::data_types::u8);
         gops[element::f16] = device->get_gops(cldnn::data_types::f16);
         gops[element::f32] = device->get_gops(cldnn::data_types::f32);
         return decltype(ov::device::gops)::value_type {gops};
-    } else if (name == ov::intel_gpu::execution_units_count) {
+    }
+    if (name == ov::intel_gpu::cacheline_size) {
+        return static_cast<decltype(ov::intel_gpu::cacheline_size)::value_type>(device_info.cacheline_size.value_or(0));
+    }
+    if (name == ov::intel_gpu::execution_units_count) {
         return static_cast<decltype(ov::intel_gpu::execution_units_count)::value_type>(device_info.execution_units_count);
-    } else if (name == ov::intel_gpu::uarch_version) {
+    }
+    if (name == ov::intel_gpu::uarch_version) {
         std::stringstream s;
         if (device_info.gfx_ver.major == 0 && device_info.gfx_ver.minor == 0 && device_info.gfx_ver.revision == 0) {
             s << "unknown";
@@ -637,25 +648,33 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
               << static_cast<int>(device_info.gfx_ver.revision);
         }
         return decltype(ov::intel_gpu::uarch_version)::value_type {s.str()};
-    } else if (name == ov::optimal_batch_size) {
+    }
+    if (name == ov::optimal_batch_size) {
         return decltype(ov::optimal_batch_size)::value_type {get_optimal_batch_size(options)};
-    } else if (name == ov::device::uuid) {
+    }
+    if (name == ov::device::uuid) {
         return decltype(ov::device::uuid)::value_type {device_info.uuid};
-    } else if (name == ov::device::luid) {
+    }
+    if (name == ov::device::luid) {
         return decltype(ov::device::luid)::value_type {device_info.luid};
-    } else if (name == ov::device::full_name) {
+    }
+    if (name == ov::device::full_name) {
         auto deviceName = StringRightTrim(device_info.dev_name, "NEO", false);
         deviceName += std::string(" (") + (device_info.dev_type == cldnn::device_type::discrete_gpu ? "dGPU" : "iGPU") + ")";
         return decltype(ov::device::full_name)::value_type {deviceName};
-    } else if (name == ov::device::capabilities) {
+    }
+    if (name == ov::device::capabilities) {
         return decltype(ov::device::capabilities)::value_type {get_device_capabilities(device_info)};
-    } else if (name == ov::range_for_async_infer_requests) {
+    }
+    if (name == ov::range_for_async_infer_requests) {
         std::tuple<unsigned int, unsigned int, unsigned int> range = std::make_tuple(1, 2, 1);
         return decltype(ov::range_for_async_infer_requests)::value_type {range};
-    } else if (name == ov::range_for_streams) {
+    }
+    if (name == ov::range_for_streams) {
         std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, device_info.num_ccs == 1 ? 2 : device_info.num_ccs);
         return decltype(ov::range_for_streams)::value_type {range};
-    } else if (name == ov::intel_gpu::memory_statistics) {
+    }
+    if (name == ov::intel_gpu::memory_statistics) {
         const auto& ctx = get_default_context(device_id, false);
         if (!ctx->is_initialized()) {
             decltype(ov::intel_gpu::memory_statistics)::value_type res;
@@ -670,18 +689,21 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
             add_zero_mem_usage(cldnn::allocation_type::usm_shared);
             add_zero_mem_usage(cldnn::allocation_type::usm_device);
             return res;
-        } else {
-            return decltype(ov::intel_gpu::memory_statistics)::value_type {ctx->get_engine().get_memory_statistics()};
         }
-    } else if (name == ov::max_batch_size) {
+        return decltype(ov::intel_gpu::memory_statistics)::value_type{ctx->get_engine().get_memory_statistics()};
+    }
+    if (name == ov::max_batch_size) {
         return decltype(ov::max_batch_size)::value_type {get_max_batch_size(options)};
-    } else if (name == ov::intel_gpu::driver_version) {
+    }
+    if (name == ov::intel_gpu::driver_version) {
         return decltype(ov::intel_gpu::driver_version)::value_type {device_info.driver_version};
-    } else if (name == ov::intel_gpu::device_id) {
+    }
+    if (name == ov::intel_gpu::device_id) {
         std::stringstream s;
         s << "0x" << std::hex << device_info.device_id;
         return decltype(ov::intel_gpu::device_id)::value_type {s.str()};
-    } else if (name == ov::device::architecture) {
+    }
+    if (name == ov::device::architecture) {
         std::stringstream s;
         s << "GPU: vendor=0x" << std::hex << device_info.vendor_id << std::dec << " arch=";
         if (device_info.gfx_ver.major == 0 && device_info.gfx_ver.minor == 0) {
@@ -692,18 +714,31 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
               << "." << static_cast<int>(device_info.gfx_ver.revision);
         }
         return decltype(ov::device::architecture)::value_type {s.str()};
-    } else if (name == ov::device::pci_info) {
+    }
+    if (name == ov::device::pci_info) {
         ov::device::PCIInfo info;
         info.domain = device_info.pci_info.pci_domain;
         info.bus = device_info.pci_info.pci_bus;
         info.device = device_info.pci_info.pci_device;
         info.function = device_info.pci_info.pci_function;
         return decltype(ov::device::pci_info)::value_type {info};
-    } else if (name == ov::internal::cache_header_alignment) {
-        return decltype(ov::internal::cache_header_alignment)::value_type{4096};
-    } else {
-        OPENVINO_THROW("Unsupported metric key ", name);
     }
+    if (name == ov::internal::cache_header_alignment) {
+        return decltype(ov::internal::cache_header_alignment)::value_type{4096};
+    }
+    if (name == ov::compatibility_check) {
+        if (auto it = options.find(ov::runtime_requirements.name()); it != options.end()) {
+            const auto& requirements = it->second.as<std::string>();
+            if (!requirements.empty()) {
+                // Same compatibility policy as the import_model() guard (single source of truth).
+                return CompiledModel::is_runtime_requirements_compatible(requirements, device_info)
+                           ? ov::CompatibilityCheck::SUPPORTED
+                           : ov::CompatibilityCheck::UNSUPPORTED;
+            }
+        }
+        return ov::CompatibilityCheck::NOT_APPLICABLE;
+    }
+    OPENVINO_THROW("Unsupported metric key ", name);
 }
 
 std::vector<ov::PropertyName> Plugin::get_caching_properties() const {
@@ -741,8 +776,10 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::intel_gpu::device_total_mem_size.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::device_max_alloc_mem_size.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::uarch_version.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::intel_gpu::cacheline_size.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::memory_statistics.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::compatibility_check.name(), PropertyMutability::RO},
 
         // Configs
         ov::PropertyName{ov::enable_profiling.name(), PropertyMutability::RW},
@@ -772,6 +809,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::cache_encryption_callbacks.name(), PropertyMutability::WO},
         ov::PropertyName{ov::hint::kv_cache_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::model.name(), PropertyMutability::WO},
+        ov::PropertyName{ov::intel_gpu::offload_ratio.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::config_file.name(), PropertyMutability::RW},
     };
 
@@ -913,7 +951,7 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
             }
         }
 
-        if (!batched_inputs.size()) {
+        if (batched_inputs.empty()) {
             GPU_DEBUG_LOG << "[MAX_BATCH_SIZE] MAX_BATCH_SIZE supports only networks with inputs/outputs featuring batched dim." << std::endl;
             return static_cast<uint32_t>(max_batch_size);
         }
@@ -971,9 +1009,9 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
         // Compare x with the threshold and return the appropriate power of 2
         if (x - lower_value > threshold) {
             return upper_value;  // Return the next power of 2
-        } else {
-            return lower_value;  // Return the current power of 2
         }
+        return lower_value;  // Return the current power of 2
+
     };
 
     auto model_param = options.find(ov::hint::model.name());

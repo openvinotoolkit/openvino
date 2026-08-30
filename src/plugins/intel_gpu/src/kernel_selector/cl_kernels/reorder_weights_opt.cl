@@ -2,6 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#define IS_FP8 (F8E5M2_INPUT || F8E4M3_INPUT || F8E8M0_INPUT || F8E5M2_OUTPUT || F8E4M3_OUTPUT || F8E8M0_OUTPUT)
+#define IS_FP4 (F4E2M1_INPUT || F4E2M1_OUTPUT)
+
+#if (IS_FP8 || IS_FP4)
+#include "include/f8_utils.cl"
+#endif
+
+#if IS_FP4
+#include "include/f4_utils.cl"
+#endif
+
 #include "include/batch_headers/common.cl"
 
 INIT_INPUT0_INDEX_FUNC_HERE
@@ -114,7 +125,7 @@ KERNEL(reorder_weights_opt)(const __global INPUT0_TYPE* input, __global OUTPUT_T
         val = (OUTPUT_TYPE)0;
     }
 #else
-    val = valid_lane ? TO_OUTPUT_TYPE(input[input_idx]) : (OUTPUT_TYPE)0;
+    val = valid_lane ? TO_OUTPUT_TYPE(input[input_idx]) : OUTPUT_VAL_ZERO;
 #endif
 #else
     OUTPUT_VEC_TYPE val = 0;
@@ -124,7 +135,7 @@ KERNEL(reorder_weights_opt)(const __global INPUT0_TYPE* input, __global OUTPUT_T
             val[b] = TO_OUTPUT_TYPE(input[input_idx]);
         }
 #else
-        val[b] = valid_lane ? TO_OUTPUT_TYPE(input[input_idx]) : (OUTPUT_TYPE)0;
+        val[b] = valid_lane ? TO_OUTPUT_TYPE(input[input_idx]) : OUTPUT_VAL_ZERO;
 #endif
         input_idx += PITCH;
     }

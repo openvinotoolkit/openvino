@@ -8,7 +8,7 @@
 
 #include <cassert>
 #include <common/primitive_attr.hpp>
-#include <common/primitive_hashing_utils.hpp>
+#include <common/primitive_hashing.hpp>
 #include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -19,7 +19,6 @@
 #include <vector>
 
 #include "config.h"
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
@@ -37,6 +36,7 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "thread_pool_imp.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
@@ -141,7 +141,7 @@ DnnlMemoryDescPtr DnnlFCPrimitive::makeTransposedWeightDescriptor(const DnnlMemo
 bool DnnlFCPrimitive::useWeightsDecompressionImpl(const ov::element::Type inputType,
                                                   const ov::element::Type weightsType,
                                                   const ov::intel_cpu::Config::ModelType modelType) {
-    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
+    if (ov::with_cpu_x86_avx2()) {
         if (any_of(inputType, f32, bf16) && any_of(weightsType, u8, i8, nf4, u4, i4, f4e2m1, u2)) {
             return true;
         }
@@ -170,17 +170,16 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
     // AVX512-VNNI impl in oneDNN (only avx512_core_vnni instance is registered for bf16 src).
     const auto srcPrecision = srcDesc->getPrecision();
     if (srcPrecision == ov::element::bf16) {
-        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
+        if (!ov::with_cpu_x86_bfloat16()) {
             return false;
         }
         // On AMX-capable HW, AMX BF16 TMUL outperforms VNNI int8 dyn-quant for bf16 src.
         // Disable the bf16 dyn-quant entry here so the AMX BF16 path stays in use.
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+        if (ov::with_cpu_x86_avx512_core_amx()) {
             return false;
         }
     } else if (srcPrecision == ov::element::f32) {
-        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni) &&
-            !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni)) {
+        if (!ov::with_cpu_x86_avx2_vnni() && !ov::with_cpu_x86_avx512_core_vnni()) {
             return false;
         }
     } else {

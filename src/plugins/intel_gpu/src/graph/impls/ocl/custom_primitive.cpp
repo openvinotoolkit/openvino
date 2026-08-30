@@ -80,11 +80,12 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     }
 
     custom_gpu_primitive_impl()
-    : _kernels() {}
+ = default;
 
     custom_gpu_primitive_impl(const custom_gpu_primitive_impl& other)
-    : cl_kernel(other.cl_kernel)
-    , _kernels({}) 
+    : parent(other.get_kernel_name())
+    , cl_kernel(other.cl_kernel)
+    , _kernels({})
     , size_expr_map(other.size_expr_map) {
         for (const auto& kernel : other._kernels) {
             _kernels.emplace_back(kernel->clone(other.can_share_kernels));
@@ -93,15 +94,15 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
 
     custom_gpu_primitive_impl(const custom_gpu_primitive_node& arg,
                              std::shared_ptr<kernel_selector::cl_kernel_data>& cl_kernel)
-        : cl_kernel(cl_kernel)
-        , _kernels() { }
+    : parent(cl_kernel->code.kernelString->entry_point)
+    , cl_kernel(cl_kernel) { }
 
     custom_gpu_primitive_impl(const custom_gpu_primitive_node& arg,
-                             std::shared_ptr<kernel_selector::cl_kernel_data>& cl_kernel,
-                             const std::map<uint32_t, std::string>& size_expr_map)
-        : cl_kernel(cl_kernel)
-        , _kernels()
-        , size_expr_map(size_expr_map) { }
+                              std::shared_ptr<kernel_selector::cl_kernel_data>& cl_kernel,
+                              const std::map<uint32_t, std::string>& size_expr_map)
+    : parent(cl_kernel->code.kernelString->entry_point)
+    , cl_kernel(cl_kernel)
+    , size_expr_map(size_expr_map) { }
 
     std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() override {
         std::vector<std::shared_ptr<cldnn::kernel_string>> kernel_strings;
@@ -156,7 +157,7 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     void set_arguments_impl(custom_gpu_primitive_inst& instance) override {
         auto& stream = instance.get_network().get_stream();
         kernel_arguments_data args;
-        for (auto& dep : instance.dependencies()) {
+        for (const auto& dep : instance.dependencies()) {
             args.inputs.push_back(dep.first->output_memory_ptr());
         }
         for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
@@ -172,7 +173,7 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
                             custom_gpu_primitive_inst& instance) override {
         auto& stream = instance.get_network().get_stream();
         kernel_arguments_data args;
-        for (auto& dep : instance.dependencies()) {
+        for (const auto& dep : instance.dependencies()) {
             args.inputs.push_back(dep.first->output_memory_ptr());
         }
         for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
@@ -338,7 +339,7 @@ static std::string get_jit_constant(const custom_gpu_primitive_node& outer,
 }
 
 static std::unique_ptr<primitive_impl> create(const custom_gpu_primitive_node& arg, const kernel_impl_params& impl_param) {
-    const auto primitive = arg.get_primitive().get();
+    const auto* const primitive = arg.get_primitive().get();
 
     const auto& orig_output_layout = impl_param.get_output_layout();
     OPENVINO_ASSERT(orig_output_layout.is_static(), "out layouts should be static for create primitive_impl!");
@@ -382,9 +383,8 @@ static std::unique_ptr<primitive_impl> create(const custom_gpu_primitive_node& a
     }
     if (!size_expr_map.empty()) {
         return std::make_unique<custom_gpu_primitive_impl>(arg, cl_kernel, size_expr_map);
-    } else {
-        return std::make_unique<custom_gpu_primitive_impl>(arg, cl_kernel);
     }
+    return std::make_unique<custom_gpu_primitive_impl>(arg, cl_kernel);
 }
 
 namespace detail {

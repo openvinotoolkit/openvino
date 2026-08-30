@@ -14,6 +14,7 @@
 #include <cstring>
 #include <tuple>
 
+#include "memory_prefetch.hpp"
 #include "openvino/util/memory.hpp"
 
 namespace ov::util {
@@ -59,14 +60,22 @@ void vm_release(void* ptr, size_t) noexcept {
 
 void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
     assert(ptr != nullptr && size > 0);
-    // CVS-186579
-    // assert if region is not mmap-baked.
-
     if (num_threads == 0) {
-        // Option 1: OS advisory hints
+        WIN32_MEMORY_RANGE_ENTRY entry{ptr, size};
+        ::PrefetchVirtualMemory(::GetCurrentProcess(), 1, &entry, 0);
     } else {
-        // Option 2: parallel synchronous prefault & touch
+        PrefetchToken(submit_page_toucher_tasks(ptr, size, num_threads)).wait();
     }
+}
+
+PrefetchToken vm_prefetch_async(void* ptr, size_t size, size_t num_threads) noexcept {
+    assert(ptr != nullptr && size > 0);
+    if (num_threads == 0) {
+        WIN32_MEMORY_RANGE_ENTRY entry{ptr, size};
+        ::PrefetchVirtualMemory(::GetCurrentProcess(), 1, &entry, 0);
+        return {};
+    }
+    return PrefetchToken(submit_page_toucher_tasks(ptr, size, num_threads));
 }
 
 }  // namespace ov::util

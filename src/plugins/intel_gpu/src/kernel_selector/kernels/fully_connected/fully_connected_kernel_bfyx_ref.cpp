@@ -24,6 +24,7 @@ ParamsKey FullyConnected_bfyx_Ref::GetSupportedKey() const {
     k.EnableInputWeightsType(WeightsType::F32);
     k.EnableInputWeightsType(WeightsType::UINT8);
     k.EnableInputWeightsType(WeightsType::INT8);
+    k.EnableInputWeightsType(WeightsType::UINT2);
     k.EnableInputWeightsType(WeightsType::UINT4);
     k.EnableInputWeightsType(WeightsType::INT4);
     k.EnableAllInputLayout();
@@ -66,7 +67,13 @@ KernelsPriority FullyConnected_bfyx_Ref::GetKernelsPriority(const Params& /*para
 JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_params& params,
     const FullyConnectedKernelBase::DispatchData& dispatchData) const {
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
-    Datatype accumulator_dt = GetAccumulatorType(params);
+    // The bfyx_ref kernel accumulates element-by-element in ACCUMULATOR_TYPE.
+    // For compressed weights with fp16/bf16 input, the sum over large IFM (1024+
+    // elements) overflows fp16. Use fp32 to ensure reference accuracy.
+    auto in_dt = params.inputs[0].GetDType();
+    Datatype accumulator_dt = (params.compressed && (in_dt == Datatype::F16 || in_dt == Datatype::BF16))
+                                  ? Datatype::F32
+                                  : GetAccumulatorType(params);
     Datatype activation_dt = GetActivationType(params);
     if (params.outputs[0].GetLayout() == DataLayout::bfyx)
         jit.AddConstant(MakeJitConstant("OUTPUT_3D", true));
@@ -76,7 +83,9 @@ JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_para
 
     auto wt = params.weights.GetDType();
     if (wt == WeightsType::UINT4 || wt == WeightsType::INT4) {
-        jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", wt, 2));
+        jit.Merge(make_sub_byte_packed_type_jit_constant("INT4_PACKED_TYPE", wt, 2));
+    } else if (wt == WeightsType::UINT2) {
+        jit.Merge(make_sub_byte_packed_type_jit_constant("UINT2_PACKED_TYPE", wt, 4));
     }
 
     if (!params.fused_ops.empty()) {
@@ -90,7 +99,7 @@ JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_para
 }
 
 KernelsData FullyConnected_bfyx_Ref::GetKernelsData(const Params& params) const {
-    auto& fc_params = static_cast<const fully_connected_params&>(params);
+    const auto& fc_params = static_cast<const fully_connected_params&>(params);
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd = GetTunedKernelsDataByIndex(
