@@ -194,6 +194,7 @@ attach_strided_slice_impl::attach_strided_slice_impl() {
     auto types = {
         data_types::f32,
         data_types::f16,
+        data_types::bf16,
         data_types::i32,
         data_types::i64,
         data_types::i8,

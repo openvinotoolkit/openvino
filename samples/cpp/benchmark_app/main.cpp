@@ -1423,7 +1423,7 @@ int main(int argc, char* argv[]) {
 
         if (device_name.find("MULTI") == std::string::npos) {
             slog::info << "Latency:" << slog::endl;
-            generalLatency.write_to_slog();
+            generalLatency.write_to_slog(true);
 
             if (FLAGS_pcseq && app_inputs_info.size() > 1) {
                 slog::info << "Latency for each data shape group:" << slog::endl;
@@ -1438,7 +1438,7 @@ int main(int argc, char* argv[]) {
                     }
                     slog::info << slog::endl;
 
-                    groupLatencies[i].write_to_slog();
+                    groupLatencies[i].write_to_slog(true);
                 }
             }
         }

@@ -4,8 +4,8 @@
 
 #include "jit_memory_emitters.hpp"
 
-#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
-#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+#include <xbyak_aarch64/xbyak_aarch64_adr.h>
+#include <xbyak_aarch64/xbyak_aarch64_reg.h>
 
 #include <common/utils.hpp>
 #include <cpu/aarch64/cpu_isa_traits.hpp>

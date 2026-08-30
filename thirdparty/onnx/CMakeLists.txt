@@ -100,16 +100,27 @@ ov_disable_all_warnings(onnx onnx_proto)
 ov_install_static_lib(onnx ${OV_CPACK_COMP_CORE})
 ov_install_static_lib(onnx_proto ${OV_CPACK_COMP_CORE})
 
-# WA for ONNX: protobuf must be in the same export set of ONNX targets
-# in case of protobuf::libprotobuf-lite / protobuf::libprotobuf are imported targets
-if(NOT ENABLE_SYSTEM_PROTOBUF AND NOT BUILD_SHARED_LIBS)
+# WA for ONNX: protobuf must be findable via an export set when CMake validates
+# install(EXPORT ONNXTargets ...) at configure time.
+if(NOT ENABLE_SYSTEM_PROTOBUF)
     if(ONNX_USE_LITE_PROTO)
-        set(protobuf_target_name libprotobuf-lite)
+        set(_onnx_protobuf_root libprotobuf-lite)
     else()
-        set(protobuf_target_name libprotobuf)
+        set(_onnx_protobuf_root libprotobuf)
     endif()
 
-    install(TARGETS ${protobuf_target_name} EXPORT ONNXTargets
-            ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${OV_CPACK_COMP_CORE}
-            ${OV_CPACK_COMP_CORE_EXCLUDE_ALL})
+    if(BUILD_SHARED_LIBS)
+        # Shared build: register libprotobuf and ALL transitive deps in ONNXTargets.
+        set(_onnx_pb_roots "${_onnx_protobuf_root}")
+        ov_register_static_deps_in_export(_onnx_pb_roots ONNXTargets)
+        unset(_onnx_pb_roots)
+    else()
+        # Static build: add just libprotobuf to ONNXTargets (original WA).
+        install(TARGETS "${_onnx_protobuf_root}" EXPORT ONNXTargets
+                ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR}
+                COMPONENT ${OV_CPACK_COMP_CORE}
+                ${OV_CPACK_COMP_CORE_EXCLUDE_ALL})
+    endif()
+
+    unset(_onnx_protobuf_root)
 endif()

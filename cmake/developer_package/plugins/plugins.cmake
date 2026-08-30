@@ -272,6 +272,13 @@ function(ov_target_link_plugins TARGET_NAME)
 
         # link plugin to ${TARGET_NAME} static version
         list(GET name 1 plugin_name)
+        # Skip MODULE libraries
+        if(TARGET ${plugin_name})
+            get_target_property(plugin_type ${plugin_name} TYPE)
+            if(plugin_type STREQUAL "MODULE_LIBRARY")
+                continue()
+            endif()
+        endif()
         target_link_libraries(${TARGET_NAME} PRIVATE ${plugin_name})
     endforeach()
 endfunction()

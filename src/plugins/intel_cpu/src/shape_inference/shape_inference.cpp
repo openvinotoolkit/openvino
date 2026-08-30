@@ -155,6 +155,7 @@
 #include "openvino/op/nv12_to_rgb.hpp"
 #include "openvino/op/one_hot.hpp"
 #include "openvino/op/pad.hpp"
+#include "openvino/op/paged_selective_ssm.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/prior_box.hpp"
@@ -192,6 +193,7 @@
 #include "openvino/op/search_sorted.hpp"
 #include "openvino/op/segment_max.hpp"
 #include "openvino/op/select.hpp"
+#include "openvino/op/selective_ssm.hpp"
 #include "openvino/op/selu.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/shuffle_channels.hpp"
@@ -222,6 +224,7 @@
 #include "ov_ops/augru_sequence.hpp"
 #include "ov_ops/glu.hpp"
 #include "pad_shape_inference.hpp"
+#include "paged_selective_ssm_shape_inference.hpp"
 #include "prior_box_clustered_shape_inference.hpp"
 #include "prior_box_shape_inference.hpp"
 #include "proposal_shape_inference.hpp"
@@ -247,6 +250,7 @@
 #include "search_sorted_shape_inference.hpp"
 #include "segment_max_shape_inference.hpp"
 #include "select_shape_inference.hpp"
+#include "selective_ssm_shape_inference.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_status.hpp"
 #include "shape_nodes.hpp"
@@ -754,6 +758,8 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::AUGRUSequence, ShapeInferTA, util::bit::mask()),
     OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::RMSNorm, ShapeInferTA, util::bit::mask(1)),
     OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::GLU, ShapeInferTA, util::bit::mask()),
+    OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::SelectiveSSM, ShapeInferTA, util::bit::mask()),
+    OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::PagedSelectiveSSM, ShapeInferTA, util::bit::mask()),
 };
 // clang-format on
 

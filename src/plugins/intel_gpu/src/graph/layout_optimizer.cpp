@@ -47,6 +47,7 @@
 #include "lstm_seq_inst.h"
 #include "group_normalization_inst.h"
 #include "to_string_utils.h"
+#include "impls/ocl/kernel_selector_helper.h"
 #include <vector>
 #include <memory>
 #include <utility>
@@ -67,6 +68,47 @@ static size_t get_post_ops_count(const program_node& node) {
     }
 
     return onednn_post_ops_count;
+}
+
+// A rank-reducing reorder may be fused into a producer only when every higher-rank external eltwise
+// peer has the same provable lower-rank representation that OCL fused-op canonicalization will use.
+//
+// Example graph this guards against: a Permute produces [1,2,8,6,10] (bfzyx) and has an Add fused into
+// it as a post-op, whose second input ("peer") is an independent branch also shaped [1,2,8,6,10]. A
+// downstream Reshape only needs [1,2,48,10] (bfyx), so the layout optimizer wants to fuse a rank-reducing
+// Reorder into the Permute, making its *own* output layout 4D. The peer is a separate node reached only
+// through this fused primitive and its own shape inference is untouched, so it stays 5D: the fused-op
+// kernel would then read a 5D buffer using 4D indexing and produce wrong results. Folding the peer's
+// shape to [1,2,48,10] (see fold_higher_rank_fused_peer) keeps the fusion; when no such fold exists (e.g.
+// the peer broadcasts over an inner spatial axis, like [1,2,8,1,10]) the reorder fusion is declined here
+// and the Permute keeps its native 5D output instead.
+static bool fused_peers_can_fold_to_layout(const program_node& prev, const layout& reduced_layout) {
+    if (!prev.has_fused_primitives())
+        return true;
+
+    const size_t reduced_rank = reduced_layout.get_rank();
+    if (prev.get_output_layout().get_rank() <= reduced_rank)
+        return true;
+
+    for (const auto& fd : prev.get_fused_primitives()) {
+        if (!fd.is_type<eltwise>() || !fd.has_outer_dep())
+            continue;
+
+        const auto outer_idx = static_cast<size_t>(fd.outer_dep_start_idx);
+        const size_t outer_count = fd.deps.size();
+        if (outer_idx >= prev.get_dependencies().size() || outer_count == 0 || outer_count > prev.get_dependencies().size() - outer_idx) {
+            return false;
+        }
+
+        for (size_t i = 0; i < outer_count; ++i) {
+            const auto peer_layout = prev.get_dependency(outer_idx + i).get_output_layout();
+            if (peer_layout.get_rank() > reduced_rank && !fold_higher_rank_fused_peer(peer_layout, reduced_layout).has_value()) {
+                return false;
+            }
+        }
+    }
+
+    return true;
 }
 
 std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive_id src_id,
@@ -136,15 +178,6 @@ int64_t cldnn::get_convolution_channel_count(const convolution_node& conv_node, 
 bool layout_optimizer::is_format_supported(program_node& node, format::type fmt) {
     if (node.is_type<fully_connected>() && fmt == format::byxf)
         return false;
-
-    // Aligned MVN flattens the normalized axes into the innermost dimension, which is only valid for planar /
-    // single feature-blocked layouts; reject other layouts (e.g. byxf) so a reorder to planar is inserted instead.
-    if (node.is_type<mvn>()) {
-        const auto& input_layout = node.get_input_layout(0);
-        const layout candidate{input_layout.get_partial_shape(), input_layout.data_type, fmt};
-        if (!node.as<mvn>().get_primitive()->is_aligned_layout_supported(candidate))
-            return false;
-    }
 
     if (node.is_type<input_layout>())
         return node.get_output_layout().format == fmt;
@@ -388,6 +421,14 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 
 bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node& node, format fmt_prev, format fmt_next) {
     bool allow_new_shape_infer = node.get_program().is_new_shape_infer();
+
+    // Do not fuse a rank-reducing reorder into a producer whose fused higher-rank
+    // eltwise peer cannot be indexed correctly at the reduced rank (inner-spatial
+    // broadcast over the collapsed axes). Keeping the producer at its higher rank
+    // keeps the fused peer rank-consistent so the fused-op kernel reads it right.
+    if (!node.get_output_layout().is_dynamic() && !fused_peers_can_fold_to_layout(prev, node.get_output_layout())) {
+        return false;
+    }
     // Because kernels can work cross-layout, if reorder only performs type conversion,
     // fusing reorder to the previous node can be done even if it is a dynamic shape case
     if ((format::is_simple_data_format(fmt_prev) && format::is_simple_data_format(fmt_next)) &&
@@ -395,8 +436,7 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         // We can void only that case if we can check whether the current node is backedge of the network.
         // However no such handle is existing yet. (To be done in the future when we need to optimize out the type converting
         // reorders in the body network)
-        !node.get_program().is_body_program() && !prev.is_in_shape_of_subgraph() &&
-        prev.get_preferred_impl_type() != cldnn::impl_types::cpu) {
+        !node.get_program().is_body_program() && !prev.is_in_shape_of_subgraph() && prev.get_preferred_impl_type() != cldnn::impl_types::cpu) {
         // case for truncate mode
         if ((prev.is_type<mvn>() || prev.is_type<concatenation>() || prev.is_type<gather>() || prev.is_type<broadcast>() ||
             prev.is_type<select>() || prev.is_type<eltwise>() || prev.is_type<rms>()) &&
@@ -1108,6 +1148,13 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
     bool onednn_valid_post_ops = get_post_ops_count(node) <= 32;
     bool use_onednn_impls = contains_onednn_impls_optimization_attribute(&node) && input_layout.data_type != data_types::f32;
 
+    // convolution_gpu_1d_small_ic_gemm declares no fused ops, but a single
+    // dependency-free activation still reaches it through convolution_params::activations
+    // (see use_legacy_fused_ops()). Anything else fused would make it reject the node.
+    const auto& fused_prims = node.get_fused_primitives();
+    const bool activation_only_fusion = fused_prims.empty() ||
+        (fused_prims.size() == 1 && fused_prims[0].is_type<activation>() && fused_prims[0].deps.empty());
+
     // Use planar bfyx format for dynamic convolutions with explicit padding in clDNN
     if (node.is_dynamic() && output_layout.get_partial_shape().size() == 4 && node.use_explicit_padding() && !i8_u8_input &&
         (!use_onednn_impls || !onednn_valid_post_ops || node.has_padded_dependency())) {
@@ -1135,6 +1182,11 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
                 expected_format = cldnn::format::b_fs_yx_fsv32;
             else
                 expected_format = cldnn::format::b_fs_zyx_fsv32;
+        } else if (input_layout.get_rank() == 4 && input_layout.feature() == 1 &&
+                   input_layout.spatial(0) == 1 && weights_layout.spatial(0) == 1 &&
+                   weights_layout.spatial(1) >= 256 && activation_only_fusion) {
+            // Use bfyx format for 1d conv with feature size 1 and 1d kernel size >= 256
+            expected_format = cldnn::format::bfyx;
         } else if (i8_u8_input) {
             if (((_optimization_attributes.b_fs_yx_fsv16_network != 0) &&
                 convolution_b_fs_yx_fsv16_opt(input_layout, output_layout, weights_layout, prim))) {

@@ -236,7 +236,13 @@ std::shared_ptr<ov::Model> MHAFunction::initReference() const {
 }
 
 std::shared_ptr<ov::Model> MHAConstBFunction::initOriginal() const {
-    return init_mha_original(input_shapes, precisions, with_mul, with_reshape, const_b_matmul0, const_b_matmul1);
+    return init_mha_original(input_shapes,
+                             precisions,
+                             with_mul,
+                             with_reshape,
+                             const_b_matmul0,
+                             const_b_matmul1,
+                             false);
 }
 
 std::shared_ptr<ov::Model> MHAConstBFunction::initReference() const {

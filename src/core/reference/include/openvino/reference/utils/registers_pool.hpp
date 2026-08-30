@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -59,6 +60,11 @@ public:
             return reg.getIdx();
         }
         friend Xbyak::RegExp operator+(const Reg& lhs, const Xbyak::RegExp& rhs) {
+            lhs.ensure_valid();
+            return lhs.operator Xbyak::RegExp() + rhs;
+        }
+        template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+        friend Xbyak::RegExp operator+(const Reg& lhs, T rhs) {
             lhs.ensure_valid();
             return lhs.operator Xbyak::RegExp() + rhs;
         }

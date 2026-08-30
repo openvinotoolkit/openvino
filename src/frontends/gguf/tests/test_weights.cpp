@@ -15,6 +15,7 @@
 #include <cstring>
 
 #include "op_test_utils.hpp"
+#include "quant/weights.hpp"
 
 using namespace ov_gguf_test;
 
@@ -86,10 +87,35 @@ INSTANTIATE_TEST_SUITE_P(AllQuantTypes,
                                            WeightCase{"q3_k", "Q3_K", kTolFaithful},
                                            WeightCase{"q4_k", "Q4_K", kTolIntZp},
                                            WeightCase{"q5_k", "Q5_K", kTolRequant},
-                                           WeightCase{"q6_k", "Q6_K", kTolRequant}),
+                                           WeightCase{"q6_k", "Q6_K", kTolRequant},
+                                           WeightCase{"q2_0", "Q2_0", kTolFaithful}),
                          [](const ::testing::TestParamInfo<WeightCase>& i) {
                              return std::string(i.param.stem);
                          });
+
+// token_embd / output are requantized to channel-wise Q8_0_C, and that path reads the zero-point
+// as f16 -- Q2_0 used to hard-code u8 here, which threw for every ternary model.
+TEST(GGUFWeightRequant, Q2_0AsTokenEmbd) {
+    const auto qbytes = load_npy<uint8_t>("q2_0_qbytes");
+    const auto ref = load_npy<float>("q2_0_deq");
+    ASSERT_EQ(ref.size(), kRows * kCols);
+
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_NONE")
+                     .output("token_embd.weight", ov::element::f32, {kRows, kCols})
+                     .attr<ov::Tensor>("data", bytes_to_u8_tensor(qbytes))
+                     .attr<std::string>("quant_type", "Q2_0")
+                     .build();
+
+    auto out = run_on_cpu(model, {});
+    ASSERT_EQ(out.get_size(), ref.size());
+
+    const float* a = out.data<float>();
+    float max_diff = 0.f;
+    for (size_t i = 0; i < ref.size(); ++i)
+        max_diff = std::max(max_diff, std::fabs(a[i] - ref[i]));
+    EXPECT_LE(max_diff, kTolRequant) << "Q2_0 token_embd requant diverges from ggml to_float";
+}
 
 // An F16 weight is wrapped directly as a constant (no dequant); round-trips the raw bytes.
 TEST(GGUFWeightPlain, F16) {
@@ -151,8 +177,6 @@ TEST(GGUFWeightPlain, BF16) {
         EXPECT_NEAR(a[i], static_cast<float>(vals[i]), 1e-6f);
 }
 
-// Contract tests for the two ggml types that are NOT supported as stored GGUF *weights*.
-//
 // Q8_K is a ggml intermediate activation-quantization type: it only ever appears as the
 // on-the-fly quantized activation in a dot product, never as a weight tensor stored in a .gguf.
 // The frontend therefore does not accept it as a weight -- gguf_type_from_name knows the name
@@ -173,20 +197,62 @@ TEST(GGUFWeightUnsupported, Q8KIsNotAStoredWeight) {
     });
 }
 
-// MXFP4 is supported ONLY as rank-5 MoE-packed expert weights ([1,n_expert,m,k_blocks,17]),
-// which MUL_MAT_ID dequantizes on-graph (see GGUFOps.MulMatIdMxfp4Packed). A plain 2D MXFP4
-// weight is not a shape the frontend produces, so make_weight_node rejects it. This pins that
-// the standalone-dequant path is intentionally absent (the packed path is the supported one).
-TEST(GGUFWeightUnsupported, Mxfp4TwoDimIsNotAStoredWeight) {
-    // 1 block (17 bytes) covers 32 weights.
+// A stored MoE expert weight is rank>2 ([1,n_expert,m,k]) and stays PACKED for MUL_MAT_ID (see
+// GGUFOps.MulMatIdMxfp4Packed). But the llama.cpp cgraph path (e.g. test-backend-ops' GET_ROWS /
+// MUL_MAT op tests) also feeds bare 2D MXFP4 tensors that are not stored weights at all, so
+// make_weight_node must dequantize those too. f4e2m1 nibble -> value mirrors kF4E2M1 in
+// test_ops.cpp; scale byte 127 -> e8m0 exponent 0 -> 2^0 = 1.0.
+TEST(GGUFWeight, Mxfp4TwoDim) {
+    static const float kF4E2M1[16] =
+        {0.0f, 0.5f, 1.0f, 1.5f, 2.0f, 3.0f, 4.0f, 6.0f, -0.0f, -0.5f, -1.0f, -1.5f, -2.0f, -3.0f, -4.0f, -6.0f};
+    // 1 row, 1 block (32 cols): byte0 = e8m0 scale, bytes1..16 = nibble-packed codes (low nibble
+    // = element i, high nibble = element i+16, for i in [0,16)).
     ov::Tensor data(ov::element::u8, ov::Shape{17});
-    std::memset(data.data(), 0, data.get_byte_size());
-    EXPECT_ANY_THROW({
-        SingleOpBuilder()
-            .op("GGML_OP_NONE")
-            .output("w", ov::element::f32, {1, 32})
-            .attr<ov::Tensor>("data", data)
-            .attr<std::string>("quant_type", "MXFP4")
-            .build();
-    });
+    auto* bytes = data.data<uint8_t>();
+    bytes[0] = 127;
+    for (size_t i = 0; i < 16; ++i)
+        bytes[1 + i] = static_cast<uint8_t>((i << 4) | i);
+
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_NONE")
+                     .output("w", ov::element::f32, {1, 32})
+                     .attr<ov::Tensor>("data", data)
+                     .attr<std::string>("quant_type", "MXFP4")
+                     .build();
+
+    auto out = run_on_cpu(model, {});
+    ASSERT_EQ(out.get_size(), 32u);
+    const float* a = out.data<float>();
+    for (size_t j = 0; j < 32; ++j)
+        EXPECT_FLOAT_EQ(a[j], kF4E2M1[j % 16]) << "element " << j;
+}
+
+// Regression for a fused-QKV bias (e.g. phi-3's blk.N.attn_qkv.bias) being silently dropped:
+// register_fused_qkv split the fused weight into q/k/v parts but never touched a fused bias, so
+// attention()'s add_bias calls (gated on !has_fused_qkv) never ran for these archs, and the
+// bias never made it into the graph. split_fused_qkv_bias must slice the fused bias into
+// exactly the q/k/v parts the weight split uses (n_q, n_k, n_v rows in that order).
+TEST(GGUFFusedQkvBias, SplitsIntoExpectedRanges) {
+    constexpr size_t n_q = 4, n_k = 2, n_v = 2;
+    ov::Tensor bias(ov::element::f32, ov::Shape{n_q + n_k + n_v});
+    auto* data = bias.data<float>();
+    for (size_t i = 0; i < n_q + n_k + n_v; ++i) {
+        data[i] = static_cast<float>(i);
+    }
+    std::unordered_map<std::string, ov::Tensor> weights{{"blk.0.attn_qkv.bias", bias}};
+
+    auto parts = ov::frontend::gguf::split_fused_qkv_bias("blk.0.attn_qkv", weights, n_q, n_k, n_v);
+
+    ASSERT_EQ(parts[0].get_shape(), ov::Shape{n_q});
+    ASSERT_EQ(parts[1].get_shape(), ov::Shape{n_k});
+    ASSERT_EQ(parts[2].get_shape(), ov::Shape{n_v});
+    for (size_t i = 0; i < n_q; ++i) {
+        EXPECT_FLOAT_EQ(parts[0].data<float>()[i], static_cast<float>(i));
+    }
+    for (size_t i = 0; i < n_k; ++i) {
+        EXPECT_FLOAT_EQ(parts[1].data<float>()[i], static_cast<float>(n_q + i));
+    }
+    for (size_t i = 0; i < n_v; ++i) {
+        EXPECT_FLOAT_EQ(parts[2].data<float>()[i], static_cast<float>(n_q + n_k + i));
+    }
 }
