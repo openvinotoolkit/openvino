@@ -220,6 +220,11 @@ struct PyramidAttention {
     // No-op in block mode (block ports are bound directly, not via strided views).
     virtual void collect_strided_input_names(const ov::Model& model, std::string& out) const = 0;
 
+    // Validates that all port indices in _attention_infos are within bounds of the
+    // corresponding compiled model's inputs(). Throws ov::Exception on violation.
+    // Must be called after _compiled_models is fully populated (import path).
+    virtual void validate_port_indices() const = 0;
+
     // Non-virtual shared methods
     void set_compiled_models(std::vector<ov::SoPtr<ov::ICompiledModel>>&& compiled_models);
 
@@ -264,6 +269,7 @@ struct PyramidAttentionContiguous final : PyramidAttention {
     }
     std::optional<std::size_t> kv_param_dim(size_t pyramid_id, size_t input_idx) const override;
     void collect_strided_input_names(const ov::Model& model, std::string& out) const override;
+    void validate_port_indices() const override;
 };
 
 // Concrete subclass for block-split KV cache mode (after SplitKVCacheIntoBlocks).
@@ -307,6 +313,7 @@ struct PyramidAttentionBlock final : PyramidAttention {
         return std::nullopt;
     }
     void collect_strided_input_names(const ov::Model&, std::string&) const override {}  // no-op
+    void validate_port_indices() const override;
 };
 
 }  // namespace compiled
