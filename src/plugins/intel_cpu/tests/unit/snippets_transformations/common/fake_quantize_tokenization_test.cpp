@@ -19,8 +19,6 @@
 #    include "transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp"
 #elif defined(OPENVINO_ARCH_X86_64)
 #    include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
-#else
-#    error "Unsupported architecture for SnippetsMarkSkipped"
 #endif
 
 namespace ov {
@@ -31,7 +29,9 @@ class FakeQuantizeTokenizationTest : public TransformationTestsF {
 public:
     void register_passes() {
         ov::snippets::pass::TokenizationConfig config(std::numeric_limits<size_t>::max());
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_X86_64)
         manager.register_pass<ov::intel_cpu::SnippetsMarkSkipped>();
+#endif
         manager.register_pass<ov::snippets::pass::EnumerateNodes>();
         manager.register_pass<ov::snippets::pass::TokenizeSnippets>(config);
         manager.get_pass_config()->set_callback<ov::snippets::pass::TokenizeSnippets>(
@@ -107,6 +107,15 @@ TEST_F(FakeQuantizeTokenizationTest, smoke_Snippets_ConvolutionWithFakeQuantize)
                                                                   true,
                                                                   FunctionHelper::makePrerequisitesOriginal(),
                                                                   std::make_shared<ov::op::v1::Convolution>());
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
+    for (const auto& node : model_ref->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v0::FakeQuantize>(node)) {
+            auto subgraph = ov::snippets::op::Subgraph::wrap_node_as_subgraph(node);
+            ov::replace_node(node, subgraph);
+            break;
+        }
+    }
+#endif
 
     register_passes();
 }

@@ -43,6 +43,9 @@
 namespace ov {
 namespace test {
 namespace snippets {
+
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+
 #if defined(OPENVINO_ARCH_X86_64)
 using BrgemmConfig = intel_cpu::brgemm_utils::BrgemmConfig;
 #endif
@@ -380,6 +383,43 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXOptimizedWSpl
 #endif  // OPENVINO_ARCH_X86_64
 
 }  // namespace BufferAllocationCPUTest_Instances
+
+#else
+
+class GenericBufferAllocationTest : public EltwiseBufferAllocationTest {};
+
+TEST_P(GenericBufferAllocationTest, BufferAllocationCPU) {
+    Validate();
+}
+
+namespace GenericBufferAllocationTest_Instances {
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_GenericNotOptimized,
+                         GenericBufferAllocationTest,
+                         ::testing::Combine(
+                             ::testing::Values(std::vector<ov::PartialShape>{{1, 3, 100, 100}}),
+                             ::testing::Values(false),
+                             ::testing::Values(false),
+                             ::testing::Values(80000),
+                             ::testing::Values(2),
+                             ::testing::Values(2)),
+                         BufferAllocationTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_GenericOptimized,
+                         GenericBufferAllocationTest,
+                         ::testing::Combine(
+                             ::testing::Values(std::vector<ov::PartialShape>{{1, 3, 100, 100}}),
+                             ::testing::Values(true),
+                             ::testing::Values(false),
+                             ::testing::Values(40000),
+                             ::testing::Values(1),
+                             ::testing::Values(1)),
+                         BufferAllocationTest::getTestCaseName);
+
+}  // namespace GenericBufferAllocationTest_Instances
+
+#endif  // OPENVINO_ARCH_X86_64 || OPENVINO_ARCH_ARM64
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov
