@@ -266,28 +266,11 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const ov::snippets::pa
                 for (size_t i = 0; i < input_body_parameters.size(); ++i) {
                     auto found = std::find(external_inputs.begin(), external_inputs.end(), subgraph->input_value(i));
                     if (found != external_inputs.end()) {
-                        // Todo: here we rely on friendly_name uniqueness. Propose a different algorithm.
-                        size_t current_input_index = body_parameters.size();
-                        for (size_t p_ind = 0; p_ind < body_parameters.size(); p_ind++) {
-                            const auto& p = body_parameters[p_ind];
-                            // unite two body parameters from two input subgraphs only if:
-                            // 1. two input subgraphs are connected to the same parent node/subgraph,
-                            // 2. and connected to the same output port of this parent node/subgraph.
-                            if (p->get_friendly_name() == found->get_node_shared_ptr()->get_friendly_name() &&
-                                external_inputs[p_ind] == *found) {
-                                current_input_index = p_ind;
-                                break;
-                            }
-                        }
-
-                        if (current_input_index < body_parameters.size()) {
-                            remark(13) << "replacing " << *found << " " << current_input_index << " with "
-                                       << body_parameters[current_input_index] << '\n';
-                            f->replace_parameter(i, body_parameters[current_input_index]);
-                        } else {
-                            external_inputs.push_back(subgraph->input_value(i));
-                            body_parameters.push_back(input_body_parameters[i]);
-                        }
+                        const auto current_input_index =
+                            static_cast<size_t>(std::distance(external_inputs.begin(), found));
+                        remark(13) << "replacing " << *found << " " << current_input_index << " with "
+                                   << body_parameters[current_input_index] << '\n';
+                        f->replace_parameter(i, body_parameters[current_input_index]);
                     } else if (is_recurrent(subgraph->input_value(i))) {
                         remark(13) << "ternary merge is conducted " << subgraph->input_value(i).get_node_shared_ptr()
                                    << '\n';
