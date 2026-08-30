@@ -59,7 +59,7 @@ std::shared_ptr<ov::Model> init_mha_original(const std::vector<PartialShape>& in
                                              bool with_reshape,
                                              bool const_b_matmul0,
                                              bool const_b_matmul1,
-                                             bool with_broadcast = false) {
+                                             bool with_broadcast) {
     auto transpose0Param = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
     auto addParam = std::make_shared<ov::opset1::Parameter>(precisions[2], input_shapes[2]);
     ov::ParameterVector ngraphParam = {transpose0Param};

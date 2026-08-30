@@ -30,13 +30,16 @@ namespace snippets {
  *                     \       /
  * Transpose0[0,2,1,3] Multiply [with_mul = true]
  *              \     /
- *              MatMul0
- *                 \   /
- *                  Add
- *                Reshape0
+ *              MatMul0                AddParam
+ *                 \                    |
+ *                  Add <--- Broadcast [with_broadcast = true]
+ *                   |
+ *                Reshape0 [with_reshape = true]
+ *                   |
  *                Softmax
- *                Reshape1  Transpose2[0,2,1,3]
- *                    \      /
+ *                   |
+ *                Reshape1 [with_reshape = true]  Transpose2[0,2,1,3]
+ *                    \                              /
  *                     MatMul1
  *                   Transpose3[0,2,1,3]
  */

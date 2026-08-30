@@ -31,7 +31,6 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
-#include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
@@ -39,6 +38,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/util/broadcast_base.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "snippets/op/result.hpp"
 #include "snippets/op/subgraph.hpp"
@@ -51,13 +51,8 @@
 namespace ov::snippets::utils {
 
 bool is_numpy_broadcast(const std::shared_ptr<const ov::Node>& node) {
-    if (const auto broadcast = ov::as_type_ptr<const ov::op::v1::Broadcast>(node)) {
-        return broadcast->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NUMPY;
-    }
-    if (const auto broadcast = ov::as_type_ptr<const ov::op::v3::Broadcast>(node)) {
-        return broadcast->get_broadcast_spec().m_type == ov::op::BroadcastType::NUMPY;
-    }
-    return false;
+    const auto broadcast = ov::as_type_ptr<const ov::op::util::BroadcastBase>(node);
+    return broadcast && broadcast->get_broadcast_spec().m_type == ov::op::BroadcastType::NUMPY;
 }
 
 namespace {
