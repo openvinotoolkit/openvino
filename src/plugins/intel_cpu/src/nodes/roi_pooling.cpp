@@ -5,6 +5,7 @@
 #include "roi_pooling.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <common/float16.hpp>
 #include <common/utils.hpp>
@@ -987,15 +988,15 @@ std::tuple<int, int, int, int> ROIPooling::ROIPoolingExecutor::getBordersForMaxM
 }
 
 std::array<float, 2> ROIPooling::ROIPoolingExecutor::getXYForBilinearMode(const float roi_start_h,
-                                                                             const float roi_end_h,
-                                                                             const float roi_start_w,
-                                                                             const float roi_end_w,
-                                                                             const int ih,
-                                                                             const int oh,
-                                                                             const int iw,
-                                                                             const int ow,
-                                                                             const int pooled_h,
-                                                                             const int pooled_w) {
+                                                                          const float roi_end_h,
+                                                                          const float roi_start_w,
+                                                                          const float roi_end_w,
+                                                                          const int ih,
+                                                                          const int oh,
+                                                                          const int iw,
+                                                                          const int ow,
+                                                                          const int pooled_h,
+                                                                          const int pooled_w) {
     float height_scale =
         (pooled_h > 1 ? ((roi_end_h - roi_start_h) * static_cast<float>(ih - 1)) / static_cast<float>(pooled_h - 1)
                       : 0.0F);
