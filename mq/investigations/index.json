@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 208,
+  "total": 209,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -2041,6 +2041,17 @@
       "title": "Samples test_nireq timeout downloading test data from storage.openvinotoolkit.org",
       "category": "Network",
       "signature_hash": "ef7ff8098ad21c2c",
+      "pr_number": "37751"
+    },
+    {
+      "investigation_id": "2026-08-31-13-48-25-000-33390302363",
+      "run_id": "33390302363",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33390302363",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-08-31T13:48:25Z",
+      "title": "NPU Models Tests fail - KeyError aten.upsample_nearest2d/bilinear2d not found in decomp table",
+      "category": "Code Issue",
+      "signature_hash": "e39a267736dcc0bd",
       "pr_number": "37751"
     }
   ]

@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-31-13-48-25-000-33390302363",
+  "timestamp": "2026-08-31T13:48:25Z",
+  "run_id": "33390302363",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33390302363",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37751",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37751",
+  "author": "gkoscins",
+  "category": "Code Issue",
+  "title": "NPU Models Tests fail - KeyError aten.upsample_nearest2d/bilinear2d not found in decomp table",
+  "signature": "keyerror opoverload op aten upsample nearest2d overload vec not found in decomp table|Code Issue",
+  "signature_hash": "e39a267736dcc0bd",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "NPU Models Tests / 4000",
+      "conclusion": "failure",
+      "symptom": "TensorFlow Models Tests - NPU compile-only (convert_model) failed: KeyError for aten.upsample_nearest2d.vec and aten.upsample_bilinear2d.vec in decomp table"
+    },
+    {
+      "name": "NPU Models Tests / 5020",
+      "conclusion": "failure",
+      "symptom": "TensorFlow Models Tests - NPU compile-only (convert_model) failed: same KeyError for upsample ops"
+    }
+  ],
+  "key_errors": [
+    "WARNING:root:Operation aten.upsample_nearest2d.vec not found in decomp table",
+    "File \"C:\\HostedTools\\Python\\3.11.9\\x64\\Lib\\site-packages\\openvino\\frontend\\pytorch\\fx_decoder.py\", line 290, in from_exported_program\n  cls._decomp_table.pop(op)\nFile \"torch\\export\\decomp_utils.py\", line 133, in pop\n  return _pop_if_can(args[0])\nFile \"torch\\export\\decomp_utils.py\", line 114, in _pop_if_can\n  return self.decomp_table.pop(key)\nKeyError: <OpOverload(op='aten.upsample_nearest2d', overload='vec')>",
+    "WARNING:root:Operation aten.upsample_bilinear2d.vec not found in decomp table\nKeyError: <OpOverload(op='aten.upsample_bilinear2d', overload='vec')>"
+  ],
+  "root_cause": "The OpenVINO PyTorch FX frontend's fx_decoder.py (line 290) attempts to pop aten.upsample_nearest2d.vec and aten.upsample_bilinear2d.vec from the PyTorch export decomposition table (_decomp_table.pop(op)), but these operations are not present in the table. This is a code issue in the FX decoder's op registration: either the upsample ops need to be added to the decomp table, or the pop should be guarded with a presence check. The PR changes dockerfiles and docker_tag files, suggesting this is a pre-existing issue exposed when running tests on these specific NPU platforms (4000, 5020) during TF model conversion.",
+  "reproduction_steps": "1. Install OpenVINO with PyTorch FX frontend\n2. Run: pytest install/tests/model_hub_tests/tensorflow/... -k 'convert_model' --device NPU --npu-platform 4000\n3. The fx_decoder.py line 290 will throw KeyError for aten.upsample_nearest2d.vec",
+  "recommended_actions": [
+    "Investigate src/frontends/pytorch/python/openvino/frontend/pytorch/fx_decoder.py line 290 to guard the _decomp_table.pop() with a try-except or use .pop(op, None) to avoid KeyError",
+    "Verify whether aten.upsample_nearest2d.vec and aten.upsample_bilinear2d.vec should be in the decomp table for the current PyTorch version",
+    "Check if this failure predates the current PR (gkoscins/[GHA][BMG nightly]) which only modifies dockerfiles"
+  ],
+  "prevention_strategies": "Guard all decomp_table.pop() calls with try-except KeyError or use dict.pop(key, None). Add unit tests for TF model conversion that include models with upsample operations.",
+  "historical_context": "No prior occurrence of this exact signature found in investigation history."
+}

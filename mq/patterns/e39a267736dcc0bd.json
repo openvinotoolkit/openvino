@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "signature": "keyerror opoverload op aten upsample nearest2d overload vec not found in decomp table|Code Issue",
+  "signature_hash": "e39a267736dcc0bd",
+  "title": "NPU Models Tests fail - KeyError aten.upsample_nearest2d/bilinear2d not found in decomp table",
+  "category": "Code Issue",
+  "count": 1,
+  "first_seen": "2026-08-31T13:48:25Z",
+  "last_seen": "2026-08-31T13:48:25Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/33390302363"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/37751"],
+  "recent_timestamps": ["2026-08-31T13:48:25Z"],
+  "rerun_search_string": null
+}
