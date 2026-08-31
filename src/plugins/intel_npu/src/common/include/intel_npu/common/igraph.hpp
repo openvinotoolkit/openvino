@@ -21,6 +21,24 @@ namespace intel_npu {
 
 enum class BlobType : uint8_t { ELF, LLVM, BYTECODE };
 
+/**
+ * @brief Tells whether a payload declaring this format is compiled and executed on the host instead of being handed
+ * to the NPU driver.
+ * @details Any new enumerator must be classified here. The compiler flags a missing case, and an unexpected value
+ * (the format is read from metadata that carries no integrity information) is reported as host-executed so that the
+ * import gate fails closed.
+ */
+constexpr bool is_host_executed(BlobType type) noexcept {
+    switch (type) {
+    case BlobType::ELF:
+        return false;
+    case BlobType::LLVM:
+    case BlobType::BYTECODE:
+        return true;
+    }
+    return true;
+}
+
 enum class GraphKind : uint8_t { Weightful, Weightless, Dynamic };
 
 constexpr const char* to_string(GraphKind kind) noexcept {
