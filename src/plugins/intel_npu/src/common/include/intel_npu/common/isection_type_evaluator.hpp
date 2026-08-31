@@ -10,6 +10,8 @@
 
 namespace intel_npu {
 
+// TODO: no section type evaluator -> type supported implicitly?
+
 /**
  * @brief Abstract class that standardizes the evaluation of section types support in a lazy manner.
  */
