@@ -277,6 +277,7 @@ jobs:
       - name: Prepare ${{ matrix.gpu.name }} test container
         run: |
           apt-get update && apt-get install -y pigz wget software-properties-common ca-certificates gpg-agent tzdata clinfo git lcov python3-yaml
+          update-ca-certificates
         env:
           DEBIAN_FRONTEND: noninteractive
           TZ: "Europe/London"
@@ -576,6 +577,7 @@ jobs:
       - name: Prepare ${{ matrix.gpu.name }} test container
         run: |
           apt-get update && apt-get install -y pigz wget software-properties-common ca-certificates gpg-agent tzdata clinfo git lcov python3-yaml
+          update-ca-certificates
         env:
           DEBIAN_FRONTEND: noninteractive
           TZ: "Europe/London"
