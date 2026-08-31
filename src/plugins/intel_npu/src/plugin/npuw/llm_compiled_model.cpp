@@ -9,6 +9,7 @@
 #include "embedding/redirect_new_kv_to_output.hpp"
 #include "embedding/remove_empty_kv_inputs.hpp"
 #include "infer_request_utils.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "llm_compiled_model_utils.hpp"
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
@@ -256,16 +257,13 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
         LOG_WARN(compiler_gate_support_msg << "unsupported");
     }
 
-    static constexpr std::array<std::string_view, 2> flash_attention_tile_supported_platforms = {
-        "5010",  // PTL
-        "6010"   // NVL
-    };
-    auto platform_supported = std::find(flash_attention_tile_supported_platforms.begin(),
-                                        flash_attention_tile_supported_platforms.end(),
-                                        desc.arch) != flash_attention_tile_supported_platforms.end();
-    auto compiler_version_supported = desc.compiler_ver >= ONEAPI_MAKE_VERSION(8, 1);
+    static const std::unordered_set<std::string_view> flash_attention_tile_supported_platforms = {
+        ov::intel_npu::Platform::NPU5010,
+        ov::intel_npu::Platform::NPU6010};
+
     // Flash attention tile with GQA is supported starting from compiler version 8.1 on supported platforms
-    desc.support_flash_attention_tile = platform_supported && compiler_version_supported;
+    desc.support_flash_attention_tile =
+        flash_attention_tile_supported_platforms.count(desc.arch) && desc.compiler_ver >= ONEAPI_MAKE_VERSION(8, 1);
 
     return std::make_optional(std::move(desc));
 }
