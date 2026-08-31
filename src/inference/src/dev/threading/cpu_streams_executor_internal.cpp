@@ -276,14 +276,13 @@ void update_proc_type_table(const std::vector<std::vector<int>> _cpu_mapping_tab
     }
 }
 
-int get_stream_processor_group_id(int numa_node_id, int stream_id, int group_count) {
+int get_stream_processor_group_id(int stream_id, int group_count) {
     if (group_count <= 1) {
         return -1;
     }
-    // Prefer the stream's numa node (== processor group on Windows); fall back to round-robin by stream
-    // index when the numa id is unknown. The modulo keeps the result within the available group range.
-    const int base = numa_node_id >= 0 ? numa_node_id : stream_id;
-    return (base % group_count + group_count) % group_count;
+    // Round-robin streams across processor groups by stream index.
+    const int base = stream_id >= 0 ? stream_id : 0;
+    return base % group_count;
 }
 
 int get_num_processor_groups() {
