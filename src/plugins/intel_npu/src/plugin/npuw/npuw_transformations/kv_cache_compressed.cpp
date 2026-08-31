@@ -464,6 +464,12 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
 
         auto rank = dq_input.get_partial_shape().size();
         std::vector<uint64_t> shape_group_size(rank, 1);
+        constexpr auto wholeDim = std::numeric_limits<uint64_t>::max();
+        constexpr size_t keyReductionAxis = 3;
+        constexpr size_t valueReductionAxis = 2;
+        const auto reductionAxis = is_key ? keyReductionAxis : valueReductionAxis;
+        OPENVINO_ASSERT(reductionAxis < rank, "KV cache DynamicQuantize input rank must be at least 4, got {0}", rank);
+        shape_group_size[reductionAxis] = wholeDim;
 
         ov::op::internal::DynamicQuantize::Attributes dq_config;
         dq_config.quantization_dt = cfg.quantization_dt;
