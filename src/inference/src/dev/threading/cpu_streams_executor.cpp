@@ -169,14 +169,14 @@ struct CPUStreamsExecutor::Impl {
                     _stream_type = STREAM_WITHOUT_PARAM;
                 }
             }
-            const int target_group = get_stream_processor_group_id(stream_id, get_num_processor_groups());
+            const int group_base = get_num_processor_groups() > 1 ? stream_id : -1;
             if (_stream_type == STREAM_WITHOUT_PARAM) {
-                // On multi-group Windows (target_group >= 0) distribute the stream across processor
+                // On multi-group Windows (group_base >= 0) distribute the arena's threads across processor
                 // groups; max_threads_per_core is dropped so tbbbind does not confine it to one group.
-                if (target_group >= 0) {
+                if (group_base >= 0) {
                     _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                                 .set_max_concurrency(concurrency)
-                                                                .set_processor_group(target_group)});
+                                                                .set_processor_group_base(group_base)});
                 } else {
                     _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                                 .set_max_concurrency(concurrency)
@@ -192,12 +192,12 @@ struct CPUStreamsExecutor::Impl {
                     real_numa_node_id = _numaNodeId;
                 }
 #    endif
-                // On multi-group Windows (target_group >= 0) distribute the stream across processor
+                // On multi-group Windows (group_base >= 0) distribute the arena's threads across processor
                 // groups; max_threads_per_core is dropped so tbbbind does not confine it to one group.
-                if (target_group >= 0) {
+                if (group_base >= 0) {
                     _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                                 .set_max_concurrency(concurrency)
-                                                                .set_processor_group(target_group)});
+                                                                .set_processor_group_base(group_base)});
                 } else {
                     _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                                 .set_numa_id(real_numa_node_id)
