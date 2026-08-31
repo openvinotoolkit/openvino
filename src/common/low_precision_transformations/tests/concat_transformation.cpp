@@ -12,11 +12,6 @@
 #include "low_precision/concat.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/parameter.hpp"
-#include "ov_ops/type_relaxed.hpp"
 #include "ov_lpt_models/concat.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "simple_low_precision_transformer.hpp"
@@ -109,34 +104,6 @@ TEST_P(ConcatTransformation, CompareFunctions) {
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
-TEST(ConcatTransformationRegression, MixedPrecisionDequantizationOnDynamicConcat) {
-    auto input0 = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, 128});
-    auto input1 = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, 128});
-    auto scale = ov::op::v0::Constant::create(element::f16, Shape{}, {128.f});
-    auto make_dequantization = [&scale](const Output<Node>& input) {
-        return std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Multiply>>(
-            element::TypeVector{element::f32, element::f32},
-            element::TypeVector{element::f32},
-            ov::op::TemporaryReplaceOutputType(input, element::f32).get(),
-            ov::op::TemporaryReplaceOutputType(scale, element::f32).get());
-    };
-    auto concat = std::make_shared<ov::op::v0::Concat>(
-        OutputVector{make_dequantization(input0), make_dequantization(input1)},
-        1);
-    auto function = std::make_shared<Model>(OutputVector{concat}, ParameterVector{input0, input1});
-
-    SimpleLowPrecisionTransformer transformer;
-    transformer.add<ov::pass::low_precision::ConcatTransformation, ov::op::v0::Concat>(
-        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false));
-
-    EXPECT_NO_THROW(transformer.transform(function));
-    EXPECT_NO_THROW(function->validate_nodes_and_infer_types());
-
-    const auto output_node = function->get_results().front()->input_value(0).get_node_shared_ptr();
-    ASSERT_TRUE(ov::is_type<ov::op::v1::Multiply>(output_node));
-    EXPECT_EQ(output_node->get_output_element_type(0), element::f32);
-}
-
 const ov::element::TypeVector deqOutPrecisions = {
     ov::element::f32,
     ov::element::f16
@@ -178,6 +145,25 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             {{}, {}},
             ov::element::u8,
             {ov::element::f32, {128.f}, {0.1f}}
+        }
+    },
+    // dynamic concatenation axis with f16 multiply constants
+    {
+        {{-1, -1, 128}, {-1, -1, 128}},
+        std::int64_t{1},
+        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
+        {
+            ov::element::f32,
+            {
+                {ov::element::f32, {}, DequantizationOperations::Multiply{128.f}.setConstantPrecision(ov::element::f16)},
+                {ov::element::f32, {}, DequantizationOperations::Multiply{128.f}.setConstantPrecision(ov::element::f16)}
+            }
+        },
+        {
+            ov::element::f32,
+            {{}, {}},
+            ov::element::f32,
+            {ov::element::f32, {}, DequantizationOperations::Multiply{128.f}.setConstantPrecision(ov::element::f16)}
         }
     },
     // dynamic concatenation axis, but the same per-tensor values
