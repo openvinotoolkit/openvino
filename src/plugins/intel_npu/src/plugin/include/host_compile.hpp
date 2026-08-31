@@ -16,9 +16,10 @@ namespace intel_npu {
  * @brief Automatically selects the "HostCompile_Interpreter" compilation mode for fully-dynamic models.
  *
  * The mode is enabled only for Plugin compiler requests that have no explicit compilation mode and no
- * dynamic-to-static conversion, when both inputs and outputs contain a bounded dynamic static-rank 4D port and every
- * I/O port dimension has a finite upper bound (HostCompile allocates dynamic buffers from these upper bounds).
- * Dynamic batch and dynamic spatial (H/W) dimensions are both supported.
+ * dynamic-to-static conversion, when both inputs and outputs contain a bounded dynamic static-rank 4D port with a
+ * static batch dimension and every I/O port dimension has a finite upper bound (HostCompile allocates dynamic buffers
+ * from these upper bounds). Dynamic batch is intentionally excluded because the compiler's ConvertBatchedLayerTo1N and
+ * AdjustScaleShiftForDWConv passes do not support dynamic reshape; such models use the regular batch handling path.
  *
  * @param model  Model being compiled.
  * @param config Configuration updated in place with the selected compilation mode when the criteria are met.

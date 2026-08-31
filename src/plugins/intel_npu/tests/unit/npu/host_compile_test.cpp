@@ -77,18 +77,19 @@ TEST_F(EnableHostCompileTest, DynamicSpatialEnablesHostCompile) {
     EXPECT_EQ(config->get<COMPILATION_MODE>(), "HostCompile_Interpreter");
 }
 
-// Dynamic batch with static spatial dimensions must enable HostCompile.
-TEST_F(EnableHostCompileTest, DynamicBatchEnablesHostCompile) {
+// Dynamic batch is excluded from automatic HostCompile because the compiler's ConvertBatchedLayerTo1N and
+// AdjustScaleShiftForDWConv passes do not support dynamic reshape; such models use the regular batch handling path.
+TEST_F(EnableHostCompileTest, DynamicBatchDoesNotEnableHostCompile) {
     auto model = make_relu_model({bounded(), 3, UPPER, UPPER});
-    EXPECT_TRUE(run(model));
-    EXPECT_EQ(config->get<COMPILATION_MODE>(), "HostCompile_Interpreter");
+    EXPECT_FALSE(run(model));
+    EXPECT_FALSE(config->has<COMPILATION_MODE>());
 }
 
-// Dynamic batch combined with dynamic spatial dimensions must enable HostCompile.
-TEST_F(EnableHostCompileTest, DynamicBatchAndSpatialEnablesHostCompile) {
+// A dynamic batch combined with dynamic spatial dimensions is still excluded due to the dynamic batch dimension.
+TEST_F(EnableHostCompileTest, DynamicBatchAndSpatialDoesNotEnableHostCompile) {
     auto model = make_relu_model({bounded(), 3, bounded(), bounded()});
-    EXPECT_TRUE(run(model));
-    EXPECT_EQ(config->get<COMPILATION_MODE>(), "HostCompile_Interpreter");
+    EXPECT_FALSE(run(model));
+    EXPECT_FALSE(config->has<COMPILATION_MODE>());
 }
 
 // A fully static model is not a HostCompile candidate.
@@ -121,7 +122,7 @@ TEST_F(EnableHostCompileTest, DynamicRankDoesNotEnable) {
 
 // Both inputs and outputs must be dynamic; a dynamic input with a static output must not enable HostCompile.
 TEST_F(EnableHostCompileTest, DynamicInputStaticOutputDoesNotEnable) {
-    auto model = make_dynamic_input_static_output_model({bounded(), 3, bounded(), bounded()});
+    auto model = make_dynamic_input_static_output_model({1, 3, bounded(), bounded()});
     EXPECT_FALSE(run(model));
     EXPECT_FALSE(config->has<COMPILATION_MODE>());
 }
@@ -129,7 +130,7 @@ TEST_F(EnableHostCompileTest, DynamicInputStaticOutputDoesNotEnable) {
 // Automatic selection applies only to the Plugin compiler.
 TEST_F(EnableHostCompileTest, NonPluginCompilerDoesNotEnable) {
     config->update({{ov::intel_npu::compiler_type.name(), "DRIVER"}});
-    auto model = make_relu_model({bounded(), 3, bounded(), bounded()});
+    auto model = make_relu_model({1, 3, bounded(), bounded()});
     EXPECT_FALSE(run(model));
     EXPECT_FALSE(config->has<COMPILATION_MODE>());
 }
@@ -137,7 +138,7 @@ TEST_F(EnableHostCompileTest, NonPluginCompilerDoesNotEnable) {
 // An explicit compilation mode is respected and never overridden.
 TEST_F(EnableHostCompileTest, ExplicitCompilationModeIsRespected) {
     config->update({{ov::intel_npu::compilation_mode.name(), "ReferenceSW"}});
-    auto model = make_relu_model({bounded(), 3, bounded(), bounded()});
+    auto model = make_relu_model({1, 3, bounded(), bounded()});
     EXPECT_FALSE(run(model));
     EXPECT_EQ(config->get<COMPILATION_MODE>(), "ReferenceSW");
 }
@@ -145,7 +146,7 @@ TEST_F(EnableHostCompileTest, ExplicitCompilationModeIsRespected) {
 // Dynamic-to-static conversion disables automatic HostCompile selection.
 TEST_F(EnableHostCompileTest, DynamicShapeToStaticDisablesSelection) {
     config->update({{ov::intel_npu::dynamic_shape_to_static.name(), "YES"}});
-    auto model = make_relu_model({bounded(), 3, bounded(), bounded()});
+    auto model = make_relu_model({1, 3, bounded(), bounded()});
     EXPECT_FALSE(run(model));
     EXPECT_FALSE(config->has<COMPILATION_MODE>());
 }
