@@ -163,9 +163,10 @@ A `workflow_dispatch` entry (with `run_id` or `link` inputs) is also provided fo
   recurring failures accumulate statistics (`count`, `first_seen`, `last_seen`) over time.
 * **Escalation**: when the same failure signature is seen **3 or more times within 12 hours**, it sends
   a second, higher-visibility Teams alert.
-* **Automated remediation**: when a failure is transient it can either re-run only the failed jobs, or —
-  if GitHub already dropped the PR from the queue — re-add the PR to the merge queue. These two actions
-  are mutually exclusive.
+* **Automated remediation**: when a failure is transient the agent calls a single
+  `remediate_transient_failure` safe output; that job resolves the PR's live merge-queue status and
+  decides on its own whether to re-run only the failed jobs (PR still queued) or re-add the PR to the
+  merge queue (PR dropped). The agent never reasons about queue status.
 
 **Algorithm** The body defines a seven-phase protocol:
 
@@ -183,7 +184,7 @@ A `workflow_dispatch` entry (with `run_id` or `link` inputs) is also provided fo
    strings) before emitting it.
 
 The run always ends by calling exactly one (or a valid combination) of the safe outputs: `notify_teams`,
-`notify_teams_recurring`, `add_comment`, `rerun_failed_jobs`, `readd_to_merge_queue`, `noop`, or
+`notify_teams_recurring`, `add_comment`, `remediate_transient_failure`, `noop`, or
 `missing_data`.
 
 ## Shared reusable jobs
@@ -221,8 +222,7 @@ inputs, permissions, or step wiring, edit the shared `.md` and recompile.
 | [`download-failure-logs.md`](../../../../.github/workflows/shared/agentic-workflows/download-failure-logs.md) | Pre-agent step | both | Pre-download failed logs and pre-locate error hints before the agent starts. |
 | [`notify-teams.md`](../../../../.github/workflows/shared/agentic-workflows/notify-teams.md) | Safe-output job | MQ | Send the investigation summary to Microsoft Teams; upload the statistics artifact. |
 | [`notify-teams-recurring.md`](../../../../.github/workflows/shared/agentic-workflows/notify-teams-recurring.md) | Safe-output job | MQ | Send a recurring-failure escalation alert to Teams. |
-| [`rerun-failed-jobs.md`](../../../../.github/workflows/shared/agentic-workflows/rerun-failed-jobs.md) | Safe-output job | MQ | Re-run only the failed jobs of the analysed run (transient failures). |
-| [`readd-to-merge-queue.md`](../../../../.github/workflows/shared/agentic-workflows/readd-to-merge-queue.md) | Safe-output job | MQ | Re-add a dropped PR to the merge queue (transient failures). |
+| [`remediate-transient-failure.md`](../../../../.github/workflows/shared/agentic-workflows/remediate-transient-failure.md) | Safe-output job | MQ | Remediate a transient failure: the job resolves the PR's live merge-queue status and either re-runs the failed jobs (still queued) or re-adds the dropped PR (dropped). |
 
 **`download-failure-logs.md`** is a *step* fragment (it has no `on:` trigger). It auto-detects its mode
 from the environment: **run mode** (`RUN_ID` set) analyses a single run; **PR mode** (`PR_NUMBER` set)
@@ -239,14 +239,15 @@ POSTs it to the `TEAMS_WEBHOOK_URL`, and uploads the full statistics JSON/Markdo
 recurred ≥ 3 times in 12 hours. It renders a condensed escalation card listing the affected PRs and the
 recent failure runs.
 
-**`rerun-failed-jobs.md`** defines the `rerun-failed-jobs` job (`permissions: actions: write`). It calls
-the GitHub `rerun-failed-jobs` API for the analysed run, with a loop guard that refuses to re-run a run
-that already has more than one attempt.
-
-**`readd-to-merge-queue.md`** defines the `readd-to-merge-queue` job. It re-adds a dropped PR to the
-queue via `gh pr merge` using the `MERGE_QUEUE_TOKEN` secret (the default `GITHUB_TOKEN` cannot
-re-trigger `merge_group` check runs). It is idempotent and loop-safe: it skips PRs that are merged,
-closed, draft, or already carry the CI Doctor re-add marker comment.
+**`remediate-transient-failure.md`** defines the `remediate-transient-failure` job, the single
+remediation entry point for transient failures. The agent calls it only when the failure is transient
+and knows nothing about the PR's merge-queue status; the job resolves that status live
+(`common.merge_queue_status`) and decides itself whether to **re-run the failed jobs** (PR still in the
+queue, via the GitHub `rerun-failed-jobs` API with a loop guard against a second attempt) or **re-add the
+dropped PR** to the queue (via `gh pr merge`, idempotent: it skips PRs that are merged, closed, draft, or
+already carry the CI Doctor re-add marker comment). It uses the default `GITHUB_TOKEN` (with
+`actions: write`) for the re-run and status reads, and the `MERGE_QUEUE_TOKEN` secret for the re-queue
+(the default `GITHUB_TOKEN` cannot re-trigger `merge_group` check runs).
 
 ## Setup and infrastructure
 
@@ -326,8 +327,8 @@ only the narrow permission it needs. The workflows rely on the following secrets
 | Secret | Used by | Purpose |
 | --- | --- | --- |
 | `TEAMS_WEBHOOK_URL` | `notify-teams`, `notify-teams-recurring` | Microsoft Teams incoming webhook. |
-| `MERGE_QUEUE_TOKEN` | `readd-to-merge-queue` | PAT / App token with `contents: write` + `pull_requests: write` to re-queue a PR (the default token cannot re-trigger `merge_group` runs). |
-| `GITHUB_TOKEN` | log download, `rerun-failed-jobs` | Standard GitHub API access. |
+| `MERGE_QUEUE_TOKEN` | `remediate-transient-failure` | PAT / App token with `contents: write` + `pull_requests: write` to re-queue a PR (the default token cannot re-trigger `merge_group` runs). |
+| `GITHUB_TOKEN` | log download, `remediate-transient-failure` | Standard GitHub API access (re-run failed jobs, read live merge-queue status). |
 
 ## Maintaining the workflows
 

@@ -178,4 +178,31 @@ INSTANTIATE_TEST_SUITE_P(smoke_NumpyBroadcastPower,
                                             ::testing::Values(additional_config)),
                          EltwiseLayerTest::getTestCaseName);
 
+
+std::vector<std::vector<ov::Shape>> bf16Shapes = {
+        {{2, 200}},
+        {{1, 10, 100}},
+        {{4, 4, 16}},
+        {{2, 17, 5, 4}, {1, 17, 1, 1}},
+};
+
+std::vector<EltwiseTypes> bf16_eltwiseOpTypes = {
+        EltwiseTypes::ADD,
+        EltwiseTypes::MULTIPLY,
+        EltwiseTypes::SUBTRACT,
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_BF16_CompareWithRefs,
+                         EltwiseLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(bf16Shapes)),
+                                            ::testing::ValuesIn(bf16_eltwiseOpTypes),
+                                            ::testing::ValuesIn(secondaryInputTypes),
+                                            ::testing::Values(OpType::VECTOR),
+                                            ::testing::Values(ov::element::bf16),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::Values(additional_config)),
+                         EltwiseLayerTest::getTestCaseName);
+
 }  // namespace

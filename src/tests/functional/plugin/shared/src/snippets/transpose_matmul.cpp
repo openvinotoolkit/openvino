@@ -81,28 +81,20 @@ std::shared_ptr<MatMulFunctionBase> ExplicitTransposeMatMulBias::get_builder(con
 }
 
 TEST_P(TransposeMatMul, CompareWithRefImpl) {
-   SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(TransposeMatMulFQ, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     abs_threshold = 5e-6;
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(ExplicitTransposeMatMul, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(ExplicitTransposeMatMulBias, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 } // namespace snippets

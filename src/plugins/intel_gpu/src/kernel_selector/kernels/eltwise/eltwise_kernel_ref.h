@@ -28,5 +28,6 @@ public:
 
 protected:
     bool Validate(const Params& p) const override;
+    bool SupportsFeaturePadReset() const override { return true; }
 };
 }  // namespace kernel_selector

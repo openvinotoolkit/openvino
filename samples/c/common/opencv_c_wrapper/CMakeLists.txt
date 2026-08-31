@@ -6,10 +6,14 @@ project(opencv_c_wrapper)
 
 set(TARGET_NAME ${PROJECT_NAME})
 
-file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
-                  ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
-                  ${CMAKE_CURRENT_SOURCE_DIR}/src/*.c)
-file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h)
+set(SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/bmp_reader.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/bmp_reader.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/opencv_c_wrapper.cpp
+)
+set(HEADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/opencv_c_wrapper.h
+)
 
 # create library
 add_library(${TARGET_NAME} STATIC ${HEADERS} ${SOURCES})

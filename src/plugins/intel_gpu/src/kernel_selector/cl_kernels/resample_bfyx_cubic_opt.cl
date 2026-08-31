@@ -5,9 +5,7 @@
 #include "include/fetch_utils.cl"
 
 #ifdef RTE_OUTPUT
-    #define TO_OUTPUT_TYPE(x)   CAT(CAT(convert_, OUTPUT_TYPE), _rte)(x)
-#else
-    #define TO_OUTPUT_TYPE(x)   CAT(convert_, OUTPUT_TYPE)(x)
+    #define TO_OUTPUT_COMPUTE_TYPE(x)   CAT(CAT(convert_, OUTPUT_TYPE), _rte)(x)
 #endif
 
 inline float FUNC(get_original_coordinate)(float num, float scale, int length_resized, int length_original)
@@ -99,7 +97,7 @@ KERNEL (resample_bfyx_cubic_opt)(
 #endif
                 {
                     interp_val = fma((ACCUMULATOR_TYPE)(cy[dy] * cx[dx]),
-                                     (ACCUMULATOR_TYPE)input[INPUT0_GET_INDEX(out_b, out_f, y_idx[dy], x_idx[dx])],
+                                     (ACCUMULATOR_TYPE)DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(out_b, out_f, y_idx[dy], x_idx[dx])]),
                                      interp_val);
                 }
             }
@@ -115,10 +113,10 @@ KERNEL (resample_bfyx_cubic_opt)(
         #undef OF_ID
         #undef oy
 #else
-        OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
+        OUTPUT_TYPE res = TO_OUTPUT_TYPE(ACTIVATION(TO_OUTPUT_COMPUTE_TYPE(interp_val), ACTIVATION_PARAMS));
 #endif
         output[OUTPUT_GET_INDEX(out_b, out_f, out_y, ox)] = res;
     }
 }
 
-#undef TO_OUTPUT_TYPE
+#undef TO_OUTPUT_COMPUTE_TYPE
