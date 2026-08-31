@@ -108,6 +108,25 @@ TEST(type_prop, paged_selective_ssm_state_type_is_independent) {
     check_types(element::f32, element::dynamic, element::i32);
 }
 
+TEST(type_prop, paged_selective_ssm_merges_dynamic_computation_input_type) {
+    auto A = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{4});
+    auto dt = std::make_shared<op::v0::Parameter>(element::f32, Shape{6, 4});
+    auto B = std::make_shared<op::v0::Parameter>(element::f32, Shape{6, 2, 16});
+    auto x = std::make_shared<op::v0::Parameter>(element::f32, Shape{6, 4, 8});
+    auto C = std::make_shared<op::v0::Parameter>(element::f32, Shape{6, 2, 16});
+    auto state = std::make_shared<op::v0::Parameter>(element::f16, Shape{3, 4, 8, 16});
+    auto subseq = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{-1});
+    auto block_idx = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{-1});
+    auto block_idx_begins = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{-1});
+    auto processed = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{-1});
+    auto cache_interval = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{-1});
+
+    const auto op = std::make_shared<op::internal::PagedSelectiveSSM>(
+        OutputVector{A, dt, B, x, C, state, subseq, block_idx, block_idx_begins, processed, cache_interval});
+
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+}
+
 TEST(type_prop, paged_selective_ssm_bad_index_type) {
     OV_EXPECT_THROW(std::ignore = make_paged_selective_ssm(element::f32,
                                                            element::f32,
