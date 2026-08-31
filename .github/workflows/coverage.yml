@@ -227,7 +227,7 @@ jobs:
   CoverageCppGpu:
     name: Coverage C++ (${{ matrix.gpu.name }}, ${{ matrix.lane.name }})
     needs: [ Build, Docker ]
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true' }}
+    # if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true' }}
     runs-on: ${{ fromJSON(matrix.gpu.runs_on) }}
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_igpu }}
@@ -535,7 +535,7 @@ jobs:
   CoveragePythonGpu:
     name: Coverage Python (${{ matrix.gpu.name }})
     needs: [ Build, Docker ]
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true' }}
+    # if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true' }}
     runs-on: ${{ fromJSON(matrix.gpu.runs_on) }}
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_igpu }}
