@@ -578,16 +578,31 @@ public:
             }
 
             const auto& input_shape = matmul_node->get_input_shape(0);
+            if (input_shape.size() < 2) {
+                return false;
+            }
+            const int64_t rank = static_cast<int64_t>(input_shape.size());
 
             // Get the single sliced axis by comparing input/output shapes
             int64_t slice_axis = get_single_sliced_axis(slice_node);
 
-            // The last dimension of input is the feature dimension (contracts with weight)
-            // We can only propagate if we're NOT slicing the feature dimension
-            int64_t feature_axis = static_cast<int64_t>(input_shape.size()) - 1;
-
-            if (slice_axis == feature_axis) {
+            // The MatMul output's last axis is the "column" dimension contributed by the weight
+            // input (input 1) - it has no corresponding axis in the data input (input 0) at all,
+            // so we can never propagate a Slice on that axis onto the data input.
+            if (slice_axis == rank - 1) {
                 return false;
+            }
+
+            // Map the sliced output axis to the corresponding axis of the data input.
+            // Without transpose_a, MatMul contracts on the data input's last axis, and all other
+            // axes (batch dims + the "row" dim at rank-2) keep the same position in input and output.
+            // With transpose_a, the data input's last two axes are swapped before the multiply:
+            // the row dim (free, safe to slice) ends up at output axis rank-2 but lives on the raw
+            // (untransposed) data input's LAST axis, while the contracted axis is the input's
+            // second-to-last axis instead.
+            int64_t input_axis = slice_axis;
+            if (matmul_node->get_transpose_a() && slice_axis == rank - 2) {
+                input_axis = rank - 1;
             }
 
             // Safe to propagate: Slice(MatMul(X, W)) -> MatMul(Slice(X), W)
@@ -596,7 +611,7 @@ public:
             if (!get_slice_axis_params(slice_node, slice_axis, start, stop, step)) {
                 return false;
             }
-            auto new_slice = create_slice_with_params(matmul_node->input_value(0), slice_axis, start, stop, step);
+            auto new_slice = create_slice_with_params(matmul_node->input_value(0), input_axis, start, stop, step);
 
             auto new_matmul = matmul_node->clone_with_new_inputs({new_slice, matmul_node->input_value(1)});
             new_matmul->set_friendly_name(matmul_node->get_friendly_name());

@@ -182,6 +182,68 @@ TEST(PropagateSliceTest, PropagateSliceThroughMatMul) {
     EXPECT_TRUE(is_type<v8::Slice>(slice_node));
 }
 
+// Test R5: Slice(MatMul(X, W)) does not propagate onto the contracted (feature) axis
+TEST(PropagateSliceTest, PropagateSliceThroughMatMul_FeatureAxisBlocked) {
+    // Build: Param[1,1024,3072] -> MatMul(W[3072,2048]) -> [1,1024,2048] -> Slice(axis=2) -> [1,1024,1]
+    auto param = std::make_shared<v0::Parameter>(element::f32, Shape{1, 1024, 3072});
+    auto weight = v0::Constant::create(element::f32, Shape{3072, 2048}, {0.1f});
+    auto matmul = std::make_shared<v0::MatMul>(param, weight);
+
+    // Slicing axis=2 corresponds to the output's last (column) axis, which comes from the
+    // weight input and has no corresponding axis in the data input - must never propagate.
+    auto slice = make_last_index_slice(matmul, 2);
+
+    auto result = std::make_shared<v0::Result>(slice);
+    auto model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{param});
+
+    apply_propagate_slice_up(model);
+
+    // Check: Slice should NOT have moved - Result's input is still the Slice, and the Slice's
+    // input is still the MatMul directly consuming the Parameter (unmodified).
+    auto result_node = model->get_results()[0];
+    auto slice_node = result_node->input_value(0).get_node_shared_ptr();
+    ASSERT_TRUE(is_type<v8::Slice>(slice_node));
+
+    auto matmul_node = slice_node->input_value(0).get_node_shared_ptr();
+    ASSERT_TRUE(is_type<v0::MatMul>(matmul_node));
+    EXPECT_TRUE(is_type<v0::Parameter>(matmul_node->input_value(0).get_node_shared_ptr()));
+}
+
+// Test R5: Slice(MatMul(X, W, transpose_a=true)) - with transpose_a, the data input's row
+// (free/non-contracted) dimension lives on its LAST raw axis rather than the second-to-last,
+// so the propagated Slice must be created on that remapped axis.
+TEST(PropagateSliceTest, PropagateSliceThroughMatMul_TransposeA) {
+    // Build: Param[1,3072,1024] (raw A: batch=1, K=3072, M=1024) -> MatMul(transpose_a=true, W[3072,2048])
+    // Effective A' = transpose(A) = [1,1024,3072] -> MatMul -> [1,1024,2048] -> Slice(axis=1) -> [1,1,2048]
+    auto param = std::make_shared<v0::Parameter>(element::f32, Shape{1, 3072, 1024});
+    auto weight = v0::Constant::create(element::f32, Shape{3072, 2048}, {0.1f});
+    auto matmul = std::make_shared<v0::MatMul>(param, weight, true, false);
+
+    auto slice = make_last_index_slice(matmul, 1);
+
+    auto result = std::make_shared<v0::Result>(slice);
+    auto model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{param});
+
+    apply_propagate_slice_up(model);
+
+    // Check: Slice should have moved before MatMul, applied on the raw input's LAST axis (2),
+    // not on axis 1 (which would incorrectly slice the contracted K dimension).
+    auto result_node = model->get_results()[0];
+    auto matmul_node = result_node->input_value(0).get_node_shared_ptr();
+    ASSERT_TRUE(is_type<v0::MatMul>(matmul_node));
+
+    auto slice_node = std::dynamic_pointer_cast<v8::Slice>(matmul_node->input_value(0).get_node_shared_ptr());
+    ASSERT_TRUE(slice_node != nullptr);
+    EXPECT_TRUE(is_type<v0::Parameter>(slice_node->input_value(0).get_node_shared_ptr()));
+
+    auto axes_const = std::dynamic_pointer_cast<v0::Constant>(slice_node->input_value(4).get_node_shared_ptr());
+    ASSERT_TRUE(axes_const != nullptr);
+    EXPECT_EQ(axes_const->cast_vector<int64_t>(), (std::vector<int64_t>{2}));
+
+    // Final output shape must be unchanged: [1,1,2048]
+    EXPECT_EQ(result_node->get_input_shape(0), (Shape{1, 1, 2048}));
+}
+
 // Test R6: Slice(Reshape(X)) - squeeze-like with Unsqueeze
 TEST(PropagateSliceTest, PropagateSliceThroughReshape_SqueezeLike) {
     // Build: Param[1024,2048] -> Reshape([1,1024,2048]) -> Slice(axis=1) -> [1,1,2048]
