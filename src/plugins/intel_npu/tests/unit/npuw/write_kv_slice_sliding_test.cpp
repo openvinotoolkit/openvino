@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "infer_request_utils.hpp"
+#include "kv_cache_sliding_window_manager.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 

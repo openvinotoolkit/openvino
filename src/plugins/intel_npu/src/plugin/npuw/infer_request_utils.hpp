@@ -33,24 +33,6 @@ void copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor,
                         uint32_t kv_dim_src,
                         uint32_t kv_dim_dst);
 
-// Writes SWA KV deltas into a left-aligned past buffer.
-// If the window is saturated, shifts the surviving tail to the front before append.
-void write_swa_kv_slice_left_aligned(ov::SoPtr<ov::ITensor> dst_tensor,
-                                     ov::SoPtr<ov::ITensor> src_new_kv,
-                                     uint32_t dst_kv_dim,
-                                     uint32_t src_kv_dim,
-                                     uint32_t num_stored_tokens_before,
-                                     uint32_t num_new_tokens);
-
-// Writes SWA KV deltas into a circular past buffer.
-// Token at absolute position p is written to physical slot (p % capacity).
-void write_swa_kv_slice_circular(ov::SoPtr<ov::ITensor> dst_tensor,
-                                 ov::SoPtr<ov::ITensor> src_new_kv,
-                                 uint32_t dst_kv_dim,
-                                 uint32_t src_kv_dim,
-                                 uint32_t num_stored_tokens_before,
-                                 uint32_t num_new_tokens);
-
 std::optional<ov::Output<const ov::Node>> find_port_by_name(const std::vector<ov::Output<const ov::Node>>& ports,
                                                             const std::string& name);
 /**
