@@ -56,7 +56,7 @@ const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
  * not enabled.
  */
 void check_declared_blob_type(const std::optional<BlobType>& blob_type, const FilteredConfig& config) {
-    if (!blob_type.has_value() || blob_type.value() == BlobType::ELF) {
+    if (!blob_type.has_value() || !is_host_executed(blob_type.value())) {
         return;
     }
 
