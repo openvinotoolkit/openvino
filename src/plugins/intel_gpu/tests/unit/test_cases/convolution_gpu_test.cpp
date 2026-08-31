@@ -15,7 +15,6 @@
 #include <intel_gpu/primitives/permute.hpp>
 
 #include "openvino/reference/convolution.hpp"
-#include "convolution/convolution_kernel_b_fs_yx_fsv16_depthwise.h"
 
 #include <algorithm>
 #include <array>
@@ -25,10 +24,8 @@
 #include <thread>
 #include <type_traits>
 #include <fstream>
+#include <sstream>
 #include <tuple>
-
-// performance measurement (to be reverted)
-#include <chrono>
 
 #include "convolution_inst.h"
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -8395,6 +8392,110 @@ TEST_P(convolution_general_gpu, conv_fp16_cases) {
                 }
 }
 
+TEST(convolution_depthwise_gpu_fsv16, regression_depthwise_conv_b_fs_yx_fsv16_112x240) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_fp16) {
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
+    }
+
+    const int batch_num = 1;
+    const int input_x = 112;
+    const int input_y = 240;
+    const int groups = 16;
+    const int input_f = groups;
+    const int output_f = groups;
+    const int filter_x = 3;
+    const int filter_y = 3;
+    const uint64_t stride = 1;
+    const int output_padding = 0;
+    const int pad_x = filter_x / 2;
+    const int pad_y = filter_y / 2;
+
+    auto input_size = tensor(batch_num, input_f, input_x, input_y);
+    auto input_data = rg.generate_random_4d<ov::float16>(batch_num, input_f, input_y, input_x, -1, 1);
+    auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
+    auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
+    set_values(input_mem, input_data_bfyx);
+
+    auto weights_size = tensor(group(output_f), batch(1), feature(1), spatial(filter_x, filter_y));
+    auto weights_data = rg.generate_random_4d<ov::float16>(output_f, 1, filter_y, filter_x, -1, 1);
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+    auto weights_mem = engine.allocate_memory({ data_types::f16, format::goiyx, weights_size });
+    set_values(weights_mem, weights_data_bfyx);
+
+    auto reference_result = VVVVF<ov::float16>(batch_num, VVVF<ov::float16>(output_f));
+    for (int bi = 0; bi < batch_num; ++bi) {
+        for (int ofi = 0; ofi < output_f; ++ofi) {
+            reference_result[bi][ofi] = reference_convolve(
+                input_data[bi], weights_data[ofi],
+                stride, stride,
+                0,
+                1, 1,
+                pad_y, pad_x,
+                output_padding, output_padding,
+                ofi, ofi + 1,
+                true);
+        }
+    }
+
+    topology topology(
+        input_layout("input", input_mem->get_layout()),
+        data("weights", weights_mem));
+
+    topology.add(reorder("input_fsv", input_info("input"), { data_types::f16, format::b_fs_yx_fsv16, input_size }));
+
+    auto conv = convolution("conv_fsv",
+                            input_info("input_fsv"),
+                            "weights",
+                            no_bias,
+                            groups,
+                            { stride, stride },
+                            { 1, 1 },
+                            { pad_y, pad_x },
+                            { pad_y, pad_x },
+                            true);
+    conv.output_paddings = { padding({ 0, 0, output_padding, output_padding }, 0.f) };
+
+    topology.add(conv);
+    topology.add(reorder("out", input_info("conv_fsv"), format::bfyx, data_types::f16));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"conv_fsv", "out"}));
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"conv_fsv", { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_depthwise" }}}));
+
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input_mem);
+    auto outputs = network.execute();
+
+    bool forced_kernel_found = false;
+    std::ostringstream selected_kernels;
+    for (const auto& prim_info : network.get_primitives_info()) {
+        if (prim_info.original_id.find("conv") != std::string::npos) {
+            selected_kernels << prim_info.original_id << ": " << prim_info.kernel_id << "\n";
+        }
+        if (prim_info.original_id == "conv_fsv" &&
+            prim_info.kernel_id.find("convolution_gpu_bfyx_f16_depthwise") != std::string::npos) {
+            forced_kernel_found = true;
+        }
+    }
+    ASSERT_TRUE(forced_kernel_found) << "Failed to select convolution_gpu_bfyx_f16_depthwise. Selected conv kernels:\n"
+                                     << selected_kernels.str();
+
+    auto out_mem = outputs.at("out").get_memory();
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
+    auto flatten_ref = flatten_4d(format::bfyx, reference_result);
+
+    for (size_t i = 0; i < flatten_ref.size(); ++i) {
+        auto equal = are_equal(flatten_ref[i], out_ptr[i], 1e-2f);
+        ASSERT_TRUE(equal) << "Mismatch at idx=" << i;
+    }
+}
+
 struct convolution_gpu_fsv16_to_bfyx : public convolution_general_gpu {};
 
 INSTANTIATE_TEST_SUITE_P(conv_b_fs_yx_fsv16_to_bfyx,
@@ -13302,418 +13403,4 @@ TEST(convolution_gpu_bfyx_f16, dynamic_fused_input_scalar_and_non_scalar_fp32) {
     ASSERT_NE(conv_info, primitives_info.end());
     ASSERT_NE(std::find(conv_info->c_fused_ids.begin(), conv_info->c_fused_ids.end(), "add"), conv_info->c_fused_ids.end());
     ASSERT_NE(conv_info->kernel_id.find("convolution_gpu_bfyx_f16_1x1"), std::string::npos);
-}
-
-TEST(convolution_gpu_f16_bfyx, conv_depthwise_test_oob) {
-    auto& engine = get_test_engine();
-
-    if (!engine.get_device_info().supports_fp16) {
-        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
-    }
-
-    tests::random_generator rg(GET_SUITE_NAME);
-
-    constexpr int batch_num = 1;
-    constexpr int groups = 240;
-    constexpr int input_y = 64;
-    constexpr int input_x = 32;
-    constexpr int filter_y = 9;
-    constexpr int filter_x = 17;
-
-    const int input_f = groups;
-    const int output_f = groups;
-    const int pad_y = 0;
-    const int pad_x = 0;
-    const int output_padding = 0;
-    const int f_group_size = 16;
-    const int f_group_num_in_batch = (output_f % f_group_size) ? (output_f / f_group_size + 1) : (output_f / f_group_size);
-
-    const int output_y = 1 + (input_y + 2 * pad_y - filter_y) + 2 * output_padding;
-    const int output_x = 1 + (input_x + 2 * pad_x - filter_x) + 2 * output_padding;
-
-    auto input_size = tensor(batch_num, input_f, input_x, input_y);
-    auto input_data = rg.generate_random_4d<ov::float16>(batch_num, groups, input_y, input_x, -1, 1);
-    auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
-    set_values(input_mem, flatten_4d<ov::float16>(format::bfyx, input_data));
-
-    auto weights_size = tensor(group(groups), batch(1), feature(1), spatial(filter_x, filter_y));
-    auto weights_data = rg.generate_random_4d<ov::float16>(groups, 1, filter_y, filter_x, -1, 1);
-    auto weights_mem = engine.allocate_memory({ data_types::f16, format::goiyx, weights_size });
-    set_values(weights_mem, flatten_4d<ov::float16>(format::bfyx, weights_data));
-
-    auto reference_result = VVVVF<ov::float16>(batch_num, VVVF<ov::float16>(output_f));
-
-    for (auto bi = 0; bi < batch_num; ++bi) {
-        for (auto ofi = 0; ofi < output_f; ++ofi) {
-            reference_result[bi][ofi] = reference_convolve(
-                input_data[bi], weights_data[ofi],
-                1, 1,
-                0,
-                1, 1,
-                pad_y, pad_x,
-                output_padding, output_padding,
-                ofi, ofi + 1,
-                true);
-        }
-    }
-
-    topology topology(
-        input_layout("input", input_mem->get_layout()),
-        reorder("input_fsv", input_info("input"), { data_types::f16, format::b_fs_yx_fsv16, input_size }),
-        data("weights", weights_mem),
-        convolution("conv", input_info("input_fsv"), "weights", no_bias,
-                    groups,
-                    { 1, 1 },
-                    { 1, 1 },
-                    { 0, 0 },
-                    { 0, 0 },
-                    true)
-    );
-
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::force_implementations(
-        ov::intel_gpu::ImplForcingMap{{"conv", {format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_depthwise", impl_types::ocl}}}
-    ));
-
-    network net(engine, topology, config);
-    net.set_input_data("input", input_mem);
-
-    auto outputs = net.execute();
-    auto out_mem = outputs.at("conv").get_memory();
-    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
-
-    ASSERT_EQ(out_mem->get_layout().format, format::b_fs_yx_fsv16);
-
-    for (int bi = 0; bi < batch_num; ++bi) {
-        for (int fi = 0; fi < output_f; ++fi) {
-            for (int yi = 0; yi < output_y; ++yi) {
-                for (int xi = 0; xi < output_x; ++xi) {
-                    auto val_ref = reference_result[bi][fi][yi][xi];
-                    auto val = out_ptr[bi * f_group_num_in_batch * f_group_size * output_y * output_x +
-                                       (fi / f_group_size) * output_y * output_x * f_group_size +
-                                       yi * output_x * f_group_size +
-                                       xi * f_group_size +
-                                       fi % f_group_size];
-
-                    auto equal = are_equal(val_ref, val, 1e-2f);
-                    ASSERT_TRUE(equal);
-                    if (!equal) {
-                        std::cout << "At b = " << bi << ", fi = " << fi << ", yi = " << yi << ", xi = " << xi << std::endl;
-                    }
-                }
-            }
-        }
-    }
-}
-
-TEST(convolution_gpu_f16_bfyx, conv_depthwise_test_oob_gws_112_240_1) {
-    struct depthwise_kernel_test_proxy : public kernel_selector::ConvolutionKernel_b_fs_yx_fsv16_depthwise {
-        kernel_selector::ConvolutionKernelBase::DispatchData call_set_default(
-            const kernel_selector::convolution_params& params) const {
-            return SetDefault(params);
-        }
-    };
-
-    kernel_selector::convolution_params params;
-
-    params.inputs[0] = kernel_selector::DataTensor(std::vector<size_t>{32, 64, 240, 1},
-                                                    kernel_selector::Datatype::F16,
-                                                    kernel_selector::DataLayout::b_fs_yx_fsv16);
-    params.outputs[0] = kernel_selector::DataTensor(std::vector<size_t>{16, 56, 240, 1},
-                                                     kernel_selector::Datatype::F16,
-                                                     kernel_selector::DataLayout::b_fs_yx_fsv16);
-
-    params.groups = 240;
-    params.stride = kernel_selector::uSize(1, 1, 1);
-    params.filterSize = kernel_selector::uSize(17, 9, 1);
-    params.engineInfo.maxWorkGroupSize = 256;
-
-    depthwise_kernel_test_proxy kernel;
-    const auto dispatch = kernel.call_set_default(params);
-
-    ASSERT_EQ(dispatch.gws, (std::vector<size_t>{112, 240, 1}));
-    ASSERT_EQ(dispatch.lws, (std::vector<size_t>{1, 16, 1}));
-
-    auto& engine = get_test_engine();
-    if (!engine.get_device_info().supports_fp16)
-        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
-
-    tests::random_generator rg(GET_SUITE_NAME);
-    auto input_data = rg.generate_random_4d<ov::float16>(1, 240, 64, 32, -1, 1);
-    auto weights_data = rg.generate_random_4d<ov::float16>(240, 1, 9, 17, -1, 1);
-
-    auto input_mem = engine.allocate_memory({data_types::f16, format::bfyx, tensor{1, 240, 32, 64}});
-    set_values(input_mem, flatten_4d<ov::float16>(format::bfyx, input_data));
-
-    auto weights_mem = engine.allocate_memory({
-        data_types::f16,
-        format::goiyx,
-        tensor{group(240), batch(1), feature(1), spatial(17, 9)}
-    });
-    set_values(weights_mem, flatten_4d<ov::float16>(format::bfyx, weights_data));
-
-    topology topology(
-        input_layout("input", input_mem->get_layout()),
-        reorder("input_fsv", input_info("input"), {data_types::f16, format::b_fs_yx_fsv16, tensor{1, 240, 32, 64}}),
-        data("weights", weights_mem),
-        convolution("conv", input_info("input_fsv"), "weights", no_bias,
-                    240,
-                    {1, 1},
-                    {1, 1},
-                    {0, 0},
-                    {0, 0},
-                    true)
-    );
-
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::force_implementations(
-        ov::intel_gpu::ImplForcingMap{{"conv", {format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_depthwise", impl_types::ocl}}}
-    ));
-
-    network net(engine, topology, config);
-    net.set_input_data("input", input_mem);
-
-    ASSERT_NO_THROW({
-        auto outputs = net.execute();
-        ASSERT_FALSE(outputs.empty());
-        auto out_mem = outputs.at("conv").get_memory();
-        ASSERT_EQ(out_mem->get_layout().format, format::b_fs_yx_fsv16);
-    });
-
-    const auto t0 = std::chrono::steady_clock::now();
-    net.execute();
-    const auto t1 = std::chrono::steady_clock::now();
-    const auto total_ms = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
-    std::cout << "depthwise_ticket_repro_execute_must_not_throw timing " << total_ms << "us" << std::endl;
-}
-
-TEST(convolution_gpu_f16_bfyx, conv_depthwise_test_oob_repro) {
-    auto& engine = get_test_engine();
-
-    if (!engine.get_device_info().supports_fp16)
-        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
-    if (!engine.supports_allocation(allocation_type::usm_device))
-        GTEST_SKIP() << "USM device allocation is required for this ticket repro path.";
-
-    tests::random_generator rg(GET_SUITE_NAME);
-    auto input_data = rg.generate_random_4d<ov::float16>(1, 240, 64, 32, -1, 1);
-    auto weights_data = rg.generate_random_4d<ov::float16>(240, 1, 9, 17, -1, 1);
-    auto input_flat = flatten_4d<ov::float16>(format::bfyx, input_data);
-    auto weights_flat = flatten_4d<ov::float16>(format::bfyx, weights_data);
-
-    auto input_mem = engine.allocate_memory({data_types::f16, format::bfyx, tensor{1, 240, 32, 64}},
-                                            allocation_type::usm_device,
-                                            false);
-    input_mem->copy_from(get_test_stream(), input_flat.data(), true);
-
-    auto weights_mem = engine.allocate_memory({
-        data_types::f16,
-        format::goiyx,
-        tensor{group(240), batch(1), feature(1), spatial(17, 9)}
-    }, allocation_type::usm_device, false);
-    weights_mem->copy_from(get_test_stream(), weights_flat.data(), true);
-
-    topology topology(
-        input_layout("input", input_mem->get_layout()),
-        reorder("input_fsv", input_info("input"), {data_types::f16, format::b_fs_yx_fsv16, tensor{1, 240, 32, 64}}),
-        data("weights", weights_mem),
-        convolution("conv", input_info("input_fsv"), "weights", no_bias,
-                    240,
-                    {1, 1},
-                    {1, 1},
-                    {0, 0},
-                    {0, 0},
-                    true)
-    );
-
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::force_implementations(
-        ov::intel_gpu::ImplForcingMap{{"conv", {format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_depthwise", impl_types::ocl}}}
-    ));
-
-    network net(engine, topology, config);
-    net.set_input_data("input", input_mem);
-
-    ASSERT_NO_THROW({
-        constexpr int repro_iters = 20;
-        for (int i = 0; i < repro_iters; i++) {
-            auto outputs = net.execute();
-            ASSERT_FALSE(outputs.empty());
-            auto out_mem = outputs.at("conv").get_memory();
-            ASSERT_EQ(out_mem->get_layout().format, format::b_fs_yx_fsv16);
-        }
-    });
-// ---------------------------------------------------------------------------
-// convolution_gpu_1d_small_ic_gemm
-// Each case runs the same topology twice - once forced onto this kernel, once onto
-// convolution_gpu_ref - and compares, so no reference values live here.
-// ---------------------------------------------------------------------------
-
-// Laid out as bfyx with the long axis on Y (x == 1), as the plugin canonicalizes 3D conv.
-struct conv_1d_case {
-    const char* name;
-    data_types dt;  // input dtype; weights are i8 when this is u8/i8
-    size_t batch;
-    size_t in_features;
-    size_t in_length;
-    size_t out_features;
-    size_t filter_len;
-    size_t stride;
-    size_t dilation;
-    size_t pad_begin;
-    size_t pad_end;
-    bool with_bias;
-    bool with_zp;  // int8 only: asymmetric data and weights zero points
-};
-
-static bool conv_1d_is_int8(data_types dt) { return dt == data_types::u8 || dt == data_types::i8; }
-
-template <typename T>
-static void conv_1d_set(memory::ptr mem, const std::vector<float>& src) {
-    std::vector<T> dst(src.size());
-    std::transform(src.begin(), src.end(), dst.begin(), [](float v) { return static_cast<T>(v); });
-    set_values(mem, dst);
-}
-
-static void conv_1d_set_values(memory::ptr mem, const std::vector<float>& src) {
-    const auto dt = mem->get_layout().data_type;
-    if (dt == data_types::f32) conv_1d_set<float>(mem, src);
-    else if (dt == data_types::f16) conv_1d_set<ov::float16>(mem, src);
-    else if (dt == data_types::u8) conv_1d_set<uint8_t>(mem, src);
-    else conv_1d_set<int8_t>(mem, src);
-}
-
-// Runs the case with dt for input and weights, forced onto forced_kernel. Seeded from
-// the case name, so two calls for one case see identical data.
-static std::vector<float> run_conv_1d(const conv_1d_case& c, data_types dt, const char* forced_kernel) {
-    auto& engine = get_test_engine();
-    tests::random_generator rg(std::string(c.name));
-
-    const bool int8 = conv_1d_is_int8(dt);
-    const int lo = (dt == data_types::u8) ? 0 : -8;
-    // Multiples of 1/8 in [-1, 1]: exact in f16 and their products exact in f32, so an
-    // f32 accumulation over K is exact. int8 values are integers, exact either way.
-    auto gen = [&](size_t n, int int_lo, int int_hi) {
-        if (!int8)
-            return rg.generate_random_1d<float>(n, -1, 1, 8);
-        const auto v = rg.generate_random_1d<int>(n, int_lo, int_hi, 1);
-        return std::vector<float>(v.begin(), v.end());
-    };
-    auto i32 = [](size_t v) { return static_cast<int32_t>(v); };
-    auto make_layout = [&](data_types t, size_t b, size_t f, size_t y) {
-        return layout{t, format::bfyx, tensor(i32(b), i32(f), 1, i32(y))};
-    };
-    auto add_data = [&](topology& t, const std::string& id, const layout& l, const std::vector<float>& v) {
-        auto mem = engine.allocate_memory(l);
-        conv_1d_set_values(mem, v);
-        t.add(data(id, mem));
-    };
-
-    auto input_mem = engine.allocate_memory(make_layout(dt, c.batch, c.in_features, c.in_length));
-    conv_1d_set_values(input_mem, gen(c.batch * c.in_features * c.in_length, lo, (dt == data_types::u8) ? 15 : 7));
-    topology topo;
-    topo.add(input_layout("input", input_mem->get_layout()));
-    add_data(topo, "weights", make_layout(int8 ? data_types::i8 : dt, c.out_features, c.in_features, c.filter_len),
-             gen(c.out_features * c.in_features * c.filter_len, -4, 4));
-    std::string bias_id, a_zp_id, w_zp_id;
-    if (c.with_bias) {
-        bias_id = "bias";
-        add_data(topo, bias_id, make_layout(int8 ? data_types::f32 : dt, 1, c.out_features, 1),
-                 gen(c.out_features, -8, 8));
-    }
-    if (c.with_zp) {
-        a_zp_id = "a_zp";
-        add_data(topo, a_zp_id, make_layout(dt, 1, c.in_features, 1), gen(c.in_features, lo, lo + 4));
-        w_zp_id = "w_zp";
-        add_data(topo, w_zp_id, make_layout(data_types::i8, c.out_features, 1, 1), gen(c.out_features, -2, 2));
-    }
-    const ov::Strides stride{c.stride, 1}, dilation{c.dilation, 1};
-    const ov::CoordinateDiff pad_begin{static_cast<std::ptrdiff_t>(c.pad_begin), 0},
-                             pad_end{static_cast<std::ptrdiff_t>(c.pad_end), 0};
-    if (int8) {
-        topo.add(convolution("conv", input_info("input"), "weights", bias_id, w_zp_id, a_zp_id, "", 1, stride,
-                             dilation, pad_begin, pad_end, false, data_types::f32));
-    } else {
-        topo.add(convolution("conv", input_info("input"), "weights", bias_id, 1, stride, dilation, pad_begin,
-                             pad_end, false));
-    }
-    topo.add(reorder("out", input_info("conv"), format::bfyx, data_types::f32));
-
-    ov::intel_gpu::ImplementationDesc conv_impl = {format::bfyx, forced_kernel, impl_types::ocl};
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", conv_impl}}));
-    config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"out"}));
-
-    network net(engine, topo, config);
-    net.set_input_data("input", input_mem);
-    auto out_mem = net.execute().at("out").get_memory();
-    cldnn::mem_lock<float, mem_lock_type::read> ptr(out_mem, get_test_stream());
-    return std::vector<float>(ptr.data(), ptr.data() + ptr.size());
-}
-
-// One entry per code path, in conv_1d_case field order.
-const std::vector<conv_1d_case> conv_1d_cases = {
-    // Filter length at min_filter_len, OC 3 and out_length 23 below their tiles: every leftover path at once.
-    {"min_filter_len", data_types::f32, 1, 1, 300, 3, 256, 2, 1, 0, 0, true, false},
-    // K = 2048 at the model layer's stride, so a K tile never straddles a filter boundary.
-    {"large_k", data_types::f32, 1, 1, 3742, 17, 2048, 242, 1, 0, 0, true, false},
-    // OC 273 = 17 * TILE_M + 1: M ragged over many tiles.
-    {"oc_leftover", data_types::f32, 1, 1, 300, 273, 256, 2, 1, 0, 0, true, false},
-    // Dilation and padding on the guarded path; dilated extent 511.
-    {"dilation_and_padding", data_types::f32, 2, 1, 800, 17, 256, 32, 2, 13, 5, true, false},
-    // Maximum overlap, and the one stride where a dropped stride still lands in range.
-    {"stride_1", data_types::f32, 2, 1, 300, 17, 256, 1, 1, 0, 0, true, false},
-    // Unguarded vector loads: no padding, dilation 1, TILE_K | filter_len, TILE_N | batch * out_length (2 * 32).
-    {"fast", data_types::f32, 2, 1, 318, 17, 256, 2, 1, 0, 0, true, false},
-    // out_length 33 vs TILE_N 32: the second tile has one valid column, so j = 0 is partially valid. No bias too.
-    {"ragged_n_no_bias", data_types::f32, 1, 1, 320, 17, 256, 2, 1, 0, 0, false, false},
-    // K = 2048, where an f16 accumulator would fail well outside tolerance.
-    {"f16_large_k", data_types::f16, 1, 1, 3742, 17, 2048, 242, 1, 0, 0, true, false},
-    // f16 on the fast path, which stages B through f16 vector loads.
-    {"f16_fast", data_types::f16, 2, 1, 318, 17, 256, 2, 1, 0, 0, true, false},
-    // Zero points are subtracted while staging, so the compensation term is ignored - these catch a double-count.
-    {"u8_zp", data_types::u8, 2, 1, 300, 17, 256, 32, 1, 0, 0, true, true},
-    {"i8_fast_zp", data_types::i8, 2, 1, 318, 17, 256, 2, 1, 0, 0, true, true},
-};
-
-class convolution_1d_small_ic_gemm : public ::testing::TestWithParam<conv_1d_case> {};
-
-TEST_P(convolution_1d_small_ic_gemm, vs_ref_kernel) {
-    const auto& c = GetParam();
-    if (c.dt == data_types::f16 && !get_test_engine().get_device_info().supports_fp16) {
-        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
-    }
-
-    // convolution_gpu_ref accumulates in the input dtype, so an f16 reference would be
-    // the inaccurate side; it runs in f32, leaving only this kernel's output rounding.
-    const auto ref_dt = conv_1d_is_int8(c.dt) ? c.dt : data_types::f32;
-    const auto expected = run_conv_1d(c, ref_dt, "convolution_gpu_ref");
-    const auto actual = run_conv_1d(c, c.dt, "convolution_gpu_1d_small_ic_gemm");
-
-    ASSERT_EQ(expected.size(), actual.size());
-    const float tolerance = (c.dt == data_types::f16) ? 5e-4f : 1e-4f;
-    for (size_t i = 0; i < expected.size(); ++i) {
-        ASSERT_TRUE(are_equal(expected[i], actual[i], tolerance)) << "mismatch at flat index " << i;
-    }
-}
-
-INSTANTIATE_TEST_SUITE_P(convolution_gpu_1d_small_ic_gemm,
-                         convolution_1d_small_ic_gemm,
-                         ::testing::ValuesIn(conv_1d_cases),
-                         [](const testing::TestParamInfo<conv_1d_case>& info) {
-                             return std::string(info.param.name);
-                         });
-
-// The IC bound is selection policy, so it lives in Validate(). Repeated as a literal
-// rather than read from max_input_features, so widening it cannot pass silently.
-TEST(convolution_1d_small_ic_gemm_gate, rejects_input_features_above_max) {
-    conv_1d_case c = conv_1d_cases[0];
-    c.in_features = 2;
-    // kernel_selector throws when the forced kernel rejects the params.
-    ASSERT_ANY_THROW(run_conv_1d(c, c.dt, "convolution_gpu_1d_small_ic_gemm"))
-        << "kernel accepted IC = " << c.in_features;
 }
