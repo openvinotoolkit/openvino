@@ -3,7 +3,6 @@
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/bf16_utils.cl"
 #include "selective_ssm_type_utils.cl"
 
 KERNEL(paged_selective_ssm_jit_precompute)(OPTIONAL_SHAPE_INFO_ARG

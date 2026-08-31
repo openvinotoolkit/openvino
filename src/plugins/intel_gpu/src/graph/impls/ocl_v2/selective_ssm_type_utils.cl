@@ -5,6 +5,8 @@
 #ifndef SELECTIVE_SSM_TYPE_UTILS
 #define SELECTIVE_SSM_TYPE_UTILS
 
+#include "include/batch_headers/bf16_utils.cl"
+
 inline float ssm_to_float(float value) __attribute__((overloadable)) {
     return value;
 }

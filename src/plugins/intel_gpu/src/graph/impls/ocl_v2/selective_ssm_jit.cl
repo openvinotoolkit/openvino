@@ -4,7 +4,6 @@
 
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/fetch_data.cl"
-#include "include/batch_headers/bf16_utils.cl"
 #include "selective_ssm_type_utils.cl"
 
 #if SSM_JIT_PRECOMPUTE_DA && !SSM_PAGED
