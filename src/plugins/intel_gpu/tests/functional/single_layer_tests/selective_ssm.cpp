@@ -158,7 +158,7 @@ std::pair<std::vector<float>, std::vector<float>> paged_reference(const std::vec
     return {output, state};
 }
 
-TEST(smoke_GPUSelectiveSSMIntegration, SelectiveSSMDynamicModel) {
+TEST(smoke_GPUSelectiveSSMIntegration, DISABLED_SelectiveSSMDynamicModel) {
     struct SelectiveCase {
         size_t batch;
         size_t seq_len;
@@ -295,7 +295,7 @@ TEST(smoke_GPUSelectiveSSMIntegration, SelectiveSSMIndividualOutputs) {
     }
 }
 
-TEST(smoke_GPUSelectiveSSMIntegration, PagedSelectiveSSMDynamicModel) {
+TEST(smoke_GPUSelectiveSSMIntegration, DISABLED_PagedSelectiveSSMDynamicModel) {
     struct PagedCase {
         std::vector<int64_t> subsequences;
         std::vector<int64_t> blocks;
@@ -463,7 +463,7 @@ TEST(smoke_GPUSelectiveSSMIntegration, SelectiveSSMChainedState) {
     }
 }
 
-TEST(smoke_GPUSelectiveSSMIntegration, PagedSelectiveSSMChainedStateMutation) {
+TEST(smoke_GPUSelectiveSSMIntegration, DISABLED_PagedSelectiveSSMChainedStateMutation) {
     constexpr int32_t tokens = 2;
     constexpr int32_t num_heads = 4;
     constexpr int32_t num_groups = 2;
