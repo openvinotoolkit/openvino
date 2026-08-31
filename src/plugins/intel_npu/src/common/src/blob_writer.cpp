@@ -101,7 +101,7 @@ BlobWriter::BlobWriter(const std::shared_ptr<BlobReader>& blob_reader, const ov:
         // (jic the registered sections will alter the CRE/table). Therefore, these sections should be omitted here.
         // TODO implement seciont type/id as classes, to restrict comparisons?
         OPENVINO_ASSERT(
-            section_id != MANIFEST_SECTION_ID && section_id != CRE_SECTION_ID,
+            section_id != MANIFEST_SECTION_ID && section_id != RUNTIME_REQUIREMENTS_SECTION_ID,
             "By convention, the manifest and CRE sections should not be found within the parsed sections order "
             "attribute");
         const std::shared_ptr<ISection> section = blob_reader->retrieve_section(section_id);

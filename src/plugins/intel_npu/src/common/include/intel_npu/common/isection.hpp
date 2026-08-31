@@ -31,7 +31,7 @@ using SectionType = uint16_t;
 using SectionID = uint16_t;
 
 constexpr SectionID MANIFEST_SECTION_ID = 0;
-constexpr SectionID CRE_SECTION_ID = 1;
+constexpr SectionID RUNTIME_REQUIREMENTS_SECTION_ID = 1;
 
 std::string section_type_to_string(const SectionType type);
 
@@ -49,7 +49,7 @@ class BlobReaderInterface;
  */
 namespace PredefinedSectionType {
 enum : SectionType {
-    CRE = 100,
+    RUNTIME_REQUIREMENTS = 100,
     MANIFEST = 101,
     ELF_MAIN_SCHEDULE = 102,
     ELF_INIT_SCHEDULES = 103,
@@ -62,7 +62,7 @@ enum : SectionType {
 };
 
 static inline const std::unordered_set<SectionType> DEFAULT_SUPPORTED_SECTION_TYPES{
-    PredefinedSectionType::CRE,
+    PredefinedSectionType::RUNTIME_REQUIREMENTS,
     PredefinedSectionType::MANIFEST,
     PredefinedSectionType::ELF_MAIN_SCHEDULE,
     PredefinedSectionType::ELF_INIT_SCHEDULES,  // TODO needs a check?

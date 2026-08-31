@@ -44,7 +44,8 @@ TEST(MockSection1, WriteRead) {
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
     BlobReader reader;
     reader.register_reader(MockTypes::MOCK_1, MockSection_1::read);
-    reader.register_section_type_evaluator(std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE));
+    reader.register_section_type_evaluator(
+        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::RUNTIME_REQUIREMENTS));
     reader.read(tensor);
 
     auto result = std::dynamic_pointer_cast<MockSection_1>(reader.retrieve_first_section(MockTypes::MOCK_1));
@@ -64,7 +65,8 @@ TEST(MockSection2, WriteRead) {
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
     BlobReader reader;
     reader.register_reader(MockTypes::MOCK_2, MockSection_2::read);
-    reader.register_section_type_evaluator(std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE));
+    reader.register_section_type_evaluator(
+        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::RUNTIME_REQUIREMENTS));
     reader.read(tensor);
 
     auto result = std::dynamic_pointer_cast<MockSection_2>(reader.retrieve_first_section(MockTypes::MOCK_2));
@@ -84,7 +86,8 @@ TEST(MockSection2, WriteReadEmpty) {
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
     BlobReader reader;
     reader.register_reader(MockTypes::MOCK_2, MockSection_2::read);
-    reader.register_section_type_evaluator(std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE));
+    reader.register_section_type_evaluator(
+        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::RUNTIME_REQUIREMENTS));
     reader.read(tensor);
 
     auto result = std::dynamic_pointer_cast<MockSection_2>(reader.retrieve_first_section(MockTypes::MOCK_2));
@@ -105,7 +108,8 @@ TEST(MockSection3, WriteRead) {
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
     BlobReader reader;
     reader.register_reader(MockTypes::MOCK_3, MockSection_3::read);
-    reader.register_section_type_evaluator(std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE));
+    reader.register_section_type_evaluator(
+        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::RUNTIME_REQUIREMENTS));
     reader.read(tensor);
 
     auto result = std::dynamic_pointer_cast<MockSection_3>(reader.retrieve_first_section(MockTypes::MOCK_3));
@@ -131,7 +135,8 @@ TEST(MockSections, GetROITensors) {
     BlobReader reader;
     reader.register_reader(MockTypes::MOCK_1, MockSection_1::read);
     reader.register_reader(MockTypes::MOCK_2, MockSection_2::read);
-    reader.register_section_type_evaluator(std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE));
+    reader.register_section_type_evaluator(
+        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::RUNTIME_REQUIREMENTS));
     reader.read(tensor);
 
     auto manifest_section =
@@ -203,7 +208,8 @@ TEST(MockSectionWithTable, WriteRead) {
     reader.register_reader(MockTypes::MOCK_2, MockSection_2::read);
     reader.register_reader(MockTypes::MOCK_3, MockSection_3::read);
     reader.register_reader(MockTypes::MOCK_WITH_TABLE, MockSectionWithTable::read);
-    reader.register_section_type_evaluator(std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::CRE));
+    reader.register_section_type_evaluator(
+        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::RUNTIME_REQUIREMENTS));
     reader.read(tensor);
 
     auto result =

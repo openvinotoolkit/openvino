@@ -60,7 +60,7 @@ bool ISection::evaluate_compatibility_based_on_section_content(BlobReaderInterfa
 
 std::string section_type_to_string(const SectionType type) {
     switch (type) {
-    case PredefinedSectionType::CRE:
+    case PredefinedSectionType::RUNTIME_REQUIREMENTS:
         return CRE_SECTION_NAME.data();
     case PredefinedSectionType::MANIFEST:
         return MANIFEST_SECTION_NAME.data();
@@ -85,7 +85,7 @@ std::string section_type_to_string(const SectionType type) {
 
 SectionType section_type_from_string(std::string_view type) {
     if (type == CRE_SECTION_NAME) {
-        return PredefinedSectionType::CRE;
+        return PredefinedSectionType::RUNTIME_REQUIREMENTS;
     }
     if (type == MANIFEST_SECTION_NAME) {
         return PredefinedSectionType::MANIFEST;

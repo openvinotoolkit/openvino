@@ -39,7 +39,7 @@ BlobReader::BlobReader(const FilteredConfig& config)
     : m_config(config),
       m_logger("BlobReader", config.get<LOG_LEVEL>()) {
     // Register the core sections
-    register_reader(PredefinedSectionType::CRE, RuntimeRequirementsSection::read);
+    register_reader(PredefinedSectionType::RUNTIME_REQUIREMENTS, RuntimeRequirementsSection::read);
     register_reader(PredefinedSectionType::MANIFEST, ManifestSection::read);
 }
 
@@ -197,8 +197,8 @@ void BlobReader::read(BlobSource& source) {
     m_logger.debug("Parsed the manifest");
 
     // Step 2: Look for the CRE and evaluate it
-    std::optional<uint64_t> cre_location = manifest.lookup_offset(CRE_SECTION_ID);
-    std::optional<uint64_t> cre_length = manifest.lookup_length(CRE_SECTION_ID);
+    std::optional<uint64_t> cre_location = manifest.lookup_offset(RUNTIME_REQUIREMENTS_SECTION_ID);
+    std::optional<uint64_t> cre_length = manifest.lookup_length(RUNTIME_REQUIREMENTS_SECTION_ID);
 
     std::unordered_map<SectionID, SectionInstanceEvaluator> section_instance_evaluators =
         build_section_type_instance_evaluators(source, manifest, npu_region_start, npu_region_size);
@@ -208,10 +208,11 @@ void BlobReader::read(BlobSource& source) {
     if (cre_location.has_value()) {
         seekg_with_bound_checking(source, cre_location.value(), npu_region_start, npu_region_size);
 
-        OPENVINO_ASSERT(m_readers.count(PredefinedSectionType::CRE), "No reader found for the manifest");
+        OPENVINO_ASSERT(m_readers.count(PredefinedSectionType::RUNTIME_REQUIREMENTS),
+                        "No reader found for the manifest");
         parse_section(source,
-                      PredefinedSectionType::CRE,
-                      CRE_SECTION_ID,
+                      PredefinedSectionType::RUNTIME_REQUIREMENTS,
+                      RUNTIME_REQUIREMENTS_SECTION_ID,
                       cre_length.value(),
                       npu_region_start,
                       npu_region_size,

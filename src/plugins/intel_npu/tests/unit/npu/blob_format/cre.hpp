@@ -39,7 +39,7 @@ protected:
 public:
     static std::string tokenToString(CREToken token) {
         switch (token) {
-        case PredefinedSectionType::CRE:
+        case PredefinedSectionType::RUNTIME_REQUIREMENTS:
             return "CRE_EVAL";
         case PredefinedSectionType::ELF_MAIN_SCHEDULE:
             return "ELF";

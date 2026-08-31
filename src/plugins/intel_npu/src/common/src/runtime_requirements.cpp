@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_npu/common/runtime_requirements_section.hpp"
+#include "intel_npu/common/runtime_requirements.hpp"
 
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/blob_writer.hpp"
@@ -10,10 +10,29 @@
 
 namespace intel_npu {
 
-RuntimeRequirementsSection::RuntimeRequirementsSection(const std::map<std::string, std::string>& sections_requirements,
+RuntimeRequirements::RuntimeRequirements(const CRE& cre, const std::map<SectionID, std::string>& sections_requirements)
+    : m_cre(cre),
+      m_sections_requirements(sections_requirements) {}
+
+// TODO how to distinguish names
+std::unordered_map<SectionID, SectionInstanceEvaluator> RuntimeRequirements::build_section_instance_evaluators(
+    const std::unordered_map<SectionID, ISectionInstanceEvaluator>& instance_evaluators) {
+    std::unordered_map<SectionID, SectionInstanceEvaluator> per_instance_evaluators;
+    // TODO should all instances have evaluators?
+}
+
+bool RuntimeRequirements::get_compatibility_check_result(
+    const std::unordered_map<SectionType, ISectionTypeEvaluator>& type_evaluators,
+    const std::unordered_map<SectionID, ISectionInstanceEvaluator>& instance_evaluators) {
+    if (!m_compatibility_check_result.has_value()) {
+    }
+    return m_compatibility_check_result.value();
+}
+
+RuntimeRequirementsSection::RuntimeRequirementsSection(const std::map<SectionID, std::string>& sections_requirements,
                                                        const CRE& cre,
                                                        const ov::log::Level log_level)
-    : ISection(PredefinedSectionType::CRE),
+    : ISection(PredefinedSectionType::RUNTIME_REQUIREMENTS),
       m_sections_requirements(sections_requirements),
       m_cre(cre),
       m_logger("RuntimeRequirementsSection", log_level) {}
@@ -31,7 +50,7 @@ CRE RuntimeRequirementsSection::get_cre() const {
     return m_cre;
 }
 
-std::map<std::string, std::string> RuntimeRequirementsSection::get_sections_requirements() const {
+std::map<SectionID, std::string> RuntimeRequirementsSection::get_sections_requirements() const {
     return m_sections_requirements;
 }
 
