@@ -14,7 +14,16 @@ if (Test-Path -Path "$Env:OpenVINO_DIR/OpenVINOGenAIConfig.cmake")
     # If GenAI is installed, export it as well.
     $Env:OpenVINOGenAI_DIR = $Env:OpenVINO_DIR
 }
-$Env:OPENVINO_LIB_PATHS = "$Env:INTEL_OPENVINO_DIR/runtime/bin/intel64/Release;$Env:INTEL_OPENVINO_DIR/runtime/bin/intel64/RelWithDebInfo;$Env:INTEL_OPENVINO_DIR/runtime/bin/intel64/MinSizeRel;$Env:INTEL_OPENVINO_DIR/runtime/bin/intel64/Debug;$Env:OPENVINO_LIB_PATHS"
+$Env:OPENVINO_LIB_PATHS = "$Env:INTEL_OPENVINO_DIR/runtime/bin/intel64/Release;$Env:INTEL_OPENVINO_DIR/runtime/bin/intel64/Debug;$Env:OPENVINO_LIB_PATHS"
+# Multi-config generator dirs (RelWithDebInfo, MinSizeRel) are only present in local builds
+foreach ($config in @("RelWithDebInfo", "MinSizeRel"))
+{
+    $config_path = "$Env:INTEL_OPENVINO_DIR/runtime/bin/intel64/$config"
+    if (Test-Path -Path $config_path)
+    {
+        $Env:OPENVINO_LIB_PATHS = "$config_path;$Env:OPENVINO_LIB_PATHS"
+    }
+}
 
 # TBB
 if (Test-Path -Path "$Env:INTEL_OPENVINO_DIR/runtime/3rdparty/tbb")

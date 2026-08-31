@@ -40,8 +40,15 @@ if [ -e "$INSTALLDIR/runtime" ]; then
     OV_PLUGINS_PATH=$INSTALLDIR/runtime/lib/$system_type
 
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        export DYLD_LIBRARY_PATH=${OV_PLUGINS_PATH}/Release:${OV_PLUGINS_PATH}/RelWithDebInfo:${OV_PLUGINS_PATH}/MinSizeRel:${OV_PLUGINS_PATH}/Debug${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}
-        export LD_LIBRARY_PATH=${OV_PLUGINS_PATH}/Release:${OV_PLUGINS_PATH}/RelWithDebInfo:${OV_PLUGINS_PATH}/MinSizeRel:${OV_PLUGINS_PATH}/Debug${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+        export DYLD_LIBRARY_PATH=${OV_PLUGINS_PATH}/Release:${OV_PLUGINS_PATH}/Debug${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}
+        export LD_LIBRARY_PATH=${OV_PLUGINS_PATH}/Release:${OV_PLUGINS_PATH}/Debug${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+        # Multi-config generator dirs (RelWithDebInfo, MinSizeRel) are only present in local builds
+        for config in RelWithDebInfo MinSizeRel; do
+            if [ -d "${OV_PLUGINS_PATH}/${config}" ]; then
+                export DYLD_LIBRARY_PATH=${OV_PLUGINS_PATH}/${config}:${DYLD_LIBRARY_PATH}
+                export LD_LIBRARY_PATH=${OV_PLUGINS_PATH}/${config}:${LD_LIBRARY_PATH}
+            fi
+        done
         export PKG_CONFIG_PATH=${OV_PLUGINS_PATH}/Release/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
     else
         export LD_LIBRARY_PATH=${OV_PLUGINS_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
