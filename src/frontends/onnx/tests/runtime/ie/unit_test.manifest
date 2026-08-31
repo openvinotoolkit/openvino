@@ -417,4 +417,5 @@ IE_CPU.onnx_model_attention_extra_add
 IE_CPU.onnx_model_lstm_fwd_with_clip_const
 IE_CPU.onnx_model_rnn_rev_clip_const
 IE_CPU.onnx_model_rnn_bidirectional
+IE_CPU.onnx_model_rnn_bidirectional_layout_1
 IE_CPU.onnx_model_lp_pool_p3_dilations

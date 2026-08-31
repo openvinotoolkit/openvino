@@ -508,28 +508,30 @@ inline float32x4_t loadq_f32(const float* a) {
     return vld1q_f32(a);
 }
 inline float32x4_t loadq_f32(const ov::float16* a) {
-    #if defined(_MSC_VER)
-        float tmp[4];
-        for (int i = 0; i < 4; i++) tmp[i] = static_cast<float>(a[i]);
-        return vld1q_f32(tmp);
-    #else
-        const auto* a_fp16 = reinterpret_cast<const float16_t*>(a);
-        return vcvt_f32_f16(vld1_f16(a_fp16));
-    #endif
+#    if defined(_MSC_VER)
+    float tmp[4];
+    for (int i = 0; i < 4; i++)
+        tmp[i] = static_cast<float>(a[i]);
+    return vld1q_f32(tmp);
+#    else
+    const auto* a_fp16 = reinterpret_cast<const float16_t*>(a);
+    return vcvt_f32_f16(vld1_f16(a_fp16));
+#    endif
 }
 inline void storeq_f32(float* a, float32x4_t b) {
     vst1q_f32(a, b);
 }
 inline void storeq_f32(ov::float16* a, float32x4_t b) {
-    #if defined(_MSC_VER)
-        float tmp[4];
-        vst1q_f32(tmp, b);
-        for (int i = 0; i < 4; i++) a[i] = ov::float16(tmp[i]);
-    #else
-        float16x4_t v_f16 = vcvt_f16_f32(b);
-        vst1_f16(reinterpret_cast<float16_t*>(a), v_f16);
-    #endif
-    }
+#    if defined(_MSC_VER)
+    float tmp[4];
+    vst1q_f32(tmp, b);
+    for (int i = 0; i < 4; i++)
+        a[i] = ov::float16(tmp[i]);
+#    else
+    float16x4_t v_f16 = vcvt_f16_f32(b);
+    vst1_f16(reinterpret_cast<float16_t*>(a), v_f16);
+#    endif
+}
 inline void storeq_f32(ov::bfloat16* a, float32x4_t b) {
     uint32x4_t v_int32 = vreinterpretq_u32_f32(b);
     uint16x4_t v_bf16 = vshrn_n_u32(v_int32, 16);
