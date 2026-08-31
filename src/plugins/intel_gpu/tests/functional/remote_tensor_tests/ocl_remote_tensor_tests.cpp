@@ -5,6 +5,8 @@
 #ifdef OV_GPU_WITH_OCL_RT
 
 #include <algorithm>
+#include <filesystem>
+#include <fstream>
 
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/op/add.hpp"
@@ -15,6 +17,7 @@
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/util/memory.hpp"
+#include "openvino/util/mmap_object.hpp"
 
 #include "remote_tensor_tests/helpers.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -3081,9 +3084,10 @@ TEST(GpuRemoteTensorFromCpu, smoke_allocAlignedCPUMemory) {
     std::fill_n(static_cast<float*>(output_ptr), element_count, 0.0f);
 
     {
-        auto remote_input_tensor = ctx.create_tensor(ov::element::f32,
-                                                     shape,
-                                                     ov::intel_gpu::VirtualAddressMemory(input_ptr));
+        auto remote_input_tensor = ctx.create_tensor(
+            ov::element::f32,
+            shape,
+            ov::intel_gpu::VirtualAddressMemory(input_ptr, -1, ov::intel_gpu::AccessMode::READ));
         auto remote_output_tensor = ctx.create_tensor(ov::element::f32,
                                                       shape,
                                                       ov::intel_gpu::VirtualAddressMemory(output_ptr));
@@ -3103,5 +3107,160 @@ TEST(GpuRemoteTensorFromCpu, smoke_allocAlignedCPUMemory) {
     ov::util::aligned_free(input_ptr);
     ov::util::aligned_free(output_ptr);
 }
+
+
+using MmapFileMemoryParams = std::tuple<std::size_t, std::size_t>;
+
+class GpuRemoteTensorFromFile : public ::testing::TestWithParam<MmapFileMemoryParams> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<MmapFileMemoryParams>& obj) {
+        const auto& [offset, bytes_after_offset] = obj.param;
+        return "offset_" + std::to_string(offset) + "_bytes_after_offset_" + std::to_string(bytes_after_offset);
+    }
+
+protected:
+    std::filesystem::path m_file_path;
+
+    void SetUp() override {
+        m_file_path = ov::test::utils::generateTestFilePrefix() + ".bin";
+    }
+
+    void TearDown() override {
+        std::error_code ec;
+        std::filesystem::remove(m_file_path, ec);
+    }
+
+    static void write_data_at_offset(const std::filesystem::path& path,
+                                     std::size_t offset,
+                                     const std::vector<float>& values) {
+        std::ofstream file(path, std::ios::binary);
+        if (offset > 0) {
+            const std::vector<char> padding(offset, 0);
+            file.write(padding.data(), padding.size());
+        }
+        file.write(reinterpret_cast<const char*>(values.data()), values.size() * sizeof(float));
+    }
+
+    static std::vector<float> make_values(std::size_t element_count) {
+        std::vector<float> values(element_count);
+        for (std::size_t i = 0; i < element_count; ++i) {
+            values[i] = static_cast<float>(i + 1);
+        }
+        return values;
+    }
+};
+
+TEST_P(GpuRemoteTensorFromFile, smoke_mmapFileMemoryAsInput) {
+    const auto& [offset, bytes_after_offset] = GetParam();
+
+    ov::Core core;
+    std::string target_device = ov::test::utils::DEVICE_GPU;
+    const ov::Shape shape{bytes_after_offset / sizeof(float)};
+    const size_t element_count = ov::shape_size(shape);
+    auto ctx = core.get_default_context(target_device).as<ov::intel_gpu::ocl::ClContext>();
+
+    const auto input_values = make_values(element_count);
+    write_data_at_offset(m_file_path, offset, input_values);
+    ASSERT_EQ(std::filesystem::file_size(m_file_path), offset + bytes_after_offset);
+
+    const std::size_t cacheline = core.get_property(target_device, ov::intel_gpu::cacheline_size);
+    const std::size_t output_buffer_size = ((bytes_after_offset + cacheline - 1) / cacheline) * cacheline;
+    void* output_ptr = ov::util::aligned_alloc(output_buffer_size, cacheline);
+    std::fill_n(static_cast<char*>(output_ptr), output_buffer_size, 0);
+
+    {
+        auto remote_input_tensor =
+            ctx.create_tensor(ov::element::f32, shape, ov::intel_gpu::FileDescriptor{m_file_path, offset});
+        ASSERT_TRUE(remote_input_tensor.is<ov::intel_gpu::ocl::ClBufferTensor>());
+        auto remote_output_tensor =
+            ctx.create_tensor(ov::element::f32,
+                              shape,
+                              ov::intel_gpu::VirtualAddressMemory(output_ptr, static_cast<int64_t>(output_buffer_size)));
+
+        auto model = make_copy_model(shape);
+        auto compiled = core.compile_model(model, ctx);
+        auto infer_req = compiled.create_infer_request();
+        infer_req.set_tensor(compiled.input(), remote_input_tensor);
+        infer_req.set_tensor(compiled.output(), remote_output_tensor);
+        infer_req.infer();
+
+        for (size_t i = 0; i < element_count; ++i) {
+            EXPECT_FLOAT_EQ(static_cast<float*>(output_ptr)[i], input_values[i]) << "Mismatch at index " << i;
+        }
+    }
+
+    ov::util::aligned_free(output_ptr);
+}
+
+TEST_P(GpuRemoteTensorFromFile, smoke_mmapFileMemoryAsOutput) {
+    const auto& [offset, bytes_after_offset] = GetParam();
+
+    ov::Core core;
+    std::string target_device = ov::test::utils::DEVICE_GPU;
+    const ov::Shape shape{bytes_after_offset / sizeof(float)};
+    const size_t element_count = ov::shape_size(shape);
+    auto ctx = core.get_default_context(target_device).as<ov::intel_gpu::ocl::ClContext>();
+
+    const auto input_values = make_values(element_count);
+    write_data_at_offset(m_file_path, offset, std::vector<float>(element_count, 0.0f));
+    ASSERT_EQ(std::filesystem::file_size(m_file_path), offset + bytes_after_offset);
+
+    {
+        auto remote_output_tensor = ctx.create_tensor(
+            ov::element::f32,
+            shape,
+            ov::intel_gpu::FileDescriptor{m_file_path, offset, ov::intel_gpu::AccessMode::READ_WRITE});
+
+        auto model = make_copy_model(shape);
+        auto compiled = core.compile_model(model, ctx);
+        auto infer_req = compiled.create_infer_request();
+        infer_req.set_tensor(compiled.input(),
+                             ov::Tensor(ov::element::f32, shape, const_cast<float*>(input_values.data())));
+        infer_req.set_tensor(compiled.output(), remote_output_tensor);
+        infer_req.infer();
+    }
+
+    std::vector<float> file_content(element_count, 0.0f);
+    std::ifstream file(m_file_path, std::ios::binary);
+    file.seekg(offset);
+    file.read(reinterpret_cast<char*>(file_content.data()), bytes_after_offset);
+    for (size_t i = 0; i < element_count; ++i) {
+        EXPECT_FLOAT_EQ(file_content[i], input_values[i]) << "Mismatch in file at index " << i;
+    }
+}
+
+static std::vector<MmapFileMemoryParams> generate_mmap_file_memory_params() {
+#ifdef _WIN32
+    // Windows maps file views with 64K allocation granularity
+    const std::size_t mmap_granularity = 65536;
+#else
+    // Page size varies per platform: 4K on x86-64, 16K or 64K on some ARM64 Linux distributions.
+    const auto mmap_granularity = static_cast<std::size_t>(ov::util::get_system_page_size());
+#endif
+    const std::vector<std::pair<std::size_t, std::size_t>> layouts{
+        // Sizes smaller than / not divisible by the device cacheline size, e.g. f32 with shape {1}.
+        {0, sizeof(float)},
+        {mmap_granularity, 3 * sizeof(float)},
+        {0, 256},
+        {0, 4 * mmap_granularity},
+        {mmap_granularity, 256},
+        {2 * mmap_granularity, 256},
+        {16 * mmap_granularity, 256},
+        {mmap_granularity, mmap_granularity},
+        {3 * mmap_granularity, 4 * mmap_granularity},
+        {8 * mmap_granularity, 16 * mmap_granularity}};
+
+    std::vector<MmapFileMemoryParams> params;
+    params.reserve(layouts.size());
+    for (const auto& [offset, bytes_after_offset] : layouts) {
+        params.emplace_back(offset, bytes_after_offset);
+    }
+    return params;
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_mmapFileMemory,
+                         GpuRemoteTensorFromFile,
+                         ::testing::ValuesIn(generate_mmap_file_memory_params()),
+                         GpuRemoteTensorFromFile::getTestCaseName);
 
 #endif  // OV_GPU_WITH_OCL_RT

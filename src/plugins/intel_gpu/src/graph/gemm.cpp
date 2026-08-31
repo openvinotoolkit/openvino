@@ -276,13 +276,20 @@ layout gemm_inst::transform_output_layout(const std::shared_ptr<const gemm> prim
         auto N = transposed_input1_pshape[transposed_input1_pshape.size() - 1];
 
         auto output_pshape = transposed_input0_pshape;
-        for (size_t i = 0; i != primitive->input_size(); ++i) {
-            auto input_pshape = (i == 0) ? transposed_input0_pshape :
-                                (i == 1) ? transposed_input1_pshape :
-                                input_layouts[i].get_partial_shape();
-            for (size_t j = 0; j != input_pshape.size(); ++j) {
-                if (input_pshape[j].get_max_length() != input_pshape[j].get_min_length())
-                    ov::Dimension::merge(output_pshape[j], output_pshape[j], input_pshape[j]);
+
+        // Output batch is the broadcast of all inputs, not just input0. max() for static dims,
+        // to match calc_output_layout() and ov::intel_gpu::op::shape_infer().
+        for (size_t i = 1; i != primitive->input_size(); ++i) {
+            auto input_pshape = (i == 1) ? transposed_input1_pshape : input_layouts[i].get_partial_shape();
+            const auto rank = std::min(output_pshape.size(), input_pshape.size());
+            for (size_t j = 0; j != rank; ++j) {
+                if (output_pshape[j].is_static() && input_pshape[j].is_static()) {
+                    output_pshape[j] = std::max(output_pshape[j].get_length(), input_pshape[j].get_length());
+                } else {
+                    ov::Dimension broadcasted_dim;
+                    if (ov::Dimension::broadcast_merge(broadcasted_dim, output_pshape[j], input_pshape[j]))
+                        output_pshape[j] = std::move(broadcasted_dim);
+                }
             }
         }
 

@@ -33,7 +33,7 @@ The default architecture of OpenVINO Runtime assumes that the following componen
 * (Device) Inference backends (CPU, GPU, NPU, MULTI, HETERO, etc.)
 * (Model) Frontends (IR, ONNX, PDPD, TF, JAX, etc.)
 
-With the static OpenVINO Runtime, all these modules should be linked into a final user application and **the list of modules/configuration must be known for the CMake configuration stage**. To minimize the total binary size, you can explicitly turn `OFF` unnecessary components. Use [[CMake Options for Custom Compilation|CMakeOptionsForCustomCompilation ]] as a reference for OpenVINO CMake configuration.
+With the static OpenVINO Runtime, all these modules should be linked into a final user application and **the list of modules/configuration must be known for the CMake configuration stage**. To minimize the total binary size, you can explicitly turn `OFF` unnecessary components. Use [CMake Options for Custom Compilation](cmake_options_for_custom_compilation.md) as a reference for OpenVINO CMake configuration.
 
 For example, to enable only IR v11 reading and CPU inference capabilities, use:
 ```sh
@@ -122,8 +122,8 @@ gcc main.cpp -Wl,--whole-archive <all libraries from <root>/runtime/lib> > -Wl,-
 
 ## Static OpenVINO libraries + Conditional compilation for particular models
 
-OpenVINO Runtime can be compiled for particular models, as shown in the [[Conditional compilation for particular models|ConditionalCompilation]] guide.
-The conditional compilation feature can be paired with static OpenVINO libraries to build even smaller end-user applications in terms of binary size. The following procedure can be used, (based on the detailed [[Conditional compilation for particular models|ConditionalCompilation]] guide):
+OpenVINO Runtime can be compiled for particular models, as shown in the [Conditional compilation for particular models](conditional_compilation.md) guide.
+The conditional compilation feature can be paired with static OpenVINO libraries to build even smaller end-user applications in terms of binary size. The following procedure can be used, (based on the detailed [Conditional compilation for particular models](conditional_compilation.md) guide):
 
 * Build OpenVINO Runtime as usual with the CMake option of `-DSELECTIVE_BUILD=COLLECT`.
 * Run target applications on target models and target platforms to collect traces.
@@ -209,9 +209,9 @@ These samples link against the static package the same way any consuming applica
         >
         > The TBB version differs per OS and changes between OpenVINO releases; check [cmake/dependencies.cmake](../../cmake/dependencies.cmake) for the version matching your checkout before downloading.
     * To use your own oneTBB build instead of the prebuilt package (for example, to build oneTBB as a static library), follow the official [oneTBB installation instructions](https://github.com/uxlfoundation/oneTBB/blob/master/INSTALL.md) and set `TBBROOT` to the installation directory before configuring OpenVINO.
-        > **NOTE**: The oneTBB team does not recommend using oneTBB as a static library, see [[Why onetbb does not like a static library?|https://github.com/uxlfoundation/oneTBB/issues/646]].
+        > **NOTE**: The oneTBB team does not recommend using oneTBB as a static library, see [Why onetbb does not like a static library?](https://github.com/uxlfoundation/oneTBB/issues/646).
 
-* `TBBBind_2_5` is not available on Windows x64 during a static OpenVINO build (see description for `ENABLE_TBBBIND_2_5` CMake option [[here|CMakeOptionsForCustomCompilation]] to understand what this library is responsible for). So, capabilities enabled by `TBBBind_2_5` are not available. To enable them, build [[oneTBB from source code|https://github.com/oneapi-src/oneTBB]] and provide the path to built oneTBB artifacts via `TBBROOT` environment variable before OpenVINO CMake scripts are run.
+* `TBBBind_2_5` is not available on Windows x64 during a static OpenVINO build (see description for `ENABLE_TBBBIND_2_5` CMake option [here](cmake_options_for_custom_compilation.md) to understand what this library is responsible for). So, capabilities enabled by `TBBBind_2_5` are not available. To enable them, build [oneTBB from source code](https://github.com/oneapi-src/oneTBB) and provide the path to built oneTBB artifacts via `TBBROOT` environment variable before OpenVINO CMake scripts are run.
 
 ## See also
 

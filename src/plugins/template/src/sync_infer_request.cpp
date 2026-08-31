@@ -197,7 +197,9 @@ void ov::template_plugin::InferRequest::infer_preprocess() {
             m_backend_input_tensors[i] =
                 get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor->get_element_type(),
                                                                                       tensor->get_shape());
-            tensor->copy_to(ov::get_tensor_impl(m_backend_input_tensors[i])._ptr);
+            auto backend_tensor_impl = ov::get_tensor_impl(m_backend_input_tensors[i]);
+            OPENVINO_ASSERT(backend_tensor_impl, "Failed to create backend tensor");
+            tensor->copy_to(backend_tensor_impl._ptr);
         }
     }
     // Tensors can be dynamic, so in this case we need to allocate tensors with right shape

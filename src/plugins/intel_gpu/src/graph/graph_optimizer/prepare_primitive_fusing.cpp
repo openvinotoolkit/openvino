@@ -695,10 +695,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             auto out_layout = node.get_output_layout();
             // Do not fuse if the estimated format is fs_b_yx_fsv32 because the optimized kernel does not support fusion
-            return out_layout.data_type != data_types::f16 || !out_layout.is_static() || out_layout.batch() <= 1 ||
-                (((lo.get_optimization_attributes().fs_b_yx_fsv32_network == 0) ||
-                  lo.has_all_enabled_onednn_impls_optimization_attribute() || has_reorder_behind_mvn()) &&
-                 out_layout.format != format::fs_b_yx_fsv32);
+            return (out_layout.data_type != data_types::f16 && out_layout.data_type != data_types::bf16) || !out_layout.is_static() || out_layout.batch() <= 1 ||
+                   (((lo.get_optimization_attributes().fs_b_yx_fsv32_network == 0) ||
+                     lo.has_all_enabled_onednn_impls_optimization_attribute() || has_reorder_behind_mvn()) &&
+                    out_layout.format != format::fs_b_yx_fsv32);
         };
 
         auto get_users_from_fusing_history = [&](const primitive_id& id) {
@@ -908,10 +908,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= legacy_fusion;
 
-            // fp8 concatenation/scatter_update take a byte-copy kernel path that cannot run fused ops
+            // fp8 concatenation/scatter_update/gather take a byte-copy kernel path that cannot run fused ops
             // (ACTIVATION does not compile on the 1-byte fp8 struct), so block fusion into an fp8 output.
             if (should_fuse && input.get_output_layout().data_type == data_types::f8e4m3 &&
-                (input.is_type<concatenation>() || input.is_type<scatter_update>())) {
+                (input.is_type<concatenation>() || input.is_type<scatter_update>() || input.is_type<gather>())) {
                 should_fuse = false;
             }
 
@@ -990,7 +990,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                            (!lo.has_all_enabled_onednn_impls_optimization_attribute() ||
                              in_dt_is_i8_u8 || !out_dt_is_i8_u8);
 
-            should_fuse |= input_data.is_type<gather>() && quantize_node.get_scale_shift_opt();
+            // fp8 gather byte-copies its data; fused ops don't compile on the fp8 struct, so don't fuse into it.
+            should_fuse |=
+                input_data.is_type<gather>() && quantize_node.get_scale_shift_opt() && input_data.get_output_layout().data_type != data_types::f8e4m3;
 
             should_fuse |= input_data.is_type<gather_nd>() && quantize_node.get_scale_shift_opt();
 

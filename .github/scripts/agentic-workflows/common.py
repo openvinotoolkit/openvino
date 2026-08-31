@@ -19,6 +19,7 @@ import os
 import re
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -194,6 +195,8 @@ def post_adaptive_card(webhook_url: str, body: list[dict[str, Any]]) -> None:
             }
         ],
     }
+    if urllib.parse.urlsplit(webhook_url).scheme != "https":
+        sys.exit(f"Teams webhook URL must use https, got: '{webhook_url}'")
     request = urllib.request.Request(
         webhook_url,
         data=json.dumps(payload).encode("utf-8"),
@@ -201,7 +204,7 @@ def post_adaptive_card(webhook_url: str, body: list[dict[str, Any]]) -> None:
         method="POST",
     )
     try:
-        with urllib.request.urlopen(request) as response:
+        with urllib.request.urlopen(request) as response:  # nosec B310 - scheme restricted to https above
             print(f"Teams webhook responded with HTTP {response.status}: {response.read().decode('utf-8', 'replace')}")
     except urllib.error.HTTPError as error:
         sys.exit(f"Teams webhook failed with HTTP {error.code}: {error.read().decode('utf-8', 'replace')}")

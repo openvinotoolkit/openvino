@@ -4,11 +4,15 @@
 
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/tensor.hpp"
+#include "openvino/core/memory_util.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/remote_tensor.hpp"
 #include "intel_gpu/plugin/usm_host_tensor.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
+#include "intel_gpu/runtime/utils.hpp"
 #include <memory>
 
 namespace ov::intel_gpu {
@@ -21,6 +25,17 @@ Type extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
     OPENVINO_ASSERT(itrHandle != params.end(), "[GPU] No parameter ", p.name(), " found in parameters map");
     ov::Any res = itrHandle->second;
     return res.as<Type>();
+}
+
+
+ov::MmapMode to_util_mmap_mode(ov::intel_gpu::AccessMode access) {
+    switch (access) {
+    case ov::intel_gpu::AccessMode::READ:
+        return ov::MmapMode::READ;
+    case ov::intel_gpu::AccessMode::READ_WRITE:
+        return ov::MmapMode::READ_WRITE;
+    }
+    OPENVINO_THROW("[GPU] Unsupported file access mode");
 }
 
 ContextType get_default_context_type() {
@@ -173,6 +188,7 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
         if (ov::intel_gpu::SharedMemType::USM_DEVICE_BUFFER == mem_type) {
             return { create_usm(type, shape, TensorType::BT_USM_DEVICE_INTERNAL), nullptr };
         }
+
         TensorType tensor_type;
         cldnn::shared_handle mem = nullptr;
 
@@ -186,26 +202,34 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
             tensor_type = TensorType::BT_CPU_VA;
             mem = extract_object(params, ov::intel_gpu::cpu_va);
             auto size = extract_object(params, ov::intel_gpu::cpu_va_size);
-            return {reuse_memory_from_cpu_va(type, shape, VirtualAddressMemory{mem, size}, tensor_type), nullptr};
+            // cpu_va_access is optional for backward compatibility with callers that build params manually
+            auto access = ov::intel_gpu::AccessMode::READ_WRITE;
+            if (auto it = params.find(ov::intel_gpu::cpu_va_access.name()); it != params.end()) {
+                access = it->second.as<ov::intel_gpu::AccessMode>();
+            }
+            return { reuse_memory_from_cpu_va(type, shape, VirtualAddressMemory{mem, size, access}, tensor_type), nullptr };
+        } else if (ov::intel_gpu::SharedMemType::MMAPED_FILE == mem_type) {
+            const auto fd = extract_object(params, ov::intel_gpu::file_descriptor);
+            return { reuse_memory_from_file(type, shape, fd.path, fd.offset, fd.access), nullptr };
         } else if (ov::intel_gpu::SharedMemType::OCL_IMAGE2D == mem_type) {
             tensor_type = TensorType::BT_IMG_SHARED;
             mem = extract_object(params, ov::intel_gpu::mem_handle);
 #ifdef _WIN32
-            } else if (ov::intel_gpu::SharedMemType::DX_BUFFER == mem_type) {
-                tensor_type = TensorType::BT_DX_BUF_SHARED;
-                mem = extract_object(params, ov::intel_gpu::dev_object_handle);
-                check_if_shared();
+        } else if (ov::intel_gpu::SharedMemType::DX_BUFFER == mem_type) {
+            tensor_type = TensorType::BT_DX_BUF_SHARED;
+            mem = extract_object(params, ov::intel_gpu::dev_object_handle);
+            check_if_shared();
 #endif
-            } else if (ov::intel_gpu::SharedMemType::BUFFER_FROM_HANDLE == mem_type) {
-                tensor_type = TensorType::BT_BUF_SHARED_FROM_HANDLE;
-                const auto os_handle = extract_object(params, ov::intel_gpu::os_handle);
-                SharedBufferHandle handle{os_handle};
-                return { reuse_memory_from_handle(type, shape, handle, tensor_type), nullptr };
-            } else {
-                OPENVINO_THROW("[GPU] Unsupported shared object type ", mem_type);
-            }
+        } else if (ov::intel_gpu::SharedMemType::BUFFER_FROM_HANDLE == mem_type) {
+            tensor_type = TensorType::BT_BUF_SHARED_FROM_HANDLE;
+            const auto os_handle = extract_object(params, ov::intel_gpu::os_handle);
+            SharedBufferHandle handle{os_handle};
+            return { reuse_memory_from_handle(type, shape, handle, tensor_type), nullptr };
+        } else {
+            OPENVINO_THROW("[GPU] Unsupported shared object type ", mem_type);
+        }
 
-            return { reuse_memory(type, shape, mem, tensor_type), nullptr };
+        return { reuse_memory(type, shape, mem, tensor_type), nullptr };
 }
 
 // For external contexts we try to match underlying handles with default contexts created by plugin to find device name
@@ -269,6 +293,43 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_handle(c
                                                                    ov::intel_gpu::SharedBufferHandle handle,
                                                                    TensorType tensor_type) {
     return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, type, tensor_type, nullptr, 0, 0, handle);
+}
+
+std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_file(const ov::element::Type type,
+                                                                   const ov::Shape& shape,
+                                                                   const std::filesystem::path& file_path,
+                                                                   size_t offset,
+                                                                   ov::intel_gpu::AccessMode access) {
+    const auto byte_size = ov::util::get_memory_size_safe(type, shape);
+    OPENVINO_ASSERT(byte_size, "[GPU] Cannot calculate memory size for element type ", type, " and shape ", shape);
+
+    const auto alignment = ov::util::get_system_alloc_granularity();
+    OPENVINO_ASSERT(alignment != 0 && offset % alignment == 0,
+                    "[GPU] Offset ",
+                    offset,
+                    " must be a multiple of ",
+                    alignment);
+    // Memory-map the file. The mapping is retained inside the RemoteTensorImpl so it stays
+    // alive for the whole tensor lifetime (GPU wraps the host pointer via CL_MEM_USE_HOST_PTR).
+    auto mapped_memory =
+        ov::load_mmap_object(file_path, offset, *byte_size, /*no_placeholder=*/false, to_util_mmap_mode(access));
+
+    auto import_size = *byte_size;
+    const auto cacheline_size = static_cast<size_t>(get_engine().get_device_info().cacheline_size.value_or(0));
+    if (cacheline_size > 0 && alignment % cacheline_size == 0) {
+        import_size = cldnn::align_to(import_size, cacheline_size);
+    }
+
+    return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(),
+                                              shape,
+                                              type,
+                                              TensorType::BT_CPU_VA,
+                                              nullptr,
+                                              0,
+                                              0,
+                                              ov::intel_gpu::SharedBufferHandle{},
+                                              VirtualAddressMemory{mapped_memory->data(), static_cast<int64_t>(import_size), access},
+                                              mapped_memory);
 }
 
 std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::create_buffer(const ov::element::Type type, const ov::Shape& shape) {
