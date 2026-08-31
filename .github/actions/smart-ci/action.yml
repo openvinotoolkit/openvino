@@ -81,45 +81,30 @@ runs:
         wait-interval: 10
         timeout: 300
 
-    - name: Get action revision
-      id: get_action_revision
-      run: echo "action_ref=${{ env.ACTION_REF }}" >> $GITHUB_OUTPUT
-      shell: bash
-      env:
-        ACTION_REF: ${{ github.action_ref || github.base_ref || github.event.merge_group.base_ref || github.ref }}
-
     - name: checkout components and labeler files
       uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
       with:
         sparse-checkout: |
-          ${{ inputs.components_config }}
-          ${{ inputs.labeler_config }}
+          .github/components.yml
+          .github/labeler.yml
         sparse-checkout-cone-mode: false
-
-    - name: Checkout action scripts
-      uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
-      with:
-        repository: 'openvinotoolkit/openvino'
-        ref: ${{ steps.get_action_revision.outputs.action_ref }}
-        sparse-checkout: .github/actions/smart-ci
-        path: smart_ci_action
 
     - name: Install Python dependencies
       uses: py-actions/py-dependency-install@30aa0023464ed4b5b116bd9fbdab87acf01a484e # v4.1.0
       with:
-        path: "smart_ci_action/.github/actions/smart-ci/requirements.txt"
+        path: "${{ github.action_path }}/requirements.txt"
         update-setuptools: "false"
         update-wheel: "false"
 
     - name: Test functionality
       run: |
-        python smart_ci_action/.github/actions/smart-ci/smart_ci_test.py
+        python ${{ github.action_path }}/smart_ci_test.py
       shell: bash
 
     - name: Smart CI
       id: smart_ci
       run: |
-          python smart_ci_action/.github/actions/smart-ci/smart_ci.py \
+          python ${{ github.action_path }}/smart_ci.py \
           $([[ -n "${{ inputs.pr }}" ]] && echo '--pr ${{ inputs.pr }}' || echo '-s ${{ inputs.commit_sha }}') \
           -r ${{ inputs.repository }} \
           -f "${{ inputs.ref_name }}" \
@@ -133,4 +118,4 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.repo_token }}
-        DEFAULT_CONFIG_SCHEMA: "smart_ci_action/.github/actions/smart-ci/components_schema.yml"
+        DEFAULT_CONFIG_SCHEMA: "${{ github.action_path }}/components_schema.yml"
