@@ -20,7 +20,7 @@ namespace ov {
 namespace test {
 namespace npuw {
 struct LLMContinuedPrefillTestAccess;
-struct LLMLongRopeRegimeTestAccess;
+struct LLMLongRopeModeTestAccess;
 }  // namespace npuw
 }  // namespace test
 }  // namespace ov
@@ -143,7 +143,7 @@ public:
 
 private:
     friend struct ov::test::npuw::LLMContinuedPrefillTestAccess;
-    friend struct ov::test::npuw::LLMLongRopeRegimeTestAccess;
+    friend struct ov::test::npuw::LLMLongRopeModeTestAccess;
 
     // -------------------------------------------------------------------------
     // Private helper structs (used only during initialize())

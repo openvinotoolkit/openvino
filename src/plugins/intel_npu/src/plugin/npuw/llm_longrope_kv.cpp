@@ -49,18 +49,18 @@ void rerotate_planes(T* data,
 
 }  // anonymous namespace
 
-ov::npuw::longrope::RegimeDelta ov::npuw::longrope::make_regime_delta(
+ov::npuw::longrope::ModeDelta ov::npuw::longrope::make_mode_delta(
     ov::npuw::patterns::pre_compute::LongRopeCosSin& tables,
     int64_t first_position_id,
     uint32_t num_tokens,
     bool to_long) {
-    RegimeDelta delta;
+    ModeDelta delta;
     if (num_tokens == 0u || !tables.has_long) {
-        // Without a distinct long-factor set both regimes share the same coefficients,
+        // Without a distinct long-factor set both modes share the same coefficients,
         // so a flip changes nothing about the cached keys.
         return delta;
     }
-    OPENVINO_ASSERT(tables.is_valid(), "NPUW: LongRoPE regime flipped but the cos/sin tables are missing.");
+    OPENVINO_ASSERT(tables.is_valid(), "NPUW: LongRoPE mode flipped but the cos/sin tables are missing.");
 
     const size_t rotary_ndims = tables.rotary_ndims;
     OPENVINO_ASSERT(rotary_ndims % 2u == 0u, "NPUW: LongRoPE rotary dimension must be even.");
@@ -77,7 +77,7 @@ ov::npuw::longrope::RegimeDelta ov::npuw::longrope::make_regime_delta(
     delta.cos.resize(static_cast<size_t>(num_tokens) * delta.half);
     delta.sin.resize(static_cast<size_t>(num_tokens) * delta.half);
 
-    // Row p of either regime holds the coefficients of absolute position p.
+    // Row p of either mode holds the coefficients of absolute position p.
     auto cos_old = tables.cos_rows(tables.max_len, !to_long);
     auto sin_old = tables.sin_rows(tables.max_len, !to_long);
     auto cos_new = tables.cos_rows(tables.max_len, to_long);
@@ -106,7 +106,7 @@ ov::npuw::longrope::RegimeDelta ov::npuw::longrope::make_regime_delta(
 
 void ov::npuw::longrope::rerotate_keys(const KeyTensorLayout& layout,
                                        uint32_t num_tokens,
-                                       const RegimeDelta& delta,
+                                       const ModeDelta& delta,
                                        size_t delta_row_offset) {
     if (delta.half == 0u || num_tokens == 0u) {
         return;
@@ -150,14 +150,14 @@ void ov::npuw::longrope::rerotate_keys(const KeyTensorLayout& layout,
 ov::npuw::longrope::KeyTensorLayout ov::npuw::longrope::check_key_tensor(const ov::SoPtr<ov::ITensor>& tensor,
                                                                          uint32_t seq_dim,
                                                                          uint32_t num_tokens,
-                                                                         const RegimeDelta& delta) {
+                                                                         const ModeDelta& delta) {
     OPENVINO_ASSERT(tensor, "NPUW: a past-key input of a LongRoPE model has no tensor bound to it.");
 
     const auto type = tensor->get_element_type();
     // A quantized cache cannot be turned without dequantizing it first, and no other
     // element type reaches the kernels below.
     OPENVINO_ASSERT(type == ov::element::f16 || type == ov::element::f32,
-                    "NPUW: a LongRoPE regime change cannot re-rotate a KV cache of element type ",
+                    "NPUW: a LongRoPE mode change cannot re-rotate a KV cache of element type ",
                     type,
                     "; only f16 and f32 caches can be turned in place.");
 
@@ -225,7 +225,7 @@ ov::npuw::longrope::KeyTensorLayout ov::npuw::longrope::check_key_tensor(const o
 void ov::npuw::longrope::rerotate_keys(const ov::SoPtr<ov::ITensor>& tensor,
                                        uint32_t seq_dim,
                                        uint32_t num_tokens,
-                                       const RegimeDelta& delta) {
+                                       const ModeDelta& delta) {
     if (delta.half == 0u || num_tokens == 0u) {
         return;
     }
@@ -240,13 +240,13 @@ void ov::npuw::longrope::rerotate_cached_keys(const std::shared_ptr<ov::IAsyncIn
                                               uint32_t num_tokens,
                                               int64_t first_position_id,
                                               bool to_long) {
-    const auto delta = make_regime_delta(tables, first_position_id, num_tokens, to_long);
+    const auto delta = make_mode_delta(tables, first_position_id, num_tokens, to_long);
     if (delta.half == 0u) {
         return;
     }
 
     // Resolve and check every live key first. Anything that throws does so here, with
-    // the cache still wholly in the previous regime and the caller's regime flag not
+    // the cache still wholly in the previous mode and the caller's mode flag not
     // yet advanced.
     std::vector<KeyTensorLayout> layouts;
     layouts.reserve(past_kv_names.size());
@@ -258,12 +258,12 @@ void ov::npuw::longrope::rerotate_cached_keys(const std::shared_ptr<ov::IAsyncIn
         OPENVINO_ASSERT(port_it != in_ports.end(),
                         "NPUW: past-key input ",
                         name,
-                        " is missing from the request the LongRoPE regime change has to re-rotate.");
+                        " is missing from the request the LongRoPE mode change has to re-rotate.");
         layouts.push_back(check_key_tensor(request->get_tensor(port_it->second), seq_dim, num_tokens, delta));
     }
 
     LOG_DEBUG("Re-rotating " << num_tokens << " cached keys of " << layouts.size() << " layers into the "
-                             << (to_long ? "long" : "short") << "-factor LongRoPE regime.");
+                             << (to_long ? "long" : "short") << "-factor LongRoPE mode.");
 
     ov::parallel_for(layouts.size(), [&](size_t idx) {
         rerotate_keys(layouts[idx], num_tokens, delta);
@@ -278,7 +278,7 @@ void ov::npuw::longrope::rerotate_cached_key_blocks(const std::vector<KeyBlock>&
                                                     bool to_long) {
     // One delta for the whole conversation; each block reads the rows its own positions
     // land on, so the blocks need not be contiguous or in any particular order.
-    const auto delta = make_regime_delta(tables, first_position_id, num_cached_tokens, to_long);
+    const auto delta = make_mode_delta(tables, first_position_id, num_cached_tokens, to_long);
     if (delta.half == 0u) {
         return;
     }
@@ -293,12 +293,12 @@ void ov::npuw::longrope::rerotate_cached_key_blocks(const std::vector<KeyBlock>&
                         block.first_token + block.num_tokens,
                         ") reaches past the ",
                         num_cached_tokens,
-                        " tokens the LongRoPE regime change was given.");
+                        " tokens the LongRoPE mode change was given.");
         layouts.push_back(check_key_tensor(block.tensor, seq_dim, block.num_tokens, delta));
     }
 
     LOG_DEBUG("Re-rotating " << num_cached_tokens << " cached keys held in " << layouts.size() << " blocks into the "
-                             << (to_long ? "long" : "short") << "-factor LongRoPE regime.");
+                             << (to_long ? "long" : "short") << "-factor LongRoPE mode.");
 
     ov::parallel_for(layouts.size(), [&](size_t idx) {
         rerotate_keys(layouts[idx], blocks[idx].num_tokens, delta, blocks[idx].first_token);

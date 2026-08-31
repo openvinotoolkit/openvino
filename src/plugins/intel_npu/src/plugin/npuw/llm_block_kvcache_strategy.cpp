@@ -495,7 +495,7 @@ void LLMBlockKVCacheStrategy::rerotate_longrope_keys(const std::shared_ptr<ov::I
                                                      uint32_t num_cached_tokens,
                                                      bool to_long) {
     OPENVINO_ASSERT(!m_kv_cache_block_managers.empty() && m_block_size > 0u,
-                    "NPUW: the LongRoPE regime changed but the block KV cache is not initialized.");
+                    "NPUW: the LongRoPE mode changed but the block KV cache is not initialized.");
 
     std::vector<ov::npuw::longrope::KeyBlock> blocks;
     for (const auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
@@ -507,7 +507,7 @@ void LLMBlockKVCacheStrategy::rerotate_longrope_keys(const std::shared_ptr<ov::I
         for (uint32_t first = 0u; first < num_cached_tokens; first += m_block_size) {
             const uint32_t block_idx = first / m_block_size;
             OPENVINO_ASSERT(block_idx < allocated.size(),
-                            "NPUW: the LongRoPE regime changed with ",
+                            "NPUW: the LongRoPE mode changed with ",
                             num_cached_tokens,
                             " cached tokens, but layer ",
                             layer_idx,
@@ -523,7 +523,7 @@ void LLMBlockKVCacheStrategy::rerotate_longrope_keys(const std::shared_ptr<ov::I
                             layer_idx,
                             " holds ",
                             manager->get_block_tokens(block_id),
-                            " tokens where the LongRoPE regime change expects at least ",
+                            " tokens where the LongRoPE mode change expects at least ",
                             live,
                             ".");
             blocks.push_back({manager->get_block_tensor(block_id), first, live});

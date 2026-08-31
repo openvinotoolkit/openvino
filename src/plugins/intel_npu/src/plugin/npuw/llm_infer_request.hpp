@@ -25,7 +25,7 @@ struct LLMVariantSwitchTestAccess;
 struct LLMTrimKVCacheTestAccess;
 struct LLMPortNameRegistrationTestAccess;
 struct LLMContinuedPrefillTestAccess;
-struct LLMLongRopeRegimeTestAccess;
+struct LLMLongRopeModeTestAccess;
 }  // namespace npuw
 }  // namespace test
 }  // namespace ov
@@ -107,18 +107,23 @@ protected:
                         ov::SoPtr<ov::ITensor> position_ids,
                         ov::SoPtr<ov::ITensor> per_layer_inputs);
 
-    // Keeps already-cached keys consistent with the LongRoPE regime the next inference
-    // will rotate its queries and new keys with. On a short<->long flip the cached keys
-    // are turned by the angle difference between the regimes instead of being dropped;
-    // see llm_longrope_kv.hpp. num_cached_tokens rows of the request's past-key inputs
-    // are rewritten.
+    // Picks the LongRoPE mode for this call from position_ids, points the stage's
+    // npuw_lr_cos/npuw_lr_sin inputs at that mode's coefficients, and - when the choice
+    // flipped mid-conversation - turns the num_cached_tokens keys already in `request` by
+    // the angle difference between the modes instead of dropping them; see
+    // llm_longrope_kv.hpp. A no-op for models without those inputs.
     //
-    // Throws if the flip cannot be carried out in full, leaving m_longrope_long_regime
-    // describing the regime the cache is actually in.
-    void sync_longrope_kv_regime(const std::shared_ptr<ov::IAsyncInferRequest>& request,
-                                 const PortsMap& in_ports,
-                                 uint32_t num_cached_tokens,
-                                 bool is_long);
+    // The two halves are never done separately: coefficients bound without the cache
+    // turned to match is exactly the corruption this path exists to prevent. That also
+    // fixes where it can be called from - each stage must first have the conversation's
+    // KV in `request`, which only happens inside infer_prefill()/infer_generate().
+    //
+    // Throws if the flip cannot be carried out in full, leaving m_longrope_long_mode
+    // describing the mode the cache is actually in.
+    void sync_longrope_mode(const std::shared_ptr<ov::IAsyncInferRequest>& request,
+                            const PortsMap& in_ports,
+                            const ov::SoPtr<ov::ITensor>& position_ids,
+                            uint32_t num_cached_tokens);
 
     // Continuation counterpart of prepare_for_new_conversation(), run by
     // infer_prefill() when a granted keep is armed. Validates the delta inputs,
@@ -192,7 +197,7 @@ protected:
 
     // Whether the currently cached keys were rotated with the long-factor LongRoPE
     // coefficients. Meaningless for models without LongRoPE, where it stays false.
-    bool m_longrope_long_regime = false;
+    bool m_longrope_long_mode = false;
 
     int64_t m_first_position_id = 0;
 
@@ -241,7 +246,7 @@ protected:
     friend struct ov::test::npuw::LLMTrimKVCacheTestAccess;
     friend struct ov::test::npuw::LLMPortNameRegistrationTestAccess;
     friend struct ov::test::npuw::LLMContinuedPrefillTestAccess;
-    friend struct ov::test::npuw::LLMLongRopeRegimeTestAccess;
+    friend struct ov::test::npuw::LLMLongRopeModeTestAccess;
 };
 
 }  // namespace npuw

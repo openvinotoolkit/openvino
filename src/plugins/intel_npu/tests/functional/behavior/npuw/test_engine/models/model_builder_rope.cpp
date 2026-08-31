@@ -38,7 +38,7 @@ RoPEFrequencies build_rope_frequencies(size_t head_dim,
     ov::Output<ov::Node> inv_freq;
     if (longrope.enabled()) {
         OPENVINO_ASSERT(longrope.inv_freq_short.size() == half_dim && longrope.inv_freq_long.size() == half_dim,
-                        "LongRopeSpec needs head_dim / 2 inverse frequencies per regime");
+                        "LongRopeSpec needs head_dim / 2 inverse frequencies per mode");
         auto short_factor =
             ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, half_dim, 1}, longrope.inv_freq_short);
         short_factor->set_friendly_name(prefix + ".inv_freq_short");

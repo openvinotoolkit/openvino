@@ -43,7 +43,7 @@ std::vector<float> make_raw_keys() {
 }
 
 // Rotates raw keys the way the graph does: rotate_half over the rotary channels only,
-// with the f16 coefficients of the requested regime.
+// with the f16 coefficients of the requested mode.
 std::vector<float> rotate(const std::vector<float>& raw,
                           ov::npuw::patterns::pre_compute::LongRopeCosSin& tables,
                           bool is_long) {
@@ -82,7 +82,7 @@ void expect_close(const std::vector<float>& actual, const std::vector<float>& ex
 
 }  // anonymous namespace
 
-// Re-rotating a short-regime cache must land on the same keys the graph would have
+// Re-rotating a short-mode cache must land on the same keys the graph would have
 // produced had it rotated the raw keys with the long factors from the start.
 TEST(LongRopeRerotate, ShortCacheBecomesLongCache) {
     auto tables = make_tables(true);
@@ -90,7 +90,7 @@ TEST(LongRopeRerotate, ShortCacheBecomesLongCache) {
     auto cache = rotate(raw, tables, false);
     const auto expected = rotate(raw, tables, true);
 
-    const auto delta = lr::make_regime_delta(tables, 0, kSeqLen, true);
+    const auto delta = lr::make_mode_delta(tables, 0, kSeqLen, true);
     ASSERT_EQ(delta.half, kInvFreq);
 
     auto tensor = as_tensor(cache);
@@ -107,7 +107,7 @@ TEST(LongRopeRerotate, PassThroughChannelsUntouched) {
     const auto before = cache;
 
     auto tensor = as_tensor(cache);
-    lr::rerotate_keys(tensor, kSeqDim, kSeqLen, lr::make_regime_delta(tables, 0, kSeqLen, true));
+    lr::rerotate_keys(tensor, kSeqDim, kSeqLen, lr::make_mode_delta(tables, 0, kSeqLen, true));
 
     for (size_t h = 0; h < kHeads; ++h) {
         for (size_t p = 0; p < kSeqLen; ++p) {
@@ -128,7 +128,7 @@ TEST(LongRopeRerotate, RowsBeyondCachedTokensUntouched) {
     const auto before = cache;
 
     auto tensor = as_tensor(cache);
-    lr::rerotate_keys(tensor, kSeqDim, kCached, lr::make_regime_delta(tables, 0, kCached, true));
+    lr::rerotate_keys(tensor, kSeqDim, kCached, lr::make_mode_delta(tables, 0, kCached, true));
 
     for (size_t h = 0; h < kHeads; ++h) {
         for (size_t p = kCached; p < kSeqLen; ++p) {
@@ -148,8 +148,8 @@ TEST(LongRopeRerotate, RoundTripRestoresTheCache) {
     const auto before = cache;
 
     auto tensor = as_tensor(cache);
-    lr::rerotate_keys(tensor, kSeqDim, kSeqLen, lr::make_regime_delta(tables, 0, kSeqLen, true));
-    lr::rerotate_keys(tensor, kSeqDim, kSeqLen, lr::make_regime_delta(tables, 0, kSeqLen, false));
+    lr::rerotate_keys(tensor, kSeqDim, kSeqLen, lr::make_mode_delta(tables, 0, kSeqLen, true));
+    lr::rerotate_keys(tensor, kSeqDim, kSeqLen, lr::make_mode_delta(tables, 0, kSeqLen, false));
 
     expect_close(cache, before, 2e-3f);
 }
@@ -159,8 +159,8 @@ TEST(LongRopeRerotate, DeltaFollowsTheFirstPositionId) {
     constexpr int64_t kFirstPos = 3;
     auto tables = make_tables(true);
 
-    const auto from_zero = lr::make_regime_delta(tables, 0, kSeqLen, true);
-    const auto shifted = lr::make_regime_delta(tables, kFirstPos, kSeqLen - kFirstPos, true);
+    const auto from_zero = lr::make_mode_delta(tables, 0, kSeqLen, true);
+    const auto shifted = lr::make_mode_delta(tables, kFirstPos, kSeqLen - kFirstPos, true);
 
     ASSERT_EQ(shifted.cos.size(), (kSeqLen - kFirstPos) * kInvFreq);
     for (size_t i = 0; i < shifted.cos.size(); ++i) {
@@ -170,9 +170,9 @@ TEST(LongRopeRerotate, DeltaFollowsTheFirstPositionId) {
 }
 
 // A model whose two factor sets coincide never needs a re-rotation.
-TEST(LongRopeRerotate, NoLongRegimeYieldsEmptyDelta) {
+TEST(LongRopeRerotate, NoLongModeYieldsEmptyDelta) {
     auto tables = make_tables(false);
-    const auto delta = lr::make_regime_delta(tables, 0, kSeqLen, true);
+    const auto delta = lr::make_mode_delta(tables, 0, kSeqLen, true);
     EXPECT_EQ(delta.half, 0u);
 
     const auto raw = make_raw_keys();
@@ -187,14 +187,14 @@ TEST(LongRopeRerotate, NoLongRegimeYieldsEmptyDelta) {
 // Positions the coefficient tables do not cover must be rejected, not silently wrapped.
 TEST(LongRopeRerotate, PositionsOutsideTheTablesThrow) {
     auto tables = make_tables(true);
-    EXPECT_THROW(lr::make_regime_delta(tables, 1, kSeqLen, true), ov::Exception);
+    EXPECT_THROW(lr::make_mode_delta(tables, 1, kSeqLen, true), ov::Exception);
 }
 
 // A quantized cache cannot be turned without dequantizing it, and a half-turned cache is
 // worse than none - so it is refused rather than warned about and skipped.
 TEST(LongRopeRerotate, UnsupportedElementTypeThrows) {
     auto tables = make_tables(true);
-    const auto delta = lr::make_regime_delta(tables, 0, kSeqLen, true);
+    const auto delta = lr::make_mode_delta(tables, 0, kSeqLen, true);
 
     std::vector<int8_t> quantized(kHeads * kSeqLen * kHeadDim, 1);
     auto tensor = ov::get_tensor_impl(
@@ -208,7 +208,7 @@ TEST(LongRopeRerotate, UnsupportedElementTypeThrows) {
 // sequence stride still looks dense while every plane after the first sits elsewhere.
 TEST(LongRopeRerotate, StridedTensorThrows) {
     auto tables = make_tables(true);
-    const auto delta = lr::make_regime_delta(tables, 0, kSeqLen, true);
+    const auto delta = lr::make_mode_delta(tables, 0, kSeqLen, true);
 
     ov::Tensor parent(ov::element::f32, ov::Shape{1, kHeads, kSeqLen * 2, kHeadDim});
     std::fill_n(parent.data<float>(), parent.get_size(), 0.5f);
@@ -249,7 +249,7 @@ TEST(LongRopeRerotate, F16PathMatchesTheF32Path) {
     }
     const auto before = f16_cache;
 
-    const auto delta = lr::make_regime_delta(tables, 0, kSeqLen, true);
+    const auto delta = lr::make_mode_delta(tables, 0, kSeqLen, true);
     ASSERT_EQ(delta.half, kWideInvFreq);
 
     auto f16_tensor = ov::get_tensor_impl(ov::Tensor(ov::element::f16, shape, f16_cache.data()));

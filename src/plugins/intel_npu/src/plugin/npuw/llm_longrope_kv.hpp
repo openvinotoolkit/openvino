@@ -23,10 +23,10 @@ namespace longrope {
 
 using PortsMap = std::unordered_map<std::string, ov::Output<const ov::Node>>;
 
-// The rotation that carries a key already rotated under one LongRoPE regime to the one
+// The rotation that carries a key already rotated under one LongRoPE mode to the one
 // it would have had under the other. Laid out as num_tokens rows of rotary_ndims/2
 // planes, row r belonging to the key cached at row r.
-struct RegimeDelta {
+struct ModeDelta {
     std::vector<float> cos;
     std::vector<float> sin;
     size_t half = 0;  // planes per row; 0 means "nothing to do"
@@ -35,7 +35,7 @@ struct RegimeDelta {
 // Builds the delta for cached rows [0, num_tokens), whose absolute positions start at
 // first_position_id.
 //
-// The rotation is the complex quotient of the two regimes' coefficients:
+// The rotation is the complex quotient of the two modes' coefficients:
 //
 //   k' = k * (cos_new + i*sin_new) / (cos_old + i*sin_old)
 //
@@ -43,11 +43,11 @@ struct RegimeDelta {
 // the f16 table values the graph actually used, whose magnitude is only approximately
 // one.
 //
-// Returns an empty delta (half == 0) when the two regimes share their coefficients.
-RegimeDelta make_regime_delta(patterns::pre_compute::LongRopeCosSin& tables,
-                              int64_t first_position_id,
-                              uint32_t num_tokens,
-                              bool to_long);
+// Returns an empty delta (half == 0) when the two modes share their coefficients.
+ModeDelta make_mode_delta(patterns::pre_compute::LongRopeCosSin& tables,
+                          int64_t first_position_id,
+                          uint32_t num_tokens,
+                          bool to_long);
 
 // One past-key tensor resolved down to what the rewrite actually walks: a host pointer
 // plus the plane/row geometry derived from its shape. Produced by check_key_tensor(),
@@ -71,7 +71,7 @@ struct KeyTensorLayout {
 KeyTensorLayout check_key_tensor(const ov::SoPtr<ov::ITensor>& tensor,
                                  uint32_t seq_dim,
                                  uint32_t num_tokens,
-                                 const RegimeDelta& delta);
+                                 const ModeDelta& delta);
 
 // Applies the delta in place to the leading num_tokens sequence entries of one densely
 // packed past-key tensor, turning the rotate_half pair (j, j + half) of every head.
@@ -83,21 +83,18 @@ KeyTensorLayout check_key_tensor(const ov::SoPtr<ov::ITensor>& tensor,
 // block-based cache.
 void rerotate_keys(const KeyTensorLayout& layout,
                    uint32_t num_tokens,
-                   const RegimeDelta& delta,
+                   const ModeDelta& delta,
                    size_t delta_row_offset = 0u);
 
 // check_key_tensor() + rerotate_keys() for a single tensor.
-void rerotate_keys(const ov::SoPtr<ov::ITensor>& tensor,
-                   uint32_t seq_dim,
-                   uint32_t num_tokens,
-                   const RegimeDelta& delta);
+void rerotate_keys(const ov::SoPtr<ov::ITensor>& tensor, uint32_t seq_dim, uint32_t num_tokens, const ModeDelta& delta);
 
-// Rewrites every past-key input of the request into the requested regime.
+// Rewrites every past-key input of the request into the requested mode.
 //
 // A LongRoPE model rotates with the short- or the long-factor coefficients depending on
-// the current maximum position, so a cache filled under one regime stops matching the
+// the current maximum position, so a cache filled under one mode stops matching the
 // queries the moment that choice flips mid-conversation. Instead of dropping the cache,
-// its keys are turned by the difference between the two regimes - see make_regime_delta.
+// its keys are turned by the difference between the two modes - see make_mode_delta.
 // Values carry no rotation and are left alone.
 //
 // All or nothing: every past-key port is resolved and checked before the first byte is

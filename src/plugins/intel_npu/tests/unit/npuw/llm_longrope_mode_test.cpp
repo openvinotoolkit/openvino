@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Request-level tests for the LongRoPE short/long regime state machine.
+// Request-level tests for the LongRoPE short/long mode state machine.
 //
 // llm_longrope_kv_test.cpp proves the coefficient math against an independent
 // reference; what is left, and what these tests cover, is everything around it: when a
 // crossing is detected, that the rewrite runs after the KV of the previous stage has
 // been migrated into the request being rewritten, which rows it touches, and that a
-// transition which cannot be completed leaves the recorded regime describing the cache
+// transition which cannot be completed leaves the recorded mode describing the cache
 // as it really is.
 //
 // The observation trick is a second, "control" model that is identical except for a
@@ -40,11 +40,11 @@
 
 namespace ov::test::npuw {
 
-struct LLMLongRopeRegimeTestAccess {
+struct LLMLongRopeModeTestAccess {
     using Request = ov::npuw::LLMInferRequest;
 
-    static bool long_regime(Request& req) {
-        return req.m_longrope_long_regime;
+    static bool long_mode(Request& req) {
+        return req.m_longrope_long_mode;
     }
 
     static const std::vector<std::string>& past_names(Request& req) {
@@ -73,11 +73,11 @@ struct LLMLongRopeRegimeTestAccess {
 
     // Drives the transition directly, which is the only way to reach the rejection
     // paths - a real request always hands over its own, well-formed port map.
-    static void sync_regime(Request& req,
-                            const ov::npuw::LLMInferRequest::PortsMap& in_ports,
-                            uint32_t num_cached_tokens,
-                            bool is_long) {
-        req.sync_longrope_kv_regime(req.m_kvcache_request, in_ports, num_cached_tokens, is_long);
+    static void sync_mode(Request& req,
+                          const ov::npuw::LLMInferRequest::PortsMap& in_ports,
+                          const ov::SoPtr<ov::ITensor>& position_ids,
+                          uint32_t num_cached_tokens) {
+        req.sync_longrope_mode(req.m_kvcache_request, in_ports, position_ids, num_cached_tokens);
     }
 
     static const ov::npuw::LLMInferRequest::PortsMap& generate_in_ports(Request& req) {
@@ -105,12 +105,12 @@ struct LLMLongRopeRegimeTestAccess {
 namespace {
 
 using ov::test::npuw::build_longrope_llm_test_model;
-using ov::test::npuw::LLMLongRopeRegimeTestAccess;
+using ov::test::npuw::LLMLongRopeModeTestAccess;
 using ov::test::npuw::NullPlugin;
 class FakeSubCompiledModel;
 
 // A position no prompt in this file reaches, so the model never leaves the short
-// regime and its KV cache is never re-rotated.
+// mode and its KV cache is never re-rotated.
 constexpr int64_t kUnreachableLimit = 4096;
 // Crossed by generated token 16 of a 16-token prompt.
 constexpr int64_t kCrossingLimit = 16;
@@ -181,8 +181,8 @@ public:
     std::shared_ptr<ov::IAsyncInferRequest> wrap_async_infer_request(
         std::shared_ptr<ov::npuw::IBaseInferRequest>) const override {
         return std::make_shared<ov::IAsyncInferRequest>(create_sync_infer_request(),
-                                                        intel_npu::make_executor("longrope_regime_task", 1),
-                                                        intel_npu::make_executor("longrope_regime_callback", 1));
+                                                        intel_npu::make_executor("longrope_mode_task", 1),
+                                                        intel_npu::make_executor("longrope_mode_callback", 1));
     }
     std::string submodel_device(std::size_t) const override {
         return "CPU";
@@ -300,18 +300,18 @@ public:
     // The past keys of every layer, flattened, in m_kvcache_past_names order.
     std::vector<std::vector<float>> generate_keys() {
         std::vector<std::vector<float>> out;
-        for (const auto& name : LLMLongRopeRegimeTestAccess::past_names(*m_request)) {
+        for (const auto& name : LLMLongRopeModeTestAccess::past_names(*m_request)) {
             if (ov::npuw::util::isPastKeyParam(name)) {
-                out.push_back(to_floats(LLMLongRopeRegimeTestAccess::generate_past(*m_request, name)));
+                out.push_back(to_floats(LLMLongRopeModeTestAccess::generate_past(*m_request, name)));
             }
         }
         return out;
     }
 
     ov::Shape generate_key_shape() {
-        for (const auto& name : LLMLongRopeRegimeTestAccess::past_names(*m_request)) {
+        for (const auto& name : LLMLongRopeModeTestAccess::past_names(*m_request)) {
             if (ov::npuw::util::isPastKeyParam(name)) {
-                return LLMLongRopeRegimeTestAccess::generate_past(*m_request, name)->get_shape();
+                return LLMLongRopeModeTestAccess::generate_past(*m_request, name)->get_shape();
             }
         }
         return {};
@@ -342,7 +342,7 @@ std::vector<std::vector<float>> expected_turn(std::vector<std::vector<float>> ke
                                               ov::npuw::patterns::pre_compute::LongRopeCosSin& tables,
                                               uint32_t num_tokens,
                                               bool to_long) {
-    const auto delta = ov::npuw::longrope::make_regime_delta(tables, 0, num_tokens, to_long);
+    const auto delta = ov::npuw::longrope::make_mode_delta(tables, 0, num_tokens, to_long);
     for (auto& layer : keys) {
         auto tensor = ov::get_tensor_impl(ov::Tensor(ov::element::f32, shape, layer.data()));
         ov::npuw::longrope::rerotate_keys(tensor, seq_dim, num_tokens, delta);
@@ -365,39 +365,39 @@ void expect_keys_near(const std::vector<std::vector<float>>& actual,
 
 // The models this file relies on must actually reach the LongRoPE path, otherwise every
 // comparison below would pass on two untransformed graphs.
-TEST(LLMLongRopeRegime, ModelsReachTheLongRopePath) {
+TEST(LLMLongRopeMode, ModelsReachTheLongRopePath) {
     LongRopePipeline crossing(kCrossingLimit);
     LongRopePipeline control(kUnreachableLimit);
 
-    EXPECT_TRUE(LLMLongRopeRegimeTestAccess::has_long(crossing.compiled()));
+    EXPECT_TRUE(LLMLongRopeModeTestAccess::has_long(crossing.compiled()));
     // Its limit sits past the whole context, so it can only ever run short.
-    EXPECT_FALSE(LLMLongRopeRegimeTestAccess::has_long(control.compiled()));
-    EXPECT_TRUE(LLMLongRopeRegimeTestAccess::tables(crossing.request()).is_valid());
+    EXPECT_FALSE(LLMLongRopeModeTestAccess::has_long(control.compiled()));
+    EXPECT_TRUE(LLMLongRopeModeTestAccess::tables(crossing.request()).is_valid());
 }
 
 // The first generate step past the limit turns exactly the cached rows, and it does so
 // after the prefill KV has been migrated into the generate request - had it run before,
 // the migration would have overwritten the turned keys with the untouched ones and the
 // two runs would agree.
-TEST(LLMLongRopeRegime, CrossingTurnsTheMigratedCache) {
+TEST(LLMLongRopeMode, CrossingTurnsTheMigratedCache) {
     constexpr size_t kPrompt = 16;
 
     LongRopePipeline control(kUnreachableLimit);
     control.prefill(kPrompt, 0);
     control.generate_step(kPrompt, static_cast<int64_t>(kPrompt));
-    EXPECT_FALSE(LLMLongRopeRegimeTestAccess::long_regime(control.request()));
+    EXPECT_FALSE(LLMLongRopeModeTestAccess::long_mode(control.request()));
     const auto control_keys = control.generate_keys();
 
     LongRopePipeline crossing(kCrossingLimit);
     crossing.prefill(kPrompt, 0);
-    EXPECT_FALSE(LLMLongRopeRegimeTestAccess::long_regime(crossing.request()));
+    EXPECT_FALSE(LLMLongRopeModeTestAccess::long_mode(crossing.request()));
     crossing.generate_step(kPrompt, static_cast<int64_t>(kPrompt));
-    EXPECT_TRUE(LLMLongRopeRegimeTestAccess::long_regime(crossing.request()));
+    EXPECT_TRUE(LLMLongRopeModeTestAccess::long_mode(crossing.request()));
 
     const auto expected = expected_turn(control_keys,
                                         crossing.generate_key_shape(),
-                                        LLMLongRopeRegimeTestAccess::seq_dim(crossing.request()),
-                                        LLMLongRopeRegimeTestAccess::tables(crossing.request()),
+                                        LLMLongRopeModeTestAccess::seq_dim(crossing.request()),
+                                        LLMLongRopeModeTestAccess::tables(crossing.request()),
                                         kPrompt,
                                         true);
     expect_keys_near(crossing.generate_keys(), expected, 2e-3f);
@@ -405,9 +405,9 @@ TEST(LLMLongRopeRegime, CrossingTurnsTheMigratedCache) {
     EXPECT_NE(control_keys, crossing.generate_keys());
 }
 
-// A prompt that is already past the limit finds an empty cache: the regime is recorded,
+// A prompt that is already past the limit finds an empty cache: the mode is recorded,
 // nothing is rewritten, and the following steps do not cross again.
-TEST(LLMLongRopeRegime, FreshLongPromptRecordsTheRegimeWithoutTouchingTheCache) {
+TEST(LLMLongRopeMode, FreshLongPromptRecordsTheModeWithoutTouchingTheCache) {
     constexpr size_t kPrompt = 20;  // positions 0..19, so the prompt itself is long
 
     LongRopePipeline control(kUnreachableLimit);
@@ -417,16 +417,16 @@ TEST(LLMLongRopeRegime, FreshLongPromptRecordsTheRegimeWithoutTouchingTheCache) 
 
     LongRopePipeline crossing(kCrossingLimit);
     crossing.prefill(kPrompt, 0);
-    EXPECT_TRUE(LLMLongRopeRegimeTestAccess::long_regime(crossing.request()));
+    EXPECT_TRUE(LLMLongRopeModeTestAccess::long_mode(crossing.request()));
     crossing.generate_step(kPrompt, static_cast<int64_t>(kPrompt));
-    EXPECT_TRUE(LLMLongRopeRegimeTestAccess::long_regime(crossing.request()));
+    EXPECT_TRUE(LLMLongRopeModeTestAccess::long_mode(crossing.request()));
 
     expect_keys_near(crossing.generate_keys(), control_keys, 0.0f);
 }
 
 // Trimming the cache back below the limit - what speculative decoding does when its
-// proposal is rejected - flips the regime back and returns the keys to where they were.
-TEST(LLMLongRopeRegime, TrimmingBackBelowTheLimitTurnsTheCacheBack) {
+// proposal is rejected - flips the mode back and returns the keys to where they were.
+TEST(LLMLongRopeMode, TrimmingBackBelowTheLimitTurnsTheCacheBack) {
     constexpr size_t kPrompt = 16;
     constexpr uint32_t kTrimTo = 10;
 
@@ -438,18 +438,18 @@ TEST(LLMLongRopeRegime, TrimmingBackBelowTheLimitTurnsTheCacheBack) {
     LongRopePipeline crossing(kCrossingLimit);
     crossing.prefill(kPrompt, 0);
     crossing.generate_step(kPrompt, static_cast<int64_t>(kPrompt));
-    ASSERT_TRUE(LLMLongRopeRegimeTestAccess::long_regime(crossing.request()));
+    ASSERT_TRUE(LLMLongRopeModeTestAccess::long_mode(crossing.request()));
 
     crossing.generate_step(kTrimTo, kTrimTo);
-    EXPECT_FALSE(LLMLongRopeRegimeTestAccess::long_regime(crossing.request()));
-    EXPECT_EQ(LLMLongRopeRegimeTestAccess::stored_tokens(crossing.request()), kTrimTo + 1u);
+    EXPECT_FALSE(LLMLongRopeModeTestAccess::long_mode(crossing.request()));
+    EXPECT_EQ(LLMLongRopeModeTestAccess::stored_tokens(crossing.request()), kTrimTo + 1u);
 
     // Only the rows that survived the trim were turned twice; compare just those.
     const auto keys = crossing.generate_keys();
     const auto shape = crossing.generate_key_shape();
     const size_t head_dim = shape.back();
     const size_t row_stride = head_dim;  // [batch, kv_heads, seq, head_dim]
-    const size_t seq_len = shape[LLMLongRopeRegimeTestAccess::seq_dim(crossing.request())];
+    const size_t seq_len = shape[LLMLongRopeModeTestAccess::seq_dim(crossing.request())];
     ASSERT_EQ(keys.size(), control_keys.size());
     for (size_t layer = 0; layer < keys.size(); ++layer) {
         for (size_t plane = 0; plane * seq_len * row_stride < keys[layer].size(); ++plane) {
@@ -465,9 +465,9 @@ TEST(LLMLongRopeRegime, TrimmingBackBelowTheLimitTurnsTheCacheBack) {
 }
 
 // A transition that cannot be carried out must fail before it writes anything and must
-// leave the recorded regime describing the cache as it really is - otherwise the next
+// leave the recorded mode describing the cache as it really is - otherwise the next
 // call would see no flip and run against keys from the other rotation frame.
-TEST(LLMLongRopeRegime, RejectedTransitionLeavesTheCacheAndTheRegimeAlone) {
+TEST(LLMLongRopeMode, RejectedTransitionLeavesTheCacheAndTheModeAlone) {
     constexpr size_t kPrompt = 8;
     constexpr uint32_t kCached = kPrompt + 1;  // the prompt plus the token just generated
 
@@ -475,29 +475,33 @@ TEST(LLMLongRopeRegime, RejectedTransitionLeavesTheCacheAndTheRegimeAlone) {
     crossing.prefill(kPrompt, 0);
     crossing.generate_step(kPrompt, static_cast<int64_t>(kPrompt));  // position 8, still short
     auto& req = crossing.request();
-    ASSERT_FALSE(LLMLongRopeRegimeTestAccess::long_regime(req));
-    ASSERT_EQ(LLMLongRopeRegimeTestAccess::stored_tokens(req), kCached);
+    ASSERT_FALSE(LLMLongRopeModeTestAccess::long_mode(req));
+    ASSERT_EQ(LLMLongRopeModeTestAccess::stored_tokens(req), kCached);
     const auto before = crossing.generate_keys();
 
     // A port map without the past-key inputs: the same shape of failure as a KV layout
     // the rewrite does not support.
     ov::npuw::LLMInferRequest::PortsMap broken;
-    for (const auto& [name, port] : LLMLongRopeRegimeTestAccess::generate_in_ports(req)) {
+    for (const auto& [name, port] : LLMLongRopeModeTestAccess::generate_in_ports(req)) {
         if (!ov::npuw::util::isPastKeyParam(name)) {
             broken.emplace(name, port);
         }
     }
 
-    EXPECT_THROW(LLMLongRopeRegimeTestAccess::sync_regime(req, broken, kCached, true), ov::Exception);
-    EXPECT_FALSE(LLMLongRopeRegimeTestAccess::long_regime(req));
+    // A position past the limit, so the transition to long is the one being attempted.
+    auto long_position = make_i64({1, 1}, kCrossingLimit);
+    const auto position_ids = ov::get_tensor_impl(long_position);
+
+    EXPECT_THROW(LLMLongRopeModeTestAccess::sync_mode(req, broken, position_ids, kCached), ov::Exception);
+    EXPECT_FALSE(LLMLongRopeModeTestAccess::long_mode(req));
     expect_keys_near(crossing.generate_keys(), before, 0.0f);
 
     // The flip is still pending, so a well-formed retry performs it in full.
-    LLMLongRopeRegimeTestAccess::sync_regime(req,
-                                             LLMLongRopeRegimeTestAccess::generate_in_ports(req),
-                                             kCached,
-                                             true);
-    EXPECT_TRUE(LLMLongRopeRegimeTestAccess::long_regime(req));
+    LLMLongRopeModeTestAccess::sync_mode(req,
+                                         LLMLongRopeModeTestAccess::generate_in_ports(req),
+                                         position_ids,
+                                         kCached);
+    EXPECT_TRUE(LLMLongRopeModeTestAccess::long_mode(req));
     EXPECT_NE(crossing.generate_keys(), before);
 }
 
@@ -528,9 +532,9 @@ protected:
 
     // Every live key block of every layer, layer-major and in block order.
     static PooledKeys pooled_keys(ov::npuw::LLMInferRequest& req, uint32_t num_cached) {
-        auto& strategy = LLMLongRopeRegimeTestAccess::block_strategy(req);
-        const auto& managers = LLMLongRopeRegimeTestAccess::block_managers(strategy);
-        const uint32_t block_size = LLMLongRopeRegimeTestAccess::block_size(strategy);
+        auto& strategy = LLMLongRopeModeTestAccess::block_strategy(req);
+        const auto& managers = LLMLongRopeModeTestAccess::block_managers(strategy);
+        const uint32_t block_size = LLMLongRopeModeTestAccess::block_size(strategy);
 
         std::vector<uint32_t> layers;
         for (const auto& [layer_idx, unused] : managers) {
@@ -563,7 +567,7 @@ protected:
                                     ov::npuw::patterns::pre_compute::LongRopeCosSin& tables,
                                     uint32_t num_cached,
                                     bool to_long) {
-        const auto delta = ov::npuw::longrope::make_regime_delta(tables, 0, num_cached, to_long);
+        const auto delta = ov::npuw::longrope::make_mode_delta(tables, 0, num_cached, to_long);
         for (size_t i = 0; i < keys.data.size(); ++i) {
             auto tensor = ov::get_tensor_impl(
                 ov::Tensor(ov::element::f32, keys.block_shape, keys.data[i].data()));
@@ -613,22 +617,22 @@ TEST_F(LongRopeBlockCache, CrossingTurnsEveryBlockOfThePool) {
 
     LongRopePipeline control(kUnreachableLimit, block_props());
     run(control, kPrompt, kLimit);
-    ASSERT_FALSE(LLMLongRopeRegimeTestAccess::long_regime(control.request()));
+    ASSERT_FALSE(LLMLongRopeModeTestAccess::long_mode(control.request()));
     const auto control_keys = pooled_keys(control.request(), kCached);
     // The prompt must have reached past the numbered blocks, or the tail path goes untested.
     ASSERT_GT(control_keys.first_token.back(), 0u);
 
     LongRopePipeline crossing(kLimit, block_props());
     run(crossing, kPrompt, kLimit);
-    EXPECT_TRUE(LLMLongRopeRegimeTestAccess::long_regime(crossing.request()));
+    EXPECT_TRUE(LLMLongRopeModeTestAccess::long_mode(crossing.request()));
 
     const auto expected = expected_turn(control_keys,
-                                        LLMLongRopeRegimeTestAccess::seq_dim(crossing.request()),
-                                        LLMLongRopeRegimeTestAccess::tables(crossing.request()),
+                                        LLMLongRopeModeTestAccess::seq_dim(crossing.request()),
+                                        LLMLongRopeModeTestAccess::tables(crossing.request()),
                                         kCached,
                                         true);
     const auto actual = pooled_keys(crossing.request(), kCached);
-    const uint32_t seq_dim = LLMLongRopeRegimeTestAccess::seq_dim(crossing.request());
+    const uint32_t seq_dim = LLMLongRopeModeTestAccess::seq_dim(crossing.request());
     ASSERT_EQ(actual.data.size(), expected.data.size());
     bool any_difference = false;
     for (size_t i = 0; i < actual.data.size(); ++i) {
@@ -642,7 +646,7 @@ TEST_F(LongRopeBlockCache, CrossingTurnsEveryBlockOfThePool) {
     EXPECT_TRUE(any_difference);
 
     // The tail port is a copy, so an in-place turn of the pool alone would leave it stale.
-    const auto& past_names = LLMLongRopeRegimeTestAccess::past_names(crossing.request());
+    const auto& past_names = LLMLongRopeModeTestAccess::past_names(crossing.request());
     size_t tails_checked = 0;
     for (const auto& name : past_names) {
         if (!ov::npuw::util::isPastKeyParam(name) || name.find("block_tail") == std::string::npos) {
@@ -662,7 +666,7 @@ TEST_F(LongRopeBlockCache, CrossingTurnsEveryBlockOfThePool) {
         }
         ASSERT_LT(block, actual.data.size()) << "no pooled block for " << name;
 
-        const auto tail_tensor = LLMLongRopeRegimeTestAccess::generate_past(crossing.request(), name);
+        const auto tail_tensor = LLMLongRopeModeTestAccess::generate_past(crossing.request(), name);
         const auto tail = to_floats(tail_tensor);
         // The tail is a shorter tensor than a block, so each side is indexed through its
         // own shape.
@@ -705,7 +709,7 @@ protected:
             compile(context_limit, extra);
             FAIL() << "compilation was expected to be rejected";
         } catch (const ov::Exception& e) {
-            EXPECT_NE(std::string(e.what()).find("LongRoPE regime changes"), std::string::npos) << e.what();
+            EXPECT_NE(std::string(e.what()).find("LongRoPE mode changes"), std::string::npos) << e.what();
         }
     }
 };

@@ -87,13 +87,13 @@ public:
     // Called after each generate step's infer(): persist new token KV and update bindings
     virtual void on_generate_step_done(uint32_t input_tokens_len) = 0;
 
-    // Turn the keys already in the cache into the LongRoPE regime the next infer() will
+    // Turn the keys already in the cache into the LongRoPE mode the next infer() will
     // rotate its queries and its new keys with, after that choice flipped mid-conversation.
     // `num_cached_tokens` rows are rewritten in place; where those rows live is what the
     // two strategies disagree on, hence the dispatch. See llm_longrope_kv.hpp.
     //
     // All or nothing: an implementation that cannot complete the turn throws having
-    // written nothing, so the caller's record of which regime the cache is in stays true.
+    // written nothing, so the caller's record of which mode the cache is in stays true.
     virtual void rerotate_longrope_keys(const std::shared_ptr<ov::IAsyncInferRequest>& request,
                                         const PortsMap& in_ports,
                                         uint32_t num_cached_tokens,
