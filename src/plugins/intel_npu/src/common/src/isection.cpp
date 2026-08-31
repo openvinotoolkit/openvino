@@ -6,7 +6,16 @@
 
 namespace {
 
-constexpr std::string_view TYPE_AND_INSTANCE_DELIMITER = "_";
+constexpr std::string_view TYPE_AND_ID_DELIMITER = "_";
+constexpr std::string_view CRE_SECTION_NAME = "CRE";
+constexpr std::string_view MANIFEST_SECTION_NAME = "MANIFEST";
+constexpr std::string_view ELF_MAIN_SCHEDULE_SECTION_NAME = "ELF_MAIN_SCHEDULE";
+constexpr std::string_view ELF_INIT_SCHEDULES_SECTION_NAME = "ELF_INIT_SCHEDULES";
+constexpr std::string_view DYNAMIC_SCHEDULE_SECTION_NAME = "DYNAMIC_SCHEDULE";
+constexpr std::string_view IO_LAYOUTS_SECTION_NAME = "IO_LAYOUTS";
+constexpr std::string_view BATCH_SIZE_SECTION_NAME = "BATCH_SIZE";
+constexpr std::string_view ENCRYPTED_SCHEDULES_FLAG_SECTION_NAME = "ENCRYPTED_SCHEDULES_FLAG";
+constexpr std::string_view COMPILER_VERSION_SECTION_NAME = "COMPILER_VERSION";
 
 bool has_only_digits(std::string_view sv) {
     return !sv.empty() && std::all_of(sv.begin(), sv.end(), [](unsigned char c) {
@@ -53,115 +62,97 @@ bool ISection::evaluate_compatibility_based_on_section_content(BlobReaderInterfa
     return true;
 }
 
-SectionID::SectionID(SectionType section_type, SectionTypeInstance section_type_instance) {
-    type = section_type;
-    type_instance = section_type_instance;
-}
-
-std::string SectionID::to_string() const {
-    std::ostringstream sstream;
-    sstream << *this;
-    return sstream.str();
-}
-
-SectionID SectionID::from_string(std::string_view section_id_string) {
-    SectionID section_id;
-    std::istringstream sstream(section_id_string.data());
-    sstream >> section_id;
-    return section_id;
-}
-
-bool operator==(const SectionID& sid1, const SectionID& sid2) {
-    return sid1.type == sid2.type && sid1.type_instance == sid2.type_instance;
-}
-
-std::ostream& operator<<(std::ostream& os, const SectionID& id) {
-    switch (id.type) {
+std::string section_type_to_string(const SectionType type) {
+    switch (type) {
     case PredefinedSectionType::CRE:
-        os << "CRE";
-        break;
+        return CRE_SECTION_NAME.data();
     case PredefinedSectionType::MANIFEST:
-        os << "MANIFEST";
-        break;
+        return MANIFEST_SECTION_NAME.data();
     case PredefinedSectionType::ELF_MAIN_SCHEDULE:
-        os << "ELF_MAIN_SCHEDULE";
-        break;
+        return ELF_MAIN_SCHEDULE_SECTION_NAME.data();
     case PredefinedSectionType::ELF_INIT_SCHEDULES:
-        os << "ELF_INIT_SCHEDULES";
-        break;
+        return ELF_INIT_SCHEDULES_SECTION_NAME.data();
+    case PredefinedSectionType::DYNAMIC_SCHEDULE:
+        return DYNAMIC_SCHEDULE_SECTION_NAME.data();
     case PredefinedSectionType::IO_LAYOUTS:
-        os << "IO_LAYOUTS";
-        break;
+        return IO_LAYOUTS_SECTION_NAME.data();
     case PredefinedSectionType::BATCH_SIZE:
-        os << "BATCH_SIZE";
-        break;
+        return BATCH_SIZE_SECTION_NAME.data();
+    case PredefinedSectionType::ENCRYPTED_SCHEDULES_FLAG:
+        return ENCRYPTED_SCHEDULES_FLAG_SECTION_NAME.data();
+    case PredefinedSectionType::COMPILER_VERSION:
+        return COMPILER_VERSION_SECTION_NAME.data();
     default:
-        os << id.type;
-        break;
+        return std::to_string(type);
+    }
+}
+
+SectionType section_type_from_string(std::string_view type) {
+    if (type == CRE_SECTION_NAME) {
+        return PredefinedSectionType::CRE;
+    }
+    if (type == MANIFEST_SECTION_NAME) {
+        return PredefinedSectionType::MANIFEST;
+    }
+    if (type == ELF_MAIN_SCHEDULE_SECTION_NAME) {
+        return PredefinedSectionType::ELF_MAIN_SCHEDULE;
+    }
+    if (type == ELF_INIT_SCHEDULES_SECTION_NAME) {
+        return PredefinedSectionType::ELF_INIT_SCHEDULES;
+    }
+    if (type == DYNAMIC_SCHEDULE_SECTION_NAME) {
+        return PredefinedSectionType::DYNAMIC_SCHEDULE;
+    }
+    if (type == IO_LAYOUTS_SECTION_NAME) {
+        return PredefinedSectionType::IO_LAYOUTS;
+    }
+    if (type == BATCH_SIZE_SECTION_NAME) {
+        return PredefinedSectionType::BATCH_SIZE;
+    }
+    if (type == ENCRYPTED_SCHEDULES_FLAG_SECTION_NAME) {
+        return PredefinedSectionType::ENCRYPTED_SCHEDULES_FLAG;
+    }
+    if (type == COMPILER_VERSION_SECTION_NAME) {
+        return PredefinedSectionType::COMPILER_VERSION;
     }
 
-    return os << id.type_instance;
+    OPENVINO_ASSERT(has_only_digits(type),
+                    "Attempted to convert unknown section type ",
+                    type,
+                    " to integer, but it is not made exclusively out of digits");
+
+    try {
+        return std::stoul(type.data());
+    } catch (const std::exception&) {
+        OPENVINO_THROW("Unable to convert section type ", type, " to integer, the type is unknown");
+    }
 }
 
 // TODO test these
-std::istream& operator>>(std::istream& is, SectionID& id) {
-    std::string str;
-    is >> str;
+std::string section_type_and_id_to_string(const SectionType type, const SectionID id) {
+    return section_type_to_string(type) + TYPE_AND_ID_DELIMITER.data() + std::to_string(id);
+}
 
-    const size_t search_result = str.rfind(TYPE_AND_INSTANCE_DELIMITER);
-    OPENVINO_ASSERT(
-        search_result != std::string::npos,
-        "The \"_\" character that delimits the type and instance IDs is missing from the given section ID string");
+std::pair<SectionType, SectionID> section_type_and_id_from_string(std::string_view type_and_id) {
+    const size_t search_result = type_and_id.rfind(TYPE_AND_ID_DELIMITER);
+    OPENVINO_ASSERT(search_result != std::string::npos,
+                    "The ",
+                    TYPE_AND_ID_DELIMITER,
+                    " character that delimits the type and instance IDs is missing from the given section ID string");
 
-    const std::string type_string = str.substr(0, search_result);
+    const SectionType type = section_type_from_string(type_and_id.substr(0, search_result));
 
-    if (type_string == "CRE") {
-        id.type = PredefinedSectionType::CRE;
-    } else if (type_string == "MANIFEST") {
-        id.type = PredefinedSectionType::MANIFEST;
-    }
-    if (type_string == "ELF_MAIN_SCHEDULE") {
-        id.type = PredefinedSectionType::ELF_MAIN_SCHEDULE;
-    }
-    if (type_string == "ELF_INIT_SCHEDULES") {
-        id.type = PredefinedSectionType::ELF_INIT_SCHEDULES;
-    }
-    if (type_string == "IO_LAYOUTS") {
-        id.type = PredefinedSectionType::IO_LAYOUTS;
-    }
-    if (type_string == "BATCH_SIZE") {
-        id.type = PredefinedSectionType::BATCH_SIZE;
-    } else {
-        OPENVINO_ASSERT(has_only_digits(type_string),
-                        "Attempted to convert unknown section type ",
-                        type_string,
-                        " to integer, but it is not made exclusively out of digits");
-
-        try {
-            id.type = std::stoul(type_string);
-        } catch (const std::exception&) {
-            OPENVINO_THROW("Unable to convert section type ", type_string, " to integer, the type is unknown");
-        }
-    }
-
-    const std::string type_instance_string = str.substr(search_result + 1, std::string::npos);
-    OPENVINO_ASSERT(has_only_digits(type_instance_string),
+    const std::string id_string = type_and_id.substr(search_result + 1, std::string::npos).data();
+    OPENVINO_ASSERT(has_only_digits(id_string),
                     "Cannot convert to integer: type instance ",
-                    type_instance_string,
+                    id_string,
                     " is not made exclusively out of digits");
 
     try {
-        id.type_instance = std::stoul(type_instance_string);
+        return std::make_pair<>(type, std::stoul(id_string));
     } catch (const std::exception&) {
-        OPENVINO_THROW("Failed to convert the section type instance ", type_instance_string, " to integer");
+        OPENVINO_THROW("Failed to convert the section type instance ", id_string, " to integer");
     }
-
-    return is;
 }
 
 }  // namespace intel_npu
-
-size_t std::hash<intel_npu::SectionID>::operator()(const intel_npu::SectionID& sid) const {
-    return std::hash<intel_npu::SectionType>{}(sid.type) ^
-           (std::hash<intel_npu::SectionTypeInstance>{}(sid.type_instance) << 1);
-}

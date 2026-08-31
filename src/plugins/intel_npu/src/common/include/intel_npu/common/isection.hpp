@@ -30,26 +30,13 @@ using SectionType = uint16_t;
  */
 using SectionID = uint16_t;
 
-/**
- * @brief Uniquely identifies a section within a compiled model.
- */
-struct SectionID final {
-    SectionID() = default;
-    SectionID(SectionType section_type, SectionTypeInstance section_type_instance);
+std::string section_type_to_string(const SectionType type);
 
-    std::string to_string() const;
+SectionType section_type_from_string(std::string_view type);
 
-    static SectionID from_string(std::string_view section_id_string);
+std::string section_type_and_id_to_string(const SectionType type, const SectionID id);
 
-    SectionType type;
-    SectionTypeInstance type_instance;
-};
-
-bool operator==(const SectionID& sid1, const SectionID& sid2);
-
-std::ostream& operator<<(std::ostream& os, const SectionID& id);
-
-std::istream& operator>>(std::istream& is, SectionID& id);
+std::pair<SectionType, SectionID> section_type_and_id_from_string(std::string_view type_and_id);
 
 class BlobWriterInterface;
 class BlobReaderInterface;
@@ -164,8 +151,3 @@ private:
 };
 
 }  // namespace intel_npu
-
-template <>
-struct std::hash<intel_npu::SectionID> {
-    size_t operator()(const intel_npu::SectionID& sid) const;
-};
