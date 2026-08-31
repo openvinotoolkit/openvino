@@ -5,9 +5,10 @@
 #pragma once
 
 #include <optional>
+#include <string_view>
 
-#include "intel_npu/common/blob_reader_interface.hpp"
 #include "intel_npu/common/isection.hpp"
+#include "intel_npu/common/isection_instance_evaluator.hpp"
 
 namespace intel_npu {
 
@@ -16,24 +17,26 @@ namespace intel_npu {
  */
 class SectionInstanceEvaluator {
 public:
-    SectionInstanceEvaluator(const std::function<bool(BlobReaderInterface&)>& evaluate_fn, BlobReaderInterface reader);
+    SectionInstanceEvaluator(const std::shared_ptr<ISectionInstanceEvaluator>& impl,
+                             std::string_view runtime_requirements);
 
     /**
-     * @brief Checks whether or not the NPU plugin supports the section type instance.
-     * @details After evaluation, the
-     * result is stored in "m_supported" for future use.
+     * @brief Checks whether or not the NPU plugin supports the section instance.
+     * @details After evaluation, the result is stored for future use.
      */
     bool get_result() const;
 
     /**
-     * @brief Tells whether or not the section type instance has already been evaluated.
+     * @brief Tells whether or not the section type instance has been already evaluated.
      */
     bool evaluated() const;
 
 private:
-    std::function<bool(BlobReaderInterface&)> m_evaluate_fn;
-
-    mutable BlobReaderInterface m_reader;
+    /**
+     * @brief TODO
+     */
+    std::shared_ptr<ISectionInstanceEvaluator> m_impl;
+    std::string m_runtime_requirements;
 
     /**
      * @brief If evaluation is performed, the result will be stored here for future use.

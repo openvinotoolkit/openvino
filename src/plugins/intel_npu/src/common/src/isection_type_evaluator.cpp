@@ -13,11 +13,9 @@ SectionType ISectionTypeEvaluator::get_section_type() const {
 }
 
 bool ISectionTypeEvaluator::get_result() const {
-    if (m_supported.has_value()) {
-        return m_supported.value();
+    if (!m_supported.has_value()) {
+        m_supported = evaluate();
     }
-
-    m_supported = evaluate();
     return m_supported.value();
 }
 
