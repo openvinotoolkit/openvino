@@ -825,7 +825,8 @@ TEST_P(InferWithDefaultHostCompileTests, CompileDynamicModelWithNoHostCompileMod
 using InferWithDynamicNHWTests = InferWithHostCompileTests;
 
 // Framework coverage for models whose N, H and W dimensions are all dynamic, compiled both with an explicit
-// HostCompile_Interpreter mode and with the default (auto-selected) compilation path.
+// HostCompile_Interpreter mode and with the default (auto-selected) compilation path. Results are validated against a
+// TEMPLATE reference and the output shape is asserted for every concrete shape.
 TEST_P(InferWithDynamicNHWTests, CompileAndInfer) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {
@@ -834,25 +835,32 @@ TEST_P(InferWithDynamicNHWTests, CompileAndInfer) {
 
     auto model = createModelByName(selectedModelName);
 
-    ov::CompiledModel compiledModel;
-    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
-
-    std::stringstream modelStream;
-    OV_ASSERT_NO_THROW(compiledModel.export_model(modelStream));
-
-    ov::InferRequest req;
-    try {
-        ov::CompiledModel importedModel = core->import_model(modelStream, target_device);
-        req = importedModel.create_infer_request();
-    } catch (const ov::Exception& e) {
-        if (std::string(e.what()).find("Cannot load library") == std::string::npos) {
-            FAIL() << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
-        } else {
-            GTEST_SKIP() << "Cannot load library, skip test.";
-        }
+    auto setupResult = prepareRuntimeCompareContext(model);
+    if (setupResult.status == RuntimeCompareStatus::fail) {
+        FAIL() << setupResult.message;
     }
+    if (setupResult.status == RuntimeCompareStatus::skip) {
+        GTEST_SKIP() << setupResult.message;
+    }
+    auto& testContext = setupResult.context;
 
-    OV_ASSERT_NO_THROW(req.infer());
+    // Two concrete NHWC shapes within the dynamic bounds to exercise dynamic N, H and W. The 1x1 stride-1 MaxPool and
+    // the 1x1 convolutions preserve the spatial dimensions, so the output shape equals the input shape.
+    const std::vector<ov::Shape> concreteShapes = {{1, 720, 1280, 16}, {1, 360, 640, 16}};
+    for (const auto& inputShape : concreteShapes) {
+        auto inputTensor =
+            ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), inputShape, 100, 0);
+        setInputInferAndCompare(model,
+                                testContext.reqDynamic,
+                                testContext.reqReference,
+                                inputTensor,
+                                "CompileAndInfer");
+
+        const auto npuShape = testContext.reqDynamic.get_tensor(model->output()).get_shape();
+        const auto refShape = testContext.reqReference.get_tensor(model->output()).get_shape();
+        ASSERT_EQ(npuShape, inputShape);
+        ASSERT_EQ(npuShape, refShape);
+    }
 }
 
 }  // namespace behavior
