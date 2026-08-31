@@ -32,6 +32,7 @@
 #include "pass_manager.h"
 #include "program_helpers.h"
 
+#include <algorithm>
 #include <utility>
 #include <list>
 #include <vector>
