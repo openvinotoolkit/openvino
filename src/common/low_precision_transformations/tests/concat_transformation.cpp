@@ -12,6 +12,11 @@
 #include "low_precision/concat.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "ov_lpt_models/concat.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "simple_low_precision_transformer.hpp"
@@ -102,6 +107,30 @@ TEST_P(ConcatTransformation, CompareFunctions) {
     auto res = compare_functions(actualFunction, referenceFunction, true, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
+}
+
+TEST(ConcatTransformationRegression, MixedPrecisionDequantizationOnDynamicConcat) {
+    auto input0 = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, 128});
+    auto input1 = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, 128});
+    auto scale = ov::op::v0::Constant::create(element::f16, Shape{}, {128.f});
+    auto make_dequantization = [&scale](const Output<Node>& input) {
+        return std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Multiply>>(
+            element::TypeVector{element::f32, element::f32},
+            element::TypeVector{element::f32},
+            ov::op::TemporaryReplaceOutputType(input, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(scale, element::f32).get());
+    };
+    auto concat = std::make_shared<ov::op::v0::Concat>(
+        OutputVector{make_dequantization(input0), make_dequantization(input1)},
+        1);
+    auto function = std::make_shared<Model>(OutputVector{concat}, ParameterVector{input0, input1});
+
+    SimpleLowPrecisionTransformer transformer;
+    transformer.add<ov::pass::low_precision::ConcatTransformation, ov::op::v0::Concat>(
+        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false));
+
+    EXPECT_NO_THROW(transformer.transform(function));
+    EXPECT_NO_THROW(function->validate_nodes_and_infer_types());
 }
 
 const ov::element::TypeVector deqOutPrecisions = {
