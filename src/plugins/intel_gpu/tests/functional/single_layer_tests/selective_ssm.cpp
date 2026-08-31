@@ -227,7 +227,7 @@ TEST(smoke_GPUSelectiveSSMIntegration, SelectiveSSMIndividualOutputs) {
     constexpr size_t head_dim = 3;
     constexpr size_t state_size = 5;
 
-    const auto make_model = [](size_t seq_len, size_t output_index, bool dynamic) {
+    const auto make_model = [=](size_t seq_len, size_t output_index, bool dynamic) {
         const auto shape = [dynamic](const ov::Shape& static_shape) {
             return dynamic ? ov::PartialShape::dynamic(static_shape.size()) : ov::PartialShape{static_shape};
         };
