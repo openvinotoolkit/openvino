@@ -199,9 +199,15 @@ public:
 
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance) override {
         cldnn::stream& stream = instance.get_network().get_stream();
-        stream.enqueue_barrier();
 
-        auto output_evt = instance.output_memory_ptr(0)->fill(stream);
+        // The kernels accumulate into the output buffer, so it must be cleared beforehand.
+        // Synchronize the fill with this primitive's own dependencies instead of a full stream barrier:
+        // an in-order queue already guarantees the required ordering, while an out-of-order queue
+        // only needs to wait for the actual producers of this primitive's inputs.
+        const bool out_of_order_queue = stream.get_queue_type() == cldnn::QueueTypes::out_of_order;
+        auto fill_deps = out_of_order_queue ? std::vector<cldnn::event::ptr>{stream.enqueue_marker(events)} : std::vector<cldnn::event::ptr>{};
+
+        auto output_evt = instance.output_memory_ptr(0)->fill(stream, fill_deps);
         std::vector<cldnn::event::ptr> deps(events);
         deps.push_back(output_evt);
 
