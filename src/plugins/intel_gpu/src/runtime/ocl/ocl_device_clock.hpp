@@ -15,8 +15,9 @@ namespace ocl {
 
 /// @brief Maps the host steady clock onto the OpenCL device profiling clock, so that
 /// host-timed synthetic events are comparable with native ones. The correlation is
-/// affine, so it is sampled a few times and applied arithmetically rather than
-/// calling clGetDeviceAndHostTimer() per event, which costs a driver round trip.
+/// approximated as affine over short refresh intervals and applied arithmetically
+/// rather than calling clGetDeviceAndHostTimer() per event, which costs a driver
+/// round trip.
 class device_clock_sync {
 public:
     struct anchor {
@@ -43,9 +44,8 @@ public:
     /// ever be synthesized.
     bool is_valid() const;
 
-    /// @brief Re-samples the correlation if the last sample is older than
-    /// @p min_interval. Does the driver query, so it must stay off the inference
-    /// path - call it only when profiling data is collected.
+    /// @brief Re-samples the correlation if the last attempt is older than
+    /// @p min_interval. The rate limit amortizes the driver query across events.
     void refresh_if_stale(std::chrono::nanoseconds min_interval = default_refresh_interval);
 
     /// @brief Returns nullopt when the device provides no usable timer.
@@ -59,7 +59,7 @@ private:
 
     mutable std::mutex m_mutex;
     anchor m_base;
-    anchor m_late;
+    anchor m_latest;
     std::chrono::nanoseconds m_last_refresh{0};
 };
 

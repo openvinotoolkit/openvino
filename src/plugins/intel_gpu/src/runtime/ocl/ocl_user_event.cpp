@@ -30,8 +30,8 @@ void ocl_user_event::set_impl() {
     _duration = std::unique_ptr<cldnn::instrumentation::profiling_period_basic>(
         new cldnn::instrumentation::profiling_period_basic(_timer.uptime()));
 
-    // Host clock only; the device correlation needs a driver call and is deferred
-    // to get_profiling_info_impl().
+    // Capture only the host clock here; device correlation is shared and refreshed
+    // periodically while profiling information is collected.
     if (_device_clock) {
         _host_end = device_clock_sync::host_now();
     }
@@ -45,8 +45,7 @@ bool ocl_user_event::get_profiling_info_impl(std::list<cldnn::instrumentation::p
     auto period = std::make_shared<instrumentation::profiling_period_basic>(_duration->value());
     info.push_back({ instrumentation::profiling_stage::duration, period });
 
-    // Reached only when the application collects counters, never from the
-    // inference loop, so the driver call in refresh_if_stale() is affordable.
+    // The stream-level rate limit amortizes refresh_if_stale() across user events.
     if (_device_clock) {
         _device_clock->refresh_if_stale();
 
