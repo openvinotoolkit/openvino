@@ -437,6 +437,28 @@ kernel_impl_params SDPABase::static_canonicalize_shapes(const kernel_impl_params
 
 void SDPAImplBase::update(cldnn::primitive_inst& inst, const RuntimeParams& impl_params) {
     if (impl_params.is_type<scaled_dot_product_attention>()) {
+        const auto desc = impl_params.typed_desc<scaled_dot_product_attention>();
+        ensure_positive_dim(get_head_size(impl_params.get_input_layout(0), desc->input_q_transpose_order),
+                            "q_head_size",
+                            "SDPA: invalid non-positive ",
+                            " for runtime dispatch");
+        ensure_positive_dim(get_num_heads(impl_params.get_input_layout(0), desc->input_q_transpose_order),
+                            "q_num_head",
+                            "SDPA: invalid non-positive ",
+                            " for runtime dispatch");
+        ensure_positive_dim(get_head_size(impl_params.get_input_layout(1), desc->input_k_transpose_order),
+                            "k_head_size",
+                            "SDPA: invalid non-positive ",
+                            " for runtime dispatch");
+        ensure_positive_dim(get_num_heads(impl_params.get_input_layout(1), desc->input_k_transpose_order),
+                            "k_num_head",
+                            "SDPA: invalid non-positive ",
+                            " for runtime dispatch");
+        ensure_positive_dim(get_head_size(impl_params.get_input_layout(2), desc->input_v_transpose_order),
+                            "v_head_size",
+                            "SDPA: invalid non-positive ",
+                            " for runtime dispatch");
+
         // SDPA maybe 3D or 4D, need shape_canonicalization to 4D
         auto new_impl_params = SDPABase::requires_shape_canonicalization(impl_params) ? SDPABase::static_canonicalize_shapes(impl_params) : impl_params;
         inst.update_shape_info_tensor(new_impl_params);

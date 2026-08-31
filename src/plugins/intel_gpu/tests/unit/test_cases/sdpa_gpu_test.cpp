@@ -394,6 +394,49 @@ TEST(sdpa_gpu_custom, static_zero_dimension_throws) {
     }
 }
 
+TEST(sdpa_gpu_custom, dynamic_zero_head_size_throws) {
+    auto& engine = get_test_engine();
+
+    const ov::PartialShape dynamic_shape{-1, 1, -1, -1};
+    const layout dynamic_layout(dynamic_shape, data_types::f16, format::bfyx);
+    auto q_mem = engine.allocate_memory(layout({1, 1, 16, 0}, data_types::f16, format::bfyx));
+    auto k_mem = engine.allocate_memory(layout({1, 1, 16, 0}, data_types::f16, format::bfyx));
+    auto v_mem = engine.allocate_memory(layout({1, 1, 16, 32}, data_types::f16, format::bfyx));
+
+    topology topology;
+    topology.add(input_layout("q", dynamic_layout));
+    topology.add(input_layout("k", dynamic_layout));
+    topology.add(input_layout("v", dynamic_layout));
+    topology.add(scaled_dot_product_attention("sdpa",
+                                              {input_info("q"), input_info("k"), input_info("v")},
+                                              false,
+                                              -1,
+                                              {0, 1, 2, 3},
+                                              {0, 1, 2, 3},
+                                              {0, 1, 2, 3},
+                                              {0, 1, 2, 3},
+                                              {},
+                                              false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"sdpa", {format::type::bfyx, "sdpa_ref"}}
+    }));
+
+    auto network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+    network->set_input_data("q", q_mem);
+    network->set_input_data("k", k_mem);
+    network->set_input_data("v", v_mem);
+    try {
+        network->execute();
+        FAIL() << "Expected runtime SDPA dimension validation to throw";
+    } catch (const ov::Exception& e) {
+        EXPECT_NE(std::string(e.what()).find("invalid non-positive q_head_size for runtime dispatch"), std::string::npos)
+            << "Unexpected exception message: " << e.what();
+    }
+}
+
 TEST(sdpa_gpu_custom, single_token_cond_attn_mask_clamp) {
     tests::random_generator rg; rg.set_seed(GET_SUITE_NAME);
     auto& engine = get_test_engine();
