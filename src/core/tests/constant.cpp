@@ -2793,6 +2793,23 @@ TEST(constant, create_with_incorrect_buffer_size_or_shape_and_precision) {
     EXPECT_THROW(std::ignore = ov::op::v0::Constant(element::u8, Shape{10}, buffer), ov::Exception);
 }
 
+TEST(constant, default_constructed_members_do_not_crash) {
+    ov::op::v0::Constant c;
+    EXPECT_EQ(c.get_byte_size(), 0u);
+    EXPECT_EQ(c.get_data_ptr(), nullptr);
+    EXPECT_FALSE(c.get_tensor_view());
+
+    ov::TensorVector outputs;
+    EXPECT_FALSE(c.evaluate_lower(outputs));
+    ASSERT_EQ(outputs.size(), 1u);
+    EXPECT_FALSE(outputs[0]);
+
+    outputs.clear();
+    EXPECT_FALSE(c.evaluate_upper(outputs));
+    ASSERT_EQ(outputs.size(), 1u);
+    EXPECT_FALSE(outputs[0]);
+}
+
 TEST(constant, create_with_zero_dim_shape) {
     auto c = ov::op::v0::Constant(element::u8, Shape{10, 0});
 

@@ -1856,12 +1856,6 @@ bool ov::npuw::LLMCompiledModel::compute_continuous_prefill_supported() const {
     if (position_ids_rank.is_dynamic() || position_ids_rank.get_length() != 2) {
         return false;
     }
-    if (m_is_block_kv_cache) {
-        // Only the contiguous strategy can plan a continuation so far, and the block
-        // strategy would raise from the base class in preflight. Block support lands
-        // in the follow-up change.
-        return false;
-    }
     return true;
 }
 

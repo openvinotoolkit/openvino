@@ -80,6 +80,10 @@ namespace moe {
 class MoEExecutor;
 }
 
+namespace tests {
+struct CompiledModelTestAccess;
+}
+
 class CompiledModel : public ov::npuw::ICompiledModel_v0 {
     using DevList = std::vector<std::string>;
     using GetPropertiesMap =
@@ -109,6 +113,7 @@ public:
     static std::shared_ptr<CompiledModel> import_model(std::istream& stream,
                                                        const std::shared_ptr<const ov::IPlugin>& plugin,
                                                        const ov::AnyMap& properties);
+    static void validate_import_routing_tables(const std::shared_ptr<CompiledModel>& compiled);
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
 
     void set_property(const ov::AnyMap& properties) override;
@@ -143,6 +148,7 @@ private:
     friend class LLMCompiledModel;
     friend class LLMInferRequest;
     friend class moe::MoEExecutor;
+    friend struct tests::CompiledModelTestAccess;
 
     bool compile_for_success(std::size_t id, const std::vector<std::string>& devices);
     ov::SoPtr<ov::ICompiledModel> compile_submodel(const std::shared_ptr<ov::Model>& submodel,
