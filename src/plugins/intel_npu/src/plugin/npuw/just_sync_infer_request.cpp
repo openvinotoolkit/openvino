@@ -125,7 +125,7 @@ ov::npuw::MemAccessSim::MemAccessSim(const std::shared_ptr<ov::npuw::CompiledMod
         m_remaining_reads[read_from]++;
 
         // Record a read request for this particular Subgraph (who reads the Source)
-        m_read_list[read_to.first].push_back(read_from);
+        m_read_list.at(read_to.first).push_back(read_from);
     }
     // 2. Global model's outputs
     for (auto&& read_from : compiled_model->m_outputs_to_submodels_outputs) {
