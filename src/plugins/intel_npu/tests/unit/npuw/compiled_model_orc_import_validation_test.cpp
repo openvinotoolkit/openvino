@@ -15,6 +15,7 @@
 
 #include "compiled_model.hpp"
 #include "attn/attn_subgraph.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "moe/moe_subgraph.hpp"
@@ -35,31 +36,31 @@ class NullPlugin final : public ov::IPlugin {
 public:
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,
                                                       const ov::AnyMap&) const override {
-        return {};
+        OPENVINO_THROW("Unexpected TestPlugin::compile_model call");
     }
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,
                                                       const ov::AnyMap&,
                                                       const ov::SoPtr<ov::IRemoteContext>&) const override {
-        return {};
+        OPENVINO_THROW("Unexpected TestPlugin::compile_model(context) call");
     }
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream&, const ov::AnyMap&) const override {
-        return {};
+        OPENVINO_THROW("Unexpected TestPlugin::import_model(stream) call");
     }
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream&,
                                                      const ov::SoPtr<ov::IRemoteContext>&,
                                                      const ov::AnyMap&) const override {
-        return {};
+        OPENVINO_THROW("Unexpected TestPlugin::import_model(stream, context) call");
     }
     std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor&, const ov::AnyMap&) const override {
-        return {};
+        OPENVINO_THROW("Unexpected TestPlugin::import_model(blob) call");
     }
     std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor&,
                                                      const ov::SoPtr<ov::IRemoteContext>&,
                                                      const ov::AnyMap&) const override {
-        return {};
+        OPENVINO_THROW("Unexpected TestPlugin::import_model(blob, context) call");
     }
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>&, const ov::AnyMap&) const override {
-        return {};
+        OPENVINO_THROW("Unexpected TestPlugin::query_model call");
     }
     void set_property(const ov::AnyMap&) override {}
     ov::Any get_property(const std::string&, const ov::AnyMap&) const override {
@@ -226,25 +227,34 @@ TEST(NpuwImportRoutingValidation, WellFormedBlobImports) {
 TEST(NpuwImportRoutingValidation, LinkConsumerSubmodelIndexOutOfRange) {
     auto tables = make_valid_tables();
     tables.links = {{ToSubmodel{0x100000, 0}, ToSubmodel{0, 0}}};
-    EXPECT_THROW(import_blob(tables), ov::Exception);
+    OV_EXPECT_THROW_HAS_SUBSTRING(import_blob(tables),
+                                  ov::Exception,
+                                  "submodel input link refers to submodel 1048576 while only 1 submodel(s) are present");
 }
 
 TEST(NpuwImportRoutingValidation, LinkProducerSubmodelIndexOutOfRange) {
     auto tables = make_valid_tables();
     tables.links = {{ToSubmodel{0, 0}, ToSubmodel{0x100000, 0}}};
-    EXPECT_THROW(import_blob(tables), ov::Exception);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        import_blob(tables),
+        ov::Exception,
+        "submodel output link refers to submodel 1048576 while only 1 submodel(s) are present");
 }
 
 TEST(NpuwImportRoutingValidation, GlobalInputMappingOutOfRange) {
     auto tables = make_valid_tables();
     tables.inputs = {ToSubmodel{9, 0}};
-    EXPECT_THROW(import_blob(tables), ov::Exception);
+    OV_EXPECT_THROW_HAS_SUBSTRING(import_blob(tables),
+                                  ov::Exception,
+                                  "global input mapping refers to submodel 9 while only 1 submodel(s) are present");
 }
 
 TEST(NpuwImportRoutingValidation, GlobalOutputMappingOutOfRange) {
     auto tables = make_valid_tables();
     tables.outputs = {ToSubmodel{9, 0}};
-    EXPECT_THROW(import_blob(tables), ov::Exception);
+    OV_EXPECT_THROW_HAS_SUBSTRING(import_blob(tables),
+                                  ov::Exception,
+                                  "global output mapping refers to submodel 9 while only 1 submodel(s) are present");
 }
 
 // init_gio() indexes both vectors by the model's real input()/output() count, not by
@@ -253,27 +263,38 @@ TEST(NpuwImportRoutingValidation, GlobalOutputMappingOutOfRange) {
 TEST(NpuwImportRoutingValidation, GlobalInputMappingWrongCardinality) {
     auto tables = make_valid_tables();
     tables.inputs = {};
-    EXPECT_THROW(import_blob(tables), ov::Exception);
+    OV_EXPECT_THROW_HAS_SUBSTRING(import_blob(tables),
+                                  ov::Exception,
+                                  "global input mapping has 0 entries but the model has 1 input(s)");
 
     tables = make_valid_tables();
     tables.inputs = {ToSubmodel{0, 0}, ToSubmodel{0, 0}};
-    EXPECT_THROW(import_blob(tables), ov::Exception);
+    OV_EXPECT_THROW_HAS_SUBSTRING(import_blob(tables),
+                                  ov::Exception,
+                                  "global input mapping has 2 entries but the model has 1 input(s)");
 }
 
 TEST(NpuwImportRoutingValidation, GlobalOutputMappingWrongCardinality) {
     auto tables = make_valid_tables();
     tables.outputs = {};
-    EXPECT_THROW(import_blob(tables), ov::Exception);
+    OV_EXPECT_THROW_HAS_SUBSTRING(import_blob(tables),
+                                  ov::Exception,
+                                  "global output mapping has 0 entries but the model has 1 output(s)");
 
     tables = make_valid_tables();
     tables.outputs = {ToSubmodel{0, 0}, ToSubmodel{0, 0}};
-    EXPECT_THROW(import_blob(tables), ov::Exception);
+    OV_EXPECT_THROW_HAS_SUBSTRING(import_blob(tables),
+                                  ov::Exception,
+                                  "global output mapping has 2 entries but the model has 1 output(s)");
 }
 
 TEST(NpuwImportRoutingValidation, ParamSubscriberOutOfRange) {
     auto tables = make_valid_tables();
     tables.param_subscribers[0] = {ToSubmodel{0, 0}, ToSubmodel{9, 0}};
-    EXPECT_THROW(import_blob(tables), ov::Exception);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        import_blob(tables),
+        ov::Exception,
+        "parameter subscriber refers to submodel 9 while only 1 submodel(s) are present");
 }
 
 // The subscriber map's key (a global input index) is just as untrusted as its values -
@@ -281,13 +302,18 @@ TEST(NpuwImportRoutingValidation, ParamSubscriberOutOfRange) {
 TEST(NpuwImportRoutingValidation, ParamSubscriberKeyOutOfRange) {
     auto tables = make_valid_tables();
     tables.param_subscribers[9] = {ToSubmodel{0, 0}};
-    EXPECT_THROW(import_blob(tables), ov::Exception);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        import_blob(tables),
+        ov::Exception,
+        "parameter subscriber refers to global input 9 while the model has only 1 input(s)");
 }
 
 // A dangling function-body reference is a second unchecked index into m_compiled_submodels.
 TEST(NpuwImportRoutingValidation, ReplacedBySubmodelIndexOutOfRange) {
-    EXPECT_THROW(import_blob(make_valid_tables(), {SubmodelSpec{std::optional<std::size_t>{0x100000u}, {}}}),
-                ov::Exception);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        import_blob(make_valid_tables(), {SubmodelSpec{std::optional<std::size_t>{0x100000u}, {}}}),
+        ov::Exception,
+        "submodel 0 is replaced by submodel 1048576 while only 1 submodel(s) are present");
 }
 
 // The dangling replaced_by is also dereferenced by reconstruct_closure(), which runs
@@ -296,8 +322,10 @@ TEST(NpuwImportRoutingValidation, ReplacedBySubmodelIndexOutOfRange) {
 // resolve that index via submodel_device(), so this only passes if validation happens
 // before consume_weights_bank(), not after it.
 TEST(NpuwImportRoutingValidation, ReplacedBySubmodelIndexOutOfRangeWithClosureEntry) {
-    EXPECT_THROW(import_blob(make_valid_tables(), {SubmodelSpec{std::optional<std::size_t>{0x100000u}, {0}}}),
-                ov::Exception);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        import_blob(make_valid_tables(), {SubmodelSpec{std::optional<std::size_t>{0x100000u}, {0}}}),
+        ov::Exception,
+        "submodel 0 is replaced by submodel 1048576 while only 1 submodel(s) are present");
 }
 
 // NO_LINK is a legal placeholder for a global input which no submodel consumes,
@@ -309,15 +337,21 @@ TEST(NpuwImportRoutingValidation, NoLinkIsAcceptedForGlobalInputsOnly) {
 
     tables = make_valid_tables();
     tables.outputs = {CM::NO_LINK};
-    EXPECT_THROW(import_blob(tables), ov::Exception);
+    OV_EXPECT_THROW_HAS_SUBSTRING(import_blob(tables),
+                                  ov::Exception,
+                                  "global output mapping is not linked to any submodel");
 
     tables = make_valid_tables();
     tables.links = {{CM::NO_LINK, ToSubmodel{0, 0}}};
-    EXPECT_THROW(import_blob(tables), ov::Exception);
+    OV_EXPECT_THROW_HAS_SUBSTRING(import_blob(tables),
+                                  ov::Exception,
+                                  "submodel input link is not linked to any submodel");
 
     tables = make_valid_tables();
     tables.links = {{ToSubmodel{0, 0}, CM::NO_LINK}};
-    EXPECT_THROW(import_blob(tables), ov::Exception);
+    OV_EXPECT_THROW_HAS_SUBSTRING(import_blob(tables),
+                                  ov::Exception,
+                                  "submodel output link is not linked to any submodel");
 }
 
 // Port indices can only be validated against a submodel that carries a compiled
@@ -351,21 +385,69 @@ TEST(NpuwImportRoutingValidation, ReplacedByTargetIsNotCompiledFunctionBody) {
     submodels[0].num_outputs.reset();
     submodels[1].replaced_by = 0;
 
-    EXPECT_THROW(validate(submodels, make_valid_tables()), ov::Exception);
+    OV_EXPECT_THROW_HAS_SUBSTRING(validate(submodels, make_valid_tables()),
+                                  ov::Exception,
+                                  "submodel 1 is replaced by submodel 0 which is not a compiled function body");
 }
 
 TEST(NpuwImportRoutingValidation, LinkConsumerPortIndexOutOfRange) {
     auto tables = make_valid_tables();
     // Submodels have 2 inputs, so port 7 does not exist
     tables.links = {{ToSubmodel{0, 7}, ToSubmodel{0, 0}}};
-    EXPECT_THROW(validate(make_submodel_ports(1), tables), ov::Exception);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        validate(make_submodel_ports(1), tables),
+        ov::Exception,
+        "submodel input link refers to input port 7 of submodel 0 which has only 2 of them");
 }
 
 TEST(NpuwImportRoutingValidation, LinkProducerPortIndexOutOfRange) {
     auto tables = make_valid_tables();
     // Submodels have 1 output, so port 3 does not exist
     tables.links = {{ToSubmodel{0, 1}, ToSubmodel{0, 3}}};
-    EXPECT_THROW(validate(make_submodel_ports(1), tables), ov::Exception);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        validate(make_submodel_ports(1), tables),
+        ov::Exception,
+        "submodel output link refers to output port 3 of submodel 0 which has only 1 of them");
+}
+
+TEST(NpuwImportRoutingValidation, GlobalInputMappingPortIndexOutOfRange) {
+    auto tables = make_valid_tables();
+    // Submodels have 2 inputs, so port 7 does not exist
+    tables.inputs = {ToSubmodel{0, 7}};
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        validate(make_submodel_ports(1), tables),
+        ov::Exception,
+        "global input mapping refers to input port 7 of submodel 0 which has only 2 of them");
+}
+
+TEST(NpuwImportRoutingValidation, GlobalOutputMappingPortIndexOutOfRange) {
+    auto tables = make_valid_tables();
+    // Submodels have 1 output, so port 3 does not exist
+    tables.outputs = {ToSubmodel{0, 3}};
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        validate(make_submodel_ports(1), tables),
+        ov::Exception,
+        "global output mapping refers to output port 3 of submodel 0 which has only 1 of them");
+}
+
+// A subscriber entry is dereferenced the same way as any other link - NO_LINK is only
+// legal for the global input table itself, never for what it fans out to.
+TEST(NpuwImportRoutingValidation, NoLinkRejectedForParamSubscriberEntry) {
+    auto tables = make_valid_tables();
+    tables.param_subscribers[0] = {CM::NO_LINK};
+    OV_EXPECT_THROW_HAS_SUBSTRING(validate(make_submodel_ports(1), tables),
+                                  ov::Exception,
+                                  "parameter subscriber is not linked to any submodel");
+}
+
+TEST(NpuwImportRoutingValidation, ParamSubscriberPortIndexOutOfRange) {
+    auto tables = make_valid_tables();
+    // Submodels have 2 inputs, so port 7 does not exist
+    tables.param_subscribers[0] = {ToSubmodel{0, 7}};
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        validate(make_submodel_ports(1), tables),
+        ov::Exception,
+        "parameter subscriber refers to input port 7 of submodel 0 which has only 2 of them");
 }
 
 // A funcall submodel carries no ports of its own - they must be resolved
@@ -381,7 +463,10 @@ TEST(NpuwImportRoutingValidation, FuncallPortsAreCheckedAgainstFunctionBody) {
     EXPECT_NO_THROW(validate(submodels, tables));
 
     tables.links = {{ToSubmodel{1, 42}, ToSubmodel{0, 0}}};
-    EXPECT_THROW(validate(submodels, tables), ov::Exception);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        validate(submodels, tables),
+        ov::Exception,
+        "submodel input link refers to input port 42 of submodel 1 which has only 2 of them");
 }
 
 }  // namespace
