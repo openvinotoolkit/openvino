@@ -1024,7 +1024,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         // so only apply slice to the Prefill model:
         ov::npuw::SliceOutEmbeds(axes.batch, m_kvcache_desc.max_generation_token_len).run_on_model(prefill_model);
         if (m_cfg.get<::intel_npu::NPUW_LLM_PROPAGATE_SLICE_UP>()) {
-            LOG_DEBUG("Propagate slice upstream through elementwise ops and SDPA");
             ov::npuw::PropagateSliceUp().run_on_model(prefill_model);
         }
         LOG_DEBUG("Make LM head model with static shapes");
