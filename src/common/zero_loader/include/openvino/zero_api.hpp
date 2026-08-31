@@ -100,6 +100,7 @@ namespace ov {
 #define weak_symbols_list()                                   \
     symbol_statement(zeCommandListGetNextCommandIdExp)        \
     symbol_statement(zeCommandListUpdateMutableCommandsExp)   \
+    symbol_statement(zeCommandListImmediateAppendCommandListsExp) \
     symbol_statement(zeContextCreateEx)                       \
     symbol_statement(zeInitDrivers)                           \
     symbol_statement(zelGetLoaderVersion)                     \
