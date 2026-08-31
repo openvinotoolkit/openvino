@@ -50,7 +50,7 @@ env:
 
 jobs:
   Build:
-    timeout-minutes: 240
+    timeout-minutes: 300
     defaults:
       run:
         shell: pwsh
@@ -201,7 +201,7 @@ jobs:
 
       - name: Install ccache (ARM64)
         if: ${{ inputs.target-arch == 'arm64' }}
-        uses: hendrikmuhs/ccache-action@v1.2
+        uses: hendrikmuhs/ccache-action@5ebbd400eff9e74630f759d94ddd7b6c26299639 # v1.2.20
         with:
           save: false
           restore: false
@@ -288,9 +288,9 @@ jobs:
       - name: Build additional Python wheels
         if: ${{ inputs.build-additional-python-wheels }}
         run: |
-          $pyVersions = if ('${{ inputs.target-arch }}' -eq 'arm64') { '3.11', '3.12', '3.13', '3.14' } else { '3.10', '3.11', '3.12', '3.13', '3.14' }
+          $pyVersions = if ($env:TARGET_ARCH -eq 'arm64') { '3.11', '3.12', '3.13', '3.14' } else { '3.10', '3.11', '3.12', '3.13', '3.14' }
           foreach ($pyVersion in $pyVersions) {
-            $pyBuildDir = "${{ github.workspace }}/py$pyVersion"
+            $pyBuildDir = "$env:GITHUB_WORKSPACE/py$pyVersion"
             New-Item -ItemType Directory -Path "$pyBuildDir" -Force
 
             $pythonCommand = "py -$pyVersion -c `"import sys; print(f'{sys.executable}')`""
@@ -315,6 +315,8 @@ jobs:
             }
           }
         env:
+          TARGET_ARCH: ${{ inputs.target-arch }}
+          GITHUB_WORKSPACE: ${{ github.workspace }}
           CMAKE_GENERATOR: 'Ninja' # Ninja is the only Windows native generator supported by ccache
 
       # Setup additional Python versions for wheels building
