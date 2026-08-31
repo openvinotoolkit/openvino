@@ -295,6 +295,13 @@ int main(int argc, char* argv[]) {
          [&] { ZE_CHECK(zeCommandListAppendBarrier(r0.list, nullptr, 0, nullptr)); }},
         {"KernelSetArgumentValue",
          [&] { ZE_CHECK(zeKernelSetArgumentValue(r0.kernel, 3, sizeof(n64), &n64)); }},
+        // Not an append at all: the splice path asks once per collective
+        // whether the previous append has finished, and that query measured
+        // 6.8 us inside the plugin -- as much as the appends it guards.
+        // The result is deliberately ignored: an unsignalled event answers
+        // NOT_READY, which is not an error here.
+        {"EventQueryStatus", [&] { zeEventQueryStatus(events[0]); }},
+        {"EventHostReset", [&] { zeEventHostReset(events[0]); }},
     };
 
     const std::vector<int> thread_counts = {0, 1, 2, 4, 8, 16};

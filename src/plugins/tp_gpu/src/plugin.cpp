@@ -26,6 +26,8 @@
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/util/container_util.hpp"
 #include "openvino/zero_api.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/op/concat.hpp"
 
 namespace ov {
 namespace tp_gpu {
@@ -41,6 +43,79 @@ inline void ze_throw_on_error(ze_result_t r, const char* what) {
     if (r != ZE_RESULT_SUCCESS) {
         OPENVINO_THROW("[TP_GPU] L0 call ", what, " failed: 0x", std::hex, r);
     }
+}
+
+/// Diagnostic (TP_SHARD_ONLY=1): strip every collective from a shard so it can
+/// run alone on one GPU.  This is the upper bound tensor parallelism is chasing
+/// -- one card, weights divided by the tensor parallel degree, no collectives,
+/// no cross-rank dispatch, no coordinator.  TP_SKIP_COLLECTIVE answers a
+/// different question: it removes the exchange but leaves the operations, the
+/// four-way dispatch and the rendezvous in place.
+///
+/// Serializing the shard to IR and running it through the stock GPU plugin
+/// would be the obvious way to do this, but the shard already carries
+/// PagedAttentionExtension by the time it reaches us, and reading that back
+/// needs an extension the benchmark's Core does not register.
+///
+/// Shape-preserving collectives are dropped by reconnecting their consumers to
+/// their input.  TPGather is not shape-preserving: it widens the vocabulary
+/// dimension back on rank 0.  Leaving the LM head unsharded instead
+/// (TP_LM_HEAD_ALL_RANKS=1) costs about 7 ms a token on an f16 8B model, which
+/// swamps what is being measured, so it is replaced by a concatenation of the
+/// shard with itself: the shape comes back, the weights stay sharded, and the
+/// only thing added is a copy of a few hundred kilobytes of logits.  The values
+/// are wrong -- nothing but the timings may be read off such a run.
+void strip_collectives(const std::shared_ptr<ov::Model>& shard) {
+    size_t dropped = 0;
+    size_t widened = 0;
+    for (const auto& node : shard->get_ordered_ops()) {
+        if (node->get_type_info().name == nullptr ||
+            std::string(node->get_type_info().name).rfind("TP", 0) != 0) {
+            continue;
+        }
+        OPENVINO_ASSERT(node->get_input_size() == 1 && node->get_output_size() == 1,
+                        "[TP_GPU] TP_SHARD_ONLY cannot handle ", node->get_type_info().name,
+                        ": it does not have exactly one input and one output.");
+
+        const auto& in_shape = node->get_input_partial_shape(0);
+        const auto& out_shape = node->get_output_partial_shape(0);
+        if (out_shape.compatible(in_shape)) {
+            ov::replace_output_update_name(node->output(0), node->input_value(0));
+            ++dropped;
+            continue;
+        }
+
+        // Find the one axis that grew and repeat the input along it.
+        OPENVINO_ASSERT(in_shape.rank().is_static() && out_shape.rank() == in_shape.rank(),
+                        "[TP_GPU] TP_SHARD_ONLY cannot widen ", node->get_type_info().name,
+                        ": ranks differ or are dynamic.");
+        int64_t axis = -1;
+        int64_t factor = 0;
+        for (int64_t i = 0; i < in_shape.rank().get_length(); ++i) {
+            if (in_shape[i] == out_shape[i]) {
+                continue;
+            }
+            OPENVINO_ASSERT(axis < 0 && in_shape[i].is_static() && out_shape[i].is_static() &&
+                                out_shape[i].get_length() % in_shape[i].get_length() == 0,
+                            "[TP_GPU] TP_SHARD_ONLY cannot widen ", node->get_type_info().name,
+                            ": expected exactly one axis to grow by a whole factor, got ",
+                            in_shape, " -> ", out_shape);
+            axis = i;
+            factor = out_shape[i].get_length() / in_shape[i].get_length();
+        }
+        OPENVINO_ASSERT(axis >= 0, "[TP_GPU] TP_SHARD_ONLY: ", node->get_type_info().name,
+                        " changes shape but no axis grew: ", in_shape, " -> ", out_shape);
+
+        ov::OutputVector copies(static_cast<std::size_t>(factor), node->input_value(0));
+        auto concat = std::make_shared<ov::op::v0::Concat>(copies, axis);
+        concat->set_friendly_name(node->get_friendly_name());
+        ov::replace_node(node, concat);
+        ++widened;
+    }
+    shard->validate_nodes_and_infer_types();
+
+    std::cerr << "[TP] TP_SHARD_ONLY: " << dropped << " collectives short-circuited, "
+              << widened << " replaced by a self-concat" << std::endl;
 }
 
 /// \brief Resolves the per-rank device list.
@@ -258,6 +333,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     // ---- Extract TP configuration ----
     auto device_names = get_device_names(config);
+    // Weights are always divided by however many devices were asked for.  Under
+    // TP_SHARD_ONLY only the first rank is built and run, so the execution
+    // degree drops to one while the sharding degree does not.
+    const auto shard_degree = static_cast<uint32_t>(device_names.size());
+    const bool shard_only = std::getenv("TP_SHARD_ONLY") != nullptr;
+    if (shard_only) {
+        device_names.resize(1);
+    }
     const auto tp_degree = static_cast<uint32_t>(device_names.size());
     const auto collective_timeout = get_collective_timeout(config);
     erase_tp_keys(config);
@@ -271,7 +354,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     //    synchronizes via the shared coordinator object.
 
     auto sharding_plan = GraphRewriter::analyze(model);
-    int num_collectives = GraphRewriter::count_collectives(sharding_plan, static_cast<int>(tp_degree));
+    int num_collectives = shard_only
+                              ? 0
+                              : GraphRewriter::count_collectives(sharding_plan,
+                                                                 static_cast<int>(shard_degree));
 
     if (std::getenv("TP_PROF") != nullptr) {
         const auto column_count = sharding_plan.linears.size() - static_cast<size_t>(num_collectives);
@@ -318,11 +404,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     std::vector<ov::SoPtr<ov::ICompiledModel>> rank_compiled(tp_degree);
 
     for (uint32_t rank = 0; rank < tp_degree; ++rank) {
-        auto rank_model = GraphRewriter::rewrite(model, sharding_plan, rank, tp_degree);
+        auto rank_model = GraphRewriter::rewrite(model, sharding_plan, rank, shard_degree);
 
         if (std::getenv("TP_PROF") != nullptr) {
             std::cerr << "[TP] Rank " << rank << ": " << rank_model->get_ordered_ops().size() << " ops, "
                       << num_collectives << " AllReduce points" << std::endl;
+        }
+
+        if (shard_only) {
+            strip_collectives(rank_model);
         }
 
         rank_compiled[rank] = get_core()->compile_model(rank_model, setup.rank_ctx[rank], config);
