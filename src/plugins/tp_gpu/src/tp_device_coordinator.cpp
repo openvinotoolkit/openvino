@@ -344,6 +344,17 @@ TPDeviceCoordinator::TPDeviceCoordinator(TPL0SharedContextPtr shared,
     m_skew.seg_count.assign(static_cast<std::size_t>(world_size), 0);
     m_skew.last_exit.assign(static_cast<std::size_t>(world_size),
                             std::chrono::steady_clock::time_point{});
+    m_skew.p2_gate_ns.assign(static_cast<std::size_t>(world_size), 0);
+    m_skew.p2_rec_ns.assign(static_cast<std::size_t>(world_size), 0);
+    m_skew.p2_wait_ns.assign(static_cast<std::size_t>(world_size), 0);
+    m_skew.p2_reset_ns.assign(static_cast<std::size_t>(world_size), 0);
+    m_skew.p2_append_ns.assign(static_cast<std::size_t>(world_size), 0);
+    m_skew.p2_rec_count.assign(static_cast<std::size_t>(world_size), 0);
+    m_skew.p2_wait_count.assign(static_cast<std::size_t>(world_size), 0);
+    m_skew.p2_block_count.assign(static_cast<std::size_t>(world_size), 0);
+    m_skew.p2_dev_ns.assign(static_cast<std::size_t>(world_size), 0);
+    m_skew.p2_dev_max_ns.assign(static_cast<std::size_t>(world_size), 0);
+    m_skew.p2_dev_count.assign(static_cast<std::size_t>(world_size), 0);
 
     try {
         for (int r = 0; r < world_size; ++r) {
@@ -800,7 +811,14 @@ void TPDeviceCoordinator::create_plan_events(Plan& plan) {
     // waited on entirely by devices.
     {
         ze_event_pool_desc_t epd{ZE_STRUCTURE_TYPE_EVENT_POOL_DESC, nullptr};
+        // The timestamp flag is what makes the device side of a spliced
+        // collective measurable at all, and it makes the command processor
+        // record a start and an end on every signal, so it is only asked for
+        // when someone is going to read them.
         epd.flags = ZE_EVENT_POOL_FLAG_HOST_VISIBLE;
+        if (tp_skew_period() > 0) {
+            epd.flags |= ZE_EVENT_POOL_FLAG_KERNEL_TIMESTAMP;
+        }
         epd.count = static_cast<uint32_t>(N);
         std::vector<ze_device_handle_t> devs_nc(m_shared->devices.begin(), m_shared->devices.end());
         ZE_THROW(ov::zeEventPoolCreate(ctx, &epd,
@@ -2536,9 +2554,14 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
         if (!slot->recorded[rank] ||
             slot->recorded_scratch_generation[rank] != m_scratch.generation) {
             trace("phase2: record own commands");
+            const auto rec0 = clk::now();
             record_rank(*slot, rank);
             slot->recorded[rank] = 1;
             slot->recorded_scratch_generation[rank] = m_scratch.generation;
+            if (skew_period > 0) {
+                m_skew.p2_rec_ns[rank] += elapsed_ns(rec0, clk::now());
+                ++m_skew.p2_rec_count[rank];
+            }
         }
 
         if (model_queue != nullptr) {
@@ -2553,19 +2576,59 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
             // peer would otherwise turn into memory corruption instead of an
             // error.
             if (slot->in_flight[rank].load(std::memory_order_acquire)) {
-                const ze_result_t r =
-                    ze_api()->zeEventHostSynchronize(slot->ev_done[rank], timeout_ns());
+                const auto w0 = clk::now();
+                // Query before waiting.  Two buffers alternate, so this asks
+                // about work handed over two collectives ago, which the device
+                // has long finished: the status query is a memory read and
+                // returns ready essentially every time, while
+                // zeEventHostSynchronize measured 7.2 us a call even when it
+                // had nothing to wait for.  The blocking wait is kept for the
+                // case the device really is behind.
+                ze_result_t r = ze_api()->zeEventQueryStatus(slot->ev_done[rank]);
                 if (r == ZE_RESULT_NOT_READY) {
-                    fail_collective(true, collective_id, rank, "previous splice of this recording");
+                    if (skew_period > 0) {
+                        ++m_skew.p2_block_count[rank];
+                    }
+                    r = ze_api()->zeEventHostSynchronize(slot->ev_done[rank], timeout_ns());
+                    if (r == ZE_RESULT_NOT_READY) {
+                        fail_collective(true, collective_id, rank, "previous splice of this recording");
+                    }
                 }
                 ZE_THROW(r);
+                const auto w1 = clk::now();
+                if (skew_period > 0) {
+                    // The event still holds the timestamps of the splice that
+                    // just finished; the reset below clears them.
+                    ze_kernel_timestamp_result_t kt{};
+                    if (ze_api()->zeEventQueryKernelTimestamp(slot->ev_done[rank], &kt) ==
+                        ZE_RESULT_SUCCESS) {
+                        const uint64_t mask = m_ranks[rank].timestamp_mask;
+                        const uint64_t s = kt.global.kernelStart & mask;
+                        const uint64_t e = kt.global.kernelEnd & mask;
+                        const uint64_t d = (e >= s) ? (e - s) : ((mask + 1 - s) + e);
+                        const uint64_t ns = d * m_ranks[rank].timer_ns_per_tick;
+                        m_skew.p2_dev_ns[rank] += ns;
+                        m_skew.p2_dev_max_ns[rank] = std::max(m_skew.p2_dev_max_ns[rank], ns);
+                        ++m_skew.p2_dev_count[rank];
+                    }
+                }
                 ZE_THROW(ze_api()->zeEventHostReset(slot->ev_done[rank]));
                 slot->in_flight[rank].store(0, std::memory_order_release);
+                if (skew_period > 0) {
+                    const auto w2 = clk::now();
+                    m_skew.p2_wait_ns[rank] += elapsed_ns(w0, w1);
+                    m_skew.p2_reset_ns[rank] += elapsed_ns(w1, w2);
+                    ++m_skew.p2_wait_count[rank];
+                }
             }
 
             trace("phase2: splice into the model queue");
+            const auto a0 = clk::now();
             ZE_THROW(ze_api()->zeCommandListImmediateAppendCommandListsExp(
                 model_queue, 1, &slot->compute_lists[rank], slot->ev_done[rank], 0, nullptr));
+            if (skew_period > 0) {
+                m_skew.p2_append_ns[rank] += elapsed_ns(a0, clk::now());
+            }
             slot->in_flight[rank].store(1, std::memory_order_release);
             note_collective_started(rank);
             te1 = clk::now();
@@ -2658,6 +2721,7 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
         m_skew.ph1_ns[rank] += elapsed_ns(t0, t1);
         m_skew.ph2_ns[rank] += elapsed_ns(t1, t2);
         m_skew.ph3_ns[rank] += elapsed_ns(t2, t3);
+        m_skew.p2_gate_ns[rank] += elapsed_ns(tr0, tr1);
         m_skew.last_exit[rank] = t3;
         if (rank == 0 && (++m_skew.calls % static_cast<uint64_t>(skew_period)) == 0) {
             const double c = static_cast<double>(m_skew.calls);
@@ -2681,6 +2745,25 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
                           << " min=" << (static_cast<double>(m_skew.seg_min_ns[r]) / 1.0e3)
                           << "us max=" << (static_cast<double>(m_skew.seg_max_ns[r]) / 1.0e3)
                           << "us" << std::endl;
+                const uint64_t p2_known =
+                    m_skew.p2_gate_ns[r] + m_skew.p2_rec_ns[r] + m_skew.p2_wait_ns[r] +
+                    m_skew.p2_reset_ns[r] + m_skew.p2_append_ns[r];
+                std::cerr << "[TP][SKEW]     ph2 split: gate=" << us(m_skew.p2_gate_ns[r]) << "us"
+                          << " record=" << us(m_skew.p2_rec_ns[r]) << "us"
+                          << "(" << m_skew.p2_rec_count[r] << "x)"
+                          << " evt_wait=" << us(m_skew.p2_wait_ns[r]) << "us"
+                          << " evt_reset=" << us(m_skew.p2_reset_ns[r]) << "us"
+                          << "(" << m_skew.p2_wait_count[r] << "x, blocked "
+                          << m_skew.p2_block_count[r] << "x)"
+                          << " append=" << us(m_skew.p2_append_ns[r]) << "us"
+                          << " rest=" << us(m_skew.ph2_ns[r] - std::min(p2_known, m_skew.ph2_ns[r]))
+                          << "us" << std::endl;
+                const double dc =
+                    std::max<double>(1.0, static_cast<double>(m_skew.p2_dev_count[r]));
+                std::cerr << "[TP][SKEW]     device: collective holds the queue for "
+                          << (static_cast<double>(m_skew.p2_dev_ns[r]) / 1.0e3 / dc) << "us"
+                          << " max=" << (static_cast<double>(m_skew.p2_dev_max_ns[r]) / 1.0e3)
+                          << "us (" << m_skew.p2_dev_count[r] << " samples)" << std::endl;
             }
         }
     }

@@ -384,6 +384,29 @@ private:
         std::vector<uint64_t> seg_max_ns;  // [N]
         std::vector<uint64_t> seg_count;   // [N]
         std::vector<std::chrono::steady_clock::time_point> last_exit;  // [N]
+        // Breakdown of ph2 on the splice path.  The phase looked far more
+        // expensive than the 1.3 us the append itself costs, and the pieces
+        // are not guessable from the outside: the gate is a condvar handoff
+        // for every rank but rank 0, and the event wait is only supposed to
+        // fire when the host has run two collectives ahead of the device.
+        std::vector<uint64_t> p2_gate_ns;    // [N] rank 0: prep; others: wait for `done`
+        std::vector<uint64_t> p2_rec_ns;     // [N] recording this rank's commands
+        std::vector<uint64_t> p2_wait_ns;    // [N] zeEventHostSynchronize on the previous splice
+        std::vector<uint64_t> p2_reset_ns;   // [N] zeEventHostReset
+        std::vector<uint64_t> p2_append_ns;  // [N] the splice itself
+        std::vector<uint64_t> p2_rec_count;  // [N] how often a re-record happened
+        std::vector<uint64_t> p2_wait_count; // [N] how often the previous splice was still in flight
+        std::vector<uint64_t> p2_block_count;// [N] how often that wait actually had to block
+        // How long the spliced collective occupied the rank's queue, read off
+        // the completion event's kernel timestamps.  This is the one part of
+        // the cost that no host phase contains: the splice hands the work over
+        // and returns, so the copies, the reduce kernel and the waits on peers
+        // all happen after every host measurement has ended.  Sampled where
+        // the previous splice is already being queried anyway, so it costs one
+        // extra call per collective and no synchronization.
+        std::vector<uint64_t> p2_dev_ns;     // [N] sum of (kernelEnd - kernelStart)
+        std::vector<uint64_t> p2_dev_max_ns; // [N]
+        std::vector<uint64_t> p2_dev_count;  // [N]
         uint64_t spread_ns{0};             // sum of (last arrival - first arrival)
         uint64_t calls{0};
     };
