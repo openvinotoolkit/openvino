@@ -84,10 +84,10 @@ ELFMainScheduleSection::ELFMainScheduleSection(ov::Tensor&& main_schedule,
       m_logger("ELFMainScheduleSection", log_level) {}
 
 std::vector<CREToken> ELFMainScheduleSection::get_compatibility_requirements_subexpression(
-    const std::unordered_map<SectionType, std::unordered_map<SectionID, std::shared_ptr<ISection>>>&
+    const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
     /*all_registered_sections*/) const {
     m_logger.debug("Added the ELF_MAIN_SCHEDULE section type to the CRE");
-    return {get_section_type()};
+    return {get_type()};
 }
 
 void ELFMainScheduleSection::write(BlobWriterInterface& writer) {
@@ -192,10 +192,10 @@ ELFInitSchedulesSection::ELFInitSchedulesSection(std::vector<ov::Tensor>&& init_
       m_logger("ELFInitSchedulesSection", log_level) {}
 
 std::vector<CREToken> ELFInitSchedulesSection::get_compatibility_requirements_subexpression(
-    const std::unordered_map<SectionType, std::unordered_map<SectionID, std::shared_ptr<ISection>>>&
+    const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
     /*all_registered_sections*/) const {
     m_logger.debug("Added the ELF_INIT_SCHEDULES section type to the CRE");
-    return {get_section_type()};
+    return {get_type()};
 }
 
 void ELFInitSchedulesSection::write(BlobWriterInterface& writer) {
@@ -351,10 +351,10 @@ DynamicScheduleSection::DynamicScheduleSection(ov::Tensor&& main_schedule,
       m_logger("DynamicScheduleSection", log_level) {}
 
 std::vector<CREToken> DynamicScheduleSection::get_compatibility_requirements_subexpression(
-    const std::unordered_map<SectionType, std::unordered_map<SectionID, std::shared_ptr<ISection>>>&
+    const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
     /*all_registered_sections*/) const {
     m_logger.debug("Added the DYNAMIC_SCHEDULE section type to the CRE");
-    return {get_section_type()};
+    return {get_type()};
 }
 
 void DynamicScheduleSection::write(BlobWriterInterface& writer) {

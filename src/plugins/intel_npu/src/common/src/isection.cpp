@@ -29,11 +29,11 @@ namespace intel_npu {
 
 ISection::ISection(const SectionType type) : m_type(type) {}
 
-SectionType ISection::get_section_type() const {
+SectionType ISection::get_type() const {
     return m_type;
 }
 
-std::optional<SectionID> ISection::get_section_id() const {
+std::optional<SectionID> ISection::get_id() const {
     return m_id;
 }
 
@@ -47,12 +47,8 @@ void ISection::set_id(const SectionID id) const {
     m_id = id;
 }
 
-std::optional<SectionID> ISection::get_section_id() const {
-    return m_id;
-}
-
 std::vector<CREToken> ISection::get_compatibility_requirements_subexpression(
-    const std::unordered_map<SectionType, std::unordered_map<SectionID, std::shared_ptr<ISection>>>&
+    const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
     /*all_registered_sections*/) const {
     // By default, no requirements are added
     return {};

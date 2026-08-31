@@ -113,7 +113,7 @@ void MockSectionWithTable::write(BlobWriterInterface& writer) {
     std::vector<Entry> entries;
     std::unordered_map<SectionType, SectionID> counters;
     for (const auto& r : reachables) {
-        const SectionType type = r->get_section_type();
+        const SectionType type = r->get_type();
         const SectionID instance = counters[type]++;
         const uint64_t offset = static_cast<uint64_t>(writer.get_offset_relative_to_current_section());
         r->write(writer);

@@ -87,7 +87,7 @@ public:
      */
     virtual void write(BlobWriterInterface& writer) = 0;
 
-    SectionType get_section_type() const;
+    SectionType get_type() const;
 
     /**
      * @brief Get the section ID, unique per compiled model.
@@ -95,7 +95,7 @@ public:
      * @return Either the ID or a std::nullopt. This value exists only if the current section has been added to a
      * BlobWriter writing queue.
      */
-    std::optional<SectionID> get_section_id() const;
+    std::optional<SectionID> get_id() const;
 
     /**
      * @brief Get the compatibility requirements subexpression corresponding to the current section.
@@ -110,8 +110,7 @@ public:
      * @return The subexpression describing the requirements of the current section.
      */
     virtual std::vector<CREToken> get_compatibility_requirements_subexpression(
-        const std::unordered_map<SectionType, std::unordered_map<SectionID, std::shared_ptr<ISection>>>&
-            all_registered_sections) const;
+        const std::unordered_map<SectionID, std::shared_ptr<ISection>>& all_registered_sections) const;
 
     /**
      * @brief Evaluate whether or not the current section instance is compatible with the current environment based on

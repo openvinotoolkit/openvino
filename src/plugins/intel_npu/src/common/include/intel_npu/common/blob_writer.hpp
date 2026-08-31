@@ -15,14 +15,10 @@
 #include "intel_npu/common/manifest.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 
-namespace {
+namespace intel_npu {
 
 // ID 0 & 1 are reserved for the manifest & CRE sections
 constexpr SectionID FIRST_AVAILABLE_SECTION_ID = 2;
-
-}  // namespace
-
-namespace intel_npu {
 
 class BlobWriterInterface final {
 public:
@@ -178,7 +174,7 @@ private:
     /**
      * @brief An easy-to-access record of all sections registered so far.
      */
-    std::unordered_map<SectionType, std::unordered_map<SectionID, std::shared_ptr<ISection>>> m_registered_sections;
+    std::unordered_map<SectionID, std::shared_ptr<ISection>> m_registered_sections;
 
     Logger m_logger;
 };
