@@ -89,7 +89,7 @@ struct constraints {
     int max_threads_per_core = tbb::task_arena::automatic;
 };
 
-#if USE_TBBBIND_2_5
+#    if USE_TBBBIND_2_5
 class binding_handler;
 class binding_observer : public tbb::task_scheduler_observer {
     binding_handler* my_binding_handler;
@@ -110,16 +110,16 @@ struct binding_observer_deleter {
 };
 
 using binding_oberver_ptr = std::unique_ptr<binding_observer, binding_observer_deleter>;
-#endif
+#    endif
 }  // namespace detail
 
 class task_arena {
     tbb::task_arena my_task_arena;
     std::once_flag my_initialization_state;
     detail::constraints my_constraints;
-#if USE_TBBBIND_2_5
+#    if USE_TBBBIND_2_5
     detail::binding_oberver_ptr my_binding_observer;
-#endif
+#    endif
 
 public:
     using constraints = detail::constraints;
