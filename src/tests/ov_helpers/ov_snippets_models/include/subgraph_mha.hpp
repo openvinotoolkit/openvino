@@ -42,18 +42,30 @@ namespace snippets {
  */
 class MHAFunction : public SnippetsFunctionBase {
 public:
-    explicit MHAFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions,
-                         bool with_mul = true, bool with_reshape = true)
-        : SnippetsFunctionBase(inputShapes), with_mul(with_mul), with_reshape(with_reshape), precisions(precisions) {
+    explicit MHAFunction(const std::vector<PartialShape>& inputShapes,
+                         const std::vector<ov::element::Type>& precisions,
+                         bool with_mul = true,
+                         bool with_reshape = true,
+                         bool with_broadcast = false,
+                         bool with_shape_of = false)
+        : SnippetsFunctionBase(inputShapes),
+          with_mul(with_mul),
+          with_reshape(with_reshape),
+          with_broadcast(with_broadcast),
+          with_shape_of(with_shape_of),
+          precisions(precisions) {
         OPENVINO_ASSERT(input_shapes.size() == 4, "Got invalid number of input shapes");
         OPENVINO_ASSERT(precisions.size() == 4, "Got invalid number of input precisions");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
 
     const bool with_mul = true;
     const bool with_reshape = true;
+    const bool with_broadcast = false;
+    const bool with_shape_of = false;
     const std::vector<ov::element::Type> precisions;
 };
 

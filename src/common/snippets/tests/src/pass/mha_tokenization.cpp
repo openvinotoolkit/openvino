@@ -68,6 +68,28 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D) {
     execute_and_validate_function(*this, f);
 }
 
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_ShapeOf_Broadcast) {
+    const auto& f = MHAFunction(
+        std::vector<PartialShape>{{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 1, 128, 128}, {1, 128, 12, 64}},
+        std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}),
+        true,
+        false,
+        true,
+        true);
+    execute_and_validate_function(*this, f);
+}
+
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_ShapeOf_Reshape) {
+    const auto& f = MHAFunction(
+        std::vector<PartialShape>{{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 12, 128, 128}, {1, 128, 12, 64}},
+        std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}),
+        true,
+        true,
+        false,
+        true);
+    execute_and_validate_function(*this, f);
+}
+
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_Const_B) {
     const auto& f = MHAConstBFunction(
         std::vector<PartialShape>{{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 12, 128, 128}, {1, 128, 12, 64}},

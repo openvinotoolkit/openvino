@@ -17,13 +17,16 @@
 
 #include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/dimension.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_vector.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/select.hpp"
+#include "openvino/op/softmax.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/op/util/unary_elementwise_arithmetic.hpp"
@@ -99,11 +102,6 @@ void tokenize_broadcast(const std::shared_ptr<ov::Node>& interm_op, ov::NodeVect
         // TODO: Can we reuse AppropriateForSubgraph here? Seems like it's huge check for Broadcast
         if (broadcast && broadcast->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NUMPY &&
             broadcast->get_output_target_inputs(0).size() == 1) {
-            // TODO: Add support of Broadcast with ShapeOf subgraph on second input
-            if (!ov::is_type<ov::op::v0::Constant>(broadcast->input_value(1).get_node_shared_ptr())) {
-                continue;
-            }
-
             broadcast_nodes.push_back(broadcast);
 
             const auto pshape = broadcast->get_input_partial_shape(0);
@@ -131,12 +129,17 @@ void tokenize_broadcast(const std::shared_ptr<ov::Node>& interm_op, ov::NodeVect
 
 bool tokenize_reshape_around_softmax(std::shared_ptr<ov::Node>& interm_op,
                                      std::shared_ptr<ov::opset1::Reshape>& reshape,
+                                     bool& is_tokenized,
                                      ov::NodeVector& ordered_ops) {
+    is_tokenized = false;
     reshape = ov::as_type_ptr<ov::opset1::Reshape>(interm_op);
     if (reshape) {
-        // TODO: Add support of Reshape with ShapeOf subgraph on second input
         if (!ov::is_type<ov::op::v0::Constant>(reshape->input_value(1).get_node_shared_ptr())) {
-            return false;
+            if (reshape->get_output_target_inputs(0).size() != 1) {
+                return false;
+            }
+            interm_op = reshape->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+            return true;
         }
 
         const auto in_shape = reshape->get_input_partial_shape(0);
@@ -149,6 +152,7 @@ bool tokenize_reshape_around_softmax(std::shared_ptr<ov::Node>& interm_op,
         }
 
         ordered_ops.push_back(reshape);
+        is_tokenized = true;
         interm_op = reshape->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
     }
     return true;
@@ -303,13 +307,13 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const Config& confi
             }
 
             std::shared_ptr<ov::opset1::Reshape> reshape0 = nullptr;
-            if (!tokenize_reshape_around_softmax(interm_op, reshape0, ordered_ops)) {
+            bool is_reshape0_tokenized = false;
+            if (!tokenize_reshape_around_softmax(interm_op, reshape0, is_reshape0_tokenized, ordered_ops)) {
                 return false;
             }
 
-            const auto axis = ov::snippets::utils::get_softmax_axis(interm_op);
-            const auto rank = static_cast<int64_t>(interm_op->get_input_partial_shape(0).rank().get_length());
-            if (!axis || *axis != (rank - 1) || interm_op->get_output_target_inputs(0).size() != 1) {
+            const auto softmax = interm_op;
+            if (softmax->get_output_target_inputs(0).size() != 1) {
                 return false;
             }
 
@@ -317,13 +321,42 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const Config& confi
 
             interm_op = interm_op->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
             std::shared_ptr<ov::opset1::Reshape> reshape1 = nullptr;
-            if (!tokenize_reshape_around_softmax(interm_op, reshape1, ordered_ops)) {
+            bool is_reshape1_tokenized = false;
+            if (!tokenize_reshape_around_softmax(interm_op, reshape1, is_reshape1_tokenized, ordered_ops)) {
                 return false;
             }
 
-            if (((reshape0 == nullptr) != (reshape1 == nullptr)) ||
-                (reshape0 && reshape1 &&
-                 (reshape0->get_input_partial_shape(0) != reshape1->get_output_partial_shape(0)))) {
+            if ((reshape0 == nullptr) != (reshape1 == nullptr) || (is_reshape0_tokenized != is_reshape1_tokenized)) {
+                return false;
+            }
+
+            if (reshape0 && reshape1 && !is_reshape0_tokenized && !is_reshape1_tokenized) {
+                // Remove only the proven shape-preserving pair. Keep runtime shape inputs out of the body.
+                const auto in_shape = reshape0->get_input_partial_shape(0);
+                const auto out_shape = reshape1->get_output_partial_shape(0);
+                const auto in_last_dim = *in_shape.crbegin();
+                const auto out_last_dim = *out_shape.crbegin();
+                if (in_shape != out_shape || in_last_dim.is_dynamic() || out_last_dim.is_dynamic() ||
+                    in_last_dim != out_last_dim) {
+                    return false;
+                }
+
+                reshape0->output(0).replace(reshape0->input_value(0));
+                ov::copy_runtime_info(
+                    {reshape0->input_value(0).get_node_shared_ptr(), reshape0->output(0).get_node_shared_ptr()},
+                    reshape0->input_value(0).get_node_shared_ptr());
+                ov::replace_output_update_name(reshape1->output(0), reshape1->input_value(0));
+                const auto rank = static_cast<int64_t>(in_shape.rank().get_length());
+                if (auto softmax_v1 = ov::as_type_ptr<ov::opset1::Softmax>(softmax)) {
+                    softmax_v1->set_axis(rank - 1);
+                } else if (auto softmax_v8 = ov::as_type_ptr<ov::op::v8::Softmax>(softmax)) {
+                    softmax_v8->set_axis(rank - 1);
+                }
+            }
+
+            const auto axis = ov::snippets::utils::get_softmax_axis(softmax);
+            const auto rank = static_cast<int64_t>(softmax->get_input_partial_shape(0).rank().get_length());
+            if (!axis || *axis != (rank - 1)) {
                 return false;
             }
 
