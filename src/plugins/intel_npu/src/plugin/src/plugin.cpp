@@ -185,6 +185,7 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(DISABLE_VERSION_CHECK);
     REGISTER_OPTION(EXPORT_RAW_BLOB);
     REGISTER_OPTION(IMPORT_RAW_BLOB);
+    REGISTER_OPTION(ALLOW_DYNAMIC_BLOB_IMPORT);
     REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
     REGISTER_OPTION(TURBO);
     REGISTER_OPTION(ENABLE_WEIGHTLESS);
@@ -691,6 +692,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
 
     std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, _propertiesManager->determineDeviceId(properties));
     OPENVINO_ASSERT(device != nullptr, "Device not found.");
+
+    // Importing a blob means running whatever the blob declares, so the trust contract holds on every path,
+    // including the ov::cache_dir hit path where the application performs no explicit import call
+    _logger.warning("Importing a compiled model grants the blob the trust level of this process: its payload is "
+                    "consumed before any inference and, depending on the format the blob declares for itself, may be "
+                    "executed on the host. Import blobs only from a trusted origin");
 
     if (!localConfig.get<LOADED_FROM_CACHE>()) {
         _logger.warning("The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead");
