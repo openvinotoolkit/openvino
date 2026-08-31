@@ -929,6 +929,9 @@ std::vector<std::string> Partitioner::initFunctionPipeline(FunctionPipelineType 
     // Collect all groups of function call(s) and process them in groups
     std::map<std::string, int> idx;
     for (auto&& part_sg : P.subgraphs) {
+        if (part_sg._optimized_out) {
+            continue;
+        }
         if (!part_sg._repeated_id.empty() &&
             (selected_repeated_ids.empty() || selected_repeated_ids.count(part_sg._repeated_id) > 0)) {
             auto pfix = "__" + std::to_string(idx[part_sg._repeated_id]++);
@@ -1848,8 +1851,8 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
     function._num_params_total = new_param_idx;
     function._model->validate_nodes_and_infer_types();
     if (function._host_flash_attention &&
-        !function._host_flash_attention->resolve_attention_sink_parameter(function._model)) {
-        LOG_WARN("HFA attention sink could not be resolved after closure parameterization");
+        !function._host_flash_attention->resolve_attention_parameters(function._model)) {
+        LOG_WARN("HFA attention parameters could not be resolved after closure parameterization");
         function._host_flash_attention.reset();
     }
     if (function._pyramid_attention) {

@@ -1125,13 +1125,28 @@ std::vector<ov::npuw::util::SDPAPatternNodes> find_sdpa_pattern_nodes_internal(c
             continue;
         }
 
-        // Check if add is fed by MatMul (first MatMul)
+        // The standard six-input SDPA decomposition applies scale after QK.
+        // The custom decomposition pre-scales Q and therefore feeds MatMul directly.
         auto add_input0 = current_node.add_node->input(0).get_source_output().get_node_shared_ptr();
-        if (!ov::is_type<ov::op::v0::MatMul>(add_input0)) {
+        if (ov::is_type<ov::op::v0::MatMul>(add_input0)) {
+            current_node.matmul1_node = add_input0;
+        } else if (auto scaled_scores = ov::as_type_ptr<ov::op::v1::Multiply>(add_input0)) {
+            const auto first_input = scaled_scores->get_input_node_shared_ptr(0);
+            const auto second_input = scaled_scores->get_input_node_shared_ptr(1);
+            if (ov::is_type<ov::op::v0::MatMul>(first_input)) {
+                current_node.matmul1_node = first_input;
+                current_node.attention_scale_node = second_input;
+            } else if (ov::is_type<ov::op::v0::MatMul>(second_input)) {
+                current_node.matmul1_node = second_input;
+                current_node.attention_scale_node = first_input;
+            } else {
+                LOG_DEBUG("Scaled attention scores do not originate from MatMul, skipping pattern check");
+                continue;
+            }
+        } else {
             LOG_DEBUG("Add input is not MatMul(" << add_input0->get_friendly_name() << "), skipping pattern check");
             continue;
         }
-        current_node.matmul1_node = add_input0;
 
         // Find Concat node for past key (input 1 of MatMul1)
         current_node.past_key_concat_node = find_concat_from_matmul(current_node.matmul1_node, 1);

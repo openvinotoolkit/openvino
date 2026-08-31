@@ -175,12 +175,11 @@ std::shared_ptr<ov::Model> build_sdpa_model_with_attention_sink() {
     scores_with_sink->set_friendly_name("scores_with_sink.0");
     auto softmax = std::make_shared<op::v8::Softmax>(scores_with_sink, 3);
     softmax->set_friendly_name("softmax.0");
-    auto slice = std::make_shared<op::v8::Slice>(
-        softmax,
-        op::v0::Constant::create(element::i64, Shape{1}, {0}),
-        op::v0::Constant::create(element::i64, Shape{1}, {9}),
-        op::v0::Constant::create(element::i64, Shape{1}, {1}),
-        op::v0::Constant::create(element::i64, Shape{1}, {-1}));
+    auto slice = std::make_shared<op::v8::Slice>(softmax,
+                                                 op::v0::Constant::create(element::i64, Shape{1}, {0}),
+                                                 op::v0::Constant::create(element::i64, Shape{1}, {9}),
+                                                 op::v0::Constant::create(element::i64, Shape{1}, {1}),
+                                                 op::v0::Constant::create(element::i64, Shape{1}, {-1}));
     slice->set_friendly_name("remove_sink_probability.0");
     auto matmul2 = std::make_shared<op::v0::MatMul>(slice, value_concat);
     matmul2->set_friendly_name("matmul2.0");

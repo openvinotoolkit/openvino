@@ -68,6 +68,29 @@ std::shared_ptr<ov::Model> build_unary_chain_model() {
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
 }
 
+std::shared_ptr<ov::Model> build_static_shape_side_branch_model() {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4});
+    input->set_friendly_name("input");
+
+    auto shape = std::make_shared<ov::op::v3::ShapeOf>(input, ov::element::i64);
+    shape->set_friendly_name("shape");
+    auto known_shape = ov::Tensor(ov::element::i64, ov::Shape{2});
+    known_shape.data<int64_t>()[0] = 1;
+    known_shape.data<int64_t>()[1] = 4;
+    shape->get_output_tensor(0).set_lower_value(known_shape);
+    shape->get_output_tensor(0).set_upper_value(known_shape);
+    auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+    auto sum = std::make_shared<ov::op::v1::ReduceSum>(shape, axes, false);
+    sum->set_friendly_name("shape_sum");
+    auto converted_sum = std::make_shared<ov::op::v0::Convert>(sum, ov::element::f32);
+    converted_sum->set_friendly_name("shape_sum_f32");
+    auto output = std::make_shared<ov::op::v1::Add>(input, converted_sum);
+    output->set_friendly_name("output");
+
+    return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(output)},
+                                       ov::ParameterVector{input});
+}
+
 std::shared_ptr<ov::Model> build_static_llm_model(const int64_t query_len, const int64_t past_len) {
     LLMConfig config;
     config.num_layers = 4;
@@ -393,6 +416,27 @@ TEST(PartitioningOptionsTest, FuncallForAllPromotesUnaryGroupsToFunctions) {
 
     EXPECT_TRUE(std::any_of(partitioning.subgraphs.begin(), partitioning.subgraphs.end(), [](const ov::npuw::Subgraph& sg) {
         return sg._forced_to_fcall || !sg._funcall.empty() || !sg._repeated_id.empty();
+    }));
+}
+
+TEST(PartitioningOptionsTest, FoldSkipsConstantFoldedFunctionSubgraphs) {
+    auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "REP"},
+                         {"NPUW_ONLINE_ISOLATE", "Op:ShapeOf/compute"},
+                         {"NPUW_FUNCALL_FOR_ALL", "YES"},
+                         {"NPUW_FOLD", "YES"}});
+    auto partitioning = ov::npuw::getPartitioning(build_static_shape_side_branch_model(), cfg);
+
+    const auto has_optimized_out_subgraph =
+        std::any_of(partitioning.subgraphs.begin(), partitioning.subgraphs.end(), [](const ov::npuw::Subgraph& sg) {
+            return sg._optimized_out;
+        });
+    EXPECT_TRUE(has_optimized_out_subgraph);
+    EXPECT_TRUE(
+        std::all_of(partitioning.subgraphs.begin(), partitioning.subgraphs.end(), [](const ov::npuw::Subgraph& sg) {
+            return !sg._optimized_out || sg._funcall.empty();
+        }));
+    EXPECT_TRUE(std::all_of(partitioning.functions.begin(), partitioning.functions.end(), [](const auto& function) {
+        return !function.second._model->get_results().empty();
     }));
 }
 

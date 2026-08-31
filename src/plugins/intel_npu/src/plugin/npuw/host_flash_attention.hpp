@@ -28,6 +28,7 @@ enum class HFATileInputId : uint8_t {
     V_TILE = 4,     // Current V (value) tile slice
     Q = 5,          // Query tensor (full, not tiled)
     MASK_TILE = 6,  // Current attention mask tile slice
+    SCALE = 7,      // Post-QK attention scale
 
     // Sentinel value for enum range
     COUNT
@@ -62,6 +63,8 @@ inline const char* hfa_tile_input_id_to_string(HFATileInputId id) {
         return "Q";
     case HFATileInputId::MASK_TILE:
         return "MASK_TILE";
+    case HFATileInputId::SCALE:
+        return "SCALE";
     default:
         return "UNKNOWN";
     }
@@ -112,6 +115,7 @@ struct HostFlashAttention {
     std::size_t _present_key_param_idx = 0u;
     std::size_t _present_value_param_idx = 0u;
     std::size_t _attention_mask_param_idx = 0u;
+    std::optional<std::size_t> _attention_scale_param_idx;
     std::optional<std::size_t> _attention_sink_param_idx;
 
     // KV cache block parameter indices (for split KV cache support)
@@ -146,8 +150,8 @@ struct HostFlashAttention {
                                                   bool fused_flash_attention = true,
                                                   bool enable_mask_skipping = false);
 
-    // Resolve the sink after function construction promotes Const inputs to closure Parameters.
-    bool resolve_attention_sink_parameter(const std::shared_ptr<ov::Model>& model);
+    // Resolve attention scale and sink after function construction promotes Const inputs to closure Parameters.
+    bool resolve_attention_parameters(const std::shared_ptr<ov::Model>& model);
 };
 
 }  // namespace function
@@ -178,6 +182,7 @@ struct HostFlashAttentionInfo {
         std::size_t present_key = 0u;
         std::size_t present_value = 0u;
         std::size_t attention_mask = 0u;
+        std::optional<std::size_t> attention_scale;
         std::optional<std::size_t> attention_sink;
     } _sdpa_indices;
 
@@ -190,6 +195,7 @@ struct HostFlashAttentionInfo {
         std::size_t acc = 0u;
         std::size_t max = 0u;
         std::size_t d = 0u;
+        std::optional<std::size_t> scale;
     } _tile_input_indices;
 
     // Pre-cached tile output indices

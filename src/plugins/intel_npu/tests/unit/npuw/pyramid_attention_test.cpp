@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "pyramid_attention.hpp"
+
 #include <gtest/gtest.h>
 
 #include <map>
@@ -10,6 +12,8 @@
 #include <variant>
 #include <vector>
 
+#include "npuw_transformations/convert_kvcache_to_precision.hpp"
+#include "npuw_transformations/split_kvcache_into_blocks.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -20,9 +24,6 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/openvino.hpp"
-#include "npuw_transformations/convert_kvcache_to_precision.hpp"
-#include "npuw_transformations/split_kvcache_into_blocks.hpp"
-#include "pyramid_attention.hpp"
 #include "util.hpp"
 
 namespace {

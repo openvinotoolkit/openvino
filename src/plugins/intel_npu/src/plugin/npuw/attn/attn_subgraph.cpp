@@ -342,23 +342,32 @@ void ensure_hfa_requests(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
         state.hfa_requests.pipeline_requests[HFARequestSet::FINAL_TILE] = state.base_pipeline_request;
     }
 
-    const size_t num_inputs = hfa->_compiled_tile_model->inputs().size();
-    for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
-        const auto tile_input = hfa->_compiled_tile_model->inputs()[input_idx];
-        const auto final_tile_input = hfa->_compiled_final_tile_model->inputs()[input_idx];
+    const auto& tile_inputs = hfa->_compiled_tile_model->inputs();
+    const auto& final_tile_inputs = hfa->_compiled_final_tile_model->inputs();
+    for (const auto& tile_input : tile_inputs) {
+        if (tile_input.get_names().empty()) {
+            continue;
+        }
+        const auto final_tile_input =
+            std::find_if(final_tile_inputs.begin(), final_tile_inputs.end(), [&](const auto& input) {
+                return input.get_names().count(tile_input.get_any_name()) != 0;
+            });
+        if (final_tile_input == final_tile_inputs.end()) {
+            continue;
+        }
 
         // Regular tile KV inputs (f16) differ from final tile KV inputs (f32).
         // Skip sharing for mismatched dtypes — those ports will be set per-tile
         // in process_tile at runtime.
-        if (tile_input.get_element_type() != final_tile_input.get_element_type()) {
+        if (tile_input.get_element_type() != final_tile_input->get_element_type()) {
             continue;
         }
 
-        auto main_tensor = state.base_request->get_tensor(final_tile_input);
+        auto main_tensor = state.base_request->get_tensor(*final_tile_input);
         state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE]->set_tensor(tile_input, main_tensor);
 
         if (is_piped) {
-            auto pipeline_tensor = state.base_pipeline_request->get_tensor(final_tile_input);
+            auto pipeline_tensor = state.base_pipeline_request->get_tensor(*final_tile_input);
             state.hfa_requests.pipeline_requests[HFARequestSet::REGULAR_TILE]->set_tensor(tile_input, pipeline_tensor);
         }
     }
@@ -919,6 +928,12 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                             "HFA attention sink input index out of range");
                             attention_sink_tensor = hfa_inputs.at(*sdpa_in.attention_sink);
                         }
+                        ov::SoPtr<ov::ITensor> attention_scale_tensor;
+                        if (sdpa_in.attention_scale) {
+                            OPENVINO_ASSERT(*sdpa_in.attention_scale < hfa_inputs.size(),
+                                            "HFA attention scale input index out of range");
+                            attention_scale_tensor = hfa_inputs.at(*sdpa_in.attention_scale);
+                        }
                         const auto& tile_in = sdpa_info._tile_input_indices;
                         const auto& tile_out = sdpa_info._tile_output_indices;
                         const auto n_in = hfa_desc->_compiled_tile_model->inputs().size();
@@ -971,6 +986,14 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                        state_max);
                         final_tile_request->set_tensor(hfa_desc->_compiled_final_tile_model->inputs()[tile_in.d],
                                                        state_sum);
+                        if (attention_scale_tensor) {
+                            OPENVINO_ASSERT(tile_in.scale.has_value(), "HFA tile scale input index is missing");
+                            regular_tile_request->set_tensor(hfa_desc->_compiled_tile_model->inputs()[*tile_in.scale],
+                                                             attention_scale_tensor);
+                            final_tile_request->set_tensor(
+                                hfa_desc->_compiled_final_tile_model->inputs()[*tile_in.scale],
+                                attention_scale_tensor);
+                        }
                         final_tile_request->set_tensor(hfa_desc->_compiled_final_tile_model->outputs()[0],
                                                        attention_output_tensor);
 
@@ -1087,8 +1110,13 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         int64_t mask_tile_offset = 0;
                         int64_t past_kv_tiles = num_tiles - 1;  // tiles driven from past blocks
 
-                        // For the fused hfa, the regular tile model has no mask input (6 inputs)
-                        const bool uses_mask = hfa_desc->_compiled_tile_model->inputs().size() > tile_in.mask;
+                        // The fused regular tile may omit MASK_TILE while retaining other optional inputs such as
+                        // SCALE.
+                        const auto& regular_tile_inputs = hfa_desc->_compiled_tile_model->inputs();
+                        const bool uses_mask =
+                            std::any_of(regular_tile_inputs.begin(), regular_tile_inputs.end(), [](const auto& input) {
+                                return input.get_names().count("MASK_TILE") != 0;
+                            });
 
                         // Iterate through KV blocks; each block contributes block_size/tile_size tiles.
                         for (size_t block_idx = 0; block_idx < past_key_blocks.size() && past_kv_tiles > 0;

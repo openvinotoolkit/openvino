@@ -33,19 +33,26 @@ size_t count_groups_with_tag(const ov::npuw::Ensemble& ens, const std::string& t
 
 // Build a minimal model with decomposed SDPA pattern (no ScaledDotProductAttention op).
 // Graph structure per layer:
-//   past_key(f16) → Convert(f32) → Concat(new_key) → [opt:Unsqueeze→Broadcast→Reshape] → MatMul(query) → Add(mask) → Softmax → MatMul(value_concat) → Transpose → Reshape → Result
-//   past_value(f16) → Convert(f32) → Concat(new_value) → [opt:Unsqueeze→Broadcast→Reshape] →                                                          ↑
+//   past_key(f16) → Convert(f32) → Concat(new_key) → [opt:Unsqueeze→Broadcast→Reshape] → MatMul(query) → Add(mask) →
+//   Softmax → MatMul(value_concat) → Transpose → Reshape → Result past_value(f16) → Convert(f32) → Concat(new_value) →
+//   [opt:Unsqueeze→Broadcast→Reshape] →                                                          ↑
 //
 // Parameters:
 //   num_layers: number of repeated attention layers
 //   with_gqa: if true, add Unsqueeze → Broadcast → Reshape for GQA expansion
+//   with_attention_sink: append sink scores before Softmax and remove them before V MatMul
+//   transpose_key: explicitly transpose K before QK MatMul
+//   scale_scores: apply scale after QK MatMul
 std::shared_ptr<ov::Model> build_decomposed_sdpa_model(size_t num_layers = 1,
                                                        bool with_gqa = false,
                                                        size_t num_heads = 4,
                                                        size_t num_kv_heads = 4,
                                                        size_t head_dim = 16,
                                                        size_t query_len = 8,
-                                                       size_t past_len = 8) {
+                                                       size_t past_len = 8,
+                                                       bool with_attention_sink = false,
+                                                       bool transpose_key = false,
+                                                       bool scale_scores = false) {
     using namespace ov;
 
     const size_t context_len = past_len + query_len;
@@ -73,6 +80,10 @@ std::shared_ptr<ov::Model> build_decomposed_sdpa_model(size_t num_layers = 1,
         auto new_key = make_param("new_key." + idx, new_token_shape, element::f32);
         auto new_value = make_param("new_value." + idx, new_token_shape, element::f32);
         auto mask = make_param("mask." + idx, mask_shape, element::f32);
+        std::shared_ptr<op::v0::Parameter> attention_sink;
+        if (with_attention_sink) {
+            attention_sink = make_param("attention_sink." + idx, Shape{1, num_heads, 1, 1}, element::f32);
+        }
 
         // Convert(f16 → f32) before Concat — this is what PPP inserts and the pattern matches
         auto cvt_key = std::make_shared<op::v0::Convert>(past_key, element::f32);
@@ -120,17 +131,51 @@ std::shared_ptr<ov::Model> build_decomposed_sdpa_model(size_t num_layers = 1,
             value_for_matmul = expand_gqa(value_concat->output(0), "value");
         }
 
+        if (transpose_key) {
+            auto key_transpose = std::make_shared<op::v1::Transpose>(
+                key_for_matmul,
+                op::v0::Constant::create(element::i64, Shape{4}, std::vector<int64_t>{0, 1, 3, 2}));
+            key_transpose->set_friendly_name("transpose_key." + idx);
+            key_for_matmul = key_transpose;
+        }
+
         // Q @ K^T → Add(mask) → Softmax → @ V → Transpose → Reshape
-        auto qk = std::make_shared<op::v0::MatMul>(query, key_for_matmul, false, true);
+        auto qk = std::make_shared<op::v0::MatMul>(query, key_for_matmul, false, !transpose_key);
         qk->set_friendly_name("matmul_qk." + idx);
 
-        auto add = std::make_shared<op::v1::Add>(qk, mask);
+        Output<Node> scores = qk;
+        if (scale_scores) {
+            auto scale = op::v0::Constant::create(element::f32, Shape{}, {0.125f});
+            scores = std::make_shared<op::v1::Multiply>(scores, scale);
+        }
+
+        auto add = std::make_shared<op::v1::Add>(scores, mask);
         add->set_friendly_name("add_mask." + idx);
 
-        auto softmax = std::make_shared<op::v8::Softmax>(add, -1);
+        Output<Node> softmax_input = add;
+        if (attention_sink) {
+            auto sink_shape = op::v0::Constant::create(
+                element::i64,
+                Shape{4},
+                std::vector<int64_t>{1, static_cast<int64_t>(num_heads), static_cast<int64_t>(query_len), 1});
+            auto sink_broadcast = std::make_shared<op::v1::Broadcast>(attention_sink, sink_shape);
+            softmax_input = std::make_shared<op::v0::Concat>(OutputVector{add, sink_broadcast}, -1);
+        }
+
+        auto softmax = std::make_shared<op::v8::Softmax>(softmax_input, -1);
         softmax->set_friendly_name("softmax." + idx);
 
-        auto sv = std::make_shared<op::v0::MatMul>(softmax, value_for_matmul);
+        Output<Node> probabilities = softmax;
+        if (attention_sink) {
+            probabilities = std::make_shared<op::v8::Slice>(
+                softmax,
+                op::v0::Constant::create(element::i64, Shape{1}, {0}),
+                op::v0::Constant::create(element::i64, Shape{1}, {static_cast<int64_t>(context_len)}),
+                op::v0::Constant::create(element::i64, Shape{1}, {1}),
+                op::v0::Constant::create(element::i64, Shape{1}, {-1}));
+        }
+
+        auto sv = std::make_shared<op::v0::MatMul>(probabilities, value_for_matmul);
         sv->set_friendly_name("matmul_sv." + idx);
 
         auto transpose = std::make_shared<op::v1::Transpose>(
@@ -294,6 +339,23 @@ TEST(SDPAPatternMatcherTest, SDPADecomposedMatchesMultiLayerModel) {
 
     const auto attn_count = count_groups_with_tag(ens, "attn");
     EXPECT_GE(attn_count, 4u) << "SDPADecomposed should match all 4 attention layers, got " << attn_count;
+}
+
+TEST(SDPAPatternMatcherTest, SDPADecomposedMatchesAttentionSinkModel) {
+    auto model = build_decomposed_sdpa_model(/*num_layers=*/1,
+                                             /*with_gqa=*/true,
+                                             /*num_heads=*/4,
+                                             /*num_kv_heads=*/2,
+                                             /*head_dim=*/16,
+                                             /*query_len=*/8,
+                                             /*past_len=*/8,
+                                             /*with_attention_sink=*/true,
+                                             /*transpose_key=*/true,
+                                             /*scale_scores=*/true);
+    auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "REP"}, {"NPUW_ONLINE_ISOLATE", "P:SDPADecomposed/attn"}});
+    auto ens = ov::npuw::online::buildPartitioning(model, cfg);
+
+    EXPECT_GE(count_groups_with_tag(ens, "attn"), 1u) << "SDPADecomposed should match the attention-sink subgraph";
 }
 
 TEST(SDPAPatternMatcherTest, SDPADecomposedDoesNotMatchDQModel) {

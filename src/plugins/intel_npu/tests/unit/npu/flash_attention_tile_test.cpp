@@ -3,7 +3,6 @@
 //
 
 #include "intel_npu/ops/flash_attention_tile.hpp"
-#include "host_flash_attention.hpp"
 
 #include <gtest/gtest.h>
 
@@ -11,6 +10,7 @@
 #include <random>
 #include <vector>
 
+#include "host_flash_attention.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/parameter.hpp"
@@ -432,11 +432,10 @@ TEST_F(FlashAttentionTileTest, AttentionSinkInitialStateMatchesSDPA) {
     auto state_max = ov::get_tensor_impl(state_max_tensor);
     auto state_sum = ov::get_tensor_impl(state_sum_tensor);
 
-    ov::npuw::runtime::host_flash_attention::HFARuntimeContext::initialize_state_tensors(
-        state_acc,
-        state_max,
-        state_sum,
-        ov::get_tensor_impl(sink));
+    ov::npuw::runtime::host_flash_attention::HFARuntimeContext::initialize_state_tensors(state_acc,
+                                                                                         state_max,
+                                                                                         state_sum,
+                                                                                         ov::get_tensor_impl(sink));
 
     EXPECT_FLOAT_EQ(state_max_tensor.data<float>()[0], 0.25f);
     EXPECT_FLOAT_EQ(state_max_tensor.data<float>()[1], 0.25f);
@@ -454,17 +453,17 @@ TEST_F(FlashAttentionTileTest, AttentionSinkInitialStateMatchesSDPA) {
     std::copy_n(state_max_tensor.data<const float>(), state_max_squeezed.get_size(), state_max_squeezed.data<float>());
     std::copy_n(state_sum_tensor.data<const float>(), state_sum_squeezed.get_size(), state_sum_squeezed.data<float>());
 
-    const auto result = run_flash_attention_tile(
-        Q, K, V, state_acc_tensor, state_max_squeezed, state_sum_squeezed, nullptr, {false, true});
+    const auto result = run_flash_attention_tile(Q,
+                                                 K,
+                                                 V,
+                                                 state_acc_tensor,
+                                                 state_max_squeezed,
+                                                 state_sum_squeezed,
+                                                 nullptr,
+                                                 {false, true});
     const auto output = tensor_to_f32(result.output);
     const std::vector<float> actual(output.data<const float>(), output.data<const float>() + output.get_size());
-    const auto expected = run_sdpa_reference(Q,
-                                             K,
-                                             V,
-                                             nullptr,
-                                             {},
-                                             sink.data<const float>(),
-                                             sink.get_shape());
+    const auto expected = run_sdpa_reference(Q, K, V, nullptr, {}, sink.data<const float>(), sink.get_shape());
 
     compare_vectors(actual, expected, 1e-5f, "AttentionSinkInitialStateMatchesSDPA");
 }

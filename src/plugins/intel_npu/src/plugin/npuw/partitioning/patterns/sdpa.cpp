@@ -217,11 +217,18 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
     auto broadcast2 = opp::optional<ov::op::v3::Broadcast>({unsqueeze2, opp::any_input()}, single_user);
     auto reshape2 = opp::optional<ov::op::v1::Reshape>({broadcast2, opp::any_input()}, single_user);
 
-    auto matmul1 = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), reshape1});
-    auto add = opp::wrap_type<ov::op::v1::Add>({matmul1, opp::any_input()});
-    auto softmax = opp::wrap_type<ov::op::v8::Softmax>({add});
+    auto transpose1 = opp::optional<ov::op::v1::Transpose>({reshape1, opp::any_input()}, single_user);
+    auto matmul1 = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), transpose1});
+    auto score_scale = opp::optional<ov::op::v1::Multiply>({matmul1, opp::any_input()});
+    auto add = opp::wrap_type<ov::op::v1::Add>({score_scale, opp::any_input()});
+    // Six-input SDPA appends a sink score before Softmax and removes its
+    // probability before the value MatMul. Both nodes are absent for regular SDPA.
+    auto sink_concat = opp::optional<ov::op::v0::Concat>({add, opp::any_input()});
+    auto softmax = opp::wrap_type<ov::op::v8::Softmax>({sink_concat});
+    auto sink_slice = opp::optional<ov::op::v8::Slice>(
+        {softmax, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
 
-    auto matmul2 = opp::wrap_type<ov::op::v0::MatMul>({softmax, reshape2});
+    auto matmul2 = opp::wrap_type<ov::op::v0::MatMul>({sink_slice, reshape2});
     auto transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul2, opp::any_input()});
     auto reshape3 = opp::wrap_type<ov::op::v1::Reshape>({transpose, opp::any_input()});
 
@@ -269,14 +276,18 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
         isolate_matched(unsqueeze1);
         isolate_matched(broadcast1);
         isolate_matched(reshape1);
+        isolate_matched(transpose1);
 
         isolate_matched(unsqueeze2);
         isolate_matched(broadcast2);
         isolate_matched(reshape2);
 
         isolate_matched(matmul1);
+        isolate_matched(score_scale);
         isolate_matched(add);
+        isolate_matched(sink_concat);
         isolate_matched(softmax);
+        isolate_matched(sink_slice);
         isolate_matched(matmul2);
         isolate_matched(transpose);
         isolate_matched(reshape3);

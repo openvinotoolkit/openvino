@@ -25,7 +25,7 @@ namespace function {
 namespace opp = ov::pass::pattern;
 
 // Helper struct: Holds all input parameter nodes for HFA tile model creation
-// Contains 7 parameters: past_acc, past_max, past_d, k_tile, v_tile, q, mask_tile
+// Contains the state, K/V, Q, optional mask, and optional post-QK scale parameters.
 struct HFATileInputs {
     std::shared_ptr<ov::op::v0::Parameter> past_acc;
     std::shared_ptr<ov::op::v0::Parameter> past_max;
@@ -34,6 +34,7 @@ struct HFATileInputs {
     std::shared_ptr<ov::op::v0::Parameter> v_tile;
     std::shared_ptr<ov::op::v0::Parameter> q;
     std::shared_ptr<ov::op::v0::Parameter> mask_tile;
+    std::shared_ptr<ov::op::v0::Parameter> scale;
 };
 
 // Helper struct: Holds f32-converted nodes from input parameters for computation
@@ -46,6 +47,7 @@ struct HFATileF32Nodes {
     std::shared_ptr<ov::Node> v_tile_f32;
     std::shared_ptr<ov::Node> q_f32;
     std::shared_ptr<ov::Node> mask_tile_f32;
+    std::shared_ptr<ov::Node> scale_f32;
 };
 
 // Helper struct: Flash attention computation results (all in f32 precision)
@@ -66,14 +68,16 @@ struct FlashAttentionResults {
 //               receives the freshly-computed present-KV from the upstream graph,
 //               vs f16 for regular tiles that read stored KV blocks.
 // ============================================================================
-static HFATileInputs create_hfa_tile_inputs(const ov::Shape& q_shape,
-                                            const ov::element::Type& state_dtype,
-                                            const ov::element::Type& kv_tile_dtype,
-                                            const ov::element::Type& q_dtype,
-                                            const ov::element::Type& mask_dtype,
-                                            int64_t tile_size,
-                                            size_t kv_num_heads,
-                                            bool v_transposed = true) {
+static HFATileInputs create_hfa_tile_inputs(
+    const ov::Shape& q_shape,
+    const ov::element::Type& state_dtype,
+    const ov::element::Type& kv_tile_dtype,
+    const ov::element::Type& q_dtype,
+    const ov::element::Type& mask_dtype,
+    int64_t tile_size,
+    size_t kv_num_heads,
+    const std::optional<std::pair<ov::element::Type, ov::Shape>>& attention_scale,
+    bool v_transposed = true) {
     auto batch = q_shape[0];
     auto num_heads = q_shape[1];
     auto seq_len = q_shape[2];
@@ -133,6 +137,11 @@ static HFATileInputs create_hfa_tile_inputs(const ov::Shape& q_shape,
                                                 ov::Shape{batch, 1, seq_len, static_cast<size_t>(tile_size)});
     set_param_name(inputs.mask_tile, HFATileInputId::MASK_TILE);
 
+    if (attention_scale.has_value()) {
+        inputs.scale = std::make_shared<ov::op::v0::Parameter>(attention_scale->first, attention_scale->second);
+        set_param_name(inputs.scale, HFATileInputId::SCALE);
+    }
+
     return inputs;
 }
 
@@ -170,6 +179,15 @@ static HFATileF32Nodes convert_inputs_to_f32(const HFATileInputs& inputs,
         } else {
             f32_nodes.mask_tile_f32 = std::make_shared<ov::op::v0::Convert>(inputs.mask_tile, compute_dtype);
             f32_nodes.mask_tile_f32->set_friendly_name("mask_tile_f32");
+        }
+    }
+
+    if (inputs.scale) {
+        if (inputs.scale->get_output_element_type(0) == compute_dtype) {
+            f32_nodes.scale_f32 = inputs.scale;
+        } else {
+            f32_nodes.scale_f32 = std::make_shared<ov::op::v0::Convert>(inputs.scale, compute_dtype);
+            f32_nodes.scale_f32->set_friendly_name("scale_f32");
         }
     }
 
@@ -615,18 +633,20 @@ static ov::ResultVector create_regular_tile_outputs_fused(const FlashAttentionRe
 //                    Final tile:    f32 (present-KV output dtype from upstream graph).
 //   is_final_tile  : If true, creates final tile with division/transpose/reshape.
 //   output_dtype   : Output data type (only used when is_final_tile=true).
-static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape,
-                                                        const ov::element::Type& state_dtype,
-                                                        const ov::element::Type& kv_tile_dtype,
-                                                        const ov::element::Type& q_dtype,
-                                                        const ov::element::Type& mask_dtype,
-                                                        int64_t tile_size,
-                                                        size_t kv_num_heads,
-                                                        bool is_final_tile = false,
-                                                        bool fused_flash_attention = false,
-                                                        bool enable_mask_skipping = false,
-                                                        bool v_transposed = true,
-                                                        const ov::element::Type& output_dtype = ov::element::f16) {
+static std::shared_ptr<ov::Model> create_hfa_tile_model(
+    const ov::Shape& q_shape,
+    const ov::element::Type& state_dtype,
+    const ov::element::Type& kv_tile_dtype,
+    const ov::element::Type& q_dtype,
+    const ov::element::Type& mask_dtype,
+    int64_t tile_size,
+    size_t kv_num_heads,
+    const std::optional<std::pair<ov::element::Type, ov::Shape>>& attention_scale,
+    bool is_final_tile = false,
+    bool fused_flash_attention = false,
+    bool enable_mask_skipping = false,
+    bool v_transposed = true,
+    const ov::element::Type& output_dtype = ov::element::f16) {
     LOG_DEBUG("Creating HFA " << (is_final_tile ? "FINAL " : "") << "tile model with tile_size=" << tile_size
                               << ", kv_num_heads=" << kv_num_heads << ", state_dtype=" << state_dtype
                               << ", kv_tile_dtype=" << kv_tile_dtype << ", mask_dtype=" << mask_dtype
@@ -653,6 +673,7 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
                                          mask_dtype,
                                          tile_size,
                                          kv_num_heads,
+                                         attention_scale,
                                          v_transposed);
 
     // Convert all inputs to f32.
@@ -661,6 +682,11 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     // For the non-fused operation all tiles require mask
     const bool use_mask = is_final_tile || !fused_flash_attention || !enable_mask_skipping;
     auto f32_nodes = convert_inputs_to_f32(inputs, mask_dtype, compute_dtype, use_mask);
+    std::shared_ptr<ov::Node> q_for_attention = f32_nodes.q_f32;
+    if (f32_nodes.scale_f32) {
+        q_for_attention = std::make_shared<ov::op::v1::Multiply>(q_for_attention, f32_nodes.scale_f32);
+        q_for_attention->set_friendly_name("q_scaled");
+    }
 
     FlashAttentionResults results;
 
@@ -694,7 +720,7 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     if (fused_flash_attention) {
         // Execute fused flash attention node MHA, GQA
         results = execute_fused_flash_attention(f32_nodes,
-                                                f32_nodes.q_f32,
+                                                q_for_attention,
                                                 f32_nodes.k_tile_f32,
                                                 f32_nodes.v_tile_f32,
                                                 is_final_tile,
@@ -712,7 +738,7 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
 
         // Execute flash attention algorithm with broadcasted K/V
         results = execute_host_flash_attention(f32_nodes,
-                                               f32_nodes.q_f32,  // Q: original 4D
+                                               q_for_attention,  // Q: original 4D
                                                k_broadcast,      // K: broadcast to num_heads
                                                v_broadcast,      // V: broadcast to num_heads
                                                batch,
@@ -763,6 +789,9 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
         {inputs.past_acc, inputs.past_max, inputs.past_d, inputs.k_tile, inputs.v_tile, inputs.q};
     if (use_mask) {
         model_params.push_back(inputs.mask_tile);
+    }
+    if (inputs.scale) {
+        model_params.push_back(inputs.scale);
     }
 
     // Create and return model
@@ -843,6 +872,10 @@ static void build_sdpa_param_mapping(HostFlashAttention& hfa,
         hfa._attention_mask_param_idx = model->get_parameter_index(add_param);
     }
 
+    if (auto scale_param = extract_param(pattern_nodes.attention_scale_node)) {
+        hfa._attention_scale_param_idx = model->get_parameter_index(scale_param);
+    }
+
     if (auto sink_param = extract_param(pattern_nodes.attention_sink_node)) {
         hfa._attention_sink_param_idx = model->get_parameter_index(sink_param);
     }
@@ -850,6 +883,9 @@ static void build_sdpa_param_mapping(HostFlashAttention& hfa,
     LOG_INFO("Built SDPA input mapping: query="
              << hfa._query_param_idx << ", present_key=" << hfa._present_key_param_idx
              << ", present_value=" << hfa._present_value_param_idx << ", mask=" << hfa._attention_mask_param_idx);
+    if (hfa._attention_scale_param_idx) {
+        LOG_INFO("  Attention scale: parameter index " << *hfa._attention_scale_param_idx);
+    }
     if (hfa._attention_sink_param_idx) {
         LOG_INFO("  Attention sink: parameter index " << *hfa._attention_sink_param_idx);
     }
@@ -870,26 +906,32 @@ static void build_sdpa_param_mapping(HostFlashAttention& hfa,
     LOG_DEBUG("=============================================");
 }
 
-bool HostFlashAttention::resolve_attention_sink_parameter(const std::shared_ptr<ov::Model>& model) {
+bool HostFlashAttention::resolve_attention_parameters(const std::shared_ptr<ov::Model>& model) {
     const auto pattern_nodes = ov::npuw::util::find_sdpa_pattern_nodes(model);
     if (!pattern_nodes.is_valid()) {
-        LOG_WARN("Could not re-find SDPA pattern while resolving attention sink");
+        LOG_WARN("Could not re-find SDPA pattern while resolving attention parameters");
         return false;
     }
-    if (!pattern_nodes.attention_sink_node) {
-        _attention_sink_param_idx.reset();
-        return true;
-    }
+    auto resolve_parameter =
+        [&](const std::shared_ptr<ov::Node>& node, std::optional<std::size_t>& parameter_idx, const char* name) {
+            if (!node) {
+                parameter_idx.reset();
+                return true;
+            }
+            const auto parameter = ov::as_type_ptr<ov::op::v0::Parameter>(skip_convert_nodes(node));
+            if (!parameter) {
+                LOG_WARN("Attention " << name << " was not promoted to a function parameter");
+                return false;
+            }
+            parameter_idx = model->get_parameter_index(parameter);
+            LOG_DEBUG("Resolved attention " << name << " at parameter index " << *parameter_idx);
+            return true;
+        };
 
-    const auto sink_param =
-        ov::as_type_ptr<ov::op::v0::Parameter>(skip_convert_nodes(pattern_nodes.attention_sink_node));
-    if (!sink_param) {
-        LOG_WARN("Attention sink was not promoted to a function parameter");
+    if (!resolve_parameter(pattern_nodes.attention_scale_node, _attention_scale_param_idx, "scale") ||
+        !resolve_parameter(pattern_nodes.attention_sink_node, _attention_sink_param_idx, "sink")) {
         return false;
     }
-
-    _attention_sink_param_idx = model->get_parameter_index(sink_param);
-    LOG_DEBUG("Resolved attention sink at parameter index " << *_attention_sink_param_idx);
     return true;
 }
 
@@ -926,6 +968,8 @@ static void build_tile_param_mapping(HostFlashAttention& hfa, const std::shared_
             hfa._tile_param_index_map[HFATileInputId::Q] = i;
         } else if (name == hfa_tile_input_id_to_string(HFATileInputId::MASK_TILE)) {
             hfa._tile_param_index_map[HFATileInputId::MASK_TILE] = i;
+        } else if (name == hfa_tile_input_id_to_string(HFATileInputId::SCALE)) {
+            hfa._tile_param_index_map[HFATileInputId::SCALE] = i;
         } else {
             LOG_WARN("Unknown tile model input name: " << name);
         }
@@ -1123,6 +1167,16 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
         return std::nullopt;
     }
 
+    std::optional<std::pair<ov::element::Type, ov::Shape>> attention_scale;
+    if (pattern_nodes.attention_scale_node) {
+        const auto scale_shape = pattern_nodes.attention_scale_node->get_output_partial_shape(0);
+        if (!scale_shape.is_static() || ov::shape_size(scale_shape.to_shape()) != 1u) {
+            LOG_WARN("HFA supports only static scalar post-QK scale");
+            return std::nullopt;
+        }
+        attention_scale = {pattern_nodes.attention_scale_node->get_output_element_type(0), scale_shape.to_shape()};
+    }
+
     // ========================================================================
     // Step 5: Create tile models using query_size as tile_size
     // ========================================================================
@@ -1188,6 +1242,7 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
                                             mask_dtype,
                                             query_size,
                                             kv_num_heads,
+                                            attention_scale,
                                             false,
                                             fused_flash_attention,
                                             local_enable_mask_skipping,
@@ -1204,6 +1259,7 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
                                                   mask_dtype,
                                                   query_size,
                                                   kv_num_heads,
+                                                  attention_scale,
                                                   true,
                                                   fused_flash_attention,
                                                   local_enable_mask_skipping,
@@ -1284,6 +1340,7 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     _sdpa_attention_info._sdpa_indices.present_key = func_hfa._present_key_param_idx;
     _sdpa_attention_info._sdpa_indices.present_value = func_hfa._present_value_param_idx;
     _sdpa_attention_info._sdpa_indices.attention_mask = func_hfa._attention_mask_param_idx;
+    _sdpa_attention_info._sdpa_indices.attention_scale = func_hfa._attention_scale_param_idx;
     _sdpa_attention_info._sdpa_indices.attention_sink = func_hfa._attention_sink_param_idx;
 
     // Pre-cache tile input indices
@@ -1311,6 +1368,9 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     _sdpa_attention_info._tile_input_indices.acc = get_tile_input_idx(HFATileInputId::PAST_ACC);
     _sdpa_attention_info._tile_input_indices.max = get_tile_input_idx(HFATileInputId::PAST_MAX);
     _sdpa_attention_info._tile_input_indices.d = get_tile_input_idx(HFATileInputId::PAST_D);
+    if (func_hfa._attention_scale_param_idx) {
+        _sdpa_attention_info._tile_input_indices.scale = get_tile_input_idx(HFATileInputId::SCALE);
+    }
 
     // Cache all tile output indices
     _sdpa_attention_info._tile_output_indices.acc = get_tile_output_idx(HFATileOutputId::ACC);
