@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-31-16-59-57-000-33407864560",
+  "timestamp": "2026-08-31T16:59:57Z",
+  "run_id": "33407864560",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33407864560",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37704",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37704",
+  "author": "dependabot[bot]",
+  "category": "Infrastructure",
+  "title": "NPU Models Tests artifact upload fails with ENOTFOUND on Windows runner",
+  "signature": "Failed to CreateArtifact Unable to make request ENOTFOUND|Infrastructure",
+  "signature_hash": "3d87043683964a28",
+  "confidence": "High",
+  "failed_jobs": ["NPU Models Tests / 4000"],
+  "key_errors": ["##[error]Failed to CreateArtifact: Unable to make request: ENOTFOUND"],
+  "root_cause": "The Windows self-hosted runner lost DNS resolution to GitHub's artifact service during the artifact upload step after tests completed successfully. Error ENOTFOUND indicates a transient network DNS failure on the runner host.",
+  "reproduction_steps": "N/A - transient network issue on self-hosted runner",
+  "recommended_actions": ["Re-run the failed job to retry artifact upload", "Check Windows runner network connectivity to GitHub endpoints"],
+  "prevention_strategies": ["Monitor self-hosted Windows runner network stability", "Consider retry logic for artifact upload steps"],
+  "historical_context": "First occurrence of this specific signature in the database"
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "signature": "Failed to CreateArtifact Unable to make request ENOTFOUND|Infrastructure",
+  "signature_hash": "3d87043683964a28",
+  "title": "NPU Models Tests artifact upload fails with ENOTFOUND on Windows runner",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-08-31T16:59:57Z",
+  "last_seen": "2026-08-31T16:59:57Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/33407864560"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/37704"],
+  "recent_timestamps": ["2026-08-31T16:59:57Z"],
+  "rerun_search_string": "Failed to CreateArtifact Unable to make request ENOTFOUND"
+}

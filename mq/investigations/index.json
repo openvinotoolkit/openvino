@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 209,
+  "total": 210,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -2053,6 +2053,17 @@
       "category": "Code Issue",
       "signature_hash": "e39a267736dcc0bd",
       "pr_number": "37751"
+    },
+    {
+      "investigation_id": "2026-08-31-16-59-57-000-33407864560",
+      "run_id": "33407864560",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33407864560",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-08-31T16:59:57Z",
+      "title": "NPU Models Tests artifact upload fails with ENOTFOUND on Windows runner",
+      "category": "Infrastructure",
+      "signature_hash": "3d87043683964a28",
+      "pr_number": "37704"
     }
   ]
 }
