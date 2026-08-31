@@ -193,17 +193,10 @@ DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroIni
       _blobType(blobType),
       _logger("DynamicGraph", config.get<LOG_LEVEL>()) {
     _logger.info("Create DynamicGraph");
-    if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
-        _logger.info("Graph initialize is deferred from the \"Graph\" constructor");
-        return;
-    }
-
-    // TODO: metadata needs to be parsed even when CREATE_EXECUTOR is 0 or DEFER_WEIGHTS_LOAD is YES, keep here to
-    // support pure compilation without vm runtime initialize VM execution engine, metadata, input&output
-    // descriptors
+    // Metadata comes from the VM runtime parsing the blob; unlike a regular Graph, it is not prefetched by the
+    // compiler/parser and must be available before plugin builds a dummy ov::Model for the CompiledModel.
+    // This is CPU-side parsing only - no L0/device setup.
     initialize_engine();
-
-    initialize(config);
 }
 
 std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_blob(std::ostream& stream) const {

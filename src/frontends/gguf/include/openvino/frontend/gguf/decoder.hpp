@@ -81,10 +81,7 @@ public:
 
     // DecoderBase override: GGUF resolves connectivity through the TensorMap (name-keyed),
     // not through port-to-port decoder traversal, so this is never called.
-    void get_input_node(size_t,
-                        std::string&,
-                        std::string&,
-                        size_t&) const override {}
+    void get_input_node(size_t, std::string&, std::string&, size_t&) const override {}
 
     virtual std::vector<std::string> get_input_names() const = 0;
 
@@ -127,6 +124,29 @@ public:
     // creates it instead of any decoder declaring it.
     virtual const std::map<std::string, std::shared_ptr<ov::Node>>& get_model_extra_inputs() const {
         return empty_node_map();
+    }
+
+    // GGUF tokenizer metadata (the file's `tokenizer.*` keys), attached to the converted model's
+    // rt_info so a downstream consumer (OpenVINO GenAI) can build the tokenizer without reopening
+    // the .gguf. Empty when the decoder carries no tokenizer metadata.
+    virtual const ov::AnyMap& get_tokenizer_config() const {
+        static const ov::AnyMap empty;
+        return empty;
+    }
+
+    // Recurrent states, as {input name, output name} pairs: a linear-attention architecture
+    // (qwen35's Gated DeltaNet) carries a conv window and a delta matrix per recurrent layer,
+    // which the stateless graph exposes as a Parameter read at the start of a step and a Result
+    // holding its value at the end.
+    //
+    // These are NOT KV caches. A cache grows along a token axis and is written by SET_ROWS, so
+    // MakeStateful can find it by walking those writes and appending with a Concat; a recurrent
+    // state has no token axis and is overwritten wholesale, so nothing in the graph marks it.
+    // Hence this explicit pairing rather than a name convention: the decoder is the only thing
+    // that knows which Result feeds which Parameter back.
+    virtual const std::vector<std::pair<std::string, std::string>>& get_recurrent_states() const {
+        static const std::vector<std::pair<std::string, std::string>> empty;
+        return empty;
     }
 
     // RoPE configuration, exposed through get_attribute<RopeConfig>("rope_config"):

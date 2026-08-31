@@ -110,6 +110,7 @@ jobs:
       build-contrib: true
       build-additional-python-packages: true
       build-samples: true
+      generate-gguf-fixtures: true
       target-branch: ${{ inputs.target-branch }}
       cmake-options: >-
             -G 'Ninja Multi-Config'
@@ -173,6 +174,62 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.12'
 
+  LLM_Accuracy_CPU:
+    name: LLM accuracy CPU tests
+    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
+    if: |
+      github.event_name != 'schedule' && (
+        fromJSON(needs.smart_ci.outputs.affected_components).CPU ||
+        fromJSON(needs.smart_ci.outputs.affected_components).transformations ||
+        fromJSON(needs.smart_ci.outputs.affected_components).Core
+      )
+    uses: ./.github/workflows/job_llm_accuracy_tests.yml
+    with:
+      runner: '["aks-linux-4-cores-16gb"]'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}
+      device: 'CPU'
+      test-suffix: 'CPU'
+      use-pip-proxy: true
+      timeout-minutes: 30
+
+  LLM_Accuracy_iGPU:
+    name: LLM accuracy iGPU tests
+    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
+    if: |
+      github.event_name != 'schedule' && (
+        fromJSON(needs.smart_ci.outputs.affected_components).GPU ||
+        fromJSON(needs.smart_ci.outputs.affected_components).transformations ||
+        fromJSON(needs.smart_ci.outputs.affected_components).Core
+      )
+    uses: ./.github/workflows/job_llm_accuracy_tests.yml
+    with:
+      runner: '{"group": "Intel-GPU", "labels": ["self-hosted", "igpu", "Linux"]}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
+      container-options: '--group-add 44 --group-add 993 --device /dev/dri/renderD128:/dev/dri/renderD128'
+      device: 'GPU'
+      test-suffix: 'iGPU'
+      use-pip-proxy: false
+      timeout-minutes: 30
+
+  LLM_Accuracy_dGPU:
+    name: LLM accuracy dGPU tests
+    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
+    if: |
+      github.event_name == 'push' && (
+        fromJSON(needs.smart_ci.outputs.affected_components).GPU ||
+        fromJSON(needs.smart_ci.outputs.affected_components).transformations ||
+        fromJSON(needs.smart_ci.outputs.affected_components).Core
+      )
+    uses: ./.github/workflows/job_llm_accuracy_tests.yml
+    with:
+      runner: '{"group": "Intel-GPU", "labels": ["self-hosted", "dgpu", "Arc-B50", "Battlemage", "Linux"]}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
+      container-options: '--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129'
+      device: 'GPU'
+      test-suffix: 'dGPU'
+      use-pip-proxy: false
+      timeout-minutes: 30
+
   Pytorch_Layer_Tests:
     name: Pytorch Layer Tests
     needs: [ Docker, Build, Smart_CI ]
@@ -228,7 +285,14 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.12'
       target-branch: ${{ inputs.target-branch }}
-    if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS && github.event_name != 'schedule'
+    if: |
+      github.event_name != 'schedule' && (
+        fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS ||
+        fromJSON(needs.smart_ci.outputs.affected_components).CPU ||
+        fromJSON(needs.smart_ci.outputs.affected_components).GPU ||
+        fromJSON(needs.smart_ci.outputs.affected_components).transformations ||
+        fromJSON(needs.smart_ci.outputs.affected_components).Core
+      )
 
   dGPU_B50_Nightly:
     name: dGPU Arc-B50 Tests Nightly
@@ -268,7 +332,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_ubuntu_24
-    needs: [Smart_CI, Build, Debian_Packages, Samples, Python_Unit_Tests, Pytorch_Layer_Tests, TensorFlow_Layer_Tests, Openvino_tokenizers]
+    needs: [Smart_CI, Build, Debian_Packages, Samples, Python_Unit_Tests, Pytorch_Layer_Tests, TensorFlow_Layer_Tests, Openvino_tokenizers, LLM_Accuracy_CPU, LLM_Accuracy_iGPU]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

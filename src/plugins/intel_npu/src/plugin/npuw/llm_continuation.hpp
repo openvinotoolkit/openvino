@@ -23,18 +23,20 @@ namespace npuw {
  * limit the plugin owns and grants an effective keep K. A granted keep is a
  * command, so the next inference must be the matching delta-only prefill.
  *
- * Three states. While IDLE the state reports the committed live token count
- * and accepts one proposal, a reset, or ordinary inference. PENDING means a
- * command is armed or executing: a positive keep demands the delta-only
- * prefill, a zero keep demands a full prefill from position zero. Any failure
- * after mutation started poisons the request as POISONED, where only reset()
- * is accepted: the caller sent only the delta, so recovering by falling back
- * to an ordinary prefill would treat the delta as the whole conversation.
+ * Two states. While IDLE the state reports the committed live token count and
+ * accepts one proposal, a reset, or ordinary inference. PENDING means a
+ * command is armed: a positive keep demands the delta-only prefill, a zero
+ * keep demands a full prefill from position zero. A failing inference leaves
+ * the command pending and the cache in an unspecified state; the caller
+ * recovers with reset() and the full history, the same recovery every failing
+ * inference requires.
  *
  * The keep rule is K = C * floor(min(K_common, K_max, W) / C), where C is the
  * prefill chunk size, K_max is how many past tokens the chunked prefill can
- * represent, and W is the prefill-produced watermark. The rule is evaluated
- * here at propose time and nowhere else.
+ * represent, and W is the prefill-produced watermark. A proposal arriving after
+ * a prompt-only turn is granted zero: the live prefix is then split between the
+ * prefill model's past inputs and its present outputs, where no continuation
+ * source exists. The rule is evaluated here at propose time and nowhere else.
  *
  * Note for callers of the variable state: a write is not idempotent. You write
  * X and read back Y <= X, and must always slice at the granted value.
@@ -44,7 +46,6 @@ public:
     enum class Stage : uint8_t {
         IDLE,
         PENDING,
-        POISONED,
     };
 
     ContinuationCoordinator() = default;
@@ -90,7 +91,10 @@ public:
                         m_live_tokens,
                         "). Growth is an error.");
 
-        const uint32_t clamped = std::min({static_cast<uint32_t>(k_common), m_k_max, m_watermark});
+        // Only the generate-side KV can serve as a continuation source, so a
+        // proposal after a prompt-only turn is granted zero, which arms an
+        // ordinary full-history reset.
+        const uint32_t clamped = m_continuable ? std::min({static_cast<uint32_t>(k_common), m_k_max, m_watermark}) : 0u;
         const uint32_t granted = m_chunk_size * (clamped / m_chunk_size);
 
         m_pending_keep = granted;
@@ -102,20 +106,12 @@ public:
 
     // The grant returned by get_state(), meaning the prefix the plugin will honour.
     int64_t query() const {
-        switch (m_stage) {
-        case Stage::IDLE:
-            return static_cast<int64_t>(m_live_tokens);
-        case Stage::PENDING:
-            return static_cast<int64_t>(m_pending_keep);
-        case Stage::POISONED:
-            return 0;
-        }
-        return 0;
+        return m_stage == Stage::PENDING ? static_cast<int64_t>(m_pending_keep) : static_cast<int64_t>(m_live_tokens);
     }
 
     // reset() is a control operation rather than a proposal. It discards any pending
     // keep and arms a zero keep, idempotently. The physical reset happens on the
-    // next validated full prefill. This is also the only recovery from POISONED.
+    // next validated full prefill.
     void request_reset() {
         m_pending_keep = 0u;
         m_stage = Stage::PENDING;
@@ -125,45 +121,25 @@ public:
 
     // What the next inference must be: no value means ordinary inference, zero
     // means the pending reset's full prefill, positive means the delta-only
-    // prefill at exactly that keep. Throws if the request is poisoned.
+    // prefill at exactly that keep.
     std::optional<uint32_t> pending() const {
         if (!m_enabled) {
             return std::nullopt;
         }
-        OPENVINO_ASSERT(m_stage != Stage::POISONED,
-                        "Continuous prefill: the request is poisoned by a previous failure. "
-                        "Call reset() on npuw_stored_tokens_state and re-send the full history.");
         return m_stage == Stage::PENDING ? std::optional<uint32_t>(m_pending_keep) : std::nullopt;
     }
 
-    // Preflight failed before any mutation. Consume the command and return to IDLE
-    // with the last committed counters intact. Only a pending keep may be aborted:
-    // a pending reset deliberately stays pending until the full prompt arrives.
-    void abort_preflight() {
-        OPENVINO_ASSERT(m_stage == Stage::PENDING && m_pending_keep > 0u,
-                        "Continuous prefill: abort_preflight() without a pending keep command.");
-        m_pending_keep = 0u;
-        m_stage = Stage::IDLE;
-    }
-
-    // An exception after live state mutation began poisons the request. No new
-    // count is published and only reset() can start recovery. Runs on exception
-    // paths, so it must never throw.
-    void poison() {
-        m_pending_keep = 0u;
-        m_stage = Stage::POISONED;
-    }
-
     // Publish a committed prefill, full or continued. The new live count is also
-    // the new prefill-produced watermark. Legal for an ordinary idle prefill or
-    // a pending command that just executed; a commit must never clear the
-    // poisoning that only reset() owns.
+    // the new prefill-produced watermark.
     void commit_prefill(uint32_t live_tokens) {
-        OPENVINO_ASSERT(m_stage != Stage::POISONED, "Continuous prefill: commit_prefill() on a poisoned request.");
         m_live_tokens = live_tokens;
         m_watermark = live_tokens;
         m_pending_keep = 0u;
         m_stage = Stage::IDLE;
+        // The freshly prefilled prefix is split with the last chunk still in the
+        // present outputs; it becomes a continuation source only after a generate
+        // step consolidates it into the generate past KV.
+        m_continuable = false;
     }
 
     // Publish the result of an ordinary generate step. Generate-produced KV must
@@ -174,6 +150,7 @@ public:
         OPENVINO_ASSERT(m_stage == Stage::IDLE, "Continuous prefill: publish_generate() outside the idle state.");
         m_live_tokens = live_tokens;
         m_watermark = std::min(m_watermark, live_tokens);
+        m_continuable = true;
     }
 
     uint32_t live_tokens() const {
@@ -202,6 +179,9 @@ private:
     uint32_t m_watermark = 0u;
     uint32_t m_chunk_size = 0u;
     uint32_t m_k_max = 0u;
+    // Whether the live prefix sits in the generate past KV, the only layout a
+    // continuation can be sourced from. Prefills clear it, generate steps set it.
+    bool m_continuable = false;
 };
 
 }  // namespace npuw
