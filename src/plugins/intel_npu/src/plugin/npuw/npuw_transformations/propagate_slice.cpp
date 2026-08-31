@@ -122,37 +122,54 @@ static int64_t normalize_axis(int64_t axis, size_t rank) {
     return axis < 0 ? static_cast<int64_t>(rank) + axis : axis;
 }
 
+// Extract the full axis -> (start, stop, step) mapping of a (possibly multi-axis) Slice.
+// Returns false if the Slice's start/stop/step/axes inputs aren't foldable constants, or if
+// their sizes are inconsistent.
+static bool get_slice_all_axis_params(const std::shared_ptr<ov::op::v8::Slice>& slice,
+                                      std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>>& out_params) {
+    auto axes_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(4).get_node_shared_ptr());
+    auto start_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(1).get_node_shared_ptr());
+    auto stop_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(2).get_node_shared_ptr());
+    auto step_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(3).get_node_shared_ptr());
+    if (!axes_const || !start_const || !stop_const || !step_const) {
+        return false;
+    }
+
+    auto axes = axes_const->cast_vector<int64_t>();
+    auto starts = start_const->cast_vector<int64_t>();
+    auto stops = stop_const->cast_vector<int64_t>();
+    auto steps = step_const->cast_vector<int64_t>();
+    if (axes.size() != starts.size() || axes.size() != stops.size() || axes.size() != steps.size()) {
+        return false;
+    }
+
+    out_params.clear();
+    const size_t rank = slice->get_input_shape(0).size();
+    for (size_t i = 0; i < axes.size(); ++i) {
+        out_params[normalize_axis(axes[i], rank)] = {starts[i], stops[i], steps[i]};
+    }
+    return true;
+}
+
 // Extract the start/stop/step params that a (possibly multi-axis) Slice applies to a specific
 // axis of its own input/output (axis positions and rank are unaffected by Slice itself).
 // Returns false if the Slice's params aren't foldable constants or don't cover that axis.
+// Delegates to get_slice_all_axis_params() to avoid duplicating constant-extraction logic.
 static bool get_slice_axis_params(const std::shared_ptr<ov::op::v8::Slice>& slice_node,
                                   int64_t axis,
                                   int64_t& start,
                                   int64_t& stop,
                                   int64_t& step) {
-    auto start_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice_node->get_input_node_shared_ptr(1));
-    auto stop_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice_node->get_input_node_shared_ptr(2));
-    auto step_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice_node->get_input_node_shared_ptr(3));
-    auto axes_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice_node->get_input_node_shared_ptr(4));
-    if (!start_const || !stop_const || !step_const || !axes_const) {
+    std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> all_params;
+    if (!get_slice_all_axis_params(slice_node, all_params)) {
         return false;
     }
-
-    auto start_vec = start_const->cast_vector<int64_t>();
-    auto stop_vec = stop_const->cast_vector<int64_t>();
-    auto step_vec = step_const->cast_vector<int64_t>();
-    auto axes_vec = axes_const->cast_vector<int64_t>();
-    size_t rank = slice_node->get_input_shape(0).size();
-
-    for (size_t i = 0; i < axes_vec.size(); ++i) {
-        if (normalize_axis(axes_vec[i], rank) == axis) {
-            start = start_vec[i];
-            stop = stop_vec[i];
-            step = step_vec[i];
-            return true;
-        }
+    auto it = all_params.find(axis);
+    if (it == all_params.end()) {
+        return false;
     }
-    return false;
+    std::tie(start, stop, step) = it->second;
+    return true;
 }
 
 // Clone a Slice onto a new data input, keeping start/stop/step/axes constants.
@@ -198,6 +215,32 @@ static std::shared_ptr<ov::op::v8::Slice> create_slice_with_params(const ov::Out
     auto new_slice = std::make_shared<ov::op::v8::Slice>(data, start_const, stop_const, step_const, axes_const);
     new_slice->validate_and_infer_types();
     return new_slice;
+}
+
+// Given the per-consumer axis->(start,stop,step) maps of several Slice nodes that all consume
+// the same producer, find the axes that are sliced identically (same start/stop/step) across
+// every consumer. Shared by ExtractCommonSliceBeforeTranspose and ExtractCommonSliceBeforeBinary.
+static std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> find_common_slice_axes(
+    const std::vector<std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>>>& per_slice_axis_params) {
+    std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> common;
+    if (per_slice_axis_params.empty()) {
+        return common;
+    }
+
+    for (const auto& [axis, params] : per_slice_axis_params[0]) {
+        bool is_common = true;
+        for (size_t i = 1; i < per_slice_axis_params.size(); ++i) {
+            auto it = per_slice_axis_params[i].find(axis);
+            if (it == per_slice_axis_params[i].end() || it->second != params) {
+                is_common = false;
+                break;
+            }
+        }
+        if (is_common) {
+            common[axis] = params;
+        }
+    }
+    return common;
 }
 
 // ---------------------------------------------------------------------------
@@ -900,10 +943,7 @@ public:
             auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
             auto vsplit_node = std::dynamic_pointer_cast<ov::op::v1::VariadicSplit>(map[vsplit].get_node_shared_ptr());
 
-            if (!is_reducing_slice(slice_node)) {
-                return false;
-            }
-            if (!is_single_axis_slice(slice_node)) {
+            if (!is_reducing_slice(slice_node) || !is_single_axis_slice(slice_node)) {
                 return false;
             }
 
@@ -925,34 +965,34 @@ public:
                 return false;
             }
 
-            // Check all outputs of VariadicSplit
-            bool all_outputs_sliced_identically = true;
-            std::vector<std::shared_ptr<ov::op::v8::Slice>> slice_consumers;
-
-            for (size_t out_idx = 0; out_idx < vsplit_node->get_output_size(); ++out_idx) {
-                const auto& consumers = vsplit_node->output(out_idx).get_target_inputs();
-                if (consumers.size() != 1) {
-                    all_outputs_sliced_identically = false;
-                    break;
-                }
-
-                auto consumer = consumers.begin()->get_node()->shared_from_this();
-                auto consumer_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(consumer);
-                if (!consumer_slice) {
-                    all_outputs_sliced_identically = false;
-                    break;
-                }
-
-                slice_consumers.push_back(consumer_slice);
-            }
-
-            if (!all_outputs_sliced_identically || slice_consumers.empty()) {
+            // Check all outputs of VariadicSplit have exactly one consumer, and that consumer is a Slice
+            if (!single_consumer(vsplit_node)) {
                 return false;
             }
 
-            // Check if all Slice nodes have the same parameters (on the non-split axis)
+            std::vector<std::shared_ptr<ov::op::v8::Slice>> slice_consumers;
+            for (size_t out_idx = 0; out_idx < vsplit_node->get_output_size(); ++out_idx) {
+                auto consumer =
+                    vsplit_node->output(out_idx).get_target_inputs().begin()->get_node()->shared_from_this();
+                auto consumer_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(consumer);
+                if (!consumer_slice) {
+                    return false;
+                }
+                slice_consumers.push_back(consumer_slice);
+            }
+
+            if (slice_consumers.empty()) {
+                return false;
+            }
+
+            // Check if all Slice nodes have the same parameters (on the non-split axis).
+            // Extract the first Slice's axis/params once - they are invariant across the loop below.
             auto first_slice = slice_consumers[0];
             int64_t first_slice_axis = get_single_sliced_axis(first_slice);
+            int64_t first_start = 0, first_stop = 0, first_step = 0;
+            if (!get_slice_axis_params(first_slice, first_slice_axis, first_start, first_stop, first_step)) {
+                return false;
+            }
 
             for (size_t i = 1; i < slice_consumers.size(); ++i) {
                 auto other_slice = slice_consumers[i];
@@ -962,32 +1002,22 @@ public:
                     return false;
                 }
 
-                // Compare slice parameters
-                auto get_const_values = [](const std::shared_ptr<ov::Node>& node) -> std::vector<int64_t> {
-                    auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
-                    if (!const_node)
-                        return {};
-                    return const_node->cast_vector<int64_t>();
-                };
+                int64_t other_start = 0, other_stop = 0, other_step = 0;
+                if (!get_slice_axis_params(other_slice, other_slice_axis, other_start, other_stop, other_step)) {
+                    return false;
+                }
 
-                auto start1 = get_const_values(first_slice->get_input_node_shared_ptr(1));
-                auto start2 = get_const_values(other_slice->get_input_node_shared_ptr(1));
-                auto stop1 = get_const_values(first_slice->get_input_node_shared_ptr(2));
-                auto stop2 = get_const_values(other_slice->get_input_node_shared_ptr(2));
-                auto step1 = get_const_values(first_slice->get_input_node_shared_ptr(3));
-                auto step2 = get_const_values(other_slice->get_input_node_shared_ptr(3));
-
-                if (start1 != start2 || stop1 != stop2 || step1 != step2) {
+                if (first_start != other_start || first_stop != other_stop || first_step != other_step) {
                     return false;
                 }
             }
 
             // Propagate: Slice(VariadicSplit(X)) -> VariadicSplit(Slice(X))
-            int64_t start = 0, stop = 0, step = 0;
-            if (!get_slice_axis_params(first_slice, first_slice_axis, start, stop, step)) {
-                return false;
-            }
-            auto new_slice = create_slice_with_params(vsplit_node->input_value(0), first_slice_axis, start, stop, step);
+            auto new_slice = create_slice_with_params(vsplit_node->input_value(0),
+                                                      first_slice_axis,
+                                                      first_start,
+                                                      first_stop,
+                                                      first_step);
 
             auto new_vsplit = vsplit_node->clone_with_new_inputs({
                 new_slice,
@@ -1043,6 +1073,49 @@ public:
                 return false;  // Only one or zero Slice consumers, nothing to merge
             }
 
+            // Helper to get constant values as vector
+            auto get_const_values = [](const std::shared_ptr<ov::Node>& node) -> std::vector<int64_t> {
+                auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+                if (!const_node)
+                    return {};
+                return const_node->cast_vector<int64_t>();
+            };
+
+            const auto& input_shape = slice->get_input_shape(0);
+            size_t rank = input_shape.size();
+
+            // Normalize axes to positive indices and create a map: axis -> (start, stop, step)
+            auto build_slice_map =
+                [&](const std::vector<int64_t>& axes,
+                    const std::vector<int64_t>& starts,
+                    const std::vector<int64_t>& stops,
+                    const std::vector<int64_t>& steps,
+                    const ov::Shape& in_shape,
+                    const ov::Shape& out_shape) -> std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> {
+                std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> result;
+                for (size_t i = 0; i < axes.size(); ++i) {
+                    int64_t axis = normalize_axis(axes[i], rank);
+                    // Only include axes that actually reduce the dimension
+                    if (out_shape[axis] < in_shape[axis]) {
+                        result[axis] = {starts[i], stops[i], steps[i]};
+                    }
+                }
+                return result;
+            };
+
+            // Extract this Slice's own parameters once - they are invariant across the
+            // comparison loop below (only `other_slice`'s parameters change per iteration).
+            auto start1 = get_const_values(slice->get_input_node_shared_ptr(1));
+            auto stop1 = get_const_values(slice->get_input_node_shared_ptr(2));
+            auto step1 = get_const_values(slice->get_input_node_shared_ptr(3));
+            auto axes1 = get_const_values(slice->get_input_node_shared_ptr(4));
+
+            if (start1.empty() || stop1.empty() || step1.empty() || axes1.empty()) {
+                return false;
+            }
+
+            auto map1 = build_slice_map(axes1, start1, stop1, step1, input_shape, slice->get_output_shape(0));
+
             // Check all consumers of the same output port for duplicate Slices
             for (const auto& other_slice : slice_consumers) {
                 if (other_slice == slice)
@@ -1057,61 +1130,18 @@ public:
                     continue;
                 }
 
-                // Extract and compare parameter values (not bytes)
-                bool params_match = true;
-
-                // Helper to get constant values as vector
-                auto get_const_values = [](const std::shared_ptr<ov::Node>& node) -> std::vector<int64_t> {
-                    auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
-                    if (!const_node)
-                        return {};
-                    return const_node->cast_vector<int64_t>();
-                };
-
-                auto start1 = get_const_values(slice->get_input_node_shared_ptr(1));
                 auto start2 = get_const_values(other_slice->get_input_node_shared_ptr(1));
-                auto stop1 = get_const_values(slice->get_input_node_shared_ptr(2));
                 auto stop2 = get_const_values(other_slice->get_input_node_shared_ptr(2));
-                auto step1 = get_const_values(slice->get_input_node_shared_ptr(3));
                 auto step2 = get_const_values(other_slice->get_input_node_shared_ptr(3));
-                auto axes1 = get_const_values(slice->get_input_node_shared_ptr(4));
                 auto axes2 = get_const_values(other_slice->get_input_node_shared_ptr(4));
 
-                if (start1.empty() || start2.empty() || stop1.empty() || stop2.empty() || step1.empty() ||
-                    step2.empty() || axes1.empty() || axes2.empty()) {
+                if (start2.empty() || stop2.empty() || step2.empty() || axes2.empty()) {
                     continue;
                 }
 
-                // Normalize axes to positive indices and create a map: axis -> (start, stop, step)
-                const auto& input_shape = slice->get_input_shape(0);
-                size_t rank = input_shape.size();
-
-                auto build_slice_map =
-                    [&](const std::vector<int64_t>& axes,
-                        const std::vector<int64_t>& starts,
-                        const std::vector<int64_t>& stops,
-                        const std::vector<int64_t>& steps,
-                        const ov::Shape& in_shape,
-                        const ov::Shape& out_shape) -> std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> {
-                    std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> result;
-                    for (size_t i = 0; i < axes.size(); ++i) {
-                        int64_t axis = normalize_axis(axes[i], rank);
-                        // Only include axes that actually reduce the dimension
-                        if (out_shape[axis] < in_shape[axis]) {
-                            result[axis] = {starts[i], stops[i], steps[i]};
-                        }
-                    }
-                    return result;
-                };
-
-                auto map1 = build_slice_map(axes1, start1, stop1, step1, input_shape, slice->get_output_shape(0));
                 auto map2 = build_slice_map(axes2, start2, stop2, step2, input_shape, other_slice->get_output_shape(0));
 
-                if (map1 != map2) {
-                    params_match = false;
-                }
-
-                if (params_match) {
+                if (map1 == map2) {
                     ov::replace_node(other_slice, slice);
                     return true;  // Made a change, will re-run
                 }
@@ -2225,59 +2255,18 @@ public:
             const auto& transpose_output_shape = transpose_node->get_output_shape(0);
             size_t rank = transpose_output_shape.size();
 
-            // For each axis, collect slice parameters from all consumers
-            std::map<int64_t, std::vector<std::tuple<int64_t, int64_t, int64_t>>>
-                axis_params;  // axis -> [(start, stop, step), ...]
-
+            // Extract each consumer's own axis -> (start, stop, step) mapping
+            std::vector<std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>>> slice_axis_params;
             for (const auto& slice : slice_consumers) {
-                auto axes_const =
-                    std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(4).get_node_shared_ptr());
-                if (!axes_const)
-                    continue;
-
-                auto axes_vec = axes_const->cast_vector<int64_t>();
-                auto start_const =
-                    std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(1).get_node_shared_ptr());
-                auto stop_const =
-                    std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(2).get_node_shared_ptr());
-                auto step_const =
-                    std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(3).get_node_shared_ptr());
-
-                if (!start_const || !stop_const || !step_const)
-                    continue;
-
-                auto start_vec = start_const->cast_vector<int64_t>();
-                auto stop_vec = stop_const->cast_vector<int64_t>();
-                auto step_vec = step_const->cast_vector<int64_t>();
-
-                for (size_t i = 0; i < axes_vec.size(); ++i) {
-                    int64_t axis = normalize_axis(axes_vec[i], rank);
-                    axis_params[axis].push_back({start_vec[i], stop_vec[i], step_vec[i]});
+                std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> axis_map;
+                if (!get_slice_all_axis_params(slice, axis_map)) {
+                    return false;
                 }
+                slice_axis_params.push_back(axis_map);
             }
 
             // Find common axes: axes where ALL slices have IDENTICAL parameters
-            std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> common_axes;
-
-            for (const auto& [axis, params_list] : axis_params) {
-                if (params_list.size() != slice_consumers.size()) {
-                    continue;  // Not all slices touch this axis
-                }
-
-                // Check if all parameters are identical
-                bool all_same = true;
-                auto first_params = params_list[0];
-                for (size_t i = 1; i < params_list.size(); ++i) {
-                    if (params_list[i] != first_params) {
-                        all_same = false;
-                        break;
-                    }
-                }
-
-                if (all_same) {
-                    common_axes[axis] = first_params;
-                }
-            }
+            auto common_axes = find_common_slice_axes(slice_axis_params);
 
             if (common_axes.empty()) {
                 return false;
@@ -2449,60 +2438,17 @@ public:
             // Now slice_consumers.size() == all_consumers.size() and all are reducing Slices
 
             // For each slice, extract all its axis->params mappings
-            // Map: slice_index -> map(axis -> (start, stop, step))
             std::vector<std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>>> slice_axis_params;
-
             for (const auto& slice : slice_consumers) {
-                auto axes_const =
-                    std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(4).get_node_shared_ptr());
-                auto starts_const =
-                    std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(1).get_node_shared_ptr());
-                auto stops_const =
-                    std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(2).get_node_shared_ptr());
-                auto steps_const =
-                    std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(3).get_node_shared_ptr());
-
-                if (!axes_const || !starts_const || !stops_const || !steps_const) {
-                    return false;
-                }
-
-                auto axes = axes_const->cast_vector<int64_t>();
-                auto starts = starts_const->cast_vector<int64_t>();
-                auto stops = stops_const->cast_vector<int64_t>();
-                auto steps = steps_const->cast_vector<int64_t>();
-
-                if (axes.size() != starts.size() || axes.size() != stops.size() || axes.size() != steps.size()) {
-                    return false;
-                }
-
                 std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> axis_map;
-                for (size_t i = 0; i < axes.size(); ++i) {
-                    int64_t normalized_axis = normalize_axis(axes[i], slice->get_input_shape(0).size());
-                    axis_map[normalized_axis] = std::make_tuple(starts[i], stops[i], steps[i]);
+                if (!get_slice_all_axis_params(slice, axis_map)) {
+                    return false;
                 }
                 slice_axis_params.push_back(axis_map);
             }
 
             // Find common axes: axes that appear in ALL slices with the SAME parameters
-            std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> common_axis_params;
-
-            if (!slice_axis_params.empty()) {
-                // Start with axes from first slice
-                for (const auto& [axis, params] : slice_axis_params[0]) {
-                    bool is_common = true;
-                    // Check if this axis appears in all other slices with same params
-                    for (size_t i = 1; i < slice_axis_params.size(); ++i) {
-                        auto it = slice_axis_params[i].find(axis);
-                        if (it == slice_axis_params[i].end() || it->second != params) {
-                            is_common = false;
-                            break;
-                        }
-                    }
-                    if (is_common) {
-                        common_axis_params[axis] = params;
-                    }
-                }
-            }
+            auto common_axis_params = find_common_slice_axes(slice_axis_params);
 
             if (common_axis_params.empty()) {
                 return false;  // No common axes to extract
