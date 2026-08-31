@@ -530,6 +530,7 @@ private:
     void do_runtime_skip_reorder();
     void do_runtime_skip_gather();
     void do_runtime_skip_permute();
+    void prepare_runtime_skippable_permute_user();
     void do_runtime_skip_strided_slice();
     void do_runtime_skip_broadcast();
     void do_runtime_in_place_concat();
