@@ -409,6 +409,41 @@ TEST(PropagateSliceTest, PropagateSliceThroughTileReshape) {
     EXPECT_EQ(reshape_node->get_output_shape(0), (Shape{128, 1, 2048}));
 }
 
+// Test R10: Slice(Reshape(Tile(X))) must NOT propagate when the Reshape splits dim0 into factors
+// that don't individually match [repeat_factor, original_dim] - even though their product matches.
+TEST(PropagateSliceTest, PropagateSliceThroughTileReshape_MismatchedSplitOrderBlocked) {
+    // Build: Param[4,10] -> Tile(repeats=[6,1]) -> [24,10]
+    //        -> Reshape -> [3,8,10] (3*8=24, but NOT [repeat=6, original=4]) -> Slice(axis=1) -> [3,1,10]
+    auto param = std::make_shared<v0::Parameter>(element::f32, Shape{4, 10});
+
+    auto repeats = v0::Constant::create(element::i64, Shape{2}, {6, 1});
+    auto tile = std::make_shared<v0::Tile>(param, repeats);
+
+    // Reshape splits dim0 (24) into [3, 8] instead of the expected [6, 4]
+    auto pattern = v0::Constant::create(element::i64, Shape{3}, {3, 8, 10});
+    auto reshape = std::make_shared<v1::Reshape>(tile, pattern, false);
+
+    auto slice = make_last_index_slice(reshape, 1);
+
+    auto result = std::make_shared<v0::Result>(slice);
+    auto model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{param});
+
+    apply_propagate_slice_up(model);
+
+    // Check: Slice must NOT have moved - Result's input is still Reshape -> Tile -> Param,
+    // with the Slice remaining right before the Result.
+    auto result_node = model->get_results()[0];
+    auto slice_node = result_node->input_value(0).get_node_shared_ptr();
+    ASSERT_TRUE(is_type<v8::Slice>(slice_node));
+
+    auto reshape_node = slice_node->input_value(0).get_node_shared_ptr();
+    ASSERT_TRUE(is_type<v1::Reshape>(reshape_node));
+
+    auto tile_node = reshape_node->input_value(0).get_node_shared_ptr();
+    ASSERT_TRUE(is_type<v0::Tile>(tile_node));
+    EXPECT_TRUE(is_type<v0::Parameter>(tile_node->input_value(0).get_node_shared_ptr()));
+}
+
 // Test R11: Slice(Unsqueeze(X)) -> Unsqueeze(Slice(X))
 TEST(PropagateSliceTest, PropagateSliceThroughUnsqueeze) {
     // Build: Param[128,1024] -> Unsqueeze(axes=[2]) -> [128,1024,1] -> Slice(axis=1,-1:) -> [128,1,1]
