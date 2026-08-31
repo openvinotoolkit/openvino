@@ -29,16 +29,8 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-inline std::shared_ptr<ov::Model> createMaxPoolModel(bool dynamicBatch = false, bool nhwcLayout = true) {
-    std::shared_ptr<ov::op::v0::Parameter> input;
-    if (dynamicBatch) {
-        input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
-                                                        ov::PartialShape{ov::Dimension(1, 10), 16, 720, 1280});
-    } else {
-        input = std::make_shared<ov::op::v0::Parameter>(
-            ov::element::f16,
-            ov::PartialShape{1, 16, ov::Dimension(10, 720), ov::Dimension(10, 1280)});
-    }
+inline std::shared_ptr<ov::Model> buildMaxPoolModel(const ov::PartialShape& inputShape, bool nhwcLayout) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, inputShape);
 
     std::string inputName = "input1";
     input->set_friendly_name(inputName);
@@ -75,6 +67,19 @@ inline std::shared_ptr<ov::Model> createMaxPoolModel(bool dynamicBatch = false, 
     }
 
     return model;
+}
+
+inline std::shared_ptr<ov::Model> createMaxPoolModel(bool dynamicBatch = false, bool nhwcLayout = true) {
+    const ov::PartialShape inputShape =
+        dynamicBatch ? ov::PartialShape{ov::Dimension(1, 10), 16, 720, 1280}
+                     : ov::PartialShape{1, 16, ov::Dimension(10, 720), ov::Dimension(10, 1280)};
+    return buildMaxPoolModel(inputShape, nhwcLayout);
+}
+
+// N, H and W are all dynamic (bounded).
+inline std::shared_ptr<ov::Model> createMaxPoolModelDynNHW(bool nhwcLayout = true) {
+    return buildMaxPoolModel(ov::PartialShape{ov::Dimension(1, 10), 16, ov::Dimension(10, 720), ov::Dimension(10, 1280)},
+                             nhwcLayout);
 }
 
 inline std::shared_ptr<ov::Model> createCustomNetModel(bool dynamicBatch = false) {
@@ -353,6 +358,14 @@ std::shared_ptr<ov::Model> InferWithHostCompileTests::createModelByName(const st
     }
     if (modelName == "MaxPool_NCHW_DynBatch") {
         return createMaxPoolModel(true, false);
+    }
+
+    // N, H and W are all dynamic.
+    if (modelName == "MaxPool_DynNHW") {
+        return createMaxPoolModelDynNHW();
+    }
+    if (modelName == "CustomNet_DynNHW") {
+        return createCustomNetModel(true);
     }
 
     OPENVINO_THROW("Unknown model name for InferWithHostCompileTests: ", modelName);
@@ -809,6 +822,39 @@ TEST_P(InferWithDefaultHostCompileTests, CompileDynamicModelWithNoHostCompileMod
     OV_ASSERT_NO_THROW(reqDynamic.infer());
 }
 
+using InferWithDynamicNHWTests = InferWithHostCompileTests;
+
+// Framework coverage for models whose N, H and W dimensions are all dynamic, compiled both with an explicit
+// HostCompile_Interpreter mode and with the default (auto-selected) compilation path.
+TEST_P(InferWithDynamicNHWTests, CompileAndInfer) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    auto model = createModelByName(selectedModelName);
+
+    ov::CompiledModel compiledModel;
+    OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
+
+    std::stringstream modelStream;
+    OV_ASSERT_NO_THROW(compiledModel.export_model(modelStream));
+
+    ov::InferRequest req;
+    try {
+        ov::CompiledModel importedModel = core->import_model(modelStream, target_device);
+        req = importedModel.create_infer_request();
+    } catch (const ov::Exception& e) {
+        if (std::string(e.what()).find("Cannot load library") == std::string::npos) {
+            FAIL() << "Expected exception message to contain 'Cannot load library', but got: " << e.what();
+        } else {
+            GTEST_SKIP() << "Cannot load library, skip test.";
+        }
+    }
+
+    OV_ASSERT_NO_THROW(req.infer());
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
@@ -868,3 +914,25 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                                             ::testing::ValuesIn(defaultHostCompileconfigs),
                                             ::testing::ValuesIn(defaultHCModelNames)),
                          ov::test::utils::appendPlatformTypeTestName<InferWithDefaultHostCompileTests>);
+
+// Models with N, H and W all dynamic, exercised with an explicit HostCompile_Interpreter mode and with the default
+// (auto-selected) compilation path.
+const std::vector<ov::AnyMap> dynamicNHWConfigs = {
+    {
+        {"NPU_COMPILER_TYPE", "PLUGIN"},
+        {"NPU_COMPILATION_MODE", "HostCompile_Interpreter"},
+        {"NPU_CREATE_EXECUTOR", "0"},
+    },
+    {
+        {"NPU_COMPILER_TYPE", "PLUGIN"},
+        {"NPU_CREATE_EXECUTOR", "0"},
+    },
+};
+
+const std::vector<std::string> dynamicNHWModelNames = {"MaxPool_DynNHW", "CustomNet_DynNHW"};
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         InferWithDynamicNHWTests,
+                         ::testing::Combine(::testing::ValuesIn(devices),
+                                            ::testing::ValuesIn(dynamicNHWConfigs),
+                                            ::testing::ValuesIn(dynamicNHWModelNames)),
+                         ov::test::utils::appendPlatformTypeTestName<InferWithDynamicNHWTests>);
