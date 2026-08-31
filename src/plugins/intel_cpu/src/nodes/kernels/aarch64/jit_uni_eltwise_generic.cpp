@@ -51,6 +51,8 @@ template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_uni_eltwise_generic<isa>::generate() {
     preamble();
 
+    // The list is shared by all ARM64 eltwise algorithms
+    // Operation specific restrictions are being checked by the executor
     static const std::vector<element::Type> exec_precisions_priority = {
         element::i8,
         element::u8,
