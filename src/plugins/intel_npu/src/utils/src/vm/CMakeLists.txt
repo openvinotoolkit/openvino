@@ -4,7 +4,10 @@
 
 set(TARGET_NAME openvino_npu_vm_utils)
 
-file(GLOB_RECURSE SOURCES *.cpp)
+set(SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/npu_vm_runtime_api.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mem_ref_type.cpp
+)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${TARGET_NAME} OBJECT ${SOURCES})

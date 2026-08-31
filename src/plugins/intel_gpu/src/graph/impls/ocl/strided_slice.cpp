@@ -80,7 +80,7 @@ struct strided_slice_impl : typed_primitive_impl_ocl<strided_slice> {
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
+        if (is_dynamic() && !_kernel_data.kernelName.empty()) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
@@ -196,10 +196,7 @@ public:
                 // Check out of bounds values for Clamping
                 auto check_out_of_bounds = [&](int32_t value) -> bool {
                     auto size = out_shape[dim];
-                    if (value >= size || value < (size * -1))
-                        return true;
-                    else
-                        return false;
+                    return value >= size || value < (size * -1);
                 };
                 bool should_clamp_begin = check_out_of_bounds(begin);
                 bool should_clamp_end = check_out_of_bounds(end);
@@ -209,7 +206,7 @@ public:
                     begin += out_shape[dim];  // converted value can be negative if the original one was out of bounds
                 if (end < 0)
                     end += out_shape[dim];
-                bool is_stride_reverse = (stride < 0) ? true : false;
+                bool is_stride_reverse = stride < 0;
 
                 // Clamping
                 begin = std::min(std::max(begin, (int32_t)0), out_shape[dim]);
@@ -258,6 +255,7 @@ attach_strided_slice_impl::attach_strided_slice_impl() {
     auto types = {
         data_types::f32,
         data_types::f16,
+        data_types::bf16,
         data_types::i8,
         data_types::u8,
         data_types::i32,

@@ -13,7 +13,7 @@ namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct gemm_params : public base_params {
     gemm_params()
-        : base_params(KernelType::GEMM), alpha(1.0f), beta(0.0f), transpose_input0(false), transpose_input1(false) {}
+        : base_params(KernelType::GEMM), alpha(1.0f), beta(0.0f), transpose_input0(0u), transpose_input1(0u) {}
 
     float alpha;
     float beta;
@@ -50,7 +50,7 @@ public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
     using FusedOpDesc = fused_operation_desc;
     using DispatchData = CommonDispatchData;
-    virtual ~GemmKernelBase() {}
+    ~GemmKernelBase() override = default;
 
 protected:
     virtual JitConstants GetJitConstants(const gemm_params& params) const;

@@ -11,7 +11,7 @@ namespace kernel_selector {
 class SoftmaxItemsClassKernelBase : public SoftmaxKernelBase {
 public:
     using SoftmaxKernelBase::SoftmaxKernelBase;
-    virtual ~SoftmaxItemsClassKernelBase() {}
+    ~SoftmaxItemsClassKernelBase() override = default;
 
 protected:
     JitConstants GetJitConstants(const softmax_params& params, DispatchData dispatchData) const override;
@@ -20,8 +20,7 @@ protected:
     Datatype GetAccumulatorType(const softmax_params& params) const {
         if (params.inputs[0].GetDType() == Datatype::F16)
             return Datatype::F16;
-        else
-            return Datatype::F32;
+        return Datatype::F32;
     }
     std::vector<KernelBase::FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE };

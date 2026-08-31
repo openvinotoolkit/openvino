@@ -89,6 +89,8 @@ GLUFusion::GLUFusion() {
 
         auto variadic_split =
             ov::as_type_ptr<v1::VariadicSplit>(pattern_map.at(variadic_split_m).get_node_shared_ptr());
+        if (!variadic_split)
+            return false;
         auto variadic_split_in_ps = variadic_split->get_input_partial_shape(0);
         auto last_dim = variadic_split_in_ps.rank().get_length() - 1;
 
@@ -106,7 +108,7 @@ GLUFusion::GLUFusion() {
         if (split_lengths_value != split_length)
             return false;
 
-        auto data = pattern_map.at(data_m);
+        const auto& data = pattern_map.at(data_m);
         auto output_type = m.get_match_root()->get_output_element_type(0);
 
         auto swiglu = std::make_shared<ov::op::internal::GLU>(data,

@@ -30,7 +30,7 @@ protected:
 };
 
 using ConcatStringParamsTuple = typename std::tuple<int,                                     // Concat axis
-                                                    std::vector<ov::Shape>,                 // Input shapes
+                                                    std::vector<ov::Shape>,                  // Input shapes
                                                     ov::element::Type,                       // Model type
                                                     std::string,                             // Device name
                                                     std::vector<std::vector<std::string>>>;  // String data

@@ -60,9 +60,9 @@ struct grouped_matmul : public primitive_base<grouped_matmul> {
     }
 
     bool compressed_weights = false;
-    input_info decompression_scale = {};
-    input_info decompression_zero_point = {};
-    std::optional<float> decompression_zero_point_scalar = std::optional<float>();
+    input_info decompression_scale;
+    input_info decompression_zero_point;
+    std::optional<float> decompression_zero_point_scalar;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

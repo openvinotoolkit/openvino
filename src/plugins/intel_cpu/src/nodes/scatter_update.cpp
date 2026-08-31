@@ -1066,6 +1066,12 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
                 // Negative value for indices means counting backwards from the end.
                 idxValue += srcDataDim[i];
             }
+            // Exception must be thrown according to the specification: every per-tuple component must
+            // address an existing element of the corresponding data dimension. Without this per-component
+            // check a residually-negative or out-of-range index makes the signed->unsigned multiplication
+            // below wrap around, which can bypass the post-loop guard and lead to out-of-bounds writes.
+            CPU_NODE_ASSERT(idxValue >= 0 && static_cast<size_t>(idxValue) < srcDataDim[i],
+                            " indices contain values that points to non-existing data tensor element");
             dstOffset += idxValue * srcBlockND[i + 1];
         }
 
@@ -1110,6 +1116,12 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
                 // Negative value for indices means counting backwards from the end.
                 idxValue += srcDataDim[i];
             }
+            // Exception must be thrown according to the specification: every per-tuple component must
+            // address an existing element of the corresponding data dimension. Without this per-component
+            // check a residually-negative or out-of-range index makes the signed->unsigned multiplication
+            // below wrap around, which can bypass the post-loop guard and lead to out-of-bounds writes.
+            CPU_NODE_ASSERT(idxValue >= 0 && static_cast<size_t>(idxValue) < srcDataDim[i],
+                            " indices contain values that points to non-existing data tensor element");
             dstOffset += idxValue * srcBlockND[i + 1];
         }
 

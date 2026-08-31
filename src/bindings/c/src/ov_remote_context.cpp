@@ -19,32 +19,21 @@ const char* ov_property_key_intel_gpu_mem_handle = "MEM_HANDLE";
 const char* ov_property_key_intel_gpu_dev_object_handle = "DEV_OBJECT_HANDLE";
 const char* ov_property_key_intel_gpu_va_plane = "VA_PLANE";
 
-inline bool check_intel_gpu_property_value_is_ptr(std::string& key) {
-#ifdef _WIN32
-    return (key == ov_property_key_intel_gpu_ocl_context) || (key == ov_property_key_intel_gpu_ocl_queue) ||
-           (key == ov_property_key_intel_gpu_va_device) || (key == ov_property_key_intel_gpu_mem_handle) ||
-           (key == ov_property_key_intel_gpu_dev_object_handle);
-#else
-    return (key == ov_property_key_intel_gpu_ocl_context) || (key == ov_property_key_intel_gpu_ocl_queue) ||
-           (key == ov_property_key_intel_gpu_va_device) || (key == ov_property_key_intel_gpu_mem_handle);
-#endif
-}
-
 //!< Properties of intel gpu cannot be compeletly handled by (char*) type, because it contains non-char pointer which
 //!< points to memory block, so we have to use (void *) type to parse it from va_arg list.
 //!< (char *) type data will be copied before pass to ov::AnyMap, to prevent it from being freed out of ov api calling.
 //!< (void *) type data is memory block or gpu object handle, it cannot be copied into a new place.
-#define GET_INTEL_GPU_PROPERTY_FROM_ARGS_LIST(property_size)       \
-    for (size_t i = 0; i < property_size; i++) {                   \
-        std::string property_key = va_arg(args_ptr, char*);        \
-        if (check_intel_gpu_property_value_is_ptr(property_key)) { \
-            ov::Any value = va_arg(args_ptr, void*);               \
-            property[property_key] = std::move(value);             \
-        } else {                                                   \
-            std::string _value = va_arg(args_ptr, char*);          \
-            ov::Any value = _value;                                \
-            property[property_key] = std::move(value);             \
-        }                                                          \
+#define GET_INTEL_GPU_PROPERTY_FROM_ARGS_LIST(property_size) \
+    for (size_t i = 0; i < property_size; i++) {             \
+        std::string property_key = va_arg(args_ptr, char*);  \
+        if (ov_property_value_is_gpu_ptr(property_key)) {    \
+            ov::Any value = va_arg(args_ptr, void*);         \
+            property[property_key] = std::move(value);       \
+        } else {                                             \
+            std::string _value = va_arg(args_ptr, char*);    \
+            ov::Any value = _value;                          \
+            property[property_key] = std::move(value);       \
+        }                                                    \
     }
 
 ov_status_e ov_core_create_context(const ov_core_t* core,
@@ -68,6 +57,29 @@ ov_status_e ov_core_create_context(const ov_core_t* core,
         ov::RemoteContext object = core->object->create_context(dev_name, property);
 
         std::unique_ptr<ov_remote_context> _context(new ov_remote_context);
+        _context->object = std::make_shared<ov::RemoteContext>(std::move(object));
+        *context = _context.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_core_create_context_props(const ov_core_t* core,
+                                         const char* device_name,
+                                         const size_t num_properties,
+                                         const ov_property_t* properties,
+                                         ov_remote_context_t** context) {
+    if (!core || !device_name || !context) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    if (num_properties > 0 && !properties) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        ov::AnyMap property = ov_build_property_map(properties, num_properties);
+        std::string dev_name = device_name;
+        ov::RemoteContext object = core->object->create_context(dev_name, property);
+        auto _context = std::make_unique<ov_remote_context>();
         _context->object = std::make_shared<ov::RemoteContext>(std::move(object));
         *context = _context.release();
     }
@@ -99,6 +111,32 @@ ov_status_e ov_remote_context_create_tensor(const ov_remote_context_t* context,
         ov::RemoteTensor object = context->object->create_tensor(tmp_type, tmp_shape, property);
 
         std::unique_ptr<ov_tensor> _remote_tensor(new ov_tensor);
+        _remote_tensor->object = std::make_shared<ov::RemoteTensor>(std::move(object));
+        *remote_tensor = _remote_tensor.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_remote_context_create_tensor_props(const ov_remote_context_t* context,
+                                                  const ov_element_type_e type,
+                                                  const ov_shape_t shape,
+                                                  const size_t num_properties,
+                                                  const ov_property_t* properties,
+                                                  ov_tensor_t** remote_tensor) {
+    if (!context || !shape.dims || !remote_tensor) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    if (num_properties > 0 && !properties) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        ov::AnyMap property = ov_build_property_map(properties, num_properties);
+        ov::Shape tmp_shape;
+        std::copy_n(shape.dims, shape.rank, std::back_inserter(tmp_shape));
+        auto tmp_type = get_element_type(type);
+        ov::RemoteTensor object = context->object->create_tensor(tmp_type, tmp_shape, property);
+        auto _remote_tensor = std::make_unique<ov_tensor>();
         _remote_tensor->object = std::make_shared<ov::RemoteTensor>(std::move(object));
         *remote_tensor = _remote_tensor.release();
     }

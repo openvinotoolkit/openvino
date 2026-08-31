@@ -53,6 +53,15 @@ def get_models_list(file_name: str):
                 f'Incorrect model info fields {items}. It must contain either 2 or 4 or more than 4 fields.'
     return models
 
+
+def model_list_path(models_dir: str, list_name: str):
+    if 'NPU' in os.environ.get("TEST_DEVICE", ""):
+        npu_list = os.path.join(models_dir, "npu_" + list_name)
+        if os.path.isfile(npu_list):
+            return npu_list
+    return os.path.join(models_dir, list_name)
+
+
 def get_skipped_model_links(file_name: str):
     return {line_items[1] for line_items in parse_list_file(file_name)}
 

@@ -4,6 +4,8 @@
 
 #include "pyopenvino/core/properties/properties.hpp"
 
+#include <pybind11/stl.h>
+
 #include "openvino/runtime/auto/properties.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
@@ -340,6 +342,27 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_intel_auto, ov::intel_auto::enable_runtime_fallback, "enable_runtime_fallback");
     wrap_property_RW(m_intel_auto, ov::intel_auto::compile_for_all, "compile_for_all");
     wrap_property_RW(m_intel_auto, ov::intel_auto::schedule_policy, "schedule_policy");
+    wrap_property_RW(m_intel_auto, ov::intel_auto::devices_utilization_threshold, "devices_utilization_threshold");
+    // perf_curve_table: name/string/map overloads (map form uses pybind11's default STL caster).
+    m_intel_auto.def("perf_curve_table", []() {
+        return ov::intel_auto::perf_curve_table.name();
+    });
+    // String form, e.g. "{CPU:{0:0,100:100}}".
+    m_intel_auto.def("perf_curve_table", [](const std::string& value) {
+        try {
+            return ov::intel_auto::perf_curve_table(
+                ov::Any(value).as<std::map<std::string, std::map<unsigned, float>>>());
+        } catch (const ov::Exception& e) {
+            OPENVINO_THROW("PERF_CURVE_TABLE: failed to parse string '",
+                           value,
+                           "'. Expected format: {DeviceName:{util:score,...},...}. ",
+                           e.what());
+        }
+    });
+    m_intel_auto.def("perf_curve_table", [](const std::map<std::string, std::map<unsigned, float>>& value) {
+        return ov::intel_auto::perf_curve_table(value);
+    });
+    wrap_property_RW(m_intel_auto, ov::intel_auto::low_power_device, "low_power_device");
 
     // Submodule npu
     py::module m_intel_npu =

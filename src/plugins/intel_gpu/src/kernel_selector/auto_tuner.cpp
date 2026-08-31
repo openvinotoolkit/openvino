@@ -31,7 +31,7 @@
 #include <cstring>
 #else
 #include <unistd.h>
-#include <limits.h>
+#include <climits>
 #include <link.h>
 #include <dlfcn.h>
 #endif

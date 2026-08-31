@@ -68,8 +68,8 @@ struct PerfCounter {
     uint64_t realTime_uSec = 0;
     uint64_t cpu_uSec = 0;
     uint32_t num = 0;
-    std::string layerType = "";
-    std::string parentPrimitive = "";
+    std::string layerType;
+    std::string parentPrimitive;
 
     PerfCounter() = default;
 

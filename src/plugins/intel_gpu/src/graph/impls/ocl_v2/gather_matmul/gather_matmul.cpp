@@ -81,7 +81,7 @@ inline dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
 inline bool weights_need_onednn_grouped(const kernel_impl_params& params) {
     const auto& weights_layout = params.input_layouts[gather_matmul::BGMInputIdx::WEIGHT];
     const auto dt = weights_layout.data_type;
-    return !(dt == cldnn::data_types::u4 || dt == cldnn::data_types::i4);
+    return dt != cldnn::data_types::u4 && dt != cldnn::data_types::i4;
 }
 #endif
 
@@ -206,7 +206,7 @@ public:
             m_rt_params = std::make_unique<GatherMatmulRuntimeParams>();
         }
         update_stages_flags(instance);
-        auto rtp = static_cast<GatherMatmulRuntimeParams*>(m_rt_params.get());
+        auto* rtp = static_cast<GatherMatmulRuntimeParams*>(m_rt_params.get());
         const auto& input_shape = instance.get_input_layout(gather_matmul::BGMInputIdx::INPUT).get_shape();
         const auto& indices_shape = instance.get_input_layout(gather_matmul::BGMInputIdx::INDICES).get_shape();
         rtp->n_activated_experts = static_cast<int32_t>(input_shape[0]);
@@ -249,12 +249,13 @@ public:
                 auto sort_event = execute_stage(events, instance, batched_sort);
                 auto gather_event = execute_stage({sort_event}, instance, batched_gather);
                 return execute_stage({gather_event}, instance, batched_gemm);
-            } else if (has_stage(regular_micro_multi_tokens)) {
+            }
+            if (has_stage(regular_micro_multi_tokens)) {
                 GPU_DEBUG_TRACE_DETAIL << "GatherMatmul Execute prefill micro_multi_tokens stage (n_tokens=" << rtp->n_tokens << ")" << std::endl;
                 return execute_stage(events, instance, regular_micro_multi_tokens);
-            } else {
-                OPENVINO_THROW("GatherMatmul Prefill stage is not available");
             }
+            OPENVINO_THROW("GatherMatmul Prefill stage is not available");
+
         } else {
             return execute_stage(events, instance, regular_micro_single_token);
         }

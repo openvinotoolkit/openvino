@@ -84,10 +84,7 @@ struct GemmImplementationManager : public ImplementationManager {
         if (gemm_prim->indirect_a || gemm_prim->indirect_b)
             return false;
 
-        if (!is_supported_post_ops(node))
-            return false;
-
-        return true;
+        return is_supported_post_ops(node);
     }
 
     in_out_fmts_t query_formats(const program_node& node) const override {

@@ -102,4 +102,8 @@ endif()
 
 ov_build_target_faster(${TARGET_NAME} PCH)
 
+# Static library built via ov_add_target, so apply clang-tidy directly
+# (the ADD_CLANG_TIDY option only exists for plugins created via ov_add_plugin).
+ov_apply_clang_tidy(TARGET ${TARGET_NAME})
+
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})

@@ -2,6 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// OV_CONFIG_RELEASE_OPTION:
+//      Options exposed via the public API in all build types.
+//      Must be properly documented and aligned with OpenVINO Runtime stakeholders.
+// OV_CONFIG_RELEASE_INTERNAL_OPTION:
+//      Available in all build types, but not settable via the public API.
+//      Not intended as production options for customers, as API stability is not guaranteed.
+//      If a customer requires one of these options in a production scenario,
+//      it should be promoted to RELEASE_OPTION. May be used for development or troubleshooting purposes.
+// OV_CONFIG_DEBUG_OPTION:
+//      Options available only in builds with `ENABLE_DEBUG_CAPS` enabled.
+//      Intended for OpenVINO development and troubleshooting features.
+// OV_CONFIG_DEBUG_GLOBAL_OPTION:
+//      Same as OV_CONFIG_DEBUG_OPTION, but applied globally to all models.
+
 // Namespace, property name, default value, [validator], description
 OV_CONFIG_RELEASE_OPTION(ov, enable_profiling, false, "Enable profiling for the plugin")
 OV_CONFIG_RELEASE_OPTION(ov::device, id, "0", "ID of the current device")
@@ -111,3 +125,5 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dynamic_quantization_single, -1, "Apply dy
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, network_marker, false, "Insert named OpenCL marker kernels at network execution start/finish for CLIntercept tracing")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, list_layers, false, "Print layers list")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, print_input_data_shapes, false, "print input data shapes")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, pa_integrity_check, false, "Enable in-kernel SDPA micro-GEMM integrity checks (per-row K^T*Q and V*S reference comparisons)")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, micro_sdpa_workgroup_config, std::vector<int>{}, "Override SDPA micro-kernel workgroup config: 4 ints [wg_m_kq wg_n_kq wg_m_vs wg_n_vs]")

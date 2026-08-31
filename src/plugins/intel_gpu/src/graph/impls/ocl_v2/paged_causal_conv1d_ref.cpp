@@ -147,4 +147,5 @@ std::unique_ptr<primitive_impl> PagedCausalConv1DRef::create_impl(const program_
 
 }  // namespace ov::intel_gpu::ocl
 
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::paged_causal_conv1d)
 BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::PagedCausalConv1DRefImpl)

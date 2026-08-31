@@ -36,7 +36,7 @@ struct arg_max_min_params : public base_params {
 class ArgMaxMinKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~ArgMaxMinKernelBase() {}
+    ~ArgMaxMinKernelBase() override = default;
 
     struct DispatchData : public CommonDispatchData {
     };

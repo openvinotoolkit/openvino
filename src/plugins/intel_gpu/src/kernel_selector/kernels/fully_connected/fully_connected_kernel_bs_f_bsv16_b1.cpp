@@ -32,7 +32,7 @@ DeviceFeaturesKey FullyConnected_bs_f_bsv16_b1::get_required_device_features_key
 JitConstants FullyConnected_bs_f_bsv16_b1::GetJitConstants(
     const fully_connected_params& params,
     const FullyConnectedKernelBase::DispatchData& dispatchData) const {
-    auto& d = static_cast<const DispatchData&>(dispatchData);
+    const auto& d = static_cast<const DispatchData&>(dispatchData);
     auto cldnn_jit = FullyConnectedKernelBase::GetJitConstants(params, dispatchData);
     cldnn_jit.AddConstants({
         MakeJitConstant("SUB_GROUP_SIZE", dispatchData.lws[0]),

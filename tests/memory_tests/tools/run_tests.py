@@ -275,7 +275,7 @@ class TestSession:
             sample_report.update({
                 "test_name": f"{result.get('test', self.test_name)}:{sname}",
                 "status": "failed" if "error" in result else "passed",
-                "source": test.model_path,
+                "source": str(test.model_path),
                 "log": result.get("stderr", ""),
                 "model_name": modelname,
                 "model": test.model_id,

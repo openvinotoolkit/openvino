@@ -13,12 +13,13 @@ ProcessorCount(PROCESSOR_COUNT)
 #      NATIVE_TARGETS <target1 target2 ..>
 #      [NATIVE_SOURCE_SUBDIR <subdir>]
 #      [CMAKE_ARGS <option1 option2 ...>]
+#      [BUILD_BYPRODUCTS <file1 file2 ...>]
 #   )
 #
 function(ov_native_compile_external_project)
     set(oneValueRequiredArgs NATIVE_INSTALL_DIR TARGET_NAME NATIVE_SOURCE_SUBDIR)
     set(oneValueOptionalArgs EXTRA_COMPILE_FLAGS)
-    set(multiValueArgs CMAKE_ARGS NATIVE_TARGETS)
+    set(multiValueArgs CMAKE_ARGS NATIVE_TARGETS BUILD_BYPRODUCTS)
     cmake_parse_arguments(ARG "" "${oneValueRequiredArgs};${oneValueOptionalArgs}" "${multiValueArgs}" ${ARGN})
 
     if(YOCTO_AARCH64 OR EMSCRIPTEN)
@@ -132,6 +133,7 @@ function(ov_native_compile_external_project)
                 --config Release
                 --parallel ${PROCESSOR_COUNT}
                 -- ${ARG_NATIVE_TARGETS}
+        BUILD_BYPRODUCTS ${ARG_BUILD_BYPRODUCTS}
         # Test Step Options:
         TEST_EXCLUDE_FROM_MAIN ON
         # Target Options:
