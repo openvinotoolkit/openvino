@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-31-21-50-43-000-33434480826",
+  "timestamp": "2026-08-31T21:50:43Z",
+  "run_id": "33434480826",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33434480826",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37743",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37743",
+  "author": "aobolensk",
+  "category": "Network",
+  "title": "CPU functional tests artifact upload fails with ENOTFOUND on Windows runner",
+  "signature": "Failed to CreateArtifact Unable to make request ENOTFOUND|Network",
+  "signature_hash": "669fb8e126e09420",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "Artifact upload step fails with ENOTFOUND (DNS resolution failure) after all 160,863 tests passed"
+    }
+  ],
+  "key_errors": [
+    "2026-08-31T21:45:25.7717558Z ##[error]Failed to CreateArtifact: Unable to make request: ENOTFOUND\nIf you are using self-hosted runners, please make sure your runner has access to all GitHub endpoints: https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self"
+  ],
+  "root_cause": "The self-hosted Windows runner temporarily lost DNS resolution for the GitHub artifact storage endpoint during the upload step. The actual test execution completed successfully (160,863 passed, 16,524 skipped) — no test failures. The ENOTFOUND error indicates a transient DNS/network outage on the runner host at the time of artifact upload.",
+  "reproduction_steps": "N/A - transient network failure not reproducible locally",
+  "recommended_actions": [
+    "Re-run the failed job - the network issue is transient and tests pass fine",
+    "If the runner repeatedly exhibits DNS failures, investigate the runner host network configuration"
+  ],
+  "prevention_strategies": "No code change needed. Monitor runner network stability. Consider adding retry logic to artifact uploads in the workflow.",
+  "historical_context": "First recorded occurrence of this specific ENOTFOUND artifact upload failure signature."
+}
