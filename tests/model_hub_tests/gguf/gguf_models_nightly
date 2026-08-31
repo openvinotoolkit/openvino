@@ -1,0 +1,30 @@
+# List of larger models (roughly 7B-30B parameters) used to verify the GGUF frontend converts,
+# compiles, and runs a single forward step correctly for each supported architecture that has
+# no small (<=4B) checkpoint available.
+#
+# Format: arch,repo_id,filename[,mark,reason]
+#   arch     - architecture name (matches src/frontends/gguf/docs/supported_models.md)
+#   repo_id  - Hugging Face Hub repo hosting the .gguf file
+#   filename - the specific .gguf file to download from that repo
+#   mark     - optional: "skip" or "xfail"
+#   reason   - required if mark is set
+#
+# See src/frontends/gguf/docs/supported_models.md for the full architecture list and the
+# checkpoints this project validates them against.
+#
+# Runner sizing: these convert + compile in-process, so the driving cost is the peak
+# resident memory recorded in that document's memory table (the largest entry kept here,
+# muse-glimmer, peaks around 37 GiB) -- hence the 16-core/64 GiB nightly runner.
+olmoe,allenai/OLMoE-1B-7B-0924-Instruct-GGUF,olmoe-1b-7b-0924-instruct-q4_0.gguf
+muse-glimmer,unsloth/Muse-Glimmer-30B-GGUF,Muse-Glimmer-30B-UD-Q4_K_XL.gguf
+qwen35-bonsai,prism-ml/Ternary-Bonsai-27B-gguf,Ternary-Bonsai-27B-Q2_g64.gguf
+ernie4_5-moe,bartowski/baidu_ERNIE-4.5-21B-A3B-PT-GGUF,baidu_ERNIE-4.5-21B-A3B-PT-Q4_K_M.gguf
+bailingmoe2,bartowski/inclusionAI_Ling-mini-2.0-GGUF,inclusionAI_Ling-mini-2.0-Q4_K_M.gguf
+mellum,bartowski/Mellum2-12B-A2.5B-Instruct-GGUF,Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+deepseek2-ocr,aditya00196/DeepSeek-OCR-2-Q4_K_M.gguf,DeepSeek-OCR-2-Q4_K_M.gguf
+gpt-oss,unsloth/gpt-oss-20b-GGUF,gpt-oss-20b-Q4_K_M.gguf,skip,"Needs ~120 GiB peak anon RAM to convert+compile (see the memory table in supported_models.md); the largest CI runner is 64 GiB"
+hunyuan-moe,,,skip,"No small checkpoint publicly available (see supported_models.md)"
+glm4moe,,,skip,"Smallest checkpoint (GLM-4.5-Air) is ~40 GiB, impractical even for nightly"
+exaone-moe,,,skip,"Smallest checkpoint is ~9 GiB / 32B, not currently validated (see supported_models.md)"
+minimax-m2,,,skip,"Smallest checkpoint is ~78 GiB, impractical even for nightly"
+jais2,,,skip,"No small checkpoint publicly available (see supported_models.md)"

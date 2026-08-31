@@ -4,11 +4,10 @@
 
 #include <memory>
 
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/sqrt.hpp"
-
 #include "node_context.hpp"
 #include "op_table.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/sqrt.hpp"
 #include "utils.hpp"
 
 namespace ov {

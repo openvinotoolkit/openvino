@@ -8,6 +8,7 @@
 #include <mutex>
 #include <utility>
 
+#include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/util/file_util.hpp"
@@ -15,6 +16,7 @@
 #include "openvino/util/parallel_read_streambuf.hpp"
 
 namespace ov {
+OPENVINO_SUPPRESS_DEPRECATED_START
 LazyBuffer::LazyBuffer(std::filesystem::path file_path, size_t offset, size_t byte_size)
     : AlignedBuffer(),
       m_file_path{std::move(file_path)},
@@ -91,20 +93,8 @@ void LazyBuffer::hint_prefetch() const {
     }
 }
 
-void LazyBuffer::hint_evict() noexcept {
-    hint_evict(0, m_byte_size);
-}
+void LazyBuffer::hint_evict() noexcept {}
 
-void LazyBuffer::hint_evict(size_t offset, size_t size) noexcept {
-    if (m_loaded.load(std::memory_order_acquire)) {
-        try {
-            std::lock_guard lock{m_loading};
-            if (m_loaded.load(std::memory_order_relaxed)) {
-                util::vm_decommit(m_aligned_buffer, m_byte_size);
-                m_loaded.store(false, std::memory_order_release);
-            }
-        } catch (...) {
-        }
-    }
-}
+void LazyBuffer::hint_evict(size_t offset, size_t size) noexcept {}
+OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace ov

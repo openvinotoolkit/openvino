@@ -112,6 +112,13 @@ protected:
     KernelsData GetCommonKernelsData(const Params& params) const;
     Datatype GetAccumulatorType(const eltwise_params &params) const;
 
+    // Only the generic reference kernel supports padding-reset work-items.
+    virtual bool SupportsFeaturePadReset() const { return false; }
+    // Returns the output feature block size when padding reset is required.
+    size_t GetFeaturePadResetBlockSize(const eltwise_params& params) const;
+    // Returns the number of padding-reset work-items for a static shape.
+    size_t GetFeaturePadResetSize(const eltwise_params& params) const;
+
     bool IsUnsupportedModeForVecCode(const eltwise_params& params) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };

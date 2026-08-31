@@ -282,7 +282,10 @@ std::vector<ov::SoPtr<ov::IVariableState>> ZeroInferRequest::query_state() const
 
 void ZeroInferRequest::setup_pipeline() {
     _logger.debug("setup_pipeline - started");
-    auto batchSize = _graph->get_batch_size();
+    std::optional<size_t> batchSize;
+    if (_graph->get_kind() != GraphKind::Dynamic) {
+        batchSize = _graph->get_batch_size();
+    }
 
     for (size_t inputIndex = 0; inputIndex < _metadata.inputs.size(); ++inputIndex) {
         if (_metadata.inputs.at(inputIndex).isMainInputWeights) {
@@ -424,10 +427,12 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             return;
         }
 
-        const auto& ioShape = _compiledModel->inputs()[foundPort.idx].get_partial_shape();
-        auto batchSizeCandidate =
-            determine_dynamic_batch_size(_metadata.inputs.at(foundPort.idx), ioShape, tensor._ptr, std::nullopt);
-
+        std::optional<size_t> batchSizeCandidate;
+        if (_graph->get_kind() != GraphKind::Dynamic) {
+            const auto& ioShape = _compiledModel->inputs()[foundPort.idx].get_partial_shape();
+            batchSizeCandidate =
+                determine_dynamic_batch_size(_metadata.inputs.at(foundPort.idx), ioShape, tensor._ptr, std::nullopt);
+        }
         if (batchSizeCandidate.has_value()) {
             if (!_dynamicBatchValueChanged) {
                 if (get_user_input(foundPort.idx)._ptr != nullptr &&
@@ -447,7 +452,6 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
                 OPENVINO_THROW("Batching size is not matching all the tensors.");
             }
         }
-
         if (get_level_zero_inputs(foundPort.idx).size() > 1) {
             // Reset vector size to 1 if set_tensor is called after set_tensors
             get_level_zero_inputs(foundPort.idx).resize(1);
@@ -469,10 +473,12 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             return;
         }
 
-        const auto& ioShape = _compiledModel->outputs()[foundPort.idx].get_partial_shape();
-        auto batchSizeCandidate =
-            determine_dynamic_batch_size(_metadata.outputs.at(foundPort.idx), ioShape, tensor._ptr, std::nullopt);
-
+        std::optional<size_t> batchSizeCandidate;
+        if (_graph->get_kind() != GraphKind::Dynamic) {
+            const auto& ioShape = _compiledModel->outputs()[foundPort.idx].get_partial_shape();
+            batchSizeCandidate =
+                determine_dynamic_batch_size(_metadata.outputs.at(foundPort.idx), ioShape, tensor._ptr, std::nullopt);
+        }
         if (batchSizeCandidate.has_value()) {
             if (!_dynamicBatchValueChanged) {
                 if (_userOutputTensors.at(foundPort.idx)._ptr != nullptr &&
@@ -491,7 +497,6 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
                 OPENVINO_THROW("Batching size is not matching all the tensors.");
             }
         }
-
         _userOutputTensors.at(foundPort.idx) = tensor;
     }
 
@@ -588,10 +593,12 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
 
     _logger.debug("set_tensors - tensor count: %zu", tensors.size());
 
-    const auto& ioShape = _compiledModel->inputs()[foundPort.idx].get_partial_shape();
-    auto batchSizeCandidate =
-        determine_dynamic_batch_size(_metadata.inputs.at(foundPort.idx), ioShape, nullptr, tensors.size());
-
+    std::optional<size_t> batchSizeCandidate;
+    if (_graph->get_kind() != GraphKind::Dynamic) {
+        const auto& ioShape = _compiledModel->inputs()[foundPort.idx].get_partial_shape();
+        batchSizeCandidate =
+            determine_dynamic_batch_size(_metadata.inputs.at(foundPort.idx), ioShape, nullptr, tensors.size());
+    }
     // Check if batch has been changed
     if (batchSizeCandidate.has_value()) {
         if (!_dynamicBatchValueChanged) {
@@ -609,7 +616,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
         } else if (batchSizeCandidate.value() != _graph->get_batch_size().value()) {
             OPENVINO_THROW("Batching size is not matching all the tensors.");
         }
-    } else {
+    } else if (_graph->get_kind() != GraphKind::Dynamic) {
         batchSizeCandidate = _graph->get_batch_size();
     }
 
@@ -720,7 +727,10 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
 
     auto& userTensor = isInput ? get_user_input(ioIndex) : _userOutputTensors.at(ioIndex);
 
-    auto batchSize = _graph->get_batch_size();
+    std::optional<size_t> batchSize;
+    if (_graph->get_kind() != GraphKind::Dynamic) {
+        batchSize = _graph->get_batch_size();
+    }
 
     // LIMITATION for dynamic batch implementation:
     // Output tensors must have the same batch size as input tensors, so input batch sizes must be determined first.
@@ -939,7 +949,10 @@ void ZeroInferRequest::prepare_inputs() {
         }
     }
 
-    auto batch_size = _graph->get_batch_size();
+    std::optional<size_t> batch_size;
+    if (_graph->get_kind() != GraphKind::Dynamic) {
+        batch_size = _graph->get_batch_size();
+    }
     size_t inputIndex = 0;
     for (const auto& userTensor : _userInputTensors) {
         const IODescriptor& inputDescriptor = _metadata.inputs.at(inputIndex);
@@ -1013,7 +1026,7 @@ void ZeroInferRequest::prepare_inputs() {
                 for (size_t i = 0; i < userTensor.size(); i++) {
                     auto viewTensor = ov::make_tensor(
                         levelZeroTensor->get_element_type(),
-                        levelZeroTensor->get_shape(),
+                        userTensor.at(i)->get_shape(),
                         static_cast<unsigned char*>(levelZeroTensor->data()) + (i * userTensor.at(i)->get_byte_size()));
 
                     userTensor.at(i)->copy_to(viewTensor);
@@ -1353,6 +1366,8 @@ void ZeroInferRequest::check_network_precision(const ov::element::Type_t precisi
         break;
     case ov::element::Type_t::f8e8m0:
         break;
+    case ov::element::Type_t::f4e2m1:
+        break;
     case ov::element::Type_t::nf4:
         break;
     case ov::element::Type_t::u2:
@@ -1382,10 +1397,9 @@ void ZeroInferRequest::check_network_precision(const ov::element::Type_t precisi
     case ov::element::Type_t::boolean:
         break;
     default:
-        OPENVINO_THROW(
-            "Unsupported tensor precision: " + ov::element::Type(precision).get_type_name() +
-            "! Supported precisions: FP32, FP16, BF16, FP8, NF4, U2, U4, I4, U8, I8, U16, I16, U32, I32, U64, "
-            "I64, FP64, BOOLEAN");
+        OPENVINO_THROW("Unsupported tensor precision: " + ov::element::Type(precision).get_type_name() +
+                       "! Supported precisions: FP32, FP16, BF16, FP8, FP4, NF4, U2, U4, I4, U8, I8, "
+                       "U16, I16, U32, I32, U64, I64, FP64, BOOLEAN");
     }
 }
 

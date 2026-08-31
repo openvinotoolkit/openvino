@@ -2,9 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/softmax.hpp"
+
 #include <cmath>
 #include <cstdint>
 #include <memory>
+#include <vector>
+
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/frontend/exception.hpp"
@@ -17,11 +23,6 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/softmax.hpp"
-#include <vector>
-
-#include "node_context.hpp"
-#include "op_table.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -131,20 +132,27 @@ OutputVector translate_soft_max(const NodeContext& context) {
     ov::Output<ov::Node> biased_input = scaled_input;
     if (max_bias > 0.0f) {
         // ALiBi: per-head slope[h] applied to the mask (ggml ggml_compute_forward_soft_max_f32).
-        // n_head is dim 0 (head count) -- read only that dim, since the token dim may be dynamic.
-        FRONT_END_OP_CONVERSION_CHECK(in_ps.rank().is_static() && in_ps[0].is_static(),
+        // ggml's head dimension is always ne[2] regardless of rank; reversing ggml's dims to OV
+        // order puts it at (rank - 3) -- axis 1 for the usual 4D [batch, head, token, kv] layout,
+        // axis 0 when a leading batch/repetition dim of 1 is omitted (rank 3).
+        FRONT_END_OP_CONVERSION_CHECK(in_ps.rank().is_static() && in_ps.rank().get_length() >= 3,
+                                      "SOFT_MAX ALiBi requires a static rank of at least 3");
+        const int64_t rank = in_ps.rank().get_length();
+        const int64_t head_axis = rank - 3;
+        FRONT_END_OP_CONVERSION_CHECK(in_ps[head_axis].is_static(),
                                       "SOFT_MAX ALiBi requires a static head-count dimension");
-        const uint32_t n_head = static_cast<uint32_t>(in_ps[0].get_length());
+        const uint32_t n_head = static_cast<uint32_t>(in_ps[head_axis].get_length());
         const uint32_t n_head_log2 = 1u << static_cast<uint32_t>(std::floor(std::log2(n_head)));
         const float m0 = std::pow(2.0f, -max_bias / static_cast<float>(n_head_log2));
         const float m1 = std::pow(2.0f, -(max_bias / 2.0f) / static_cast<float>(n_head_log2));
         std::vector<float> slopes(n_head);
         for (uint32_t h = 0; h < n_head; ++h) {
-            slopes[h] = h < n_head_log2 ? std::pow(m0, static_cast<float>(h + 1)) : std::pow(m1, static_cast<float>(2 * (h - n_head_log2) + 1));
+            slopes[h] = h < n_head_log2 ? std::pow(m0, static_cast<float>(h + 1))
+                                        : std::pow(m1, static_cast<float>(2 * (h - n_head_log2) + 1));
         }
-        auto slope_node = std::make_shared<ov::op::v0::Constant>(output_type,
-                                                                 ov::Shape{n_head, 1, 1},
-                                                                 slopes);
+        ov::Shape slope_shape(rank, 1);
+        slope_shape[head_axis] = n_head;
+        auto slope_node = std::make_shared<ov::op::v0::Constant>(output_type, slope_shape, slopes);
         auto slope_mask = std::make_shared<ov::op::v1::Multiply>(mask_node_sliced, slope_node);
         biased_input = std::make_shared<ov::op::v1::Add>(scaled_input, slope_mask);
     } else {

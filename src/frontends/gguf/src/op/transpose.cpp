@@ -3,6 +3,7 @@
 //
 
 #include "openvino/op/transpose.hpp"
+
 #include <vector>
 
 #include "node_context.hpp"
@@ -23,9 +24,9 @@ OutputVector translate_transpose(const NodeContext& context) {
     // (e.g. single-op tests), matching ggml's plain GGML_OP_TRANSPOSE.
     auto perm = context.get_attribute<std::vector<int64_t>>("perm", {0, 1, 3, 2});
 
-    auto res = std::make_shared<ov::op::v1::Transpose>(
-        context.get_input(0),
-        ov::op::v0::Constant::create(ov::element::i64, {perm.size()}, perm));
+    auto res =
+        std::make_shared<ov::op::v1::Transpose>(context.get_input(0),
+                                                ov::op::v0::Constant::create(ov::element::i64, {perm.size()}, perm));
     return rename_outputs_with_suffix({res}, context.get_name());
 }
 

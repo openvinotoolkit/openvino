@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
 #include "openvino/op/clamp.hpp"
+
+#include <memory>
 
 #include "node_context.hpp"
 #include "op_table.hpp"
