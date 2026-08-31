@@ -126,8 +126,8 @@ struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_sele
                         const int32_t cached_tokens = prev_nums + processed_now;
                         const bool reached_interval_boundary = interval > 0 && ((cached_tokens % interval) == 0);
                         const bool reached_sequence_end = token == token_end - 1;
-                        if (interval > 0 && (reached_interval_boundary || reached_sequence_end)) {
-                            const int32_t slot = 1 + (cached_tokens - 1) / interval;
+                        if (reached_interval_boundary || reached_sequence_end) {
+                            const int32_t slot = interval > 0 ? 1 + (cached_tokens - 1) / interval : 1;
                             if (slot < seq_blocks) {
                                 const int32_t block_id = block_indices[block_begin + slot];
                                 for (int32_t n = 0; n < state_size; n++) {
@@ -157,7 +157,7 @@ struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_sele
         int32_t total_blocks = 0;
         for (int32_t seq = 0; seq < num_sequences; seq++) {
             subsequence_begins.push_back(subsequence_begins.back() + p.seq_tokens[seq]);
-            int32_t required_slots = 1;
+            int32_t required_slots = p.seq_tokens[seq] > 0 ? 2 : 1;
             if (p.cache_intervals[seq] > 0) {
                 const int32_t processed = std::max(p.processed_tokens[seq], 0);
                 const int32_t prev_nums = processed % p.cache_intervals[seq];
@@ -477,6 +477,13 @@ INSTANTIATE_TEST_SUITE_P(
         expect_impl(with_state_precision(paged_selective_ssm_test_params{{8}, {0}, {8}, 64, 1, 64, 128, ov::element::f32, ov::element::i32, false},
                                          ov::element::f16),
                     expected_ssm_impl::jit),
+        // Non-prefix-cached GenAI decode uses interval zero and aliases the read block with the final live-state write.
+        // Multiple executions ensure that every decode step consumes the state produced by the preceding one.
+        expect_impl(
+            with_state_precision(
+                paged_selective_ssm_test_params{{1}, {0}, {0}, 64, 1, 64, 128, ov::element::f32, ov::element::i32, true, {true}, false, false, false, 4},
+                ov::element::f16),
+            expected_ssm_impl::jit),
         paged_selective_ssm_test_params{{8}, {0}, {8}, 64, 1, 64, 128, ov::element::f16, ov::element::i32, false},
         expect_impl(paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 4, 256, ov::element::f32, ov::element::i32, true, {}, false, true},
                     expected_ssm_impl::jit),
@@ -493,8 +500,8 @@ INSTANTIATE_TEST_SUITE_P(
         paged_selective_ssm_test_params{{5}, {3}, {2}, 4, 2, 5, 17, ov::element::f16, ov::element::i32, false, {true}, true},
         paged_selective_ssm_test_params{{1}, {4}, {2}, 4, 2, 5, 17, ov::element::f32, ov::element::i64, false, {false}, true},
         paged_selective_ssm_test_params{{1}, {3}, {2}, 4, 2, 5, 17, ov::element::bf16, ov::element::i64, false, {true}, true},
-        // Disabled cache must leave every state block unchanged.
-        paged_selective_ssm_test_params{{4, 3}, {9, 2}, {0, -3}, 4, 2, 4, 31, ov::element::f32, ov::element::i64, false, {}, true},
+        // Interval zero disables intermediate checkpoints but still persists the final live state in slot one.
+        paged_selective_ssm_test_params{{4, 3}, {9, 2}, {0, -3}, 4, 2, 4, 31, ov::element::f32, ov::element::i64, false, {true, true}, true},
         // Empty sequences and completely empty token batches are legal no-ops.
         paged_selective_ssm_test_params{{0, 3, 0}, {0, 1, 7}, {2, 2, 0}, 4, 2, 4, 16, ov::element::f32, ov::element::i32, false, {true, false, false}, true},
         paged_selective_ssm_test_params{{0}, {0}, {2}, 2, 1, 2, 8, ov::element::f32, ov::element::i32, true, {true}, false},

@@ -281,35 +281,33 @@ KERNEL(selective_ssm_jit)(OPTIONAL_SHAPE_INFO_ARG
 
         // Persist paged state snapshots at cache boundaries and at sequence completion.
 #if SSM_PAGED
-        if (cache_enabled) {
-            const bool at_boundary = --tokens_until_boundary == 0;
-            const bool at_sequence_end = token + 1 == recurrence_end;
-            if (at_boundary || at_sequence_end) {
-                const ulong block_position = (ulong)block_begin + write_slot++;
-                if (block_position < (ulong)block_end && block_position < (ulong)INPUT7_BATCH_NUM) {
-                    const long block_id = (long)block_indices[SSM_BLOCK_INDEX((size_t)block_position)];
-                    if (block_id >= 0 && (ulong)block_id < (ulong)INPUT5_BATCH_NUM) {
+        const bool at_boundary = cache_enabled && --tokens_until_boundary == 0;
+        const bool at_sequence_end = token + 1 == recurrence_end;
+        if (at_boundary || at_sequence_end) {
+            const ulong block_position = (ulong)block_begin + write_slot++;
+            if (block_position < (ulong)block_end && block_position < (ulong)INPUT7_BATCH_NUM) {
+                const long block_id = (long)block_indices[SSM_BLOCK_INDEX((size_t)block_position)];
+                if (block_id >= 0 && (ulong)block_id < (ulong)INPUT5_BATCH_NUM) {
 #pragma unroll
-                        for (uint p_offset = 0; p_offset < SSM_HEAD_DIM_BLOCK; ++p_offset) {
-                            const uint p = p_base + p_offset;
+                    for (uint p_offset = 0; p_offset < SSM_HEAD_DIM_BLOCK; ++p_offset) {
+                        const uint p = p_base + p_offset;
 #pragma unroll
-                            for (uint step = 0; step < SSM_STATE_ITERATIONS; ++step) {
-                                const uint state_element = step * SSM_SUBGROUP_SIZE + lane;
-                                if (p < SSM_HEAD_DIM && state_element < SSM_STATE_SIZE) {
-                                    state[SSM_STATE_INDEX((uint)block_id, p, state_element)] =
-                                        TO_INPUT5_TYPE(SSM_STATE_AT(p_offset, step, state_element));
-                                }
+                        for (uint step = 0; step < SSM_STATE_ITERATIONS; ++step) {
+                            const uint state_element = step * SSM_SUBGROUP_SIZE + lane;
+                            if (p < SSM_HEAD_DIM && state_element < SSM_STATE_SIZE) {
+                                state[SSM_STATE_INDEX((uint)block_id, p, state_element)] =
+                                    TO_INPUT5_TYPE(SSM_STATE_AT(p_offset, step, state_element));
                             }
                         }
                     }
                 }
-                if (at_boundary) {
+            }
+            if (at_boundary) {
 #    if IS_DYNAMIC
-                    tokens_until_boundary = positive_interval;
+                tokens_until_boundary = positive_interval;
 #    else
-                    tokens_until_boundary = (uint)min(positive_interval, (ulong)0xffffffffu);
+                tokens_until_boundary = (uint)min(positive_interval, (ulong)0xffffffffu);
 #    endif
-                }
             }
         }
 #endif

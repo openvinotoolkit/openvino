@@ -139,30 +139,28 @@ KERNEL(paged_selective_ssm_large_state)(
 #include "selective_ssm_recurrence.cl"
 #undef SSM_TOKEN_INDEX
 
-        if (cache_enabled) {
-            const bool at_boundary = --tokens_until_boundary == 0;
-            const bool at_sequence_end = token + 1 == token_end;
-            if (at_boundary || at_sequence_end) {
-                const ulong block_position = (ulong)block_begin + write_slot++;
-                if (block_position < (ulong)block_end && block_position < (ulong)block_indices_count) {
-                    const long block_id = (long)block_indices[GET_DATA_INDEX(INPUT7, (size_t)block_position, 0, 0, 0)];
-                    if (block_id >= 0 && (size_t)block_id < num_state_blocks) {
-                        for (int p_offset = 0; p_offset < valid_head_dim_block; ++p_offset) {
-                            const size_t p = p_base + (size_t)p_offset;
-                            const size_t scratch_base = ((seq * num_heads + h) * head_dim + p) * state_size;
-                            for (size_t step = 0; step < state_iterations; ++step) {
-                                const size_t state_element = step * lws + lane;
-                                if (state_element >= state_size)
-                                    break;
-                                recurrent_state_table[GET_DATA_INDEX(INPUT5, (size_t)block_id, h, p, state_element)] =
-                                    TO_INPUT5_TYPE(state_scratch[scratch_base + state_element]);
-                            }
+        const bool at_boundary = cache_enabled && --tokens_until_boundary == 0;
+        const bool at_sequence_end = token + 1 == token_end;
+        if (at_boundary || at_sequence_end) {
+            const ulong block_position = (ulong)block_begin + write_slot++;
+            if (block_position < (ulong)block_end && block_position < (ulong)block_indices_count) {
+                const long block_id = (long)block_indices[GET_DATA_INDEX(INPUT7, (size_t)block_position, 0, 0, 0)];
+                if (block_id >= 0 && (size_t)block_id < num_state_blocks) {
+                    for (int p_offset = 0; p_offset < valid_head_dim_block; ++p_offset) {
+                        const size_t p = p_base + (size_t)p_offset;
+                        const size_t scratch_base = ((seq * num_heads + h) * head_dim + p) * state_size;
+                        for (size_t step = 0; step < state_iterations; ++step) {
+                            const size_t state_element = step * lws + lane;
+                            if (state_element >= state_size)
+                                break;
+                            recurrent_state_table[GET_DATA_INDEX(INPUT5, (size_t)block_id, h, p, state_element)] =
+                                TO_INPUT5_TYPE(state_scratch[scratch_base + state_element]);
                         }
                     }
                 }
-                if (at_boundary)
-                    tokens_until_boundary = positive_interval;
             }
+            if (at_boundary)
+                tokens_until_boundary = positive_interval;
         }
     }
 }
