@@ -228,8 +228,13 @@ static binding_oberver_ptr construct_binding_observer(tbb::task_arena& ta, int n
 #    endif  // USE_TBBBIND_2_5
 
 #    if defined(_WIN32)
-// LIFO stack of previous group affinities per worker thread, so nested group arenas restore correctly.
-static thread_local std::vector<GROUP_AFFINITY> g_prev_group_affinity_stack;
+// Per-worker-thread LIFO stack of saved group affinities so nested group arenas restore correctly:
+// every on_scheduler_entry pushes exactly one frame and every on_scheduler_exit pops exactly one.
+struct saved_group_affinity {
+    GROUP_AFFINITY affinity;
+    bool valid;
+};
+static thread_local std::vector<saved_group_affinity> g_prev_group_affinity_stack;
 
 // Query the authoritative active processor mask of a processor group; Windows does not guarantee the
 // active processors form a contiguous low-bit range, so the mask cannot be reconstructed from a count.
@@ -267,18 +272,24 @@ void group_affinity_observer::on_scheduler_entry(bool) {
     group_affinity.Group = static_cast<WORD>(my_group_id);
     group_affinity.Mask = static_cast<KAFFINITY>(my_group_mask);
     GROUP_AFFINITY previous_affinity{};
+    // Always push exactly one frame so on_scheduler_exit stays balanced; mark it invalid when the
+    // previous affinity could not be captured, so exit skips the (impossible) restore for that frame.
     if (SetThreadGroupAffinity(GetCurrentThread(), &group_affinity, &previous_affinity)) {
-        g_prev_group_affinity_stack.push_back(previous_affinity);
-    } else if (GetThreadGroupAffinity(GetCurrentThread(), &previous_affinity)) {
-        // Keep entry/exit balanced even if the bind failed: restoring this value on exit is a no-op.
-        g_prev_group_affinity_stack.push_back(previous_affinity);
+        g_prev_group_affinity_stack.push_back({previous_affinity, true});
+    } else {
+        g_prev_group_affinity_stack.push_back({GROUP_AFFINITY{}, false});
     }
 }
 
 void group_affinity_observer::on_scheduler_exit(bool) {
-    if (!g_prev_group_affinity_stack.empty()) {
-        SetThreadGroupAffinity(GetCurrentThread(), &g_prev_group_affinity_stack.back(), NULL);
-        g_prev_group_affinity_stack.pop_back();
+    if (g_prev_group_affinity_stack.empty()) {
+        return;
+    }
+    const saved_group_affinity saved = g_prev_group_affinity_stack.back();
+    g_prev_group_affinity_stack.pop_back();
+    if (saved.valid) {
+        GROUP_AFFINITY affinity = saved.affinity;
+        SetThreadGroupAffinity(GetCurrentThread(), &affinity, NULL);
     }
 }
 

@@ -75,16 +75,14 @@ void update_proc_type_table(const std::vector<std::vector<int>> _cpu_mapping_tab
                             std::vector<std::vector<int>>& _proc_type_table);
 
 /**
- * @brief      Select the processor group a stream is soft-bound to when distributing streams across
+ * @brief      Select the processor group a stream is distributed to when spreading streams across
  *             Windows processor groups (machines with more than 64 logical processors).
- * @param[in]  numa_node_id the stream's numa node id (equals the processor group on Windows), or a
- *             negative value when unknown
- * @param[in]  stream_id the stream index, used for round-robin distribution when numa id is unknown
+ * @param[in]  stream_id the stream index, used for round-robin distribution across processor groups
  * @param[in]  group_count the number of active processor groups
  * @return     the target processor group id in the range [0, group_count), or -1 when group_count <= 1
  *             (single group / no distribution needed)
  */
-int get_stream_processor_group_id(int numa_node_id, int stream_id, int group_count);
+int get_stream_processor_group_id(int stream_id, int group_count);
 
 /**
  * @brief      Get the number of active processor groups on the system.

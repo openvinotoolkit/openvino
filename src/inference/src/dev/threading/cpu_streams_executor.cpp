@@ -169,7 +169,7 @@ struct CPUStreamsExecutor::Impl {
                     _stream_type = STREAM_WITHOUT_PARAM;
                 }
             }
-            const int target_group = get_stream_processor_group_id(_numaNodeId, stream_id, get_num_processor_groups());
+            const int target_group = get_stream_processor_group_id(stream_id, get_num_processor_groups());
             if (_stream_type == STREAM_WITHOUT_PARAM) {
                 // On multi-group Windows (target_group >= 0) distribute the stream across processor
                 // groups; max_threads_per_core is dropped so tbbbind does not confine it to one group.

@@ -639,43 +639,34 @@ INSTANTIATE_TEST_SUITE_P(CpuStreamType,
                                          _1sockets_32cores_all_proc_skip_binding_all_core_kinds));
 #endif
 
-TEST(StreamProcessorGroupId, PrefersNumaNodeWhenKnown) {
-    // A known numa node id maps directly to its processor group when within range.
-    EXPECT_EQ(get_stream_processor_group_id(0, 100, 6), 0);
-    EXPECT_EQ(get_stream_processor_group_id(3, 100, 6), 3);
-    EXPECT_EQ(get_stream_processor_group_id(5, 0, 6), 5);
+TEST(StreamProcessorGroupId, RoundRobinByStreamId) {
+    // Streams are distributed across processor groups round-robin by stream index.
+    EXPECT_EQ(get_stream_processor_group_id(0, 6), 0);
+    EXPECT_EQ(get_stream_processor_group_id(1, 6), 1);
+    EXPECT_EQ(get_stream_processor_group_id(5, 6), 5);
+    EXPECT_EQ(get_stream_processor_group_id(6, 6), 0);
+    EXPECT_EQ(get_stream_processor_group_id(49, 6), 1);
 }
 
-TEST(StreamProcessorGroupId, WrapsNumaNodeIntoGroupRange) {
-    // A numa id greater than or equal to the group count wraps around.
-    EXPECT_EQ(get_stream_processor_group_id(6, 0, 6), 0);
-    EXPECT_EQ(get_stream_processor_group_id(7, 0, 6), 1);
-}
-
-TEST(StreamProcessorGroupId, RoundRobinByStreamWhenNumaUnknown) {
-    // A negative numa id falls back to round-robin distribution by stream index.
-    EXPECT_EQ(get_stream_processor_group_id(-1, 0, 6), 0);
-    EXPECT_EQ(get_stream_processor_group_id(-1, 1, 6), 1);
-    EXPECT_EQ(get_stream_processor_group_id(-1, 5, 6), 5);
-    EXPECT_EQ(get_stream_processor_group_id(-1, 6, 6), 0);
-    EXPECT_EQ(get_stream_processor_group_id(-1, 49, 6), 1);
+TEST(StreamProcessorGroupId, HandlesNegativeStreamId) {
+    // A negative stream id degrades to group 0 rather than producing an out-of-range index.
+    EXPECT_EQ(get_stream_processor_group_id(-1, 6), 0);
 }
 
 TEST(StreamProcessorGroupId, ReturnsNoGroupOnSingleOrInvalidGroupCount) {
     // A single group (or invalid count) means no distribution is needed: no group policy is applied.
-    EXPECT_EQ(get_stream_processor_group_id(3, 7, 1), -1);
-    EXPECT_EQ(get_stream_processor_group_id(3, 7, 0), -1);
-    EXPECT_EQ(get_stream_processor_group_id(3, 7, -1), -1);
-    EXPECT_EQ(get_stream_processor_group_id(-1, 7, 1), -1);
+    EXPECT_EQ(get_stream_processor_group_id(7, 1), -1);
+    EXPECT_EQ(get_stream_processor_group_id(7, 0), -1);
+    EXPECT_EQ(get_stream_processor_group_id(7, -1), -1);
 }
 
 TEST(StreamProcessorGroupId, DistributesStreamsEvenlyAcrossGroups) {
-    // 288 concurrency-1 streams with unknown numa id must spread evenly across 6 processor groups.
+    // 288 concurrency-1 streams must spread evenly across 6 processor groups.
     const int group_count = 6;
     const int stream_count = 288;
     std::vector<int> per_group(group_count, 0);
     for (int stream_id = 0; stream_id < stream_count; ++stream_id) {
-        per_group[get_stream_processor_group_id(-1, stream_id, group_count)]++;
+        per_group[get_stream_processor_group_id(stream_id, group_count)]++;
     }
     for (int group = 0; group < group_count; ++group) {
         EXPECT_EQ(per_group[group], stream_count / group_count);
@@ -692,11 +683,10 @@ TEST(StreamProcessorGroupId, NumProcessorGroupsIsAtLeastOne) {
 
 TEST(StreamProcessorGroupId, NoDistributionWhenSystemReportsSingleGroup) {
     // End-to-end guard: on a single-group system (e.g. non-Windows CI) streams get no group policy,
-    // so behavior is unchanged regardless of numa id or stream index.
+    // so behavior is unchanged regardless of stream index.
     if (get_num_processor_groups() <= 1) {
         for (int stream_id = 0; stream_id < 16; ++stream_id) {
-            EXPECT_EQ(get_stream_processor_group_id(-1, stream_id, get_num_processor_groups()), -1);
-            EXPECT_EQ(get_stream_processor_group_id(stream_id, stream_id, get_num_processor_groups()), -1);
+            EXPECT_EQ(get_stream_processor_group_id(stream_id, get_num_processor_groups()), -1);
         }
     }
 }
