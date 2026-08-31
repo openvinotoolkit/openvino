@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "ssl socket read timeout downloading from storage openvinotoolkit org|Network",
+  "signature_hash": "ef7ff8098ad21c2c",
+  "title": "Samples test_nireq timeout downloading test data from storage.openvinotoolkit.org",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-08-31T12:03:47Z",
+  "last_seen": "2026-08-31T12:03:47Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/33383714609"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37751"
+  ],
+  "recent_timestamps": [
+    "2026-08-31T12:03:47Z"
+  ],
+  "rerun_search_string": "storage.openvinotoolkit.org"
+}

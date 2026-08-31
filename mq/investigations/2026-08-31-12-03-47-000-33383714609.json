@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-31-12-03-47-000-33383714609",
+  "timestamp": "2026-08-31T12:03:47Z",
+  "run_id": "33383714609",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33383714609",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37751",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37751",
+  "author": "gkoscins",
+  "category": "Network",
+  "title": "Samples test_nireq timeout downloading test data from storage.openvinotoolkit.org",
+  "signature": "ssl socket read timeout downloading from storage openvinotoolkit org|Network",
+  "signature_hash": "ef7ff8098ad21c2c",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Samples / Samples",
+      "conclusion": "failure",
+      "symptom": "test_nireq[CPU-4-sync-C++] timed out (>180s) while downloading bvlcalexnet-12.onnx from storage.openvinotoolkit.org"
+    }
+  ],
+  "key_errors": [
+    "install/tests/smoke_tests/test_benchmark_app.py::test_nireq[CPU-4-sync-C++] FAILED [  1%]",
+    "response = _requests_get(\"https://storage.openvinotoolkit.org/repositories/openvino/ci_dependencies/test/2021.4/samples_smoke_tests_data_2021.4.zip\")",
+    "return self._sslobj.read(len, buffer)\nE               Failed: Timeout (>180.0s) from pytest-timeout.",
+    "FAILED install/tests/smoke_tests/test_benchmark_app.py::test_nireq[CPU-4-sync-C++] - Failed: Timeout (>180.0s) from pytest-timeout.",
+    "1 failed, 205 passed in 538.36s (0:08:58)"
+  ],
+  "root_cause": "The test downloads sample test data (bvlcalexnet-12.onnx) from storage.openvinotoolkit.org. The SSL socket connection was established but the data transfer stalled mid-stream and timed out after 180 seconds. All other 205 tests passed, indicating this is a transient network issue affecting the download of test data from the external storage server, not a code regression. The PR (37751) only modifies Dockerfile and docker_tag for GPU tests and is unrelated to this failure.",
+  "reproduction_steps": "N/A - transient network timeout; not consistently reproducible outside CI.",
+  "recommended_actions": [
+    "Re-run the failed job - the issue is transient network connectivity to storage.openvinotoolkit.org",
+    "Consider adding retry logic in samples_common_test_class.py _requests_get() for network timeouts",
+    "Consider increasing the pytest-timeout value for tests that require network downloads"
+  ],
+  "prevention_strategies": "Add retry logic with exponential backoff in the _requests_get() wrapper function used for downloading test data. Pre-cache test data artifacts in the CI runner image or use a more reliable CDN/mirror.",
+  "historical_context": "This is the first occurrence of this specific signature in the pattern database."
+}
