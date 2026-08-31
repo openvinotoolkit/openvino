@@ -312,32 +312,24 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
             if (dim < 0)
                 return runtime_dim;
 
-            return std::to_string(ensure_positive_dim(dim,
-                                                      dim_name,
-                                                      "SDPA: invalid non-positive ",
-                                                      " for JIT constants generation"));
+            return std::to_string(ensure_positive_dim(dim, dim_name, "SDPA: invalid non-positive ", " for JIT constants generation"));
         };
 
-        const auto q_head_size = get_static_or_runtime_dim(
-            get_head_size(params.get_input_layout(0), extended_input_q_transpose_order),
-            q_jitter.dim(get_transposed_channel(ChannelName::X, extended_input_q_transpose_order)),
-            "q_head_size");
-        const auto q_num_head = get_static_or_runtime_dim(
-            get_num_heads(params.get_input_layout(0), extended_input_q_transpose_order),
-            q_jitter.dim(get_transposed_channel(ChannelName::FEATURE, extended_input_q_transpose_order)),
-            "q_num_head");
-        auto k_head_size = get_static_or_runtime_dim(
-            get_head_size(params.get_input_layout(1), extended_input_k_transpose_order),
-            k_jitter.dim(get_transposed_channel(ChannelName::X, extended_input_k_transpose_order)),
-            "k_head_size");
-        const auto k_num_head = get_static_or_runtime_dim(
-            get_num_heads(params.get_input_layout(1), extended_input_k_transpose_order),
-            k_jitter.dim(get_transposed_channel(ChannelName::FEATURE, extended_input_k_transpose_order)),
-            "k_num_head");
-        auto v_head_size = get_static_or_runtime_dim(
-            get_head_size(params.get_input_layout(2), extended_input_v_transpose_order),
-            v_jitter.dim(get_transposed_channel(ChannelName::X, extended_input_v_transpose_order)),
-            "v_head_size");
+        const auto q_head_size = get_static_or_runtime_dim(get_head_size(params.get_input_layout(0), extended_input_q_transpose_order),
+                                                           q_jitter.dim(get_transposed_channel(ChannelName::X, extended_input_q_transpose_order)),
+                                                           "q_head_size");
+        const auto q_num_head = get_static_or_runtime_dim(get_num_heads(params.get_input_layout(0), extended_input_q_transpose_order),
+                                                          q_jitter.dim(get_transposed_channel(ChannelName::FEATURE, extended_input_q_transpose_order)),
+                                                          "q_num_head");
+        auto k_head_size = get_static_or_runtime_dim(get_head_size(params.get_input_layout(1), extended_input_k_transpose_order),
+                                                     k_jitter.dim(get_transposed_channel(ChannelName::X, extended_input_k_transpose_order)),
+                                                     "k_head_size");
+        const auto k_num_head = get_static_or_runtime_dim(get_num_heads(params.get_input_layout(1), extended_input_k_transpose_order),
+                                                          k_jitter.dim(get_transposed_channel(ChannelName::FEATURE, extended_input_k_transpose_order)),
+                                                          "k_num_head");
+        auto v_head_size = get_static_or_runtime_dim(get_head_size(params.get_input_layout(2), extended_input_v_transpose_order),
+                                                     v_jitter.dim(get_transposed_channel(ChannelName::X, extended_input_v_transpose_order)),
+                                                     "v_head_size");
 
         // 4-bit KV-cache: K/V layouts have head_size/2 due to u4→i8 packing.
         // Override with logical head size from query (which is not packed).
