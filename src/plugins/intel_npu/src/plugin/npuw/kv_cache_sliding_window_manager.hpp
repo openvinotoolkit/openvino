@@ -52,8 +52,11 @@ SwaLayout detect_swa_layout(const std::shared_ptr<ov::Model>& model);
 // Fills additive SWA causal mask tensor (f32):
 //   0.0f for visible positions, -inf (fp16 lowest cast to f32) for masked ones.
 // Mask shape is [..., row_dim, col_dim], where past_width = col_dim - row_dim.
-// Past slots are interpreted using circular storage (slot = abs_pos % past_width).
-// Example (saturated): past_width=4, P=6 -> r=2, slot->abs = [4,5,2,3].
+// Past region follows write_swa_kv_slice_circular() storage:
+//   - Unsaturated (P < past_width): valid prefix [0, P), slot c maps to abs=c.
+//   - Saturated   (P >= past_width, r=P%past_width): slot->abs is split by r.
+// Example (saturated): past_width=4, P=6 -> r=2, slot->abs=[4,5,2,3].
+// Visibility is the intersection of causal and sliding-window constraints.
 void fill_causal_sliding_mask(ov::SoPtr<ov::ITensor> mask_tensor,
                               uint32_t num_stored_tokens_before,
                               uint32_t num_real_new_tokens,
