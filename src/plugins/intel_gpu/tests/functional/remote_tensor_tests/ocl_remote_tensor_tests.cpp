@@ -3108,6 +3108,29 @@ TEST(GpuRemoteTensorFromCpu, smoke_allocAlignedCPUMemory) {
     ov::util::aligned_free(output_ptr);
 }
 
+TEST(GpuRemoteTensorFromCpu, smoke_cpuVAMemoryIsNotCached) {
+    ov::Core core;
+    const std::string target_device = ov::test::utils::DEVICE_GPU;
+    const auto cacheline_size = core.get_property(target_device, ov::intel_gpu::cacheline_size);
+    ASSERT_GT(cacheline_size, 0u);
+
+    void* host_ptr = ov::util::aligned_alloc(cacheline_size, cacheline_size);
+    ASSERT_NE(host_ptr, nullptr);
+
+    auto ctx = core.get_default_context(target_device).as<ov::intel_gpu::ocl::ClContext>();
+    const ov::Shape shape{cacheline_size};
+    const ov::intel_gpu::VirtualAddressMemory va_memory{host_ptr, static_cast<int64_t>(cacheline_size)};
+
+    {
+        auto first = ctx.create_tensor(ov::element::u8, shape, va_memory);
+        auto second = ctx.create_tensor(ov::element::u8, shape, va_memory);
+
+        EXPECT_NE(first.get(), second.get());
+    }
+
+    ov::util::aligned_free(host_ptr);
+}
+
 
 using MmapFileMemoryParams = std::tuple<std::size_t, std::size_t>;
 
