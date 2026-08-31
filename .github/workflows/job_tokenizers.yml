@@ -114,6 +114,15 @@ jobs:
         env:
           CMAKE_BUILD_PARALLEL_LEVEL: '4'
 
+      # windows-11-arm ships VS 2026 (with the VS 2022 14.44 toolset), which the cmake~=3.14 pinned by openvino_tokenizers
+      # cannot detect; use the dev prompt + Ninja, as in job_build_windows.yml
+      - name: Setup MSVC dev environment
+        if: ${{ runner.os == 'Windows' && runner.arch == 'ARM64' }}
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          arch: arm64
+          toolset: "14.44"
+
       - name: Build tokenizers wheel (Windows)
         if: runner.os == 'Windows'
         working-directory: ${{ env.OPENVINO_TOKENIZERS_REPO }}
@@ -121,6 +130,7 @@ jobs:
           python3 -m pip wheel -v --no-deps --wheel-dir ${env:EXTENSION_BUILD_DIR} --find-links ${env:INSTALL_WHEELS_DIR} .
         env:
           CMAKE_BUILD_PARALLEL_LEVEL: '4'
+          CMAKE_GENERATOR: ${{ runner.arch == 'ARM64' && 'Ninja' || '' }}
 
       #
       # Upload build artifacts
