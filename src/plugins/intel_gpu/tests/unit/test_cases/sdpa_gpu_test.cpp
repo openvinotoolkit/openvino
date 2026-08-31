@@ -11,6 +11,7 @@
 #include <intel_gpu/runtime/debug_configuration.hpp>
 
 #include "openvino/util/file_util.hpp"
+#include <array>
 #include <iostream>
 #include <vector>
 #include <cmath>
@@ -357,6 +358,39 @@ TEST(sdpa_gpu_custom, dynamic_mismatched_v_head_size) {
     for (size_t i = 0; i < output_data.size(); ++i) {
         ASSERT_NEAR(static_cast<float>(output_data[i]), static_cast<float>(ref_output_data[i]), 1e-3f)
             << "Mismatch at index " << i;
+    }
+}
+
+TEST(sdpa_gpu_custom, static_zero_dimension_throws) {
+    auto& engine = get_test_engine();
+
+    const std::vector<std::array<ov::Shape, 3>> input_shapes = {
+        {{{1, 0, 16, 32}, {1, 0, 16, 32}, {1, 0, 16, 32}}},
+        {{{1, 1, 16, 32}, {1, 1, 16, 32}, {1, 1, 16, 0}}},
+    };
+
+    for (const auto& shapes : input_shapes) {
+        topology topology;
+        topology.add(input_layout("q", layout(shapes[0], data_types::f16, format::bfyx)));
+        topology.add(input_layout("k", layout(shapes[1], data_types::f16, format::bfyx)));
+        topology.add(input_layout("v", layout(shapes[2], data_types::f16, format::bfyx)));
+        topology.add(scaled_dot_product_attention("sdpa",
+                                                  {input_info("q"), input_info("k"), input_info("v")},
+                                                  false,
+                                                  -1,
+                                                  {0, 1, 2, 3},
+                                                  {0, 1, 2, 3},
+                                                  {0, 1, 2, 3},
+                                                  {0, 1, 2, 3},
+                                                  {},
+                                                  false));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+            {"sdpa", {format::type::bfyx, "sdpa_ref"}}
+        }));
+
+        EXPECT_ANY_THROW(get_network(engine, topology, config, get_test_stream_ptr(), false));
     }
 }
 
