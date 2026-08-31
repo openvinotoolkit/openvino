@@ -131,6 +131,10 @@ TEST(ConcatTransformationRegression, MixedPrecisionDequantizationOnDynamicConcat
 
     EXPECT_NO_THROW(transformer.transform(function));
     EXPECT_NO_THROW(function->validate_nodes_and_infer_types());
+
+    const auto output_node = function->get_results().front()->input_value(0).get_node_shared_ptr();
+    ASSERT_TRUE(ov::is_type<ov::op::v1::Multiply>(output_node));
+    EXPECT_EQ(output_node->get_output_element_type(0), element::f32);
 }
 
 const ov::element::TypeVector deqOutPrecisions = {
