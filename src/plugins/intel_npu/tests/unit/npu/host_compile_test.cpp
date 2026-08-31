@@ -156,3 +156,68 @@ TEST_F(EnableHostCompileTest, NullModelDoesNotEnable) {
     EXPECT_FALSE(run(nullptr));
     EXPECT_FALSE(config->has<COMPILATION_MODE>());
 }
+
+class UsesHostCompileDynamicGraphTest : public ::testing::Test {
+protected:
+    UsesHostCompileDynamicGraphTest() {
+        auto desc = std::make_shared<OptionsDesc>();
+        desc->add<COMPILER_TYPE>();
+        desc->add<COMPILATION_MODE>();
+        config = std::make_unique<FilteredConfig>(desc);
+        config->enableAll();
+        config->update({{ov::intel_npu::compiler_type.name(), "PLUGIN"}});
+    }
+
+    void setCompilationMode(const std::string& mode) {
+        config->update({{ov::intel_npu::compilation_mode.name(), mode}});
+    }
+
+    bool run(const std::shared_ptr<const ov::Model>& model) {
+        return uses_host_compile_dynamic_graph(model, *config);
+    }
+
+    std::unique_ptr<FilteredConfig> config;
+};
+
+// A dynamic model compiled by the Plugin compiler with an automatically selected HostCompile mode uses the dynamic
+// graph path.
+TEST_F(UsesHostCompileDynamicGraphTest, DynamicPluginHostCompileInterpreterUsesDynamicGraph) {
+    setCompilationMode("HostCompile_Interpreter");
+    EXPECT_TRUE(run(make_relu_model({1, 3, bounded(), bounded()})));
+}
+
+// Any compilation mode starting with "HostCompile" selects the dynamic graph path.
+TEST_F(UsesHostCompileDynamicGraphTest, DynamicPluginHostCompilePrefixUsesDynamicGraph) {
+    setCompilationMode("HostCompile");
+    EXPECT_TRUE(run(make_relu_model({1, 3, bounded(), bounded()})));
+}
+
+// A static model never uses the dynamic graph path.
+TEST_F(UsesHostCompileDynamicGraphTest, StaticModelDoesNotUseDynamicGraph) {
+    setCompilationMode("HostCompile_Interpreter");
+    EXPECT_FALSE(run(make_relu_model({1, 3, UPPER, UPPER})));
+}
+
+// Non-Plugin compilers never use the HostCompile dynamic graph path.
+TEST_F(UsesHostCompileDynamicGraphTest, NonPluginCompilerDoesNotUseDynamicGraph) {
+    config->update({{ov::intel_npu::compiler_type.name(), "DRIVER"}});
+    setCompilationMode("HostCompile_Interpreter");
+    EXPECT_FALSE(run(make_relu_model({1, 3, bounded(), bounded()})));
+}
+
+// A non-HostCompile mode does not select the dynamic graph path.
+TEST_F(UsesHostCompileDynamicGraphTest, NonHostCompileModeDoesNotUseDynamicGraph) {
+    setCompilationMode("ReferenceSW");
+    EXPECT_FALSE(run(make_relu_model({1, 3, bounded(), bounded()})));
+}
+
+// An empty (unset) compilation mode does not start with "HostCompile".
+TEST_F(UsesHostCompileDynamicGraphTest, EmptyModeDoesNotUseDynamicGraph) {
+    EXPECT_FALSE(run(make_relu_model({1, 3, bounded(), bounded()})));
+}
+
+// A null model must be handled gracefully.
+TEST_F(UsesHostCompileDynamicGraphTest, NullModelDoesNotUseDynamicGraph) {
+    setCompilationMode("HostCompile_Interpreter");
+    EXPECT_FALSE(run(nullptr));
+}

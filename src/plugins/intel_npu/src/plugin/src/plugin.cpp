@@ -372,11 +372,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // Resolve HostCompile before batching so the selected mode controls subsequent model and batch handling.
     enable_host_compile_if_needed(model, localConfig, _logger);
 
-    // Read the default or explicit compilation mode so automatic and user-selected HostCompile take the same path.
     // HostCompile dynamic models retain their dynamic dimensions for the VM runtime instead of plugin debatching.
-    const bool useDynamicGraphForDynamicModel = model->is_dynamic() &&
-                                                compilerType == ov::intel_npu::CompilerType::PLUGIN &&
-                                                localConfig.get<COMPILATION_MODE>().find("HostCompile") == 0;
+    const bool useDynamicGraphForDynamicModel = uses_host_compile_dynamic_graph(model, localConfig);
 
     // Handle batch mode configuration
     std::optional<ov::Dimension> originalBatch = std::nullopt;

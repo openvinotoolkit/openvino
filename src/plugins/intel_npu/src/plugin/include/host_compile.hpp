@@ -30,4 +30,17 @@ bool enable_host_compile_if_needed(const std::shared_ptr<const ov::Model>& model
                                    FilteredConfig& config,
                                    const Logger& logger = Logger::global());
 
+/**
+ * @brief Tells whether a model must be compiled through the HostCompile dynamic-graph path.
+ *
+ * HostCompile dynamic models keep their dynamic dimensions for the VM runtime instead of plugin-side debatching. This
+ * is the case for a dynamic model compiled by the Plugin compiler when the resolved compilation mode starts with
+ * "HostCompile" (either selected automatically by @ref enable_host_compile_if_needed or set explicitly by the user).
+ *
+ * @param model  Model being compiled.
+ * @param config Configuration holding the resolved compiler type and compilation mode.
+ * @return True if the HostCompile dynamic-graph path must be used, false otherwise.
+ */
+bool uses_host_compile_dynamic_graph(const std::shared_ptr<const ov::Model>& model, const Config& config);
+
 }  // namespace intel_npu

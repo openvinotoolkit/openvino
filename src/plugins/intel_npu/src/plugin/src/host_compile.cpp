@@ -62,4 +62,10 @@ bool enable_host_compile_if_needed(const std::shared_ptr<const ov::Model>& model
     return false;
 }
 
+bool uses_host_compile_dynamic_graph(const std::shared_ptr<const ov::Model>& model, const Config& config) {
+    return model != nullptr && model->is_dynamic() &&
+           config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PLUGIN &&
+           config.get<COMPILATION_MODE>().find("HostCompile") == 0;
+}
+
 }  // namespace intel_npu
