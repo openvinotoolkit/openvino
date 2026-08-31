@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 206,
+  "total": 207,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -2022,6 +2022,15 @@
       "category": "Flaky Test",
       "signature_hash": "43e136cf67333978",
       "pr_number": "37653"
+    },
+    {
+      "investigation_id": "2026-08-31-11-19-01-000-33383714649",
+      "run_id": "33383714649",
+      "timestamp": "2026-08-31T11:19:01Z",
+      "title": "NodeJS API tests fail - npm command not found after setup-node Node.js 26 install",
+      "category": "Infrastructure",
+      "signature_hash": "be56bc7e2d2f8799",
+      "pr_number": "37751"
     }
   ]
 }

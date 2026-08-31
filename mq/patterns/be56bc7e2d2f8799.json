@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "npm command not found|Infrastructure",
+  "signature_hash": "be56bc7e2d2f8799",
+  "title": "NodeJS API tests fail - npm command not found after setup-node Node.js 26 install",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-08-31T11:19:01Z",
+  "last_seen": "2026-08-31T11:19:01Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/33383714649"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37751"
+  ],
+  "recent_timestamps": [
+    "2026-08-31T11:19:01Z"
+  ],
+  "rerun_search_string": "npm: command not found"
+}

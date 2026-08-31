@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-31-11-19-01-000-33383714649",
+  "timestamp": "2026-08-31T11:19:01Z",
+  "run_id": "33383714649",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33383714649",
+  "workflow_name": "NodeJS API tests (26) / OpenVINO JS API",
+  "pr_number": "37751",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37751",
+  "author": "gkoscins",
+  "category": "Infrastructure",
+  "title": "NodeJS API tests fail - npm command not found after setup-node Node.js 26 install",
+  "signature": "npm command not found|Infrastructure",
+  "signature_hash": "be56bc7e2d2f8799",
+  "confidence": "High",
+  "failed_jobs": [
+    "NodeJS API tests (26) / OpenVINO JS API - Configure OpenVINO JS API step: npm command not found (exit 127)"
+  ],
+  "key_errors": [
+    "/__w/_temp/ffd80f5a-d78b-4de2-bca7-b5bf169f416f.sh: line 1: npm: command not found",
+    "Process completed with exit code 127"
+  ],
+  "root_cause": "actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e attempted to download and install Node.js 26 into the Docker container runner (took ~50s: 11:06:47 to 11:07:37), but the installation failed silently - npm was not placed on PATH. The subsequent 'npm i' command in the Configure step then failed with exit code 127 (command not found). This is an infrastructure issue with setup-node failing to properly install npm for Node.js 26 in the Docker container environment.",
+  "reproduction_steps": "N/A - infrastructure issue with GitHub Actions runner and setup-node action in Docker container",
+  "recommended_actions": [
+    "Re-run the failed job - it may be a transient setup-node failure",
+    "Check if Node.js 26 is now available as a preinstalled version on the Docker image to avoid the download step",
+    "Consider pinning to Node.js 22 LTS instead of 26 if 26 support in setup-node is unstable",
+    "Investigate setup-node action logs for the download step to confirm installation failure"
+  ],
+  "prevention_strategies": "Pre-install Node.js 26 (or required version) in the Docker image used for JS API tests, to avoid relying on actions/setup-node runtime download in container environments. Alternatively, add a verification step after setup-node to confirm npm is on PATH before proceeding.",
+  "historical_context": "No prior occurrences of this specific npm-not-found failure found in pattern database. A related npm package upload failure was seen in June 2026 (pattern 44ca404e704638aa) but is a different root cause."
+}
