@@ -53,7 +53,8 @@ JitConstants SelectKernelBase::GetJitConstantsCommon(const select_params& params
     } else {
         // x, x, f32
         // x, x, f16
-        if (params.inputs[0].GetDType() == Datatype::F32 || params.inputs[0].GetDType() == Datatype::F16) {
+        // x, x, bf16
+        if (params.inputs[0].GetDType() == Datatype::F32 || params.inputs[0].GetDType() == Datatype::F16 || params.inputs[0].GetDType() == Datatype::BF16) {
             absType = "fabs";
         // f32, f32, i8
         // f32, f32, u8
@@ -69,7 +70,9 @@ JitConstants SelectKernelBase::GetJitConstantsCommon(const select_params& params
 
         // f32, f32, x
         // i32, i32, x
-        if (params.inputs[1].GetDType() == Datatype::F32 || params.inputs[1].GetDType() == Datatype::INT32) {
+        // bf16 will use compute type - f32
+        // bf16, bf16, x
+        if (params.inputs[1].GetDType() == Datatype::F32 || params.inputs[1].GetDType() == Datatype::BF16 || params.inputs[1].GetDType() == Datatype::INT32) {
             destType = "int";
         // f16, f16, x
         // i16, i16, x

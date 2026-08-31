@@ -267,8 +267,10 @@ function(ov_add_test_target_per_source)
         endif()
 
         if(_has_gtest)
+            # PRE_TEST keeps enumeration out of the build: it runs under ctest
             gtest_discover_tests(${_target}
-                DISCOVERY_MODE POST_BUILD
+                DISCOVERY_MODE PRE_TEST
+                DISCOVERY_TIMEOUT 300
                 PROPERTIES LABELS "${ARG_LABELS}"
             )
         endif()
@@ -316,7 +318,9 @@ without it has no effect and triggers a warning):
   CHECK_SOURCES_DIRECTORY          <dir>               Directory to scan (default: CMAKE_CURRENT_SOURCE_DIR)
   CHECK_SOURCES_EXTENSIONS         <ext1> [<ext2>]     Extensions to scan (default: cpp)
   CHECK_SOURCES_EXCLUDE_FILES      <file1> [<file2>]   Files never matching the target's raw SOURCES property
-                                                        (e.g. listed behind a generator expression)
+                                                        (e.g. listed behind a generator expression). Must be
+                                                        plain, unconditional paths (see example below)
+                                                        instead of wrapping the path in a genex.
   CHECK_SOURCES_EXCLUDE_DIRECTORIES <dir1> [<dir2>]    Directories skipped entirely by the scan
   CHECK_SOURCES_EXCLUDE_TARGETS    <tgt1> [<tgt2>]     Other targets whose SOURCES should count as "listed" too
                                                         (e.g. a mock/benchmark target built from files that live
@@ -330,10 +334,44 @@ variable in the target's sources.cmake, e.g.:
       ${CMAKE_CURRENT_LIST_DIR}/foo_test.cpp
       $<$<BOOL:${ENABLE_DEBUG_CAPS}>:${CMAKE_CURRENT_LIST_DIR}/debug_only_test.cpp>
   )
-  # Files above listed behind a generator expression - excluded from the completeness check
-  set(MY_TESTS_CHECK_SOURCES_EXCLUDE_FILES
-      ${CMAKE_CURRENT_LIST_DIR}/debug_only_test.cpp
+  # Files above are listed behind a generator expression - excluded from the completeness check when the
+  # condition is false. Note: the exclude list itself uses a plain if(), not a genex - CHECK_SOURCES_EXCLUDE_FILES
+  # is compared as a raw string and would never match a genex-wrapped entry.
+  set(MY_TESTS_CHECK_SOURCES_EXCLUDE_FILES)
+
+  if(NOT ENABLE_DEBUG_CAPS)
+      list(APPEND MY_TESTS_CHECK_SOURCES_EXCLUDE_FILES
+          ${CMAKE_CURRENT_LIST_DIR}/debug_only_test.cpp
+      )
+  endif()
+
+  ov_check_all_sources_listed(TARGET my_unit_tests
+      DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+
+Legacy example (ROOT — avoid for new targets):
+  ov_add_test_target(
+    NAME              my_unit_tests
+    ROOT              ${CMAKE_CURRENT_SOURCE_DIR}
+    EXCLUDED_SOURCE_PATHS
+        ${CMAKE_CURRENT_SOURCE_DIR}/skip_this/
+    INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    LINK_LIBRARIES
+        common_test_utils
+        openvino::runtime
+    DEPENDENCIES
+        openvino_template_extension
+    GTEST_DISCOVER
+    LABELS
+        OV UNIT
   )
+
+Test-specific parameters (in addition to all ov_add_target parameters):
+  NAME              <target-name>          (required) — also becomes the CTest test name
+  LABELS            <label1> <label2>      CTest LABELS property; must come after all pass-through args
+  GTEST_DISCOVER                           Register per-TEST() CTest entries via gtest_discover_tests
+  TESTS_PER_SOURCE                         Create one executable per source file (local dev only, not CI)
+  COMPONENT         <cpack-component>      CPack install component (default: tests)
 
   # CMakeLists.txt
   include(sources.cmake)
@@ -481,8 +519,10 @@ function(ov_add_test_target)
         include(GoogleTest OPTIONAL RESULT_VARIABLE has_gtest)
 
         if(has_gtest)
+            # PRE_TEST keeps enumeration out of the build: it runs under ctest
             gtest_discover_tests(${ARG_NAME}
-                DISCOVERY_MODE POST_BUILD
+                DISCOVERY_MODE PRE_TEST
+                DISCOVERY_TIMEOUT 300
                 PROPERTIES LABELS "${ARG_LABELS}"
             )
         endif()

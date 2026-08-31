@@ -11,7 +11,7 @@ class SpaceToBatchKernelRef : public SpaceToBatchKernelBase {
 public:
     using Parent = SpaceToBatchKernelBase;
     SpaceToBatchKernelRef() : SpaceToBatchKernelBase("space_to_batch_ref") {}
-    ~SpaceToBatchKernelRef() override {}
+    ~SpaceToBatchKernelRef() override = default;
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

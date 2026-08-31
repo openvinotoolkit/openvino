@@ -129,10 +129,10 @@ Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params&
         for (size_t split = 1; split <= max_slm_split; split *= 2) {
             for (size_t temp_block_features = simd; temp_block_features <= simd * 2; temp_block_features += simd) {
                 for (size_t d = 1; d < max_d; ++d) {
-                    if (d != 1 && params.outputs[0].Z().v % d)
+                    if (d != 1 && ((params.outputs[0].Z().v % d) != 0u))
                         continue;
                     for (size_t h = 1; h < max_h; ++h) {
-                        if (h != 1 && params.outputs[0].Y().v % h)
+                        if (h != 1 && ((params.outputs[0].Y().v % h) != 0u))
                             continue;
 
                         bool c_ifm_mul = CeilDiv(params.weights.IFM().v, fsv) % split == 0;
@@ -200,7 +200,7 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateBlockParamsRatio(const con
     float reg_pressure = EstimateRegPressure(params, block);
 
     // Estimate fb32 usage factor
-    auto& output = params.outputs[0];
+    const auto& output = params.outputs[0];
     float feature_block_32 = static_cast<float>(block.output_block_features == 32);
     float fb32_factor = -5.f;
     if (params.engineInfo.deviceType == dev_type::discrete_gpu && params.engineInfo.supports_imad) {
@@ -497,11 +497,9 @@ KernelsPriority Convolution_kernel_b_fs_zyx_fsv16_imad::GetKernelsPriority(const
     if (!p.is_shape_agnostic) {
         if (static_cast<float>(p.weights.IFM().v) / static_cast<float>(Align(p.weights.IFM().v, fsv)) < 0.5f)
             return FORCE_PRIORITY_4;
-        else
-            return FORCE_PRIORITY_2;
-    } else {
-        return FORCE_PRIORITY_4;
+        return FORCE_PRIORITY_2;
     }
+    return FORCE_PRIORITY_4;
 }
 
 bool Convolution_kernel_b_fs_zyx_fsv16_imad::Validate(const Params& params) const {

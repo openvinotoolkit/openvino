@@ -201,7 +201,7 @@ public:
         const auto& lora_input_lo = params.input_layouts[1];
         size_t batch = extract_channel(ChannelName::BATCH, lora_input_lo);
         size_t feature = extract_channel(ChannelName::FEATURE, lora_input_lo);
-        return batch * feature > 1;
+        return static_cast<size_t>(batch * feature > 1);
     }
 
     static constexpr size_t gemm_a_sg_bk = 32ul;
@@ -766,11 +766,7 @@ bool is_optimized_kernel_supported(const RuntimeParams& params) {
 
     const auto& state_b_layout = params.get_input_layout(4);
     size_t output_state = state_b_layout.get_shape().front();
-    if (output_state % subgroup_size != 0) {
-        return false;
-    }
-
-    return true;
+    return output_state % subgroup_size == 0;
 }
 
 std::vector<size_t> get_stages_execution_order_single_lora(const cldnn::kernel_impl_params& impl_params) {
@@ -961,26 +957,24 @@ public:
             size_t feature = extract_channel(ChannelName::FEATURE, lora_input_lo);
 
             return {BufferDescriptor{lora_rank * batch * feature * lora_count, params.get_output_layout().data_type}};
-        } else {
-            const auto& state_a_lo = params.input_layouts[2];
-            size_t input_state = extract_channel(ChannelName::FEATURE, state_a_lo);
-
-            size_t max_workgroup_size = params.get_device_info().max_work_group_size;
-
-            size_t gemma_sgK = max_workgroup_size / (lora_rank * lora_count);
-            size_t gemma_wgs = ceil_div(input_state, LoraOptBase<>::gemm_a_sg_bk * gemma_sgK);
-
-            return {BufferDescriptor{gemma_wgs * lora_count, params.get_output_layout().data_type}};
         }
+        const auto& state_a_lo = params.input_layouts[2];
+        size_t input_state = extract_channel(ChannelName::FEATURE, state_a_lo);
+
+        size_t max_workgroup_size = params.get_device_info().max_work_group_size;
+
+        size_t gemma_sgK = max_workgroup_size / (lora_rank * lora_count);
+        size_t gemma_wgs = ceil_div(input_state, LoraOptBase<>::gemm_a_sg_bk * gemma_sgK);
+
+        return {BufferDescriptor{gemma_wgs * lora_count, params.get_output_layout().data_type}};
     }
 
     std::vector<size_t> get_stages_execution_order(const cldnn::kernel_impl_params& impl_params) const override {
-        size_t is_single_lora = LoraRefBase<>::get_lora_count(impl_params) == 1;
+        size_t is_single_lora = static_cast<size_t>(LoraRefBase<>::get_lora_count(impl_params) == 1);
         if (is_single_lora) {
             return get_stages_execution_order_single_lora(impl_params);
-        } else {
-            return get_stages_execution_order_hf_lora(impl_params);
         }
+        return get_stages_execution_order_hf_lora(impl_params);
     }
 };
 

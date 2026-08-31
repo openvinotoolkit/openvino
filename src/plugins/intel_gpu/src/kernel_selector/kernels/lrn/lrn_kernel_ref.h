@@ -12,7 +12,7 @@ class LRNKernelRef : public LRNKernelBase {
 public:
     using Parent = LRNKernelBase;
     LRNKernelRef() : LRNKernelBase("lrn_ref") {}
-    ~LRNKernelRef() override {}
+    ~LRNKernelRef() override = default;
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

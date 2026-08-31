@@ -87,9 +87,9 @@ public:
                     size_t total = std::accumulate(static_shape.begin(), static_shape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
                     auto dim = feature.is_static() ? feature.get_length() : static_cast<int64_t>(static_shape[rank - 1]);
                     return ov::PartialShape{ static_cast<int64_t>(total) / dim, dim };
-                } else {
-                    return ov::PartialShape{ ov::Dimension::dynamic(), feature };
                 }
+                return ov::PartialShape{ov::Dimension::dynamic(), feature};
+
             };
 
             auto input0_layout = input_layouts[0];
@@ -200,7 +200,7 @@ public:
             params.outputs = { params.outputs[0].FlattenFeatureAndSpatials() };
 
         bool is_quantized = true;
-        for (auto& input : impl_param.input_layouts)
+        for (const auto& input : impl_param.input_layouts)
             is_quantized &= data_type_traits::is_quantized(input.data_type);
 
         if (is_quantized) {

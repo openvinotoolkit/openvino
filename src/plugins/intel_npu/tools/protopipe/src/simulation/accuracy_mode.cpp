@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -93,12 +92,8 @@ struct InputDataVisitor {
 
 void InputDataVisitor::operator()(std::monostate) {
     // NB: No path provided - generate input random data using initializers.
-    const auto input_names = extractLayerNames(infer.input_layers);
     const auto& initializers = opts.initializers_map.at(infer.tag);
-
-    auto default_initialzer =
-        opts.global_initializer ? opts.global_initializer : std::make_shared<UniformGenerator>(0.0, 255.0);
-    auto layer_initializers = unpackWithDefault(initializers, input_names, default_initialzer);
+    auto layer_initializers = resolveInitializers(infer.input_layers, initializers, opts.global_initializer);
     providers = createRandomProviders(infer.input_layers, std::move(layer_initializers));
 };
 
@@ -125,9 +120,7 @@ void InputDataVisitor::operator()(const std::string& path_str) {
         // NB: Provided path doesn't exist - fall back to random data generation.
         LOG_INFO() << "Input data path: " << path << " for model: " << infer.tag
                    << " doesn't exist - using random data" << std::endl;
-        auto default_initialzer =
-                opts.global_initializer ? opts.global_initializer : std::make_shared<UniformGenerator>(0.0, 255.0);
-        auto layer_initializers = unpackWithDefault(initializers, input_names, default_initialzer);
+        auto layer_initializers = resolveInitializers(infer.input_layers, initializers, opts.global_initializer);
         providers = createRandomProviders(infer.input_layers, std::move(layer_initializers));
     }
 }

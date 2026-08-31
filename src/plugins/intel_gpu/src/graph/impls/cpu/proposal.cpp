@@ -135,7 +135,7 @@ std::vector<roi_t> perform_nms(const std::vector<proposal_t>& proposals,
 
         bool overlaps = std::any_of(res.begin(), res.end(), [&](const roi_t& res_bbox) {
             bool intersecting =
-                (bbox.x0 < res_bbox.x1) & (res_bbox.x0 < bbox.x1) & (bbox.y0 < res_bbox.y1) & (res_bbox.y0 < bbox.y1);
+                (bbox.x0 < res_bbox.x1) && (res_bbox.x0 < bbox.x1) && (bbox.y0 < res_bbox.y1) && (res_bbox.y0 < bbox.y1);
             float overlap = 0.0f;
             if (intersecting) {
                 const float x0 = std::max(bbox.x0, res_bbox.x0);

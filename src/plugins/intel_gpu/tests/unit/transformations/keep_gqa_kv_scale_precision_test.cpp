@@ -8,6 +8,7 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
@@ -20,6 +21,7 @@ using namespace ov::intel_gpu;
 namespace {
 
 using ov::op::internal::GroupQueryAttention;
+using ov::op::internal::GroupQueryAttentionQuantType;
 
 // k_scale / v_scale are inputs 12 / 13 of GroupQueryAttention.
 constexpr size_t k_scale_idx = 12;
@@ -32,20 +34,30 @@ constexpr size_t v_scale_idx = 13;
 std::shared_ptr<ov::Model> make_gqa_model(bool quantized) {
     const auto kv_et = quantized ? ov::element::i8 : ov::element::f16;
 
-    ov::ParameterVector params(14);
-    params[0] = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 2, 1, 16});  // query
-    params[1] = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 1, 1, 16});  // key
-    params[2] = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 1, 1, 16});  // value
-    params[3] = std::make_shared<ov::op::v0::Parameter>(kv_et, ov::PartialShape{1, 1, 8, 16});             // past_key
-    params[4] = std::make_shared<ov::op::v0::Parameter>(kv_et, ov::PartialShape{1, 1, 8, 16});             // past_value
-    params[5] = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1});            // seqlens_k
-    params[6] = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1});            // total_sequence_length
-    for (size_t i = 7; i <= 11; ++i)  // rotary / optional placeholders, unread by validate_and_infer_types
-        params[i] = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1});
-    params[k_scale_idx] = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});  // k_scale
-    params[v_scale_idx] = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});  // v_scale
+    ov::ParameterVector params;
+    ov::OutputVector args(14);
 
-    ov::OutputVector args(params.begin(), params.end());
+    const auto add_param = [&](size_t idx, const ov::element::Type& et, const ov::PartialShape& pshape) {
+        auto p = std::make_shared<ov::op::v0::Parameter>(et, pshape);
+        params.push_back(p);
+        args[idx] = p;
+    };
+
+    add_param(0, ov::element::f16, ov::PartialShape{1, 2, 1, 16});  // query
+    add_param(1, ov::element::f16, ov::PartialShape{1, 1, 1, 16});  // key
+    add_param(2, ov::element::f16, ov::PartialShape{1, 1, 1, 16});  // value
+    add_param(3, kv_et, ov::PartialShape{1, 1, 8, 16});             // past_key
+    add_param(4, kv_et, ov::PartialShape{1, 1, 8, 16});             // past_value
+    add_param(5, ov::element::i32, ov::PartialShape{1});            // seqlens_k
+    add_param(6, ov::element::i32, ov::PartialShape{1});            // total_sequence_length
+    for (size_t i = 7; i <= 11; ++i)                                // empty Constants are treated as absent optional inputs by has_input()
+        args[i] = ov::op::v0::Constant::create(ov::element::dynamic, ov::Shape{0}, {});
+    add_param(k_scale_idx, ov::element::f32, ov::PartialShape{1});  // k_scale
+    add_param(v_scale_idx, ov::element::f32, ov::PartialShape{1});  // v_scale
+
+    // Keep this test compatible with both string-based and enum-based quant type APIs.
+    const auto quant_type = quantized ? GroupQueryAttentionQuantType::PER_CHANNEL : GroupQueryAttentionQuantType::NONE;
+
     auto gqa = std::make_shared<GroupQueryAttention>(args,
                                                      /*num_heads*/ 2,
                                                      /*kv_num_heads*/ 1,
@@ -53,8 +65,8 @@ std::shared_ptr<ov::Model> make_gqa_model(bool quantized) {
                                                      /*do_rotary*/ false,
                                                      /*rotary_interleaved*/ false,
                                                      /*kv_cache_bit_width*/ quantized ? 8 : 0,
-                                                     /*k_quant_type*/ quantized ? "PER_CHANNEL" : "NONE",
-                                                     /*v_quant_type*/ quantized ? "PER_CHANNEL" : "NONE");
+                                                     /*k_quant_type*/ quant_type,
+                                                     /*v_quant_type*/ quant_type);
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gqa->output(0)),
                              std::make_shared<ov::op::v0::Result>(gqa->output(1)),

@@ -1,0 +1,21 @@
+mmt/data_cc,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/data-cc/versions/1,skip,CPU plug-in doesn't support Squeeze operation with dynamic rank Operation name object_classification_layer/Squeeze
+vision/embedder/fungi_V2,https://tfhub.dev/svampeatlas/vision/embedder/fungi_V2/1?tf-hub-format=compressed,skip,Model is not available
+imagenet/resnet_v2_50/feature_vector,https://www.kaggle.com/models/google/resnet-v2/frameworks/tensorFlow2/variations/50-feature-vector/versions/2
+imagenet/mobilenet_v2_100_224/feature_vector,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/100-224-feature-vector/versions/2
+efficientnet/lite0/classification,https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tensorFlow1/variations/lite0-classification/versions/2
+imagenet/efficientnet_v2_imagenet1k_b0/feature_vector,https://www.kaggle.com/models/google/efficientnet-v2/frameworks/tensorFlow2/variations/imagenet1k-b0-feature-vector/versions/2
+imagenet/mobilenet_v1_100_224/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/100-224-classification/versions/2
+magenta/arbitrary-image-stylization-v1-256,https://www.kaggle.com/models/google/arbitrary-image-stylization-v1/frameworks/tensorFlow1/variations/256/versions/2,skip,skipped on all NPU platforms (compilation fails on 5020)
+object_detection/mobile_object_localizer_v1,https://www.kaggle.com/models/google/mobile-object-localizer-v1/frameworks/tensorFlow1/variations/object-detection-mobile-object-localizer-v1/versions/1,xfail,128695 - inference results mismatch
+# models with TensorListConcatV2 op
+efficientdet/lite0/detection,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/lite0-detection/versions/1,skip,fails on all NPU platforms
+# secure notebook models
+unet/industrial/class_1,https://tfhub.dev/nvidia/unet/industrial/class_1/1?tf-hub-format=compressed,skip,Model is not available
+esrgan-tf2,https://www.kaggle.com/models/kaggle/esrgan-tf2/frameworks/tensorFlow2/variations/esrgan-tf2/versions/1
+# TF1 models in .pb format
+i3d-rgb,https://storage.openvinotoolkit.org/repositories/open_model_zoo/public/2022.1/i3d-rgb-tf/rgb.frozen.pb,skip,fails on all NPU platforms
+# Model with SentencePiece tokenizer, use openvino-tokenizers package
+universal-sentence-encoder-multilingual,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/multilingual/versions/2,skip,ticket 179327
+# Hugging Face Models
+facebook/convnext-tiny-224,hf_transformers
+ResNet50,tf_keras_applications

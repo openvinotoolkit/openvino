@@ -60,7 +60,7 @@ void read_value_inst::update_output_memory() {
     GPU_DEBUG_TRACE_DETAIL << " - actual_size " << variable.get_actual_mem_size() << " bytes" << std::endl;
     set_output_memory(variable.get_memory(), false, 0);
 
-    if (auto compressed_cache_variable = dynamic_cast<const ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+    if (const auto* compressed_cache_variable = dynamic_cast<const ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
         auto scales_state = compressed_cache_variable->get_compression_scale_state();
         set_output_memory(scales_state->get_memory(), false, 1);
 

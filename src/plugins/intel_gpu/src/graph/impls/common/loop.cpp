@@ -98,8 +98,7 @@ struct loop_impl : typed_primitive_impl<loop> {
 
     loop_impl() : parent() {}
 
-    loop_impl(const loop_impl& other) : typed_primitive_impl<loop>(other),
-        _back_edges(other._back_edges) {}
+    loop_impl(const loop_impl& other) = default;
 
     explicit loop_impl(const loop_node& node) {
         set_node_params(node);
@@ -234,7 +233,7 @@ struct loop_impl : typed_primitive_impl<loop> {
             }
 
             // Collect output events for waiting for all iterations finishing
-            for (auto& out : body_network->get_outputs()) {
+            for (const auto& out : body_network->get_outputs()) {
                 auto output_id = out->id();
                 if (body_network->has_event(output_id)) {
                     auto output_event = body_network->get_primitive_event(output_id);

@@ -151,7 +151,10 @@ void Gather::initSupportedPrimitiveDescriptors() {
     }
 
     dataPrecision = getOriginalInputPrecisionAtPort(GATHER_DATA);
-    outPrecision = getOriginalOutputPrecisionAtPort(0);
+    // gather support same input and output precision or
+    // input precision (f16/bf16) to output precision (f32) by convert node fusion.
+    // gather_compressed support input precision (u4/i4/u8/i8) to output precision (f16/bf16/f32).
+    outPrecision = compressed ? getOriginalOutputPrecisionAtPort(0) : dataPrecision;
     if (!fusedWith.empty()) {
         outPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
     }

@@ -24,7 +24,7 @@ struct grn_params : public base_params {
 class GRNKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    ~GRNKernelBase() override {}
+    ~GRNKernelBase() override = default;
     using DispatchData = CommonDispatchData;
 
 protected:

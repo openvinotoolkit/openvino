@@ -25,8 +25,9 @@ namespace pooling {
 /// \note       This factory is intended for creating pooling operations like:
 ///             - AveragePool
 ///             - MaxPool
+///             - LpPool
 ///
-///             This class holds all common attributes like srides, dilations,
+///             This class holds all common attributes like strides, dilations,
 ///             paddings, kernel shape and auto_pad type.
 class PoolingFactory {
 public:
@@ -48,6 +49,16 @@ public:
     /// \brief Creates max pooling ONNX operation with 2 outputs (values and indices).
     ov::OutputVector make_max_pool_with_indices() const;
 
+    ///
+    /// \brief      Creates Lp pooling ONNX operation.
+    ///
+    /// \param[in]  p_norm  The p value of the Lp norm computed over each pooling window.
+    ///                     Non-integer values are supported, as required by the opset 1 schema.
+    ///
+    /// \return     Vector of output nodes.
+    ///
+    ov::OutputVector make_lp_pool(float p_norm) const;
+
 protected:
     Node m_onnx_node;
 
@@ -63,6 +74,13 @@ protected:
     enum class StorageOrder : int64_t { ROW_MAJOR = 0, COLUMN_MAJOR = 1 };
 
     StorageOrder m_storage_order;
+
+private:
+    /// \brief Creates an average pooling operation matching the attributes of the ONNX node.
+    ///
+    /// \param[in]  data         The tensor to be pooled.
+    /// \param[in]  exclude_pad  Determines whether zero-padded values are counted in the divisor.
+    ov::Output<ov::Node> make_avg_pool_op(const ov::Output<ov::Node>& data, bool exclude_pad) const;
 };
 }  // namespace pooling
 }  // namespace onnx

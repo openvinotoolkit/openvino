@@ -137,8 +137,7 @@ int driver_dev_id() {
 
     if (result.empty())
         return 0;
-    else
-        return result.back();
+    return result.back();
 }
 
 device_type get_device_type(const cl::Device& device) {
@@ -163,15 +162,13 @@ gfx_version parse_version(cl_uint gmdid) {
     if (gmd_id.architecture > 0 && gmd_id.architecture < 100) {
         // New format
         return { static_cast<uint16_t>(gmd_id.architecture), static_cast<uint8_t>(gmd_id.release), static_cast<uint8_t>(gmd_id.revision)};
-    } else {
-        // Old format
+    }  // Old format
         cl_uint ver = gmdid;
         uint16_t major = ver >> 16;
         uint8_t minor = (ver >> 8) & 0xFF;
         uint8_t revision = ver & 0xFF;
 
         return {major, minor, revision};
-    }
 }
 
 bool get_imad_support(const cl::Device& device) {
@@ -233,7 +230,7 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     info.max_alloc_mem_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_MAX_MEM_ALLOC_SIZE>());
     info.max_global_cache_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_GLOBAL_MEM_CACHE_SIZE>());
 
-    info.supports_image = static_cast<uint8_t>(device.getInfo<CL_DEVICE_IMAGE_SUPPORT>());
+    info.supports_image = (static_cast<uint8_t>(device.getInfo<CL_DEVICE_IMAGE_SUPPORT>()) != 0u);
     info.max_image2d_width = static_cast<uint64_t>(device.getInfo<CL_DEVICE_IMAGE2D_MAX_WIDTH>());
     info.max_image2d_height = static_cast<uint64_t>(device.getInfo<CL_DEVICE_IMAGE2D_MAX_HEIGHT>());
 
@@ -260,20 +257,18 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
 
     info.supports_queue_families = extensions.find("cl_intel_command_queue_families ") != std::string::npos;
 
-#if CL_HPP_TARGET_OPENCL_VERSION >= 300
-    // refer: https://registry.khronos.org/OpenCL/specs/3.0-unified/html/OpenCL_C.html#optional-functionality
-    // These flags are supported from OPENCL_300: CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT, CL_DEVICE_OPENCL_C_FEATURES
-    // OpenCL C3.0: work_group_<ops> are optional. It should be checked 'work group collective functions' are supported in OpenCL C 3.0.
-    info.supports_work_group_collective_functions = device.getInfo<CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT>();
-    info.supports_non_uniform_work_group = device.getInfo<CL_DEVICE_NON_UNIFORM_WORK_GROUP_SUPPORT>();
-#elif CL_HPP_TARGET_OPENCL_VERSION >= 200
-    // OpenCL C2.0: work_group_<ops> are mandatory.
-    info.supports_work_group_collective_functions = true;
-    info.supports_non_uniform_work_group = true;
-#else
-    info.supports_work_group_collective_functions = false;
-    info.supports_non_uniform_work_group = false;
-#endif
+    auto query_device_bool = [&](cl_device_info param) -> bool {
+        cl_bool value = CL_FALSE;
+        try {
+            if (device.getInfo(param, &value) != CL_SUCCESS)
+                return false;
+        } catch (const cl::Error&) {
+            return false;
+        }
+        return value == CL_TRUE;
+    };
+    info.supports_work_group_collective_functions = query_device_bool(CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT);
+    info.supports_non_uniform_work_group = query_device_bool(CL_DEVICE_NON_UNIFORM_WORK_GROUP_SUPPORT);
 
     if (info.supports_intel_required_subgroup_size) {
         info.supported_simd_sizes = device.getInfo<CL_DEVICE_SUB_GROUP_SIZES_INTEL>();
@@ -307,8 +302,8 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
         info.num_threads_per_eu = device.getInfo<CL_DEVICE_NUM_THREADS_PER_EU_INTEL>();
         auto features = device.getInfo<CL_DEVICE_FEATURE_CAPABILITIES_INTEL>();
 
-        info.supports_imad = info.supports_imad || (features & CL_DEVICE_FEATURE_FLAG_DP4A_INTEL);
-        info.supports_immad = info.supports_immad || (features & CL_DEVICE_FEATURE_FLAG_DPAS_INTEL);
+        info.supports_imad = info.supports_imad || ((features & CL_DEVICE_FEATURE_FLAG_DP4A_INTEL) != 0u);
+        info.supports_immad = info.supports_immad || ((features & CL_DEVICE_FEATURE_FLAG_DPAS_INTEL) != 0u);
         if (info.dev_type == device_type::discrete_gpu ||
             info.gfx_ver.major > 12 || (info.gfx_ver.major == 12 && info.gfx_ver.minor >= 70)) {
             info.has_separate_cache = true;
@@ -454,7 +449,7 @@ ocl_device::ocl_device(const ocl_device::ptr other, bool initialize_ctx)
 }
 
 bool ocl_device::is_same(const device::ptr other) {
-    auto casted = downcast<ocl_device>(other.get());
+    auto* casted = downcast<ocl_device>(other.get());
     if (!casted)
         return false;
 
@@ -483,7 +478,7 @@ void ocl_device::initialize() {
     for (auto& device : device_map) {
         if (this->is_same(device.second)) {
             OPENVINO_ASSERT(!found, "[GPU] Multiple matching devices found for ", this->get_info().dev_name, ". Only one matching device is expected");
-            if (auto casted = downcast<ocl_device>(device.second.get())) {
+            if (auto* casted = downcast<ocl_device>(device.second.get())) {
                 auto& casted_device = casted->get_device();
                 if (casted->get_context().get() == nullptr) {
                     casted->set_context(cl::Context(casted_device));
