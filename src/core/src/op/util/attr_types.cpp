@@ -17,7 +17,8 @@ OPENVINO_API EnumNames<ov::op::PadMode>& EnumNames<ov::op::PadMode>::get() {
                                                         {{"constant", ov::op::PadMode::CONSTANT},
                                                          {"edge", ov::op::PadMode::EDGE},
                                                          {"reflect", ov::op::PadMode::REFLECT},
-                                                         {"symmetric", ov::op::PadMode::SYMMETRIC}});
+                                                         {"symmetric", ov::op::PadMode::SYMMETRIC},
+                                                         {"wrap", ov::op::PadMode::WRAP}});
     return enum_names;
 }
 
