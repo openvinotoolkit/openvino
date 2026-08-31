@@ -300,6 +300,29 @@ TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_high_lp_share_relaxe
     EXPECT_EQ(config.tbbPartitioner, TbbPartitioner::AUTO);
 }
 
+TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_multiple_streams_skip_all_core_auto_case) {
+    std::vector<std::vector<int>> proc_type_table = {{16, 4, 8, 4, 0, 0, 0}};
+    const auto tolerance = MemBandwidthPressureBuilder{}
+                               .total_gemms(0)
+                               .total_convs(20)
+                               .total_light_convs(13)
+                               .ratio_compute_convs(0.29f)
+                               .ratio_mem_limited_convs(0.15f)
+                               .ratio_mem_limited_gemms(0.0f)
+                               .ratio_mem_limited_adds(0.4f)
+                               .max_mem_tolerance(0.2f)
+                               .build();
+
+    Config single_stream_config;
+    configure_x86_hybrid_threads(single_stream_config, proc_type_table, tolerance, false, false, 1);
+    EXPECT_EQ(single_stream_config.tbbPartitioner, TbbPartitioner::AUTO);
+
+    Config multiple_streams_config;
+    configure_x86_hybrid_threads(multiple_streams_config, proc_type_table, tolerance, false, false, 2);
+    EXPECT_EQ(multiple_streams_config.modelPreferThreadsLatency, 12);
+    EXPECT_EQ(multiple_streams_config.tbbPartitioner, TbbPartitioner::STATIC);
+}
+
 TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_low_lp_share_keeps_main_and_efficient_auto_case) {
     Config config;
     std::vector<std::vector<int>> proc_type_table = {{28, 8, 16, 4, 0, 0, 0}};
