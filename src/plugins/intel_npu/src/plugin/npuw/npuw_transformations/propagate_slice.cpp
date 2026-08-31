@@ -1243,8 +1243,12 @@ public:
                 return false;
             }
 
-            const size_t expected_reshape_input_dim0 = reshape_output_shape[0] * reshape_output_shape[1];
-            if (tile_output_shape[0] != expected_reshape_input_dim0) {
+            // reshape_output[0] and reshape_output[1] must independently match the repeat factor R
+            // and the original (pre-tile) dimension A respectively - checking only that their
+            // product equals tile_output[0] is not sufficient, since the split could land on the
+            // wrong axis order (e.g. [8,3] instead of [6,4] when A*R == 3*8 == 24), which would
+            // silently propagate the Slice onto the wrong logical dimension.
+            if (reshape_output_shape[0] != tile_repeat_factor || reshape_output_shape[1] != tile_input_shape[0]) {
                 return false;
             }
 
