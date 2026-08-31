@@ -888,13 +888,12 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
     std::vector<int64_t> shape;
     std::string el_type_str;
     const auto& dn = m_node.child("data");
+    const auto node_type = pugixml::get_str_attr(m_node, "type");
 
-    if (!getStrAttribute(dn, "element_type", el_type_str))
-        return;
-
-    if (!getParameters<int64_t>(dn, "shape", shape)) {
-        return;
-    }
+    OPENVINO_ASSERT(getStrAttribute(dn, "element_type", el_type_str),
+                    "Missing attribute 'element_type' for ",
+                    node_type);
+    OPENVINO_ASSERT(getParameters<int64_t>(dn, "shape", shape), "Missing attribute 'shape' for ", node_type);
 
     const auto size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
     const auto offset = static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset"));
@@ -909,9 +908,8 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
         adapter.set(buffer);
     } else {
         if (size < ((ov::shape_size(shape) * el_type.bitwidth() + 7) >> 3)) {
-            const auto type = pugixml::get_str_attr(m_node, "type");
             OPENVINO_THROW("Attribute and shape size are inconsistent for ",
-                           type,
+                           node_type,
                            " op!",
                            size,
                            ", ",
