@@ -145,8 +145,9 @@ std::pair<std::vector<float>, std::vector<float>> paged_reference(const std::vec
                     output[(token * num_heads + h) * head_dim + p] = sum;
 
                     const int64_t cached_tokens = previous + token - token_begin + 1;
-                    if (interval > 0 && (cached_tokens % interval == 0 || token + 1 == token_end)) {
-                        const int64_t slot = 1 + (cached_tokens - 1) / interval;
+                    const bool interval_hit = interval > 0 && cached_tokens % interval == 0;
+                    if (interval_hit || token + 1 == token_end) {
+                        const int64_t slot = interval > 0 ? 1 + (cached_tokens - 1) / interval : 1;
                         if (block_begin + slot < block_indices_begins[seq + 1]) {
                             const int64_t block = block_indices[block_begin + slot];
                             for (int32_t n = 0; n < state_size; n++)
@@ -355,6 +356,7 @@ TEST(smoke_GPUSelectiveSSMIntegration, PagedSelectiveSSMDynamicModel) {
     const std::vector<PagedCase> cases{
         {{0, 3, 5}, {0, 1, 2, 3, 4, 5}, {0, 3, 6}, {0, 1}, {2, 2}, 6, 4, 2, 3, 5},
         {{0, 1}, {1, 1}, {0, 2}, {4}, {2}, 2, 4, 2, 3, 5},
+        {{0, 1}, {0, 0}, {0, 2}, {0}, {0}, 1, 4, 2, 3, 5},
         {{0, 2, 7}, {5, 2, 1, 4, 0, 3}, {0, 2, 6}, {1, 7}, {3, 2}, 6, 6, 3, 5, 33},
         {{0, 2}, {0, 1}, {0, 2}, {max_plugin_metadata - 1}, {max_plugin_metadata}, 2, 2, 1, 1, 513},
         {{0, 0}, {}, {0, 0}, {0}, {2}, 1, 2, 1, 4, 9},
