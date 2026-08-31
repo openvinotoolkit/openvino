@@ -35,9 +35,8 @@ void TensorImpl::CleanupContext::remove_cleanup_hook() noexcept {
 }
 
 // Handles Node environment teardown by forcing TSFN shutdown through the cleanup hook path.
-void TensorImpl::CleanupContext::cleanup_hook(napi_async_cleanup_hook_handle handle, void* data) noexcept {
+void TensorImpl::CleanupContext::cleanup_hook(napi_async_cleanup_hook_handle /*handle*/, void* data) noexcept {
     auto* cleanup_ctx = static_cast<TensorImpl::CleanupContext*>(data);
-    cleanup_ctx->cleanup_handle = handle;
     cleanup_ctx->release_tsfn();
     cleanup_ctx->remove_cleanup_hook();
 }

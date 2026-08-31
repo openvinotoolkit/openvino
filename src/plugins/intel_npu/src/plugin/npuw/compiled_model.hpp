@@ -114,6 +114,7 @@ public:
     static std::shared_ptr<CompiledModel> import_model(std::istream& stream,
                                                        const std::shared_ptr<const ov::IPlugin>& plugin,
                                                        const ov::AnyMap& properties);
+    static void validate_import_routing_tables(const std::shared_ptr<CompiledModel>& compiled);
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
 
     void set_property(const ov::AnyMap& properties) override;
