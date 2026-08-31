@@ -1,9 +1,10 @@
 name: Code coverage
 run-name: ${{ github.event_name == 'schedule' && 'Code coverage - Nightly' || 'Code coverage' }}
 on:
-  schedule:
-    # run daily at 00:00 UTC
-    - cron: '0 0 * * *'
+  # schedule:
+  #   # run daily at 00:00 UTC
+  #   - cron: '0 0 * * *'
+  pull_request: # TODO: revert before merging, testing purposes only
   workflow_dispatch:
     inputs:
       run-cpu-tests:
