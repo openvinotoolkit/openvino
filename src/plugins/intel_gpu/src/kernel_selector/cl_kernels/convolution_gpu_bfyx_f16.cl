@@ -59,7 +59,6 @@ KERNEL(convolution_bfyx_f16)(
     const int xy = get_global_id(0);
     const int x = (xy % X_BLOCKS) * OUTPUT_X_BLOCK_SIZE;
     const int y = (xy / X_BLOCKS);
-    const int input_spatial_size_x = INPUT0_SIZE_X;
 
     const int lid1 = (int)get_local_id(1);
     const int feature_per_wg = (int)get_local_size(1) / SLM_DIV_FACTOR;
@@ -82,7 +81,7 @@ KERNEL(convolution_bfyx_f16)(
 
     const int input_x = x * STRIDE_SIZE_X - PADDING_SIZE_X;
     const int input_y = y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
-    const int right_unreachable_count_x = min(max(0, input_x + INPUT_LINE_SIZE - input_spatial_size_x), 
+    const int right_unreachable_count_x = min(max(0, input_x + INPUT_LINE_SIZE - INPUT0_SIZE_X), 
                                                 INPUT_LINE_SIZE);
     const int left_unreachable_count_x = min(max(0, -input_x), INPUT_LINE_SIZE);
 
@@ -192,7 +191,7 @@ KERNEL(convolution_bfyx_f16)(
                     for (int xb = 0; xb < INPUT_LINE_SIZE; xb++)
                     {
                         const int in_x = input_x + xb;
-                        if (icb * FEATURE_SLICE_SIZE + sglid >= FILTER_IFM_NUM || in_x < 0 || in_x >= input_spatial_size_x)
+                        if (icb * FEATURE_SLICE_SIZE + sglid >= FILTER_IFM_NUM || in_x < 0 || in_x >= INPUT0_SIZE_X)
                             line_cache[xb] = 0;
                         else
                             line_cache[xb] = input[grouped_input_offset +
@@ -206,10 +205,9 @@ KERNEL(convolution_bfyx_f16)(
 #endif  // INPUT_LEFTOVERS
                 {
                     int xb = 0;
-                    for (int i = 0; i < left_unreachable_count_x; i++){
-                        line_cache[xb + i] = 0;
+                    for (; xb < left_unreachable_count_x; xb++){
+                        line_cache[xb] = 0;
                     }
-                    xb += left_unreachable_count_x;
                     const int reachable_size = INPUT_LINE_SIZE - right_unreachable_count_x;
                     for (; xb + 8 <= reachable_size; xb += 8) {
                         INPUT_TYPE8 vv = DT_INPUT_BLOCK_READ8(input, grouped_input_offset +
