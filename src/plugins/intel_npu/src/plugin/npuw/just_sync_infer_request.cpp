@@ -616,7 +616,7 @@ void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& po
             if (funcall_result_iter != m_funcall_result.end()) {
                 funcall_result_iter->second = tensor;
             } else {
-               // Global-output-only: FMM didn't pre-allocate, insert the user's tensor now
+                // Global-output-only: FMM didn't pre-allocate, insert the user's tensor now
                 m_funcall_result[from_submodel] = tensor;
             }
         }
