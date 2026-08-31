@@ -23,6 +23,10 @@ namespace ov::npuw {
 //    to prevent cross-layer shared-shape leakage from sliding layers into full-attention
 //    layers.
 //
+// The pass runs in two phases: it first analyzes the whole model and builds a patch
+// plan (all topology checks happen there), then applies it. An unsupported topology
+// therefore fails before any node is modified.
+//
 // SWA contract:
 // - new_past = window_size
 // - new_kv_total = input_size + window_size
@@ -32,15 +36,15 @@ namespace ov::npuw {
 // - Run before DecomposeGQA / V-tensor optimization passes.
 //
 // Executed once per model variant (prefill and each generate KV-size bucket).
-class PatchSlidingWindowKVLayout : public ov::pass::ModelPass {
+class ShrinkSlidingWindowKVCache : public ov::pass::ModelPass {
     ov::npuw::util::SwaLayout m_swa_layout;
     uint32_t m_kvcache_size;
     uint32_t m_input_size;
     KVAxesPosition m_kv_axes_position;
 
 public:
-    OPENVINO_MODEL_PASS_RTTI("ov::npuw::PatchSlidingWindowKVLayout");
-    PatchSlidingWindowKVLayout(ov::npuw::util::SwaLayout swa_layout,
+    OPENVINO_MODEL_PASS_RTTI("ov::npuw::ShrinkSlidingWindowKVCache");
+    ShrinkSlidingWindowKVCache(ov::npuw::util::SwaLayout swa_layout,
                                uint32_t kvcache_size,
                                uint32_t input_size,
                                const KVAxesPosition& kv_axes_position);

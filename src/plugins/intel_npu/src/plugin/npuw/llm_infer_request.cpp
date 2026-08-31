@@ -940,7 +940,7 @@ void ov::npuw::LLMInferRequest::copy_swa_cache() {
         if (tokens_in_past_chunks > 0u) {
             auto prefill_past_kv = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
 
-            // PatchSlidingWindowKVLayout may shrink SWA past capacity to window size, so
+            // ShrinkSlidingWindowKVCache may shrink SWA past capacity to window size, so
             // read only the valid left-aligned prefix.
             const auto pre_capacity = static_cast<uint32_t>(prefill_past_kv->get_shape()[pre_kv_dim]);
             const uint32_t valid_past_chunks = std::min(tokens_in_past_chunks, pre_capacity);

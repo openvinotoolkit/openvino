@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Tests for PatchSlidingWindowKVLayout through the LLMCompiledModel pipeline.
+// Tests for ShrinkSlidingWindowKVCache through the LLMCompiledModel pipeline.
 // Focus: sliding-mask externalization and sliding/full layer shape invariants.
 
 #include <gtest/gtest.h>
@@ -12,6 +12,8 @@
 
 #include "kv_cache_sliding_window_manager.hpp"
 #include "llm_pass_test_fixture.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 
@@ -19,7 +21,7 @@ namespace {
 
 using ov::test::npuw::RecordingFactory;
 
-class PatchSlidingWindowKVLayoutTest : public ov::test::npuw::LLMPassTestFixture {};
+class ShrinkSlidingWindowKVCacheTest : public ov::test::npuw::LLMPassTestFixture {};
 
 // Maps layer index parsed from "model.layers.N.self_attn" to SDPA node.
 std::map<size_t, std::shared_ptr<ov::op::v13::ScaledDotProductAttention>> sdpa_by_layer(
@@ -48,10 +50,22 @@ std::shared_ptr<ov::Model> build_hybrid_model() {
     return ov::test::npuw::build_sliding_window_test_model(kWindowSize, /*sliding_to_full_ratio=*/1, {}, kNumLayers);
 }
 
+// GQA variant: num_kv_heads < num_heads makes repeat_kv insert a Broadcast whose target
+// shape carries the KV length, which is exactly what the pass has to privatize and patch.
+std::shared_ptr<ov::Model> build_hybrid_gqa_model() {
+    auto cfg = ov::test::npuw::make_test_model_config();
+    cfg.num_layers = kNumLayers;
+    cfg.num_kv_heads = 2;
+    cfg.sliding_window_size = kWindowSize;
+    cfg.sliding_to_full_ratio = 1;
+    ov::test::npuw::ModelBuilder mb;
+    return mb.build_llm(cfg);
+}
+
 }  // namespace
 
 // Hybrid model invariant: both generate and prefill expose only the sliding-mask input.
-TEST_F(PatchSlidingWindowKVLayoutTest, PrefillAndGenerate_ExternalizeOnlySlidingMask) {
+TEST_F(ShrinkSlidingWindowKVCacheTest, PrefillAndGenerate_ExternalizeOnlySlidingMask) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -68,7 +82,7 @@ TEST_F(PatchSlidingWindowKVLayoutTest, PrefillAndGenerate_ExternalizeOnlySliding
 }
 
 // Baseline invariant: non-hybrid models must not gain sliding_window_attention_mask.
-TEST_F(PatchSlidingWindowKVLayoutTest, NonHybridModel_NoMaskExternalized) {
+TEST_F(ShrinkSlidingWindowKVCacheTest, NonHybridModel_NoMaskExternalized) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -82,7 +96,7 @@ TEST_F(PatchSlidingWindowKVLayoutTest, NonHybridModel_NoMaskExternalized) {
 }
 
 // Layer-selective invariant: only sliding layers shrink the past-KV sequence axis.
-TEST_F(PatchSlidingWindowKVLayoutTest, GenerateModel_OnlySlidingLayersPastKVShrunk) {
+TEST_F(ShrinkSlidingWindowKVCacheTest, GenerateModel_OnlySlidingLayersPastKVShrunk) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -102,7 +116,7 @@ TEST_F(PatchSlidingWindowKVLayoutTest, GenerateModel_OnlySlidingLayersPastKVShru
 }
 
 // Generate invariant: sliding mask width matches the post-concat KV total width.
-TEST_F(PatchSlidingWindowKVLayoutTest, GenerateModel_SlidingMaskWidthShrunkToNewKvTotal) {
+TEST_F(ShrinkSlidingWindowKVCacheTest, GenerateModel_SlidingMaskWidthShrunkToNewKvTotal) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -118,7 +132,7 @@ TEST_F(PatchSlidingWindowKVLayoutTest, GenerateModel_SlidingMaskWidthShrunkToNew
 }
 
 // Prefill invariant: sliding mask width follows the same post-concat KV width rule.
-TEST_F(PatchSlidingWindowKVLayoutTest, PrefillModel_SlidingMaskWidthShrunkToNewKvTotal) {
+TEST_F(ShrinkSlidingWindowKVCacheTest, PrefillModel_SlidingMaskWidthShrunkToNewKvTotal) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -140,7 +154,7 @@ TEST_F(PatchSlidingWindowKVLayoutTest, PrefillModel_SlidingMaskWidthShrunkToNewK
 }
 
 // Only sliding-layer past KV parameters get SWA rt_info tag.
-TEST_F(PatchSlidingWindowKVLayoutTest, GenerateModel_OnlySlidingLayersPastKVTaggedWithRtInfo) {
+TEST_F(ShrinkSlidingWindowKVCacheTest, GenerateModel_OnlySlidingLayersPastKVTaggedWithRtInfo) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -159,7 +173,7 @@ TEST_F(PatchSlidingWindowKVLayoutTest, GenerateModel_OnlySlidingLayersPastKVTagg
 }
 
 // Input-source invariant: sliding SDPA consumes the externalized mask, full-attention SDPA does not.
-TEST_F(PatchSlidingWindowKVLayoutTest, GenerateModel_SlidingSDPAUsesExternalizedMask_FullSDPADoesNot) {
+TEST_F(ShrinkSlidingWindowKVCacheTest, GenerateModel_SlidingSDPAUsesExternalizedMask_FullSDPADoesNot) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -189,7 +203,7 @@ TEST_F(PatchSlidingWindowKVLayoutTest, GenerateModel_SlidingSDPAUsesExternalized
 
 // With default prefill hint and chunk size equal to max prompt length,
 // prefill drops empty past KV inputs while generate keeps window-sized past; both externalize SWA mask.
-TEST_F(PatchSlidingWindowKVLayoutTest, PrefillAndGenerate_ExpectedPastAndMaskBehaviorForPromptAndTotalKv) {
+TEST_F(ShrinkSlidingWindowKVCacheTest, PrefillAndGenerate_ExpectedPastAndMaskBehaviorForPromptAndTotalKv) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -223,4 +237,35 @@ TEST_F(PatchSlidingWindowKVLayoutTest, PrefillAndGenerate_ExpectedPastAndMaskBeh
     EXPECT_EQ(prefill_mask_shape->back(), input_ids_shape->back());
     EXPECT_EQ(prefill_mask_shape->back(), 128u);
     EXPECT_EQ(generate_mask_shape->back(), 33u);
+}
+
+// Shape-privatization invariant: KV target-shape constants that carried the full kvcache
+// length are replaced by private constants holding the new post-concat KV total.
+TEST_F(ShrinkSlidingWindowKVCacheTest, GenerateModel_SlidingKVShapeConstantsPatchedToNewKvTotal) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    // Keep the repeat_kv Broadcast intact for direct target-shape inspection.
+    ASSERT_NO_THROW(
+        compiled = create_compiled_model(build_hybrid_gqa_model(), {{"NPUW_LLM_OPTIMIZE_V_TENSORS", "NO"}}, recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& generate = require_sub_model_containing(recorder, "_kv");
+
+    // Generate input_size=1, window=32 => new_kv_total=33.
+    constexpr int64_t kNewKvTotal = 33;
+    std::size_t num_patched = 0;
+    for (const auto& op : generate.model->get_ordered_ops()) {
+        auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op);
+        if (!constant || constant->get_friendly_name().find("/swa_kv_patched") == std::string::npos) {
+            continue;
+        }
+        const auto vals = constant->cast_vector<int64_t>();
+        ASSERT_GE(vals.size(), 2u) << constant->get_friendly_name();
+        EXPECT_EQ(vals[vals.size() - 2], kNewKvTotal) << constant->get_friendly_name();
+        ++num_patched;
+    }
+
+    // Sliding layers (0, 2) only, each patching its K and V repeat_kv Broadcast.
+    EXPECT_EQ(num_patched, 4u);
 }
