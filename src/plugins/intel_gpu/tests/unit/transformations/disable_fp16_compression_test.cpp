@@ -169,6 +169,27 @@ TEST(TransformationTests, DisableFP16CompForGatedResidual_Positive) {
     ASSERT_TRUE(ov::is_conversion_disabled(mvn, ov::element::f16));
 }
 
+TEST(TransformationTests, DisableFP16CompForGatedResidual_DisabledByPassConfig) {
+    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 128});
+    auto gate = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 128});
+    auto branch = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 128});
+    auto gated_branch = std::make_shared<ov::op::v1::Multiply>(gate, branch);
+    auto add = std::make_shared<ov::op::v1::Add>(residual, gated_branch);
+    auto axes = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {-1});
+    auto mvn =
+        std::make_shared<ov::op::v6::MVN>(add, axes, true, 1e-6, ov::op::MVNEpsMode::INSIDE_SQRT);
+
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{mvn}, ov::ParameterVector{residual, gate, branch});
+    ov::pass::Manager manager;
+    manager.get_pass_config()->disable<DisableFP16CompForGatedResidualPattern>();
+    manager.register_pass<DisableFP16Compression>();
+    manager.run_passes(model);
+
+    EXPECT_FALSE(ov::is_conversion_disabled(gated_branch, ov::element::f16));
+    EXPECT_FALSE(ov::is_conversion_disabled(add, ov::element::f16));
+    EXPECT_FALSE(ov::is_conversion_disabled(mvn, ov::element::f16));
+}
+
 TEST(TransformationTests, DisableFP16CompForGatedResidual_ConvertPrecision) {
     auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 128});
     auto gate = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 128});
