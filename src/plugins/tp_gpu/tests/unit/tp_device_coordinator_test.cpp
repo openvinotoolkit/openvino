@@ -530,8 +530,9 @@ TEST_F(TPDeviceCoordinatorTest, GrowsScratchOnSizeChange) {
     const auto stats = coord->get_scratch_stats();
     const size_t expected_capacity = 4096 * sizeof(ov::float16);
     EXPECT_EQ(stats.payload_capacity_bytes, expected_capacity);
-    EXPECT_EQ(stats.total_allocated_bytes, 2 * expected_capacity)
-        << "scratch should hold one max-sized allocation per rank";
+    // Per rank, and per set of staging: two ranks holding two sets each.
+    EXPECT_EQ(stats.total_allocated_bytes, 2 * 2 * expected_capacity)
+        << "scratch should hold one max-sized allocation per rank and buffer";
     EXPECT_EQ(stats.growth_count, 3u) << "scratch must grow only for 1024, 2048 and 4096";
     EXPECT_EQ(stats.allocation_count, 6u) << "TP=2 must allocate two buffers per growth";
 
@@ -588,7 +589,10 @@ TEST_F(TPDeviceCoordinatorTest, ReusesCollectiveSlotsSequentially) {
 
     const auto stats = coord->get_scratch_stats();
     EXPECT_EQ(stats.payload_capacity_bytes, bytes) << "capacity must equal the largest collective payload";
-    EXPECT_EQ(stats.total_allocated_bytes, 2 * bytes) << "scratch size must not depend on the slot count";
+    // Two ranks, and two sets of staging per rank so that consecutive
+    // instances of a collective never share bytes.  What must not appear in
+    // this figure is the number of collective slots.
+    EXPECT_EQ(stats.total_allocated_bytes, 2 * 2 * bytes) << "scratch size must not depend on the slot count";
     EXPECT_EQ(stats.growth_count, 1u) << "equal-size slots must share the first allocation";
     EXPECT_EQ(stats.allocation_count, 2u) << "TP=2 must own one allocation per rank";
 
@@ -741,6 +745,60 @@ TEST_F(TPDeviceCoordinatorTest, AbortReleasesWaitingRank) {
 
     waiter.join();
     EXPECT_TRUE(coord->is_aborted());
+}
+
+// Once a collective rides in the model's queue there is no host-side wait left
+// to time out: a rank that never signals leaves its peers waiting on the
+// device, where Level Zero has no deadline.  The watchdog is what notices, and
+// what it must not do is mistake a host that is deliberately running ahead for
+// a group that has died -- a 32k prefill hands over every collective of a pass
+// before a single one is accounted for.
+
+TEST_F(TPDeviceCoordinatorTest, WatchdogLeavesAGroupWithNothingOutstandingAlone) {
+    Watchdog watchdog(30);
+    auto shared = make_shared_ctx(2);
+    auto coord = std::make_shared<TPDeviceCoordinator>(shared, 2, 1, std::chrono::milliseconds{200});
+
+    // Collectives handed over and none of them reported back, for several
+    // times the deadline.  Nothing was actually spliced, so nothing is
+    // outstanding on any device and the group is idle, not stuck.
+    const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds{800};
+    while (std::chrono::steady_clock::now() < until) {
+        coord->note_collective_started(0);
+        coord->note_collective_started(1);
+        std::this_thread::sleep_for(std::chrono::milliseconds{30});
+    }
+    EXPECT_FALSE(coord->is_aborted());
+}
+
+TEST_F(TPDeviceCoordinatorTest, WatchdogLeavesARunningGroupAlone) {
+    Watchdog watchdog(30);
+    auto shared = make_shared_ctx(2);
+    auto coord = std::make_shared<TPDeviceCoordinator>(shared, 2, 1, std::chrono::milliseconds{200});
+
+    RankScratch rs[2];
+    std::vector<void*> ins(2);
+    std::vector<void*> outs(2);
+    const size_t bytes = elements * sizeof(ov::float16);
+    for (int r = 0; r < 2; ++r) {
+        rs[r].init(shared->context, shared->devices[r]);
+        ins[r] = rs[r].alloc(bytes);
+        outs[r] = rs[r].alloc(bytes);
+    }
+
+    // Real collectives, run for several times the deadline.  The watchdog
+    // polls the devices while this happens and must find them progressing.
+    const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds{800};
+    while (std::chrono::steady_clock::now() < until) {
+        run_collective(*coord, 0, ins, outs, elements, ov::element::f16);
+    }
+    EXPECT_FALSE(coord->is_aborted());
+
+    for (int r = 0; r < 2; ++r) {
+        ov::zeMemFree(shared->context, ins[r]);
+        ov::zeMemFree(shared->context, outs[r]);
+        rs[r].destroy();
+    }
 }
 
 }  // namespace

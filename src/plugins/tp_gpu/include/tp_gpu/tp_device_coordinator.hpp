@@ -12,6 +12,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <vector>
 
@@ -70,6 +71,43 @@ public:
     /// that: the device queues may still hold unfinished work, so every later
     /// call throws instead of running on top of unknown state.
     bool is_aborted() const { return m_aborted.load(std::memory_order_acquire); }
+
+    /// Tells the watchdog that this rank has handed a collective to a queue
+    /// whose completion the host will not wait for.
+    ///
+    /// Draining our own queue used to be what caught a dead peer: a rank that
+    /// never signalled left `zeCommandQueueSynchronize` to time out.  Once the
+    /// collective rides in the model's queue there is no such call -- the wait
+    /// happens on the device, where Level Zero offers no deadline at all, and
+    /// a rank that dies takes the whole inference down into a hang.
+    void note_collective_started(int rank);
+
+    /// Hands this rank's share of an AllReduce to `model_queue` -- the
+    /// immediate command list intel_gpu already runs the model on -- and
+    /// returns without waiting for it.
+    ///
+    /// The queue is in-order, so the recording lands after the operations
+    /// that produced `in_dev` and before whatever reads `out_dev`, with no
+    /// drain in between.  That is the whole point: the host goes on
+    /// dispatching the next stretch of the model while four devices work
+    /// through the collective, instead of stopping at every one of them.
+    ///
+    /// Falls back to the synchronous path when the driver has no splice.
+    ///
+    /// Virtual for the same reason allreduce() is: the GPU plugin calls the
+    /// coordinator through this vtable without linking against the plugin
+    /// that defines it.
+    virtual void allreduce_async(int collective_id,
+                                 int rank,
+                                 void* in_dev,
+                                 void* out_dev,
+                                 std::size_t n,
+                                 ov::element::Type dtype,
+                                 ze_command_list_handle_t model_queue);
+
+    /// Whether allreduce_async can do anything but forward to allreduce().
+    virtual bool async_supported() const;
+
 
     /// Marks the group as failed, wakes every waiting rank and makes all
     /// subsequent calls throw.  Safe to call from any rank; the first reason
@@ -180,6 +218,10 @@ private:
         enum class Kind { allreduce, gather };
         Kind                        kind{Kind::allreduce};
 
+        // Which of the coordinator's resource sets this plan draws on.  Baked
+        // into the recording, because the staging addresses are.
+        int                         buffer{0};
+
         // Gather only: rows of the matrix being collected, and how many
         // elements of each row this rank contributes.  `n` stays the total
         // element count of the local slice so the signature check is uniform.
@@ -197,6 +239,18 @@ private:
         std::vector<ze_event_handle_t> ev_recv;     // [N-1]
         ze_event_handle_t           ev_reduce{nullptr};
         std::vector<ze_event_handle_t> ev_bcast;    // [N-1]
+
+        // Signalled when this rank's spliced recording has finished on the
+        // device.  Host-visible, unlike everything else here, because two
+        // parties ask about it from the host: the rank itself, before
+        // splicing the same list again, and the watchdog, which has no other
+        // way to tell a device that is merely behind from one that is stuck.
+        ze_event_pool_handle_t      done_pool{nullptr};
+        std::vector<ze_event_handle_t> ev_done;     // [N]
+        // Whether that event belongs to a splice that has not been accounted
+        // for yet.  Atomic because the watchdog reads it while the ranks
+        // write it.
+        std::unique_ptr<std::atomic<uint8_t>[]> in_flight;  // [N]
 
         // Ring schedule: one event per (step, rank), signaled by the rank's
         // outgoing copy at that step and waited on by its successor.  Laid
@@ -388,8 +442,27 @@ private:
     /// non-empty and removes the need to signal skipped steps.
     void ring_chunk(std::size_t n, int chunk, std::size_t& offset, std::size_t& count) const;
 
-    /// Staging slot for `chunk` on `rank` inside the ring arena.
-    void* ring_slot(int rank, int chunk) const;
+    /// Staging slot for `chunk` on `rank` inside the ring arena, in the
+    /// half of it belonging to `buffer`.
+    void* ring_slot(int rank, int chunk, int buffer) const;
+
+    /// How many independent sets of plans and staging exist per collective.
+    ///
+    /// Two, once ranks run their own schedule: a rank that has left a
+    /// collective may reach the same one again on the next token while its
+    /// neighbours are still executing the previous instance, and the ring
+    /// writes into a neighbour's staging.  Alternating between two sets means
+    /// the recording being laid down and the one still running never share a
+    /// command list, an event or a byte of the arena.  The funnel keeps one
+    /// set: rank 0 drives it from a single thread and nothing overlaps.
+    int plan_buffers() const { return per_rank_schedule() ? 2 : 1; }
+
+    /// The plan holding `collective_id` in the given buffer.
+    Plan& plan_at(int collective_id, int buffer) const {
+        return *m_plans[static_cast<std::size_t>(collective_id) *
+                            static_cast<std::size_t>(plan_buffers()) +
+                        static_cast<std::size_t>(buffer)];
+    }
 
     /// Creates the plan's per-rank command lists if it has none.  Called at
     /// setup so the cost does not land on the first inference, and again from
@@ -412,7 +485,7 @@ private:
 
     bool ensure_scratch_capacity(std::size_t payload_bytes);
     void destroy_scratch();
-    void* scratch_buffer(int index) const;
+    void* scratch_buffer(int index, int buffer) const;
 
     // Per-call host-side breakdown of execute_plan().  Shaped so it stays
     // meaningful for any world size: the per-rank sync times are folded into
@@ -455,6 +528,32 @@ private:
     /// out of patience" from "somebody else already failed".
     [[noreturn]] void fail_collective(bool timed_out, int collective_id, int rank, const char* stage);
 
+    /// The body behind allreduce() and allreduce_async().  A null
+    /// `model_queue` means the caller wants the collective drained before it
+    /// returns; a handle means splice it and go.
+    void run_allreduce(int collective_id,
+                       int rank,
+                       void* in_dev,
+                       void* out_dev,
+                       std::size_t n,
+                       ov::element::Type dtype,
+                       ze_command_list_handle_t model_queue);
+
+    /// Watches the per-rank progress counters and turns a device-side wait
+    /// that stopped advancing into an aborted group.  Started on the first
+    /// note_collective_started(), so a purely synchronous run never pays for
+    /// the thread.
+    void start_watchdog();
+    void stop_watchdog();
+    void watchdog_loop();
+
+    /// Signals every event of every plan from the host.  Whatever a device is
+    /// waiting on is released, which lets the queues drain and the failure
+    /// surface as an exception instead of a hang.  The results of any
+    /// collective in flight are garbage, which is why this is only ever
+    /// called after the group has already been declared dead.
+    void release_all_waits();
+
     TPL0SharedContextPtr            m_shared;
     int                             m_world_size{0};
     int                             m_num_collectives{0};
@@ -463,6 +562,17 @@ private:
     std::atomic<bool>               m_aborted{false};
     mutable std::mutex              m_abort_mutex;
     std::string                     m_abort_reason;
+
+    // Watchdog accounting.  Monotonic, written only by the rank it belongs
+    // to: how many collectives this rank has handed to the model's queue.
+    // The watchdog uses it as the sign that the host is still moving; whether
+    // the devices are is answered by polling the completion events.
+    std::unique_ptr<std::atomic<uint64_t>[]> m_started;
+    std::once_flag                  m_watchdog_once;
+    std::thread                     m_watchdog;
+    std::mutex                      m_watchdog_mutex;
+    std::condition_variable         m_watchdog_cv;
+    bool                            m_watchdog_stop{false};
     // Toggle between regular-cmdlist + queue-sync (false) and
     // immediate-cmdlist + counter-based event sync (true).  Driven by
     // env var TP_USE_IMMEDIATE.  Latched at construction time.

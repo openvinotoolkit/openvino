@@ -4,6 +4,18 @@
 
 #ifdef ENABLE_TP_GPU
 
+// The collective runs on Level Zero and so does the runtime underneath this
+// impl: ENABLE_TP_GPU is rejected at configure time unless GPU_RT_TYPE=ZE
+// (cmake/features.cmake).  That is what lets the two share a queue instead of
+// the collective draining the model's, and it is why this private runtime
+// header is included from an impl at all.
+//
+// It has to come first: zero_api.hpp undefines its symbols_list macro on the
+// way out unless the includer asked to keep it, and ze_common.hpp is the one
+// that asks.  Let the coordinator's header include it first and ze_common
+// finds the macro already gone.
+#include "ze/ze_stream.hpp"
+
 #include "impls/cpu/cpu_impl_helpers.hpp"
 #include "register.hpp"
 #include "tp_allreduce_inst.h"
@@ -15,9 +27,21 @@
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
+#include <mutex>
 
 namespace cldnn {
 namespace ocl {
+
+namespace {
+
+// The immediate command list intel_gpu runs the model on.
+ze_command_list_handle_t model_queue_of(stream& s) {
+    auto* ze = dynamic_cast<cldnn::ze::ze_stream*>(&s);
+    OPENVINO_ASSERT(ze != nullptr, "[GPU] tp_allreduce expects the Level Zero stream");
+    return ze->get_queue();
+}
+
+}  // namespace
 
 // "OCL" impl that does not actually compile an OpenCL kernel.  All work is
 // dispatched via Level Zero by TPDeviceCoordinator.  Registering as
@@ -72,9 +96,45 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
                             tp_allreduce_inst& instance) override {
         auto& stream = instance.get_network().get_stream();
 
-        if (!events.empty()) {
-            stream.wait_for_events(events);
+        // Handing the collective to the model's queue instead of draining the
+        // stream and running it on our own.  The queue is in-order, so the
+        // spliced recording lands after the operations that produced our
+        // input and before whatever reads our output -- `events` and
+        // stream.finish() were both only ever standing in for that.
+        const auto& coordinator = coordinator_of(instance);
+        const bool async = coordinator->async_supported() &&
+                           std::getenv("TP_SYNC_COLLECTIVE") == nullptr;
+
+        if (std::getenv("TP_PROF") != nullptr) {
+            static std::once_flag reported;
+            std::call_once(reported, [&] {
+                std::cerr << "[TP] collective rides "
+                          << (async ? "in the model queue" : "on its own queue (synchronous)")
+                          << ", in-order=" << (stream.get_queue_type() == QueueTypes::in_order)
+                          << std::endl;
+            });
         }
+
+        if (!async) {
+            if (!events.empty()) {
+                stream.wait_for_events(events);
+            }
+            run_synchronously(instance, stream);
+            return cpu::make_output_event(stream, instance.is_output());
+        }
+
+        auto [in_dev, out_dev, num_elements, ov_dtype] = collective_operands(instance);
+        coordinator->allreduce_async(static_cast<int>(collective_id),
+                                     static_cast<int>(rank),
+                                     in_dev, out_dev, num_elements, ov_dtype,
+                                     model_queue_of(stream));
+        return cpu::make_output_event(stream, instance.is_output());
+    }
+
+    /// The original path: drain this rank's stream, then run the collective on
+    /// the coordinator's own queues and wait for it.  Kept for A/B against the
+    /// spliced path and as the fallback when the driver has no splice.
+    void run_synchronously(tp_allreduce_inst& instance, stream& stream) {
 
         // This call is the seam in the stretch between two collectives:
         // everything before it is the host dispatching the model's operations,
@@ -117,16 +177,15 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
             }
         }
 
-        auto params = instance.get_impl_params();
-        const auto& input_layout = params->input_layouts[0];
-        auto input_mem_ptr = instance.input_memory_ptr();
-        auto output_mem_ptr = instance.output_memory_ptr();
+        auto [in_dev, out_dev, num_elements, ov_dtype] = collective_operands(instance);
+        coordinator_of(instance)->allreduce(static_cast<int>(collective_id),
+                                            static_cast<int>(rank),
+                                            in_dev, out_dev, num_elements, ov_dtype);
+    }
 
-        const size_t num_elements = input_layout.count();
-        const auto etype = input_layout.data_type;
-
-        // The coordinator is runtime state of the network, injected by the
-        // tensor-parallel plugin after this model was compiled or imported.
+    /// The coordinator is runtime state of the network, injected by the
+    /// tensor-parallel plugin after this model was compiled or imported.
+    const ov::tp_gpu::TPDeviceCoordinatorPtr& coordinator_of(tp_allreduce_inst& instance) const {
         const auto& registry = instance.get_network().get_collective_comm_registry();
         OPENVINO_ASSERT(registry != nullptr,
             "[GPU] tp_allreduce requires a collective registry; the tensor-parallel plugin must inject "
@@ -134,6 +193,19 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
         const auto& coordinator = registry->get_group(group_id);
         OPENVINO_ASSERT(coordinator != nullptr,
             "[GPU] tp_allreduce ocl impl requires TPDeviceCoordinator (shared L0 context)");
+        return coordinator;
+    }
+
+    struct Operands {
+        void* in_dev;
+        void* out_dev;
+        size_t num_elements;
+        ov::element::Type dtype;
+    };
+
+    static Operands collective_operands(tp_allreduce_inst& instance) {
+        const auto& input_layout = instance.get_impl_params()->input_layouts[0];
+        const auto etype = input_layout.data_type;
 
         ov::element::Type ov_dtype;
         if (etype == data_types::f16) {
@@ -144,12 +216,10 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
             OPENVINO_THROW("[GPU] tp_allreduce: unsupported data type ", etype);
         }
 
-        void* in_dev  = input_mem_ptr->buffer_ptr();
-        void* out_dev = output_mem_ptr->buffer_ptr();
-        coordinator->allreduce(static_cast<int>(collective_id),
-                      static_cast<int>(rank),
-                      in_dev, out_dev, num_elements, ov_dtype);
-        return cpu::make_output_event(stream, instance.is_output());
+        return {instance.input_memory_ptr()->buffer_ptr(),
+                instance.output_memory_ptr()->buffer_ptr(),
+                input_layout.count(),
+                ov_dtype};
     }
 
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
