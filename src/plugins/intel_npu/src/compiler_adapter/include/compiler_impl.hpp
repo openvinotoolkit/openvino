@@ -10,19 +10,27 @@
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/vcl/vcl_api.hpp"
+#include "ivcl_compiler.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace intel_npu {
 
-class VCLCompilerImpl final : public std::enable_shared_from_this<VCLCompilerImpl> {
+class VCLCompilerImpl final : public IVCLCompiler, public std::enable_shared_from_this<VCLCompilerImpl> {
 public:
-    VCLCompilerImpl(const std::string& libraryDir,
+    /**
+     * @brief Builds a compiler on top of the given VCL entry points.
+     * @param api The VCL dispatch table to call through. Injecting it is what makes this class
+     *        testable: production code passes `VCLApi::getInstance(libraryDir)`, tests pass a table
+     *        built with `VCLApi::NoLoad` and populated with fakes.
+     */
+    VCLCompilerImpl(std::shared_ptr<const VCLApi> api,
                     const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt);
-    ~VCLCompilerImpl();
+    ~VCLCompilerImpl() override;
 
     /**
      * @brief Transforms a network from the OpenVINO model representation to a format executable
@@ -34,7 +42,7 @@ public:
      *         string with runtime requirements for the blob
      */
     std::pair<ov::Tensor, std::optional<std::string>> compile(const std::shared_ptr<const ov::Model>& model,
-                                                              const FilteredConfig& config) const;
+                                                              const FilteredConfig& config) const override;
 
     /**
      * @brief Compiles the model, weights separation enabled. All init schedules along with the main one are compiled in
@@ -44,7 +52,7 @@ public:
      */
     std::pair<std::vector<ov::Tensor>, std::optional<std::string>> compileWsOneShot(
         const std::shared_ptr<ov::Model>& model,
-        const FilteredConfig& config) const;
+        const FilteredConfig& config) const override;
     /**
      * @brief Sequential compilation of Init(s) and Main
      *
@@ -61,7 +69,7 @@ public:
      */
     std::pair<ov::Tensor, std::optional<std::string>> compileWsIterative(const std::shared_ptr<ov::Model>& model,
                                                                          const FilteredConfig& config,
-                                                                         size_t callNumber) const;
+                                                                         size_t callNumber) const override;
     /**
      * @brief Returns information about supported layers of the network passed
      * @param model The model to be queried
@@ -69,7 +77,8 @@ public:
      *        including config options related to compilation
      * @returns SupportedOpsMap structure with information about supported layers
      */
-    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const FilteredConfig& config) const;
+    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
+                              const FilteredConfig& config) const override;
 
     /**
      * @brief Returns the compiler version
@@ -77,15 +86,15 @@ public:
      *         MSB 16 bits = Major version
      *         LSB 16bits = Minor version
      */
-    uint32_t get_version() const;
+    uint32_t get_version() const override;
 
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
-                                                            const std::vector<uint8_t>& network) const;
+                                                            const std::vector<uint8_t>& network) const override;
 
     /**
-     * @brief Returns the compiler supported options list
+     * @brief Returns the compiler supported options list, NUL-trimmed and tokenised.
      */
-    void get_supported_options(std::vector<char>& options) const;
+    std::vector<std::string> get_supported_options() const override;
 
     /**
      * @brief Checks whether the given option and value are supported by the compiler
@@ -94,7 +103,7 @@ public:
      * @return true if the option and value are supported, false otherwise
      */
     bool is_option_supported(const std::string& option,
-                             const std::optional<std::string>& optValue = std::nullopt) const;
+                             const std::optional<std::string>& optValue = std::nullopt) const override;
 
     std::shared_ptr<void> getLinkedLibrary() const;
 
@@ -108,6 +117,7 @@ private:
                                                               const FilteredConfig& config,
                                                               const bool storeWeightlessCacheAttributeFlag) const;
 
+    std::shared_ptr<const VCLApi> _api;
     vcl_log_handle_t _logHandle = nullptr;
     vcl_compiler_handle_t _compilerHandle = nullptr;
     vcl_compiler_properties_t _compilerProperties;
@@ -115,5 +125,15 @@ private:
     vcl_version_info_t _vclProfilingVersion;
     Logger _logger;
 };
+
+/**
+ * @brief Loads the VCL compiler library and returns a compiler paired with it.
+ *
+ * Keeps the load + SoPtr pairing in one place: the returned SoPtr owns the shared library, so the
+ * compiler cannot outlive the code it dispatches into.
+ */
+ov::SoPtr<IVCLCompiler> makeVCLCompiler(
+    const std::string& libraryDir,
+    const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt);
 
 }  // namespace intel_npu

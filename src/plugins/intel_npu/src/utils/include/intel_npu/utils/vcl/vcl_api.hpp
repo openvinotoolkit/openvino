@@ -42,7 +42,17 @@ namespace intel_npu {
 
 class VCLApi {
 public:
+    /**
+     * @brief Tag for the non-loading constructor.
+     */
+    struct NoLoad {};
+
     VCLApi(const std::string& library_dir);
+    /**
+     * @brief Builds an instance without loading the compiler library: `lib` stays null and every
+     * entry point is null. Intended for tests, which assign the entry points they need directly.
+     */
+    explicit VCLApi(NoLoad);
     VCLApi(const VCLApi& other) = delete;
     VCLApi(VCLApi&& other) = delete;
     void operator=(const VCLApi&) = delete;
