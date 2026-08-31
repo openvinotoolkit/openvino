@@ -19,7 +19,7 @@ namespace ov::npuw {
 //    "sliding_window_attention_mask".
 // 2) Shrink past_key_values seq_len for sliding layers only.
 // 3) Shrink externalized mask width to the same post-concat KV width.
-// 4) Privatize and patch KV-length-dependent shape constants (Broadcast/Reshape/Slice)
+// 4) Privatize and patch KV-length-dependent shape constants (Broadcast/Reshape)
 //    to prevent cross-layer shared-shape leakage from sliding layers into full-attention
 //    layers.
 //
