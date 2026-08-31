@@ -168,8 +168,8 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/stored_tokens_state_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_infer_request_variant_switch_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_infer_request_port_names_test.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/write_kv_slice_sliding_test.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/kv_cache_sliding_window_manager_mask_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/sliding_window_manager_update_kv_cache_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/sliding_window_manager_generate_mask_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_trim_kvcache_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/lincache_utils_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/model_builder_lora_test.cpp
