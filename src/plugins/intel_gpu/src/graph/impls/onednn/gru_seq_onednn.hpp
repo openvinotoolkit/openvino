@@ -43,7 +43,7 @@ struct GRUSeqImplementationManager : public ImplementationManager {
         auto in4_dt = node.get_input_layout(4).data_type;
         auto out0_dt = node.get_output_layout(0).data_type;
         auto out1_dt = node.get_output_layout(1).data_type;
-        bool f16_case = everyone_is(data_types::f16, in0_dt, in1_dt, in2_dt, in3_dt, in4_dt, out0_dt, out1_dt);
+        bool f16_case = everyone_is(data_types::f16, in0_dt, in1_dt, in2_dt, in3_dt, out0_dt, out1_dt) && (in4_dt == data_types::f16 || in4_dt == data_types::f32);
         bool f32_case = everyone_is(data_types::f32, in0_dt, in1_dt, in2_dt, in3_dt, in4_dt, out0_dt, out1_dt);
 
         return f16_case || f32_case;
