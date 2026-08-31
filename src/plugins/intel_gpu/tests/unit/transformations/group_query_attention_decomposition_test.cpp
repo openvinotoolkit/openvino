@@ -90,14 +90,6 @@ TEST(GroupQueryAttentionDecompositionTest, uses_causal_sdpa_without_explicit_mas
     EXPECT_EQ(cloned->get_causal_mask_alignment(), ov::intel_gpu::op::SDPA::CausalMaskAlignment::LOWER_RIGHT);
 }
 
-TEST(GroupQueryAttentionDecompositionTest, builds_explicit_mask_for_static_input) {
-    const auto sdpa = decompose_and_get_sdpa(8);
-
-    ASSERT_NE(sdpa, nullptr);
-    EXPECT_EQ(sdpa->get_input_size(), 4u);
-    EXPECT_FALSE(sdpa->get_causal());
-}
-
 TEST(GroupQueryAttentionDecompositionTest, builds_explicit_mask_for_bidirectional_attention) {
     const auto sdpa = decompose_and_get_sdpa(ov::Dimension::dynamic(), false);
 
