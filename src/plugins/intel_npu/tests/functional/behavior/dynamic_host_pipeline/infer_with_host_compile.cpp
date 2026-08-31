@@ -844,9 +844,12 @@ TEST_P(InferWithDynamicNHWTests, CompileAndInfer) {
     }
     auto& testContext = setupResult.context;
 
-    // Two concrete NHWC shapes within the dynamic bounds to exercise dynamic N, H and W. The 1x1 stride-1 MaxPool and
-    // the 1x1 convolutions preserve the spatial dimensions, so the output shape equals the input shape.
-    const std::vector<ov::Shape> concreteShapes = {{1, 720, 1280, 16}, {1, 360, 640, 16}};
+    // Concrete NHWC shapes within the dynamic bounds to exercise dynamic N (including N=2), H and W. The 1x1 stride-1
+    // MaxPool and the 1x1 convolutions preserve the spatial dimensions, so the output shape equals the input shape.
+    const std::vector<ov::Shape> concreteShapes = {{1, 720, 1280, 16},
+                                                   {1, 360, 640, 16},
+                                                   {2, 720, 1280, 16},
+                                                   {2, 360, 640, 16}};
     for (const auto& inputShape : concreteShapes) {
         auto inputTensor =
             ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), inputShape, 100, 0);
