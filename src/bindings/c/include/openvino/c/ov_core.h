@@ -285,6 +285,84 @@ OPENVINO_C_API(ov_status_e)
 ov_core_set_property(const ov_core_t* core, const char* device_name, ...);
 
 /**
+ * @brief Sets properties for a device using an array of ov_property_t key/value pairs.
+ * Non-variadic alternative to ov_core_set_property(), compatible with all FFI callers (e.g. Go cgo, Rust).
+ * @ingroup ov_core_c_api
+ * @param core           A pointer to the ov_core_t instance.
+ * @param device_name    Name of a device (may be NULL to set global properties).
+ * @param num_properties Number of entries in the properties array.
+ * @param properties     Array of ov_property_t key/value pairs.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_core_set_properties(const ov_core_t* core,
+                       const char* device_name,
+                       const size_t num_properties,
+                       const ov_property_t* properties);
+
+/**
+ * @brief Creates a compiled model from a source model using an array of ov_property_t pairs.
+ * Non-variadic alternative to ov_core_compile_model(), compatible with all FFI callers.
+ * @ingroup ov_core_c_api
+ * @param core            A pointer to the ov_core_t instance.
+ * @param model           Model object acquired from ov_core_read_model.
+ * @param device_name     Name of a device to load a model to (may be NULL).
+ * @param num_properties  Number of entries in the properties array.
+ * @param properties      Array of ov_property_t key/value pairs (may be NULL when num_properties is 0).
+ * @param compiled_model  A pointer to the newly created compiled_model.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_core_compile_model_props(const ov_core_t* core,
+                            const ov_model_t* model,
+                            const char* device_name,
+                            const size_t num_properties,
+                            const ov_property_t* properties,
+                            ov_compiled_model_t** compiled_model);
+
+/**
+ * @brief Reads and compiles a model from a file using an array of ov_property_t pairs.
+ * Non-variadic alternative to ov_core_compile_model_from_file(), compatible with all FFI callers.
+ * @ingroup ov_core_c_api
+ * @param core            A pointer to the ov_core_t instance.
+ * @param model_path      Path to a model file.
+ * @param device_name     Name of a device to load a model to (may be NULL).
+ * @param num_properties  Number of entries in the properties array.
+ * @param properties      Array of ov_property_t key/value pairs (may be NULL when num_properties is 0).
+ * @param compiled_model  A pointer to the newly created compiled_model.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_core_compile_model_from_file_props(const ov_core_t* core,
+                                      const char* model_path,
+                                      const char* device_name,
+                                      const size_t num_properties,
+                                      const ov_property_t* properties,
+                                      ov_compiled_model_t** compiled_model);
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+/**
+ * @brief Reads and compiles a model from a Unicode file path using an array of ov_property_t pairs.
+ * Non-variadic alternative to ov_core_compile_model_from_file_unicode(), compatible with all FFI callers.
+ * @ingroup ov_core_c_api
+ * @param core            A pointer to the ov_core_t instance.
+ * @param model_path      Path to a model file (wide-character Unicode path).
+ * @param device_name     Name of a device to load a model to (may be NULL).
+ * @param num_properties  Number of entries in the properties array.
+ * @param properties      Array of ov_property_t key/value pairs (may be NULL when num_properties is 0).
+ * @param compiled_model  A pointer to the newly created compiled_model.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_core_compile_model_from_file_unicode_props(const ov_core_t* core,
+                                              const wchar_t* model_path,
+                                              const char* device_name,
+                                              const size_t num_properties,
+                                              const ov_property_t* properties,
+                                              ov_compiled_model_t** compiled_model);
+#endif
+
+/**
  * @brief Gets properties related to device behaviour.
  * The method extracts information that can be set via the set_property method.
  * @ingroup ov_core_c_api
@@ -374,6 +452,24 @@ ov_core_create_context(const ov_core_t* core,
                        ...);
 
 /**
+ * @brief Creates a new remote shared context using an array of ov_property_t key/value pairs.
+ * Non-variadic alternative to ov_core_create_context(), compatible with all FFI callers.
+ * @ingroup ov_core_c_api
+ * @param core           A pointer to the ov_core_t instance.
+ * @param device_name    Device name to identify a plugin.
+ * @param num_properties Number of entries in the properties array.
+ * @param properties     Array of ov_property_t key/value pairs (may be NULL when num_properties is 0).
+ * @param context        A pointer to the newly created remote context.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_core_create_context_props(const ov_core_t* core,
+                             const char* device_name,
+                             const size_t num_properties,
+                             const ov_property_t* properties,
+                             ov_remote_context_t** context);
+
+/**
  * @brief Creates a compiled model from a source model within a specified remote context.
  * @ingroup ov_core_c_api
  * @param core A pointer to the ov_core_t instance.
@@ -391,6 +487,27 @@ ov_core_compile_model_with_context(const ov_core_t* core,
                                    const size_t property_args_size,
                                    ov_compiled_model_t** compiled_model,
                                    ...);
+
+/**
+ * @brief Creates a compiled model from a source model within a specified remote context using an array of
+ * ov_property_t pairs.
+ * Non-variadic alternative to ov_core_compile_model_with_context(), compatible with all FFI callers.
+ * @ingroup ov_core_c_api
+ * @param core            A pointer to the ov_core_t instance.
+ * @param model           Model object acquired from ov_core_read_model.
+ * @param context         A pointer to the remote context.
+ * @param num_properties  Number of entries in the properties array.
+ * @param properties      Array of ov_property_t key/value pairs (may be NULL when num_properties is 0).
+ * @param compiled_model  A pointer to the newly created compiled_model.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_core_compile_model_with_context_props(const ov_core_t* core,
+                                         const ov_model_t* model,
+                                         const ov_remote_context_t* context,
+                                         const size_t num_properties,
+                                         const ov_property_t* properties,
+                                         ov_compiled_model_t** compiled_model);
 
 /**
  * @brief Gets a pointer to default (plugin-supplied) shared context object for the specified accelerator device.

@@ -778,7 +778,7 @@ TEST_P(InferWithDefaultHostCompileTests, CompileDynamicModelWithNoHostCompileMod
     auto model = createModelByName(selectedModelName);
 
     ov::CompiledModel compiledModel;
-    // Compilation shall pass since load of npu_mlir_runtime is deffered with NPU_CREATE_EXECUTOR=0
+    // Compilation shall pass since load of openvino_intel_npu_mlir_runtime is deffered with NPU_CREATE_EXECUTOR=0
     OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
 
     std::stringstream modelStream;

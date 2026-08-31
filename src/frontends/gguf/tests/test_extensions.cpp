@@ -287,8 +287,7 @@ private:
 TEST(GGUFExtensions, GetModelInputsToleratesNonParameterEntries) {
     auto base = kv_cache_write_builder();
     FrontEnd fe;
-    auto mixed =
-        std::make_shared<MixedMainInputDecoder>(*std::dynamic_pointer_cast<SingleOpDecoder>(base.decoder()));
+    auto mixed = std::make_shared<MixedMainInputDecoder>(*std::dynamic_pointer_cast<SingleOpDecoder>(base.decoder()));
     EXPECT_NO_THROW(fe.convert(fe.load(std::static_pointer_cast<GgufDecoder>(mixed))));
 }
 

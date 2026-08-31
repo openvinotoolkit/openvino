@@ -11,8 +11,11 @@
 #include "paged_selective_ssm_inst.h"
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"
+#include "selective_ssm_jit_utils.hpp"
 
 namespace ov::intel_gpu::ocl {
+
+bool validate_paged_selective_ssm_jit(const cldnn::program_node& node, selective_ssm_jit::device_kind kind);
 
 struct PagedSelectiveSSMOpt : public cldnn::ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("ocl::paged_selective_ssm::opt")
@@ -52,6 +55,29 @@ struct PagedSelectiveSSMOpt : public cldnn::ImplementationManager {
 
         const auto& out_layout = node.get_output_layout(0);
         return cldnn::one_of(out_layout.format, supported_fmts) && out_layout.data_type == real_type;
+    }
+};
+
+struct PagedSelectiveSSMJitIntegrated : public PagedSelectiveSSMOpt {
+    OV_GPU_PRIMITIVE_IMPL("ocl::paged_selective_ssm::jit_integrated")
+    explicit PagedSelectiveSSMJitIntegrated(cldnn::shape_types shape_type, cldnn::ValidateFunc vf = nullptr)
+        : PagedSelectiveSSMOpt(shape_type, std::move(vf)) {}
+
+    [[nodiscard]] std::unique_ptr<cldnn::primitive_impl> create_impl(const cldnn::program_node& node, const RuntimeParams& params) const override;
+
+    [[nodiscard]] bool validate_impl(const cldnn::program_node& node) const override {
+        return PagedSelectiveSSMOpt::validate_impl(node) && validate_paged_selective_ssm_jit(node, selective_ssm_jit::device_kind::integrated);
+    }
+};
+
+struct PagedSelectiveSSMJitDiscrete : public PagedSelectiveSSMOpt {
+    OV_GPU_PRIMITIVE_IMPL("ocl::paged_selective_ssm::jit_discrete")
+    explicit PagedSelectiveSSMJitDiscrete(cldnn::shape_types shape_type, cldnn::ValidateFunc vf = nullptr) : PagedSelectiveSSMOpt(shape_type, std::move(vf)) {}
+
+    [[nodiscard]] std::unique_ptr<cldnn::primitive_impl> create_impl(const cldnn::program_node& node, const RuntimeParams& params) const override;
+
+    [[nodiscard]] bool validate_impl(const cldnn::program_node& node) const override {
+        return PagedSelectiveSSMOpt::validate_impl(node) && validate_paged_selective_ssm_jit(node, selective_ssm_jit::device_kind::discrete);
     }
 };
 

@@ -2,9 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/softmax.hpp"
+
 #include <cmath>
 #include <cstdint>
 #include <memory>
+#include <vector>
+
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/frontend/exception.hpp"
@@ -17,11 +23,6 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/softmax.hpp"
-#include <vector>
-
-#include "node_context.hpp"
-#include "op_table.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -146,13 +147,12 @@ OutputVector translate_soft_max(const NodeContext& context) {
         const float m1 = std::pow(2.0f, -(max_bias / 2.0f) / static_cast<float>(n_head_log2));
         std::vector<float> slopes(n_head);
         for (uint32_t h = 0; h < n_head; ++h) {
-            slopes[h] = h < n_head_log2 ? std::pow(m0, static_cast<float>(h + 1)) : std::pow(m1, static_cast<float>(2 * (h - n_head_log2) + 1));
+            slopes[h] = h < n_head_log2 ? std::pow(m0, static_cast<float>(h + 1))
+                                        : std::pow(m1, static_cast<float>(2 * (h - n_head_log2) + 1));
         }
         ov::Shape slope_shape(rank, 1);
         slope_shape[head_axis] = n_head;
-        auto slope_node = std::make_shared<ov::op::v0::Constant>(output_type,
-                                                                 slope_shape,
-                                                                 slopes);
+        auto slope_node = std::make_shared<ov::op::v0::Constant>(output_type, slope_shape, slopes);
         auto slope_mask = std::make_shared<ov::op::v1::Multiply>(mask_node_sliced, slope_node);
         biased_input = std::make_shared<ov::op::v1::Add>(scaled_input, slope_mask);
     } else {
