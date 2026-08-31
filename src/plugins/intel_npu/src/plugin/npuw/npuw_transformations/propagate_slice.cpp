@@ -73,34 +73,30 @@ static bool is_reducing_slice(const std::shared_ptr<ov::op::v8::Slice>& slice) {
     return false;
 }
 
-// Returns true only when the Slice operates on a single axis.
-static bool is_single_axis_slice(const std::shared_ptr<ov::op::v8::Slice>& slice) {
+// Returns the single axis that is sliced (where output dim < input dim), or -1 if the
+// Slice is not a single-axis slice (zero or more than one axis reduced, or dynamic shapes).
+static int64_t get_single_sliced_axis(const std::shared_ptr<ov::op::v8::Slice>& slice) {
     const auto& in_shape = slice->get_input_partial_shape(0);
     const auto& out_shape = slice->get_output_partial_shape(0);
     if (in_shape.is_dynamic() || out_shape.is_dynamic()) {
-        return false;
+        return -1;
     }
 
-    int count = 0;
+    int64_t axis = -1;
     for (size_t i = 0; i < in_shape.size(); ++i) {
         if (out_shape[i].get_length() < in_shape[i].get_length()) {
-            count++;
+            if (axis != -1) {
+                return -1;  // more than one axis sliced
+            }
+            axis = static_cast<int64_t>(i);
         }
     }
-    return count == 1;
+    return axis;
 }
 
-// Returns the single axis that is sliced (where output dim < input dim).
-// Precondition: is_single_axis_slice() must return true.
-static int64_t get_single_sliced_axis(const std::shared_ptr<ov::op::v8::Slice>& slice) {
-    const auto& in_shape = slice->get_input_shape(0);
-    const auto& out_shape = slice->get_output_shape(0);
-    for (size_t i = 0; i < in_shape.size(); ++i) {
-        if (out_shape[i] < in_shape[i]) {
-            return static_cast<int64_t>(i);
-        }
-    }
-    return -1;  // Should never happen if precondition is met
+// Returns true only when the Slice operates on a single axis.
+static bool is_single_axis_slice(const std::shared_ptr<ov::op::v8::Slice>& slice) {
+    return get_single_sliced_axis(slice) != -1;
 }
 
 // Returns true when the parent op has exactly one consumer (the Slice).
@@ -530,7 +526,6 @@ public:
                     }
                 }
                 input_slice_axis = output_slice_axis + reduced_before;
-            } else {
             }
 
             // Check if the input slice axis conflicts with any reduction axis
@@ -1179,16 +1174,8 @@ public:
             }
 
             // Basic checks
-            if (!is_reducing_slice(slice_node)) {
-                return false;
-            }
-            if (!is_single_axis_slice(slice_node)) {
-                return false;
-            }
-            if (!single_consumer(reshape_node)) {
-                return false;
-            }
-            if (!single_consumer(tile_node)) {
+            if (!is_reducing_slice(slice_node) || !is_single_axis_slice(slice_node) || !single_consumer(reshape_node) ||
+                !single_consumer(tile_node)) {
                 return false;
             }
 
@@ -1527,37 +1514,35 @@ public:
 
             // Check if input already matches the slice output shape on the slice axis
             // Broadcast may have expanded a scalar or added dimensions
-            if (input_shape.size() == slice_shape.size() && input_shape[slice_axis] == slice_shape[slice_axis]) {
-                // Check if all other dimensions also match
-                bool all_match = true;
-                for (size_t i = 0; i < input_shape.size(); ++i) {
-                    if (input_shape[i] != slice_shape[i] && input_shape[i] != 1) {
-                        all_match = false;
-                        break;
-                    }
-                }
+            if (input_shape.size() != slice_shape.size() || input_shape[slice_axis] != slice_shape[slice_axis]) {
+                return false;
+            }
 
-                if (all_match) {
-                    // Create new broadcast with slice output shape as target
-                    auto new_target_shape =
-                        ov::op::v0::Constant::create(ov::element::i64,
-                                                     ov::Shape{slice_shape.size()},
-                                                     std::vector<int64_t>(slice_shape.begin(), slice_shape.end()));
-
-                    auto new_broadcast = std::make_shared<ov::op::v3::Broadcast>(broadcast_node->input_value(0),
-                                                                                 new_target_shape,
-                                                                                 broadcast_node->input_value(2));
-                    new_broadcast->set_friendly_name(broadcast_node->get_friendly_name());
-                    new_broadcast->validate_and_infer_types();
-
-                    if (new_broadcast->get_output_shape(0) == slice_shape) {
-                        ov::replace_node(slice_node, new_broadcast);
-                        return true;
-                    }
+            // Check if all other dimensions also match
+            for (size_t i = 0; i < input_shape.size(); ++i) {
+                if (input_shape[i] != slice_shape[i] && input_shape[i] != 1) {
+                    return false;
                 }
             }
 
-            return false;
+            // Create new broadcast with slice output shape as target
+            auto new_target_shape =
+                ov::op::v0::Constant::create(ov::element::i64,
+                                             ov::Shape{slice_shape.size()},
+                                             std::vector<int64_t>(slice_shape.begin(), slice_shape.end()));
+
+            auto new_broadcast = std::make_shared<ov::op::v3::Broadcast>(broadcast_node->input_value(0),
+                                                                         new_target_shape,
+                                                                         broadcast_node->input_value(2));
+            new_broadcast->set_friendly_name(broadcast_node->get_friendly_name());
+            new_broadcast->validate_and_infer_types();
+
+            if (new_broadcast->get_output_shape(0) != slice_shape) {
+                return false;
+            }
+
+            ov::replace_node(slice_node, new_broadcast);
+            return true;
         });
     }
 };
@@ -1729,15 +1714,13 @@ public:
                 return false;
             }
 
-            // Get TopK axis parameter
-            int64_t topk_axis = -1;
-            if (auto v1_topk = std::dynamic_pointer_cast<ov::op::v1::TopK>(topk_node)) {
-                topk_axis = v1_topk->get_axis();
-            } else if (auto v3_topk = std::dynamic_pointer_cast<ov::op::v3::TopK>(topk_node)) {
-                topk_axis = v3_topk->get_axis();
-            } else if (auto v11_topk = std::dynamic_pointer_cast<ov::op::v11::TopK>(topk_node)) {
-                topk_axis = v11_topk->get_axis();
+            // Get TopK axis parameter. All TopK versions (v1/v3/v11) derive from TopKBase,
+            // which already exposes the resolved axis regardless of opset version.
+            auto topk_base = std::dynamic_pointer_cast<ov::op::util::TopKBase>(topk_node);
+            if (!topk_base) {
+                return false;
             }
+            int64_t topk_axis = static_cast<int64_t>(topk_base->get_axis());
 
             // Normalize TopK axis
             topk_axis = normalize_axis(topk_axis, topk_node->get_input_shape(0).size());
@@ -1975,32 +1958,13 @@ public:
                 return false;
             }
 
-            // Get Gather axis
-            int64_t gather_axis = -1;
-            if (auto gather_v1 = std::dynamic_pointer_cast<ov::op::v1::Gather>(gather_node)) {
-                auto axis_const =
-                    std::dynamic_pointer_cast<ov::op::v0::Constant>(gather_v1->input_value(2).get_node_shared_ptr());
-                if (!axis_const) {
-                    return false;
-                }
-                gather_axis = axis_const->cast_vector<int64_t>()[0];
-            } else if (auto gather_v7 = std::dynamic_pointer_cast<ov::op::v7::Gather>(gather_node)) {
-                auto axis_const =
-                    std::dynamic_pointer_cast<ov::op::v0::Constant>(gather_v7->input_value(2).get_node_shared_ptr());
-                if (!axis_const) {
-                    return false;
-                }
-                gather_axis = axis_const->cast_vector<int64_t>()[0];
-            } else if (auto gather_v8 = std::dynamic_pointer_cast<ov::op::v8::Gather>(gather_node)) {
-                auto axis_const =
-                    std::dynamic_pointer_cast<ov::op::v0::Constant>(gather_v8->input_value(2).get_node_shared_ptr());
-                if (!axis_const) {
-                    return false;
-                }
-                gather_axis = axis_const->cast_vector<int64_t>()[0];
-            } else {
+            // Get Gather axis. All Gather versions (v1/v7/v8) derive from GatherBase, which
+            // already exposes the resolved axis regardless of opset version.
+            auto gather_base = std::dynamic_pointer_cast<ov::op::util::GatherBase>(gather_node);
+            if (!gather_base) {
                 return false;
             }
+            int64_t gather_axis = gather_base->get_axis();
 
             // Get Slice axis
             int64_t slice_axis = get_single_sliced_axis(slice_node);
@@ -2010,13 +1974,10 @@ public:
             gather_axis = normalize_axis(gather_axis, gather_input_shape.size());
             slice_axis = normalize_axis(slice_axis, slice_node->get_input_shape(0).size());
 
-            // Map slice_axis back to the input space of Gather
-            // The Gather output has the same rank as input, but gather_axis dimension is replaced by indices shape
-            // So slice_axis on Gather output corresponds to the same axis on Gather input
-            int64_t slice_axis_in_gather_input = slice_axis;
-
-            // Check if Slice and Gather operate on different axes
-            if (slice_axis_in_gather_input == gather_axis) {
+            // Check if Slice and Gather operate on different axes. The Gather output has the
+            // same rank as its input, so slice_axis on the Gather output maps to the same axis
+            // on the Gather input.
+            if (slice_axis == gather_axis) {
                 return false;  // Cannot safely propagate - axes conflict
             }
 
@@ -2052,15 +2013,15 @@ public:
 
         register_matcher(std::make_shared<Matcher>(slice2, "MergeConsecutiveSlices"), [=](Matcher& m) {
             auto& map = m.get_pattern_value_map();
-            auto outer_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(map.at(slice2).get_node_shared_ptr());
-            auto inner_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(map.at(slice1).get_node_shared_ptr());
+            auto child_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(map.at(slice2).get_node_shared_ptr());
+            auto parent_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(map.at(slice1).get_node_shared_ptr());
 
-            if (!outer_slice || !inner_slice) {
+            if (!child_slice || !parent_slice) {
                 return false;
             }
 
-            // Check single consumer for inner slice
-            if (!single_consumer(inner_slice)) {
+            // Check single consumer for parent slice
+            if (!single_consumer(parent_slice)) {
                 return false;
             }
 
@@ -2081,48 +2042,48 @@ public:
                 return {start, stop, step, axes};
             };
 
-            auto [inner_start_const, inner_stop_const, inner_step_const, inner_axes_const] =
-                get_slice_params(inner_slice);
-            auto [outer_start_const, outer_stop_const, outer_step_const, outer_axes_const] =
-                get_slice_params(outer_slice);
+            auto [parent_start_const, parent_stop_const, parent_step_const, parent_axes_const] =
+                get_slice_params(parent_slice);
+            auto [child_start_const, child_stop_const, child_step_const, child_axes_const] =
+                get_slice_params(child_slice);
 
-            if (!inner_start_const || !inner_stop_const || !inner_step_const || !inner_axes_const ||
-                !outer_start_const || !outer_stop_const || !outer_step_const || !outer_axes_const) {
+            if (!parent_start_const || !parent_stop_const || !parent_step_const || !parent_axes_const ||
+                !child_start_const || !child_stop_const || !child_step_const || !child_axes_const) {
                 return false;
             }
 
-            auto inner_start_vec = inner_start_const->cast_vector<int64_t>();
-            auto inner_stop_vec = inner_stop_const->cast_vector<int64_t>();
-            auto inner_step_vec = inner_step_const->cast_vector<int64_t>();
-            auto inner_axes_vec = inner_axes_const->cast_vector<int64_t>();
+            auto parent_start_vec = parent_start_const->cast_vector<int64_t>();
+            auto parent_stop_vec = parent_stop_const->cast_vector<int64_t>();
+            auto parent_step_vec = parent_step_const->cast_vector<int64_t>();
+            auto parent_axes_vec = parent_axes_const->cast_vector<int64_t>();
 
-            auto outer_start_vec = outer_start_const->cast_vector<int64_t>();
-            auto outer_stop_vec = outer_stop_const->cast_vector<int64_t>();
-            auto outer_step_vec = outer_step_const->cast_vector<int64_t>();
-            auto outer_axes_vec = outer_axes_const->cast_vector<int64_t>();
+            auto child_start_vec = child_start_const->cast_vector<int64_t>();
+            auto child_stop_vec = child_stop_const->cast_vector<int64_t>();
+            auto child_step_vec = child_step_const->cast_vector<int64_t>();
+            auto child_axes_vec = child_axes_const->cast_vector<int64_t>();
 
             // Normalize axes
-            const size_t original_rank = inner_slice->get_input_shape(0).size();
-            for (auto& axis : inner_axes_vec) {
+            const size_t original_rank = parent_slice->get_input_shape(0).size();
+            for (auto& axis : parent_axes_vec) {
                 axis = normalize_axis(axis, original_rank);
             }
-            for (auto& axis : outer_axes_vec) {
-                axis = normalize_axis(axis, inner_slice->get_output_shape(0).size());
+            for (auto& axis : child_axes_vec) {
+                axis = normalize_axis(axis, parent_slice->get_output_shape(0).size());
             }
 
             // Build merged parameters
-            // Strategy: Start with inner slice params, then merge in outer slice params
+            // Strategy: Start with parent slice params, then merge in child slice params
             std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> merged_params;
 
-            // Add inner slice parameters
-            for (size_t i = 0; i < inner_axes_vec.size(); ++i) {
-                merged_params[inner_axes_vec[i]] = {inner_start_vec[i], inner_stop_vec[i], inner_step_vec[i]};
+            // Add parent slice parameters
+            for (size_t i = 0; i < parent_axes_vec.size(); ++i) {
+                merged_params[parent_axes_vec[i]] = {parent_start_vec[i], parent_stop_vec[i], parent_step_vec[i]};
             }
 
-            // Merge outer slice parameters
-            // Outer slice operates on the output of inner slice, need to adjust indices
-            for (size_t i = 0; i < outer_axes_vec.size(); ++i) {
-                int64_t axis = outer_axes_vec[i];
+            // Merge child slice parameters
+            // Child slice operates on the output of parent slice, need to adjust indices
+            for (size_t i = 0; i < child_axes_vec.size(); ++i) {
+                int64_t axis = child_axes_vec[i];
 
                 if (merged_params.count(axis)) {
                     // Same axis - need to compose the slicing operations
@@ -2130,7 +2091,7 @@ public:
                     return false;
                 } else {
                     // Different axis - just add it
-                    merged_params[axis] = {outer_start_vec[i], outer_stop_vec[i], outer_step_vec[i]};
+                    merged_params[axis] = {child_start_vec[i], child_stop_vec[i], child_step_vec[i]};
                 }
             }
 
@@ -2148,14 +2109,14 @@ public:
             }
 
             // Create merged slice
-            auto merged_slice = create_slice_with_params(inner_slice->input_value(0),
+            auto merged_slice = create_slice_with_params(parent_slice->input_value(0),
                                                          merged_axes,
                                                          merged_start,
                                                          merged_stop,
                                                          merged_step);
-            merged_slice->set_friendly_name(outer_slice->get_friendly_name());
+            merged_slice->set_friendly_name(child_slice->get_friendly_name());
 
-            ov::replace_node(outer_slice, merged_slice);
+            ov::replace_node(child_slice, merged_slice);
             return true;
         });
     }
