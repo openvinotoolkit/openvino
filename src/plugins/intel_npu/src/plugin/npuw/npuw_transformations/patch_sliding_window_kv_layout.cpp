@@ -223,6 +223,10 @@ void externalize_sliding_sdpa_masks(const std::shared_ptr<ov::Model>& model,
 // Only Reshape/Broadcast/Unsqueeze are allowed before Concat; any other op fails
 // via OPENVINO_ASSERT. The KV sequence dimension is strictly assumed to be the
 // second-last axis of each target-shape constant.
+//
+// Supported values on that axis:
+//   +kvcache_size / -kvcache_size: patched to +/-new_kv_total
+//   -1 (inferred by Reshape): accepted and left unchanged
 void privatize_sliding_sdpa_shapes(const std::shared_ptr<ov::Model>& model,
                                    const std::vector<bool>& layer_is_sliding,
                                    int64_t kvcache_size,
@@ -275,16 +279,26 @@ void privatize_sliding_sdpa_shapes(const std::shared_ptr<ov::Model>& model,
 
                             const size_t kv_axis = vals.size() - 2;
                             const int64_t old_val = vals[kv_axis];
-                            OPENVINO_ASSERT(old_val == kvcache_size || old_val == -kvcache_size,
+                            const bool is_fixed_extent = (old_val == kvcache_size || old_val == -kvcache_size);
+                            const bool is_inferred_extent = (old_val == -1);
+                            OPENVINO_ASSERT(is_fixed_extent || is_inferred_extent,
                                             "[SWA] ",
                                             cur->get_type_name(),
                                             " '",
                                             cur->get_friendly_name(),
                                             "' expected second-last target-shape value to be +/-",
                                             kvcache_size,
-                                            ", got ",
+                                            " or -1 (inferred), got ",
                                             old_val,
                                             ".");
+
+                            if (is_inferred_extent) {
+                                LOG_INFO("[SWA]   " << cur->get_type_name() << " '" << cur->get_friendly_name()
+                                                    << "' kv_axis=" << kv_axis
+                                                    << " uses inferred extent (-1); keep it unchanged.");
+                                cur = cur->input_value(0).get_node_shared_ptr();
+                                continue;
+                            }
 
                             vals[kv_axis] = (old_val > 0) ? new_kv_total : -new_kv_total;
                             auto priv = std::make_shared<ov::op::v0::Constant>(src.get_element_type(),

@@ -309,14 +309,13 @@ void ov::npuw::util::fill_causal_sliding_mask(ov::SoPtr<ov::ITensor> mask_tensor
                                               uint32_t window_size) {
     const auto mask_view = get_mask_view(mask_tensor, num_real_new_tokens, "fill_causal_sliding_mask");
     OPENVINO_ASSERT(window_size > 0, "fill_causal_sliding_mask: window_size must be > 0");
-    OPENVINO_ASSERT(mask_view.past_width > 0,
-                    "fill_causal_sliding_mask: past_width is zero; sliding-window mask expects non-zero past width");
 
     const uint32_t stored_tokens_before = num_stored_tokens_before;
     const uint32_t past_width = mask_view.past_width;
     const uint32_t row_dim = mask_view.row_dim;
     const uint32_t row_pad = mask_view.row_pad;
-    const bool is_past_saturated = stored_tokens_before >= past_width;
+    const bool has_past_region = past_width > 0u;
+    const bool is_past_saturated = has_past_region && stored_tokens_before >= past_width;
     const uint32_t wrap_slot = is_past_saturated ? (stored_tokens_before % past_width) : 0u;
     const int64_t stored_tokens_before_i64 = static_cast<int64_t>(stored_tokens_before);
     const int64_t past_width_i64 = static_cast<int64_t>(past_width);
@@ -329,6 +328,7 @@ void ov::npuw::util::fill_causal_sliding_mask(ov::SoPtr<ov::ITensor> mask_tensor
     // Layout per mask row:
     //   columns = [past circular slots][current-chunk columns]
     //           = [0 .. past_width-1] [past_width .. past_width+row_dim-1]
+    //   If past_width == 0, this degenerates to current-chunk-only masking.
     //
     // Past circular mapping (slot -> absolute token index):
     //   1) Unsaturated (stored_tokens_before < past_width)
@@ -398,7 +398,7 @@ void ov::npuw::util::fill_causal_sliding_mask(ov::SoPtr<ov::ITensor> mask_tensor
                                    static_cast<int64_t>(wrap_slot) - 1,
                                    kAttend);
             }
-        } else if (stored_tokens_before > 0u) {
+        } else if (has_past_region && stored_tokens_before > 0u) {
             // Unsaturated prefix: slot index equals absolute position for valid slots.
             fill_clamped_range(row_ptr,
                                min_visible_abs_pos,

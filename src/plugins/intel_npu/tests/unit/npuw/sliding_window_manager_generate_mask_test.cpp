@@ -84,6 +84,38 @@ TEST_F(FillCausalSlidingMaskTest, SaturatedPastUsesCircularSlotMapping) {
     EXPECT_FLOAT_EQ(mask_at(mask, 1u, 5u), 0.f);
 }
 
+TEST_F(FillCausalSlidingMaskTest, ZeroPastWidthFallsBackToCurrentChunkSlidingCausalMask) {
+    // rows == cols => past_width == 0, so mask must be built from current chunk only.
+    auto mask = make_mask_tensor(/*rows=*/4u, /*cols=*/4u, /*init_value=*/777.f);
+    const float kMasked = static_cast<float>(std::numeric_limits<ov::float16>::lowest());
+
+    uu::fill_causal_sliding_mask(mask,
+                                 /*num_stored_tokens_before=*/0u,
+                                 /*num_real_new_tokens=*/4u,
+                                 /*window_size=*/2u);
+
+    // Expected visible local columns per row for window=2:
+    // row0 -> [0]
+    // row1 -> [0,1]
+    // row2 -> [1,2]
+    // row3 -> [2,3]
+    EXPECT_FLOAT_EQ(mask_at(mask, 0u, 0u), 0.f);
+    EXPECT_FLOAT_EQ(mask_at(mask, 0u, 1u), kMasked);
+
+    EXPECT_FLOAT_EQ(mask_at(mask, 1u, 0u), 0.f);
+    EXPECT_FLOAT_EQ(mask_at(mask, 1u, 1u), 0.f);
+    EXPECT_FLOAT_EQ(mask_at(mask, 1u, 2u), kMasked);
+
+    EXPECT_FLOAT_EQ(mask_at(mask, 2u, 0u), kMasked);
+    EXPECT_FLOAT_EQ(mask_at(mask, 2u, 1u), 0.f);
+    EXPECT_FLOAT_EQ(mask_at(mask, 2u, 2u), 0.f);
+    EXPECT_FLOAT_EQ(mask_at(mask, 2u, 3u), kMasked);
+
+    EXPECT_FLOAT_EQ(mask_at(mask, 3u, 1u), kMasked);
+    EXPECT_FLOAT_EQ(mask_at(mask, 3u, 2u), 0.f);
+    EXPECT_FLOAT_EQ(mask_at(mask, 3u, 3u), 0.f);
+}
+
 class OverlayVisionBidirectionalMaskTest : public ::testing::Test {};
 
 TEST_F(OverlayVisionBidirectionalMaskTest, SingleVisionRunUnmasksRunBlock) {
