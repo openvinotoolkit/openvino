@@ -20,7 +20,7 @@ cmake --build <dir> --target ov_core_unit_tests_file_load_benchmark
 ## Run
 
 ```bash
-./ov_core_unit_tests_file_load_benchmark --gtest_filter=*FileLoadBenchmark*
+./ov_core_unit_tests_file_load_benchmark
 ```
 
 ## Environment Requirements
