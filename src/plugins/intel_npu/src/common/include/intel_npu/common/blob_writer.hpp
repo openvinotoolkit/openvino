@@ -15,6 +15,13 @@
 #include "intel_npu/common/manifest.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 
+namespace {
+
+// ID 0 & 1 are reserved for the manifest & CRE sections
+constexpr SectionID FIRST_AVAILABLE_SECTION_ID = 2;
+
+}  // namespace
+
 namespace intel_npu {
 
 class BlobWriterInterface final {
@@ -163,7 +170,7 @@ private:
      * @brief Tracks the next available instance ID for each section type. This should assure that the generated section
      * IDs (type + instance) are unique per compiled model.
      */
-    SectionID m_next_section_id;
+    SectionID m_next_section_id = FIRST_AVAILABLE_SECTION_ID;
     /**
      * @brief Queue that holds all sections to be written at export time.
      */

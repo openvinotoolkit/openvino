@@ -79,7 +79,7 @@ public:
      * @note This should be called only after "read" was invoked.
      * @return All parsed sections of the given type if any, else "std::nullopt"
      */
-    std::optional<std::unordered_map<SectionID, std::shared_ptr<ISection>>> retrieve_sections_same_type(
+    std::optional<std::unordered_set<std::shared_ptr<ISection>>> retrieve_sections_same_type(
         const SectionType type) const;
 
     /**
@@ -120,9 +120,10 @@ private:
         const size_t npu_region_start,
         const size_t npu_region_size) const;
 
-    void parse_section(const SectionID section_id,
-                       BlobSource& source,
-                       const size_t section_length,
+    void parse_section(BlobSource& source,
+                       const SectionType type,
+                       const SectionID id,
+                       const size_t length,
                        const size_t npu_region_start,
                        const size_t npu_region_size,
                        const bool include_in_sections_order = true);
@@ -130,7 +131,9 @@ private:
     /**
      * @brief All sections obtained after parsing the compiled model.
      */
-    std::unordered_map<SectionType, std::unordered_map<SectionID, std::shared_ptr<ISection>>> m_parsed_sections;
+    std::unordered_map<SectionID, std::shared_ptr<ISection>> m_id_to_parsed_sections;
+
+    std::unordered_map<SectionType, std::unordered_set<std::shared_ptr<ISection>>> m_type_to_parsed_sections;
 
     /**
      * @brief The order in which the sections have been parse.

@@ -27,28 +27,28 @@ bool has_only_digits(std::string_view sv) {
 
 namespace intel_npu {
 
-ISection::ISection(const SectionType type) : m_section_type(type) {}
+ISection::ISection(const SectionType type) : m_type(type) {}
 
 SectionType ISection::get_section_type() const {
-    return m_section_type;
+    return m_type;
 }
 
 std::optional<SectionID> ISection::get_section_id() const {
-    return m_section_id;
+    return m_id;
 }
 
-void ISection::set_section_id(const SectionID id) const {
-    OPENVINO_ASSERT(!m_section_id.has_value(),
+void ISection::set_id(const SectionID id) const {
+    OPENVINO_ASSERT(!m_id.has_value(),
                     "Attempted to set an instance ID to a section that already had one. Section type: ",
-                    m_section_type,
+                    m_type,
                     ", old instance ID: ",
-                    m_section_id.value());
+                    m_id.value());
 
-    m_section_id = id;
+    m_id = id;
 }
 
 std::optional<SectionID> ISection::get_section_id() const {
-    return m_section_id;
+    return m_id;
 }
 
 std::vector<CREToken> ISection::get_compatibility_requirements_subexpression(

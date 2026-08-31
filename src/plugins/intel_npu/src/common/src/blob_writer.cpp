@@ -110,6 +110,7 @@ std::streamoff BlobWriter::get_offset_relative_to_npu_region(std::ostream& strea
 SectionID BlobWriter::register_section(const std::shared_ptr<ISection>& section) {
     const SectionType section_type = section->get_section_type();
 
+    // TODO overflow checks
     const SectionID section_id = m_next_section_id++;
     section->set_section_type_instance(section_id);
     m_write_queue.push(section);

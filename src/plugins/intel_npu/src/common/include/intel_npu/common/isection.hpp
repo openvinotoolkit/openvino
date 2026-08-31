@@ -30,6 +30,9 @@ using SectionType = uint16_t;
  */
 using SectionID = uint16_t;
 
+constexpr SectionID MANIFEST_SECTION_ID = 0;
+constexpr SectionID CRE_SECTION_ID = 1;
+
 std::string section_type_to_string(const SectionType type);
 
 SectionType section_type_from_string(std::string_view type);
@@ -134,13 +137,13 @@ private:
      * instance ID denotes, by convention, the order in which the sections of the given type have been registered to be
      * written in the blob.
      */
-    void set_section_id(const SectionID type_instance) const;
+    void set_id(const SectionID type_instance) const;
 
-    SectionType m_section_type;
+    SectionType m_type;
     /**
      * @note This value exists only if the current section has been added to a BlobWriter writing queue.
      */
-    mutable std::optional<SectionID> m_section_id;
+    mutable std::optional<SectionID> m_id;
 
     // TODO is this necessary?
     /**
