@@ -112,7 +112,7 @@ jobs:
       - name: Setup MSVC dev environment
       # required so pip builds old numpy wihout errors
         if: ${{ runner.os == 'Windows' && runner.arch == 'ARM64' }}
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
         with:
           arch: arm64
 

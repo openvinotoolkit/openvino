@@ -4,10 +4,8 @@ numpy
 onnxruntime
 requests
 torch
-torchvision; platform_machine == 'arm64' and python_version >= '3.9'
-torchvision; platform_machine != 'arm64'
-sympy; platform_machine == 'arm64' and python_version >= '3.9'
-sympy; platform_machine != 'arm64'
+torchvision
+sympy
 transformers
 packaging
 pillow
