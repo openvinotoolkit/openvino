@@ -423,7 +423,10 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::windowed_c
     const auto reclaimed = register_new_node<v1::Multiply>(blocks, gap);
     const auto evicted = register_new_node<v1::Subtract>(seqlen_scalar, reclaimed);
     const auto overflowed = register_new_node<v1::Greater>(seqlen_scalar, capacity_scalar);
-    return register_new_node<v1::Select>(overflowed, evicted, seqlen_scalar);
+    const auto end = register_new_node<v1::Select>(overflowed, evicted, seqlen_scalar);
+    // Data-dependent index (feeds Slice/Gather/ScatterUpdate bounds); GPU protects it from fusion.
+    end->get_rt_info()["gpu_shape_of_subgraph_root"] = true;
+    return end;
 }
 
 std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_attention_mask(

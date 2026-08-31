@@ -25,6 +25,11 @@ static bool is_shape_of_subgraph_root(program_node& node) {
         return true;
     }
 
+    // Marked via "gpu_shape_of_subgraph_root" rt_info (e.g. GQA's windowed-cache eviction bound).
+    if (node.get_primitive()->is_shape_of_subgraph_root) {
+        return true;
+    }
+
     // Allow input_layout to be the root of the shape_of subgraph if it's 'max_context_len'
     // input of PagedAttention, which can be used as a shape calculation flow source in some
     // models like Qwen and Qwen2
