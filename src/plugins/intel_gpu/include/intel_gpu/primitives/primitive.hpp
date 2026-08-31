@@ -261,6 +261,7 @@ public:
         }
         ob << input;
         ob << num_outputs;
+        ob << is_shape_of_subgraph_root;
     }
 
     virtual void load(BinaryInputBuffer& ib) {
@@ -287,6 +288,7 @@ public:
         }
         ib >> input;
         ib >> num_outputs;
+        ib >> is_shape_of_subgraph_root;
     }
 
     virtual padding get_output_padding(size_t idx) const {
