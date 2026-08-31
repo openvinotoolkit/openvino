@@ -16,7 +16,6 @@
 #if OV_THREAD_USE_TBB
 
 #    include <cstddef>
-#    include <cstdint>
 #    include <memory>
 #    include <mutex>
 #    include <type_traits>
@@ -81,8 +80,8 @@ struct constraints {
         max_threads_per_core = threads_number;
         return *this;
     }
-    constraints& set_processor_group(int group_id) {
-        processor_group = group_id;
+    constraints& set_processor_group_base(int base) {
+        processor_group_base = base;
         return *this;
     }
 
@@ -92,9 +91,9 @@ struct constraints {
     // Upper 4 bits reserved for format marker (single vs multiple core types)
     static constexpr size_t core_type_id_bits = sizeof(core_type_id) * CHAR_BIT - 4;
     int max_threads_per_core = tbb::task_arena::automatic;
-    // Target Windows processor group for soft (non-pinning) stream distribution across groups on
-    // machines with more than 64 logical processors. Negative means no group policy.
-    int processor_group = -1;
+    // Per-stream offset for soft (non-pinning) distribution of the arena's threads across Windows
+    // processor groups (>64 logical processors). Negative means no group policy.
+    int processor_group_base = -1;
 };
 
 #    if USE_TBBBIND_2_5
@@ -121,15 +120,16 @@ using binding_oberver_ptr = std::unique_ptr<binding_observer, binding_observer_d
 #    endif
 
 #    if defined(_WIN32)
-// Spreads streams across Windows processor groups without core pinning: soft-binds an entering thread
-// to a processor group (full active mask) and restores its previous group affinity on scheduler exit.
+// Distributes an arena's worker threads across Windows processor groups without core pinning: each
+// entering thread is soft-bound (full active group mask) to group (base + slot) % group_count, and its
+// previous group affinity is restored on scheduler exit. This lets a single stream span multiple groups.
 class group_affinity_observer : public tbb::task_scheduler_observer {
-    int my_group_id = -1;
-    uint64_t my_group_mask = 0;
+    // Per-stream group offset stored as a plain type so this header stays free of <windows.h>.
+    int my_group_base = -1;
     bool my_valid = false;
 
 public:
-    group_affinity_observer(tbb::task_arena& ta, int group_id);
+    group_affinity_observer(tbb::task_arena& ta, int group_base);
 
     bool valid() const {
         return my_valid;

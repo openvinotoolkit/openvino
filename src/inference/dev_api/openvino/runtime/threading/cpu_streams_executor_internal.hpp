@@ -75,14 +75,20 @@ void update_proc_type_table(const std::vector<std::vector<int>> _cpu_mapping_tab
                             std::vector<std::vector<int>>& _proc_type_table);
 
 /**
- * @brief      Select the processor group a stream is distributed to when spreading streams across
- *             Windows processor groups (machines with more than 64 logical processors).
- * @param[in]  stream_id the stream index, used for round-robin distribution across processor groups
+ * @brief      Select the processor group a stream's worker thread is soft-bound to when spreading
+ *             work across Windows processor groups (machines with more than 64 logical processors).
+ *
+ * Distribution is per worker thread, not per stream: a single stream whose concurrency exceeds one
+ * group's core count is spread across several groups so all cores are used. Streams are offset by
+ * stream_id so that many single-thread streams still fan out across groups.
+ *
+ * @param[in]  stream_id the stream index, used as the per-stream group offset
+ * @param[in]  thread_index the worker thread's slot index within the stream's arena
  * @param[in]  group_count the number of active processor groups
- * @return     the target processor group id in the range [0, group_count), or -1 when group_count <= 1
+ * @return     the target processor group id in [0, group_count), or -1 when group_count <= 1
  *             (single group / no distribution needed)
  */
-int get_stream_processor_group_id(int stream_id, int group_count);
+int get_thread_processor_group(int stream_id, int thread_index, int group_count);
 
 /**
  * @brief      Get the number of active processor groups on the system.

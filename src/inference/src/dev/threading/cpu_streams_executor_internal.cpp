@@ -276,19 +276,21 @@ void update_proc_type_table(const std::vector<std::vector<int>> _cpu_mapping_tab
     }
 }
 
-int get_stream_processor_group_id(int stream_id, int group_count) {
+int get_thread_processor_group(int stream_id, int thread_index, int group_count) {
     if (group_count <= 1) {
         return -1;
     }
-    // Round-robin streams across processor groups by stream index.
-    const int base = stream_id >= 0 ? stream_id : 0;
-    return base % group_count;
+    // Spread an arena's worker threads across groups by slot index, offset per stream so single-thread
+    // streams still fan out. numa id is deliberately not used as a group id (Windows does not match them).
+    const int base = stream_id > 0 ? stream_id : 0;
+    const int slot = thread_index > 0 ? thread_index : 0;
+    return (base + slot) % group_count;
 }
 
 int get_num_processor_groups() {
 #if defined(_WIN32)
     // GetActiveProcessorGroupCount() returns 0 on failure; normalize to a single group so callers can
-    // rely on the count being at least 1 (matching get_stream_processor_group_id's group_count <= 1 path).
+    // rely on the count being at least 1 (matching get_thread_processor_group's group_count <= 1 path).
     return std::max<int>(1, static_cast<int>(GetActiveProcessorGroupCount()));
 #else
     return 1;
