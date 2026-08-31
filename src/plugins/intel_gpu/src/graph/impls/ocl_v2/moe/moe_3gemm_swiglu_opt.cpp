@@ -2320,6 +2320,18 @@ public:
         auto routing_mem_ptr = scratch.topk_weights;
         const auto& intermediates_memories = instance.get_intermediates_memories();
 
+        // SAFETY CHECK: Verify internal buffers exist before accessing
+        if (intermediates_memories.size() <= MOE_INTERNAL_BUFFER_ROW_LUT) {
+            OPENVINO_THROW("[MOE_3GEMM_GROUPED_BUG] Grouped GEMM path requires buffer ",
+                           MOE_INTERNAL_BUFFER_ROW_LUT,
+                           " (ROW_LUT) but only ",
+                           intermediates_memories.size(),
+                           " buffers allocated. ",
+                           "This indicates a mismatch between buffer allocation and execution path. ",
+                           "use_grouped_gemm_prefill=",
+                           use_grouped_gemm_prefill);
+        }
+
         int num_total_experts = static_cast<int>(config.num_expert);
         int max_topk = static_cast<int>(config.top_k);
         int num_actually_used_experts = 0;
@@ -2430,17 +2442,6 @@ public:
         // ----------------------------------------------------------------
         // Steps 3-5: OneDNN grouped GEMM – gate, up, SiLU, down
         // ----------------------------------------------------------------
-        // SAFETY CHECK: Verify grouped_offsets buffer exists before accessing
-        if (intermediates_memories.size() <= MOE_INTERNAL_BUFFER_GROUPED_OFFSETS) {
-            OPENVINO_THROW("[MOE_3GEMM_GROUPED_BUG] Grouped GEMM path requires buffer ",
-                           MOE_INTERNAL_BUFFER_GROUPED_OFFSETS,
-                           " (GROUPED_OFFSETS) but only ",
-                           intermediates_memories.size(),
-                           " buffers allocated. ",
-                           "This indicates a mismatch between buffer allocation and execution path. ",
-                           "use_grouped_gemm_prefill=",
-                           use_grouped_gemm_prefill);
-        }
         auto& gk = get_grouped_kernel(total_gathered_tokens, instance);
         auto row_offsets = intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS];
 
