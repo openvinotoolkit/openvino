@@ -33,6 +33,13 @@ JitConstants RMSKernelBase::GetJitConstants(const rms_params& params, RMSKernelB
     });
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 
+    if (params.inputs[0].GetDType() == Datatype::BF16) {
+        jit.RemoveConstant("TO_ACCUMULATOR_TYPE(v)");
+        jit.AddConstant(MakeJitConstant("TO_ACCUMULATOR_TYPE(v)", "_convert_as_bfloat16_float(v)"));
+        jit.RemoveConstant("TO_ACCUMULATOR_VECTOR_TYPE(v, size)");
+        jit.AddConstant(MakeJitConstant("TO_ACCUMULATOR_VECTOR_TYPE(v, size)", "CONVERT_AS_BFLOAT16_FLOAT(v, size)"));
+    }
+
     return jit;
 }
 
@@ -128,6 +135,7 @@ Datatype RMSKernelBase::GetAccumulatorType(const rms_params& params) const {
     switch (input_dt) {
         case Datatype::F32:
         case Datatype::F16:
+        case Datatype::BF16:
             return Datatype::F32;
         case Datatype::INT8: return Datatype::INT32;
         case Datatype::UINT8: return Datatype::INT32;

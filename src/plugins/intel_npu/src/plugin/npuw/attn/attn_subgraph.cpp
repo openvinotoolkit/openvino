@@ -565,6 +565,8 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                      !get_request(ctx).attention_no_copy();
                                 if (do_copy && ov::shape_size(shape) > 0) {
                                     const auto& dst = ctx.target_request->get_tensor(iport);
+                                    NPUW_ASSERT(dst._ptr && "target request returned null tensor for KV param port — "
+                                                            "request may be uninitialized");
                                     dst->set_shape(shape);
                                     view->copy_to(dst._ptr);
                                 } else if (do_copy && ov::shape_size(shape) == 0) {
@@ -761,6 +763,9 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                 ctx.target_request->set_tensor(mask_iport, view);
                             } else {
                                 const auto& dst = ctx.target_request->get_tensor(mask_iport);
+                                NPUW_ASSERT(
+                                    dst._ptr &&
+                                    "target request returned null tensor for mask port — request may be uninitialized");
                                 dst->set_shape(view->get_shape());
                                 view->copy_to(dst._ptr);
                             }
@@ -794,11 +799,15 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                      ATTN_KV_DIM,
                                                      full_mask_shape[ATTN_KV_DIM] - present_len,
                                                      present_len);
+                            NPUW_ASSERT(present_dst_view._ptr && "null tensor view for present mask segment — target "
+                                                                 "request tensor may be uninitialized or zero-sized");
                             present_src_view->copy_to(present_dst_view._ptr);
 
                             if (past_len > 0) {
                                 const auto& past_dst_view = ov::npuw::util::view(dst, ATTN_KV_DIM, 0, past_len);
                                 const auto& past_src_view = ov::npuw::util::view(graph_mask, ATTN_KV_DIM, 0, past_len);
+                                NPUW_ASSERT(past_dst_view._ptr && "null tensor view for past mask segment — target "
+                                                                  "request tensor may be uninitialized or zero-sized");
                                 past_src_view->copy_to(past_dst_view._ptr);
                             }
                             state.cached_attention_mask = dst;
@@ -811,7 +820,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         const auto pyramid_id = state.pyramid_selector->pyramid_id();
                         const std::size_t dyn_mask_idx = pyramid->mask_idx_at(pyramid_id);
                         const std::size_t dyn_query_size = pyramid->query_size_at(pyramid_id);
-                        auto mask_iport = pyramid->_compiled_models[pyramid_id]->inputs()[dyn_mask_idx];
+                        auto mask_iport = pyramid->_compiled_models[pyramid_id]->inputs().at(dyn_mask_idx);
                         const auto& graph_mask = io.inputs.at(dyn_mask_idx);
                         const auto this_case = state.pyramid_selector->this_case();
                         const auto present_len = dyn_query_size;
@@ -1267,22 +1276,25 @@ void serialize_compiled_state(v1::subgraphs::Context& context,
                 std::string model_str = ss.str();
                 stream & model_str;
             }
-        } else if (num_models > 0) {
+        } else {
             mutable_pyramid->_compiled_models.resize(num_models);
-            NPUW_ASSERT(submodel_ctx != nullptr);
-            for (size_t i = 0; i < num_models - 1; ++i) {
-                std::string model_str;
-                stream & model_str;
-                std::stringstream ss(model_str);
-                mutable_pyramid->_compiled_models[i] =
-                    submodel_ctx->plugin->get_core()->import_model(ss,
-                                                                   submodel_ctx->device,
-                                                                   submodel_ctx->import_config);
+            if (num_models > 0) {
+                NPUW_ASSERT(submodel_ctx != nullptr);
+                for (size_t i = 0; i < num_models - 1; ++i) {
+                    std::string model_str;
+                    stream & model_str;
+                    std::stringstream ss(model_str);
+                    mutable_pyramid->_compiled_models[i] =
+                        submodel_ctx->plugin->get_core()->import_model(ss,
+                                                                       submodel_ctx->device,
+                                                                       submodel_ctx->import_config);
+                }
+                if (submodel_ctx->compiled_model) {
+                    mutable_pyramid->_compiled_models[num_models - 1] = submodel_ctx->compiled_model;
+                    LOG_DEBUG("Reused compiled_model for the last pyramid attention model");
+                }
             }
-            if (submodel_ctx->compiled_model) {
-                mutable_pyramid->_compiled_models[num_models - 1] = submodel_ctx->compiled_model;
-                LOG_DEBUG("Reused compiled_model for the last pyramid attention model");
-            }
+            mutable_pyramid->validate_port_indices();
         }
     }
 
