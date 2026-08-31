@@ -10,7 +10,9 @@
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/runtime/debug_configuration.hpp>
 
+#include "impls/ocl_v2/sdpa/sdpa_opt.hpp"
 #include "openvino/util/file_util.hpp"
+#include "program_wrapper.h"
 #include <array>
 #include <iostream>
 #include <vector>
@@ -359,6 +361,37 @@ TEST(sdpa_gpu_custom, dynamic_mismatched_v_head_size) {
         ASSERT_NEAR(static_cast<float>(output_data[i]), static_cast<float>(ref_output_data[i]), 1e-3f)
             << "Mismatch at index " << i;
     }
+}
+
+TEST(sdpa_gpu_custom, different_rank_orders_dynamic_v_head_size_rejects_opt) {
+    auto& engine = get_test_engine();
+
+    auto q_prim = std::make_shared<input_layout>("q", layout(ov::PartialShape{-1, -1, 384}, data_types::f16, format::bfyx));
+    auto k_prim = std::make_shared<input_layout>("k", layout(ov::PartialShape{-1, -1, 384}, data_types::f16, format::bfyx));
+    auto v_prim = std::make_shared<input_layout>("v", layout(ov::PartialShape{-1, 1, 16, -1}, data_types::f16, format::bfyx));
+    auto sdpa_prim = std::make_shared<scaled_dot_product_attention>("sdpa",
+                                                                   std::vector{input_info("q"), input_info("k"), input_info("v")},
+                                                                   false,
+                                                                   -1,
+                                                                   std::vector<int64_t>{0, 1, 2},
+                                                                   std::vector<int64_t>{0, 1, 2},
+                                                                   std::vector<int64_t>{0, 1, 2, 3},
+                                                                   std::vector<int64_t>{0, 1, 2, 3},
+                                                                   scaled_dot_product_attention::QuantizationAttributes{},
+                                                                   false);
+
+    program prog(engine);
+    auto& q_node = prog.get_or_create(q_prim);
+    auto& k_node = prog.get_or_create(k_prim);
+    auto& v_node = prog.get_or_create(v_prim);
+    auto& sdpa_node = prog.get_or_create(sdpa_prim);
+    program_wrapper::add_connection(prog, q_node, sdpa_node);
+    program_wrapper::add_connection(prog, k_node, sdpa_node);
+    program_wrapper::add_connection(prog, v_node, sdpa_node);
+    sdpa_node.recalc_output_layout();
+
+    ov::intel_gpu::ocl::SDPAOpt sdpa_opt(shape_types::dynamic_shape);
+    EXPECT_FALSE(sdpa_opt.validate_impl(sdpa_node));
 }
 
 TEST(sdpa_gpu_custom, static_zero_dimension_throws) {
