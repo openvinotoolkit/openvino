@@ -142,6 +142,19 @@ void MatmulWeightsDecompression::check_results() {
     type = fc->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
     EXPECT_EQ(type, "FullyConnected");
 
+#if defined(OPENVINO_ARCH_X86_64)
+    if (use_matmul_decompression_impl &&
+        (compressed_weights_precision == ov::element::f8e4m3 || compressed_weights_precision == ov::element::f8e5m2)) {
+        // FP8 weights are only kept compressed when the oneDNN brgemm matmul kernel
+        // decompresses them, so anything else means we silently took a fallback.
+        // This also guards the impl name parsing: an unmapped ISA name resolves to
+        // an impl type that is in no priority list, which selects nothing at all.
+        const auto implType = fc->get_rt_info().at(ov::exec_model_info::IMPL_TYPE).as<std::string>();
+        EXPECT_NE(implType.find("brgemm"), std::string::npos) << "unexpected impl type: " << implType;
+        EXPECT_NE(implType.find("avx512"), std::string::npos) << "unexpected impl type: " << implType;
+    }
+#endif
+
     const auto& expected_weights_precision =
         use_matmul_decompression_impl ? compressed_weights_precision : fc->get_input_element_type(0);
     EXPECT_EQ(fc->get_input_element_type(1), expected_weights_precision);
