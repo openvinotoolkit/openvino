@@ -12,7 +12,7 @@ bool PermuteKernelBase::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
     const permute_params& params = static_cast<const permute_params&>(p);
-    for (auto& fused_op : params.fused_ops) {
+    for (const auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
         }

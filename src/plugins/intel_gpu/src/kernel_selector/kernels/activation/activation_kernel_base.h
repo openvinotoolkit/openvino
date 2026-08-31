@@ -43,7 +43,7 @@ public:
     using DispatchData = CommonDispatchData;
     using KernelBaseOpenCL::KernelBaseOpenCL;
 
-    ~ActivationKernelBase() override {}
+    ~ActivationKernelBase() override = default;
 
 protected:
     bool Validate(const Params& p) const override;

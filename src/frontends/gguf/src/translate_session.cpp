@@ -4,18 +4,31 @@
 
 #include "translate_session.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdlib>
 #include <map>
 #include <memory>
+#include <set>
+#include <unordered_set>
+
+#include "input_model.hpp"
+#include "node_context.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/frontend/gguf/make_stateful.hpp"
+#include "openvino/frontend/gguf/tokenizer_metadata.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/loop.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/range.hpp"
@@ -27,11 +40,11 @@
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/constant_folding.hpp"
-
-#include "input_model.hpp"
-#include "node_context.hpp"
-#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/pass/manager.hpp"
 #include "pass/lower_set_rows_stateless.hpp"
+#include "pass/prune_orphaned_parameters.hpp"
+#include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/convert_convertlike.hpp"
 #include "utils.hpp"
@@ -45,20 +58,14 @@ using namespace ov::op;
 namespace {
 
 void add_sliced_mask(TensorMap& tensor_map) {
-    // Slice the full attention mask down to the current token window for the attention ops.
-    // For static (fixed-shape) models the slice bounds are constants, so this folds to a
-    // fixed-size slice -- there is no separate static pass-through branch.
+    // Publish the decoder's runtime-sized attention mask under the shared name
+    // consumed by the attention translators.
     auto create_sliced_mask = [&](const std::string& mask_name, const std::string& sliced_name) {
-        if ((tensor_map.find(mask_name) != tensor_map.end()) &&
-            (tensor_map.find("token_len_per_seq") != tensor_map.end())) {
-            auto token_len_per_seq = tensor_map.at("token_len_per_seq").get_node_shared_ptr();
+        if (tensor_map.find(mask_name) != tensor_map.end()) {
             auto mask = tensor_map.at(mask_name).get_node_shared_ptr();
-            auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
-            auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
-            auto two = ov::op::v0::Constant::create(ov::element::i64, {1}, {2});
-            std::shared_ptr<ov::Node> mask_sliced =
-                std::make_shared<ov::op::v8::Slice>(mask, zero, token_len_per_seq, one, two);
-            mask_sliced = std::make_shared<ov::op::v0::Convert>(mask_sliced, ov::element::f16);
+            // The decoder binds the mask with its current runtime shape, so its
+            // token axis already is the active token window.
+            std::shared_ptr<ov::Node> mask_sliced = std::make_shared<ov::op::v0::Convert>(mask, ov::element::f16);
             mask_sliced->set_friendly_name(sliced_name);
             tensor_map.insert({sliced_name, mask_sliced->output(0)});
         }
@@ -68,7 +75,12 @@ void add_sliced_mask(TensorMap& tensor_map) {
     create_sliced_mask("self_kq_mask_swa", "KQ_mask_swa_sliced");
 }
 
-void add_rope_sin_cos(TensorMap& tensor_map, const RopeConfig& rope_config) {
+void add_rope_sin_cos(TensorMap& tensor_map, GgufDecoder& gguf_model_decoder) {
+    // A decoder bound to a full LLM graph exposes "rope_config"; a decoder wrapping a bare op /
+    // small cgraph (a single-op test) has no such attribute -> default RopeConfig (n_dims == 0,
+    // "no RoPE") so the shared table is skipped and the op falls back to its own sin/cos.
+    const auto rope_config_any = gguf_model_decoder.get_attribute("rope_config");
+    const auto rope_config = rope_config_any.empty() ? RopeConfig{} : rope_config_any.as<RopeConfig>();
     // n_dims == 0 means the model uses no RoPE; per_op means each ROPE op builds its own sin/cos
     // (e.g. gemma4 where SWA and global layers differ), so skip the shared table entirely.
     if (tensor_map.find("inp_pos") == tensor_map.end() || rope_config.n_dims == 0 || rope_config.per_op) {
@@ -80,7 +92,7 @@ void add_rope_sin_cos(TensorMap& tensor_map, const RopeConfig& rope_config) {
         rope_freqs_weight = tensor_map.at("rope_freqs.weight").get_node_shared_ptr();
     }
 
-    auto sin_cos = make_sin_cos(rope_config, inp_pos, rope_freqs_weight);
+    auto sin_cos = make_sin_cos(rope_config, inp_pos, rope_freqs_weight, rope_config.is_imrope);
     auto sin_theta = sin_cos.first;
     auto cos_theta = sin_cos.second;
 
@@ -91,9 +103,9 @@ void add_rope_sin_cos(TensorMap& tensor_map, const RopeConfig& rope_config) {
 }
 
 // Create common patterns
-void preprocess(TensorMap& tensor_map, const RopeConfig& rope_config) {
+void preprocess(TensorMap& tensor_map, GgufDecoder& gguf_model_decoder) {
     add_sliced_mask(tensor_map);
-    add_rope_sin_cos(tensor_map, rope_config);
+    add_rope_sin_cos(tensor_map, gguf_model_decoder);
 }
 
 }  // namespace
@@ -121,26 +133,55 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     std::shared_ptr<Model> resulting_model;
 
     const auto& gguf_model = std::dynamic_pointer_cast<InputModel>(input_model);
+    std::shared_ptr<GgufDecoder> gguf_model_decoder = gguf_model->get_model_decoder();
 
-    for (const auto& it : gguf_model->get_model_inputs()) {
+    // Auxiliary input Parameters may only get a consumer from a later normalization pass, after
+    // the unused-Parameter pruning below. Track them so pruning never drops one for lack of a
+    // consumer at translate time; a pass that ends up not consuming one leaves it dangling, which
+    // later constant folding removes.
+    std::set<ov::Node*> deferred_use_params;
+    // get_model_inputs() already folds in get_model_extra_inputs()'s entries (per the decoder.hpp
+    // contract), so the same Parameter can show up in both loops below; skip re-adding it or it
+    // ends up registered on the model twice, under two different indices.
+    std::set<ov::Node*> seen_params;
+
+    for (const auto& it : gguf_model_decoder->get_model_inputs()) {
+        // Not every decoder splits auxiliary inputs into get_model_extra_inputs(): one that still
+        // folds them into get_model_inputs() (see the decoder.hpp contract) hands us a mix of
+        // Parameters and other node types here, so guard the cast instead of pushing a null
+        // Parameter into `params`.
         if (auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(it.second)) {
             params.push_back(param);
+            seen_params.insert(param.get());
         }
         (*tensor_map)[it.first] = it.second;
     }
 
-    // Weights are not seeded here: a weight is visited as a regular "GGML_OP_NONE" node (a ggml
-    // leaf carrying a "data" attribute) in visit_subgraph, and translate_weight writes its
-    // dequantized node into the tensor map under the weight name, before the consuming op is
-    // visited (the cgraph is topologically ordered).
+    for (const auto& it : gguf_model_decoder->get_model_extra_inputs()) {
+        if (auto p = std::dynamic_pointer_cast<ov::op::v0::Parameter>(it.second)) {
+            if (seen_params.insert(p.get()).second) {
+                params.push_back(p);
+            }
+            deferred_use_params.insert(p.get());
+        }
+        (*tensor_map)[it.first] = it.second;
+    }
+
+    // Weights are not seeded here: every decoder surfaces them as "GGML_OP_NONE" leaves that
+    // translate_weight turns into a compressed subgraph during the walk below, which keeps them
+    // lazy (never materialized to f32) and keeps one weight-loading path for both ingest paths.
 
     auto node_visitor = [&](std::shared_ptr<GgufDecoder> decoder) {
         auto operation_type = decoder->get_op_type();
         if (operation_type == "GGML_OP_NONE") {
-            // A GGML_OP_NONE leaf is a weight only if the decoder exposes its raw bytes via the
-            // "data" attribute; otherwise it is a model-input leaf (already seeded as a Parameter
+            // A GGML_OP_NONE leaf is a weight if the decoder marks it as one: either the native
+            // builder's pre-extracted payload (bool "gguf_weight") or the cgraph decoder's raw
+            // bytes ("data"). Otherwise it is a model-input leaf (already seeded as a Parameter
             // above) and there is nothing to translate.
-            if (!decoder->get_attribute("data").is<ov::Tensor>()) {
+            const bool is_builder_weight =
+                decoder->get_attribute("gguf_weight").is<bool>() && decoder->get_attribute("gguf_weight").as<bool>();
+            const bool is_cgraph_weight = decoder->get_attribute("data").is<ov::Tensor>();
+            if (!is_builder_weight && !is_cgraph_weight) {
                 return;
             }
         }
@@ -178,10 +219,10 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     // the model uses a shared rope table (n_dims != 0, not per-op). For a bare op / small cgraph
     // (no rope_config -> default n_dims == 0, no mask/pos inputs) both no-op, and the ROPE/attention
     // translators fall back to building their own -- so there is no separate "naive" mode.
-    preprocess(*tensor_map, gguf_model->get_rope_config());
-    gguf_model->visit_subgraph(node_visitor);
+    preprocess(*tensor_map, *gguf_model_decoder);
+    gguf_model_decoder->visit_subgraph(node_visitor);
 
-    for (const auto& name : gguf_model->get_model_output_names()) {
+    for (const auto& name : gguf_model_decoder->get_model_output_names()) {
         FRONT_END_GENERAL_CHECK(tensor_map->find(name) != tensor_map->end(),
                                 "Output name not found in tensor map: ",
                                 name);
@@ -192,13 +233,75 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
 
     ov::ParameterVector used_params;
     for (const auto& param : params) {
-        if (!param->output(0).get_target_inputs().empty()) {
+        // Keep a Parameter if it currently feeds something, OR if its consumer is created by a
+        // later normalization pass.
+        if (!param->output(0).get_target_inputs().empty() || deferred_use_params.count(param.get())) {
             used_params.push_back(param);
         }
     }
     resulting_model = std::make_shared<Model>(results, used_params);
 
-    apply_transformations(resulting_model);
+    // M-RoPE models need 4 position sections per token, which changes the position_ids contract a
+    // GenAI-facing consumer has to satisfy; record it so AdaptToGenAI can adapt (it runs on the
+    // model alone and cannot ask the decoder).
+    {
+        const auto rc_any = gguf_model_decoder->get_attribute("rope_config");
+        if (!rc_any.empty() && rc_any.as<RopeConfig>().is_imrope) {
+            resulting_model->get_rt_info()[pass::gguf_imrope_key()] = true;
+        }
+    }
+
+    // Sliding-window length, when the metadata carries one; AdaptToGenAI needs it to build a
+    // correctly windowed self_kq_mask_swa instead of reusing the full causal mask (it runs on the
+    // model alone and cannot ask the decoder).
+    {
+        const auto swa_any = gguf_model_decoder->get_attribute("swa_window_size");
+        if (!swa_any.empty() && swa_any.as<int>() > 0) {
+            resulting_model->get_rt_info()[pass::gguf_swa_window_key()] = static_cast<int64_t>(swa_any.as<int>());
+        }
+    }
+
+    // Record the recurrent (overwritten, non-appending) states BEFORE transformations: a caller
+    // that registered MakeStateful runs it inside apply_transformations, and unlike a KV cache
+    // these carry nothing in the graph that identifies them (see gguf_recurrent_states_key).
+    // Flattened to alternating {input, output} because rt_info takes an ov::Any.
+    {
+        const auto& rs = gguf_model_decoder->get_recurrent_states();
+        if (!rs.empty()) {
+            std::vector<std::string> flat;
+            flat.reserve(rs.size() * 2);
+            for (const auto& kv : rs) {
+                flat.push_back(kv.first);
+                flat.push_back(kv.second);
+            }
+            resulting_model->get_rt_info()[pass::gguf_recurrent_states_key()] = flat;
+        }
+    }
+
+    resulting_model = apply_transformations(resulting_model);
+
+    // Auxiliary Parameters are kept through normalization in case a transformation extension
+    // creates their only consumer; drop any still disconnected afterwards (a plugin requires
+    // every declared model input to reach a node in the execution graph).
+    std::set<ov::Node*> ordered_nodes;
+    for (const auto& node : resulting_model->get_ordered_ops()) {
+        ordered_nodes.insert(node.get());
+    }
+    const auto transformed_params = resulting_model->get_parameters();
+    for (const auto& param : transformed_params) {
+        if (ordered_nodes.count(param.get()) == 0) {
+            resulting_model->remove_parameter(param);
+        }
+    }
+
+    // Attach GGUF tokenizer metadata (the file's tokenizer.* keys) to the model's rt_info as a
+    // non-serializable attribute, so a downstream consumer (OpenVINO GenAI) can build the
+    // tokenizer without reopening the .gguf. Empty when the decoder carries no tokenizer config.
+    const auto& tok_cfg = gguf_model_decoder->get_tokenizer_config();
+    if (!tok_cfg.empty()) {
+        resulting_model->get_rt_info()[gguf_tokenizer_metadata_key()] =
+            std::make_shared<GGUFTokenizerMetadata>(tok_cfg);
+    }
 
     // Set WeightlessCacheAttribute on large constants to avoid unnecessary memory copies
     // in the NPUW plugin. Without this attribute, NPUW's LazyTensor constructor
@@ -216,7 +319,8 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     size_t offset = 0;
     for (auto& node : resulting_model->get_ordered_ops()) {
         if (auto cnst = ov::as_type_ptr<ov::op::v0::Constant>(node);
-            cnst && cnst->get_byte_size() / cnst->get_element_type().size() >= 16) {
+            cnst && cnst->get_element_type().size() > 0 &&
+            cnst->get_byte_size() / cnst->get_element_type().size() >= 16) {
             auto& rt_info = cnst->get_rt_info();
             if (rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static()) == rt_info.end()) {
                 rt_info[ov::WeightlessCacheAttribute::get_type_info_static()] =
@@ -232,16 +336,39 @@ std::shared_ptr<Model> TranslateSession::apply_transformations(std::shared_ptr<M
     manager.set_per_pass_validation(true);
     manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
 
-    // Caller-registered transformation extensions run first. A SetRows-lowering extension (e.g.
-    // the backend's stateful lowering) consumes the KV-cache SetRows ops here; the built-in stateless
-    // lowering below then only fires on the ops left untouched. With no extension registered, the
-    // stateless lowering handles every SetRows op -- so a plain convert() yields the
-    // llama.cpp-faithful stateless model.
+    // Caller-registered transformation extensions run first, which is what makes execution mode a
+    // caller concern rather than a frontend one: an extension that lowers SetRows itself -- e.g.
+    // ov::frontend::gguf::pass::GGUFMakeStateful, or a backend's own variant -- consumes the KV-cache
+    // SetRows ops here, and the built-in stateless lowering below then only fires on the ops left
+    // untouched (MoE routing writes and the like). With no extension registered, the stateless
+    // lowering handles every SetRows op, so a plain convert() yields the stateless model.
     for (const auto& ext : m_transformation_extensions) {
         ext->register_pass(manager);
     }
     manager.register_pass<pass::LowerSetRowsStateless>();
+
     manager.register_pass<ov::pass::ConvertConvertLike>();
+    // The lowered ConvertLikes are frequently no-ops (k/v already share q's precision). Drop them:
+    // a same-type Convert on an SDPA k/v input is invisible to the plugins but breaks
+    // StateManagementPattern, which admits no Convert between the KV-cache Concat and SDPA, and so
+    // silently disables the PagedAttention backend for every GGUF model.
+    manager.register_pass<ov::pass::EliminateConvert>();
+
+    // Fuse a standalone Loop-based Gated Delta Net recurrence here (not in a plugin, which can't
+    // remove a Parameter without violating its I/O port-count invariant), only for models with a
+    // Loop: GatedDeltaNetFusion also bundles TransposeFuse, a generic cleanup that would otherwise
+    // touch every architecture's op count.
+    const auto ordered_ops = model->get_ordered_ops();
+    const auto has_loop =
+        std::any_of(ordered_ops.begin(), ordered_ops.end(), [](const std::shared_ptr<ov::Node>& node) {
+            return ov::is_type<ov::op::v5::Loop>(node);
+        });
+    if (has_loop) {
+        auto live_before_gdn = std::make_shared<std::unordered_set<const ov::Node*>>();
+        manager.register_pass<pass::SnapshotLiveParameters>(live_before_gdn);
+        manager.register_pass<ov::pass::GatedDeltaNetFusion>();
+        manager.register_pass<pass::PruneParametersOrphanedSince>(live_before_gdn);
+    }
 
     manager.run_passes(model);
     return model;

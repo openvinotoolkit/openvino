@@ -13,13 +13,19 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 
+namespace ov {
+class ICore;
+}
+
 namespace intel_npu {
 
 /**
  * @brief Wrapper over multiple "ze_graph_handle_t" objects, one for each init/main schedule (weights separation).
- *
  * @details This class contains most implementation details for running the init schedules and setting the results as
  * inputs to the main one.
+ *
+ * @param weightsSource The source of weights for the weights separation pipeline. Should be either an `ov::Model` or a
+ * weights path along with the core object that may be used to parse the weights.
  */
 class WeightlessGraph final : public Graph {
 public:
@@ -31,14 +37,21 @@ public:
                     const std::vector<GraphDescriptor>& initGraphDesc,
                     std::vector<NetworkMetadata> initMetadata,
                     std::optional<std::vector<ov::Tensor>> initBlobs,
-                    std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>&& constants,
+                    std::variant<std::monostate,
+                                 std::shared_ptr<const ov::Model>,
+                                 std::pair<std::string, std::shared_ptr<ov::ICore>>>&& weightsSource,
                     const FilteredConfig& config,
-                    const bool blobIsPersistent = false);
+                    const bool blobIsPersistent = false,
+                    const std::optional<std::string>& compatibilityDescriptor = std::nullopt);
 
     /**
      * @brief The main schedule along with the weights initialization ones are exported.
      */
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
+
+    GraphKind get_kind() const override {
+        return GraphKind::Weightless;
+    }
 
     /**
      * @brief Implementation hook for "IGraph::initialize" that initializes all underlying graph handles.
@@ -46,8 +59,6 @@ public:
      * compiled model.
      */
     void initialize_impl(const FilteredConfig& config) override;
-
-    std::optional<std::string_view> get_compatibility_descriptor() const override;
 
     // TODO: public for multi-threaded execution
     struct InputData {

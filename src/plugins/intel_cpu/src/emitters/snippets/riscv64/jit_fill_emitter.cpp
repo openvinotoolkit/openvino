@@ -40,7 +40,10 @@ jit_fill_emitter::jit_fill_emitter(jit_generator_t* h, cpu_isa_t isa, const Expr
 }
 
 size_t jit_fill_emitter::aux_gprs_count() const {
-    return is_optimized() && utils::get_snippet_lanes() <= 31 ? 0 : 1;
+    const bool needs_vector_length_gpr = utils::get_snippet_lanes() > 31;
+    const bool needs_mask_gpr = !is_full_reg() && !is_mask_imm();
+    const bool needs_fill_gpr = !is_zero_fill();
+    return needs_vector_length_gpr || needs_mask_gpr || needs_fill_gpr ? 1 : 0;
 }
 
 void jit_fill_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
@@ -73,7 +76,7 @@ template <cpu_isa_t isa>
 void jit_fill_emitter::fill_full(const std::vector<size_t>& out) const {
     auto dst = Xbyak_riscv::VReg(out[0]);
 
-    if (is_optimized()) {
+    if (is_zero_fill()) {
         h->vmv_v_x(dst, Xbyak_riscv::zero);
         return;
     }
@@ -97,14 +100,24 @@ void jit_fill_emitter::fill_tail(const std::vector<size_t>& in, const std::vecto
         return;
     }
 
-    OPENVINO_ASSERT(!aux_gpr_idxs.empty(), "Fill emitter expects one auxiliary GPR register");
-    const auto fill_reg = Xbyak_riscv::Reg(static_cast<int>(aux_gpr_idxs[0]));
-
     h->vid_v(mask_vreg());
-    h->uni_li(fill_reg, offset - 1);
-    h->vmsgtu_vx(mask_vreg(), mask_vreg(), fill_reg);
-    h->uni_li(fill_reg, static_cast<int64_t>(fill_value));
-    h->vmerge_vxm(dst, src, fill_reg);
+    if (is_mask_imm()) {
+        h->vmsgtu_vi(mask_vreg(), mask_vreg(), static_cast<int32_t>(offset - 1));
+    } else {
+        OPENVINO_ASSERT(!aux_gpr_idxs.empty(), "Fill emitter expects one auxiliary GPR register");
+        const auto mask_reg = Xbyak_riscv::Reg(static_cast<int>(aux_gpr_idxs[0]));
+        h->uni_li(mask_reg, offset - 1);
+        h->vmsgtu_vx(mask_vreg(), mask_vreg(), mask_reg);
+    }
+
+    if (is_zero_fill()) {
+        h->vmerge_vxm(dst, src, Xbyak_riscv::zero);
+    } else {
+        OPENVINO_ASSERT(!aux_gpr_idxs.empty(), "Fill emitter expects one auxiliary GPR register");
+        const auto fill_reg = Xbyak_riscv::Reg(static_cast<int>(aux_gpr_idxs[0]));
+        h->uni_li(fill_reg, static_cast<int64_t>(fill_value));
+        h->vmerge_vxm(dst, src, fill_reg);
+    }
 }
 
 }  // namespace ov::intel_cpu::riscv64

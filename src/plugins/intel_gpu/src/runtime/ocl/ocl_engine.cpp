@@ -28,9 +28,9 @@
 #endif
 
 // static class memebers - pointers to dynamically obtained OpenCL extension functions
-cl::PFN_clEnqueueAcquireMediaSurfacesINTEL cl::SharedSurfLock::pfn_acquire = NULL;
-cl::PFN_clEnqueueReleaseMediaSurfacesINTEL cl::SharedSurfLock::pfn_release = NULL;
-cl::PFN_clCreateFromMediaSurfaceINTEL cl::ImageVA::pfn_clCreateFromMediaSurfaceINTEL = NULL;
+cl::PFN_clEnqueueAcquireMediaSurfacesINTEL cl::SharedSurfLock::pfn_acquire = nullptr;
+cl::PFN_clEnqueueReleaseMediaSurfacesINTEL cl::SharedSurfLock::pfn_release = nullptr;
+cl::PFN_clCreateFromMediaSurfaceINTEL cl::ImageVA::pfn_clCreateFromMediaSurfaceINTEL = nullptr;
 #ifdef _WIN32
 cl::PFN_clCreateFromD3D11Buffer cl::BufferDX::pfn_clCreateFromD3D11Buffer = NULL;
 #endif
@@ -62,7 +62,7 @@ ocl_engine::ocl_engine(const device::ptr dev, runtime_types runtime_type)
     : engine(dev) {
     OPENVINO_ASSERT(runtime_type == runtime_types::ocl, "[GPU] Invalid runtime type specified for OCL engine. Only OCL runtime is supported");
 
-    auto casted = dynamic_cast<ocl_device*>(dev.get());
+    auto* casted = dynamic_cast<ocl_device*>(dev.get());
     OPENVINO_ASSERT(casted, "[GPU] Invalid device type passed to ocl engine");
     casted->get_device().getInfo(CL_DEVICE_EXTENSIONS, &_extensions);
 
@@ -140,7 +140,7 @@ memory::ptr ocl_engine::import_buffer(const layout& layout, ov::intel_gpu::os_ha
     };
 
     cl_int errcode = CL_SUCCESS;
-    auto cl_ctx = static_cast<cl_context>(get_user_context(runtime_types::ocl));
+    auto* cl_ctx = static_cast<cl_context>(get_user_context(runtime_types::ocl));
     OPENVINO_ASSERT(cl_ctx != nullptr, "[GPU] OpenCL context is null while importing external buffer");
     const auto byte_size = layout.bytes_count();
     cl_mem imported = clCreateBufferWithProperties(cl_ctx, props, CL_MEM_READ_WRITE, byte_size, nullptr, &errcode);
@@ -216,8 +216,8 @@ memory::ptr ocl_engine::create_subbuffer(const memory& memory, const layout& new
         if (new_layout.format.is_image_2d()) {
             OPENVINO_NOT_IMPLEMENTED;
         } else if (memory_capabilities::is_usm_type(memory.get_allocation_type())) {
-            auto& new_buf = reinterpret_cast<const ocl::gpu_usm&>(memory);
-            auto ptr = new_buf.get_buffer().get();
+            const auto& new_buf = reinterpret_cast<const ocl::gpu_usm&>(memory);
+            auto* ptr = new_buf.get_buffer().get();
             auto sub_buffer = cl::UsmMemory(get_usm_helper(), ptr, byte_offset);
 
             return std::make_shared<ocl::gpu_usm>(this,
@@ -247,8 +247,13 @@ memory_ptr ocl_engine::create_hostbuffer(void* cpu_address,
     return create_hostbuffer_impl(cpu_address, data_size, _allocation_type, output_layout, CL_MEM_READ_WRITE);
 }
 
-memory_ptr ocl_engine::create_hostbuffer(const void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) {
-    return create_hostbuffer_impl(const_cast<void*>(cpu_address), data_size, _allocation_type, output_layout, CL_MEM_READ_ONLY);
+memory_ptr ocl_engine::create_hostbuffer(const void* cpu_address,
+                                         size_t data_size,
+                                         allocation_type _allocation_type,
+                                         const layout output_layout,
+                                         bool host_read_only) {
+    cl_mem_flags flags = host_read_only ? (CL_MEM_READ_ONLY | CL_MEM_HOST_READ_ONLY) : CL_MEM_READ_ONLY;
+    return create_hostbuffer_impl(const_cast<void*>(cpu_address), data_size, _allocation_type, output_layout, flags);
 }
 
 memory::ptr ocl_engine::reinterpret_buffer(const memory& memory, const layout& new_layout) {
@@ -289,13 +294,15 @@ memory::ptr ocl_engine::reinterpret_handle(const layout& new_layout, shared_mem_
         if (new_layout.format.is_image_2d() && params.mem_type == shared_mem_type::shared_mem_image) {
             cl::Image2D img(static_cast<cl_mem>(params.mem), true);
             return std::make_shared<ocl::gpu_image2d>(this, new_layout, img, nullptr);
-        } else if (new_layout.format.is_image_2d() && params.mem_type == shared_mem_type::shared_mem_vasurface) {
+        }
+        if (new_layout.format.is_image_2d() && params.mem_type == shared_mem_type::shared_mem_vasurface) {
             return std::make_shared<ocl::gpu_media_buffer>(this, new_layout, params);
 #ifdef _WIN32
         } else if (params.mem_type == shared_mem_type::shared_mem_dxbuffer) {
             return std::make_shared<ocl::gpu_dx_buffer>(this, new_layout, params);
 #endif
-        } else if (params.mem_type == shared_mem_type::shared_mem_buffer) {
+        }
+        if (params.mem_type == shared_mem_type::shared_mem_buffer) {
             cl::Buffer buf(static_cast<cl_mem>(params.mem), true);
             auto actual_mem_size = buf.getInfo<CL_MEM_SIZE>();
             auto requested_mem_size = new_layout.bytes_count();
@@ -303,7 +310,8 @@ memory::ptr ocl_engine::reinterpret_handle(const layout& new_layout, shared_mem_
                             "[GPU] shared buffer has smaller size (", actual_mem_size,
                             ") than specified layout (", requested_mem_size, ")");
             return std::make_shared<ocl::gpu_buffer>(this, new_layout, buf, nullptr);
-        } else if (params.mem_type == shared_mem_type::shared_mem_usm) {
+        }
+        if (params.mem_type == shared_mem_type::shared_mem_usm) {
             cl::UsmMemory usm_buffer(get_usm_helper(), params.mem);
             auto actual_mem_size = get_usm_helper().get_usm_allocation_size(usm_buffer.get());
             auto requested_mem_size = new_layout.bytes_count();
@@ -311,9 +319,9 @@ memory::ptr ocl_engine::reinterpret_handle(const layout& new_layout, shared_mem_
                             "[GPU] shared USM buffer has smaller size (", actual_mem_size,
                             ") than specified layout (", requested_mem_size, ")");
             return std::make_shared<ocl::gpu_usm>(this, new_layout, usm_buffer, nullptr);
-        } else {
-            OPENVINO_THROW("[GPU] unknown shared object fromat or type");
         }
+        OPENVINO_THROW("[GPU] unknown shared object fromat or type");
+
     }
     catch (const cl::Error& clErr) {
         switch (clErr.err()) {
@@ -339,9 +347,7 @@ bool ocl_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {
     if (!memory_capabilities::is_usm_type(mem1.get_allocation_type()))
         return (reinterpret_cast<const ocl::gpu_buffer&>(mem1).get_buffer() ==
                 reinterpret_cast<const ocl::gpu_buffer&>(mem2).get_buffer());
-    else
-        return (reinterpret_cast<const ocl::gpu_usm&>(mem1).get_buffer() ==
-                reinterpret_cast<const ocl::gpu_usm&>(mem2).get_buffer());
+    return (reinterpret_cast<const ocl::gpu_usm&>(mem1).get_buffer() == reinterpret_cast<const ocl::gpu_usm&>(mem2).get_buffer());
 }
 
 void* ocl_engine::get_user_context(runtime_types rt_type) const {

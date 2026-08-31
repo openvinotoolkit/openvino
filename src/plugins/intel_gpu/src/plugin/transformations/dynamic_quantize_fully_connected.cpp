@@ -25,7 +25,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
                                                             bool precomputed_reduction,
                                                             bool use_gs128_for_int8_per_token,
                                                             bool use_gs128_for_linear_attention)
-    : ov::pass::MatcherPass() {
+ {
     using namespace ov::pass::pattern;
     using QuantizationType = ov::op::internal::DynamicQuantize::QuantizationType;
 

@@ -16,7 +16,7 @@ namespace kernel_selector {
 class ConvolutionKernelBase : public WeightBiasKernelBase {
 public:
     using WeightBiasKernelBase::WeightBiasKernelBase;
-    ~ConvolutionKernelBase() override {}
+    ~ConvolutionKernelBase() override = default;
 
     struct DispatchData : public CommonDispatchData {
         struct CLDNNStyle {

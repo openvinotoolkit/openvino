@@ -196,9 +196,9 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
     const auto input2_has_padding = params.inputs[2].has_dynamic_pad() || params.inputs[2].PitchesDifferFromLogicalDims();
 
     // In case of padded input2 (updates), we also need non-planar indexing, because UPDATES_INDEX is calculated based on output sizes
-    const auto use_layout_aware_indexing = !(SimpleLayout(params.inputs[0].GetLayout()) &&
-                                             SimpleLayout(params.inputs[1].GetLayout()) &&
-                                             SimpleLayout(params.inputs[2].GetLayout())) || input2_has_padding;
+    const auto use_layout_aware_indexing = !SimpleLayout(params.inputs[0].GetLayout()) ||
+                                             !SimpleLayout(params.inputs[1].GetLayout()) ||
+                                             !SimpleLayout(params.inputs[2].GetLayout()) || input2_has_padding;
 
     if (use_layout_aware_indexing) {
         jit.AddConstant(MakeJitConstant("USE_LAYOUT_AWARE_INDEXING", "1"));
@@ -262,7 +262,7 @@ bool ScatterUpdateKernelRef::Validate(const Params& p) const {
 
     const scatter_update_params& params = static_cast<const scatter_update_params&>(p);
 
-    for (auto& fused_op : params.fused_ops) {
+    for (const auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
             DO_NOT_USE_THIS_KERNEL(p.layerID);
     }

@@ -50,15 +50,15 @@ public:
     }
 
     program_node& weights_zero_points() const {
-        return get_dependency(2 + (1 * bias_term()) + get_deform_conv_dep_offset());
+        return get_dependency(2 + (1 * static_cast<int>(bias_term())) + get_deform_conv_dep_offset());
     }
 
     program_node& activations_zero_points() const {
-        return get_dependency(2 + (1 * bias_term() + 1 * weights_zero_points_term()) + get_deform_conv_dep_offset());
+        return get_dependency(2 + (1 * static_cast<int>(bias_term()) + 1 * static_cast<int>(weights_zero_points_term())) + get_deform_conv_dep_offset());
     }
 
     program_node& compensation() const {
-        return get_dependency(2 + (1 * bias_term() + 1 * weights_zero_points_term() + 1*activations_zero_points_term()) + get_deform_conv_dep_offset());
+        return get_dependency(2 + (1 * static_cast<int>(bias_term()) + 1 * static_cast<int>(weights_zero_points_term()) + 1*static_cast<int>(activations_zero_points_term())) + get_deform_conv_dep_offset());
     }
 
     program_node& trans() const {
@@ -133,7 +133,7 @@ public:
             return false;
 
         auto input_layout = _deps[0].first->_impl_params->get_output_layout(0);
-        return input_layout.data_padding ? true : false;
+        return static_cast<bool>(input_layout.data_padding);
     }
 
     bool need_reset_output_memory() const override {
@@ -152,9 +152,8 @@ public:
             auto weights_mem = _reordered_weights_cache.get(*_impl_params->weights_layout);
             OPENVINO_ASSERT(weights_mem != nullptr, "[GPU] Can't find proper weights memory buffer in cache");
             return weights_mem;
-        } else {  // all weights are in one buffer
+        }  // all weights are in one buffer
             return dep_memory_ptr(1 + _deform_conv_dep_offset);
-        }
     }
 
     memory::ptr bias_memory() const {
@@ -162,7 +161,7 @@ public:
     }
 
     memory::ptr weights_zero_points_memory() const {
-        return dep_memory_ptr(2 + 1 * bias_term() + _deform_conv_dep_offset);
+        return dep_memory_ptr(2 + 1 * static_cast<int>(bias_term()) + _deform_conv_dep_offset);
     }
 
     memory::ptr trans_memory() const {
@@ -172,14 +171,14 @@ public:
     }
 
     memory::ptr activations_zero_points_memory() const {
-        return dep_memory_ptr(2 + 1 * bias_term() + 1 * weights_zero_points_term()
+        return dep_memory_ptr(2 + 1 * static_cast<int>(bias_term()) + 1 * static_cast<int>(weights_zero_points_term())
                               + _deform_conv_dep_offset);
     }
 
     memory::ptr compensation_memory() const {
-        return dep_memory_ptr(2 + 1 * bias_term()
-                              + 1 * weights_zero_points_term()
-                              + 1 * activations_zero_points_term()
+        return dep_memory_ptr(2 + 1 * static_cast<int>(bias_term())
+                              + 1 * static_cast<int>(weights_zero_points_term())
+                              + 1 * static_cast<int>(activations_zero_points_term())
                               + _deform_conv_dep_offset);
     }
 

@@ -10,7 +10,6 @@
 #include <cmath>
 #include <common/c_types_map.hpp>
 #include <common/utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -37,21 +36,25 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/deformable_convolution_base.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "openvino/util/pp.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <xbyak/xbyak.h>
 
+#    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "cpu/x64/jit_generator.hpp"
 #    include "utils/cpu_utils.hpp"
 #endif
 
 using namespace dnnl;
 using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
+#endif
 
 namespace ov::intel_cpu::node {
 #if defined(OPENVINO_ARCH_X86_64)
@@ -879,19 +882,19 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
 
     if (enforceRef) {
         impl_type = impl_desc_type::ref;
-    } else if (mayiuse(cpu::x64::avx512_core)) {
+    } else if (ov::with_cpu_x86_avx512_core()) {
         impl_type = impl_desc_type::jit_avx512;
-    } else if (mayiuse(cpu::x64::avx2)) {
+    } else if (ov::with_cpu_x86_avx2()) {
         impl_type = impl_desc_type::jit_avx2;
-    } else if (mayiuse(cpu::x64::sse41)) {
+    } else if (ov::with_cpu_x86_sse42()) {
         impl_type = impl_desc_type::jit_sse42;
     }
 
-    if (!enforceRef && mayiuse(cpu::x64::sse41)) {
+    if (!enforceRef && ov::with_cpu_x86_sse42()) {
         // optimized implementation
         auto dataFormat = memory::format_tag::nhwc;
         auto offFormat = memory::format_tag::nchw;
-        auto weiFormat = mayiuse(avx512_core) ? memory::format_tag::OIhw16i16o : memory::format_tag::OIhw8i8o;
+        auto weiFormat = ov::with_cpu_x86_avx512_core() ? memory::format_tag::OIhw16i16o : memory::format_tag::OIhw8i8o;
         config.inConfs[DATA_ID].setMemDesc(
             std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(DATA_ID), memory::data_type::f32, dataFormat));
         config.inConfs[OFF_ID].setMemDesc(
@@ -1117,7 +1120,7 @@ DeformableConvolution::DefConvExecutor::DefConvExecutor(
     jcp.with_bias = false;
     jcp.with_bi_pad = defConvAttr.with_bilinear_pad;
     jcp.with_modulation = withModulation;
-    const int simd_w = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
+    const int simd_w = ov::with_cpu_x86_avx512_core() ? 16 : 8;
     jcp.ic_block = simd_w;
     jcp.nb_ic = div_up(jcp.ic, jcp.ic_block);
 
@@ -1131,8 +1134,8 @@ DeformableConvolution::DefConvExecutor::DefConvExecutor(
     jcp.typesize_sampled_offsets = sizeof(int);
     jcp.typesize_out = sizeof(float);
 
-    jcp.ur_w = mayiuse(cpu::x64::avx512_core) ? 6 : 3;
-    jcp.nb_oc_blocking = !mayiuse(cpu::x64::avx2) ? 2 : 4;
+    jcp.ur_w = ov::with_cpu_x86_avx512_core() ? 6 : 3;
+    jcp.nb_oc_blocking = !ov::with_cpu_x86_avx2() ? 2 : 4;
 
     jcp.nthr = parallel_get_max_threads();
 }

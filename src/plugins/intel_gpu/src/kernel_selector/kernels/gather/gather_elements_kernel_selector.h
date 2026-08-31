@@ -16,7 +16,7 @@ public:
 
     gather_elements_kernel_selector();
 
-    ~gather_elements_kernel_selector() override {}
+    ~gather_elements_kernel_selector() override = default;
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

@@ -62,7 +62,7 @@ ConvertBinaryConvolutionToConvolution::ConvertBinaryConvolutionToConvolution() {
         auto fp_element_type = activations.get_element_type();
 
         ov::Tensor new_weights_data(fp_element_type, weights->get_output_shape(0));
-        auto src_ptr = static_cast<const uint8_t*>(weights->get_data_ptr());
+        const auto* src_ptr = static_cast<const uint8_t*>(weights->get_data_ptr());
         auto size = ov::shape_size(weights->get_shape());
         switch (fp_element_type) {
             case ov::element::f16: convert_packed_bin_to_fp(src_ptr, static_cast<ov::float16*>(new_weights_data.data()), size); break;

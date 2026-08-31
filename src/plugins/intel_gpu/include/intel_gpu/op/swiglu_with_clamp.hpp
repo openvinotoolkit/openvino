@@ -104,7 +104,7 @@ private:
     float m_clamp_max = std::numeric_limits<float>::max();
     float m_swiglu_beta = 1.0f;
     float m_up_add_val = 0.0f;
-    ov::element::Type m_output_type{};
+    ov::element::Type m_output_type;
 };
 
 std::vector<ov::PartialShape> shape_infer(const ov::intel_gpu::op::SwiGluWithClamp* op,

@@ -3,6 +3,9 @@
 //
 
 #include <memory>
+
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/op/add.hpp"
@@ -11,9 +14,6 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
-
-#include "node_context.hpp"
-#include "op_table.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -60,8 +60,10 @@ OutputVector translate_add_id(const NodeContext& context) {
 
     auto gather_axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
     ov::Output<ov::Node> selected_bias = std::make_shared<ov::op::v8::Gather>(bias, ids, gather_axis);
-    selected_bias = std::make_shared<ov::op::v1::Reshape>(
-        selected_bias, std::make_shared<ov::op::v3::ShapeOf>(input, ov::element::i64), false);
+    selected_bias =
+        std::make_shared<ov::op::v1::Reshape>(selected_bias,
+                                              std::make_shared<ov::op::v3::ShapeOf>(input, ov::element::i64),
+                                              false);
 
     if (selected_bias.get_element_type() != input.get_element_type()) {
         selected_bias = std::make_shared<ov::op::v0::Convert>(selected_bias, input.get_element_type());

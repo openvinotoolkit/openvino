@@ -164,6 +164,46 @@ OutputVector build_static_max_pool(ov::pass::NodeRegistry& rg,
 
 Output<Node> masked_select(const NodeContext& context, const Output<Node>& data, const Output<Node>& mask);
 
+/// \brief Builds a multi-head attention subgraph with packed query/key/value projection weights.
+///
+/// Shared by `aten::_native_multi_head_attention` and `aten::_transformer_encoder_layer_fwd`.
+/// When the attention weights are not requested, the attention itself is expressed with a single
+/// `v13::ScaledDotProductAttention`, otherwise it is decomposed so that the weights can be returned.
+///
+/// \param context Node context used to mark the created nodes.
+/// \param query Query tensor of shape [batch, sequence, embed_dim].
+/// \param key Key tensor of shape [batch, sequence, embed_dim].
+/// \param value Value tensor of shape [batch, sequence, embed_dim].
+/// \param embed_dim Scalar embedding dimension.
+/// \param num_heads Scalar number of attention heads.
+/// \param qkv_weight Packed query/key/value projection weight of shape [3 * embed_dim, embed_dim].
+/// \param qkv_bias Packed query/key/value projection bias of shape [3 * embed_dim].
+/// \param proj_weight Output projection weight.
+/// \param proj_bias Output projection bias.
+/// \param attn_mask Optional attention mask. A boolean mask excludes the positions marked with
+///        `true`, any other mask is additive. Pass an empty output to skip masking.
+/// \param mask_type PyTorch mask type: 0 - source mask of shape [sequence, sequence], 1 - key
+///        padding mask of shape [batch, sequence], 2 - mask already broadcast to the attention
+///        weights shape. Ignored when `attn_mask` is empty.
+/// \param need_weights When true, the attention weights are computed and returned as the second
+///        element of the result, otherwise the second element is empty.
+/// \param average_weights When true, the returned attention weights are averaged over the heads.
+/// \return Pair of the attention output and the attention weights.
+std::pair<Output<Node>, Output<Node>> build_multi_head_attention(const NodeContext& context,
+                                                                 const Output<Node>& query,
+                                                                 const Output<Node>& key,
+                                                                 const Output<Node>& value,
+                                                                 const Output<Node>& embed_dim,
+                                                                 const Output<Node>& num_heads,
+                                                                 const Output<Node>& qkv_weight,
+                                                                 const Output<Node>& qkv_bias,
+                                                                 const Output<Node>& proj_weight,
+                                                                 const Output<Node>& proj_bias,
+                                                                 const Output<Node>& attn_mask,
+                                                                 int64_t mask_type,
+                                                                 bool need_weights,
+                                                                 bool average_weights);
+
 Output<Node> flatten(ov::pass::NodeRegistry& rg, const Output<Node>& value, size_t axis);
 
 bool index_tensor_on_list(ov::pass::NodeRegistry& rg,

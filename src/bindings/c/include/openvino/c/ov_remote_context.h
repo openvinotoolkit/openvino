@@ -10,6 +10,7 @@
 #pragma once
 #include "openvino/c/gpu/gpu_plugin_properties.h"
 #include "openvino/c/ov_common.h"
+#include "openvino/c/ov_property.h"
 #include "openvino/c/ov_shape.h"
 #include "openvino/c/ov_tensor.h"
 
@@ -35,6 +36,26 @@ ov_remote_context_create_tensor(const ov_remote_context_t* context,
                                 const size_t object_args_size,
                                 ov_tensor_t** remote_tensor,
                                 ...);
+
+/**
+ * @brief Allocates a remote tensor using an array of ov_property_t key/value pairs.
+ * Non-variadic alternative to ov_remote_context_create_tensor(), compatible with all FFI callers.
+ * @ingroup ov_remote_context_c_api
+ * @param context        A pointer to the ov_remote_context_t instance.
+ * @param type           Defines the element type of the tensor.
+ * @param shape          Defines the shape of the tensor.
+ * @param num_properties Number of entries in the properties array.
+ * @param properties     Array of ov_property_t key/value pairs (may be NULL when num_properties is 0).
+ * @param remote_tensor  Pointer to returned ov_tensor_t that contains the remote tensor instance.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_remote_context_create_tensor_props(const ov_remote_context_t* context,
+                                      const ov_element_type_e type,
+                                      const ov_shape_t shape,
+                                      const size_t num_properties,
+                                      const ov_property_t* properties,
+                                      ov_tensor_t** remote_tensor);
 
 /**
  * @brief Returns name of a device on which underlying object is allocated.
