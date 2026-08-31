@@ -10,19 +10,6 @@
 
 using namespace cldnn::ocl;
 
-namespace {
-
-constexpr int sample_attempts = 5;
-
-// Closer than this the two anchors carry no rate signal, so only the offset is used.
-constexpr std::chrono::nanoseconds min_rate_span = std::chrono::milliseconds(1);
-
-// Real drift is a few ppm; anything outside this means a bogus sample.
-constexpr double min_plausible_rate = 0.9;
-constexpr double max_plausible_rate = 1.1;
-
-}  // namespace
-
 device_clock_sync::device_clock_sync(const cl::Device& device) : m_device(device) {
     m_base = sample(m_device);
     m_last_refresh = host_now();
@@ -31,6 +18,8 @@ device_clock_sync::device_clock_sync(const cl::Device& device) : m_device(device
 // Cristian's algorithm: attribute the device reading to the midpoint of the host
 // interval bracketing the call, keeping the attempt with the tightest bracket.
 device_clock_sync::anchor device_clock_sync::sample(const cl::Device& device) {
+    constexpr int sample_attempts = 5;
+
     anchor best;
 #if defined(CL_VERSION_2_1)
     if (device.get() == nullptr)
@@ -73,7 +62,10 @@ void device_clock_sync::refresh_if_stale(std::chrono::nanoseconds min_interval) 
         const auto now = host_now();
         if (now - m_last_refresh < min_interval)
             return;
-        // Claimed up front so concurrent callers do not stack up driver calls.
+        // Claim the refresh window before releasing the lock so concurrent callers
+        // do not stack up driver calls. A failed or superseded sample still consumes
+        // this window intentionally; retrying for every event would restore the
+        // profiling regression this cache avoids.
         m_last_refresh = now;
     }
 
@@ -81,13 +73,19 @@ void device_clock_sync::refresh_if_stale(std::chrono::nanoseconds min_interval) 
 
     std::lock_guard<std::mutex> lock(m_mutex);
     // Concurrent samplers may finish out of order; never step back to an older anchor.
-    if (fresh.valid && fresh.host > m_base.host && fresh.host > m_late.host)
-        m_late = fresh;
+    if (fresh.valid && fresh.host > m_base.host && fresh.host > m_latest.host)
+        m_latest = fresh;
 }
 
 std::chrono::nanoseconds device_clock_sync::interpolate(const anchor& base,
                                                         const anchor& late,
                                                         std::chrono::nanoseconds host_ts) {
+    // Closer than this the two anchors carry no rate signal, so only the offset is used.
+    constexpr std::chrono::nanoseconds min_rate_span = std::chrono::milliseconds(1);
+    // Real drift is a few ppm; anything outside this range indicates a bogus sample.
+    constexpr double min_plausible_rate = 0.9;
+    constexpr double max_plausible_rate = 1.1;
+
     auto delta = host_ts - base.host;
 
     // A second anchor gives the rate as well as the offset, cancelling drift.
@@ -111,5 +109,5 @@ std::optional<std::chrono::nanoseconds> device_clock_sync::to_device(std::chrono
     if (!m_base.valid)
         return std::nullopt;
 
-    return interpolate(m_base, m_late, host_ts);
+    return interpolate(m_base, m_latest, host_ts);
 }
