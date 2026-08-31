@@ -20,7 +20,10 @@ void Manifest::add_entry(const SectionID id, const SectionType type, const uint6
                     ". ID: ",
                     id);
 
-    m_logger.debug("New entry added: section ID %zu, type %zu, offset %zu, length %zu", id, type, offset, length);
+    m_logger.debug("New entry added: section %s, offset %zu, length %zu",
+                   section_type_and_id_to_string(id, type),
+                   offset,
+                   length);
 
     m_table[id] = std::make_tuple<>(type, offset, length);
     m_reversed_table[offset] = id;
@@ -82,17 +85,19 @@ void ManifestSection::write(BlobWriterInterface& writer) {
 
     m_logger.debug("Writting %lu entries", m_manifest.get_number_of_entries());
 
-    for (const auto& [key, value] : m_manifest.m_table) {
-        // Section type ID, Section instanfce type ID, offset, length
-        writer.write_from(&key.type, sizeof(key.type));
-        writer.write_from(&key.type_instance, sizeof(key.type_instance));
-        writer.write_from(&value.first, sizeof(value.first));
-        writer.write_from(&value.second, sizeof(value.second));
+    for (const auto& [id, values] : m_manifest.m_table) {
+        const auto [type, offset, length] = values;
 
-        m_logger.trace("Entry written: section ID %s, offset %lu, length %lu",
-                       key.to_string(),
-                       value.first,
-                       value.second);
+        // ID, type, offset, length
+        writer.write_from(&id, sizeof(id));
+        writer.write_from(&type, sizeof(type));
+        writer.write_from(&offset, sizeof(offset));
+        writer.write_from(&length, sizeof(length));
+
+        m_logger.trace("Entry written: section %s, offset %lu, length %lu",
+                       section_type_and_id_to_string(id, type),
+                       offset,
+                       length);
     }
 }
 
@@ -115,23 +120,25 @@ std::shared_ptr<ISection> ManifestSection::read(BlobReaderInterface& blob_reader
 
     size_t number_of_sections_in_table = section_length / entry_size;
     Manifest manifest(blob_reader.get_log_level());
-    SectionType type;
     SectionID id;
+    SectionType type;
     uint64_t offset;
     uint64_t length;
 
     logger.debug("Reading %lu entries", number_of_sections_in_table);
 
     while (number_of_sections_in_table--) {
-        blob_reader.read_into_buffer(&type, sizeof(type));
         blob_reader.read_into_buffer(&id, sizeof(id));
+        blob_reader.read_into_buffer(&type, sizeof(type));
         blob_reader.read_into_buffer(&offset, sizeof(offset));
         blob_reader.read_into_buffer(&length, sizeof(length));
 
-        const SectionID section_id(type, id);
-        manifest.add_entry(section_id, offset, length);
+        manifest.add_entry(id, type, offset, length);
 
-        logger.trace("Read entry: section ID %s, offset %lu, length %lu", id.to_string(), offset, length);
+        logger.trace("Read entry: section %s, offset %lu, length %lu",
+                     section_type_and_id_to_string(type, id),
+                     offset,
+                     length);
     }
 
     return std::make_shared<ManifestSection>(std::move(manifest), logger.level());

@@ -8,7 +8,7 @@
 
 #include "intel_npu/common/isection.hpp"
 #include "intel_npu/common/isection_type_evaluator.hpp"
-#include "intel_npu/common/section_type_instance_evaluator.hpp"
+#include "intel_npu/common/section_instance_evaluator.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/core/except.hpp"
 

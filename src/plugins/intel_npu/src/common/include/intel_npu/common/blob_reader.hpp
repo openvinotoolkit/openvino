@@ -16,7 +16,7 @@
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/isection_type_evaluator.hpp"
 #include "intel_npu/common/manifest.hpp"
-#include "intel_npu/common/section_type_instance_evaluator.hpp"
+#include "intel_npu/common/section_instance_evaluator.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 
 namespace intel_npu {
