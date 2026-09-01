@@ -19,7 +19,9 @@ namespace ov::intel_gpu {
 DisableFP16CompForDirectMultiplySinCos::DisableFP16CompForDirectMultiplySinCos() {
     using namespace ov::pass::pattern;
 
-    auto multiply = wrap_type<ov::op::v1::Multiply>({any_input(), any_input()}, type_matches(element::f32));
+    auto multiply_lhs = any_input();
+    auto multiply_rhs = any_input();
+    auto multiply = wrap_type<ov::op::v1::Multiply>({multiply_lhs, multiply_rhs}, type_matches(element::f32));
     auto sin = wrap_type<ov::op::v0::Sin>({multiply}, type_matches(element::f32));
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
@@ -37,13 +39,13 @@ DisableFP16CompForDirectMultiplySinCos::DisableFP16CompForDirectMultiplySinCos()
         if (cos_nodes.empty())
             return false;
 
-        for (const auto& input : multiply_node->input_values())
-            ov::disable_conversion(input.get_node_shared_ptr(), element::f16);
+        ov::disable_conversion(pattern_map.at(multiply_lhs).get_node_shared_ptr(), element::f16);
+        ov::disable_conversion(pattern_map.at(multiply_rhs).get_node_shared_ptr(), element::f16);
         ov::disable_conversion(multiply_node, element::f16);
         ov::disable_conversion(sin_node, element::f16);
         for (const auto& cos_node : cos_nodes)
             ov::disable_conversion(cos_node, element::f16);
-        return true;
+        return false;
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(sin, "DisableFP16CompForDirectMultiplySinCos");

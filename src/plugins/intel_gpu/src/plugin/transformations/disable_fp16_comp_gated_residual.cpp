@@ -53,7 +53,7 @@ DisableFP16CompForQwenImageGatedResidualPattern::DisableFP16CompForQwenImageGate
             branch_matmul, linear_add, gate, gated_branch, residual_add, mvn};
         for (const auto& pattern_node : pattern_nodes)
             ov::disable_conversion(pattern_map.at(pattern_node).get_node_shared_ptr(), element::f16);
-        return true;
+        return false;
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(mvn, "DisableFP16CompForQwenImageGatedResidualPattern");
