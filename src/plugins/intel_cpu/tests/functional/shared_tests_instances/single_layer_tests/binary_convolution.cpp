@@ -50,7 +50,7 @@ const auto binConv2DParams_ValidPadding = ::testing::Combine(
     ::testing::ValuesIn(padValues));
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_BinaryConvolution2D_ExplicitPadding, BinaryConvolutionLayerTest,
+    nightly_BinaryConvolution2D_ExplicitPadding, BinaryConvolutionLayerTest,
     ::testing::Combine(
         binConv2DParams_ExplicitPadding,
         ::testing::ValuesIn(model_types),
@@ -59,7 +59,7 @@ INSTANTIATE_TEST_SUITE_P(
     BinaryConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_BinaryConvolution2D_AutoPadValid, BinaryConvolutionLayerTest,
+    nightly_BinaryConvolution2D_AutoPadValid, BinaryConvolutionLayerTest,
     ::testing::Combine(
         binConv2DParams_ValidPadding,
         ::testing::ValuesIn(model_types),
@@ -81,7 +81,7 @@ const auto binConv2DParams_1x1_ExplicitPad = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(
     BinaryConvolution2D_1x1_Overflow, BinaryConvolutionLayerTest,
     ::testing::Combine(
-        binConv2DParams_1x1_ExplicitPad,
+        nightly_binConv2DParams_1x1_ExplicitPad,
         ::testing::Values(ov::element::f32),
         ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
             std::vector<std::vector<ov::Shape>>{{{1, 256, 56, 56}}})),
