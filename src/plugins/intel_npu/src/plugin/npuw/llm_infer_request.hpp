@@ -23,6 +23,7 @@ namespace test {
 namespace npuw {
 struct LLMVariantSwitchTestAccess;
 struct LLMTrimKVCacheTestAccess;
+struct LLMPortNameRegistrationTestAccess;
 struct LLMContinuedPrefillTestAccess;
 }  // namespace npuw
 }  // namespace test
@@ -220,6 +221,7 @@ protected:
     friend class PrefixCachingHelper;
     friend struct ov::test::npuw::LLMVariantSwitchTestAccess;
     friend struct ov::test::npuw::LLMTrimKVCacheTestAccess;
+    friend struct ov::test::npuw::LLMPortNameRegistrationTestAccess;
     friend struct ov::test::npuw::LLMContinuedPrefillTestAccess;
 };
 

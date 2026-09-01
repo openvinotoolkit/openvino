@@ -23,7 +23,6 @@ public:
         static constexpr const char* output_embeds = "npuw_output_embed";
         static constexpr const char* logits = "logits";
         static constexpr const char* token_type_ids = ov::npuw::util::kTokenTypeIdsParamName;
-        static constexpr const char* longrope_input = "npuw_longrope_input";
         static constexpr const char* per_layer_inputs = "per_layer_inputs";
         static constexpr const char* visual_pos_masks = ov::npuw::util::kVisualPosMasksParamName;
         static constexpr const char* deepstack_visual_embeds = ov::npuw::util::kDeepstackVisualEmbedsParamName;

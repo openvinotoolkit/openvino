@@ -150,6 +150,8 @@ void set_tensor_optimized(ov::SoPtr<ov::IAsyncInferRequest> request,
         // Small tensor: direct copy to avoid set_tensor overhead (~0.65ms per call)
         // Copy is faster for small tensors due to avoiding NPU plugin overhead
         auto clparam = request->get_tensor(iport);
+        NPUW_ASSERT(clparam._ptr &&
+                    "request returned null tensor for input port — request may be uninitialized or port is invalid");
         tensor_impl->copy_to(clparam._ptr);
         LOG_DEBUG("Using copy for small tensor (" << tensor_bytes << " bytes)");
     } else {
