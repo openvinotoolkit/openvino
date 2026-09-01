@@ -199,8 +199,9 @@ TEST(skip_permute_at_runtime, dynamic_remote_output_switches_between_skip_and_ex
     };
 
     run({1, 1, 3}, {1, 3, 1}, {6.f, 7.f, 8.f}, {6.f, 7.f, 8.f}, true);
-    run({1, 2, 3}, {1, 3, 2}, {0.f, 1.f, 2.f, 3.f, 4.f, 5.f}, {0.f, 3.f, 1.f, 4.f, 2.f, 5.f}, false);
     run({1, 1, 3}, {1, 3, 1}, {9.f, 10.f, 11.f}, {9.f, 10.f, 11.f}, true);
+    run({1, 2, 3}, {1, 3, 2}, {0.f, 1.f, 2.f, 3.f, 4.f, 5.f}, {0.f, 3.f, 1.f, 4.f, 2.f, 5.f}, false);
+    run({1, 1, 3}, {1, 3, 1}, {12.f, 13.f, 14.f}, {12.f, 13.f, 14.f}, true);
 }
 
 TEST(skip_permute_at_runtime, dynamic_remote_output_with_shared_producer_falls_back_to_execution) {
@@ -230,6 +231,48 @@ TEST(skip_permute_at_runtime, dynamic_remote_output_with_shared_producer_falls_b
     ASSERT_NE(network.get_primitive("producer")->output_memory_ptr()->buffer_ptr(), output_mem->buffer_ptr());
 
     mem_lock<float> output_ptr(output_mem, get_test_stream());
+    for (size_t i = 0; i < 3; ++i) {
+        ASSERT_EQ(output_ptr[i], static_cast<float>(i + 6)) << "Mismatch at index " << i;
+    }
+}
+
+TEST(skip_permute_at_runtime, dynamic_remote_output_chain_builds_after_executed_permute) {
+    auto& engine = get_test_engine();
+    const auto dynamic_layout = layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx};
+    topology topology(input_layout("input", dynamic_layout),
+                      activation("producer", input_info("input"), activation_func::relu),
+                      permute("permute", input_info("producer"), {0, 2, 1}),
+                      reorder("output", input_info("permute"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    auto permute_inst = network.get_primitive("permute");
+    auto producer_inst = network.get_primitive("producer");
+
+    auto initial_input = engine.allocate_memory({{1, 2, 3}, data_types::f32, format::bfyx});
+    set_values(initial_input, std::vector<float>{0.f, 1.f, 2.f, 3.f, 4.f, 5.f});
+    network.set_input_data("input", initial_input);
+    auto initial_outputs = network.execute();
+    initial_outputs.at("output").get_memory();
+    ASSERT_FALSE(permute_inst->can_be_optimized());
+
+    auto skippable_input = engine.allocate_memory({{1, 1, 3}, data_types::f32, format::bfyx});
+    set_values(skippable_input, std::vector<float>{6.f, 7.f, 8.f});
+    auto remote_output = engine.allocate_memory({{1, 3, 1}, data_types::f32, format::bfyx});
+    set_values(remote_output, std::vector<float>{-1.f, -1.f, -1.f});
+
+    network.set_input_data("input", skippable_input);
+    network.set_output_memory("output", remote_output, true);
+    auto outputs = network.execute();
+
+    ASSERT_TRUE(permute_inst->can_be_optimized());
+    ASSERT_EQ(outputs.at("output").get_memory()->buffer_ptr(), remote_output->buffer_ptr());
+    ASSERT_EQ(producer_inst->output_memory_ptr()->buffer_ptr(), remote_output->buffer_ptr());
+
+    mem_lock<float> output_ptr(remote_output, get_test_stream());
     for (size_t i = 0; i < 3; ++i) {
         ASSERT_EQ(output_ptr[i], static_cast<float>(i + 6)) << "Mismatch at index " << i;
     }
