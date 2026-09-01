@@ -249,27 +249,22 @@ void ov::npuw::batched::InferRequest::expose_inner_outputs() {
     for (const auto& port : get_outputs()) {
         const auto inner_out = m_inner->get_tensor(port);
         const auto current = get_tensor(port);
-        if (current && current._ptr != inner_out._ptr && current->get_element_type() == inner_out->get_element_type() &&
-            current->get_shape() == inner_out->get_shape()) {
-            // The caller bound a fitting output tensor - keep writing into it.
-            inner_out->copy_to(current._ptr);
-            continue;
-        }
-        if (current && current._ptr != inner_out._ptr) {
-            // Only the element's own previous publications may be replaced - a
-            // tensor the caller bound is never discarded behind their back.
-            OPENVINO_ASSERT(m_owned_outputs.count(current._ptr.get()) > 0,
+        if (current && current._ptr != inner_out._ptr && m_owned_outputs.count(current._ptr.get()) == 0) {
+            // A caller-bound tensor is the caller's: it is never replaced, the
+            // result is written into it. The shape is brought in line the way
+            // plugins treat dynamic outputs - set_shape() resizes an owning
+            // tensor and throws for a fixed view too small for the data.
+            OPENVINO_ASSERT(current->get_element_type() == inner_out->get_element_type(),
                             "Batched element: output '",
                             port_name(port),
                             "' is bound to a caller tensor of type ",
                             current->get_element_type(),
-                            " and shape ",
-                            current->get_shape(),
                             ", but this inference produces type ",
                             inner_out->get_element_type(),
-                            " and shape ",
-                            inner_out->get_shape(),
-                            " - bind a fitting tensor or leave the output unset.");
+                            " - bind a tensor of the produced type or leave the output unset.");
+            current->set_shape(inner_out->get_shape());
+            inner_out->copy_to(current._ptr);
+            continue;
         }
         m_owned_outputs.insert(inner_out._ptr.get());
         set_tensor(port, inner_out);
@@ -286,25 +281,28 @@ void ov::npuw::batched::InferRequest::ensure_batched_outputs(std::size_t batch) 
         ov::Shape shape = inner_out->get_shape();
         shape[0] = batch;
         const auto current = get_tensor(port);
-        if (current && current->get_element_type() == inner_out->get_element_type() && current->get_shape() == shape) {
-            // Fits (caller-bound or ours from an earlier call) - rows are written
-            // straight into it.
+        if (current && current._ptr != inner_out._ptr && m_owned_outputs.count(current._ptr.get()) == 0) {
+            // A caller-bound tensor is the caller's: it is never replaced, the
+            // rows are written into it. The shape is brought in line the way
+            // plugins treat dynamic outputs - set_shape() resizes an owning
+            // tensor and throws for a fixed view too small for the data.
+            OPENVINO_ASSERT(current->get_element_type() == inner_out->get_element_type(),
+                            "Batched element: output '",
+                            port_name(port),
+                            "' is bound to a caller tensor of type ",
+                            current->get_element_type(),
+                            ", but this inference produces type ",
+                            inner_out->get_element_type(),
+                            " - bind a tensor of the produced type or leave the output unset.");
+            current->set_shape(shape);
             continue;
         }
-        // Only the element's own previous publications may be replaced - a tensor
-        // the caller bound is never discarded behind their back.
-        OPENVINO_ASSERT(!current || m_owned_outputs.count(current._ptr.get()) > 0,
-                        "Batched element: output '",
-                        port_name(port),
-                        "' is bound to a caller tensor of type ",
-                        current ? current->get_element_type() : ov::element::dynamic,
-                        " and shape ",
-                        current ? current->get_shape() : ov::Shape{},
-                        ", but this inference produces type ",
-                        inner_out->get_element_type(),
-                        " and shape ",
-                        shape,
-                        " - bind a fitting tensor or leave the output unset.");
+        if (current && current._ptr != inner_out._ptr && current->get_element_type() == inner_out->get_element_type() &&
+            current->get_shape() == shape) {
+            // The element's own tensor from an earlier call still fits - rows are
+            // written straight into it.
+            continue;
+        }
         auto fresh = ov::get_tensor_impl(ov::Tensor(inner_out->get_element_type(), shape));
         m_owned_outputs.insert(fresh._ptr.get());
         set_tensor(port, fresh);

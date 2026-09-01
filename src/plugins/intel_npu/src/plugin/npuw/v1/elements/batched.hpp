@@ -101,8 +101,8 @@ private:
 // batched inputs agree on (an input with a leading dim of 1 is broadcast - shared
 // across rows), and for each row: resets the inner variable state, binds the row's
 // [1, ...] view of every batched input, runs the inner request, and copies the
-// inner outputs into row i of the [N, ...] public output tensors. Caller-bound
-// output tensors are reused when they already have the right shape and type.
+// inner outputs into row i of the [N, ...] public output tensors. A caller-bound
+// output tensor is written into in place, resized via set_shape() when needed.
 class InferRequest final : public ov::ISyncInferRequest {
 public:
     InferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model,
@@ -128,22 +128,23 @@ private:
     BatchedInputs extract_batch() const;
 
     // Make the public output tensors [batch, ...] copies of the inner's [1, ...]
-    // outputs. A caller-bound tensor that already fits is kept and written into; a
-    // caller-bound tensor that does not fit throws (the element never discards a
-    // tensor the caller provided); only the element's own previous allocations are
-    // replaced freely. The wrapped model's ports are dynamic, so this can only run
-    // once the first row has been scored and the inner output shapes are known.
+    // outputs. A caller-bound tensor is never discarded: it is resized in place
+    // via set_shape() and written into (a type mismatch throws, as does set_shape
+    // on a fixed view too small for the data); only the element's own previous
+    // allocations are replaced freely. The wrapped model's ports are dynamic, so
+    // this can only run once the first row has been scored and the inner output
+    // shapes are known.
     void ensure_batched_outputs(std::size_t batch);
 
     // Batch-1 shortcut: publish the inner outputs as the public ones without the
-    // stacking copy. A caller-bound tensor of the fitting shape and type is
-    // written in place instead, and a mismatched caller-bound tensor throws.
+    // stacking copy. A caller-bound tensor is instead resized in place when needed
+    // and written into, under the same contract as ensure_batched_outputs().
     void expose_inner_outputs();
 
     std::shared_ptr<ov::IAsyncInferRequest> m_inner;
     // The output tensors the element itself published (its own allocations and
-    // exposed inner tensors), so mismatch handling can tell them from tensors the
-    // caller bound: ours are replaced freely, the caller's are never discarded.
+    // exposed inner tensors), to tell them from tensors the caller bound: ours
+    // are replaced freely, the caller's are resized in place, never discarded.
     std::unordered_set<const ov::ITensor*> m_owned_outputs;
     mutable std::mutex m_mutex;
 
