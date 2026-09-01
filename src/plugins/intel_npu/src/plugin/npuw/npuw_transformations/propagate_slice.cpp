@@ -6,6 +6,7 @@
 
 #include <cstring>
 #include <map>
+#include <optional>
 #include <tuple>
 #include <vector>
 
@@ -445,33 +446,38 @@ public:
             // Slice Q
             auto new_q = clone_slice(slice_node, sdpa_node->input_value(0));
 
-            // Helper: determine if an input needs slicing, considering rank alignment
-            auto needs_slice_on_input = [&](size_t input_idx, const std::string& input_name) -> bool {
+            // Validate that an input's (rank-aligned) sequence axis is either a broadcast dim or
+            // matches the sliced sequence length, then report whether it actually needs slicing.
+            // Returns nullopt when neither holds - the axis-alignment assumption is untrustworthy
+            // for this input, so the whole propagation must be aborted instead of guessing.
+            auto mask_needs_slice = [&](size_t input_idx) -> std::optional<bool> {
                 const auto& shape = sdpa_node->get_input_partial_shape(input_idx);
                 if (shape.is_dynamic()) {
-                    return false;
+                    return std::nullopt;
                 }
                 auto s = shape.to_shape();
 
                 // Rank-align: handle broadcasting for lower-rank tensors
                 int64_t rank_diff = static_cast<int64_t>(out_shape.size()) - static_cast<int64_t>(s.size());
                 int64_t local_ax = seq_axis - rank_diff;
-
-                if (local_ax < 0) {
-                    return false;  // dimension does not exist -> broadcast (size-1 implied)
+                if (local_ax < 0 || s[static_cast<size_t>(local_ax)] == 1) {
+                    return false;  // dimension doesn't exist, or is a broadcast dim -> no slice needed
                 }
-
-                if (s[static_cast<size_t>(local_ax)] == 1) {
-                    return false;  // broadcast dimension, no slice needed
-                }
-
-                // Check if the dimension matches the output's sliced dimension
                 if (s[static_cast<size_t>(local_ax)] != out_shape[static_cast<size_t>(seq_axis)]) {
-                    return false;
+                    return std::nullopt;  // neither broadcast nor a length match -> unsafe to propagate
                 }
-
                 return true;  // real data on this axis, must slice
             };
+
+            const bool has_mask = sdpa_node->get_input_size() > 3;
+            bool mask_needs_slicing = false;
+            if (has_mask) {
+                auto decision = mask_needs_slice(3);
+                if (!decision.has_value()) {
+                    return false;
+                }
+                mask_needs_slicing = *decision;
+            }
 
             // Build new inputs: Q always sliced, K/V unchanged, mask conditionally sliced
             ov::OutputVector new_inputs;
@@ -479,9 +485,9 @@ public:
                 if (i == 0) {
                     // Q: always slice
                     new_inputs.push_back(new_q);
-                } else if (i == 3 && sdpa_node->get_input_size() > 3) {
+                } else if (i == 3 && has_mask) {
                     // attention mask (optional input 3)
-                    if (needs_slice_on_input(3, "mask")) {
+                    if (mask_needs_slicing) {
                         auto new_mask = clone_slice(slice_node, sdpa_node->input_value(3));
                         new_inputs.push_back(new_mask);
                     } else {
