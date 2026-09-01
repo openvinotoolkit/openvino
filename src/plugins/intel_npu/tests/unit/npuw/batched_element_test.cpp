@@ -480,10 +480,10 @@ TEST_F(NPUWBatchedElementTest, PreBoundOutputTensorReused) {
     }
 }
 
-// A caller-bound output tensor that does not fit what the inference produces is a
-// contract violation: the element never discards a caller's tensor behind their
-// back, so it throws instead of silently replacing it.
-TEST_F(NPUWBatchedElementTest, MismatchedPreBoundOutputThrows) {
+// A caller-bound output tensor is never replaced: one of the wrong shape is
+// resized in place via set_shape once the produced shape is known, the way
+// plugins treat dynamic outputs, and the rows land in the caller's tensor.
+TEST_F(NPUWBatchedElementTest, PreBoundOutputResizedInPlace) {
     auto model = build_two_output_model();
     auto inner = std::make_shared<MockInnerCompiled>(model, m_plugin, m_recorder);
     auto wrapped = std::make_shared<ov::npuw::batched::CompiledModel>(inner, m_plugin, rerank_tags());
@@ -492,16 +492,80 @@ TEST_F(NPUWBatchedElementTest, MismatchedPreBoundOutputThrows) {
     const std::vector<std::vector<int64_t>> ids = {{11, 1}, {22, 1}, {33, 1}};
     set_input_ids(req, ids);
 
-    // The stacked shape will be [3, 1]; bind a [2, 1] caller tensor.
+    // The stacked shape will be [3, 1]; bind an undersized [2, 1] caller tensor.
     auto bound = ov::get_tensor_impl(ov::Tensor(ov::element::f32, {2, 1}));
     req->set_tensor(wrapped->outputs()[0], bound);
 
-    try {
-        req->infer();
-        FAIL() << "expected a mismatched caller-bound output rejection";
-    } catch (const ov::Exception& ex) {
-        EXPECT_NE(error_message(ex).find("caller tensor"), std::string::npos);
+    req->infer();
+
+    const auto out = req->get_tensor(wrapped->outputs()[0]);
+    EXPECT_EQ(out._ptr, bound._ptr);
+    ASSERT_EQ(out->get_shape(), (ov::Shape{3, 1}));
+    for (std::size_t r = 0; r < ids.size(); ++r) {
+        EXPECT_FLOAT_EQ(row_value(out, r), static_cast<float>(ids[r].front()));
     }
+}
+
+// The caller's tensor stays bound across batch changes, resized each time --
+// including down through the batch-1 shortcut path.
+TEST_F(NPUWBatchedElementTest, PreBoundOutputResizedAcrossBatchChanges) {
+    auto model = build_two_output_model();
+    auto inner = std::make_shared<MockInnerCompiled>(model, m_plugin, m_recorder);
+    auto wrapped = std::make_shared<ov::npuw::batched::CompiledModel>(inner, m_plugin, rerank_tags());
+    auto req = wrapped->create_infer_request();
+
+    auto bound = ov::get_tensor_impl(ov::Tensor(ov::element::f32, {3, 1}));
+    req->set_tensor(wrapped->outputs()[0], bound);
+
+    set_input_ids(req, {{11, 1}, {22, 1}, {33, 1}});
+    req->infer();
+    ASSERT_EQ(req->get_tensor(wrapped->outputs()[0])._ptr, bound._ptr);
+
+    set_input_ids(req, {{44, 1}, {55, 1}});
+    req->infer();
+    auto out = req->get_tensor(wrapped->outputs()[0]);
+    EXPECT_EQ(out._ptr, bound._ptr);
+    ASSERT_EQ(out->get_shape(), (ov::Shape{2, 1}));
+    EXPECT_FLOAT_EQ(row_value(out, 0), 44.0f);
+    EXPECT_FLOAT_EQ(row_value(out, 1), 55.0f);
+
+    set_input_ids(req, {{66, 1}});
+    req->infer();
+    out = req->get_tensor(wrapped->outputs()[0]);
+    EXPECT_EQ(out._ptr, bound._ptr);
+    ASSERT_EQ(out->get_shape(), (ov::Shape{1, 1}));
+    EXPECT_FLOAT_EQ(row_value(out, 0), 66.0f);
+}
+
+// A type mismatch cannot be resized away: the base request already rejects the
+// bind itself (the element's own type check only backstops dynamic-typed ports).
+TEST_F(NPUWBatchedElementTest, PreBoundOutputTypeMismatchThrows) {
+    auto model = build_two_output_model();
+    auto inner = std::make_shared<MockInnerCompiled>(model, m_plugin, m_recorder);
+    auto wrapped = std::make_shared<ov::npuw::batched::CompiledModel>(inner, m_plugin, rerank_tags());
+    auto req = wrapped->create_infer_request();
+
+    set_input_ids(req, {{11, 1}, {22, 1}, {33, 1}});
+
+    auto bound = ov::get_tensor_impl(ov::Tensor(ov::element::f16, {3, 1}));
+    EXPECT_THROW(req->set_tensor(wrapped->outputs()[0], bound), ov::Exception);
+}
+
+// A fixed-capacity view over caller memory that cannot hold the result throws
+// from set_shape itself rather than being silently replaced.
+TEST_F(NPUWBatchedElementTest, NonResizablePreBoundOutputThrows) {
+    auto model = build_two_output_model();
+    auto inner = std::make_shared<MockInnerCompiled>(model, m_plugin, m_recorder);
+    auto wrapped = std::make_shared<ov::npuw::batched::CompiledModel>(inner, m_plugin, rerank_tags());
+    auto req = wrapped->create_infer_request();
+
+    set_input_ids(req, {{11, 1}, {22, 1}, {33, 1}});
+
+    float caller_memory[2] = {};
+    auto bound = ov::get_tensor_impl(ov::Tensor(ov::element::f32, ov::Shape{2, 1}, caller_memory));
+    req->set_tensor(wrapped->outputs()[0], bound);
+
+    EXPECT_THROW(req->infer(), ov::Exception);
 }
 
 // Re-inferring with a different batch reallocates the outputs the element bound
