@@ -343,6 +343,7 @@ ov::npuw::PAInferRequest::PAInferRequest(const std::shared_ptr<const ov::ICompil
     };
     for (const auto& [token_dim, compiled] : variants) {
         m_chunk_requests.emplace(token_dim, make_chunk_request(compiled));
+        m_variant_token_dims.push_back(token_dim);
     }
     if (!m_chunk_requests.empty()) {
         m_tail_request = make_chunk_request(m_inner_request->get_compiled_model());
@@ -532,9 +533,7 @@ void ov::npuw::PAInferRequest::infer() {
     LOG_VERB("PA dispatch #" << m_dispatch_idx << ": " << dispatch.sequences() << " subsequence(s), "
                              << dispatch.tokens() << " token(s), " << dispatch.sampled_tokens_indices.size()
                              << " sampled");
-    // Chunkability of the model was decided at compile time (variants exist
-    // only for the plain flat-token contract); an empty dispatch runs 1:1.
-    if (!m_chunk_requests.empty() && dispatch.tokens() > 0) {
+    if (pa::variants_serve(dispatch, m_variant_token_dims)) {
         infer_chunked(dispatch);
         m_serve_chunked_logits = true;
     } else {

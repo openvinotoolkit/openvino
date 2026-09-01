@@ -40,4 +40,14 @@ struct Dispatch {
 // dispatch_idx only labels the error message.
 void validate_dispatch(const Dispatch& dispatch, std::size_t block_size, std::size_t dispatch_idx);
 
+// Decides whether a dispatch runs on the pre-compiled semi-static variants
+// (chunked, per subsequence) or 1:1 on the dynamic model, given the variants'
+// fixed token sizes. The dynamic model handles the whole flat dispatch in a
+// single infer, so chunking must earn its decomposition: a dispatch qualifies
+// when some subsequence can fill a multi-token variant, or when it is a
+// single-sequence decode - the 1-token variant's own case, one infer either
+// way. A decode batch and a short prefill run 1:1, where per-subsequence
+// calls would only serialize them.
+bool variants_serve(const Dispatch& dispatch, const std::vector<std::size_t>& variant_token_dims);
+
 }  // namespace ov::npuw::pa

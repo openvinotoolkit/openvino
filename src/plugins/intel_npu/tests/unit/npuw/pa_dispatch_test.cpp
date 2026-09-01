@@ -19,6 +19,7 @@ namespace {
 
 using ov::npuw::pa::Dispatch;
 using ov::npuw::pa::validate_dispatch;
+using ov::npuw::pa::variants_serve;
 
 // A well-formed two-subsequence dispatch: 4 + 2 scheduled tokens on top of
 // 0 / 6 past tokens, a covering block table (block_size 4) and one sampled
@@ -165,6 +166,48 @@ TEST(PADispatchContract, ViolationNamesTheDispatch) {
     } catch (const ov::Exception& ex) {
         EXPECT_NE(std::string(ex.what()).find("PA dispatch #7"), std::string::npos) << ex.what();
     }
+}
+
+// A dispatch shaped as N subsequences of the given scheduled lengths; only the
+// fields variants_serve reads are populated.
+Dispatch make_dispatch_of(const std::vector<int64_t>& seq_lens) {
+    Dispatch d;
+    d.subsequence_begins = {0};
+    for (const auto len : seq_lens) {
+        d.past_lens.push_back(0);
+        d.subsequence_begins.push_back(d.subsequence_begins.back() + len);
+    }
+    return d;
+}
+
+const std::vector<std::size_t> kVariantDims = {1024u, 128u, 1u};
+
+TEST(PADispatchRouting, SingleSequenceDecodeServedByTheOneTokenVariant) {
+    EXPECT_TRUE(variants_serve(make_dispatch_of({1}), kVariantDims));
+    EXPECT_FALSE(variants_serve(make_dispatch_of({1}), {1024u, 128u}));
+}
+
+TEST(PADispatchRouting, DecodeBatchRunsOneToOne) {
+    EXPECT_FALSE(variants_serve(make_dispatch_of({1, 1, 1, 1}), kVariantDims));
+}
+
+TEST(PADispatchRouting, ShortPrefillRunsOneToOne) {
+    EXPECT_FALSE(variants_serve(make_dispatch_of({32, 32, 32, 32}), kVariantDims));
+    EXPECT_FALSE(variants_serve(make_dispatch_of({127}), kVariantDims));
+}
+
+TEST(PADispatchRouting, LongPrefillIsChunked) {
+    EXPECT_TRUE(variants_serve(make_dispatch_of({128}), kVariantDims));
+    EXPECT_TRUE(variants_serve(make_dispatch_of({7638}), kVariantDims));
+}
+
+TEST(PADispatchRouting, MixedDispatchWithOneLongSubsequenceIsChunked) {
+    EXPECT_TRUE(variants_serve(make_dispatch_of({1, 1, 200, 1}), kVariantDims));
+}
+
+TEST(PADispatchRouting, NoVariantsOrNoTokensRunOneToOne) {
+    EXPECT_FALSE(variants_serve(make_dispatch_of({7638}), {}));
+    EXPECT_FALSE(variants_serve(make_dispatch_of({}), kVariantDims));
 }
 
 }  // namespace
