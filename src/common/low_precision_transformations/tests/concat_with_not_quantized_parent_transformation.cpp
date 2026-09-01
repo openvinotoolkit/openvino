@@ -66,7 +66,6 @@ public:
     ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize2;
     ov::builder::subgraph::DequantizationOperations::Convert convert2;
     ov::builder::subgraph::DequantizationOperations dequantization2;
-    ov::element::Type precisionAfterOperation;
     ov::builder::subgraph::DequantizationOperations dequantizationAfter;
 };
 
@@ -293,7 +292,6 @@ const std::vector<ConcatWithNotQuantizedParentTransformationTestValues> testValu
             { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
             {},
             {},
-            ov::element::f32,
             {},
         }
     }
