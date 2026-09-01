@@ -358,6 +358,19 @@ jobs:
             cp -a "${notes_root}/js-build/." "${BUILD_JS_DIR}/"
           fi
 
+      - name: Setup Python 3.11
+        uses: ./.github/actions/setup_python
+        with:
+          version: '3.11'
+          use-pip-proxy: 'true'
+          set-pip-install-path: 'true'
+          self-hosted-runner: 'true'
+
+      - name: Install coverage Python dependencies
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: install-requirements
+
       - name: Run ${{ matrix.gpu.name }} ${{ matrix.lane.name }} C++ coverage tests
         uses: ./.github/actions/coverage_toolkit
         with:
