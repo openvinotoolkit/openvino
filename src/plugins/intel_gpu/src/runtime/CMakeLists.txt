@@ -29,6 +29,12 @@ file(GLOB LIBRARY_SOURCES_SYCL
     "${CMAKE_CURRENT_SOURCE_DIR}/sycl/*.cpp"
 )
 
+file(GLOB LIBRARY_SOURCES_SYCL_INTEL
+    "${CMAKE_CURRENT_SOURCE_DIR}/sycl/intel/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/sycl/intel/*.cpp"
+)
+list(APPEND LIBRARY_SOURCES_SYCL ${LIBRARY_SOURCES_SYCL_INTEL})
+
 file(GLOB_RECURSE OCL_SYCL_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ocl/sycl_*.[ch]pp")
 
 if(NOT OV_GPU_WITH_SYCL)
@@ -108,6 +114,8 @@ endif()
 if(OV_GPU_RUNTIME_SYCL_ENABLED)
     add_library(openvino_intel_gpu_runtime_sycl_obj OBJECT ${LIBRARY_SOURCES_SYCL})
     ov_gpu_configure_runtime_target(openvino_intel_gpu_runtime_sycl_obj)
+    find_path(OCLOC_API_INCLUDE_DIR NAMES ocloc_api.h REQUIRED)
+    target_include_directories(openvino_intel_gpu_runtime_sycl_obj PRIVATE ${OCLOC_API_INCLUDE_DIR})
     target_link_libraries(openvino_intel_gpu_runtime_sycl_obj PRIVATE LevelZero::Headers)
     add_sycl_to_target(TARGET openvino_intel_gpu_runtime_sycl_obj SOURCES ${LIBRARY_SOURCES_SYCL})
     list(APPEND RUNTIME_BACKEND_OBJECTS $<TARGET_OBJECTS:openvino_intel_gpu_runtime_sycl_obj>)
