@@ -5,7 +5,7 @@
 #include "intel_npu/common/blob_reader.hpp"
 
 #include "intel_npu/common/itt.hpp"
-#include "intel_npu/common/runtime_requirements_section.hpp"
+#include "intel_npu/common/runtime_requirements.hpp"
 #include "intel_npu/config/options.hpp"
 
 namespace {
@@ -54,10 +54,10 @@ void BlobReader::register_section_type_evaluator(const std::shared_ptr<ISectionT
     m_logger.debug("Registered a section type evaluator for section type %lu", evaluator->get_section_type());
 }
 
-void BlobReader::register_section_type_instance_evaluate_fn(const SectionType type,
-                                                            std::function<bool(BlobReaderInterface&)> function) {
-    m_section_instance_evaluate_fn[type] = function;
-    m_logger.debug("Registered a section type instance evaluation function for section type %lu", type);
+void BlobReader::register_section_instance_evaluator(const SectionType type,
+                                                     const std::shared_ptr<ISectionInstanceEvaluator>& evaluator) {
+    m_section_instance_evaluators[type] = evaluator;
+    m_logger.debug("Registered a section instance evaluator for section type %s", section_type_to_string(type));
 }
 
 bool BlobReader::has_section_of_type(const SectionType section_type) const {
@@ -103,42 +103,13 @@ std::optional<std::unordered_set<std::shared_ptr<ISection>>> BlobReader::retriev
     return std::nullopt;
 }
 
-// TODO refactor
-std::unordered_map<SectionID, SectionInstanceEvaluator> BlobReader::build_section_type_instance_evaluators(
-    BlobSource& source,
-    const Manifest& manifest,
-    const size_t npu_region_start,
-    const size_t npu_region_size) const {
-    std::unordered_map<SectionID, SectionInstanceEvaluator> instance_evaluators;
-    const std::unordered_set<SectionID> all_section_ids = manifest.get_all_registered_section_ids();
-
-    for (const SectionID& section_id : all_section_ids) {
-        BlobReaderInterface reader(source,
-                                   npu_region_start,
-                                   npu_region_size,
-                                   manifest.lookup_offset(section_id).value(),
-                                   manifest.lookup_length(section_id).value(),
-                                   m_config);
-
-        // Do not create any evaluator if no function has been provided. The CRE code will treat such cases as supported
-        // by default
-        if (m_section_instance_evaluate_fn.count(section_id.type)) {
-            instance_evaluators.emplace(
-                section_id,
-                SectionInstanceEvaluator(m_section_instance_evaluate_fn.at(section_id.type), std::move(reader)));
-        }
-    }
-
-    return instance_evaluators;
-}
-
-void BlobReader::parse_section(BlobSource& source,
-                               const SectionType type,
-                               const SectionID id,
-                               const size_t length,
-                               const size_t npu_region_start,
-                               const size_t npu_region_size,
-                               const bool include_in_sections_order) {
+void BlobReader::parse_next_section(BlobSource& source,
+                                    const SectionType type,
+                                    const SectionID id,
+                                    const size_t length,
+                                    const size_t npu_region_start,
+                                    const size_t npu_region_size,
+                                    const bool include_in_sections_order) {
     BlobReaderInterface interface(source, npu_region_start, npu_region_size, source.tellg(), length, m_config);
 
     m_id_to_parsed_sections[id] = m_readers.at(type)(interface);
@@ -151,6 +122,7 @@ void BlobReader::parse_section(BlobSource& source,
     }
 }
 
+// TODO break into more functions, e.g. one for header
 void BlobReader::read(BlobSource& source) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BlobReader::read");
     m_logger.debug("Starting to parse a blob");
@@ -183,50 +155,50 @@ void BlobReader::read(BlobSource& source) {
     seekg_with_bound_checking(source, manifest_location, npu_region_start, npu_region_size);
 
     OPENVINO_ASSERT(m_readers.count(PredefinedSectionType::MANIFEST), "No reader found for the manifest");
-    parse_section(source,
-                  PredefinedSectionType::MANIFEST,
-                  MANIFEST_SECTION_ID,
-                  manifest_size,
-                  npu_region_start,
-                  npu_region_size,
-                  /*include_in_sections_order*/ false);
+    parse_next_section(source,
+                       PredefinedSectionType::MANIFEST,
+                       MANIFEST_SECTION_ID,
+                       manifest_size,
+                       npu_region_start,
+                       npu_region_size,
+                       /*include_in_sections_order*/ false);
 
     // The offset table is required only within the scope of the read method
     Manifest manifest =
         std::dynamic_pointer_cast<ManifestSection>(m_id_to_parsed_sections.at(MANIFEST_SECTION_ID))->get_table();
     m_logger.debug("Parsed the manifest");
 
-    // Step 2: Look for the CRE and evaluate it
-    std::optional<uint64_t> cre_location = manifest.lookup_offset(RUNTIME_REQUIREMENTS_SECTION_ID);
-    std::optional<uint64_t> cre_length = manifest.lookup_length(RUNTIME_REQUIREMENTS_SECTION_ID);
-
-    std::unordered_map<SectionID, SectionInstanceEvaluator> section_instance_evaluators =
-        build_section_type_instance_evaluators(source, manifest, npu_region_start, npu_region_size);
+    // Step 2: Look for the runtime requirements and evaluate them
+    std::optional<uint64_t> requirements_location = manifest.lookup_offset(RUNTIME_REQUIREMENTS_SECTION_ID);
+    std::optional<uint64_t> requirements_length = manifest.lookup_length(RUNTIME_REQUIREMENTS_SECTION_ID);
+    std::optional<RuntimeRequirements> runtime_requirements = std::nullopt;
 
     // TODO test the negative branch as well
     // TODO safeguards for multiple manifests/CREs?
-    if (cre_location.has_value()) {
-        seekg_with_bound_checking(source, cre_location.value(), npu_region_start, npu_region_size);
+    if (requirements_location.has_value()) {
+        seekg_with_bound_checking(source, requirements_location.value(), npu_region_start, npu_region_size);
 
         OPENVINO_ASSERT(m_readers.count(PredefinedSectionType::RUNTIME_REQUIREMENTS),
                         "No reader found for the manifest");
-        parse_section(source,
-                      PredefinedSectionType::RUNTIME_REQUIREMENTS,
-                      RUNTIME_REQUIREMENTS_SECTION_ID,
-                      cre_length.value(),
-                      npu_region_start,
-                      npu_region_size,
-                      /*include_in_sections_order*/ false);
+        parse_next_section(source,
+                           PredefinedSectionType::RUNTIME_REQUIREMENTS,
+                           RUNTIME_REQUIREMENTS_SECTION_ID,
+                           requirements_length.value(),
+                           npu_region_start,
+                           npu_region_size,
+                           /*include_in_sections_order*/ false);
 
-        const bool is_compatible =
-            std::dynamic_pointer_cast<RuntimeRequirementsSection>(m_id_to_parsed_sections.at(CRE_ID))
-                ->get_cre()
-                .check_compatibility(m_section_type_evaluators, section_instance_evaluators);
-        OPENVINO_ASSERT(is_compatible, "The imported model is not compatible");
-        m_logger.debug("CRE evaluation passed");
+        runtime_requirements = std::dynamic_pointer_cast<RuntimeRequirementsSection>(
+                                   m_id_to_parsed_sections.at(RUNTIME_REQUIREMENTS_SECTION_ID))
+                                   ->get_runtime_requirements();
+        OPENVINO_ASSERT(runtime_requirements->get_compatibility_check_result(m_section_type_evaluators,
+                                                                             m_section_instance_evaluators),
+                        "The imported model is not compatible");
+        m_logger.debug("Runtime requirements evaluation passed");
     } else {
-        m_logger.warning("The CRE section was not found within the manifest. Proceeding without performing any "
-                         "compatibility checks");
+        m_logger.warning(
+            "The runtime requirements section was not found within the manifest. Proceeding without performing any "
+            "compatibility checks");
     }
 
     // Step 3: Parse all known sections
@@ -238,8 +210,11 @@ void BlobReader::read(BlobSource& source) {
             seekg_with_bound_checking(source, source.tellg() + manifest_size, npu_region_start, npu_region_size);
             continue;
         }
-        if (source.tellg() == cre_location.value()) {
-            seekg_with_bound_checking(source, source.tellg() + cre_length.value(), npu_region_start, npu_region_size);
+        if (source.tellg() == requirements_location.value()) {
+            seekg_with_bound_checking(source,
+                                      source.tellg() + requirements_length.value(),
+                                      npu_region_start,
+                                      npu_region_size);
             ++number_of_sections_encountered;
             continue;
         }
@@ -260,8 +235,29 @@ void BlobReader::read(BlobSource& source) {
                        source.tellg(),
                        section_length.value());
 
-        // The section is considered for parsing only if the BlobReader has a reader registered for its type. Then, how
-        // the section wil be handled depends on the type & type instance evaluators:
+        // The section is considered for parsing only if the BlobReader has a reader registered for its type
+        if (!m_readers.count(section_type.value())) {
+            m_logger.debug("No section reader found for section %s. Skipping", section_id);
+            seekg_with_bound_checking(source, next_section_location, npu_region_start, npu_region_size);
+            continue;
+        }
+
+        m_logger.trace("Found a reader for section ", section_id);
+
+        if (!runtime_requirements.has_value()) {
+            // No runtime requirements found. All sections are considered mandatory
+            m_logger.trace("Parsing mandatory section ", section_id);
+            parse_next_section(source,
+                               section_type.value(),
+                               section_id.value(),
+                               section_length.value(),
+                               npu_region_start,
+                               npu_region_size);
+            seekg_with_bound_checking(source, next_section_location, npu_region_start, npu_region_size);
+            continue;
+        }
+
+        // How the section will be handled depends on the type & instance evaluators:
         //  * Case 1: evaluated & supported type, evaluated & supported instance - the section is mandatory. It is read
         //  without a try-catch block.
         //  * Case 2: evaluated & supported type, evaluated & unsupported instance - the section is unsupported. It's
@@ -271,29 +267,25 @@ void BlobReader::read(BlobSource& source) {
         //  * Case 4: evaluated & unsupported type - the section is unsupported. It's parsing is skipped.
         //  * Case 5: unevaluated type, unevaluated instance - the section is optional. It is read within a try-catch
         //  block.
-        if (!m_readers.count(section_type.value())) {
-            m_logger.debug("No section reader found for section %s. Skipping", section_id);
-            seekg_with_bound_checking(source, next_section_location, npu_region_start, npu_region_size);
-            continue;
-        }
 
-        m_logger.trace("Found a reader for section ", section_id);
+        OPENVINO_ASSERT(runtime_requirements->evaluated());
+        const std::optional<bool> type_evaluation_result =
+            runtime_requirements->get_type_evaluation_result(section_type.has_value());
+        const std::optional<bool> instance_evaluation_result =
+            runtime_requirements->get_instance_evaluation_result(section_id.has_value());
 
-        const std::shared_ptr<ISectionTypeEvaluator> type_evaluator = m_section_type_evaluators.at(section_id->type);
-        const SectionInstanceEvaluator& instance_evaluator =
-            section_instance_evaluators.at(section_id.value());  // TODO fix this invalid "at"
-
-        if (type_evaluator->evaluated() && type_evaluator->get_result()) {
-            if (instance_evaluator.evaluated() && instance_evaluator.get_result()) {
+        if (type_evaluation_result.has_value() && type_evaluation_result.value()) {
+            if (instance_evaluation_result.has_value() && instance_evaluation_result.value()) {
                 // Case 1
+                // TODO update logs
                 m_logger.trace("Parsing mandatory section ", section_id);
-                parse_section(source,
-                              section_type.value(),
-                              section_id.value(),
-                              section_length.value(),
-                              npu_region_start,
-                              npu_region_size);
-            } else if (instance_evaluator.evaluated() && !instance_evaluator.get_result()) {
+                parse_next_section(source,
+                                   section_type.value(),
+                                   section_id.value(),
+                                   section_length.value(),
+                                   npu_region_start,
+                                   npu_region_size);
+            } else if (instance_evaluation_result.has_value() && !instance_evaluation_result.value()) {
                 // Case 2
                 m_logger.debug("The parsing of section ID ",
                                section_id,
@@ -305,12 +297,12 @@ void BlobReader::read(BlobSource& source) {
                                " was not evaluated");
 
                 try {
-                    parse_section(source,
-                                  section_type.value(),
-                                  section_id.value(),
-                                  section_length.value(),
-                                  npu_region_start,
-                                  npu_region_size);
+                    parse_next_section(source,
+                                       section_type.value(),
+                                       section_id.value(),
+                                       section_length.value(),
+                                       npu_region_start,
+                                       npu_region_size);
                 } catch (std::exception& e) {
                     m_logger.warning("The parsing of optional section ",
                                      section_id.value(),
@@ -318,7 +310,7 @@ void BlobReader::read(BlobSource& source) {
                                      e.what());
                 }
             }
-        } else if (type_evaluator->evaluated() && !type_evaluator->get_result()) {
+        } else if (type_evaluation_result.has_value() && !type_evaluation_result.value()) {
             // Case 4
             m_logger.debug("The parsing of section ID ",
                            section_id,
@@ -327,16 +319,16 @@ void BlobReader::read(BlobSource& source) {
             // Case 5
             m_logger.trace("Section type ", section_type.value(), " not evaluated");
             OPENVINO_ASSERT(
-                !instance_evaluator.evaluated(),
+                !instance_evaluation_result.has_value(),
                 "Found a section type instance that was evaluated without evaluating the section type first");
 
             try {
-                parse_section(source,
-                              section_type.value(),
-                              section_id.value(),
-                              section_length.value(),
-                              npu_region_start,
-                              npu_region_size);
+                parse_next_section(source,
+                                   section_type.value(),
+                                   section_id.value(),
+                                   section_length.value(),
+                                   npu_region_start,
+                                   npu_region_size);
             } catch (std::exception& e) {
                 m_logger.warning("The parsing of optional section ",
                                  section_id.value(),

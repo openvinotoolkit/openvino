@@ -8,7 +8,7 @@
 
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/itt.hpp"
-#include "intel_npu/common/runtime_requirements_section.hpp"
+#include "intel_npu/common/runtime_requirements.hpp"
 
 namespace {
 
@@ -156,18 +156,25 @@ size_t BlobWriter::count_registered_sections_of_type(const SectionType type) con
                          });
 }
 
-CRE BlobWriter::build_cre() const {
-    m_logger.debug("Filling the CRE");
-
+RuntimeRequirements BlobWriter::build_runtime_requirements() const {
+    m_logger.debug("Building the runtime requirements");
+    std::map<SectionID, std::string> sections_requirements;
     CRE cre(m_logger.level());
-    m_logger.debug("Added the CRE_EVALUATION token to the CRE");
+    std::unordered_map<SectionID, SectionType> section_id_to_type;
 
-    // Go through all sections to find out the tokens that are needed
+    // Each section can register a compatibility substring, as well as a compatiblity subexpression (between sections)
     for (const auto& [section_id, section] : m_registered_sections) {
+        const std::optional<std::string> individual_requirements =
+            section->get_inidividual_compatibility_requirements();
+        if (individual_requirements.has_value()) {
+            sections_requirements[section_id] = individual_requirements.value();
+        }
+
         cre.append_to_expression(section->get_compatibility_requirements_subexpression(m_registered_sections));
+        section_id_to_type[section_id] = section->get_type();
     }
 
-    return cre;
+    return RuntimeRequirements(sections_requirements, cre, section_id_to_type);
 }
 
 void BlobWriter::write_section(std::ostream& stream,
@@ -228,9 +235,10 @@ void BlobWriter::write_to(std::ostream& stream) const {
 
     // Write the RuntimeRequirementsSection. This section doesn't have to be the first one, but we write it first to
     // emphasize the fact that section writers cannot append to the "global" CRE
-    const auto cre_section = std::make_shared<RuntimeRequirementsSection>(build_cre(), m_logger.level());
-    cre_section->set_id(FIRST_INSTANCE_ID);
-    write_section(stream, cre_section, stream_npu_region_start, manifest);
+    const auto runtime_requirements_section =
+        std::make_shared<RuntimeRequirementsSection>(build_runtime_requirements(), m_logger.level());
+    runtime_requirements_section->set_id(FIRST_INSTANCE_ID);
+    write_section(stream, runtime_requirements_section, stream_npu_region_start, manifest);
 
     while (!write_queue.empty()) {
         const std::shared_ptr<ISection>& section = write_queue.front();

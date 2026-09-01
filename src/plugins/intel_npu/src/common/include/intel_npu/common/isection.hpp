@@ -97,16 +97,23 @@ public:
      */
     std::optional<SectionID> get_id() const;
 
+    // TODO rename?
+    virtual std::optional<std::string> get_inidividual_compatibility_requirements() const = 0;
+
+    // TODO return optional?
     /**
      * @brief Get the compatibility requirements subexpression corresponding to the current section.
      * @details The base implementation returns the section ID (type ID + type instance ID) as the required
-     * subexpression. This implementation can be overriden to take into consideration other registered sections as well.
+     * subexpression. This implementation can be overriden to take into consideration other registered sections as
+     * well.
      *
      * For example, if we wish to register something like "ELF_INIT_SCHEDULE_1 OR ELF_INIT_SCHEDULE_2", then we may
      * override this function to have the section of the first schedule write the OR relationship. The other section
      * could then write nothing.
-     * @note The subexpression returned by this function is meant to be stitched to the main CRE using a logical "AND".
-     * @param all_registered_sections A map offering access to all sections registered for the current writing section.
+     * @note The subexpression returned by this function is meant to be stitched to the main CRE using a logical
+     * "AND".
+     * @param all_registered_sections A map offering access to all sections registered for the current writing
+     * section.
      * @return The subexpression describing the requirements of the current section.
      */
     virtual std::vector<CREToken> get_compatibility_requirements_subexpression(

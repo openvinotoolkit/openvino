@@ -28,6 +28,12 @@ public:
         const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& type_evaluators,
         const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators);
 
+    bool evaluated() const;
+
+    std::optional<bool> get_type_evaluation_result(const SectionType type) const;
+
+    std::optional<bool> get_instance_evaluation_result(const SectionID id) const;
+
 private:
     std::unordered_map<SectionID, SectionInstanceEvaluator> build_section_instance_evaluators(
         const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators);
@@ -35,6 +41,9 @@ private:
     std::map<SectionID, std::string> m_sections_requirements;
     CRE m_cre;
     std::unordered_map<SectionID, SectionType> m_section_id_to_type;
+
+    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> m_type_evaluators;
+    std::unordered_map<SectionID, SectionInstanceEvaluator> m_instance_evaluators;
 
     std::optional<bool> m_compatibility_check_result;
 };

@@ -145,7 +145,7 @@ private:
      * @note The CRE is built on demand and not stored in order to make sure the CRE is aligned with the content of the
      * blob.
      */
-    CRE build_cre() const;
+    RuntimeRequirements build_runtime_requirements() const;
 
     /**
      * @brief Helper function. Registers a section that has been already parsed by the BlobReader.

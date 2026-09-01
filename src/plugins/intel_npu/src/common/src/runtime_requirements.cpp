@@ -54,11 +54,29 @@ bool RuntimeRequirements::get_compatibility_check_result(
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& type_evaluators,
     const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators) {
     if (!m_compatibility_check_result.has_value()) {
-        const std::unordered_map<SectionID, SectionInstanceEvaluator> per_instance_evaluators =
-            build_section_instance_evaluators(instance_evaluators);
-        m_compatibility_check_result = m_cre.check_compatibility(type_evaluators, per_instance_evaluators);
+        // TODO maybe log message if caching used, and the new evaluators are ignored
+        // TODO asserts evaluators are empty?
+        m_type_evaluators = type_evaluators;
+        m_instance_evaluators = build_section_instance_evaluators(instance_evaluators);
+        m_compatibility_check_result = m_cre.check_compatibility(type_evaluators, m_instance_evaluators);
     }
     return m_compatibility_check_result.value();
+}
+
+bool RuntimeRequirements::evaluated() const {
+    return m_compatibility_check_result.has_value();
+}
+
+std::optional<bool> RuntimeRequirements::get_type_evaluation_result(const SectionType type) const {
+    return m_type_evaluators.count(type) && m_type_evaluators.at(type)->evaluated()
+               ? std::make_optional<>(m_type_evaluators.at(type)->get_result())
+               : std::nullopt;
+}
+
+std::optional<bool> RuntimeRequirements::get_instance_evaluation_result(const SectionID id) const {
+    return m_instance_evaluators.count(id) && m_instance_evaluators.at(id).evaluated()
+               ? std::make_optional<>(m_instance_evaluators.at(id).get_result())
+               : std::nullopt;
 }
 
 RuntimeRequirementsSection::RuntimeRequirementsSection(const RuntimeRequirements& runtime_requirements,

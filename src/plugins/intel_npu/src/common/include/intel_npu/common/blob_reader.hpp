@@ -55,8 +55,8 @@ public:
 
     void register_section_type_evaluator(const std::shared_ptr<ISectionTypeEvaluator>& evaluator);
 
-    void register_section_type_instance_evaluate_fn(const SectionType type,
-                                                    std::function<bool(BlobReaderInterface&)> function);
+    void register_section_instance_evaluator(const SectionType type,
+                                             const std::shared_ptr<ISectionInstanceEvaluator>& evaluator);
 
     /**
      * @brief Retrieve a parsed section.
@@ -108,25 +108,13 @@ public:
 private:
     friend class BlobWriter;
 
-    /**
-     * @brief Builds classes capable of evaluating whether or not the section instances are supported.
-     * @details These evaluators are meant to be used by the CRE code while evaluating an expression. Upon encountering
-     * a section type instance within the expression, the corresponding evaluator class should be retrieved and used for
-     * evaluation.
-     */
-    std::unordered_map<SectionID, SectionInstanceEvaluator> build_section_type_instance_evaluators(
-        BlobSource& source,
-        const Manifest& manifest,
-        const size_t npu_region_start,
-        const size_t npu_region_size) const;
-
-    void parse_section(BlobSource& source,
-                       const SectionType type,
-                       const SectionID id,
-                       const size_t length,
-                       const size_t npu_region_start,
-                       const size_t npu_region_size,
-                       const bool include_in_sections_order = true);
+    void parse_next_section(BlobSource& source,
+                            const SectionType type,
+                            const SectionID id,
+                            const size_t length,
+                            const size_t npu_region_start,
+                            const size_t npu_region_size,
+                            const bool include_in_sections_order = true);
 
     /**
      * @brief All sections obtained after parsing the compiled model.
@@ -148,7 +136,7 @@ private:
      */
     std::unordered_map<SectionType, std::function<std::shared_ptr<ISection>(BlobReaderInterface&)>> m_readers;
     std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> m_section_type_evaluators;
-    std::unordered_map<SectionType, std::function<bool(BlobReaderInterface&)>> m_section_instance_evaluate_fn;
+    std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>> m_section_instance_evaluators;
 
     FilteredConfig m_config;
     Logger m_logger;
