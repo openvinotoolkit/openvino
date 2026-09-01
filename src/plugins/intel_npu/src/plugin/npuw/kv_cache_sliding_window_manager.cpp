@@ -34,11 +34,7 @@ ov::npuw::util::SwaLayout ov::npuw::util::detect_swa_layout(const std::shared_pt
         OPENVINO_ASSERT(layer_idx < max_reasonable_layer_idx,
                         "NPUW SWA: unreasonable layer index ",
                         layer_idx,
-                        " in SDPA name '",
-                        sdpa->get_friendly_name(),
-                        "' (number of graph ops is ",
-                        max_reasonable_layer_idx,
-                        ").");
+                        " parsed from SDPA name.");
 
         // Every parseable layer must be represented, even when annotation is absent.
         // Missing annotation is interpreted as non-SWA (full/causal) later.
@@ -96,11 +92,11 @@ ov::npuw::util::SwaLayout ov::npuw::util::detect_swa_layout(const std::shared_pt
                 has_detected_window = true;
             } else {
                 OPENVINO_ASSERT(detected_window == encoded,
-                                "NPUW SWA: inconsistent sliding-window sizes detected across layers (",
+                                "NPUW SWA: inconsistent window sizes across layers (",
                                 detected_window,
                                 " vs ",
                                 encoded,
-                                "). Only a single, uniform window size is currently supported.");
+                                ").");
             }
         } else {
             has_full = true;
@@ -116,9 +112,7 @@ ov::npuw::util::SwaLayout ov::npuw::util::detect_swa_layout(const std::shared_pt
         return layout;
     }
 
-    OPENVINO_ASSERT(has_detected_window && detected_window > 0,
-                    "NPUW SWA: invalid SWA window size detected: ",
-                    detected_window);
+    OPENVINO_ASSERT(has_detected_window && detected_window > 0, "NPUW SWA: invalid window size: ", detected_window);
     OPENVINO_ASSERT(detected_window <= static_cast<int64_t>(std::numeric_limits<uint32_t>::max()),
                     "NPUW SWA: SWA window size exceeds uint32_t range: ",
                     detected_window);
