@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/assign.hpp"
-
 #include <gtest/gtest.h>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/assign.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/util/variable.hpp"
 
@@ -174,4 +174,11 @@ TEST(type_prop, assign_v6_init_shape_is_in_range_2) {
     ASSERT_EQ(assign->get_element_type(), element::f32);
     ASSERT_EQ(assign->get_output_partial_shape(0), (PartialShape{{1, 2}, 2, 64, 64}));
     ASSERT_EQ(assign->get_variable_id(), "variable_id");
+}
+
+TEST(type_prop, assign_v6_variable_not_initialized) {
+    auto input = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 64, 64});
+    OV_EXPECT_THROW(std::ignore = make_shared<ov::op::v6::Assign>(input, nullptr),
+                    ov::NodeValidationFailure,
+                    testing::HasSubstr("Variable is not initialized."));
 }
