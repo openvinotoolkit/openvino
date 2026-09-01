@@ -6,7 +6,7 @@ if(NOT OV_GPU_WITH_SYCL)
     return()
 endif()
 
-set(TARGET_NAME "openvino_intel_gpu_sycl_obj")
+set(TARGET_NAME "openvino_intel_gpu_sycl_obj${OV_GPU_SUFFIX}")
 
 set(SOURCES_OCL_RT "${CMAKE_CURRENT_SOURCE_DIR}/impl_example.cpp")
 

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "openvino_intel_gpu_ocl_obj")
+set(TARGET_NAME "openvino_intel_gpu_ocl_obj${OV_GPU_SUFFIX}")
 
 ov_gpu_add_backend_target(
     NAME ${TARGET_NAME}

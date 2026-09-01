@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "openvino_intel_gpu_kernels")
+set(TARGET_NAME "openvino_intel_gpu_kernels${OV_GPU_SUFFIX}")
 
 find_host_package(Python3 REQUIRED COMPONENTS Interpreter)
 
@@ -67,7 +67,7 @@ target_compile_options(${TARGET_NAME} PRIVATE
   $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
 
 if (ENABLE_ONEDNN_FOR_GPU)
-    target_link_libraries(${TARGET_NAME} PRIVATE onednn_gpu_tgt)
+    target_link_libraries(${TARGET_NAME} PRIVATE onednn_gpu_tgt${OV_GPU_SUFFIX})
 endif()
 
 target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime PRIVATE openvino::runtime::dev)
@@ -82,7 +82,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
     ov_gpu_set_opencl_api_version_for(${TARGET_NAME})
 endif()
 
-ov_gpu_set_runtime_definitions_for(${TARGET_NAME})
+ov_gpu_set_runtime_definitions_for(${TARGET_NAME} RUNTIME ${OV_GPU_RT})
 set_property(SOURCE kernel_selector_params.cpp APPEND PROPERTY COMPILE_DEFINITIONS
     OV_GPU_TARGET_OPENCL_VERSION=${INTEL_GPU_TARGET_OCL_VERSION})
 
