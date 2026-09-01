@@ -178,7 +178,12 @@ void PagedSelectiveSSMExecutor::execute(const MemoryArgs& memory) {
         m_projection_scratch_elements != expected_projection_scratch_elements ||
         m_metadata_scratch_elements != expected_metadata_scratch_elements ||
         m_cached_projection_elements != projection_elements) {
-        OPENVINO_ASSERT(update_scratchpad(memory));
+        if (!update_scratchpad(memory)) {
+            OPENVINO_THROW("PagedSelectiveSSM failed to allocate scratch memory.");
+        }
+    }
+    if (!m_scratch) {
+        OPENVINO_THROW("PagedSelectiveSSM scratch memory is not initialized.");
     }
 
     const node::kernel::PagedSelectiveSSMShape shape{x_dims[0],
