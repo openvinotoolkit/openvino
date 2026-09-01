@@ -152,7 +152,6 @@ public:
             testValues.actual.dequantization2,
             true,
             {},
-            ov::element::dynamic,
             {},
             testValues.axis,
             testValues.addNotPrecisionPreservedOperation);
@@ -224,7 +223,6 @@ public:
                 ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul),
                 ov::QuantizationAlignmentAttribute(false)
             },
-            testValues.result.precisionAfterOperation,
             testValues.result.dequantizationAfter,
             testValues.axis,
             testValues.addNotPrecisionPreservedOperation);

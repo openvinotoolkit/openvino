@@ -958,7 +958,6 @@ std::shared_ptr<ov::Model> ConcatFunction::get(
     const DequantizationOperations::Convert& convert2,
     const DequantizationOperations& dequantization2,
     const std::vector<ov::Any>& concatAttributes,
-    const ov::element::Type precisionAfterOperation,
     const DequantizationOperations& dequantizationAfter,
     const std::int64_t& axis,
     const bool addNotPrecisionPreservedOperation) {
@@ -1043,7 +1042,6 @@ std::shared_ptr<ov::Model> ConcatFunction::get(
     const DequantizationOperations& dequantization2,
     const bool addReshape2,
     const std::vector<ov::Any>& concatAttributes,
-    const ov::element::Type precisionAfterOperation,
     const DequantizationOperations& dequantizationAfter,
     const std::int64_t& axis,
     const bool addNotPrecisionPreservedOperation) {
@@ -1164,7 +1162,6 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithNeighbors(
     const FakeQuantizeOnData& fqOnData3,
     const ov::element::Type precisionBeforeOp,
     const DequantizationOperations& dequantizationBefore,
-    const ov::element::Type precisionAfterOperation,
     const DequantizationOperations& dequantizationOperations1,
     const DequantizationOperations& dequantizationOperations2,
     const std::string& neighborType,

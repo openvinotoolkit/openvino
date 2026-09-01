@@ -127,7 +127,6 @@ public:
                                                                         testValues.actual.convert2,
                                                                         testValues.actual.dequantization2,
                                                                         {},
-                                                                        ov::element::dynamic,
                                                                         {},
                                                                         testValues.axis,
                                                                         testValues.addNotPrecisionPreservedOperation);
@@ -187,7 +186,6 @@ public:
                                                            {ov::PrecisionPreservedAttribute(true),
                                                             ov::IntervalsAlignmentAttribute(interval, 256),
                                                             ov::QuantizationAlignmentAttribute(false)},
-                                                           testValues.result.precisionAfterOperation,
                                                            testValues.result.dequantizationAfter,
                                                            testValues.axis,
                                                            testValues.addNotPrecisionPreservedOperation);

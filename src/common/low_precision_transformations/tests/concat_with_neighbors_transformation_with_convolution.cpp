@@ -134,7 +134,6 @@ public:
             testValues.result.fakeQuantize3,
             testValues.result.precisionBeforeOp,
             testValues.result.dequantizationBefore,
-            testValues.result.precisionAfterOp,
             testValues.result.dequantizationAfter1,
             testValues.result.dequantizationAfter2);
     }
