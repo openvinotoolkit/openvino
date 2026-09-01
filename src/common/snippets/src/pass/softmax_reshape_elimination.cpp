@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
@@ -19,6 +20,46 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/utils/utils.hpp"
+
+bool ov::snippets::pass::SoftmaxReshapeElimination::eliminate(
+    const std::shared_ptr<ov::op::v1::Reshape>& reshape0,
+    const std::shared_ptr<ov::Node>& softmax,
+    const std::shared_ptr<ov::op::v1::Reshape>& reshape1) {
+    const auto input_shape = reshape0->get_input_partial_shape(0);
+    const auto output_shape = reshape1->get_output_partial_shape(0);
+    const auto softmax_shape = softmax->get_input_partial_shape(0);
+    if (input_shape != output_shape || input_shape.rank() != output_shape.rank()) {
+        return false;
+    }
+
+    const auto softmax_rank = softmax_shape.rank();
+    const auto axis = ov::snippets::utils::get_softmax_axis(softmax);
+    if (!axis || *axis != static_cast<int64_t>(softmax_rank.get_length()) - 1) {
+        return false;
+    }
+
+    const auto in_last_dim = *input_shape.crbegin();
+    const auto out_last_dim = *output_shape.crbegin();
+    const auto softmax_last_dim = *softmax_shape.crbegin();
+    if (in_last_dim.is_dynamic() || out_last_dim.is_dynamic() || in_last_dim != out_last_dim ||
+        (softmax_last_dim.is_static() && in_last_dim != softmax_last_dim)) {
+        return false;
+    }
+
+    reshape0->output(0).replace(reshape0->input_value(0));
+    copy_runtime_info({reshape0->input_value(0).get_node_shared_ptr(), reshape0->output(0).get_node_shared_ptr()},
+                      reshape0->input_value(0).get_node_shared_ptr());
+    replace_output_update_name(reshape1->output(0), reshape1->input_value(0));
+
+    const auto new_axis = input_shape.rank().get_length() - 1;
+    if (auto softmax_v8 = ov::as_type_ptr<ov::op::v8::Softmax>(softmax)) {
+        softmax_v8->set_axis(new_axis);
+    } else if (auto softmax_v1 = ov::as_type_ptr<ov::op::v1::Softmax>(softmax)) {
+        softmax_v1->set_axis(new_axis);
+    }
+
+    return true;
+}
 
 ov::snippets::pass::SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
     MATCHER_SCOPE(SoftmaxReshapeElimination);
@@ -39,47 +80,8 @@ ov::snippets::pass::SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
             auto reshape0 = pattern_to_output[m_reshape0].get_node_shared_ptr();
             auto softmax = pattern_to_output[m_softmax].get_node_shared_ptr();
             auto reshape1 = pattern_to_output[m_reshape1].get_node_shared_ptr();
-
-            const auto input_shape = reshape0->get_input_partial_shape(0);
-            const auto output_shape = reshape1->get_output_partial_shape(0);
-            const auto softmax_shape = softmax->get_input_partial_shape(0);
-            if (input_shape != output_shape || input_shape.rank() != output_shape.rank()) {
-                return false;
-            }
-
-            const auto softmax_rank = softmax_shape.rank();
-            const auto axis = ov::snippets::utils::get_softmax_axis(softmax);
-            // Supports only last axis
-            if (!axis || *axis != static_cast<int64_t>(softmax_rank.get_length()) - 1) {
-                return false;
-            }
-
-            // Dimensions by reduction axis should be equal
-            const auto in_last_dim = *input_shape.crbegin();
-            const auto out_last_dim = *output_shape.crbegin();
-            const auto softmax_last_dim = *softmax_shape.crbegin();
-            if (in_last_dim.is_dynamic() || out_last_dim.is_dynamic() || softmax_last_dim.is_dynamic() ||
-                in_last_dim != out_last_dim || in_last_dim != softmax_last_dim) {
-                return false;
-            }
-
-            // Eliminate Reshape before Softmax
-            reshape0->output(0).replace(reshape0->input_value(0));
-            copy_runtime_info(
-                {reshape0->input_value(0).get_node_shared_ptr(), reshape0->output(0).get_node_shared_ptr()},
-                reshape0->input_value(0).get_node_shared_ptr());
-
-            // Eliminate Reshape after Softmax with name saving
-            replace_output_update_name(reshape1->output(0), reshape1->input_value(0));
-
-            // update axis
-            const auto new_axis = input_shape.rank().get_length() - 1;
-            if (auto softmax_v8 = ov::as_type_ptr<ov::op::v8::Softmax>(softmax)) {
-                softmax_v8->set_axis(new_axis);
-            } else if (auto softmax_v1 = ov::as_type_ptr<ov::op::v1::Softmax>(softmax)) {
-                softmax_v1->set_axis(new_axis);
-            }
-
-            return true;
+            return eliminate(ov::as_type_ptr<ov::op::v1::Reshape>(reshape0),
+                             softmax,
+                             ov::as_type_ptr<ov::op::v1::Reshape>(reshape1));
         });
 }

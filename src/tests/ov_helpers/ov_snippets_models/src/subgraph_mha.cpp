@@ -4,6 +4,8 @@
 
 #include "subgraph_mha.hpp"
 
+#include <utility>
+
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
@@ -57,13 +59,12 @@ std::vector<int64_t> get_decomposed_order_after_split_m(size_t rank) {
 }
 } // namespace
 
-struct MHAShapeInputs {
-    ov::Output<ov::Node> broadcast;
-    ov::Output<ov::Node> reshape0;
-    ov::Output<ov::Node> reshape1;
-};
+ov::Output<ov::Node> make_broadcast_shape(const ov::Output<ov::Node>& source) {
+    return std::make_shared<ov::op::v3::ShapeOf>(source, ov::element::i64);
+}
 
-MHAShapeInputs make_shape_inputs(const ov::Output<ov::Node>& source, size_t rank) {
+std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> make_reshape_shapes(const ov::Output<ov::Node>& source,
+                                                                           size_t rank) {
     const auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(source, ov::element::i64);
     const auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
     std::vector<int64_t> prefix_indices_data(rank - 1);
@@ -75,7 +76,7 @@ MHAShapeInputs make_shape_inputs(const ov::Output<ov::Node>& source, size_t rank
     const auto minus_one = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
     const auto reshape0 = std::make_shared<ov::opset1::Concat>(ov::OutputVector{batch, minus_one}, 0);
 
-    return {shape_of, reshape0, shape_of};
+    return {reshape0, shape_of};
 }
 
 std::shared_ptr<ov::Model> init_mha_original(const std::vector<PartialShape>& input_shapes,
@@ -130,10 +131,12 @@ std::shared_ptr<ov::Model> init_mha_original(const std::vector<PartialShape>& in
         matmul_parent1 = std::make_shared<ov::op::v1::Multiply>(transpose1, mulConst);
     }
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, matmul_parent1);
-    const auto shape_inputs = with_shape_of ? make_shape_inputs(addParam, rank) : MHAShapeInputs{};
     auto add_input = addParam->output(0);
     if (with_broadcast) {
-        ov::Output<ov::Node> target_shape = shape_inputs.broadcast;
+        ov::Output<ov::Node> target_shape;
+        if (with_shape_of) {
+            target_shape = make_broadcast_shape(addParam);
+        }
         if (!with_shape_of) {
             target_shape =
                 ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, matMul0->get_output_shape(0));
@@ -149,14 +152,20 @@ std::shared_ptr<ov::Model> init_mha_original(const std::vector<PartialShape>& in
             std::accumulate(interm_shape.cbegin(), interm_shape.cbegin() + (rank - 1), 1, std::multiplies<size_t>());
         const auto reshape0ConstData = std::vector<int64_t>{batch, -1};
         const auto reshape1ConstData = interm_shape;
-        const auto reshape0Const = with_shape_of ? shape_inputs.reshape0
-                                                 : ov::op::v0::Constant::create(ov::element::i64,
-                                                                                ov::Shape{reshape0ConstData.size()},
-                                                                                reshape0ConstData);
-        const auto reshape1Const = with_shape_of ? shape_inputs.reshape1
-                                                 : ov::op::v0::Constant::create(ov::element::i64,
-                                                                                ov::Shape{reshape1ConstData.size()},
-                                                                                reshape1ConstData);
+        ov::Output<ov::Node> reshape0Const;
+        ov::Output<ov::Node> reshape1Const;
+        if (with_shape_of) {
+            const auto reshape_shapes = make_reshape_shapes(addParam, rank);
+            reshape0Const = reshape_shapes.first;
+            reshape1Const = reshape_shapes.second;
+        } else {
+            reshape0Const = ov::op::v0::Constant::create(ov::element::i64,
+                                                         ov::Shape{reshape0ConstData.size()},
+                                                         reshape0ConstData);
+            reshape1Const = ov::op::v0::Constant::create(ov::element::i64,
+                                                         ov::Shape{reshape1ConstData.size()},
+                                                         reshape1ConstData);
+        }
 
         const auto reshape0 = std::make_shared<ov::opset1::Reshape>(add, reshape0Const, true);
         const auto softMax = std::make_shared<ov::opset1::Softmax>(reshape0, 1);
@@ -222,8 +231,6 @@ std::shared_ptr<ov::Model> init_mha_reference(const std::vector<PartialShape>& i
         subgraph_parent1 = std::make_shared<ov::op::v1::Multiply>(transpose1, mulConst);
     }
 
-    const auto shape_inputs = with_shape_of ? make_shape_inputs(data2, rank) : MHAShapeInputs{};
-
     OutputVector subgraph_inputs = {data0, subgraph_parent1, data2};
 
     auto transpose0Param = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
@@ -233,14 +240,13 @@ std::shared_ptr<ov::Model> init_mha_reference(const std::vector<PartialShape>& i
     ov::Output<ov::Node> broadcast_shape;
     std::shared_ptr<ov::opset1::Parameter> broadcast_shape_param;
     ov::ParameterVector subgraph_params = {transpose0Param, brgemm1Param, addParam};
-    if (with_shape_of) {
-        broadcast_shape_param =
-            std::make_shared<ov::opset1::Parameter>(ov::element::i64, shape_inputs.broadcast.get_partial_shape());
+    if (with_shape_of && with_broadcast) {
+        const auto broadcast_shape_source = make_broadcast_shape(data2);
+        broadcast_shape_param = std::make_shared<ov::opset1::Parameter>(ov::element::i64,
+                                                                          broadcast_shape_source.get_partial_shape());
         broadcast_shape = broadcast_shape_param;
-        if (with_broadcast) {
-            subgraph_inputs.push_back(shape_inputs.broadcast);
-            subgraph_params.push_back(broadcast_shape_param);
-        }
+        subgraph_inputs.push_back(broadcast_shape_source);
+        subgraph_params.push_back(broadcast_shape_param);
     }
     subgraph_inputs.push_back(data3);
     auto transpose2Param =
