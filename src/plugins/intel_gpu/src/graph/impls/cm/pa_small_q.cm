@@ -13,11 +13,6 @@ namespace KERNEL_NAME {
 //   lse                 : f32 [tile_count * TILE_Q, head, partition]
 //   Causal: row t in a tile sees past_lens + q_start + t + 1 keys.
 
-// Uncompressed (fp16) KV is not supported by this kernel.
-#if !KV_CACHE_COMPRESSION
-#error "pa_small_q: only KV_CACHE_COMPRESSION 1 and 2 are supported"
-#endif
-
 #if XE_ARCH==1
 #define REG_N 8
 #define USE_LSC_BLOCK_2D_DESC 0
@@ -153,6 +148,17 @@ namespace KERNEL_NAME {
 #error "MARSHAL_HOIST_V keeps one Vq live per thread; it needs MARSHAL_CPT == 1"
 #endif
 
+#ifndef SPLIT_BARRIER
+#if MARSHAL_TG == WG_THREADS && MARSHAL_CPT == 1 && ONLINE_TILE_STEPS == 1
+#define SPLIT_BARRIER 1
+#else
+#define SPLIT_BARRIER 0
+#endif
+#endif
+
+#if SPLIT_BARRIER && (MARSHAL_TG != WG_THREADS || MARSHAL_CPT != 1 || ONLINE_TILE_STEPS != 1)
+#error "SPLIT_BARRIER needs all threads to marshal one chunk in one online tile"
+#endif
 
 #define KV_PREFETCH_DIST 1
 
@@ -167,6 +173,10 @@ namespace KERNEL_NAME {
 
 #ifndef SOFTMAX_RESCALE_BRANCHLESS
 #define SOFTMAX_RESCALE_BRANCHLESS 1
+#endif
+
+#ifndef DEQUANT_MAD
+#define DEQUANT_MAD 0
 #endif
 
 #if KV_CACHE_COMPRESSION
@@ -550,7 +560,11 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                 // writes must not overtake the previous tile's reads. Unnecessary once the
                 // marshalled buffers were double-buffered.
                 cm_fence(CM_LOCAL_BARRIER);
+#if SPLIT_BARRIER
+                cm_sbarrier(1);
+#else
                 cm_barrier();
+#endif
 
 
                 // ---- Cooperative marshalling ------------------------------------------
@@ -624,6 +638,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                         const uint v_base_offset = blk_indices * per_v_block_element_num
                                                  + kv_head_num_idx * (per_v_block_element_num / KV_HEADS_NUM);
                         v_blk_base = v_base_offset;
+#if KV_CACHE_COMPRESSION
                         const uint v_szp = v_base_offset + KV_BLOCK_SIZE * HEAD_SIZE;
                         vector<half, REG_K> v_scale_raw, v_zp_raw;
                         cm_svm_block_read<half, REG_K>(
@@ -653,7 +668,17 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 #endif
                         v_scale.merge(v_scale_raw, lane_valid);
                         v_zp.merge(v_zp_raw, lane_valid);
+#endif
                     }
+
+#if DEQUANT_MAD
+                    vector<half, REG_K> v_negzpscale = cm_mul<half>(v_zp, v_scale);
+                    v_negzpscale = (half)0.0f - v_negzpscale;
+#if KV_CACHE_COMPRESSION == 1
+                    vector<half, REG_N> k_negzpscale = cm_mul<half>(k_zp, k_scale);
+                    k_negzpscale = (half)0.0f - k_negzpscale;
+#endif
+#endif
 
                     // K and V marshalled in separate loops so their working sets do not
                     // have to be live at the same time — this kernel already sits at
@@ -661,29 +686,29 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 #if MARSHAL_HOIST_V
                     // Loaded by the K loop below, consumed by the V loop. One chunk per thread
                     // (MARSHAL_CPT == 1, enforced at the define), so exactly one is live.
-                    matrix<uint8_t, REG_K, REG_N> Vq;
+                    matrix<KV_ELEMENT_TYPE, REG_K, REG_N> Vq;
 #endif
                     #pragma nounroll
                     for (int c = local_qg; c < (int)MARSHAL_CHUNKS; c += MARSHAL_TG) {
                         const uint chunk_out = (li_m * MARSHAL_CHUNKS + c) * MARSHAL_CHUNK_BYTES;
 
                         // K: dequantize token rows, then dword-transpose into VNNI layout.
-                        matrix<uint8_t, REG_N, REG_K> Kq;
+                        matrix<KV_ELEMENT_TYPE, REG_N, REG_K> Kq;
                         // REG_N token rows x REG_K bytes of head-dim at pitch HEAD_SIZE --
                         // the exact sub-tile this thread needs, gathered by the LSC in one
                         // message instead of REG_N SLM reads of a staged copy.
                         {
-                            lsc::block_2d_desc<uint8_t, 1, REG_N, REG_K> b2dK(
+                            lsc::block_2d_desc<KV_ELEMENT_TYPE, 1, REG_N, REG_K> b2dK(
                                 key + k_blk_base, KV_BLOCK_SIZE - 1,
-                                HEAD_SIZE * sizeof(uint8_t) - 1, kv_pitch - 1, 0, 0);
+                                HEAD_SIZE * sizeof(KV_ELEMENT_TYPE) - 1, kv_pitch - 1, 0, 0);
                             b2dK.set_block_x(c * REG_K);
                             b2dK.set_block_y(tok_in_blk);
-                            cm_load<lsc::Normal>(Kq.format<uint8_t>(), b2dK);
+                            cm_load<lsc::Normal>(Kq.format<KV_ELEMENT_TYPE>(), b2dK);
                         }
                         {
-                            lsc::block_2d_desc<uint8_t, 1, REG_N, REG_K> pfK(
+                            lsc::block_2d_desc<KV_ELEMENT_TYPE, 1, REG_N, REG_K> pfK(
                                 key + k_blk_next, KV_BLOCK_SIZE - 1,
-                                HEAD_SIZE * sizeof(uint8_t) - 1, kv_pitch - 1, 0, 0);
+                                HEAD_SIZE * sizeof(KV_ELEMENT_TYPE) - 1, kv_pitch - 1, 0, 0);
                             pfK.set_block_x(c * REG_K);
                             pfK.set_block_y(tok_in_blk_next);
                             cm_prefetch(pfK);
@@ -693,12 +718,12 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                         // two loads are in flight together. V's prefetch deliberately stays in
                         // the V loop: hoisting it too cancels the gain, see the define.
                         {
-                            lsc::block_2d_desc<uint8_t, 1, REG_K, REG_N> b2dVh(
+                            lsc::block_2d_desc<KV_ELEMENT_TYPE, 1, REG_K, REG_N> b2dVh(
                                 value + v_blk_base, KV_BLOCK_SIZE - 1,
-                                HEAD_SIZE * sizeof(uint8_t) - 1, kv_pitch - 1, 0, 0);
+                                HEAD_SIZE * sizeof(KV_ELEMENT_TYPE) - 1, kv_pitch - 1, 0, 0);
                             b2dVh.set_block_x(c * REG_N);
                             b2dVh.set_block_y(tok_in_blk);
-                            cm_load<lsc::Normal>(Vq.format<uint8_t>(), b2dVh);
+                            cm_load<lsc::Normal>(Vq.format<KV_ELEMENT_TYPE>(), b2dVh);
                         }
 #endif
 #if KV_CACHE_COMPRESSION == 2
@@ -730,10 +755,23 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                             }
                         }
 #endif
+#if DEQUANT_MAD && KV_CACHE_COMPRESSION == 2
+                        matrix<half, GROUPS_PER_TILE, REG_K> kc_negzpscale =
+                            cm_mul<half>(kc_zp, kc_scale);
+                        kc_negzpscale = (half)0.0f - kc_negzpscale;
+#endif
                         matrix<half, REG_N, REG_K> KtNormal = 0;
                         #pragma unroll
                         for (int col = 0; col < REG_N; col++) {
                             KtNormal.row(col) = Kq.row(col);
+#if DEQUANT_MAD
+#if KV_CACHE_COMPRESSION == 2
+                            KtNormal.row(col) = KtNormal.row(col) * kc_scale.row(col / SUB_BLOCK_SIZE)
+                                              + kc_negzpscale.row(col / SUB_BLOCK_SIZE);
+#else
+                            KtNormal.row(col) = KtNormal.row(col) * k_scale[col] + k_negzpscale[col];
+#endif
+#else
 #if KV_CACHE_COMPRESSION == 2
                             // Per channel: the scale/zp vector spans the row (the REG_K
                             // channels of this chunk) and is shared by every token row of
@@ -745,9 +783,10 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                                                              kc_scale.row(col / SUB_BLOCK_SIZE));
                             // col is the token's index *within the online tile*, so
                             // col / SUB_BLOCK_SIZE is its group relative to g_base above.
-#else
+#elif KV_CACHE_COMPRESSION == 1
                             KtNormal.row(col) = KtNormal.row(col) - k_zp[col];
                             KtNormal.row(col) = cm_mul<half>(KtNormal.row(col), k_scale[col]);
+#endif
 #endif
                         }
                         matrix<half, REG_K, REG_N> Kt_m = 0;
@@ -757,6 +796,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                         Transpose_8x8(
                             KtNormal.format<uint, REG_N, REG_K/2>().select<8,1,8,1>(8,0),
                             Kt_m.format<uint, REG_K/2, REG_N>().select<8,1,8,1>(0,8));
+#if SPLIT_BARRIER
+                        cm_sbarrier(0);
+#endif
                         auto Kt_bytes = Kt_m.format<uint8_t>();
                         #pragma unroll
                         for (int x = 0; x < (int)MARSHAL_XFERS; x++) {
@@ -771,20 +813,20 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 
                         // V: dequantize token rows, then VNNI-interleave row pairs.
 #if !MARSHAL_HOIST_V
-                        matrix<uint8_t, REG_K, REG_N> Vq;
+                        matrix<KV_ELEMENT_TYPE, REG_K, REG_N> Vq;
                         {
-                            lsc::block_2d_desc<uint8_t, 1, REG_K, REG_N> b2dV(
+                            lsc::block_2d_desc<KV_ELEMENT_TYPE, 1, REG_K, REG_N> b2dV(
                                 value + v_blk_base, KV_BLOCK_SIZE - 1,
-                                HEAD_SIZE * sizeof(uint8_t) - 1, kv_pitch - 1, 0, 0);
+                                HEAD_SIZE * sizeof(KV_ELEMENT_TYPE) - 1, kv_pitch - 1, 0, 0);
                             b2dV.set_block_x(c * REG_N);
                             b2dV.set_block_y(tok_in_blk);
-                            cm_load<lsc::Normal>(Vq.format<uint8_t>(), b2dV);
+                            cm_load<lsc::Normal>(Vq.format<KV_ELEMENT_TYPE>(), b2dV);
                         }
 #endif
                         {
-                            lsc::block_2d_desc<uint8_t, 1, REG_K, REG_N> pfV(
+                            lsc::block_2d_desc<KV_ELEMENT_TYPE, 1, REG_K, REG_N> pfV(
                                 value + v_blk_next, KV_BLOCK_SIZE - 1,
-                                HEAD_SIZE * sizeof(uint8_t) - 1, kv_pitch - 1, 0, 0);
+                                HEAD_SIZE * sizeof(KV_ELEMENT_TYPE) - 1, kv_pitch - 1, 0, 0);
                             pfV.set_block_x(c * REG_N);
                             pfV.set_block_y(tok_in_blk_next);
                             cm_prefetch(pfV);
@@ -793,8 +835,14 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                         #pragma unroll
                         for (int r = 0; r < REG_K; r++) {
                             VmatNormal[r] = Vq.row(r);
+#if DEQUANT_MAD
+                            VmatNormal[r] = VmatNormal[r] * v_scale[r] + v_negzpscale[r];
+#else
+#if KV_CACHE_COMPRESSION
                             VmatNormal[r] = VmatNormal[r] - v_zp[r];
                             VmatNormal[r] = cm_mul<half>(VmatNormal[r], v_scale[r]);
+#endif
+#endif
                         }
                         matrix<half, REG_K/2, REG_N*2> Vmat_m;
                         Vmat_m.select<REG_K/2, 1, REG_N, 2>(0, 0) = VmatNormal.select<REG_K/2, 2, REG_N, 1>(0, 0);
