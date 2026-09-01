@@ -79,9 +79,9 @@ const auto binConv2DParams_1x1_ExplicitPad = ::testing::Combine(
     ::testing::Values(-1.0f));                           // pad value
 
 INSTANTIATE_TEST_SUITE_P(
-    BinaryConvolution2D_1x1_Overflow, BinaryConvolutionLayerTest,
+    nightly_BinaryConvolution2D_1x1_Overflow, BinaryConvolutionLayerTest,
     ::testing::Combine(
-        nightly_binConv2DParams_1x1_ExplicitPad,
+        binConv2DParams_1x1_ExplicitPad,
         ::testing::Values(ov::element::f32),
         ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
             std::vector<std::vector<ov::Shape>>{{{1, 256, 56, 56}}})),
