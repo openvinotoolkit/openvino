@@ -371,6 +371,18 @@ TEST(broadcast_cpu_impl_int64_t, bfyx_1_to_4x5_w_b_axes_0x1x2x3_dynamic_with_sta
     start_broadcast_test_dynamic<int64_t, int32_t>(format::bfyx, data_types::i64, data_types::i32, {4, 5, 2, 3}, {1, 1, 1, 1}, {0, 1, 2, 3}, false, impl_types::cpu);
 }
 
+TEST(broadcast_cpu_impl_bf16, bfyx_1_to_4x5_w_b_axes_0x1_dynamic) {
+    start_broadcast_test_dynamic<ov::bfloat16, ov::bfloat16>(format::bfyx, data_types::bf16, data_types::bf16, {4, 5}, {1, 1}, {0, 1}, false, impl_types::cpu);
+}
+
+TEST(broadcast_cpu_impl_bf16, bfyx_1_to_4x5_w_b_axes_0x1_dynamic_with_static_output) {
+    start_broadcast_test_dynamic<ov::bfloat16, ov::bfloat16>(format::bfyx, data_types::bf16, data_types::bf16, {4, 5}, {1, 1}, {0, 1}, true, impl_types::cpu);
+}
+
+TEST(broadcast_cpu_impl_bf16, bfyx_1_to_4x5_w_b_axes_0x1x2x3_dynamic) {
+    start_broadcast_test_dynamic<ov::bfloat16, ov::bfloat16>(format::bfyx, data_types::bf16, data_types::bf16, {4, 5, 2, 3}, {1, 1, 1, 1}, {0, 1, 2, 3}, false, impl_types::cpu);
+}
+
 /* Expected golden_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
                            1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
                            1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,

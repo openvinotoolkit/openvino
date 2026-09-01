@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "node_context.hpp"
-#include "op_table.hpp"
-#include "utils.hpp"
-
 #include <climits>
 #include <cstdint>
 #include <memory>
 #include <vector>
+
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -20,33 +19,31 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
 namespace gguf {
 namespace op {
 
-OutputVector translate_cpy(const NodeContext & context) {
+OutputVector translate_cpy(const NodeContext& context) {
     const int op_case = context.get_op_case();
     const auto input_shape = context.get_input_shape(0);
     const auto output_shape = context.get_output_shape();
 
-    if (op_case == 1 &&
-        (context.get_input_size() == 1 || !context.has_input(context.get_input_names()[1]))) {
+    if (op_case == 1 && (context.get_input_size() == 1 || !context.has_input(context.get_input_names()[1]))) {
         ov::Output<ov::Node> value = context.get_input(0);
         // The translated GDN value intentionally has a dynamic packed-row axis, while the CPY's
         // declared input layout may already be reinterpreted as the destination cache. Get the
         // actual packed row width directly from the producing GGML tensor metadata.
         const int64_t packed_width = context.get_attribute<int64_t>("gdn_packed_width", -1);
         FRONT_END_OP_CONVERSION_CHECK(packed_width > 0, "GDN cache copy requires a static packed-row width");
-        const int64_t state_rows = static_cast<int64_t>(ov::shape_size(output_shape.to_shape())) /
-                                   packed_width;
-        value = std::make_shared<ov::op::v8::Slice>(
-            value,
-            ov::op::v0::Constant::create(ov::element::i64, {1}, {-state_rows}),
-            ov::op::v0::Constant::create(ov::element::i64, {1}, {INT_MAX}),
-            ov::op::v0::Constant::create(ov::element::i64, {1}, {1}),
-            ov::op::v0::Constant::create(ov::element::i64, {1}, {2}));
+        const int64_t state_rows = static_cast<int64_t>(ov::shape_size(output_shape.to_shape())) / packed_width;
+        value = std::make_shared<ov::op::v8::Slice>(value,
+                                                    ov::op::v0::Constant::create(ov::element::i64, {1}, {-state_rows}),
+                                                    ov::op::v0::Constant::create(ov::element::i64, {1}, {INT_MAX}),
+                                                    ov::op::v0::Constant::create(ov::element::i64, {1}, {1}),
+                                                    ov::op::v0::Constant::create(ov::element::i64, {1}, {2}));
         if (value.get_element_type() != context.get_output_type()) {
             value = std::make_shared<ov::op::v0::Convert>(value, context.get_output_type());
         }
@@ -64,7 +61,7 @@ OutputVector translate_cpy(const NodeContext & context) {
         auto base = context.get_input(1);
 
         int64_t n_elems = 1;
-        for (const auto & dim : input_shape.to_shape()) {
+        for (const auto& dim : input_shape.to_shape()) {
             n_elems *= static_cast<int64_t>(dim);
         }
 
@@ -99,10 +96,13 @@ OutputVector translate_cpy(const NodeContext & context) {
         const int64_t feature_width = output_shape[3].get_length();
         auto reshape_writeback = [&](const ov::Output<ov::Node>& value) {
             auto value_shape = std::make_shared<ov::op::v3::ShapeOf>(value, ov::element::i64);
-            auto total = std::make_shared<ov::op::v1::ReduceProd>(
-                value_shape, ov::op::v0::Constant::create(ov::element::i64, {1}, {0}), true);
+            auto total =
+                std::make_shared<ov::op::v1::ReduceProd>(value_shape,
+                                                         ov::op::v0::Constant::create(ov::element::i64, {1}, {0}),
+                                                         true);
             auto rows = std::make_shared<ov::op::v1::Divide>(
-                total, ov::op::v0::Constant::create(ov::element::i64, {1}, {feature_width}));
+                total,
+                ov::op::v0::Constant::create(ov::element::i64, {1}, {feature_width}));
             auto target = std::make_shared<ov::op::v0::Concat>(
                 ov::OutputVector{ov::op::v0::Constant::create(ov::element::i64, {2}, {1, 1}),
                                  rows,
@@ -118,18 +118,20 @@ OutputVector translate_cpy(const NodeContext & context) {
             FRONT_END_OP_CONVERSION_CHECK(packed_width > 0, "GDN writeback requires a static packed-row width");
             const int64_t state_rows = output_shape[3].get_length() / packed_width;
             auto src_begin = ov::op::v0::Constant::create(ov::element::i64, {1}, {-state_rows});
-            auto state_part =
-                std::make_shared<ov::op::v8::Slice>(context.get_input(0), src_begin, int_max, one, axis);
+            auto state_part = std::make_shared<ov::op::v8::Slice>(context.get_input(0), src_begin, int_max, one, axis);
             src = reshape_writeback(state_part);
             src.get_node_shared_ptr()->set_friendly_name("gdn_writeback_source_" + context.get_name());
         } else if (op_case == 2) {
             const int64_t window_size = input_shape[3].get_length();
             auto src_begin = context.get_input("rs_src_begin_" + writeback_name);
-            auto src_end = std::make_shared<ov::op::v1::Add>(
-                src_begin, ov::op::v0::Constant::create(ov::element::i64, {1}, {window_size}));
-            auto window = std::make_shared<ov::op::v8::Slice>(
-                context.get_input(0), src_begin, src_end, one,
-                ov::op::v0::Constant::create(ov::element::i64, {1}, {3}));
+            auto src_end =
+                std::make_shared<ov::op::v1::Add>(src_begin,
+                                                  ov::op::v0::Constant::create(ov::element::i64, {1}, {window_size}));
+            auto window = std::make_shared<ov::op::v8::Slice>(context.get_input(0),
+                                                              src_begin,
+                                                              src_end,
+                                                              one,
+                                                              ov::op::v0::Constant::create(ov::element::i64, {1}, {3}));
             src = reshape_writeback(window);
             src.get_node_shared_ptr()->set_friendly_name("conv_writeback_source_" + context.get_name());
         } else {
@@ -141,9 +143,10 @@ OutputVector translate_cpy(const NodeContext & context) {
         }
 
         auto base = context.get_input(1);
-        auto src_len = std::make_shared<ov::op::v8::Gather>(
-            std::make_shared<ov::op::v3::ShapeOf>(src, ov::element::i64), axis,
-            ov::op::v0::Constant::create(ov::element::i64, {}, {0}));
+        auto src_len =
+            std::make_shared<ov::op::v8::Gather>(std::make_shared<ov::op::v3::ShapeOf>(src, ov::element::i64),
+                                                 axis,
+                                                 ov::op::v0::Constant::create(ov::element::i64, {}, {0}));
         auto end = std::make_shared<ov::op::v1::Add>(begin, src_len);
         auto head_part = std::make_shared<ov::op::v8::Slice>(base, zero, begin, one, axis);
         auto tail_part = std::make_shared<ov::op::v8::Slice>(base, end, int_max, one, axis);
@@ -152,14 +155,15 @@ OutputVector translate_cpy(const NodeContext & context) {
     }
 
     ov::Output<ov::Node> res =
-        std::make_shared<ov::op::v0::Convert>(context.get_input(0), context.get_attribute<ov::element::Type>("output_type"));
+        std::make_shared<ov::op::v0::Convert>(context.get_input(0),
+                                              context.get_attribute<ov::element::Type>("output_type"));
 
     // A CPY may reinterpret the source layout into its destination's (e.g. qwen3-next's conv-state
     // writeback flattens the contiguous [S, F] conv_state_last into the flat [S*F] recurrent cache
     // row). When the destination (output) shape differs from the source but holds the same number of
     // elements, reshape to the output layout so the model result matches the ggml cache tensor.
-    const auto & out_ps = context.get_output_shape();
-    const auto & in_ps = res.get_partial_shape();
+    const auto& out_ps = context.get_output_shape();
+    const auto& in_ps = res.get_partial_shape();
     if (out_ps.is_static() && in_ps.is_static() && in_ps != out_ps) {
         const auto in_shape = in_ps.to_shape();
         const auto out_shape = out_ps.to_shape();
@@ -173,8 +177,10 @@ OutputVector translate_cpy(const NodeContext & context) {
         // it to the non-empty cache layout would be an invalid element-count change.
         if (in_elems == out_elems && in_elems != 0) {
             std::vector<int64_t> tgt(out_shape.begin(), out_shape.end());
-            res = std::make_shared<ov::op::v1::Reshape>(
-                res, ov::op::v0::Constant::create(ov::element::i64, {tgt.size()}, tgt), false);
+            res =
+                std::make_shared<ov::op::v1::Reshape>(res,
+                                                      ov::op::v0::Constant::create(ov::element::i64, {tgt.size()}, tgt),
+                                                      false);
         }
     } else if (out_ps.is_static() && in_ps.rank().is_static() && in_ps != out_ps) {
         // The input carries a (possibly spurious) dynamic axis but the destination cache row is fully
@@ -198,8 +204,10 @@ OutputVector translate_cpy(const NodeContext & context) {
         // out_elems != 0: an empty destination must not be reshaped (0 % anything == 0).
         if (has_dyn && in_static != 0 && out_elems != 0 && out_elems % in_static == 0) {
             std::vector<int64_t> tgt(out_shape.begin(), out_shape.end());
-            res = std::make_shared<ov::op::v1::Reshape>(
-                res, ov::op::v0::Constant::create(ov::element::i64, {tgt.size()}, tgt), false);
+            res =
+                std::make_shared<ov::op::v1::Reshape>(res,
+                                                      ov::op::v0::Constant::create(ov::element::i64, {tgt.size()}, tgt),
+                                                      false);
         }
     }
     return rename_outputs_with_suffix({res}, context.get_name());

@@ -53,12 +53,11 @@ OutputVector translate_permute(const NodeContext& context) {
             // this costs no extra data movement.
             auto neg_one = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
             auto src_shape = std::make_shared<ov::op::v3::ShapeOf>(src, ov::element::i64);
-            auto seq_count = std::make_shared<ov::op::v8::Gather>(
-                src_shape,
-                ov::op::v0::Constant::create(ov::element::i64, {1}, {0}),
-                ov::op::v0::Constant::create(ov::element::i64, {}, {0}));
-            auto seq_pattern =
-                std::make_shared<ov::op::v0::Concat>(ov::OutputVector{seq_count, neg_one}, 0);
+            auto seq_count =
+                std::make_shared<ov::op::v8::Gather>(src_shape,
+                                                     ov::op::v0::Constant::create(ov::element::i64, {1}, {0}),
+                                                     ov::op::v0::Constant::create(ov::element::i64, {}, {0}));
+            auto seq_pattern = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{seq_count, neg_one}, 0);
             auto by_seq = std::make_shared<ov::op::v1::Reshape>(src, seq_pattern, false);
 
             auto head_pattern =
@@ -100,11 +99,11 @@ OutputVector translate_permute(const NodeContext& context) {
                 } else {
                     const int64_t start = context.get_attribute<int64_t>("view_seq_offset", 0);
                     seq_active_start = ov::op::v0::Constant::create(ov::element::i64, {1}, {start});
-                    seq_active_end = ov::op::v0::Constant::create(
-                        ov::element::i64, {1}, {start + static_cast<int64_t>(output_shape[0])});
+                    seq_active_end = ov::op::v0::Constant::create(ov::element::i64,
+                                                                  {1},
+                                                                  {start + static_cast<int64_t>(output_shape[0])});
                 }
-                active_cache = std::make_shared<ov::op::v8::Slice>(
-                    src, seq_active_start, seq_active_end, one, zero);
+                active_cache = std::make_shared<ov::op::v8::Slice>(src, seq_active_start, seq_active_end, one, zero);
             }
             res = std::make_shared<ov::op::v1::Transpose>(active_cache, perm);
             return rename_outputs_with_suffix({res}, context.get_name());
