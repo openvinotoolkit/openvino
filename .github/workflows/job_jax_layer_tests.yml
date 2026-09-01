@@ -98,9 +98,9 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: ${{ inputs.python-version }}
-          use-pip-proxy: 'true'
+          use-pip-proxy: ${{ inputs.runner != 'windows-11-arm' }}
           set-pip-install-path: ${{ runner.os != 'macOS' }}
-          self-hosted-runner: ${{ runner.os != 'macOS' }}
+          self-hosted-runner: ${{ runner.os != 'macOS' && inputs.runner != 'windows-11-arm' }}
 
       - name: Install OpenVINO Python wheels
         uses: ./.github/actions/install_ov_wheels
@@ -109,6 +109,8 @@ jobs:
           wheels-to-install: 'openvino'
 
       - name: Install JAX Layer tests dependencies
+        # Disabled on Windows ARM64 because Jax wheel is not available on PyPI for WOA
+        if: ${{ !(runner.os == 'Windows' && runner.arch == 'ARM64') }}
         run: |
           # jax test requirements
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_jax
