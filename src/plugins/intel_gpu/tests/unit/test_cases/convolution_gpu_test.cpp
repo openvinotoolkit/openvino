@@ -8465,8 +8465,7 @@ TEST(convolution_depthwise_gpu_fsv16, regression_depthwise_conv_b_fs_yx_fsv16_11
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"conv_fsv", "out"}));
     config.set_property(ov::intel_gpu::force_implementations(
-        ov::intel_gpu::ImplForcingMap{{"conv_fsv", { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_depthwise" }}}));
-
+        ov::intel_gpu::ImplForcingMap{{"conv_fsv", { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_depthwise", impl_types::ocl }}}));
     network network(engine, topology, config);
 
     network.set_input_data("input", input_mem);
@@ -8485,6 +8484,96 @@ TEST(convolution_depthwise_gpu_fsv16, regression_depthwise_conv_b_fs_yx_fsv16_11
     }
     ASSERT_TRUE(forced_kernel_found) << "Failed to select convolution_gpu_bfyx_f16_depthwise. Selected conv kernels:\n"
                                      << selected_kernels.str();
+
+    auto out_mem = outputs.at("out").get_memory();
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
+    auto flatten_ref = flatten_4d(format::bfyx, reference_result);
+
+    for (size_t i = 0; i < flatten_ref.size(); ++i) {
+        auto equal = are_equal(flatten_ref[i], out_ptr[i], 1e-2f);
+        ASSERT_TRUE(equal) << "Mismatch at idx=" << i;
+    }
+}
+
+TEST(convolution_depthwise_gpu_fsv16, regression_depthwise_conv_b_fs_yx_fsv16_pad_after_x) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_fp16) {
+        GTEST_SKIP() << "The test is skipped (cl_khr_fp16 is not supported).";
+    }
+
+    const int batch_num = 1;
+    const int input_x = 9;   // X % 8 == 1 → last block reads 8 positions but only 2 are padded-safe
+    const int input_y = 56;
+    const int groups = 16;
+    const int input_f = groups;
+    const int output_f = groups;
+    const int filter_x = 3;
+    const int filter_y = 3;
+    const uint64_t stride = 1;
+    const int output_padding = 0;
+    const int pad_x = filter_x / 2;
+    const int pad_y = filter_y / 2;
+
+    auto input_size = tensor(batch_num, input_f, input_x, input_y);
+    auto input_data = rg.generate_random_4d<ov::float16>(batch_num, input_f, input_y, input_x, -1, 1);
+    auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
+    auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
+    set_values(input_mem, input_data_bfyx);
+
+    auto weights_size = tensor(group(output_f), batch(1), feature(1), spatial(filter_x, filter_y));
+    auto weights_data = rg.generate_random_4d<ov::float16>(output_f, 1, filter_y, filter_x, -1, 1);
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+    auto weights_mem = engine.allocate_memory({ data_types::f16, format::goiyx, weights_size });
+    set_values(weights_mem, weights_data_bfyx);
+
+    auto reference_result = VVVVF<ov::float16>(batch_num, VVVF<ov::float16>(output_f));
+    for (int bi = 0; bi < batch_num; ++bi) {
+        for (int ofi = 0; ofi < output_f; ++ofi) {
+            reference_result[bi][ofi] = reference_convolve(
+                input_data[bi], weights_data[ofi],
+                stride, stride,
+                0,
+                1, 1,
+                pad_y, pad_x,
+                output_padding, output_padding,
+                ofi, ofi + 1,
+                true);
+        }
+    }
+
+    topology topology(
+        input_layout("input", input_mem->get_layout()),
+        data("weights", weights_mem));
+
+    topology.add(reorder("input_fsv", input_info("input"), { data_types::f16, format::b_fs_yx_fsv16, input_size }));
+
+    auto conv = convolution("conv_fsv",
+                            input_info("input_fsv"),
+                            "weights",
+                            no_bias,
+                            groups,
+                            { stride, stride },
+                            { 1, 1 },
+                            { pad_y, pad_x },
+                            { pad_y, pad_x },
+                            true);
+    conv.output_paddings = { padding({ 0, 0, output_padding, output_padding }, 0.f) };
+
+    topology.add(conv);
+    topology.add(reorder("out", input_info("conv_fsv"), format::bfyx, data_types::f16));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"conv_fsv", "out"}));
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"conv_fsv", { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_depthwise" }}}));
+
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input_mem);
+    auto outputs = network.execute();
 
     auto out_mem = outputs.at("out").get_memory();
     cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
