@@ -62,7 +62,11 @@ PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
     desc.upload_shape[0] = std::min<size_t>(const_shape[0], resident_expert_num);
 
     auto upload_layout = cldnn::layout(desc.upload_shape, out_dtype, const_format);
-    auto upload_mem = p.get_engine().allocate_memory(upload_layout, false);
+    const auto use_device_memory = p.get_engine().get_device_info().dev_type == cldnn::device_type::discrete_gpu &&
+                                   p.get_engine().supports_allocation(cldnn::allocation_type::usm_device);
+    auto upload_mem = use_device_memory
+                          ? p.get_engine().allocate_memory(upload_layout, cldnn::allocation_type::usm_device, false)
+                          : p.get_engine().allocate_memory(upload_layout, false);
     // Reinterpret the smaller physical allocation as the full constant layout so the
     // graph sees the expected shape/layout. This is safe because:
     // 1. constant.cpp marks this data node with skip_device_transfer=true (partial_upload.enabled),
