@@ -21,24 +21,15 @@ namespace ov {
 namespace npuw {
 namespace util {
 
-// Fills additive SWA causal mask tensor (f32):
-//   0.0f for visible positions, -inf (fp16 lowest cast to f32) for masked ones.
-// Mask shape is [..., row_dim, col_dim], where past_width = col_dim - row_dim.
-// Past region follows write_swa_kv_slice_circular() storage:
-//   - Unsaturated (P < past_width): valid prefix [0, P), slot c maps to abs=c.
-//   - Saturated   (P >= past_width, r=P%past_width): slot->abs is split by r.
-// Example (saturated): past_width=4, P=6 -> r=2, slot->abs=[4,5,2,3].
-// Visibility is the intersection of causal and sliding-window constraints.
-void fill_causal_sliding_mask(ov::SoPtr<ov::ITensor> mask_tensor,
-                              uint32_t num_stored_tokens_before,
-                              uint32_t num_real_new_tokens,
-                              uint32_t window_size);
+// Fills additive causal sliding-window attention mask tensor in-place:
+// 0.0f for visible positions, -inf for masked ones.
+void fill_causal_sliding_window_mask(ov::SoPtr<ov::ITensor> mask_tensor,
+                                     uint32_t num_stored_tokens_before,
+                                     uint32_t num_real_new_tokens,
+                                     uint32_t window_size);
 
-// Overlays bidirectional visibility for same-image vision tokens.
-// token_type_ids_real is per-call right-aligned token metadata:
-//   0 = text, 1 = vision.
-// Each contiguous run of 1s is treated as one image group.
-// This only adds visibility within the current chunk diagonal block.
+// Overlays bidirectional visibility for same image vision tokens.
+// token_type_ids_real is per-call right-aligned token metadata (0 = text, 1 = vision)
 void overlay_vision_bidirectional_mask(ov::SoPtr<ov::ITensor> mask_tensor,
                                        const int64_t* token_type_ids_real,
                                        uint32_t num_real_new_tokens);
@@ -52,8 +43,8 @@ void fill_attention_masks(const std::shared_ptr<ov::IAsyncInferRequest>& request
                           uint32_t window_size,
                           const int64_t* token_type_ids_real = nullptr);
 
-// Writes SWA KV deltas into a left-aligned past buffer.
-// If the window is saturated, shifts the surviving tail to the front before append.
+// Writes SWA KV deltas into a left-aligned past buffer, shifting the
+// surviving tail to the front first when the window is saturated.
 void write_swa_kv_slice_left_aligned(ov::SoPtr<ov::ITensor> dst_tensor,
                                      ov::SoPtr<ov::ITensor> src_new_kv,
                                      uint32_t dst_kv_dim,
@@ -61,8 +52,7 @@ void write_swa_kv_slice_left_aligned(ov::SoPtr<ov::ITensor> dst_tensor,
                                      uint32_t num_stored_tokens_before,
                                      uint32_t num_new_tokens);
 
-// Writes SWA KV deltas into a circular past buffer.
-// Token at absolute position p is written to physical slot (p % capacity).
+// Writes SWA KV deltas into a circular past buffer
 void write_swa_kv_slice_circular(ov::SoPtr<ov::ITensor> dst_tensor,
                                  ov::SoPtr<ov::ITensor> src_new_kv,
                                  uint32_t dst_kv_dim,

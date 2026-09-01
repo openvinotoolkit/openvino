@@ -34,16 +34,16 @@ float mask_at(const ov::SoPtr<ov::ITensor>& mask, uint32_t row, uint32_t col) {
 
 }  // namespace
 
-class FillCausalSlidingMaskTest : public ::testing::Test {};
+class FillCausalSlidingWindowMaskTest : public ::testing::Test {};
 
-TEST_F(FillCausalSlidingMaskTest, UnsaturatedPastBuildsExpectedMask) {
+TEST_F(FillCausalSlidingWindowMaskTest, UnsaturatedPastBuildsExpectedMask) {
     auto mask = make_mask_tensor(/*rows=*/4u, /*cols=*/8u, /*init_value=*/777.f);
     const float kMasked = static_cast<float>(std::numeric_limits<ov::float16>::lowest());
 
-    uu::fill_causal_sliding_mask(mask,
-                                 /*num_stored_tokens_before=*/2u,
-                                 /*num_real_new_tokens=*/2u,
-                                 /*window_size=*/3u);
+    uu::fill_causal_sliding_window_mask(mask,
+                                        /*num_stored_tokens_before=*/2u,
+                                        /*num_real_new_tokens=*/2u,
+                                        /*window_size=*/3u);
 
     // row=2: q=2, past abs=[0,1] visible; only diagonal local key is visible.
     EXPECT_FLOAT_EQ(mask_at(mask, 2u, 0u), 0.f);
@@ -60,14 +60,14 @@ TEST_F(FillCausalSlidingMaskTest, UnsaturatedPastBuildsExpectedMask) {
     EXPECT_FLOAT_EQ(mask_at(mask, 3u, 7u), 0.f);
 }
 
-TEST_F(FillCausalSlidingMaskTest, SaturatedPastUsesCircularSlotMapping) {
+TEST_F(FillCausalSlidingWindowMaskTest, SaturatedPastUsesCircularSlotMapping) {
     auto mask = make_mask_tensor(/*rows=*/2u, /*cols=*/6u, /*init_value=*/777.f);
     const float kMasked = static_cast<float>(std::numeric_limits<ov::float16>::lowest());
 
-    uu::fill_causal_sliding_mask(mask,
-                                 /*num_stored_tokens_before=*/6u,
-                                 /*num_real_new_tokens=*/2u,
-                                 /*window_size=*/3u);
+    uu::fill_causal_sliding_window_mask(mask,
+                                        /*num_stored_tokens_before=*/6u,
+                                        /*num_real_new_tokens=*/2u,
+                                        /*window_size=*/3u);
 
     // past_width=4, r=2 => slot->abs=[4,5,2,3]; row=0(q=6): 4/5 visible, 2/3 masked.
     EXPECT_FLOAT_EQ(mask_at(mask, 0u, 0u), 0.f);
@@ -84,15 +84,15 @@ TEST_F(FillCausalSlidingMaskTest, SaturatedPastUsesCircularSlotMapping) {
     EXPECT_FLOAT_EQ(mask_at(mask, 1u, 5u), 0.f);
 }
 
-TEST_F(FillCausalSlidingMaskTest, ZeroPastWidthFallsBackToCurrentChunkSlidingCausalMask) {
+TEST_F(FillCausalSlidingWindowMaskTest, ZeroPastWidthFallsBackToCurrentChunkSlidingWindowCausalMask) {
     // rows == cols => past_width == 0, so mask must be built from current chunk only.
     auto mask = make_mask_tensor(/*rows=*/4u, /*cols=*/4u, /*init_value=*/777.f);
     const float kMasked = static_cast<float>(std::numeric_limits<ov::float16>::lowest());
 
-    uu::fill_causal_sliding_mask(mask,
-                                 /*num_stored_tokens_before=*/0u,
-                                 /*num_real_new_tokens=*/4u,
-                                 /*window_size=*/2u);
+    uu::fill_causal_sliding_window_mask(mask,
+                                        /*num_stored_tokens_before=*/0u,
+                                        /*num_real_new_tokens=*/4u,
+                                        /*window_size=*/2u);
 
     // Expected visible local columns per row for window=2:
     // row0 -> [0]
