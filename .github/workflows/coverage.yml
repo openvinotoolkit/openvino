@@ -273,11 +273,12 @@ jobs:
       BUILD_JS_DIR: ${{ github.workspace }}/openvino/openvino_build_js
       COVERAGE_WRITE_STEP_SUMMARY: 'false'
       PYTHONDONTWRITEBYTECODE: '1'
+      PIP_CERT: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
+      REQUESTS_CA_BUNDLE: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
     steps:
       - name: Prepare ${{ matrix.gpu.name }} test container
         run: |
-          apt-get update && apt-get install -y pigz wget software-properties-common ca-certificates gpg-agent tzdata clinfo git lcov python3-yaml
-          update-ca-certificates
+          apt-get update && update-ca-certificates
         env:
           DEBIAN_FRONTEND: noninteractive
           TZ: "Europe/London"
@@ -587,11 +588,11 @@ jobs:
       COVERAGE_WRITE_STEP_SUMMARY: 'false'
       PYTHONDONTWRITEBYTECODE: '1'
       REQUESTS_CA_BUNDLE: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
+      PIP_CERT: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
     steps:
       - name: Prepare ${{ matrix.gpu.name }} test container
         run: |
-          apt-get update && apt-get install -y pigz wget software-properties-common ca-certificates gpg-agent tzdata clinfo git lcov python3-yaml
-          update-ca-certificates
+          apt-get update && update-ca-certificates
         env:
           DEBIAN_FRONTEND: noninteractive
           TZ: "Europe/London"
