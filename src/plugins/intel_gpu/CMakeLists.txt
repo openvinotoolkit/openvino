@@ -162,9 +162,6 @@ if(OV_GPU_RUNTIME_OCL_ENABLED OR OV_GPU_RUNTIME_ZE_ENABLED OR OV_GPU_RUNTIME_SYC
         COMPILE_DEFINITIONS OV_GPU_WITH_OCL_IMPLS=1)
 endif()
 
-# Keep the established plugin artifact name as a packaging and deployment compatibility contract.
-set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "openvino_intel_gpu_plugin")
-
 target_compile_options(${TARGET_NAME} PRIVATE
     $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
 
