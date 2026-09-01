@@ -6,7 +6,7 @@ if(NOT OV_GPU_RUNTIME_OCL_ENABLED AND NOT OV_GPU_RUNTIME_ZE_ENABLED AND NOT OV_G
     return()
 endif()
 
-set(TARGET_NAME "openvino_intel_gpu_ocl_obj")
+set(TARGET_NAME "openvino_intel_gpu_ocl_obj${OV_GPU_SUFFIX}")
 
 ov_gpu_add_backend_target(
     NAME ${TARGET_NAME}

@@ -36,7 +36,7 @@ ov_add_test_target(
             OV GPU
 )
 
-ov_gpu_set_runtime_interface_for(${TARGET_NAME})
+ov_gpu_set_runtime_interface_for(${TARGET_NAME} RUNTIME ${GPU_RT_TYPE})
 ov_gpu_set_opencl_api_version_for(${TARGET_NAME})
 
 if(ENABLE_PROXY)

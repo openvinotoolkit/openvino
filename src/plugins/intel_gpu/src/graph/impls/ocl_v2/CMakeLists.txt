@@ -6,7 +6,7 @@ if(NOT OV_GPU_RUNTIME_OCL_ENABLED AND NOT OV_GPU_RUNTIME_ZE_ENABLED AND NOT OV_G
     return()
 endif()
 
-set(TARGET_NAME "openvino_intel_gpu_ocl_v2_obj")
+set(TARGET_NAME "openvino_intel_gpu_ocl_v2_obj${OV_GPU_SUFFIX}")
 
 # Path which points to root directory where code generated elements are created
 # (specific to build configuration).
@@ -45,14 +45,14 @@ add_custom_command(OUTPUT "${CODEGEN_INCDIR}/${KERNEL_SOURCES}"
   COMMENT "Updating file if the file changed (${CODEGEN_INCDIR}/${KERNEL_SOURCES}) ..."
 )
 
-add_custom_target(run_ocl_codegen ALL DEPENDS "${CODEGEN_INCDIR}/${KERNEL_SOURCES}")
+add_custom_target(run_ocl_codegen${OV_GPU_SUFFIX} ALL DEPENDS "${CODEGEN_INCDIR}/${KERNEL_SOURCES}")
 
 ov_gpu_add_backend_target(
     NAME ${TARGET_NAME}
     INCLUDES $<BUILD_INTERFACE:${CODEGEN_INCDIR}>
     BYPASS
         ADDITIONAL_SOURCE_DIRS ${CODEGEN_INCDIR}
-        DEPENDENCIES run_ocl_codegen
+        DEPENDENCIES run_ocl_codegen${OV_GPU_SUFFIX}
         ADD_CLANG_FORMAT
 )
 ov_gpu_set_opencl_api_version_for(${TARGET_NAME})

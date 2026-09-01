@@ -86,15 +86,15 @@ include("${VULKAN_ELTWISE_KERNEL_DIR}/variants.cmake")
 
 get_property(VULKAN_GENERATED_HEADERS GLOBAL PROPERTY OV_GPU_VULKAN_GENERATED_HEADERS)
 set_property(SOURCE ${VULKAN_GENERATED_HEADERS} PROPERTY GENERATED TRUE)
-add_custom_target(openvino_intel_gpu_vulkan_shaders DEPENDS ${VULKAN_GENERATED_HEADERS})
+add_custom_target(openvino_intel_gpu_vulkan_shaders${OV_GPU_SUFFIX} DEPENDS ${VULKAN_GENERATED_HEADERS})
 
-set(TARGET_NAME "openvino_intel_gpu_vulkan_obj")
+set(TARGET_NAME "openvino_intel_gpu_vulkan_obj${OV_GPU_SUFFIX}")
 
 ov_gpu_add_backend_target(
     NAME ${TARGET_NAME}
     INCLUDES "${VULKAN_GENERATED_INCLUDE_DIR}"
     LINK_LIBRARIES Vulkan::Vulkan
 )
-add_dependencies(${TARGET_NAME} openvino_intel_gpu_vulkan_shaders)
+add_dependencies(${TARGET_NAME} openvino_intel_gpu_vulkan_shaders${OV_GPU_SUFFIX})
 
 ov_build_target_faster(${TARGET_NAME} PCH)

@@ -132,7 +132,7 @@ if(TARGET openvino_intel_gpu_ocl_obj)
 endif()
 
 ov_set_threading_interface_for(${TARGET_NAME})
-ov_gpu_set_runtime_interface_for(${TARGET_NAME})
+ov_gpu_set_runtime_interface_for(${TARGET_NAME} RUNTIME ${GPU_RT_TYPE})
 
 # Workaround to avoid warnings during LTO build
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -159,7 +159,7 @@ target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
 if(OV_GPU_RUNTIME_VULKAN_ENABLED)
     get_property(OV_GPU_VULKAN_GENERATED_INCLUDE_DIR GLOBAL PROPERTY OV_GPU_VULKAN_GENERATED_INCLUDE_DIR)
     target_include_directories(${TARGET_NAME} PRIVATE "${OV_GPU_VULKAN_GENERATED_INCLUDE_DIR}")
-    add_dependencies(${TARGET_NAME} openvino_intel_gpu_vulkan_shaders)
+    add_dependencies(${TARGET_NAME} openvino_intel_gpu_vulkan_shaders${OV_GPU_SUFFIX})
 endif()
 
 if(WIN32)
