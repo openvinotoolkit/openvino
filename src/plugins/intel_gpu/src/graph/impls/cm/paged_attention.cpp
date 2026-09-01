@@ -79,7 +79,9 @@ public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::cm::PagedAttentionCmImpl)
 
     // Dispatch is decided by reading sequence-length/block-mapping tensor contents on the host
-    bool is_replay_safe() const override { return false; }
+    bool is_replay_safe() const override {
+        return false;
+    }
 
     Stage::Ptr kv_cache_update = make_stage<PagedAttentionGeneratorKVCacheUpdate>();
     Stage::Ptr pa_single_token = make_stage<PagedAttentionGeneratorSingleToken>();

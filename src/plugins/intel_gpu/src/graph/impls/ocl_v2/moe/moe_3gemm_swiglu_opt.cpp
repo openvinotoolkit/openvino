@@ -568,7 +568,9 @@ public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoE3GemmSwigluImpl)
 
     // Routing/expert selection is read back to the host (topk_ids, expert masks)
-    bool is_replay_safe() const override { return false; }
+    bool is_replay_safe() const override {
+        return false;
+    }
 
     Stage::Ptr gather = make_stage<MoE3GemmSwigluGather>();
     Stage::Ptr scatter = make_stage<MoE3GemmSwigluScatter>();

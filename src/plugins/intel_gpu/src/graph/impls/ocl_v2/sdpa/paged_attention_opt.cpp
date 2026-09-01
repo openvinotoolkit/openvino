@@ -1323,7 +1323,9 @@ public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::PagedAttentionOptImpl)
 
     // Dispatch (e.g. PREFILL vs MIXED stage) is decided by reading past_lens/subsequence_begins contents
-    bool is_replay_safe() const override { return false; }
+    bool is_replay_safe() const override {
+        return false;
+    }
 
     Stage::Ptr kv_cache_update = make_stage<KVCacheUpdateGenerator>();
     Stage::Ptr pa_single_token = make_stage<PagedAttentionGeneratorSingleToken>();

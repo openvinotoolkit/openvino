@@ -31,7 +31,9 @@ public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::SDPAOptImpl)
 
     // The micro-kernel stage (SDPAMicroGenerator) dispatches based on subsequence_begins/max_context_len contents
-    bool is_replay_safe() const override { return false; }
+    bool is_replay_safe() const override {
+        return false;
+    }
 
     static constexpr bool indirect = true;
     static constexpr bool prefill = true;

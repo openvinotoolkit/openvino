@@ -107,7 +107,9 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         return false;
     }
 
-    bool is_replay_safe() const override { return true; }
+    bool is_replay_safe() const override {
+        return true;
+    }
 
     void save(cldnn::BinaryOutputBuffer& ob) const override {
         primitive_impl::save(ob);
