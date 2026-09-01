@@ -42,17 +42,20 @@ public:
     /// @brief Enqueue command list on associated stream.
     /// @note Resources referenced by the command list must remain valid during command list execution.
     void enqueue() {
+        OPENVINO_ASSERT(_status != command_list_status::open, "[GPU] Can't enqueue command list that is open");
         if (_status == command_list_status::enqueued) {
             wait();
         }
-        OPENVINO_ASSERT(_status == command_list_status::closed, "[GPU] Can't enqueue command list that is not closed");
         enqueue_impl();
         _status = command_list_status::enqueued; 
     }
 
     /// @brief Wait for command list execution to finish.
     void wait() {
-        OPENVINO_ASSERT(_status == command_list_status::enqueued, "[GPU] Can't wait on command list that is not enqueued");
+        OPENVINO_ASSERT(_status != command_list_status::open, "[GPU] Can't wait on command list that is open");
+        if (_status == command_list_status::closed) {
+            return;
+        }
         wait_impl();
         _status = command_list_status::closed; 
     }
