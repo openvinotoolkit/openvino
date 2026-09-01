@@ -5,64 +5,58 @@
 #include "disable_fp16_comp_gated_residual.hpp"
 
 #include <memory>
+#include <vector>
 
 #include "openvino/op/add.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov::intel_gpu {
 
-DisableFP16CompForGatedResidualPattern::DisableFP16CompForGatedResidualPattern() {
+DisableFP16CompForQwenImageGatedResidualPattern::DisableFP16CompForQwenImageGatedResidualPattern() {
     using namespace ov::pass::pattern;
 
-    auto mvn_m = wrap_type<ov::op::v6::MVN>();
+    auto outer_split_out0 = wrap_type<ov::op::v1::VariadicSplit>({any_input(), any_input(), any_input()}, output_index_matches(0));
+    auto outer_split_out1 = wrap_type<ov::op::v1::VariadicSplit>({any_input(), any_input(), any_input()}, output_index_matches(1));
+    auto outer_split = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{outer_split_out0, outer_split_out1});
+    auto inner_split = wrap_type<ov::op::v1::VariadicSplit>({outer_split, any_input(), any_input()}, output_index_matches(2));
+    auto gate = wrap_type<ov::op::v0::Unsqueeze>({inner_split, any_input()}, type_matches(element::f32));
+
+    auto branch_matmul = wrap_type<ov::op::v0::MatMul>({any_input(), any_input()}, type_matches(element::f32));
+    auto linear_add0 = wrap_type<ov::op::v1::Add>({branch_matmul, any_input()}, type_matches(element::f32));
+    auto linear_add1 = wrap_type<ov::op::v1::Add>({any_input(), branch_matmul}, type_matches(element::f32));
+    auto linear_add = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{linear_add0, linear_add1});
+
+    auto gated_branch0 = wrap_type<ov::op::v1::Multiply>({gate, linear_add}, type_matches(element::f32));
+    auto gated_branch1 = wrap_type<ov::op::v1::Multiply>({linear_add, gate}, type_matches(element::f32));
+    auto gated_branch = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{gated_branch0, gated_branch1});
+
+    auto residual_add0 = wrap_type<ov::op::v1::Add>({any_input(), gated_branch}, type_matches(element::f32));
+    auto residual_add1 = wrap_type<ov::op::v1::Add>({gated_branch, any_input()}, type_matches(element::f32));
+    auto residual_add = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{residual_add0, residual_add1});
+    auto mvn = wrap_type<ov::op::v6::MVN>({residual_add, any_input()}, type_matches(element::f32));
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        auto mvn = ov::as_type_ptr<ov::op::v6::MVN>(m.get_match_root());
-        if (!mvn || mvn->get_output_element_type(0) != element::f32 || transformation_callback(mvn))
+        const auto& pattern_map = m.get_pattern_value_map();
+        const auto mvn_node = pattern_map.at(mvn).get_node_shared_ptr();
+        if (transformation_callback(mvn_node))
             return false;
 
-        auto residual_add = ov::as_type_ptr<ov::op::v1::Add>(mvn->get_input_node_shared_ptr(0));
-        if (!residual_add)
-            return false;
-
-        bool multiply_found = false;
-        for (const auto& input : residual_add->input_values()) {
-            const auto multiply = ov::as_type_ptr<ov::op::v1::Multiply>(input.get_node_shared_ptr());
-            if (!multiply)
-                continue;
-
-            multiply_found = true;
-            for (const auto& multiply_input : multiply->input_values()) {
-                const auto producer = multiply_input.get_node_shared_ptr();
-                ov::disable_conversion(producer, element::f16);
-
-                const auto linear_add = ov::as_type_ptr<ov::op::v1::Add>(producer);
-                if (!linear_add)
-                    continue;
-
-                for (const auto& linear_input : linear_add->input_values()) {
-                    const auto linear_producer = linear_input.get_node_shared_ptr();
-                    if (ov::is_type<ov::op::v0::MatMul>(linear_producer))
-                        ov::disable_conversion(linear_producer, element::f16);
-                }
-            }
-
-            ov::disable_conversion(multiply, element::f16);
-        }
-        if (!multiply_found)
-            return false;
-
-        ov::disable_conversion(residual_add, element::f16);
-        ov::disable_conversion(mvn, element::f16);
+        const std::vector<std::shared_ptr<ov::Node>> pattern_nodes = {
+            branch_matmul, linear_add, gate, gated_branch, residual_add, mvn};
+        for (const auto& pattern_node : pattern_nodes)
+            ov::disable_conversion(pattern_map.at(pattern_node).get_node_shared_ptr(), element::f16);
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(mvn_m, "DisableFP16CompForGatedResidualPattern");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(mvn, "DisableFP16CompForQwenImageGatedResidualPattern");
     register_matcher(m, callback);
 }
 

@@ -20,6 +20,8 @@
 #include "openvino/op/mvn.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/sin.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "plugin/transformations/disable_fp16_comp_direct_multiply_sin_cos.hpp"
 #include "plugin/transformations/disable_fp16_comp_gated_residual.hpp"
 
@@ -28,38 +30,102 @@ using namespace ov::intel_gpu;
 
 namespace {
 
-TEST(TransformationTests, DisableFP16CompForGatedResidual_Positive) {
+struct QwenImageGate {
+    std::shared_ptr<ov::op::v0::Parameter> input;
+    std::shared_ptr<ov::op::v0::Unsqueeze> output;
+};
+
+QwenImageGate make_qwen_image_gate(const ov::element::Type& type = ov::element::f32) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(type, ov::PartialShape{1, 1024});
+    auto axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {1});
+    auto outer_lengths = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {384, 640});
+    auto outer_split = std::make_shared<ov::op::v1::VariadicSplit>(input, axis, outer_lengths);
+    auto inner_lengths = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, {128, 128, 128});
+    auto inner_split = std::make_shared<ov::op::v1::VariadicSplit>(outer_split->output(0), axis, inner_lengths);
+    auto unsqueeze_axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
+    auto output = std::make_shared<ov::op::v0::Unsqueeze>(inner_split->output(2), unsqueeze_axis);
+    return {input, output};
+}
+
+struct QwenImageBranch {
+    std::shared_ptr<ov::op::v0::Parameter> input;
+    std::shared_ptr<ov::op::v0::Parameter> weights;
+    std::shared_ptr<ov::op::v1::Add> output;
+};
+
+QwenImageBranch make_qwen_image_branch(const ov::element::Type& type = ov::element::f32) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(type, ov::PartialShape{1, 32, 64});
+    auto weights = std::make_shared<ov::op::v0::Parameter>(type, ov::PartialShape{64, 128});
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(input, weights);
+    auto bias = ov::op::v0::Constant::create(type, ov::Shape{128}, {0});
+    auto output = std::make_shared<ov::op::v1::Add>(matmul, bias);
+    return {input, weights, output};
+}
+
+TEST(TransformationTests, DisableFP16CompForQwenImageGatedResidual_Positive) {
     auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 128});
-    auto gate = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 128});
-    auto branch = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 128});
-    auto gated_branch = std::make_shared<ov::op::v1::Multiply>(gate, branch);
+    auto gate = make_qwen_image_gate();
+    auto branch = make_qwen_image_branch();
+    auto gated_branch = std::make_shared<ov::op::v1::Multiply>(gate.output, branch.output);
     auto add = std::make_shared<ov::op::v1::Add>(residual, gated_branch);
     auto axes = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {-1});
     auto mvn =
         std::make_shared<ov::op::v6::MVN>(add, axes, true, 1e-6, ov::op::MVNEpsMode::INSIDE_SQRT);
 
-    auto model = std::make_shared<ov::Model>(ov::OutputVector{mvn}, ov::ParameterVector{residual, gate, branch});
+    auto model = std::make_shared<ov::Model>(
+        ov::OutputVector{mvn},
+        ov::ParameterVector{residual, gate.input, branch.input, branch.weights});
     ov::pass::Manager manager;
-    manager.register_pass<DisableFP16CompForGatedResidualPattern>();
+    manager.register_pass<DisableFP16CompForQwenImageGatedResidualPattern>();
     manager.run_passes(model);
 
     ASSERT_TRUE(ov::is_conversion_disabled(mvn, ov::element::f16));
 }
 
-TEST(TransformationTests, DisableFP16CompForGatedResidual_DisabledByPassConfig) {
+TEST(TransformationTests, DisableFP16CompForQwenImageGatedResidual_FluxGate_NoOp) {
     auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 128});
-    auto gate = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 128});
-    auto branch = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 128});
-    auto gated_branch = std::make_shared<ov::op::v1::Multiply>(gate, branch);
+    auto gate_lhs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 384});
+    auto gate_rhs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 384});
+    auto gate_source = std::make_shared<ov::op::v1::Add>(gate_lhs, gate_rhs);
+    auto axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {1});
+    auto lengths = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, {128, 128, 128});
+    auto split = std::make_shared<ov::op::v1::VariadicSplit>(gate_source, axis, lengths);
+    auto unsqueeze_axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
+    auto gate = std::make_shared<ov::op::v0::Unsqueeze>(split->output(0), unsqueeze_axis);
+    auto branch = make_qwen_image_branch();
+    auto gated_branch = std::make_shared<ov::op::v1::Multiply>(gate, branch.output);
     auto add = std::make_shared<ov::op::v1::Add>(residual, gated_branch);
     auto axes = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {-1});
     auto mvn =
         std::make_shared<ov::op::v6::MVN>(add, axes, true, 1e-6, ov::op::MVNEpsMode::INSIDE_SQRT);
 
-    auto model = std::make_shared<ov::Model>(ov::OutputVector{mvn}, ov::ParameterVector{residual, gate, branch});
+    auto model = std::make_shared<ov::Model>(
+        ov::OutputVector{mvn},
+        ov::ParameterVector{residual, gate_lhs, gate_rhs, branch.input, branch.weights});
     ov::pass::Manager manager;
-    manager.get_pass_config()->disable<DisableFP16CompForGatedResidualPattern>();
-    manager.register_pass<DisableFP16CompForGatedResidualPattern>();
+    manager.register_pass<DisableFP16CompForQwenImageGatedResidualPattern>();
+    manager.run_passes(model);
+
+    EXPECT_FALSE(ov::is_conversion_disabled(gated_branch, ov::element::f16));
+    EXPECT_FALSE(ov::is_conversion_disabled(mvn, ov::element::f16));
+}
+
+TEST(TransformationTests, DisableFP16CompForQwenImageGatedResidual_DisabledByPassConfig) {
+    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 128});
+    auto gate = make_qwen_image_gate();
+    auto branch = make_qwen_image_branch();
+    auto gated_branch = std::make_shared<ov::op::v1::Multiply>(gate.output, branch.output);
+    auto add = std::make_shared<ov::op::v1::Add>(residual, gated_branch);
+    auto axes = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {-1});
+    auto mvn =
+        std::make_shared<ov::op::v6::MVN>(add, axes, true, 1e-6, ov::op::MVNEpsMode::INSIDE_SQRT);
+
+    auto model = std::make_shared<ov::Model>(
+        ov::OutputVector{mvn},
+        ov::ParameterVector{residual, gate.input, branch.input, branch.weights});
+    ov::pass::Manager manager;
+    manager.get_pass_config()->disable<DisableFP16CompForQwenImageGatedResidualPattern>();
+    manager.register_pass<DisableFP16CompForQwenImageGatedResidualPattern>();
     manager.run_passes(model);
 
     EXPECT_FALSE(ov::is_conversion_disabled(gated_branch, ov::element::f16));
@@ -67,9 +133,9 @@ TEST(TransformationTests, DisableFP16CompForGatedResidual_DisabledByPassConfig) 
     EXPECT_FALSE(ov::is_conversion_disabled(mvn, ov::element::f16));
 }
 
-TEST(TransformationTests, DisableFP16CompForGatedResidual_ConvertPrecision) {
+TEST(TransformationTests, DisableFP16CompForQwenImageGatedResidual_ConvertPrecision) {
     auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 128});
-    auto gate = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 128});
+    auto gate = make_qwen_image_gate();
     auto branch_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 64});
     auto branch_weights = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{64, 128});
     auto branch_matmul = std::make_shared<ov::op::v0::MatMul>(branch_input, branch_weights);
@@ -77,7 +143,7 @@ TEST(TransformationTests, DisableFP16CompForGatedResidual_ConvertPrecision) {
     auto branch_bias = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{128}, {0});
     auto branch = std::make_shared<ov::op::v1::Add>(branch_matmul, branch_bias);
     branch->set_friendly_name("branch");
-    auto gated_branch = std::make_shared<ov::op::v1::Multiply>(gate, branch);
+    auto gated_branch = std::make_shared<ov::op::v1::Multiply>(gate.output, branch);
     gated_branch->set_friendly_name("gated_branch");
     auto add = std::make_shared<ov::op::v1::Add>(residual, gated_branch);
     add->set_friendly_name("residual_add");
@@ -87,9 +153,9 @@ TEST(TransformationTests, DisableFP16CompForGatedResidual_ConvertPrecision) {
     mvn->set_friendly_name("mvn");
 
     auto model = std::make_shared<ov::Model>(ov::OutputVector{mvn},
-                                             ov::ParameterVector{residual, gate, branch_input, branch_weights});
+                                             ov::ParameterVector{residual, gate.input, branch_input, branch_weights});
     ov::pass::Manager manager;
-    manager.register_pass<DisableFP16CompForGatedResidualPattern>();
+    manager.register_pass<DisableFP16CompForQwenImageGatedResidualPattern>();
     precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
     manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map, type_to_fuse_map{}, true, false, true);
     manager.run_passes(model);
@@ -106,7 +172,7 @@ TEST(TransformationTests, DisableFP16CompForGatedResidual_ConvertPrecision) {
     EXPECT_EQ(checked_nodes, 5);
 }
 
-TEST(TransformationTests, DisableFP16CompForGatedResidual_Negative) {
+TEST(TransformationTests, DisableFP16CompForQwenImageGatedResidual_Negative) {
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 128});
     auto axes = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {-1});
     auto mvn =
@@ -114,13 +180,13 @@ TEST(TransformationTests, DisableFP16CompForGatedResidual_Negative) {
 
     auto model = std::make_shared<ov::Model>(ov::OutputVector{mvn}, ov::ParameterVector{input});
     ov::pass::Manager manager;
-    manager.register_pass<DisableFP16CompForGatedResidualPattern>();
+    manager.register_pass<DisableFP16CompForQwenImageGatedResidualPattern>();
     manager.run_passes(model);
 
     ASSERT_FALSE(ov::is_conversion_disabled(mvn, ov::element::f16));
 }
 
-TEST(TransformationTests, DisableFP16CompForGatedResidual_AddWithoutMultiply_NoOp) {
+TEST(TransformationTests, DisableFP16CompForQwenImageGatedResidual_AddWithoutMultiply_NoOp) {
     auto lhs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 128});
     auto rhs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 128});
     auto add = std::make_shared<ov::op::v1::Add>(lhs, rhs);
@@ -130,37 +196,39 @@ TEST(TransformationTests, DisableFP16CompForGatedResidual_AddWithoutMultiply_NoO
 
     auto model = std::make_shared<ov::Model>(ov::OutputVector{mvn}, ov::ParameterVector{lhs, rhs});
     ov::pass::Manager manager;
-    manager.register_pass<DisableFP16CompForGatedResidualPattern>();
+    manager.register_pass<DisableFP16CompForQwenImageGatedResidualPattern>();
     manager.run_passes(model);
 
     ASSERT_FALSE(ov::is_conversion_disabled(mvn, ov::element::f16));
 }
 
-TEST(TransformationTests, DisableFP16CompForGatedResidual_MultiplyFirst_Positive) {
-    auto gate = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 128});
-    auto branch = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 128});
+TEST(TransformationTests, DisableFP16CompForQwenImageGatedResidual_MultiplyFirst_Positive) {
+    auto gate = make_qwen_image_gate();
+    auto branch = make_qwen_image_branch();
     auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 128});
-    auto gated_branch = std::make_shared<ov::op::v1::Multiply>(gate, branch);
+    auto gated_branch = std::make_shared<ov::op::v1::Multiply>(gate.output, branch.output);
     auto add = std::make_shared<ov::op::v1::Add>(gated_branch, residual);
     auto axes = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {-1});
     auto mvn =
         std::make_shared<ov::op::v6::MVN>(add, axes, true, 1e-6, ov::op::MVNEpsMode::INSIDE_SQRT);
 
-    auto model = std::make_shared<ov::Model>(ov::OutputVector{mvn}, ov::ParameterVector{gate, branch, residual});
+    auto model = std::make_shared<ov::Model>(
+        ov::OutputVector{mvn},
+        ov::ParameterVector{gate.input, branch.input, branch.weights, residual});
     ov::pass::Manager manager;
-    manager.register_pass<DisableFP16CompForGatedResidualPattern>();
+    manager.register_pass<DisableFP16CompForQwenImageGatedResidualPattern>();
     manager.run_passes(model);
 
     ASSERT_TRUE(ov::is_conversion_disabled(mvn, ov::element::f16));
 }
 
-TEST(TransformationTests, DisableFP16CompForGatedResidual_TwoMultiplyInputs) {
+TEST(TransformationTests, DisableFP16CompForQwenImageGatedResidual_TwoMultiplyInputs) {
     auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 128});
     auto residual_scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.5f});
     auto scaled_residual = std::make_shared<ov::op::v1::Multiply>(residual, residual_scale);
     scaled_residual->set_friendly_name("scaled_residual");
 
-    auto gate = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 128});
+    auto gate = make_qwen_image_gate();
     auto branch_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 64});
     auto branch_weights = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{64, 128});
     auto branch_matmul = std::make_shared<ov::op::v0::MatMul>(branch_input, branch_weights);
@@ -168,7 +236,7 @@ TEST(TransformationTests, DisableFP16CompForGatedResidual_TwoMultiplyInputs) {
     auto branch_bias = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{128}, {0});
     auto branch = std::make_shared<ov::op::v1::Add>(branch_matmul, branch_bias);
     branch->set_friendly_name("branch");
-    auto gated_branch = std::make_shared<ov::op::v1::Multiply>(gate, branch);
+    auto gated_branch = std::make_shared<ov::op::v1::Multiply>(gate.output, branch);
     gated_branch->set_friendly_name("gated_branch");
 
     auto add = std::make_shared<ov::op::v1::Add>(scaled_residual, gated_branch);
@@ -180,15 +248,14 @@ TEST(TransformationTests, DisableFP16CompForGatedResidual_TwoMultiplyInputs) {
 
     auto model = std::make_shared<ov::Model>(
         ov::OutputVector{mvn},
-        ov::ParameterVector{residual, gate, branch_input, branch_weights});
+        ov::ParameterVector{residual, gate.input, branch_input, branch_weights});
     ov::pass::Manager manager;
-    manager.register_pass<DisableFP16CompForGatedResidualPattern>();
+    manager.register_pass<DisableFP16CompForQwenImageGatedResidualPattern>();
     precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
     manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map, type_to_fuse_map{}, true, false, true);
     manager.run_passes(model);
 
-    for (const auto& op : {std::static_pointer_cast<ov::Node>(scaled_residual),
-                           std::static_pointer_cast<ov::Node>(branch_matmul),
+    for (const auto& op : {std::static_pointer_cast<ov::Node>(branch_matmul),
                            std::static_pointer_cast<ov::Node>(branch),
                            std::static_pointer_cast<ov::Node>(gated_branch),
                            std::static_pointer_cast<ov::Node>(add),
@@ -197,19 +264,21 @@ TEST(TransformationTests, DisableFP16CompForGatedResidual_TwoMultiplyInputs) {
     }
 }
 
-TEST(TransformationTests, DisableFP16CompForGatedResidual_FP16_NoOp) {
+TEST(TransformationTests, DisableFP16CompForQwenImageGatedResidual_FP16_NoOp) {
     auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 32, 128});
-    auto gate = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 1, 128});
-    auto branch = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 32, 128});
-    auto gated_branch = std::make_shared<ov::op::v1::Multiply>(gate, branch);
+    auto gate = make_qwen_image_gate(ov::element::f16);
+    auto branch = make_qwen_image_branch(ov::element::f16);
+    auto gated_branch = std::make_shared<ov::op::v1::Multiply>(gate.output, branch.output);
     auto add = std::make_shared<ov::op::v1::Add>(residual, gated_branch);
     auto axes = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {-1});
     auto mvn =
         std::make_shared<ov::op::v6::MVN>(add, axes, true, 1e-6, ov::op::MVNEpsMode::INSIDE_SQRT);
 
-    auto model = std::make_shared<ov::Model>(ov::OutputVector{mvn}, ov::ParameterVector{residual, gate, branch});
+    auto model = std::make_shared<ov::Model>(
+        ov::OutputVector{mvn},
+        ov::ParameterVector{residual, gate.input, branch.input, branch.weights});
     ov::pass::Manager manager;
-    manager.register_pass<DisableFP16CompForGatedResidualPattern>();
+    manager.register_pass<DisableFP16CompForQwenImageGatedResidualPattern>();
     manager.run_passes(model);
 
     ASSERT_FALSE(ov::is_conversion_disabled(mvn, ov::element::f16));
