@@ -10,6 +10,7 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "fake_quantize_helper.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/reduce_prod.hpp"
@@ -136,12 +137,13 @@ std::shared_ptr<ov::Model> init_mha_original(const std::vector<PartialShape>& in
         ov::Output<ov::Node> target_shape;
         if (with_shape_of) {
             target_shape = make_broadcast_shape(addParam);
-        }
-        if (!with_shape_of) {
+        } else {
+            OPENVINO_ASSERT(matMul0->get_output_partial_shape(0).is_static(),
+                            "MHAFunction with broadcast requires a static MatMul output shape");
             target_shape =
                 ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, matMul0->get_output_shape(0));
         }
-        add_input = std::make_shared<ov::op::v1::Broadcast>(add_input, target_shape);
+        add_input = std::make_shared<ov::op::v3::Broadcast>(add_input, target_shape, ov::op::BroadcastType::NUMPY);
     }
     const auto add = std::make_shared<ov::op::v1::Add>(matMul0, add_input);
 
@@ -261,12 +263,16 @@ std::shared_ptr<ov::Model> init_mha_reference(const std::vector<PartialShape>& i
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, brgemm1Param);
     auto add_input = addParam->output(0);
     if (with_broadcast) {
-        ov::Output<ov::Node> target_shape = broadcast_shape;
-        if (!with_shape_of) {
+        ov::Output<ov::Node> target_shape;
+        if (with_shape_of) {
+            target_shape = broadcast_shape;
+        } else {
+            OPENVINO_ASSERT(matMul0->get_output_partial_shape(0).is_static(),
+                            "MHAFunction with broadcast requires a static MatMul output shape");
             target_shape =
                 ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, matMul0->get_output_shape(0));
         }
-        add_input = std::make_shared<ov::op::v1::Broadcast>(add_input, target_shape);
+        add_input = std::make_shared<ov::op::v3::Broadcast>(add_input, target_shape, ov::op::BroadcastType::NUMPY);
     }
     const auto add = std::make_shared<ov::op::v1::Add>(matMul0, add_input);
     const auto softmax_out = std::make_shared<ov::opset1::Softmax>(add, rank - 1)->output(0);
