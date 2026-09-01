@@ -19,18 +19,25 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/util/variable.hpp"
+#include "utils.hpp"
 
 namespace ov::frontend::gguf::pass {
 
 namespace {
 
-std::shared_ptr<ov::op::v0::Parameter> find_param(const std::shared_ptr<ov::Model>& model, const std::string& name) {
-    for (const auto& p : model->get_parameters()) {
-        if (p->get_friendly_name() == name || p->output(0).get_names().count(name)) {
-            return p;
-        }
+// The cache is no longer part of the model's IO once rewritten: its Parameter is now a ReadValue
+// and its Result an Assign sink. Results must go first so the Parameters have no consumers left.
+void finalize_stateful_rewrite(const std::shared_ptr<ov::Model>& model,
+                               const ov::ResultVector& results_to_remove,
+                               const ov::SinkVector& new_sinks,
+                               const ov::ParameterVector& params_to_remove) {
+    for (const auto& r : results_to_remove) {
+        model->remove_result(r);
     }
-    return nullptr;
+    model->add_sinks(new_sinks);
+    for (const auto& p : params_to_remove) {
+        model->remove_parameter(p);
+    }
 }
 
 // The axis the cache grows along. An un-preallocated cache Parameter states it by construction: it
@@ -115,7 +122,7 @@ static bool make_recurrent_states_stateful(const std::shared_ptr<ov::Model>& mod
         const std::string& in_name = flat[i];
         const std::string& out_name = flat[i + 1];
 
-        auto param = find_param(model, in_name);
+        auto param = find_parameter(model, in_name);
         if (!param) {
             continue;  // already rewritten (a second run of this pass)
         }
@@ -155,13 +162,7 @@ static bool make_recurrent_states_stateful(const std::shared_ptr<ov::Model>& mod
     if (params_to_remove.empty()) {
         return false;
     }
-    for (const auto& r : results_to_remove) {
-        model->remove_result(r);
-    }
-    model->add_sinks(new_sinks);
-    for (const auto& p : params_to_remove) {
-        model->remove_parameter(p);
-    }
+    finalize_stateful_rewrite(model, results_to_remove, new_sinks, params_to_remove);
     return true;
 }
 
@@ -172,7 +173,7 @@ bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // of, so no decoder should declare it. Created here, next to its only consumer (the Gather
     // below); a model that already has one (a caller that declared it, or a second run of this
     // pass) keeps it.
-    auto beam_idx = find_param(model, m_beam_idx_name);
+    auto beam_idx = find_parameter(model, m_beam_idx_name);
     const bool created_beam_idx = beam_idx == nullptr;
     if (created_beam_idx) {
         beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{ov::Dimension()});
@@ -203,6 +204,8 @@ bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
     ov::ParameterVector params_to_remove;
     ov::ResultVector results_to_remove;
     ov::SinkVector new_sinks;
+    // Same beam_idx Gather axis for every cache; hoisted out of the loop below.
+    auto axis0 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
 
     for (const auto& set_rows : cache_writes) {
         auto new_rows = set_rows->input_value(0);
@@ -254,13 +257,9 @@ bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
         for (int64_t i = 0; i < ps.rank().get_length(); ++i) {
             split_pattern.push_back(i < axis ? 0 : (i == axis ? -1 : ps[i].get_length()));
         }
-        new_rows = std::make_shared<ov::op::v1::Reshape>(
-            new_rows,
-            ov::op::v0::Constant::create(ov::element::i64, {split_pattern.size()}, split_pattern),
-            true);
+        new_rows = std::make_shared<ov::op::v1::Reshape>(new_rows, const_i64(split_pattern), true);
 
         // Reorder the past by beam_idx before appending, so each beam continues its own history.
-        auto axis0 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
         auto past = std::make_shared<ov::op::v8::Gather>(read_value, beam_idx, axis0);
         auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{past, new_rows}, axis);
         concat->set_friendly_name(set_rows->get_friendly_name());
@@ -285,20 +284,12 @@ bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
         params_to_remove.push_back(cache_param);
     }
 
-    // The cache is no longer part of the model's IO: its Parameter is now a ReadValue and its Result
-    // an Assign sink. Remove the Results first so the Parameters have no consumers left.
-    for (const auto& r : results_to_remove) {
-        model->remove_result(r);
-    }
-    model->add_sinks(new_sinks);
     // Only now, having actually built the Gathers that read it -- so a pass that converted nothing
     // adds no input.
     if (created_beam_idx) {
         model->add_parameters({beam_idx});
     }
-    for (const auto& p : params_to_remove) {
-        model->remove_parameter(p);
-    }
+    finalize_stateful_rewrite(model, results_to_remove, new_sinks, params_to_remove);
 
     // Recurrent states are independent of the KV caches; a hybrid stack (qwen35) has both.
     make_recurrent_states_stateful(model);

@@ -5,7 +5,6 @@
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
 
 #include <memory>
-#include <unordered_map>
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
@@ -30,12 +29,12 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/tile.hpp"
-#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -48,10 +47,6 @@ using std::make_shared;
 
 // f16 lowest, matches genai's causal-mask "-inf" fill.
 constexpr float NEG_INF = -65504.0f;
-
-std::shared_ptr<ov::op::v0::Constant> const_i64(const std::vector<int64_t>& values) {
-    return ov::op::v0::Constant::create(ov::element::i64, ov::Shape{values.size()}, values);
-}
 
 // translate_get_rows's embedding-table lookup restores ggml's rank-4 form with a fixed
 // Unsqueeze(axis=0), pinning the residual stream's leading axis to a literal 1 regardless of
@@ -157,17 +152,6 @@ public:
     }
 };
 
-// Find a Parameter whose output tensor names (or friendly name) match `name`.
-std::shared_ptr<ov::op::v0::Parameter> find_param(const std::shared_ptr<ov::Model>& model, const std::string& name) {
-    for (const auto& p : model->get_parameters()) {
-        const auto& names = p->output(0).get_names();
-        if (names.count(name) || p->get_friendly_name() == name) {
-            return p;
-        }
-    }
-    return nullptr;
-}
-
 void name_output(const ov::Output<ov::Node>& out, const std::string& name) {
     out.get_node_shared_ptr()->set_friendly_name(name);
     out.get_node_shared_ptr()->output(0).set_names({name});
@@ -203,10 +187,10 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // The gguf inputs we rewire. inp_tokens/inp_pos/self_kq_mask/token_len_per_seq are
     // required; if they are absent the model is not a gguf-IO model (e.g. already adapted),
     // so this pass is a no-op.
-    auto inp_tokens = find_param(model, "inp_tokens");
-    auto inp_pos = find_param(model, "inp_pos");
-    auto self_kq_mask = find_param(model, "self_kq_mask");
-    auto token_len_per_seq = find_param(model, "token_len_per_seq");
+    auto inp_tokens = find_parameter(model, "inp_tokens");
+    auto inp_pos = find_parameter(model, "inp_pos");
+    auto self_kq_mask = find_parameter(model, "self_kq_mask");
+    auto token_len_per_seq = find_parameter(model, "token_len_per_seq");
     if (!inp_tokens || !inp_pos || !self_kq_mask || !token_len_per_seq) {
         return false;
     }
@@ -229,7 +213,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // beam_idx (i32 [D]) is added by the make-stateful pass, next to the Gather that reads it; genai
     // sets it via set_tensor("beam_idx"). Keep that Parameter so its wiring is preserved. Its absence
     // means the model is not stateful, which the genai contract requires.
-    auto beam_idx = find_param(model, "beam_idx");
+    auto beam_idx = find_parameter(model, "beam_idx");
     OPENVINO_ASSERT(beam_idx,
                     "[gguf] AdaptToGenAI: model has no 'beam_idx' input, so it is not stateful. "
                     "Register a make-stateful transformation extension (e.g. "
@@ -255,7 +239,8 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // indices must present exactly the Parameter's own [batch, seq]: prepend two 1s.
     //   SDPA: [1,1,1,tokens] -> squeeze -> [1,tokens] -> embd [1,tokens,n_embd]
     //   PA  : [1,1,tokens,1] -> squeeze -> [tokens,1] -> embd [tokens,1,n_embd]
-    const auto shape_1_1_batch_seq = make_shared<ov::op::v0::Concat>(ov::OutputVector{const_i64({1, 1}), ids_shape}, 0);
+    auto ones_1_1 = const_i64({1, 1});
+    const auto shape_1_1_batch_seq = make_shared<ov::op::v0::Concat>(ov::OutputVector{ones_1_1, ids_shape}, 0);
 
     // ACTIVATION-like inputs (inp_pos): consumed by make_sin_cos, which transposes {0,3,1,2} to put
     // the token axis at 1, yielding cos/sin [batch, tokens, 1, n_rot/2] that broadcast against the
@@ -284,7 +269,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // ---- self_kq_mask [1,1,seq,kv_len] f32: 0 where attended, -inf above causal ----
     // kv_len = attention_mask length (= past + seq). query absolute positions = position_ids[0].
     auto am_shape = make_shared<ov::op::v3::ShapeOf>(attention_mask, ov::element::i64);
-    auto kv_len = make_shared<ov::op::v8::Gather>(am_shape, const_i64({1}), const_i64({0}));  // [1]
+    ov::Output<ov::Node> kv_len = get_dimensions(am_shape, {1});  // [1]
 
     // Flatten position_ids to [seq] via a shape-independent Reshape({-1}) rather than Squeeze(axis=0):
     // PA also rewrites position_ids to rank-1 and Unsqueezes it to [seq,1], where squeezing axis 0
@@ -307,14 +292,19 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
                                          make_shared<ov::op::v0::Concat>(ov::OutputVector{const_i64({1}), kv_len}, 0),
                                          false);  // [1, kv_len]
 
-    auto allowed = make_shared<ov::op::v1::LessEqual>(k_row, q_pos_col);  // [seq, kv_len] bool
     auto zero_f = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
     auto neg_f = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {NEG_INF});
-    auto mask2d = make_shared<ov::op::v1::Select>(allowed, zero_f, neg_f);  // [seq, kv_len] f32
-    auto mask_4d = make_shared<ov::op::v1::Reshape>(
-        mask2d,
-        make_shared<ov::op::v0::Concat>(ov::OutputVector{const_i64({1, 1}), seq_len, kv_len}, 0),
-        false);  // [1, 1, seq, kv_len]
+    // [seq, kv_len] boolean predicate -> [1, 1, seq, kv_len] f32 mask (0 where attended, -inf elsewhere).
+    auto to_mask_4d = [&](const ov::Output<ov::Node>& allowed_pred) {
+        auto mask2d = make_shared<ov::op::v1::Select>(allowed_pred, zero_f, neg_f);  // [seq, kv_len] f32
+        return make_shared<ov::op::v1::Reshape>(
+            mask2d,
+            make_shared<ov::op::v0::Concat>(ov::OutputVector{ones_1_1, seq_len, kv_len}, 0),
+            false);  // [1, 1, seq, kv_len]
+    };
+
+    auto allowed = make_shared<ov::op::v1::LessEqual>(k_row, q_pos_col);  // [seq, kv_len] bool
+    auto mask_4d = to_mask_4d(allowed);
     self_kq_mask->output(0).replace(mask_4d->output(0));
 
     // Sliding-window mask: for prompts within the window this equals the full causal mask, but
@@ -325,7 +315,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // [q - window + 1, q]. Absent a recorded length (e.g. gpt-oss/gemma4, whose SWA is described
     // by sinks / a per-layer pattern with no accompanying token count here), fall back to the
     // full causal mask, matching the previous behavior.
-    if (auto self_kq_mask_swa = find_param(model, "self_kq_mask_swa")) {
+    if (auto self_kq_mask_swa = find_parameter(model, "self_kq_mask_swa")) {
         ov::Output<ov::Node> swa_mask_4d = mask_4d->output(0);
         const auto& rt_info = model->get_rt_info();
         const auto swa_it = rt_info.find(gguf_swa_window_key());
@@ -336,11 +326,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
             auto window_start = make_shared<ov::op::v1::Subtract>(q_pos_col, window_m1);      // [seq, 1]
             auto within_window = make_shared<ov::op::v1::GreaterEqual>(k_row, window_start);  // [seq, kv_len]
             auto allowed_swa = make_shared<ov::op::v1::LogicalAnd>(allowed, within_window);   // [seq, kv_len]
-            auto mask2d_swa = make_shared<ov::op::v1::Select>(allowed_swa, zero_f, neg_f);    // [seq, kv_len]
-            swa_mask_4d = make_shared<ov::op::v1::Reshape>(
-                mask2d_swa,
-                make_shared<ov::op::v0::Concat>(ov::OutputVector{const_i64({1, 1}), seq_len, kv_len}, 0),
-                false);  // [1, 1, seq, kv_len]
+            swa_mask_4d = to_mask_4d(allowed_swa);
         }
         self_kq_mask_swa->output(0).replace(swa_mask_4d);
     }
@@ -355,10 +341,9 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // (batch_dim=1), giving the single global index tokens - 1. Under SDPAToPagedAttention it is
     // [tokens, 1] (batch_dim=tokens, seq_dim=1), giving indices [0, 1, .., tokens - 1] -- the
     // identity that layout needs, since it already carries one token per row.
-    if (auto inp_out_ids = find_param(model, "inp_out_ids")) {
-        auto batch_dim =
-            make_shared<ov::op::v8::Gather>(ids_shape, const_i64({0}), const_i64({0}));             // [1]: ids_shape[0]
-        auto seq_dim = make_shared<ov::op::v8::Gather>(ids_shape, const_i64({1}), const_i64({0}));  // [1]: ids_shape[1]
+    if (auto inp_out_ids = find_parameter(model, "inp_out_ids")) {
+        ov::Output<ov::Node> batch_dim = get_dimensions(ids_shape, {0});  // [1]: ids_shape[0]
+        auto seq_dim = get_dimensions(ids_shape, {1});                   // [1]: ids_shape[1]
         auto seq_dim_i32 = make_shared<ov::op::v0::Convert>(seq_dim, ov::element::i32);
         auto last_index = make_shared<ov::op::v1::Subtract>(
             seq_dim_i32,
@@ -366,8 +351,6 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         auto batch_dim_scalar =
             make_shared<ov::op::v0::Squeeze>(make_shared<ov::op::v0::Convert>(batch_dim, ov::element::i32),
                                              const_i64({0}));
-        auto zero_i32 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
-        auto one_i32 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {1});
         auto row_ids = make_shared<ov::op::v4::Range>(zero_i32,
                                                       batch_dim_scalar,
                                                       one_i32,
@@ -380,7 +363,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
             false);  // [batch, 1]
         auto out_ids = make_shared<ov::op::v1::Reshape>(
             out_grid,
-            make_shared<ov::op::v0::Concat>(ov::OutputVector{const_i64({1, 1}), batch_dim, const_i64({1})}, 0),
+            make_shared<ov::op::v0::Concat>(ov::OutputVector{ones_1_1, batch_dim, const_i64({1})}, 0),
             false);
         inp_out_ids->output(0).replace(out_ids->output(0));
     }
@@ -392,9 +375,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // contract this pass targets; token_len_per_seq above is likewise a whole-input token count.)
     auto old_result = model->get_results()[0];
     auto logits_src = old_result->input_value(0);
-    auto vocab = make_shared<ov::op::v8::Gather>(make_shared<ov::op::v3::ShapeOf>(logits_src, ov::element::i64),
-                                                 const_i64({-1}),
-                                                 const_i64({0}));  // [1]
+    auto vocab = get_dimensions(logits_src, {-1});  // [1]
     auto logits_3d = make_shared<ov::op::v1::Reshape>(
         logits_src,
         make_shared<ov::op::v0::Concat>(ov::OutputVector{const_i64({1, -1}), vocab}, 0),

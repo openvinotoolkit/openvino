@@ -34,24 +34,12 @@
 #include "openvino/op/util/variable.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
+#include "utils.hpp"
 
 using namespace ov_gguf_test;
 using ov::frontend::gguf::pass::AdaptToGenAI;
 
 namespace {
-
-std::shared_ptr<ov::op::v0::Constant> const_i64(const std::vector<int64_t>& values) {
-    return ov::op::v0::Constant::create(ov::element::i64, ov::Shape{values.size()}, values);
-}
-
-std::shared_ptr<ov::op::v0::Parameter> find_param(const std::shared_ptr<ov::Model>& model, const std::string& name) {
-    for (const auto& p : model->get_parameters()) {
-        if (p->output(0).get_names().count(name) || p->get_friendly_name() == name) {
-            return p;
-        }
-    }
-    return nullptr;
-}
 
 // A minimal gguf-IO model: the four Parameters AdaptToGenAI requires, a token-embedding lookup
 // built exactly the way translate_get_rows builds it (Squeeze -> Gather -> Unsqueeze, friendly
@@ -156,10 +144,10 @@ TEST(GGUFAdaptToGenAI, RewritesIOContract) {
 
     ASSERT_TRUE(AdaptToGenAI().run_on_model(m.model));
 
-    auto input_ids = find_param(m.model, "input_ids");
-    auto attention_mask = find_param(m.model, "attention_mask");
-    auto position_ids = find_param(m.model, "position_ids");
-    auto beam_idx = find_param(m.model, "beam_idx");
+    auto input_ids = find_parameter(m.model, "input_ids");
+    auto attention_mask = find_parameter(m.model, "attention_mask");
+    auto position_ids = find_parameter(m.model, "position_ids");
+    auto beam_idx = find_parameter(m.model, "beam_idx");
     ASSERT_NE(input_ids, nullptr);
     ASSERT_NE(attention_mask, nullptr);
     ASSERT_NE(position_ids, nullptr);
