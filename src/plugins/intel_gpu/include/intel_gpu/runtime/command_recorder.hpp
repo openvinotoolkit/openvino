@@ -5,6 +5,7 @@
 #pragma once
 
 #include "command_list.hpp"
+#include "openvino/core/except.hpp"
 
 #include <memory>
 
@@ -23,8 +24,9 @@ public:
     /// Executed commands are not submitted to the device during recording.
     /// @param cmd_list Command list to record executed commands.
     void start_recording(command_list::ptr cmd_list) {
+        OPENVINO_ASSERT(!is_recording(), "[GPU] Can't start recording while another recording is in progress");
+        cmd_list->reset();
         _active_cmd_list = cmd_list;
-        _active_cmd_list->reset();
     }
     /// @brief Get command list that is currently being recorded.
     /// @return Command list that is currently being recorded or nullptr.
