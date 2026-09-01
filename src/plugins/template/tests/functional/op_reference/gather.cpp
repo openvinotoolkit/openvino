@@ -791,10 +791,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Gather_With_Hardcoded_Refs,
 
 class ReferenceGatherRegressionTest : public CommonReferenceTest, public testing::Test {};
 
-// The node's own PartialShape is dynamic (indices declared with a dynamic shape, as when they come from
-// a data-dependent subgraph) even though every tensor is concrete at evaluate() time. Previously crashed
-// with "to_shape was called on a dynamic shape" because evaluate<ET>() shape-inferred from
-// op->get_output_shape() instead of the actual runtime tensor shapes.
 TEST_F(ReferenceGatherRegressionTest, ExoticDtypeDynamicShapeIndices) {
     const auto P = std::make_shared<op::v0::Parameter>(element::f8e4m3, Shape{4, 2});
     const auto I = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic(1));
