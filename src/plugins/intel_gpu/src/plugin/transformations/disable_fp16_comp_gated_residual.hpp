@@ -9,15 +9,16 @@
 namespace ov::intel_gpu {
 
 /**
- * @brief Keeps gated residual paths in FP32 when they feed normalization.
+ * @brief Keeps Qwen-Image gated residual paths in FP32 when they feed normalization.
  *
  * The branch MatMul or Multiply result in Add(residual, Multiply(gate, branch))
  * can exceed the FP16 range even when the earlier inputs are representable in FP16.
+ * Qwen-Image gates are identified by their nested VariadicSplit producer chain.
  */
-class DisableFP16CompForGatedResidualPattern : public ov::pass::MatcherPass {
+class DisableFP16CompForQwenImageGatedResidualPattern : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("DisableFP16CompForGatedResidualPattern");
-    DisableFP16CompForGatedResidualPattern();
+    OPENVINO_MATCHER_PASS_RTTI("DisableFP16CompForQwenImageGatedResidualPattern");
+    DisableFP16CompForQwenImageGatedResidualPattern();
 };
 
 }  // namespace ov::intel_gpu
