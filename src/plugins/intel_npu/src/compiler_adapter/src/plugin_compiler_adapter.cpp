@@ -129,7 +129,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
 
     FilteredConfig localConfig = config;
     if (!localConfig.has<SEPARATE_WEIGHTS_VERSION>()) {
-        localConfig.update({{ov::intel_npu::separate_weights_version.name(), "ONE_SHOT"}});
+        localConfig.update(ov::intel_npu::separate_weights_version.name(), "ONE_SHOT");
     }
 
     _logger.info("SEPARATE_WEIGHTS_VERSION: %s",

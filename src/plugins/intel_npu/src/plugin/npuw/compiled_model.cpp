@@ -78,14 +78,6 @@ void split_properties(const ov::AnyMap& properties,
     }
 }
 
-std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
-    std::map<std::string, std::string> result;
-    for (auto&& value : params) {
-        result.emplace(value.first, value.second.as<std::string>());
-    }
-    return result;
-}
-
 bool can_use_weightless_flow(const ::intel_npu::Config& config) {
     return config.get<::intel_npu::NPUW_FOLD>() || !config.get<::intel_npu::NPUW_FOLD_ONLY>().empty() ||
            config.get<::intel_npu::NPUW_CWAI>();
@@ -382,7 +374,9 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     split_properties(properties, m_non_npuw_props, npuw_props);
 
     m_cfg.parseEnvVars();
-    m_cfg.update(any_copy(npuw_props));
+    for (const auto& [key, value] : npuw_props) {
+        m_cfg.update(key, value.as<std::string>());
+    }
 
     const std::string dev_list_str = m_cfg.get<::intel_npu::NPUW_DEVICES>();
     m_dev_list = ov::DeviceIDParser::get_hetero_devices(dev_list_str);

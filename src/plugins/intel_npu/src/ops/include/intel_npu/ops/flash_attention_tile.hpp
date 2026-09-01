@@ -56,7 +56,6 @@ public:
     bool has_evaluate() const override;
     bool evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const override;
 
-    const Config& get_config() const;
     void set_config(Config config);
 
 private:

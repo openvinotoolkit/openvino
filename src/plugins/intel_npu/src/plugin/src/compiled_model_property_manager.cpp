@@ -24,9 +24,8 @@ std::string buildRuntimeRequirements(const std::shared_ptr<intel_npu::IGraph>& g
     OPENVINO_ASSERT(graph != nullptr, "Missing graph");
 
     auto compatibilityDescriptor = graph->get_compatibility_descriptor();
-    if (!compatibilityDescriptor.has_value()) {
-        OPENVINO_THROW("RUNTIME_REQUIREMENTS cannot be generated for this compiled model.");
-    }
+    OPENVINO_ASSERT(compatibilityDescriptor.has_value(),
+                    "RUNTIME_REQUIREMENTS cannot be generated for this compiled model.");
     const auto descriptorView = compatibilityDescriptor.value();
     logger.debug("Runtime requirements from the graph %.*s length: %zu",
                  static_cast<int>(descriptorView.size()),
@@ -56,29 +55,42 @@ std::string buildRuntimeRequirements(const std::shared_ptr<intel_npu::IGraph>& g
 
 namespace intel_npu {
 
-CompiledModelPropertyManager::CompiledModelPropertyManager(const std::shared_ptr<FilteredConfig>& config,
+CompiledModelPropertyManager::CompiledModelPropertyManager(const FilteredConfig& config,
+                                                           const ov::AnyMap& properties,
+                                                           const std::shared_ptr<IDevice>& device,
                                                            const std::shared_ptr<IGraph>& graph,
                                                            const std::optional<int64_t>& batchSize,
                                                            Logger& logger)
     : _config(config),
+      _device(device),
       _graph(graph),
       _batchSize(batchSize),
       _logger(logger) {
     registerProperties();
+
+    // Set the properties from the provided ov::AnyMap into the internal property descriptors
+    for (const auto& property : properties) {
+        const auto propertyDescriptorIt = _properties.find(property.first);
+        OPENVINO_ASSERT(propertyDescriptorIt != _properties.end(), "Unsupported configuration key: ", property.first);
+        OPENVINO_ASSERT(propertyDescriptorIt->second.isSupported(ov::AnyMap{}),
+                        "Unsupported configuration key: ",
+                        property.first);
+        propertyDescriptorIt->second.set(property.second);
+    }
 }
 
 void CompiledModelPropertyManager::setProperty(const ov::AnyMap& properties) {
+    std::lock_guard<std::mutex> lock(_mutex);
+
     for (const auto& property : properties) {
         const auto propertyIt = _properties.find(property.first);
-        if (propertyIt == _properties.end()) {
-            OPENVINO_THROW("Unsupported configuration key: ", property.first);
-        }
-        if (propertyIt->second.mutability == ov::PropertyMutability::RO) {
-            OPENVINO_THROW("READ-ONLY configuration key: ", property.first);
-        }
-        if (!propertyIt->second.isSupported(ov::AnyMap{})) {
-            OPENVINO_THROW("Unsupported configuration key: ", property.first);
-        }
+        OPENVINO_ASSERT(propertyIt != _properties.end(), "Unsupported configuration key: ", property.first);
+        OPENVINO_ASSERT(propertyIt->second.mutability != ov::PropertyMutability::RO,
+                        "READ-ONLY configuration key: ",
+                        property.first);
+        OPENVINO_ASSERT(propertyIt->second.isSupported(ov::AnyMap{}),
+                        "Unsupported configuration key: ",
+                        property.first);
     }
 
     for (const auto& property : properties) {
@@ -88,15 +100,15 @@ void CompiledModelPropertyManager::setProperty(const ov::AnyMap& properties) {
 }
 
 ov::Any CompiledModelPropertyManager::getProperty(const std::string& name) const {
+    std::lock_guard<std::mutex> lock(_mutex);
+
     if (name == ov::hint::enable_cpu_pinning.name()) {
         logCpuPinningDeprecationWarning(_logger);
     }
 
     const auto propertyIt = _properties.find(name);
     if (propertyIt != _properties.end()) {
-        if (!propertyIt->second.isSupported(ov::AnyMap{})) {
-            OPENVINO_THROW("Unsupported configuration key: ", name);
-        }
+        OPENVINO_ASSERT(propertyIt->second.isSupported(ov::AnyMap{}), "Unsupported configuration key: ", name);
         if (propertyIt->second.mutability == ov::PropertyMutability::WO) {
             _logger.warning("Trying to get WRITE-ONLY property: %s. Returning empty `ov::Any` object", name.c_str());
             return ov::Any();
@@ -105,17 +117,22 @@ ov::Any CompiledModelPropertyManager::getProperty(const std::string& name) const
     }
 
     try {
-        return _config->getInternal(name);
+        return _config.getInternal(name);
     } catch (...) {
         OPENVINO_THROW("Unsupported configuration key: ", name);
     }
+}
+
+FilteredConfig CompiledModelPropertyManager::getConfig() const {
+    std::lock_guard<std::mutex> lock(_mutex);
+    return _config;
 }
 
 void CompiledModelPropertyManager::registerProperties() {
     _properties.clear();
 
     const auto hasPropertyValue = [this](const std::string& property_name) {
-        return _config->has(property_name);
+        return _config.has(property_name);
     };
 
     const auto readOnlySetter = [](const ov::Any&) {
@@ -128,14 +145,14 @@ void CompiledModelPropertyManager::registerProperties() {
             using OptionType = std::decay_t<decltype(optionTag)>;
             const auto propertyName = std::string(OptionType::key());
             const auto isSupported = [this, propertyName, hasPropertyValue, requireValue](const ov::AnyMap&) {
-                return requireValue ? hasPropertyValue(propertyName) : _config->hasOpt(propertyName);
+                return requireValue ? hasPropertyValue(propertyName) : _config.hasOpt(propertyName);
             };
             const auto setter = mutability == ov::PropertyMutability::RO
                                     ? std::function<void(const ov::Any&)>([](const ov::Any&) {
                                           OPENVINO_THROW("READ-ONLY configuration key");
                                       })
                                     : std::function<void(const ov::Any&)>([this, propertyName](const ov::Any& value) {
-                                          _config->updateAny({{propertyName, value}});
+                                          _config.update(propertyName, value.as<std::string>());
                                       });
             register_property(
                 propertyName,
@@ -143,7 +160,7 @@ void CompiledModelPropertyManager::registerProperties() {
                 mutability,
                 isSupported,
                 [this](const ov::AnyMap&) {
-                    return _config->get<OptionType>();
+                    return _config.get<OptionType>();
                 },
                 setter);
         };
@@ -197,13 +214,13 @@ void CompiledModelPropertyManager::registerProperties() {
     // clang-format off
     register_property(ov::hint::model_priority.name(), true, ov::PropertyMutability::RW,
         [this](const ov::AnyMap&) {
-            return _config->hasOpt(ov::hint::model_priority.name());
+            return _config.hasOpt(ov::hint::model_priority.name());
         },
         [this](const ov::AnyMap&) {
-            return _config->get<MODEL_PRIORITY>();
+            return _config.get<MODEL_PRIORITY>();
         },
         [this](const ov::Any& value) {
-            _config->update({{ov::hint::model_priority.name(), value.as<std::string>()}});
+            _config.update(ov::hint::model_priority.name(), value.as<std::string>());
             if (_graph != nullptr) {
                 _graph->set_model_priority(value.as<ov::hint::Priority>());
             }
@@ -211,34 +228,35 @@ void CompiledModelPropertyManager::registerProperties() {
     );
     register_property(ov::workload_type.name(), true, ov::PropertyMutability::RW,
         [this](const ov::AnyMap&) {
-            return _config->hasOpt(ov::workload_type.name());
+            return _config.hasOpt(ov::workload_type.name());
         },
         [this](const ov::AnyMap&) {
-            return _config->get<WORKLOAD_TYPE>();
+            return _config.get<WORKLOAD_TYPE>();
         },
         [this](const ov::Any& value) {
-            _config->update({{ov::workload_type.name(), value.as<std::string>()}});
+            _config.update(ov::workload_type.name(), value.as<std::string>());
             if (_graph != nullptr) {
                 _graph->set_workload_type(value.as<ov::WorkloadType>());
             }
-        });
+        }
+    );
     register_property(ov::cache_encryption_callbacks.name(), true, ov::PropertyMutability::WO,
         [this](const ov::AnyMap&) {
-            return _config->hasOpt(ov::cache_encryption_callbacks.name());
+            return _config.hasOpt(ov::cache_encryption_callbacks.name());
         },
         [](const ov::AnyMap&) {
             return ov::EncryptionCallbacks{nullptr, nullptr};
         },
         [this](const ov::Any& value) {
-            _config->updateAny({{ov::cache_encryption_callbacks.name(), value}});
+            _config.updateAny(ov::cache_encryption_callbacks.name(), value);
         }
     );
     register_property(ov::hint::model.name(), true, ov::PropertyMutability::RO,
         [](const ov::AnyMap&) {
             return true;
         },
-        [](const ov::AnyMap&) {
-            return std::shared_ptr<const ov::Model>(nullptr);
+        [this](const ov::AnyMap&) {
+            return _config.get<MODEL_PTR>().lock();
         },
         readOnlySetter
     );
@@ -253,12 +271,12 @@ void CompiledModelPropertyManager::registerProperties() {
         readOnlySetter
     );
     register_property(ov::optimal_number_of_infer_requests.name(), true, ov::PropertyMutability::RO,
-        [this](const ov::AnyMap&) {
+        [](const ov::AnyMap&) {
             return true;
         },
         [this](const ov::AnyMap&) {
-            return ov::Any(utils::getOptimalNumberOfInferRequestsInParallel(_config->get<PLATFORM>(),
-                                                                            _config->get<PERFORMANCE_HINT>()));
+            return ov::Any(utils::getOptimalNumberOfInferRequestsInParallel(_device->getName(),
+                                                                            _config.get<PERFORMANCE_HINT>()));
         },
         readOnlySetter
     );

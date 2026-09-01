@@ -279,8 +279,8 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                                                     storeWeightlessCacheAttributeFlag);
     FilteredConfig updatedConfig = config;
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
-        updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
-                               MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
+        updatedConfig.update(ov::intel_npu::model_serializer_version.name(),
+                             MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
     }
 
     std::string buildFlags;
@@ -403,8 +403,8 @@ std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::
                                                     true);
     FilteredConfig updatedConfig = config;
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
-        updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
-                               MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
+        updatedConfig.update(ov::intel_npu::model_serializer_version.name(),
+                             MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
     }
 
     std::string buildFlags;
@@ -488,7 +488,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compileWsIter
     size_t callNumber) const {
     _logger.debug("compileWsIterative start");
     FilteredConfig updatedConfig = config;
-    updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber)}});
+    updatedConfig.update(ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber));
     // Return the compatibility descriptor together with the compiled blob.
     return compile(model, updatedConfig, true);
 }
@@ -567,8 +567,8 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
                                                     config.get<MODEL_SERIALIZER_VERSION>(),
                                                     isOptionValueSupportedByCompiler);
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
-        updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
-                               MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
+        updatedConfig.update(ov::intel_npu::model_serializer_version.name(),
+                             MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
     }
 
     std::string buildFlags;

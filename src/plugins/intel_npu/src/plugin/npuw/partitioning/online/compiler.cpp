@@ -287,7 +287,7 @@ public:
             break;
         case Pipeline::SPATIAL:
             warn_unused<::intel_npu::NPUW_ONLINE_ISOLATE>();
-            m_cfg.update(::intel_npu::Config::ConfigMap{{std::string(::intel_npu::NPUW_SPATIAL::key()), "YES"}});
+            m_cfg.update(std::string(::intel_npu::NPUW_SPATIAL::key()), "YES");
 
             // Manually set predefined isolates and nofolds then do rep() pipeline
             // FIXME: initialize via a dedicated function instead of parsing

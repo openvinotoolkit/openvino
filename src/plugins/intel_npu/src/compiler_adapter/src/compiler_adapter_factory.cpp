@@ -119,15 +119,6 @@ const std::vector<ov::intel_npu::CompilerType>& CompilerAdapterFactory::getSuppo
     const auto pluginCompilerPresence = _pluginCompilerPresence.load(std::memory_order_acquire);
     if (pluginCompilerPresence == PluginCompilerPresence::ABSENT) {
         return supportedCompilerTypes;
-    } else if (pluginCompilerPresence == PluginCompilerPresence::UNKNOWN) {
-        try {
-            (void)std::make_unique<PluginCompilerAdapter>(nullptr);
-            _pluginCompilerPresence.store(PluginCompilerPresence::PRESENT, std::memory_order_release);
-            return supportedCompilerTypesWithPlugin;
-        } catch (...) {
-            _pluginCompilerPresence.store(PluginCompilerPresence::ABSENT, std::memory_order_release);
-            return supportedCompilerTypes;
-        }
     }
 
     return supportedCompilerTypesWithPlugin;
