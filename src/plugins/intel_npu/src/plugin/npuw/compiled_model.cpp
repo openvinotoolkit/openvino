@@ -430,7 +430,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
     ov::npuw::PartitioningContext ctx;
     // Identify based on compiler version, user config and pattern
-    ctx.use_host_gather_quant = should_use_quantized_host_gather(model, npuw_props);
+    // ACHTUNG - remove
+    ctx.use_host_gather_quant = false;//should_use_quantized_host_gather(model, npuw_props);
     ctx.subgraph_patterns = &combined_subgraph_patterns.value();
 
     ov::npuw::Partitioning partitioning;
