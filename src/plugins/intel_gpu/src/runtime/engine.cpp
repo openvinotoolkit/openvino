@@ -3,24 +3,20 @@
 //
 
 #include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/runtime/event.hpp"
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/stream.hpp"
-#include "intel_gpu/runtime/device_query.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
 
-#include "ocl/ocl_engine_factory.hpp"
-#include "ze/ze_engine_factory.hpp"
-#ifdef OV_GPU_WITH_SYCL_RT
-#include "sycl/sycl_engine_factory.hpp"
-#endif  // OV_GPU_WITH_SYCL_RT
-
-#include <string>
-#include <vector>
+#include <algorithm>
 #include <memory>
 #include <set>
 #include <stdexcept>
-#include <algorithm>
+#include <string>
+#include <vector>
+
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/device_query.hpp"
+#include "intel_gpu/runtime/event.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/runtime_backend_registry.hpp"
+#include "intel_gpu/runtime/stream.hpp"
 
 #if defined(_WIN32)
 # ifndef NOMINMAX
@@ -232,6 +228,10 @@ std::map<std::string, uint64_t> engine::get_memory_statistics() const {
     add_stat(allocation_type::usm_host);
     add_stat(allocation_type::usm_shared);
     add_stat(allocation_type::usm_device);
+    const auto default_allocation = get_default_allocation_type();
+    if (default_allocation == allocation_type::device_buffer) {
+        add_stat(default_allocation);
+    }
     return statistics;
 }
 
@@ -261,31 +261,7 @@ bool engine::get_enable_large_allocations() const {
 }
 
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_types runtime_type, const device::ptr device) {
-    std::shared_ptr<cldnn::engine> ret;
-    switch (engine_type) {
-#ifdef OV_GPU_WITH_SYCL_RT
-    case engine_types::sycl:
-        ret = sycl::create_sycl_engine(device, runtime_type);
-        break;
-#endif  // OV_GPU_WITH_SYCL_RT
-#ifdef OV_GPU_WITH_OCL_RT
-#ifdef OV_GPU_WITH_SYCL
-    case engine_types::sycl:
-        ret = ocl::create_sycl_engine(device, runtime_type);
-        break;
-#endif  // OV_GPU_WITH_SYCL
-    case engine_types::ocl:
-        ret = ocl::create_ocl_engine(device, runtime_type);
-        break;
-#endif
-#ifdef OV_GPU_WITH_ZE_RT
-    case engine_types::ze:
-        ret = ze::create_ze_engine(device, runtime_type);
-        break;
-#endif
-    default:
-        throw std::runtime_error("Invalid engine type");
-    }
+    auto ret = runtime_backend_registry::create_engine(engine_type, runtime_type, device);
     const auto& info = device->get_info();
     GPU_DEBUG_INFO << "Selected Device: " << info.dev_name << std::endl;
     return ret;
@@ -325,6 +301,10 @@ bool engine::check_allocatable(const layout& layout, allocation_type type) {
     }
 
     auto used_mem = get_used_device_memory(allocation_type::usm_device) + get_used_device_memory(allocation_type::usm_host);
+    const auto default_allocation = get_default_allocation_type();
+    if (default_allocation == allocation_type::device_buffer) {
+        used_mem += get_used_device_memory(default_allocation);
+    }
     auto exceed_available_mem_size = (layout.bytes_count() + used_mem > get_max_memory_size());
 
     // When dynamic shape upper bound makes bigger buffer, then return false.

@@ -303,3 +303,5 @@ void reorder_inst::update_output_memory() {
     _mem_allocated = false;
 }
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::reorder)

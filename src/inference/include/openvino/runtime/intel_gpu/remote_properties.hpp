@@ -33,6 +33,7 @@ enum class ContextType {
     OCL = 0,        //!< Pure OpenCL context
     VA_SHARED = 1,  //!< Context shared with a video decoding device
     ZE = 2,         //!< Pure Level Zero context
+    NATIVE = 3,     //!< Runtime-native context without an OpenCL or Level Zero interop handle
 };
 
 /** @cond INTERNAL */
@@ -44,6 +45,8 @@ inline std::ostream& operator<<(std::ostream& os, const ContextType& context_typ
         return os << "VA_SHARED";
     case ContextType::ZE:
         return os << "ZE";
+    case ContextType::NATIVE:
+        return os << "NATIVE";
     default:
         OPENVINO_THROW("Unsupported context type");
     }
@@ -58,6 +61,8 @@ inline std::istream& operator>>(std::istream& is, ContextType& context_type) {
         context_type = ContextType::VA_SHARED;
     } else if (str == "ZE") {
         context_type = ContextType::ZE;
+    } else if (str == "NATIVE") {
+        context_type = ContextType::NATIVE;
     } else {
         OPENVINO_THROW("Unsupported context type: ", str);
     }
@@ -118,8 +123,8 @@ enum class SharedMemType {
     USM_DEVICE_BUFFER = 4,   //!< Shared USM pointer type with device allocation type allocated by plugin
     VA_SURFACE = 5,          //!< Shared video decoder surface or D3D 2D texture blob
     DX_BUFFER = 6,           //!< Shared D3D buffer blob
-    BUFFER_FROM_HANDLE = 7,  //!< OS-level external memory handle (e.g. DX12 NT handle on Windows,
-                             //!< DMA-BUF fd on Linux) imported by the plugin into a cl_mem
+    BUFFER_FROM_HANDLE = 7,  //!< OS-level external memory handle (e.g. DX12 NT handle, DMA-BUF fd,
+                             //!< MTLBuffer, or AHardwareBuffer) imported by the selected GPU runtime
     CPU_VA = 8,              //!< Shared mmap-backed/aligned allocated host pointer mapped by plugin
     MMAPED_FILE = 9,         //!< Memory-mapped file buffer read and wrapped by the plugin
 };
@@ -199,7 +204,7 @@ inline std::istream& operator>>(std::istream& is, SharedMemType& share_mem_type)
 static constexpr Property<SharedMemType> shared_mem_type{"SHARED_MEM_TYPE"};
 
 /**
- * @brief This key identifies OpenCL memory handle
+ * @brief This key identifies an API-native memory handle
  * in a shared memory blob parameter map
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */

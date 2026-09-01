@@ -18,6 +18,12 @@ public:
 
     const device_info& get_info() const override { return _info; }
     memory_capabilities get_mem_caps() const override { return _mem_caps; }
+    engine_types get_engine_type() const override {
+        return engine_types::sycl;
+    }
+    runtime_types get_runtime_type() const override {
+        return runtime_types::sycl;
+    }
 
     void initialize() override;
     bool is_initialized() const override { return _is_initialized; };

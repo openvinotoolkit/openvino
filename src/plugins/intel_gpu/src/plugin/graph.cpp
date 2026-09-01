@@ -2,46 +2,47 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/graph/serialization/helpers.hpp"
-#include "intel_gpu/runtime/layout.hpp"
-#include "openvino/core/any.hpp"
-#include "openvino/runtime/plugin_config.hpp"
-#include "openvino/runtime/threading/executor_manager.hpp"
-#include "openvino/runtime/exec_model_info.hpp"
-#include "openvino/pass/serialize.hpp"
+#include "intel_gpu/plugin/graph.hpp"
 
+#include <sys/stat.h>
+#include <sys/types.h>
+
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <fstream>
+#include <list>
+#include <optional>
+#include <set>
+#include <sstream>
+#include <unordered_set>
+#include <utility>
+
+#include "cache/config_import.hpp"
+#include "dynamic_quantize_inst.h"
+#include "fully_connected_inst.h"
+#include "grouped_matmul_inst.h"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
-#include "intel_gpu/graph/serialization/map_serializer.hpp"
+#include "intel_gpu/graph/serialization/helpers.hpp"
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
+#include "intel_gpu/graph/serialization/map_serializer.hpp"
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
-#include "intel_gpu/runtime/profiling.hpp"
+#include "intel_gpu/plugin/simple_math.hpp"
+#include "intel_gpu/primitives/dynamic_quantize.hpp"
+#include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/grouped_matmul.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
-#include "intel_gpu/plugin/graph.hpp"
-#include "intel_gpu/plugin/simple_math.hpp"
-
-#include "intel_gpu/primitives/dynamic_quantize.hpp"
-#include "intel_gpu/primitives/grouped_matmul.hpp"
-#include "intel_gpu/primitives/fully_connected.hpp"
-#include "dynamic_quantize_inst.h"
-#include "grouped_matmul_inst.h"
-#include "fully_connected_inst.h"
-
-#include <list>
-#include <set>
-#include <unordered_set>
-#include <sstream>
-#include <chrono>
-#include <cmath>
-#include <algorithm>
-#include <fstream>
-#include <utility>
-#include <optional>
-#include <sys/types.h>
-#include <sys/stat.h>
+#include "intel_gpu/runtime/layout.hpp"
+#include "intel_gpu/runtime/profiling.hpp"
+#include "openvino/core/any.hpp"
+#include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
+#include "openvino/runtime/plugin_config.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
 
 namespace {
 
@@ -131,7 +132,7 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context
         }
     }
 
-    IstreamAttributeVisitor<cldnn::BinaryInputBuffer> visitor(ib);
+    cache::ConfigImportAttributeVisitor visitor(ib);
     m_config.visit_attributes(visitor);
     m_config.set_user_property(config.get_user_properties()); // Copy user properties if those were modified on import call
     m_config.set_user_property({ov::hint::model(std::shared_ptr<const ov::Model>(nullptr))});

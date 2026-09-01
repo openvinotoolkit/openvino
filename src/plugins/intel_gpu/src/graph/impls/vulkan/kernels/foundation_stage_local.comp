@@ -1,0 +1,28 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+
+#define VULKAN_SHADER_SPECIALIZATION_ID(name, code) const uint specialization_##name##_id = code;
+#include "../vulkan_shader_abi.inc"
+#undef VULKAN_SHADER_SPECIALIZATION_ID
+
+layout(local_size_x_id = specialization_local_size_x_id, local_size_y = 1, local_size_z = 1) in;
+layout(constant_id = specialization_foundation_local_memory_words_id) const uint local_memory_words = 64;
+
+layout(set = 0, binding = 0) readonly buffer Input {
+    float values[];
+} input_data;
+
+layout(set = 0, binding = 1) writeonly buffer Intermediate {
+    float values[];
+} intermediate_data;
+
+shared float local_values[local_memory_words];
+
+void main() {
+    const uint global_index = gl_GlobalInvocationID.x;
+    const uint local_index = gl_LocalInvocationID.x;
+    local_values[local_index] = input_data.values[global_index];
+    barrier();
+    const uint adjacent_index = (local_index + 1) % local_memory_words;
+    intermediate_data.values[global_index] = local_values[adjacent_index] + 1.0;
+}

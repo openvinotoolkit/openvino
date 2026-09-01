@@ -2,44 +2,40 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/primitives/implementation_desc.hpp"
-#include "intel_gpu/runtime/internal_properties.hpp"
-#include "test_utils.h"
-#include "random_generator.hpp"
-
 #include <intel_gpu/primitives/vl_sdpa.hpp>
-#include "vl_sdpa_inst.h"
-#include "graph/impls/ocl/kernel_selector_helper.h"
-
-#include "intel_gpu/runtime/engine.hpp"
-
-#include "intel_gpu/graph/program.hpp"
-#include "data_inst.h"
-#include "concatenation_inst.h"
-#include "gemm_inst.h"
-#include "crop_inst.h"
-#include "convolution_inst.h"
-#include "gather_inst.h"
-#include "gemm_inst.h"
-#include "reshape_inst.h"
-#include "fully_connected_inst.h"
-#include "permute_inst.h"
-#include "reorder_inst.h"
-#include "shape_of_inst.h"
-#include "gather_inst.h"
-#include "strided_slice_inst.h"
-#include "eltwise_inst.h"
-#include "mvn_inst.h"
-#include "intel_gpu/graph/network.hpp"
-#include "pass_manager.h"
-#include "to_string_utils.h"
-#include "resample_inst.h"
-#include "openvino/op/interpolate.hpp"
-
-#include "program_wrapper.h"
-#include "primitive_inst_test_helper.h"
-
 #include <memory>
+
+#include "concatenation_inst.h"
+#include "convolution_inst.h"
+#include "crop_inst.h"
+#include "data_inst.h"
+#include "eltwise_inst.h"
+#include "fully_connected_inst.h"
+#include "gather_inst.h"
+#include "gemm_inst.h"
+#ifdef OV_GPU_WITH_OCL_IMPLS
+#    include "graph/impls/ocl/kernel_selector_helper.h"
+#endif
+#include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/primitives/implementation_desc.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/internal_properties.hpp"
+#include "mvn_inst.h"
+#include "openvino/op/interpolate.hpp"
+#include "pass_manager.h"
+#include "permute_inst.h"
+#include "primitive_inst_test_helper.h"
+#include "program_wrapper.h"
+#include "random_generator.hpp"
+#include "reorder_inst.h"
+#include "resample_inst.h"
+#include "reshape_inst.h"
+#include "shape_of_inst.h"
+#include "strided_slice_inst.h"
+#include "test_utils.h"
+#include "to_string_utils.h"
+#include "vl_sdpa_inst.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -3125,10 +3121,14 @@ TEST(prepare_buffer_fusing, in_place_crop_split_axis1_three_crops_eltwise_consum
 TEST(prepare_buffer_fusing, in_place_crop_split_axis1_three_crops_vlsdpa_consumer) {
     auto& engine = get_test_engine();
 
+#ifdef OV_GPU_WITH_OCL_IMPLS
     ExecutionConfig check_config = get_test_default_config(engine);
     if (!engine.get_device_info().supports_immad ||
         !cldnn::check_cm_jit_support(engine, check_config))
         GTEST_SKIP() << "vl_sdpa CM kernel not available on this device";
+#else
+    GTEST_SKIP() << "vl_sdpa CM implementation is not compiled";
+#endif
 
     tests::random_generator rg(GET_SUITE_NAME);
 

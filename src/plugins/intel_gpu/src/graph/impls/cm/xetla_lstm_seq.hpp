@@ -6,6 +6,7 @@
 #include <memory>
 #include <utility>
 
+#include "impls/ocl/kernel_selector_helper.h"
 #include "intel_gpu/runtime/layout.hpp"
 #include "lstm_seq_inst.h"
 #include "openvino/op/util/rnn_cell_base.hpp"

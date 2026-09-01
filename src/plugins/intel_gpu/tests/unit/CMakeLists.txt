@@ -41,13 +41,16 @@ file(GLOB_RECURSE SOURCES_WITH_OCL_RT
     "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/device_test.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/engine_test.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/events_test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/jitter_test.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/network_test.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/usm_memory_test.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_cases/convert_color_gpu_test.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_cases/cl_mem_input_test.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_cases/mem_perf_test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_cases/moe_offload_lru_cache_test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_cases/moe_offload_weight_provider_test.cpp"
   )
-if (NOT GPU_RT_TYPE STREQUAL "OCL")
+if (NOT OV_GPU_RUNTIME_OCL_ENABLED)
     foreach (SOURCE_FILE IN LISTS SOURCES_WITH_OCL_RT)
         list (REMOVE_ITEM SOURCES_MAIN ${SOURCE_FILE})
     endforeach()
@@ -57,7 +60,7 @@ file(GLOB_RECURSE SOURCES_WITH_ZE_RT
     "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/ze/*.cpp"
   )
 
-if (NOT GPU_RT_TYPE STREQUAL "ZE")
+if (NOT OV_GPU_RUNTIME_ZE_ENABLED)
     foreach (SOURCE_FILE IN LISTS SOURCES_WITH_ZE_RT)
         list (REMOVE_ITEM SOURCES_MAIN ${SOURCE_FILE})
     endforeach()
@@ -67,10 +70,37 @@ file(GLOB_RECURSE SOURCES_WITH_SYCL_RT
   "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/sycl/*.cpp"
   )
 
-if (NOT GPU_RT_TYPE STREQUAL "SYCL")
+if (NOT OV_GPU_RUNTIME_SYCL_ENABLED)
   foreach (SOURCE_FILE IN LISTS SOURCES_WITH_SYCL_RT)
     list (REMOVE_ITEM SOURCES_MAIN ${SOURCE_FILE})
   endforeach()
+endif()
+
+file(GLOB_RECURSE SOURCES_WITH_VULKAN_RT
+  "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/vulkan/*.cpp"
+  )
+
+if (NOT OV_GPU_RUNTIME_VULKAN_ENABLED)
+    foreach (SOURCE_FILE IN LISTS SOURCES_WITH_VULKAN_RT)
+        list (REMOVE_ITEM SOURCES_MAIN ${SOURCE_FILE})
+    endforeach()
+endif()
+
+# These sources validate implementations shared by OCL, ZE, and SYCL and
+# directly use the OCL-owned kernel-selector helper. Keep them out of a
+# Vulkan-only test binary instead of compiling the OCL helper into that build.
+set(SOURCES_WITH_OCL_IMPLS
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_cases/gated_delta_net.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_cases/pa_kv_reorder_gpu_test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_cases/paged_attention_gpu_test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_cases/paged_attention_token_type_gpu_test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_cases/vlsdpa_gpu_test.cpp"
+)
+
+if(NOT TARGET openvino_intel_gpu_ocl_obj)
+    foreach(SOURCE_FILE IN LISTS SOURCES_WITH_OCL_IMPLS)
+        list(REMOVE_ITEM SOURCES_MAIN ${SOURCE_FILE})
+    endforeach()
 endif()
 
 if (NOT ENABLE_ONEDNN_FOR_GPU)
@@ -97,9 +127,12 @@ set(SOURCES_ALL
 
 add_executable(${TARGET_NAME} ${SOURCES_ALL})
 target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER="")
+if(TARGET openvino_intel_gpu_ocl_obj)
+    target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_OCL_IMPLS=1)
+endif()
 
 ov_set_threading_interface_for(${TARGET_NAME})
-ov_gpu_set_runtime_interface_for(${TARGET_NAME})
+ov_gpu_set_runtime_interface_for(${TARGET_NAME} RUNTIME ${GPU_RT_TYPE})
 
 # Workaround to avoid warnings during LTO build
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -122,6 +155,12 @@ target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
                                                   $<TARGET_PROPERTY:openvino_intel_gpu_runtime,INTERFACE_INCLUDE_DIRECTORIES>
                                                   ${CMAKE_HOME_DIRECTORY}/src/core/reference/include/
                                                   ${TEST_COMMON_INCLUDE_DIR})
+
+if(OV_GPU_RUNTIME_VULKAN_ENABLED)
+    get_property(OV_GPU_VULKAN_GENERATED_INCLUDE_DIR GLOBAL PROPERTY OV_GPU_VULKAN_GENERATED_INCLUDE_DIR)
+    target_include_directories(${TARGET_NAME} PRIVATE "${OV_GPU_VULKAN_GENERATED_INCLUDE_DIR}")
+    add_dependencies(${TARGET_NAME} openvino_intel_gpu_vulkan_shaders${OV_GPU_SUFFIX})
+endif()
 
 if(WIN32)
   target_link_libraries(${TARGET_NAME} PRIVATE setupapi)

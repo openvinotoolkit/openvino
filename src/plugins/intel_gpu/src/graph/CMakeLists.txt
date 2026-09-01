@@ -2,9 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "openvino_intel_gpu_graph")
+set(TARGET_NAME "openvino_intel_gpu_graph${OV_GPU_SUFFIX}")
 
-if(ENABLE_CM_FOR_GPU)
+set(OV_GPU_CM_IMPLS_ENABLED OFF)
+if(ENABLE_CM_FOR_GPU AND
+   (OV_GPU_RUNTIME_OCL_ENABLED OR OV_GPU_RUNTIME_ZE_ENABLED OR OV_GPU_RUNTIME_SYCL_ENABLED))
+    set(OV_GPU_CM_IMPLS_ENABLED ON)
     add_compile_definitions(ENABLE_CM_FOR_GPU)
 endif()
 
@@ -33,15 +36,14 @@ set(COMMON_INCLUDE_DIRS $<BUILD_INTERFACE:${MAIN_DIR}/src>
 )
 
 set(COMMON_LINK_LIBRARIES openvino::shape_inference # for tensor accessor
-                          openvino_intel_gpu_kernels # for cl_kernel_data_serializer
-                          openvino_intel_gpu_runtime
+                          openvino_intel_gpu_kernels${OV_GPU_SUFFIX} # for cl_kernel_data_serializer
+                          openvino_intel_gpu_runtime${OV_GPU_SUFFIX}
                           openvino::itt
                           openvino::runtime::dev
                           openvino::runtime
-                          OpenCL::OpenCL # Onednn needs OCL headers even when running Level Zero
 )
 
-if(GPU_RT_TYPE STREQUAL "ZE")
+if(OV_GPU_RUNTIME_ZE_ENABLED)
     # Onednn needs ZE headers
     list(APPEND COMMON_LINK_LIBRARIES openvino::zero_loader)
 endif()
@@ -88,12 +90,18 @@ macro(ov_gpu_add_backend_target)
     target_compile_options(${TARGET_NAME} PRIVATE ${COMMON_COMPILE_OPTIONS})
     target_compile_definitions(${TARGET_NAME} PRIVATE ${TARGET_DEFINITIONS})
     ov_set_threading_interface_for(${TARGET_NAME})
-    ov_gpu_set_runtime_interface_for(${TARGET_NAME})
+    ov_gpu_set_runtime_definitions_for(${TARGET_NAME} RUNTIME ${OV_GPU_RT})
 
     # We use onednn headers all over the graph module, so we have to append includes to all backends and add a dependency between targets
     if (ENABLE_ONEDNN_FOR_GPU)
-        target_include_directories(${ARG_NAME} SYSTEM BEFORE PRIVATE $<TARGET_PROPERTY:onednn_gpu_tgt,INTERFACE_INCLUDE_DIRECTORIES>)
-        add_dependencies(openvino_intel_gpu_${IMPL_TYPE}_obj onednn_gpu_tgt)
+        # oneDNN GPU adapters expose OpenCL types in their private headers.
+        ov_gpu_use_header_target_for(${ARG_NAME} OpenCL::NewHeaders)
+        target_include_directories(${ARG_NAME} SYSTEM BEFORE PRIVATE $<TARGET_PROPERTY:onednn_gpu_tgt${OV_GPU_SUFFIX},INTERFACE_INCLUDE_DIRECTORIES>)
+        add_dependencies(openvino_intel_gpu_${IMPL_TYPE}_obj${OV_GPU_SUFFIX} onednn_gpu_tgt${OV_GPU_SUFFIX})
+        ov_gpu_set_opencl_api_version_for(${ARG_NAME})
+    endif()
+    if(OV_GPU_RUNTIME_SYCL_ENABLED)
+        ov_gpu_use_header_target_for(${ARG_NAME} LevelZero::Headers)
     endif()
 
     # The graph backend implementations are compiled in these per-backend OBJECT
@@ -107,23 +115,23 @@ set(CODEGEN_TEST_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/common_utils/test_kernels_d
 
 enable_testing()
 
-add_custom_target(run_codegen_test
+add_custom_target(run_codegen_test${OV_GPU_SUFFIX}
     COMMAND ${Python3_EXECUTABLE} -B ${CODEGEN_TEST_SCRIPT}
     DEPENDS "${CODEGEN_SCRIPT}"
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-add_test(NAME TestOCLCodePreprocessing
+add_test(NAME TestOCLCodePreprocessing${OV_GPU_SUFFIX}
          COMMAND ${Python3_EXECUTABLE} -B ${CODEGEN_TEST_SCRIPT}
          WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 foreach(IMPL_TYPE IN LISTS AVAILABLE_IMPL_TYPES)
-    if(IMPL_TYPE STREQUAL "cm" AND NOT ENABLE_CM_FOR_GPU)
+    if(IMPL_TYPE STREQUAL "cm" AND NOT OV_GPU_CM_IMPLS_ENABLED)
         continue()
     endif()
-    add_subdirectory(impls/${IMPL_TYPE})
-    if (TARGET openvino_intel_gpu_${IMPL_TYPE}_obj)
-        list(APPEND OBJ_FILES $<TARGET_OBJECTS:openvino_intel_gpu_${IMPL_TYPE}_obj>)
+    add_subdirectory(impls/${IMPL_TYPE} impls/${IMPL_TYPE}${OV_GPU_SUFFIX})
+    if (TARGET openvino_intel_gpu_${IMPL_TYPE}_obj${OV_GPU_SUFFIX})
+        list(APPEND OBJ_FILES $<TARGET_OBJECTS:openvino_intel_gpu_${IMPL_TYPE}_obj${OV_GPU_SUFFIX}>)
     endif()
 endforeach()
 
@@ -146,7 +154,7 @@ ov_add_target(
             ${EXTRA_LINK_LIBRARIES}
             openvino::reference # for loop primitive subroutines
     DEPENDENCIES
-        run_codegen_test
+        run_codegen_test${OV_GPU_SUFFIX}
 )
 
 ov_build_target_faster(${TARGET_NAME} PCH)
@@ -154,7 +162,17 @@ ov_build_target_faster(${TARGET_NAME} PCH)
 target_compile_options(${TARGET_NAME} PRIVATE ${COMMON_COMPILE_OPTIONS})
 
 ov_set_threading_interface_for(${TARGET_NAME})
-ov_gpu_set_runtime_interface_for(${TARGET_NAME})
+ov_gpu_set_runtime_definitions_for(${TARGET_NAME} RUNTIME ${OV_GPU_RT})
+if(OV_GPU_RUNTIME_VULKAN_ENABLED)
+    target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_OPTIONAL_IMPLEMENTATION_PROVIDER=1)
+endif()
+if(ENABLE_ONEDNN_FOR_GPU)
+    ov_gpu_use_header_target_for(${TARGET_NAME} OpenCL::NewHeaders)
+    ov_gpu_set_opencl_api_version_for(${TARGET_NAME})
+endif()
+if(OV_GPU_RUNTIME_SYCL_ENABLED)
+    ov_gpu_use_header_target_for(${TARGET_NAME} LevelZero::Headers)
+endif()
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 

@@ -24,29 +24,39 @@ namespace {
 
 struct dummy_device : public device {
 public:
-	dummy_device(uint32_t vendor_id, device_type type, size_t device_id) : _mem_caps({}) {
-		_info = device_info{};
-		_info.vendor_id = vendor_id;
-		_info.dev_type = type;
-		_info.device_id = static_cast<uint32_t>(device_id);
-	}
+    dummy_device(uint32_t vendor_id, device_type type, size_t device_id) : _mem_caps({}) {
+        _info = device_info{};
+        _info.vendor_id = vendor_id;
+        _info.dev_type = type;
+        _info.device_id = static_cast<uint32_t>(device_id);
+    }
 
-	const device_info& get_info() const override { return _info; }
-	memory_capabilities get_mem_caps() const override { return _mem_caps; }
-	bool is_same(const device::ptr other) override {
-		return this == other.get();
-	}
+    const device_info& get_info() const override {
+        return _info;
+    }
+    memory_capabilities get_mem_caps() const override {
+        return _mem_caps;
+    }
+    engine_types get_engine_type() const override {
+        return engine_types::ze;
+    }
+    runtime_types get_runtime_type() const override {
+        return runtime_types::ze;
+    }
+    bool is_same(const device::ptr other) override {
+        return this == other.get();
+    }
 
-	void initialize() override {}
+    void initialize() override {}
 
-	bool is_initialized() const override {
-		return true;
-	}
+    bool is_initialized() const override {
+        return true;
+    }
 
-	void set_mem_caps(const memory_capabilities& memory_capabilities) override {
-		_mem_caps = memory_capabilities;
-	}
-	~dummy_device() = default;
+    void set_mem_caps(const memory_capabilities& memory_capabilities) override {
+        _mem_caps = memory_capabilities;
+    }
+    ~dummy_device() = default;
 
 private:
 	device_info _info;

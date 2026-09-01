@@ -10,16 +10,17 @@
 
 #ifdef GPU_DEBUG_CONFIG
 
-#include "impls/ocl/kernels_cache.hpp"
-#include "to_string_utils.h"
-#include "loop_inst.h"
-#include "condition_inst.h"
-#include "activation_inst.h"
-#include "program_dump_graph.h"
+#    include <sys/stat.h>
 
-#include <iomanip>
-#include <fstream>
-#include <sys/stat.h>
+#    include <fstream>
+#    include <iomanip>
+
+#    include "activation_inst.h"
+#    include "common_utils/kernels_cache.hpp"
+#    include "condition_inst.h"
+#    include "loop_inst.h"
+#    include "program_dump_graph.h"
+#    include "to_string_utils.h"
 
 namespace cldnn {
 

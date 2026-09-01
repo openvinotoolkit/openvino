@@ -42,6 +42,10 @@ std::vector<std::vector<ov::Shape>> numpyBroadcastPowerShapes = {
         {{2}, {1, 1, 1, 1}},
 };
 
+const std::vector<std::vector<ov::test::InputShape>> dynamicRepeatedShapes = {
+    {{{-1, 4, -1, -1}, {{1, 4, 8, 8}, {1, 4, 15, 7}, {3, 4, 1, 16}, {1, 4, 0, 16}, {1, 4, 8, 8}}}},
+};
+
 std::vector<ov::test::ElementType> netPrecisions = {
         ov::element::f32,
         ov::element::f16,
@@ -178,7 +182,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_NumpyBroadcastPower,
                                             ::testing::Values(additional_config)),
                          EltwiseLayerTest::getTestCaseName);
 
-
 std::vector<std::vector<ov::Shape>> bf16Shapes = {
         {{2, 200}},
         {{1, 10, 100}},
@@ -199,6 +202,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_BF16_CompareWithRefs,
                                             ::testing::ValuesIn(secondaryInputTypes),
                                             ::testing::Values(OpType::VECTOR),
                                             ::testing::Values(ov::element::bf16),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::Values(additional_config)),
+                         EltwiseLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicRepeatedShapes,
+                         EltwiseLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(dynamicRepeatedShapes),
+                                            ::testing::Values(EltwiseTypes::ADD),
+                                            ::testing::Values(InputLayerType::PARAMETER),
+                                            ::testing::Values(OpType::VECTOR),
+                                            ::testing::Values(ov::element::f32),
                                             ::testing::Values(ov::element::dynamic),
                                             ::testing::Values(ov::element::dynamic),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU),

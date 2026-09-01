@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <tuple>
+#include <vector>
+
+#include "activation_inst.h"
+#include "convolution_inst.h"
+#include "data_inst.h"
+#include "fully_connected_inst.h"
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/runtime/memory.hpp"
 #include "pass_manager.h"
 #include "pooling_inst.h"
-#include "convolution_inst.h"
-#include "fully_connected_inst.h"
-#include "data_inst.h"
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/graph/program.hpp"
-
-#include <vector>
-#include <tuple>
 
 using namespace cldnn;
 

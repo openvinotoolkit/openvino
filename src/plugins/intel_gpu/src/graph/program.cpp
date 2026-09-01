@@ -1,96 +1,95 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <thread>
-#include <chrono>
+#include "intel_gpu/graph/program.hpp"
 
+#include <chrono>
+#include <thread>
+
+#include "activation_inst.h"
+#include "adaptive_pooling_inst.h"
+#include "arg_max_min_inst.h"
+#include "backend_graph_optimizer.hpp"
+#include "border_inst.h"
+#include "common_utils/parallel_mem_streambuf.hpp"
+#include "concatenation_inst.h"
+#include "condition_inst.h"
+#include "convolution_inst.h"
+#include "crop_inst.h"
+#include "ctc_loss_inst.hpp"
+#include "custom_gpu_primitive_inst.h"
+#include "data_inst.h"
+#include "deconvolution_inst.h"
+#include "depth_to_space_inst.h"
+#include "detection_output_inst.h"
+#include "dft_inst.h"
+#include "eltwise_inst.h"
+#include "experimental_detectron_generate_proposals_single_image_inst.hpp"
+#include "gemm_inst.h"
+#include "generate_proposals_inst.h"
+#include "group_normalization_inst.h"
+#include "gru_seq_inst.h"
+#include "input_layout_inst.h"
 #include "intel_gpu/graph/fused_primitive_desc.hpp"
-#include "registry/implementation_manager.hpp"
+#include "intel_gpu/graph/serialization/map_serializer.hpp"
+#include "intel_gpu/runtime/compilation_context.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
+#include "intel_gpu/runtime/itt.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "layout_optimizer.h"
+#include "loop_inst.h"
+#include "matrix_nms_inst.h"
+#include "multiclass_nms_inst.h"
+#include "mutable_data_inst.h"
+#include "mvn_inst.h"
+#include "non_zero_inst.h"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/memory.hpp"
-#include "openvino/core/memory_util.hpp"
 #include "openvino/util/parallel_read_streambuf.hpp"
-#include "common_utils/parallel_mem_streambuf.hpp"
-
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
-#include "intel_gpu/runtime/itt.hpp"
-#include "intel_gpu/runtime/compilation_context.hpp"
-#include "intel_gpu/graph/program.hpp"
-
-
-#include "layout_optimizer.h"
 #include "pass_manager.h"
-#include "primitive_type.h"
-#include "program_dump_graph.h"
-#include "program_node.h"
-#include "sliding_window_utils.hpp"
-#include "program_helpers.h"
-
-#include "matrix_nms_inst.h"
-#include "roi_pooling_inst.h"
-#include "reorg_yolo_inst.h"
-#include "eltwise_inst.h"
-#include "non_zero_inst.h"
-#include "softmax_inst.h"
 #include "permute_inst.h"
-#include "custom_gpu_primitive_inst.h"
-#include "resample_inst.h"
-#include "reshape_inst.h"
-#include "ctc_loss_inst.hpp"
-#include "group_normalization_inst.h"
-#include "quantize_inst.h"
-#include "activation_inst.h"
-#include "depth_to_space_inst.h"
-#include "convolution_inst.h"
-#include "concatenation_inst.h"
-#include "crop_inst.h"
-#include "data_inst.h"
-#include "deconvolution_inst.h"
-#include "detection_output_inst.h"
-#include "generate_proposals_inst.h"
-#include "experimental_detectron_generate_proposals_single_image_inst.hpp"
-#include "input_layout_inst.h"
-#include "shuffle_channels_inst.h"
-#include "arg_max_min_inst.h"
-#include "dft_inst.h"
-#include "multiclass_nms_inst.h"
-#include "mutable_data_inst.h"
 #include "pooling_inst.h"
-#include "border_inst.h"
 #include "primitive_inst.h"
+#include "primitive_type.h"
 #include "prior_box_inst.h"
-#include "scatter_nd_update_inst.h"
-#include "scatter_elements_update_inst.h"
+#include "program_dump_graph.h"
+#include "program_helpers.h"
+#include "program_node.h"
+#include "program_primitive_types.hpp"
 #include "proposal_inst.h"
-#include "reorder_inst.h"
-#include "mvn_inst.h"
-#include "gemm_inst.h"
-#include "adaptive_pooling_inst.h"
+#include "quantize_inst.h"
 #include "reduce_inst.h"
 #include "region_yolo_inst.h"
-#include "strided_slice_inst.h"
-#include "loop_inst.h"
+#include "registry/implementation_manager.hpp"
+#include "reorder_inst.h"
+#include "reorg_yolo_inst.h"
+#include "resample_inst.h"
+#include "reshape_inst.h"
 #include "reverse_inst.h"
-#include "unique_inst.hpp"
-#include "condition_inst.h"
-#include "gru_seq_inst.h"
+#include "roi_pooling_inst.h"
 #include "scaled_dot_product_attention_inst.h"
+#include "scatter_elements_update_inst.h"
+#include "scatter_nd_update_inst.h"
+#include "shuffle_channels_inst.h"
+#include "sliding_window_utils.hpp"
+#include "softmax_inst.h"
+#include "strided_slice_inst.h"
 #include "to_string_utils.h"
-#include "intel_gpu/graph/serialization/map_serializer.hpp"
-
-#include "intel_gpu/primitives/rnn.hpp"
+#include "unique_inst.hpp"
 
 // TODO: Remove once we have interface for kernels cache
-#include "impls/ocl/kernels_cache.hpp"
+#include "common_utils/kernels_cache.hpp"
 
 // TODO: implement self-registration for impls
-#include "impls/ocl/register.hpp"
+#if defined(OV_GPU_WITH_OCL_RT) || defined(OV_GPU_WITH_ZE_RT) || defined(OV_GPU_WITH_SYCL_RT)
+#    include "impls/ocl/register.hpp"
+#endif
 #include "impls/cpu/register.hpp"
 #include "impls/common/register.hpp"
 
@@ -269,7 +268,9 @@ void program::init_primitives() {
     static bool is_initialized = false;
     if (!is_initialized) {
         common::register_implementations();
+#if defined(OV_GPU_WITH_OCL_RT) || defined(OV_GPU_WITH_ZE_RT) || defined(OV_GPU_WITH_SYCL_RT)
         ocl::register_implementations();
+#endif
         cpu::register_implementations();
         is_initialized = true;
     }
@@ -562,7 +563,11 @@ void program::pre_optimize_graph(bool is_internal) {
 
         apply_opt_pass<reorder_transfer>();
 
-        apply_opt_pass<prepare_primitive_fusing>();
+        apply_opt_pass<prepare_primitive_fusing>(primitive_fusing_stage::graph_cleanup);
+
+        if (!run_backend_fusion_optimizations(*this)) {
+            apply_opt_pass<prepare_primitive_fusing>(primitive_fusing_stage::implementation_fusions);
+        }
 
         apply_opt_pass<select_preferred_formats>();
 
@@ -1036,6 +1041,33 @@ void program::rename(program_node& node, primitive_id const& new_id) {
 void program::swap_names(program_node& node1, program_node& node2) {
     nodes_map.at(node1.id()).swap(nodes_map.at(node2.id()));
     std::swap(node1.desc->id, node2.desc->id);
+}
+
+void program::transfer_output_identity(program_node& output_node, program_node& replacement_node) {
+    if (!output_node.is_output()) {
+        throw std::invalid_argument("Output identity can only be transferred from an output node");
+    }
+    if (replacement_node.is_output()) {
+        throw std::invalid_argument("Output identity cannot replace another program output");
+    }
+
+    const auto output = std::find(outputs.begin(), outputs.end(), &output_node);
+    if (output == outputs.end()) {
+        throw std::runtime_error("Output node is missing from the program output list");
+    }
+
+    const auto origin_op_name = output_node.desc->origin_op_name;
+    const auto origin_op_type_name = output_node.desc->origin_op_type_name;
+    const auto user_mark = output_node.user_mark;
+
+    output_node.set_output(false);
+    replacement_node.set_output(true);
+    *output = &replacement_node;
+    swap_names(replacement_node, output_node);
+
+    replacement_node.desc->origin_op_name = origin_op_name;
+    replacement_node.desc->origin_op_type_name = origin_op_type_name;
+    replacement_node.user_mark = user_mark;
 }
 
 void program::replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling) {
@@ -2214,4 +2246,3 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         }
     }
 }
-

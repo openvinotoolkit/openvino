@@ -27,6 +27,16 @@ Type extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
     return res.as<Type>();
 }
 
+ContextType get_context_type(cldnn::backend_types backend_type) {
+    switch (backend_type) {
+    case cldnn::backend_types::ocl:
+        return ContextType::OCL;
+    case cldnn::backend_types::ze:
+        return ContextType::ZE;
+    default:
+        return ContextType::NATIVE;
+    }
+}
 
 ov::MmapMode to_util_mmap_mode(ov::intel_gpu::AccessMode access) {
     switch (access) {
@@ -38,33 +48,12 @@ ov::MmapMode to_util_mmap_mode(ov::intel_gpu::AccessMode access) {
     OPENVINO_THROW("[GPU] Unsupported file access mode");
 }
 
-ContextType get_default_context_type() {
-    #ifdef OV_GPU_WITH_ZE_RT
-        return ContextType::ZE;
-    #elif defined(OV_GPU_WITH_OCL_RT)
-        return ContextType::OCL;
-    #elif defined(OV_GPU_WITH_SYCL_RT)
-        // TODO: return OCL or ZE ContextType according to the underlying SYCL backend.
-        // OCL is used as a placeholder for now.
-        return ContextType::OCL;
-    #else
-        #error "Expected OpenVINO GPU runtime macros to be defined"
-    #endif
-}
-
 }  // namespace
 
 RemoteContextImpl::RemoteContextImpl(const std::string& device_name, std::vector<cldnn::device::ptr> devices, bool initialize_ctx)
     : m_device_name(device_name) {
     OPENVINO_ASSERT(devices.size() == 1, "[GPU] Currently context can be created for single device only");
     m_device = devices.front();
-    m_type = get_default_context_type();
-    const auto &info = m_device->get_info();
-    if (m_type == ContextType::ZE && info.supports_leo) {
-        m_type = ContextType::OCL;
-        GPU_DEBUG_INFO << "Enabled Level Zero - OpenCL interoperability for "
-            << m_device_name << " (" << info.dev_name << ")" << std::endl;
-    }
 
     if (initialize_ctx) {
         initialize();
@@ -72,17 +61,13 @@ RemoteContextImpl::RemoteContextImpl(const std::string& device_name, std::vector
 }
 
 RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextImpl::Ptr>& known_contexts, const AnyMap& params) {
-#ifdef OV_GPU_WITH_SYCL_RT
-    // TODO: enable shared RemoteContext for SYCL_RT once SYCL interop is wired up.
-    OPENVINO_THROW("[GPU] Shared RemoteContext is not supported with SYCL runtime yet");
-#endif
     gpu_handle_param context_id = nullptr;
     int ctx_device_id = 0;
     int target_tile_id = -1;
-    m_type = get_default_context_type();
 
     if (!params.empty()) {
         auto ctx_type = extract_object(params, ov::intel_gpu::context_type);
+        m_has_explicit_context_type = true;
 
         if (ctx_type == ov::intel_gpu::ContextType::OCL) {
             context_id = extract_object(params, ov::intel_gpu::ocl_context);
@@ -100,7 +85,7 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
         } else if (ctx_type == ov::intel_gpu::ContextType::ZE) {
             OPENVINO_THROW("Level Zero interoperability is not supported");
         } else {
-            OPENVINO_THROW("Invalid execution context type", ctx_type);
+            OPENVINO_THROW("External context interoperability is not supported for context type ", ctx_type);
         }
         m_type = ctx_type;
         if (params.find(ov::intel_gpu::tile_id.name()) != params.end()) {
@@ -133,25 +118,20 @@ const cldnn::engine& RemoteContextImpl::get_engine() const {
 }
 
 void RemoteContextImpl::init_properties() {
-#ifdef OV_GPU_WITH_SYCL_RT
-    // TODO: populate SYCL-backed RemoteContext properties once SYCL interop is wired up.
-    // SYCL engine exposes no OCL/ZE user-context handles; leave properties empty (RemoteTensor is blocked separately).
-    return;
-#endif
+    properties.insert(ov::intel_gpu::context_type(m_type));
     switch (m_type) {
     case ContextType::OCL:
-        properties.insert(ov::intel_gpu::context_type(ov::intel_gpu::ContextType::OCL));
         properties.insert(ov::intel_gpu::ocl_context(m_engine->get_user_context(cldnn::runtime_types::ocl)));
         properties.insert(ov::intel_gpu::ocl_queue(m_external_queue));
         break;
     case ContextType::VA_SHARED:
-        properties.insert(ov::intel_gpu::context_type(ov::intel_gpu::ContextType::VA_SHARED));
         properties.insert(ov::intel_gpu::ocl_context(m_engine->get_user_context(cldnn::runtime_types::ocl)));
         properties.insert(ov::intel_gpu::va_device(m_va_display));
         break;
     case ContextType::ZE:
-        properties.insert(ov::intel_gpu::context_type(ov::intel_gpu::ContextType::ZE));
         properties.insert(ov::intel_gpu::ocl_context(m_engine->get_user_context(cldnn::runtime_types::ze)));
+        break;
+    case ContextType::NATIVE:
         break;
     default:
         OPENVINO_THROW("[GPU] Unsupported shared context type ", m_type);
@@ -234,10 +214,16 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
             check_if_shared();
 #endif
         } else if (ov::intel_gpu::SharedMemType::BUFFER_FROM_HANDLE == mem_type) {
-            tensor_type = TensorType::BT_BUF_SHARED_FROM_HANDLE;
-            const auto os_handle = extract_object(params, ov::intel_gpu::os_handle);
-            SharedBufferHandle handle{os_handle};
-            return { reuse_memory_from_handle(type, shape, handle, tensor_type), nullptr };
+            const auto native_handle = params.find(ov::intel_gpu::mem_handle.name());
+            if (native_handle != params.end()) {
+                tensor_type = TensorType::BT_BUF_SHARED;
+                mem = native_handle->second.as<cldnn::shared_handle>();
+            } else {
+                tensor_type = TensorType::BT_BUF_SHARED_FROM_HANDLE;
+                const auto os_handle = extract_object(params, ov::intel_gpu::os_handle);
+                SharedBufferHandle handle{os_handle};
+                return {reuse_memory_from_handle(type, shape, handle, tensor_type), nullptr};
+            }
         } else {
             OPENVINO_THROW("[GPU] Unsupported shared object type ", mem_type);
         }
@@ -362,8 +348,16 @@ void RemoteContextImpl::initialize() {
         GPU_DEBUG_INFO << "Initialize RemoteContext for " << m_device_name << " (" << m_device->get_info().dev_name << ")" << std::endl;
 
         m_device->initialize();  // Initialize associated device before use
-        m_engine = cldnn::engine::create(
-            cldnn::get_default_engine_type(), cldnn::get_default_runtime_type(), m_device);
+        m_engine = cldnn::engine::create(m_device->get_engine_type(), m_device->get_runtime_type(), m_device);
+
+        if (!m_has_explicit_context_type) {
+            m_type = get_context_type(m_engine->backend_type());
+            const auto& info = m_device->get_info();
+            if (m_device->get_runtime_type() == cldnn::runtime_types::ze && m_type == ContextType::ZE && info.supports_leo) {
+                m_type = ContextType::OCL;
+                GPU_DEBUG_INFO << "Enabled Level Zero - OpenCL interoperability for " << m_device_name << " (" << info.dev_name << ")" << std::endl;
+            }
+        }
 
         init_properties();
 

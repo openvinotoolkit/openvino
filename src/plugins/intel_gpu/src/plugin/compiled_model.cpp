@@ -2,20 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/runtime/iplugin.hpp"
-#include "openvino/runtime/intel_gpu/properties.hpp"
-#include "openvino/runtime/internal_properties.hpp"
-#include "openvino/runtime/plugin_config.hpp"
-#include "openvino/core/version.hpp"
-
-#include "intel_gpu/graph/serialization/binary_buffer.hpp"
-#include "intel_gpu/runtime/itt.hpp"
-#include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
-#include "intel_gpu/plugin/async_infer_request.hpp"
+
+#include <sys/types.h>
 
 #include <sstream>
-#include <sys/types.h>
+
+#include "cache/runtime_requirements.hpp"
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/plugin/async_infer_request.hpp"
+#include "intel_gpu/plugin/graph.hpp"
+#include "intel_gpu/runtime/itt.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
+#include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/plugin_config.hpp"
 
 namespace ov::intel_gpu {
 
@@ -61,7 +62,7 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
       m_inputs(ov::ICompiledModel::inputs()),
       m_outputs(ov::ICompiledModel::outputs()),
       m_loaded_from_cache(false) {
-    m_runtime_requirements = build_runtime_requirements(m_context->get_engine().get_device_info());
+    m_runtime_requirements = cache::build_runtime_requirements(*m_context->get_engine().get_device());
     auto graph_base = std::make_shared<Graph>(model, m_context, m_config, 0);
     for (uint16_t n = 0; n < m_config.get_num_streams(); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
@@ -90,7 +91,7 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     // Missing magic => blob produced by an OpenVINO build predating this feature.
     uint64_t requirements_magic = 0;
     ib >> requirements_magic;
-    if (requirements_magic != runtime_requirements_magic) {
+    if (requirements_magic != cache::runtime_requirements_magic) {
         OPENVINO_THROW("[GPU] Cannot import compiled blob: missing compatibility descriptor "
                        "(blob produced by an incompatible OpenVINO version).");
     }
@@ -98,20 +99,27 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     // Unknown descriptor version => on-disk contract we can't parse safely.
     uint32_t requirements_version = 0;
     ib >> requirements_version;
-    if (requirements_version != runtime_requirements_version) {
-        OPENVINO_THROW("[GPU] Unsupported compatibility descriptor version ", requirements_version,
-                       " in compiled blob (expected ", runtime_requirements_version, ").");
+    if (requirements_version != cache::runtime_requirements_version) {
+        OPENVINO_THROW("[GPU] Unsupported compatibility descriptor version ",
+                       requirements_version,
+                       " in compiled blob (expected ",
+                       cache::runtime_requirements_version,
+                       ").");
     }
     ib >> m_runtime_requirements;
 
     // Descriptor content mismatch => blob built for a different runtime (OpenVINO version/driver).
-    const auto& device_info = m_context->get_engine().get_device_info();
-    if (!is_runtime_requirements_compatible(m_runtime_requirements, device_info)) {
+    const auto& device = *m_context->get_engine().get_device();
+    if (!cache::is_runtime_requirements_compatible(m_runtime_requirements, device)) {
         OPENVINO_THROW("[GPU] Cannot import compiled blob: it was built for a different runtime "
-                       "configuration (OpenVINO version/driver mismatch) and cannot be executed on "
+                       "configuration (backend, kernel artifact, OpenVINO version, or driver mismatch) "
+                       "and cannot be executed on "
                        "this device.\n"
-                       "  blob:    ", m_runtime_requirements, "\n"
-                       "  current: ", build_runtime_requirements(device_info));
+                       "  blob:    ",
+                       m_runtime_requirements,
+                       "\n"
+                       "  current: ",
+                       cache::build_runtime_requirements(device));
     }
 
     {
@@ -227,9 +235,9 @@ void CompiledModel::export_model(std::ostream& model) const {
     ob << cldnn::make_data(&cache_mode, sizeof(ov::CacheMode));
 
     // Compatibility-descriptor block (see blob format above).
-    const uint64_t requirements_magic = runtime_requirements_magic;
+    const uint64_t requirements_magic = cache::runtime_requirements_magic;
     ob << requirements_magic;
-    const uint32_t requirements_version = runtime_requirements_version;
+    const uint32_t requirements_version = cache::runtime_requirements_version;
     ob << requirements_version;
     ob << m_runtime_requirements;
 
@@ -278,26 +286,6 @@ void CompiledModel::export_model(std::ostream& model) const {
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
     return get_graph(0)->get_runtime_model();
-}
-
-std::string CompiledModel::build_runtime_requirements(const cldnn::device_info& info) {
-    // v1 GPU compatibility descriptor: meta=<schema>;ov=<major.minor.patch>;desc=[<device props>].
-    // The desc fields are the device properties that invalidate a compiled blob if changed:
-    //   driver (owns the kernel binaries), ip (GFX IP hardware version), eus (execution units).
-    std::ostringstream ss;
-    ss << "meta=1.0"
-       << ";ov=" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH
-       << ";desc=[driver=" << info.driver_version
-       << ";ip=" << info.gfx_ver.major << "." << static_cast<uint32_t>(info.gfx_ver.minor) << "."
-       << static_cast<uint32_t>(info.gfx_ver.revision)
-       << ";eus=" << info.execution_units_count << "]";
-    return ss.str();
-}
-
-bool CompiledModel::is_runtime_requirements_compatible(const std::string& requirements, const cldnn::device_info& info) {
-    // v1 policy: exact match of the full, device-deterministic descriptor. Change this single
-    // function to adjust the policy (e.g. OpenVINO-version-only) for both import and compatibility_check.
-    return requirements == build_runtime_requirements(info);
 }
 
 const std::vector<std::shared_ptr<Graph>>& CompiledModel::get_graphs() const {

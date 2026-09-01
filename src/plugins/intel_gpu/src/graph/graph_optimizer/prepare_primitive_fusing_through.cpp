@@ -2,16 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pass_manager.h"
-#include "program_helpers.h"
-#include "strided_slice_inst.h"
-#include "reshape_inst.h"
-#include "reduce_inst.h"
+#include <memory>
+#include <vector>
+
+#include "activation_inst.h"
+#include "common_utils/shape_utils.hpp"
 #include "data_inst.h"
 #include "eltwise_inst.h"
 #include "mutable_data_inst.h"
-#include <vector>
-#include <memory>
+#include "pass_manager.h"
+#include "program_helpers.h"
+#include "reduce_inst.h"
+#include "reshape_inst.h"
+#include "strided_slice_inst.h"
 
 using namespace cldnn;
 
@@ -139,7 +142,7 @@ void prepare_primitive_fusing_through::run(program& p) {
         if (node->is_type<eltwise>()) {
             auto out_shape = new_prev->get_output_layout().get_partial_shape();  // new_prev's layout became node's new layout after fusing
             auto in_shape = node->get_dependency(1).get_output_layout().get_partial_shape();
-            if (!broadcastable(in_shape, out_shape, true, true))
+            if (!shapes_are_broadcastable(in_shape, out_shape, true, true))
                 continue;
         }
 

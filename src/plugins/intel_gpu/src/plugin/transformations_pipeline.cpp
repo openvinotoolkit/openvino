@@ -12,16 +12,19 @@
 #include <memory>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <unordered_set>
 #include <vector>
-#include <type_traits>
 
+#include "intel_gpu/op/fully_connected.hpp"
+#include "intel_gpu/op/indirect_sdpa.hpp"
+#include "intel_gpu/op/read_value.hpp"
+#include "intel_gpu/op/sdpa.hpp"
+#include "intel_gpu/primitives/paged_attention.hpp"
+#include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
-#include "intel_gpu/primitives/paged_attention.hpp"
-#include "intel_gpu/op/indirect_sdpa.hpp"
-#include "intel_gpu/op/sdpa.hpp"
-#include "intel_gpu/op/read_value.hpp"
+#include "intel_gpu/runtime/runtime_backend_registry.hpp"
 #include "low_precision/add.hpp"
 #include "low_precision/concat.hpp"
 #include "low_precision/convolution.hpp"
@@ -29,127 +32,135 @@
 #include "low_precision/fold_convert.hpp"
 #include "low_precision/fuse_convert.hpp"
 #include "low_precision/group_convolution.hpp"
-#include "low_precision/qdq_stripping.hpp"
 #include "low_precision/low_precision.hpp"
 #include "low_precision/mat_mul.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 #include "low_precision/mvn.hpp"
 #include "low_precision/network_helper.hpp"
-#include "low_precision/recurrent_cell.hpp"
 #include "low_precision/prelu.hpp"
+#include "low_precision/qdq_stripping.hpp"
+#include "low_precision/recurrent_cell.hpp"
 #include "low_precision/transpose.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/core/partial_shape.hpp"
-#include "openvino/core/shape.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/ceiling.hpp"
+#include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/group_conv.hpp"
+#include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/gru_cell.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/moe.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
 #include "openvino/op/normalize_l2.hpp"
+#include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/op/reduce_max.hpp"
-#include "openvino/op/abs.hpp"
-#include "openvino/op/ceiling.hpp"
-#include "openvino/op/clamp.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/reverse_sequence.hpp"
 #include "openvino/op/rnn_cell.hpp"
 #include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/roll.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/shuffle_channels.hpp"
 #include "openvino/op/squeeze.hpp"
-#include "openvino/op/paged_attention.hpp"
-#include "openvino/op/paged_gated_delta_net.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
-#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/opsets/opset10_decl.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/pass/backward_graph_rewrite.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/sdpa_to_vlsdpa.hpp"
+#include "openvino/util/log.hpp"
 #include "ov_ops/gather_matmul_compressed.hpp"
+#include "ov_ops/grouped_matmul_compressed.hpp"
+#include "ov_ops/moe_compressed.hpp"
 #include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
 #include "plugin/transformations/binary_conv_to_conv.hpp"
 #include "plugin/transformations/clamp_fp16_output.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
-#include "transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
-#include "plugin/transformations/fuse_moe_shared_expert.hpp"
-#include "transformations/common_optimizations/moe_op_fusion.hpp"
-#include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
 #include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
 #include "plugin/transformations/decompose_reduce_scalar_output.hpp"
+#include "plugin/transformations/disable_fp16_comp_cumsum_sin_gen.hpp"
+#include "plugin/transformations/disable_fp16_comp_rms.hpp"
+#include "plugin/transformations/disable_fp16_comp_sin_gen.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
+#include "plugin/transformations/expand_broadcast_reshape_sdpa_fusion.hpp"
 #include "plugin/transformations/fc_convert_fusion.hpp"
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
 #include "plugin/transformations/fold_activation_transpose.hpp"
-#include "plugin/transformations/fuse_gated_mlp.hpp"
 #include "plugin/transformations/fuse_atan2_decomposed.hpp"
+#include "plugin/transformations/fuse_gated_mlp.hpp"
 #include "plugin/transformations/fuse_moe_router.hpp"
 #include "plugin/transformations/fuse_moe_router_scale.hpp"
+#include "plugin/transformations/fuse_moe_shared_expert.hpp"
 #include "plugin/transformations/increase_position_ids_precision.hpp"
+#include "plugin/transformations/increase_rms_input_precision.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/keep_gqa_kv_scale_precision.hpp"
 #include "plugin/transformations/keep_moe_3gemm_const_precision.hpp"
 #include "plugin/transformations/keep_xattention_threshold_precision.hpp"
-#include "plugin/transformations/preserve_single_selective_ssm_output.hpp"
 #include "plugin/transformations/kv_cache_compression.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
 #include "plugin/transformations/lora_subgraph_horizontal_fusion.hpp"
-#include "intel_gpu/op/fully_connected.hpp"
-#include "transformations/common_optimizations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
+#include "plugin/transformations/preserve_single_selective_ssm_output.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
 #include "plugin/transformations/reduce_fc_dimensions.hpp"
-#include "plugin/transformations/sink_reshape.hpp"
-#include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/sdpa_transpose_fusion.hpp"
-#include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
-#include "plugin/transformations/expand_broadcast_reshape_sdpa_fusion.hpp"
-#include "plugin/transformations/disable_fp16_comp_rms.hpp"
+#include "plugin/transformations/sink_reshape.hpp"
 #include "plugin/transformations/swiglu_fusion_with_clamp.hpp"
-#include "plugin/transformations/disable_fp16_comp_cumsum_sin_gen.hpp"
-#include "plugin/transformations/disable_fp16_comp_sin_gen.hpp"
-#include "plugin/transformations/increase_rms_input_precision.hpp"
+#include "plugin/transformations/transpose_fusion.hpp"
+#include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "transformations/common_optimizations/activations_scaling.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
+#include "transformations/common_optimizations/constants_reduce.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
-#include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
+#include "transformations/common_optimizations/convert_tiled_moe_block_to_gather_matmuls.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
+#include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/glu_fusion.hpp"
 #include "transformations/common_optimizations/group_normalization_fusion.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/common_optimizations/lora_subgraph_fusion.hpp"
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
+#include "transformations/common_optimizations/moe_op_fusion.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
+#include "transformations/common_optimizations/move_fc_reshape_to_weights.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
-#include "transformations/common_optimizations/convert_tiled_moe_block_to_gather_matmuls.hpp"
-#include "transformations/op_conversions/convert_grouped_matmul_to_gather_matmul.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/sdpa_scale_fusion.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
-#include "transformations/common_optimizations/transpose_to_reshape.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
+#include "transformations/common_optimizations/transpose_to_reshape.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
-#include "transformations/common_optimizations/constants_reduce.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/convert_pooling_to_reduce.hpp"
 #include "transformations/convert_precision.hpp"
@@ -159,17 +170,21 @@
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/init_node_info.hpp"
-#include "transformations/normalize_l2_decomposition.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
+#include "transformations/normalize_l2_decomposition.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 #include "transformations/op_conversions/convert_broadcast3.hpp"
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
+#include "transformations/op_conversions/convert_divide.hpp"
 #include "transformations/op_conversions/convert_gather_0d.hpp"
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
+#include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
 #include "transformations/op_conversions/convert_gather_to_compressed.hpp"
 #include "transformations/op_conversions/convert_gelu.hpp"
 #include "transformations/op_conversions/convert_gp9_to_gp_ie_internal.hpp"
+#include "transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp"
+#include "transformations/op_conversions/convert_grouped_matmul_to_gather_matmul.hpp"
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 #include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
 #include "transformations/op_conversions/convert_mod.hpp"
@@ -214,20 +229,6 @@
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/moe.hpp"
-#include "openvino/op/reverse_sequence.hpp"
-#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
-#include "openvino/core/weight_sharing_util.hpp"
-#include "ov_ops/moe_compressed.hpp"
-#include "ov_ops/grouped_matmul_compressed.hpp"
-#include "openvino/op/roll.hpp"
-#include "openvino/op/shuffle_channels.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/util/log.hpp"
-
-#include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 namespace {
 template<typename T>
 static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> node) {
@@ -427,14 +428,38 @@ static bool should_decompose_sdpa_for_memory_size(size_t max_size,
     return false;
 }
 
+#ifdef OV_GPU_WITH_OCL_IMPLS
 namespace cldnn {
 extern bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config);
 extern bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config);
 }  // namespace cldnn
+#endif
 
 namespace ov::intel_gpu {
 
 namespace {
+#ifdef OV_GPU_WITH_OCL_IMPLS
+bool supports_ocl_backend_features(const cldnn::engine& engine) {
+    return engine.backend_type() == cldnn::backend_types::ocl || engine.backend_type() == cldnn::backend_types::ze;
+}
+#endif
+
+bool supports_cm_jit(cldnn::engine& engine, const cldnn::ExecutionConfig& config) {
+#ifdef OV_GPU_WITH_OCL_IMPLS
+    return supports_ocl_backend_features(engine) && cldnn::check_cm_jit_support(engine, config);
+#else
+    return false;
+#endif
+}
+
+bool supports_microkernels(cldnn::engine& engine, const cldnn::ExecutionConfig& config) {
+#ifdef OV_GPU_WITH_OCL_IMPLS
+    return supports_ocl_backend_features(engine) && cldnn::query_microkernels_supported(engine, config);
+#else
+    return false;
+#endif
+}
+
 // Detect whether the model contains a linear-attention (Mamba2 / Gated DeltaNet)
 // block. Such hybrid-attention models have an SSM gated output whose activation
 // has a wide dynamic range and is unstable under per-token INT8 dyn-quant; we
@@ -604,7 +629,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     }
 #endif
 
-                    if (!check_cm_jit_support(engine, config)) {
+                    if (!supports_cm_jit(engine, config)) {
                         OPENVINO_WARN("SDPAToVLSDPA optimization for QWenVL model unavailable: IGC version incompatible with CM kernel. "
                                     "Update IGC and ensure clangFEWrapper for CM is available (check CM_FE_DIR or LD_LIBRARY_PATH on Linux).");
                         return true;
@@ -777,6 +802,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                           convert_input_output_precision,
                                                           store_original_precision_as_rt_attribute);
 
+        const auto& operation_lowering = cldnn::runtime_backend_registry::get(m_context->get_engine().runtime_type()).operation_lowering;
+        if (operation_lowering.direct_divide) {
+            // Keep Divide intact when the selected backend executes it directly
+            // and does not require the Power-based decomposition.
+            pass_config->disable<ov::pass::ConvertDivide>();
+        }
         manager.register_pass<ov::pass::CommonOptimizations>();
 
         // In the case of "zp/scale -> reshape -> transpose -> MOE",
@@ -805,7 +836,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         }
 #endif
 
-                        if (!check_cm_jit_support(engine, config)) {
+                        if (!supports_cm_jit(engine, config)) {
                             OPENVINO_WARN("XAttention optimization unavailable: IGC version incompatible with CM kernel. "
                                         "Update IGC and ensure clangFEWrapper for CM is available (check CM_FE_DIR or LD_LIBRARY_PATH on Linux).");
                             return false;
@@ -958,7 +989,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
              }
 
             const auto head_size = static_cast<uint64_t>(query_ps[query_ps.size() - 1].get_length());
-            if (device_info.supports_immad && cldnn::query_microkernels_supported(m_context->get_engine(), config) && head_size <= 256)
+            if (device_info.supports_immad && supports_microkernels(m_context->get_engine(), config) && head_size <= 256)
                 return true;
 
             // - Head size should be 128 for any model type; or should be in the range of 64 to 512 for stateful LLMs because of performance
@@ -1010,7 +1041,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     const auto &lstm_seq = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(node);
 
                     auto &engine = m_context->get_engine();
-                    if (!cldnn::check_cm_jit_support(engine, config) || engine.get_device_info().arch != cldnn::gpu_arch::xe2 || !config.get_use_cm()) {
+                    if (!supports_cm_jit(engine, config) || engine.get_device_info().arch != cldnn::gpu_arch::xe2 || !config.get_use_cm()) {
                         return false;
                     }
 

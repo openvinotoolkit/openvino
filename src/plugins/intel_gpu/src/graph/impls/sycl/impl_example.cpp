@@ -3,7 +3,11 @@
 //
 
 #include "impl_example.hpp"
+
+#include <memory>
+
 #include "fully_connected_inst.h"
+#include "impls/ocl/kernel_selector_helper.h"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "ocl/ocl_event.hpp"
 #include "ocl/sycl_engine.hpp"
@@ -11,13 +15,8 @@
 #include "openvino/core/type/element_type.hpp"
 #include "primitive_sycl_base.h"
 #include "registry/implementation_map.hpp"
-
-#include "impls/ocl/kernel_selector_helper.h"
-
-#include "sycl/sycl.hpp"
 #include "sycl/ext/oneapi/experimental/builtins.hpp"
-
-#include <memory>
+#include "sycl/sycl.hpp"
 
 #ifdef __SYCL_DEVICE_ONLY__
           #define CONSTANT __attribute__((opencl_constant))

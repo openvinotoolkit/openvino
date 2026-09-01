@@ -1,13 +1,26 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <string>
+#include "set_device_name.hpp"
+
 #include <algorithm>
 #include <stdexcept>
+#include <string>
 
 #include "common_test_utils/ov_plugin_cache.hpp"
+#include "gtest/gtest.h"
 
-#include "set_device_name.hpp"
+namespace {
+
+class GPURuntimeCleanupEnvironment : public testing::Environment {
+    void TearDown() override {
+        ov::test::utils::PluginCache::get().reset();
+    }
+};
+
+[[maybe_unused]] const auto* gpu_runtime_cleanup_environment = testing::AddGlobalTestEnvironment(new GPURuntimeCleanupEnvironment);
+
+}  // namespace
 
 namespace ov {
 namespace test {

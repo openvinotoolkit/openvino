@@ -311,7 +311,7 @@ const std::vector<std::pair<size_t, int>> format::per_axis_block_size(format fmt
     return sizes_for_dims;
 }
 
-format format::find_format(const std::vector<uint64_t>& order,
+format format::find_format(const std::vector<size_t>& order,
                            const std::vector<std::pair<size_t, int>>& block_sizes,
                            bool is_weights,
                            bool is_grouped,
@@ -319,13 +319,9 @@ format format::find_format(const std::vector<uint64_t>& order,
                            bool is_winograd,
                            bool is_nv12) {
     auto is_suitable_traits = [&](const std::pair<format::type, format_traits>& traits) -> bool {
-        return traits.second._order == order &&
-               traits.second.block_sizes == block_sizes &&
-               format::is_weights_format(traits.first) == is_weights &&
-               format::is_grouped(traits.first) == is_grouped &&
-               format::is_image_2d(traits.first) == is_image_2d &&
-               format::is_winograd(traits.first) == is_winograd &&
-               format::is_nv12(traits.first) == is_nv12;
+        return traits.second._order == order && traits.second.block_sizes == block_sizes && format::is_weights_format(traits.first) == is_weights &&
+               format::is_grouped(traits.first) == is_grouped && format::is_image_2d(traits.first) == is_image_2d &&
+               format::is_winograd(traits.first) == is_winograd && format::is_nv12(traits.first) == is_nv12;
     };
 
     std::vector<format> finded_formats;

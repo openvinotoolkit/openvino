@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
+#include <map>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "custom_gpu_primitive_inst.h"
-#include "jitter.h"
 #include "intel_gpu/graph/serialization/map_serializer.hpp"
-
-#include <map>
-#include <sstream>
-#include <vector>
-#include <memory>
-#include <string>
+#include "jitter.h"
+#include "primitive_base.hpp"
 
 namespace kernel_selector {
 using jit_constants = kernel_selector::JitConstants;
@@ -72,7 +72,7 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::custom_gpu_primitive_impl)
 
     std::shared_ptr<kernel_selector::cl_kernel_data> cl_kernel;
-    std::vector<kernel::ptr> _kernels;
+    gpu_kernel_lifecycle _kernels;
     std::map<uint32_t, std::string> size_expr_map;
 
     std::unique_ptr<primitive_impl> clone() const override {
@@ -85,11 +85,8 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     custom_gpu_primitive_impl(const custom_gpu_primitive_impl& other)
     : parent(other.get_kernel_name())
     , cl_kernel(other.cl_kernel)
-    , _kernels({})
     , size_expr_map(other.size_expr_map) {
-        for (const auto& kernel : other._kernels) {
-            _kernels.emplace_back(kernel->clone(other.can_share_kernels));
-        }
+        _kernels.clone_from(other._kernels, other.can_share_kernels);
     }
 
     custom_gpu_primitive_impl(const custom_gpu_primitive_node& arg,
@@ -111,30 +108,19 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     }
 
     void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) override {
-        _kernels.clear();
-        auto compiled_kernels = kernels_cache.get_kernels(params);
-        _kernels.insert(_kernels.begin(), compiled_kernels.begin(), compiled_kernels.end());
-        this->can_share_kernels = kernels_cache.get_kernels_reuse();
+        this->can_share_kernels = _kernels.initialize(kernels_cache, params);
     }
 
     void init_by_cached_kernels(const kernels_cache& kernels_cache, std::vector<std::string>& cached_kernel_ids) override {
-        _kernels.emplace_back(kernels_cache.get_kernel_from_cached_kernels(cached_kernel_ids[0]));
-        this->can_share_kernels = kernels_cache.get_kernels_reuse();
+        this->can_share_kernels = _kernels.restore(kernels_cache, cached_kernel_ids);
     }
 
     std::vector<std::string> get_cached_kernel_ids(const kernels_cache& kernels_cache) override {
-        return {kernels_cache.get_cached_kernel_id(_kernels[0])};
+        return _kernels.get_cached_kernel_ids(kernels_cache);
     }
 
     void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) override {
-        OPENVINO_ASSERT(kernels.size() == 1, "Only the kernels of the single primitive should be allowed.");
-        auto& kernel_vec = kernels.begin()->second;
-        _kernels.clear();
-        _kernels.resize(kernel_vec.size());
-        for (auto& k : kernel_vec) {
-            auto sub_kernel_idx = k.second;
-            _kernels[sub_kernel_idx] = k.first;
-        }
+        _kernels.adopt_compiled(std::move(kernels));
     }
 
     std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& impl_params) const override {
@@ -186,7 +172,7 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     }
 
     std::vector<kernel::ptr> get_kernels() const override {
-        return _kernels;
+        return _kernels.copy_kernels();
     }
 
     void save(BinaryOutputBuffer& ob) const override {

@@ -2,55 +2,51 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/graph/program.hpp"
-
 #include "kernel_selector_helper.h"
-#include "intel_gpu/runtime/device_info.hpp"
-#include "kernel_selector_params.h"
-#include "to_string_utils.h"
-#include "program_node.h"
+
+#include <chrono>
+#include <string>
+#include <type_traits>
+#include <vector>
+
+#include "activation_inst.h"
+#include "common_utils/kernels_cache.hpp"
+#include "eltwise_inst.h"
+#include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/polymorphic_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
-
 #include "intel_gpu/primitives/concatenation.hpp"
 #include "intel_gpu/primitives/convolution.hpp"
 #include "intel_gpu/primitives/crop.hpp"
+#include "intel_gpu/primitives/cum_sum.hpp"
+#include "intel_gpu/primitives/depth_to_space.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/primitives/embedding_bag.hpp"
+#include "intel_gpu/primitives/extract_image_patches.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include "intel_gpu/primitives/normalize.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
-#include "intel_gpu/primitives/roi_pooling.hpp"
-#include "intel_gpu/primitives/softmax.hpp"
-#include "intel_gpu/primitives/depth_to_space.hpp"
-#include "intel_gpu/primitives/shuffle_channels.hpp"
-#include "intel_gpu/primitives/strided_slice.hpp"
-#include "intel_gpu/primitives/cum_sum.hpp"
 #include "intel_gpu/primitives/reverse_sequence.hpp"
-#include "intel_gpu/primitives/embedding_bag.hpp"
-#include "intel_gpu/primitives/extract_image_patches.hpp"
-
-#include "swiglu_inst.h"
-#include "activation_inst.h"
-#include "eltwise_inst.h"
-#include "quantize_inst.h"
-#include "reorder_inst.h"
-
-#include "kernel_selector/kernels/swiglu/swiglu_kernel_base.h"
+#include "intel_gpu/primitives/roi_pooling.hpp"
+#include "intel_gpu/primitives/shuffle_channels.hpp"
+#include "intel_gpu/primitives/softmax.hpp"
+#include "intel_gpu/primitives/strided_slice.hpp"
+#include "intel_gpu/runtime/device_info.hpp"
 #include "kernel_selector/kernels/activation/activation_kernel_base.h"
 #include "kernel_selector/kernels/depth_to_space/depth_to_space_kernel_base.h"
 #include "kernel_selector/kernels/eltwise/eltwise_kernel_base.h"
 #include "kernel_selector/kernels/quantize/quantize_kernel_params.h"
 #include "kernel_selector/kernels/reorder/reorder_kernel_base.h"
-
-#include "impls/ocl/kernels_cache.hpp"
-
-#include <string>
-#include <type_traits>
-#include <vector>
-#include <chrono>
+#include "kernel_selector/kernels/swiglu/swiglu_kernel_base.h"
+#include "kernel_selector_params.h"
+#include "program_node.h"
+#include "quantize_inst.h"
+#include "reorder_inst.h"
+#include "swiglu_inst.h"
+#include "to_string_utils.h"
 
 namespace {
 using namespace cldnn;

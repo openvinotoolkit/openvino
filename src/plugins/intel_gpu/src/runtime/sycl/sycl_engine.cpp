@@ -238,11 +238,18 @@ bool sycl_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {
                downcast<const sycl::gpu_usm>(mem2).get_buffer();
 }
 
-void* sycl_engine::get_user_context(runtime_types rt_type) const {
-    OPENVINO_ASSERT(rt_type == runtime_types::sycl,
-        "[GPU] SYCL engine can only provide SYCL context but requested context for ", rt_type);
-     auto& sycl_device = downcast<sycl::sycl_device>(*_device);
-     return const_cast<void*>(static_cast<const void*>(&sycl_device.get_context()));
+void* sycl_engine::get_user_context(runtime_types runtime_type) const {
+    const auto& context = get_sycl_context();
+    if (runtime_type == runtime_types::sycl) {
+        return const_cast<void*>(static_cast<const void*>(&context));
+    }
+    if (runtime_type == runtime_types::ocl && backend_type() == backend_types::ocl) {
+        return reinterpret_cast<void*>(::sycl::get_native<::sycl::backend::opencl>(context));
+    }
+    if (runtime_type == runtime_types::ze && backend_type() == backend_types::ze) {
+        return reinterpret_cast<void*>(::sycl::get_native<::sycl::backend::ext_oneapi_level_zero>(context));
+    }
+    OPENVINO_THROW("[GPU] Requested native context does not match the SYCL backend");
 }
 
 std::shared_ptr<kernel_builder> sycl_engine::create_kernel_builder() const {

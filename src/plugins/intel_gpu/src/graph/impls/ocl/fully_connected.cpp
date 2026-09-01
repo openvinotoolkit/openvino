@@ -42,6 +42,7 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
         _kernel_data = kd;
         _kernel_name = kd.kernelName;
         can_reuse_memory = _kernel_data.can_reuse_memory;
+        rebuild_execution_plan();
     }
 
     std::unique_ptr<primitive_impl> clone() const override {

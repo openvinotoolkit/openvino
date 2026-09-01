@@ -4,29 +4,15 @@
 
 #include "intel_gpu/runtime/engine_configuration.hpp"
 
+#include "intel_gpu/runtime/runtime_backend_registry.hpp"
+
 namespace cldnn {
 
 engine_types get_default_engine_type() {
-#ifdef OV_GPU_WITH_ZE_RT
-    return engine_types::ze;
-#elif defined(OV_GPU_WITH_OCL_RT)
-    return engine_types::ocl;
-#elif defined(OV_GPU_WITH_SYCL_RT)
-    return engine_types::sycl;
-#else
-    #error "Expected OpenVINO GPU runtime macros to be defined"
-#endif
+    return runtime_backend_registry::default_backend().engine_type;
 }
 
 runtime_types get_default_runtime_type() {
-#ifdef OV_GPU_WITH_ZE_RT
-    return runtime_types::ze;
-#elif defined(OV_GPU_WITH_OCL_RT)
-    return runtime_types::ocl;
-#elif defined(OV_GPU_WITH_SYCL_RT)
-    return runtime_types::sycl;
-#else
-    #error "Expected OpenVINO GPU runtime macros to be defined"
-#endif
+    return runtime_backend_registry::default_backend().runtime_type;
 }
 }  // namespace cldnn

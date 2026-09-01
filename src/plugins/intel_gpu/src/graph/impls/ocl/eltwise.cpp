@@ -419,4 +419,3 @@ attach_eltwise_impl::attach_eltwise_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::eltwise_impl)
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::eltwise)

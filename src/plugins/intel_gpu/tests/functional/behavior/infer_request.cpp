@@ -22,8 +22,10 @@
 #include "common_test_utils/subgraph_builders/read_concat_split_assign.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
-#include "openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp"
+#ifdef OV_GPU_WITH_OCL_RT
+#    include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
+#    include "openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp"
+#endif
 
 namespace {
 typedef std::tuple<
@@ -683,6 +685,7 @@ TEST(TensorTest, smoke_canShareTensorIfModelsFromDifferentCores) {
     OV_ASSERT_NO_THROW(request2.infer());
 }
 
+#ifdef OV_GPU_WITH_OCL_RT
 TEST(CoreTest, smoke_singletonOclContext) {
     auto core1 = ov::Core();
     auto ctx1 = core1.get_default_context("GPU");
@@ -692,5 +695,6 @@ TEST(CoreTest, smoke_singletonOclContext) {
     auto& oclContext2 = static_cast<ov::intel_gpu::ocl::ClContext&>(ctx2);
     ASSERT_EQ(oclContext1.get(), oclContext2.get());
 }
+#endif
 
 } // namespace

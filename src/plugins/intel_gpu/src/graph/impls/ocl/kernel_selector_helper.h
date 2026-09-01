@@ -4,34 +4,28 @@
 
 #pragma once
 
-#include "intel_gpu/graph/serialization/binary_buffer.hpp"
-#include "intel_gpu/graph/kernel_impl_params.hpp"
-#include "intel_gpu/graph/fused_primitive_desc.hpp"
-#include "intel_gpu/graph/program.hpp"
-#include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/runtime/utils.hpp"
-#include "intel_gpu/runtime/tensor.hpp"
-#include "intel_gpu/primitives/eltwise.hpp"
-#include "intel_gpu/primitives/quantize.hpp"
-#include "intel_gpu/primitives/activation.hpp"
-#include "intel_gpu/primitives/reorder.hpp"
-#include "intel_gpu/primitives/primitive.hpp"
-
-#include "intel_gpu/runtime/layout.hpp"
-
-#include "openvino/core/shape.hpp"
-#include "openvino/core/shape_util.hpp"
-
-#include "kernel_selector_params.h"
-#include "weight_bias_params.h"
-#include "kernel_selector_common.h"
-#include "tensor_type.h"
-
 #include <cstdint>
-#include <optional>
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
+
+#include "common_utils/shape_utils.hpp"
+#include "intel_gpu/graph/fused_primitive_desc.hpp"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/primitives/activation.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/primitives/primitive.hpp"
+#include "intel_gpu/primitives/quantize.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/tensor.hpp"
+#include "intel_gpu/runtime/utils.hpp"
+#include "kernel_selector_common.h"
+#include "kernel_selector_params.h"
+#include "tensor_type.h"
+#include "weight_bias_params.h"
 
 namespace kernel_selector {
 using n_dims = kernel_selector::Tensor::NDims;
@@ -91,8 +85,8 @@ using weights_reorder_params = kernel_selector::WeightsReorderParams;
 namespace ov {
 namespace element {
 enum class Type_t;
-}  // namespaec element
-}  // namespaec ov
+}  // namespace element
+}  // namespace ov
 namespace cldnn {
 struct format;
 struct layout;
@@ -107,10 +101,8 @@ kernel_selector::data_layout to_data_layout(format f);
 cldnn::format from_data_layout(kernel_selector::data_layout l);
 kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped);
 cldnn::format::type from_weights_layout(kernel_selector::weights_layout l);
-kernel_selector::n_dims compute_tensor_dimensions(const layout& l,
-                                                    const size_t num_channels,
-                                                    const tensor view_offset = tensor {});
-kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor view_offset = tensor {});
+kernel_selector::n_dims compute_tensor_dimensions(const layout& l, const size_t num_channels, const tensor view_offset = tensor{});
+kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor view_offset = tensor{});
 kernel_selector::weights_tensor convert_weights_tensor(const layout& l, bool is_grouped = false);
 layout from_weights_tensor(const kernel_selector::weights_tensor& t);
 kernel_selector::activation_function get_kernel_selector_activation_param(activation_func activation_func);
@@ -165,201 +157,73 @@ params_t get_weight_bias_zero_point_default_params(const kernel_impl_params& par
 
 inline kernel_selector::eltwise_mode convert_to_eltwise_mode(eltwise_mode mode) {
     switch (mode) {
-        case eltwise_mode::sum:
-            return kernel_selector::eltwise_mode::ADD;
-        case eltwise_mode::sub:
-            return kernel_selector::eltwise_mode::SUB;
-        case eltwise_mode::max:
-            return kernel_selector::eltwise_mode::MAX;
-        case eltwise_mode::prod:
-            return kernel_selector::eltwise_mode::MUL;
-        case eltwise_mode::div:
-            return kernel_selector::eltwise_mode::DIV;
-        case eltwise_mode::min:
-            return kernel_selector::eltwise_mode::MIN;
-        case eltwise_mode::pow:
-            return kernel_selector::eltwise_mode::POW;
-        case eltwise_mode::mod:
-            return kernel_selector::eltwise_mode::MODULU;
-        case eltwise_mode::eq:
-            return kernel_selector::eltwise_mode::EQ;
-        case eltwise_mode::ne:
-            return kernel_selector::eltwise_mode::NE;
-        case eltwise_mode::lt:
-            return kernel_selector::eltwise_mode::LT;
-        case eltwise_mode::le:
-            return kernel_selector::eltwise_mode::LE;
-        case eltwise_mode::gt:
-            return kernel_selector::eltwise_mode::GT;
-        case eltwise_mode::ge:
-            return kernel_selector::eltwise_mode::GE;
-        case eltwise_mode::logic_and:
-            return kernel_selector::eltwise_mode::LOGIC_AND;
-        case eltwise_mode::logic_or:
-            return kernel_selector::eltwise_mode::LOGIC_OR;
-        case eltwise_mode::logic_xor:
-            return kernel_selector::eltwise_mode::LOGIC_XOR;
-        case eltwise_mode::squared_diff:
-            return kernel_selector::eltwise_mode::SQUARED_DIFF;
-        case eltwise_mode::floor_mod:
-            return kernel_selector::eltwise_mode::FLOOR_MOD;
-        case eltwise_mode::is_finite:
-            return kernel_selector::eltwise_mode::IS_FINITE;
-        case eltwise_mode::is_inf:
-            return kernel_selector::eltwise_mode::IS_INF;
-        case eltwise_mode::is_nan:
-            return kernel_selector::eltwise_mode::IS_NAN;
-        case eltwise_mode::right_shift:
-            return kernel_selector::eltwise_mode::RIGHT_SHIFT;
-        case eltwise_mode::left_shift:
-            return kernel_selector::eltwise_mode::LEFT_SHIFT;
-        case eltwise_mode::bitwise_and:
-            return kernel_selector::eltwise_mode::BITWISE_AND;
-        case eltwise_mode::bitwise_or:
-            return kernel_selector::eltwise_mode::BITWISE_OR;
-        case eltwise_mode::bitwise_xor:
-            return kernel_selector::eltwise_mode::BITWISE_XOR;
-        case eltwise_mode::atan2:
-            return kernel_selector::eltwise_mode::ATAN2;
-        default:
-            OPENVINO_ASSERT(false, "Unsupported eltwise mode!");
-            return kernel_selector::eltwise_mode::ADD;
+    case eltwise_mode::sum:
+        return kernel_selector::eltwise_mode::ADD;
+    case eltwise_mode::sub:
+        return kernel_selector::eltwise_mode::SUB;
+    case eltwise_mode::max:
+        return kernel_selector::eltwise_mode::MAX;
+    case eltwise_mode::prod:
+        return kernel_selector::eltwise_mode::MUL;
+    case eltwise_mode::div:
+        return kernel_selector::eltwise_mode::DIV;
+    case eltwise_mode::min:
+        return kernel_selector::eltwise_mode::MIN;
+    case eltwise_mode::pow:
+        return kernel_selector::eltwise_mode::POW;
+    case eltwise_mode::mod:
+        return kernel_selector::eltwise_mode::MODULU;
+    case eltwise_mode::eq:
+        return kernel_selector::eltwise_mode::EQ;
+    case eltwise_mode::ne:
+        return kernel_selector::eltwise_mode::NE;
+    case eltwise_mode::lt:
+        return kernel_selector::eltwise_mode::LT;
+    case eltwise_mode::le:
+        return kernel_selector::eltwise_mode::LE;
+    case eltwise_mode::gt:
+        return kernel_selector::eltwise_mode::GT;
+    case eltwise_mode::ge:
+        return kernel_selector::eltwise_mode::GE;
+    case eltwise_mode::logic_and:
+        return kernel_selector::eltwise_mode::LOGIC_AND;
+    case eltwise_mode::logic_or:
+        return kernel_selector::eltwise_mode::LOGIC_OR;
+    case eltwise_mode::logic_xor:
+        return kernel_selector::eltwise_mode::LOGIC_XOR;
+    case eltwise_mode::squared_diff:
+        return kernel_selector::eltwise_mode::SQUARED_DIFF;
+    case eltwise_mode::floor_mod:
+        return kernel_selector::eltwise_mode::FLOOR_MOD;
+    case eltwise_mode::is_finite:
+        return kernel_selector::eltwise_mode::IS_FINITE;
+    case eltwise_mode::is_inf:
+        return kernel_selector::eltwise_mode::IS_INF;
+    case eltwise_mode::is_nan:
+        return kernel_selector::eltwise_mode::IS_NAN;
+    case eltwise_mode::right_shift:
+        return kernel_selector::eltwise_mode::RIGHT_SHIFT;
+    case eltwise_mode::left_shift:
+        return kernel_selector::eltwise_mode::LEFT_SHIFT;
+    case eltwise_mode::bitwise_and:
+        return kernel_selector::eltwise_mode::BITWISE_AND;
+    case eltwise_mode::bitwise_or:
+        return kernel_selector::eltwise_mode::BITWISE_OR;
+    case eltwise_mode::bitwise_xor:
+        return kernel_selector::eltwise_mode::BITWISE_XOR;
+    case eltwise_mode::atan2:
+        return kernel_selector::eltwise_mode::ATAN2;
+    default:
+        OPENVINO_ASSERT(false, "Unsupported eltwise mode!");
+        return kernel_selector::eltwise_mode::ADD;
     }
 }
 
-inline ov::PartialShape extend_shape_to_rank_from_end(ov::PartialShape pshape, size_t rank = 4) {
-    if (pshape.size() >= rank) {
-        return pshape;
-    }
-    pshape.insert(pshape.end(), rank - pshape.size(), ov::Dimension(1));
-    return pshape;
-}
-
-inline ov::PartialShape extend_shape_to_rank_from_begin(const ov::PartialShape& pshape, size_t rank = 4) {
-    if (pshape.size() >= rank) {
-        return pshape;
-    }
-    ov::PartialShape extended_pshape(std::vector<int64_t>(rank - pshape.size(), 1));
-    extended_pshape.insert(extended_pshape.end(), pshape.begin(), pshape.end());
-    return extended_pshape;
-}
-
-inline bool broadcastable(const ov::PartialShape& first_pshape, const ov::PartialShape& second_pshape, bool use_new_shape_infer,
+inline bool broadcastable(const ov::PartialShape& first_pshape,
+                          const ov::PartialShape& second_pshape,
+                          bool use_new_shape_infer,
                           bool first_to_second_only = false) {
-    if (first_pshape.is_dynamic() || second_pshape.is_dynamic()) {
-        return false;
-    }
-    if (first_to_second_only) {
-        if (first_pshape.size() > second_pshape.size()) {
-            return false;
-        }
-    } else {
-        if (first_pshape.size() != second_pshape.size() && use_new_shape_infer) {
-            return false;
-        }
-    }
-    size_t min_size = std::min(first_pshape.size(), second_pshape.size());
-
-    for (size_t i = 0; i < min_size; ++i) {
-        if (first_pshape[i] != 1 && (first_to_second_only || second_pshape[i] != 1) && first_pshape[i] != second_pshape[i]) {
-            return false;
-        }
-    }
-    return true;
-}
-
-// Computes a lower-rank representation of a fused eltwise peer when collapsing its leading spatial
-// axes is an order-preserving reshape and the result broadcasts directly to the host layout.
-// E.g. peer [1,2,8,6,10] (bfzyx) folds to [1,2,48,10] (bfyx) for host [1,2,48,10]: axes 2 and 3 (8,6)
-// collapse into 48, which then matches the host shape exactly.
-inline std::optional<ov::PartialShape> fold_higher_rank_fused_peer(const layout& peer_layout, const layout& host_layout) {
-    const auto& peer_shape = peer_layout.get_partial_shape();
-    const auto& host_shape = host_layout.get_partial_shape();
-
-    const size_t peer_rank = peer_shape.size();
-    const size_t host_rank = host_shape.size();
-    if (peer_rank <= host_rank || host_rank < 3)
-        return std::nullopt;
-    if (peer_shape.is_dynamic() || host_shape.is_dynamic())
-        return std::nullopt;
-    if (peer_layout.data_padding || host_layout.data_padding)
-        return std::nullopt;
-
-    const auto& peer_format = peer_layout.format;
-    const auto& host_format = host_layout.format;
-    if (!format::is_default_format(peer_format) || !format::is_default_format(host_format))
-        return std::nullopt;
-    // A default format adjusted to another rank is always that rank's default format.
-    OPENVINO_ASSERT(format::adjust_to_rank(peer_format, host_rank) == host_format,
-                    "Default format rank adjustment must match the host's default format");
-
-    const auto peer_dims = peer_shape.to_shape();
-    const auto host_dims = host_shape.to_shape();
-    const size_t fold_count = peer_rank - host_rank + 1;
-    ov::Shape folded_dims;
-    folded_dims.reserve(host_rank);
-    folded_dims.push_back(peer_dims[0]);
-    folded_dims.push_back(peer_dims[1]);
-
-    size_t grouped = 1;
-    for (size_t i = 2; i < 2 + fold_count; ++i) {
-        const auto grouped_size = ov::util::shape_size_safe({grouped, peer_dims[i]});
-        if (!grouped_size.has_value())
-            return std::nullopt;
-        grouped = grouped_size.value();
-    }
-    folded_dims.push_back(grouped);
-    folded_dims.insert(folded_dims.end(), peer_dims.begin() + 2 + fold_count, peer_dims.end());
-
-    const auto peer_total = ov::util::shape_size_safe(peer_dims);
-    const auto folded_total = ov::util::shape_size_safe(folded_dims);
-    if (!peer_total.has_value() || !folded_total.has_value())
-        return std::nullopt;
-    // Folding only regroups existing dims, so the element count is preserved whenever both totals fit.
-    OPENVINO_ASSERT(peer_total.value() == folded_total.value(), "Peer folding must preserve the total element count");
-    if (folded_dims.size() != host_dims.size())
-        return std::nullopt;
-
-    for (size_t i = 0; i < folded_dims.size(); ++i) {
-        if (folded_dims[i] != 1 && folded_dims[i] != host_dims[i])
-            return std::nullopt;
-    }
-
-    return ov::PartialShape(folded_dims);
-}
-
-inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& impl_params) {
-    auto updated_impl_params = impl_params;
-    bool use_new_shape_infer = impl_params.prog->is_new_shape_infer();
-
-    for (auto& fd : updated_impl_params.fused_desc) {
-        if (fd.is_type<eltwise>() && fd.total_num_deps == 2 && fd.has_outer_dep()) {
-            if (updated_impl_params.input_layouts.size() > size_t(fd.outer_dep_start_idx)) {
-                const auto& out_layout = updated_impl_params.output_layouts[0];
-                const auto& out_pshape = out_layout.get_partial_shape();
-
-                auto& dep_layout = updated_impl_params.input_layouts[fd.outer_dep_start_idx];
-                const auto& dep_shape = dep_layout.get_partial_shape();
-
-                if (dep_shape.size() > out_pshape.size()) {
-                    // Always fold higher-rank peers, regardless of broadcastable(): in legacy shape-infer mode
-                    // broadcastable() only compares the first out_pshape.size() axes, so a peer whose leading
-                    // axes are all 1 can be misreported as compatible while its rank still mismatches the host's
-                    // iteration space, causing the fused-op kernel to index the peer incorrectly.
-                    auto folded = fold_higher_rank_fused_peer(dep_layout, out_layout);
-                    // can_fuse_reorder_to_prev() must have already declined fusion for any non-foldable peer.
-                    OPENVINO_ASSERT(folded.has_value(),
-                                    "Unfoldable higher-rank fused eltwise peer reached canonicalization; "
-                                    "can_fuse_reorder_to_prev guard was expected to prevent this.");
-                    dep_layout.set_partial_shape(*folded);
-                    dep_layout.format = format::adjust_to_rank(dep_layout.format, out_pshape.size());
-                } else if (!broadcastable(dep_shape, out_pshape, use_new_shape_infer)) {
-                    dep_layout.set_partial_shape(extend_shape_to_rank_from_begin(dep_shape, out_pshape.size()));
-                }
-            }
-        }
-    }
-    return updated_impl_params;
+    return shapes_are_broadcastable(first_pshape, second_pshape, use_new_shape_infer, first_to_second_only);
 }
 
 inline std::shared_ptr<WeightsReorderParams> create_weights_reorder_params(const kernel_selector::WeightsReorderParams& params) {

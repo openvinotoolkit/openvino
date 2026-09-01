@@ -12,6 +12,38 @@
 #include <sstream>
 
 namespace cldnn {
+std::optional<size_t> program_helpers::get_in_place_input_idx(const program_node& node) {
+    auto* const impl = node.get_selected_impl();
+    if (impl == nullptr || !impl->can_reuse_memory || node.is_dynamic() || node.get_output_layouts().size() != 1) {
+        return std::nullopt;
+    }
+
+    const auto& output_layout = node.get_output_layout();
+    if (output_layout.is_dynamic() || output_layout.count() == 0) {
+        return std::nullopt;
+    }
+
+    for (const auto input_idx : impl->get_in_place_input_indices()) {
+        if (input_idx >= node.get_dependencies().size()) {
+            continue;
+        }
+
+        const auto& dependency = node.get_dependency(input_idx);
+        const auto& users = dependency.get_users();
+        const bool dead_after_node = users.size() == 1 && users.front() == &node;
+        if (!dead_after_node || dependency.is_dynamic() || dependency.is_input() || dependency.is_output() || dependency.is_constant() ||
+            dependency.can_be_optimized() || !dependency.can_share_buffer() || dependency.get_output_layouts().size() != 1) {
+            continue;
+        }
+
+        const auto& input_layout = node.get_input_layout(input_idx);
+        if (!input_layout.is_dynamic() && input_layout.identical(output_layout)) {
+            return input_idx;
+        }
+    }
+    return std::nullopt;
+}
+
 void program_helpers::reshape_deconvolution_weights(const std::vector<float> &deconv_weights,
     const int channels,
     const int kernel_width,

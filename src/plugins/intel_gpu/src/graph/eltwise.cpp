@@ -485,3 +485,5 @@ bool eltwise_node::need_align_for_numpy_broadcast(const layout& input) const {
         input.get_partial_shape().rank() == small_pshape_rank;
 }
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::eltwise)

@@ -3,9 +3,7 @@
 //
 
 #include "pass_manager.h"
-#include "impls/ocl/primitive_base.hpp"
 #include "fully_connected_inst.h"
-#include "fully_connected/fully_connected_params.h"
 #include <memory>
 #include <stdexcept>
 
@@ -49,13 +47,14 @@ void post_input_reorder::run(program& p) {
         auto* const impl = node->get_selected_impl();
         // add a reorder if primitive's input format doesn't match implementation's input format
         if (node->is_type<fully_connected>()) {
-            auto* const fc_impl = dynamic_cast<ocl::typed_primitive_impl_ocl<fully_connected>*>(impl);
-            if (!fc_impl || node->can_be_optimized())
+            if (impl == nullptr || node->can_be_optimized())
                 continue;
-            const auto& fc_params =
-                *static_cast<kernel_selector::fully_connected_params*>(fc_impl->_kernel_data.params.get());
 
-            auto layout_format = from_data_layout(fc_params.inputs[0].GetLayout());
+            const auto preferred_format = impl->get_preferred_input_format(0);
+            if (!preferred_format.has_value())
+                continue;
+
+            const auto layout_format = *preferred_format;
             const auto& input = node->get_dependencies()[0].first;
             auto input_layout = input->get_output_layout();
 

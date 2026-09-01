@@ -1,0 +1,100 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+if(NOT OV_GPU_RUNTIME_VULKAN_ENABLED)
+    return()
+endif()
+
+find_host_program(OV_GPU_GLSLC_EXECUTABLE NAMES glslc REQUIRED)
+find_host_program(OV_GPU_SPIRV_OPT_EXECUTABLE NAMES spirv-opt REQUIRED)
+find_host_program(OV_GPU_SPIRV_VAL_EXECUTABLE NAMES spirv-val REQUIRED)
+
+set(VULKAN_KERNEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/kernels")
+set(VULKAN_ELTWISE_KERNEL_DIR "${VULKAN_KERNEL_DIR}/eltwise")
+set(VULKAN_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+set(VULKAN_SHADER_GENERATOR "${VULKAN_KERNEL_DIR}/generate_spirv_header.py")
+set_property(GLOBAL PROPERTY OV_GPU_VULKAN_GENERATED_HEADERS "")
+set_property(GLOBAL PROPERTY OV_GPU_VULKAN_GENERATED_INCLUDE_DIR "${VULKAN_GENERATED_INCLUDE_DIR}")
+
+function(add_vulkan_shader)
+    cmake_parse_arguments(PARSE_ARGV 0 SHADER
+        ""
+        "NAME;SOURCE;OPTIMIZATION;DESCRIPTION"
+        "DEFINITIONS;DEPENDENCIES")
+
+    if(NOT SHADER_NAME OR NOT SHADER_SOURCE)
+        message(FATAL_ERROR "A Vulkan shader requires NAME and SOURCE")
+    endif()
+
+    if(NOT SHADER_OPTIMIZATION)
+        set(SHADER_OPTIMIZATION "--eliminate-dead-code-aggressive")
+    endif()
+    if(NOT SHADER_DESCRIPTION)
+        set(SHADER_DESCRIPTION "${SHADER_SOURCE}")
+    endif()
+
+    set(compiler_definitions)
+    foreach(definition IN LISTS SHADER_DEFINITIONS)
+        list(APPEND compiler_definitions "-D${definition}")
+    endforeach()
+
+    set(raw_spirv "${CMAKE_CURRENT_BINARY_DIR}/${SHADER_NAME}.raw.spv")
+    set(optimized_spirv "${CMAKE_CURRENT_BINARY_DIR}/${SHADER_NAME}.spv")
+    set(generated_header "${VULKAN_GENERATED_INCLUDE_DIR}/${SHADER_NAME}_spirv.hpp")
+
+    add_custom_command(
+        OUTPUT "${generated_header}"
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "${VULKAN_GENERATED_INCLUDE_DIR}"
+        COMMAND "${OV_GPU_GLSLC_EXECUTABLE}" --target-env=vulkan1.3
+                -I "${VULKAN_KERNEL_DIR}" -I "${CMAKE_CURRENT_SOURCE_DIR}"
+                ${compiler_definitions} "${SHADER_SOURCE}" -o "${raw_spirv}"
+        COMMAND "${OV_GPU_SPIRV_OPT_EXECUTABLE}" "${SHADER_OPTIMIZATION}"
+                "${raw_spirv}" -o "${optimized_spirv}"
+        COMMAND "${OV_GPU_SPIRV_VAL_EXECUTABLE}" --target-env vulkan1.3 "${optimized_spirv}"
+        COMMAND "${Python3_EXECUTABLE}" "${VULKAN_SHADER_GENERATOR}"
+                "${optimized_spirv}" "${generated_header}" "${SHADER_NAME}_spirv" "${SHADER_DESCRIPTION}"
+        DEPENDS
+            "${SHADER_SOURCE}"
+            ${SHADER_DEPENDENCIES}
+            "${VULKAN_SHADER_GENERATOR}"
+        COMMENT "Generating host-compiled Vulkan shader ${SHADER_NAME}"
+        VERBATIM)
+
+    set_property(GLOBAL APPEND PROPERTY OV_GPU_VULKAN_GENERATED_HEADERS "${generated_header}")
+endfunction()
+
+# Foundation and conversion shaders remain independent of operation-specific modules.
+foreach(shader_name IN ITEMS foundation_stage_local foundation_stage_output)
+    add_vulkan_shader(
+        NAME "${shader_name}"
+        SOURCE "${VULKAN_KERNEL_DIR}/${shader_name}.comp"
+        DESCRIPTION "kernels/${shader_name}.comp"
+        DEPENDENCIES "${CMAKE_CURRENT_SOURCE_DIR}/vulkan_shader_abi.inc"
+    )
+endforeach()
+add_vulkan_shader(
+    NAME reorder_convert
+    SOURCE "${VULKAN_KERNEL_DIR}/reorder_convert.comp"
+    DESCRIPTION "kernels/reorder_convert.comp"
+    DEPENDENCIES
+        "${CMAKE_CURRENT_SOURCE_DIR}/vulkan_shader_abi.inc"
+)
+
+# Eltwise owns its source modules and complete generated-variant registry.
+include("${VULKAN_ELTWISE_KERNEL_DIR}/variants.cmake")
+
+get_property(VULKAN_GENERATED_HEADERS GLOBAL PROPERTY OV_GPU_VULKAN_GENERATED_HEADERS)
+set_property(SOURCE ${VULKAN_GENERATED_HEADERS} PROPERTY GENERATED TRUE)
+add_custom_target(openvino_intel_gpu_vulkan_shaders${OV_GPU_SUFFIX} DEPENDS ${VULKAN_GENERATED_HEADERS})
+
+set(TARGET_NAME "openvino_intel_gpu_vulkan_obj${OV_GPU_SUFFIX}")
+
+ov_gpu_add_backend_target(
+    NAME ${TARGET_NAME}
+    INCLUDES "${VULKAN_GENERATED_INCLUDE_DIR}"
+    LINK_LIBRARIES Vulkan::Vulkan
+)
+add_dependencies(${TARGET_NAME} openvino_intel_gpu_vulkan_shaders${OV_GPU_SUFFIX})
+
+ov_build_target_faster(${TARGET_NAME} PCH)

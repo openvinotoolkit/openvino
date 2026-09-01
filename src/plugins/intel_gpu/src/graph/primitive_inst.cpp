@@ -2,67 +2,69 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <sstream>
-
-#include "intel_gpu/graph/kernel_impl_params.hpp"
-#include "intel_gpu/primitives/implementation_desc.hpp"
-#include "intel_gpu/runtime/stream.hpp"
-#include "program_helpers.h"
 #include "primitive_inst.h"
-#include "data_inst.h"
-#include "mutable_data_inst.h"
-#include "input_layout_inst.h"
+
+#include <algorithm>
+#include <exception>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <vector>
+
+#include "activation_inst.h"
 #include "arg_max_min_inst.h"
-#include "fully_connected_inst.h"
+#include "assign_inst.h"
+#include "broadcast_inst.h"
+#include "common_utils/shape_utils.hpp"
+#include "condition_inst.h"
 #include "convolution_inst.h"
 #include "crop_inst.h"
-#include "pooling_inst.h"
-#include "permute_inst.h"
-#include "resample_inst.h"
-#include "non_max_suppression_inst.h"
-#include "reshape_inst.h"
-#include "reorder_inst.h"
-#include "eltwise_inst.h"
-#include "loop_inst.h"
+#include "data_inst.h"
 #include "deconvolution_inst.h"
-#include "shape_of_inst.h"
-#include "softmax_inst.h"
-#include "strided_slice_inst.h"
+#include "dynamic_quantize_inst.h"
+#include "eltwise_inst.h"
+#include "experimental_detectron_roi_feature_extractor_inst.hpp"
+#include "fully_connected_inst.h"
+#include "gather_inst.h"
+#include "gemm_inst.h"
+#include "graph_optimizer/prepare_buffer_fusing.h"
+#include "input_layout_inst.h"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/graph/serialization/set_serializer.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/multi_tensor_variable_state.hpp"
+#include "intel_gpu/plugin/output_memory_block.hpp"
+#include "intel_gpu/primitives/implementation_desc.hpp"
+#include "intel_gpu/runtime/compilation_context.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/stream.hpp"
+#include "intel_gpu/runtime/tensor_accessor.hpp"
+#include "json_object.h"
+#include "kv_cache_inst.h"
+#include "loop_inst.h"
+#include "lora_inst.h"
+#include "mutable_data_inst.h"
+#include "non_max_suppression_inst.h"
+#include "paged_attention_inst.h"
+#include "permute_inst.h"
+#include "pooling_inst.h"
+#include "program_helpers.h"
+#include "read_value_inst.h"
+#include "registry/implementation_manager.hpp"
+#include "registry/registry.hpp"
+#include "reorder_inst.h"
+#include "resample_inst.h"
+#include "reshape_inst.h"
 #include "scatter_elements_update_inst.h"
 #include "scatter_nd_update_inst.h"
 #include "scatter_update_inst.h"
-#include "gemm_inst.h"
-#include "assign_inst.h"
-#include "read_value_inst.h"
-#include "kv_cache_inst.h"
-#include "condition_inst.h"
-#include "paged_attention_inst.h"
-#include "gather_inst.h"
-#include "broadcast_inst.h"
-#include "dynamic_quantize_inst.h"
+#include "shape_of_inst.h"
+#include "softmax_inst.h"
+#include "strided_slice_inst.h"
 #include "swiglu_inst.h"
-#include "experimental_detectron_roi_feature_extractor_inst.hpp"
-#include "lora_inst.h"
-#include "registry/implementation_manager.hpp"
-#include "registry/registry.hpp"
-#include "graph_optimizer/prepare_buffer_fusing.h"
-
-#include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/plugin/multi_tensor_variable_state.hpp"
-#include "intel_gpu/plugin/sync_infer_request.hpp"
-#include "intel_gpu/graph/network.hpp"
-#include "intel_gpu/graph/serialization/set_serializer.hpp"
-#include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
-#include "intel_gpu/runtime/compilation_context.hpp"
-#include "intel_gpu/runtime/tensor_accessor.hpp"
-
-#include "json_object.h"
-#include <string>
-#include <vector>
-#include <memory>
-#include <algorithm>
 #include "utils.hpp"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -191,6 +193,31 @@ static memory::ptr get_memory_from_pool(engine& _engine,
                                _node.is_dynamic());
     }
     return pool.get_memory(layout, type, reset);
+}
+
+static memory::ptr get_in_place_output_memory(network& network, const program_node& node, size_t in_place_input_idx, bool use_memory_pool) {
+    const auto& input_node = node.get_dependency(in_place_input_idx);
+    const auto& input_inst = network.get_primitive(input_node.id());
+    OPENVINO_ASSERT(input_inst->outputs_allocated(), "[GPU] In-place input memory was not allocated for ", node.id());
+    auto& input_memory = input_inst->output_memory();
+    auto& engine = network.get_engine();
+
+    if (!use_memory_pool) {
+        return engine.reinterpret_buffer(input_memory, node.get_output_layout());
+    }
+
+    auto reduced_dependencies = node.get_memory_dependencies();
+    reduced_dependencies.erase(std::remove(reduced_dependencies.begin(), reduced_dependencies.end(), static_cast<uint32_t>(input_node.get_unique_id())),
+                               reduced_dependencies.end());
+    const memory_restricter<uint32_t> restrictions(&reduced_dependencies);
+    return get_memory_from_pool(engine,
+                                network.get_id(),
+                                network.get_memory_pool(),
+                                node,
+                                node.get_output_layout(),
+                                input_memory.get_allocation_type(),
+                                true,
+                                restrictions);
 }
 
 std::shared_ptr<kernel_impl_params> primitive_impl::get_weights_reorder_kernel_params() const {
@@ -691,11 +718,10 @@ void primitive_inst::realloc_intermediates() {
     GPU_DEBUG_CODE(std::string memalloc_info);
     for (size_t i = 0; i < buffer_descs.size(); ++i) {
         auto need_lockable = buffer_descs[i].m_lockable;
-        auto alloc_type = i < _intermediates_memory.size() ? _intermediates_memory[i]->get_allocation_type()
-                                                            : allocation_type::unknown;
+        auto alloc_type =
+            i < _intermediates_memory.size() && _intermediates_memory[i] ? _intermediates_memory[i]->get_allocation_type() : allocation_type::unknown;
         bool can_reuse = true;
-        can_reuse &= alloc_type != allocation_type::unknown &&
-                        buffer_descs[i].m_layout.bytes_count() <= _max_intermediates_memory_sizes[i];
+        can_reuse &= alloc_type != allocation_type::unknown && buffer_descs[i].m_layout.bytes_count() <= _max_intermediates_memory_sizes[i];
         can_reuse &= (need_lockable && alloc_type != cldnn::allocation_type::usm_device) ||
                         (!need_lockable && alloc_type != cldnn::allocation_type::usm_host);
 
@@ -2485,6 +2511,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     }
 
     if (allocate_memory) {
+        const auto in_place_input_idx = program_helpers::get_in_place_input_idx(node);
         // In case when output is mutable_data primitive, and other users dependencies are only used for
         // synchronization, The output memory of such primitive will be fused with mutable_data
         auto users = node.get_users();
@@ -2497,7 +2524,9 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
             }
         }
 
-        if (auto reused_eltwmem_idx = onednn_add_fusing_helpers::get_reused_eltwmem_idx(node); reused_eltwmem_idx != -1) {
+        if (in_place_input_idx.has_value() && !node.get_program().get_config().get_enable_memory_pool()) {
+            _outputs.push_back(get_in_place_output_memory(_network, node, *in_place_input_idx, false));
+        } else if (auto reused_eltwmem_idx = onednn_add_fusing_helpers::get_reused_eltwmem_idx(node); reused_eltwmem_idx != -1) {
             // sum post-op can use the input buffer as the output buffer
             auto& eltw_node = node.get_dependency(reused_eltwmem_idx);
             const auto& eltw_inst = _network.get_primitive(eltw_node.id());
@@ -2519,8 +2548,20 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
                 for (const auto& user : node.get_users())
                     if (user->is_type<mutable_data>())
                         _outputs[0] = user->as<mutable_data>().get_attached_memory_ptr();
-            } else {
+            } else if (!in_place_input_idx.has_value()) {
                 _outputs = allocate_outputs();
+            } else {
+                try {
+                    _outputs = allocate_outputs();
+                } catch (const std::bad_alloc&) {
+                    const auto allocation_error = std::current_exception();
+                    try {
+                        GPU_DEBUG_TRACE_DETAIL << node.id() << ": retry output allocation by reusing a dead dense input" << std::endl;
+                        _outputs.push_back(get_in_place_output_memory(_network, node, *in_place_input_idx, true));
+                    } catch (...) {
+                        std::rethrow_exception(allocation_error);
+                    }
+                }
             }
         }
     }
@@ -2622,12 +2663,13 @@ void primitive_inst::allocate_internal_buffers(bool reset) {
         return;
 
     // allocate intermediate memory for the updated layout of buffer
-    std::vector<memory::ptr> intermediates_memory;
+    std::vector<memory::ptr> intermediates_memory(buffer_descs.size());
+    _max_intermediates_memory_sizes.resize(buffer_descs.size());
     for (size_t i = 0; i < buffer_descs.size(); ++i) {
         if (buffer_descs[i].m_layout.get_linear_size() == 0)
             continue;
-        intermediates_memory.push_back(allocate_internal_buffer(buffer_descs[i].m_layout, i, reset, buffer_descs[i].m_lockable, buffer_descs[i].m_shareable));
-        _max_intermediates_memory_sizes.push_back(intermediates_memory[i]->size());
+        intermediates_memory[i] = allocate_internal_buffer(buffer_descs[i].m_layout, i, reset, buffer_descs[i].m_lockable, buffer_descs[i].m_shareable);
+        _max_intermediates_memory_sizes[i] = intermediates_memory[i]->size();
     }
     _intermediates_memory = intermediates_memory;
 }

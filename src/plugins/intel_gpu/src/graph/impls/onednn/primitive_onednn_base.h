@@ -6,22 +6,19 @@
 
 #define ONEDNN_PRIMITIVE_SERIALIZATION
 
-#include "primitive_inst.h"
-#include "intel_gpu/graph/serialization/binary_buffer.hpp"
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/file_util.hpp"
-#include "to_string_utils.h"
-#include "utils.hpp"
-
-#include "intel_gpu/primitives/reorder.hpp"
+#include <mutex>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <utility>
+#include <vector>
 
 #include "impls/ocl/kernel_selector_helper.h"
-
-#include <vector>
-#include <utility>
-#include <mutex>
-
-#include <oneapi/dnnl/dnnl.hpp>
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/runtime/file_util.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "primitive_inst.h"
+#include "to_string_utils.h"
+#include "utils.hpp"
 
 namespace cldnn {
 namespace onednn {
