@@ -9,10 +9,7 @@ include(sources.cmake)
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 # Create object library
-add_library(${TARGET_NAME}_obj OBJECT)
-
-target_sources(${TARGET_NAME}_obj
-    PRIVATE
+add_library(${TARGET_NAME}_obj OBJECT
     ${OV_RUNTIME_SRCS}
     ${OV_RUNTIME_HEADERS}
     ${OV_RUNTIME_PUBLIC_HEADERS}
