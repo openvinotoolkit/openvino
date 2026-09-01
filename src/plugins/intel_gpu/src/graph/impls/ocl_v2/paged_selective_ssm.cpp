@@ -242,7 +242,8 @@ protected:
 
             const auto& seq_shape = params.get_input_layout(6).get_partial_shape();
             const size_t sequences = seq_shape[0].get_length() > 0 ? seq_shape[0].get_length() - 1 : 0;
-            kd.params.workGroups.global = {std::max<size_t>(cldnn::ceil_div(head_dim, head_dim_block), 1) * subgroup_size,
+            // get_head_dim_block() returns 0 for unsupported configurations; the clamp only keeps the divisor defined.
+            kd.params.workGroups.global = {std::max<size_t>(cldnn::ceil_div(head_dim, std::max<size_t>(head_dim_block, 1)), 1) * subgroup_size,
                                            std::max<size_t>(num_heads, 1),
                                            std::max<size_t>(sequences, 1)};
         }};
