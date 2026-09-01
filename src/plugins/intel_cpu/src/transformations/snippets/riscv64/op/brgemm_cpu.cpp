@@ -4,6 +4,7 @@
 
 #include "brgemm_cpu.hpp"
 
+#include <cstddef>
 #include <memory>
 #include <vector>
 

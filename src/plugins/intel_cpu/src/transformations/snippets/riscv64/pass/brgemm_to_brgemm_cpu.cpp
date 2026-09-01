@@ -10,12 +10,16 @@
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/brgemm.hpp"
+#include "snippets/op/memory_access.hpp"
 #include "transformations/snippets/riscv64/op/brgemm_cpu.hpp"
 
 namespace ov::intel_cpu {

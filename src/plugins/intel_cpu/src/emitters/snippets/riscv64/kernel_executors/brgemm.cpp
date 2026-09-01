@@ -7,14 +7,17 @@
 #include <cpu/rv64/brgemm/brgemm.hpp>
 #include <cpu/rv64/brgemm/brgemm_types.hpp>
 #include <cpu/rv64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <utility>
 
+#include "cache/multi_cache.h"
 #include "common/c_types_map.hpp"
 #include "common/utils.hpp"
 #include "emitters/snippets/brgemm_generic.hpp"
+#include "emitters/snippets/cpu_kernel_executor_table.hpp"
 #include "emitters/utils.hpp"
-#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
@@ -83,7 +86,7 @@ std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelExecutor::compile_kernel(const
     using namespace dnnl::impl;
     using namespace dnnl::impl::cpu::rv64;
 
-    brgemm_desc_t desc;
+    brgemm_desc_t desc{};
     OV_CPU_JIT_EMITTER_ASSERT(brgemm_desc_init(&desc,
                                                config.get_isa(),
                                                brgemm_strd,

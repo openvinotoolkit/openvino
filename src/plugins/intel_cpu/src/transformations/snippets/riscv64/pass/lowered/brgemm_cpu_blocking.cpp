@@ -5,11 +5,11 @@
 #include "brgemm_cpu_blocking.hpp"
 
 #include <cassert>
+#include <cstddef>
 #include <tuple>
 
 #include "snippets/lowered/expression.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/snippets/riscv64/op/brgemm_cpu.hpp"
 
 namespace ov::intel_cpu::pass {
 
