@@ -200,7 +200,7 @@ TEST_F(GatherMatmulTest, fail_B_rank_5d) {
 TEST_F(GatherMatmulTest, fail_indices_rank_1d) {
     auto a = ov::test::utils::create_param(element::f32, {1, 64, 2048});
     auto b = make_const(element::f32, {8, 4096, 2048});
-    auto idx = ov::test::utils::create_param(element::i32, {64, 2});
+    auto idx = ov::test::utils::create_param(element::i32, {64});
 
     OV_EXPECT_THROW(std::ignore = make_op(a, b, idx),
                     ov::NodeValidationFailure,

@@ -10,6 +10,10 @@
 #include <variant>
 #include <vector>
 
+#include "common_test_utils/ov_test_utils.hpp"
+#include "attn/attn_subgraph.hpp"
+#include "npuw_transformations/convert_kvcache_to_precision.hpp"
+#include "npuw_transformations/split_kvcache_into_blocks.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -18,12 +22,9 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/openvino.hpp"
-#include "npuw_transformations/convert_kvcache_to_precision.hpp"
-#include "npuw_transformations/split_kvcache_into_blocks.hpp"
-#include "common_test_utils/ov_test_utils.hpp"
-#include "pyramid_attention.hpp"
+#include "serialization.hpp"
 #include "util.hpp"
-
+#include "v1/subgraph_pipeline.hpp"
 namespace {
 
 // Build a single-layer isolated attention subgraph model suitable for pyramid attention.
