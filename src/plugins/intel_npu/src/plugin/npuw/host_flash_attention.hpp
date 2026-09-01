@@ -138,8 +138,12 @@ struct HostFlashAttention {
     }
 
     // Factory method
+    // Creates a FlashAttention instance from an SDPA model
+    // if fused_flash_attention is true, uses the FlashAttentionTile Op optimized on compiler side
+    // if enable_mask_skipping is true, enables mask skipping optimization for regular tile
     static std::optional<HostFlashAttention> from(const std::shared_ptr<ov::Model>& model,
-                                                  bool fused_flash_attention = true);
+                                                  bool fused_flash_attention = true,
+                                                  bool enable_mask_skipping = false);
 };
 
 }  // namespace function

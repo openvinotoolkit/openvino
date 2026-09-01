@@ -5,7 +5,6 @@
 #include <cfloat>
 #include <cmath>
 #include <cpu/platform.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstdint>
 #include <cstring>
 #include <limits>
@@ -42,6 +41,8 @@
 #include "utils/plain_tensor.hpp"
 #include "xattention.hpp"
 #if defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/cpu_isa_traits.hpp>
+
 #    include "nodes/kernels/x64/brgemm_kernel.hpp"
 #elif defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE)
 #    include "arm_sve.h"
@@ -2803,8 +2804,7 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                                                          const CpuParallelPtr& cpu_parallel) {
     std::shared_ptr<PagedAttentionExecutor> executor;
     if (params.is_sage_attn) {
-        bool s8s8_available = (ov::with_cpu_x86_avx512_core_amx_int8() ||
-                               dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::cpu_isa_t::avx2_vnni_2));
+        bool s8s8_available = (ov::with_cpu_x86_avx512_core_amx_int8() || ov::with_cpu_x86_avx2_vnni_2());
         OPENVINO_ASSERT(s8s8_available, "make_pa_executor: sage_attn needs amx_int8/vnni2 to support");
     }
 #if defined(OPENVINO_ARCH_X86_64)

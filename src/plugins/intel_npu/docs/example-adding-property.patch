@@ -90,10 +90,6 @@ index 0ecd186c05..fa311e84de 100644
 +        return 1337;
 +    }
 +
-+    static uint32_t compilerSupportVersion() {
-+        return ONEAPI_MAKE_VERSION(5, 5);
-+    }
-+
 +    static bool isPublic() {
 +        return true;
 +    }

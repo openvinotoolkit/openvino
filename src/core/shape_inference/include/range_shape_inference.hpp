@@ -40,7 +40,6 @@ template <class T, class TRShape = result_shape_t<T>>
 std::vector<TRShape> range_shape_infer(const Node* op,
                                        const std::vector<T>& input_shapes,
                                        bool output_is_integral,
-                                       bool step_allows_zero,
                                        const ITensorAccessor& tensor_accessor) {
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3));
 
@@ -77,12 +76,9 @@ std::vector<TRShape> range_shape_infer(const Node* op,
     if (step_val) {
         NODE_VALIDATION_CHECK(op, step_val->size() == 1);
         step = (*step_val)[0];
-        if (step_allows_zero)
-            NODE_VALIDATION_CHECK(op, std::isfinite(step) && !std::isnan(step), "'step' cannot be nan or infinite.");
-        else
-            NODE_VALIDATION_CHECK(op,
-                                  std::isfinite(step) && !std::isnan(step) && step != 0,
-                                  "'step' cannot be zero, nan, or infinite.");
+        NODE_VALIDATION_CHECK(op,
+                              std::isfinite(step) && !std::isnan(step) && step != 0,
+                              "'step' cannot be zero, nan, or infinite.");
         if (output_is_integral)
             // all inputs must be casted to output_type before the rounding for casting values are done towards zero
             step = std::trunc(step);
@@ -116,7 +112,6 @@ std::vector<TRShape> shape_infer(const Range* op,
     return ShapeInferRange::range_shape_infer(op,
                                               input_shapes,
                                               op->get_input_element_type(0).is_integral_number(),
-                                              false,
                                               tensor_accessor);
 }
 }  // namespace v0
@@ -129,7 +124,6 @@ std::vector<TRShape> shape_infer(const Range* op,
     return ShapeInferRange::range_shape_infer(op,
                                               input_shapes,
                                               op->get_output_type().is_integral_number(),
-                                              true,
                                               tensor_accessor);
 }
 }  // namespace v4

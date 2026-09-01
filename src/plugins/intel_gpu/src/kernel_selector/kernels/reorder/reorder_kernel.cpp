@@ -20,6 +20,7 @@ ParamsKey ReorderKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::INT64);
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableInputDataType(Datatype::F4E2M1);
     k.EnableInputDataType(Datatype::F8E4M3);
     k.EnableInputDataType(Datatype::F8E5M2);
     k.EnableInputDataType(Datatype::F8E8M0);
@@ -35,6 +36,7 @@ ParamsKey ReorderKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::UINT4);
     k.EnableOutputDataType(Datatype::INT4);
     k.EnableOutputDataType(Datatype::BF16);
+    k.EnableOutputDataType(Datatype::F4E2M1);
     k.EnableOutputDataType(Datatype::F8E4M3);
     k.EnableOutputDataType(Datatype::F8E5M2);
     k.EnableOutputDataType(Datatype::F8E8M0);
@@ -70,10 +72,6 @@ JitConstants ReorderKernelRef::GetJitConstants(const reorder_params& params) con
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
-    if ( params.inputs[0].GetDType() == Datatype::BF16 ) {
-         jit.AddConstant(MakeJitConstant("BF16_INPUT", true));
-    }
-
     if ( params.inputs[0].GetDType() == Datatype::INT4 ) {
          jit.AddConstant(MakeJitConstant("INT4_INPUT", true));
     }
@@ -90,9 +88,11 @@ JitConstants ReorderKernelRef::GetJitConstants(const reorder_params& params) con
          jit.AddConstant(MakeJitConstant("INT4_OUTPUT", true));
     }
 
+    jit.AddConstant(MakeJitConstant("F4E2M1_INPUT", params.inputs[0].GetDType() == Datatype::F4E2M1 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E5M2_INPUT", params.inputs[0].GetDType() == Datatype::F8E5M2 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E4M3_INPUT", params.inputs[0].GetDType() == Datatype::F8E4M3 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E8M0_INPUT", params.inputs[0].GetDType() == Datatype::F8E8M0 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F4E2M1_OUTPUT", params.outputs[0].GetDType() == Datatype::F4E2M1 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E5M2_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E5M2 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E4M3_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E4M3 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E8M0_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E8M0 ? 1 : 0));

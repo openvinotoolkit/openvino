@@ -397,6 +397,9 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
                 }
 
                 auto fused = std::make_shared<v0::Concat>(inputs, 0);
+                // Tag the fused expert weight so it can be identified directly, e.g. by tests,
+                // instead of being guessed from its rank and shape.
+                fused->set_friendly_name(fused->get_friendly_name() + "/FusedMOEWeights");
                 if (std::all_of(inputs.begin(), inputs.end(), [](const auto& input) {
                         return op_util::is_constant(input.get_node());
                     })) {

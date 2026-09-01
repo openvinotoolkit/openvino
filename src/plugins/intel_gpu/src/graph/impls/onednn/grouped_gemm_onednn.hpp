@@ -54,7 +54,7 @@ struct GroupedMatmulImplementationManager : public ImplementationManager {
         const auto& out = node.get_output_layout(0);
 
         const auto* desc = node.as<grouped_matmul>().get_primitive().get();
-        const bool compressed = desc && desc->compressed_weights;
+        const bool compressed = (desc != nullptr) && desc->compressed_weights;
 
         if (!one_of(in0.format, supported_fmts) || !one_of(in0.data_type, supported_activation_types))
             return false;
@@ -72,12 +72,9 @@ struct GroupedMatmulImplementationManager : public ImplementationManager {
             return false;
 
         // oneDNN does not support mixed fp16 x bf16 configurations
-        if (!compressed &&
-            ((in0.data_type == data_types::f16 && in1.data_type == data_types::bf16) ||
-             (in0.data_type == data_types::bf16 && in1.data_type == data_types::f16)))
-            return false;
-
-        return true;
+        return compressed ||
+            ((in0.data_type != data_types::f16 || in1.data_type != data_types::bf16) &&
+             (in0.data_type != data_types::bf16 || in1.data_type != data_types::f16));
     }
 
     in_out_fmts_t query_formats(const program_node& node) const override {

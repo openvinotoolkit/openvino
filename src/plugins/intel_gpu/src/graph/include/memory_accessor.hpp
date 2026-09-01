@@ -60,11 +60,11 @@ struct MemoryAccessor : public ov::ITensorAccessor {
             return {m_accessed_data->get_layout().data_type,
                     m_accessed_data->get_layout().get_shape(),
                     m_accessed_data->lock(m_stream, mem_lock_type::read)};
-        } else if (m_clbk) {
-            return m_clbk(port);
-        } else {
-            return ov::make_tensor_accessor()(port);
         }
+        if (m_clbk) {
+            return m_clbk(port);
+        }
+        return ov::make_tensor_accessor()(port);
     }
 
 private:

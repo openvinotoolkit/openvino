@@ -26,8 +26,8 @@ std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::sh
         // exclusive_async_requests essentially disables the streams (and hence should be checked first) => aligned with
         // the CPU behavior
         return plugin->get_executor_manager()->get_executor("GPU");
-    } else if (config.get_enable_cpu_pinning() ||
-               config.get_enable_cpu_reservation()) {
+    }
+    if (config.get_enable_cpu_pinning() || config.get_enable_cpu_reservation()) {
         bool enable_cpu_pinning = config.get_enable_cpu_pinning();
         bool enable_cpu_reservation = config.get_enable_cpu_reservation();
         return std::make_shared<ov::threading::CPUStreamsExecutor>(
@@ -37,16 +37,14 @@ std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::sh
                                                     ov::hint::SchedulingCoreType::PCORE_ONLY,
                                                     enable_cpu_reservation,
                                                     enable_cpu_pinning});
-    } else {
-        return std::make_shared<ov::threading::CPUStreamsExecutor>(
-            ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor",
-                                                    config.get_num_streams(),
-                                                    0,
-                                                    ov::hint::SchedulingCoreType::ANY_CORE,
-                                                    false,
-                                                    false,
-                                                    false});
     }
+    return std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor",
+                                                                                                       config.get_num_streams(),
+                                                                                                       0,
+                                                                                                       ov::hint::SchedulingCoreType::ANY_CORE,
+                                                                                                       false,
+                                                                                                       false,
+                                                                                                       false});
 }
 }  // namespace
 
@@ -345,18 +343,23 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO},
             ov::PropertyName{ov::runtime_requirements.name(), PropertyMutability::RO},
         };
-    } else if (name == ov::model_name) {
+    }
+    if (name == ov::model_name) {
         return decltype(ov::model_name)::value_type {m_model_name};
-    } else if (name == ov::loaded_from_cache) {
+    }
+    if (name == ov::loaded_from_cache) {
         return decltype(ov::loaded_from_cache)::value_type {m_loaded_from_cache};
-    } else if (name == ov::optimal_number_of_infer_requests) {
+    }
+    if (name == ov::optimal_number_of_infer_requests) {
         unsigned int nr = m_config.get_num_streams();
         if (m_config.get_performance_mode() != ov::hint::PerformanceMode::LATENCY)
             nr *= 2;
         return decltype(ov::optimal_number_of_infer_requests)::value_type {nr};
-    } else if (name == ov::execution_devices) {
+    }
+    if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{m_context->get_device_name()};
-    } else if (name == ov::runtime_requirements) {
+    }
+    if (name == ov::runtime_requirements) {
         return decltype(ov::runtime_requirements)::value_type{m_runtime_requirements};
     }
 
@@ -367,7 +370,7 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::create_sync_infer_request");
     OPENVINO_ASSERT(!m_graphs.empty(), "[GPU] Model not loaded");
 
-    for (auto& graph : m_graphs) {
+    for (const auto& graph : m_graphs) {
         OPENVINO_ASSERT(graph != nullptr, "[GPU] Model not loaded: graph is nullptr");
         OPENVINO_ASSERT(graph->is_loaded(), "[GPU] Model not loaded: invalid graph");
     }

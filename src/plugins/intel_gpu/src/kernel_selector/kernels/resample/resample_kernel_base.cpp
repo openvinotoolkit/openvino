@@ -97,7 +97,7 @@ bool ResampleKernelBase::Validate(const Params& p) const {
 
     const resample_params& params = static_cast<const resample_params&>(p);
 
-    for (auto& fused_op : params.fused_ops) {
+    for (const auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
             DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
@@ -211,7 +211,7 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
 
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 
-    if (output.GetDType() != Datatype::F16 && output.GetDType() != Datatype::F32) {
+    if (output.GetDType() != Datatype::F16 && output.GetDType() != Datatype::BF16 && output.GetDType() != Datatype::F32) {
         jit.AddConstant(MakeJitConstant("RTE_OUTPUT", 1));
     }
 

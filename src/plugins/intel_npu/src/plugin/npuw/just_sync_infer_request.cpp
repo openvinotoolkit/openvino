@@ -125,7 +125,7 @@ ov::npuw::MemAccessSim::MemAccessSim(const std::shared_ptr<ov::npuw::CompiledMod
         m_remaining_reads[read_from]++;
 
         // Record a read request for this particular Subgraph (who reads the Source)
-        m_read_list[read_to.first].push_back(read_from);
+        m_read_list.at(read_to.first).push_back(read_from);
     }
     // 2. Global model's outputs
     for (auto&& read_from : compiled_model->m_outputs_to_submodels_outputs) {
@@ -1069,6 +1069,7 @@ void ov::npuw::JustInferRequest::unsafe_infer_spatial(std::size_t real_idx, std:
             auto out_view =
                 ov::npuw::util::view(m_spatial_io[real_idx].input_tails.at(param.idx), param.dim, 0, spatial.tail_size);
 
+            NPUW_ASSERT(out_view._ptr && "null view of spatial input tail tensor — m_spatial_io may be uninitialized");
             in_view->copy_to(out_view._ptr);
             r->set_tensor(iport, m_spatial_io[real_idx].input_tails.at(param.idx));
         }  // for(params)
@@ -1093,6 +1094,7 @@ void ov::npuw::JustInferRequest::unsafe_infer_spatial(std::size_t real_idx, std:
                                                  spatial.out_dim,
                                                  offset,
                                                  spatial.tail_size);
+            NPUW_ASSERT(out_view._ptr && "null view of spatial output tensor — m_spatial_io may be uninitialized");
             in_view->copy_to(out_view._ptr);
         }  // for(outputs)
     }

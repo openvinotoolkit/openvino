@@ -258,7 +258,7 @@ template std::vector<layout> pooling_inst::calc_output_layouts<ov::PartialShape>
 std::string pooling_inst::to_string(pooling_node const& node) {
     auto desc = node.get_primitive();
     auto strd = desc->stride;
-    auto mode = desc->mode == pooling_mode::max ? "max" : "average";
+    const auto* mode = desc->mode == pooling_mode::max ? "max" : "average";
     auto node_info = node.desc_to_json();
     auto kernel_size = desc->size;
 
