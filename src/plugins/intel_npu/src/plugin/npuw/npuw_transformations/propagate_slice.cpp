@@ -1753,38 +1753,10 @@ public:
             }
 
             // Check semantic equivalence of slice parameters
-            auto get_slice_params = [](const std::shared_ptr<ov::op::v8::Slice>& slice, int64_t axis) {
-                auto start_const =
-                    std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(1).get_node_shared_ptr());
-                auto stop_const =
-                    std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(2).get_node_shared_ptr());
-                auto step_const =
-                    std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(3).get_node_shared_ptr());
-                auto axes_const =
-                    std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(4).get_node_shared_ptr());
-
-                if (!start_const || !stop_const || !step_const || !axes_const) {
-                    return std::make_tuple(int64_t(0), int64_t(0), int64_t(0), false);
-                }
-
-                auto start_vec = start_const->cast_vector<int64_t>();
-                auto stop_vec = stop_const->cast_vector<int64_t>();
-                auto step_vec = step_const->cast_vector<int64_t>();
-                auto axes_vec = axes_const->cast_vector<int64_t>();
-
-                // Find the index where axes[i] == axis
-                for (size_t i = 0; i < axes_vec.size(); ++i) {
-                    int64_t normalized = normalize_axis(axes_vec[i], slice->get_input_shape(0).size());
-                    if (normalized == axis) {
-                        return std::make_tuple(start_vec[i], stop_vec[i], step_vec[i], true);
-                    }
-                }
-
-                return std::make_tuple(int64_t(0), int64_t(0), int64_t(0), false);
-            };
-
-            auto [v_start, v_stop, v_step, v_found] = get_slice_params(values_slice, values_slice_axis);
-            auto [i_start, i_stop, i_step, i_found] = get_slice_params(indices_slice, indices_slice_axis);
+            int64_t v_start = 0, v_stop = 0, v_step = 0;
+            int64_t i_start = 0, i_stop = 0, i_step = 0;
+            bool v_found = get_slice_axis_params(values_slice, values_slice_axis, v_start, v_stop, v_step);
+            bool i_found = get_slice_axis_params(indices_slice, indices_slice_axis, i_start, i_stop, i_step);
 
             if (!v_found || !i_found) {
                 return false;
@@ -2105,74 +2077,22 @@ public:
                 return false;
             }
 
-            // Get parameters from both slices
-            auto get_slice_params = [](const std::shared_ptr<ov::op::v8::Slice>& slice)
-                -> std::tuple<std::shared_ptr<ov::op::v0::Constant>,
-                              std::shared_ptr<ov::op::v0::Constant>,
-                              std::shared_ptr<ov::op::v0::Constant>,
-                              std::shared_ptr<ov::op::v0::Constant>> {
-                auto start =
-                    std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(1).get_node_shared_ptr());
-                auto stop =
-                    std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(2).get_node_shared_ptr());
-                auto step =
-                    std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(3).get_node_shared_ptr());
-                auto axes =
-                    std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(4).get_node_shared_ptr());
-                return {start, stop, step, axes};
-            };
-
-            auto [parent_start_const, parent_stop_const, parent_step_const, parent_axes_const] =
-                get_slice_params(parent_slice);
-            auto [child_start_const, child_stop_const, child_step_const, child_axes_const] =
-                get_slice_params(child_slice);
-
-            if (!parent_start_const || !parent_stop_const || !parent_step_const || !parent_axes_const ||
-                !child_start_const || !child_stop_const || !child_step_const || !child_axes_const) {
+            // Get parameters from both slices (axes already normalized to their own input rank)
+            std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> parent_params, child_params;
+            if (!get_slice_all_axis_params(parent_slice, parent_params) ||
+                !get_slice_all_axis_params(child_slice, child_params)) {
                 return false;
             }
 
-            auto parent_start_vec = parent_start_const->cast_vector<int64_t>();
-            auto parent_stop_vec = parent_stop_const->cast_vector<int64_t>();
-            auto parent_step_vec = parent_step_const->cast_vector<int64_t>();
-            auto parent_axes_vec = parent_axes_const->cast_vector<int64_t>();
-
-            auto child_start_vec = child_start_const->cast_vector<int64_t>();
-            auto child_stop_vec = child_stop_const->cast_vector<int64_t>();
-            auto child_step_vec = child_step_const->cast_vector<int64_t>();
-            auto child_axes_vec = child_axes_const->cast_vector<int64_t>();
-
-            // Normalize axes
-            const size_t original_rank = parent_slice->get_input_shape(0).size();
-            for (auto& axis : parent_axes_vec) {
-                axis = normalize_axis(axis, original_rank);
-            }
-            for (auto& axis : child_axes_vec) {
-                axis = normalize_axis(axis, parent_slice->get_output_shape(0).size());
-            }
-
-            // Build merged parameters
-            // Strategy: Start with parent slice params, then merge in child slice params
-            std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> merged_params;
-
-            // Add parent slice parameters
-            for (size_t i = 0; i < parent_axes_vec.size(); ++i) {
-                merged_params[parent_axes_vec[i]] = {parent_start_vec[i], parent_stop_vec[i], parent_step_vec[i]};
-            }
-
-            // Merge child slice parameters
-            // Child slice operates on the output of parent slice, need to adjust indices
-            for (size_t i = 0; i < child_axes_vec.size(); ++i) {
-                int64_t axis = child_axes_vec[i];
-
+            // Build merged parameters: start with parent slice params, then merge in child's
+            std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> merged_params = parent_params;
+            for (const auto& [axis, params] : child_params) {
                 if (merged_params.count(axis)) {
                     // Same axis - need to compose the slicing operations
                     // This is complex, for now just skip this case
                     return false;
-                } else {
-                    // Different axis - just add it
-                    merged_params[axis] = {child_start_vec[i], child_stop_vec[i], child_step_vec[i]};
                 }
+                merged_params[axis] = params;
             }
 
             // Build merged constant vectors
