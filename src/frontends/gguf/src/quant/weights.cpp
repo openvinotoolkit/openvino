@@ -536,8 +536,12 @@ std::shared_ptr<ov::Node> make_weight_node(const WeightTensors& tensors,
                                            GgufTensorType qtype,
                                            const std::string& name) {
     OPENVINO_ASSERT(tensors.weight, "[GGUF] missing weight tensor: ", name);
+    const auto format = get_weight_format(qtype);
+    OPENVINO_ASSERT(!format.has_scales || tensors.scales, "[GGUF] missing scales tensor: ", name);
+    OPENVINO_ASSERT(!format.has_zero_point || tensors.zero_point, "[GGUF] missing zero-point tensor: ", name);
+
     std::shared_ptr<ov::Node> node;
-    switch (get_weight_format(qtype).layout) {
+    switch (format.layout) {
     case WeightLayout::MXFP4:
         node = make_mxfp4(tensors);
         break;
@@ -643,7 +647,8 @@ std::array<FusedQkvPart, 3> split_fused_qkv_extracted(const std::string& base,
                                                              std::make_pair(n_q + n_k, total_rows)};
     std::array<FusedQkvPart, 3> out;
     for (size_t i = 0; i < 3; ++i) {
-        const auto [r0, r1] = ranges[i];
+        const size_t r0 = ranges[i].first;
+        const size_t r1 = ranges[i].second;
         out[i] = make_split_part(qtype, format, weights, base, [&](const ov::Tensor& t) {
             return slice_rows(t, r0, r1);
         });

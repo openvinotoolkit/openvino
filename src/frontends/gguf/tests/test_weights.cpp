@@ -286,3 +286,13 @@ TEST(GGUFFusedQkvWeight, PreservesScalesForMxfp4AndQ8K) {
     check(ov::frontend::gguf::GGUF_TYPE_MXFP4, ov::element::f4e2m1, ov::element::f8e8m0, 8);
     check(ov::frontend::gguf::GGUF_TYPE_Q8_K, ov::element::i8, ov::element::f32, 1);
 }
+
+TEST(GGUFWeight, RejectsMissingAuxiliaryTensors) {
+    using namespace ov::frontend::gguf;
+
+    WeightTensors without_scales{ov::Tensor(ov::element::i4, {1, 32}), {}, {}};
+    EXPECT_THROW(make_weight_node(without_scales, GGUF_TYPE_Q4_0), ov::Exception);
+
+    WeightTensors without_zero_point{ov::Tensor(ov::element::u32, {1, 4}), ov::Tensor(ov::element::f16, {1, 1}), {}};
+    EXPECT_THROW(make_weight_node(without_zero_point, GGUF_TYPE_Q4_K), ov::Exception);
+}
