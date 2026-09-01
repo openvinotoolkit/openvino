@@ -252,12 +252,14 @@ const std::string& RemoteContextImpl::get_device_name() const {
 cldnn::memory::ptr RemoteContextImpl::try_get_cached_memory(size_t hash) {
     std::lock_guard<std::mutex> lock(m_cache_mutex);
     if (m_memory_cache.has(hash))
-        return m_memory_cache.get(hash);
+        return m_memory_cache.get(hash).lock();
 
     return nullptr;
 }
 
 void RemoteContextImpl::add_to_cache(size_t hash, cldnn::memory::ptr memory) {
+    if (!memory)
+        return;
     std::lock_guard<std::mutex> lock(m_cache_mutex);
     m_memory_cache.add(hash, memory);
 }
