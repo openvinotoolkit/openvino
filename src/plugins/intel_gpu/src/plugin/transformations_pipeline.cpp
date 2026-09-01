@@ -755,9 +755,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         const bool fp16_activation_scaling_enabled =
             config.get_activations_scale_factor() > 0.f && infer_precision == ov::element::f16;
         // Gated residuals need FP32 protection only when FP16 activation scaling is enabled.
-        if (!fp16_activation_scaling_enabled)
-            pass_config->disable<DisableFP16CompForQwenImageGatedResidualPattern>();
-        manager.register_pass<DisableFP16CompForQwenImageGatedResidualPattern>();
+        if (fp16_activation_scaling_enabled)
+            manager.register_pass<DisableFP16CompForQwenImageGatedResidualPattern>();
         manager.register_pass<DisableFP16ComForGPTOSSROPEPattern>();
         manager.register_pass<DisableFP16CompForDirectMultiplySinCos>();
         manager.register_pass<DisableFP16CompCumSumSinGen>();
