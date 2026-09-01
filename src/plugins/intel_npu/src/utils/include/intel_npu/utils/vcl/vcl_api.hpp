@@ -50,7 +50,7 @@ public:
     VCLApi(const std::string& library_dir);
     /**
      * @brief Builds an instance without loading the compiler library: `lib` stays null and every
-     * entry point is null. Intended for tests, which assign the entry points they need directly.
+     * entry point is null, so the caller can assign the entry points it needs directly.
      */
     explicit VCLApi(NoLoad);
     VCLApi(const VCLApi& other) = delete;

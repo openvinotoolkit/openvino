@@ -24,9 +24,8 @@ class VCLCompilerImpl final : public IVCLCompiler, public std::enable_shared_fro
 public:
     /**
      * @brief Builds a compiler on top of the given VCL entry points.
-     * @param api The VCL dispatch table to call through. Injecting it is what makes this class
-     *        testable: production code passes `VCLApi::getInstance(libraryDir)`, tests pass a table
-     *        built with `VCLApi::NoLoad` and populated with fakes.
+     * @param api The VCL dispatch table every call is made through; must be non-null.
+     *        See `makeVCLCompiler()` for the entry point that loads it.
      */
     VCLCompilerImpl(std::shared_ptr<const VCLApi> api,
                     const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt);

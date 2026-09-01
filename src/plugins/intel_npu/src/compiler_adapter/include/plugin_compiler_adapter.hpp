@@ -22,7 +22,7 @@ namespace intel_npu {
 class PluginCompilerAdapter final : public ICompilerAdapter {
 public:
     /**
-     * @brief Loads the compiler-in-plugin and adapts it. Production entry point.
+     * @brief Loads the compiler-in-plugin from disk and adapts it.
      */
     PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                           const std::shared_ptr<OptionSupportCache>& optionSupportCache = nullptr,
@@ -30,10 +30,8 @@ public:
 
     /**
      * @brief Adapts an already-constructed compiler.
-     *
-     * Injecting the compiler is what makes the adapter's own logic - blob-type dispatch, the
-     * weights-separation main/init split, the option-support cache interplay - testable without a
-     * driver or an NPU. Pass a null @p zeroInitStruct to exercise the no-driver path.
+     * @param zeroInitStruct Pass null to construct without a Level Zero driver; the adapter then
+     *        produces export-only graphs with no runtime metadata.
      */
     PluginCompilerAdapter(ov::SoPtr<IVCLCompiler> compiler,
                           const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,

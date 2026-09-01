@@ -23,8 +23,8 @@ struct UsedVersion {
 /**
  * @brief Negotiates the VCL version to use.
  *
- * Expressed in plain integers rather than `vcl_version_info_t` so that it carries no VCL dependency
- * and can be unit-tested without the compiler library.
+ * Expressed in plain integers rather than `vcl_version_info_t`, since the negotiation itself has no
+ * dependency on VCL types.
  *
  * - Same major: take the lower minor.
  * - Plugin major newer than the library: downgrade to the library's version.

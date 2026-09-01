@@ -22,8 +22,8 @@ namespace intel_npu {
 /**
  * @brief The compiler-in-plugin surface consumed by PluginCompilerAdapter.
  *
- * Deliberately expressed only in OpenVINO and standard types: no VCL, no Level Zero. This is what
- * lets the adapter be exercised against a fake compiler with no driver and no NPU present.
+ * Deliberately expressed only in OpenVINO and standard types - no VCL, no Level Zero - so
+ * PluginCompilerAdapter depends on this abstraction rather than on VCLCompilerImpl directly.
  */
 class IVCLCompiler {
 public:
