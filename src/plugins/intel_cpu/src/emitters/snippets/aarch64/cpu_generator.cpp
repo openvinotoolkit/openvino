@@ -146,37 +146,35 @@ static bool is_segfault_detector_emitter(const intel_cpu::aarch64::jit_emitter* 
 
 #endif
 
-#define CREATE_ROUND_V5_EMITTER(e_type_from_zero, e_type_even)                                       \
-    {                                                                                                \
-        [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
-            const auto& n = expr->get_node();                                                        \
-            const auto& round = ov::as_type_ptr<ov::op::v5::Round>(n);                               \
-            if (round == nullptr) {                                                                  \
-                OPENVINO_THROW("Can't cast to ov::op::v5::Round");                                   \
-            }                                                                                        \
-            const auto roundingMode = round->get_mode();                                             \
-            if (roundingMode == ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO) {                 \
-                return std::make_shared<e_type_from_zero>(h.get(), isa, n);                          \
-            }                                                                                        \
-            if (roundingMode == ov::op::v5::Round::RoundMode::HALF_TO_EVEN) {                        \
-                return std::make_shared<e_type_even>(h.get(), isa, n);                               \
-            }                                                                                        \
-            OPENVINO_THROW("Unsupported Round mode");                                                \
-        },                                                                                           \
-            [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {         \
-                const auto& round = ov::as_type_ptr<ov::op::v5::Round>(n);                           \
-                if (round == nullptr) {                                                              \
-                    OPENVINO_THROW("Can't cast to ov::op::v5::Round");                               \
-                }                                                                                    \
-                if (round->get_mode() == ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO) {        \
-                    return e_type_from_zero::get_supported_precisions(n);                            \
-                }                                                                                    \
-                if (round->get_mode() == ov::op::v5::Round::RoundMode::HALF_TO_EVEN) {               \
-                    return e_type_even::get_supported_precisions(n);                                 \
-                }                                                                                    \
-                OPENVINO_THROW("Unsupported Round mode");                                            \
-            }                                                                                        \
-    }
+#define CREATE_ROUND_V5_EMITTER(e_type_from_zero, e_type_even)                                    \
+    {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+         const auto& n = expr->get_node();                                                        \
+         const auto& round = ov::as_type_ptr<ov::op::v5::Round>(n);                               \
+         if (round == nullptr) {                                                                  \
+             OPENVINO_THROW("Can't cast to ov::op::v5::Round");                                   \
+         }                                                                                        \
+         const auto roundingMode = round->get_mode();                                             \
+         if (roundingMode == ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO) {                 \
+             return std::make_shared<e_type_from_zero>(h.get(), isa, n);                          \
+         }                                                                                        \
+         if (roundingMode == ov::op::v5::Round::RoundMode::HALF_TO_EVEN) {                        \
+             return std::make_shared<e_type_even>(h.get(), isa, n);                               \
+         }                                                                                        \
+         OPENVINO_THROW("Unsupported Round mode");                                                \
+     },                                                                                           \
+     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {             \
+         const auto& round = ov::as_type_ptr<ov::op::v5::Round>(n);                               \
+         if (round == nullptr) {                                                                  \
+             OPENVINO_THROW("Can't cast to ov::op::v5::Round");                                   \
+         }                                                                                        \
+         if (round->get_mode() == ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO) {            \
+             return e_type_from_zero::get_supported_precisions(n);                                \
+         }                                                                                        \
+         if (round->get_mode() == ov::op::v5::Round::RoundMode::HALF_TO_EVEN) {                   \
+             return e_type_even::get_supported_precisions(n);                                     \
+         }                                                                                        \
+         OPENVINO_THROW("Unsupported Round mode");                                                \
+     }}
 
 class jit_snippet : public dnnl::impl::cpu::aarch64::jit_generator_t {
 public:
