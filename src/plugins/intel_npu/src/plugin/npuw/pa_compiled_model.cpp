@@ -224,10 +224,12 @@ ov::npuw::PACompiledModel::PACompiledModel(const std::shared_ptr<ov::Model>& mod
     // NPU_USE_NPUW and NPU_* keys are this plugin's configuration and must not
     // reach the executing device (which would reject them as unsupported);
     // everything else (e.g. KV_CACHE_PRECISION, performance hints) is the
-    // executing device's business and is forwarded.
+    // executing device's business and is forwarded. DEVICE_ID names an NPU
+    // device (e.g. NPU.3600), so it stays behind as well: the fallback device
+    // would reject an id it doesn't have.
     ov::AnyMap inner_config;
     for (const auto& [key, value] : properties) {
-        if (ov::npuw::util::starts_with(key, "NPU")) {
+        if (ov::npuw::util::starts_with(key, "NPU") || key == ov::device::id.name()) {
             continue;
         }
         inner_config.emplace(key, value);
