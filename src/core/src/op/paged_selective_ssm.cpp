@@ -49,18 +49,22 @@ void PagedSelectiveSSM::validate_and_infer_types() {
 
     ov::element::Type common_float_type = get_input_element_type(0);
     bool float_types_merge = true;
-    for (size_t input = 1; input < 6; ++input) {
+    for (size_t input = 1; input < 5; ++input) {
         float_types_merge &=
             ov::element::Type::merge(common_float_type, common_float_type, get_input_element_type(input));
     }
     NODE_VALIDATION_CHECK(this,
                           float_types_merge,
-                          "PagedSelectiveSSM expects inputs A, dt, B, x, C and recurrent_state_table to have the "
-                          "same element type.");
+                          "PagedSelectiveSSM expects inputs A, dt, B, x, and C to have the same element type.");
     NODE_VALIDATION_CHECK(this,
                           common_float_type.is_dynamic() || common_float_type == ov::element::f32 ||
                               common_float_type == ov::element::f16 || common_float_type == ov::element::bf16,
                           "PagedSelectiveSSM data inputs must have f32, f16, or bf16 element type.");
+    const auto& state_type = get_input_element_type(5);
+    NODE_VALIDATION_CHECK(this,
+                          state_type.is_dynamic() || state_type == ov::element::f32 || state_type == ov::element::f16 ||
+                              state_type == ov::element::bf16,
+                          "PagedSelectiveSSM recurrent_state_table must have f32, f16, or bf16 element type.");
 
     ov::element::Type common_index_type = get_input_element_type(6);
     bool index_types_merge = true;
