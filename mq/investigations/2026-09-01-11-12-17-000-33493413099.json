@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-01-11-12-17-000-33493413099",
+  "timestamp": "2026-09-01T11:12:17Z",
+  "run_id": "33493413099",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33493413099",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37660",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37660",
+  "author": "allnes",
+  "category": "Infrastructure",
+  "title": "Windows VS 2022 workflow logs unavailable - run re-queued automatically on attempt 2",
+  "signature": "Windows VS2022 workflow run failed - job logs unavailable due to secrecy policy|Infrastructure",
+  "signature_hash": "cc822c07e113be0a",
+  "confidence": "High",
+  "failed_jobs": [
+    "Windows (VS 2022, Python 3.11, Release) - attempt 1 (no recoverable log data)"
+  ],
+  "key_errors": [
+    "Workflow run concluded as 'failure' on attempt 1. Attempt 2 auto-started. No failed job logs are available to CI Doctor (secrecy/policy restriction on self-hosted Windows runners). This matches a known recurrent pattern."
+  ],
+  "root_cause": "The Windows VS 2022 Release workflow failed on attempt 1 with no retrievable job logs. This is a known recurring infrastructure issue on self-hosted Windows runners in the OpenVINO merge queue: the run concludes as 'failure' before all jobs complete or logs are accessible, and the system automatically triggers a second attempt. The actual underlying cause per historical pattern: transient infrastructure event on the self-hosted AKS Windows runner (resource pressure, runner reset, or artifact service timeout).",
+  "reproduction_steps": "N/A \u2014 transient infrastructure failure; not reproducible locally.",
+  "recommended_actions": [
+    "Monitor attempt 2 (currently running) to confirm it passes.",
+    "If attempt 2 also fails, inspect the specific job logs for the actual error.",
+    "File an infra ticket if this pattern continues to recur weekly."
+  ],
+  "prevention_strategies": "Increase self-hosted Windows runner pool capacity and add health checks. Configure retry logic for artifact upload steps.",
+  "historical_context": "This is the 9th occurrence of this pattern (cc822c07e113be0a), first seen 2026-07-24. Previous occurrences resolved by automatic re-queue on attempt 2."
+}

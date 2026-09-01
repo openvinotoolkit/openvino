@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 212,
+  "total": 213,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -2086,6 +2086,17 @@
       "category": "Flaky Test",
       "signature_hash": "47caedf70a4041f8",
       "pr_number": "37768"
+    },
+    {
+      "investigation_id": "2026-09-01-11-12-17-000-33493413099",
+      "run_id": "33493413099",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33493413099",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-09-01T11:12:17Z",
+      "title": "Windows VS 2022 workflow logs unavailable - run re-queued automatically on attempt 2",
+      "category": "Infrastructure",
+      "signature_hash": "cc822c07e113be0a",
+      "pr_number": "37660"
     }
   ]
 }

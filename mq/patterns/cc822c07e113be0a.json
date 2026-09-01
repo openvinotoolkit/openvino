@@ -4,10 +4,11 @@
   "signature_hash": "cc822c07e113be0a",
   "title": "Windows VS 2022 workflow logs unavailable - run re-queued automatically on attempt 2",
   "category": "Infrastructure",
-  "count": 8,
+  "count": 9,
   "first_seen": "2026-07-24T06:35:00Z",
-  "last_seen": "2026-07-29T07:16:54Z",
+  "last_seen": "2026-09-01T11:12:17Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/33493413099",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30428294996",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30357349840",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30312759752",
@@ -18,6 +19,7 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/30068549392"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37660",
     "https://github.com/openvinotoolkit/openvino/pull/37067",
     "https://github.com/openvinotoolkit/openvino/pull/36860",
     "https://github.com/openvinotoolkit/openvino/pull/35116",
@@ -26,6 +28,7 @@
     "https://github.com/openvinotoolkit/openvino/pull/36866"
   ],
   "recent_timestamps": [
+    "2026-09-01T11:12:17Z",
     "2026-07-29T07:16:54Z"
   ],
   "rerun_search_string": null
