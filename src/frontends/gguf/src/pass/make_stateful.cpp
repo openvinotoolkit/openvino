@@ -105,6 +105,7 @@ const std::string& gguf_swa_window_key() {
 // Their shapes are fully static, so the init is a real zeros Constant. Zero is also the correct
 // initial value: ggml starts a sequence with a zeroed conv window and delta matrix.
 static bool make_recurrent_states_stateful(const std::shared_ptr<ov::Model>& model) {
+    using namespace ov::op;
     auto it = model->get_rt_info().find(gguf_recurrent_states_key());
     if (it == model->get_rt_info().end()) {
         return false;
@@ -136,7 +137,7 @@ static bool make_recurrent_states_stateful(const std::shared_ptr<ov::Model>& mod
         // The Result holding this state's new value: the one whose producing node carries the
         // state's output name. The builder names that node after the state (see the VIEW cases),
         // which is why those names have to survive translation.
-        std::shared_ptr<ov::op::v0::Result> state_result;
+        std::shared_ptr<v0::Result> state_result;
         for (const auto& r : model->get_results()) {
             const auto producer = r->get_input_node_shared_ptr(0);
             if (producer->get_friendly_name().find(out_name) != std::string::npos) {
@@ -148,12 +149,12 @@ static bool make_recurrent_states_stateful(const std::shared_ptr<ov::Model>& mod
 
         const auto et = param->get_element_type();
         auto var = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{ps, et, in_name});
-        auto init = ov::op::v0::Constant::create(et, ps.to_shape(), std::vector<float>(1, 0.0f));
-        auto read_value = std::make_shared<ov::op::v6::ReadValue>(init, var);
+        auto init = v0::Constant::create(et, ps.to_shape(), std::vector<float>(1, 0.0f));
+        auto read_value = std::make_shared<v6::ReadValue>(init, var);
         read_value->set_friendly_name(in_name);
         ov::replace_node(param, read_value);
 
-        new_sinks.push_back(std::make_shared<ov::op::v6::Assign>(state_result->input_value(0), var));
+        new_sinks.push_back(std::make_shared<v6::Assign>(state_result->input_value(0), var));
         model->add_variables({var});
         results_to_remove.push_back(state_result);
         params_to_remove.push_back(param);
@@ -167,6 +168,7 @@ static bool make_recurrent_states_stateful(const std::shared_ptr<ov::Model>& mod
 }
 
 bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    using namespace ov::op;
     // beam_idx reorders the past cache along the batch axis for beam search (identity at batch 1 /
     // beam_idx [0], but emitting it is what lets CPU's stateful_sdpa_fusion match). It belongs to
     // the STATE, so this pass owns it: it indexes an OpenVINO cache that ggml has no equivalent
@@ -176,7 +178,7 @@ bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
     auto beam_idx = find_parameter(model, m_beam_idx_name);
     const bool created_beam_idx = beam_idx == nullptr;
     if (created_beam_idx) {
-        beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{ov::Dimension()});
+        beam_idx = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{ov::Dimension()});
         beam_idx->set_friendly_name(m_beam_idx_name);
         beam_idx->output(0).set_names({m_beam_idx_name});
     }
@@ -190,7 +192,7 @@ bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
         if (!set_rows) {
             continue;
         }
-        auto dst = ov::as_type_ptr<ov::op::v0::Parameter>(set_rows->input_value(2).get_node_shared_ptr());
+        auto dst = ov::as_type_ptr<v0::Parameter>(set_rows->input_value(2).get_node_shared_ptr());
         if (dst && !m_skip_caches.count(dst->get_friendly_name())) {
             cache_writes.push_back(set_rows);
         }
@@ -205,11 +207,11 @@ bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
     ov::ResultVector results_to_remove;
     ov::SinkVector new_sinks;
     // Same beam_idx Gather axis for every cache; hoisted out of the loop below.
-    auto axis0 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto axis0 = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
 
     for (const auto& set_rows : cache_writes) {
         auto new_rows = set_rows->input_value(0);
-        auto cache_param = ov::as_type_ptr<ov::op::v0::Parameter>(set_rows->input_value(2).get_node_shared_ptr());
+        auto cache_param = ov::as_type_ptr<v0::Parameter>(set_rows->input_value(2).get_node_shared_ptr());
         const auto& cache_name = cache_param->get_friendly_name();
         const auto& ps = cache_param->get_partial_shape();
         const auto et = cache_param->get_element_type();
@@ -244,8 +246,8 @@ bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
         }
         // Empty init: required, not cosmetic -- CPU's MemoryInputSDPA aborts on a MemoryInput with
         // zero parent edges (see the header note).
-        auto init = ov::op::v0::Constant::create(et, init_shape, std::vector<float>{});
-        auto read_value = std::make_shared<ov::op::v6::ReadValue>(init, var);
+        auto init = v0::Constant::create(et, init_shape, std::vector<float>{});
+        auto read_value = std::make_shared<v6::ReadValue>(init, var);
 
         // The SetRows placeholder presents the new rows flattened to [.., 1, tokens, row_size] (see
         // translate_set_rows), which need not be the cache's own split of those same elements -- e.g.
@@ -257,14 +259,14 @@ bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
         for (int64_t i = 0; i < ps.rank().get_length(); ++i) {
             split_pattern.push_back(i < axis ? 0 : (i == axis ? -1 : ps[i].get_length()));
         }
-        auto split_shape = ov::op::v0::Constant::create(ov::element::i64, {split_pattern.size()}, split_pattern);
-        new_rows = std::make_shared<ov::op::v1::Reshape>(new_rows, split_shape, true);
+        auto split_shape = v0::Constant::create(ov::element::i64, {split_pattern.size()}, split_pattern);
+        new_rows = std::make_shared<v1::Reshape>(new_rows, split_shape, true);
 
         // Reorder the past by beam_idx before appending, so each beam continues its own history.
-        auto past = std::make_shared<ov::op::v8::Gather>(read_value, beam_idx, axis0);
-        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{past, new_rows}, axis);
+        auto past = std::make_shared<v8::Gather>(read_value, beam_idx, axis0);
+        auto concat = std::make_shared<v0::Concat>(ov::OutputVector{past, new_rows}, axis);
         concat->set_friendly_name(set_rows->get_friendly_name());
-        new_sinks.push_back(std::make_shared<ov::op::v6::Assign>(concat, var));
+        new_sinks.push_back(std::make_shared<v6::Assign>(concat, var));
 
         // The stateless graph returns each updated cache as a Result; in the stateful form the Assign
         // sink above takes that role, so those Results go. Identify them as the Results reading THIS
@@ -272,7 +274,7 @@ bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
         // names a cache's write after the cache itself. Collect them before replace_node, while the
         // SetRows is still the node they read.
         for (const auto& consumer : set_rows->output(0).get_target_inputs()) {
-            if (auto r = ov::as_type_ptr<ov::op::v0::Result>(consumer.get_node()->shared_from_this())) {
+            if (auto r = ov::as_type_ptr<v0::Result>(consumer.get_node()->shared_from_this())) {
                 results_to_remove.push_back(r);
             }
         }

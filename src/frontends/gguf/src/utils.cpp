@@ -38,7 +38,8 @@ void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_
     FRONT_END_OP_CONVERSION_CHECK(input_size <= max_inputs, "Got more inputs than expected");
 }
 
-std::shared_ptr<ov::op::v0::Parameter> find_parameter(const std::shared_ptr<ov::Model>& model, const std::string& name) {
+std::shared_ptr<ov::op::v0::Parameter> find_parameter(const std::shared_ptr<ov::Model>& model,
+                                                      const std::string& name) {
     for (const auto& p : model->get_parameters()) {
         if (p->get_friendly_name() == name || p->output(0).get_names().count(name)) {
             return p;
