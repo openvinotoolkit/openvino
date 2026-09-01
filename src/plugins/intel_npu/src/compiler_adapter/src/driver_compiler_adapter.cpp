@@ -109,8 +109,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                                     _zeGraphExt->isPluginModelHashSupported());
     FilteredConfig updatedConfig = config;
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
-        updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
-                               MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
+        updatedConfig.update(ov::intel_npu::model_serializer_version.name(),
+                             MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
     }
 
     std::string buildFlags;
@@ -183,8 +183,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                                                     true);
     FilteredConfig updatedConfig = config;
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
-        updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
-                               MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
+        updatedConfig.update(ov::intel_npu::model_serializer_version.name(),
+                             MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
     }
 
     std::string buildFlags;
@@ -212,7 +212,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
 
     while (true) {
         _logger.debug("compileWS iteration %d", callNumber);
-        updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber++)}});
+        updatedConfig.update(ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber++));
 
         _logger.debug("build flags");
         buildFlags = serializedIOInfo;
@@ -285,8 +285,8 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
 
     FilteredConfig updatedConfig = config;
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
-        updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
-                               MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
+        updatedConfig.update(ov::intel_npu::model_serializer_version.name(),
+                             MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
     }
     const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
         return is_option_supported(optionName);

@@ -47,7 +47,6 @@ class PropertiesManagerTests : public ov::test::behavior::OVPluginTestBase,
                                public testing::WithParamInterface<ConfigParams> {
 protected:
     std::shared_ptr<::intel_npu::OptionsDesc> options = std::make_shared<::intel_npu::OptionsDesc>();
-    std::shared_ptr<::intel_npu::FilteredConfig> npu_config = std::make_shared<::intel_npu::FilteredConfig>(options);
     ov::SoPtr<::intel_npu::IEngineBackend> backend;
     std::unique_ptr<::intel_npu::PluginPropertyManager> propertiesManager;
 
@@ -139,9 +138,6 @@ public:
             if (backend->isCommandQueueExtSupported()) {
                 REGISTER_OPTION(WORKLOAD_TYPE);
             }
-            if (backend->isContextExtSupported()) {
-                REGISTER_OPTION(DISABLE_IDLE_MEMORY_PRUNING);
-            }
         }
 
         OPENVINO_SUPPRESS_DEPRECATED_START
@@ -157,20 +153,8 @@ public:
             REGISTER_OPTION(Opt);
         });
 
-        if (npu_config->get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN && backend != nullptr) {
-            auto device = backend->getDevice();
-            if (device) {
-                auto platformName = device->getName();
-                CompilerAdapterFactory compilerFactory;
-                auto compileType = compilerFactory.determineAppropriateCompilerTypeBasedOnPlatform(platformName);
-                if (compileType == ov::intel_npu::CompilerType::DRIVER) {
-                    npu_config->update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compileType)}});
-                }
-            }
-        }
-
         propertiesManager = std::make_unique<PluginPropertyManager>(
-            npu_config,
+            options,
             backend,
             std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend, CompilerAdapterFactory()),
             ::intel_npu::Logger::global());
@@ -340,39 +324,6 @@ TEST_P(CompatibilityCheckTests, ExpectTurboPropertyIsSupported) {
     ASSERT_TRUE(turboSupported);
 }
 
-TEST_P(CompatibilityCheckTests, ExpectTurboPropertyIsAvailable) {
-    std::string logs;
-    std::mutex logs_mutex;
-    bool turboAvailable = false;
-
-    // Keep this std::function alive while logging is active.
-    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
-        std::lock_guard<std::mutex> lock(logs_mutex);
-        logs.append(msg);
-        logs.push_back('\n');
-    };
-
-    const bool turboSupportedByDevice = backend && backend->isCommandQueueExtSupported();
-
-    {
-        utils::LogCallbackGuard log_callback_guard(log_cb);
-        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
-        propertiesManager->setProperty({{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}});
-        turboAvailable = propertiesManager->isPropertyAvailable(ov::intel_npu::turbo.name());
-    }
-
-    if (turboSupportedByDevice) {
-        // Turbo is supported by device, so checking support must not trigger compiler adapters.
-        ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
-        ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
-    } else {
-        ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
-        ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
-    }
-
-    ASSERT_TRUE(turboAvailable);
-}
-
 TEST_P(CompatibilityCheckTests, ExpectCompilerPropertyIsNotSupported) {
     std::string logs;
     std::mutex logs_mutex;
@@ -408,48 +359,6 @@ TEST_P(CompatibilityCheckTests, ExpectCompilerPropertyIsNotSupported) {
     ASSERT_FALSE(isSupported);
     ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
     ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
-}
-
-TEST_P(CompatibilityCheckTests, ExpectCompilerPropertyIsNotAvailable) {
-    std::string logs;
-    std::mutex logs_mutex;
-    bool isAvailable = true;
-
-    // Keep this std::function alive while logging is active.
-    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
-        std::lock_guard<std::mutex> lock(logs_mutex);
-        logs.append(msg);
-        logs.push_back('\n');
-    };
-
-    {
-        utils::LogCallbackGuard log_callback_guard(log_cb);
-        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
-        propertiesManager->setProperty({{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}});
-        isAvailable = propertiesManager->isPropertyAvailable("DUMMY_PROPERTY");
-    }
-
-    ASSERT_FALSE(isAvailable);
-    ASSERT_NE(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
-    ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
-
-    logs.clear();
-
-    {
-        utils::LogCallbackGuard log_callback_guard(log_cb);
-        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
-        propertiesManager->setProperty({{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}});
-        isAvailable = propertiesManager->isPropertyAvailable("DUMMY_PROPERTY");
-    }
-
-    ASSERT_FALSE(isAvailable);
-    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
-    ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
-}
-
-TEST_P(CompatibilityCheckTests, ExpectLoadedFromCacheAvailable) {
-    bool isAvailable = propertiesManager->isPropertyAvailable(ov::loaded_from_cache.name());
-    ASSERT_TRUE(isAvailable);
 }
 
 using ExpectLoadingCompilerPropertySupported = PropertiesManagerTests;

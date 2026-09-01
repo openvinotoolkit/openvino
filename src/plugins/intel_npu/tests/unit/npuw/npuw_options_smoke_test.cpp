@@ -33,7 +33,9 @@ std::shared_ptr<const ::intel_npu::OptionsDesc> make_options_desc() {
 
 ::intel_npu::Config make_config(const ::intel_npu::Config::ConfigMap& options = {}) {
     ::intel_npu::Config cfg(make_options_desc());
-    cfg.update(options);
+    for (const auto& [key, value] : options) {
+        cfg.update(key, value);
+    }
     return cfg;
 }
 

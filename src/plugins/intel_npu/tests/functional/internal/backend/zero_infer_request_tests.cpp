@@ -159,11 +159,9 @@ public:
         options->add<::intel_npu::BATCH_MODE>();
         options->add<::intel_npu::MODEL_SERIALIZER_VERSION>();
         npu_config = std::make_unique<::intel_npu::FilteredConfig>(options);
-        ::intel_npu::Config::ConfigMap configMap;
         for (const auto& [propertyName, propertyValue] : configuration) {
-            configMap[propertyName] = propertyValue.as<std::string>();
+            npu_config->update(propertyName, propertyValue.as<std::string>());
         }
-        npu_config->update(configMap);
 
         auto zeroInitMock = std::make_shared<::intel_npu::ZeroInitStructsMock>(
             ::intel_npu::test_constants::TARGET_ZE_DRIVER_NPU_EXT_VERSION,
@@ -217,9 +215,9 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
 
     // WA for error `[NPU_VCL] Unsupported IR API version! Val: 48.0`
     if (compiler->is_option_supported(::intel_npu::MODEL_SERIALIZER_VERSION::key().data())) {
-        npu_config->update({{::intel_npu::MODEL_SERIALIZER_VERSION::key().data(),
-                             ::intel_npu::MODEL_SERIALIZER_VERSION::toString(
-                                 ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY)}});
+        npu_config->update(
+            ::intel_npu::MODEL_SERIALIZER_VERSION::key().data(),
+            ::intel_npu::MODEL_SERIALIZER_VERSION::toString(ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY));
     }
 
     // logic for batch
@@ -231,7 +229,7 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
         auto [batchedModel, successfullyDebatched] = intel_npu::batch_helpers::handlePluginBatching(
             ov_model,
             [&](ov::intel_npu::BatchMode mode) {
-                npu_config->update({{::intel_npu::BATCH_MODE::key().data(), ::intel_npu::BATCH_MODE::toString(mode)}});
+                npu_config->update(::intel_npu::BATCH_MODE::key().data(), ::intel_npu::BATCH_MODE::toString(mode));
             },
             std::make_optional(npu_config->get<::intel_npu::BATCH_MODE>()),
             originalBatch,
@@ -246,12 +244,14 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
         graph->set_batch_size(batch.value());
     }
 
+    ov::AnyMap unknownProperties = ov::AnyMap{};
     auto compiledModel = std::make_shared<intel_npu::CompiledModel>(
         ov_model,
         std::make_shared<ov::test::utils::MockPlugin>(),  // MockPlugin needed only to avoid throw for nullptr
         device,
         graph,
         *npu_config,
+        unknownProperties,
         batch);
     OPENVINO_ASSERT(compiledModel->inputs()[0].get_element_type() == element_type);
     OPENVINO_ASSERT(compiledModel->inputs()[1].get_element_type() == element_type);

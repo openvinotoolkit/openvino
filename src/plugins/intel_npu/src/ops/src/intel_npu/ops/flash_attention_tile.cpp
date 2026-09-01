@@ -572,10 +572,6 @@ inline bool FlashAttentionTile::evaluate(ov::TensorVector& outputs, const ov::Te
     return true;
 }
 
-const FlashAttentionTile::Config& FlashAttentionTile::get_config() const {
-    return m_config;
-}
-
 void FlashAttentionTile::set_config(Config config) {
     m_config = std::move(config);
 }

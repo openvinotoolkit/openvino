@@ -479,9 +479,9 @@ public:
 
     explicit Config(const std::shared_ptr<const OptionsDesc>& desc);
 
-    virtual void update(const ConfigMap& options);
+    void update(std::string_view key, std::string_view value);
 
-    virtual void updateAny(const ov::AnyMap& options);
+    void updateAny(std::string_view key, const ov::Any& value);
 
     void parseEnvVars();
 

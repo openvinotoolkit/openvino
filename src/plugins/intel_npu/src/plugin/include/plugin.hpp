@@ -76,8 +76,6 @@ private:
     ov::SoPtr<IEngineBackend> _backend;
 
     mutable Logger _logger;
-    std::shared_ptr<FilteredConfig> _config;
-    mutable std::shared_mutex _configMutex;
     std::unique_ptr<PluginPropertyManager> _propertiesManager;
     std::shared_ptr<CompilerOptionSupportHelper> _compilerOptionSupportHelper;
 

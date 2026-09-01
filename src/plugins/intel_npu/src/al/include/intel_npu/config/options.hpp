@@ -568,6 +568,32 @@ struct MODEL_PRIORITY final : OptionBase<MODEL_PRIORITY, ov::hint::Priority> {
     }
 };
 
+struct MODEL_PTR final : OptionBase<MODEL_PTR, std::weak_ptr<const ov::Model>> {
+    static std::string_view key() {
+        return ov::hint::model.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "std::weak_ptr<const ov::Model>";
+    }
+
+    static std::weak_ptr<const ov::Model> defaultValue() {
+        return {};
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+
+    static std::string toString(const std::weak_ptr<const ov::Model>&) {
+        OPENVINO_THROW("Option ", ov::hint::model.name(), " cannot be converted to string");
+    }
+
+    static std::weak_ptr<const ov::Model> parse(std::string_view) {
+        OPENVINO_THROW("Option ", ov::hint::model.name(), " cannot be parsed from string");
+    }
+};
+
 struct CREATE_EXECUTOR final : OptionBase<CREATE_EXECUTOR, int64_t> {
     static std::string_view key() {
         return ov::intel_npu::create_executor.name();

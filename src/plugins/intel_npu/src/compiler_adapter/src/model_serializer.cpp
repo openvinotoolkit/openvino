@@ -727,7 +727,7 @@ std::string serializeConfig(const FilteredConfig& originalConfig,
         std::ostringstream levelStr;
         levelStr << originalConfig.get<COMPILE_LOG_LEVEL>();
         configWithCompileLogLevel = originalConfig;
-        configWithCompileLogLevel->update({{ov::log::level.name(), levelStr.str()}});
+        configWithCompileLogLevel->update(ov::log::level.name(), levelStr.str());
     }
     const FilteredConfig& config = configWithCompileLogLevel.has_value() ? *configWithCompileLogLevel : originalConfig;
 

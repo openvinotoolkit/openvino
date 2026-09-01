@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include "compiler_option_support_helper.hpp"
@@ -21,9 +22,11 @@
 
 namespace intel_npu {
 
+enum class ConfigMergeMode { Compile, Import };
+
 class PluginPropertyManager final : private PropertyRegistrationBase {
 public:
-    PluginPropertyManager(const std::shared_ptr<FilteredConfig>& config,
+    PluginPropertyManager(const std::shared_ptr<OptionsDesc>& options,
                           const ov::SoPtr<IEngineBackend>& backend,
                           const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper,
                           Logger& logger);
@@ -33,20 +36,27 @@ public:
     void setProperty(const ov::AnyMap& properties);
     ov::Any getProperty(const std::string& name, const ov::AnyMap& arguments = {}) const;
     bool isPropertySupported(const std::string& name, const ov::AnyMap& arguments = {}) const;
-    bool isPropertyAvailable(const std::string& name, const ov::AnyMap& arguments = {}) const;
+
+    std::pair<FilteredConfig, ov::AnyMap> getMergedConfigAndUnknownProperties(const ov::AnyMap& properties,
+                                                                              ConfigMergeMode mergeMode);
+
+    std::string determinePlatform(const ov::AnyMap& properties) const;
+    std::string determineDeviceId(const ov::AnyMap& properties) const;
+    ov::intel_npu::CompilerType determineCompilerType(const ov::AnyMap& properties) const;
 
 private:
     void registerProperties();
-    bool isPropertyRegistered(const std::string& propertyName) const;
     std::optional<ov::intel_npu::CompilerType> resolveCompilerType(ov::intel_npu::CompilerType compilerType,
                                                                    const std::string& deviceId,
                                                                    const std::string& platform) const;
 
-    std::shared_ptr<FilteredConfig> _config;
+    FilteredConfig _config;
 
     ov::SoPtr<IEngineBackend> _backend;
     std::shared_ptr<CompilerOptionSupportHelper> _compilerOptionSupportHelper;
     Logger& _logger;
+
+    mutable std::mutex _mutex;
 
     const std::vector<ov::PropertyName> _cachingProperties = [] {
         std::vector<ov::PropertyName> properties = {

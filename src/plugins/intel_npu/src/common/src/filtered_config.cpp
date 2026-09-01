@@ -24,34 +24,6 @@ bool FilteredConfig::isOptPublic(std::string_view key) const {
     }
 }
 
-void FilteredConfig::update(const ConfigMap& options) {
-    auto log = Logger::global().clone("Config");
-
-    for (const auto& p : options) {
-        log.trace("Update option '%s' to value '%s'", p.first.c_str(), p.second.c_str());
-        if (_desc->has(p.first)) {
-            const auto opt = _desc->get(p.first);
-            _impl[opt.key().data()] = opt.validateAndParseFromString(p.second);
-        } else {
-            OPENVINO_THROW("[ NOT_FOUND ] Option '" + p.first + "' is not supported for current configuration");
-        }
-    }
-}
-
-void FilteredConfig::updateAny(const ov::AnyMap& options) {
-    auto log = Logger::global().clone("Config");
-
-    for (const auto& p : options) {
-        log.trace("Update option '%s' to given 'ov::Any' value", p.first.c_str());
-        if (_desc->has(p.first)) {
-            const auto opt = _desc->get(p.first);
-            _impl[opt.key().data()] = opt.validateAndParseFromAny(p.second);
-        } else {
-            OPENVINO_THROW("[ NOT_FOUND ] Option '" + p.first + "' is not supported for current configuration");
-        }
-    }
-}
-
 void FilteredConfig::walkInternals(std::function<void(const std::string&)> cb) const {
     for (const auto& itr : _internal_compiler_configs) {
         cb(itr.first);

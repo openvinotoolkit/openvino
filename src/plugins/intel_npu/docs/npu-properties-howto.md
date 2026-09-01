@@ -141,8 +141,7 @@ such as enabling/disabling keys based on their availability/support on the curre
 
 The initialization order is:
 1. `Plugin` creates and populates `OptionsDesc` with all plugin options (`register_options(...)`) and then registers backend options (`backend->registerOptions(*options)` when a backend exists).
-2. `Plugin` reparses environment variables in `FilteredConfig` so newly registered options are applied.
-3. `Plugin` constructs `PluginPropertyManager`, which resolves the effective compiler context and registers property descriptors.
+2. `Plugin` constructs `PluginPropertyManager`, which resolves the effective compiler context and registers property descriptors.
 
 ### Properties
 is the top level class and serves as the NPU Plugin's interface to OpenVino and the application layer.
@@ -257,9 +256,7 @@ Third step is to register the new option in the plugin:
     REGISTER_OPTION(EXAMPLE_PROPERTY);
 ``` 
 Notes:  
-The plugin registers the option in `OptionsDesc` before the backend adds its compiler-specific options. The plugin then
-constructs `FilteredConfig` from the completed descriptor, parses environment variables, and passes the configuration to
-`PluginPropertyManager`.
+The plugin registers the option in `OptionsDesc` before the backend adds its compiler-specific options.
 
 ## Step 4. Link the new property to the new option
 Fourth step is to create and register the Property (which is basically the interface to this configuration option) for both Plugin and CompiledModel (if needed) 
@@ -271,13 +268,13 @@ register_property(
     true,
     ov::PropertyMutability::RW,
     [this](const ov::AnyMap&) {
-        return _config->hasOpt(EXAMPLE_PROPERTY::key());
+        return _config.hasOpt(EXAMPLE_PROPERTY::key());
     },
     [this](const ov::AnyMap&) {
-        return _config->get<EXAMPLE_PROPERTY>();
+        return _config.get<EXAMPLE_PROPERTY>();
     },
     [this](const ov::Any& value) {
-        _config->updateAny({{EXAMPLE_PROPERTY::key(), value}});
+        _config.updateAny({{EXAMPLE_PROPERTY::key(), value}});
     });
 ```
 **Explanation:**
@@ -288,7 +285,7 @@ descriptor. The support predicate determines whether the property is exposed. Th
 src/plugins/intel_npu/src/plugin/src/compiled_model_property_manager.cpp > function CompiledModelPropertyManager::registerProperties()
 ```cpp
 const auto hasPropertyValue = [this](const std::string& propertyName) {
-    return _config->has(propertyName);
+    return _config.has(propertyName);
 };
 
 register_property(
@@ -296,10 +293,10 @@ register_property(
     true,
     ov::PropertyMutability::RO,
     [this, hasPropertyValue](const ov::AnyMap&) {
-        return _config->hasOpt(EXAMPLE_PROPERTY::key()) && hasPropertyValue(EXAMPLE_PROPERTY::key());
+        return _config.hasOpt(EXAMPLE_PROPERTY::key()) && hasPropertyValue(EXAMPLE_PROPERTY::key());
     },
     [this](const ov::AnyMap&) {
-        return _config->get<EXAMPLE_PROPERTY>();
+        return _config.get<EXAMPLE_PROPERTY>();
     },
     [](const ov::Any&) {
         OPENVINO_THROW("READ-ONLY configuration key");
@@ -411,7 +408,7 @@ register_property(
 For properties that require an explicitly stored value, use a support predicate such as:
 ```cpp
 const auto hasPropertyValue = [this](const std::string& propertyName) {
-    return _config->has(propertyName);
+    return _config.has(propertyName);
 };
 
 register_property(
@@ -419,10 +416,10 @@ register_property(
     true,
     ov::PropertyMutability::RO,
     [this, hasPropertyValue](const ov::AnyMap&) {
-        return _config->hasOpt(EXAMPLE_PROPERTY::key()) && hasPropertyValue(EXAMPLE_PROPERTY::key());
+        return _config.hasOpt(EXAMPLE_PROPERTY::key()) && hasPropertyValue(EXAMPLE_PROPERTY::key());
     },
     [this](const ov::AnyMap&) {
-        return _config->get<EXAMPLE_PROPERTY>();
+        return _config.get<EXAMPLE_PROPERTY>();
     },
     [](const ov::Any&) {
         OPENVINO_THROW("READ-ONLY configuration key");
@@ -430,7 +427,7 @@ register_property(
 ```
 
 Some compiled-model properties are intentionally available whenever their option is registered, using
-`_config->hasOpt(propertyName)` without requiring `_config->has(propertyName)`. This applies to properties whose
+`_config.hasOpt(propertyName)` without requiring `_config.has(propertyName)`. This applies to properties whose
 default value is part of the compiled-model contract.
 
 <br><br>
