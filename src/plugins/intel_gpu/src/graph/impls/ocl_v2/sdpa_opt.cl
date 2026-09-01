@@ -519,7 +519,8 @@ KERNEL(sdpa_opt)(
                         // Apply attention mask
 #if IS_CAUSAL
                         #if !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
-                            if (start_partition_idx + seq_len > (SOURCE_SEQ_LEN - TARGET_SEQ_LEN) + target_seq_idx + seq_idx)
+                            const uint causal_offset = max(0, (int)SOURCE_SEQ_LEN - (int)TARGET_SEQ_LEN);
+                            if (start_partition_idx + seq_len > causal_offset + target_seq_idx + seq_idx)
                         #else
                             if (start_partition_idx + seq_len > target_seq_idx + seq_idx)
                         #endif

@@ -243,6 +243,7 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
 
         const auto causal_mask_alignment = gpu_sdpa ? gpu_sdpa->get_causal_mask_alignment()
                                                     : op::SDPA::CausalMaskAlignment::UPPER_LEFT;
+        const auto output_type = gpu_sdpa ? gpu_sdpa->get_output_type() : ov::element::dynamic;
 
         auto order_q = op::SDPA::default_order(sdpa->get_input_partial_shape(0).size());
         auto order_k = op::SDPA::default_order(sdpa->get_input_partial_shape(1).size());
@@ -305,7 +306,14 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
         }
 
         auto sdpa_new =
-            std::make_shared<op::SDPA>(inputs, sdpa->get_causal(), order_q, order_k, order_v, order_output, ov::element::dynamic, causal_mask_alignment);
+            std::make_shared<op::SDPA>(inputs,
+                                       sdpa->get_causal(),
+                                       order_q,
+                                       order_k,
+                                       order_v,
+                                       order_output,
+                                       output_type,
+                                       causal_mask_alignment);
 
         sdpa_new->set_friendly_name(sdpa->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), sdpa_new);

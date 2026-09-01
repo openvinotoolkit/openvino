@@ -34,7 +34,7 @@ std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_sdpa(const ov::
                                        order,
                                        order,
                                        ov::element::dynamic,
-                                       op::SDPA::CausalMaskAlignment::LOWER_RIGHT);
+                                       is_causal ? op::SDPA::CausalMaskAlignment::LOWER_RIGHT : op::SDPA::CausalMaskAlignment::UPPER_LEFT);
 }
 
 std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_attention_mask(
