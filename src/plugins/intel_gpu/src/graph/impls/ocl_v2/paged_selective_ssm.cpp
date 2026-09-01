@@ -190,7 +190,8 @@ protected:
         jit.make("SSM_STATE_SIZE", state_size);
         jit.make("SSM_SUBGROUP_SIZE", subgroup_size);
         jit.make("SSM_HEAD_DIM_BLOCK", head_dim_block);
-        jit.make("SSM_STATE_ITERATIONS", cldnn::ceil_div(state_size, subgroup_size));
+        // get_subgroup_size() returns 0 for unsupported devices; the clamp only keeps the divisor defined.
+        jit.make("SSM_STATE_ITERATIONS", cldnn::ceil_div(state_size, std::max<size_t>(subgroup_size, 1)));
         jit.make("SSM_PAGED", true);
         jit.make("SSM_JIT_PRECOMPUTE_DA", PrecomputeDA);
         jit.make("SSM_JIT_USE_SLM", Kind == selective_ssm_jit::device_kind::discrete && use_discrete_slm(params));
