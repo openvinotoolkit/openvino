@@ -38,6 +38,10 @@ bool starts_with(const std::string& str, const std::string& prefix);
 
 std::string fmt(std::size_t number, std::size_t total);
 
+// Parse decoder layer index from names like "...layers.5.self_attn...".
+// This shared index is used to key per-layer metadata across SWA-related passes.
+bool try_parse_self_attn_layer_idx(const std::string& text, size_t& out_idx);
+
 // Matches the three DynamicQuantize decomposition implementations declared in
 // kv_cache_compressed.hpp.
 enum class DynamicQuantDecomposeMode {
