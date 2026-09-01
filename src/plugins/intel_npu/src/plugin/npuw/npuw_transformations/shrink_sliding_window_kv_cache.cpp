@@ -147,43 +147,57 @@ std::shared_ptr<ov::op::v0::Concat> scan_kv_path(const std::shared_ptr<SDPA>& sd
                         kv_port,
                         "). Only Reshape, Broadcast, and Unsqueeze are allowed between SDPA and past_kv Concat.");
 
-        if (has_target_shape && kShapeInputIdx < cur->get_input_size()) {
+        if (has_target_shape) {
+            OPENVINO_ASSERT(kShapeInputIdx < cur->get_input_size(),
+                            "[SWA] ",
+                            cur->get_type_name(),
+                            " '",
+                            cur->get_friendly_name(),
+                            "' has no target-shape input at port ",
+                            kShapeInputIdx,
+                            ".");
             const auto& src = cur->input_value(kShapeInputIdx);
-            if (auto folded = ov::util::get_constant_from_source(src)) {
-                auto vals = folded->cast_vector<int64_t>();
-                OPENVINO_ASSERT(vals.size() >= 2,
-                                "[SWA] ",
-                                cur->get_type_name(),
-                                " '",
-                                cur->get_friendly_name(),
-                                "' target shape rank must be >= 2 to use fixed KV axis.");
+            auto folded = ov::util::get_constant_from_source(src);
+            OPENVINO_ASSERT(folded,
+                            "[SWA] ",
+                            cur->get_type_name(),
+                            " '",
+                            cur->get_friendly_name(),
+                            "' target shape must be constant-foldable before "
+                            "ShrinkSlidingWindowKVCache.");
 
-                const size_t kv_axis = vals.size() - 2;
-                const int64_t old_val = vals[kv_axis];
-                OPENVINO_ASSERT(old_val == kvcache_size || old_val == -1,
-                                "[SWA] ",
-                                cur->get_type_name(),
-                                " '",
-                                cur->get_friendly_name(),
-                                "' expected second-last target-shape value to be ",
-                                kvcache_size,
-                                " or -1 (inferred), got ",
-                                old_val,
-                                ".");
+            auto vals = folded->cast_vector<int64_t>();
+            OPENVINO_ASSERT(vals.size() >= 2,
+                            "[SWA] ",
+                            cur->get_type_name(),
+                            " '",
+                            cur->get_friendly_name(),
+                            "' target shape rank must be >= 2 to use fixed KV axis.");
 
-                if (old_val == -1) {
-                    LOG_DEBUG("[SWA]   " << cur->get_type_name() << " '" << cur->get_friendly_name() << "' kv_axis="
-                                         << kv_axis << " uses inferred extent (-1); keep it unchanged.");
-                } else {
-                    vals[kv_axis] = new_kv_total;
-                    auto priv =
-                        std::make_shared<ov::op::v0::Constant>(src.get_element_type(), ov::Shape{vals.size()}, vals);
-                    priv->set_friendly_name(cur->get_friendly_name() + "/swa_kv_patched");
-                    patches.push_back({cur->input(kShapeInputIdx), std::move(priv)});
-                    LOG_DEBUG("[SWA]   Patched " << cur->get_type_name() << " '" << cur->get_friendly_name()
-                                                 << "' kv_axis=" << kv_axis << ": " << kvcache_size << " -> "
-                                                 << new_kv_total);
-                }
+            const size_t kv_axis = vals.size() - 2;
+            const int64_t old_val = vals[kv_axis];
+            OPENVINO_ASSERT(old_val == kvcache_size || old_val == -1,
+                            "[SWA] ",
+                            cur->get_type_name(),
+                            " '",
+                            cur->get_friendly_name(),
+                            "' expected second-last target-shape value to be ",
+                            kvcache_size,
+                            " or -1 (inferred), got ",
+                            old_val,
+                            ".");
+
+            if (old_val == -1) {
+                LOG_DEBUG("[SWA]   " << cur->get_type_name() << " '" << cur->get_friendly_name()
+                                     << "' kv_axis=" << kv_axis << " uses inferred extent (-1); keep it unchanged.");
+            } else {
+                vals[kv_axis] = new_kv_total;
+                auto priv =
+                    std::make_shared<ov::op::v0::Constant>(src.get_element_type(), ov::Shape{vals.size()}, vals);
+                priv->set_friendly_name(cur->get_friendly_name() + "/swa_kv_patched");
+                patches.push_back({cur->input(kShapeInputIdx), std::move(priv)});
+                LOG_DEBUG("[SWA]   Patched " << cur->get_type_name() << " '" << cur->get_friendly_name() << "' kv_axis="
+                                             << kv_axis << ": " << kvcache_size << " -> " << new_kv_total);
             }
         }
         cur = cur->input_value(0).get_node_shared_ptr();
@@ -199,16 +213,19 @@ std::shared_ptr<ov::op::v0::Concat> scan_kv_path(const std::shared_ptr<SDPA>& sd
     return concat;
 }
 
-// An SWA past_kv Parameter may only feed its own KV Concat (optionally via Convert)
-// and ShapeOf. Fold those ShapeOf outputs now so that shrinking the Parameter later does
-// not leak into shared dynamic-shape chains.
-void collect_shapeofs(const PastKVSource& source,
-                      const std::shared_ptr<ov::op::v0::Concat>& concat,
-                      std::vector<ShapeOfFreeze>& out,
-                      std::unordered_set<const ov::Node*>& seen) {
-    for (const auto& target : source.param->output(0).get_target_inputs()) {
+void collect_shapeof_consumers(const ov::Output<ov::Node>& producer_output,
+                               const std::shared_ptr<ov::Node>& skip_consumer,
+                               const PastKVSource& source,
+                               const std::shared_ptr<ov::op::v0::Concat>& concat,
+                               const char* via,
+                               std::vector<ShapeOfFreeze>& out,
+                               std::unordered_set<const ov::Node*>& seen) {
+    for (const auto& target : producer_output.get_target_inputs()) {
         auto consumer = target.get_node()->shared_from_this();
-        if (consumer == concat || consumer == source.convert) {
+        if (skip_consumer && consumer == skip_consumer) {
+            continue;
+        }
+        if (consumer == concat) {
             continue;
         }
 
@@ -218,7 +235,9 @@ void collect_shapeofs(const PastKVSource& source,
                         source.param->get_friendly_name(),
                         "' has unsupported consumer '",
                         consumer->get_type_name(),
-                        "' (only its KV Concat and ShapeOf are allowed).");
+                        "' via ",
+                        via,
+                        " (only its KV Concat and ShapeOf are allowed).");
 
         if (!seen.insert(shapeof.get()).second) {
             continue;
@@ -230,6 +249,20 @@ void collect_shapeofs(const PastKVSource& source,
             std::make_shared<ov::op::v0::Constant>(shapeof->output(0).get_element_type(), ov::Shape{vals.size()}, vals);
         frozen->set_friendly_name(shapeof->get_friendly_name() + "/swa_shapeof_frozen");
         out.push_back({std::move(shapeof), std::move(frozen)});
+    }
+}
+
+// An SWA past_kv Parameter may only feed its own KV Concat (optionally via Convert)
+// and ShapeOf. Fold those ShapeOf outputs now so that shrinking the Parameter later does
+// not leak into shared dynamic-shape chains.
+void collect_shapeofs(const PastKVSource& source,
+                      const std::shared_ptr<ov::op::v0::Concat>& concat,
+                      std::vector<ShapeOfFreeze>& out,
+                      std::unordered_set<const ov::Node*>& seen) {
+    collect_shapeof_consumers(source.param->output(0), source.convert, source, concat, "Parameter", out, seen);
+
+    if (source.convert) {
+        collect_shapeof_consumers(source.convert->output(0), nullptr, source, concat, "Convert", out, seen);
     }
 }
 
