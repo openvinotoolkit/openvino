@@ -13,6 +13,7 @@
 #include "../logging.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/ops.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -100,10 +101,34 @@ static bool is_single_axis_slice(const std::shared_ptr<ov::op::v8::Slice>& slice
     return get_single_sliced_axis(slice) != -1;
 }
 
-// Returns true when the parent op has exactly one consumer (the Slice).
+// Returns the consumers of a node's output, excluding ones that are themselves already
+// disconnected from the rest of the model (no consumers of their own). Such stale edges are
+// left behind by rules that redirect a Slice's consumers via replace_node() without touching
+// the Slice's own inputs; treating them as live would make a rule refire on them forever.
+static std::vector<ov::Input<ov::Node>> get_live_consumers(const std::shared_ptr<ov::Node>& node,
+                                                           size_t output_index = 0) {
+    std::vector<ov::Input<ov::Node>> live;
+    for (const auto& input : node->get_output_target_inputs(output_index)) {
+        auto consumer = input.get_node();
+        // A node is "dead" only if none of its outputs have any consumers left.
+        bool has_any_consumer = false;
+        for (size_t o = 0; o < consumer->get_output_size(); ++o) {
+            if (!consumer->get_output_target_inputs(o).empty()) {
+                has_any_consumer = true;
+                break;
+            }
+        }
+        if (has_any_consumer || ov::op::util::is_output(consumer)) {
+            live.push_back(input);
+        }
+    }
+    return live;
+}
+
+// Returns true when the parent op has exactly one live consumer (the Slice).
 static bool single_consumer(const std::shared_ptr<ov::Node>& parent) {
     for (size_t p = 0; p < parent->get_output_size(); ++p) {
-        if (parent->get_output_target_inputs(p).size() != 1) {
+        if (get_live_consumers(parent, p).size() != 1) {
             return false;
         }
     }
@@ -220,7 +245,7 @@ static std::shared_ptr<ov::op::v8::Slice> create_slice_with_params(const ov::Out
 
 // Given the per-consumer axis->(start,stop,step) maps of several Slice nodes that all consume
 // the same producer, find the axes that are sliced identically (same start/stop/step) across
-// every consumer. Shared by ExtractCommonSliceBeforeTranspose and ExtractCommonSliceBeforeBinary.
+// every consumer. Shared by ExtractCommonSliceBeforeFanout.
 static std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> find_common_slice_axes(
     const std::vector<std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>>>& per_slice_axis_params) {
     std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> common;
@@ -2177,10 +2202,91 @@ public:
     }
 };
 
+// Shared by R19/R20 below: given a node with multiple Slice consumers, factor out the axes that
+// all consumers slice identically into one common Slice on `parent_node`'s output, leaving each
+// original consumer with only its residual (non-common) axes. Returns false if the pattern
+// doesn't apply (e.g. non-Slice or non-reducing-Slice consumer, no common axes).
+static bool extract_common_slice_before_fanout(const std::shared_ptr<ov::Node>& parent_node) {
+    // A prior firing of this rule leaves the old per-consumer Slice nodes attached to
+    // parent_node's input edge (replace_node() only rewires their own consumers, not their own
+    // inputs); get_live_consumers() filters those stale edges out, or this rule would refire on
+    // them forever.
+    auto all_consumers = get_live_consumers(parent_node);
+    if (all_consumers.size() < 2) {
+        return false;  // Need at least 2 live consumers
+    }
+
+    // Verify ALL consumers are reducing Slice nodes (multi-axis Slices supported)
+    std::vector<std::shared_ptr<ov::op::v8::Slice>> slice_consumers;
+    for (const auto& input : all_consumers) {
+        auto slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(input.get_node()->shared_from_this());
+        if (!slice || !is_reducing_slice(slice)) {
+            return false;  // Has non-Slice or non-reducing Slice consumer, skip optimization
+        }
+        slice_consumers.push_back(slice);
+    }
+
+    // Extract each consumer's own axis -> (start, stop, step) mapping
+    std::vector<std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>>> slice_axis_params;
+    for (const auto& slice : slice_consumers) {
+        std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> axis_map;
+        if (!get_slice_all_axis_params(slice, axis_map)) {
+            return false;
+        }
+        slice_axis_params.push_back(axis_map);
+    }
+
+    // Find common axes: axes where ALL slices have IDENTICAL parameters
+    auto common_axes = find_common_slice_axes(slice_axis_params);
+    if (common_axes.empty()) {
+        return false;
+    }
+
+    // Create a common Slice right after parent_node (on its output). For Transpose specifically,
+    // no need to remap axes through the permutation here: PropagateSliceThroughTranspose already
+    // does that and will push this Slice upstream through Transpose on a later iteration.
+    std::shared_ptr<ov::Node> new_node = parent_node;
+    for (const auto& [axis, params] : common_axes) {
+        auto [start, stop, step] = params;
+        auto new_slice = create_slice_with_params(new_node, axis, start, stop, step);
+        new_slice->set_friendly_name(parent_node->get_friendly_name() + "_common_slice_ax" + std::to_string(axis));
+        new_node = new_slice;
+    }
+
+    // For each original Slice, create residual Slice (non-common axes only)
+    for (size_t idx = 0; idx < slice_consumers.size(); ++idx) {
+        const auto& original_slice = slice_consumers[idx];
+        const auto& orig_axes_params = slice_axis_params[idx];
+
+        std::vector<int64_t> residual_axes, residual_start, residual_stop, residual_step;
+        for (const auto& [axis, params] : orig_axes_params) {
+            if (common_axes.find(axis) == common_axes.end()) {
+                residual_axes.push_back(axis);
+                residual_start.push_back(std::get<0>(params));
+                residual_stop.push_back(std::get<1>(params));
+                residual_step.push_back(std::get<2>(params));
+            }
+        }
+
+        if (residual_axes.empty()) {
+            // No residual slice needed, connect directly to the common Slice
+            ov::replace_node(original_slice, new_node);
+        } else {
+            auto residual_slice =
+                create_slice_with_params(new_node, residual_axes, residual_start, residual_stop, residual_step);
+            residual_slice->set_friendly_name(original_slice->get_friendly_name());
+            ov::replace_node(original_slice, residual_slice);
+        }
+    }
+
+    return true;
+}
+
 // ---------------------------------------------------------------------------
-// R19 – Extract common slice axes before Transpose when multiple Slices consume it
+// R19/R20 – Extract common slice axes before a fanout point (Transpose or Multiply, for now)
+// when multiple Slices consume it.
 //
-// Pattern visualization:
+// Pattern visualization (Transpose):
 //   BEFORE:
 //     Input[1,1024,2048]
 //         |
@@ -2195,19 +2301,16 @@ public:
 //      |     |
 //   [1,512,1024] [1,1024,1024]
 //
-//   Common axis after transpose: axis=1 sliced in both (to different ranges)
-//   Map back through transpose: axis=1 -> original axis=2
-//
-//   Common slice range on original axis=2: min(512, 1024) = 512
+//   Common axis: axis=1 sliced in both (to different ranges) -> common range 0:512
 //
 //   AFTER:
 //     Input[1,1024,2048]
 //         |
-//     Slice(axis=2: 0:512)  // Extract common slice on original axis
-//         |
-//     [1,1024,512]
-//         |
 //     Transpose(perm=[0,2,1])
+//         |
+//     [1,2048,1024]
+//         |
+//     Slice(axis=1: 0:512)  // Extract common slice right after Transpose
 //         |
 //     [1,512,1024]
 //         |
@@ -2218,162 +2321,7 @@ public:
 //      |     |
 //   [1,512,1024] [1,1024,1024]
 //
-// Pattern: Transpose -> [Slice1, Slice2, ...] with some common slice axes
-// Result: Slice(common axes) -> Transpose -> [new_Slice1, new_Slice2, ...] (only non-common axes)
-// ---------------------------------------------------------------------------
-class ExtractCommonSliceBeforeTranspose : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("ExtractCommonSliceBeforeTranspose");
-
-    ExtractCommonSliceBeforeTranspose() {
-        auto data = any_input();
-        auto transpose = wrap_type<ov::op::v1::Transpose>({data, any_input()});
-
-        register_matcher(std::make_shared<Matcher>(transpose, "ExtractCommonSliceBeforeTranspose"), [=](Matcher& m) {
-            auto& map = m.get_pattern_value_map();
-            auto transpose_node =
-                std::dynamic_pointer_cast<ov::op::v1::Transpose>(map.at(transpose).get_node_shared_ptr());
-
-            if (!transpose_node) {
-                return false;
-            }
-
-            // Collect all consumers of Transpose
-            auto all_consumers = transpose_node->get_output_target_inputs(0);
-            if (all_consumers.size() < 2) {
-                return false;  // Need at least 2 consumers
-            }
-
-            // Verify ALL consumers are Slice nodes
-            std::vector<std::shared_ptr<ov::op::v8::Slice>> slice_consumers;
-            for (const auto& consumer_input : all_consumers) {
-                auto consumer = consumer_input.get_node()->shared_from_this();
-                auto slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(consumer);
-                if (!slice) {
-                    return false;  // Has non-Slice consumer, skip optimization
-                }
-                slice_consumers.push_back(slice);
-            }
-
-            // Now slice_consumers.size() == all_consumers.size() and all are Slices
-
-            // Analyze slice parameters to find common axes
-            const auto& transpose_output_shape = transpose_node->get_output_shape(0);
-            size_t rank = transpose_output_shape.size();
-
-            // Extract each consumer's own axis -> (start, stop, step) mapping
-            std::vector<std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>>> slice_axis_params;
-            for (const auto& slice : slice_consumers) {
-                std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> axis_map;
-                if (!get_slice_all_axis_params(slice, axis_map)) {
-                    return false;
-                }
-                slice_axis_params.push_back(axis_map);
-            }
-
-            // Find common axes: axes where ALL slices have IDENTICAL parameters
-            auto common_axes = find_common_slice_axes(slice_axis_params);
-
-            if (common_axes.empty()) {
-                return false;
-            }
-
-            // Map common axes through transpose permutation (output axis -> input axis)
-            auto order_const =
-                std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose_node->input_value(1).get_node_shared_ptr());
-            if (!order_const) {
-                return false;
-            }
-
-            auto order_vec = order_const->cast_vector<int64_t>();
-            std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> input_common_axes;
-
-            for (const auto& [output_axis, params] : common_axes) {
-                // Find which input axis maps to this output axis
-                for (size_t input_axis = 0; input_axis < order_vec.size(); ++input_axis) {
-                    if (order_vec[input_axis] == output_axis) {
-                        input_common_axes[input_axis] = params;
-                        break;
-                    }
-                }
-            }
-
-            // Create common slice before Transpose
-            std::vector<int64_t> common_start, common_stop, common_step, common_axes_vec;
-            for (const auto& [axis, params] : input_common_axes) {
-                common_axes_vec.push_back(axis);
-                common_start.push_back(std::get<0>(params));
-                common_stop.push_back(std::get<1>(params));
-                common_step.push_back(std::get<2>(params));
-            }
-
-            auto common_slice = create_slice_with_params(transpose_node->input_value(0),
-                                                         common_axes_vec,
-                                                         common_start,
-                                                         common_stop,
-                                                         common_step);
-            common_slice->set_friendly_name(transpose_node->get_friendly_name() + "/common_slice");
-
-            // Create new Transpose with sliced input
-            auto new_transpose =
-                std::make_shared<ov::op::v1::Transpose>(common_slice->output(0), transpose_node->input_value(1));
-            new_transpose->set_friendly_name(transpose_node->get_friendly_name());
-            new_transpose->validate_and_infer_types();
-
-            // For each original Slice, create residual Slice (non-common axes only)
-            for (const auto& original_slice : slice_consumers) {
-                // Extract original slice parameters
-                auto orig_axes_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(
-                    original_slice->input_value(4).get_node_shared_ptr());
-                auto orig_start_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(
-                    original_slice->input_value(1).get_node_shared_ptr());
-                auto orig_stop_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(
-                    original_slice->input_value(2).get_node_shared_ptr());
-                auto orig_step_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(
-                    original_slice->input_value(3).get_node_shared_ptr());
-
-                auto orig_axes = orig_axes_const->cast_vector<int64_t>();
-                auto orig_start = orig_start_const->cast_vector<int64_t>();
-                auto orig_stop = orig_stop_const->cast_vector<int64_t>();
-                auto orig_step = orig_step_const->cast_vector<int64_t>();
-
-                // Build residual slice parameters (exclude common axes)
-                std::vector<int64_t> residual_axes, residual_start, residual_stop, residual_step;
-                for (size_t i = 0; i < orig_axes.size(); ++i) {
-                    int64_t axis = normalize_axis(orig_axes[i], rank);
-                    if (common_axes.find(axis) == common_axes.end()) {
-                        residual_axes.push_back(axis);
-                        residual_start.push_back(orig_start[i]);
-                        residual_stop.push_back(orig_stop[i]);
-                        residual_step.push_back(orig_step[i]);
-                    }
-                }
-
-                if (residual_axes.empty()) {
-                    // No residual slice needed, connect directly to new Transpose
-                    ov::replace_node(original_slice, new_transpose);
-                } else {
-                    // Create residual slice
-                    auto residual_slice = create_slice_with_params(new_transpose->output(0),
-                                                                   residual_axes,
-                                                                   residual_start,
-                                                                   residual_stop,
-                                                                   residual_step);
-                    residual_slice->set_friendly_name(original_slice->get_friendly_name());
-
-                    ov::replace_node(original_slice, residual_slice);
-                }
-            }
-
-            return true;
-        });
-    }
-};
-
-// ---------------------------------------------------------------------------
-// R20 – Extract common slice axes before Binary when multiple Slices consume it
-//
-// Pattern visualization:
+// Pattern visualization (Binary):
 //   BEFORE:
 //     Binary(A, B)[1,1024,8,512]
 //         |
@@ -2401,118 +2349,18 @@ public:
 //      |     |      |
 //   [1,1,8,512] [1,1,8,256] [1,1,8,256]
 //
-// Now supports MULTI-AXIS Slices: extracts common axes and keeps residual axes.
-// This reduces redundant slicing when multiple consumers share common slice axes.
+// Pattern: <Transpose|Multiply> -> [Slice1, Slice2, ...] with some common slice axes
+// Result: <Transpose|Multiply> -> Slice(common axes) -> [new_Slice1, new_Slice2, ...] (residual axes)
 // ---------------------------------------------------------------------------
-class ExtractCommonSliceBeforeBinary : public ov::pass::MatcherPass {
+class ExtractCommonSliceBeforeFanout : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ExtractCommonSliceBeforeBinary");
+    OPENVINO_MATCHER_PASS_RTTI("ExtractCommonSliceBeforeFanout");
 
-    ExtractCommonSliceBeforeBinary() {
-        auto binary = wrap_type<ov::op::v1::Add,
-                                ov::op::v1::Subtract,
-                                ov::op::v1::Multiply,
-                                ov::op::v1::Divide,
-                                ov::op::v1::Maximum,
-                                ov::op::v1::Minimum,
-                                ov::op::v1::Power>();
+    ExtractCommonSliceBeforeFanout() {
+        auto fanout = wrap_type<ov::op::v1::Transpose, ov::op::v1::Multiply>();
 
-        register_matcher(std::make_shared<Matcher>(binary, "ExtractCommonSliceBeforeBinary"), [=](Matcher& m) {
-            auto& map = m.get_pattern_value_map();
-            auto binary_node = map[binary].get_node_shared_ptr();
-
-            // Collect all consumers of Binary
-            auto all_consumers = binary_node->get_output_target_inputs(0);
-            if (all_consumers.size() < 2) {
-                return false;  // Need at least 2 consumers
-            }
-
-            // Verify ALL consumers are Slice nodes (now support multi-axis Slices)
-            std::vector<std::shared_ptr<ov::op::v8::Slice>> slice_consumers;
-            for (const auto& input : all_consumers) {
-                auto consumer = input.get_node();
-                auto slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(consumer->shared_from_this());
-                if (!slice) {
-                    return false;  // Has non-Slice consumer, skip optimization
-                }
-                if (!is_reducing_slice(slice)) {
-                    return false;  // Has non-reducing Slice, skip
-                }
-                slice_consumers.push_back(slice);
-            }
-
-            // Now slice_consumers.size() == all_consumers.size() and all are reducing Slices
-
-            // For each slice, extract all its axis->params mappings
-            std::vector<std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>>> slice_axis_params;
-            for (const auto& slice : slice_consumers) {
-                std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> axis_map;
-                if (!get_slice_all_axis_params(slice, axis_map)) {
-                    return false;
-                }
-                slice_axis_params.push_back(axis_map);
-            }
-
-            // Find common axes: axes that appear in ALL slices with the SAME parameters
-            auto common_axis_params = find_common_slice_axes(slice_axis_params);
-
-            if (common_axis_params.empty()) {
-                return false;  // No common axes to extract
-            }
-
-            // Create a new Slice for common axes before the Binary
-            std::shared_ptr<ov::Node> new_node = binary_node;
-            for (const auto& [axis, params] : common_axis_params) {
-                auto [start, stop, step] = params;
-                auto new_slice = create_slice_with_params(new_node, axis, start, stop, step);
-                new_slice->set_friendly_name(binary_node->get_friendly_name() + "_common_slice_ax" +
-                                             std::to_string(axis));
-                new_node = new_slice;
-            }
-
-            // For each original Slice, create a new Slice with only non-common axes
-            std::vector<std::shared_ptr<ov::Node>> new_consumers;
-            for (size_t slice_idx = 0; slice_idx < slice_consumers.size(); ++slice_idx) {
-                const auto& old_slice = slice_consumers[slice_idx];
-                const auto& old_axes_params = slice_axis_params[slice_idx];
-
-                // Find non-common axes
-                std::vector<int64_t> remaining_axes;
-                std::vector<int64_t> remaining_starts;
-                std::vector<int64_t> remaining_stops;
-                std::vector<int64_t> remaining_steps;
-
-                for (const auto& [axis, params] : old_axes_params) {
-                    if (common_axis_params.find(axis) == common_axis_params.end()) {
-                        // This axis is not common, keep it
-                        remaining_axes.push_back(axis);
-                        remaining_starts.push_back(std::get<0>(params));
-                        remaining_stops.push_back(std::get<1>(params));
-                        remaining_steps.push_back(std::get<2>(params));
-                    }
-                }
-
-                if (remaining_axes.empty()) {
-                    // All axes were common, no residual slice needed
-                    new_consumers.push_back(new_node);
-                } else {
-                    // Create new Slice with remaining axes
-                    auto residual_slice = create_slice_with_params(new_node,
-                                                                   remaining_axes,
-                                                                   remaining_starts,
-                                                                   remaining_stops,
-                                                                   remaining_steps);
-                    residual_slice->set_friendly_name(old_slice->get_friendly_name());
-                    new_consumers.push_back(residual_slice);
-                }
-            }
-
-            // Replace each old Slice with its corresponding new consumer
-            for (size_t i = 0; i < slice_consumers.size(); ++i) {
-                ov::replace_node(slice_consumers[i], new_consumers[i]);
-            }
-
-            return true;
+        register_matcher(std::make_shared<Matcher>(fanout, "ExtractCommonSliceBeforeFanout"), [=](Matcher& m) {
+            return extract_common_slice_before_fanout(m.get_match_root());
         });
     }
 };
@@ -2552,8 +2400,7 @@ bool PropagateSliceUp::run_on_model(const std::shared_ptr<ov::Model>& model) {
         rewrite.add_matcher<PropagateSliceThroughConcat>();
         rewrite.add_matcher<PropagateSliceThroughGather>();
         rewrite.add_matcher<PropagateSliceThroughReshape>();
-        rewrite.add_matcher<ExtractCommonSliceBeforeTranspose>();
-        rewrite.add_matcher<ExtractCommonSliceBeforeBinary>();
+        rewrite.add_matcher<ExtractCommonSliceBeforeFanout>();
         rewrite.add_matcher<PropagateSliceThroughTranspose>();
         rewrite.add_matcher<PropagateSliceThroughVariadicSplit>();
         rewrite.add_matcher<MergeDuplicateSlices>();
