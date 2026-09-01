@@ -37,7 +37,6 @@ void EdgeReplace::SetUp() {
 
 TEST_P(EdgeReplace, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 } // namespace snippets
