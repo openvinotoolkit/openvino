@@ -743,7 +743,7 @@ bool crop_in_place_optimization::update_in_place_crop_padding_along_feature(cons
             const auto& reshape_users = user_info.first->get_users();
             const bool feeds_unsafe_consumer = std::any_of(reshape_users.begin(), reshape_users.end(),
                 [](const program_node* user) { return requires_contiguous_input(*user); });
-            if (is_axis1_size1_squeeze && feeds_unsafe_consumer)
+            if (feeds_unsafe_consumer)
                 return false;
 
             if (is_axis1_size1_squeeze) {
