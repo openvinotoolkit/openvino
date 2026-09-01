@@ -298,6 +298,7 @@ public:
     void unset_flag(size_t flag);
     bool get_flag(size_t flag) const;
     void reset_flags();
+    void request_output_reallocation() { _output_reallocation_requested = true; }
 
     void reset_events();
 
@@ -394,6 +395,7 @@ protected:
 
     bool _update_shape_done_by_other = false;
     bool _allocation_done_by_other = false;
+    bool _output_reallocation_requested = false;
     bool _use_shared_kernels = false;
     std::unique_ptr<kernel_impl_params> _impl_params;
     std::shared_ptr<primitive_impl> _impl;
@@ -530,7 +532,6 @@ private:
     void do_runtime_skip_reorder();
     void do_runtime_skip_gather();
     void do_runtime_skip_permute();
-    void prepare_runtime_skippable_permute_user();
     void do_runtime_skip_strided_slice();
     void do_runtime_skip_broadcast();
     void do_runtime_in_place_concat();
