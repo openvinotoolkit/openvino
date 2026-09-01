@@ -138,7 +138,8 @@ protected:
                                                                                 private_values_budget,
                                                                                 discrete_target);
 
-            kd.params.workGroups.global = {cldnn::ceil_div(head_dim, head_dim_block) * subgroup_size, num_heads, batch};
+            // get_head_dim_block() returns 0 for unsupported configurations; the clamp only keeps the divisor defined.
+            kd.params.workGroups.global = {cldnn::ceil_div(head_dim, std::max<size_t>(head_dim_block, 1)) * subgroup_size, num_heads, batch};
             kd.params.workGroups.local = {subgroup_size, 1, 1};
             kd.params.scalars.clear();
             cldnn::scalar_desc sequence_desc;
