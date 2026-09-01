@@ -1789,35 +1789,8 @@ public:
                 create_slice_with_params(topk_node->input_value(0), values_slice_axis, v_start, v_stop, v_step);
             new_slice->set_friendly_name(topk_node->get_friendly_name() + "/slice_input");
 
-            // Create new TopK with sliced input
-            std::shared_ptr<ov::Node> new_topk;
-            if (auto v1_topk = std::dynamic_pointer_cast<ov::op::v1::TopK>(topk_node)) {
-                new_topk = std::make_shared<ov::op::v1::TopK>(new_slice->output(0),
-                                                              topk_node->input_value(1),
-                                                              v1_topk->get_axis(),
-                                                              v1_topk->get_mode(),
-                                                              v1_topk->get_sort_type());
-            } else if (auto v3_topk = std::dynamic_pointer_cast<ov::op::v3::TopK>(topk_node)) {
-                new_topk = std::make_shared<ov::op::v3::TopK>(new_slice->output(0),
-                                                              topk_node->input_value(1),
-                                                              v3_topk->get_axis(),
-                                                              v3_topk->get_mode(),
-                                                              v3_topk->get_sort_type(),
-                                                              v3_topk->get_index_element_type());
-            } else if (auto v11_topk = std::dynamic_pointer_cast<ov::op::v11::TopK>(topk_node)) {
-                new_topk = std::make_shared<ov::op::v11::TopK>(new_slice->output(0),
-                                                               topk_node->input_value(1),
-                                                               v11_topk->get_axis(),
-                                                               v11_topk->get_mode(),
-                                                               v11_topk->get_sort_type(),
-                                                               v11_topk->get_index_element_type(),
-                                                               v11_topk->get_stable());
-            }
-
-            if (!new_topk) {
-                return false;
-            }
-
+            // Create new TopK with sliced input, preserving all other attributes
+            auto new_topk = topk_node->clone_with_new_inputs({new_slice->output(0), topk_node->input_value(1)});
             new_topk->set_friendly_name(topk_node->get_friendly_name());
             new_topk->validate_and_infer_types();
 
@@ -1881,18 +1854,8 @@ public:
             auto new_slice = clone_slice(slice_node, softmax_node->input_value(0));
             new_slice->set_friendly_name(softmax_node->get_friendly_name() + "/slice_input");
 
-            // Create new Softmax with sliced input
-            std::shared_ptr<ov::Node> new_softmax;
-            if (auto v1_softmax = std::dynamic_pointer_cast<ov::op::v1::Softmax>(softmax_node)) {
-                new_softmax = std::make_shared<ov::op::v1::Softmax>(new_slice->output(0), v1_softmax->get_axis());
-            } else if (auto v8_softmax = std::dynamic_pointer_cast<ov::op::v8::Softmax>(softmax_node)) {
-                new_softmax = std::make_shared<ov::op::v8::Softmax>(new_slice->output(0), v8_softmax->get_axis());
-            }
-
-            if (!new_softmax) {
-                return false;
-            }
-
+            // Create new Softmax with sliced input, preserving the axis attribute
+            auto new_softmax = softmax_node->clone_with_new_inputs({new_slice->output(0)});
             new_softmax->set_friendly_name(softmax_node->get_friendly_name());
             new_softmax->validate_and_infer_types();
 
