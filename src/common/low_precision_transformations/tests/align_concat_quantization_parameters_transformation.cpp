@@ -91,7 +91,6 @@ public:
             addFakeQuantize,
             additionalLayer,
             testValues.expected.dequantizationBefore,
-            testValues.expected.preicsionAfterOperation,
             testValues.expected.dequantizationAfter);
     }
 

@@ -13,12 +13,10 @@ namespace builder {
 namespace subgraph {
 
 std::shared_ptr<ov::Model> ElementwiseWithMultiParentDequantizationFunction::get(
-    const ov::element::Type precision,
     const ov::Shape& inputShape,
     const ov::pass::low_precision::LayerTransformation::Params& params,
     const ov::element::Type& precision1,
     const ov::builder::subgraph::DequantizationOperations& dequantization1,
-    const ov::element::Type& precision2,
     const ov::builder::subgraph::DequantizationOperations& dequantization2) {
     const auto input1_1 = std::make_shared<ov::opset1::Parameter>(precision1, inputShape);
     const auto input1_2 = std::make_shared<ov::opset1::Parameter>(precision1, ov::Shape({ inputShape[0], inputShape[1], 1, 1 }));

@@ -31,7 +31,6 @@ public:
         const bool addFQ,
         const std::string additionalLayer,
         const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
-        const ov::element::Type precisionAfterOperation,
         const ov::builder::subgraph::DequantizationOperations& dequantizationAfter);
 };
 

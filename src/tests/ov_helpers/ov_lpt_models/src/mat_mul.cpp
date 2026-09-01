@@ -240,11 +240,6 @@ std::shared_ptr<ov::Model> MatMulFunction::getOriginal(const ov::element::Type n
     return function;
 }
 
-std::shared_ptr<ov::Model> getOriginalWithConstant2(
-    const ov::element::Type precision) {
-    return nullptr;
-}
-
 std::shared_ptr<ov::Model> MatMulFunction::getOriginal(
     const ov::element::Type precision,
     const ov::PartialShape& inputShape,
