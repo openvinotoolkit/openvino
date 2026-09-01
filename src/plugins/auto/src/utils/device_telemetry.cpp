@@ -28,7 +28,10 @@ inline std::string get_log_tag() {
 // DTT team feedback. Note the registered event path ends in "OnEpoGearChanged", not
 // "OnGearChanged"; the event's own eventPath argument is delivered as the parent node
 // ("...Policy.EPO"), with the real event name/value inside the JSON payload instead.
+constexpr const char* k_dtt_root_path = "Platform.Features.DTT";
+constexpr const char* k_dtt_status_path = "Platform.Features.DTT.Software.Status";
 constexpr const char* k_dtt_version_path = "Platform.Features.DTT.Software.Version";
+constexpr const char* k_dtt_epo_status_path = "Platform.Features.DTT.Policy.EPO.Status";
 constexpr const char* k_dtt_current_gear_path = "Platform.Features.DTT.Policy.EPO.CurrentGear";
 constexpr const char* k_dtt_gear_changed_path = "Platform.Features.DTT.Policy.EPO.OnEpoGearChanged";
 
@@ -164,8 +167,16 @@ public:
         }
         std::call_once(m_low_power_init_once, [this]() {
             m_shared_gear = std::make_shared<std::atomic<int>>(-1);
+            refresh_dtt_nodes();
+            if (!is_dtt_available()) {
+                LOG_WARNING_TAG("TelemetryClient: DTT unavailable, EPO gear tracking is disabled");
+                return;
+            }
             log_dtt_version();
-            log_current_gear();
+            // Seed the gear only while EPO is enabled; otherwise CurrentGear may be stale.
+            if (is_epo_enabled()) {
+                log_current_gear();
+            }
             // Context is kept alive here; raw pointer passed to IPF and freed only after confirmed unregister.
             m_callback_context = std::make_unique<std::shared_ptr<std::atomic<int>>>(m_shared_gear);
             const ipf_err_t reg_status =
@@ -184,9 +195,12 @@ public:
         // After first init, this is an atomic read; the call_once body does not re-run.
         const int gear = m_shared_gear->load();
         if (gear < 0) {
+            LOG_DEBUG_TAG("TelemetryClient: EPO gear unknown, low power mode unavailable");
             return std::nullopt;
         }
-        return is_low_power_gear(gear);
+        const bool low_power = is_low_power_gear(gear);
+        LOG_DEBUG_TAG("TelemetryClient: EPO gear=%d, low_power_mode=%s", gear, low_power ? "true" : "false");
+        return low_power;
     }
 
     void on_gear_changed(const std::string& gear_str) {
@@ -205,11 +219,16 @@ private:
     std::string query_ipf_string(IpfQueryFn query_fn, const char* path) {
         size_t len = 0;
         ipf_err_t status = query_fn(m_handle, path, nullptr, &len);
-        if (status != IpfError::IPF_ERR_BUFFERTOOSMALL || len == 0) {
+        if (status != IpfError::IPF_ERR_BUFFERTOOSMALL) {
+            // IpfGetLastErrorMessage() is only meaningful for a real failure; do not report it otherwise.
             LOG_WARNING_TAG("TelemetryClient: IPF query(%s) size query failed: %s: %s",
                             path,
                             ipf_ef_error_str(status),
                             IpfGetLastErrorMessage());
+            return {};
+        }
+        if (len == 0) {
+            LOG_WARNING_TAG("TelemetryClient: IPF query(%s) returned an empty value", path);
             return {};
         }
         std::vector<char> buf(len);
@@ -236,34 +255,70 @@ private:
         return query_ipf_string(&IpfGetValue, path);
     }
 
-    // Best-effort one-shot reads; failures are already logged by query_ipf_string/get_value.
-    void log_dtt_version() {
-        const std::string json_str = get_value(k_dtt_version_path);
+    // DTT requires reading its root node once to refresh the subtree before individual value queries.
+    void refresh_dtt_nodes() {
+        const std::string json_str = get_node(k_dtt_root_path);
+        LOG_DEBUG_TAG("TelemetryClient: DTT root node refresh %s", json_str.empty() ? "failed" : "succeeded");
+    }
+
+    // DTT values arrive as JSON; non-string nodes are dumped verbatim so they stay loggable.
+    std::optional<std::string> get_value_as_string(const char* path) {
+        const std::string json_str = get_value(path);
         if (json_str.empty()) {
-            return;
+            return std::nullopt;
         }
+        LOG_DEBUG_TAG("TelemetryClient: raw IPF value at %s: %s", path, json_str.c_str());
         try {
             const auto parsed = nlohmann::json::parse(json_str);
-            const std::string version = parsed.is_string() ? parsed.get<std::string>() : parsed.dump();
-            LOG_INFO_TAG("TelemetryClient: DTT version = %s", version.c_str());
+            return parsed.is_string() ? parsed.get<std::string>() : parsed.dump();
         } catch (const nlohmann::json::exception& e) {
-            LOG_WARNING_TAG("TelemetryClient: failed to parse DTT version: %s", e.what());
+            LOG_WARNING_TAG("TelemetryClient: failed to parse value at %s: %s", path, e.what());
+            return std::nullopt;
+        }
+    }
+
+    // DTT publishes its own health here; an unreadable status means the driver is missing or stopped.
+    bool is_dtt_available() {
+        const auto status = get_value_as_string(k_dtt_status_path);
+        if (!status.has_value()) {
+            LOG_WARNING_TAG("TelemetryClient: DTT status unavailable, DTT driver may not be installed or running");
+            return false;
+        }
+        LOG_INFO_TAG("TelemetryClient: DTT status = %s", status->c_str());
+        return true;
+    }
+
+    // CurrentGear only reflects the live platform state while EPO is enabled.
+    bool is_epo_enabled() {
+        const auto status = get_value_as_string(k_dtt_epo_status_path);
+        if (!status.has_value()) {
+            LOG_WARNING_TAG("TelemetryClient: EPO status unavailable, treating low power mode as unknown");
+            return false;
+        }
+        LOG_INFO_TAG("TelemetryClient: EPO status = %s", status->c_str());
+        if (*status != "Enabled") {
+            LOG_WARNING_TAG("TelemetryClient: EPO is not enabled, ignoring current EPO gear");
+            return false;
+        }
+        return true;
+    }
+
+    // Best-effort one-shot reads; failures are already logged by query_ipf_string/get_value_as_string.
+    void log_dtt_version() {
+        const auto version = get_value_as_string(k_dtt_version_path);
+        if (version.has_value()) {
+            LOG_INFO_TAG("TelemetryClient: DTT version = %s", version->c_str());
         }
     }
 
     void log_current_gear() {
-        const std::string json_str = get_value(k_dtt_current_gear_path);
-        if (json_str.empty()) {
+        const auto gear_str = get_value_as_string(k_dtt_current_gear_path);
+        if (!gear_str.has_value()) {
+            LOG_WARNING_TAG("TelemetryClient: current EPO gear unavailable");
             return;
         }
-        try {
-            const auto parsed = nlohmann::json::parse(json_str);
-            const std::string gear_str = parsed.is_string() ? parsed.get<std::string>() : parsed.dump();
-            LOG_INFO_TAG("TelemetryClient: current EPO gear = %s", gear_str.c_str());
-            on_gear_changed(gear_str);
-        } catch (const nlohmann::json::exception& e) {
-            LOG_WARNING_TAG("TelemetryClient: failed to parse current EPO gear: %s", e.what());
-        }
+        LOG_INFO_TAG("TelemetryClient: current EPO gear = %s", gear_str->c_str());
+        on_gear_changed(*gear_str);
     }
 
     void* m_handle = nullptr;
