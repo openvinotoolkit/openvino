@@ -11,6 +11,7 @@
 #include "sycl_memory.hpp"
 #include "sycl_stream.hpp"
 #include "sycl_engine_factory.hpp"
+#include "intel/sycl_kernel_builder.hpp"
 #include <string>
 #include <vector>
 #include <memory>
@@ -239,6 +240,9 @@ bool sycl_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {
 
 void* sycl_engine::get_user_context(runtime_types runtime_type) const {
     const auto& context = get_sycl_context();
+    if (runtime_type == runtime_types::sycl) {
+        return const_cast<void*>(static_cast<const void*>(&context));
+    }
     if (runtime_type == runtime_types::ocl && backend_type() == backend_types::ocl) {
         return reinterpret_cast<void*>(::sycl::get_native<::sycl::backend::opencl>(context));
     }
@@ -249,9 +253,15 @@ void* sycl_engine::get_user_context(runtime_types runtime_type) const {
 }
 
 std::shared_ptr<kernel_builder> sycl_engine::create_kernel_builder() const {
-    auto sycl_device = std::dynamic_pointer_cast<sycl::sycl_device>(_device);
-    OPENVINO_ASSERT(sycl_device, "[GPU] Invalid device type for sycl_engine");
-    OPENVINO_NOT_IMPLEMENTED;
+    auto& sycl_device = downcast<sycl::sycl_device>(*_device);
+    switch (sycl_device.get_device().get_backend()) {
+    case ::sycl::backend::opencl:
+    case ::sycl::backend::ext_oneapi_level_zero:
+        return std::make_shared<sycl::intel::sycl_kernel_builder>(sycl_device);
+    default:
+        OPENVINO_THROW("[GPU] No kernel builder available for backend ",
+                       sycl_device.get_device().get_backend());
+    }
 }
 
 bool sycl_engine::extension_supported(::sycl::aspect extension) const {

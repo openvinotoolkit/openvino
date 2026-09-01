@@ -18,7 +18,7 @@
     #define OV_GPU_WITH_SYCL 0
 #endif
 
-#if defined(OV_GPU_WITH_OCL_RT) || defined(OV_GPU_WITH_ZE_RT)
+#if defined(OV_GPU_WITH_OCL_RT) || defined(OV_GPU_WITH_ZE_RT) || defined(OV_GPU_WITH_SYCL_RT)
 #    define OV_GPU_WITH_OCL 1
 #else
 #    define OV_GPU_WITH_OCL 0
