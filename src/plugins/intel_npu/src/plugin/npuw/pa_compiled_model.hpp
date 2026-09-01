@@ -10,6 +10,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "npuw/compiled_model.hpp"
 #include "pa_dispatch.hpp"
@@ -117,6 +118,8 @@ private:
     // m_inner_request, which holds the caller's dispatch tensors and stays
     // untouched by chunked execution.
     std::map<std::size_t, ChunkRequest, std::greater<std::size_t>> m_chunk_requests;
+    // The variants' fixed token sizes, for the pa::variants_serve routing call.
+    std::vector<std::size_t> m_variant_token_dims;
     ChunkRequest m_tail_request;
 
     // Chunked-execution result for the current dispatch; get_tensor() serves

@@ -62,3 +62,30 @@ void ov::npuw::pa::validate_dispatch(const Dispatch& d, std::size_t block_size, 
         }
     }
 }
+
+bool ov::npuw::pa::variants_serve(const Dispatch& dispatch, const std::vector<std::size_t>& variant_token_dims) {
+    if (variant_token_dims.empty() || dispatch.tokens() == 0) {
+        return false;
+    }
+
+    bool has_one_token_variant = false;
+    std::size_t min_multi_token = 0u;
+    for (const auto token_dim : variant_token_dims) {
+        has_one_token_variant |= (token_dim == 1u);
+        if (token_dim > 1u && (min_multi_token == 0u || token_dim < min_multi_token)) {
+            min_multi_token = token_dim;
+        }
+    }
+
+    if (dispatch.sequences() == 1 && dispatch.tokens() == 1) {
+        return has_one_token_variant;
+    }
+
+    for (int64_t s = 0; min_multi_token > 0u && s < dispatch.sequences(); ++s) {
+        const auto seq_len = dispatch.subsequence_begins[s + 1] - dispatch.subsequence_begins[s];
+        if (seq_len >= static_cast<int64_t>(min_multi_token)) {
+            return true;
+        }
+    }
+    return false;
+}
