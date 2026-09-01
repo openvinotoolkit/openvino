@@ -1716,20 +1716,15 @@ public:
                 return false;
             }
 
-            // Check if both outputs are consumed by exactly one Slice each
-            auto values_output = topk_node->output(0);
-            auto indices_output = topk_node->output(1);
-
-            if (values_output.get_target_inputs().size() != 1) {
+            // Check if both outputs are consumed by exactly one live consumer each
+            auto values_live = get_live_consumers(topk_node, 0);
+            auto indices_live = get_live_consumers(topk_node, 1);
+            if (values_live.size() != 1 || indices_live.size() != 1) {
                 return false;
             }
 
-            if (indices_output.get_target_inputs().size() != 1) {
-                return false;
-            }
-
-            auto values_consumer = values_output.get_target_inputs().begin()->get_node()->shared_from_this();
-            auto indices_consumer = indices_output.get_target_inputs().begin()->get_node()->shared_from_this();
+            auto values_consumer = values_live[0].get_node()->shared_from_this();
+            auto indices_consumer = indices_live[0].get_node()->shared_from_this();
 
             auto values_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(values_consumer);
             auto indices_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(indices_consumer);
