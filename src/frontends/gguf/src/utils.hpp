@@ -17,7 +17,6 @@ namespace ov {
 class Model;
 namespace op {
 namespace v0 {
-class Constant;
 class Parameter;
 }  // namespace v0
 namespace v3 {
@@ -33,9 +32,6 @@ void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_
 /// \brief Find a Parameter whose friendly name or output tensor names include `name`.
 /// Returns nullptr if the model has no such Parameter.
 std::shared_ptr<ov::op::v0::Parameter> find_parameter(const std::shared_ptr<ov::Model>& model, const std::string& name);
-
-/// \brief Build an i64 Constant of shape [values.size()] from a literal list of values.
-std::shared_ptr<ov::op::v0::Constant> const_i64(const std::vector<int64_t>& values);
 
 int non_cont_dim(std::vector<size_t> ne, std::vector<size_t> nb);
 

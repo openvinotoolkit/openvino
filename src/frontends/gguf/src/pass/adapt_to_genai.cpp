@@ -99,7 +99,8 @@ public:
             }
 
             auto res = unsqueeze->input_value(0);  // Gather's (or Convert's) output, rank 3
-            auto fixed = make_shared<ov::op::v0::Unsqueeze>(res, const_i64({1}));
+            auto axis_1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+            auto fixed = make_shared<ov::op::v0::Unsqueeze>(res, axis_1);
             fixed->set_friendly_name(unsqueeze->get_friendly_name());
             ov::copy_runtime_info(unsqueeze, fixed);
             unsqueeze->output(0).replace(fixed->output(0));
@@ -137,11 +138,15 @@ public:
 
             auto data = data_squeeze->input_value(0);  // the original, un-squeezed activation
             const int64_t hidden = data.get_partial_shape()[3].get_length();
-            auto data_flat = make_shared<ov::op::v1::Reshape>(data, const_i64({-1, hidden}), false);
+            auto data_flat_shape =
+                ov::op::v0::Constant::create(ov::element::i64, {2}, std::vector<int64_t>{-1, hidden});
+            auto data_flat = make_shared<ov::op::v1::Reshape>(data, data_flat_shape, false);
+            auto indices_flat_shape = ov::op::v0::Constant::create(ov::element::i64, {2}, {-1, 1});
             auto indices_flat =
-                make_shared<ov::op::v1::Reshape>(indices_squeeze->input_value(0), const_i64({-1, 1}), false);
-            auto fixed_res = make_shared<ov::op::v8::Gather>(data_flat, indices_flat, const_i64({0}));
-            auto fixed_unsqueeze = make_shared<ov::op::v0::Unsqueeze>(fixed_res, const_i64({0}));
+                make_shared<ov::op::v1::Reshape>(indices_squeeze->input_value(0), indices_flat_shape, false);
+            auto axis0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+            auto fixed_res = make_shared<ov::op::v8::Gather>(data_flat, indices_flat, axis0);
+            auto fixed_unsqueeze = make_shared<ov::op::v0::Unsqueeze>(fixed_res, axis0);
             fixed_unsqueeze->set_friendly_name(unsqueeze->get_friendly_name());
             ov::copy_runtime_info(unsqueeze, fixed_unsqueeze);
             unsqueeze->output(0).replace(fixed_unsqueeze->output(0));
@@ -226,7 +231,8 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // dim 1 would then yield 1 for every prompt, collapsing the causal mask and the logits to a
     // single token; reading dim 0 breaks the un-rewritten case. ReduceProd is correct under both.
     auto ids_shape = make_shared<ov::op::v3::ShapeOf>(input_ids, ov::element::i64);
-    auto seq_len = make_shared<ov::op::v1::ReduceProd>(ids_shape, const_i64({0}), true);  // [1]
+    auto reduce_axis_0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+    auto seq_len = make_shared<ov::op::v1::ReduceProd>(ids_shape, reduce_axis_0, true);  // [1]
     token_len_per_seq->output(0).replace(seq_len->output(0));
 
     // The two gguf rank-4 input kinds carry the (batch, tokens) pair on different axes, so they get
@@ -239,7 +245,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // indices must present exactly the Parameter's own [batch, seq]: prepend two 1s.
     //   SDPA: [1,1,1,tokens] -> squeeze -> [1,tokens] -> embd [1,tokens,n_embd]
     //   PA  : [1,1,tokens,1] -> squeeze -> [tokens,1] -> embd [tokens,1,n_embd]
-    auto ones_1_1 = const_i64({1, 1});
+    auto ones_1_1 = ov::op::v0::Constant::create(ov::element::i64, {2}, {1, 1});
     const auto shape_1_1_batch_seq = make_shared<ov::op::v0::Concat>(ov::OutputVector{ones_1_1, ids_shape}, 0);
 
     // ACTIVATION-like inputs (inp_pos): consumed by make_sin_cos, which transposes {0,3,1,2} to put
@@ -247,7 +253,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // roped [batch, heads, tokens, head_size]. special_zero's 0 copies dim 0 and -1 absorbs the rest.
     //   SDPA: [1,1,1,tokens] -> cos/sin [1,tokens,1,half]
     //   PA  : [tokens,1,1,1] -> cos/sin [tokens,1,1,half], which broadcasts against [tokens,H,1,S]
-    const auto shape_keep0_1_1_rest = const_i64({0, 1, 1, -1});
+    const auto shape_keep0_1_1_rest = ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 1, 1, -1});
 
     auto tokens_i32 = make_shared<ov::op::v0::Convert>(input_ids, ov::element::i32);
     auto tokens_4d = make_shared<ov::op::v1::Reshape>(tokens_i32, shape_1_1_batch_seq, false);
@@ -260,7 +266,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // per-section split only differs for image/video input, and a text-only prompt has no spatial
     // axes to differ on (llama.cpp fills all sections with the text position likewise).
     if (model->get_rt_info().count(gguf_imrope_key())) {
-        auto tile_repeats = const_i64({1, 4});
+        auto tile_repeats = ov::op::v0::Constant::create(ov::element::i64, {2}, {1, 4});
         pos_i32 = make_shared<ov::op::v0::Tile>(pos_i32, tile_repeats);
     }
     auto pos_4d = make_shared<ov::op::v1::Reshape>(pos_i32, shape_keep0_1_1_rest, true);
@@ -274,22 +280,24 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // Flatten position_ids to [seq] via a shape-independent Reshape({-1}) rather than Squeeze(axis=0):
     // PA also rewrites position_ids to rank-1 and Unsqueezes it to [seq,1], where squeezing axis 0
     // would fail (or drop the wrong axis).
-    auto q_pos =
-        make_shared<ov::op::v0::Convert>(make_shared<ov::op::v1::Reshape>(position_ids, const_i64({-1}), false),
-                                         ov::element::i32);  // [seq]
+    auto flat_shape = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+    auto q_pos = make_shared<ov::op::v0::Convert>(make_shared<ov::op::v1::Reshape>(position_ids, flat_shape, false),
+                                                  ov::element::i32);  // [seq]
+    auto one_1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
     auto q_pos_col =
         make_shared<ov::op::v1::Reshape>(q_pos,
-                                         make_shared<ov::op::v0::Concat>(ov::OutputVector{seq_len, const_i64({1})}, 0),
+                                         make_shared<ov::op::v0::Concat>(ov::OutputVector{seq_len, one_1}, 0),
                                          false);  // [seq, 1]
 
     auto zero_i32 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
     auto one_i32 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {1});
+    auto squeeze_axis_0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
     auto kv_len_i32 = make_shared<ov::op::v0::Squeeze>(make_shared<ov::op::v0::Convert>(kv_len, ov::element::i32),
-                                                       const_i64({0}));                              // scalar
+                                                       squeeze_axis_0);                               // scalar
     auto k_range = make_shared<ov::op::v4::Range>(zero_i32, kv_len_i32, one_i32, ov::element::i32);  // [kv_len]
     auto k_row =
         make_shared<ov::op::v1::Reshape>(k_range,
-                                         make_shared<ov::op::v0::Concat>(ov::OutputVector{const_i64({1}), kv_len}, 0),
+                                         make_shared<ov::op::v0::Concat>(ov::OutputVector{one_1, kv_len}, 0),
                                          false);  // [1, kv_len]
 
     auto zero_f = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
@@ -350,7 +358,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
             ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1}));  // [1]: seq_dim - 1
         auto batch_dim_scalar =
             make_shared<ov::op::v0::Squeeze>(make_shared<ov::op::v0::Convert>(batch_dim, ov::element::i32),
-                                             const_i64({0}));
+                                             squeeze_axis_0);
         auto row_ids = make_shared<ov::op::v4::Range>(zero_i32,
                                                       batch_dim_scalar,
                                                       one_i32,
@@ -359,11 +367,11 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
                                                          last_index);  // [batch_dim]
         auto out_grid = make_shared<ov::op::v1::Reshape>(
             global_index,
-            make_shared<ov::op::v0::Concat>(ov::OutputVector{batch_dim, const_i64({1})}, 0),
+            make_shared<ov::op::v0::Concat>(ov::OutputVector{batch_dim, one_1}, 0),
             false);  // [batch, 1]
         auto out_ids = make_shared<ov::op::v1::Reshape>(
             out_grid,
-            make_shared<ov::op::v0::Concat>(ov::OutputVector{ones_1_1, batch_dim, const_i64({1})}, 0),
+            make_shared<ov::op::v0::Concat>(ov::OutputVector{ones_1_1, batch_dim, one_1}, 0),
             false);
         inp_out_ids->output(0).replace(out_ids->output(0));
     }
@@ -376,9 +384,10 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     auto old_result = model->get_results()[0];
     auto logits_src = old_result->input_value(0);
     auto vocab = get_dimensions(logits_src, {-1});  // [1]
+    auto batch_seq_flat = ov::op::v0::Constant::create(ov::element::i64, {2}, {1, -1});
     auto logits_3d = make_shared<ov::op::v1::Reshape>(
         logits_src,
-        make_shared<ov::op::v0::Concat>(ov::OutputVector{const_i64({1, -1}), vocab}, 0),
+        make_shared<ov::op::v0::Concat>(ov::OutputVector{batch_seq_flat, vocab}, 0),
         false);  // [1, seq, vocab]
     name_output(logits_3d, "logits");
     auto new_result = make_shared<ov::op::v0::Result>(logits_3d);

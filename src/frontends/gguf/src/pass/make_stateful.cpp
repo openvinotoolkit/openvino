@@ -257,7 +257,8 @@ bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
         for (int64_t i = 0; i < ps.rank().get_length(); ++i) {
             split_pattern.push_back(i < axis ? 0 : (i == axis ? -1 : ps[i].get_length()));
         }
-        new_rows = std::make_shared<ov::op::v1::Reshape>(new_rows, const_i64(split_pattern), true);
+        auto split_shape = ov::op::v0::Constant::create(ov::element::i64, {split_pattern.size()}, split_pattern);
+        new_rows = std::make_shared<ov::op::v1::Reshape>(new_rows, split_shape, true);
 
         // Reorder the past by beam_idx before appending, so each beam continues its own history.
         auto past = std::make_shared<ov::op::v8::Gather>(read_value, beam_idx, axis0);

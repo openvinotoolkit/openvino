@@ -86,11 +86,14 @@ MinimalGgufModel build_minimal_gguf_model(int64_t vocab = 4,
     }
     auto vocab_table = ov::op::v0::Constant::create(ov::element::f32, {(size_t)vocab, (size_t)hidden}, table_values);
 
+    auto squeeze_01 = ov::op::v0::Constant::create(ov::element::i64, {2}, {0, 1});
+    auto axis0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+
     // Mirrors translate_get_rows's embedding-table ("else", rank-2 data) branch exactly:
     // Squeeze(indices, [0,1]) -> Gather(table, ., axis=0) -> Unsqueeze(., axis=0).
-    auto indices = std::make_shared<ov::op::v0::Squeeze>(m.inp_tokens, const_i64({0, 1}));
-    auto gather = std::make_shared<ov::op::v8::Gather>(vocab_table, indices, const_i64({0}));
-    m.embd = std::make_shared<ov::op::v0::Unsqueeze>(gather, const_i64({0}));
+    auto indices = std::make_shared<ov::op::v0::Squeeze>(m.inp_tokens, squeeze_01);
+    auto gather = std::make_shared<ov::op::v8::Gather>(vocab_table, indices, axis0);
+    m.embd = std::make_shared<ov::op::v0::Unsqueeze>(gather, axis0);
     m.embd->set_friendly_name("Unsqueeze_test_embd");
 
     ov::ParameterVector params{m.inp_tokens, inp_pos, self_kq_mask, token_len_per_seq, beam_idx};
@@ -101,10 +104,10 @@ MinimalGgufModel build_minimal_gguf_model(int64_t vocab = 4,
 
         // Mirrors translate_get_rows's rank-4/dim1==1 branch ("attn_out_g"/"inpSA_g" in a real
         // model): Squeeze(data,[0,1]) -> Gather(., Squeeze(indices,[0,1]), axis=0) -> Unsqueeze(0).
-        auto data_squeeze = std::make_shared<ov::op::v0::Squeeze>(m.embd, const_i64({0, 1}));
-        auto row_indices = std::make_shared<ov::op::v0::Squeeze>(m.inp_out_ids, const_i64({0, 1}));
-        auto row_gather = std::make_shared<ov::op::v8::Gather>(data_squeeze, row_indices, const_i64({0}));
-        m.row_select = std::make_shared<ov::op::v0::Unsqueeze>(row_gather, const_i64({0}));
+        auto data_squeeze = std::make_shared<ov::op::v0::Squeeze>(m.embd, squeeze_01);
+        auto row_indices = std::make_shared<ov::op::v0::Squeeze>(m.inp_out_ids, squeeze_01);
+        auto row_gather = std::make_shared<ov::op::v8::Gather>(data_squeeze, row_indices, axis0);
+        m.row_select = std::make_shared<ov::op::v0::Unsqueeze>(row_gather, axis0);
         m.row_select->set_friendly_name("Unsqueeze_test_row_select");
     }
 
@@ -116,9 +119,9 @@ MinimalGgufModel build_minimal_gguf_model(int64_t vocab = 4,
         }
         auto pe_table =
             ov::op::v0::Constant::create(ov::element::f32, {(size_t)vocab, (size_t)hidden}, pe_table_values);
-        auto pe_indices = std::make_shared<ov::op::v0::Squeeze>(m.inp_tokens, const_i64({0, 1}));
-        auto pe_gather = std::make_shared<ov::op::v8::Gather>(pe_table, pe_indices, const_i64({0}));
-        m.pe_tok = std::make_shared<ov::op::v0::Unsqueeze>(pe_gather, const_i64({0}));
+        auto pe_indices = std::make_shared<ov::op::v0::Squeeze>(m.inp_tokens, squeeze_01);
+        auto pe_gather = std::make_shared<ov::op::v8::Gather>(pe_table, pe_indices, axis0);
+        m.pe_tok = std::make_shared<ov::op::v0::Unsqueeze>(pe_gather, axis0);
         m.pe_tok->set_friendly_name("Unsqueeze_test_pe_tok_flat");
         // Reachable from a Result: MatcherPass only visits nodes reachable from the model's
         // results/sinks, so an orphan branch would silently never be matched.
@@ -128,7 +131,8 @@ MinimalGgufModel build_minimal_gguf_model(int64_t vocab = 4,
     // A trivial rank-4 "logits" output so AdaptToGenAI's final logits reshape has something to
     // work on: reduce the hidden axis so the shape stays predictable regardless of vocab/hidden.
     auto logits_src = with_inp_out_ids ? m.row_select : m.embd;
-    auto logits = std::make_shared<ov::op::v1::ReduceSum>(logits_src, const_i64({3}), true);
+    auto reduce_axis_3 = ov::op::v0::Constant::create(ov::element::i64, {1}, {3});
+    auto logits = std::make_shared<ov::op::v1::ReduceSum>(logits_src, reduce_axis_3, true);
     results.insert(results.begin(), std::make_shared<ov::op::v0::Result>(logits));
 
     m.model = std::make_shared<ov::Model>(results, params);
@@ -419,16 +423,20 @@ std::shared_ptr<ov::Model> build_attention_gguf_model(int64_t vocab, int64_t hid
     }
     auto vocab_table = ov::op::v0::Constant::create(ov::element::f32, {(size_t)vocab, (size_t)hidden}, table_values);
 
+    auto squeeze_01 = ov::op::v0::Constant::create(ov::element::i64, {2}, {0, 1});
+    auto axis0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+
     // Mirrors translate_get_rows's embedding-table branch exactly, same as build_minimal_gguf_model.
-    auto indices = std::make_shared<ov::op::v0::Squeeze>(inp_tokens, const_i64({0, 1}));
-    auto gather = std::make_shared<ov::op::v8::Gather>(vocab_table, indices, const_i64({0}));
-    auto embd = std::make_shared<ov::op::v0::Unsqueeze>(gather, const_i64({0}));
+    auto indices = std::make_shared<ov::op::v0::Squeeze>(inp_tokens, squeeze_01);
+    auto gather = std::make_shared<ov::op::v8::Gather>(vocab_table, indices, axis0);
+    auto embd = std::make_shared<ov::op::v0::Unsqueeze>(gather, axis0);
     embd->set_friendly_name("embd");
 
     // Flatten to [1, tokens, hidden] regardless of which axis (0 pre-fix, 1 post-fix) carries the
     // real token count -- Reshape never reorders memory, so this is correct either way (same trick
     // FixInpOutIdsRowSelect itself uses).
-    auto embd_3d = std::make_shared<ov::op::v1::Reshape>(embd, const_i64({1, -1, hidden}), false);
+    auto embd_3d_shape = ov::op::v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{1, -1, hidden});
+    auto embd_3d = std::make_shared<ov::op::v1::Reshape>(embd, embd_3d_shape, false);
 
     std::vector<float> zero_w(hidden * hidden, 0.0f);
     auto w_zero = ov::op::v0::Constant::create(ov::element::f32, {(size_t)hidden, (size_t)hidden}, zero_w);
@@ -440,10 +448,12 @@ std::shared_ptr<ov::Model> build_attention_gguf_model(int64_t vocab, int64_t hid
 
     // Single-head Q/K/V projection: MatMul -> reshape to [1, tokens, 1, head_size] -> transpose to
     // [1, 1, tokens, head_size].
+    auto transpose_0213 = ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3});
     auto make_projection = [&](const std::shared_ptr<ov::op::v0::Constant>& weight) {
         auto matmul = std::make_shared<ov::op::v0::MatMul>(embd_3d, weight, false, true);
-        auto heads = std::make_shared<ov::op::v1::Reshape>(matmul, const_i64({0, 0, 1, hidden}), true);
-        return std::make_shared<ov::op::v1::Transpose>(heads, const_i64({0, 2, 1, 3}));
+        auto heads_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, 0, 1, hidden});
+        auto heads = std::make_shared<ov::op::v1::Reshape>(matmul, heads_shape, true);
+        return std::make_shared<ov::op::v1::Transpose>(heads, transpose_0213);
     };
     auto q = make_projection(w_zero);
     auto k = make_projection(w_zero);
@@ -454,11 +464,11 @@ std::shared_ptr<ov::Model> build_attention_gguf_model(int64_t vocab, int64_t hid
     auto make_kv_cache = [&](const ov::Output<ov::Node>& cur, const std::string& var_id) {
         auto var = std::make_shared<ov::op::util::Variable>(
             ov::op::util::VariableInfo{ov::PartialShape{-1, 1, -1, hidden}, ov::element::f32, var_id});
-        auto init_shape = const_i64({1, 1, 0, hidden});
+        auto init_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, 1, 0, hidden});
         auto init = std::make_shared<ov::op::v3::Broadcast>(ov::op::v0::Constant::create(ov::element::f32, {}, {0.0f}),
                                                             init_shape);
         auto read = std::make_shared<ov::op::v6::ReadValue>(init, var);
-        auto past = std::make_shared<ov::op::v8::Gather>(read, beam_idx, const_i64({0}), 0);
+        auto past = std::make_shared<ov::op::v8::Gather>(read, beam_idx, axis0, 0);
         auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{past, cur}, -2);
         auto assign = std::make_shared<ov::op::v6::Assign>(concat, var);
         return std::make_pair(ov::Output<ov::Node>(concat), std::static_pointer_cast<ov::op::Sink>(assign));
@@ -476,8 +486,9 @@ std::shared_ptr<ov::Model> build_attention_gguf_model(int64_t vocab, int64_t hid
 
     // Merge heads back and flatten to [1, tokens, hidden] -- the "logits"-shaped output
     // AdaptToGenAI's final reshape expects.
-    auto merged = std::make_shared<ov::op::v1::Transpose>(sdpa, const_i64({0, 2, 1, 3}));
-    auto merged_flat = std::make_shared<ov::op::v1::Reshape>(merged, const_i64({0, 0, -1}), true);
+    auto merged = std::make_shared<ov::op::v1::Transpose>(sdpa, transpose_0213);
+    auto merged_flat_shape = ov::op::v0::Constant::create(ov::element::i64, {3}, {0, 0, -1});
+    auto merged_flat = std::make_shared<ov::op::v1::Reshape>(merged, merged_flat_shape, true);
     auto result = std::make_shared<ov::op::v0::Result>(merged_flat);
 
     return std::make_shared<ov::Model>(

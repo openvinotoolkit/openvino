@@ -47,10 +47,6 @@ std::shared_ptr<ov::op::v0::Parameter> find_parameter(const std::shared_ptr<ov::
     return nullptr;
 }
 
-std::shared_ptr<ov::op::v0::Constant> const_i64(const std::vector<int64_t>& values) {
-    return ov::op::v0::Constant::create(ov::element::i64, ov::Shape{values.size()}, values);
-}
-
 int non_cont_dim(std::vector<size_t> ne, std::vector<size_t> nb) {
     const auto dim = static_cast<int>(nb.size() - 1);
     size_t bytes = nb[dim];
