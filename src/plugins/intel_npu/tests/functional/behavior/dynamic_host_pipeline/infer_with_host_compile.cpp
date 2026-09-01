@@ -753,13 +753,14 @@ TEST_P(InferWithHostCompileTests, DynamicBatchUsesOneVMExecution) {
     ASSERT_EQ(countVMExecutions(logCapture.str()), 1u) << logCapture.str();
 }
 
-TEST_P(InferWithHostCompileTests, DynamicBatchUsesOneVMExecutionWithIncreasedSize) {
+// Grow N, H and W simultaneously (still within the model's declared bounds: N in [1,10], H in [1,1080], W in
+// [10,1920]) and verify both output correctness and command-list reconfiguration behavior.
+TEST_P(InferWithHostCompileTests, DynamicNHWIncreasedSize) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
     // MaxPool dynamic models contain operators that are not yet supported by the dynamic pipeline.
-    // CustomNet_DynBatch is used to verify aggregation of N=1 tensors into one N=2 VM execution.
     if (selectedModelName != "CustomNet_DynBatch") {
         GTEST_SKIP() << "Only applies to the dynamic-batch model";
     }
@@ -777,52 +778,86 @@ TEST_P(InferWithHostCompileTests, DynamicBatchUsesOneVMExecutionWithIncreasedSiz
     }
     auto& testContext = setupResult.context;
 
-    ov::InferRequest reqDynamic1 = testContext.compiledModel.create_infer_request();
-    ov::InferRequest reqReference1 = testContext.referenceCompiledModel.create_infer_request();
-
-    // Start with a single N=1 tensor at a smaller spatial size; it must execute as one dynamic VM inference.
-    const ov::Shape initialShape = {1, 720, 1280, 16};
-    auto fullBatchTensor =
-        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), initialShape, 100, 0);
+    // Start with a small valid N/H/W combination.
+    ov::Shape smallShape = {1, 720, 1280, 16};
+    ov::Tensor smallTensor =
+        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), smallShape, 100, 0);
     setInputInferAndCompare(model,
-                            reqDynamic1,
-                            reqReference1,
-                            fullBatchTensor,
-                            "DynamicBatchUsesOneVMExecutionWithIncreasedSize_initial");
-    ASSERT_EQ(reqDynamic1.get_tensor(model->output()).get_shape(), initialShape);
-
-    const auto countVMExecutions = [](const std::string& log) {
-        constexpr std::string_view marker = "Start to execute graph with runtime engine";
-        size_t count = 0;
-        size_t position = 0;
-        while ((position = log.find(marker, position)) != std::string::npos) {
-            ++count;
-            position += marker.size();
-        }
-        return count;
-    };
-    ASSERT_EQ(countVMExecutions(logCapture.str()), 1u) << logCapture.str();
+                            testContext.reqDynamic,
+                            testContext.reqReference,
+                            smallTensor,
+                            "DynamicNHWIncreasedSize_small");
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected log to contain 'Reset command list to run with runtime', but got: " << logCapture.str();
 
     logCapture.clear();
-    // Two N=1 tensors at a larger spatial size must be aggregated into one N=2 inference rather than executed
-    // separately, growing both the batch and spatial dimensions from the first inference.
-    const ov::Shape singleBatchShape = {1, 1080, 1920, 16};
-    const ov::Shape aggregatedShape = {2, 1080, 1920, 16};
-    std::vector<ov::Tensor> tensorBatch;
-    tensorBatch.push_back(
-        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), singleBatchShape, 100, 0));
-    tensorBatch.push_back(
-        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), singleBatchShape, 100, 100));
-    OV_ASSERT_NO_THROW(reqDynamic1.set_tensors(testContext.compiledModel.input(), tensorBatch));
-    OV_ASSERT_NO_THROW(reqReference1.set_tensors(testContext.referenceCompiledModel.input(), tensorBatch));
-    OV_ASSERT_NO_THROW(reqDynamic1.infer());
-    OV_ASSERT_NO_THROW(reqReference1.infer());
-    ASSERT_EQ(reqDynamic1.get_tensor(model->output()).get_shape(), aggregatedShape);
-    ov::test::utils::compare(reqReference1.get_tensor(model->output()),
-                             reqDynamic1.get_tensor(model->output()),
-                             model->output().get_element_type());
+    // Grow N, H and W at once, up to the upper bound of each dynamic dimension.
+    ov::Shape largeShape = {2, 1080, 1920, 16};
+    ov::Tensor largeTensor =
+        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), largeShape, 100, 0);
+    setInputInferAndCompare(model,
+                            testContext.reqDynamic,
+                            testContext.reqReference,
+                            largeTensor,
+                            "DynamicNHWIncreasedSize_large");
+    ASSERT_EQ(testContext.reqDynamic.get_tensor(model->output()).get_shape(), largeShape);
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected log to contain 'Reset command list to run with runtime' after growing N/H/W simultaneously, but "
+           "got: "
+        << logCapture.str();
+}
 
-    ASSERT_EQ(countVMExecutions(logCapture.str()), 1u) << logCapture.str();
+// Shrink N, H and W simultaneously and verify both output correctness and command-list reconfiguration behavior.
+TEST_P(InferWithHostCompileTests, DynamicNHWDecreasedSize) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+    // MaxPool dynamic models contain operators that are not yet supported by the dynamic pipeline.
+    if (selectedModelName != "CustomNet_DynBatch") {
+        GTEST_SKIP() << "Only applies to the dynamic-batch model";
+    }
+
+    auto model = createModelByName(selectedModelName);
+    ScopedLogCapture logCapture;
+
+    core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
+    auto setupResult = prepareRuntimeCompareContext(model);
+    if (setupResult.status == RuntimeCompareStatus::fail) {
+        FAIL() << setupResult.message;
+    }
+    if (setupResult.status == RuntimeCompareStatus::skip) {
+        GTEST_SKIP() << setupResult.message;
+    }
+    auto& testContext = setupResult.context;
+
+    // Start with the largest N/H/W combination.
+    ov::Shape largeShape = {2, 1080, 1920, 16};
+    ov::Tensor largeTensor =
+        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), largeShape, 100, 0);
+    setInputInferAndCompare(model,
+                            testContext.reqDynamic,
+                            testContext.reqReference,
+                            largeTensor,
+                            "DynamicNHWDecreasedSize_large");
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected log to contain 'Reset command list to run with runtime', but got: " << logCapture.str();
+
+    logCapture.clear();
+    // Shrink N, H and W at once.
+    ov::Shape smallShape = {1, 720, 1280, 16};
+    ov::Tensor smallTensor =
+        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), smallShape, 100, 0);
+    setInputInferAndCompare(model,
+                            testContext.reqDynamic,
+                            testContext.reqReference,
+                            smallTensor,
+                            "DynamicNHWDecreasedSize_small");
+    ASSERT_EQ(testContext.reqDynamic.get_tensor(model->output()).get_shape(), smallShape);
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected log to contain 'Reset command list to run with runtime' after shrinking N/H/W simultaneously, "
+           "but got: "
+        << logCapture.str();
 }
 
 using InferWithDefaultHostCompileTests = InferWithHostCompileTests;
