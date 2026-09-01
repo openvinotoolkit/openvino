@@ -103,12 +103,12 @@ void expect_cross_layout_write(uint32_t src_kv_dim, uint32_t dst_kv_dim, bool ci
 
 }  // namespace
 
-class WriteKvSliceSlidingTest : public ::testing::TestWithParam<uint32_t> {};
+class WriteKvSliceSlidingWindowTest : public ::testing::TestWithParam<uint32_t> {};
 
 // kv_dim is parameterized: 2 ([1,H,S,E]) and 3 ([1,H,E,S]).
-INSTANTIATE_TEST_SUITE_P(KvDims, WriteKvSliceSlidingTest, ::testing::Values(2u, 3u));
+INSTANTIATE_TEST_SUITE_P(KvDims, WriteKvSliceSlidingWindowTest, ::testing::Values(2u, 3u));
 
-TEST_P(WriteKvSliceSlidingTest, CircularWarmupMatchesLeftAligned) {
+TEST_P(WriteKvSliceSlidingWindowTest, CircularWarmupMatchesLeftAligned) {
     const uint32_t kv_dim = GetParam();
     const uint32_t capacity = 8u;
 
@@ -135,7 +135,7 @@ TEST_P(WriteKvSliceSlidingTest, CircularWarmupMatchesLeftAligned) {
     }
 }
 
-TEST_P(WriteKvSliceSlidingTest, CircularWrapsToStartWithoutSplit) {
+TEST_P(WriteKvSliceSlidingWindowTest, CircularWrapsToStartWithoutSplit) {
     const uint32_t kv_dim = GetParam();
     const uint32_t capacity = 8u;
 
@@ -160,7 +160,7 @@ TEST_P(WriteKvSliceSlidingTest, CircularWrapsToStartWithoutSplit) {
     }
 }
 
-TEST_P(WriteKvSliceSlidingTest, CircularWriteSplitsAcrossWrapBoundary) {
+TEST_P(WriteKvSliceSlidingWindowTest, CircularWriteSplitsAcrossWrapBoundary) {
     const uint32_t kv_dim = GetParam();
     const uint32_t capacity = 8u;
 
@@ -186,7 +186,7 @@ TEST_P(WriteKvSliceSlidingTest, CircularWriteSplitsAcrossWrapBoundary) {
     }
 }
 
-TEST_P(WriteKvSliceSlidingTest, CircularChunkLargerThanCapacityKeepsOnlyNewestTail) {
+TEST_P(WriteKvSliceSlidingWindowTest, CircularChunkLargerThanCapacityKeepsOnlyNewestTail) {
     const uint32_t kv_dim = GetParam();
     const uint32_t capacity = 4u;
 
@@ -206,7 +206,7 @@ TEST_P(WriteKvSliceSlidingTest, CircularChunkLargerThanCapacityKeepsOnlyNewestTa
     }
 }
 
-TEST_P(WriteKvSliceSlidingTest, CircularAndLeftAlignedHoldSameLogicalContentOverManySteps) {
+TEST_P(WriteKvSliceSlidingWindowTest, CircularAndLeftAlignedHoldSameLogicalContentOverManySteps) {
     const uint32_t kv_dim = GetParam();
     const uint32_t capacity = 5u;
 
@@ -233,19 +233,19 @@ TEST_P(WriteKvSliceSlidingTest, CircularAndLeftAlignedHoldSameLogicalContentOver
     }
 }
 
-TEST(WriteKvSliceSlidingCrossLayoutTest, CircularConvertsKvDim2To3) {
+TEST(WriteKvSliceSlidingWindowCrossLayoutTest, CircularConvertsKvDim2To3) {
     expect_cross_layout_write(/*src_kv_dim=*/2u, /*dst_kv_dim=*/3u, /*circular_write=*/true);
 }
 
-TEST(WriteKvSliceSlidingCrossLayoutTest, CircularConvertsKvDim3To2) {
+TEST(WriteKvSliceSlidingWindowCrossLayoutTest, CircularConvertsKvDim3To2) {
     expect_cross_layout_write(/*src_kv_dim=*/3u, /*dst_kv_dim=*/2u, /*circular_write=*/true);
 }
 
-TEST(WriteKvSliceSlidingCrossLayoutTest, LeftAlignedConvertsKvDim2To3) {
+TEST(WriteKvSliceSlidingWindowCrossLayoutTest, LeftAlignedConvertsKvDim2To3) {
     expect_cross_layout_write(/*src_kv_dim=*/2u, /*dst_kv_dim=*/3u, /*circular_write=*/false);
 }
 
-TEST(WriteKvSliceSlidingCrossLayoutTest, LeftAlignedConvertsKvDim3To2) {
+TEST(WriteKvSliceSlidingWindowCrossLayoutTest, LeftAlignedConvertsKvDim3To2) {
     expect_cross_layout_write(/*src_kv_dim=*/3u, /*dst_kv_dim=*/2u, /*circular_write=*/false);
 }
 

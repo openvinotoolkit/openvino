@@ -18,25 +18,35 @@
 namespace {
 
 struct MaskView {
-    uint32_t row_dim = 0;
-    uint32_t col_dim = 0;
-    uint32_t past_width = 0;
-    uint32_t row_pad = 0;
-    float* data = nullptr;
+    uint32_t row_dim = 0;            // Query axis length
+    uint32_t col_dim = 0;            // Key axis length
+    uint32_t past_width = 0;         // Past-region column count: col_dim - row_dim
+    uint32_t row_pad = 0;            // Unused leading rows in this call's chunk: row_dim - num_real_new_tokens
+    ov::element::Type element_type;  // Actual mask tensor element type: f32 or f16
+    void* data = nullptr;            // Base pointer to the mask tensor's data
 };
 
 MaskView get_mask_view(const ov::SoPtr<ov::ITensor>& mask_tensor,
                        uint32_t num_real_new_tokens,
                        const char* caller_name) {
-    OPENVINO_ASSERT(mask_tensor->get_element_type() == ov::element::f32,
+    const auto element_type = mask_tensor->get_element_type();
+    OPENVINO_ASSERT(element_type == ov::element::f32 || element_type == ov::element::f16,
                     caller_name,
-                    ": Attention mask tensor is expected to be f32, got: ",
-                    mask_tensor->get_element_type());
+                    ": Attention mask tensor is expected to be f32 or f16, got: ",
+                    element_type);
     const auto& shape = mask_tensor->get_shape();
     OPENVINO_ASSERT(shape.size() >= 2, caller_name, ": Attention mask tensor rank must be >= 2, got shape: ", shape);
 
     const uint32_t row_dim = static_cast<uint32_t>(shape[shape.size() - 2]);
     const uint32_t col_dim = static_cast<uint32_t>(shape[shape.size() - 1]);
+    OPENVINO_ASSERT(std::all_of(shape.begin(),
+                                shape.end() - 2,
+                                [](size_t dim) {
+                                    return dim == 1;
+                                }),
+                    caller_name,
+                    ": attention mask leading dimensions must be singleton, got shape: ",
+                    shape);
     OPENVINO_ASSERT(col_dim >= row_dim,
                     caller_name,
                     ": attention mask key axis (",
@@ -57,7 +67,8 @@ MaskView get_mask_view(const ov::SoPtr<ov::ITensor>& mask_tensor,
     mv.col_dim = col_dim;
     mv.past_width = col_dim - row_dim;
     mv.row_pad = row_dim - num_real_new_tokens;
-    mv.data = mask_tensor->data<float>();
+    mv.element_type = element_type;
+    mv.data = mask_tensor->data();
     return mv;
 }
 
@@ -69,6 +80,8 @@ void ov::npuw::util::write_swa_kv_slice_circular(ov::SoPtr<ov::ITensor> dst_tens
                                                  uint32_t src_kv_dim,
                                                  uint32_t num_stored_tokens_before,
                                                  uint32_t num_new_tokens) {
+    // Circular SWA policy: token at absolute position p is stored at physical
+    // slot (p % capacity), overwriting the oldest slot once the buffer is full.
     const uint32_t capacity = static_cast<uint32_t>(dst_tensor->get_shape()[dst_kv_dim]);
     const uint32_t old_total = num_stored_tokens_before;
     const uint32_t new_total = old_total + num_new_tokens;
@@ -188,13 +201,12 @@ void ov::npuw::util::write_swa_kv_slice_left_aligned(ov::SoPtr<ov::ITensor> dst_
     ov::npuw::util::copy_tensor_by_dim(src_slice, dst_back, src_kv_dim, dst_kv_dim);
 }
 
-void ov::npuw::util::fill_causal_sliding_mask(ov::SoPtr<ov::ITensor> mask_tensor,
-                                              uint32_t num_stored_tokens_before,
-                                              uint32_t num_real_new_tokens,
-                                              uint32_t window_size) {
-    const auto mask_view = get_mask_view(mask_tensor, num_real_new_tokens, "fill_causal_sliding_mask");
-    OPENVINO_ASSERT(window_size > 0, "fill_causal_sliding_mask: window_size must be > 0");
+namespace {
 
+template <typename T>
+void fill_causal_sliding_window_mask_typed(const MaskView& mask_view,
+                                           uint32_t num_stored_tokens_before,
+                                           uint32_t window_size) {
     const uint32_t stored_tokens_before = num_stored_tokens_before;
     const uint32_t past_width = mask_view.past_width;
     const uint32_t row_dim = mask_view.row_dim;
@@ -207,8 +219,10 @@ void ov::npuw::util::fill_causal_sliding_mask(ov::SoPtr<ov::ITensor> mask_tensor
     const int64_t window_i64 = static_cast<int64_t>(window_size);
     const int64_t row_pad_i64 = static_cast<int64_t>(row_pad);
 
-    constexpr float kAttend = 0.0f;
-    const float kMasked = static_cast<float>(std::numeric_limits<ov::float16>::lowest());
+    // Same fill values regardless of buffer width: 0 to attend, f16's lowest (safe as a
+    // large-negative "-inf" surrogate on NPU) to mask. Only the storage type T differs.
+    const T kAttend = T(0.0f);
+    const T kMasked = T(std::numeric_limits<ov::float16>::lowest());
 
     // Layout per mask row:
     //   columns = [past circular slots][current-chunk columns]
@@ -234,21 +248,18 @@ void ov::npuw::util::fill_causal_sliding_mask(ov::SoPtr<ov::ITensor> mask_tensor
     // Current-chunk area is a causal diagonal clipped by the same window:
     //   local key index local_c is visible in this row when
     //   local_c in [max(row_pad, row-window_size+1), row].
-    auto fill_clamped_range = [](float* ptr,
-                                 int64_t range_begin,
-                                 int64_t range_end,
-                                 int64_t domain_begin,
-                                 int64_t domain_end,
-                                 float fill_value) {
-        const int64_t clamped_begin = std::max(range_begin, domain_begin);
-        const int64_t clamped_end = std::min(range_end, domain_end);
-        if (clamped_begin <= clamped_end) {
-            std::fill_n(ptr + clamped_begin, static_cast<size_t>(clamped_end - clamped_begin + 1), fill_value);
-        }
-    };
+    auto fill_clamped_range =
+        [](T* ptr, int64_t range_begin, int64_t range_end, int64_t domain_begin, int64_t domain_end, T fill_value) {
+            const int64_t clamped_begin = std::max(range_begin, domain_begin);
+            const int64_t clamped_end = std::min(range_end, domain_end);
+            if (clamped_begin <= clamped_end) {
+                std::fill_n(ptr + clamped_begin, static_cast<size_t>(clamped_end - clamped_begin + 1), fill_value);
+            }
+        };
 
+    T* base = static_cast<T*>(mask_view.data);
     for (uint32_t row = 0; row < row_dim; ++row) {
-        float* row_ptr = mask_view.data + static_cast<size_t>(row) * mask_view.col_dim;
+        T* row_ptr = base + static_cast<size_t>(row) * mask_view.col_dim;
 
         // Fill both regions with masked value first; then unmask only visible intervals.
         std::fill_n(row_ptr, past_width, kMasked);
@@ -305,6 +316,27 @@ void ov::npuw::util::fill_causal_sliding_mask(ov::SoPtr<ov::ITensor> mask_tensor
     }
 }
 
+}  // namespace
+
+void ov::npuw::util::fill_causal_sliding_window_mask(ov::SoPtr<ov::ITensor> mask_tensor,
+                                                     uint32_t num_stored_tokens_before,
+                                                     uint32_t num_real_new_tokens,
+                                                     uint32_t window_size) {
+    const auto mask_view = get_mask_view(mask_tensor, num_real_new_tokens, "fill_causal_sliding_window_mask");
+    OPENVINO_ASSERT(window_size > 0, "fill_causal_sliding_window_mask: window_size must be > 0");
+
+    switch (mask_view.element_type) {
+    case ov::element::f32:
+        fill_causal_sliding_window_mask_typed<float>(mask_view, num_stored_tokens_before, window_size);
+        break;
+    case ov::element::f16:
+        fill_causal_sliding_window_mask_typed<ov::float16>(mask_view, num_stored_tokens_before, window_size);
+        break;
+    default:
+        OPENVINO_THROW("fill_causal_sliding_window_mask: unsupported mask element type ", mask_view.element_type);
+    }
+}
+
 void ov::npuw::util::fill_attention_masks(const std::shared_ptr<ov::IAsyncInferRequest>& request,
                                           const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
                                           uint32_t num_stored_tokens_before,
@@ -316,24 +348,19 @@ void ov::npuw::util::fill_attention_masks(const std::shared_ptr<ov::IAsyncInferR
         return;
     }
     auto mask_tensor = request->get_tensor(it->second);
-    fill_causal_sliding_mask(mask_tensor, num_stored_tokens_before, num_real_new_tokens, window_size);
+    fill_causal_sliding_window_mask(mask_tensor, num_stored_tokens_before, num_real_new_tokens, window_size);
     if (token_type_ids_real != nullptr) {
         overlay_vision_bidirectional_mask(mask_tensor, token_type_ids_real, num_real_new_tokens);
     }
 }
 
-void ov::npuw::util::overlay_vision_bidirectional_mask(ov::SoPtr<ov::ITensor> mask_tensor,
-                                                       const int64_t* token_type_ids_real,
-                                                       uint32_t num_real_new_tokens) {
-    if (num_real_new_tokens == 0) {
-        return;
-    }
-    OPENVINO_ASSERT(token_type_ids_real != nullptr,
-                    "overlay_vision_bidirectional_mask: token_type_ids_real must not be null");
+namespace {
 
-    const auto mask_view = get_mask_view(mask_tensor, num_real_new_tokens, "overlay_vision_bidirectional_mask");
-
-    constexpr float kAttend = 0.0f;
+template <typename T>
+void overlay_vision_bidirectional_mask_typed(const MaskView& mask_view,
+                                             const int64_t* token_type_ids_real,
+                                             uint32_t num_real_new_tokens) {
+    const T kAttend = T(0.0f);
     constexpr int64_t kVisionTokenTypeId = 1;
 
     // This function makes vision-token runs bidirectional inside the current chunk.
@@ -355,11 +382,12 @@ void ov::npuw::util::overlay_vision_bidirectional_mask(ov::SoPtr<ov::ITensor> ma
     //              5(V): . . . . . B B
     //              6(V): . . . . . B B
     //   A/B: cells forced to attend (0.0f) by this overlay.
+    T* base = static_cast<T*>(mask_view.data);
     auto apply_vision_run = [&](uint32_t run_start, uint32_t run_end_exclusive) {
         const uint32_t run_length = run_end_exclusive - run_start;
         const uint32_t run_col_start = mask_view.past_width + mask_view.row_pad + run_start;
         for (uint32_t row_index = run_start; row_index < run_end_exclusive; ++row_index) {
-            float* row_ptr = mask_view.data + static_cast<size_t>(mask_view.row_pad + row_index) * mask_view.col_dim;
+            T* row_ptr = base + static_cast<size_t>(mask_view.row_pad + row_index) * mask_view.col_dim;
             std::fill_n(row_ptr + run_col_start, run_length, kAttend);
         }
     };
@@ -375,5 +403,30 @@ void ov::npuw::util::overlay_vision_bidirectional_mask(ov::SoPtr<ov::ITensor> ma
             ++token_index;
         }
         apply_vision_run(run_start, token_index);
+    }
+}
+
+}  // namespace
+
+void ov::npuw::util::overlay_vision_bidirectional_mask(ov::SoPtr<ov::ITensor> mask_tensor,
+                                                       const int64_t* token_type_ids_real,
+                                                       uint32_t num_real_new_tokens) {
+    if (num_real_new_tokens == 0) {
+        return;
+    }
+    OPENVINO_ASSERT(token_type_ids_real != nullptr,
+                    "overlay_vision_bidirectional_mask: token_type_ids_real must not be null");
+
+    const auto mask_view = get_mask_view(mask_tensor, num_real_new_tokens, "overlay_vision_bidirectional_mask");
+
+    switch (mask_view.element_type) {
+    case ov::element::f32:
+        overlay_vision_bidirectional_mask_typed<float>(mask_view, token_type_ids_real, num_real_new_tokens);
+        break;
+    case ov::element::f16:
+        overlay_vision_bidirectional_mask_typed<ov::float16>(mask_view, token_type_ids_real, num_real_new_tokens);
+        break;
+    default:
+        OPENVINO_THROW("overlay_vision_bidirectional_mask: unsupported mask element type ", mask_view.element_type);
     }
 }
