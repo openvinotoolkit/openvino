@@ -4,6 +4,7 @@
 
 #include "openvino/op/read_value.hpp"
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "dimension_util.hpp"
 
@@ -106,6 +107,12 @@ TEST(type_prop, read_value_v6_no_init) {
     ASSERT_EQ(read_value->get_element_type(), element::f32);
     ASSERT_EQ(read_value->get_output_partial_shape(0), (PartialShape{1, 2, 64, 64}));
     ASSERT_EQ(read_value->get_variable_id(), "variable_id");
+}
+
+TEST(type_prop, read_value_v6_variable_not_initialized) {
+    OV_EXPECT_THROW(std::ignore = std::make_shared<ov::op::v6::ReadValue>(nullptr),
+                    ov::Exception,
+                    testing::HasSubstr("Variable is not initialized."));
 }
 
 TEST(type_prop, read_value_symbols_propagation) {
