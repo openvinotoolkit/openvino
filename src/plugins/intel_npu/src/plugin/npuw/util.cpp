@@ -204,6 +204,16 @@ std::string ov::npuw::util::fmt(std::size_t number, std::size_t total) {
     return ss.str();
 }
 
+bool ov::npuw::util::try_parse_self_attn_layer_idx(const std::string& text, size_t& out_idx) {
+    static const std::regex re(R"(layers\.(\d+)\.self_attn)");
+    std::smatch m;
+    if (!std::regex_search(text, m, re)) {
+        return false;
+    }
+    out_idx = static_cast<size_t>(std::stoul(m[1].str()));
+    return true;
+}
+
 void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
                             const ov::SoPtr<ov::ITensor>& to,
                             const UnpackOptions& unpack_options) {
