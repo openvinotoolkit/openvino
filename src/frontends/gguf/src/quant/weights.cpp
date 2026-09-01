@@ -670,28 +670,21 @@ std::array<FusedQkvPart, 2> split_interleaved_q_gate(const std::string& base,
                                                      const std::unordered_map<std::string, ov::Tensor>& weights,
                                                      const std::unordered_map<std::string, GgufTensorType>& qtypes,
                                                      size_t head_dim) {
-    GgufTensorType qtype = GGUF_TYPE_F16;
-    if (auto it = qtypes.find(base + ".qtype"); it != qtypes.end()) {
-        qtype = it->second;
-    }
+    const GgufTensorType qtype = lookup_qtype(base, qtypes);
     const auto format = get_weight_format(qtype);
 
-    const ov::Tensor& w = get(weights, base + ".weight");
     const size_t block = 2 * head_dim;
-    OPENVINO_ASSERT(w.get_shape()[0] % block == 0, "[GGUF] interleaved q/gate row mismatch for ", base);
+    OPENVINO_ASSERT(get(weights, base + ".weight").get_shape()[0] % block == 0,
+                    "[GGUF] interleaved q/gate row mismatch for ",
+                    base);
 
     const std::array<size_t, 2> offsets = {0, head_dim};
 
     std::array<FusedQkvPart, 2> out;
     for (size_t i = 0; i < 2; ++i) {
-        out[i].qtype = qtype;
-        out[i].tensors.weight = gather_rows_strided(w, block, head_dim, offsets[i]);
-        if (format.has_scales) {
-            out[i].tensors.scales = gather_rows_strided(get(weights, base + ".scales"), block, head_dim, offsets[i]);
-        }
-        if (format.has_zero_point) {
-            out[i].tensors.zero_point = gather_rows_strided(get(weights, base + ".zp"), block, head_dim, offsets[i]);
-        }
+        out[i] = make_split_part(qtype, format, weights, base, [&](const ov::Tensor& t) {
+            return gather_rows_strided(t, block, head_dim, offsets[i]);
+        });
     }
     return out;
 }
