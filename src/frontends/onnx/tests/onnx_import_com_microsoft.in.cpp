@@ -6106,12 +6106,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_staging) {
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_static_staging) {
     // INTERPRETER returns present_key/present_value with shape [0] instead of [1,1,4,16] on this fully-static
     // staging graph, while CPU matches expected values exactly - a template-backend constant-folding quirk in
-    // this backend, not a decomposition bug. Fixed by the infer_postprocess copy-back fix, split into its own
-    // PR per reviewer request; drop this skip once that PR lands on this branch.
+    // this backend, not a decomposition bug. Needs follow-up; not blocking.
     if (std::string("${BACKEND_NAME}") == std::string("INTERPRETER")) {
         GTEST_SKIP() << "INTERPRETER computes present_key/present_value as shape [0] on this fully-static "
-                        "staging graph; verified correct on CPU (exact expected-value match). Fixed by the "
-                        "infer_postprocess copy-back fix in a separate PR, not yet on this branch.";
+                        "staging graph; verified correct on CPU (exact expected-value match). Likely a "
+                        "template-backend constant-folding quirk, not a decomposition bug. Needs follow-up.";
     }
     auto model = convert_model("com.microsoft/gqa_sliding_window_cache_static_staging.onnx");
     model->reshape({{"past_key", ov::PartialShape{1, 1, 4, 16}},
