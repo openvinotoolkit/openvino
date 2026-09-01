@@ -32,6 +32,9 @@ RUN apt-get update && \
         clang \
         # required by cv2 (pulled in via diffusers → imwatermark)
         libgl1 \
+        # runtime libs for VA-API GPU remote tensor tests
+        libva2 \
+        libva-drm2 \
         # Python
         python3-full \
         libhdf5-dev \
