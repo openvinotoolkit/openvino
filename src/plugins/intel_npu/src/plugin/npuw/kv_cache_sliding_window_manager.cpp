@@ -5,6 +5,7 @@
 #include "kv_cache_sliding_window_manager.hpp"
 
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <utility>
 #include <vector>
@@ -16,8 +17,6 @@
 #include "util.hpp"
 
 ov::npuw::util::SwaLayout ov::npuw::util::detect_swa_layout(const std::shared_ptr<ov::Model>& model) {
-    // Read back per-layer SDPA mask annotations (see NPUW_SDPA_MASK_RT_KEY).
-    // Missing entries are treated as full/causal layers.
     std::vector<int64_t> layer_mask_annotations;
     std::vector<bool> layer_has_annotation;
     size_t num_annotated_layers = 0;
@@ -31,6 +30,14 @@ ov::npuw::util::SwaLayout ov::npuw::util::detect_swa_layout(const std::shared_pt
         if (!try_parse_self_attn_layer_idx(sdpa->get_friendly_name(), layer_idx)) {
             continue;
         }
+
+        // Every parseable layer must be represented, even when annotation is absent.
+        // Missing annotation is interpreted as non-SWA (full/causal) later.
+        if (layer_idx >= layer_mask_annotations.size()) {
+            layer_mask_annotations.resize(layer_idx + 1, 0);
+            layer_has_annotation.resize(layer_idx + 1, false);
+        }
+
         const auto& rt_info = sdpa->get_rt_info();
         const auto it = rt_info.find(ov::npuw::NPUW_SDPA_MASK_RT_KEY);
         if (it == rt_info.end()) {
@@ -38,11 +45,6 @@ ov::npuw::util::SwaLayout ov::npuw::util::detect_swa_layout(const std::shared_pt
         }
 
         const int64_t encoded = it->second.as<int64_t>();
-        if (layer_idx >= layer_mask_annotations.size()) {
-            layer_mask_annotations.resize(layer_idx + 1, 0);
-            layer_has_annotation.resize(layer_idx + 1, false);
-        }
-
         if (layer_has_annotation[layer_idx]) {
             OPENVINO_ASSERT(layer_mask_annotations[layer_idx] == encoded,
                             "NPUW SWA: conflicting SDPA mask annotations for layer ",
@@ -96,17 +98,20 @@ ov::npuw::util::SwaLayout ov::npuw::util::detect_swa_layout(const std::shared_pt
         }
     }
 
-    // Only enable the hybrid SWA pipeline for a genuine hybrid model: at least one sliding-window
-    // layer AND at least one full/causal-attention layer. A model where every layer is uniformly
-    // sliding (or uniformly full attention) doesn't need per-layer KV-cache window capping.
+    // Only enable the hybrid SWA pipeline for a genuine hybrid model: at least one SWA
+    // layer AND at least one non-SWA (full/causal) layer. A model where every layer is uniformly
+    // SWA (or uniformly non-SWA) doesn't need per-layer KV-cache window capping.
     if (!has_sliding || !has_full) {
-        LOG_DEBUG("[SWA] Not a genuine hybrid model (has_sliding=" << has_sliding << ", has_full=" << has_full
-                                                                   << "); Sliding Window Attention support disabled.");
+        LOG_DEBUG("[SWA] Not a genuine hybrid model (has_swa=" << has_sliding << ", has_non_swa=" << has_full
+                                                               << "); SWA support disabled.");
         return layout;
     }
 
     OPENVINO_ASSERT(has_detected_window && detected_window > 0,
-                    "NPUW SWA: invalid sliding window size detected: ",
+                    "NPUW SWA: invalid SWA window size detected: ",
+                    detected_window);
+    OPENVINO_ASSERT(detected_window <= static_cast<int64_t>(std::numeric_limits<uint32_t>::max()),
+                    "NPUW SWA: SWA window size exceeds uint32_t range: ",
                     detected_window);
 
     layout.window_size = static_cast<uint32_t>(detected_window);

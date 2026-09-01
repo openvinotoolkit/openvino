@@ -12,16 +12,15 @@
 
 namespace ov::npuw {
 
-// Model pass for hybrid SWA decoders (mixed sliding and full-attention layers).
+// Model pass for hybrid SWA decoders (mixed SWA and full attention layers).
 //
 // Responsibilities:
-// 1) Externalize sliding SDPA mask input as one model parameter:
+// 1) Externalize SWA SDPA mask input as one model parameter:
 //    "sliding_window_attention_mask".
-// 2) Shrink past_key_values seq_len for sliding layers only.
+// 2) Shrink past_key_values seq_len for SWA layers only.
 // 3) Shrink externalized mask width to the same post-concat KV width.
 // 4) Privatize and patch KV-length-dependent shape constants (Broadcast/Reshape)
-//    to prevent cross-layer shared-shape leakage from sliding layers into full-attention
-//    layers.
+//    to prevent cross-layer shared-shape leakage from SWA layers into full attention layers.
 //
 // The pass runs in two phases: it first analyzes the whole model and builds a patch
 // plan (all topology checks happen there), then applies it. An unsupported topology

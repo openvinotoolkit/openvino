@@ -48,14 +48,15 @@ struct ShapeOfFreeze {
 };
 
 // Everything the transform phase needs, collected by a single model scan.
-// All sliding layers of a model share the same topology, so no per-layer grouping is
+// All SWA layers of a model share the same topology, so no per-layer grouping is
 // kept: the lists below are flat and their entries are applied independently.
 struct SwaPatchPlan {
-    ov::PartialShape mask_shape;                                         // common sliding SDPA mask shape
+    ov::PartialShape mask_shape;                                         // common SWA SDPA mask shape
+    ov::element::Type mask_type;                                         // common SWA SDPA mask element type
     std::vector<ov::Input<ov::Node>> sdpa_mask_ports;                    // to re-point to the shared mask Parameter
-    std::vector<ShapePatch> kv_shape_patches;                            // sliding SDPA K/V target shapes
-    std::vector<ShapeOfFreeze> shapeofs_to_freeze;                       // shared ShapeOf on sliding past_kv
-    std::vector<std::shared_ptr<ov::op::v0::Parameter>> past_kv_params;  // sliding past_kv to shrink
+    std::vector<ShapePatch> kv_shape_patches;                            // SWA SDPA K/V target shapes
+    std::vector<ShapeOfFreeze> shapeofs_to_freeze;                       // shared ShapeOf on SWA past_kv
+    std::vector<std::shared_ptr<ov::op::v0::Parameter>> past_kv_params;  // SWA past_kv to shrink
 };
 
 // past_kv Parameter feeding a KV Concat, plus the optional Convert in between.
@@ -64,11 +65,9 @@ struct PastKVSource {
     std::shared_ptr<ov::Node> convert;  // nullptr when Parameter -> Concat directly
 };
 
-// Classify an SDPA as sliding or non-sliding using DetectAttentionMask rt_info,
-// and extract layer_idx from SDPA friendly_name.
-// Returns {is_sliding, layer_idx}; layer_idx is -1 if the layer cannot be identified.
-// layer_is_sliding[] remains the authoritative per-layer contract and must agree
-// with per-SDPA rt_info for in-range layer_idx values.
+// Classify SDPA as SWA/non-SWA from DetectAttentionMask rt_info,
+// and parse layer_idx from friendly_name.
+// Returns {is_swa, layer_idx}; layer_idx == -1 if unavailable.
 std::pair<bool, int> classify_sdpa_layer(const std::shared_ptr<SDPA>& sdpa, const std::vector<bool>& layer_is_sliding) {
     size_t layer_idx = 0;
     const bool has_layer_idx = ov::npuw::util::try_parse_self_attn_layer_idx(sdpa->get_friendly_name(), layer_idx);
@@ -79,7 +78,7 @@ std::pair<bool, int> classify_sdpa_layer(const std::shared_ptr<SDPA>& sdpa, cons
 
     if (!has_layer_idx || layer_idx >= layer_is_sliding.size()) {
         OPENVINO_ASSERT(!is_sliding_by_rt,
-                        "[SWA] Sliding SDPA '",
+                        "[SWA] SWA SDPA '",
                         sdpa->get_friendly_name(),
                         "' has no valid layer index in its friendly_name; expected pattern 'layers.<idx>.self_attn'.");
         return {false, -1};
@@ -87,7 +86,7 @@ std::pair<bool, int> classify_sdpa_layer(const std::shared_ptr<SDPA>& sdpa, cons
 
     const bool is_sliding_by_layout = layer_is_sliding[layer_idx];
     OPENVINO_ASSERT(is_sliding_by_layout == is_sliding_by_rt,
-                    "[SWA] Sliding classification mismatch for SDPA '",
+                    "[SWA] SWA classification mismatch for SDPA '",
                     sdpa->get_friendly_name(),
                     "' (layer=",
                     layer_idx,
@@ -117,7 +116,7 @@ PastKVSource find_past_kv_source(const std::shared_ptr<ov::op::v0::Concat>& conc
     return {nullptr, nullptr};
 }
 
-// Walk back from a sliding SDPA K/V input to the past_kv Concat and collect the
+// Walk back from an SWA SDPA K/V input to the past_kv Concat and collect the
 // target-shape patches on the way.
 //
 // Expected backward path (from SDPA port 1/2):
@@ -142,7 +141,7 @@ std::shared_ptr<ov::op::v0::Concat> scan_kv_path(const std::shared_ptr<SDPA>& sd
         OPENVINO_ASSERT(has_target_shape || ov::is_type<ov::op::v0::Unsqueeze>(cur),
                         "[SWA] Unexpected op '",
                         cur->get_type_name(),
-                        "' in sliding SDPA '",
+                        "' in SWA SDPA '",
                         sdpa->get_friendly_name(),
                         "' KV path (port ",
                         kv_port,
@@ -173,17 +172,17 @@ std::shared_ptr<ov::op::v0::Concat> scan_kv_path(const std::shared_ptr<SDPA>& sd
                                 ".");
 
                 if (old_val == -1) {
-                    LOG_INFO("[SWA]   " << cur->get_type_name() << " '" << cur->get_friendly_name()
-                                        << "' kv_axis=" << kv_axis << " uses inferred extent (-1); keep it unchanged.");
+                    LOG_DEBUG("[SWA]   " << cur->get_type_name() << " '" << cur->get_friendly_name() << "' kv_axis="
+                                         << kv_axis << " uses inferred extent (-1); keep it unchanged.");
                 } else {
                     vals[kv_axis] = new_kv_total;
                     auto priv =
                         std::make_shared<ov::op::v0::Constant>(src.get_element_type(), ov::Shape{vals.size()}, vals);
                     priv->set_friendly_name(cur->get_friendly_name() + "/swa_kv_patched");
                     patches.push_back({cur->input(kShapeInputIdx), std::move(priv)});
-                    LOG_INFO("[SWA]   Patched " << cur->get_type_name() << " '" << cur->get_friendly_name()
-                                                << "' kv_axis=" << kv_axis << ": " << kvcache_size << " -> "
-                                                << new_kv_total);
+                    LOG_DEBUG("[SWA]   Patched " << cur->get_type_name() << " '" << cur->get_friendly_name()
+                                                 << "' kv_axis=" << kv_axis << ": " << kvcache_size << " -> "
+                                                 << new_kv_total);
                 }
             }
         }
@@ -192,7 +191,7 @@ std::shared_ptr<ov::op::v0::Concat> scan_kv_path(const std::shared_ptr<SDPA>& sd
 
     auto concat = ov::as_type_ptr<ov::op::v0::Concat>(cur);
     OPENVINO_ASSERT(concat,
-                    "[SWA] Sliding SDPA '",
+                    "[SWA] SWA SDPA '",
                     sdpa->get_friendly_name(),
                     "' KV path (port ",
                     kv_port,
@@ -200,7 +199,7 @@ std::shared_ptr<ov::op::v0::Concat> scan_kv_path(const std::shared_ptr<SDPA>& sd
     return concat;
 }
 
-// A sliding past_kv Parameter may only feed its own KV Concat (optionally via Convert)
+// An SWA past_kv Parameter may only feed its own KV Concat (optionally via Convert)
 // and ShapeOf. Fold those ShapeOf outputs now so that shrinking the Parameter later does
 // not leak into shared dynamic-shape chains.
 void collect_shapeofs(const PastKVSource& source,
@@ -215,7 +214,7 @@ void collect_shapeofs(const PastKVSource& source,
 
         auto shapeof = ov::as_type_ptr<ov::op::v3::ShapeOf>(consumer);
         OPENVINO_ASSERT(shapeof,
-                        "[SWA] Sliding past_kv '",
+                        "[SWA] SWA past_kv '",
                         source.param->get_friendly_name(),
                         "' has unsupported consumer '",
                         consumer->get_type_name(),
@@ -235,8 +234,7 @@ void collect_shapeofs(const PastKVSource& source,
 }
 
 // Scan phase: validate the model topology once and collect every node the transform
-// phase touches. All OPENVINO_ASSERTs live here, so an unsupported topology fails
-// before any node is modified.
+// phase touches.
 SwaPatchPlan build_plan(const std::shared_ptr<ov::Model>& model,
                         const std::vector<bool>& layer_is_sliding,
                         int64_t kvcache_size,
@@ -254,37 +252,43 @@ SwaPatchPlan build_plan(const std::shared_ptr<ov::Model>& model,
         }
         const auto classification = classify_sdpa_layer(sdpa, layer_is_sliding);
         if (!classification.first || classification.second < 0) {
-            continue;  // skip non-sliding and unclassified SDPAs
+            continue;  // skip non-SWA and unclassified SDPAs
         }
         const size_t layer_idx = static_cast<size_t>(classification.second);
         sliding_layer_seen[layer_idx] = true;
-        LOG_INFO("[SWA] Scanning sliding SDPA '" << sdpa->get_friendly_name() << "' (layer=" << layer_idx << ")");
+        LOG_DEBUG("[SWA] Scanning SWA SDPA '" << sdpa->get_friendly_name() << "' (layer=" << layer_idx << ")");
 
         OPENVINO_ASSERT(sdpa->get_input_size() > kSdpaMaskInputIdx,
-                        "[SWA] Sliding SDPA '",
+                        "[SWA] SWA SDPA '",
                         sdpa->get_friendly_name(),
                         "' must have at least ",
                         kSdpaMaskInputIdx + 1,
                         " inputs (explicit mask required).");
         const ov::PartialShape mask_shape = sdpa->input(kSdpaMaskInputIdx).get_partial_shape();
+        const ov::element::Type mask_type = sdpa->input_value(kSdpaMaskInputIdx).get_element_type();
         if (plan.sdpa_mask_ports.empty()) {
             OPENVINO_ASSERT(mask_shape.is_static() && mask_shape.size() > 0,
-                            "[SWA] Sliding SDPA '",
+                            "[SWA] SWA SDPA '",
                             sdpa->get_friendly_name(),
                             "' mask input must be fully static with non-zero rank before "
                             "ShrinkSlidingWindowKVCache.");
             plan.mask_shape = mask_shape;
+            plan.mask_type = mask_type;
         } else {
             OPENVINO_ASSERT(mask_shape == plan.mask_shape,
-                            "[SWA] All sliding SDPA layers must share the same mask shape at '",
+                            "[SWA] All SWA SDPA layers must share the same mask shape at '",
                             sdpa->get_friendly_name(),
                             "' — shape mismatch with previously seen mask shape.");
+            OPENVINO_ASSERT(mask_type == plan.mask_type,
+                            "[SWA] All SWA SDPA layers must share the same mask type at '",
+                            sdpa->get_friendly_name(),
+                            "' — type mismatch with previously seen mask type.");
         }
         plan.sdpa_mask_ports.push_back(sdpa->input(kSdpaMaskInputIdx));
 
         for (const size_t kv_port : {kSdpaKeyInputIdx, kSdpaValueInputIdx}) {
             OPENVINO_ASSERT(kv_port < sdpa->get_input_size(),
-                            "[SWA] Sliding SDPA '",
+                            "[SWA] SWA SDPA '",
                             sdpa->get_friendly_name(),
                             "' has no K/V input at port ",
                             kv_port,
@@ -292,7 +296,7 @@ SwaPatchPlan build_plan(const std::shared_ptr<ov::Model>& model,
             auto concat = scan_kv_path(sdpa, kv_port, kvcache_size, new_kv_total, plan.kv_shape_patches);
             const auto source = find_past_kv_source(concat);
             OPENVINO_ASSERT(source.param,
-                            "[SWA] Sliding SDPA '",
+                            "[SWA] SWA SDPA '",
                             sdpa->get_friendly_name(),
                             "' KV path (port ",
                             kv_port,
@@ -321,12 +325,12 @@ SwaPatchPlan build_plan(const std::shared_ptr<ov::Model>& model,
     OPENVINO_ASSERT(!plan.sdpa_mask_ports.empty(),
                     "[SWA] '",
                     ov::npuw::util::kSlidingWindowAttentionMaskParamName,
-                    "' input is required when SWA is enabled, but no sliding SDPA was found.");
+                    "' input is required when SWA is enabled, but no SWA SDPA was found.");
     for (size_t i = 0; i < layer_is_sliding.size(); ++i) {
         OPENVINO_ASSERT(!layer_is_sliding[i] || sliding_layer_seen[i],
                         "[SWA] Layer ",
                         i,
-                        " is marked as sliding but no matching SDPA was found.");
+                        " is marked as SWA but no matching SDPA was found.");
     }
     return plan;
 }
@@ -337,45 +341,45 @@ void apply_plan(const std::shared_ptr<ov::Model>& model,
                 int64_t new_past,
                 int64_t new_kv_total,
                 size_t seq_len_axis) {
-    // Step 0: externalize sliding SDPA masks into one shared Parameter and resize its width.
+    // Step 0: externalize SWA SDPA masks into one shared Parameter and resize its width.
     ov::PartialShape mask_shape = plan.mask_shape;
     const size_t last_axis = mask_shape.size() - 1;
     const int64_t old_mask_width = mask_shape[last_axis].get_length();
     mask_shape[last_axis] = new_kv_total;
 
-    auto mask_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, mask_shape);
+    auto mask_param = std::make_shared<ov::op::v0::Parameter>(plan.mask_type, mask_shape);
     mask_param->set_friendly_name(ov::npuw::util::kSlidingWindowAttentionMaskParamName);
     mask_param->get_output_tensor(0).set_names({ov::npuw::util::kSlidingWindowAttentionMaskParamName});
     for (const auto& port : plan.sdpa_mask_ports) {
         port.replace_source_output(mask_param->output(0));
     }
     model->add_parameters({mask_param});
-    LOG_INFO("[SWA] Externalized " << plan.sdpa_mask_ports.size() << " sliding SDPA mask input(s) as '"
+    LOG_INFO("[SWA] Externalized " << plan.sdpa_mask_ports.size() << " SWA SDPA mask input(s) as '"
                                    << ov::npuw::util::kSlidingWindowAttentionMaskParamName << "' in '"
                                    << model->get_friendly_name() << "'; last axis " << old_mask_width << " -> "
                                    << new_kv_total << ".");
 
-    // Step 1: privatize the sliding KV shape dependencies.
+    // Step 1: privatize the SWA KV shape dependencies.
     for (const auto& freeze : plan.shapeofs_to_freeze) {
         const auto users = freeze.node->output(0).get_target_inputs();
         for (const auto& user : users) {
             user.replace_source_output(freeze.frozen);
         }
-        LOG_INFO("[SWA] Froze shared ShapeOf '" << freeze.node->get_friendly_name() << "'.");
+        LOG_DEBUG("[SWA] Froze shared ShapeOf '" << freeze.node->get_friendly_name() << "'.");
     }
     for (const auto& patch : plan.kv_shape_patches) {
         patch.port.replace_source_output(patch.patched);
     }
 
-    // Step 2: shrink past_key_values Parameter shapes for sliding layers only.
+    // Step 2: shrink past_key_values Parameter shapes for SWA layers only.
     for (const auto& param : plan.past_kv_params) {
         ov::PartialShape new_shape = param->get_partial_shape();
         const int64_t old_past = new_shape[seq_len_axis].get_length();
         new_shape[seq_len_axis] = new_past;
         param->set_partial_shape(new_shape);
         param->get_rt_info()[ov::npuw::util::NPUW_KV_CACHE_SLIDING_RT_KEY] = true;
-        LOG_INFO("[SWA] Past KV '" << param->get_friendly_name() << "' seq_len " << old_past << " -> " << new_past
-                                   << " (post-concat total=" << new_kv_total << ")");
+        LOG_DEBUG("[SWA] Past KV '" << param->get_friendly_name() << "' seq_len " << old_past << " -> " << new_past
+                                    << " (post-concat total=" << new_kv_total << ")");
     }
     LOG_INFO("[SWA] Shrunk " << plan.past_kv_params.size() << " past_key_values parameter(s) and patched "
                              << plan.kv_shape_patches.size() << " KV shape constant(s) in '"
@@ -399,12 +403,15 @@ ShrinkSlidingWindowKVCache::ShrinkSlidingWindowKVCache(ov::npuw::util::SwaLayout
 
 bool ShrinkSlidingWindowKVCache::run_on_model(const std::shared_ptr<ov::Model>& model) {
     if (!m_swa_layout.enabled() || m_swa_layout.layer_is_sliding.empty()) {
-        LOG_INFO("[SWA] Sliding Window Attention is not configured, skipping " << model->get_friendly_name());
+        LOG_DEBUG("[SWA] Sliding Window Attention is not configured, skipping " << model->get_friendly_name());
         return false;
     }
 
-    // available_past == 0 means the prompt is processed in a single shot (input_size ==
-    // kvcache_size): there is no past region at all, so sliding layers keep no past KV.
+    // available_past == 0 means prefill consumes the whole KV budget in one shot.
+    // Typical cases:
+    // 1) chunk prefill is disabled; or
+    // 2) prefill_chunk_size == max_prompt_len (for example, both are 1k).
+    // Result: there is no past region, so SWA layers keep no past KV.
     const uint32_t available_past = m_kvcache_size - m_input_size;
     OPENVINO_ASSERT(available_past == 0 || m_swa_layout.window_size <= available_past,
                     "[SWA] window_size (",
