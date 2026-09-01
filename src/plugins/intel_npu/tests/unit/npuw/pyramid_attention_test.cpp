@@ -10,8 +10,8 @@
 #include <variant>
 #include <vector>
 
-#include "common_test_utils/ov_test_utils.hpp"
 #include "attn/attn_subgraph.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
 #include "npuw_transformations/split_kvcache_into_blocks.hpp"
 #include "openvino/op/add.hpp"
