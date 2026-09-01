@@ -218,6 +218,19 @@ of the ``ov::RemoteContext`` sub-classes.
 object or request plugin to allocate specific device memory. There also provides C APIs to do the same things with C++ APIs.
 For more details, see the code snippets below:
 
+.. note::
+
+   In the C API, ``ov_core_create_context()`` and ``ov_remote_context_create_tensor()`` take property
+   values as variadic arguments and only handle-type properties are read as raw pointers:
+   ``ov_property_key_intel_gpu_ocl_context``, ``ov_property_key_intel_gpu_ocl_queue``,
+   ``ov_property_key_intel_gpu_va_device``, ``ov_property_key_intel_gpu_mem_handle``, and,
+   on Windows only, ``ov_property_key_intel_gpu_dev_object_handle`` (an ``ID3D11Resource*``).
+   Every other value is read with ``va_arg(..., char*)`` and must be passed as a null-terminated
+   string, including numeric ones such as ``ov_property_key_intel_gpu_va_plane``,
+   ``ov_property_key_intel_gpu_dev_object_handle`` on Linux (a ``VASurfaceID``),
+   ``ov_property_key_intel_gpu_ocl_context_device_id``, and ``ov_property_key_intel_gpu_tile_id``.
+   Passing such a value as an integer is undefined behavior.
+
 
 .. tab-set::
 
