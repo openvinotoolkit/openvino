@@ -80,12 +80,11 @@ std::vector<TRShape> shape_infer(const Col2Im* op,
             // Dimension division yields an empty dimension when it is not evenly divisible.
             output_shape[idx] = data_shape[C_idx] / static_cast<typename TShape::value_type::value_type>(divisor);
 
-            NODE_SHAPE_INFER_CHECK(
-                op,
-                input_shapes,
-                !ov::util::dim::is_empty(output_shape[idx]),
-                "First non-batch dimension is not evenly divisible by Product(kernel_shape). Got: ",
-                data_shape[C_idx]);
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   !ov::util::dim::is_empty(output_shape[idx]),
+                                   "First non-batch dimension is not evenly divisible by Product(kernel_shape). Got: ",
+                                   data_shape[C_idx]);
         }
 
         // output_shape: (N, C, H, W)

@@ -452,8 +452,7 @@ TEST_F(TypePropCol2ImTest, kernel_size_overflow_product) {
     const auto data = std::make_shared<Parameter>(element::i64, PartialShape{1, 12, 81});
     const auto output_size = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int64_t>{16, 16});
     const int64_t large = std::numeric_limits<int64_t>::max() / 2 + 1;
-    const auto kernel_size =
-        std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int64_t>{large, 2});
+    const auto kernel_size = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int64_t>{large, 2});
 
     OV_EXPECT_THROW(
         std::ignore = make_op(data, output_size, kernel_size, Strides{1, 1}, Strides{1, 1}, Shape{0, 0}, Shape{0, 0}),
