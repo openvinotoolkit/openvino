@@ -133,6 +133,7 @@ OP_CONVERTER(translate_gru);
 OP_CONVERTER(translate_hann_window);
 OP_CONVERTER(translate_hardtanh);
 OP_CONVERTER(translate_hstack);
+OP_CONVERTER(translate_hypot);
 OP_CONVERTER(translate_if);
 OP_CONVERTER(translate_cond_fx);
 OP_CONVERTER(translate_im2col);
@@ -578,6 +579,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::hardswish", op::quantizable_op<op::translate_1to1_match_1_inputs<opset10::HSwish>>},
         {"aten::hardtanh", op::quantizable_op<op::translate_hardtanh>},
         {"aten::hstack", op::translate_hstack},
+        {"aten::hypot", op::translate_hypot},
         {"aten::im2col", op::translate_im2col},
         {"aten::imag", common_translators::translate_imag},
         // aten::index - Supported in limited set of patterns
@@ -1006,6 +1008,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.hardswish_.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::HSwish>>},
         {"aten.hardtanh.default", op::translate_hardtanh},
         {"aten.hardtanh_.default", op::inplace_op<op::translate_hardtanh>},
+        {"aten.hypot.default", op::translate_hypot},
         {"aten.index.Tensor", op::translate_index_fx},
         {"aten._unsafe_index.Tensor", op::translate_index_fx},
         {"aten.index_select.default", op::translate_index_select},
