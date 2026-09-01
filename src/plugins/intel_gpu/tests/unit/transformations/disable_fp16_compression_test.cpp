@@ -5,13 +5,10 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include <openvino/core/model.hpp>
-#include <transformations/convert_precision.hpp>
 #include <transformations/rt_info/disable_precision_conversion.hpp>
-#include <transformations/utils/utils.hpp>
 
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -30,8 +27,6 @@ using namespace testing;
 using namespace ov::intel_gpu;
 
 namespace {
-
-using NodeVector = std::vector<std::shared_ptr<ov::Node>>;
 
 struct QwenImageGate {
     std::shared_ptr<ov::op::v0::Parameter> input;
@@ -66,14 +61,10 @@ QwenImageBranch make_qwen_image_branch(const ov::element::Type& type = ov::eleme
     return {input, weights, matmul, output};
 }
 
-struct TestModel {
-    std::shared_ptr<ov::Model> model;
-    NodeVector protected_nodes;
-};
-
-TestModel make_qwen_image_model(const ov::element::Type& type = ov::element::f32,
-                                bool multiply_first = false,
-                                bool scale_residual = false) {
+std::shared_ptr<ov::Model> make_qwen_image_model(bool is_reference = false,
+                                                 const ov::element::Type& type = ov::element::f32,
+                                                 bool multiply_first = false,
+                                                 bool scale_residual = false) {
     auto residual = std::make_shared<ov::op::v0::Parameter>(type, ov::PartialShape{1, 32, 128});
     std::shared_ptr<ov::Node> residual_input = residual;
     if (scale_residual) {
@@ -89,9 +80,13 @@ TestModel make_qwen_image_model(const ov::element::Type& type = ov::element::f32
     auto axes = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {-1});
     auto mvn = std::make_shared<ov::op::v6::MVN>(add, axes, true, 1e-6, ov::op::MVNEpsMode::INSIDE_SQRT);
 
-    return {std::make_shared<ov::Model>(ov::OutputVector{mvn},
-                                        ov::ParameterVector{residual, gate.input, branch.input, branch.weights}),
-            {branch.matmul, branch.output, gate.output, gated_branch, add, mvn}};
+    if (is_reference) {
+        for (const auto& node : ov::NodeVector{branch.matmul, branch.output, gate.output, gated_branch, add, mvn})
+            ov::disable_conversion(node, ov::element::f16);
+    }
+
+    return std::make_shared<ov::Model>(ov::OutputVector{mvn},
+                                       ov::ParameterVector{residual, gate.input, branch.input, branch.weights});
 }
 
 std::shared_ptr<ov::Model> make_flux_gate_model() {
@@ -129,140 +124,93 @@ std::shared_ptr<ov::Model> make_mvn_model(bool with_add) {
     return std::make_shared<ov::Model>(ov::OutputVector{mvn}, parameters);
 }
 
-TestModel make_direct_sin_cos_model(const ov::element::Type& type = ov::element::f32, size_t cos_count = 1) {
+std::shared_ptr<ov::Model> make_direct_sin_cos_model(bool is_reference = false,
+                                                     const ov::element::Type& type = ov::element::f32,
+                                                     size_t cos_count = 1) {
     auto lhs = std::make_shared<ov::op::v0::Parameter>(type, ov::PartialShape{1, 32});
     auto rhs = std::make_shared<ov::op::v0::Parameter>(type, ov::PartialShape{1, 32});
     auto multiply = std::make_shared<ov::op::v1::Multiply>(lhs, rhs);
     auto sin = std::make_shared<ov::op::v0::Sin>(multiply);
 
     ov::OutputVector outputs{sin};
-    NodeVector protected_nodes{lhs, rhs, multiply, sin};
+    ov::NodeVector protected_nodes{lhs, rhs, multiply, sin};
     for (size_t i = 0; i < cos_count; ++i) {
         auto cos = std::make_shared<ov::op::v0::Cos>(multiply);
         outputs.push_back(cos);
         protected_nodes.push_back(cos);
     }
 
-    return {std::make_shared<ov::Model>(outputs, ov::ParameterVector{lhs, rhs}), protected_nodes};
+    if (is_reference) {
+        for (const auto& node : protected_nodes)
+            ov::disable_conversion(node, ov::element::f16);
+    }
+
+    return std::make_shared<ov::Model>(outputs, ov::ParameterVector{lhs, rhs});
 }
 
-void disable_fp16_conversion(const NodeVector& nodes) {
-    for (const auto& node : nodes)
-        ov::disable_conversion(node, ov::element::f16);
-}
+class DisableFP16CompForQwenImageGatedResidualTest : public TransformationTestsF {
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        manager.register_pass<DisableFP16CompForQwenImageGatedResidualPattern>();
+    }
+};
 
-void convert_to_f16(const std::shared_ptr<ov::Model>& model) {
-    precisions_map precision_map = {{ov::element::f32, ov::element::f16}};
-    ov::pass::ConvertPrecision convert_precision(precision_map, type_to_fuse_map{}, true, false, true);
-    convert_precision.run_on_model(model);
-}
-
-void register_convert_to_f16(ov::pass::Manager& manager) {
-    precisions_map precision_map = {{ov::element::f32, ov::element::f16}};
-    manager.register_pass<ov::pass::ConvertPrecision>(precision_map, type_to_fuse_map{}, true, false, true);
-}
+class DisableFP16CompForDirectMultiplySinCosTest : public TransformationTestsF {
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        manager.register_pass<DisableFP16CompForDirectMultiplySinCos>();
+    }
+};
 
 }  // namespace
 
-TEST_F(TransformationTestsF, DisableFP16CompForQwenImageGatedResidual_Positive) {
-    model = make_qwen_image_model().model;
-    auto reference = make_qwen_image_model();
-    disable_fp16_conversion(reference.protected_nodes);
-    model_ref = reference.model;
-    manager.register_pass<DisableFP16CompForQwenImageGatedResidualPattern>();
+TEST_F(DisableFP16CompForQwenImageGatedResidualTest, Positive) {
+    model = make_qwen_image_model();
+    model_ref = make_qwen_image_model(true);
 }
 
-TEST_F(TransformationTestsF, DisableFP16CompForQwenImageGatedResidual_FluxGate_NoOp) {
+TEST_F(DisableFP16CompForQwenImageGatedResidualTest, FluxGate_NoOp) {
     model = make_flux_gate_model();
-    model_ref = make_flux_gate_model();
-    manager.register_pass<DisableFP16CompForQwenImageGatedResidualPattern>();
 }
 
-TEST_F(TransformationTestsF, DisableFP16CompForQwenImageGatedResidual_DisabledByPassConfig) {
-    model = make_qwen_image_model().model;
-    model_ref = make_qwen_image_model().model;
-    manager.get_pass_config()->disable<DisableFP16CompForQwenImageGatedResidualPattern>();
-    manager.register_pass<DisableFP16CompForQwenImageGatedResidualPattern>();
-}
-
-TEST_F(TransformationTestsF, DisableFP16CompForQwenImageGatedResidual_ConvertPrecision) {
-    disable_rt_info_check();
-    model = make_qwen_image_model().model;
-    auto reference = make_qwen_image_model();
-    disable_fp16_conversion(reference.protected_nodes);
-    convert_to_f16(reference.model);
-    model_ref = reference.model;
-    manager.get_pass_config()->disable<ov::pass::CheckUniqueNames>();
-    manager.register_pass<DisableFP16CompForQwenImageGatedResidualPattern>();
-    register_convert_to_f16(manager);
-}
-
-TEST_F(TransformationTestsF, DisableFP16CompForQwenImageGatedResidual_Negative) {
+TEST_F(DisableFP16CompForQwenImageGatedResidualTest, Negative) {
     model = make_mvn_model(false);
-    model_ref = make_mvn_model(false);
-    manager.register_pass<DisableFP16CompForQwenImageGatedResidualPattern>();
 }
 
-TEST_F(TransformationTestsF, DisableFP16CompForQwenImageGatedResidual_AddWithoutMultiply_NoOp) {
+TEST_F(DisableFP16CompForQwenImageGatedResidualTest, AddWithoutMultiply_NoOp) {
     model = make_mvn_model(true);
-    model_ref = make_mvn_model(true);
-    manager.register_pass<DisableFP16CompForQwenImageGatedResidualPattern>();
 }
 
-TEST_F(TransformationTestsF, DisableFP16CompForQwenImageGatedResidual_MultiplyFirst_Positive) {
-    model = make_qwen_image_model(ov::element::f32, true).model;
-    auto reference = make_qwen_image_model(ov::element::f32, true);
-    disable_fp16_conversion(reference.protected_nodes);
-    model_ref = reference.model;
-    manager.register_pass<DisableFP16CompForQwenImageGatedResidualPattern>();
+TEST_F(DisableFP16CompForQwenImageGatedResidualTest, MultiplyFirst_Positive) {
+    model = make_qwen_image_model(false, ov::element::f32, true);
+    model_ref = make_qwen_image_model(true, ov::element::f32, true);
 }
 
-TEST_F(TransformationTestsF, DisableFP16CompForQwenImageGatedResidual_TwoMultiplyInputs) {
-    disable_rt_info_check();
-    model = make_qwen_image_model(ov::element::f32, false, true).model;
-    auto reference = make_qwen_image_model(ov::element::f32, false, true);
-    disable_fp16_conversion(reference.protected_nodes);
-    convert_to_f16(reference.model);
-    model_ref = reference.model;
-    manager.get_pass_config()->disable<ov::pass::CheckUniqueNames>();
-    manager.register_pass<DisableFP16CompForQwenImageGatedResidualPattern>();
-    register_convert_to_f16(manager);
+TEST_F(DisableFP16CompForQwenImageGatedResidualTest, TwoMultiplyInputs) {
+    model = make_qwen_image_model(false, ov::element::f32, false, true);
+    model_ref = make_qwen_image_model(true, ov::element::f32, false, true);
 }
 
-TEST_F(TransformationTestsF, DisableFP16CompForQwenImageGatedResidual_FP16_NoOp) {
-    model = make_qwen_image_model(ov::element::f16).model;
-    model_ref = make_qwen_image_model(ov::element::f16).model;
-    manager.register_pass<DisableFP16CompForQwenImageGatedResidualPattern>();
+TEST_F(DisableFP16CompForQwenImageGatedResidualTest, FP16_NoOp) {
+    model = make_qwen_image_model(false, ov::element::f16);
 }
 
-TEST_F(TransformationTestsF, DisableFP16CompForDirectMultiplySinCos_Positive) {
-    disable_rt_info_check();
-    model = make_direct_sin_cos_model().model;
-    auto reference = make_direct_sin_cos_model();
-    disable_fp16_conversion(reference.protected_nodes);
-    convert_to_f16(reference.model);
-    model_ref = reference.model;
-    manager.get_pass_config()->disable<ov::pass::CheckUniqueNames>();
-    manager.register_pass<DisableFP16CompForDirectMultiplySinCos>();
-    register_convert_to_f16(manager);
+TEST_F(DisableFP16CompForDirectMultiplySinCosTest, Positive) {
+    model = make_direct_sin_cos_model();
+    model_ref = make_direct_sin_cos_model(true);
 }
 
-TEST_F(TransformationTestsF, DisableFP16CompForDirectMultiplySinCos_WithoutCos_NoOp) {
-    model = make_direct_sin_cos_model(ov::element::f32, 0).model;
-    model_ref = make_direct_sin_cos_model(ov::element::f32, 0).model;
-    manager.register_pass<DisableFP16CompForDirectMultiplySinCos>();
+TEST_F(DisableFP16CompForDirectMultiplySinCosTest, WithoutCos_NoOp) {
+    model = make_direct_sin_cos_model(false, ov::element::f32, 0);
 }
 
-TEST_F(TransformationTestsF, DisableFP16CompForDirectMultiplySinCos_FP16_NoOp) {
-    model = make_direct_sin_cos_model(ov::element::f16).model;
-    model_ref = make_direct_sin_cos_model(ov::element::f16).model;
-    manager.register_pass<DisableFP16CompForDirectMultiplySinCos>();
+TEST_F(DisableFP16CompForDirectMultiplySinCosTest, FP16_NoOp) {
+    model = make_direct_sin_cos_model(false, ov::element::f16);
 }
 
-TEST_F(TransformationTestsF, DisableFP16CompForDirectMultiplySinCos_MultipleCos) {
-    model = make_direct_sin_cos_model(ov::element::f32, 2).model;
-    auto reference = make_direct_sin_cos_model(ov::element::f32, 2);
-    disable_fp16_conversion(reference.protected_nodes);
-    model_ref = reference.model;
-    manager.register_pass<DisableFP16CompForDirectMultiplySinCos>();
+TEST_F(DisableFP16CompForDirectMultiplySinCosTest, MultipleCos) {
+    model = make_direct_sin_cos_model(false, ov::element::f32, 2);
+    model_ref = make_direct_sin_cos_model(true, ov::element::f32, 2);
 }
