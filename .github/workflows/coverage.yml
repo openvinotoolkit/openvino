@@ -362,7 +362,8 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: '3.11'
-          use-pip-proxy: 'true'
+          # iGPU/dGPU runners are outside the k8s cluster and cannot reach the pip proxy DNS.
+          use-pip-proxy: 'false'
           set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
@@ -680,7 +681,8 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: '3.11'
-          use-pip-proxy: 'true'
+          # iGPU/dGPU runners are outside the k8s cluster and cannot reach the pip proxy DNS.
+          use-pip-proxy: 'false'
           set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
