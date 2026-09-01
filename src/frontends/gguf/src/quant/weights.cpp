@@ -47,38 +47,43 @@ struct WeightFormat {
     size_t group_size;
     bool has_scales;
     bool has_zero_point;
+    // Element type gguf_fill_* writes the weight blob as, and whether it's u32-packed (8
+    // sub-byte elements per word) rather than one element per byte. Only meaningful for
+    // FillKind::MXFP4/SYMMETRIC/ASYMMETRIC/Q2_0 -- the raw-bytes make_weight_node() overload.
+    ov::element::Type weight_element_type;
+    bool packed_u32;
 };
 
 WeightFormat get_weight_format(GgufTensorType qtype) {
     switch (qtype) {
     case GGUF_TYPE_MXFP4:
-        return {WeightLayout::MXFP4, FillKind::MXFP4, 32, false, false};
+        return {WeightLayout::MXFP4, FillKind::MXFP4, 32, true, false, ov::element::f4e2m1, false};
     case GGUF_TYPE_Q4_0:
-        return {WeightLayout::SYMMETRIC_I4, FillKind::SYMMETRIC, 32, true, false};
+        return {WeightLayout::SYMMETRIC_I4, FillKind::SYMMETRIC, 32, true, false, ov::element::i4, false};
     case GGUF_TYPE_Q3_K:
-        return {WeightLayout::SYMMETRIC_I4, FillKind::SYMMETRIC, 16, true, false};
+        return {WeightLayout::SYMMETRIC_I4, FillKind::SYMMETRIC, 16, true, false, ov::element::i4, false};
     case GGUF_TYPE_Q5_0:
     case GGUF_TYPE_Q8_0:
-        return {WeightLayout::SYMMETRIC_I8, FillKind::SYMMETRIC, 32, true, false};
+        return {WeightLayout::SYMMETRIC_I8, FillKind::SYMMETRIC, 32, true, false, ov::element::i8, false};
     case GGUF_TYPE_Q6_K:
-        return {WeightLayout::SYMMETRIC_I8, FillKind::SYMMETRIC, 16, true, false};
+        return {WeightLayout::SYMMETRIC_I8, FillKind::SYMMETRIC, 16, true, false, ov::element::i8, false};
     case GGUF_TYPE_Q8_K:
-        return {WeightLayout::SYMMETRIC_I8, FillKind::NONE, 0, false, false};
+        return {WeightLayout::SYMMETRIC_I8, FillKind::NONE, 256, true, false, ov::element::i8, false};
     case GGUF_TYPE_Q2_K:
-        return {WeightLayout::ASYMMETRIC_I2, FillKind::ASYMMETRIC, 16, true, true};
+        return {WeightLayout::ASYMMETRIC_I2, FillKind::ASYMMETRIC, 16, true, true, ov::element::u2, false};
     case GGUF_TYPE_Q2_0:
-        return {WeightLayout::ASYMMETRIC_I2, FillKind::Q2_0, 64, true, true};
+        return {WeightLayout::ASYMMETRIC_I2, FillKind::Q2_0, 64, true, true, ov::element::u2, false};
     case GGUF_TYPE_Q4_1:
     case GGUF_TYPE_Q4_K:
-        return {WeightLayout::ASYMMETRIC_I4, FillKind::ASYMMETRIC, 32, true, true};
+        return {WeightLayout::ASYMMETRIC_I4, FillKind::ASYMMETRIC, 32, true, true, ov::element::u32, true};
     case GGUF_TYPE_Q5_1:
     case GGUF_TYPE_Q5_K:
-        return {WeightLayout::ASYMMETRIC_I8, FillKind::ASYMMETRIC, 32, true, true};
+        return {WeightLayout::ASYMMETRIC_I8, FillKind::ASYMMETRIC, 32, true, true, ov::element::i8, false};
     case GGUF_TYPE_F16:
     case GGUF_TYPE_F32:
     case GGUF_TYPE_BF16:
     default:
-        return {WeightLayout::PLAIN, FillKind::NONE, 0, false, false};
+        return {WeightLayout::PLAIN, FillKind::NONE, 0, false, false, ov::element::dynamic, false};
     }
 }
 
@@ -593,20 +598,44 @@ GgufTensorType gguf_type_from_name(const std::string& quant_type) {
     return it->second;
 }
 
+GgufTensorType lookup_qtype(const std::string& base, const std::unordered_map<std::string, GgufTensorType>& qtypes) {
+    GgufTensorType qtype = GGUF_TYPE_F16;
+    if (auto it = qtypes.find(base + ".qtype"); it != qtypes.end()) {
+        qtype = it->second;
+    }
+    return qtype;
+}
+
+// Build one split-off part by applying `slice` (a row-range or strided-gather extractor) to
+// the weight and, if present for this qtype's format, the scales and zero-point.
+template <typename SliceFn>
+FusedQkvPart make_split_part(GgufTensorType qtype,
+                             const WeightFormat& format,
+                             const std::unordered_map<std::string, ov::Tensor>& weights,
+                             const std::string& base,
+                             const SliceFn& slice) {
+    FusedQkvPart part;
+    part.qtype = qtype;
+    part.tensors.weight = slice(get(weights, base + ".weight"));
+    if (format.has_scales) {
+        part.tensors.scales = slice(get(weights, base + ".scales"));
+    }
+    if (format.has_zero_point) {
+        part.tensors.zero_point = slice(get(weights, base + ".zp"));
+    }
+    return part;
+}
+
 std::array<FusedQkvPart, 3> split_fused_qkv_extracted(const std::string& base,
                                                       const std::unordered_map<std::string, ov::Tensor>& weights,
                                                       const std::unordered_map<std::string, GgufTensorType>& qtypes,
                                                       size_t n_q,
                                                       size_t n_k,
                                                       size_t n_v) {
-    GgufTensorType qtype = GGUF_TYPE_F16;
-    if (auto it = qtypes.find(base + ".qtype"); it != qtypes.end()) {
-        qtype = it->second;
-    }
+    const GgufTensorType qtype = lookup_qtype(base, qtypes);
     const auto format = get_weight_format(qtype);
 
-    const ov::Tensor& w = get(weights, base + ".weight");
-    const size_t total_rows = w.get_shape()[0];
+    const size_t total_rows = get(weights, base + ".weight").get_shape()[0];
     OPENVINO_ASSERT(n_q + n_k + n_v == total_rows, "[GGUF] fused qkv row mismatch for ", base);
 
     const std::array<std::pair<size_t, size_t>, 3> ranges = {std::make_pair(size_t(0), n_q),
@@ -615,14 +644,9 @@ std::array<FusedQkvPart, 3> split_fused_qkv_extracted(const std::string& base,
     std::array<FusedQkvPart, 3> out;
     for (size_t i = 0; i < 3; ++i) {
         const auto [r0, r1] = ranges[i];
-        out[i].qtype = qtype;
-        out[i].tensors.weight = slice_rows(w, r0, r1);
-        if (format.has_scales) {
-            out[i].tensors.scales = slice_rows(get(weights, base + ".scales"), r0, r1);
-        }
-        if (format.has_zero_point) {
-            out[i].tensors.zero_point = slice_rows(get(weights, base + ".zp"), r0, r1);
-        }
+        out[i] = make_split_part(qtype, format, weights, base, [&](const ov::Tensor& t) {
+            return slice_rows(t, r0, r1);
+        });
     }
     return out;
 }
@@ -776,16 +800,15 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
         // 2D here means a bare MXFP4 tensor from the llama.cpp cgraph path (e.g. test-backend-ops
         // op tests), not a stored MoE expert weight -- those stay rank>2 and are intercepted
         // earlier in translate_weight() to keep them packed for MUL_MAT_ID.
-        ov::Tensor weights(ov::element::f4e2m1, ov::Shape{rows, cols});
-        ov::Tensor scales(ov::element::f8e8m0, ov::Shape{rows, sub_blocks_per_row(32)});
+        ov::Tensor weights(format.weight_element_type, ov::Shape{rows, cols});
+        ov::Tensor scales(ov::element::f8e8m0, ov::Shape{rows, sub_blocks_per_row(format.group_size)});
         gguf_fill_mxfp4(tensor, weights, scales);
         tensors.weight = weights;
         tensors.scales = scales;
         break;
     }
     case FillKind::SYMMETRIC: {
-        const auto weight_type = format.layout == WeightLayout::SYMMETRIC_I4 ? ov::element::i4 : ov::element::i8;
-        ov::Tensor weights(weight_type, ov::Shape{rows, cols});
+        ov::Tensor weights(format.weight_element_type, ov::Shape{rows, cols});
         ov::Tensor scales(ov::element::f16, ov::Shape{rows, sub_blocks_per_row(format.group_size)});
         gguf_fill_sym(tensor, weights, scales);
         tensors.weight = weights;
@@ -793,11 +816,7 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
         break;
     }
     case FillKind::ASYMMETRIC: {
-        const bool packed_u4 = format.layout == WeightLayout::ASYMMETRIC_I4;
-        const auto weight_type = packed_u4                                      ? ov::element::u32
-                                 : format.layout == WeightLayout::ASYMMETRIC_I2 ? ov::element::u2
-                                                                                : ov::element::i8;
-        ov::Tensor weights(weight_type, ov::Shape{rows, packed_u4 ? cols / 8 : cols});
+        ov::Tensor weights(format.weight_element_type, ov::Shape{rows, format.packed_u32 ? cols / 8 : cols});
         ov::Tensor scales(ov::element::f16, ov::Shape{rows, sub_blocks_per_row(format.group_size)});
         ov::Tensor zp(zp_type, scales.get_shape());
         gguf_fill_asym(tensor, weights, scales, zp);
@@ -808,9 +827,9 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
     }
     case FillKind::Q2_0: {
         // Ternary: u2 weights + f16 scales + a zero-point that is the constant 1 (group 64).
-        ov::Tensor weights(ov::element::u2, ov::Shape{rows, cols});
+        ov::Tensor weights(format.weight_element_type, ov::Shape{rows, cols});
         ov::Tensor scales(ov::element::f16, ov::Shape{rows, sub_blocks_per_row(format.group_size)});
-        ov::Tensor zp(zp_type, ov::Shape{rows, sub_blocks_per_row(64)});
+        ov::Tensor zp(zp_type, scales.get_shape());
         gguf_fill_q2_0(tensor, weights, scales, zp);
         tensors.weight = weights;
         tensors.scales = scales;
