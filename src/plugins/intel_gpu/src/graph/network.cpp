@@ -250,8 +250,10 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     preallocate_shape_info_buffers();
     add_default_output_chains();
 
-    if (!_internal && (get_config().get_record_replay() || get_config().get_record_replay_dynamic_wip())) {
-        OPENVINO_ASSERT(is_recording_supported(), "[GPU] Record and replay is not supported on the provided model");
+    bool use_record_replay = get_config().get_record_replay();
+    bool skip_record_replay_check = GPU_DEBUG_VALUE_OR(get_config().get_record_replay_dynamic_wip(), false);
+    if (!_internal && (use_record_replay || skip_record_replay_check)) {
+        OPENVINO_ASSERT(skip_record_replay_check || is_recording_supported(), "[GPU] Record and replay is not supported on the provided model");
         OPENVINO_ASSERT(_stream->get_recorder() != nullptr, "[GPU] Stream recording is not supported by the current stream implementation");
         _record_replay_session = std::make_shared<record_replay_session>(*_stream);
     }
@@ -1023,10 +1025,6 @@ void network::invalidate_stream_recording() {
 bool network::is_recording_supported() const {
     // Record & replay re-submits a fixed sequence of GPU commands.
     // Only safe when recording iteration produces self-contained GPU command stream that remains valid across iterations.
-
-    // Ignore checks below to allow record & replay for dynamic networks
-    if (get_config().get_record_replay_dynamic_wip())
-        return true;
 
     // When model is dynamic it is not safe to fully skip prepare_primitive and execute logic on replay iterations
     if (_is_dynamic)
