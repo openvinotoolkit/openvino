@@ -25,8 +25,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
 #if !defined(OPENVINO_ARCH_X86)
             // TODO: Incorrect blob sizes for node BinaryConvolution_X
             std::regex(R"(.*BinaryConvolutionLayerTest.*)"),
-#else
-            std::regex(R"(.*smoke_BinaryConvolutionLayerTest.*)"),
 #endif
             // TODO: 53618. BF16 gemm ncsp convolution crash
             std::regex(R"(.*_GroupConv.*_inFmts=nc.*_primitive=jit_gemm.*ENFORCE_BF16=YES.*)"),
