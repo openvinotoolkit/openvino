@@ -57,6 +57,19 @@ Interpolate
   * **Type**: string
   * **Default value**: ``round_prefer_floor``
   * **Required**: *no*
+  * **Note**: There is no ``nearest`` mode configuration (``coordinate_transformation_mode`` combined with
+    ``nearest_mode``) that is guaranteed to be bit-exact with ``PIL.Image.resize`` / ``torchvision.transforms.Resize``
+    using ``InterpolationMode.NEAREST`` for every input/output size combination, in particular for non-square images
+    where the height and width scale factors differ. Frameworks such as Pillow sample the source pixel with
+    ``floor((x_resized + 0.5) * scale)``, which is closest to ``coordinate_transformation_mode == half_pixel`` with
+    ``nearest_mode == round_prefer_ceil``, but exact equivalence is not guaranteed for all shapes. Consumers
+    requiring strict Pillow/torchvision parity should validate the selected combination against their target
+    input/output sizes. See the
+    :doc:`Torchvision Preprocessing Converter <../../../../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing/torchvision-preprocessing-converter>`
+    article for known limitations. A dedicated ``nearest_pillow`` mode (analogous to the existing ``bilinear_pillow``
+    / ``bicubic_pillow`` modes, which reimplement Pillow's resampling directly instead of approximating it through
+    ``coordinate_transformation_mode`` / ``nearest_mode`` combinations) is a possible future enhancement to close
+    this gap permanently.
 
 * *antialias*
 
@@ -145,4 +158,3 @@ Interpolate
            </port>
        </output>
    </layer>
-
