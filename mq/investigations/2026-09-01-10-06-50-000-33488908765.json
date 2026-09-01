@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-01-10-06-50-000-33488908765",
+  "timestamp": "2026-09-01T10:06:50Z",
+  "run_id": "33488908765",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33488908765",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "37768",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37768",
+  "category": "Flaky Test",
+  "title": "LLM accuracy GPU test fails \u2014 Qwen2-0.5B-Instruct-INT8 metric drop exceeds threshold",
+  "signature": "metric drop exceeds threshold|Flaky Test",
+  "signature_hash": "47caedf70a4041f8",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "LLM accuracy iGPU tests / LLM accuracy GPU tests",
+      "conclusion": "failure",
+      "symptom": "Qwen2-0.5B-Instruct-INT8-GPU metric drop 0.0525 exceeds threshold 0.03"
+    }
+  ],
+  "key_errors": [
+    "FAILED tests/llm/accuracy_conformance.py::test_accuracy_conformance[Qwen/Qwen2-0.5B-Instruct-INT8-GPU] - AssertionError: Metric drop 0.05254477262496948 exceeds threshold\nassert np.float32(0.052544773) <= 0.03\n====== 1 failed, 3 passed, 4 deselected, 23 warnings in 553.82s (0:09:13) ======"
+  ],
+  "root_cause": "The LLM accuracy conformance test for Qwen2-0.5B-Instruct-INT8 on GPU measured a metric drop of ~0.0525, which exceeds the 0.03 threshold. This is a known flaky test pattern: GPU inference accuracy can vary slightly run-to-run due to driver state, thermal throttling, or non-deterministic GPU operations. The PR itself changes CPU threading logic (Windows processor groups affinity) unrelated to GPU inference accuracy. This failure is consistent with a prior occurrence on 2026-08-27 for PR #37611 with an identical error.",
+  "reproduction_steps": "N/A \u2014 intermittent GPU accuracy fluctuation not reliably reproducible locally",
+  "recommended_actions": [
+    "Re-run the failed job \u2014 the transient GPU accuracy fluctuation typically resolves on retry",
+    "If the failure recurs consistently, investigate whether a recent GPU driver or openvino-genai update changed quantized inference accuracy for Qwen2-0.5B-Instruct-INT8"
+  ],
+  "prevention_strategies": "Consider widening the metric drop threshold for Qwen2-0.5B-Instruct-INT8-GPU if the model's accuracy variance on iGPU hardware is known to exceed 0.03. Alternatively, run the test multiple times and use the average metric to reduce noise.",
+  "historical_context": "Same failure pattern seen on 2026-08-27 for PR #37611 (run 33046110641). Pattern hash 47caedf70a4041f8. Count was 1 before this run."
+}

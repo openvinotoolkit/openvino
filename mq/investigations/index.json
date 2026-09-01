@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 211,
+  "total": 212,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -2075,6 +2075,17 @@
       "category": "Network",
       "signature_hash": "669fb8e126e09420",
       "pr_number": "37743"
+    },
+    {
+      "investigation_id": "2026-09-01-10-06-50-000-33488908765",
+      "run_id": "33488908765",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33488908765",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+      "timestamp": "2026-09-01T10:06:50Z",
+      "title": "LLM accuracy GPU test fails \u2014 Qwen2-0.5B-Instruct-INT8 metric drop exceeds threshold",
+      "category": "Flaky Test",
+      "signature_hash": "47caedf70a4041f8",
+      "pr_number": "37768"
     }
   ]
 }
