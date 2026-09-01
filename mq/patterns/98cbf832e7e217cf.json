@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "builtin cannot be used as a value|Code Issue",
+  "signature_hash": "98cbf832e7e217cf",
+  "title": "PyTorch Layer Tests fail - builtin cannot be used as a value in reflection_pad TorchScript",
+  "category": "Code Issue",
+  "count": 1,
+  "first_seen": "2026-09-01T15:04:50Z",
+  "last_seen": "2026-09-01T15:04:50Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/33502706581"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37790"
+  ],
+  "recent_timestamps": [
+    "2026-09-01T15:04:50Z"
+  ],
+  "rerun_search_string": null
+}

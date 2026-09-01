@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-01-15-04-50-373-33502706581",
+  "timestamp": "2026-09-01T15:04:50Z",
+  "run_id": "33502706581",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33502706581",
+  "workflow_name": "PyTorch Layer Tests",
+  "pr_number": "37790",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37790",
+  "author": "dependabot[bot]",
+  "category": "Code Issue",
+  "title": "PyTorch Layer Tests fail - builtin cannot be used as a value in reflection_pad TorchScript",
+  "signature": "builtin cannot be used as a value|Code Issue",
+  "signature_hash": "98cbf832e7e217cf",
+  "confidence": "High",
+  "failed_jobs": [
+    "Pytorch Layer Tests / PyTorch Layer Tests"
+  ],
+  "key_errors": [
+    "FAILED test_reflection_pad.py::TestReflectionPad::test_reflection_pad[ie_device:CPU - precision:FP32 - pad:(3,1,5,2) - n:2] - RuntimeError: Retrying hit TorchScript method redefinition",
+    "builtin cannot be used as a value: torch.ops.aten.reflection_pad2d(x, self.pad)"
+  ],
+  "root_cause": "TorchScript scripting fails for test_reflection_pad when using torch.ops.aten.reflection_pad2d as a direct call, because TorchScript treats it as a builtin and cannot script it. This is a test code issue where the PyTorch test uses torch.ops.aten.* which is not scriptable in TorchScript mode. The PR being merged (dependabot npm bump) is unrelated - this appears to be an existing flaky/broken test in the PyTorch layer tests suite.",
+  "reproduction_steps": "Run: pytest layer_tests/pytorch_tests/test_reflection_pad.py::TestReflectionPad::test_reflection_pad -k 'pad:(3, 1, 5, 2) and n:2' --ie_device=CPU --precision=FP32",
+  "recommended_actions": [
+    "Investigate test_reflection_pad.py line 26 - torch.ops.aten.reflection_pad2d cannot be used in TorchScript; fix by providing example_input for tracing path instead",
+    "Check if this test was recently modified or if a PyTorch version update changed scripting behavior for torch.ops.aten.* functions",
+    "Mark this test as xfail if it is a known incompatibility"
+  ],
+  "prevention_strategies": "When adding PyTorch layer tests that use torch.ops.aten.* builtins, verify they work under both scripting and tracing paths, or provide example_input to force tracing.",
+  "historical_context": "No previous occurrence of this exact pattern in the investigation history."
+}
