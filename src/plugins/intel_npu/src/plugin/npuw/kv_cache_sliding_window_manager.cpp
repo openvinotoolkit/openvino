@@ -20,6 +20,7 @@ ov::npuw::util::SwaLayout ov::npuw::util::detect_swa_layout(const std::shared_pt
     std::vector<int64_t> layer_mask_annotations;
     std::vector<bool> layer_has_annotation;
     size_t num_annotated_layers = 0;
+    const size_t max_reasonable_layer_idx = model->get_ordered_ops().size();
 
     for (const auto& node : model->get_ordered_ops()) {
         auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(node);
@@ -30,6 +31,14 @@ ov::npuw::util::SwaLayout ov::npuw::util::detect_swa_layout(const std::shared_pt
         if (!try_parse_self_attn_layer_idx(sdpa->get_friendly_name(), layer_idx)) {
             continue;
         }
+        OPENVINO_ASSERT(layer_idx < max_reasonable_layer_idx,
+                        "NPUW SWA: unreasonable layer index ",
+                        layer_idx,
+                        " in SDPA name '",
+                        sdpa->get_friendly_name(),
+                        "' (number of graph ops is ",
+                        max_reasonable_layer_idx,
+                        ").");
 
         // Every parseable layer must be represented, even when annotation is absent.
         // Missing annotation is interpreted as non-SWA (full/causal) later.
