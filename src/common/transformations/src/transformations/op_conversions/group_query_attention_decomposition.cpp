@@ -275,24 +275,12 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     } else if (is_static_input) {
         // Static full-length cache (max length, valid KVs left-aligned). Insert current K/V at
         // [past_seqlen, past_seqlen + curr_seqlen] with ScatterUpdate, keeping the buffer shape.
-        // past_seqlen is a runtime value (derived from seqlens_k) and cannot be bounded at trace time, so a
-        // caller that overruns the declared cache capacity would otherwise scatter past the end of the C
-        // buffer. C and curr_seqlen are both statically known here (is_static_input), so clamp past_seqlen to
-        // the largest value that keeps the whole write in bounds. Measured what an unclamped ScatterUpdate
-        // actually does on an overrun (PR #37653 review, sgbihu): CPU throws cleanly ("indices value that
-        // points to non-existing output tensor element"), but GPU hits an unhandled SEH access violation
-        // (0xc0000005) - a process crash, not a graceful error. The clamp trades a caller's mis-sized
-        // seqlens_k for a silently-truncated write instead of a device-dependent crash. ORT enforces the
-        // same bound with an explicit runtime check (group_query_attention.cc:336-345); OV has no
-        // graph-level assert primitive to replicate that hard-stop, so clamping is the safe substitute.
-        const int64_t capacity = past_key.get_partial_shape()[2].get_length();
-        const int64_t curr_len = K.get_partial_shape()[2].get_length();
-        const auto max_past_seqlen =
-            register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {capacity - curr_len}));
-        const auto clamped_past_seqlen = register_new_node<v1::Minimum>(past_seqlen, max_past_seqlen);
+        // An out-of-range past_seqlen is ScatterUpdate's own bounds-check responsibility, not something to
+        // guard against here via a graph-level clamp; the decomposition assumes the caller-supplied
+        // seqlens_k stays within the declared cache capacity.
         std::shared_ptr<ov::Node> scatter_idx =
             register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
-        scatter_idx = register_new_node<v1::Add>(scatter_idx, clamped_past_seqlen);
+        scatter_idx = register_new_node<v1::Add>(scatter_idx, past_seqlen);
         const auto scatter_axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
         K = register_new_node<v3::ScatterUpdate>(past_key, scatter_idx, K, scatter_axis);
         V = register_new_node<v3::ScatterUpdate>(past_value, scatter_idx, V, scatter_axis);
