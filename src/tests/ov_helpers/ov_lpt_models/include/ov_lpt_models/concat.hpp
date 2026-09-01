@@ -212,7 +212,6 @@ public:
         const ov::PartialShape& inputShape,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2,
-        const ov::element::Type precisionBeforeOp,
         const DequantizationOperations& dequantizationBefore1,
         const DequantizationOperations& dequantizationBefore2,
         const ov::element::Type precisionAfterOperation,
@@ -240,7 +239,6 @@ public:
         const FakeQuantizeOnData& fq2,
         const DequantizationOperations& deqBefore,
         const ov::element::Type precisionBeforeConcat,
-        const ov::element::Type precisionAfterConcat,
         const bool ssBeforeConcat,
         const bool ssAfterConcat,
         const DequantizationOperations& deqAfter1,
@@ -269,8 +267,7 @@ public:
         const ov::element::Type precisionBeforeOp,
         const DequantizationOperations& dequantizationBefore,
         const ov::element::Type precisionAfterOperation,
-        const DequantizationOperations& dequantizationAfter,
-        const ov::element::Type precisionAfterDequantization);
+        const DequantizationOperations& dequantizationAfter);
 
     static std::shared_ptr<ov::Model> getReferenceWithReshapeAtTheEndTransformation(
         const ov::element::Type precision,

@@ -126,7 +126,6 @@ public:
             shape,
             testValues.result.fakeQuantize1,
             testValues.result.fakeQuantize2,
-            testValues.result.precisionBeforeOp,
             testValues.result.dequantizationBefore1,
             testValues.result.dequantizationBefore2,
             testValues.result.precisionAfterOperation,

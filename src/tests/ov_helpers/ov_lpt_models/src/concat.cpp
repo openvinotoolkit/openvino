@@ -1465,7 +1465,6 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithSplitedIntermediate(
     const ov::PartialShape& inputShape,
     const FakeQuantizeOnData& fqOnData1,
     const FakeQuantizeOnData& fqOnData2,
-    const ov::element::Type precisionBeforeOp,
     const DequantizationOperations& dequantizationBefore1,
     const DequantizationOperations& dequantizationBefore2,
     const ov::element::Type precisionAfterOperation,
@@ -1656,7 +1655,6 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithStridedSlice(
     const FakeQuantizeOnData& fq2,
     const DequantizationOperations& deqBefore,
     const ov::element::Type precisionBeforeConcat,
-    const ov::element::Type precisionAfterConcat,
     const bool ssBeforeConcat,
     const bool ssAfterConcat,
     const DequantizationOperations& deqAfter1,
@@ -1849,8 +1847,7 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithIntermediateWithConst
     const ov::element::Type precisionBeforeOp,
     const DequantizationOperations& dequantizationBefore,
     const ov::element::Type precisionAfterOperation,
-    const DequantizationOperations& dequantizationAfter,
-    const ov::element::Type precisionAfterDequantization) {
+    const DequantizationOperations& dequantizationAfter) {
     const auto input1 = std::make_shared<ov::opset1::Parameter>(precision, inputShape);
     input1->set_friendly_name("input");
     const auto fakeQuantize1 = makeFakeQuantizeTypeRelaxed(input1, precision, fqOnData1);

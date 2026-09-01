@@ -117,8 +117,7 @@ public:
             testValues.result.precisionBeforeOp,
             testValues.result.dequantizationOperations1,
             testValues.result.precisionAfterOperation,
-            testValues.result.dequantizationOperations2,
-            testValues.result.precisionAfterDequantization);
+            testValues.result.dequantizationOperations2);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ConcatTransformationParams> obj) {

@@ -123,7 +123,6 @@ public:
             testValues.result.fakeQuantize2,
             testValues.result.dequantizationBefore,
             testValues.result.precisionBeforeConcat,
-            testValues.result.precisionAfterConcat,
             testValues.ssBeforeConcat,
             testValues.ssAfterConcat,
             testValues.result.dequantizationAfter1,
