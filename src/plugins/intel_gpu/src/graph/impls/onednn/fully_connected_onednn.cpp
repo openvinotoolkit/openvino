@@ -53,7 +53,8 @@ protected:
         if (prim->compressed_weights) {
             const auto weights_dt = instance.get_input_layout(1).data_type;
             auto weight_bitwidth = ov::element::Type(weights_dt).bitwidth();
-            OPENVINO_ASSERT(weight_bitwidth == 8 || weight_bitwidth == 4, "[GPU] oneDNN supports only 4bit/8bit compressed weights");
+            OPENVINO_ASSERT(weight_bitwidth == 8 || weight_bitwidth == 4 || weight_bitwidth == 3,
+                            "[GPU] oneDNN supports only 3bit/4bit/8bit compressed weights");
             int idx = prim->bias.is_valid() ? 3 : 2;
 
             if (prim->decompression_scale.is_valid()) {
