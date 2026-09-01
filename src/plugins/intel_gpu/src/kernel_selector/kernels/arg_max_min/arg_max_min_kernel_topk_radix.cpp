@@ -52,6 +52,7 @@ size_t GetSortSize(const arg_max_min_params& params) {
 ParamsKey ArgMaxMinKernelTopKRadix::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::F32);
     k.EnableAllOutputDataType();
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
@@ -75,8 +76,8 @@ bool ArgMaxMinKernelTopKRadix::Validate(const Params& p) const {
 
     const auto& params = static_cast<const arg_max_min_params&>(p);
 
-    // Only f16 input for radix approach (bit manipulation)
-    if (params.inputs[0].GetDType() != Datatype::F16)
+    // Radix approach relies on bit manipulation of the IEEE-754 representation
+    if (params.inputs[0].GetDType() != Datatype::F16 && params.inputs[0].GetDType() != Datatype::F32)
         DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.argMaxMinSortType != ArgMaxMinSortType::VALUE)
@@ -85,10 +86,6 @@ bool ArgMaxMinKernelTopKRadix::Validate(const Params& p) const {
     const size_t sort_size = GetSortSize(params);
 
     if (sort_size < 2)
-        DO_NOT_USE_THIS_KERNEL(p.layerID);
-
-    // Combined key uses (i & 0xFFFF) as tiebreaker, so N must fit in 16 bits
-    if (sort_size > 65535)
         DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     // PADDED_K (next power of 2 >= topK) must fit in SLM:
@@ -138,6 +135,7 @@ JitConstants ArgMaxMinKernelTopKRadix::GetJitConstants(const arg_max_min_params&
     auto jit = ArgMaxMinKernelBase::GetJitConstants(params);
 
     jit.AddConstant(MakeJitConstant("WG_SIZE", kWgSize));
+    jit.AddConstant(MakeJitConstant("SORTABLE_BITS", params.inputs[0].GetDType() == Datatype::F16 ? 16 : 32));
 
     // PADDED_K: next power of 2 >= TOP_K (for bitonic sort)
     size_t padded_k = 1;
