@@ -164,32 +164,20 @@ dnnl::memory::dims get_strides(dnnl::memory::dims dims) {
 
 dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
     switch (dt) {
-    case cldnn::data_types::f32:
-        return dnnl::memory::data_type::f32;
-    case cldnn::data_types::f16:
-        return dnnl::memory::data_type::f16;
-    case cldnn::data_types::i8:
-        return dnnl::memory::data_type::s8;
-    case cldnn::data_types::u8:
-        return dnnl::memory::data_type::u8;
-    case cldnn::data_types::i32:
-        return dnnl::memory::data_type::s32;
-    case cldnn::data_types::i4:
-        return dnnl::memory::data_type::s4;
-    case cldnn::data_types::u4:
-        return dnnl::memory::data_type::u4;
-    case cldnn::data_types::f4e2m1:
-        return dnnl::memory::data_type::f4_e2m1;
-    case cldnn::data_types::f8e4m3:
-        return dnnl::memory::data_type::f8_e4m3;
-    case cldnn::data_types::f8e5m2:
-        return dnnl::memory::data_type::f8_e5m2;
-    case cldnn::data_types::f8e8m0:
-        return dnnl::memory::data_type::e8m0;
-    case cldnn::data_types::bf16:
-        return dnnl::memory::data_type::bf16;
-    default:
-        throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn type");
+        case cldnn::data_types::f32: return dnnl::memory::data_type::f32;
+        case cldnn::data_types::f16: return dnnl::memory::data_type::f16;
+        case cldnn::data_types::i8: return dnnl::memory::data_type::s8;
+        case cldnn::data_types::u8: return dnnl::memory::data_type::u8;
+        case cldnn::data_types::i32: return dnnl::memory::data_type::s32;
+        case cldnn::data_types::i4: return dnnl::memory::data_type::s4;
+        case cldnn::data_types::u4: return dnnl::memory::data_type::u4;
+        case cldnn::data_types::u3: return dnnl::memory::data_type::u3;
+        case cldnn::data_types::f4e2m1: return dnnl::memory::data_type::f4_e2m1;
+        case cldnn::data_types::f8e4m3: return dnnl::memory::data_type::f8_e4m3;
+        case cldnn::data_types::f8e5m2: return dnnl::memory::data_type::f8_e5m2;
+        case cldnn::data_types::f8e8m0: return dnnl::memory::data_type::e8m0;
+        case cldnn::data_types::bf16: return dnnl::memory::data_type::bf16;
+        default: throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn type");
     }
 }
 
@@ -300,24 +288,28 @@ int64_t get_offset(const cldnn::layout& l, dnnl::memory::desc&& desc) {
     }
 
     switch (desc.get_data_type()) {
-    case dnnl::memory::data_type::s4:
-    case dnnl::memory::data_type::u4:
-    case dnnl::memory::data_type::f4_e2m1:
-        return offset / 2;
-    case dnnl::memory::data_type::s8:
-    case dnnl::memory::data_type::u8:
-    case dnnl::memory::data_type::f8_e4m3:
-    case dnnl::memory::data_type::f8_e5m2:
-    case dnnl::memory::data_type::e8m0:
-        return offset;
-    case dnnl::memory::data_type::f16:
-    case dnnl::memory::data_type::bf16:
-        return (offset * 2);
-    case dnnl::memory::data_type::f32:
-    case dnnl::memory::data_type::s32:
-        return (offset * 4);
-    default:
-        throw std::runtime_error(std::string("Unsupported offset for dnnl_data_type_t ") + dnnl_dt2str(static_cast<dnnl_data_type_t>(desc.get_data_type())));
+        case dnnl::memory::data_type::u3:
+            OPENVINO_ASSERT(offset % 8 == 0, "[GPU] u3 memory offset must be byte aligned, but got element offset ", offset);
+            return offset * 3 / 8;
+        case dnnl::memory::data_type::s4:
+        case dnnl::memory::data_type::u4:
+        case dnnl::memory::data_type::f4_e2m1:
+            return offset / 2;
+        case dnnl::memory::data_type::s8:
+        case dnnl::memory::data_type::u8:
+        case dnnl::memory::data_type::f8_e4m3:
+        case dnnl::memory::data_type::f8_e5m2:
+        case dnnl::memory::data_type::e8m0:
+            return offset;
+        case dnnl::memory::data_type::f16:
+        case dnnl::memory::data_type::bf16:
+            return (offset * 2);
+        case dnnl::memory::data_type::f32:
+        case dnnl::memory::data_type::s32:
+            return (offset * 4);
+        default:
+            throw std::runtime_error(std::string("Unsupported offset for dnnl_data_type_t ")
+                    + dnnl_dt2str(static_cast<dnnl_data_type_t>(desc.get_data_type())));
     }
 }
 
