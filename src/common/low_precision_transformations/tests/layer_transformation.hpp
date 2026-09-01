@@ -64,7 +64,7 @@ public:
     static ov::builder::subgraph::DequantizationOperations toDequantizationOperations(
         const ov::pass::low_precision::FakeQuantizeDequantization& dequantization);
 
-    // LPT computes dequantization in deqPrecision (f32) but restores the model precision on the
+    // LPT computes dequantization in deqPrecision (f32 by default) but restores the model precision on the
     // dequantization Multiply output, so reference expectations have to follow the model precision.
     static void setDequantizationOutPrecision(ov::builder::subgraph::DequantizationOperations& dequantization,
                                               const ov::element::Type& modelPrecision);
