@@ -98,8 +98,8 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
     auto gate_up_proj_weight_deq = wrap_type<Multiply>({gate_up_proj_weight_cvt_f32, gate_up_proj_weight_scales_per_OC},
                                                        {{"auto_broadcast", "numpy"}});
 
-    auto gate_up_proj =
-        wrap_type<MatMul>({input, gate_up_proj_weight_f32}, {{"transpose_a", false}, {"transpose_b", true}});
+    auto gate_up_proj = wrap_type<MatMul>({input, gate_up_proj_weight_f32 | gate_up_proj_weight_deq},
+                                          {{"transpose_a", false}, {"transpose_b", true}});
     auto gate_up_split_lengths = wrap_type<Constant>(type_matches(element::i32) && shape_matches("[2]"));
     auto gate_up_proj_split = wrap_type<VariadicSplit>({gate_up_proj, -1, gate_up_split_lengths});
     gate_up_proj_split->set_output_size(2);

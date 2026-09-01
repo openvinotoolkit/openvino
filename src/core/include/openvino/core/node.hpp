@@ -424,11 +424,11 @@ public:
 
     /// \return A handle to the `output_index`th output of this node.
     /// \throw std::out_of_range if the node does not have at least `output_index+1` outputs.
-    virtual Output<Node> output(size_t output_index);
+    Output<Node> output(size_t output_index);
 
     /// \return A handle to the `output_index`th output of this node.
     /// \throw std::out_of_range if the node does not have at least `output_index+1` outputs.
-    virtual Output<const Node> output(size_t output_index) const;
+    Output<const Node> output(size_t output_index) const;
 
     virtual bool match_value(ov::pass::pattern::Matcher* matcher,
                              const Output<Node>& pattern_value,
@@ -441,6 +441,11 @@ protected:
     ///
     /// \return true if constant folding disabled otherwise false.
     bool is_const_fold_disabled() const;
+
+    /// \brief Make `output_index` addressable by output(), or throw if it cannot be.
+    /// Keep it the last virtual member of Node so the vtable slot stays appended.
+    virtual void resolve_output_index(size_t output_index);
+    void resolve_output_index(size_t output_index) const;
 
 private:
     friend class ov::NodeAccessor;

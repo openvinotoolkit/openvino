@@ -15,7 +15,10 @@ class OPENVINO_API WrapType : public Pattern {
 public:
     OPENVINO_RTTI("WrapType");
 
-    explicit WrapType(const std::vector<NodeTypeInfo>& wrapped_types) : Pattern(), m_wrapped_types(wrapped_types) {
+    explicit WrapType(const std::vector<NodeTypeInfo>& wrapped_types)
+        : Pattern(),
+          m_wrapped_types(wrapped_types),
+          m_strict_output_index(false) {
         set_output_type(0, element::Type_t::dynamic, PartialShape::dynamic());
     }
 
@@ -24,18 +27,23 @@ public:
              const TPredicate& pred,
              const OutputVector& input_values = {})
         : Pattern(input_values, Predicate(pred)),
-          m_wrapped_types(wrapped_types) {
+          m_wrapped_types(wrapped_types),
+          m_strict_output_index(false) {
         set_output_type(0, element::Type_t::dynamic, PartialShape::dynamic());
     }
 
-    explicit WrapType(NodeTypeInfo wrapped_type) : Pattern(), m_wrapped_types({wrapped_type}) {
+    explicit WrapType(NodeTypeInfo wrapped_type)
+        : Pattern(),
+          m_wrapped_types({wrapped_type}),
+          m_strict_output_index(false) {
         set_output_type(0, element::Type_t::dynamic, PartialShape::dynamic());
     }
 
     template <typename TPredicate>
     WrapType(NodeTypeInfo wrapped_type, const TPredicate& pred, const OutputVector& input_values = {})
         : Pattern(input_values, Predicate(pred)),
-          m_wrapped_types({wrapped_type}) {
+          m_wrapped_types({wrapped_type}),
+          m_strict_output_index(false) {
         set_output_type(0, element::Type_t::dynamic, PartialShape::dynamic());
     }
 
@@ -52,12 +60,12 @@ public:
         m_strict_output_index = strict;
     }
 
-    Output<Node> output(size_t output_index) override;
-    Output<const Node> output(size_t output_index) const override;
+protected:
+    void resolve_output_index(size_t output_index) override;
 
 private:
     std::vector<NodeTypeInfo> m_wrapped_types;
-    bool m_strict_output_index = false;
+    bool m_strict_output_index;
 };
 }  // namespace op
 
