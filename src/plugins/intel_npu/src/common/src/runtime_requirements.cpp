@@ -7,6 +7,7 @@
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/itt.hpp"
+#include "intel_npu/compat_string_parser.hpp"
 
 namespace intel_npu {
 
@@ -103,20 +104,23 @@ std::shared_ptr<ISection> RuntimeRequirementsSection::read(BlobReaderInterface& 
     Logger logger("RuntimeRequirementsSection", blob_reader.get_log_level());
 
     const size_t section_length = blob_reader.get_section_length();
-    OPENVINO_ASSERT(section_length % sizeof(CREToken) == 0,
-                    "Received a CRE section length that is not divisible by the CRE token size. Section length: ",
-                    section_length,
-                    ". CRE token size: ",
-                    sizeof(CREToken));
-    size_t number_of_tokens = section_length / sizeof(CREToken);
-    if (number_of_tokens == 0) {
-        logger.warning("The parsed CRE is empty. No compatibility checks will be performed");
+    // TODO update with the size of the version
+    // TODO check manifest section lengths are not greater than the size of the NPU region
+    OPENVINO_ASSERT(section_length > 0);
+
+    // Use the parse
+    std::string full_payload(section_length, 0);
+    blob_reader.read_into_buffer(full_payload.data(), section_length);
+
+    compat::Parser::attr_map_type parsed_content;
+    try {
+        compat::Parser parser(full_payload, std::vector<int>());
+        parsed_content = parser.getAttributes();
+    } catch (const std::exception& ex) {
+        OPENVINO_THROW("The content of the runtime requirements section is malformed: ", ex.what());
     }
 
-    logger.debug("Reading %lu tokens", number_of_tokens);
-
-    std::vector<CREToken> tokens(number_of_tokens);
-    blob_reader.read_into_buffer(tokens.data(), number_of_tokens * sizeof(CREToken));
+    // Check the format version
 
     return std::make_shared<RuntimeRequirementsSection>(CRE(tokens, logger.level()), logger.level());
 }

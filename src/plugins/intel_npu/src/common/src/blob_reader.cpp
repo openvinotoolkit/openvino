@@ -4,6 +4,7 @@
 
 #include "intel_npu/common/blob_reader.hpp"
 
+#include "intel_npu/common/blob_format_version.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/common/runtime_requirements.hpp"
 #include "intel_npu/config/options.hpp"
@@ -11,10 +12,10 @@
 namespace {
 
 constexpr std::string_view MAGIC_BYTES = "OVNPU";
-constexpr uint32_t FORMAT_VERSION = 0x30000;  // 3.0;
+constexpr size_t FORMAT_VERSION_SIZE = 2 * sizeof(uint16_t);
 
 // The header: magic, format version, NPU region size, manifest location, manifest size
-constexpr size_t MINIMUM_BLOB_SIZE = MAGIC_BYTES.size() + sizeof(FORMAT_VERSION) + 3 * sizeof(uint64_t);
+constexpr size_t MINIMUM_BLOB_SIZE = MAGIC_BYTES.size() + FORMAT_VERSION_SIZE + 3 * sizeof(uint64_t);
 
 void seekg_with_bound_checking(intel_npu::BlobSource& source,
                                const size_t destination,
@@ -138,7 +139,7 @@ void BlobReader::read(BlobSource& source) {
     const size_t npu_region_size = get_npu_region_size(source);
     m_logger.trace("NPU region size: %lu", npu_region_size);
     // The magic and format version have been already checked within "get_npu_region_size"
-    source.seekg(MAGIC_BYTES.size() + sizeof(FORMAT_VERSION) + sizeof(npu_region_size), std::ios::cur);
+    source.seekg(MAGIC_BYTES.size() + FORMAT_VERSION_SIZE + sizeof(npu_region_size), std::ios::cur);
 
     // Step 1: Read the manifest. First, get the location and size of the table from the header.
     // Then, use this information to parse the table.
@@ -363,13 +364,17 @@ size_t BlobReader::get_npu_region_size(BlobSource& npu_formatted_blob) {
                     ". Expected: ",
                     MAGIC_BYTES);
 
-    uint32_t format_version;
-    npu_formatted_blob.read_into_buffer(&format_version, sizeof(format_version));
-    OPENVINO_ASSERT(format_version == FORMAT_VERSION,
+    uint16_t major_version;
+    uint16_t minor_version;
+    npu_formatted_blob.read_into_buffer(&major_version, sizeof(major_version));
+    npu_formatted_blob.read_into_buffer(&minor_version, sizeof(minor_version));
+
+    BlobFormatVersion format_version(major_version, minor_version);
+    OPENVINO_ASSERT(format_version == CURRENT_BLOB_FORMAT_VERSION,
                     "Invalid blob format version. Found: ",
                     format_version,
                     ". Expected: ",
-                    FORMAT_VERSION);
+                    CURRENT_BLOB_FORMAT_VERSION);
 
     uint64_t npu_region_size;
     npu_formatted_blob.read_into_buffer(&npu_region_size, sizeof(npu_region_size));

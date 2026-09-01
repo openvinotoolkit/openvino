@@ -6,6 +6,7 @@
 
 #include <iterator>
 
+#include "intel_npu/common/blob_format_version.hpp"
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/common/runtime_requirements.hpp"
@@ -13,7 +14,6 @@
 namespace {
 
 constexpr std::string_view MAGIC_BYTES = "OVNPU";
-constexpr uint32_t FORMAT_VERSION = 0x30000;  // 3.0;
 
 constexpr size_t FIRST_INSTANCE_ID = 0;
 
@@ -215,8 +215,11 @@ void BlobWriter::write_to(std::ostream& stream) const {
     Manifest manifest(m_logger.level());
 
     // The header
+    const auto major_version = CURRENT_BLOB_FORMAT_VERSION.get_major();
+    const auto minor_version = CURRENT_BLOB_FORMAT_VERSION.get_minor();
     stream.write(reinterpret_cast<const char*>(MAGIC_BYTES.data()), MAGIC_BYTES.size());
-    stream.write(reinterpret_cast<const char*>(&FORMAT_VERSION), sizeof(FORMAT_VERSION));
+    stream.write(reinterpret_cast<const char*>(&major_version), sizeof(major_version));
+    stream.write(reinterpret_cast<const char*>(&minor_version), sizeof(minor_version));
 
     // Stop condition for the BlobReader: the size of the data written here
     const auto npu_region_size_offset = stream.tellp();
