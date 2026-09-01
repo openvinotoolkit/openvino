@@ -7,7 +7,7 @@
 namespace {
 
 constexpr std::string_view TYPE_AND_ID_DELIMITER = "_";
-constexpr std::string_view CRE_SECTION_NAME = "CRE";
+constexpr std::string_view RUNTIME_REQUIREMENTS_SECTION_NAME = "RUNTIME_REQUIREMENTS";
 constexpr std::string_view MANIFEST_SECTION_NAME = "MANIFEST";
 constexpr std::string_view ELF_MAIN_SCHEDULE_SECTION_NAME = "ELF_MAIN_SCHEDULE";
 constexpr std::string_view ELF_INIT_SCHEDULES_SECTION_NAME = "ELF_INIT_SCHEDULES";
@@ -61,7 +61,7 @@ bool ISection::evaluate_compatibility_based_on_section_content(BlobReaderInterfa
 std::string section_type_to_string(const SectionType type) {
     switch (type) {
     case PredefinedSectionType::RUNTIME_REQUIREMENTS:
-        return CRE_SECTION_NAME.data();
+        return RUNTIME_REQUIREMENTS_SECTION_NAME.data();
     case PredefinedSectionType::MANIFEST:
         return MANIFEST_SECTION_NAME.data();
     case PredefinedSectionType::ELF_MAIN_SCHEDULE:
@@ -84,7 +84,7 @@ std::string section_type_to_string(const SectionType type) {
 }
 
 SectionType section_type_from_string(std::string_view type) {
-    if (type == CRE_SECTION_NAME) {
+    if (type == RUNTIME_REQUIREMENTS_SECTION_NAME) {
         return PredefinedSectionType::RUNTIME_REQUIREMENTS;
     }
     if (type == MANIFEST_SECTION_NAME) {

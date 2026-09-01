@@ -165,7 +165,7 @@ bool CRE::evaluate(
     std::vector<CREToken>::const_iterator& expression_iterator,
     const std::vector<CREToken>::const_iterator& expression_end,
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
-    const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_type_instance_evaluators,
+    const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_instance_evaluators,
     const Delimiter end_delimiter,
     const bool skip_all_evaluations) const {
     std::function<bool(bool, bool)> logical_function = first_operand_function;
@@ -199,7 +199,7 @@ bool CRE::evaluate(
             subexpression_result = evaluate(expression_iterator,
                                             expression_end,
                                             section_type_evaluators,
-                                            section_type_instance_evaluators,
+                                            section_instance_evaluators,
                                             Delimiter::PARRENTHESIS,
                                             skip_all_evaluations || skip_next_evaluation);
             CRE_EVAL_ASSERT(*expression_iterator == CLOSE,
@@ -249,9 +249,9 @@ bool CRE::evaluate(
                     if (expression_iterator != expression_end && !RESERVED_TOKENS.count(*expression_iterator)) {
                         // Found a section type instance ID. The current section ID is supported only if the instance is
                         // supported
-                        const SectionID section_id(section_type, *expression_iterator);
-                        operand = section_type_evaluators.count(*expression_iterator)
-                                      ? section_type_instance_evaluators.at(section_id).get_result()
+                        const SectionID section_id = *expression_iterator;
+                        operand = section_instance_evaluators.count(section_id)
+                                      ? section_instance_evaluators.at(section_id).get_result()
                                       : true;
 
                         m_logger.trace("Section ID %s evaluated to %d", section_id, operand);
@@ -280,7 +280,7 @@ bool CRE::evaluate(
 
 bool CRE::check_compatibility(
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
-    const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_type_instance_evaluators) const {
+    const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_instance_evaluators) const {
     if (m_subexpressions.empty()) {
         return true;
     }
@@ -291,7 +291,7 @@ bool CRE::check_compatibility(
     const bool result = evaluate(expression_iterator,
                                  expression_end,
                                  section_type_evaluators,
-                                 section_type_instance_evaluators,
+                                 section_instance_evaluators,
                                  Delimiter::SIZE);
     CRE_EVAL_ASSERT(expression_iterator == expression.end(),
                     "CRE evaluation ended before parsing the whole expression");

@@ -10,31 +10,61 @@
 
 namespace intel_npu {
 
-RuntimeRequirements::RuntimeRequirements(const CRE& cre, const std::map<SectionID, std::string>& sections_requirements)
-    : m_cre(cre),
-      m_sections_requirements(sections_requirements) {}
+RuntimeRequirements::RuntimeRequirements(const std::map<SectionID, std::string>& sections_requirements,
+                                         const CRE& cre,
+                                         const std::unordered_map<SectionID, SectionType>& section_id_to_type)
+    : m_sections_requirements(sections_requirements),
+      m_cre(cre),
+      m_section_id_to_type(section_id_to_type) {}
+
+std::map<SectionID, std::string> RuntimeRequirements::get_sections_requirements() const {
+    return m_sections_requirements;
+}
+
+CRE RuntimeRequirements::get_cre() const {
+    return m_cre;
+}
+
+std::unordered_map<SectionID, SectionType> RuntimeRequirements::get_section_id_to_type_mapping() const {
+    return m_section_id_to_type;
+}
 
 // TODO how to distinguish names
 std::unordered_map<SectionID, SectionInstanceEvaluator> RuntimeRequirements::build_section_instance_evaluators(
-    const std::unordered_map<SectionID, ISectionInstanceEvaluator>& instance_evaluators) {
+    const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators) {
     std::unordered_map<SectionID, SectionInstanceEvaluator> per_instance_evaluators;
     // TODO should all instances have evaluators?
+    for (const auto [section_id, section_runtime_requirements] : m_sections_requirements) {
+        OPENVINO_ASSERT(!per_instance_evaluators.count(section_id),
+                        "Found a section that has at least two entries within the runtime requirements");
+        OPENVINO_ASSERT(m_section_id_to_type.count(section_id));
+        const SectionType section_type = m_section_id_to_type.at(section_id);
+        OPENVINO_ASSERT(instance_evaluators.count(section_type),
+                        "Missing instance evaluator for section type ",
+                        section_type_to_string(section_type));
+
+        per_instance_evaluators[section_id] =
+            SectionInstanceEvaluator(instance_evaluators.at(section_type), section_runtime_requirements);
+    }
+
+    return per_instance_evaluators;
 }
 
 bool RuntimeRequirements::get_compatibility_check_result(
-    const std::unordered_map<SectionType, ISectionTypeEvaluator>& type_evaluators,
-    const std::unordered_map<SectionID, ISectionInstanceEvaluator>& instance_evaluators) {
+    const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& type_evaluators,
+    const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators) {
     if (!m_compatibility_check_result.has_value()) {
+        const std::unordered_map<SectionID, SectionInstanceEvaluator> per_instance_evaluators =
+            build_section_instance_evaluators(instance_evaluators);
+        m_compatibility_check_result = m_cre.check_compatibility(type_evaluators, per_instance_evaluators);
     }
     return m_compatibility_check_result.value();
 }
 
-RuntimeRequirementsSection::RuntimeRequirementsSection(const std::map<SectionID, std::string>& sections_requirements,
-                                                       const CRE& cre,
+RuntimeRequirementsSection::RuntimeRequirementsSection(const RuntimeRequirements& runtime_requirements,
                                                        const ov::log::Level log_level)
     : ISection(PredefinedSectionType::RUNTIME_REQUIREMENTS),
-      m_sections_requirements(sections_requirements),
-      m_cre(cre),
+      m_runtime_requirements(runtime_requirements),
       m_logger("RuntimeRequirementsSection", log_level) {}
 
 // TODO "sections_requirements" and CRE as string
@@ -46,12 +76,8 @@ void RuntimeRequirementsSection::write(BlobWriterInterface& writer) {
     m_logger.debug("%lu tokens written", m_cre.get_expression_length());
 }
 
-CRE RuntimeRequirementsSection::get_cre() const {
-    return m_cre;
-}
-
-std::map<SectionID, std::string> RuntimeRequirementsSection::get_sections_requirements() const {
-    return m_sections_requirements;
+RuntimeRequirements RuntimeRequirementsSection::get_runtime_requirements() const {
+    return m_runtime_requirements;
 }
 
 std::shared_ptr<ISection> RuntimeRequirementsSection::read(BlobReaderInterface& blob_reader) {
