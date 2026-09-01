@@ -59,6 +59,18 @@ SDPA::SDPA(const OutputVector& inputs,
 std::shared_ptr<ov::Node> SDPA::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
 
+    if (m_compressed) {
+        return std::make_shared<SDPA>(new_args,
+                                      m_is_causal,
+                                      m_order_q,
+                                      m_order_k,
+                                      m_order_v,
+                                      m_order_out,
+                                      m_quantization_attrs,
+                                      m_output_type,
+                                      m_causal_mask_alignment);
+    }
+
     return std::make_shared<SDPA>(new_args,
                                   m_is_causal,
                                   m_order_q,
@@ -104,6 +116,7 @@ bool SDPA::visit_attributes(ov::AttributeVisitor &visitor) {
     visitor.on_attribute("output_type", m_output_type);
     bool causal_lower_right = m_causal_mask_alignment == CausalMaskAlignment::LOWER_RIGHT;
     visitor.on_attribute("causal_lower_right", causal_lower_right);
+    m_causal_mask_alignment = causal_lower_right ? CausalMaskAlignment::LOWER_RIGHT : CausalMaskAlignment::UPPER_LEFT;
     return true;
 }
 
