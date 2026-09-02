@@ -47,8 +47,7 @@ ov::Output<ov::Node> reshape_flat_kv(const NodeContext& context,
     const char* shape_name = input_index == 1 ? "flat_kv_shape_k" : "flat_kv_shape_v";
     const char* offset_name = input_index == 1 ? "flat_kv_offset_k" : "flat_kv_offset_v";
     const auto shape = context.get_attribute<std::vector<int64_t>>(shape_name, {});
-    FRONT_END_OP_CONVERSION_CHECK(shape.size() == 4,
-                                  "Flat FLASH_ATTN_EXT KV view must expose a rank-4 logical shape");
+    FRONT_END_OP_CONVERSION_CHECK(shape.size() == 4, "Flat FLASH_ATTN_EXT KV view must expose a rank-4 logical shape");
     const int64_t n_head = shape[1];
     const int64_t head_size = shape[3];
     const int64_t row_size = n_head * head_size;
@@ -70,9 +69,8 @@ ov::Output<ov::Node> reshape_flat_kv(const NodeContext& context,
                          ov::op::v0::Constant::create(ov::element::i64, {1}, {head_size})},
         0);
     auto reshaped = std::make_shared<ov::op::v1::Reshape>(sliced, target, false);
-    return std::make_shared<ov::op::v1::Transpose>(
-        reshaped,
-        ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3}));
+    return std::make_shared<ov::op::v1::Transpose>(reshaped,
+                                                   ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3}));
 }
 
 }  // namespace
@@ -91,9 +89,7 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
 
     if (flat_kv) {
         const char* length_name = op_case == 1 ? "attention_size" : "attention_size_static";
-        FRONT_END_OP_CONVERSION_CHECK(context.has_input(length_name),
-                                      "Flat FLASH_ATTN_EXT KV requires ",
-                                      length_name);
+        FRONT_END_OP_CONVERSION_CHECK(context.has_input(length_name), "Flat FLASH_ATTN_EXT KV requires ", length_name);
         const auto attention_size = context.get_input(length_name);
         k = reshape_flat_kv(context, 1, k, attention_size);
         v = reshape_flat_kv(context, 2, v, attention_size);

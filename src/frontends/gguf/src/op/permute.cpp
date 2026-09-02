@@ -110,8 +110,7 @@ OutputVector translate_permute(const NodeContext& context) {
         }
 
         const bool dynamic_cache = context.get_attribute<bool>("dynamic_cache", false);
-        int64_t ctx_per_seq =
-            dynamic_cache ? -1 : (cache_shape[2].is_static() ? cache_shape[2].get_length() : -1);
+        int64_t ctx_per_seq = dynamic_cache ? -1 : (cache_shape[2].is_static() ? cache_shape[2].get_length() : -1);
         int64_t n_seq = cache_shape[1].get_length();
 
         Output<Node> seq_active_start;

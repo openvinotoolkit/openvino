@@ -97,9 +97,9 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
 
     if (context.has_input("chunk_valid_len")) {
         const auto& g_shape = g.get_partial_shape();
-        FRONT_END_OP_CONVERSION_CHECK(g_shape.rank().is_static() && g_shape.rank().get_length() == 3 &&
-                                          g_shape[1].is_static(),
-                                      "GATED_DELTA_NET pad masking requires a static token dimension");
+        FRONT_END_OP_CONVERSION_CHECK(
+            g_shape.rank().is_static() && g_shape.rank().get_length() == 3 && g_shape[1].is_static(),
+            "GATED_DELTA_NET pad masking requires a static token dimension");
         const int64_t n_tokens = g_shape[1].get_length();
         std::vector<int64_t> positions(n_tokens);
         std::iota(positions.begin(), positions.end(), 0);

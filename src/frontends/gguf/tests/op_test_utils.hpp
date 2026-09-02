@@ -183,9 +183,7 @@ public:
         m_inputs.push_back({name, type, shape});
         return *this;
     }
-    SingleOpBuilder& extra_input(const std::string& name,
-                                 ov::element::Type type,
-                                 const ov::PartialShape& shape) {
+    SingleOpBuilder& extra_input(const std::string& name, ov::element::Type type, const ov::PartialShape& shape) {
         m_extra_inputs.push_back({name, type, shape});
         return *this;
     }
