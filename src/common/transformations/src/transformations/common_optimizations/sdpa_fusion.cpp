@@ -39,7 +39,7 @@ using ov::pass::pattern::consumers_count;
 using ov::pass::pattern::Matcher;
 using ov::pass::pattern::rank_equals;
 using ov::pass::pattern::wrap_type;
-using ov::pass::pattern::wrap_type_strict;
+using ov::pass::pattern::wrap_type_strict_index;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -654,7 +654,7 @@ SDPASplitAttentionFusionMatcher::SDPASplitAttentionFusionMatcher() {
 
     auto split_axis = any_input();
     auto split_sizes = any_input();
-    auto vsplit = wrap_type_strict<v1::VariadicSplit>({softmax, split_axis, split_sizes});
+    auto vsplit = wrap_type_strict_index<v1::VariadicSplit>({softmax, split_axis, split_sizes});
 
     auto attn_cache = wrap_type<v0::MatMul>({vsplit->output(0), v_cache_input}, consumers_count(1));
     auto attn_new = wrap_type<v0::MatMul>({vsplit->output(1), v_new_input}, consumers_count(1));

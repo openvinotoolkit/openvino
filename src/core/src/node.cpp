@@ -596,24 +596,23 @@ ov::Input<const ov::Node> ov::Node::input(size_t input_index) const {
     return {this, input_index};
 }
 
-void ov::Node::resolve_output_index(size_t output_index) const {
+void ov::Node::on_output_access(size_t output_index) {}
+
+void ov::Node::validate_output_index(size_t output_index) const {
     // All nodes will have at least 1 output
     if (output_index > 0 && output_index >= m_outputs.size()) {
         OPENVINO_THROW("Index ", output_index, " is out of range for node type ", get_type_info().name);
     }
 }
 
-void ov::Node::resolve_output_index(size_t output_index) {
-    static_cast<const Node*>(this)->resolve_output_index(output_index);
-}
-
 ov::Output<ov::Node> ov::Node::output(size_t output_index) {
-    resolve_output_index(output_index);
+    on_output_access(output_index);
+    validate_output_index(output_index);
     return {this, output_index};
 }
 
 ov::Output<const ov::Node> ov::Node::output(size_t output_index) const {
-    resolve_output_index(output_index);
+    validate_output_index(output_index);
     return Output<const Node>(this, output_index);
 }
 

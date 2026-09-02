@@ -60,8 +60,9 @@ public:
         m_strict_output_index = strict;
     }
 
-protected:
-    void resolve_output_index(size_t output_index) override;
+private:
+    void on_output_access(size_t output_index) override;
+    void validate_output_index(size_t output_index) const override;
 
 private:
     std::vector<NodeTypeInfo> m_wrapped_types;
@@ -113,7 +114,9 @@ std::shared_ptr<Node> wrap_type(std::initializer_list<std::pair<const std::strin
 template <class... Args,
           typename TPredicate,
           typename std::enable_if_t<std::is_constructible_v<op::Predicate, TPredicate>>* = nullptr>
-std::shared_ptr<Node> wrap_type_strict(const PatternOps& inputs, const TPredicate& pred, const Attributes& attrs = {}) {
+std::shared_ptr<Node> wrap_type_strict_index(const PatternOps& inputs,
+                                             const TPredicate& pred,
+                                             const Attributes& attrs = {}) {
     auto node = wrap_type<Args...>(inputs, op::Predicate(pred), attrs);
     auto wrap = ov::as_type_ptr<op::WrapType>(node);
     wrap->set_strict_output_index(true);
@@ -121,8 +124,8 @@ std::shared_ptr<Node> wrap_type_strict(const PatternOps& inputs, const TPredicat
 }
 
 template <class... Args>
-std::shared_ptr<Node> wrap_type_strict(const PatternOps& inputs = {}, const Attributes& attrs = {}) {
-    return wrap_type_strict<Args...>(inputs, (attrs.empty() ? op::Predicate() : attrs_match(attrs)));
+std::shared_ptr<Node> wrap_type_strict_index(const PatternOps& inputs = {}, const Attributes& attrs = {}) {
+    return wrap_type_strict_index<Args...>(inputs, (attrs.empty() ? op::Predicate() : attrs_match(attrs)));
 }
 
 OPENVINO_API std::shared_ptr<Node> wrap_const();

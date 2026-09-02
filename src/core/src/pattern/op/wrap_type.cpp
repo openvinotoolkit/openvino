@@ -48,12 +48,19 @@ bool ov::pass::pattern::op::WrapType::match_value(Matcher* matcher,
     return res;
 }
 
-void ov::pass::pattern::op::WrapType::resolve_output_index(size_t output_index) {
+void ov::pass::pattern::op::WrapType::on_output_access(size_t output_index) {
     if (m_strict_output_index && output_index >= get_output_size()) {
         set_output_size(output_index + 1);
-        return;
     }
-    Node::resolve_output_index(output_index);
+}
+
+void ov::pass::pattern::op::WrapType::validate_output_index(size_t output_index) const {
+    if (output_index > 0 && output_index >= get_output_size()) {
+        OPENVINO_THROW("Output ",
+                       output_index,
+                       " is not available on WrapType, use ",
+                       m_strict_output_index ? "the non-const output()" : "wrap_type_strict_index<T>()");
+    }
 }
 
 ov::NodeTypeInfo ov::pass::pattern::op::WrapType::get_wrapped_type() const {

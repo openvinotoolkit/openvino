@@ -68,9 +68,11 @@ OPENVINO_API op::Predicate attrs_match(const Attributes& expected_attrs);
 OPENVINO_API op::Predicate shape_matches(const std::string& shape_notation);
 OPENVINO_API op::Predicate value_matches(const std::string& value_notation);
 
-OPENVINO_DEPRECATED("Use wrap_type_strict<T>() and reference the output directly, e.g. node->output(0)")
+OPENVINO_DEPRECATED("Use wrap_type_strict_index<T>() and reference the output directly, e.g. node->output(0). "
+                    "`output_index_matches()` will be removed in 2027.0 release.")
 OPENVINO_API op::Predicate output_index_matches(size_t expected_index);
-OPENVINO_DEPRECATED("Use wrap_type_strict<T>() and reference the output directly, e.g. node->output(0).")
+OPENVINO_DEPRECATED("Use wrap_type_strict_index<T>() and reference the output directly, e.g. node->output(0). "
+                    "`output_index_matches()` will be removed in 2027.0 release.")
 OPENVINO_API op::Predicate output_index_matches(const std::vector<size_t>& expected_indices);
 
 namespace op {

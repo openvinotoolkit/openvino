@@ -144,7 +144,7 @@ ov::pass::RemoveConcatSliceAfterLoop::RemoveConcatSliceAfterLoop() {
                                         init_state,
                                         pattern::any_input()};
 
-    auto loop = pattern::wrap_type_strict<ov::op::v5::Loop>(loop_inputs);
+    auto loop = pattern::wrap_type_strict_index<ov::op::v5::Loop>(loop_inputs);
 
     auto reshape_core_attn = pattern::wrap_type<v1::Reshape>({loop->output(0), {-1}});
     auto reshape_core_state = pattern::wrap_type<v1::Reshape>({loop->output(1), {-1}});

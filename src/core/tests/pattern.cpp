@@ -1594,7 +1594,7 @@ TEST(pattern, multi_output_edge_index_honored) {
     auto reshape0 = std::make_shared<op::v1::Reshape>(variadic_split->output(0), reshape_shape, false);
     auto reshape1 = std::make_shared<op::v1::Reshape>(variadic_split->output(1), reshape_shape, false);
 
-    auto split_p = pattern::wrap_type_strict<op::v1::VariadicSplit>(
+    auto split_p = pattern::wrap_type_strict_index<op::v1::VariadicSplit>(
         {pattern::any_input(), pattern::any_input(), pattern::any_input()});
     auto reshape_p = pattern::wrap_type<op::v1::Reshape>({split_p->output(1), pattern::any_input()});
 
@@ -1610,7 +1610,7 @@ TEST(pattern, multi_output_shared_producer_identity_enforced) {
     auto split_lengths = op::v0::Constant::create(element::i64, {2}, {5, 5});
 
     // Pattern: ONE split node, both outputs referenced by index.
-    auto split_p = pattern::wrap_type_strict<op::v1::VariadicSplit>();
+    auto split_p = pattern::wrap_type_strict_index<op::v1::VariadicSplit>();
     auto concat_p = pattern::wrap_type<op::v0::Concat>({split_p->output(1), split_p->output(0)});
 
     // Positive control: both concat inputs come from the SAME split -> matches.
@@ -1648,7 +1648,7 @@ TEST(pattern, multi_output_single_node_index_honored) {
              Concat(neg_p, out0)
     */
     auto build_pattern = []() {
-        auto split_p = pattern::wrap_type_strict<op::v1::VariadicSplit>(
+        auto split_p = pattern::wrap_type_strict_index<op::v1::VariadicSplit>(
             {pattern::any_input(), pattern::any_input(), pattern::any_input()});
         auto neg_p = pattern::wrap_type<op::v1::Multiply>({split_p->output(1), pattern::any_input()});
         auto concat_p = pattern::wrap_type<op::v0::Concat>({neg_p, split_p->output(0)});
@@ -1689,7 +1689,7 @@ TEST(pattern, multi_output_callback_map_access) {
     auto neg = std::make_shared<op::v1::Multiply>(graph_split->output(1), scale);
     auto concat = std::make_shared<op::v0::Concat>(OutputVector{neg, graph_split->output(0)}, 0);
 
-    auto split_p = pattern::wrap_type_strict<op::v1::VariadicSplit>(
+    auto split_p = pattern::wrap_type_strict_index<op::v1::VariadicSplit>(
         {pattern::any_input(), pattern::any_input(), pattern::any_input()});
     auto neg_p = pattern::wrap_type<op::v1::Multiply>({split_p->output(1), pattern::any_input()});
     auto concat_p = pattern::wrap_type<op::v0::Concat>({neg_p, split_p->output(0)});
@@ -1722,7 +1722,7 @@ TEST(pattern, multi_output_callback_map_access) {
     EXPECT_TRUE(callback_ran);
 }
 
-TEST(pattern, wrap_type_strict_matches_subset_of_outputs) {
+TEST(pattern, wrap_type_strict_index_matches_subset_of_outputs) {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 20, 30});
     auto axis = op::v0::Constant::create(element::i64, {}, {-1});
     auto split_lengths = op::v0::Constant::create(element::i64, {3}, {10, 10, 10});
@@ -1739,7 +1739,7 @@ TEST(pattern, wrap_type_strict_matches_subset_of_outputs) {
     auto concat = std::make_shared<op::v0::Concat>(OutputVector{neg, split->output(0)}, 0);
 
     // Pattern producer only references output(0)/output(1).
-    auto split_p = pattern::wrap_type_strict<op::v1::VariadicSplit>(
+    auto split_p = pattern::wrap_type_strict_index<op::v1::VariadicSplit>(
         {pattern::any_input(), pattern::any_input(), pattern::any_input()});
     auto neg_p = pattern::wrap_type<op::v1::Multiply>({split_p->output(1), pattern::any_input()});
     auto concat_p = pattern::wrap_type<op::v0::Concat>({neg_p, split_p->output(0)});
@@ -1748,8 +1748,8 @@ TEST(pattern, wrap_type_strict_matches_subset_of_outputs) {
     ASSERT_TRUE(tm.match(concat_p, concat));
 }
 
-TEST(pattern, wrap_type_strict_output_grows_through_base_handle) {
-    std::shared_ptr<ov::Node> strict_p = pattern::wrap_type_strict<op::v1::VariadicSplit>();
+TEST(pattern, wrap_type_strict_index_output_grows_through_base_handle) {
+    std::shared_ptr<ov::Node> strict_p = pattern::wrap_type_strict_index<op::v1::VariadicSplit>();
     EXPECT_EQ(strict_p->get_output_size(), 1);
     EXPECT_NO_THROW(strict_p->output(3));
     EXPECT_EQ(strict_p->get_output_size(), 4);

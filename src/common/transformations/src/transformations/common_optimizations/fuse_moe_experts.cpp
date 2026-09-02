@@ -109,7 +109,7 @@ std::shared_ptr<ov::pass::pattern::op::Block> mlp3_no_bias_swiglu_block(
         {select_Gather_1, pattern::wrap_type<v0::Constant>(pattern::value_matches("0"))});
     // NonZero output_type relaxed to accept both i32 and i64
     auto ListUnpack_NonZero_1 = pattern::wrap_type<v3::NonZero>({squeeze_Squeeze_1});
-    auto ListUnpack_Split_1 = pattern::wrap_type_strict<v1::Split>(
+    auto ListUnpack_Split_1 = pattern::wrap_type_strict_index<v1::Split>(
         {ListUnpack_NonZero_1, pattern::wrap_type<v0::Constant>(pattern::value_matches("0"))},
         {{"num_splits", 2}});
     auto ListUnpack_Squeeze_0_1 = pattern::wrap_type<v0::Squeeze>(
@@ -213,7 +213,7 @@ std::pair<std::shared_ptr<Node>, std::shared_ptr<Node>> create_router_pattern() 
     auto transpose_perm = pattern::wrap_type<v0::Constant>(pattern::value_matches("2, 1, 0"));
 
     auto softmax = pattern::wrap_type<v8::Softmax>({linear_MatMul}, {{"axis", 1}});
-    auto topk = pattern::wrap_type_strict<ov::op::v11::TopK>(
+    auto topk = pattern::wrap_type_strict_index<ov::op::v11::TopK>(
         {softmax, num_topk},
         {{"axis", -1}, {"mode", "max"}, {"sort", "value"}, {"index_element_type", "i64"}, {"stable", false}});
     auto one_hot =
@@ -232,7 +232,7 @@ std::shared_ptr<Node> create_expert_indexing_pattern(const std::shared_ptr<Node>
     auto squeeze = pattern::wrap_type<v0::Squeeze>({select_gather, axes.axis0});
     // NonZero output_type relaxed to accept both i32 and i64
     auto non_zero = pattern::wrap_type<v3::NonZero>({squeeze});
-    auto split = pattern::wrap_type_strict<v1::Split>({non_zero, axes.axis0}, {{"num_splits", 2}});
+    auto split = pattern::wrap_type_strict_index<v1::Split>({non_zero, axes.axis0}, {{"num_splits", 2}});
     auto squeeze_indices = pattern::wrap_type<v0::Squeeze>({split->output(1), axes.axis0});
     // Convert is optional - pattern matches both with and without type conversion
     auto convert = pattern::wrap_type<v0::Convert>({squeeze_indices}) | squeeze_indices;
@@ -250,7 +250,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> create_routing_weights_
                                                      {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
     auto unsqueeze = pattern::wrap_type<v0::Unsqueeze>({normalized, axes.axis2});
     auto shape_of = pattern::wrap_type<v3::ShapeOf>({unsqueeze}, {{"output_type", "i32"}});
-    auto split = pattern::wrap_type_strict<v1::Split>({shape_of, axes.axis0}, {{"num_splits", 3}});
+    auto split = pattern::wrap_type_strict_index<v1::Split>({shape_of, axes.axis0}, {{"num_splits", 3}});
     auto reshape = pattern::wrap_type<v1::Reshape>({unsqueeze, pattern::any_input()});
 
     return {split, reshape};

@@ -42,7 +42,7 @@ FuseMoESoftmaxRouter::FuseMoESoftmaxRouter() {
 
     auto softmax_m = wrap_type<ov::op::v8::Softmax>({routing_matmul}, consumers_count(1));
     auto topk_k_m = wrap_const();
-    auto topk_m = wrap_type_strict<ov::op::v11::TopK>({softmax_m, topk_k_m});
+    auto topk_m = wrap_type_strict_index<ov::op::v11::TopK>({softmax_m, topk_k_m});
 
     auto reduce_m = wrap_type<ov::op::v1::ReduceSum>({topk_m->output(0), any_input()}, consumers_count(1));
     auto norm_m = wrap_type<ov::op::v1::Divide>({topk_m->output(0), reduce_m});
@@ -95,7 +95,7 @@ FuseMoESigmoidRouter::FuseMoESigmoidRouter() {
     auto sigmoid_m = wrap_type<ov::op::v0::Sigmoid>({routing_matmul});
     auto routing_bias_m = any_input();
     auto add_m = wrap_type<ov::op::v1::Add>({sigmoid_m, routing_bias_m}, consumers_count(1));
-    auto topk_m = wrap_type_strict<ov::op::v11::TopK>({add_m, wrap_const()});
+    auto topk_m = wrap_type_strict_index<ov::op::v11::TopK>({add_m, wrap_const()});
 
     auto convert_topk_m = wrap_type<ov::op::v0::Convert>({topk_m->output(1)});
     auto indices_m = convert_topk_m | topk_m->output(1);

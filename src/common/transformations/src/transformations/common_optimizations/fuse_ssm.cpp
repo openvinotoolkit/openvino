@@ -117,7 +117,7 @@ ov::pass::RemoveConcatSliceAfterLoopSSM::RemoveConcatSliceAfterLoopSSM() {
                                         init_state,
                                         pattern::any_input()};
 
-    auto loop = pattern::wrap_type_strict<ov::op::v5::Loop>(loop_inputs);
+    auto loop = pattern::wrap_type_strict_index<ov::op::v5::Loop>(loop_inputs);
 
     auto reshape_output = pattern::wrap_type<v1::Reshape>({loop->output(0), {-1}});
     auto reshape_state = pattern::wrap_type<v1::Reshape>({loop->output(1), {-1}});

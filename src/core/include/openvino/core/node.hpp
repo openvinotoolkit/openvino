@@ -442,10 +442,12 @@ protected:
     /// \return true if constant folding disabled otherwise false.
     bool is_const_fold_disabled() const;
 
-    /// \brief Make `output_index` addressable by output(), or throw if it cannot be.
-    /// Keep it the last virtual member of Node so the vtable slot stays appended.
-    virtual void resolve_output_index(size_t output_index);
-    void resolve_output_index(size_t output_index) const;
+private:
+    /// \brief Make `output_index` addressable, called only by the non-const output().
+    virtual void on_output_access(size_t output_index);
+
+    /// \brief Throw if `output_index` is not addressable.
+    virtual void validate_output_index(size_t output_index) const;
 
 private:
     friend class ov::NodeAccessor;
