@@ -14,7 +14,7 @@ class stream;
 class command_recorder;
 class command_list;
 class primitive_inst;
-class event;
+struct event;
 
 /// @brief Defines the execution mode of a network within a record-replay session.
 enum class network_exec_mode {
