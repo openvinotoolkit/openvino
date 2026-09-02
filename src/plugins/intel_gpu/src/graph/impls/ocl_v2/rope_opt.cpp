@@ -3,6 +3,8 @@
 //
 #include "rope_opt.hpp"
 
+#include <sstream>
+
 #include "common_utils/dispatch_utils.hpp"
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/primitives/rope.hpp"
@@ -45,7 +47,97 @@ size_t get_vec_size(const RuntimeParams& params) {
         }
     }
 
+    // Debug hook: OV_ROPE_VEC forces the per-work-item vector width. The kernel only has
+    // bodies for 1, 8 and 16, and rotary_ndims must stay divisible by 2*vec_size.
+    if (const char* s = std::getenv("OV_ROPE_VEC")) {
+        size_t v = static_cast<size_t>(std::atoi(s));
+        if ((v == 1 || v == 8 || v == 16) && desc->config.rotary_ndims % (2 * v) == 0) {
+            vec_size = v;
+        }
+    }
+
     return vec_size;
+}
+
+// The interleaved dispatch normally puts BATCH on gws dim 0, which is the largest stride of a
+// bfyx tensor, so a subgroup's lanes land on unrelated cache lines. Reversing dims 0 and 2 puts
+// the rotary/head index -- the contiguous axis -- on the fast dimension instead.
+static bool interleaved_reversed_gws(const RuntimeParams& params) {
+    if (std::getenv("OV_ROPE_NO_REVERSE") != nullptr) {
+        return false;
+    }
+    auto desc = params.typed_desc<rope>();
+    const auto& cfg = desc->config;
+    return cfg.is_interleaved && !cfg.is_qwen && !cfg.is_chatglm && !cfg.is_ltx_video && !cfg.support_3d_rope;
+}
+
+// Upstream reverses the rotate-half dispatch only at vec_size 1, so a vectorised rotate-half
+// keeps BATCH on the fast dimension and its subgroups straddle whole tensors. The reversal is
+// just as valid vectorised: the kernel already reads b from gws dim 2 under REVERSED_GWS.
+static bool half_reversed_gws(const RuntimeParams& params, size_t vec_size) {
+    if (std::getenv("OV_ROPE_NO_HALF_REVERSE") != nullptr) {
+        return false;
+    }
+    auto desc = params.typed_desc<rope>();
+    const auto& cfg = desc->config;
+    return !cfg.is_interleaved && vec_size > 1 && !cfg.is_qwen && !cfg.is_chatglm && !cfg.is_ltx_video && !cfg.support_3d_rope;
+}
+
+// A packed bfyx tensor whose rows are HEAD_COUNT * ROTARY_NDIMS wide can be walked as one flat
+// run of VEC_SIZE-element chunks, which is the only lane->address mapping the compiler lowers to
+// a subgroup block read. Returns 0 when that is not legal here, otherwise the flat gws.
+//
+// Measured neutral against the default REVERSED_GWS path, so it is off unless explicitly asked for.
+// OV_ROPE_CONTIG: unset/0 = off, 1 = on, "copy" = on but drop the rotation (bandwidth ablation).
+static size_t interleaved_contig_gws(const RuntimeParams& params, size_t vec_size) {
+    const char* mode = std::getenv("OV_ROPE_CONTIG");
+    if (mode == nullptr || std::string(mode) == "0") {
+        return 0;
+    }
+    auto desc = params.typed_desc<rope>();
+    const auto& cfg = desc->config;
+    if (!cfg.is_interleaved || cfg.is_qwen || cfg.is_chatglm || cfg.is_ltx_video || cfg.support_3d_rope) {
+        return 0;
+    }
+    if (cfg.input_trans0213 || cfg.output_trans0213 || desc->gather_rank > 0 || cfg.slice_stop > cfg.slice_start) {
+        return 0;
+    }
+    if (vec_size != 8 && vec_size != 16) {
+        return 0;
+    }
+    const size_t rot = cfg.rotary_ndims;
+    if (rot != cfg.head_size || rot == 0 || (rot & (rot - 1)) != 0 || rot % (2 * vec_size) != 0) {
+        return 0;
+    }
+    const auto& in_l = params.input_layouts[0];
+    const auto& cos_l = params.input_layouts[1];
+    const auto& sin_l = params.input_layouts[2];
+    const auto& out_l = params.output_layouts[0];
+    for (const auto* l : {&in_l, &cos_l, &sin_l, &out_l}) {
+        if (l->format != format::bfyx || l->count() != l->get_linear_size() || l->data_padding.is_dynamic()) {
+            return 0;
+        }
+    }
+    if (in_l.data_type != cos_l.data_type || in_l.data_type != sin_l.data_type ||
+        (in_l.data_type != out_l.data_type && out_l.data_type != ov::element::i8)) {
+        return 0;
+    }
+    // input0 is (b, tokens, heads, rot); cos/sin are (b, tokens, 1, rot), so a cos element is at
+    // flat_token * rot + (elem % rot).
+    if (extract_channel(ChannelName::X, in_l) != rot || extract_channel(ChannelName::Y, in_l) != cfg.head_cnt) {
+        return 0;
+    }
+    for (const auto* l : {&cos_l, &sin_l}) {
+        if (extract_channel(ChannelName::X, *l) != rot || extract_channel(ChannelName::Y, *l) != 1 ||
+            extract_channel(ChannelName::BATCH, *l) != extract_channel(ChannelName::BATCH, in_l) ||
+            extract_channel(ChannelName::FEATURE, *l) != extract_channel(ChannelName::FEATURE, in_l)) {
+            return 0;
+        }
+    }
+    if (out_l.count() != in_l.count() || in_l.count() % vec_size != 0) {
+        return 0;
+    }
+    return in_l.count() / vec_size;
 }
 
 class RopeGenerator : public KernelGenerator {
@@ -99,14 +191,28 @@ protected:
         } else if (desc->config.is_ltx_video) {
             jit.make("LTX_VIDEO", true);
         } else if (desc->config.is_interleaved) {
-            jit.make("RotateInterleaved", true);
+            if (!params.is_dynamic() && interleaved_contig_gws(params, get_vec_size(params)) != 0) {
+                jit.make("ROPE_CONTIG", true);
+                const char* mode = std::getenv("OV_ROPE_CONTIG");
+                if (mode != nullptr && std::string(mode) == "copy") {
+                    jit.make("ROPE_CONTIG_COPY", true);
+                }
+            } else {
+                jit.make("RotateInterleaved", true);
+                if (interleaved_reversed_gws(params)) {
+                    jit.make("REVERSED_GWS", true);
+                }
+            }
         } else {
             jit.make("RotateHalf", true);
-            if (get_vec_size(params) == 1) {
+            if (get_vec_size(params) == 1 || half_reversed_gws(params, get_vec_size(params))) {
                 jit.make("REVERSED_GWS", true);
             }
         }
         jit.make("VEC_SIZE", get_vec_size(params));
+        if (params.get_output_layout(0).data_type == ov::element::i8) {
+            jit.make("OUTPUT_I8", true);
+        }
         if (params.get_input_layout(0).data_type != params.get_input_layout(1).data_type) {
             jit.add(make_type_jit_constants("ACCUMULATOR", params.get_input_layout(1).data_type));
         } else {
@@ -150,6 +256,36 @@ protected:
                 const auto& in_l = params.input_layouts[0];
                 const auto& out_l = params.output_layouts[0];
 
+                auto largest_divisor_leq = [](size_t n, size_t cap) {
+                    for (size_t d = std::min(n, cap); d > 1; d--) {
+                        if (n % d == 0) {
+                            return d;
+                        }
+                    }
+                    return size_t{1};
+                };
+
+                if (size_t flat = interleaved_contig_gws(params, vec_size); flat != 0) {
+                    wgs.global = {flat, 1, 1};
+                    const size_t cap = std::min<size_t>(256, static_cast<size_t>(params.get_device_info().max_work_group_size));
+                    // Prefer a whole number of 16-wide subgroups; fall back to any divisor.
+                    size_t l0 = 1;
+                    for (size_t d = (cap / 16) * 16; d >= 16; d -= 16) {
+                        if (flat % d == 0) {
+                            l0 = d;
+                            break;
+                        }
+                    }
+                    wgs.local = {l0 > 1 ? l0 : largest_divisor_leq(flat, cap), 1, 1};
+                    if (const char* s = std::getenv("OV_ROPE_LWS0")) {
+                        size_t v = static_cast<size_t>(std::atoi(s));
+                        if (v > 0 && flat % v == 0) {
+                            wgs.local = {v, 1, 1};
+                        }
+                    }
+                    return;
+                }
+
                 if (cfg.is_qwen) {
                     auto b = extract_channel(ChannelName::BATCH, in_l);
                     auto f = extract_channel(ChannelName::FEATURE, in_l);
@@ -183,6 +319,44 @@ protected:
                         wgs.global[0] = wgs.global[2];
                         wgs.global[2] = tmp;
                     }
+                }
+
+                auto largest_divisor = [](size_t n, size_t cap) {
+                    for (size_t d = std::min(n, cap); d > 1; d--) {
+                        if (n % d == 0) {
+                            return d;
+                        }
+                    }
+                    return size_t{1};
+                };
+
+                if (half_reversed_gws(params, vec_size)) {
+                    std::swap(wgs.global[0], wgs.global[2]);
+                    // gws0 is a multiple of the rotary half-width here, so a whole number of
+                    // 16-wide subgroups fits and every lane stays inside one row.
+                    const size_t l0 = wgs.global[0] % 32 == 0 ? 32 : (wgs.global[0] % 16 == 0 ? 16 : 1);
+                    wgs.local = {l0, largest_divisor(wgs.global[1], std::max(size_t{1}, 256 / l0)), 1};
+                    return;
+                }
+
+                if (interleaved_reversed_gws(params)) {
+                    std::swap(wgs.global[0], wgs.global[2]);
+                    // Keep dim 0 whole where possible so a subgroup stays inside one row, then
+                    // spend what is left of the workgroup budget on the sequence dimension.
+                    const size_t l0 = largest_divisor(wgs.global[0], 32);
+                    wgs.local = {l0, largest_divisor(wgs.global[1], std::max(size_t{1}, 256 / l0)), 1};
+                    // Debug hook: OV_ROPE_LWS="a b c" forces the local size, so the workgroup
+                    // shape can be swept without a rebuild. gws0 is 18 here, which is not a
+                    // multiple of the 16-wide subgroup, so the default straddles rows.
+                    if (const char* s = std::getenv("OV_ROPE_LWS")) {
+                        std::istringstream is(s);
+                        size_t a = 0, b2 = 0, c = 0;
+                        if (is >> a >> b2 >> c && a && b2 && c && wgs.global[0] % a == 0 && wgs.global[1] % b2 == 0 &&
+                            wgs.global[2] % c == 0) {
+                            wgs.local = {a, b2, c};
+                        }
+                    }
+                    return;
                 }
 
                 // We need to set the 1st local workgroup size as large as possible for better performance.

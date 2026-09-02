@@ -7,6 +7,12 @@
 #define INPUT_VEC_TYPE  MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE)
 #define OUTPUT_VEC_TYPE MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE)
 
+// veesion: an s8 output narrows SDPA's K inside the rotation's own store, which removes a whole
+// f16 read / i8 write pass over an 18 MB tensor. Only the interleaved bodies implement it.
+#if defined(OUTPUT_I8) && !defined(RotateInterleaved) && !defined(ROPE_CONTIG)
+#   error "rope_opt.cl - an i8 output is only implemented for the interleaved rotation"
+#endif
+
 #define UNPACK_FLOAT_VEC_1(outputv, input1, input2) \
     outputv.s0 = convert_float(input1.s0);          \
     outputv.s1 = convert_float(input1.s2);          \
@@ -439,6 +445,9 @@ uint cos_sin_p = p;
 #endif
 
 #ifdef RotateInterleaved
+#if defined(OUTPUT_I8) && VEC_SIZE != 16
+#   error "rope_opt.cl - an i8 output is only wired for the VEC_SIZE 16 interleaved body"
+#endif
 KERNEL(rope_opt)(
     OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* input,
     const __global INPUT1_TYPE* cos,
@@ -447,10 +456,19 @@ KERNEL(rope_opt)(
 #if VEC_SIZE != 1 && VEC_SIZE != 8 && VEC_SIZE != 16
 #   error "rope_opt.cl - VEC_SIZE must be one of {1, 8, 16}"
 #endif
+#ifdef REVERSED_GWS
+    // dim0 carries the rotary/head index, which is the contiguous axis of a bfyx tensor, so
+    // consecutive lanes of a subgroup read consecutive VEC_SIZE chunks of the same row.
+    const uint b = get_global_id(2);
+    const uint h = get_global_id(1);
+    const uint p = ((uint)get_global_id(0) * VEC_SIZE) / HALF_ROTARY_NDIMS;
+    const uint r = 2 * (((uint)get_global_id(0) * VEC_SIZE) % HALF_ROTARY_NDIMS);
+#else
     const uint b = get_global_id(0);
     const uint h = get_global_id(1);
     const uint p = ((uint)get_global_id(2) * VEC_SIZE) / HALF_ROTARY_NDIMS;
     const uint r = 2 * (((uint)get_global_id(2) * VEC_SIZE) % HALF_ROTARY_NDIMS);
+#endif
 
 #ifdef ENABLE_TRANSPOSE
     uint input_idx = INPUT0_GET_INDEX(b, p, h, 0);
@@ -526,8 +544,14 @@ KERNEL(rope_opt)(
     PACK_HALF16_VEC_1(outputv1, out1, out2);
     PACK_HALF16_VEC_2(outputv2, out1, out2);
 
+#ifdef OUTPUT_I8
+    // output_idx + r is a multiple of 2*VEC_SIZE, so both char16 stores stay naturally aligned.
+    *(char16*)(output + output_idx + r) = convert_char16_sat_rte(outputv1);
+    *(char16*)(output + output_idx + r + VEC_SIZE) = convert_char16_sat_rte(outputv2);
+#else
     *(half16*)(output + output_idx + r) = outputv1;
     *(half16*)(output + output_idx + r + VEC_SIZE) = outputv2;
+#endif
 #endif
 }
 #endif
@@ -632,6 +656,60 @@ KERNEL(rope_opt)(
 
     *(half16*)(output + output_idx + r) = outputv1;
     *(half16*)(output + output_idx + r + VEC_SIZE) = outputv2;
+#endif
+}
+#endif
+
+#ifdef ROPE_CONTIG
+// Flat-dispatch interleaved RoPE for a fully packed bfyx tensor.
+//
+// The REVERSED_GWS body above gives each work item two VEC_SIZE loads that are 32 B apart, so
+// consecutive lanes are VEC_SIZE*2 elements apart and the compiler cannot lower either load to
+// a subgroup block read -- it issues two scattered messages that touch every cache line twice.
+// Here lane i owns exactly one contiguous run of VEC_SIZE elements, so the address is
+// base + lane*VEC_SIZE and the rotation pairs (2j, 2j+1) both live inside that run. The pairing
+// therefore becomes an in-register swap of adjacent components, which is a source-region swizzle
+// on Gen, and both the load and the store are block-shaped.
+//
+// Requires: rotary_ndims == head_size, a power of two, a row of HEAD_COUNT*ROTARY_NDIMS
+// elements, and no padding anywhere. rope_opt.cpp checks all of that before enabling this.
+KERNEL(rope_opt)(
+    OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* input,
+    const __global INPUT1_TYPE* cos,
+    const __global INPUT2_TYPE* sin,
+    __global OUTPUT_TYPE* output) {
+    const uint elem = (uint)get_global_id(0) * VEC_SIZE;
+    // elem / (HEAD_COUNT*ROTARY_NDIMS) is the flattened (batch, token) index; the offset inside
+    // the head is elem % ROTARY_NDIMS because ROTARY_NDIMS divides the row width.
+    const uint cs = (elem / (HEAD_COUNT * ROTARY_NDIMS)) * ROTARY_NDIMS + (elem & (ROTARY_NDIMS - 1));
+
+    INPUT_VEC_TYPE v = *(const INPUT_VEC_TYPE*)(input + elem);
+#ifdef ROPE_CONTIG_COPY
+#ifdef OUTPUT_I8
+    *(OUTPUT_VEC_TYPE*)(output + elem) = CAT(CAT(convert_char, VEC_SIZE), _sat_rte)(v);
+#else
+    *(OUTPUT_VEC_TYPE*)(output + elem) = v;
+#endif
+#else
+    INPUT_VEC_TYPE c = *(const INPUT_VEC_TYPE*)(cos + cs);
+    INPUT_VEC_TYPE s = *(const INPUT_VEC_TYPE*)(sin + cs);
+#if VEC_SIZE == 16
+    INPUT_VEC_TYPE sw = (INPUT_VEC_TYPE)(v.s1, v.s0, v.s3, v.s2, v.s5, v.s4, v.s7, v.s6,
+                                         v.s9, v.s8, v.sb, v.sa, v.sd, v.sc, v.sf, v.se);
+    const INPUT_VEC_TYPE sgn = (INPUT_VEC_TYPE)(-1, 1, -1, 1, -1, 1, -1, 1,
+                                                -1, 1, -1, 1, -1, 1, -1, 1);
+#elif VEC_SIZE == 8
+    INPUT_VEC_TYPE sw = (INPUT_VEC_TYPE)(v.s1, v.s0, v.s3, v.s2, v.s5, v.s4, v.s7, v.s6);
+    const INPUT_VEC_TYPE sgn = (INPUT_VEC_TYPE)(-1, 1, -1, 1, -1, 1, -1, 1);
+#else
+#   error "rope_opt.cl - ROPE_CONTIG needs VEC_SIZE 8 or 16"
+#endif
+#ifdef OUTPUT_I8
+    *(OUTPUT_VEC_TYPE*)(output + elem) =
+        CAT(CAT(convert_char, VEC_SIZE), _sat_rte)(c * v + (sgn * s) * sw);
+#else
+    *(OUTPUT_VEC_TYPE*)(output + elem) = c * v + (sgn * s) * sw;
+#endif
 #endif
 }
 #endif

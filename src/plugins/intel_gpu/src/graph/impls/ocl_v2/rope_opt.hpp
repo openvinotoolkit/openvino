@@ -34,7 +34,15 @@ struct RopeOpt : public ImplementationManager {
             return false;
         }
 
-        return one_of(in0_layout.data_type, supported_types) && one_of(out_layout.data_type, supported_types);
+        // veesion: an i8 output is allowed so the f16 -> s8 narrowing of SDPA's K can ride along
+        // in the rotation's store instead of costing a separate full-tensor pass.
+        static constexpr std::array supported_out_types = {
+            ov::element::f32,
+            ov::element::f16,
+            ov::element::i8,
+        };
+
+        return one_of(in0_layout.data_type, supported_types) && one_of(out_layout.data_type, supported_out_types);
     }
 };
 
