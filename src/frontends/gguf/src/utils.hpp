@@ -42,7 +42,9 @@ std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::op::v3::Shape
 // Takes the Output rather than the node so a producer with several outputs keeps the right port.
 std::shared_ptr<ov::Node> get_dimensions(const ov::Output<ov::Node>& output, const std::vector<int>& dims);
 
-OutputVector rename_outputs_with_suffix(const OutputVector& outputs, const std::string& suffix);
+// Take ownership of the temporary output vector assembled by translators, rename its producers,
+// then return the same vector without an extra copy.
+OutputVector rename_outputs_with_suffix(OutputVector outputs, const std::string& suffix);
 
 /// \brief Build a TopK over `axis` and return its INDICES port.
 ///
@@ -77,14 +79,14 @@ template <typename T>
 OutputVector translate_1to1_match_1_input(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
     auto res = std::make_shared<T>(context.get_input(0));
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 template <typename T>
 OutputVector translate_1to1_match_2_inputs(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     auto res = std::make_shared<T>(context.get_input(0), context.get_input(1));
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 }  // namespace op
 
