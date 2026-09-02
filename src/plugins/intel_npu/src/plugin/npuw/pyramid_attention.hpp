@@ -12,6 +12,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <variant>
+#include <vector>
 
 #include "attention.hpp"
 #include "openvino/core/except.hpp"
@@ -308,6 +309,14 @@ struct PyramidAttentionBlock final : PyramidAttention {
     }
     void collect_strided_input_names(const ov::Model&, std::string&) const override {}  // no-op
 };
+
+// Validate every index deserialized from an imported pyramid attention blob against the real input
+// count of each compiled model, throwing on any out-of-range value or size mismatch. On first compile
+// these indices derive from the live model and are always valid; on import that invariant is not
+// re-established, so it must be checked here before inference indexes inputs() with them.
+// input_counts[i] is _compiled_models[i]->inputs().size(); pass 0 for a model that is unavailable
+// (its per-model index checks are then skipped).
+void validate_deserialized_indices(const PyramidAttention& pyramid, const std::vector<std::size_t>& input_counts);
 
 }  // namespace compiled
 

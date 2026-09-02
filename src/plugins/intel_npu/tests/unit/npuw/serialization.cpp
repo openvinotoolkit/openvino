@@ -615,6 +615,57 @@ TEST(SerializationTest, OVTypes_PyramidAttention_BlockMode) {
     expect_pyramid_attention_equal(var, res);
 }
 
+// A deserialized block port-map value that is not the SIZE_MAX sentinel but is out of range for the
+// variant's compiled model round-trips through serialize/deserialize verbatim and would later be used
+// as inputs()[value] in try_bind_block. validate_deserialized_indices must reject it at import.
+TEST(SerializationTest, OVTypes_PyramidAttention_BlockMode_RejectsOutOfRangePort) {
+    using namespace ov::npuw::s11n;
+
+    constexpr size_t kOutOfRange = 0xFFFFu;  // != numeric_limits<size_t>::max()
+
+    ov::npuw::compiled::PyramidAttentionBlock var;
+    var.query_size = 16;
+    var.full_context_size = 128;
+    var._context_lengths = {16, 32};
+    var.past_key_block_global_param_indices = {10, 11};
+    var.past_value_block_global_param_indices = {20, 21};
+
+    ov::npuw::compiled::PyramidAttentionBlockInfo info0;
+    info0.mask_idx = 4;
+    info0.past_key_block_port_map = {{10, std::numeric_limits<size_t>::max()},
+                                     {11, std::numeric_limits<size_t>::max()}};
+    info0.past_value_block_port_map = {{20, std::numeric_limits<size_t>::max()},
+                                       {21, std::numeric_limits<size_t>::max()}};
+
+    ov::npuw::compiled::PyramidAttentionBlockInfo info1;
+    info1.mask_idx = 4;
+    info1.past_key_block_port_map = {{10, kOutOfRange},  // out of range for model[1]
+                                     {11, std::numeric_limits<size_t>::max()}};
+    info1.past_value_block_port_map = {{20, std::numeric_limits<size_t>::max()},
+                                       {21, std::numeric_limits<size_t>::max()}};
+    info1.past_key_block_port_set = {kOutOfRange};
+
+    var._attention_infos = {info0, info1};
+
+    ov::npuw::compiled::PyramidAttentionBlock res;
+    std::stringstream ss;
+    write(ss, var);
+    read(ss, res);
+
+    // The out-of-range value survives deserialization verbatim (the stream layer does not clamp it)...
+    EXPECT_EQ(res._attention_infos.at(1).past_key_block_port_map.at(10), kOutOfRange);
+
+    // ...but the import-time validator must reject it once real input counts are known. Model[1] here
+    // exposes 32 inputs (enough for the legitimate global/port indices above), so 0xFFFF is out of range.
+    const std::vector<std::size_t> input_counts = {16u, 32u};
+    EXPECT_THROW(ov::npuw::compiled::validate_deserialized_indices(res, input_counts), ov::Exception);
+
+    // A blob whose every non-sentinel index is in range must pass.
+    res._attention_infos.at(1).past_key_block_port_map.at(10) = 3u;
+    res._attention_infos.at(1).past_key_block_port_set = {3u};
+    EXPECT_NO_THROW(ov::npuw::compiled::validate_deserialized_indices(res, input_counts));
+}
+
 TEST(SerializationTest, OVTypes_HostFlashAttention) {
     using namespace ov::npuw::s11n;
 

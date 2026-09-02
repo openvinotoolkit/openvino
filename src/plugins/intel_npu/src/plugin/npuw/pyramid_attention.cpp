@@ -814,6 +814,84 @@ void PyramidAttentionContiguous::collect_strided_input_names(const ov::Model& mo
     }
 }
 
+void validate_deserialized_indices(const PyramidAttention& pyramid, const std::vector<std::size_t>& input_counts) {
+    const size_t num_models = pyramid.num_models();
+    OPENVINO_ASSERT(input_counts.size() == num_models,
+                    "NPUW: rejecting imported pyramid attention blob: variant count ",
+                    num_models,
+                    " does not match compiled model count ",
+                    input_counts.size());
+
+    auto check = [](size_t value, size_t bound, const char* what, size_t model_idx) {
+        OPENVINO_ASSERT(value < bound,
+                        "NPUW: rejecting imported pyramid attention blob: ",
+                        what,
+                        " index ",
+                        value,
+                        " for compiled model[",
+                        model_idx,
+                        "] is out of range (inputs=",
+                        bound,
+                        ")");
+    };
+
+    if (const auto* block = dynamic_cast<const PyramidAttentionBlock*>(&pyramid)) {
+        OPENVINO_ASSERT(block->_attention_infos.size() == num_models,
+                        "NPUW: rejecting imported pyramid attention blob: per-variant info count mismatch");
+
+        // Global KV block param indices are used to index the main (last) compiled model's inputs.
+        if (num_models > 0 && input_counts.back() != 0) {
+            const size_t main_idx = num_models - 1;
+            const size_t main_inputs = input_counts.back();
+            for (auto g : block->past_key_block_global_param_indices) {
+                check(g, main_inputs, "past_key_block_global_param", main_idx);
+            }
+            for (auto g : block->past_value_block_global_param_indices) {
+                check(g, main_inputs, "past_value_block_global_param", main_idx);
+            }
+        }
+
+        for (size_t i = 0; i < num_models; ++i) {
+            const size_t n = input_counts[i];
+            if (n == 0) {
+                continue;  // Model unavailable — no bound to validate against.
+            }
+            const auto& info = block->_attention_infos[i];
+            check(info.mask_idx, n, "mask_idx", i);
+            auto check_map = [&](const std::unordered_map<size_t, size_t>& m, const char* what) {
+                for (const auto& kv : m) {
+                    // std::numeric_limits<size_t>::max() is the legitimate "no port" sentinel.
+                    if (kv.second != std::numeric_limits<size_t>::max()) {
+                        check(kv.second, n, what, i);
+                    }
+                }
+            };
+            check_map(info.past_key_block_port_map, "past_key_block_port");
+            check_map(info.past_value_block_port_map, "past_value_block_port");
+            for (auto p : info.past_key_block_port_set) {
+                check(p, n, "past_key_block_port_set", i);
+            }
+            for (auto p : info.past_value_block_port_set) {
+                check(p, n, "past_value_block_port_set", i);
+            }
+        }
+    } else if (const auto* contig = dynamic_cast<const PyramidAttentionContiguous*>(&pyramid)) {
+        OPENVINO_ASSERT(contig->_attention_infos.size() == num_models,
+                        "NPUW: rejecting imported pyramid attention blob: per-variant info count mismatch");
+        for (size_t i = 0; i < num_models; ++i) {
+            const size_t n = input_counts[i];
+            if (n == 0) {
+                continue;
+            }
+            const auto& info = contig->_attention_infos[i];
+            check(info.mask_idx, n, "mask_idx", i);
+            for (const auto& param : info.params) {
+                check(param.idx, n, "contiguous_param", i);
+            }
+        }
+    }
+}
+
 // ── PyramidAttention::make() static factory ───────────────────────────────────────
 
 std::shared_ptr<PyramidAttention> PyramidAttention::make(const function::PyramidAttention& func_pyramid) {

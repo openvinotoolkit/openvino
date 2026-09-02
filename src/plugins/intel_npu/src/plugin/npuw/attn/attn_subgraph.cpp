@@ -600,6 +600,9 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                 if (it->second == std::numeric_limits<size_t>::max()) {
                                     return true;  // Consume silently — no set_tensor needed.
                                 }
+                                // Bounds are enforced at import by validate_deserialized_indices; assert
+                                // here as a safeguard against an unchecked inputs()[] on a deserialized value.
+                                NPUW_ASSERT(it->second < pyramid->_compiled_models[pyramid_id]->inputs().size());
                                 const auto& block_iport = pyramid->_compiled_models[pyramid_id]->inputs()[it->second];
                                 ctx.target_request->set_tensor(block_iport, tensor);
                                 return true;
@@ -1256,6 +1259,17 @@ void serialize_compiled_state(v1::subgraphs::Context& context,
                 mutable_pyramid->_compiled_models[num_models - 1] = submodel_ctx->compiled_model;
                 LOG_DEBUG("Reused compiled_model for the last pyramid attention model");
             }
+
+            // The port maps / block indices / mask indices were read verbatim from the blob and are
+            // later used to index inputs(). Re-establish here the bounds invariant that only held for
+            // the freshly compiled model, before any inference runs.
+            std::vector<std::size_t> input_counts(mutable_pyramid->_compiled_models.size(), 0u);
+            for (size_t i = 0; i < mutable_pyramid->_compiled_models.size(); ++i) {
+                if (mutable_pyramid->_compiled_models[i]) {
+                    input_counts[i] = mutable_pyramid->_compiled_models[i]->inputs().size();
+                }
+            }
+            ov::npuw::compiled::validate_deserialized_indices(*mutable_pyramid, input_counts);
         }
     }
 
