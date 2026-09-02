@@ -2265,9 +2265,9 @@ INSTANTIATE_TEST_SUITE_P(onednn_reduce_gpu_byxf_f32_f32,
 // Regression test: oneDNN derives its src/dst memory descriptor rank from format::dimension(),
 // not from the layout's partial shape rank. If an input layout carries a higher-rank partial shape
 // than its assigned format (e.g. a 5D shape squeezed into a 4D bfyx format by an upstream
-// reshape/optimization), oneDNN would build a truncated descriptor. Such layouts must therefore be
-// rejected by the oneDNN reduce impl so the graph falls back to a kernel that handles them, rather
-// than aborting ProgramBuilder with "selected_impl == nullptr" or silently reducing a wrong axis.
+// reshape/optimization), oneDNN would build a truncated descriptor. reorder_inputs therefore
+// realigns the reduce input format to the input rank, so the node must never be compiled with a
+// layout whose format rank disagrees with its shape rank.
 static void test_reduce_input_format_rank_mismatch(int64_t reduce_axis) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
@@ -2298,13 +2298,11 @@ static void test_reduce_input_format_rank_mismatch(int64_t reduce_axis) {
 
     ASSERT_NO_THROW(network.execute());
 
-    auto impl = network.get_primitive("reduce")->get_impl();
-    ASSERT_NE(impl, nullptr);
-    ASSERT_NE(impl->m_manager, nullptr);
-    // Element ordering of such a layout is ambiguous by construction, so this test only pins down
-    // the selection contract; numerical coverage of the oneDNN path lives in the tests below.
-    ASSERT_NE(impl->m_manager->get_impl_type(), impl_types::onednn)
-        << "oneDNN cannot represent an input whose partial shape outranks its format";
+    auto inst = network.get_primitive("reduce");
+    ASSERT_NE(inst->get_impl(), nullptr);
+    const auto& in_lay = inst->get_input_layout(0);
+    ASSERT_EQ(in_lay.format.dimension(), in_lay.get_partial_shape().size())
+        << "reduce input format rank must be realigned to the input shape rank, got " << in_lay.to_short_string();
 }
 
 TEST(reduce_gpu, onednn_reduce_input_format_rank_mismatch_blocked_axis) {
