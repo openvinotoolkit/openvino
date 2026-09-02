@@ -211,7 +211,7 @@ TEST(RemoveFakeQuantizeBeforeDepthwiseConvTest, KeepsFakeQuantizeWithFloatingPoi
     run_pass_and_check(options, false);
 }
 
-TEST(RemoveFakeQuantizeBeforeDepthwiseConvTest, KeepsFakeQuantizeForDynamicShape) {
+TEST(RemoveFakeQuantizeBeforeDepthwiseConvTest, RemovesFakeQuantizeForDynamicShape) {
     GraphOptions options;
     options.dynamic_spatial_shape = true;
     run_pass_and_check(options, true);
