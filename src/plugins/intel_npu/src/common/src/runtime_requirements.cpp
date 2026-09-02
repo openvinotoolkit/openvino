@@ -7,7 +7,20 @@
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/itt.hpp"
+#include "intel_npu/common/major_minor_verison.hpp"
 #include "intel_npu/compat_string_parser.hpp"
+
+namespace {
+
+constexpr std::string_view VERSION_KEY = "version";
+constexpr std::string_view CRE_KEY = "cre";
+
+constexpr size_t KEY_VALUE_SEPARATOR_SIZE = 1;
+constexpr size_t MINIMUM_VERSION_STRING_SIZE = 3;  // x.y
+constexpr size_t MINIMUM_RUNTIME_REQUIREMENTS_SIZE =
+    VERSION_KEY.size() + KEY_VALUE_SEPARATOR_SIZE + MINIMUM_VERSION_STRING_SIZE;  // x.y
+
+}  // namespace
 
 namespace intel_npu {
 
@@ -104,11 +117,12 @@ std::shared_ptr<ISection> RuntimeRequirementsSection::read(BlobReaderInterface& 
     Logger logger("RuntimeRequirementsSection", blob_reader.get_log_level());
 
     const size_t section_length = blob_reader.get_section_length();
-    // TODO update with the size of the version
+    // TODO test this
     // TODO check manifest section lengths are not greater than the size of the NPU region
-    OPENVINO_ASSERT(section_length > 0);
+    OPENVINO_ASSERT(section_length >= MINIMUM_RUNTIME_REQUIREMENTS_SIZE,
+                    "The runtime requirements section is too small");
 
-    // Use the parse
+    // Use the parser
     std::string full_payload(section_length, 0);
     blob_reader.read_into_buffer(full_payload.data(), section_length);
 
@@ -121,8 +135,32 @@ std::shared_ptr<ISection> RuntimeRequirementsSection::read(BlobReaderInterface& 
     }
 
     // Check the format version
+    const MajorMinorVersion parsed_version = major_minor_version_from_string(parsed_content.at(VERSION_KEY));
+    OPENVINO_ASSERT(parsed_version == CURRENT_RUNTIME_REQUIREMENTS_VERSION,
+                    "Unsupported runtime requirements version: ",
+                    parsed_version);
+    sections_requirements.erase(VERSION_KEY);
 
-    return std::make_shared<RuntimeRequirementsSection>(CRE(tokens, logger.level()), logger.level());
+    // Parse the CRE
+    const CRE cre = cre_from_string(sections_requirements.at(CRE_KEY));
+    sections_requirements.erase(CRE_KEY);
+
+    // All other entries should have the key format "<section type name>_<id>"
+    std::map<SectionID, std::string> sections_requirements;
+    std::unordered_map<SectionID, SectionType> section_id_to_type;
+
+    for (const auto [section_type_and_id_string, value] : parsed_content) {
+        const auto [section_type, section_id] = section_type_and_id_from_string(section_type_and_id_string);
+
+        OPENVINO_ASSERT(!sections_requirements.count(section_id) && !section_id_to_type.count(section_id),
+                        "Found the same section ID more than once within the runtime requirements");
+        sections_requirements[section_id] = value;
+        section_id_to_type[section_id] = section_type;
+    }
+
+    return std::make_shared<RuntimeRequirementsSection>(
+        RuntimeRequirements(sections_requirements, cre, section_id_to_type),
+        logger.level());
 }
 
 }  // namespace intel_npu

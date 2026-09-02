@@ -39,9 +39,9 @@ private:
 };
 
 // TODO test these
-std::string blob_format_version_to_string(const MajorMinorVersion& version);
+std::string major_minor_version_to_string(const MajorMinorVersion& version);
 
-MajorMinorVersion blob_format_version_from_string(std::string version);
+MajorMinorVersion major_minor_version_from_string(std::string version);
 
 std::ostream& operator<<(std::ostream& out, const MajorMinorVersion& version);
 

@@ -48,21 +48,21 @@ bool MajorMinorVersion::operator<=(const MajorMinorVersion& other) const {
     return !(*this > other);
 }
 
-std::string blob_format_version_to_string(const MajorMinorVersion& version) {
+std::string major_minor_version_to_string(const MajorMinorVersion& version) {
     return std::to_string(version.get_major()) + VERSION_SEPARATOR + std::to_string(version.get_minor());
 }
 
-MajorMinorVersion blob_format_version_from_string(std::string version);
+MajorMinorVersion major_minor_version_from_string(std::string version);
 
 std::ostream& operator<<(std::ostream& out, const MajorMinorVersion& version) {
-    out << blob_format_version_to_string(version);
+    out << major_minor_version_to_string(version);
     return out;
 }
 
 std::istream& operator>>(std::istream& in, MajorMinorVersion& version) {
     std::string str;
     in >> str;
-    version = blob_format_version_from_string(str);
+    version = major_minor_version_from_string(str);
     return in;
 }
 
