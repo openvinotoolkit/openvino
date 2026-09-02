@@ -112,4 +112,9 @@ private:
     Logger m_logger;
 };
 
+// TODO test these
+std::string cre_to_string(const CRE cre);
+
+CRE cre_from_string(std::string_view cre);
+
 }  // namespace intel_npu

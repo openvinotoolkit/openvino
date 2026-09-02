@@ -44,6 +44,9 @@ std::pair<SectionType, SectionID> section_type_and_id_from_string(std::string_vi
 class BlobWriterInterface;
 class BlobReaderInterface;
 
+// TODO rename to "all known"
+// TODO move supported to "blob reader"?
+// TODO consider disallowing registering unknown section types
 /**
  * @brief Section types already known by the NPU plugin. These section type IDs are reserved.
  */
@@ -60,6 +63,17 @@ enum : SectionType {
     COMPILER_VERSION = 108,
 };
 };
+
+static inline const std::unordered_set<SectionType> PREDEFINED_SECTION_TYPES{
+    PredefinedSectionType::RUNTIME_REQUIREMENTS,
+    PredefinedSectionType::MANIFEST,
+    PredefinedSectionType::ELF_MAIN_SCHEDULE,
+    PredefinedSectionType::ELF_INIT_SCHEDULES,
+    PredefinedSectionType::DYNAMIC_SCHEDULE,
+    PredefinedSectionType::IO_LAYOUTS,
+    PredefinedSectionType::BATCH_SIZE,
+    PredefinedSectionType::ENCRYPTED_SCHEDULES_FLAG,
+    PredefinedSectionType::COMPILER_VERSION};
 
 static inline const std::unordered_set<SectionType> DEFAULT_SUPPORTED_SECTION_TYPES{
     PredefinedSectionType::RUNTIME_REQUIREMENTS,

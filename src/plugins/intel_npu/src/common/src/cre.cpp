@@ -11,8 +11,13 @@
 
 namespace {
 
-const std::unordered_set<intel_npu::CREToken> BINARY_OPERATORS{intel_npu::CRE::AND, intel_npu::CRE::OR};
-const std::unordered_set<intel_npu::CREToken> OPERATORS{intel_npu::CRE::AND, intel_npu::CRE::OR, intel_npu::CRE::NOT};
+using namespace intel_npu;
+
+const std::unordered_set<CREToken> BINARY_OPERATORS{CRE::AND, CRE::OR};
+const std::unordered_set<CREToken> OPERATORS{CRE::AND, CRE::OR, CRE::NOT};
+
+constexpr char OPERAND_AND_RESERVED_TOKEN_SEPARATOR = '.';
+constexpr char SECTION_TYPE_AND_INSTANCE_SEPARATOR = '_';
 
 inline bool and_function(bool a, bool b) {
     return a && b;
@@ -24,6 +29,29 @@ inline bool or_function(bool a, bool b) {
 
 inline bool first_operand_function(bool /*a*/, bool b) {
     return b;
+}
+
+std::string reserved_token_to_string(const CREToken token) {
+    switch (token) {
+    case CRE::ReservedToken::AND: {
+        return "AND";
+    }
+    case CRE::ReservedToken::OR: {
+        return "OR";
+    }
+    case CRE::ReservedToken::OPEN: {
+        return "OPEN";
+    }
+    case CRE::ReservedToken::CLOSE: {
+        return "CLOSE";
+    }
+    case CRE::ReservedToken::NOT: {
+        return "NOT";
+    }
+    default: {
+        OPENVINO_THROW("The given token is not a reserved one");
+    }
+    }
 }
 
 }  // namespace
@@ -40,6 +68,7 @@ void InvalidCRE::create(const char* file,
 
 CRE::CRE(const ov::log::Level log_level) : m_logger("CRE", log_level) {}
 
+// TODO validation check inside ctor? or actually validation function, called in multiple other methods
 CRE::CRE(const std::vector<CREToken>& subexpression, const ov::log::Level log_level) : m_logger("CRE", log_level) {
     if (!subexpression.empty()) {
         m_subexpressions.push_back(subexpression);
@@ -299,5 +328,40 @@ bool CRE::check_compatibility(
     m_logger.debug("Expression evaluated to %d", result);
     return result;
 }
+
+std::string cre_to_string(const CRE cre) {
+    // TODO validate the CRE
+    const std::vector<CREToken> expression = cre.get_expression();
+    std::string result("");
+
+    bool is_first_token = true;
+    for (const CREToken token : expression) {
+        if (PREDEFINED_SECTION_TYPES.count(token)) {
+            if (!is_first_token) {
+                result += OPERAND_AND_RESERVED_TOKEN_SEPARATOR;
+            }
+            is_first_token = false;
+
+            result += section_type_to_string(token);
+            continue;
+        }
+        if (CRE::RESERVED_TOKENS.count(token)) {
+            if (!is_first_token) {
+                result += OPERAND_AND_RESERVED_TOKEN_SEPARATOR;
+            }
+            is_first_token = false;
+
+            result += reserved_token_to_string(token);
+            continue;
+        }
+
+        // Last case remaining: the token is a section ID following a section type
+        OPENVINO_ASSERT(!is_first_token);
+        result += SECTION_TYPE_AND_INSTANCE_SEPARATOR;
+        result += std::to_string(token);
+    }
+}
+
+CRE cre_from_string(std::string_view cre) {}
 
 }  // namespace intel_npu
