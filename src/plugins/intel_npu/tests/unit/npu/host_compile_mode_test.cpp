@@ -92,9 +92,23 @@ TEST_F(EnableHostCompileTest, DynamicSpatialEnablesHostCompile) {
     EXPECT_EQ(config->get<COMPILATION_MODE>(), "HostCompile_Interpreter");
 }
 
-// A dynamic batch alone, with H and W static, matches neither the "HW" nor the "NHW" pattern.
-TEST_F(EnableHostCompileTest, DynamicBatchDoesNotEnableHostCompile) {
+// A dynamic batch alone, with H and W static, is a single dynamic dimension among N/H/W - not enough on its own.
+TEST_F(EnableHostCompileTest, OnlyBatchDynamicDoesNotEnableHostCompile) {
     auto model = make_relu_model({bounded(), 3, UPPER, UPPER});
+    EXPECT_FALSE(run(model));
+    EXPECT_FALSE(config->has<COMPILATION_MODE>());
+}
+
+// A static batch with only H dynamic (W static) is also a single dynamic dimension among N/H/W - not enough.
+TEST_F(EnableHostCompileTest, OnlyHeightDynamicDoesNotEnableHostCompile) {
+    auto model = make_relu_model({1, 3, bounded(), UPPER});
+    EXPECT_FALSE(run(model));
+    EXPECT_FALSE(config->has<COMPILATION_MODE>());
+}
+
+// Same as above, but only W is dynamic (H static).
+TEST_F(EnableHostCompileTest, OnlyWidthDynamicDoesNotEnableHostCompile) {
+    auto model = make_relu_model({1, 3, UPPER, bounded()});
     EXPECT_FALSE(run(model));
     EXPECT_FALSE(config->has<COMPILATION_MODE>());
 }
@@ -107,19 +121,20 @@ TEST_F(EnableHostCompileTest, DynamicBatchAndSpatialEnablesHostCompile) {
     EXPECT_EQ(config->get<COMPILATION_MODE>(), "HostCompile_Interpreter");
 }
 
-// A dynamic batch combined with only one dynamic spatial dimension (H) still falls back to the regular batch
-// handling path: HostCompile only accepts a dynamic batch when both H and W are dynamic too.
-TEST_F(EnableHostCompileTest, DynamicBatchAndHeightOnlyDoesNotEnableHostCompile) {
+// Batch and height both dynamic (width static) is the "NH" pattern - two of N/H/W are dynamic, so it is accepted.
+TEST_F(EnableHostCompileTest, DynamicBatchAndHeightEnablesHostCompile) {
     auto model = make_relu_model({bounded(), 3, bounded(), UPPER});
-    EXPECT_FALSE(run(model));
-    EXPECT_FALSE(config->has<COMPILATION_MODE>());
+    EXPECT_TRUE(run(model));
+    EXPECT_TRUE(config->has<COMPILATION_MODE>());
+    EXPECT_EQ(config->get<COMPILATION_MODE>(), "HostCompile_Interpreter");
 }
 
-// Same as above, but only W is dynamic alongside the batch dimension.
-TEST_F(EnableHostCompileTest, DynamicBatchAndWidthOnlyDoesNotEnableHostCompile) {
+// Batch and width both dynamic (height static) is the "NW" pattern - also accepted.
+TEST_F(EnableHostCompileTest, DynamicBatchAndWidthEnablesHostCompile) {
     auto model = make_relu_model({bounded(), 3, UPPER, bounded()});
-    EXPECT_FALSE(run(model));
-    EXPECT_FALSE(config->has<COMPILATION_MODE>());
+    EXPECT_TRUE(run(model));
+    EXPECT_TRUE(config->has<COMPILATION_MODE>());
+    EXPECT_EQ(config->get<COMPILATION_MODE>(), "HostCompile_Interpreter");
 }
 
 // H/W being static means neither the "HW" nor the "NHW" pattern applies, regardless of channel (C) dynamism.

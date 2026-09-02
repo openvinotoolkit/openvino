@@ -39,13 +39,13 @@ bool enable_host_compile_if_needed(const std::shared_ptr<const ov::Model>& model
             return false;
         }
 
-        // Assumed N,C,H,W order. Height (H) and width (W) must both be dynamic and bounded; channel (C) is not
-        // considered and may be either static or dynamic. Batch (N) may be either static or dynamic,
-        // possible states.
-        // not change onlu dynamic batch shape to use host compiler interpreter, will influence may influence test TryToCompileStridedTensorWithDynamicBoundsExpectedThrow.
-        // Note: When batch is larger than 1, use compiler batch + host compile interpreter can cause ConvertBatchedLayerTo1N and AdjustScaleShiftForDWConv to fail on certain models (e.g., in maxpool models), as their internal reshape operations do not support dynamic batch shapes;
-        // while use batch is larger than 1 + plugin batch + host compiler interpreter, the inference's result shape will not match the input shape on certain models (e.g., in maxpool models).
-        return shape[2].is_dynamic() || shape[3].is_dynamic();
+        // Assumed N,C,H,W order. Channel (C) is not considered - only batch (N), height (H) and width (W) matter,
+        // and at least two of these three dimensions must be dynamic: "HW", "NH", "NW" and "NHW" are all accepted;
+        // a single dynamic dimension among N/H/W alone is not enough.
+        const bool batchDynamic = shape[0].is_dynamic();
+        const bool heightDynamic = shape[2].is_dynamic();
+        const bool widthDynamic = shape[3].is_dynamic();
+        return (batchDynamic && heightDynamic) || (batchDynamic && widthDynamic) || (heightDynamic && widthDynamic);
     };
 
     const auto& modelInputs = model->inputs();
