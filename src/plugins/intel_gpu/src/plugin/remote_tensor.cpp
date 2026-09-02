@@ -453,7 +453,7 @@ void RemoteTensorImpl::allocate() {
     update_properties();
     update_strides();
 
-    if (enable_caching)
+    if (enable_caching && m_memory_object)
         context->add_to_cache(m_hash, m_memory_object);
 }
 
