@@ -343,7 +343,55 @@ OutputVector translate_normal(const NodeContext& context) {
     }
 }
 
+OutputVector translate_uniform_(const NodeContext& context) {
+    // aten::uniform_(Tensor(a!) self, float from=0., float to=1., *, Generator? generator=None) -> Tensor(a!)
+    num_inputs_check(context, 1, 4);
+    auto inp_tensor = context.get_input(0);
+    auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(inp_tensor, element::i32));
+    auto dtype = element::f32;
+
+    Output<Node> low;
+    if (context.get_input_size() > 1 && !context.input_is_none(1)) {
+        low = context.get_input(1);
+    } else {
+        low = context.mark_node(v0::Constant::create(dtype, Shape{}, {0.0f}));
+    }
+
+    Output<Node> high;
+    if (context.get_input_size() > 2 && !context.input_is_none(2)) {
+        high = context.get_input(2);
+    } else {
+        high = context.mark_node(v0::Constant::create(dtype, Shape{}, {1.0f}));
+    }
+
+    low = context.mark_node(std::make_shared<v0::Convert>(low, dtype));
+    high = context.mark_node(std::make_shared<v0::Convert>(high, dtype));
+
+    uint64_t global_seed = 0;
+    if (context.get_input_size() > 3 && !context.input_is_none(3)) {
+        auto gen_const = as_type_ptr<v0::Constant>(context.get_input(3).get_node_shared_ptr());
+        if (gen_const) {
+            auto seed = gen_const->cast_vector<uint64_t>();
+            if (!seed.empty()) {
+                global_seed = seed[0];
+            }
+        }
+    }
+
+    auto res = context.mark_node(std::make_shared<v8::RandomUniform>(sizes,
+                                                                     low,
+                                                                     high,
+                                                                     dtype,
+                                                                     global_seed,
+                                                                     0,
+                                                                     PhiloxAlignment::PYTORCH));
+    res = context.mark_node(std::make_shared<v1::ConvertLike>(res, inp_tensor));
+    context.mutate_input(0, res);
+    return {res};
+}
+
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend
 }  // namespace ov
+
