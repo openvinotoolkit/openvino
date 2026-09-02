@@ -73,17 +73,11 @@ IPipeline::IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
       _pipeline_unique_id_per_graph(get_graph_unique_id_or_throw(graph)),
       _logger(logName, _config.get<LOG_LEVEL>()) {
     _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, _graph->get_command_queue_desc());
+};
 
+void IPipeline::setup_profiling() {
     bool perf_count_enabled = _config.has<PERF_COUNT>() && _config.get<PERF_COUNT>();
     std::optional<bool> compiled_with_profiling = _graph->is_profiling_blob();
-
-    // The VM runtime records and closes the command lists itself, so the plugin cannot instrument them.
-    if (_graph->get_kind() == GraphKind::Dynamic) {
-        if (perf_count_enabled) {
-            _logger.warning("IPipeline - profiling is not supported for dynamic graphs, no counters will be reported");
-        }
-        return;
-    }
 
     if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
         if (perf_count_enabled) {
@@ -119,7 +113,7 @@ IPipeline::IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
             enable_profiling();
         }  // else appendGraphExecute will fail in case the model was compiled with profiling enabled
     }
-};
+}
 
 std::vector<ov::ProfilingInfo> IPipeline::get_profiling_info() const {
     _logger.debug("get_profiling_info - started");
@@ -129,18 +123,10 @@ std::vector<ov::ProfilingInfo> IPipeline::get_profiling_info() const {
     }
 
     if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
-        if (_npu_profiling == nullptr) {
-            _logger.warning("get_profiling_info - infer profiling is not available, completed with empty result");
-            return {};
-        }
         _logger.debug("get_profiling_info - completed with _npu_profiling->getNpuInferStatistics()");
         return _npu_profiling->getNpuInferStatistics();
     }
     /// PROFILING_TYPE = MODEL or undefined = fallback to model profiling
-    if (_profiling_query == nullptr) {
-        _logger.warning("get_profiling_info - layer profiling is not available, completed with empty result");
-        return {};
-    }
     if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::DRIVER) {
         _logger.debug("get_profiling_info - completed with _profiling_query->getLayerStatistics()");
         return _profiling_query->getLayerStatistics();
@@ -176,6 +162,8 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::Pipeline::Pipeline");
 
     _logger.debug("Pipeline - initialization started, batch size: %i", _batch_size);
+
+    setup_profiling();
 
     if (_run_inferences_sequentially) {
         _graph->resize_last_submitted_event(_batch_size);
