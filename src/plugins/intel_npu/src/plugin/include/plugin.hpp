@@ -6,7 +6,6 @@
 
 #include <map>
 #include <memory>
-#include <shared_mutex>
 #include <string>
 
 #include "backends_registry.hpp"

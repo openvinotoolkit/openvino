@@ -92,17 +92,19 @@ void CompilerAdapterFactory::decideCompilerType(ov::intel_npu::CompilerType& com
         return;
     } else if (pluginCompilerPresence == PluginCompilerPresence::UNKNOWN) {
         compilerType = determineAppropriateCompilerTypeBasedOnPlatform(platform);
-        if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
-            try {
-                (void)std::make_unique<PluginCompilerAdapter>(nullptr);
-                _pluginCompilerPresence.store(PluginCompilerPresence::PRESENT, std::memory_order_release);
-                compilerType = ov::intel_npu::CompilerType::PLUGIN;
-                return;
-            } catch (...) {
-                _pluginCompilerPresence.store(PluginCompilerPresence::ABSENT, std::memory_order_release);
-                compilerType = ov::intel_npu::CompilerType::DRIVER;
-                return;
-            }
+        if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
+            return;
+        }
+
+        try {
+            (void)std::make_unique<PluginCompilerAdapter>(nullptr);
+            _pluginCompilerPresence.store(PluginCompilerPresence::PRESENT, std::memory_order_release);
+            compilerType = ov::intel_npu::CompilerType::PLUGIN;
+            return;
+        } catch (...) {
+            _pluginCompilerPresence.store(PluginCompilerPresence::ABSENT, std::memory_order_release);
+            compilerType = ov::intel_npu::CompilerType::DRIVER;
+            return;
         }
     }
 

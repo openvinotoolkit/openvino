@@ -169,6 +169,7 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
     REGISTER_OPTION(CACHE_ENCRYPTION_CALLBACKS);
     REGISTER_OPTION(MAX_TILES);
     REGISTER_OPTION(MODEL_PTR);
+    REGISTER_OPTION(DISABLE_IDLE_MEMORY_PRUNING);
 
     if (backend) {
         // Options registered only if drivers is present and supports the corresponding extension
@@ -657,12 +658,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
     auto [runtimeConfig, unknownProperties] =
         _propertiesManager->getMergedConfigAndUnknownProperties(properties, ConfigMergeMode::Import);
 
-    // Remove the compiler type from the updated configuration as it has been resolved and applied on the import
-    // path. Shouldn't be used further in the stack.
-    runtimeConfig.remove(ov::intel_npu::compiler_type.name());
-    // Remove all compile-time-only configurations as they are not relevant for the import path.
-    runtimeConfig.removeCompileTimeConfigs();
-
     std::unique_ptr<IBlobFormatImporter> blobFormatImporter = blob_format_importer_factory::create(
         blobSource,
         runtimeConfig.get<DISABLE_VERSION_CHECK>() ? true : runtimeConfig.get<IMPORT_RAW_BLOB>(),
@@ -735,7 +730,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     }
 
     auto localConfig =
-        _propertiesManager->getMergedConfigAndUnknownProperties(localProperties, ConfigMergeMode::Compile).first;
+        _propertiesManager->getMergedConfigAndUnknownProperties(localProperties, ConfigMergeMode::Query).first;
 
     ov::SupportedOpsMap supportedOpsMap;
     try {

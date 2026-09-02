@@ -269,14 +269,14 @@ void Config::remove(std::string key) {
 }
 
 void Config::update(std::string_view key, std::string_view value) {
-    _log.trace("Update option '%s' to value '%s'", key.data(), value.data());
+    _log.trace("Update option '%s' to value '%s'", std::string(key).c_str(), std::string(value).c_str());
 
     const auto opt = _desc->get(key);
     _impl[opt.key().data()] = opt.validateAndParseFromString(value);
 }
 
 void Config::updateAny(std::string_view key, const ov::Any& value) {
-    _log.trace("Update option '%s' to given 'ov::Any' value", key.data());
+    _log.trace("Update option '%s' to given 'ov::Any' value", std::string(key).c_str());
 
     const auto opt = _desc->get(key);
     _impl[opt.key().data()] = opt.validateAndParseFromAny(value);

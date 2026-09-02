@@ -274,7 +274,7 @@ register_property(
         return _config.get<EXAMPLE_PROPERTY>();
     },
     [this](const ov::Any& value) {
-        _config.updateAny({{EXAMPLE_PROPERTY::key(), value}});
+        _config.updateAny(EXAMPLE_PROPERTY::key(), value);
     });
 ```
 **Explanation:**

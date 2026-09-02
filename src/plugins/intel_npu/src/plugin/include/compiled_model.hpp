@@ -6,7 +6,6 @@
 
 #include <mutex>
 #include <optional>
-#include <shared_mutex>
 
 #include "compiled_model_property_manager.hpp"
 #include "intel_npu/common/icompiled_model.hpp"
