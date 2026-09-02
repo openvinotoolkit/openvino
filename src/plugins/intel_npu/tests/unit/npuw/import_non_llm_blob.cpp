@@ -113,6 +113,42 @@ TEST_P(ImportNonLLMBlobTestNPUW, CacheModeOptimizeSpeed) {
     });
 }
 
+TEST_P(ImportNonLLMBlobTestNPUW, UntrustedSourceRejectsNPUWBlob) {
+    ov::AnyMap wai_props = GetParam();
+    m_props.insert(wai_props.begin(), wai_props.end());
+    m_props["CACHE_MODE"] = "OPTIMIZE_SPEED";
+
+    auto compiled = m_core.compile_model(m_ov_model, "NPU", m_props);
+
+    std::stringstream blob;
+    compiled.export_model(blob);
+    EXPECT_TRUE(ov::npuw::orc::is_orc(blob).has_value());
+    const std::string blob_bytes = blob.str();
+
+    // NPU_UNTRUSTED_SOURCE refuses the NPUW blob before it reaches the deserializers.
+    {
+        std::stringstream reject_blob(blob_bytes);
+        auto import_props = m_props;
+        import_props["NPU_UNTRUSTED_SOURCE"] = true;
+        try {
+            auto imported = m_core.import_model(reject_blob, "NPU", import_props);
+            (void)imported;
+            FAIL() << "Expected NPUW import to be refused when NPU_UNTRUSTED_SOURCE is set";
+        } catch (const ov::Exception& ex) {
+            EXPECT_NE(std::string(ex.what()).find("NPU_UNTRUSTED_SOURCE"), std::string::npos) << ex.what();
+        }
+    }
+
+    // Without the flag the same blob imports normally -- the flag is the sole cause of the refusal.
+    {
+        std::stringstream accept_blob(blob_bytes);
+        EXPECT_NO_THROW({
+            auto imported = m_core.import_model(accept_blob, "NPU", m_props);
+            (void)imported;
+        });
+    }
+}
+
 TEST_P(ImportNonLLMBlobTestNPUW, CacheModeOptimizeSpeedEncrypted) {
     ov::AnyMap wai_props = GetParam();
     m_props.insert(wai_props.begin(), wai_props.end());

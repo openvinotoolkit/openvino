@@ -456,6 +456,15 @@ static constexpr ov::Property<bool> export_raw_blob{"NPU_EXPORT_RAW_BLOB"};
 /**
  * @brief [Only for NPU Plugin]
  * Type: boolean, default is false.
+ * Marks the compiled-model source as untrusted. When set, importing a NPUW-serialized blob is
+ * refused so a blob forged by a lower-privilege producer cannot reach the NPUW deserializers across
+ * a trust boundary. Non-NPUW (native) blobs import normally.
+ */
+static constexpr ov::Property<bool> untrusted_source{"NPU_UNTRUSTED_SOURCE"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is false.
  * This option allows to enable/disable the usage of a shared common queue for all compiled models. If set to false,
  * each compiled model will have its own common queue. This option is added for enabling the isolation of compiled
  * models from each other, which can be required for some use cases.

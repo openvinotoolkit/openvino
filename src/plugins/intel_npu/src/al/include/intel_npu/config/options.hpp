@@ -1291,6 +1291,21 @@ struct IMPORT_RAW_BLOB final : OptionBase<IMPORT_RAW_BLOB, bool> {
     }
 };
 
+struct UNTRUSTED_SOURCE final : OptionBase<UNTRUSTED_SOURCE, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::untrusted_source.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+    // Set by the caller on both compile and import; accepted (and ignored) unless a NPUW blob is imported.
+    static OptionMode mode() {
+        return OptionMode::Both;
+    }
+};
+
 struct BATCH_COMPILER_MODE_SETTINGS final : OptionBase<BATCH_COMPILER_MODE_SETTINGS, std::string> {
     static std::string_view key() {
         return ov::intel_npu::batch_compiler_mode_settings.name();
