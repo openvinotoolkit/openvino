@@ -270,6 +270,10 @@ private:
         LOG_DEBUG_TAG("TelemetryClient: raw IPF value at %s: %s", path, json_str.c_str());
         try {
             const auto parsed = nlohmann::json::parse(json_str);
+            if (parsed.is_null()) {
+                LOG_WARNING_TAG("TelemetryClient: IPF value at %s is null", path);
+                return std::nullopt;
+            }
             return parsed.is_string() ? parsed.get<std::string>() : parsed.dump();
         } catch (const nlohmann::json::exception& e) {
             LOG_WARNING_TAG("TelemetryClient: failed to parse value at %s: %s", path, e.what());
