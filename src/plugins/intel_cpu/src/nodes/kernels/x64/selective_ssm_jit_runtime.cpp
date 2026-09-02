@@ -111,6 +111,10 @@ struct CacheSchedule {
     [[nodiscard]] size_t write_slot(uint64_t token_count) const {
         return 1 + (token_count - 1) / interval;
     }
+
+    [[nodiscard]] size_t write_count(size_t processed_tokens) const {
+        return enabled ? write_slot(cached_tokens(processed_tokens)) : 0;
+    }
 };
 
 template <typename Data>
@@ -320,6 +324,14 @@ void run_paged_selective_ssm(const PagedSelectiveSSMJitRuntimeArgs& args) {
             }
 
             auto* local_state = state_scratch + static_cast<size_t>(parallel_get_thread_num()) * layout.scratch_stride;
+            if constexpr (std::is_same_v<Data, float>) {
+                const auto snapshot_count = cache.write_count(token_end - token_begin);
+                // A single f32 snapshot can hold the working state, avoiding the scratch buffer and final copy.
+                if (snapshot_count == 1) {
+                    const auto write_block = static_cast<size_t>(block_indices[logical_block_begin + snapshot_count]);
+                    local_state = state_cache + write_block * layout.container_stride + state_offset;
+                }
+            }
             copy_convert(local_state, initial_state, state_elements);
 
             for (size_t token = token_begin; token < token_end; ++token) {
