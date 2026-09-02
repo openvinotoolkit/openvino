@@ -35,11 +35,16 @@ bool enable_host_compile_if_needed(const std::shared_ptr<const ov::Model>& model
         const auto& shape = port.get_partial_shape();
         const auto rank = shape.rank();
 
-        
-        // Check condition: Shape rank is known to be 4, contains at least one 
-        // bounded dynamic dimension, and contains zero unbounded dynamic dimensions.
-        // Note: Dynamic batching can cause ConvertBatchedLayerTo1N and AdjustScaleShiftForDWConv to fail on certain models (e.g., in maxpool models), as their internal reshape operations do not support dynamic batch shapes.
-        return shape.is_dynamic() && rank.is_static() && rank.get_length() == 4 && hasFiniteUpperBounds(port);
+        if (!(shape.is_dynamic() && rank.is_static() && rank.get_length() == 4 && hasFiniteUpperBounds(port))) {
+            return false;
+        }
+
+        // Assumed N,C,H,W order. Height (H) and width (W) must both be dynamic and bounded; channel (C) must stay
+        // static. Batch (N) may be either static ("HW dynamic" pattern) or dynamic ("NHW dynamic" pattern) - both
+        // are accepted, since N being static or dynamic are the only two possible states.
+        const bool channelStatic = shape[1].is_static();
+        const bool heightAndWidthDynamic = shape[2].is_dynamic() && shape[3].is_dynamic();
+        return channelStatic && heightAndWidthDynamic;
     };
 
     const auto& modelInputs = model->inputs();

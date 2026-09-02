@@ -36,6 +36,21 @@ std::shared_ptr<ov::Model> make_dynamic_input_static_output_model(const ov::Part
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param}, "shape_of_model");
 }
 
+// Two independent 4D input/output pairs; used to exercise the "every I/O port must be bounded" aggregate check.
+std::shared_ptr<ov::Model> make_two_input_relu_model(const ov::PartialShape& shape0, const ov::PartialShape& shape1) {
+    auto param0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape0);
+    auto relu0 = std::make_shared<ov::op::v0::Relu>(param0);
+    auto result0 = std::make_shared<ov::op::v0::Result>(relu0);
+
+    auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape1);
+    auto relu1 = std::make_shared<ov::op::v0::Relu>(param1);
+    auto result1 = std::make_shared<ov::op::v0::Result>(relu1);
+
+    return std::make_shared<ov::Model>(ov::ResultVector{result0, result1},
+                                       ov::ParameterVector{param0, param1},
+                                       "two_input_relu_model");
+}
+
 class EnableHostCompileTest : public ::testing::Test {
 protected:
     EnableHostCompileTest() {
@@ -77,17 +92,39 @@ TEST_F(EnableHostCompileTest, DynamicSpatialEnablesHostCompile) {
     EXPECT_EQ(config->get<COMPILATION_MODE>(), "HostCompile_Interpreter");
 }
 
-// Dynamic batch is excluded from automatic HostCompile because the compiler's ConvertBatchedLayerTo1N and
-// AdjustScaleShiftForDWConv passes do not support dynamic reshape; such models use the regular batch handling path.
+// A dynamic batch alone, with H and W static, matches neither the "HW" nor the "NHW" pattern.
 TEST_F(EnableHostCompileTest, DynamicBatchDoesNotEnableHostCompile) {
     auto model = make_relu_model({bounded(), 3, UPPER, UPPER});
     EXPECT_FALSE(run(model));
     EXPECT_FALSE(config->has<COMPILATION_MODE>());
 }
 
-// A dynamic batch combined with dynamic spatial dimensions is still excluded due to the dynamic batch dimension.
-TEST_F(EnableHostCompileTest, DynamicBatchAndSpatialDoesNotEnableHostCompile) {
+// A dynamic batch is accepted as long as H and W are also dynamic (the "NHW dynamic" pattern).
+TEST_F(EnableHostCompileTest, DynamicBatchAndSpatialEnablesHostCompile) {
     auto model = make_relu_model({bounded(), 3, bounded(), bounded()});
+    EXPECT_TRUE(run(model));
+    EXPECT_TRUE(config->has<COMPILATION_MODE>());
+    EXPECT_EQ(config->get<COMPILATION_MODE>(), "HostCompile_Interpreter");
+}
+
+// A dynamic batch combined with only one dynamic spatial dimension (H) still falls back to the regular batch
+// handling path: HostCompile only accepts a dynamic batch when both H and W are dynamic too.
+TEST_F(EnableHostCompileTest, DynamicBatchAndHeightOnlyDoesNotEnableHostCompile) {
+    auto model = make_relu_model({bounded(), 3, bounded(), UPPER});
+    EXPECT_FALSE(run(model));
+    EXPECT_FALSE(config->has<COMPILATION_MODE>());
+}
+
+// Same as above, but only W is dynamic alongside the batch dimension.
+TEST_F(EnableHostCompileTest, DynamicBatchAndWidthOnlyDoesNotEnableHostCompile) {
+    auto model = make_relu_model({bounded(), 3, UPPER, bounded()});
+    EXPECT_FALSE(run(model));
+    EXPECT_FALSE(config->has<COMPILATION_MODE>());
+}
+
+// A static batch with only the channel dynamic (H/W static) is neither the "HW" nor the "NHW" pattern.
+TEST_F(EnableHostCompileTest, OnlyChannelDynamicDoesNotEnableHostCompile) {
+    auto model = make_relu_model({1, bounded(), UPPER, UPPER});
     EXPECT_FALSE(run(model));
     EXPECT_FALSE(config->has<COMPILATION_MODE>());
 }
@@ -102,6 +139,14 @@ TEST_F(EnableHostCompileTest, StaticModelDoesNotEnable) {
 // A dynamic dimension without a finite upper bound blocks HostCompile buffer allocation.
 TEST_F(EnableHostCompileTest, UnboundedDimensionDoesNotEnable) {
     auto model = make_relu_model({1, 3, unbounded(), UPPER});
+    EXPECT_FALSE(run(model));
+    EXPECT_FALSE(config->has<COMPILATION_MODE>());
+}
+
+// One port matching the HW pattern is not enough: every I/O port must independently be bounded, so an unrelated
+// port with an unbounded dimension still blocks HostCompile.
+TEST_F(EnableHostCompileTest, UnboundedUnrelatedPortDoesNotEnable) {
+    auto model = make_two_input_relu_model({1, 3, bounded(), bounded()}, {1, 3, unbounded(), UPPER});
     EXPECT_FALSE(run(model));
     EXPECT_FALSE(config->has<COMPILATION_MODE>());
 }
