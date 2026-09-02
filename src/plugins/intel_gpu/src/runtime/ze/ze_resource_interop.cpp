@@ -31,10 +31,11 @@ ze_device_resource ze_import_device(cl_device_id ocl_device) {
 }
 
 ze_context_resource ze_import_context(cl_context ocl_context, bool is_borrowed) {
+    ocl_owner<ocl_resource_type::context> ocl_owner(ocl_context, is_borrowed);
     ze_ocl_interop& interop = ze_ocl_interop::get_instance();
     auto ze_handle = interop.get_ze_context(ocl_context);
     ze_context_resource resource(ze_handle, true);
-    resource.attach_ocl_handle<ocl_resource_type::context>(ocl_context, is_borrowed);
+    resource.attach_ocl_handle(std::move(ocl_owner));
     return resource;
 }
 
@@ -48,18 +49,20 @@ ze_command_list_resource ze_import_command_list(cl_command_queue ocl_command_que
 }
 
 ze_usm_resource ze_import_usm(cl_mem ocl_buffer, ze_context_resource context, bool is_borrowed) {
+    ocl_owner<ocl_resource_type::mem_object> ocl_owner(ocl_buffer, is_borrowed);
     ze_ocl_interop& interop = ze_ocl_interop::get_instance();
     auto ze_usm_ptr = interop.get_ze_usm(ocl_buffer);
     ze_usm_resource resource({context.handle(), ze_usm_ptr}, true);
-    resource.attach_ocl_handle<ocl_resource_type::mem_object>(ocl_buffer, is_borrowed);
+    resource.attach_ocl_handle(std::move(ocl_owner));
     return resource;
 }
 
 ze_image_resource ze_import_image(cl_mem ocl_image, bool is_borrowed) {
+    ocl_owner<ocl_resource_type::mem_object> ocl_owner(ocl_image, is_borrowed);
     auto& interop = ze_ocl_interop::get_instance();
     auto ze_handle = interop.get_ze_image(ocl_image);
     ze_image_resource resource(ze_handle, true);
-    resource.attach_ocl_handle<ocl_resource_type::mem_object>(ocl_image, is_borrowed);
+    resource.attach_ocl_handle(std::move(ocl_owner));
     return resource;
 }
 
