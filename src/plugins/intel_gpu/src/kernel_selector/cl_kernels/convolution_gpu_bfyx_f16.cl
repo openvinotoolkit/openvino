@@ -204,10 +204,10 @@ KERNEL(convolution_bfyx_f16)(
                 else
 #endif  // INPUT_LEFTOVERS
                 {
-                    int xb = 0;
-                    for (; xb < left_unreachable_count_x; xb++){
-                        line_cache[xb] = 0;
+                    for (int i = 0; i < INPUT_LINE_SIZE; i++){
+                        line_cache[i] = 0;
                     }
+                    int xb = left_unreachable_count_x;
                     const int reachable_size = INPUT_LINE_SIZE - right_unreachable_count_x;
                     for (; xb + 8 <= reachable_size; xb += 8) {
                         INPUT_TYPE8 vv = DT_INPUT_BLOCK_READ8(input, grouped_input_offset +
@@ -240,9 +240,6 @@ KERNEL(convolution_bfyx_f16)(
                                                                  icb * input_fs_pitch +
                                                                  kh * DILATION_SIZE_Y * input_y_pitch +
                                                                  xb * input_x_pitch);
-                    }
-                    for (int i = 0; i < right_unreachable_count_x; i++){
-                        line_cache[xb + i] = 0;
                     }
                 }
 
