@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdint>
 #include <memory>
+#include <numeric>
 #include <vector>
 
 #include "node_context.hpp"
@@ -15,8 +16,10 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/less.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
@@ -91,6 +94,24 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     auto sq_axis_3 = ov::op::v0::Constant::create(ov::element::i64, {1}, {3});
     g = std::make_shared<ov::op::v0::Squeeze>(g, sq_axis_3);
     beta = std::make_shared<ov::op::v0::Squeeze>(beta, sq_axis_3);
+
+    if (context.has_input("chunk_valid_len")) {
+        const auto& g_shape = g.get_partial_shape();
+        FRONT_END_OP_CONVERSION_CHECK(g_shape.rank().is_static() && g_shape.rank().get_length() == 3 &&
+                                          g_shape[1].is_static(),
+                                      "GATED_DELTA_NET pad masking requires a static token dimension");
+        const int64_t n_tokens = g_shape[1].get_length();
+        std::vector<int64_t> positions(n_tokens);
+        std::iota(positions.begin(), positions.end(), 0);
+        auto valid = std::make_shared<ov::op::v1::Less>(
+            ov::op::v0::Constant::create(ov::element::i64, {static_cast<size_t>(n_tokens)}, positions),
+            context.get_input("chunk_valid_len"));
+        auto mask = std::make_shared<ov::op::v0::Unsqueeze>(
+            std::make_shared<ov::op::v0::Convert>(valid, g.get_element_type()),
+            ov::op::v0::Constant::create(ov::element::i64, {2}, std::vector<int64_t>{0, 2}));
+        g = std::make_shared<ov::op::v1::Multiply>(g, mask);
+        beta = std::make_shared<ov::op::v1::Multiply>(beta, mask);
+    }
 
     auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(q, k, v, state, g, beta);
     auto attn_4d = gdn->output(0);

@@ -94,6 +94,21 @@ OutputVector translate_glu_swiglu_oai(const NodeContext& context) {
     return rename_outputs_with_suffix({res}, context.get_name());
 }
 
+OutputVector translate_glu_swiglu_clamp(const NodeContext& context) {
+    auto inputs = get_glu_inputs(context);
+    auto src0 = inputs.first;
+    auto src1 = inputs.second;
+
+    const float limit = context.get_attribute<float>("glu_limit");
+    auto gate = std::make_shared<ov::op::v0::Clamp>(src0, -std::numeric_limits<float>::infinity(), limit);
+    auto sigmoid = std::make_shared<ov::op::v0::Sigmoid>(gate);
+    auto silu = std::make_shared<ov::op::v1::Multiply>(gate, sigmoid);
+    auto up = std::make_shared<ov::op::v0::Clamp>(src1, -limit, limit);
+    auto res = std::make_shared<ov::op::v1::Multiply>(silu, up);
+
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
+}
+
 }  // namespace op
 }  // namespace gguf
 }  // namespace frontend

@@ -5,6 +5,7 @@
 #include <climits>
 #include <cstdint>
 #include <memory>
+#include <numeric>
 #include <vector>
 
 #include "node_context.hpp"
@@ -123,15 +124,26 @@ OutputVector translate_cpy(const NodeContext& context) {
             src.get_node_shared_ptr()->set_friendly_name("gdn_writeback_source_" + context.get_name());
         } else if (op_case == 2) {
             const int64_t window_size = input_shape[3].get_length();
-            auto src_begin = context.get_input("rs_src_begin_" + writeback_name);
-            auto src_end =
-                std::make_shared<ov::op::v1::Add>(src_begin,
-                                                  ov::op::v0::Constant::create(ov::element::i64, {1}, {window_size}));
-            auto window = std::make_shared<ov::op::v8::Slice>(context.get_input(0),
-                                                              src_begin,
-                                                              src_end,
-                                                              one,
-                                                              ov::op::v0::Constant::create(ov::element::i64, {1}, {3}));
+            const std::string src_begin_name = "rs_src_begin_" + writeback_name;
+            ov::Output<ov::Node> window;
+            auto col_axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {3});
+            if (context.has_input(src_begin_name)) {
+                auto src_begin = context.get_input(src_begin_name);
+                auto src_end = std::make_shared<ov::op::v1::Add>(
+                    src_begin,
+                    ov::op::v0::Constant::create(ov::element::i64, {1}, {window_size}));
+                window = std::make_shared<ov::op::v8::Slice>(context.get_input(0), src_begin, src_end, one, col_axis);
+            } else if (context.has_input("chunk_valid_len")) {
+                std::vector<int64_t> offsets(window_size);
+                std::iota(offsets.begin(), offsets.end(), 0);
+                auto indices = std::make_shared<ov::op::v1::Add>(
+                    ov::op::v0::Constant::create(ov::element::i64, {static_cast<size_t>(window_size)}, offsets),
+                    context.get_input("chunk_valid_len"));
+                window = std::make_shared<ov::op::v8::Gather>(context.get_input(0), indices, col_axis);
+            } else {
+                auto src_begin = ov::op::v0::Constant::create(ov::element::i64, {1}, {-window_size});
+                window = std::make_shared<ov::op::v8::Slice>(context.get_input(0), src_begin, int_max, one, col_axis);
+            }
             src = reshape_writeback(window);
             src.get_node_shared_ptr()->set_friendly_name("conv_writeback_source_" + context.get_name());
         } else {

@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cmath>
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "node_context.hpp"
 #include "op_table.hpp"
@@ -36,14 +38,66 @@ namespace frontend {
 namespace gguf {
 namespace op {
 
+namespace {
+
+ov::Output<ov::Node> reshape_flat_kv(const NodeContext& context,
+                                     size_t input_index,
+                                     const ov::Output<ov::Node>& flat,
+                                     const ov::Output<ov::Node>& attention_size) {
+    const char* shape_name = input_index == 1 ? "flat_kv_shape_k" : "flat_kv_shape_v";
+    const char* offset_name = input_index == 1 ? "flat_kv_offset_k" : "flat_kv_offset_v";
+    const auto shape = context.get_attribute<std::vector<int64_t>>(shape_name, {});
+    FRONT_END_OP_CONVERSION_CHECK(shape.size() == 4,
+                                  "Flat FLASH_ATTN_EXT KV view must expose a rank-4 logical shape");
+    const int64_t n_head = shape[1];
+    const int64_t head_size = shape[3];
+    const int64_t row_size = n_head * head_size;
+    FRONT_END_OP_CONVERSION_CHECK(row_size > 0, "Flat FLASH_ATTN_EXT KV view has invalid head geometry");
+
+    const int64_t offset = context.get_attribute<int64_t>(offset_name);
+    auto begin = ov::op::v0::Constant::create(ov::element::i64, {1}, {offset});
+    auto row_size_node = ov::op::v0::Constant::create(ov::element::i64, {1}, {row_size});
+    auto extent = std::make_shared<ov::op::v1::Multiply>(attention_size, row_size_node);
+    auto end = std::make_shared<ov::op::v1::Add>(begin, extent);
+    auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+    auto axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {3});
+    auto sliced = std::make_shared<ov::op::v8::Slice>(flat, begin, end, one, axis);
+
+    auto target = std::make_shared<ov::op::v0::Concat>(
+        ov::OutputVector{one,
+                         attention_size,
+                         ov::op::v0::Constant::create(ov::element::i64, {1}, {n_head}),
+                         ov::op::v0::Constant::create(ov::element::i64, {1}, {head_size})},
+        0);
+    auto reshaped = std::make_shared<ov::op::v1::Reshape>(sliced, target, false);
+    return std::make_shared<ov::op::v1::Transpose>(
+        reshaped,
+        ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3}));
+}
+
+}  // namespace
+
 OutputVector translate_flash_attn_ext(const NodeContext& context) {
-    num_inputs_check(context, 4, 5);
+    num_inputs_check(context, 3, 5);
     auto q_f32 = context.get_input(0);
     auto k = context.get_input(1);
     auto v = context.get_input(2);
-    auto mask = context.get_input(3);
+    const int op_case = context.get_op_case();
+    const bool flat_kv = op_case == 1 || op_case == 2;
+    const bool has_mask = context.get_input_size() >= 4;
     // gpt-oss: optional 5th input is the per-head attention sink logit [n_head].
     const bool has_sinks = context.get_input_size() == 5;
+    FRONT_END_OP_CONVERSION_CHECK(!has_sinks || has_mask, "FLASH_ATTN_EXT sinks require an attention mask");
+
+    if (flat_kv) {
+        const char* length_name = op_case == 1 ? "attention_size" : "attention_size_static";
+        FRONT_END_OP_CONVERSION_CHECK(context.has_input(length_name),
+                                      "Flat FLASH_ATTN_EXT KV requires ",
+                                      length_name);
+        const auto attention_size = context.get_input(length_name);
+        k = reshape_flat_kv(context, 1, k, attention_size);
+        v = reshape_flat_kv(context, 2, v, attention_size);
+    }
 
     float scale = context.get_attribute<float>("scale");
     float kq_soft_cap = context.get_attribute<float>("kq_soft_cap", 0.0f);
@@ -55,21 +109,24 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
     ov::Output<ov::Node> mask_sliced, res;
     // Pick the layer flavor's mask. The cgraph decoder answers the "is_swa" attribute directly; the
     // builder identifies it by the mask input's name (self_kq_mask_swa).
-    const bool is_swa =
-        context.get_attribute<bool>("is_swa", false) || context.get_input_names()[3].find("swa") != std::string::npos;
-    const std::string mask_name = is_swa ? "KQ_mask_swa_sliced" : "KQ_mask_sliced";
-    if (context.has_input(mask_name)) {
-        mask_sliced = context.get_input(mask_name);
-    } else {
-        auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
-        auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
-        auto two = ov::op::v0::Constant::create(ov::element::i64, {1}, {2});
-        auto token_len = get_dimensions(q, {2});
-        mask_sliced = std::make_shared<ov::op::v8::Slice>(mask, zero, token_len, one, two);
-    }
+    if (has_mask) {
+        auto mask = context.get_input(3);
+        const bool is_swa = context.get_attribute<bool>("is_swa", false) ||
+                            context.get_input_names()[3].find("swa") != std::string::npos;
+        const std::string mask_name = is_swa ? "KQ_mask_swa_sliced" : "KQ_mask_sliced";
+        if (context.has_input(mask_name)) {
+            mask_sliced = context.get_input(mask_name);
+        } else {
+            auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+            auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+            auto two = ov::op::v0::Constant::create(ov::element::i64, {1}, {2});
+            auto token_len = get_dimensions(q, {2});
+            mask_sliced = std::make_shared<ov::op::v8::Slice>(mask, zero, token_len, one, two);
+        }
 
-    if (mask_sliced.get_element_type() != sdpa_type) {
-        mask_sliced = std::make_shared<ov::op::v0::Convert>(mask_sliced, sdpa_type);
+        if (mask_sliced.get_element_type() != sdpa_type) {
+            mask_sliced = std::make_shared<ov::op::v0::Convert>(mask_sliced, sdpa_type);
+        }
     }
 
     // The two decoders hand q/k/v over in different layouts, so the head axis and the need for a
@@ -80,8 +137,7 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
     //               K/V on axis 2 first, then transpose all three. That ordering (concat -> GQA tile
     //               -> single Transpose -> SDPA) is what the CPU plugin's stateful_sdpa_fusion
     //               matches, so the attention fuses into ScaledDotProductAttentionWithKVCache.
-    const int op_case = context.get_op_case();
-    FRONT_END_CHECK_IMPLEMENTED(op_case == 0 || op_case == 100, "Unsupported FLASH_ATTN_EXT case");
+    FRONT_END_CHECK_IMPLEMENTED(op_case == 0 || flat_kv || op_case == 100, "Unsupported FLASH_ATTN_EXT case");
     const bool ggml_natural = op_case == 100;
     const size_t head_axis = ggml_natural ? 2 : 1;
 
@@ -168,8 +224,15 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
         auto attn_out_caps = std::make_shared<v0::MatMul>(attn_weights, v_f32_t, false, false);
 
         sdpa = attn_out_caps;
-    } else if (!has_sinks) {
+    } else if (!has_sinks && has_mask) {
         sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_t, k_t, v_t, mask_sliced, scale_node, false);
+    } else if (!has_sinks) {
+        // The maskless SDPA overload has no explicit scale input and applies 1/sqrt(D). Fold the
+        // requested ggml scale into Q so the resulting score multiplier is exactly `scale`.
+        const float q_compensation = scale * std::sqrt(static_cast<float>(q_shape[3]));
+        auto compensation = ov::op::v0::Constant::create(sdpa_type, ov::Shape{}, {q_compensation});
+        auto q_scaled = std::make_shared<ov::op::v1::Multiply>(q_t, compensation);
+        sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_scaled, k_t, v_t, false);
     } else {
         // gpt-oss attention sinks: a learned per-head logit participates in the softmax
         // denominator (so the attention weights do not sum to 1) but contributes no value. OV

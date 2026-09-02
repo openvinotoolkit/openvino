@@ -898,6 +898,48 @@ TEST(GGUFOps, SwigluOai) {
     expect_near(out, expected, 1e-4f);
 }
 
+TEST(GGUFOps, SwigluClampOneInputSwapped) {
+    const float limit = 2.0f;
+    auto model = SingleOpBuilder()
+                     .op("GGML_GLU_OP_SWIGLU_CLAMP")
+                     .input("x", ov::element::f32, {1, 8})
+                     .output("out", ov::element::f32, {1, 4})
+                     .attr<bool>("swapped", true)
+                     .attr<float>("glu_limit", limit)
+                     .build();
+
+    std::vector<float> x{3.0f, -4.0f, 0.5f, 1.0f, 1.0f, 2.0f, -3.0f, 4.0f};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 8}, x)}});
+    std::vector<float> expected(4);
+    for (size_t i = 0; i < expected.size(); ++i) {
+        const float gate = std::min(x[4 + i], limit);
+        const float up = std::min(std::max(x[i], -limit), limit);
+        expected[i] = gate / (1.0f + std::exp(-gate)) * up;
+    }
+    expect_near(out, expected);
+}
+
+TEST(GGUFOps, SwigluClampTwoInputs) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_GLU_OP_SWIGLU_CLAMP")
+                     .input("gate", ov::element::f32, {1, 3})
+                     .input("up", ov::element::f32, {1, 3})
+                     .output("out", ov::element::f32, {1, 3})
+                     .attr<bool>("swapped", false)
+                     .attr<float>("glu_limit", 3.0f)
+                     .build();
+    std::vector<float> gate{1.0f, 4.0f, -2.0f};
+    std::vector<float> up{5.0f, -5.0f, 0.5f};
+    auto out = run_on_cpu(model, {{"gate", make_f32_tensor({1, 3}, gate)}, {"up", make_f32_tensor({1, 3}, up)}});
+    std::vector<float> expected(3);
+    for (size_t i = 0; i < expected.size(); ++i) {
+        const float g = std::min(gate[i], 3.0f);
+        const float u = std::min(std::max(up[i], -3.0f), 3.0f);
+        expected[i] = g / (1.0f + std::exp(-g)) * u;
+    }
+    expect_near(out, expected);
+}
+
 // MulMatId (generic dequantized experts): per-token expert matmul.
 TEST(GGUFOps, MulMatId) {
     // weights [1, n_expert=2, m=2, k=3]; activations [1, n_tokens=2, 1, k=3];
@@ -1785,6 +1827,61 @@ TEST(GGUFOps, FlashAttnExt) {
     expect_near(out, expected, 2e-2f);  // fp16 SDPA
 }
 
+TEST(GGUFOps, FlashAttnExtFlatKvWithoutMask) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_FLASH_ATTN_EXT")
+                     .input("q", ov::element::f32, {1, 1, 2, 2})
+                     .input("k_flat", ov::element::f32, {1, 1, 1, 8})
+                     .input("v_flat", ov::element::f32, {1, 1, 1, 8})
+                     .extra_input("attention_size_static", ov::element::i64, {1})
+                     .output("out", ov::element::f32, {1, 2, 1, 2})
+                     .op_case(2)
+                     .attr<float>("scale", 1.0f)
+                     .attr<std::vector<int64_t>>("flat_kv_shape_k", {1, 1, 2, 2})
+                     .attr<std::vector<int64_t>>("flat_kv_shape_v", {1, 1, 2, 2})
+                     .attr<int64_t>("flat_kv_offset_k", 2)
+                     .attr<int64_t>("flat_kv_offset_v", 2)
+                     .build();
+
+    const std::vector<float> q{1, 0, 0, 1};
+    const std::vector<float> k_flat{9, 9, 1, 0, 0, 1, 9, 9};
+    const std::vector<float> v_flat{9, 9, 1, 2, 3, 4, 9, 9};
+    auto out = run_on_cpu(model,
+                          {{"q", make_f32_tensor({1, 1, 2, 2}, q)},
+                           {"k_flat", make_f32_tensor({1, 1, 1, 8}, k_flat)},
+                           {"v_flat", make_f32_tensor({1, 1, 1, 8}, v_flat)},
+                           {"attention_size_static", make_i64_tensor({1}, {2})}});
+
+    const float p = std::exp(1.0f) / (std::exp(1.0f) + 1.0f);
+    expect_near(out, {3.0f - 2.0f * p, 4.0f - 2.0f * p, 1.0f + 2.0f * p, 2.0f + 2.0f * p}, 2e-2f);
+}
+
+TEST(GGUFOps, FlashAttnExtFlatKvWithMask) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_FLASH_ATTN_EXT")
+                     .input("q", ov::element::f32, {1, 1, 1, 2})
+                     .input("k_flat", ov::element::f32, {1, 1, 1, 6})
+                     .input("v_flat", ov::element::f32, {1, 1, 1, 6})
+                     .input("mask", ov::element::f32, {1, 1, 1, 2})
+                     .extra_input("attention_size", ov::element::i64, {1})
+                     .output("out", ov::element::f32, {1, 1, 1, 2})
+                     .op_case(1)
+                     .attr<float>("scale", 1.0f)
+                     .attr<std::vector<int64_t>>("flat_kv_shape_k", {1, 1, 2, 2})
+                     .attr<std::vector<int64_t>>("flat_kv_shape_v", {1, 1, 2, 2})
+                     .attr<int64_t>("flat_kv_offset_k", 1)
+                     .attr<int64_t>("flat_kv_offset_v", 1)
+                     .build();
+
+    auto out = run_on_cpu(model,
+                          {{"q", make_f32_tensor({1, 1, 1, 2}, {1, 0})},
+                           {"k_flat", make_f32_tensor({1, 1, 1, 6}, {9, 1, 0, 0, 1, 9})},
+                           {"v_flat", make_f32_tensor({1, 1, 1, 6}, {9, 1, 2, 3, 4, 9})},
+                           {"mask", make_f32_tensor({1, 1, 1, 2}, {0, -100})},
+                           {"attention_size", make_i64_tensor({1}, {2})}});
+    expect_near(out, {1, 2}, 2e-2f);
+}
+
 // FlashAttnExt with gpt-oss attention sinks (5th input), on the default op_case 0 (llama.cpp cgraph)
 // layout where q/k/v already arrive as [B, n_head, T, D]. Regression test for a bug where the sink
 // logit was reshaped to [1, q_shape[2], 1, 1] instead of [1, q_shape[head_axis], 1, 1]: q_shape[2] is
@@ -2403,6 +2500,116 @@ TEST(GGUFOps, GeGLU) {
         }
     }
     expect_near(out, expected, 1e-3f);
+}
+
+TEST(GGUFOps, GeGLUQuickOneInputSwapped) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_GLU_OP_GEGLU_QUICK")
+                     .input("x", ov::element::f32, {1, 8})
+                     .output("out", ov::element::f32, {1, 4})
+                     .attr<bool>("swapped", true)
+                     .build();
+    std::vector<float> x{1, 2, 3, 4, -1, -2, 0.5f, 1.5f};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 8}, x)}});
+    std::vector<float> expected(4);
+    for (size_t i = 0; i < expected.size(); ++i) {
+        const float gate = x[4 + i];
+        expected[i] = gate / (1.0f + std::exp(-1.702f * gate)) * x[i];
+    }
+    expect_near(out, expected);
+}
+
+TEST(GGUFOps, GeGLUQuickTwoInputs) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_GLU_OP_GEGLU_QUICK")
+                     .input("gate", ov::element::f32, {1, 3})
+                     .input("up", ov::element::f32, {1, 3})
+                     .output("out", ov::element::f32, {1, 3})
+                     .attr<bool>("swapped", false)
+                     .build();
+    std::vector<float> gate{-2.0f, 0.5f, 3.0f};
+    std::vector<float> up{4.0f, -1.0f, 2.0f};
+    auto out = run_on_cpu(model, {{"gate", make_f32_tensor({1, 3}, gate)}, {"up", make_f32_tensor({1, 3}, up)}});
+    std::vector<float> expected(3);
+    for (size_t i = 0; i < expected.size(); ++i) {
+        expected[i] = gate[i] / (1.0f + std::exp(-1.702f * gate[i])) * up[i];
+    }
+    expect_near(out, expected);
+}
+
+TEST(GGUFOps, Pool2DMaxAndAverage) {
+    const std::vector<float> input{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
+    const std::vector<int32_t> params{2, 2, 2, 1, 1, 0};
+
+    auto max_model = SingleOpBuilder()
+                         .op("GGML_OP_POOL_2D")
+                         .input("x", ov::element::f32, {1, 1, 3, 4})
+                         .output("out", ov::element::f32, {1, 1, 2, 3})
+                         .op_case(1)
+                         .attr<std::vector<int32_t>>("pool_params", params)
+                         .build();
+    auto avg_model = SingleOpBuilder()
+                         .op("GGML_OP_POOL_2D")
+                         .input("x", ov::element::f32, {1, 1, 3, 4})
+                         .output("out", ov::element::f32, {1, 1, 2, 3})
+                         .op_case(2)
+                         .attr<std::vector<int32_t>>("pool_params", params)
+                         .build();
+
+    auto tensor = make_f32_tensor({1, 1, 3, 4}, input);
+    expect_near(run_on_cpu(max_model, {{"x", tensor}}), {5, 7, 8, 9, 11, 12});
+    expect_near(run_on_cpu(avg_model, {{"x", tensor}}), {1.5f, 4.5f, 3.0f, 3.5f, 8.5f, 5.0f});
+}
+
+TEST(GGUFOps, RollFourAxes) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_ROLL")
+                     .input("x", ov::element::f32, {2, 2, 2, 3})
+                     .output("out", ov::element::f32, {2, 2, 2, 3})
+                     .attr<std::vector<int64_t>>("roll_shifts", {1, -1, 1, -1})
+                     .build();
+    std::vector<float> input(24);
+    for (size_t i = 0; i < input.size(); ++i) {
+        input[i] = static_cast<float>(i);
+    }
+    std::vector<float> expected(24);
+    for (int a = 0; a < 2; ++a) {
+        for (int b = 0; b < 2; ++b) {
+            for (int c = 0; c < 2; ++c) {
+                for (int d = 0; d < 3; ++d) {
+                    const int src_a = (a - 1 + 2) % 2;
+                    const int src_b = (b + 1) % 2;
+                    const int src_c = (c - 1 + 2) % 2;
+                    const int src_d = (d + 1) % 3;
+                    expected[((a * 2 + b) * 2 + c) * 3 + d] = input[((src_a * 2 + src_b) * 2 + src_c) * 3 + src_d];
+                }
+            }
+        }
+    }
+    expect_near(run_on_cpu(model, {{"x", make_f32_tensor({2, 2, 2, 3}, input)}}), expected, 0.0f);
+}
+
+TEST(GGUFOps, SolveTriBatched) {
+    auto builder = SingleOpBuilder()
+                       .op("GGML_OP_SOLVE_TRI")
+                       .input("a", ov::element::f32, {2, 1, 3, 3})
+                       .input("b", ov::element::f32, {2, 1, 3, 2})
+                       .output("out", ov::element::f32, {2, 1, 3, 2})
+                       .attr<std::vector<int32_t>>("solve_tri_params", {1, 1, 0});
+    auto model = builder.build();
+    std::vector<float> a{2, 0, 0, 3, 1, 0, 1, -1, 2, 1, 0, 0, 2, 2, 0, -1, 1, 1};
+    std::vector<float> b{2, 4, 5, 7, 3, 1, 1, 3, 4, 8, 2, 5};
+    auto out = run_on_cpu(model, {{"a", make_f32_tensor({2, 1, 3, 3}, a)}, {"b", make_f32_tensor({2, 1, 3, 2}, b)}});
+    expect_near(out, {1, 2, 2, 1, 2, 0, 1, 3, 1, 1, 2, 7});
+
+    EXPECT_THROW(SingleOpBuilder()
+                     .op("GGML_OP_SOLVE_TRI")
+                     .input("a", ov::element::f32, {1, 1, 2, 2})
+                     .input("b", ov::element::f32, {1, 1, 2, 1})
+                     .output("out", ov::element::f32, {1, 1, 2, 1})
+                     .attr<std::vector<int32_t>>("solve_tri_params", {0, 1, 0})
+                     .build(),
+                 ov::Exception);
 }
 
 // Add1: ggml adds a (broadcast) scalar to the input. The translator is the generic 2-input Add,

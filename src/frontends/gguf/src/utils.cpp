@@ -260,6 +260,28 @@ ov::Output<ov::Node> process_view_input(const NodeContext& context, int input_in
     // Only works for VIEW operations that slice at the lowest dimension
     // If the VIEW also reshape the result, `slice_len` should be provided
     auto input = context.get_input(input_index);
+
+    // The standalone VIEW translator may already have materialized this operand as a Slice and
+    // dynamic Reshape. Reapplying the consumer-side legacy view handling would slice the resolved
+    // tensor a second time. Falcon K/V projection views expose this at zero cache length: the
+    // second slice starts beyond the resolved head-width and produces [1,0,H,S]. Treat a shape
+    // compatible with the ggml view itself as authoritative and pass it through unchanged.
+    const auto& expected_shape = context.get_input_shape(input_index);
+    const auto actual_shape = input.get_partial_shape();
+    if (actual_shape.rank().is_static() && expected_shape.rank().is_static() &&
+        actual_shape.rank() == expected_shape.rank()) {
+        bool view_is_materialized = true;
+        for (int64_t i = 0; i < actual_shape.rank().get_length(); ++i) {
+            if (!actual_shape[i].compatible(expected_shape[i])) {
+                view_is_materialized = false;
+                break;
+            }
+        }
+        if (view_is_materialized) {
+            return input;
+        }
+    }
+
     // The decoder already returns the view start offset in ELEMENTS (it divides ggml's raw byte
     // offset by the element size), so no stride division is needed here.
     int64_t split_addr = context.get_input_view_element_offset(input_index);
