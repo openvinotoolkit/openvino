@@ -21,6 +21,7 @@
 namespace ov::intel_gpu {
 
 DisableFP16CompForQwenImageGatedResidualPattern::DisableFP16CompForQwenImageGatedResidualPattern() {
+    using namespace ov::pass;
     using namespace ov::pass::pattern;
 
     auto outer_split = wrap_type_strict_index<ov::op::v1::VariadicSplit>({any_input(), any_input(), any_input()});
