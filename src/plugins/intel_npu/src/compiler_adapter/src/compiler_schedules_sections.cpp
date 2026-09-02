@@ -169,10 +169,17 @@ std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob
         logger.info(NEW_PAGE_ALIGNED_BUFFER_MESSAGE.data(), main_schedule_size);
         return std::make_shared<ELFMainScheduleSection>(std::move(main_schedule), logger.level());
     }
-    // TODO on import path, must be able to retrieve the encryption callback from config
+
     return std::make_shared<ELFMainScheduleSection>(blob_reader.create_roi_tensor(main_schedule_size),
                                                     get_encryption_callbacks_from_config(blob_reader.get_config()),
                                                     logger.level());
+}
+
+std::optional<std::string> ELFMainScheduleSection::get_inidividual_compatibility_requirements() const {
+    const auto* graph = std::get_if<std::shared_ptr<Graph>>(&m_graph_or_schedule);
+    OPENVINO_ASSERT(graph, INVALID_STATE_MESSAGE);
+    std::optional<std::string_view> requirements = (*graph)->get_compatibility_descriptor();
+    return requirements.has_value() ? std::make_optional<>(std::string(requirements.value())) : std::nullopt;
 }
 
 ELFInitSchedulesSection::ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph,
@@ -333,6 +340,13 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
                                                      logger.level());
 }
 
+std::optional<std::string> ELFInitSchedulesSection::get_inidividual_compatibility_requirements() const {
+    const auto* graph = std::get_if<std::shared_ptr<Graph>>(&m_graph_or_schedules);
+    OPENVINO_ASSERT(graph, INVALID_STATE_MESSAGE);
+    std::optional<std::string_view> requirements = (*graph)->get_compatibility_descriptor();
+    return requirements.has_value() ? std::make_optional<>(std::string(requirements.value())) : std::nullopt;
+}
+
 DynamicScheduleSection::DynamicScheduleSection(const std::shared_ptr<DynamicGraph>& graph,
                                                const std::optional<ov::EncryptionCallbacks>& encryption_callbacks,
                                                const ov::log::Level log_level)
@@ -392,6 +406,11 @@ std::shared_ptr<ISection> DynamicScheduleSection::read(BlobReaderInterface& blob
         blob_type,
         get_encryption_callbacks_from_config(blob_reader.get_config()),
         blob_reader.get_log_level());
+}
+
+std::optional<std::string> DynamicScheduleSection::get_inidividual_compatibility_requirements() const {
+    // TODO is this correct?
+    return m_impl.get_inidividual_compatibility_requirements();
 }
 
 }  // namespace intel_npu

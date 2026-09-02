@@ -69,7 +69,7 @@ public:
      */
     bool check_compatibility(
         const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
-        const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_type_instance_evaluators = {}) const;
+        const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_instance_evaluators = {}) const;
 
 private:
     enum class Delimiter { PARRENTHESIS, SIZE };
@@ -83,6 +83,7 @@ private:
                        const std::vector<CREToken>::const_iterator& expression_end,
                        const Delimiter end_delimiter) const;
 
+    // TODO update comments
     /**
      * @brief Evaluates a subexpression from left to right.
      * @details The evaluation starts from the position where the iterator was left at. The end of the subexpression is
@@ -103,7 +104,7 @@ private:
         std::vector<CREToken>::const_iterator& expression_iterator,
         const std::vector<CREToken>::const_iterator& expression_end,
         const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
-        const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_type_instance_evaluators,
+        const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_instance_evaluators,
         const Delimiter end_delimiter,
         const bool skip_all_evaluations = false) const;
 

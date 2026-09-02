@@ -37,6 +37,11 @@ std::optional<SectionID> ISection::get_id() const {
     return m_id;
 }
 
+std::optional<std::string> ISection::get_inidividual_compatibility_requirements() const {
+    // No individual requirements by default
+    return std::nullopt;
+}
+
 void ISection::set_id(const SectionID id) const {
     OPENVINO_ASSERT(!m_id.has_value(),
                     "Attempted to set an instance ID to a section that already had one. Section type: ",

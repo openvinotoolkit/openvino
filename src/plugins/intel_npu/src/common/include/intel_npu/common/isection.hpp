@@ -112,7 +112,7 @@ public:
     std::optional<SectionID> get_id() const;
 
     // TODO rename?
-    virtual std::optional<std::string> get_inidividual_compatibility_requirements() const = 0;
+    virtual std::optional<std::string> get_inidividual_compatibility_requirements() const;
 
     // TODO return optional?
     /**

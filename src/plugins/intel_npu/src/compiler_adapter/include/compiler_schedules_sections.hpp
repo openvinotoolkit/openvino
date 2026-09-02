@@ -40,6 +40,8 @@ public:
 
     void decrypt(const ov::EncryptionCallbacks& encryption_callbacks);
 
+    std::optional<std::string> get_inidividual_compatibility_requirements() const override;
+
 private:
     std::variant<std::shared_ptr<Graph>, ov::Tensor> m_graph_or_schedule;
     std::optional<ov::EncryptionCallbacks> m_encryption_callbacks;
@@ -72,6 +74,8 @@ public:
     static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
 
     void decrypt(const ov::EncryptionCallbacks& encryption_callbacks);
+
+    std::optional<std::string> get_inidividual_compatibility_requirements() const override;
 
 private:
     std::variant<std::shared_ptr<WeightlessGraph>, std::vector<ov::Tensor>> m_graph_or_schedules;
@@ -109,6 +113,8 @@ public:
     static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
 
     void decrypt(const ov::EncryptionCallbacks& encryption_callbacks);
+
+    std::optional<std::string> get_inidividual_compatibility_requirements() const override;
 
 private:
     ELFMainScheduleSection m_impl;

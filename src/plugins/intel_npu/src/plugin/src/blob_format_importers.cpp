@@ -465,7 +465,7 @@ public:
                                   const FilteredConfig& config)
         : IBlobFormatImporter(original_model, config, Logger("BlobFormatV2Importer", config.get<LOG_LEVEL>())),
           m_blob_reader(config) {
-        register_known_sections();
+        register_known_sections_and_evaluators();
 
         m_blob_reader.read(npu_formatted_blob);
         verify_valid_sections();
@@ -499,7 +499,7 @@ private:
      * @note The CRE & Manifest sections should have been already registered (e.g. in the BlobReader ctor) since
      * these sections are a core part of the format.
      */
-    void register_known_sections() {
+    void register_known_sections_and_evaluators() {
         // TODO shotgun surgery? should these correspond to the "supported" section types?
         m_blob_reader.register_reader(PredefinedSectionType::ELF_MAIN_SCHEDULE, ELFMainScheduleSection::read);
         m_blob_reader.register_reader(PredefinedSectionType::ELF_INIT_SCHEDULES, ELFInitSchedulesSection::read);
