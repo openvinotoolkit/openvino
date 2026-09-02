@@ -75,12 +75,12 @@ ze_usm_resource import_os_handle(ze_engine* engine, const layout& layout, ov::in
 #else
     OPENVINO_THROW("[GPU] External memory import is not supported on this platform");
 #endif
-
+    auto mem_ordinal = engine->get_device_info().device_memory_ordinal;
     ze_device_mem_alloc_desc_t dev_desc = {
         ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC,
         extension_desc,
         0,
-        0,
+        mem_ordinal,
     };
     ov_ze_usm_handle usm_handle;
     usm_handle.context = ctx.handle();
