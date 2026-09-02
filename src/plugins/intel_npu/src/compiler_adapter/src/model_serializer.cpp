@@ -722,14 +722,28 @@ std::string serializeConfig(const FilteredConfig& originalConfig,
     // use the copy for the remainder of this function so every subsequent read observes the compiler-specific
     // level instead of the plugin one. When NPU_COMPILE_LOG_LEVEL is unset, no copy
     // is made and the compiler keeps inheriting the plugin LOG_LEVEL exactly as before.
-    std::optional<FilteredConfig> configWithCompileLogLevel;
+    std::optional<FilteredConfig> configForCompiler;
     if (originalConfig.has<COMPILE_LOG_LEVEL>()) {
         std::ostringstream levelStr;
         levelStr << originalConfig.get<COMPILE_LOG_LEVEL>();
-        configWithCompileLogLevel = originalConfig;
-        configWithCompileLogLevel->update({{ov::log::level.name(), levelStr.str()}});
+        configForCompiler = originalConfig;
+        configForCompiler->update({{ov::log::level.name(), levelStr.str()}});
     }
-    const FilteredConfig& config = configWithCompileLogLevel.has_value() ? *configWithCompileLogLevel : originalConfig;
+
+    // INFER profiling is timed by the plugin around the whole inference, so the compiler must not be asked
+    // to instrument layers for it
+    if (originalConfig.has<PERF_COUNT>() && originalConfig.get<PERF_COUNT>() &&
+        originalConfig.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
+        logger.info("%s is enabled with %s=INFER. Disabling it for the compiler",
+                    ov::enable_profiling.name(),
+                    ov::intel_npu::profiling_type.name());
+        if (!configForCompiler.has_value()) {
+            configForCompiler = originalConfig;
+        }
+        configForCompiler->update({{ov::enable_profiling.name(), "NO"}});
+    }
+
+    const FilteredConfig& config = configForCompiler.has_value() ? *configForCompiler : originalConfig;
 
     std::string content = {};
 
