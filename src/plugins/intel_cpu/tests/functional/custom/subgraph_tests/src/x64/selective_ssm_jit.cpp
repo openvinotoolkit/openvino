@@ -20,6 +20,7 @@
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
+#include "utils/precision_support.h"
 
 namespace ov::test {
 namespace {
@@ -81,6 +82,10 @@ TEST_P(SelectiveSSMJitIntegrationTest, SelectsJitWithoutWideningDataPrecision) {
     }
 
     const auto& [paged, precision] = GetParam();
+    if (!ov::intel_cpu::hasHardwareSupport(precision)) {
+        GTEST_SKIP() << "CPU precision policy does not preserve " << precision << " on this system";
+    }
+
     ov::Core core;
     const ov::AnyMap properties{{ov::hint::inference_precision.name(), precision}};
     const auto compiled_model = core.compile_model(make_selective_ssm_model(precision, paged), "CPU", properties);
