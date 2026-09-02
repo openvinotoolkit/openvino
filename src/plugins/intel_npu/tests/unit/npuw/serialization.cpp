@@ -13,6 +13,7 @@
 
 #include "attention.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "compiled_model.hpp"
 #include "host_flash_attention.hpp"
 #include "intel_npu/config/config.hpp"
@@ -32,7 +33,180 @@
 
 using ov::test::npuw::ModelBuilder;
 
+namespace ov {
+namespace npuw {
+namespace tests {
+struct CompiledModelTestAccess {
+    static void deserialize_compiled_model_desc(std::stringstream& input,
+                                                const ov::npuw::s11n::WeightsContext& ctx) {
+        auto reader = ov::npuw::s11n::Stream::reader(input);
+        ov::npuw::CompiledModel::CompiledModelDesc imported_desc;
+        imported_desc.serialize(reader, ctx);
+    }
+};
+}  // namespace tests
+}  // namespace npuw
+}  // namespace ov
+
 namespace {
+
+constexpr char kExpectedOobIndexMessage[] = "CPU closure index is out of range";
+constexpr char kExpectedClosureUidSizeMessage[] = "closure_uid size does not match closure size";
+constexpr char kExpectedIsRemoteSizeMessage[] = "is_remote size does not match closure size";
+constexpr char kExpectedCpuCountMismatchMessage[] = "CPU closure ids count does not match CPU closure tensor count";
+constexpr char kExpectedNonCpuCountMismatchMessage[] =
+    "non-CPU closure ids count does not match non-CPU tensor count";
+constexpr char kExpectedNonCpuOobIndexMessage[] = "non-CPU closure index is out of range";
+
+// Writes the fixed CompiledModelDesc::serialize() prefix (funcall/spatial metadata) that
+// precedes is_remote/closure_uid in every ORC blob, regardless of weightless mode.
+void write_compiled_model_desc_prefix(ov::npuw::orc::Stream& writer) {
+    std::optional<std::size_t> replaced_by = std::size_t{0};
+    std::size_t param_base = 0u;
+    bool forced_to_fcall = false;
+    int64_t minus_one = -1;
+    std::optional<ov::npuw::compiled::Spatial> spatial;
+    writer & replaced_by & param_base & forced_to_fcall & minus_one & minus_one & minus_one & minus_one & minus_one &
+        minus_one & minus_one & minus_one & spatial;
+}
+
+std::string make_blob_with_oob_cpu_closure_id(bool is_weightless) {
+    using namespace ov::npuw::s11n;
+
+    WeightsContext ctx(is_weightless, {});
+
+    ov::Tensor cpu_tensor(ov::element::u8, ov::Shape{1u});
+    cpu_tensor.data<uint8_t>()[0] = 0x7F;
+
+    std::stringstream serialized(std::ios::in | std::ios::out | std::ios::binary);
+    auto writer = Stream::writer(serialized);
+
+    write_compiled_model_desc_prefix(writer);
+
+    std::vector<bool> is_remote{false};
+    std::vector<int64_t> closure_uid{-1};
+    writer & is_remote & closure_uid;
+
+    std::vector<ov::Tensor> scales;
+    std::vector<ov::Tensor> zerops;
+    if (is_weightless) {
+        serialize_weightless(writer, scales, ctx);
+        serialize_weightless(writer, zerops, ctx);
+    } else {
+        writer & scales & zerops;
+    }
+
+    std::size_t closure_size = 1u;
+    writer & closure_size;
+    const auto ids_vector_offset = static_cast<std::size_t>(serialized.tellp());
+
+    std::vector<std::size_t> cpu_closure_ids{0u};
+    writer & cpu_closure_ids;
+    if (is_weightless) {
+        std::vector<ov::Tensor> cpu_closures{cpu_tensor};
+        serialize_weightless(writer, cpu_closures, ctx);
+
+        std::size_t empty_non_cpu_tensors_ids_size = 0u;
+        std::size_t empty_non_cpu_tensors_size = 0u;
+        writer & empty_non_cpu_tensors_ids_size & empty_non_cpu_tensors_size;
+    } else {
+        transfer_tensor(writer, cpu_tensor);
+    }
+
+    std::string blob = serialized.str();
+    const std::size_t vector_header_size = sizeof(std::size_t);
+    const std::size_t vector_first_value_offset = ids_vector_offset + vector_header_size;
+    if (blob.size() < vector_first_value_offset + sizeof(std::size_t)) {
+        OPENVINO_THROW("Unable to patch serialized cpu_closure_ids: blob is shorter than expected");
+    }
+
+    const std::size_t oob_index = closure_size;
+    std::memcpy(blob.data() + vector_first_value_offset, &oob_index, sizeof(oob_index));
+    return blob;
+}
+
+// Builds a blob that stops right after closure_size, with is_remote/closure_uid sized to
+// (mis)match closure_size as requested. The importer is expected to throw before reading
+// any further fields, so no closure/cpu-id payload needs to be written.
+std::string make_blob_with_metadata_size(bool is_weightless,
+                                         std::size_t closure_size,
+                                         std::size_t is_remote_size,
+                                         std::size_t closure_uid_size) {
+    using namespace ov::npuw::s11n;
+
+    WeightsContext ctx(is_weightless, {});
+
+    std::stringstream serialized(std::ios::in | std::ios::out | std::ios::binary);
+    auto writer = Stream::writer(serialized);
+
+    write_compiled_model_desc_prefix(writer);
+
+    std::vector<bool> is_remote(is_remote_size, false);
+    std::vector<int64_t> closure_uid(closure_uid_size, -1);
+    writer & is_remote & closure_uid;
+
+    std::vector<ov::Tensor> scales;
+    std::vector<ov::Tensor> zerops;
+    if (is_weightless) {
+        serialize_weightless(writer, scales, ctx);
+        serialize_weightless(writer, zerops, ctx);
+    } else {
+        writer & scales & zerops;
+    }
+
+    writer & closure_size;
+
+    return serialized.str();
+}
+
+// Builds a weightless-mode blob with a mismatch between the CPU closure ids and the number
+// of CPU closure tensors actually written (the ids/tensors count check), or a mismatch
+// between the non-CPU ids and non-CPU tensors (the second count check), or an out-of-range
+// non-CPU closure index.
+std::string make_weightless_blob_with_cpu_or_non_cpu_mismatch(std::size_t cpu_ids_count,
+                                                              std::size_t cpu_tensors_count,
+                                                              std::size_t non_cpu_ids_count,
+                                                              std::size_t non_cpu_tensors_count,
+                                                              std::size_t non_cpu_index) {
+    using namespace ov::npuw::s11n;
+
+    constexpr bool is_weightless = true;
+    WeightsContext ctx(is_weightless, {});
+
+    std::stringstream serialized(std::ios::in | std::ios::out | std::ios::binary);
+    auto writer = Stream::writer(serialized);
+
+    write_compiled_model_desc_prefix(writer);
+
+    const std::size_t closure_size = 1u;
+    std::vector<bool> is_remote{false};
+    std::vector<int64_t> closure_uid{-1};
+    writer & is_remote & closure_uid;
+
+    std::vector<ov::Tensor> scales;
+    std::vector<ov::Tensor> zerops;
+    serialize_weightless(writer, scales, ctx);
+    serialize_weightless(writer, zerops, ctx);
+
+    writer & closure_size;
+
+    std::vector<std::size_t> cpu_closure_ids(cpu_ids_count, 0u);
+    writer & cpu_closure_ids;
+
+    std::vector<ov::Tensor> cpu_closures;
+    for (std::size_t i = 0; i < cpu_tensors_count; ++i) {
+        ov::Tensor cpu_tensor(ov::element::u8, ov::Shape{1u});
+        cpu_tensor.data<uint8_t>()[0] = 0x7F;
+        cpu_closures.push_back(cpu_tensor);
+    }
+    serialize_weightless(writer, cpu_closures, ctx);
+
+    std::vector<std::size_t> non_cpu_tensors_ids(non_cpu_ids_count, non_cpu_index);
+    std::vector<ov::npuw::weights::LazyTensor> non_cpu_tensors(non_cpu_tensors_count);
+    writer & non_cpu_tensors_ids & non_cpu_tensors;
+
+    return serialized.str();
+}
 
 void expect_tensors_equal(const ov::Tensor& expected, const ov::Tensor& actual) {
     ASSERT_EQ(static_cast<bool>(expected), static_cast<bool>(actual));
@@ -87,11 +261,13 @@ void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttentionCo
     EXPECT_EQ(expected.query_size, actual.query_size);
     EXPECT_EQ(expected.full_context_size, actual.full_context_size);
     EXPECT_EQ(expected._context_lengths, actual._context_lengths);
+    EXPECT_EQ(expected.global_mask_idx, actual.global_mask_idx);
+    EXPECT_EQ(expected._data_left_aligned, actual._data_left_aligned);
     ASSERT_EQ(expected._attention_infos.size(), actual._attention_infos.size());
     for (std::size_t i = 0; i < expected._attention_infos.size(); ++i) {
         const auto& lhs = expected._attention_infos[i];
         const auto& rhs = actual._attention_infos[i];
-        EXPECT_EQ(lhs.mask_idx, rhs.mask_idx);
+        EXPECT_EQ(lhs.mask_idx_local, rhs.mask_idx_local);
         EXPECT_EQ(lhs.query_size, rhs.query_size);
         EXPECT_EQ(lhs.context_length, rhs.context_length);
         EXPECT_EQ(lhs.params.size(), rhs.params.size());
@@ -109,15 +285,16 @@ void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttentionBl
     EXPECT_EQ(expected._context_lengths, actual._context_lengths);
     EXPECT_EQ(expected.past_key_block_global_param_indices, actual.past_key_block_global_param_indices);
     EXPECT_EQ(expected.past_value_block_global_param_indices, actual.past_value_block_global_param_indices);
+    EXPECT_EQ(expected.global_mask_idx, actual.global_mask_idx);
+    EXPECT_EQ(expected._data_left_aligned, actual._data_left_aligned);
     ASSERT_EQ(expected._attention_infos.size(), actual._attention_infos.size());
     for (std::size_t i = 0; i < expected._attention_infos.size(); ++i) {
         const auto& lhs = expected._attention_infos[i];
         const auto& rhs = actual._attention_infos[i];
-        EXPECT_EQ(lhs.mask_idx, rhs.mask_idx);
+        EXPECT_EQ(lhs.mask_idx_local, rhs.mask_idx_local);
         EXPECT_EQ(lhs.query_size, rhs.query_size);
         EXPECT_EQ(lhs.context_length, rhs.context_length);
-        EXPECT_EQ(lhs.past_key_block_port_map, rhs.past_key_block_port_map);
-        EXPECT_EQ(lhs.past_value_block_port_map, rhs.past_value_block_port_map);
+        EXPECT_EQ(lhs.param_port_map, rhs.param_port_map);
         EXPECT_EQ(lhs.past_key_block_port_set, rhs.past_key_block_port_set);
         EXPECT_EQ(lhs.past_value_block_port_set, rhs.past_value_block_port_set);
     }
@@ -544,16 +721,18 @@ TEST(SerializationTest, OVTypes_PyramidAttention) {
     var.query_size = 16;
     var.full_context_size = 128;
     var._context_lengths = {16, 32, 64, 128};
+    var.global_mask_idx = 4;
+    var._data_left_aligned = true;
 
     ov::npuw::compiled::PyramidAttentionContiguousInfo info1;
     info1.params = {{0, 2}, {1, 3}};
-    info1.mask_idx = 4;
+    info1.mask_idx_local = 4;
     info1.query_size = 16;
     info1.context_length = 32;
 
     ov::npuw::compiled::PyramidAttentionContiguousInfo info2;
     info2.params = {{2, 1}};
-    info2.mask_idx = 5;
+    info2.mask_idx_local = 5;
     info2.query_size = 16;
     info2.context_length = 64;
 
@@ -578,28 +757,22 @@ TEST(SerializationTest, OVTypes_PyramidAttention_BlockMode) {
     var._context_lengths = {16, 32, 64, 128};
     var.past_key_block_global_param_indices = {10, 11, 12};
     var.past_value_block_global_param_indices = {20, 21, 22};
+    var.global_mask_idx = 4;
+    var._data_left_aligned = true;
 
     ov::npuw::compiled::PyramidAttentionBlockInfo info1;
-    info1.mask_idx = 4;
+    info1.mask_idx_local = 4;
     info1.query_size = 16;
     info1.context_length = 32;
-    info1.past_key_block_port_map = {{10, std::numeric_limits<size_t>::max()},
-                                     {11, std::numeric_limits<size_t>::max()},
-                                     {12, std::numeric_limits<size_t>::max()}};
-    info1.past_value_block_port_map = {{20, std::numeric_limits<size_t>::max()},
-                                       {21, std::numeric_limits<size_t>::max()},
-                                       {22, std::numeric_limits<size_t>::max()}};
+    // This variant dropped all KV blocks — no entries for global indices 10/11/12/20/21/22.
+    info1.param_port_map = {{4, 4}};
 
     ov::npuw::compiled::PyramidAttentionBlockInfo info2;
-    info2.mask_idx = 5;
+    info2.mask_idx_local = 5;
     info2.query_size = 16;
     info2.context_length = 64;
-    info2.past_key_block_port_map = {{10, 0},
-                                     {11, std::numeric_limits<size_t>::max()},
-                                     {12, std::numeric_limits<size_t>::max()}};
-    info2.past_value_block_port_map = {{20, 1},
-                                       {21, std::numeric_limits<size_t>::max()},
-                                       {22, std::numeric_limits<size_t>::max()}};
+    // This variant retained one K block (global 10 -> local 0) and one V block (global 20 -> local 1).
+    info2.param_port_map = {{4, 5}, {10, 0}, {20, 1}};
     info2.past_key_block_port_set = {0};
     info2.past_value_block_port_set = {1};
 
@@ -613,6 +786,49 @@ TEST(SerializationTest, OVTypes_PyramidAttention_BlockMode) {
     read(ss, res);
 
     expect_pyramid_attention_equal(var, res);
+}
+
+// make_pyramid_from_stream() rebuilds _key_block_global_set / _value_block_global_set from the
+// (serialized) ordered global block index vectors rather than serializing them directly. Exercise
+// that exact factory path (tag + orc::serialize/make_pyramid_from_stream), which the round-trip
+// test above bypasses, and verify the rebuilt sets answer is_key_block_global_idx() /
+// is_value_block_global_idx() correctly.
+TEST(SerializationTest, OVTypes_PyramidAttention_BlockMode_RebuildsGlobalBlockSets) {
+    using namespace ov::npuw::s11n;
+
+    ov::npuw::compiled::PyramidAttentionBlock var;
+    var.query_size = 16;
+    var.full_context_size = 128;
+    var._context_lengths = {16, 32, 64, 128};
+    var.past_key_block_global_param_indices = {10, 11, 12};
+    var.past_value_block_global_param_indices = {20, 21, 22};
+    var.global_mask_idx = 4;
+    var._data_left_aligned = true;
+
+    std::stringstream ss;
+    {
+        auto stream_io = Stream::writer(ss);
+        ov::npuw::orc::serialize(stream_io, static_cast<ov::npuw::compiled::PyramidAttention&>(var));
+    }
+
+    std::shared_ptr<ov::npuw::compiled::PyramidAttention> res;
+    {
+        auto stream_io = Stream::reader(ss);
+        res = ov::npuw::orc::make_pyramid_from_stream(stream_io, /*tag=*/1u);
+    }
+
+    ASSERT_TRUE(res);
+    ASSERT_TRUE(res->is_block_mode());
+    EXPECT_TRUE(res->is_key_block_global_idx(10));
+    EXPECT_TRUE(res->is_key_block_global_idx(11));
+    EXPECT_TRUE(res->is_key_block_global_idx(12));
+    EXPECT_FALSE(res->is_key_block_global_idx(20));  // 20 is a value block, not a key block
+    EXPECT_TRUE(res->is_value_block_global_idx(20));
+    EXPECT_TRUE(res->is_value_block_global_idx(21));
+    EXPECT_TRUE(res->is_value_block_global_idx(22));
+    EXPECT_FALSE(res->is_value_block_global_idx(10));  // 10 is a key block, not a value block
+    EXPECT_FALSE(res->is_key_block_global_idx(999));
+    EXPECT_FALSE(res->is_value_block_global_idx(999));
 }
 
 TEST(SerializationTest, OVTypes_HostFlashAttention) {
@@ -847,14 +1063,14 @@ TEST(SerializationTest, OVTypes_Tensor_weightless_mmap_oob_overflow) {
     // reads it (serialize_weightless, is_weightless branch):
     //   size, is_initialized, is_weightless, type_str, shape, byte_size, offset
     std::stringstream ss;
-    write(ss, std::size_t(1));    // one tensor in the vector
-    write(ss, true);              // is_initialized
-    write(ss, true);              // is_weightless
-    write(ss, std::string("u8"));  // element type -> 1 byte / element
-    write(ss, ov::Shape{4});      // destination tensor: 4 bytes only
+    write(ss, std::size_t(1));                         // one tensor in the vector
+    write(ss, true);                                   // is_initialized
+    write(ss, true);                                   // is_weightless
+    write(ss, std::string("u8"));                      // element type -> 1 byte / element
+    write(ss, ov::Shape{4});                           // destination tensor: 4 bytes only
     const std::size_t attacker_byte_size = 64 * 1024;  // >> dest (4) and >> weights file (8)
-    write(ss, attacker_byte_size);  // byte_size  (attacker-controlled, unchecked)
-    write(ss, std::size_t(0));    // offset      (attacker-controlled, unchecked)
+    write(ss, attacker_byte_size);                     // byte_size  (attacker-controlled, unchecked)
+    write(ss, std::size_t(0));                         // offset      (attacker-controlled, unchecked)
 
     // Tiny backing "weights" file: only 8 bytes get mmapped.
     std::filesystem::path file_path = ov::test::utils::generateTestFilePrefix() + "_npuw_oob_weights.bin";
@@ -1095,6 +1311,137 @@ TEST(SerializationTest, OVTypes_WeightsBank_cpu_roundtrip) {
 
     expect_tensors_equal(var.get(uid0, "CPU"), res.get(uid0, "CPU"));
     expect_tensors_equal(var.get(uid1, "CPU"), res.get(uid1, "CPU"));
+}
+
+TEST(SerializationTest, CompiledModelDesc_rejects_oob_cpu_closure_index_weightful) {
+    using namespace ov::npuw::s11n;
+
+    std::unordered_map<const void*, std::size_t> const_to_offset;
+    WeightsContext ctx(false, const_to_offset);
+    const auto malformed_blob = make_blob_with_oob_cpu_closure_id(false);
+
+    std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::tests::CompiledModelTestAccess::deserialize_compiled_model_desc(input, ctx),
+                                  ov::Exception,
+                                  kExpectedOobIndexMessage);
+}
+
+TEST(SerializationTest, CompiledModelDesc_rejects_oob_cpu_closure_index_weightless) {
+    using namespace ov::npuw::s11n;
+
+    std::unordered_map<const void*, std::size_t> const_to_offset;
+    WeightsContext ctx(true, const_to_offset);
+    const auto malformed_blob = make_blob_with_oob_cpu_closure_id(true);
+
+    std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::tests::CompiledModelTestAccess::deserialize_compiled_model_desc(input, ctx),
+                                  ov::Exception,
+                                  kExpectedOobIndexMessage);
+}
+
+TEST(SerializationTest, CompiledModelDesc_rejects_closure_uid_size_mismatch_weightful) {
+    using namespace ov::npuw::s11n;
+
+    WeightsContext ctx(false, {});
+    const auto malformed_blob = make_blob_with_metadata_size(false, /*closure_size=*/1u, /*is_remote_size=*/1u,
+                                                             /*closure_uid_size=*/2u);
+
+    std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::tests::CompiledModelTestAccess::deserialize_compiled_model_desc(input, ctx),
+                                  ov::Exception,
+                                  kExpectedClosureUidSizeMessage);
+}
+
+TEST(SerializationTest, CompiledModelDesc_rejects_closure_uid_size_mismatch_weightless) {
+    using namespace ov::npuw::s11n;
+
+    WeightsContext ctx(true, {});
+    const auto malformed_blob = make_blob_with_metadata_size(true, /*closure_size=*/1u, /*is_remote_size=*/1u,
+                                                             /*closure_uid_size=*/2u);
+
+    std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::tests::CompiledModelTestAccess::deserialize_compiled_model_desc(input, ctx),
+                                  ov::Exception,
+                                  kExpectedClosureUidSizeMessage);
+}
+
+TEST(SerializationTest, CompiledModelDesc_rejects_is_remote_size_mismatch_weightful) {
+    using namespace ov::npuw::s11n;
+
+    WeightsContext ctx(false, {});
+    const auto malformed_blob = make_blob_with_metadata_size(false, /*closure_size=*/1u, /*is_remote_size=*/2u,
+                                                             /*closure_uid_size=*/1u);
+
+    std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::tests::CompiledModelTestAccess::deserialize_compiled_model_desc(input, ctx),
+                                  ov::Exception,
+                                  kExpectedIsRemoteSizeMessage);
+}
+
+TEST(SerializationTest, CompiledModelDesc_rejects_is_remote_size_mismatch_weightless) {
+    using namespace ov::npuw::s11n;
+
+    WeightsContext ctx(true, {});
+    const auto malformed_blob = make_blob_with_metadata_size(true, /*closure_size=*/1u, /*is_remote_size=*/2u,
+                                                             /*closure_uid_size=*/1u);
+
+    std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::tests::CompiledModelTestAccess::deserialize_compiled_model_desc(input, ctx),
+                                  ov::Exception,
+                                  kExpectedIsRemoteSizeMessage);
+}
+
+TEST(SerializationTest, CompiledModelDesc_rejects_weightless_cpu_closure_count_mismatch) {
+    using namespace ov::npuw::s11n;
+
+    WeightsContext ctx(true, {});
+    // 1 CPU id but 0 CPU tensors actually written -> ids/tensor count mismatch.
+    const auto malformed_blob = make_weightless_blob_with_cpu_or_non_cpu_mismatch(/*cpu_ids_count=*/1u,
+                                                                                  /*cpu_tensors_count=*/0u,
+                                                                                  /*non_cpu_ids_count=*/0u,
+                                                                                  /*non_cpu_tensors_count=*/0u,
+                                                                                  /*non_cpu_index=*/0u);
+
+    std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::tests::CompiledModelTestAccess::deserialize_compiled_model_desc(input, ctx),
+                                  ov::Exception,
+                                  kExpectedCpuCountMismatchMessage);
+}
+
+TEST(SerializationTest, CompiledModelDesc_rejects_weightless_non_cpu_closure_count_mismatch) {
+    using namespace ov::npuw::s11n;
+
+    WeightsContext ctx(true, {});
+    // CPU side is well-formed (0 ids / 0 tensors), but 1 non-CPU id with 0 non-CPU tensors
+    // actually written -> non-CPU ids/tensor count mismatch.
+    const auto malformed_blob = make_weightless_blob_with_cpu_or_non_cpu_mismatch(/*cpu_ids_count=*/0u,
+                                                                                  /*cpu_tensors_count=*/0u,
+                                                                                  /*non_cpu_ids_count=*/1u,
+                                                                                  /*non_cpu_tensors_count=*/0u,
+                                                                                  /*non_cpu_index=*/0u);
+
+    std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::tests::CompiledModelTestAccess::deserialize_compiled_model_desc(input, ctx),
+                                  ov::Exception,
+                                  kExpectedNonCpuCountMismatchMessage);
+}
+
+TEST(SerializationTest, CompiledModelDesc_rejects_weightless_non_cpu_closure_index_out_of_range) {
+    using namespace ov::npuw::s11n;
+
+    WeightsContext ctx(true, {});
+    // CPU side is well-formed (0 ids / 0 tensors); non-CPU ids/tensors counts match (1/1), but
+    // the single non-CPU index (5) is out of range for closure_size == 1.
+    const auto malformed_blob = make_weightless_blob_with_cpu_or_non_cpu_mismatch(/*cpu_ids_count=*/0u,
+                                                                                  /*cpu_tensors_count=*/0u,
+                                                                                  /*non_cpu_ids_count=*/1u,
+                                                                                  /*non_cpu_tensors_count=*/1u,
+                                                                                  /*non_cpu_index=*/5u);
+
+    std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::tests::CompiledModelTestAccess::deserialize_compiled_model_desc(input, ctx),
+                                  ov::Exception,
+                                  kExpectedNonCpuOobIndexMessage);
 }
 
 // TODO: add tests on CompiledModel and LLMCompiledModel once tests have access to any model to test on
