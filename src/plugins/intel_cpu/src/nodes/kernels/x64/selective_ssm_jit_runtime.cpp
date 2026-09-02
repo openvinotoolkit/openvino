@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -24,6 +25,11 @@
 
 namespace ov::intel_cpu::kernel {
 namespace {
+
+bool should_reuse_state_cache_as_fp32_working_buffer() {
+    // Wide AVX-512 kernels benefit from private scratch; narrower kernels are limited by the extra state copies.
+    return !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
+}
 
 template <typename Destination, typename Source>
 void copy_convert(Destination* destination, const Source* source, size_t count) {
@@ -327,7 +333,7 @@ void run_paged_selective_ssm(const PagedSelectiveSSMJitRuntimeArgs& args) {
             if constexpr (std::is_same_v<Data, float>) {
                 const auto snapshot_count = cache.write_count(token_end - token_begin);
                 // A single f32 snapshot can hold the working state, avoiding the scratch buffer and final copy.
-                if (snapshot_count == 1) {
+                if (snapshot_count == 1 && should_reuse_state_cache_as_fp32_working_buffer()) {
                     const auto write_block = static_cast<size_t>(block_indices[logical_block_begin + snapshot_count]);
                     local_state = state_cache + write_block * layout.container_stride + state_offset;
                 }
