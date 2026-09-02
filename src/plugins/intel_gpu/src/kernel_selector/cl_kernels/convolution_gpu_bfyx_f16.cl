@@ -183,7 +183,7 @@ KERNEL(convolution_bfyx_f16)(
                 if (input_y + kh * DILATION_SIZE_Y < 0 || input_y + kh * DILATION_SIZE_Y >= INPUT0_SIZE_Y)
                     continue;
 
-                INPUT_TYPE line_cache[INPUT_LINE_SIZE] = {};
+                INPUT_TYPE line_cache[INPUT_LINE_SIZE];
 
 #if INPUT_LEFTOVERS
                 if ((icb + 1) * FEATURE_SLICE_SIZE >= FILTER_IFM_NUM)
@@ -204,6 +204,9 @@ KERNEL(convolution_bfyx_f16)(
                 else
 #endif  // INPUT_LEFTOVERS
                 {
+                    for (int i = 0; i < INPUT_LINE_SIZE; i++){
+                        line_cache[i] = 0;
+                    }
                     int xb = left_unreachable_count_x;
                     const int reachable_size = INPUT_LINE_SIZE - right_unreachable_count_x;
                     for (; xb + 8 <= reachable_size; xb += 8) {
