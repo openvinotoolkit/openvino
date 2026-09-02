@@ -34,10 +34,12 @@ static size_t GetOptimalDivisor(const size_t input_size, size_t max_val = 16) {
 ParamsKey ResampleKernelOnnx::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);

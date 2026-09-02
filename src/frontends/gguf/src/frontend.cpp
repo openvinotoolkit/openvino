@@ -4,9 +4,15 @@
 
 #include "openvino/frontend/gguf/frontend.hpp"
 
+#include <filesystem>
+#include <fstream>
+
+#include "builder/gguf_builder.hpp"
+#include "builder/gguf_builder_decoder.hpp"
 #include "input_model.hpp"
 #include "op_table.hpp"
 #include "openvino/core/so_extension.hpp"
+#include "openvino/frontend/common/path_util.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
@@ -18,8 +24,10 @@ namespace ov {
 namespace frontend {
 namespace gguf {
 
-// The frontend converts a live GgufDecoder -- supplied by a direct linker, currently the llama.cpp
-// ggml-openvino backend -- through the op translators below.
+// This frontend has two ingest paths, both converging on the same GgufDecoder + op translators:
+//   1. a live GgufDecoder passed in by a direct linker (the llama.cpp ggml-openvino cgraph path);
+//   2. a .gguf file path (the OpenVINO-native path): the frontend parses the container and builds
+//      the transformer graph per-architecture via the native builder (see load_impl Path 2).
 //
 // Discoverability: "gguf" is in manager.cpp's is_hidden_frontend list, so it is not advertised by
 // available_front_ends() and not auto-selected by load_by_model (core.read_model(".gguf") does
@@ -50,6 +58,17 @@ std::unordered_map<std::string, CreatorFunction> merged_ops(
         ops[ext.first] = ext.second;
     }
     return ops;
+}
+
+// True if the file at `path` begins with the GGUF magic ("GGUF").
+bool has_gguf_magic(const std::filesystem::path& path) {
+    std::ifstream f(path, std::ios::binary);
+    if (!f) {
+        return false;
+    }
+    char magic[4] = {};
+    f.read(magic, sizeof(magic));
+    return f.gcount() == 4 && magic[0] == 'G' && magic[1] == 'G' && magic[2] == 'U' && magic[3] == 'F';
 }
 
 }  // namespace
@@ -97,18 +116,47 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
 }
 
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
-    return !variants.empty() && variants[0].is<std::shared_ptr<GgufDecoder>>();
+    // Two accepted inputs:
+    //  1. a GgufDecoder (the llama.cpp cgraph path passes one in directly), or
+    //  2. a path to a .gguf file (the OpenVINO-native path; sniff the GGUF magic).
+    if (variants.empty()) {
+        return false;
+    }
+    if (variants[0].is<std::shared_ptr<GgufDecoder>>()) {
+        return true;
+    }
+    if (auto path = ov::frontend::get_path_from_any(variants[0])) {
+        std::filesystem::path model_path = std::move(*path);
+        return model_path.extension() == ".gguf" && has_gguf_magic(model_path);
+    }
+    return false;
 }
 
 InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
     FRONT_END_GENERAL_CHECK(!variants.empty(),
                             "GGUF Frontend requires at least one parameter in model representation.");
 
-    FRONT_END_GENERAL_CHECK(variants[0].is<std::shared_ptr<GgufDecoder>>(),
-                            "GGUF Frontend supports loading from a GgufDecoder only.");
-    auto decoder = variants[0].as<std::shared_ptr<GgufDecoder>>();
-    FRONT_END_GENERAL_CHECK(decoder, "Couldn't cast ov::Any to std::shared_ptr<GgufDecoder>");
-    return std::make_shared<InputModel>(decoder);
+    // Path 1: a GgufDecoder passed in directly (e.g. llama.cpp cgraph decoder).
+    if (variants[0].is<std::shared_ptr<GgufDecoder>>()) {
+        auto decoder = variants[0].as<std::shared_ptr<GgufDecoder>>();
+        FRONT_END_GENERAL_CHECK(decoder, "Couldn't cast ov::Any to std::shared_ptr<GgufDecoder>");
+        return std::make_shared<InputModel>(decoder);
+    }
+
+    // Path 2: a .gguf file path -> native builder -> GgufBuilderDecoder.
+    if (auto path = ov::frontend::get_path_from_any(variants[0])) {
+        std::filesystem::path model_path = std::move(*path);
+        FRONT_END_GENERAL_CHECK(model_path.extension() == ".gguf",
+                                "GGUF Frontend file loading expects a .gguf file, got: ",
+                                model_path.string());
+        auto graph = build_ggml_graph_from_gguf(model_path.string());
+        auto decoder = std::make_shared<GgufBuilderDecoder>(graph);
+        return std::make_shared<InputModel>(decoder);
+    }
+
+    FRONT_END_GENERAL_CHECK(false,
+                            "GGUF Frontend doesn't support the provided model representation. Provide a GgufDecoder "
+                            "or a path to a .gguf file.");
 }
 
 }  // namespace gguf

@@ -179,7 +179,7 @@ memory_ptr ze_engine::create_hostbuffer(void* cpu_address, size_t data_size, all
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-memory_ptr ze_engine::create_hostbuffer(const void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) {
+memory_ptr ze_engine::create_hostbuffer(const void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout, bool host_read_only) {
     OPENVINO_NOT_IMPLEMENTED;
 }
 

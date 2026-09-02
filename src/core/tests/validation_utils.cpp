@@ -85,9 +85,9 @@ TEST(is_empty_constant_tensor, returns_false_for_scalar_constant) {
     ASSERT_FALSE(ov::util::is_empty_constant_tensor(scalar));
 }
 
-TEST(is_empty_constant_tensor, returns_false_for_multi_dim_zero_element_constant) {
+TEST(is_empty_constant_tensor, returns_true_for_multi_dim_zero_element_constant) {
     const auto multi_dim_empty = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{5, 1, 0, 5}, {});
-    ASSERT_FALSE(ov::util::is_empty_constant_tensor(multi_dim_empty));
+    ASSERT_TRUE(ov::util::is_empty_constant_tensor(multi_dim_empty));
 }
 
 TEST(is_empty_constant_tensor, returns_false_for_empty_output) {

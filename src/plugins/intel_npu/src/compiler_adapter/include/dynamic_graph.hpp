@@ -27,8 +27,8 @@ public:
 
     void* get_handle() const override;
 
-    bool is_dynamic() const override {
-        return true;
+    GraphKind get_kind() const override {
+        return GraphKind::Dynamic;
     }
 
     // HostCompile has no fixed plugin-side batch size; return nullopt for the shared import path.

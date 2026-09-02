@@ -2,21 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "node_context.hpp"
-#include "op_table.hpp"
-#include "utils.hpp"
+#include "openvino/op/reshape.hpp"
 
 #include <cstdint>
 #include <memory>
+#include <stdexcept>
+#include <vector>
+
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
-#include <stdexcept>
-#include <vector>
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -109,10 +110,9 @@ OutputVector translate_reshape(const NodeContext& context) {
     } else if (op_case == 7) {
         // General fully-static reshape (no dynamic token axis): reshape straight to the static
         // output shape. Used by qwen3-next's recurrent-state predelta reshape [262144]->[16,128,128].
-        new_shape_node = ov::op::v0::Constant::create(
-            ov::element::i64, {output_shape.size()},
-            std::vector<int64_t>(output_shape.begin(), output_shape.end()));
-
+        new_shape_node = ov::op::v0::Constant::create(ov::element::i64,
+                                                      {output_shape.size()},
+                                                      std::vector<int64_t>(output_shape.begin(), output_shape.end()));
     }
     auto res = std::make_shared<ov::op::v1::Reshape>(context.get_input(0), new_shape_node, false);
     return rename_outputs_with_suffix({res}, context.get_name());

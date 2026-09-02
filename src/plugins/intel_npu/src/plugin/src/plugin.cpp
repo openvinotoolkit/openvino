@@ -7,6 +7,7 @@
 #include <fstream>
 #include <numeric>
 
+#include "blob_format_importers.hpp"
 #include "compiled_model.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
@@ -39,6 +40,8 @@ using namespace intel_npu;
 constexpr std::string_view NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
 constexpr std::string_view NO_BACKEND_MESSAGE = "No backend registered during model import";
 constexpr std::string_view NPUW_MODEL_IMPORTED_MESSAGE = "Finished importing the NPUW compiled model";
+constexpr std::string_view FAILED_IMPORT_MODEL_PREFACE = "Could not import the model:";
+constexpr std::string_view IMPORT_MODEL_UNEXPECTED_FAILURE_MESSAGE = "Unexpected exception while importing the model";
 
 /**
  * @brief Just checks if there is any "WeightlessCacheAttribute" present in the model. In the negative case, an error is
@@ -381,7 +384,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         const auto isDynamicHostCompilePort = [&hasFiniteUpperBounds](const auto& port) {
             const auto& shape = port.get_partial_shape();
             const auto rank = shape.rank();
-            return shape.is_dynamic() && rank.is_static() && rank.get_length() == 4 && hasFiniteUpperBounds(port);
+
+            // Keep batch static to avoid failures in ConvertBatchedLayerTo1N and AdjustScaleShiftForDWConv,
+            // because reshape operations in these passes do not support dynamic batch shapes.
+            return shape.is_dynamic() && rank.is_static() && rank.get_length() == 4 && shape[0].is_static() &&
+                   hasFiniteUpperBounds(port);
         };
 
         const auto& modelInputs = model->inputs();
@@ -551,7 +558,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     std::optional<int64_t> batch = std::nullopt;
     if (originalBatch.has_value() && successfullyDebatched) {
         batch = originalBatch.value().is_static() ? originalBatch.value().get_length() : -1;
-        if (batch > 0 && !graph->is_dynamic()) {
+        if (batch > 0 && graph->get_kind() != GraphKind::Dynamic) {
             // Initial batch setup for static cases
             graph->set_batch_size(batch.value());
         }
@@ -623,31 +630,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
                         "import_model(tensor) API instead.");
     }
 
-    auto npuPluginProperties = properties;
-    // NPUW properties from npuPluginProperties will be erased if import_model_npuw returns nullptr
-    if (auto compiledModel = import_model_npuw(stream, npuPluginProperties, shared_from_this())) {
+    auto localProperties = properties;
+    // NPUW properties from localProperties will be erased if import_model_npuw returns nullptr
+    if (auto compiledModel = import_model_npuw(stream, localProperties, shared_from_this())) {
         _logger.debug(NPUW_MODEL_IMPORTED_MESSAGE.data());
         return compiledModel;
     }
 
-    OPENVINO_ASSERT(_backend != nullptr, NO_BACKEND_MESSAGE);
-    _backend->updateInfo(npuPluginProperties);
-
-    OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "fork_local_config");
-    FilteredConfig localConfig = _propertiesManager->getConfigWithCompilerPropertiesDisabled(npuPluginProperties);
+    BlobSource blobSource(stream, _logger.level());
 
     try {
-        std::unique_ptr<IBlobFormatImporter> blobFormatImporter =
-            blob_format_importer_factory::create(stream,
-                                                 should_import_raw_blob(npuPluginProperties),
-                                                 get_model_ptr_from_map(properties),
-                                                 localConfig);
-
-        return import_model(blobFormatImporter, localConfig, npuPluginProperties);
+        return import_model(blobSource, localProperties);
     } catch (const std::exception& ex) {
-        OPENVINO_THROW("Can't import network: ", ex.what());
+        OPENVINO_THROW(FAILED_IMPORT_MODEL_PREFACE, ex.what());
     } catch (...) {
-        OPENVINO_THROW("NPU import_model got unexpected exception from CompiledModel");
+        OPENVINO_THROW(IMPORT_MODEL_UNEXPECTED_FAILURE_MESSAGE);
     }
 }
 
@@ -662,42 +659,41 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
     ov::SharedStreamBuffer buffer{compiledBlob.data(), compiledBlob.get_byte_size()};
     std::istream stream{&buffer};
 
-    auto npuPluginProperties = properties;
-    // NPUW properties from npuPluginProperties will be erased if import_model_npuw returns nullptr
-    if (auto compiledModel = import_model_npuw(stream, npuPluginProperties, shared_from_this())) {
+    auto localProperties = properties;
+    // NPUW properties from localProperties will be erased if import_model_npuw returns nullptr
+    if (auto compiledModel = import_model_npuw(stream, localProperties, shared_from_this())) {
         _logger.debug(NPUW_MODEL_IMPORTED_MESSAGE.data());
         return compiledModel;
     }
 
-    OPENVINO_ASSERT(_backend != nullptr, NO_BACKEND_MESSAGE);
-    _backend->updateInfo(npuPluginProperties);
-
-    OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "fork_local_config");
-    FilteredConfig localConfig = _propertiesManager->getConfigWithCompilerPropertiesDisabled(npuPluginProperties);
+    BlobSource blobSource(compiledBlob, _logger.level());
 
     try {
-        std::unique_ptr<IBlobFormatImporter> blobFormatImporter =
-            blob_format_importer_factory::create(compiledBlob,
-                                                 should_import_raw_blob(npuPluginProperties),
-                                                 get_model_ptr_from_map(properties),
-                                                 localConfig);
-
-        return import_model(blobFormatImporter, localConfig, npuPluginProperties);
+        return import_model(blobSource, localProperties);
     } catch (const std::exception& ex) {
-        OPENVINO_THROW("Can't import network: ", ex.what());
+        OPENVINO_THROW(FAILED_IMPORT_MODEL_PREFACE, ex.what());
     } catch (...) {
-        OPENVINO_THROW("NPU import_model got unexpected exception from CompiledModel");
+        OPENVINO_THROW(IMPORT_MODEL_UNEXPECTED_FAILURE_MESSAGE);
     }
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const std::unique_ptr<IBlobFormatImporter>& blobFormatImporter,
-                                                         FilteredConfig& localConfig,
-                                                         ov::AnyMap& localProperties) const {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model(IBlobFormatImporter)");
-    _logger.trace("Importing a compiled model using an import handler object");
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource, ov::AnyMap& properties) const {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model(BlobSource)");
+    _logger.trace("Importing a compiled model using a BlobSource object");
 
-    std::shared_ptr<IDevice> device =
-        utils::getDeviceById(_backend, _propertiesManager->determineDeviceId(localProperties));
+    OPENVINO_ASSERT(_backend != nullptr, NO_BACKEND_MESSAGE);
+    _backend->updateInfo(properties);
+
+    OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "fork_local_config");
+    FilteredConfig localConfig = _propertiesManager->getConfigWithCompilerPropertiesDisabled(properties);
+
+    std::unique_ptr<IBlobFormatImporter> blobFormatImporter =
+        blob_format_importer_factory::create(blobSource,
+                                             should_import_raw_blob(properties),
+                                             get_model_ptr_from_map(properties),
+                                             localConfig);
+
+    std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, _propertiesManager->determineDeviceId(properties));
     OPENVINO_ASSERT(device != nullptr, "Device not found.");
 
     if (!localConfig.get<LOADED_FROM_CACHE>()) {
@@ -722,10 +718,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& properties) const {
     auto casted = std::dynamic_pointer_cast<RemoteContextImpl>(context._ptr);
-    if (casted == nullptr) {
-        OPENVINO_THROW("Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
-    }
-
+    OPENVINO_ASSERT(casted, "Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
     return import_model(stream, properties);
 }
 
@@ -733,9 +726,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& properties) const {
     auto casted = std::dynamic_pointer_cast<RemoteContextImpl>(context._ptr);
-    if (casted == nullptr) {
-        OPENVINO_THROW("Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
-    }
+    OPENVINO_ASSERT(casted, "Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
     return import_model(compiledBlob, properties);
 }
 

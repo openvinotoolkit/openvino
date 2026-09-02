@@ -1,0 +1,3 @@
+# The root .gitignore's "[Bb]uild*/" rule (meant for CMake build output dirs) also matches
+# the src/builder/ source directory by name. Re-include it; this is tracked source code.
+!src/builder

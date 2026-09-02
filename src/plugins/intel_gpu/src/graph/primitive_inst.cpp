@@ -365,6 +365,14 @@ void primitive_inst::update_shape() {
         }
     }
 
+    // Unlike shape_of, this root's dependencies are ordinary data-typed scalars whose layout never
+    // changes between iterations (only their value does), so the layout diff above can never observe
+    // a change here. Treat every run as changed: it is the only safe signal available, and this node
+    // is a cheap scalar computation, so always recomputing it is not a meaningful perf concern.
+    if (get_node().get_primitive()->is_shape_of_subgraph_root) {
+        input_shape_changed = true;
+    }
+
     set_flag(ExecutionFlags::SHAPE_CHANGED, input_shape_changed);
 
     // We assume that tensor ranks are static, thus shape_of doesn't need to update anything even if input shape is dynamic
@@ -2313,9 +2321,7 @@ void primitive_inst::prepare_primitive() {
 
     // After all dependencies are configured, check if the current primitive instance requires its output memory to be reset (e.g., when its user
     // is a convolution that requires zeroed-out data paddings)
-    const bool may_reuse_output_memory = is_dynamic() ||
-                                         (can_share_buffer() && get_node().get_program().get_config().get_enable_memory_pool());
-    if (may_reuse_output_memory && need_reset_output_memory() && !can_be_optimized() && !get_node().is_type<input_layout>()) {
+    if (is_dynamic() && need_reset_output_memory() && !can_be_optimized() && !get_node().is_type<input_layout>()) {
         const auto& users = get_user_insts();
         const auto skip_concat = users.size() == 1 && users.front()->get_node().is_type<concatenation>() && users.front()->get_node().is_runtime_skippable() &&
                                  users.front()->_allocation_done_by_other;

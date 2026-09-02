@@ -1460,6 +1460,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
     std::string to_vector_type = "undefined";
     std::string to_vector_type_sat = "undefined";
     bool is_fp;
+    bool is_bf16 = false;
     switch (dataType) {
         case Datatype::INT8:
             type = "char";
@@ -1641,6 +1642,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             abs_func = "fabs";
             type_size = "2";
             is_fp = true;
+            is_bf16 = true;
             break;
         case Datatype::F4E2M1:
             type = "fp4e2m1_t";
@@ -1734,6 +1736,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
         MakeJitConstant(macroName + "_ABS_FUNC", abs_func),
         MakeJitConstant(macroName + "_TYPE_SIZE", type_size),
         MakeJitConstant(macroName + "_IS_FP", is_fp),
+        MakeJitConstant(macroName + "_IS_BF16", is_bf16),
         MakeJitConstant(macroName + "_COMPUTE_TYPE", compute_type),
         MakeJitConstant("TO_" + macroName + "_COMPUTE_TYPE(v)", to_compute_type),
         MakeJitConstant("DECODE_" + macroName + "_COMPUTE_TYPE(v)", decode_compute_type),
