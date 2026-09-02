@@ -13209,14 +13209,15 @@ TEST(convolution_gpu_bfyx_f16, dynamic_tail_spatial_block_with_output_padding) {
 
     auto out_test = net_test.execute();
 
+    const int iterations = 1000000;
     const auto exec_start = std::chrono::steady_clock::now();
-    for (int i=0; i<10; i++)
+    for (int i=0; i<iterations; i++)
         out_test = net_test.execute();
     const auto exec_end = std::chrono::steady_clock::now();
     const auto exec_time_us = std::chrono::duration_cast<std::chrono::microseconds>(exec_end - exec_start).count();
-    const auto single_exec_time = exec_time_us / 10;
+    const auto single_exec_time = exec_time_us / iterations;
     std::cout << "[ PERF ] convolution_gpu_bfyx_f16.dynamic_tail_spatial_block_with_output_padding execute(): "
-              << single_exec_time << " us" << std::endl;
+              << single_exec_time << " us" << " iters: " << iterations << std::endl;
 
     auto out_ref = net_ref.execute();
 
