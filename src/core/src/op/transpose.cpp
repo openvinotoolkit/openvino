@@ -68,12 +68,12 @@ bool Transpose::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
                                       axes_order,
                                       out_shape);
         } else if (arg_type == ov::element::u3 || arg_type == ov::element::u6) {
-            reference::transpose_subbyte(static_cast<const uint8_t*>(arg.data()),
-                                         static_cast<uint8_t*>(out.data()),
-                                         arg.get_shape(),
-                                         axes_order,
-                                         out_shape,
-                                         arg_type);
+            reference::transpose_split_bit(static_cast<const uint8_t*>(arg.data()),
+                                           static_cast<uint8_t*>(out.data()),
+                                           arg.get_shape(),
+                                           axes_order,
+                                           out_shape,
+                                           arg_type);
         } else if (arg_type == ov::element::string) {
             reference::transpose(static_cast<const std::string*>(arg.data()),
                                  static_cast<std::string*>(out.data()),

@@ -161,18 +161,18 @@ void transpose_2bit(const uint8_t* data,
     transpose_by_iterator<ov::element::u2>(data, out, data_shape, axes_order, out_shape);
 }
 
-void transpose_subbyte(const uint8_t* data,
-                       uint8_t* out,
-                       const Shape& data_shape,
-                       const std::vector<int64_t>& axes_order,
-                       const Shape& out_shape,
-                       const element::Type& arg_type) {
+void transpose_split_bit(const uint8_t* data,
+                         uint8_t* out,
+                         const Shape& data_shape,
+                         const std::vector<int64_t>& axes_order,
+                         const Shape& out_shape,
+                         const element::Type& arg_type) {
     if (arg_type == ov::element::u3) {
         transpose_by_iterator<ov::element::u3>(data, out, data_shape, axes_order, out_shape);
     } else if (arg_type == ov::element::u6) {
         transpose_by_iterator<ov::element::u6>(data, out, data_shape, axes_order, out_shape);
     } else {
-        OPENVINO_THROW("transpose_subbyte supports only u3 and u6 element types, got: ", arg_type);
+        OPENVINO_THROW("transpose_split_bit supports only u3 and u6 element types, got: ", arg_type);
     }
 }
 

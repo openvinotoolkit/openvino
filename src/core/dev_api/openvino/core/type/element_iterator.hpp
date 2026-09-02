@@ -131,7 +131,7 @@ constexpr size_t bit_width<Type_t::f4e2m1>() {
 /**
  * @brief The BitProxy value class used by ov::element::Iterator to access values which has no standard byte(s) layout.
  *
- * It used by iterator to access values represented by precisions like u2, i4, u6 etc. in the way like stored
+ * It used by iterator to access values represented by precisions like u1, u2, u3, i4, u6 etc. in the way like stored
  * on bytes.
  * The R/W access is done via conversion and copy assignment operators.
  * The public members are used to work on sub-byte value like on its fundamental type defined by T.
