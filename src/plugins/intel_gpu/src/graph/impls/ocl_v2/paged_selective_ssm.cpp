@@ -181,6 +181,7 @@ protected:
                                                                             params.get_device_info(),
                                                                             Kind,
                                                                             selective_ssm_jit::paged_private_value_budget);
+        OPENVINO_ASSERT(subgroup_size != 0, "PagedSelectiveSSM JIT kernel requires a non-zero subgroup size");
 
         if (!params.is_dynamic())
             jit.make("SSM_TOKEN_COUNT", x_shape[0].get_length());
@@ -227,6 +228,7 @@ protected:
                                                                                 params.get_device_info(),
                                                                                 Kind,
                                                                                 selective_ssm_jit::paged_private_value_budget);
+            OPENVINO_ASSERT(head_dim_block != 0, "PagedSelectiveSSM JIT kernel requires a non-zero head dimension block");
 
             kd.params.workGroups.local = {subgroup_size, 1, 1};
             kd.params.local_memory_args.clear();
