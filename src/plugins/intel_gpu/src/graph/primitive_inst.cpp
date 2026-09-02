@@ -453,7 +453,8 @@ void primitive_inst::update_shape() {
         !(dep->get_node().get_selected_impl() ? dep->get_node().get_selected_impl()->is_cpu() : dep->get_node().get_preferred_impl_type() == impl_types::cpu)) {
             has_runtime_deps = true;
 
-            if (dep->get_impl_params()->out_event) {
+            // Events may be not created for in-order queue, so take them for OOO queue only
+            if (queue_type == QueueTypes::out_of_order && dep->get_impl_params()->out_event) {
                 dependencies_events.push_back(dep->get_impl_params()->out_event);
 
                 GPU_DEBUG_TRACE_DETAIL << id() << ": shape infer waits for " << i << " dependency\n";
@@ -464,9 +465,9 @@ void primitive_inst::update_shape() {
     if (has_runtime_deps) {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("update_shape_sync: " + id()));
         GPU_DEBUG_TRACE_DETAIL << "runtime synchronization for " << id() << " shape inference\n";
-        if (!dependencies_events.empty()) {
+        if (!dependencies_events.empty() && queue_type == QueueTypes::out_of_order) {
             get_network().get_stream().wait_for_events(dependencies_events);
-        } else {
+        } else if (queue_type == QueueTypes::in_order) {
             get_network().get_stream().finish();
         }
     }
@@ -2456,7 +2457,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     , _can_be_optimized(node.can_be_optimized())
     , _can_share_buffer(node.can_share_buffer())
     , _is_constant(node.is_constant())
-    , _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output() || node.is_shape_infer_dep()) {
+    , _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output()) {
     // When dynamic shape node has huge upper boundary which causes bigger mem size than system max allocable mem size, do not allocate in build time.
     auto output_layout = node.get_output_layout();
     auto& engine = network.get_engine();

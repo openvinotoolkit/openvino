@@ -44,6 +44,47 @@
 using namespace cldnn;
 using namespace ::tests;
 
+static void test_shape_infer_dependency(bool with_squeeze) {
+    auto& engine = get_test_engine();
+    auto shape_input_layout = layout{{1, 1}, data_types::i64, format::bfyx};
+    auto source_input_layout = layout{{1, 1}, data_types::i64, format::bfyx};
+
+    auto one_memory = engine.allocate_memory(shape_input_layout);
+    set_values<int64_t>(one_memory, {1, 1});
+
+    topology topology;
+    topology.add(input_layout("shape_input", shape_input_layout));
+    topology.add(data("one", one_memory));
+    topology.add(eltwise("shape_add", {input_info("shape_input"), input_info("one")}, eltwise_mode::sum));
+    if (with_squeeze) {
+        topology.add(reshape("squeeze", input_info("shape_add"), false, std::vector<int64_t>{1}, ov::PartialShape{1}, reshape::reshape_mode::squeeze));
+    }
+    topology.add(input_layout("source_input", source_input_layout));
+    topology.add(eltwise("source_add", {input_info("source_input"), input_info("one")}, eltwise_mode::sum));
+    topology.add(reshape("reshape", input_info("source_add"), input_info(with_squeeze ? "squeeze" : "shape_add"), false, ov::PartialShape{1}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+    ASSERT_NE(prog, nullptr);
+
+    program_wrapper::apply_opt_pass<prepare_buffer_fusing>(*prog);
+
+    if (with_squeeze) {
+        ASSERT_TRUE(prog->get_node("squeeze").can_be_optimized());
+    }
+    ASSERT_TRUE(prog->get_node("shape_add").is_shape_infer_dep());
+    ASSERT_FALSE(prog->get_node("source_add").is_shape_infer_dep());
+}
+
+TEST(prepare_buffer_fusing, shape_infer_dependency_through_optimized_squeeze) {
+    test_shape_infer_dependency(true);
+}
+
+TEST(prepare_buffer_fusing, shape_infer_dependency_without_squeeze) {
+    test_shape_infer_dependency(false);
+}
+
 TEST(prepare_buffer_fusing, optimize_reshape) {
     auto& engine = get_test_engine();
     auto in_layout = layout{ ov::PartialShape::dynamic(4), data_types::f32, format::bfyx };
