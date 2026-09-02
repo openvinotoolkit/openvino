@@ -239,6 +239,9 @@ Subgraph::Subgraph(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
     const auto& tmp_snippet = ov::as_type_ptr<snippets::op::Subgraph>(op);
     CPU_NODE_ASSERT(tmp_snippet, "Attempt to create Subgraph node from an invalid op type");
     subgraph_attrs->snippet = tmp_snippet->clone();
+    // Set on the clone rather than on the tokenized op: the clone is what this node transforms and
+    // generates from, and the flag is read when its data-flow pipeline runs.
+    subgraph_attrs->snippet->set_defer_softmax_normalization(context->getConfig().snippetsDeferSoftmaxNormalization);
     subgraph_attrs->bodyHash = getBodyHash(tmp_snippet);
 
 #if defined(OPENVINO_ARCH_ARM64)
