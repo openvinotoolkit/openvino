@@ -4,6 +4,7 @@
 
 #include "intel_gpu/runtime/device.hpp"
 #include "kernel_base_opencl.h"
+#include <cstdlib>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -173,6 +174,14 @@ std::shared_ptr<KernelString> KernelBaseOpenCL::GetKernelString(const std::strin
         kernel_string->undefs = jit.second;
         if (engine_info.vendor_id == cldnn::INTEL_VENDOR_ID) {
             kernel_string->options = exe_mode + " -cl-mad-enable";
+            // OV_GPU_FTZ=1 asks IGC to flush denormals to zero. Peaky softmax puts most
+            // probabilities below the f16/f32 denormal threshold; on the CPU track that cost 1.94x.
+            if (const char* ftz = std::getenv("OV_GPU_FTZ"))
+                if (ftz[0] == '1')
+                    kernel_string->options += " -cl-denorms-are-zero";
+            if (const char* fm = std::getenv("OV_GPU_FASTMATH"))
+                if (fm[0] == '1')
+                    kernel_string->options += " -cl-fast-relaxed-math";
             if (engine_info.bOptHintsSupport)
                 kernel_string->options += " -DOPT_HINTS_SUPPORTED=1";
             if (engine_info.enable_large_allocations)

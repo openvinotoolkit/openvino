@@ -4,6 +4,7 @@
 
 #include "kernel_generator.hpp"
 
+#include <cstdlib>
 #include <cctype>
 
 #include "common_utils/kernel_generator_base.hpp"
@@ -123,6 +124,15 @@ std::string KernelGenerator::get_build_options(const RuntimeParams& params) cons
     const auto& device_info = prog.get_engine().get_device_info();
     if (device_info.vendor_id == cldnn::INTEL_VENDOR_ID) {
         options = " -cl-mad-enable";
+        if (const char* ftz = std::getenv("OV_GPU_FTZ"))
+            if (ftz[0] == '1')
+                options += " -cl-denorms-are-zero";
+        // OV_GPU_FASTMATH=1 lets IGC use the fast reciprocal/rsqrt/transcendental paths and
+        // relax floating point contraction ordering. MVN's rsqrt and the eltwise chains are
+        // the only places it can bite; the gate reports what it costs.
+        if (const char* fm = std::getenv("OV_GPU_FASTMATH"))
+            if (fm[0] == '1')
+                options += " -cl-fast-relaxed-math";
 
         if (prog.get_config().get_enable_large_allocations())
             options += " -cl-intel-greater-than-4GB-buffer-required";

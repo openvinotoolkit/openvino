@@ -22,6 +22,7 @@
 #include "permute_inst.h"
 #include "reshape_inst.h"
 #include "softmax_inst.h"
+#include "scaled_dot_product_attention_inst.h"
 #include "resample_inst.h"
 #include "depth_to_space_inst.h"
 #include "fully_connected_inst.h"
@@ -52,6 +53,7 @@
 #include <string>
 #include <utility>
 #include <deque>
+#include <iostream>
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <impls/onednn/utils.hpp>
 #endif
@@ -1023,6 +1025,21 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             should_fuse |= input_data.is_type<softmax>() &&
                            input_data.as<softmax>().get_primitive()->dimension == 1 &&
                            quantize_node.has_per_tensor_values();
+
+            // veesion: fuse the per-tensor scale_shift_opt quantizer into micro-SDPA so the
+            // kernel stores i8 directly and the standalone quantize pass disappears. The
+            // micro kernel implements the epilogue itself; only i8 output with a real
+            // per-tensor output range qualifies. Default off upstream.
+            if (std::getenv("OV_SDPA_OUT_I8") != nullptr) {
+                if (input_data.is_type<scaled_dot_product_attention>() && std::getenv("OV_SDPA_OUT_I8_DEBUG"))
+                    std::cerr << "[veesion] sdpa-out-i8 fuse candidate " << quantize_node.id()
+                              << " out_dt=" << static_cast<int>(out_dt) << " per_tensor=" << quantize_node.has_per_tensor_values()
+                              << " lo=" << quantize_node.get_output_lo_val() << " hi=" << quantize_node.get_output_hi_val() << std::endl;
+                should_fuse |= input_data.is_type<scaled_dot_product_attention>() &&
+                               quantize_node.has_per_tensor_values() &&
+                               quantize_node.get_output_lo_val() < quantize_node.get_output_hi_val() &&
+                               out_dt == data_types::i8;
+            }
 
             should_fuse |= input_data.is_type<broadcast>() && broadcast_supports_fusings(input_data.as<broadcast>());
 

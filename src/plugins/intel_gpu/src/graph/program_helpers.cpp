@@ -7,6 +7,7 @@
 #include "data_inst.h"
 #include "pooling_inst.h"
 #include <algorithm>
+#include <cstdlib>
 #include <utility>
 #include <vector>
 #include <sstream>
@@ -107,9 +108,15 @@ static bool is_direct_ancestor(const program_node& child, const program_node& ta
     if (target.get_users().size() != 2)
         return false;
 
-    // Limit the iteration depth to 5 for performance reason
+    // Limit the iteration depth for compile-time reasons. A transformer block's attention
+    // branch is 5 hops deep (proj -> sdpa -> rope -> q gemm -> layernorm -> block input), so
+    // a limit of 5 silently demotes every attention residual to a binary_add post-op.
+    static const int max_depth = []() {
+        const char* e = std::getenv("OV_ADD_ANCESTOR_DEPTH");
+        return e ? std::atoi(e) : 16;
+    }();
     const auto* iter = &child;
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < max_depth; i++) {
         if (iter == &target)
             return true;
         if (iter->get_dependencies().empty())
