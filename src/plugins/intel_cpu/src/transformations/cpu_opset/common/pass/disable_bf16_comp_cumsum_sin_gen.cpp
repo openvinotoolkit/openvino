@@ -30,7 +30,6 @@ namespace ov::intel_cpu {
 DisableBF16CompCumSumSinGen::DisableBF16CompCumSumSinGen() {
     MATCHER_SCOPE(DisableBF16CompCumSumSinGen);
     using namespace ov::pass::pattern;
-    using ov::pass::operator|;
 
     auto interpolate_variations = [](const ov::Output<ov::Node>& input) {
         auto interp_v0_m = wrap_type<ov::op::v0::Interpolate>({input, any_input()});
@@ -38,7 +37,8 @@ DisableBF16CompCumSumSinGen::DisableBF16CompCumSumSinGen() {
         auto interp_v4_with_axes_m = wrap_type<ov::op::v4::Interpolate>({input, any_input(), any_input(), any_input()});
         auto interp_v11_m = wrap_type<ov::op::v11::Interpolate>({input, any_input()});
         auto interp_v11_with_axes_m = wrap_type<ov::op::v11::Interpolate>({input, any_input(), any_input()});
-        return interp_v0_m | interp_v4_m | interp_v4_with_axes_m | interp_v11_m | interp_v11_with_axes_m;
+        return std::make_shared<ov::pass::pattern::op::Or>(
+            ov::OutputVector{interp_v0_m, interp_v4_m, interp_v4_with_axes_m, interp_v11_m, interp_v11_with_axes_m});
     };
 
     auto transpose_pre_m = wrap_type<ov::op::v1::Transpose>({any_input(), any_input()});
@@ -46,14 +46,15 @@ DisableBF16CompCumSumSinGen::DisableBF16CompCumSumSinGen() {
 
     auto transpose1_m = wrap_type<ov::op::v1::Transpose>({interp_pre_m, any_input()});
     auto cumsum_m = wrap_type<ov::op::v0::CumSum>({transpose1_m, any_input()});
+    // At postLPT MoveEltwiseUpThroughDataMov has hoisted both scalar Multiplies above the mid-chain Transpose,
+    // and Sin above the trailing Transpose, so eltwises collapse before each Transpose.
     auto mul1_m = wrap_type<ov::op::v1::Multiply>({cumsum_m, any_input()});
-    auto transpose2_m = wrap_type<ov::op::v1::Transpose>({mul1_m, any_input()});
-    auto mul2_m = wrap_type<ov::op::v1::Multiply>({transpose2_m, any_input()});
+    auto mul2_m = wrap_type<ov::op::v1::Multiply>({mul1_m, any_input()});
+    auto transpose2_m = wrap_type<ov::op::v1::Transpose>({mul2_m, any_input()});
 
-    auto interp_down_m = interpolate_variations(mul2_m);
+    auto interp_down_m = interpolate_variations(transpose2_m);
 
-    auto transpose3_m = wrap_type<ov::op::v1::Transpose>({interp_down_m, any_input()});
-    auto sin_m = wrap_type<ov::op::v0::Sin>({transpose3_m});
+    auto sin_m = wrap_type<ov::op::v0::Sin>({interp_down_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -72,7 +73,6 @@ DisableBF16CompCumSumSinGen::DisableBF16CompCumSumSinGen() {
             pattern_map.at(transpose2_m).get_node_shared_ptr(),
             pattern_map.at(mul2_m).get_node_shared_ptr(),
             pattern_map.at(interp_down_m).get_node_shared_ptr(),
-            pattern_map.at(transpose3_m).get_node_shared_ptr(),
             sin_node,
         };
 

@@ -35,7 +35,6 @@ const std::string name_mul_after_cumsum = "mul_after_cumsum";
 const std::string name_transpose_after_mul = "transpose_after_mul";
 const std::string name_scale_mul = "scale_mul";
 const std::string name_interp_after = "interp_after";
-const std::string name_transpose_after_interp = "transpose_after_interp";
 const std::string name_sin = "sin";
 
 ov::op::util::InterpolateBase::InterpolateAttrs make_interp_attrs() {
@@ -47,7 +46,7 @@ ov::op::util::InterpolateBase::InterpolateAttrs make_interp_attrs() {
 }
 
 //   Transpose -> Interpolate -> Transpose -> CumSum
-//     -> Multiply -> Transpose -> Multiply -> Interpolate -> Transpose -> Sin.
+//     -> Multiply -> Multiply -> Transpose -> Interpolate -> Sin.
 std::shared_ptr<ov::Model> create_full_chain_model() {
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32});
 
@@ -73,25 +72,21 @@ std::shared_ptr<ov::Model> create_full_chain_model() {
     auto mul_after_cumsum = std::make_shared<ov::op::v1::Multiply>(cumsum, mul_after_cumsum_const);
     mul_after_cumsum->set_friendly_name(name_mul_after_cumsum);
 
-    auto order_after_mul = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 0});
-    auto transpose_after_mul = std::make_shared<ov::op::v1::Transpose>(mul_after_cumsum, order_after_mul);
-    transpose_after_mul->set_friendly_name(name_transpose_after_mul);
-
-    auto scale_mul_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{64, 1}, {1.0f});
-    auto scale_mul = std::make_shared<ov::op::v1::Multiply>(transpose_after_mul, scale_mul_const);
+    auto scale_mul_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1}, {1.0f});
+    auto scale_mul = std::make_shared<ov::op::v1::Multiply>(mul_after_cumsum, scale_mul_const);
     scale_mul->set_friendly_name(name_scale_mul);
+
+    auto order_after_mul = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 0});
+    auto transpose_after_mul = std::make_shared<ov::op::v1::Transpose>(scale_mul, order_after_mul);
+    transpose_after_mul->set_friendly_name(name_transpose_after_mul);
 
     auto sizes_after = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {128L, 1L});
     auto scales_after = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{2}, {2.0f, 1.0f});
     auto interp_after =
-        std::make_shared<ov::op::v4::Interpolate>(scale_mul, sizes_after, scales_after, make_interp_attrs());
+        std::make_shared<ov::op::v4::Interpolate>(transpose_after_mul, sizes_after, scales_after, make_interp_attrs());
     interp_after->set_friendly_name(name_interp_after);
 
-    auto order_after_interp = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 0});
-    auto transpose_after_interp = std::make_shared<ov::op::v1::Transpose>(interp_after, order_after_interp);
-    transpose_after_interp->set_friendly_name(name_transpose_after_interp);
-
-    auto sin = std::make_shared<ov::op::v0::Sin>(transpose_after_interp);
+    auto sin = std::make_shared<ov::op::v0::Sin>(interp_after);
     sin->set_friendly_name(name_sin);
 
     return std::make_shared<ov::Model>(ov::OutputVector{sin}, ov::ParameterVector{input});
@@ -135,11 +130,7 @@ std::shared_ptr<ov::Model> create_model_missing_scale_mul() {
         std::make_shared<ov::op::v4::Interpolate>(transpose_after_mul, sizes_after, scales_after, make_interp_attrs());
     interp_after->set_friendly_name(name_interp_after);
 
-    auto order_after_interp = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 0});
-    auto transpose_after_interp = std::make_shared<ov::op::v1::Transpose>(interp_after, order_after_interp);
-    transpose_after_interp->set_friendly_name(name_transpose_after_interp);
-
-    auto sin = std::make_shared<ov::op::v0::Sin>(transpose_after_interp);
+    auto sin = std::make_shared<ov::op::v0::Sin>(interp_after);
     sin->set_friendly_name(name_sin);
 
     return std::make_shared<ov::Model>(ov::OutputVector{sin}, ov::ParameterVector{input});
@@ -177,10 +168,9 @@ TEST(TransformationTests, DisableBF16CompCumSumSinGen_Positive) {
         {name_transpose_pre_cumsum, true},
         {name_cumsum, true},
         {name_mul_after_cumsum, true},
-        {name_transpose_after_mul, true},
         {name_scale_mul, true},
+        {name_transpose_after_mul, true},
         {name_interp_after, true},
-        {name_transpose_after_interp, true},
         {name_sin, true},
     };
     run_test(model, expected_status);
@@ -196,7 +186,6 @@ TEST(TransformationTests, DisableBF16CompCumSumSinGen_MissingScaleMultiply_NoOp)
         {name_mul_after_cumsum, false},
         {name_transpose_after_mul, false},
         {name_interp_after, false},
-        {name_transpose_after_interp, false},
         {name_sin, false},
     };
     run_test(model, expected_status);

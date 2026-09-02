@@ -15,15 +15,18 @@ namespace ov::intel_cpu {
  *        any BF16 rounding along the phase path drifts the accumulated
  *        phase and audibly distorts the vocoder output.
  *
- *  The pass matches the fixed l_sin_gen core topology below and directly marks
- *  the matched core nodes with @ref ov::disable_conversion(node, f32, bf16).
+ *  The pass runs on postLPTPassManager, so it matches the topology after
+ *  MoveEltwiseUpThroughDataMov has hoisted the scalar Multiply above the mid-chain Transpose
+ *  and Sin above the trailing Transpose:
+ *
+ *      Transpose -> Interpolate -> Transpose -> CumSum
+ *          -> Multiply -> Multiply -> Transpose
+ *          -> Interpolate -> Sin
+ *
+ *  The matched core nodes are marked with @ref ov::disable_conversion(node, f32, bf16);
  *  CPU's EnforceInferencePrecision then expands this into a continuous fp32
  *  island (including the upstream phase-preparation ops) during precision
  *  enforcement.
- *
- *      Transpose -> Interpolate -> Transpose -> CumSum
- *          -> Multiply   -> Transpose -> Multiply
- *          -> Interpolate -> Transpose -> Sin
  *
  */
 class DisableBF16CompCumSumSinGen : public ov::pass::MatcherPass {

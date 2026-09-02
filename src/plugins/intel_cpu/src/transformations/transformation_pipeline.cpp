@@ -595,7 +595,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::GatedDeltaNetFusion);
-    CPU_REGISTER_PASS_COMMON(manager, ov::intel_cpu::DisableBF16CompCumSumSinGen);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
     CPU_SET_CALLBACK_COMMON(
@@ -1216,6 +1215,12 @@ void Transformations::PostLpt() {
     // ConvertPrecision, and marking it there regresses accuracy.
     if (config.inferencePrecision == ov::element::bf16) {
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::DisableBF16CompForLtxVideoRopePattern);
+        // DisablePrecisionConversion rt_info is not copyable, so marks placed on nodes later cloned or replaced
+        // are silently dropped. Keep this registration at the tail of postLPT where the pattern already matches
+        // the topology produced by MoveEltwiseUpThroughDataMov (Multiply -> Multiply -> Transpose -> Interpolate -> Sin);
+        // any pipeline reorder that touches CumSum/Multiply/Sin must re-verify that enough anchor nodes still reach
+        // Graph::EnforceInferencePrecision marked.
+        CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::intel_cpu::DisableBF16CompCumSumSinGen);
     }
 
     // Should be before Snippets pipeline because Ngram pattern contains eltwise nodes that can be tokenized by
