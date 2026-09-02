@@ -15,6 +15,10 @@
 #include <memory>
 #include <variant>
 
+namespace cl {
+class SharedSurfLock;
+}
+
 namespace cldnn {
 namespace ze {
 struct lockable_gpu_mem {
@@ -106,6 +110,13 @@ private:
 
 struct gpu_buffer_from_handle : public gpu_usm {
     gpu_buffer_from_handle(ze_engine* engine, const layout& layout, ov::intel_gpu::os_handle_param external_handle);
+};
+
+struct ze_surfaces_lock : public surfaces_lock {
+    ze_surfaces_lock(std::vector<memory::ptr> mem, const stream& stream);
+    ~ze_surfaces_lock() override = default;
+private:
+    std::unique_ptr<cl::SharedSurfLock> _lock = nullptr;
 };
 
 }  // namespace ze

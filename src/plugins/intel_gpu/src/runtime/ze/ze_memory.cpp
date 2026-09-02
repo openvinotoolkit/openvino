@@ -916,6 +916,7 @@ shared_mem_params gpu_media_buffer::get_internal_params(runtime_types rt_type) c
     auto params = gpu_image2d::get_internal_params(rt_type);
     params.mem_type = shared_mem_type::shared_mem_vasurface;
     params.user_device = _device;
+    params.plane = _plane;
 #ifdef _WIN32
     params.surface = std::get<d3d11_texture_t>(_surface);
 #else
@@ -925,6 +926,33 @@ shared_mem_params gpu_media_buffer::get_internal_params(runtime_types rt_type) c
 }
 gpu_buffer_from_handle::gpu_buffer_from_handle(ze_engine* engine, const layout& layout, ov::intel_gpu::os_handle_param external_handle)
     : gpu_usm(engine, layout, import_os_handle(engine, layout, external_handle), allocation_type::cl_mem, nullptr) {}
+
+ze_surfaces_lock::ze_surfaces_lock(std::vector<memory::ptr> mem, const stream& stream) {
+    if (mem.empty()) {
+        return;
+    }
+    std::vector<cl_mem> handles;
+    for (auto& m : mem) {
+        auto params = m->get_internal_params(runtime_types::ocl);
+        if (is_lock_needed(params.mem_type)) {
+            handles.push_back(static_cast<cl_mem>(params.mem));
+        }
+    }
+    if (handles.empty()) {
+        return;
+    }
+
+    const auto &zero_stream = downcast<const ze_stream>(stream);
+    auto ctx = zero_stream.get_context();
+    auto dev = zero_stream.get_engine().get_device();
+    auto cmd_list = zero_stream.get_command_list();
+    ze_export_ocl_command_queue(cmd_list, ctx, dev);
+    auto cmd_queue = cmd_list.ocl_handle<ocl_resource_type::command_queue>();
+
+    cl_int err = CL_SUCCESS;
+    _lock = std::make_unique<cl::SharedSurfLock>(cmd_queue, handles, &err);
+    OPENVINO_ASSERT(err == CL_SUCCESS, "[GPU] Failed to create SharedSurfLock (" + std::to_string(err) + ")");
+}
 
 }  // namespace ze
 }  // namespace cldnn
