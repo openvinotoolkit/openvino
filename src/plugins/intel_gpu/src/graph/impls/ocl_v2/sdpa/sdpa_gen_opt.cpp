@@ -32,28 +32,11 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
     constexpr ov::element::Type softmax_accumulator_type = ov::element::f32;
     jit.add(make_type_jit_constants("SOFTMAX_ACCUMULATOR", softmax_accumulator_type));
 
-    // For bf16 inputs, use f32 as the compute type to avoid ushort arithmetic;
-    // for non-bf16 inputs, compute type matches output type.
-    auto input_dt = params.get_input_layout(0).data_type;
-    auto compute_type = (input_dt == ov::element::bf16) ? ov::element::f32 : ov::element::Type(params.output_layouts[0].data_type);
-    jit.add(make_type_jit_constants("COMPUTE", compute_type));
     constexpr size_t subgroup_size = 16;
     jit.make("SUBGROUP_SIZE", subgroup_size);
 
     auto [broadcast_axis, group_size] = get_gqa_params(params);
     int64_t v_head_size = 0, k_head_size = 0;
-
-    // Per-input decode macros: convert a raw INPUTx value to COMPUTE_TYPE.
-    // bf16 is stored as ushort and needs bit-level reinterpretation instead of a numeric cast.
-    {
-        auto decode_expr = [](ov::element::Type dt) -> std::string {
-            return (dt == ov::element::bf16) ? "_convert_as_bfloat16_float(v)" : "TO_COMPUTE_TYPE(v)";
-        };
-        for (size_t i = 0; i < params.input_layouts.size(); ++i) {
-            const auto dt = params.get_input_layout(i).data_type;
-            jit.make("DECODE_INPUT" + std::to_string(i) + "_COMPUTE_TYPE(v)", decode_expr(dt));
-        }
-    }
 
     if (is_paged_attention) {
         auto desc = params.typed_desc<paged_attention>();

@@ -14,7 +14,7 @@
 // pair (TYPE_SIZE == 2 && !IS_FP) uniquely identifies bf16 without matching fp16.
 
 #if INPUT0_TYPE_SIZE == 2 && !INPUT0_IS_FP
-    #define INPUT0_COMPUTE_T   COMPUTE_TYPE
+    #define INPUT0_COMPUTE_T   ACCUMULATOR_TYPE
     #define LOAD_INPUT0(v)     _convert_as_bfloat16_float(v)
 #else
     #define INPUT0_COMPUTE_T   INPUT0_TYPE
@@ -22,7 +22,7 @@
 #endif
 
 #if INPUT1_TYPE_SIZE == 2 && !INPUT1_IS_FP
-    #define INPUT1_COMPUTE_T   COMPUTE_TYPE
+    #define INPUT1_COMPUTE_T   ACCUMULATOR_TYPE
     #define LOAD_INPUT1(v)     _convert_as_bfloat16_float(v)
 #else
     #define INPUT1_COMPUTE_T   INPUT1_TYPE
@@ -30,7 +30,7 @@
 #endif
 
 #if INPUT2_TYPE_SIZE == 2 && !INPUT2_IS_FP
-    #define INPUT2_COMPUTE_T   COMPUTE_TYPE
+    #define INPUT2_COMPUTE_T   ACCUMULATOR_TYPE
     #define LOAD_INPUT2(v)     _convert_as_bfloat16_float(v)
 #else
     #define INPUT2_COMPUTE_T   INPUT2_TYPE
@@ -41,7 +41,7 @@
 // identity load for the remaining supported (numerically usable) mask types.
 #ifdef INPUT3_TYPE
 #if INPUT3_TYPE_SIZE == 2 && !INPUT3_IS_FP
-    #define INPUT3_COMPUTE_T   COMPUTE_TYPE
+    #define INPUT3_COMPUTE_T   ACCUMULATOR_TYPE
     #define LOAD_INPUT3(v)     _convert_as_bfloat16_float(v)
 #else
     #define INPUT3_COMPUTE_T   INPUT3_TYPE
@@ -55,12 +55,12 @@
 // INPUTi_COMPUTE_T pattern above). TO_OUTPUT_COMPUTE_T() is the corresponding numeric convert
 // for scalar/literal values populating an OUTPUT_COMPUTE_T variable.
 #if OUTPUT_TYPE_SIZE == 2 && !OUTPUT_IS_FP
-    #define OUTPUT_COMPUTE_T          COMPUTE_TYPE
+    #define OUTPUT_COMPUTE_T          ACCUMULATOR_TYPE
     #define TO_OUTPUT_COMPUTE_T(v)    convert_float(v)
     #define STORE_OUTPUT(v)           _convert_bfloat16_as_ushort(v)
-    #define OUTPUT_COMPUTE_VAL_ZERO   COMPUTE_VAL_ZERO
-    #define OUTPUT_COMPUTE_VAL_ONE    COMPUTE_VAL_ONE
-    #define OUTPUT_COMPUTE_VAL_MIN    COMPUTE_VAL_MIN
+    #define OUTPUT_COMPUTE_VAL_ZERO   ACCUMULATOR_VAL_ZERO
+    #define OUTPUT_COMPUTE_VAL_ONE    ACCUMULATOR_VAL_ONE
+    #define OUTPUT_COMPUTE_VAL_MIN    ACCUMULATOR_VAL_MIN
 #else
     #define OUTPUT_COMPUTE_T          OUTPUT_TYPE
     #define TO_OUTPUT_COMPUTE_T(v)    TO_OUTPUT_TYPE(v)
@@ -288,7 +288,7 @@ KERNEL(sdpa_ref)(
             tmp_buf[tmp_buf_offset] = acc;
         }
 
-        COMPUTE_TYPE qk_max = COMPUTE_VAL_MIN;
+        ACCUMULATOR_TYPE qk_max = ACCUMULATOR_VAL_MIN;
         for (uint s = 0; s < SOURCE_SEQ_LEN /* seq_len */; s++) {
             uint tmp_buf_offset = b0 * (NUM_HEADS * TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                                   b1 * (TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
@@ -307,37 +307,37 @@ KERNEL(sdpa_ref)(
             OUTPUT_COMPUTE_T qk_val = tmp_buf[tmp_buf_offset] + attn_mask_val;
             tmp_buf[tmp_buf_offset] = qk_val;
 
-            qk_max = COMPUTE_MAX_FUNC(qk_max, qk_val);
+            qk_max = ACCUMULATOR_MAX_FUNC(qk_max, TO_ACCUMULATOR_TYPE(qk_val));
             #ifdef HAS_SINK_INPUT
-            qk_max = COMPUTE_MAX_FUNC(qk_max, TO_COMPUTE_TYPE(sink_ptr[b1]));
+            qk_max = ACCUMULATOR_MAX_FUNC(qk_max, TO_ACCUMULATOR_TYPE(sink_ptr[b1]));
             #endif
         }
 
-        COMPUTE_TYPE exp_sum = COMPUTE_VAL_ZERO;
+        ACCUMULATOR_TYPE exp_sum = ACCUMULATOR_VAL_ZERO;
         for (uint s = 0; s < SOURCE_SEQ_LEN /* seq_len */; s++) {
             uint tmp_buf_offset = b0 * (NUM_HEADS * TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                                   b1 * (TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                                   target_seq_idx * (SOURCE_SEQ_LEN) + s;
 
-            COMPUTE_TYPE qk_val = tmp_buf[tmp_buf_offset];
-            COMPUTE_TYPE val = native_exp(qk_val - qk_max);
+            ACCUMULATOR_TYPE qk_val = tmp_buf[tmp_buf_offset];
+            ACCUMULATOR_TYPE val = native_exp(qk_val - qk_max);
             exp_sum += val;
 
             tmp_buf[tmp_buf_offset] = val;
         }
         #ifdef HAS_SINK_INPUT
-        COMPUTE_TYPE val = native_exp(TO_COMPUTE_TYPE(sink_ptr[b1] - qk_max));
+        ACCUMULATOR_TYPE val = native_exp(TO_ACCUMULATOR_TYPE(sink_ptr[b1] - qk_max));
         exp_sum += val;
         #endif
 
-        const COMPUTE_TYPE inv_sum = COMPUTE_VAL_ONE / exp_sum;
+        const ACCUMULATOR_TYPE inv_sum = ACCUMULATOR_VAL_ONE / exp_sum;
         for (uint s = 0; s < SOURCE_SEQ_LEN /* seq_len */; s++) {
             uint tmp_buf_offset = b0 * (NUM_HEADS * TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                                   b1 * (TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                                   target_seq_idx * (SOURCE_SEQ_LEN) + s;
 
-            COMPUTE_TYPE qk_val = tmp_buf[tmp_buf_offset];
-            COMPUTE_TYPE val = qk_val * inv_sum;
+            ACCUMULATOR_TYPE qk_val = tmp_buf[tmp_buf_offset];
+            ACCUMULATOR_TYPE val = qk_val * inv_sum;
             tmp_buf[tmp_buf_offset] = val;
         }
     }

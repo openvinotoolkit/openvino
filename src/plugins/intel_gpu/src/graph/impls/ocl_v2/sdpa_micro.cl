@@ -19,7 +19,7 @@
 #include "include/batch_headers/bf16_utils.cl"
 #include "include/batch_headers/tile_ops.cl"
 
-#if INPUT_DT_BF16
+#if INPUT0_IS_BF16
 #define KV_SLM_T ushort
 #define tile_copy_S_to_kv(t, t_new) tile_copy_to_bf16x2(t, t_new)
 #else
@@ -89,8 +89,16 @@ DECLARE_2D_TILE_COPY_REBLOCK(a_tile_type, SUBGROUP_SIZE, ugemm_vs_c_type_block0,
         ugemm_vs_c_type_block1, ugemm_vs_c_type_nblock0,
         ugemm_vs_c_type_nblock1, a_tile_type_half, SUBGROUP_SIZE,
         ugemm_vs_sg_tile_m, 1, 1, ugemm_vs_sg_tile_n)
+DECLARE_2D_TILE_COPY_REBLOCK_TO_BF16BITS(a_tile_type, SUBGROUP_SIZE, ugemm_vs_c_type_block0,
+        ugemm_vs_c_type_block1, ugemm_vs_c_type_nblock0,
+        ugemm_vs_c_type_nblock1, a_tile_type_half, SUBGROUP_SIZE,
+        ugemm_vs_sg_tile_m, 1, 1, ugemm_vs_sg_tile_n)
 #else
 DECLARE_2D_TILE_COPY_REBLOCK(a_tile_type, SUBGROUP_SIZE, ugemm_vs_c_type_block0,
+        ugemm_vs_c_type_block1, ugemm_vs_c_type_nblock0,
+        ugemm_vs_c_type_nblock1, a_tile_type_half, SUBGROUP_SIZE,
+        ugemm_vs_sg_tile_m, 8, 1, ugemm_vs_sg_tile_n / 8)
+DECLARE_2D_TILE_COPY_REBLOCK_TO_BF16BITS(a_tile_type, SUBGROUP_SIZE, ugemm_vs_c_type_block0,
         ugemm_vs_c_type_block1, ugemm_vs_c_type_nblock0,
         ugemm_vs_c_type_nblock1, a_tile_type_half, SUBGROUP_SIZE,
         ugemm_vs_sg_tile_m, 8, 1, ugemm_vs_sg_tile_n / 8)
@@ -955,7 +963,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         tile_elementwise(S_tile, mask_scale_op);
 #elif WITH_ATTN_MASK
         mask_tile_type_float mask_tile_float;
-#if INPUT_DT_BF16
+#if INPUT0_IS_BF16
         // Mask buffer holds bf16 values but the kernel reads it as half*;
         // reinterpret the 16-bit values as bf16 bits when converting to float.
         tile_copy_bf16bits_to_float(mask_tile, mask_tile_float);
@@ -1523,16 +1531,16 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     tile_elementwise(A_scale_tile, native_vrecip);
     tile_hbroadcast_mul(&A_tile, A_scale_tile);
 
-    /* Convert to half precision and store */
+    /* Convert and store */
     a_tile_type_half A_tile_half;
+#if INPUT0_IS_BF16
+    tile_copy_reblock_to_bf16bits(A_tile, &A_tile_half);
+#else
     tile_copy_reblock(A_tile, &A_tile_half);
+#endif
 
     uint sg_i0_vs = sg_i_vs * ugemm_vs_sg_tile_m;
     uint sg_j0_vs = sg_j_vs * ugemm_vs_sg_tile_n + wg_j0;
-
-#if INPUT_DT_BF16
-    tile_reinterpret_half_to_bf16bits(A_tile_half);
-#endif
 
 #ifdef BLOCK_2D_A
     tile_store_block2d(A_tile_half, A, d, q, lda, sg_i0_vs, sg_j0_vs);

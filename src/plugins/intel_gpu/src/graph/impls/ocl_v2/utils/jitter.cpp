@@ -303,6 +303,8 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         break;
     case ov::element::bf16:
         type = "ushort";
+        max_val = "FLT_MAX";
+        min_val = "-" + name + "_VAL_MAX";
         val_one = "(ushort) 1";
         val_zero = "(ushort) 0";
         to_type = "_convert_bfloat16_as_ushort(v)";
@@ -311,6 +313,9 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         to_compute_type = "convert_float(v)";
         decode_compute_type = "_convert_as_bfloat16_float(v)";
         decode_compute_vector_type = "CONVERT_AS_BFLOAT16_FLOAT(v, size)";
+        max_func = "fmax";
+        min_func = "fmin";
+        abs_func = "fabs";
         type_size = "2";
         is_fp = false;
         is_bf16 = true;
