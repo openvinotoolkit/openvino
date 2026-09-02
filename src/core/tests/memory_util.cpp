@@ -62,6 +62,26 @@ INSTANTIATE_TEST_SUITE_P(
     GetMemorySizeOverflowTest::get_test_name);
 
 INSTANTIATE_TEST_SUITE_P(
+    split_bit_type_precision,
+    GetMemorySizeOverflowTest,
+    testing::Values(std::make_tuple(element::u3, Shape{}, std::optional<size_t>(1)),
+                    std::make_tuple(element::u3, Shape{3}, std::optional<size_t>(2)),
+                    std::make_tuple(element::u3, Shape{8}, std::optional<size_t>(3)),
+                    std::make_tuple(element::u3, Shape{17}, std::optional<size_t>(7)),
+                    // elements_count * bitwidth overflows, but the resulting byte size still fits
+                    std::make_tuple(element::u3, Shape{max_dim}, std::optional<size_t>(max_dim / 8 * 3 + 3)),
+                    std::make_tuple(element::u3, Shape{max_dim - 1}, std::optional<size_t>(max_dim / 8 * 3 + 3)),
+                    std::make_tuple(element::u3, Shape{2, max_dim}, std::nullopt),
+                    std::make_tuple(element::u6, Shape{}, std::optional<size_t>(1)),
+                    std::make_tuple(element::u6, Shape{3}, std::optional<size_t>(3)),
+                    std::make_tuple(element::u6, Shape{8}, std::optional<size_t>(6)),
+                    std::make_tuple(element::u6, Shape{17}, std::optional<size_t>(13)),
+                    std::make_tuple(element::u6, Shape{max_dim}, std::optional<size_t>(max_dim / 8 * 6 + 6)),
+                    std::make_tuple(element::u6, Shape{max_dim - 1}, std::optional<size_t>(max_dim / 8 * 6 + 5)),
+                    std::make_tuple(element::u6, Shape{1, 2, max_dim}, std::nullopt)),
+    GetMemorySizeOverflowTest::get_test_name);
+
+INSTANTIATE_TEST_SUITE_P(
     byte_type_precision,
     GetMemorySizeOverflowTest,
     testing::Values(std::make_tuple(element::u8, Shape{}, std::optional<size_t>(1)),
