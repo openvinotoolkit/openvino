@@ -12,16 +12,18 @@
 #include <cstring>
 #include <type_traits>
 
+#include "cpu_parallel.hpp"
 #include "nodes/kernels/scaled_attn/common.hpp"
+#include "nodes/kernels/selective_ssm.hpp"
 #include "nodes/kernels/x64/jit_kernel_base.hpp"
 #include "nodes/kernels/x64/selective_ssm_jit_kernel.hpp"
 #include "nodes/kernels/x64/selective_ssm_jit_metadata.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/util/math_util.hpp"
-#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::kernel {
 namespace {

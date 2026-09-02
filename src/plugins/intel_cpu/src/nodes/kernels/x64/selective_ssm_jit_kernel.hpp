@@ -8,6 +8,7 @@
 
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
+#include <cstdint>
 #include <list>
 #include <memory>
 #include <type_traits>
@@ -21,7 +22,7 @@
 
 namespace ov::intel_cpu::kernel {
 
-enum class jit_selective_ssm_state_mode { in_place, separate, no_store };
+enum class jit_selective_ssm_state_mode : std::uint8_t { in_place, separate, no_store };
 
 struct jit_selective_ssm_compile_params {
     ov::element::Type data_precision = ov::element::dynamic;

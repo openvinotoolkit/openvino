@@ -9,15 +9,21 @@
 #include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <utility>
 
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "nodes/common/cpu_convert.h"
+#include "nodes/executors/executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
+#include "nodes/executors/paged_selective_ssm_config.hpp"
+#include "nodes/executors/selective_ssm_config.hpp"
 #include "nodes/kernels/selective_ssm.hpp"
+#include "nodes/kernels/x64/selective_ssm_jit_config.hpp"
 #include "nodes/kernels/x64/selective_ssm_jit_kernel.hpp"
 #include "nodes/kernels/x64/selective_ssm_jit_runtime.hpp"
+#include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
@@ -218,7 +224,7 @@ bool SelectiveSSMJitExecutor::accepts_shape(const MemoryArgs& memory) {
            is_supported_state_size(state_dims.back());
 }
 
-SelectiveSSMJitExecutor::SelectiveSSMJitExecutor(const SelectiveSSMAttrs&,
+SelectiveSSMJitExecutor::SelectiveSSMJitExecutor([[maybe_unused]] const SelectiveSSMAttrs& attrs,
                                                  const MemoryArgs& memory,
                                                  ExecutorContext::CPtr context)
     : SelectiveSSMJitExecutorBase(std::move(context)) {
@@ -324,7 +330,7 @@ bool PagedSelectiveSSMJitExecutor::accepts_shape(const MemoryArgs& memory) {
            subsequence_dims[0] >= 1 && is_supported_state_size(state_dims.back());
 }
 
-PagedSelectiveSSMJitExecutor::PagedSelectiveSSMJitExecutor(const PagedSelectiveSSMAttrs&,
+PagedSelectiveSSMJitExecutor::PagedSelectiveSSMJitExecutor([[maybe_unused]] const PagedSelectiveSSMAttrs& attrs,
                                                            const MemoryArgs& memory,
                                                            ExecutorContext::CPtr context)
     : SelectiveSSMJitExecutorBase(std::move(context)) {
