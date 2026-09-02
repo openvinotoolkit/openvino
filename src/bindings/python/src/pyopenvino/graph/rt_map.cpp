@@ -78,7 +78,7 @@ void regclass_graph_PyRTMap(py::module m) {
         if (key == "precise_0") {
             Common::utils::deprecation_warning(
                 "Setting 'precise_0' on node rt_info",
-                "",
+                "2027.0",
                 "This relies on a deprecated internal C++ API attribute (DisableFP16Compression).");
         }
     };
