@@ -26,6 +26,8 @@
 #include <fstream>
 #include <tuple>
 
+#include <chrono>
+
 #include "convolution_inst.h"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "graph/impls/onednn/utils.hpp"
@@ -13206,6 +13208,16 @@ TEST(convolution_gpu_bfyx_f16, dynamic_tail_spatial_block_with_output_padding) {
     net_ref.set_input_data("input", input_mem);
 
     auto out_test = net_test.execute();
+
+    const auto exec_start = std::chrono::steady_clock::now();
+    for (int i=0; i<10; i++)
+        out_test = net_test.execute();
+    const auto exec_end = std::chrono::steady_clock::now();
+    const auto exec_time_us = std::chrono::duration_cast<std::chrono::microseconds>(exec_end - exec_start).count();
+    const auto single_exec_time = exec_time_us / 10;
+    std::cout << "[ PERF ] convolution_gpu_bfyx_f16.dynamic_tail_spatial_block_with_output_padding execute(): "
+              << single_exec_time << " us" << std::endl;
+
     auto out_ref = net_ref.execute();
 
     auto mem_test = out_test.at("conv").get_memory();
