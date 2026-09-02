@@ -4,6 +4,12 @@
 
 #include "utils.h"
 
+#include <algorithm>
+#include <cerrno>
+#include <dirent.h>
+#include <fstream>
+#include <limits.h>
+#include <sstream>
 #include <string>
 #include <string.h>
 
@@ -147,6 +153,57 @@ int run_in_processes(const int &numprocesses, const std::function<void()> &funct
         }
     }
     return status;
+#endif
+}
+
+int run_in_processes_exec(int numprocesses, const std::vector<std::string>& arguments) {
+#ifdef _WIN32
+    (void)numprocesses;
+    (void)arguments;
+    return -1;
+#else
+    const int process_count = std::max(1, numprocesses);
+    std::vector<pid_t> child_pids;
+    child_pids.reserve(static_cast<size_t>(process_count));
+    for (int index = 0; index < process_count; ++index) {
+        const pid_t child_pid = fork();
+        if (child_pid == 0) {
+            std::vector<char*> argv;
+            argv.reserve(arguments.size() + 1);
+            for (const auto& argument : arguments) {
+                argv.push_back(const_cast<char*>(argument.c_str()));
+            }
+            argv.push_back(nullptr);
+            execv(argv.front(), argv.data());
+            _exit(127);
+        }
+        if (child_pid < 0) {
+            return errno;
+        }
+        child_pids.push_back(child_pid);
+    }
+
+    int status = 0;
+    for (size_t index = 0; index < child_pids.size(); ++index) {
+        int child_status = 0;
+        if (waitpid(child_pids[index], &child_status, 0) < 0) {
+            status = errno;
+        } else if (!WIFEXITED(child_status) || WEXITSTATUS(child_status) != 0) {
+            status = WIFEXITED(child_status) ? WEXITSTATUS(child_status) : 128 + WTERMSIG(child_status);
+            log_err("Process run # " << index << " failed with exitcode " << status);
+        }
+    }
+    return status;
+#endif
+}
+
+std::string get_executable_path() {
+#ifdef _WIN32
+    return {};
+#else
+    char path[PATH_MAX] = {};
+    const ssize_t length = readlink("/proc/self/exe", path, sizeof(path) - 1);
+    return length > 0 ? std::string(path, static_cast<size_t>(length)) : std::string{};
 #endif
 }
 

@@ -38,6 +38,8 @@ size_t getVmHWMInKB();
 size_t getThreadsNum();
 
 int run_in_processes(const int &numprocesses, const std::function<void()> &function);
+int run_in_processes_exec(int numprocesses, const std::vector<std::string>& arguments);
+std::string get_executable_path();
 
 template<typename Function, typename ... Args>
 inline void run_in_threads(const int &numthreads, Function const &function, Args ... args) {
