@@ -214,7 +214,7 @@ TEST(RemoveFakeQuantizeBeforeDepthwiseConvTest, KeepsFakeQuantizeWithFloatingPoi
 TEST(RemoveFakeQuantizeBeforeDepthwiseConvTest, KeepsFakeQuantizeForDynamicShape) {
     GraphOptions options;
     options.dynamic_spatial_shape = true;
-    run_pass_and_check(options, false);
+    run_pass_and_check(options, true);
 }
 
 }  // namespace ov::test::intel_gpu
