@@ -993,7 +993,7 @@ TEST(constant, uint3_string_broadcast) {
     EXPECT_EQ(p[1], 0b01011011);
 }
 
-TEST(constant, uint3_vector_less_than_one_storage_unit) {
+TEST(constant, uint3_vector_with_tail_bits) {
     const auto shape = Shape{3};
     const auto input = std::vector<uint8_t>{5, 3, 1};
 
@@ -1008,7 +1008,7 @@ TEST(constant, uint3_vector_less_than_one_storage_unit) {
     EXPECT_EQ(p[1], 0);
 }
 
-TEST(constant, uint3_vector_greater_than_one_storage_unit) {
+TEST(constant, uint3_vector_multiple_bytes_with_tail_bits) {
     const auto shape = Shape{10};
     const auto input = std::vector<uint8_t>{2, 3, 1, 0, 4, 5, 6, 7, 5, 2};
 
@@ -1037,6 +1037,24 @@ TEST(constant, uint3_vector_broadcast) {
     EXPECT_EQ(p[0], 0b10010010);
     EXPECT_EQ(p[1], 0b00100100);
     EXPECT_EQ(p[2], 0b01001001);
+}
+
+TEST(constant, uint3_single_element) {
+    op::v0::Constant c(element::u3, Shape{1}, std::vector<uint8_t>{7});
+
+    ASSERT_EQ(c.get_byte_size(), 1);
+    EXPECT_EQ(c.get_data_ptr<uint8_t>()[0], 0b00000111);
+    EXPECT_THAT(c.cast_vector<uint8_t>(), ElementsAre(7));
+}
+
+TEST(constant, uint3_unused_tail_bits_are_zeroed) {
+    // 5 values * 3 bits = 15 bits -> 2 bytes, the most significant bit of the last byte is unused.
+    op::v0::Constant c(element::u3, Shape{5}, std::vector<uint8_t>{7, 7, 7, 7, 7});
+
+    ASSERT_EQ(c.get_byte_size(), 2);
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0], 0xff);
+    EXPECT_EQ(p[1], 0x7f);
 }
 
 TEST(constant, uint3_write_then_cast_custom_type) {
@@ -1192,7 +1210,7 @@ TEST(constant, uint6_string_broadcast) {
     EXPECT_EQ(p[2], 0x14);
 }
 
-TEST(constant, uint6_vector_less_than_one_storage_unit) {
+TEST(constant, uint6_vector_with_tail_bits) {
     const auto shape = Shape{3};
     const auto input = std::vector<uint8_t>{5, 23, 1};
 
@@ -1208,7 +1226,7 @@ TEST(constant, uint6_vector_less_than_one_storage_unit) {
     EXPECT_EQ(p[2], 0);
 }
 
-TEST(constant, uint6_vector_greater_than_one_storage_unit) {
+TEST(constant, uint6_vector_multiple_bytes_with_tail_bits) {
     const auto shape = Shape{6};
     const auto input = std::vector<uint8_t>{25, 3, 1, 0, 45, 5};
 
@@ -1238,6 +1256,26 @@ TEST(constant, uint6_vector_broadcast) {
     EXPECT_EQ(p[0], 0x6d);
     EXPECT_EQ(p[1], 0xdb);
     EXPECT_EQ(p[2], 0xb6);
+}
+
+TEST(constant, uint6_single_element) {
+    op::v0::Constant c(element::u6, Shape{1}, std::vector<uint8_t>{63});
+
+    ASSERT_EQ(c.get_byte_size(), 1);
+    EXPECT_EQ(c.get_data_ptr<uint8_t>()[0], 0b00111111);
+    EXPECT_THAT(c.cast_vector<uint8_t>(), ElementsAre(63));
+}
+
+TEST(constant, uint6_unused_tail_bits_are_zeroed) {
+    // 5 values * 6 bits = 30 bits -> 4 bytes, the two most significant bits of the last byte are unused.
+    op::v0::Constant c(element::u6, Shape{5}, std::vector<uint8_t>{63, 63, 63, 63, 63});
+
+    ASSERT_EQ(c.get_byte_size(), 4);
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0], 0xff);
+    EXPECT_EQ(p[1], 0xff);
+    EXPECT_EQ(p[2], 0xff);
+    EXPECT_EQ(p[3], 0x3f);
 }
 
 TEST(constant, uint6_write_then_cast_custom_type) {

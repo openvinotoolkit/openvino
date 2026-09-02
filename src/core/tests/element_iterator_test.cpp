@@ -7,6 +7,8 @@
 #include <gmock/gmock.h>
 
 #include <array>
+#include <utility>
+#include <vector>
 
 #include "openvino/runtime/tensor.hpp"
 
@@ -241,6 +243,38 @@ TEST(ElementIteratorTest, read_u3_data_iterator_with_offset) {
     EXPECT_EQ(*(iter + 7), 7);
     EXPECT_EQ(*std::prev(iter, 1), 7);
     EXPECT_EQ(*std::next(iter, 2), 0);
+}
+
+TEST(ElementIteratorTest, read_u3_data_increment_decrement_iterator) {
+    // Has values {1, 7, 2, 6, 1, 6, 3, 7, [2], 3, 0, 1, 4, 5, 6, 7}
+    auto input = std::array<int8_t, 6>{static_cast<int8_t>(0xb9),
+                                       0x1c,
+                                       static_cast<int8_t>(0xef),
+                                       0x1a,
+                                       static_cast<int8_t>(0xc2),
+                                       static_cast<int8_t>(0xfa)};
+    auto iter = element::iterator<element::u3>(input.data() + 3);
+
+    EXPECT_EQ(*iter--, 2);
+    EXPECT_EQ(*iter++, 7);
+    EXPECT_EQ(*++iter, 3);
+    EXPECT_EQ(*iter--, 3);
+    EXPECT_EQ(*--iter, 7);
+}
+
+TEST(ElementIteratorTest, u3_last_value_straddles_byte_boundary) {
+    // 3 values * 3 bits = 9 bits -> 2 bytes, the last value spans both bytes.
+    auto buffer = std::vector<int8_t>(2, 0);
+    auto iter = element::iterator<element::u3>(buffer.data());
+
+    *iter = 1;
+    *(iter + 1) = 2;
+    *(iter + 2) = 7;
+
+    EXPECT_THAT(buffer, ElementsAre(static_cast<int8_t>(0b11010001), 0b00000001));
+
+    auto const_iter = element::iterator<element::u3>(std::as_const(buffer).data());
+    EXPECT_THAT(std::vector<int8_t>(const_iter, const_iter + 3), ElementsAre(1, 2, 7));
 }
 
 TEST(ElementIteratorTest, read_u3_from_tensor) {
@@ -498,6 +532,21 @@ TEST(ElementIteratorTest, u6_value_to_output_stream) {
     s << *iter;
 
     EXPECT_EQ(s.str(), "1");
+}
+
+TEST(ElementIteratorTest, u6_last_value_straddles_byte_boundary) {
+    // 3 values * 6 bits = 18 bits -> 3 bytes, the last value spans bytes 1 and 2.
+    auto buffer = std::vector<int8_t>(3, 0);
+    auto iter = element::iterator<element::u6>(buffer.data());
+
+    *iter = 1;
+    *(iter + 1) = 2;
+    *(iter + 2) = 63;
+
+    EXPECT_THAT(buffer, ElementsAre(static_cast<int8_t>(0b10000001), static_cast<int8_t>(0b11110000), 0b00000011));
+
+    auto const_iter = element::iterator<element::u6>(std::as_const(buffer).data());
+    EXPECT_THAT(std::vector<int8_t>(const_iter, const_iter + 3), ElementsAre(1, 2, 63));
 }
 
 TEST(ElementIteratorTest, read_u6_from_tensor) {

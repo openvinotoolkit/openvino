@@ -422,15 +422,18 @@ def test_cannot_get_strides_for_packed_tensor(ov_type):
     [
         (ov.Type.u1),
         (ov.Type.u2),
+        (ov.Type.u3),
         (ov.Type.u4),
+        (ov.Type.u6),
         (ov.Type.i4),
     ],
 )
 def test_init_with_packed_buffer(dtype, ov_type):
     shape = [1, 3, 32, 32]
-    fit = np.dtype(dtype).itemsize * 8 / ov_type.bitwidth
-    assert np.prod(shape) % fit == 0
-    size = int(np.prod(shape) // fit)
+    byte_size = (np.prod(shape) * ov_type.bitwidth + 7) // 8
+    itemsize = np.dtype(dtype).itemsize
+    assert byte_size % itemsize == 0
+    size = int(byte_size // itemsize)
     buffer = np.random.normal(size=size).astype(dtype)
     ov_tensor = ov.Tensor(buffer, shape, ov_type)
     assert ov_tensor.data.nbytes == ov_tensor.byte_size
