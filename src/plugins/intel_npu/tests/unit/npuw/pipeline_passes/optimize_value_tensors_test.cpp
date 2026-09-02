@@ -2,12 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "npuw_transformations/optimize_value_tensors.hpp"
+
 #include <gtest/gtest.h>
 
 #include "llm_pass_test_fixture.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/softmax.hpp"
+#include "openvino/op/transpose.hpp"
 
 namespace {
 
@@ -34,14 +39,14 @@ class OptimizeValueTensorsNoSDPATest : public ov::test::npuw::LLMPassTestFixture
                                        public ::testing::WithParamInterface<std::string> {};
 
 INSTANTIATE_TEST_SUITE_P(SubModels,
-                          OptimizeValueTensorsNoSDPATest,
-                          ::testing::Values(std::string{"_prefill"}, std::string{"_kv"}),
-                          [](const ::testing::TestParamInfo<std::string>& info) {
-                              auto name = info.param;
-                              if (!name.empty() && name[0] == '_')
-                                  name = name.substr(1);
-                              return name;
-                          });
+                         OptimizeValueTensorsNoSDPATest,
+                         ::testing::Values(std::string{"_prefill"}, std::string{"_kv"}),
+                         [](const ::testing::TestParamInfo<std::string>& info) {
+                             auto name = info.param;
+                             if (!name.empty() && name[0] == '_')
+                                 name = name.substr(1);
+                             return name;
+                         });
 
 TEST_P(OptimizeValueTensorsNoSDPATest, NoSDPAOpsAfterOptimization) {
     const auto& fragment = GetParam();
@@ -130,6 +135,32 @@ TEST_F(OptimizeValueTensorsPassTest, AtLeastOneMatMulHasTransposeBSet_GQA) {
     const auto& generate = require_sub_model_containing(recorder, "_kv");
 
     EXPECT_TRUE(any_matmul_has_transpose_b(generate.model));
+}
+
+TEST_F(OptimizeValueTensorsPassTest, DirectValuePatternsDoNotDependOnNodeNames) {
+    auto generate_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 4});
+    auto generate_scores = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 5, 3});
+    auto generate_softmax = std::make_shared<ov::op::v8::Softmax>(generate_scores);
+    auto generate_matmul = std::make_shared<ov::op::v0::MatMul>(generate_softmax, generate_value);
+    auto generate_model = std::make_shared<ov::Model>(ov::OutputVector{generate_matmul},
+                                                      ov::ParameterVector{generate_value, generate_scores});
+
+    EXPECT_TRUE(ov::npuw::util::OptimizeValueTensors(false, true).run_on_model(generate_model));
+    EXPECT_TRUE(generate_matmul->get_transpose_b());
+    EXPECT_EQ(generate_value->get_partial_shape(), ov::PartialShape({1, 2, 4, 3}));
+
+    auto prefill_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 2, 4});
+    auto prefill_order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
+    auto prefill_transpose = std::make_shared<ov::op::v1::Transpose>(prefill_value, prefill_order);
+    auto prefill_scores = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 5, 3});
+    auto prefill_softmax = std::make_shared<ov::op::v8::Softmax>(prefill_scores);
+    auto prefill_matmul = std::make_shared<ov::op::v0::MatMul>(prefill_softmax, prefill_transpose);
+    auto prefill_model = std::make_shared<ov::Model>(ov::OutputVector{prefill_matmul},
+                                                     ov::ParameterVector{prefill_value, prefill_scores});
+
+    EXPECT_TRUE(ov::npuw::util::OptimizeValueTensors(true, true).run_on_model(prefill_model));
+    EXPECT_TRUE(prefill_matmul->get_transpose_b());
+    EXPECT_EQ(prefill_transpose->get_output_partial_shape(0), ov::PartialShape({1, 2, 4, 3}));
 }
 
 }  // namespace

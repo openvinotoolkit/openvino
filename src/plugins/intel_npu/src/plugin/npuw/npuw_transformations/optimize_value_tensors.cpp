@@ -75,23 +75,10 @@ protected:
     }
 };
 
-bool is_cross_attention_value_name(const ov::Output<ov::Node>& output) {
-    if (output.get_node_shared_ptr()->get_friendly_name().find(".encoder.value") != std::string::npos) {
-        return true;
-    }
-
-    for (const auto& name : output.get_tensor().get_names()) {
-        if (name.find(".encoder.value") != std::string::npos) {
-            return true;
-        }
-    }
-    return false;
-}
-
-class TransposeCrossAttentionValueTensorsPrefill : public ov::pass::MatcherPass {
+class TransposeDirectValueTensorsPrefill : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::TransposeCrossAttentionValueTensorsPrefill");
-    TransposeCrossAttentionValueTensorsPrefill() {
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::TransposeDirectValueTensorsPrefill");
+    explicit TransposeDirectValueTensorsPrefill(TransposeValueTensors::Context::Ref ctx) {
         auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
         auto softmax = opp::wrap_type<ov::op::v8::Softmax>({opp::any_input()});
         auto matmul = opp::wrap_type<ov::op::v0::MatMul>({softmax, transpose});
@@ -103,8 +90,7 @@ public:
             const auto matched_matmul =
                 ov::as_type_ptr<ov::op::v0::MatMul>(node_to_output.at(matmul).get_node_shared_ptr());
 
-            if (matched_transpose == nullptr || matched_matmul == nullptr ||
-                matched_matmul->get_friendly_name().find("encoder_attn") == std::string::npos) {
+            if (matched_transpose == nullptr || matched_matmul == nullptr) {
                 return false;
             }
 
@@ -116,18 +102,19 @@ public:
             const auto order = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
             matched_transpose->set_argument(1, order);
             matched_matmul->set_transpose_b(true);
+            ctx.get().bTransposed = true;
             LOG_DEBUG("vtensors transposed: Whisper cross-attention prefill pattern");
             return true;
         };
-        register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeCrossAttentionValueTensorsPrefill"),
+        register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeDirectValueTensorsPrefill"),
                          std::move(callback));
     }
 };
 
-class TransposeCrossAttentionValueTensorsGenerate : public ov::pass::MatcherPass {
+class TransposeDirectValueTensorsGenerate : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::TransposeCrossAttentionValueTensorsGenerate");
-    TransposeCrossAttentionValueTensorsGenerate() {
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::TransposeDirectValueTensorsGenerate");
+    explicit TransposeDirectValueTensorsGenerate(TransposeValueTensors::Context::Ref ctx) {
         auto param = opp::wrap_type<ov::op::v0::Parameter>();
         auto convert = opp::optional<ov::op::v0::Convert>({param->output(0)});
         auto softmax = opp::wrap_type<ov::op::v8::Softmax>({opp::any_input()});
@@ -140,8 +127,7 @@ public:
             const auto matched_matmul =
                 ov::as_type_ptr<ov::op::v0::MatMul>(node_to_output.at(matmul).get_node_shared_ptr());
 
-            if (matched_param == nullptr || matched_matmul == nullptr ||
-                !is_cross_attention_value_name(matched_param->output(0))) {
+            if (matched_param == nullptr || matched_matmul == nullptr) {
                 return false;
             }
 
@@ -153,9 +139,10 @@ public:
             std::swap(shape[2], shape[3]);
             matched_param->set_partial_shape(shape);
             matched_matmul->set_transpose_b(true);
+            ctx.get().bTransposed = true;
             return true;
         };
-        register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeCrossAttentionValueTensorsGenerate"),
+        register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeDirectValueTensorsGenerate"),
                          std::move(callback));
     }
 };
@@ -455,10 +442,12 @@ bool ov::npuw::util::OptimizeValueTensors::run_on_model(const std::shared_ptr<ov
     TransposeValueTensors::Context ctx;
     rewr.add_matcher<TransposeValueTensors_MHA>(std::ref(ctx));
     rewr.add_matcher<TransposeValueTensors_GQA>(std::ref(ctx));
-    if (m_is_prefill) {
-        rewr.add_matcher<TransposeCrossAttentionValueTensorsPrefill>();
-    } else {
-        rewr.add_matcher<TransposeCrossAttentionValueTensorsGenerate>();
+    if (m_is_whisper) {
+        if (m_is_prefill) {
+            rewr.add_matcher<TransposeDirectValueTensorsPrefill>(std::ref(ctx));
+        } else {
+            rewr.add_matcher<TransposeDirectValueTensorsGenerate>(std::ref(ctx));
+        }
     }
 
     rewr.run_on_model(model);
