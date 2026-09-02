@@ -9,6 +9,7 @@
 
 #include "cpu_parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "utils/plain_tensor.hpp"
 
 namespace ov::intel_cpu::node::kernel {
 
@@ -60,16 +61,15 @@ void paged_selective_ssm(const void* A,
                          const void* x,
                          const void* C,
                          void* recurrent_state_table,
-                         const void* subsequence_begins,
-                         const void* block_indices,
-                         const void* block_indices_begins,
-                         const void* num_processed_tokens,
-                         const void* cache_interval,
+                         const ov::intel_cpu::PlainTensor& subsequence_begins,
+                         const ov::intel_cpu::PlainTensor& block_indices,
+                         const ov::intel_cpu::PlainTensor& block_indices_begins,
+                         const ov::intel_cpu::PlainTensor& num_processed_tokens,
+                         const ov::intel_cpu::PlainTensor& cache_interval,
                          void* output,
                          const PagedSelectiveSSMShape& shape,
                          const ov::element::Type& data_precision,
                          const ov::element::Type& state_precision,
-                         const ov::element::Type& index_precision,
                          float* state_scratch,
                          size_t scratch_head_dim,
                          int32_t* metadata_validation_scratch,

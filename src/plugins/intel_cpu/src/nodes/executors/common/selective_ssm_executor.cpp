@@ -135,13 +135,9 @@ void SelectiveSSMExecutor::execute(const MemoryArgs& memory) {
         m_state_scratch_elements != expected_state_scratch_elements ||
         m_projection_scratch_elements != expected_projection_scratch_elements ||
         m_cached_projection_elements != projection_elements) {
-        if (!update_scratchpad(memory)) {
-            OPENVINO_THROW("SelectiveSSM failed to allocate scratch memory.");
-        }
+        OPENVINO_ASSERT(update_scratchpad(memory));
     }
-    if (!m_scratch) {
-        OPENVINO_THROW("SelectiveSSM scratch memory is not initialized.");
-    }
+    OPENVINO_ASSERT(m_scratch != nullptr, "SelectiveSSM scratch memory is not initialized.");
 
     node::kernel::SelectiveSSMShape shape{x_dims[0], x_dims[1], x_dims[2], x_dims[3], B_dims[2], B_dims[3]};
     auto* state_scratch = m_scratch->getDataAs<float>();
