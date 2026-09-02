@@ -502,6 +502,18 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
     auto sdpa_variants = std::make_shared<Or>(OutputVector{sdpa_with_4_inputs, sdpa_with_5_inputs, sdpa_with_6_inputs});
 
     ov::matcher_pass_callback callback = [=, &pa_params, &results, &var_ids_to_remove](Matcher& m) {
+        // PagedAttentionExtension has no operand able to carry the mapping from quantization
+        // codes to values. SDPAToPagedAttention is an explicit conversion request, so report it
+        // against the node rather than leaving a half-converted model behind.
+        const auto sdpa_root = ov::as_type_ptr<v13::ScaledDotProductAttention>(m.get_match_root());
+        NODE_VALIDATION_CHECK(sdpa_root.get(),
+                              !v13::ScaledDotProductAttention::has_quantized_kv(*sdpa_root),
+                              "SDPAToPagedAttention does not support a quantized key or value "
+                              "operand. Their element types are ",
+                              sdpa_root->get_input_element_type(1),
+                              " and ",
+                              sdpa_root->get_input_element_type(2),
+                              ".");
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& real_q = pattern_map.at(q_inner);
 
