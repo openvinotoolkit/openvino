@@ -19,6 +19,12 @@ const std::unordered_set<CREToken> OPERATORS{CRE::AND, CRE::OR, CRE::NOT};
 constexpr char OPERAND_AND_RESERVED_TOKEN_SEPARATOR = '.';
 constexpr char SECTION_TYPE_AND_INSTANCE_SEPARATOR = '_';
 
+constexpr std::string_view AND_TOKEN_NAME = "AND";
+constexpr std::string_view OR_TOKEN_NAME = "OR";
+constexpr std::string_view NOT_TOKEN_NAME = "NOT";
+constexpr std::string_view OPEN_TOKEN_NAME = "OPEN";
+constexpr std::string_view CLOSE_TOKEN_NAME = "CLOSE";
+
 inline bool and_function(bool a, bool b) {
     return a && b;
 }
@@ -34,24 +40,43 @@ inline bool first_operand_function(bool /*a*/, bool b) {
 std::string reserved_token_to_string(const CREToken token) {
     switch (token) {
     case CRE::ReservedToken::AND: {
-        return "AND";
+        return AND_TOKEN_NAME.data();
     }
     case CRE::ReservedToken::OR: {
-        return "OR";
+        return OR_TOKEN_NAME.data();
     }
     case CRE::ReservedToken::OPEN: {
-        return "OPEN";
+        return OPEN_TOKEN_NAME.data();
     }
     case CRE::ReservedToken::CLOSE: {
-        return "CLOSE";
+        return CLOSE_TOKEN_NAME.data();
     }
     case CRE::ReservedToken::NOT: {
-        return "NOT";
+        return NOT_TOKEN_NAME.data();
     }
     default: {
         OPENVINO_THROW("The given token is not a reserved one");
     }
     }
+}
+
+std::optional<CREToken> reserved_token_from_string(std::string_view token) {
+    if (token == AND_TOKEN_NAME) {
+        return CRE::ReservedToken::AND;
+    }
+    if (token == OR_TOKEN_NAME) {
+        return CRE::ReservedToken::OR;
+    }
+    if (token == OPEN_TOKEN_NAME) {
+        return CRE::ReservedToken::OPEN;
+    }
+    if (token == CLOSE_TOKEN_NAME) {
+        return CRE::ReservedToken::CLOSE;
+    }
+    if (token == NOT_TOKEN_NAME) {
+        return CRE::ReservedToken::NOT;
+    }
+    return std::nullopt;
 }
 
 }  // namespace
@@ -362,6 +387,32 @@ std::string cre_to_string(const CRE cre) {
     }
 }
 
-CRE cre_from_string(std::string_view cre) {}
+CRE cre_from_string(std::string_view cre) {
+    std::vector<CREToken> expression;
+    std::string_view remaining = cre;
+
+    while (true) {
+        const size_t dot_location = remaining.find('.');
+        const std::string_view token_string = remaining.substr(0, dot_location);
+
+        const std::optional<CREToken> reserved_token = reserved_token_from_string(token_string);
+        if (reserved_token.has_value()) {
+            expression.push_back(reserved_token.value());
+        } else {
+            // The current substring should have the form "<section type name>_<id>"
+            const auto [section_type, section_id] = section_type_and_id_from_string(token_string);
+            expression.push_back(section_type);
+            expression.push_back(section_id);
+        }
+
+        if (dot_location == std::string_view::npos) {
+            break;
+        }
+        remaining = remaining.substr(dot_location + 1);
+        OPENVINO_ASSERT(!remaining.empty(), "Trailing dot found while parsing the cre \"", cre, "\"");
+    }
+
+    return CRE(expression);
+}
 
 }  // namespace intel_npu
