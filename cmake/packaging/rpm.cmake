@@ -200,8 +200,6 @@ macro(ov_cpack_settings)
     endif()
 
     # intel-gpu
-    # In a GPU_RT_TYPE=COMBINED build the 'gpu' component holds both plugin libraries
-    # (ZE and OCL); they install under one component (device name), so no change is needed here.
     if(ENABLE_INTEL_GPU)
         set(CPACK_COMPONENT_GPU_DESCRIPTION "Intel® Processor Graphics inference plugin")
         set(CPACK_RPM_GPU_PACKAGE_REQUIRES "${core_package}")
