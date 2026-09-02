@@ -1476,7 +1476,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_WORKFLOW_ID: "ci-doctor"
-          GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS: "0"
+          GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS: "168"
           GH_AW_ENGINE_ID: "copilot"
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.activation.outputs.secret_verification_result }}
           GH_AW_ENGINE_SECRET_FAILURE_MESSAGE: "**Alternative**: If your organization has a Copilot subscription, you can avoid the need for a personal access token by adding a top-level `permissions` block to your workflow file. This enables Copilot inference through the org using the built-in GitHub Actions token.\n\n```yaml\npermissions:\n  copilot-requests: write\n```\n\nSee: https://github.github.com/gh-aw/reference/engines/#github-copilot-default"
