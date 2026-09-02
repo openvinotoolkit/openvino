@@ -56,9 +56,9 @@ omitting training-related parameter.
 
 * **1**: ``query`` - at least 3 dimensional tensor of type *T* and shape ``[N, ..., L, E]``. **Required.**
 
-* **2**: ``key`` - at least 3 dimensional tensor of type *T* and shape ``[N, ..., S, E]``. **Required.**
+* **2**: ``key`` - at least 3 dimensional tensor of type *T* or *T_QUANT* and shape ``[N, ..., S, E]``. **Required.**
 
-* **3**: ``value`` - at least 3 dimensional tensor of type *T* and shape ``[N, ..., S, Ev]``. **Required.**
+* **3**: ``value`` - at least 3 dimensional tensor of type *T* or *T_QUANT* and shape ``[N, ..., S, Ev]``. **Required.**
 
 * **4**: ``attention_mask`` - two options available. ``attention_mask`` is ignored if ``causal`` is set to ``True``. **Optional.**
 
@@ -74,6 +74,14 @@ omitting training-related parameter.
 
     The sink input is available since 2025.4 OpenVINO release.
 
+.. note::
+
+    A *T_QUANT* ``key`` or ``value`` is available since 2026.4 OpenVINO release. The pseudo-code
+    above describes the operation for a *T* ``key`` and ``value`` only. When either is *T_QUANT*
+    it holds quantization codes rather than values, and the mapping from codes to values is
+    defined by the implementation that consumes the operation, not by this specification. An
+    implementation that does not define such a mapping is expected to reject the operation.
+
 **Outputs**
 
 * **1**: - the result of scaled dot-product attention, a tensor of type *T* and shape ``[N, ..., L, Ev]``.
@@ -81,6 +89,9 @@ omitting training-related parameter.
 **Types**
 
 * *T*: any supported floating-point type.
+
+* *T_QUANT*: ``i8``, ``u8``, ``i4`` or ``u4``. Accepted for ``key`` and ``value`` only; it does not
+  affect the output type, which always follows ``query``.
 
 
 **Dimensions**
