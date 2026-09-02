@@ -30,15 +30,14 @@ namespace ov::intel_cpu {
 DisableBF16CompCumSumSinGen::DisableBF16CompCumSumSinGen() {
     MATCHER_SCOPE(DisableBF16CompCumSumSinGen);
     using namespace ov::pass::pattern;
+    using ov::pass::operator|;
 
+    // ConvertInterpolate1ToInterpolate4 and ConvertInterpolate11ToInterpolate4 both run before postLPT, so only v4
+    // (with or without the optional axes input) reaches this pass.
     auto interpolate_variations = [](const ov::Output<ov::Node>& input) {
-        auto interp_v0_m = wrap_type<ov::op::v0::Interpolate>({input, any_input()});
         auto interp_v4_m = wrap_type<ov::op::v4::Interpolate>({input, any_input(), any_input()});
         auto interp_v4_with_axes_m = wrap_type<ov::op::v4::Interpolate>({input, any_input(), any_input(), any_input()});
-        auto interp_v11_m = wrap_type<ov::op::v11::Interpolate>({input, any_input()});
-        auto interp_v11_with_axes_m = wrap_type<ov::op::v11::Interpolate>({input, any_input(), any_input()});
-        return std::make_shared<ov::pass::pattern::op::Or>(
-            ov::OutputVector{interp_v0_m, interp_v4_m, interp_v4_with_axes_m, interp_v11_m, interp_v11_with_axes_m});
+        return interp_v4_m | interp_v4_with_axes_m;
     };
 
     auto transpose_pre_m = wrap_type<ov::op::v1::Transpose>({any_input(), any_input()});
