@@ -17,10 +17,13 @@
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "jit_kernel_base.hpp"
-#include "nodes/kernels/x64/selective_ssm_jit_config.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu::kernel {
+
+// The state dimension is unrolled into the generated kernel. Bound it to keep code generation and code-cache use
+// predictable; larger states use the portable executor.
+constexpr size_t max_selective_ssm_jit_state_size = 4096;
 
 enum class jit_selective_ssm_state_mode : std::uint8_t { in_place, separate, no_store };
 
@@ -64,8 +67,8 @@ private:
     void clear_inactive_lanes(const Vmm& value, size_t active_lanes);
     void load_data_scalar(const Vmm& destination, size_t offset);
     void store_data_scalar(const Vmm& source, size_t offset);
-    void prepare_f16_row_scales(size_t rows);
-    void store_f16_row_tile(size_t rows);
+    void prepare_f16_row_scales();
+    void store_f16_row_tile();
     void store_avx2_bf16_full_vector(const Vmm& source, size_t offset);
     void store_state(const Vmm& source, int element_count, size_t offset);
     void emit_bf16_subnormal_store(const Vmm& source, int element_count, size_t offset);

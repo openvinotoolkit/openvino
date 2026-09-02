@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
@@ -322,6 +323,43 @@ TEST(SelectiveSSMJitKernel, FactoryRejectsUnsupportedConfigurations) {
                   element::f32,
                   ov::intel_cpu::kernel::max_selective_ssm_jit_state_size + 1),
               nullptr);
+}
+
+TEST(PagedSelectiveSSMJitKernel, CacheScheduleTracksSnapshots) {
+    const auto disabled = ov::intel_cpu::kernel::PagedCacheSchedule::make(0, 7);
+    EXPECT_EQ(disabled.snapshot_count(4), 0);
+    EXPECT_FALSE(disabled.should_store(8, true));
+
+    const auto schedule = ov::intel_cpu::kernel::PagedCacheSchedule::make(3, 4);
+    EXPECT_EQ(schedule.offset, 1);
+    EXPECT_EQ(schedule.snapshot_count(0), 0);
+    EXPECT_EQ(schedule.snapshot_count(1), 1);
+    EXPECT_EQ(schedule.snapshot_count(5), 2);
+    EXPECT_FALSE(schedule.should_store(schedule.absolute_token_count(1), false));
+    EXPECT_TRUE(schedule.should_store(schedule.absolute_token_count(1), true));
+    EXPECT_TRUE(schedule.should_store(schedule.absolute_token_count(2), false));
+}
+
+TEST(SelectiveSSMJitKernel, FactoryCreatesLargestAdvertisedState) {
+    const std::array precisions{element::f32, element::f16, element::bf16};
+    constexpr std::array state_modes{ov::intel_cpu::kernel::jit_selective_ssm_state_mode::in_place,
+                                     ov::intel_cpu::kernel::jit_selective_ssm_state_mode::separate,
+                                     ov::intel_cpu::kernel::jit_selective_ssm_state_mode::no_store};
+
+    for (const auto& precision : precisions) {
+        for (const auto state_mode : state_modes) {
+            const auto state_precision =
+                state_mode == ov::intel_cpu::kernel::jit_selective_ssm_state_mode::in_place ? element::f32 : precision;
+            SCOPED_TRACE(testing::Message()
+                         << "precision=" << precision << ", state_mode=" << static_cast<int>(state_mode));
+            EXPECT_NE(ov::intel_cpu::kernel::create_selective_ssm_jit_kernel(
+                          precision,
+                          ov::intel_cpu::kernel::max_selective_ssm_jit_state_size,
+                          state_precision,
+                          state_mode),
+                      nullptr);
+        }
+    }
 }
 
 }  // namespace

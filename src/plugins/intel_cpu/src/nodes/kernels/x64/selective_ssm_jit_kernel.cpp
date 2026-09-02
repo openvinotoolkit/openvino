@@ -14,7 +14,6 @@
 #include "cpu/x64/jit_generator.hpp"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include "nodes/kernels/x64/jit_kernel_base.hpp"
-#include "nodes/kernels/x64/selective_ssm_jit_config.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 using namespace dnnl::impl::cpu::x64;
@@ -31,21 +30,22 @@ void jit_selective_ssm_kernel<isa>::load(const Vmm& destination,
                                          size_t offset) {
     const bool fill_tail = static_cast<size_t>(element_count) < vector_size;
     const auto seed = load_emitter_params(source_precision, ov::element::f32, element_count, fill_tail, "zero").hash();
-    if (!emitters[seed]) {
+    auto& emitter = emitters[seed];
+    if (!emitter) {
         constexpr cpu_isa_t emitter_isa = (isa & zmm_bit) != 0 ? avx512_core : isa;
-        emitters[seed] = std::make_unique<jit_load_emitter>(this,
-                                                            emitter_isa,
-                                                            source_precision,
-                                                            ov::element::f32,
-                                                            element_count,
-                                                            ov::element::f32,
-                                                            fill_tail,
-                                                            "zero");
+        emitter = std::make_unique<jit_load_emitter>(this,
+                                                     emitter_isa,
+                                                     source_precision,
+                                                     ov::element::f32,
+                                                     element_count,
+                                                     ov::element::f32,
+                                                     fill_tail,
+                                                     "zero");
     }
-    emitters[seed]->emit_code({static_cast<size_t>(source.getIdx()), offset},
-                              {static_cast<size_t>(destination.getIdx())},
-                              pool_aux_vmm_idxs,
-                              pool_aux_gpr_idxs);
+    emitter->emit_code({static_cast<size_t>(source.getIdx()), offset},
+                       {static_cast<size_t>(destination.getIdx())},
+                       pool_aux_vmm_idxs,
+                       pool_aux_gpr_idxs);
 }
 
 template <cpu_isa_t isa>
@@ -55,18 +55,19 @@ void jit_selective_ssm_kernel<isa>::store(const Xbyak::Reg64& destination,
                                           int element_count,
                                           size_t offset) {
     const auto seed = store_emitter_params(ov::element::f32, destination_precision, element_count).hash();
-    if (!emitters[seed]) {
+    auto& emitter = emitters[seed];
+    if (!emitter) {
         constexpr cpu_isa_t emitter_isa = (isa & zmm_bit) != 0 ? avx512_core : isa;
-        emitters[seed] = std::make_unique<jit_store_emitter>(this,
-                                                             emitter_isa,
-                                                             ov::element::f32,
-                                                             destination_precision,
-                                                             element_count);
+        emitter = std::make_unique<jit_store_emitter>(this,
+                                                      emitter_isa,
+                                                      ov::element::f32,
+                                                      destination_precision,
+                                                      element_count);
     }
-    emitters[seed]->emit_code({static_cast<size_t>(source.getIdx())},
-                              {static_cast<size_t>(destination.getIdx()), offset},
-                              pool_aux_vmm_idxs,
-                              pool_aux_gpr_idxs);
+    emitter->emit_code({static_cast<size_t>(source.getIdx())},
+                       {static_cast<size_t>(destination.getIdx()), offset},
+                       pool_aux_vmm_idxs,
+                       pool_aux_gpr_idxs);
 }
 
 template <cpu_isa_t isa>
@@ -166,40 +167,28 @@ void jit_selective_ssm_kernel<isa>::store_data_scalar(const Vmm& source, size_t 
 }
 
 template <cpu_isa_t isa>
-void jit_selective_ssm_kernel<isa>::prepare_f16_row_scales(size_t rows) {
+void jit_selective_ssm_kernel<isa>::prepare_f16_row_scales() {
     const Xbyak::Xmm packed_scales(vmm_input_projection.getIdx());
     const Xbyak::Xmm delta(accumulator_vmm(0).getIdx());
-    if (rows == 2) {
-        uni_vmovd(packed_scales, dword[reg_x]);
-        vcvtph2ps(packed_scales, packed_scales);
-    } else {
-        vcvtph2ps(packed_scales, ptr[reg_x]);
-    }
+    vcvtph2ps(packed_scales, ptr[reg_x]);
     vbroadcastss(delta, ptr[reg_args + GET_OFF(delta)]);
     vmulps(packed_scales, packed_scales, delta);
 
-    for (size_t row = 0; row < rows; ++row) {
+    for (size_t row = 0; row < max_row_tile; ++row) {
         const Xbyak::Xmm scale(input_scale_vmm(row).getIdx());
         vpermilps(scale, packed_scales, static_cast<uint8_t>(row * 0x55U));
     }
 }
 
 template <cpu_isa_t isa>
-void jit_selective_ssm_kernel<isa>::store_f16_row_tile(size_t rows) {
+void jit_selective_ssm_kernel<isa>::store_f16_row_tile() {
     const Xbyak::Xmm packed_output(state_vmm(0).getIdx());
     const Xbyak::Xmm packed_output_high(state_vmm(1).getIdx());
     vunpcklps(packed_output, Xbyak::Xmm(accumulator_vmm(0).getIdx()), Xbyak::Xmm(accumulator_vmm(1).getIdx()));
-    if (rows == 4) {
-        vunpcklps(packed_output_high, Xbyak::Xmm(accumulator_vmm(2).getIdx()), Xbyak::Xmm(accumulator_vmm(3).getIdx()));
-        vshufps(packed_output, packed_output, packed_output_high, 0x44);
-    }
+    vunpcklps(packed_output_high, Xbyak::Xmm(accumulator_vmm(2).getIdx()), Xbyak::Xmm(accumulator_vmm(3).getIdx()));
+    vshufps(packed_output, packed_output, packed_output_high, 0x44);
     vcvtps2ph(packed_output, packed_output, 0x4);
-
-    if (rows == 2) {
-        uni_vmovd(dword[reg_output], packed_output);
-    } else {
-        uni_vmovq(qword[reg_output], packed_output);
-    }
+    uni_vmovq(qword[reg_output], packed_output);
 }
 
 template <cpu_isa_t isa>
@@ -369,9 +358,10 @@ void jit_selective_ssm_kernel<isa>::emit_row_tile(size_t rows) {
     const auto full_vectors = m_jcp.state_size / vector_size;
     const auto tail = m_jcp.state_size % vector_size;
 
-    const bool use_packed_f16 = m_jcp.data_precision == ov::element::f16 && rows > 1 && isa != avx512_core_fp16;
+    const bool use_packed_f16 =
+        m_jcp.data_precision == ov::element::f16 && rows == max_row_tile && isa != avx512_core_fp16;
     if (use_packed_f16) {
-        prepare_f16_row_scales(rows);
+        prepare_f16_row_scales();
     }
     for (size_t row = 0; row < rows; ++row) {
         const auto scale = input_scale_vmm(row);
@@ -404,7 +394,7 @@ void jit_selective_ssm_kernel<isa>::emit_row_tile(size_t rows) {
         }
     }
     if (use_packed_f16) {
-        store_f16_row_tile(rows);
+        store_f16_row_tile();
     }
 }
 
@@ -513,30 +503,26 @@ std::shared_ptr<JitKernelBase> create_selective_ssm_jit_kernel(const ov::element
         state_size,
         state_mode,
     };
-    try {
-        if (data_precision == ov::element::f16 && mayiuse(avx512_core_fp16)) {
-            auto result = std::make_shared<jit_selective_ssm_kernel<avx512_core_fp16>>(compile_params);
-            result->create_kernel();
-            return result;
-        }
-        if (state_precision == ov::element::bf16 && state_mode == jit_selective_ssm_state_mode::separate &&
-            mayiuse(avx512_core_bf16)) {
-            auto result = std::make_shared<jit_selective_ssm_kernel<avx512_core_bf16>>(compile_params);
-            result->create_kernel();
-            return result;
-        }
-        if (mayiuse(avx512_core)) {
-            auto result = std::make_shared<jit_selective_ssm_kernel<avx512_core>>(compile_params);
-            result->create_kernel();
-            return result;
-        }
-        if (mayiuse(avx2)) {
-            auto result = std::make_shared<jit_selective_ssm_kernel<avx2>>(compile_params);
-            result->create_kernel();
-            return result;
-        }
-    } catch (...) {
-        return nullptr;
+    if (data_precision == ov::element::f16 && mayiuse(avx512_core_fp16)) {
+        auto result = std::make_shared<jit_selective_ssm_kernel<avx512_core_fp16>>(compile_params);
+        result->create_kernel();
+        return result;
+    }
+    if (state_precision == ov::element::bf16 && state_mode == jit_selective_ssm_state_mode::separate &&
+        mayiuse(avx512_core_bf16)) {
+        auto result = std::make_shared<jit_selective_ssm_kernel<avx512_core_bf16>>(compile_params);
+        result->create_kernel();
+        return result;
+    }
+    if (mayiuse(avx512_core)) {
+        auto result = std::make_shared<jit_selective_ssm_kernel<avx512_core>>(compile_params);
+        result->create_kernel();
+        return result;
+    }
+    if (mayiuse(avx2)) {
+        auto result = std::make_shared<jit_selective_ssm_kernel<avx2>>(compile_params);
+        result->create_kernel();
+        return result;
     }
     return nullptr;
 }
