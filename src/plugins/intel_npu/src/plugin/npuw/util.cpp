@@ -1072,8 +1072,8 @@ bool ov::npuw::util::is_valid_attention_sink_slice(const std::shared_ptr<ov::Nod
     }
 
     const auto slice_axis = normalize_static_axis((*axes)[0], softmax_shape);
-    return slice_axis && *slice_axis == *softmax_axis && (*begin)[0] == 0 && (*end)[0] == *scores_dim &&
-           (*stride)[0] == 1;
+    const bool removes_trailing_sink = (*end)[0] == *scores_dim || (*end)[0] == -1;
+    return slice_axis && *slice_axis == *softmax_axis && (*begin)[0] == 0 && removes_trailing_sink && (*stride)[0] == 1;
 }
 
 std::optional<int> ov::npuw::util::isPastKeyValuesKeyContiguous(const std::string& str) {
