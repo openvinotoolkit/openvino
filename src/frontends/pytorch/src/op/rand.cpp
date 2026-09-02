@@ -351,14 +351,14 @@ OutputVector translate_uniform_(const NodeContext& context) {
     auto dtype = element::f32;
 
     Output<Node> low;
-    if (context.get_input_size() > 1 && !context.input_is_none(1)) {
+    if (!context.input_is_none(1)) {
         low = context.get_input(1);
     } else {
         low = context.mark_node(v0::Constant::create(dtype, Shape{}, {0.0f}));
     }
 
     Output<Node> high;
-    if (context.get_input_size() > 2 && !context.input_is_none(2)) {
+    if (!context.input_is_none(2)) {
         high = context.get_input(2);
     } else {
         high = context.mark_node(v0::Constant::create(dtype, Shape{}, {1.0f}));
@@ -368,7 +368,7 @@ OutputVector translate_uniform_(const NodeContext& context) {
     high = context.mark_node(std::make_shared<v0::Convert>(high, dtype));
 
     uint64_t global_seed = 0;
-    if (context.get_input_size() > 3 && !context.input_is_none(3)) {
+    if (!context.input_is_none(3)) {
         auto gen_const = as_type_ptr<v0::Constant>(context.get_input(3).get_node_shared_ptr());
         if (gen_const) {
             auto seed = gen_const->cast_vector<uint64_t>();
