@@ -36,6 +36,7 @@ public:
      * @param logger A logger that should already use the name of the subclass.
      */
     IBlobFormatImporter(const std::shared_ptr<const ov::Model>& original_model,
+                        const ov::SoPtr<IEngineBackend>& backend,
                         const FilteredConfig& config,
                         const Logger& logger);
 
@@ -53,8 +54,7 @@ public:
      * @return A graph object. The type of graph depends on the content of the blob. E.g. a "weightless" graph will be
      * returned if the weights separation feature was detected.
      */
-    std::shared_ptr<IGraph> create_graph(const ov::SoPtr<IEngineBackend>& backend,
-                                         const std::string_view network_name,
+    std::shared_ptr<IGraph> create_graph(const std::string_view network_name,
                                          const std::string_view device_name,
                                          const std::shared_ptr<ov::ICore>& core);
 
@@ -83,6 +83,7 @@ public:
 protected:
     std::shared_ptr<IGraph> m_graph;
     std::optional<int> m_batch_size;
+    ov::SoPtr<IEngineBackend> m_backend;
 
     FilteredConfig m_config;
     Logger m_logger;
@@ -141,6 +142,7 @@ private:
 
 namespace blob_format_importer_factory {
 
+// TODO update
 /**
  * @brief Identifies the blob format used for the given blob and creates the corresponding importer for it.
  *
@@ -155,6 +157,8 @@ namespace blob_format_importer_factory {
 std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
                                             const bool is_raw_blob,
                                             const std::shared_ptr<const ov::Model>& original_model,
+                                            const ov::SoPtr<IEngineBackend>& backend,
+                                            const std::shared_ptr<CompilerOptionSupportHelper>& option_helper,
                                             const FilteredConfig& config);
 
 }  // namespace blob_format_importer_factory

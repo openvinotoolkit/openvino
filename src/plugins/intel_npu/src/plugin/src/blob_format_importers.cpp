@@ -5,6 +5,8 @@
 #include "blob_format_importers.hpp"
 
 #include "batch_size_section.hpp"
+#include "compiler_option_support_helper.hpp"
+#include "compiler_schedule_instance_evaluator.hpp"
 #include "compiler_schedules_sections.hpp"
 #include "compiler_version_section.hpp"
 #include "intel_npu/common/blob_reader.hpp"
@@ -189,8 +191,9 @@ class RawBlobImporter : public IBlobFormatImporter {
 public:
     explicit RawBlobImporter(BlobSource& compiler_main_schedule,
                              const std::shared_ptr<const ov::Model>& original_model,
+                             const ov::SoPtr<IEngineBackend>& backend,
                              const FilteredConfig& config)
-        : IBlobFormatImporter(original_model, config, Logger("RawBlobImporter", config.get<LOG_LEVEL>())) {
+        : IBlobFormatImporter(original_model, backend, config, Logger("RawBlobImporter", config.get<LOG_LEVEL>())) {
         const size_t blob_size = compiler_main_schedule.get_remaining_size();
         OPENVINO_ASSERT(blob_size > 0, EMPTY_BLOB_MESSAGE);
 
@@ -270,8 +273,12 @@ class BlobFormatV1Importer : public IBlobFormatImporter {
 public:
     explicit BlobFormatV1Importer(BlobSource& npu_formatted_blob,
                                   const std::shared_ptr<const ov::Model>& original_model,
+                                  const ov::SoPtr<IEngineBackend>& backend,
                                   const FilteredConfig& config)
-        : IBlobFormatImporter(original_model, config, Logger("BlobFormatV1Importer", config.get<LOG_LEVEL>())) {
+        : IBlobFormatImporter(original_model,
+                              backend,
+                              config,
+                              Logger("BlobFormatV1Importer", config.get<LOG_LEVEL>())) {
         // Read only the metadata from the source and check if the blob is compatible. Load the blob into memory only if
         // it passes the compatibility checks.
         m_metadata = read_metadata_from(npu_formatted_blob);
@@ -462,10 +469,12 @@ class BlobFormatV2Importer : public IBlobFormatImporter {
 public:
     explicit BlobFormatV2Importer(BlobSource& npu_formatted_blob,
                                   const std::shared_ptr<const ov::Model>& original_model,
+                                  const ov::SoPtr<IEngineBackend>& backend,
+                                  const std::shared_ptr<CompilerOptionSupportHelper>& option_helper,
                                   const FilteredConfig& config)
-        : IBlobFormatImporter(original_model, config, Logger("BlobFormatV2Importer", config.get<LOG_LEVEL>())),
+        : IBlobFormatImporter(original_model, backend, config, Logger("BlobFormatV2Importer", config.get<LOG_LEVEL>())),
           m_blob_reader(config) {
-        register_known_sections_and_evaluators();
+        register_known_sections_and_evaluators(option_helper);
 
         m_blob_reader.read(npu_formatted_blob);
         verify_valid_sections();
@@ -499,7 +508,7 @@ private:
      * @note The CRE & Manifest sections should have been already registered (e.g. in the BlobReader ctor) since
      * these sections are a core part of the format.
      */
-    void register_known_sections_and_evaluators() {
+    void register_known_sections_and_evaluators(const std::shared_ptr<CompilerOptionSupportHelper>& option_helper) {
         // TODO shotgun surgery? should these correspond to the "supported" section types?
         m_blob_reader.register_reader(PredefinedSectionType::ELF_MAIN_SCHEDULE, ELFMainScheduleSection::read);
         m_blob_reader.register_reader(PredefinedSectionType::ELF_INIT_SCHEDULES, ELFInitSchedulesSection::read);
@@ -512,6 +521,13 @@ private:
         for (const SectionType type : DEFAULT_SUPPORTED_SECTION_TYPES) {
             m_blob_reader.register_section_type_evaluator(std::make_shared<SupportedSectionTypeEvaluator>(type));
         }
+
+        const auto compiler_schedules_instance_evaluator =
+            std::make_shared<CompilerScheduleInstanceEvaluator>(m_backend, option_helper);
+        m_blob_reader.register_section_instance_evaluator(PredefinedSectionType::ELF_MAIN_SCHEDULE,
+                                                          compiler_schedules_instance_evaluator);
+        m_blob_reader.register_section_instance_evaluator(PredefinedSectionType::DYNAMIC_SCHEDULE,
+                                                          compiler_schedules_instance_evaluator);
     }
 
     /**
@@ -652,9 +668,11 @@ private:
 namespace intel_npu {
 
 IBlobFormatImporter::IBlobFormatImporter(const std::shared_ptr<const ov::Model>& original_model,
+                                         const ov::SoPtr<IEngineBackend>& backend,
                                          const FilteredConfig& config,
                                          const Logger& logger)
-    : m_config(config),
+    : m_backend(backend),
+      m_config(config),
       m_logger(logger),
       m_original_model(original_model) {}
 
@@ -668,8 +686,7 @@ void IBlobFormatImporter::register_compiler_version() {
     }
 }
 
-std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const ov::SoPtr<IEngineBackend>& backend,
-                                                          const std::string_view network_name,
+std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const std::string_view network_name,
                                                           const std::string_view device_name,
                                                           const std::shared_ptr<ov::ICore>& core) {
     OV_ITT_TASK_CHAIN(PARSE_AND_CREATE_GRAPH, itt::domains::NPUPlugin, "IBlobFormatImporter", "create_graph");
@@ -687,12 +704,12 @@ std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const ov::SoPtr<IEngin
     const std::optional<std::vector<ov::Tensor>> init_schedules = extract_init_schedules();
     m_batch_size = extract_batch_size();
 
-    update_compiler_type_if_perf_count(m_config, backend, device_name);
+    update_compiler_type_if_perf_count(m_config, m_backend, device_name);
 
     OV_ITT_TASK_NEXT(PARSE_AND_CREATE_GRAPH, "get_parser");
     m_logger.trace("Creating the parser");
     ParserFactory parserFactory;
-    auto parser = parserFactory.getParser(backend->getInitStructs());
+    auto parser = parserFactory.getParser(m_backend->getInitStructs());
 
     std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::pair<std::string, std::shared_ptr<ov::ICore>>>
         weights_source;
@@ -747,6 +764,8 @@ namespace blob_format_importer_factory {
 std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
                                             const bool is_raw_blob,
                                             const std::shared_ptr<const ov::Model>& original_model,
+                                            const ov::SoPtr<IEngineBackend>& backend,
+                                            const std::shared_ptr<CompilerOptionSupportHelper>& option_helper,
                                             const FilteredConfig& config) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "blob_format_importer_factory::create");
     const size_t input_size = npu_formatted_blob.get_remaining_size();
@@ -757,7 +776,7 @@ std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
         logger.info(BLOB_COMPATIBILITY_SKIPPED_MESSAGE.data());
 
         logger.debug("Creating a raw blob format import handler using the factory");
-        return std::make_unique<RawBlobImporter>(npu_formatted_blob, original_model, config);
+        return std::make_unique<RawBlobImporter>(npu_formatted_blob, original_model, backend, config);
     }
 
     // The V2 format is identified by some magic bytes at the beginning of the input
@@ -771,7 +790,11 @@ std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
         npu_formatted_blob.seekg(npu_region_start, std::ios::beg);
 
         logger.debug("Creating a blob format v2 import handler using the factory");
-        return std::make_unique<BlobFormatV2Importer>(npu_formatted_blob, original_model, config);
+        return std::make_unique<BlobFormatV2Importer>(npu_formatted_blob,
+                                                      original_model,
+                                                      backend,
+                                                      option_helper,
+                                                      config);
     }
 
     // The V1 format is identified by some magic bytes at the end of the input
@@ -783,7 +806,7 @@ std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
     npu_formatted_blob.seekg(npu_region_start, std::ios::beg);
 
     logger.debug("Creating a blob format v1 import handler using the factory");
-    return std::make_unique<BlobFormatV1Importer>(npu_formatted_blob, original_model, config);
+    return std::make_unique<BlobFormatV1Importer>(npu_formatted_blob, original_model, backend, config);
 }
 
 }  // namespace blob_format_importer_factory

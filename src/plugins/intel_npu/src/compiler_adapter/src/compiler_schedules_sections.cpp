@@ -340,13 +340,6 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
                                                      logger.level());
 }
 
-std::optional<std::string> ELFInitSchedulesSection::get_inidividual_compatibility_requirements() const {
-    const auto* graph = std::get_if<std::shared_ptr<Graph>>(&m_graph_or_schedules);
-    OPENVINO_ASSERT(graph, INVALID_STATE_MESSAGE);
-    std::optional<std::string_view> requirements = (*graph)->get_compatibility_descriptor();
-    return requirements.has_value() ? std::make_optional<>(std::string(requirements.value())) : std::nullopt;
-}
-
 DynamicScheduleSection::DynamicScheduleSection(const std::shared_ptr<DynamicGraph>& graph,
                                                const std::optional<ov::EncryptionCallbacks>& encryption_callbacks,
                                                const ov::log::Level log_level)

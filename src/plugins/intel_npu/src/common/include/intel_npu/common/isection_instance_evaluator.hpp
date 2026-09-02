@@ -19,20 +19,15 @@ namespace intel_npu {
  */
 class ISectionInstanceEvaluator {
 public:
-    ISectionInstanceEvaluator(const SectionType section_type);
+    ISectionInstanceEvaluator() = default;
 
     virtual ~ISectionInstanceEvaluator() = default;
-
-    SectionType get_section_type() const;
 
     /**
      * @brief Checks whether or not the NPU plugin supports a section instance described by the given runtime
      * requirements
      */
     virtual bool evaluate(std::string_view runtime_requirements) const = 0;
-
-private:
-    SectionType m_section_type;
 };
 
 }  // namespace intel_npu

@@ -182,6 +182,7 @@ ov::CompatibilityCheck validateCompatibilityDescriptor(const ov::SoPtr<intel_npu
         return ov::CompatibilityCheck::NOT_APPLICABLE;
     }
 
+    // TODO use the new instance evaluator here?
     OPENVINO_ASSERT(backend && backend->getDevice(), "Device is not available for compatibility descriptor validation");
 
     const auto device = backend->getDevice();
