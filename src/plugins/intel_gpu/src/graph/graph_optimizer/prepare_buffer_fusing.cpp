@@ -555,12 +555,17 @@ bool crop_in_place_optimization::match(const program_node& node,
     if (node.is_constant())
         return false;
 
-    // do not optimize variadic_split crop when either input1 or input2 is not constant.
-    // VariadicSplit ngraph shape infer requires value of axis(input1) and split_lengths(input2).
-    // And non_constant input1/input2 makes risky execution of runtime buffer fusing.
+    // Dynamic VariadicSplit sub-views feeding another crop can form chained
+    // padded views that are unsafe for the current in-place optimization.
+    // VariadicSplit shape inference also requires constant axis and split lengths.
     const auto& crop_node = node.as<crop>();
+    const bool has_crop_user =
+        std::any_of(node.get_users().begin(), node.get_users().end(), [](const program_node* user) {
+            return user->is_type<crop>();
+        });
     if ((crop_node.get_primitive()->op_mode == cldnn::crop_ngraph_op_mode::variadic_split) &&
-        (!crop_node.get_dependency(1).is_constant() || !crop_node.get_dependency(2).is_constant()))
+        ((dyn_aware && has_crop_user) ||
+         !crop_node.get_dependency(1).is_constant() || !crop_node.get_dependency(2).is_constant()))
         return false;
 
     if (!node.get_users().empty()) {
