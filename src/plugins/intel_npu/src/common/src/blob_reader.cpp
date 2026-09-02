@@ -4,8 +4,8 @@
 
 #include "intel_npu/common/blob_reader.hpp"
 
-#include "intel_npu/common/blob_format_version.hpp"
 #include "intel_npu/common/itt.hpp"
+#include "intel_npu/common/major_minor_version.hpp"
 #include "intel_npu/common/runtime_requirements.hpp"
 #include "intel_npu/config/options.hpp"
 
@@ -369,7 +369,7 @@ size_t BlobReader::get_npu_region_size(BlobSource& npu_formatted_blob) {
     npu_formatted_blob.read_into_buffer(&major_version, sizeof(major_version));
     npu_formatted_blob.read_into_buffer(&minor_version, sizeof(minor_version));
 
-    BlobFormatVersion format_version(major_version, minor_version);
+    MajorMinorVersion format_version(major_version, minor_version);
     OPENVINO_ASSERT(format_version == CURRENT_BLOB_FORMAT_VERSION,
                     "Invalid blob format version. Found: ",
                     format_version,

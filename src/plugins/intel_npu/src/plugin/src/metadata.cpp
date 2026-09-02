@@ -10,7 +10,7 @@
 #include <optional>
 #include <string>
 
-#include "intel_npu/common/blob_format_version.hpp"
+#include "intel_npu/common/major_minor_version.hpp"
 #include "intel_npu/compat_string_parser.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 

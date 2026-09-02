@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_npu/common/blob_format_version.hpp"
+#include "intel_npu/common/major_minor_version.hpp"
 
 #include "openvino/core/except.hpp"
 
@@ -14,52 +14,52 @@ constexpr char VERSION_SEPARATOR = '.';
 
 namespace intel_npu {
 
-BlobFormatVersion::BlobFormatVersion(const uint16_t major, const uint16_t minor) : m_major(major), m_minor(minor) {}
+MajorMinorVersion::MajorMinorVersion(const uint16_t major, const uint16_t minor) : m_major(major), m_minor(minor) {}
 
-uint16_t BlobFormatVersion::get_major() const {
+uint16_t MajorMinorVersion::get_major() const {
     return m_major;
 }
 
-uint16_t BlobFormatVersion::get_minor() const {
+uint16_t MajorMinorVersion::get_minor() const {
     return m_minor;
 }
 
-bool BlobFormatVersion::operator==(const BlobFormatVersion& other) const {
+bool MajorMinorVersion::operator==(const MajorMinorVersion& other) const {
     return m_major == other.get_major() && m_minor == other.get_minor();
 }
 
-bool BlobFormatVersion::operator!=(const BlobFormatVersion& other) const {
+bool MajorMinorVersion::operator!=(const MajorMinorVersion& other) const {
     return !(*this != other);
 }
 
-bool BlobFormatVersion::operator>(const BlobFormatVersion& other) const {
+bool MajorMinorVersion::operator>(const MajorMinorVersion& other) const {
     return m_major > other.get_major() || (m_major == other.get_major() && m_minor > other.get_minor());
 }
 
-bool BlobFormatVersion::operator>=(const BlobFormatVersion& other) const {
+bool MajorMinorVersion::operator>=(const MajorMinorVersion& other) const {
     return m_major > other.get_major() || (m_major == other.get_major() && m_minor >= other.get_minor());
 }
 
-bool BlobFormatVersion::operator<(const BlobFormatVersion& other) const {
+bool MajorMinorVersion::operator<(const MajorMinorVersion& other) const {
     return !(*this >= other);
 }
 
-bool BlobFormatVersion::operator<=(const BlobFormatVersion& other) const {
+bool MajorMinorVersion::operator<=(const MajorMinorVersion& other) const {
     return !(*this > other);
 }
 
-std::string blob_format_version_to_string(const BlobFormatVersion& version) {
+std::string blob_format_version_to_string(const MajorMinorVersion& version) {
     return std::to_string(version.get_major()) + VERSION_SEPARATOR + std::to_string(version.get_minor());
 }
 
-BlobFormatVersion blob_format_version_from_string(std::string version);
+MajorMinorVersion blob_format_version_from_string(std::string version);
 
-std::ostream& operator<<(std::ostream& out, const BlobFormatVersion& version) {
+std::ostream& operator<<(std::ostream& out, const MajorMinorVersion& version) {
     out << blob_format_version_to_string(version);
     return out;
 }
 
-std::istream& operator>>(std::istream& in, BlobFormatVersion& version) {
+std::istream& operator>>(std::istream& in, MajorMinorVersion& version) {
     std::string str;
     in >> str;
     version = blob_format_version_from_string(str);
