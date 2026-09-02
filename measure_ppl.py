@@ -112,6 +112,24 @@ def measure_perplexity(model_path, tokens, window_size, prime_size,
     lm_input_names = {inp.any_name for inp in model.inputs}
     has_position_ids = "position_ids" in lm_input_names
 
+    # mrope models (Qwen*-VL) declare position_ids as [N, batch, seq] where N is
+    # the number of rope sections. For pure-text input every section carries the
+    # same absolute position, so tile the 2D [1, L] positions across N rows.
+    mrope_sections = 0
+    if has_position_ids:
+        pos_shape = next(i for i in model.inputs
+                         if i.any_name == "position_ids").partial_shape
+        if pos_shape.rank.get_length() == 3 and pos_shape[0].is_static:
+            mrope_sections = pos_shape[0].get_length()
+
+    def fixup_position_ids(position_ids):
+        """Reshape [1, L] position ids to [N, 1, L] for mrope models."""
+        if mrope_sections == 0:
+            return position_ids
+        pos = position_ids.data if isinstance(position_ids, ov.Tensor) else position_ids
+        row = np.asarray(pos).reshape(1, 1, -1)
+        return ov.Tensor(np.repeat(row, mrope_sections, axis=0).astype(np.int64))
+
     def get_embeddings(token_ids):
         """Convert token IDs to embeddings via the text embeddings model."""
         embed_request.infer({"input": ov.Tensor(token_ids)})
@@ -132,7 +150,7 @@ def measure_perplexity(model_path, tokens, window_size, prime_size,
                 "beam_idx": ov.Tensor(np.array([0], dtype=np.int32)),
             }
         if has_position_ids:
-            inputs["position_ids"] = position_ids
+            inputs["position_ids"] = fixup_position_ids(position_ids)
         return inputs
 
     seq_len = len(tokens)
