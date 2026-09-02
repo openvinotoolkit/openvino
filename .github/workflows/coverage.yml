@@ -1,10 +1,9 @@
 name: Code coverage
 run-name: ${{ github.event_name == 'schedule' && 'Code coverage - Nightly' || 'Code coverage' }}
 on:
-  # schedule:
-  #   # run daily at 00:00 UTC
-  #   - cron: '0 0 * * *'
-  pull_request: # TODO: revert before merging, testing purposes only
+  schedule:
+    # run daily at 00:00 UTC
+    - cron: '0 0 * * *'
   workflow_dispatch:
     inputs:
       run-cpu-tests:
@@ -228,7 +227,7 @@ jobs:
   CoverageCppGpu:
     name: Coverage C++ (${{ matrix.gpu.name }}, ${{ matrix.lane.name }})
     needs: [ Build, Docker ]
-    # if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true' }}
     runs-on: ${{ fromJSON(matrix.gpu.runs_on) }}
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_igpu }}
@@ -363,7 +362,6 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: '3.11'
-          # iGPU/dGPU runners are outside the k8s cluster and cannot reach the pip proxy DNS.
           use-pip-proxy: 'false'
           set-pip-install-path: 'true'
           self-hosted-runner: 'true'
@@ -552,7 +550,7 @@ jobs:
   CoveragePythonGpu:
     name: Coverage Python (${{ matrix.gpu.name }})
     needs: [ Build, Docker ]
-    # if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true' }}
     runs-on: ${{ fromJSON(matrix.gpu.runs_on) }}
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_igpu }}
@@ -682,7 +680,6 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: '3.11'
-          # iGPU/dGPU runners are outside the k8s cluster and cannot reach the pip proxy DNS.
           use-pip-proxy: 'false'
           set-pip-install-path: 'true'
           self-hosted-runner: 'true'
