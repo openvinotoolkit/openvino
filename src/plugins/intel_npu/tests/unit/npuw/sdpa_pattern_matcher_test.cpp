@@ -52,7 +52,12 @@ std::shared_ptr<ov::Model> build_decomposed_sdpa_model(size_t num_layers = 1,
                                                        size_t past_len = 8,
                                                        bool with_attention_sink = false,
                                                        bool transpose_key = false,
-                                                       bool scale_scores = false) {
+                                                       bool scale_scores = false,
+                                                       int64_t sink_slice_begin = 0,
+                                                       int64_t sink_slice_end = -1,
+                                                       int64_t sink_slice_step = 1,
+                                                       int64_t sink_slice_axis = -1,
+                                                       bool include_sink_slice = true) {
     using namespace ov;
 
     const size_t context_len = past_len + query_len;
@@ -93,7 +98,11 @@ std::shared_ptr<ov::Model> build_decomposed_sdpa_model(size_t num_layers = 1,
 
         auto key_concat = std::make_shared<op::v0::Concat>(OutputVector{cvt_key, new_key}, 2);
         key_concat->set_friendly_name("concat_key." + idx);
-        auto value_concat = std::make_shared<op::v0::Concat>(OutputVector{cvt_value, new_value}, 2);
+        OutputVector value_inputs{cvt_value, new_value};
+        if (with_attention_sink && !include_sink_slice) {
+            value_inputs.push_back(make_param("sink_value." + idx, Shape{1, num_kv_heads, 1, head_dim}, element::f32));
+        }
+        auto value_concat = std::make_shared<op::v0::Concat>(value_inputs, 2);
         value_concat->set_friendly_name("concat_value." + idx);
 
         Output<Node> key_for_matmul = key_concat->output(0);
@@ -166,20 +175,22 @@ std::shared_ptr<ov::Model> build_decomposed_sdpa_model(size_t num_layers = 1,
         softmax->set_friendly_name("softmax." + idx);
 
         Output<Node> probabilities = softmax;
-        if (attention_sink) {
-            probabilities = std::make_shared<op::v8::Slice>(
-                softmax,
-                op::v0::Constant::create(element::i64, Shape{1}, {0}),
-                op::v0::Constant::create(element::i64, Shape{1}, {static_cast<int64_t>(context_len)}),
-                op::v0::Constant::create(element::i64, Shape{1}, {1}),
-                op::v0::Constant::create(element::i64, Shape{1}, {-1}));
+        if (attention_sink && include_sink_slice) {
+            const auto slice_end = sink_slice_end < 0 ? static_cast<int64_t>(context_len) : sink_slice_end;
+            probabilities =
+                std::make_shared<op::v8::Slice>(softmax,
+                                                op::v0::Constant::create(element::i64, Shape{1}, {sink_slice_begin}),
+                                                op::v0::Constant::create(element::i64, Shape{1}, {slice_end}),
+                                                op::v0::Constant::create(element::i64, Shape{1}, {sink_slice_step}),
+                                                op::v0::Constant::create(element::i64, Shape{1}, {sink_slice_axis}));
         }
 
         auto sv = std::make_shared<op::v0::MatMul>(probabilities, value_for_matmul);
         sv->set_friendly_name("matmul_sv." + idx);
 
         auto transpose = std::make_shared<op::v1::Transpose>(
-            sv, op::v0::Constant::create(element::i64, Shape{4}, std::vector<int64_t>{0, 2, 1, 3}));
+            sv,
+            op::v0::Constant::create(element::i64, Shape{4}, std::vector<int64_t>{0, 2, 1, 3}));
         transpose->set_friendly_name("transpose." + idx);
 
         auto reshape = std::make_shared<op::v1::Reshape>(
@@ -356,6 +367,29 @@ TEST(SDPAPatternMatcherTest, SDPADecomposedMatchesAttentionSinkModel) {
     auto ens = ov::npuw::online::buildPartitioning(model, cfg);
 
     EXPECT_GE(count_groups_with_tag(ens, "attn"), 1u) << "SDPADecomposed should match the attention-sink subgraph";
+}
+
+TEST(SDPAPatternMatcherTest, SDPADecomposedRejectsAttentionSinkWithoutSlice) {
+    auto model = build_decomposed_sdpa_model(/*num_layers=*/1,
+                                             /*with_gqa=*/false,
+                                             /*num_heads=*/4,
+                                             /*num_kv_heads=*/4,
+                                             /*head_dim=*/16,
+                                             /*query_len=*/8,
+                                             /*past_len=*/8,
+                                             /*with_attention_sink=*/true,
+                                             /*transpose_key=*/false,
+                                             /*scale_scores=*/false,
+                                             /*sink_slice_begin=*/0,
+                                             /*sink_slice_end=*/-1,
+                                             /*sink_slice_step=*/1,
+                                             /*sink_slice_axis=*/-1,
+                                             /*include_sink_slice=*/false);
+    auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "REP"}, {"NPUW_ONLINE_ISOLATE", "P:SDPADecomposed/attn"}});
+    auto ens = ov::npuw::online::buildPartitioning(model, cfg);
+
+    EXPECT_EQ(count_groups_with_tag(ens, "attn"), 0u)
+        << "SDPADecomposed should reject an attention sink without probability removal";
 }
 
 TEST(SDPAPatternMatcherTest, SDPADecomposedDoesNotMatchDQModel) {

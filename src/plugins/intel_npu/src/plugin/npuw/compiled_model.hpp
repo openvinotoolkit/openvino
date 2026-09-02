@@ -258,9 +258,9 @@ private:
     struct CompiledModelDesc {
         static constexpr ov::npuw::orc::TypeId kOrcType =
             static_cast<ov::npuw::orc::TypeId>(ov::npuw::orc::schema_npuw::Subgraph::ID);
-        // Version 0 is the frozen baseline on the wire. Any further layout
-        // changes must be introduced through a new versioned payload.
-        static constexpr ov::npuw::orc::Version kOrcVersion = 0u;
+        // Version 0 is retained for importing blobs written before the HFA
+        // regular/final tile input maps were serialized separately.
+        static constexpr ov::npuw::orc::Version kOrcVersion = 1u;
 
         std::set<std::string> devices_to_avoid;
         std::shared_ptr<ov::Model> model;
@@ -309,7 +309,8 @@ private:
         void serialize(ov::npuw::s11n::Stream& stream,
                        const ov::npuw::s11n::WeightsContext& ctx,
                        std::optional<std::size_t> orc_device_index = std::nullopt,
-                       const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx = nullptr);
+                       const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx = nullptr,
+                       ov::npuw::orc::Version version = kOrcVersion);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 

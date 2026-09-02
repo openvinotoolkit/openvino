@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "npuw_transformations/detect_causal_mask.hpp"
@@ -341,6 +342,13 @@ TEST(HostFlashAttentionFromTest, FusedScaleAndSinkMaskSkippingKeepsScaleWithoutM
     EXPECT_FALSE(has_input(result->_tile_model, "MASK_TILE"));
     EXPECT_TRUE(has_input(result->_final_tile_model, "SCALE"));
     EXPECT_TRUE(has_input(result->_final_tile_model, "MASK_TILE"));
+    EXPECT_EQ(result->_tile_param_index_map.at(ov::npuw::HFATileInputId::SCALE), 6u);
+    EXPECT_EQ(result->_final_tile_param_index_map.at(ov::npuw::HFATileInputId::SCALE), 7u);
+
+    const ov::npuw::compiled::HostFlashAttention compiled_hfa(*result);
+    EXPECT_EQ(compiled_hfa._sdpa_attention_info._tile_input_indices.scale, std::optional<std::size_t>{6u});
+    EXPECT_EQ(compiled_hfa._sdpa_attention_info._final_tile_input_indices.scale, std::optional<std::size_t>{7u});
+    EXPECT_EQ(compiled_hfa._sdpa_attention_info._final_tile_input_indices.mask, 6u);
 }
 
 TEST(HostFlashAttentionFromTest, NonFused_FinalTileHasSevenInputs) {

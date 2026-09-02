@@ -252,7 +252,7 @@ struct SDPAPatternNodes {
 
     bool is_valid() const {
         return matmul1_node && matmul2_node && softmax_node && add_node && past_key_concat_node &&
-               past_value_concat_node;
+               past_value_concat_node && (!attention_sink_node || softmax_slice_node);
     }
 
     // Log pattern information for debugging. prefix is optional.
@@ -272,6 +272,10 @@ struct SDPAPatternNodes {
         LOG_DEBUG("  Past value params: " << past_value_param_nodes.size());
     }
 };
+
+bool is_valid_attention_sink_slice(const std::shared_ptr<ov::Node>& sink_concat_node,
+                                   const std::shared_ptr<ov::Node>& softmax_node,
+                                   const std::shared_ptr<ov::Node>& slice_node);
 
 // Find the decomposed SDPA sub-graph pattern (MatMul->Add->Softmax->MatMul) in a
 // model and return all relevant nodes.  Returns an invalid result if not found.

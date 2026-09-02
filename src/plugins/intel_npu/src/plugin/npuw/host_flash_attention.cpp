@@ -938,7 +938,8 @@ bool HostFlashAttention::resolve_attention_parameters(const std::shared_ptr<ov::
 // ============================================================================
 // Helper function: Build tile model parameter index mapping
 // ============================================================================
-static void build_tile_param_mapping(HostFlashAttention& hfa, const std::shared_ptr<ov::Model>& tile_model) {
+static void build_tile_param_mapping(std::map<HFATileInputId, std::size_t>& mapping,
+                                     const std::shared_ptr<ov::Model>& tile_model) {
     LOG_INFO("Building HFA Tile Model input index mapping...");
 
     // Parse tile model inputs by their tensor names
@@ -955,21 +956,21 @@ static void build_tile_param_mapping(HostFlashAttention& hfa, const std::shared_
 
         // Map tensor name to enum ID
         if (name == hfa_tile_input_id_to_string(HFATileInputId::PAST_ACC)) {
-            hfa._tile_param_index_map[HFATileInputId::PAST_ACC] = i;
+            mapping[HFATileInputId::PAST_ACC] = i;
         } else if (name == hfa_tile_input_id_to_string(HFATileInputId::PAST_MAX)) {
-            hfa._tile_param_index_map[HFATileInputId::PAST_MAX] = i;
+            mapping[HFATileInputId::PAST_MAX] = i;
         } else if (name == hfa_tile_input_id_to_string(HFATileInputId::PAST_D)) {
-            hfa._tile_param_index_map[HFATileInputId::PAST_D] = i;
+            mapping[HFATileInputId::PAST_D] = i;
         } else if (name == hfa_tile_input_id_to_string(HFATileInputId::K_TILE)) {
-            hfa._tile_param_index_map[HFATileInputId::K_TILE] = i;
+            mapping[HFATileInputId::K_TILE] = i;
         } else if (name == hfa_tile_input_id_to_string(HFATileInputId::V_TILE)) {
-            hfa._tile_param_index_map[HFATileInputId::V_TILE] = i;
+            mapping[HFATileInputId::V_TILE] = i;
         } else if (name == hfa_tile_input_id_to_string(HFATileInputId::Q)) {
-            hfa._tile_param_index_map[HFATileInputId::Q] = i;
+            mapping[HFATileInputId::Q] = i;
         } else if (name == hfa_tile_input_id_to_string(HFATileInputId::MASK_TILE)) {
-            hfa._tile_param_index_map[HFATileInputId::MASK_TILE] = i;
+            mapping[HFATileInputId::MASK_TILE] = i;
         } else if (name == hfa_tile_input_id_to_string(HFATileInputId::SCALE)) {
-            hfa._tile_param_index_map[HFATileInputId::SCALE] = i;
+            mapping[HFATileInputId::SCALE] = i;
         } else {
             LOG_WARN("Unknown tile model input name: " << name);
         }
@@ -978,9 +979,9 @@ static void build_tile_param_mapping(HostFlashAttention& hfa, const std::shared_
     // Print the tile input mapping
     LOG_DEBUG("");
     LOG_DEBUG("========== HFA Tile Model Input Mapping ==========");
-    LOG_DEBUG("Total entries: " << hfa._tile_param_index_map.size());
+    LOG_DEBUG("Total entries: " << mapping.size());
 
-    for (const auto& [input_id, input_idx] : hfa._tile_param_index_map) {
+    for (const auto& [input_id, input_idx] : mapping) {
         LOG_DEBUG("  " << hfa_tile_input_id_to_string(input_id) << " -> input[" << input_idx << "]");
     }
     LOG_DEBUG("==================================================");
@@ -1288,11 +1289,10 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     build_sdpa_param_mapping(hfa, model, pattern_nodes);
 
     // ========================================================================
-    // Step 8: Build tile model parameter index mapping
-    // The first 6 input indices are identical in both models regular and final
-    // final_tile_model has mask_tile (index 6)
+    // Step 8: Build tile model parameter index mappings
     // ========================================================================
-    build_tile_param_mapping(hfa, final_tile_model);
+    build_tile_param_mapping(hfa._tile_param_index_map, tile_model);
+    build_tile_param_mapping(hfa._final_tile_param_index_map, final_tile_model);
 
     // ========================================================================
     // Step 9: Build tile model output index mapping
@@ -1343,10 +1343,10 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     _sdpa_attention_info._sdpa_indices.attention_scale = func_hfa._attention_scale_param_idx;
     _sdpa_attention_info._sdpa_indices.attention_sink = func_hfa._attention_sink_param_idx;
 
-    // Pre-cache tile input indices
-    auto get_tile_input_idx = [&](HFATileInputId input_id) -> std::size_t {
-        auto it = func_hfa._tile_param_index_map.find(input_id);
-        if (it == func_hfa._tile_param_index_map.end()) {
+    auto get_tile_input_idx = [](const std::map<HFATileInputId, std::size_t>& mapping,
+                                 HFATileInputId input_id) -> std::size_t {
+        auto it = mapping.find(input_id);
+        if (it == mapping.end()) {
             OPENVINO_THROW("HFA: Tile input mapping not found for input ID: ", static_cast<uint8_t>(input_id));
         }
         return it->second;
@@ -1360,16 +1360,27 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
         return it->second;
     };
 
-    // Cache all tile input indices
-    _sdpa_attention_info._tile_input_indices.q = get_tile_input_idx(HFATileInputId::Q);
-    _sdpa_attention_info._tile_input_indices.k = get_tile_input_idx(HFATileInputId::K_TILE);
-    _sdpa_attention_info._tile_input_indices.v = get_tile_input_idx(HFATileInputId::V_TILE);
-    _sdpa_attention_info._tile_input_indices.mask = get_tile_input_idx(HFATileInputId::MASK_TILE);
-    _sdpa_attention_info._tile_input_indices.acc = get_tile_input_idx(HFATileInputId::PAST_ACC);
-    _sdpa_attention_info._tile_input_indices.max = get_tile_input_idx(HFATileInputId::PAST_MAX);
-    _sdpa_attention_info._tile_input_indices.d = get_tile_input_idx(HFATileInputId::PAST_D);
+    auto& regular_tile_indices = _sdpa_attention_info._tile_input_indices;
+    regular_tile_indices.q = get_tile_input_idx(func_hfa._tile_param_index_map, HFATileInputId::Q);
+    regular_tile_indices.k = get_tile_input_idx(func_hfa._tile_param_index_map, HFATileInputId::K_TILE);
+    regular_tile_indices.v = get_tile_input_idx(func_hfa._tile_param_index_map, HFATileInputId::V_TILE);
+    if (func_hfa._tile_param_index_map.find(HFATileInputId::MASK_TILE) != func_hfa._tile_param_index_map.end()) {
+        regular_tile_indices.mask = get_tile_input_idx(func_hfa._tile_param_index_map, HFATileInputId::MASK_TILE);
+    }
+    regular_tile_indices.acc = get_tile_input_idx(func_hfa._tile_param_index_map, HFATileInputId::PAST_ACC);
+    regular_tile_indices.max = get_tile_input_idx(func_hfa._tile_param_index_map, HFATileInputId::PAST_MAX);
+    regular_tile_indices.d = get_tile_input_idx(func_hfa._tile_param_index_map, HFATileInputId::PAST_D);
+    auto& final_tile_indices = _sdpa_attention_info._final_tile_input_indices;
+    final_tile_indices.q = get_tile_input_idx(func_hfa._final_tile_param_index_map, HFATileInputId::Q);
+    final_tile_indices.k = get_tile_input_idx(func_hfa._final_tile_param_index_map, HFATileInputId::K_TILE);
+    final_tile_indices.v = get_tile_input_idx(func_hfa._final_tile_param_index_map, HFATileInputId::V_TILE);
+    final_tile_indices.mask = get_tile_input_idx(func_hfa._final_tile_param_index_map, HFATileInputId::MASK_TILE);
+    final_tile_indices.acc = get_tile_input_idx(func_hfa._final_tile_param_index_map, HFATileInputId::PAST_ACC);
+    final_tile_indices.max = get_tile_input_idx(func_hfa._final_tile_param_index_map, HFATileInputId::PAST_MAX);
+    final_tile_indices.d = get_tile_input_idx(func_hfa._final_tile_param_index_map, HFATileInputId::PAST_D);
     if (func_hfa._attention_scale_param_idx) {
-        _sdpa_attention_info._tile_input_indices.scale = get_tile_input_idx(HFATileInputId::SCALE);
+        regular_tile_indices.scale = get_tile_input_idx(func_hfa._tile_param_index_map, HFATileInputId::SCALE);
+        final_tile_indices.scale = get_tile_input_idx(func_hfa._final_tile_param_index_map, HFATileInputId::SCALE);
     }
 
     // Cache all tile output indices

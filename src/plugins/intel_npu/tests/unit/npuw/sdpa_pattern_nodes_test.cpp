@@ -135,12 +135,25 @@ ModelBuildResult build_sdpa_model(size_t num_sdpa, bool miss_key_concat = false,
     return {model, expected};
 }
 
-std::shared_ptr<ov::Model> build_sdpa_model_with_attention_sink() {
+std::shared_ptr<ov::Model> build_sdpa_model_with_attention_sink(int64_t slice_begin = 0,
+                                                                int64_t slice_end = 9,
+                                                                int64_t slice_step = 1,
+                                                                int64_t slice_axis = -1,
+                                                                bool include_slice = true) {
     using namespace ov;
 
     const Shape past_shape = {1, 4, 8, 64};
     const Shape new_token_shape = {1, 4, 1, 64};
     const Shape mask_shape = {1, 1, 1, 9};
+    const int64_t softmax_dim = 10;
+    std::size_t value_context = softmax_dim;
+    if (include_slice && (slice_axis == -1 || slice_axis == 3)) {
+        const auto clipped_begin = std::max<int64_t>(0, std::min(slice_begin, softmax_dim));
+        const auto clipped_end = std::max<int64_t>(clipped_begin, std::min(slice_end, softmax_dim));
+        if (slice_step > 0) {
+            value_context = static_cast<std::size_t>((clipped_end - clipped_begin + slice_step - 1) / slice_step);
+        }
+    }
 
     ParameterVector params;
     auto make_param = [&](const std::string& name, const Shape& shape) {
@@ -153,7 +166,7 @@ std::shared_ptr<ov::Model> build_sdpa_model_with_attention_sink() {
 
     auto query = make_param("query.0", new_token_shape);
     auto past_key = make_param("past_key_values.0.key", past_shape);
-    auto past_value = make_param("past_key_values.0.value", past_shape);
+    auto past_value = make_param("past_key_values.0.value", Shape{1, 4, value_context - 1, 64});
     auto new_key = make_param("new_key.0", new_token_shape);
     auto new_value = make_param("new_value.0", new_token_shape);
     auto mask = make_param("mask.0", mask_shape);
@@ -175,13 +188,17 @@ std::shared_ptr<ov::Model> build_sdpa_model_with_attention_sink() {
     scores_with_sink->set_friendly_name("scores_with_sink.0");
     auto softmax = std::make_shared<op::v8::Softmax>(scores_with_sink, 3);
     softmax->set_friendly_name("softmax.0");
-    auto slice = std::make_shared<op::v8::Slice>(softmax,
-                                                 op::v0::Constant::create(element::i64, Shape{1}, {0}),
-                                                 op::v0::Constant::create(element::i64, Shape{1}, {9}),
-                                                 op::v0::Constant::create(element::i64, Shape{1}, {1}),
-                                                 op::v0::Constant::create(element::i64, Shape{1}, {-1}));
-    slice->set_friendly_name("remove_sink_probability.0");
-    auto matmul2 = std::make_shared<op::v0::MatMul>(slice, value_concat);
+    Output<Node> probabilities = softmax;
+    if (include_slice) {
+        auto slice = std::make_shared<op::v8::Slice>(softmax,
+                                                     op::v0::Constant::create(element::i64, Shape{1}, {slice_begin}),
+                                                     op::v0::Constant::create(element::i64, Shape{1}, {slice_end}),
+                                                     op::v0::Constant::create(element::i64, Shape{1}, {slice_step}),
+                                                     op::v0::Constant::create(element::i64, Shape{1}, {slice_axis}));
+        slice->set_friendly_name("remove_sink_probability.0");
+        probabilities = slice;
+    }
+    auto matmul2 = std::make_shared<op::v0::MatMul>(probabilities, value_concat);
     matmul2->set_friendly_name("matmul2.0");
 
     ResultVector results;
@@ -718,6 +735,55 @@ TEST(SdpaPatternNodesTest, AttentionSinkDecompositionReturnsValidPattern) {
     ASSERT_NE(pattern.softmax_slice_node, nullptr);
     EXPECT_EQ(pattern.attention_sink_node->get_friendly_name(), "sink.0");
     EXPECT_EQ(pattern.softmax_slice_node->get_friendly_name(), "remove_sink_probability.0");
+}
+
+TEST(SdpaPatternNodesTest, AttentionSinkSliceMustRemoveTrailingElement) {
+    const auto model = build_sdpa_model_with_attention_sink(/*slice_begin=*/1, /*slice_end=*/10);
+
+    const auto pattern = ov::npuw::util::find_sdpa_pattern_nodes(model);
+
+    EXPECT_FALSE(pattern.is_valid());
+}
+
+TEST(SdpaPatternNodesTest, AttentionSinkSliceMustUseSoftmaxAxis) {
+    const auto model = build_sdpa_model_with_attention_sink(/*slice_begin=*/0,
+                                                            /*slice_end=*/9,
+                                                            /*slice_step=*/1,
+                                                            /*slice_axis=*/2);
+
+    const auto pattern = ov::npuw::util::find_sdpa_pattern_nodes(model);
+
+    EXPECT_FALSE(pattern.is_valid());
+}
+
+TEST(SdpaPatternNodesTest, AttentionSinkSliceMustPreserveAllScoreElements) {
+    const auto model = build_sdpa_model_with_attention_sink(/*slice_begin=*/0, /*slice_end=*/8);
+
+    const auto pattern = ov::npuw::util::find_sdpa_pattern_nodes(model);
+
+    EXPECT_FALSE(pattern.is_valid());
+}
+
+TEST(SdpaPatternNodesTest, AttentionSinkSliceMustUseUnitStride) {
+    const auto model = build_sdpa_model_with_attention_sink(/*slice_begin=*/0,
+                                                            /*slice_end=*/10,
+                                                            /*slice_step=*/2);
+
+    const auto pattern = ov::npuw::util::find_sdpa_pattern_nodes(model);
+
+    EXPECT_FALSE(pattern.is_valid());
+}
+
+TEST(SdpaPatternNodesTest, AttentionSinkRequiresProbabilitySlice) {
+    const auto model = build_sdpa_model_with_attention_sink(/*slice_begin=*/0,
+                                                            /*slice_end=*/9,
+                                                            /*slice_step=*/1,
+                                                            /*slice_axis=*/-1,
+                                                            /*include_slice=*/false);
+
+    const auto pattern = ov::npuw::util::find_sdpa_pattern_nodes(model);
+
+    EXPECT_FALSE(pattern.is_valid());
 }
 
 TEST(SdpaPatternNodesTest, SingleModeReturnsFirstPatternWhenMultipleSdpasExist) {

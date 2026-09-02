@@ -897,7 +897,8 @@ bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared
 void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Stream& stream,
                                                            const ov::npuw::s11n::WeightsContext& ctx,
                                                            std::optional<std::size_t> orc_device_index,
-                                                           const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx) {
+                                                           const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx,
+                                                           ov::npuw::orc::Version version) {
     using namespace ov::npuw::s11n;
 
     if (stream.output()) {
@@ -906,6 +907,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
         LOG_DEBUG("Deserializing CompiledModelDesc...");
     }
     LOG_BLOCK();
+    OPENVINO_ASSERT(version <= kOrcVersion, "Unsupported ORC NPUW subgraph version ", version);
 
     ov::SoPtr<ov::ICompiledModel> imported_compiled_model;
     std::optional<ov::npuw::s11n::SubmodelDeserializeCtx> resolved_submodel_ctx;
@@ -953,7 +955,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
     const bool is_fcall = replaced_by.has_value() && !static_cast<bool>(compiled_model);
     if (!is_fcall) {
         ov::npuw::moe::serialize_compiled_state(pipeline.context, stream, submodel_ctx);
-        ov::npuw::attn::serialize_compiled_state(pipeline.context, stream, submodel_ctx);
+        ov::npuw::attn::serialize_compiled_state(pipeline.context, stream, submodel_ctx, version);
 
         if (stream.input()) {
             if (ov::npuw::attn::get_compiled_dynamic(pipeline.context) != nullptr) {
@@ -1318,7 +1320,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         if (child.header().type != CompiledModelDesc::kOrcType) {
             OPENVINO_THROW("Unexpected ORC child type ID ", child.header().type, " in NPUW CompiledModel container");
         }
-        if (child.header().version != CompiledModelDesc::kOrcVersion) {
+        if (child.header().version > CompiledModelDesc::kOrcVersion) {
             OPENVINO_THROW("Unsupported ORC NPUW subgraph version ", child.header().version);
         }
 
@@ -1334,7 +1336,11 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
             [&](const std::string& device) {
                 return make_submodel_import_config(device, compiled->m_cfg);
             });
-        submodel.serialize(child_stream, compiled->m_import_weights_ctx, std::nullopt, &submodel_ctx);
+        submodel.serialize(child_stream,
+                           compiled->m_import_weights_ctx,
+                           std::nullopt,
+                           &submodel_ctx,
+                           child.header().version);
         child.expect_end();
     };
 

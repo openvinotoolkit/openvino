@@ -7,6 +7,7 @@
 #include <regex>
 
 #include "../../logging.hpp"
+#include "../../util.hpp"
 #include "../online/group.hpp"     // online::Group
 #include "../online/snapshot.hpp"  // online::Snapshot
 #include "openvino/op/ops.hpp"
@@ -239,6 +240,19 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
         LOG_DEBUG("Decomposed SDPA pattern matched!");
 
         auto& node_to_output = m.get_pattern_value_map();
+
+        const auto sink_concat_match = node_to_output.find(sink_concat);
+        const auto sink_slice_match = node_to_output.find(sink_slice);
+        const bool has_sink_concat = sink_concat_match != node_to_output.end();
+        const bool has_sink_slice = sink_slice_match != node_to_output.end();
+        if (has_sink_concat != has_sink_slice ||
+            (has_sink_concat &&
+             !ov::npuw::util::is_valid_attention_sink_slice(sink_concat_match->second.get_node_shared_ptr(),
+                                                            node_to_output.at(softmax).get_node_shared_ptr(),
+                                                            sink_slice_match->second.get_node_shared_ptr()))) {
+            LOG_DEBUG("Attention-sink SDPA requires a valid sink Concat/Slice pair");
+            return false;
+        }
 
         // Helper lambda to extract and isolate matched nodes
         auto isolate_matched = [&](const auto& pattern) {

@@ -124,12 +124,12 @@ struct HostFlashAttention {
     std::vector<std::size_t> _past_key_block_indices;    // [block_0_idx, block_1_idx, ..., block_N_idx]
     std::vector<std::size_t> _past_value_block_indices;  // [block_0_idx, block_1_idx, ..., block_N_idx]
 
-    // Tile model parameter index mapping
+    // Tile model parameter index mappings
     // Maps tile parameter IDs (PAST_ACC, K_TILE, Q, etc.) to actual input indices
-    // Tile model I/O: Inputs[past_acc, past_max, past_d, k_tile, v_tile, q, mask_tile]
-    //                 Outputs[acc, max, d] for regular tiles or [output] for final tile
-    // This is created after tile model generation in from() method
+    // for the regular and final tile models. The models can omit different optional
+    // inputs, so the maps must be kept separately.
     std::map<HFATileInputId, std::size_t> _tile_param_index_map;
+    std::map<HFATileInputId, std::size_t> _final_tile_param_index_map;
 
     // Tile model output index mapping
     // Maps tile output IDs (UPDATED_ACC, UPDATED_MAX, UPDATED_D) to actual output indices
@@ -197,6 +197,17 @@ struct HostFlashAttentionInfo {
         std::size_t d = 0u;
         std::optional<std::size_t> scale;
     } _tile_input_indices;
+
+    struct {
+        std::size_t q = 0u;
+        std::size_t k = 0u;
+        std::size_t v = 0u;
+        std::size_t mask = 0u;
+        std::size_t acc = 0u;
+        std::size_t max = 0u;
+        std::size_t d = 0u;
+        std::optional<std::size_t> scale;
+    } _final_tile_input_indices;
 
     // Pre-cached tile output indices
     struct {
@@ -317,7 +328,9 @@ struct HFARuntimeContext {
     template <typename HFADesc>
     void initialize_mask_cache(const HFADesc& hfa_desc, const std::string& device_name, AllocatorFn allocator) {
         // Get mask tensor shape from the final tile model
-        const size_t mask_input_idx = hfa_desc._sdpa_attention_info._tile_input_indices.mask;
+        const size_t mask_input_idx = hfa_desc._sdpa_attention_info._final_tile_input_indices.mask;
+        OPENVINO_ASSERT(mask_input_idx < hfa_desc._compiled_final_tile_model->inputs().size(),
+                        "HFA final tile mask input index out of range");
         const auto& mask_port = hfa_desc._compiled_final_tile_model->inputs()[mask_input_idx];
         const auto mask_shape = mask_port.get_shape();
         const auto mask_dtype = mask_port.get_element_type();
