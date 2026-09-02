@@ -4,12 +4,17 @@
 
 #include "selective_ssm_jit_kernel.hpp"
 
-#include <common/c_types_map.hpp>
+#include <xbyak/xbyak.h>
+
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 
+#include "cpu/x64/jit_generator.hpp"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "nodes/kernels/x64/jit_kernel_base.hpp"
+#include "nodes/kernels/x64/selective_ssm_jit_config.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 using namespace dnnl::impl::cpu::x64;
