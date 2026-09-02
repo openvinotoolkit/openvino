@@ -42,6 +42,11 @@ bool enable_host_compile_if_needed(const std::shared_ptr<const ov::Model>& model
         // Assumed N,C,H,W order. Only height (H) and width (W) determine candidacy - channel (C) is not considered,
         // and batch (N) alone does not matter either. Accepted patterns: H, W, HW, NH, NW and NHW; a dynamic batch
         // (N) with both H and W static ("N alone") is the only combination that is rejected.
+        // Note: When the batch size is greater than 1, using "compiler batch + host compiler interpreter" may cause
+        // ConvertBatchedLayerTo1N and AdjustScaleShiftForDWConv to fail on certain models (e.g., maxpool models)
+        // because their internal reshape operations do not support dynamic batch shapes. Alternatively, when the
+        // batch size is greater than 1, combining "plugin batch + host compiler interpreter" may work but result in an
+        // inference output shape that does not match the input shape on certain models (e.g., maxpool models).
         return shape[2].is_dynamic() || shape[3].is_dynamic();
     };
 
