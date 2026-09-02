@@ -37,6 +37,27 @@ SDPA::SDPA(const OutputVector& inputs,
            const std::vector<int64_t>& order_k,
            const std::vector<int64_t>& order_v,
            const std::vector<int64_t>& order_out,
+           const ov::element::Type output_type,
+           bool rope_q)
+    : m_is_causal(is_causal)
+    , m_order_q(order_q)
+    , m_order_k(order_k)
+    , m_order_v(order_v)
+    , m_order_out(order_out)
+    , m_output_type(output_type)
+    , m_compressed(false)
+    , m_rope_q(rope_q) {
+    set_arguments(inputs);
+    set_causal(is_causal);
+    validate_and_infer_types();
+}
+
+SDPA::SDPA(const OutputVector& inputs,
+           const bool is_causal,
+           const std::vector<int64_t>& order_q,
+           const std::vector<int64_t>& order_k,
+           const std::vector<int64_t>& order_v,
+           const std::vector<int64_t>& order_out,
            const QuantizationAttribute& quantization_attrs,
            const ov::element::Type output_type)
     : m_is_causal(is_causal)
@@ -61,13 +82,14 @@ std::shared_ptr<ov::Node> SDPA::clone_with_new_inputs(const ov::OutputVector& ne
                                   m_order_k,
                                   m_order_v,
                                   m_order_out,
-                                  m_output_type);
+                                  m_output_type,
+                                  m_rope_q);
 }
 
 void SDPA::validate_and_infer_types() {
     const auto input_size = get_input_size();
 
-    const auto compression_inputs = get_compression_inputs_num();
+    const auto compression_inputs = get_compression_inputs_num() + (m_rope_q ? 2 : 0);
     NODE_VALIDATION_CHECK(this,
         input_size >= 3 + compression_inputs && input_size <= 5 + compression_inputs,
         "Number of inputs is incorrect. Current value is: ",
