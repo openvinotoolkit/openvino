@@ -150,33 +150,40 @@ void selective_ssm_typed(const DataT* A,
 }
 
 struct PagedMetadata {
-    const ov::intel_cpu::PlainTensor& subsequence_begins;
-    const ov::intel_cpu::PlainTensor& block_indices;
-    const ov::intel_cpu::PlainTensor& block_indices_begins;
-    const ov::intel_cpu::PlainTensor& num_processed_tokens;
-    const ov::intel_cpu::PlainTensor& cache_interval;
+    ov::intel_cpu::PlainTensor subsequence_begins;
+    ov::intel_cpu::PlainTensor block_indices;
+    ov::intel_cpu::PlainTensor block_indices_begins;
+    ov::intel_cpu::PlainTensor num_processed_tokens;
+    ov::intel_cpu::PlainTensor cache_interval;
 };
 
 int64_t index_at(const ov::intel_cpu::PlainTensor& tensor, size_t index) {
     return tensor.get_precision() == ov::element::i64 ? tensor.ptr<int64_t>()[index] : tensor.ptr<int32_t>()[index];
 }
 
-PagedMetadata make_paged_metadata(const ov::intel_cpu::PlainTensor& subsequence_begins,
-                                  const ov::intel_cpu::PlainTensor& block_indices,
-                                  const ov::intel_cpu::PlainTensor& block_indices_begins,
-                                  const ov::intel_cpu::PlainTensor& num_processed_tokens,
-                                  const ov::intel_cpu::PlainTensor& cache_interval) {
-    const auto index_precision = subsequence_begins.get_precision();
+ov::intel_cpu::PlainTensor make_index_tensor(const void* data, size_t count, const ov::element::Type& index_precision) {
+    ov::intel_cpu::PlainTensor tensor;
+    tensor.resize({count}, index_precision.size(), index_precision, const_cast<void*>(data));
+    return tensor;
+}
+
+PagedMetadata make_paged_metadata(const void* subsequence_begins,
+                                  const void* block_indices,
+                                  const void* block_indices_begins,
+                                  const void* num_processed_tokens,
+                                  const void* cache_interval,
+                                  const ov::element::Type& index_precision,
+                                  const PagedSelectiveSSMShape& shape) {
     OPENVINO_ASSERT(any_of(index_precision, ov::element::i32, ov::element::i64),
                     "PagedSelectiveSSM supports only i32/i64 metadata, got ",
                     index_precision,
                     ".");
-    OPENVINO_ASSERT(block_indices.get_precision() == index_precision &&
-                        block_indices_begins.get_precision() == index_precision &&
-                        num_processed_tokens.get_precision() == index_precision &&
-                        cache_interval.get_precision() == index_precision,
-                    "PagedSelectiveSSM metadata precisions must match.");
-    return {subsequence_begins, block_indices, block_indices_begins, num_processed_tokens, cache_interval};
+    const auto sequence_offsets_count = checked_size_sum({shape.sequence_count, size_t{1}}, "metadata offsets");
+    return {make_index_tensor(subsequence_begins, sequence_offsets_count, index_precision),
+            make_index_tensor(block_indices, shape.logical_block_count, index_precision),
+            make_index_tensor(block_indices_begins, sequence_offsets_count, index_precision),
+            make_index_tensor(num_processed_tokens, shape.sequence_count, index_precision),
+            make_index_tensor(cache_interval, shape.sequence_count, index_precision)};
 }
 
 size_t checked_index(int64_t value, size_t limit, const char* name, size_t position) {
@@ -565,16 +572,18 @@ void dispatch_paged_state_type(const PagedSelectiveSSMCallArgs& args, const ov::
 }  // namespace
 
 size_t checked_size_product(std::initializer_list<size_t> dimensions, const char* tensor_name) {
+    if (std::find(dimensions.begin(), dimensions.end(), size_t{0}) != dimensions.end()) {
+        return 0;
+    }
+
     size_t result = 1;
     for (const auto dimension : dimensions) {
-        if (dimension == 0) {
-            return 0;
-        }
-        OPENVINO_ASSERT(result <= std::numeric_limits<size_t>::max() / dimension,
+        size_t product = 0;
+        OPENVINO_ASSERT(!ov::util::mul_overflow(result, dimension, product),
                         "SelectiveSSM size overflow while calculating ",
                         tensor_name,
                         ".");
-        result *= dimension;
+        result = product;
     }
     return result;
 }
@@ -592,7 +601,7 @@ size_t checked_size_sum(std::initializer_list<size_t> values, const char* buffer
 }
 
 size_t get_scratch_head_dim(size_t head_dim, size_t state_size, size_t outer_work_items, size_t thread_count) {
-    OPENVINO_ASSERT(state_size > 0, "SelectiveSSM state size must be positive.");
+    OPENVINO_ASSERT(state_size > 0);
     if (head_dim == 0) {
         return 1;
     }
@@ -656,15 +665,16 @@ void paged_selective_ssm(const void* A,
                          const void* x,
                          const void* C,
                          void* recurrent_state_table,
-                         const ov::intel_cpu::PlainTensor& subsequence_begins,
-                         const ov::intel_cpu::PlainTensor& block_indices,
-                         const ov::intel_cpu::PlainTensor& block_indices_begins,
-                         const ov::intel_cpu::PlainTensor& num_processed_tokens,
-                         const ov::intel_cpu::PlainTensor& cache_interval,
+                         const void* subsequence_begins,
+                         const void* block_indices,
+                         const void* block_indices_begins,
+                         const void* num_processed_tokens,
+                         const void* cache_interval,
                          void* output,
                          const PagedSelectiveSSMShape& shape,
                          const ov::element::Type& data_precision,
                          const ov::element::Type& state_precision,
+                         const ov::element::Type& index_precision,
                          float* state_scratch,
                          size_t scratch_head_dim,
                          int32_t* metadata_validation_scratch,
@@ -678,7 +688,9 @@ void paged_selective_ssm(const void* A,
                                               block_indices,
                                               block_indices_begins,
                                               num_processed_tokens,
-                                              cache_interval);
+                                              cache_interval,
+                                              index_precision,
+                                              shape);
     if (metadata_validation_scratch != nullptr) {
         validate_paged_metadata(metadata, shape, metadata_validation_scratch);
     }

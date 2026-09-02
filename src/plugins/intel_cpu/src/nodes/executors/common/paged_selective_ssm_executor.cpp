@@ -137,40 +137,7 @@ bool PagedSelectiveSSMExecutor::update_scratchpad(const MemoryArgs& memory) {
 }
 
 bool PagedSelectiveSSMExecutor::update(const MemoryArgs& memory) {
-    update_metadata(memory);
     return update_scratchpad(memory);
-}
-
-void PagedSelectiveSSMExecutor::update_metadata(const MemoryArgs& memory) {
-    constexpr std::array metadata_args{
-        ARG_PAGED_SSM_SUBSEQUENCE_BEGINS,
-        ARG_PAGED_SSM_BLOCK_INDICES,
-        ARG_PAGED_SSM_BLOCK_INDICES_BEGINS,
-        ARG_PAGED_SSM_NUM_PROCESSED_TOKENS,
-        ARG_PAGED_SSM_CACHE_INTERVAL,
-    };
-    if (std::any_of(metadata_args.begin(), metadata_args.end(), [&](int arg) {
-            return memory.at(arg)->getDescPtr()->getShape().isDynamic();
-        })) {
-        return;
-    }
-    m_subsequence_begins.reset(memory.at(ARG_PAGED_SSM_SUBSEQUENCE_BEGINS));
-    m_block_indices.reset(memory.at(ARG_PAGED_SSM_BLOCK_INDICES));
-    m_block_indices_begins.reset(memory.at(ARG_PAGED_SSM_BLOCK_INDICES_BEGINS));
-    m_num_processed_tokens.reset(memory.at(ARG_PAGED_SSM_NUM_PROCESSED_TOKENS));
-    m_cache_interval.reset(memory.at(ARG_PAGED_SSM_CACHE_INTERVAL));
-}
-
-bool PagedSelectiveSSMExecutor::metadata_matches(const MemoryArgs& memory) const {
-    const auto matches = [&](const PlainTensor& tensor, int arg) {
-        const auto& mem = memory.at(arg);
-        return tensor.m_mem == mem && tensor.m_ptr.get() == mem->getData();
-    };
-    return matches(m_subsequence_begins, ARG_PAGED_SSM_SUBSEQUENCE_BEGINS) &&
-           matches(m_block_indices, ARG_PAGED_SSM_BLOCK_INDICES) &&
-           matches(m_block_indices_begins, ARG_PAGED_SSM_BLOCK_INDICES_BEGINS) &&
-           matches(m_num_processed_tokens, ARG_PAGED_SSM_NUM_PROCESSED_TOKENS) &&
-           matches(m_cache_interval, ARG_PAGED_SSM_CACHE_INTERVAL);
 }
 
 void PagedSelectiveSSMExecutor::execute(const MemoryArgs& memory) {
@@ -204,9 +171,6 @@ void PagedSelectiveSSMExecutor::execute(const MemoryArgs& memory) {
                         block_begins_dims[0] == sequence_count + 1 && processed_dims[0] == sequence_count &&
                         interval_dims[0] == sequence_count,
                     "PagedSelectiveSSM metadata tensor lengths are inconsistent.");
-    if (!metadata_matches(memory)) {
-        update_metadata(memory);
-    }
     // The node prepares parameters when input shapes change. Keep the executor self-contained as well: direct users
     // and a changed worker count must refresh every scratch region before pointer offsets below are calculated.
     if (!m_scratch || m_scratch_state_size != state_dims[3] || m_scratch_head_dim != expected_scratch_head_dim ||
@@ -254,15 +218,16 @@ void PagedSelectiveSSMExecutor::execute(const MemoryArgs& memory) {
                                       memory.at(ARG_PAGED_SSM_X)->getData(),
                                       memory.at(ARG_PAGED_SSM_C)->getData(),
                                       memory.at(ARG_PAGED_SSM_STATE)->getData(),
-                                      m_subsequence_begins,
-                                      m_block_indices,
-                                      m_block_indices_begins,
-                                      m_num_processed_tokens,
-                                      m_cache_interval,
+                                      memory.at(ARG_PAGED_SSM_SUBSEQUENCE_BEGINS)->getData(),
+                                      memory.at(ARG_PAGED_SSM_BLOCK_INDICES)->getData(),
+                                      memory.at(ARG_PAGED_SSM_BLOCK_INDICES_BEGINS)->getData(),
+                                      memory.at(ARG_PAGED_SSM_NUM_PROCESSED_TOKENS)->getData(),
+                                      memory.at(ARG_PAGED_SSM_CACHE_INTERVAL)->getData(),
                                       memory.at(ARG_PAGED_SSM_OUT)->getData(),
                                       shape,
                                       data_precision,
                                       state_precision,
+                                      memory.at(ARG_PAGED_SSM_SUBSEQUENCE_BEGINS)->getDescPtr()->getPrecision(),
                                       state_scratch,
                                       m_scratch_head_dim,
                                       metadata_validation_scratch,
