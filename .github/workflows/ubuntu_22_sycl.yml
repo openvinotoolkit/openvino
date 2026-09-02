@@ -86,7 +86,7 @@ jobs:
 
   Build:
     needs: [Docker, Smart_CI]
-    if: "!needs.smart_ci.outputs.skip_workflow"
+    if: "!needs.smart_ci.outputs.skip_workflow && fromJSON(needs.smart_ci.outputs.affected_components).GPU"
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
@@ -100,6 +100,7 @@ jobs:
       build-rpm-packages: false
       build-additional-python-packages: false
       target-branch: ${{ inputs.target-branch }}
+      store_artifacts: false
       cmake-options: >-
             -DENABLE_NCC_STYLE=OFF
             -DENABLE_TESTS=ON
@@ -112,10 +113,12 @@ jobs:
             -DENABLE_ONEDNN_FOR_GPU=ON
             -DGPU_RT_TYPE=SYCL
             -DENABLE_SYSTEM_FLATBUFFERS=OFF
+            -DENABLE_INTEL_CPU=OFF
+            -DENABLE_INTEL_NPU=OFF
 
   Overall_Status:
     name: ci/gha_overall_status_ubuntu_22.04_sycl
-    needs: [Smart_CI, Build]
+    needs: [Smart_CI, Docker, Build]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
