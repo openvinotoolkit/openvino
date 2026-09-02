@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#if !defined(_WIN32) && defined(ENABLE_LIBVA) && defined(ENABLE_LIBVA_DRM)
+#if (defined(OV_GPU_WITH_OCL_RT) || defined(OV_GPU_WITH_ZE_RT)) && !defined(_WIN32) && defined(ENABLE_LIBVA) && defined(ENABLE_LIBVA_DRM)
 
 #include <algorithm>
 #include <string>
@@ -212,4 +212,4 @@ TEST_F(OVRemoteTensorVA_Test, smoke_recycled_surface_id_is_reimported) {
     ASSERT_NE(reimported.second.get(), original_mem_uv);
 }
 
-#endif  // OV_GPU_WITH_OCL_RT && !_WIN32 && ENABLE_LIBVA && ENABLE_LIBVA_DRM
+#endif  // (OV_GPU_WITH_OCL_RT || OV_GPU_WITH_ZE_RT) && !_WIN32 && ENABLE_LIBVA && ENABLE_LIBVA_DRM
