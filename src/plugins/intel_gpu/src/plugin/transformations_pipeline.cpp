@@ -90,6 +90,7 @@
 #include "transformations/common_optimizations/moe_op_fusion.hpp"
 #include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
 #include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
+#include "plugin/transformations/decompose_one_hot_non_const_values.hpp"
 #include "plugin/transformations/decompose_reduce_scalar_output.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
 #include "plugin/transformations/fc_convert_fusion.hpp"
@@ -784,6 +785,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                           keep_precision_sensitive_in_fp32_1,
                                                           convert_input_output_precision,
                                                           store_original_precision_as_rt_attribute);
+
+        // The one_hot primitive takes on/off as compile time values,
+        // so OneHot ops fed by a runtime scalar are turned into a boolean mask + Select.
+        // This runs right before "CommonOptimizations",
+        // whose ConstantFolding folds the mask away when indices and depth are constants.
+        manager.register_pass<ov::intel_gpu::DecomposeOneHotNonConstValues>();
 
         manager.register_pass<ov::pass::CommonOptimizations>();
 
