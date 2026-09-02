@@ -275,6 +275,36 @@ TYPED_TEST(type_prop, multiclass_nms_output_shape_1dim_keep_topk) {
     EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
 }
 
+TYPED_TEST(type_prop, multiclass_nms_dynamic_num_boxes_with_nms_topk) {
+    const auto boxes = make_shared<op::v0::Parameter>(element::f32, PartialShape{2, Dimension::dynamic(), 4});
+    const auto scores = make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 5, Dimension::dynamic()});
+    this->attrs.nms_top_k = 3;
+
+    const auto nms = make_shared<TypeParam>(boxes, scores, this->attrs);
+
+    ASSERT_EQ(nms->get_output_element_type(0), element::f32);
+    ASSERT_EQ(nms->get_output_element_type(1), element::i64);
+    ASSERT_EQ(nms->get_output_element_type(2), element::i64);
+    EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension(0, 2 * 5 * 3), Dimension(6)}));
+    EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 5 * 3), 1}));
+    EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
+}
+
+TYPED_TEST(type_prop, multiclass_nms_dynamic_num_boxes_with_keep_topk) {
+    const auto boxes = make_shared<op::v0::Parameter>(element::f32, PartialShape{2, Dimension::dynamic(), 4});
+    const auto scores = make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 5, Dimension::dynamic()});
+    this->attrs.keep_top_k = 8;
+
+    const auto nms = make_shared<TypeParam>(boxes, scores, this->attrs);
+
+    ASSERT_EQ(nms->get_output_element_type(0), element::f32);
+    ASSERT_EQ(nms->get_output_element_type(1), element::i64);
+    ASSERT_EQ(nms->get_output_element_type(2), element::i64);
+    EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension(0, 2 * 8), Dimension(6)}));
+    EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 8), 1}));
+    EXPECT_EQ(nms->get_output_shape(2), (Shape{2}));
+}
+
 TYPED_TEST(type_prop, multiclass_nms_input_f16) {
     const auto boxes = make_shared<op::v0::Parameter>(element::f16, Shape{2, 7, 4});
     const auto scores = make_shared<op::v0::Parameter>(element::f16, Shape{2, 5, 7});
