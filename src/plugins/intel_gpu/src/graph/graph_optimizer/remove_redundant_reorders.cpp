@@ -23,6 +23,7 @@
 #include "group_normalization_inst.h"
 #include "mvn_inst.h"
 #include "rms_inst.h"
+#include "rope_inst.h"
 
 #include <vector>
 #include <list>
@@ -459,7 +460,11 @@ void remove_redundant_reorders::run(program& p) {
                  input.is_type<fully_connected>() ||
                  input.is_type<concatenation>() || input.is_type<depth_to_space>() || input.is_type<region_yolo>() ||
                  input.is_type<detection_output>() || input.is_type<gather>() || input.is_type<broadcast>() ||
-                 input.is_type<select>() || input.is_type<eltwise>() || input.is_type<rms>()) && !input.is_constant();
+                 input.is_type<select>() || input.is_type<eltwise>() || input.is_type<rms>() ||
+                 // rope_opt emits the output type from the rotation's own store, so a
+                 // type-conversion-only reorder after it is a full read and write of the tensor
+                 // for a conversion the producing kernel already performs.
+                 input.is_type<rope>()) && !input.is_constant();
             if (!same_data_type && !allowed_dt_conversion_fuse)
                 continue;
 
@@ -480,7 +485,8 @@ void remove_redundant_reorders::run(program& p) {
                 if ((input.is_type<mvn>() || input.is_type<concatenation>() || input.is_type<gather>() ||
                     input.is_type<broadcast>() || input.is_type<select>() || input.is_type<eltwise>() ||
                     input.is_type<rms>() ||
-                    (input.is_dynamic() && (input.is_type<group_normalization>() || input.is_type<permute>()))) ||
+                    (input.is_dynamic() && (input.is_type<group_normalization>() || input.is_type<permute>() ||
+                                            input.is_type<rope>()))) ||
                     is_onednn_fc) {
                     fused_primitive_desc local_desc(node.get_primitive());
                     local_desc.f_param = node.get_fuse_params();

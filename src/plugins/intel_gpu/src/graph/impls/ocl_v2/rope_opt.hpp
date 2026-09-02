@@ -34,7 +34,22 @@ struct RopeOpt : public ImplementationManager {
             return false;
         }
 
-        return one_of(in0_layout.data_type, supported_types) && one_of(out_layout.data_type, supported_types);
+        // An i8 output is allowed so that a narrowing conversion after the rotation can ride
+        // along in its store instead of costing a separate full-tensor pass. Any other differing
+        // output type is rejected: VEC_SIZE is derived from the input type alone, so a
+        // mixed-precision configuration would emit vector stores whose element type does not
+        // match the output.
+        static constexpr std::array supported_out_types = {
+            ov::element::f32,
+            ov::element::f16,
+            ov::element::i8,
+        };
+
+        if (out_layout.data_type != in0_layout.data_type && out_layout.data_type != ov::element::i8) {
+            return false;
+        }
+
+        return one_of(in0_layout.data_type, supported_types) && one_of(out_layout.data_type, supported_out_types);
     }
 };
 

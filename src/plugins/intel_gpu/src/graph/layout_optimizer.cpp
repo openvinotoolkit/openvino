@@ -13,6 +13,7 @@
 #include "resample_inst.h"
 #include "reshape_inst.h"
 #include "rms_inst.h"
+#include "rope_inst.h"
 #include "arg_max_min_inst.h"
 #include "shape_of_inst.h"
 #include "select_inst.h"
@@ -439,7 +440,10 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         !node.get_program().is_body_program() && !prev.is_in_shape_of_subgraph() && prev.get_preferred_impl_type() != cldnn::impl_types::cpu) {
         // case for truncate mode
         if ((prev.is_type<mvn>() || prev.is_type<concatenation>() || prev.is_type<gather>() || prev.is_type<broadcast>() ||
-            prev.is_type<select>() || prev.is_type<eltwise>() || prev.is_type<rms>()) &&
+            prev.is_type<select>() || prev.is_type<eltwise>() || prev.is_type<rms>() ||
+            // rope, for the reason given in remove_redundant_reorders: the rotation's store
+            // emits the output type directly.
+            prev.is_type<rope>()) &&
             node.is_type_conversion_only()) {
             return true;
         }
