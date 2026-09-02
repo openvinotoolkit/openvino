@@ -54,7 +54,7 @@ static std::string GetAxisDimSizeStr(const gather_elements_params& params) {
 
 static std::string GetLoadAndHandleNegativeIndicesStr(const gather_elements_params& params) {
     std::string str = "const int axis_dim = " + GetAxisDimSizeStr(params) + ";";
-    str += "const int indices_val_read = (int)indices[out_idx];";
+    str += "const int indices_val_read = (int)indices[idx_idx];";
     str += "const int indices_val = indices_val_read < 0 ? indices_val_read + axis_dim : indices_val_read;";
     return str;
 }

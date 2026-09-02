@@ -10,6 +10,12 @@
 #include <string>
 
 namespace kernel_selector {
+namespace {
+// Cap on the per-work-item slice held in registers; a larger private array risks spilling
+// to scratch, which would cost more than the passes it saves.
+constexpr size_t kMaxCachedIters = 8;
+}  // namespace
+
 ParamsKey MVNKernelBfyxOpt::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
@@ -102,6 +108,11 @@ JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params, MVNKern
             MakeJitConstant("DATA_SETS_COUNT", dispatchData.dataSetsCount),
             MakeJitConstant("DATA_SET_SIZE", dispatchData.dataSetSize),
         });
+        // Hold each work item's slice of the data set in registers so the mean, variance and
+        // normalize loops share one pass over global memory instead of taking three.
+        const size_t iters = CeilDiv(dispatchData.dataSetSize, dispatchData.lws[0]);
+        if (iters >= 1 && iters <= kMaxCachedIters)
+            jit.AddConstant(MakeJitConstant("MVN_CACHE_ITERS", iters));
     }
     auto activation_dt = GetActivationType(params);
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
