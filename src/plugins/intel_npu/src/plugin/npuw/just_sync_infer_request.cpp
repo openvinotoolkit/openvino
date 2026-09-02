@@ -602,23 +602,10 @@ void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& po
     std::unique_lock lock(m_io_storages_mutex);
     m_port_to_tensor[port] = TensorStorage{tensor, true};
 
-    // Check if setting output tensor
     for (std::size_t i = 0; i < m_npuw_model->outputs().size(); ++i) {
         if (m_npuw_model->outputs()[i] == port) {
             const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(i);
-            auto funcall_result_iter = m_funcall_result.find(from_submodel);
-            // This is a tricky case:
-            // 1) We already allocated an output tensor in m_funcall_result via FMM
-            // 2) We got an output tensor from outside
-            // m_funcall_result and m_port_to_tensor aren't connected, thus we will only write
-            // to m_funcall_result, but get_tensor() would return an empty tensor from m_port_to_tensor.
-            // Here we have to set the tensor to function's output, so the function will write to the correct tensor.
-            if (funcall_result_iter != m_funcall_result.end()) {
-                funcall_result_iter->second = tensor;
-            } else {
-                // Global-output-only: FMM didn't pre-allocate, insert the user's tensor now
-                m_funcall_result[from_submodel] = tensor;
-            }
+            m_funcall_result[from_submodel] = tensor;
         }
     }
 
@@ -728,6 +715,14 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     for (auto&& id : m_funcall_heads) {
         LOG_DEBUG("Pre-initializing weights for subgraph[" << id << "]");
         unpack_closure(id, m_subrequests[id]);
+    }
+
+    // Check that all global output tensors are set by user. Otherwise, allocating here.
+    for (std::size_t out_idx = 0; out_idx < m_npuw_model->outputs().size(); ++out_idx) {
+        const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(out_idx);
+        if (m_funcall_result.count(from_submodel) == 0) {
+            m_funcall_result[from_submodel] = get_tensor(m_npuw_model->outputs()[out_idx]);
+        }
     }
 
     LOG_DEBUG("Done");

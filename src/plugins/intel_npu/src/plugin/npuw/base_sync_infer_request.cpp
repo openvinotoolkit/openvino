@@ -226,13 +226,6 @@ std::string ov::npuw::IBaseInferRequest::profile_tag(std::size_t idx) const {
 void ov::npuw::IBaseInferRequest::infer() {
     m_now_idx.reset();
 
-    if (m_run_iter == 0u) {
-        // Allocate global outputs on the first run, if they weren't allocated by user
-        for (const auto& output : m_npuw_model->outputs()) {
-            get_tensor(output);
-        }
-    }
-
     prepare_for_infer();
     for (std::size_t idx = 0u; idx < m_num_submodels; idx++) {
         m_now_idx = idx;
