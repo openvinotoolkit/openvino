@@ -209,33 +209,6 @@ KERNEL(convolution_bfyx_f16)(
                         line_cache[xb] = 0;
                     }
                     const int reachable_size = INPUT_LINE_SIZE - right_unreachable_count_x;
-                    for (; xb + 16 <= reachable_size; xb += 16) {
-                        INPUT_TYPE8 vv0 = DT_INPUT_BLOCK_READ8(input, grouped_input_offset +
-                                                                  icb * input_fs_pitch +
-                                                                  kh * DILATION_SIZE_Y * input_y_pitch +
-                                                                  xb * input_x_pitch);
-                        INPUT_TYPE8 vv0 = DT_INPUT_BLOCK_READ8(input, grouped_input_offset +
-                                                                  icb * input_fs_pitch +
-                                                                  kh * DILATION_SIZE_Y * input_y_pitch +
-                                                                  (xb + 8) * input_x_pitch);
-
-                        line_cache[xb + 0] = vv0[0];
-                        line_cache[xb + 1] = vv0[1];
-                        line_cache[xb + 2] = vv0[2];
-                        line_cache[xb + 3] = vv0[3];
-                        line_cache[xb + 4] = vv0[4];
-                        line_cache[xb + 5] = vv0[5];
-                        line_cache[xb + 6] = vv0[6];
-                        line_cache[xb + 7] = vv0[7];
-                        line_cache[xb + 8] = vv1[0];
-                        line_cache[xb + 9] = vv1[1];
-                        line_cache[xb + 10] = vv1[2];
-                        line_cache[xb + 11] = vv1[3];
-                        line_cache[xb + 12] = vv1[4];
-                        line_cache[xb + 13] = vv1[5];
-                        line_cache[xb + 14] = vv1[6];
-                        line_cache[xb + 15] = vv1[7];
-                    }
                     for (; xb + 8 <= reachable_size; xb += 8) {
                         INPUT_TYPE8 vv = DT_INPUT_BLOCK_READ8(input, grouped_input_offset +
                                                                   icb * input_fs_pitch +
