@@ -878,7 +878,10 @@ void LLMBlockKVCacheStrategy::copy_outputs_to_blocks(const std::shared_ptr<ov::I
 
         auto src_to_copy = src_tensor;
         if (src_seq_len > num_tokens) {
-            src_to_copy = uu::make_tensor_slice(src_tensor, kv_dim, src_seq_len - num_tokens, src_seq_len);
+            const bool is_chunked_prefill =
+                m_req.m_npuw_llm_compiled_model->m_use_chunk_prefill && request == m_req.m_prefill_request;
+            const uint32_t src_start = is_chunked_prefill ? 0u : src_seq_len - num_tokens;
+            src_to_copy = uu::make_tensor_slice(src_tensor, kv_dim, src_start, src_start + num_tokens);
         }
 
         const uint32_t start_pos = current_kv_position;
