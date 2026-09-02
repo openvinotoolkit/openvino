@@ -8,6 +8,7 @@
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/op.hpp"
+#include "openvino/util/common_util.hpp"
 #include "paged_attention_shape_inference.hpp"
 
 namespace {

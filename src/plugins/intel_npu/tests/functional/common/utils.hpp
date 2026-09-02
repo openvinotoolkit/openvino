@@ -8,6 +8,7 @@
 
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "common_test_utils/unicode_utils.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "npu_test_env_cfg.hpp"
@@ -236,6 +237,20 @@ public:
 private:
     ov::log::Level _previousLevel;
 };
+
+// Returns a copy of configs with extraProperties merged into every entry; keys already present in
+// an entry are overwritten by extraProperties.
+inline std::vector<ov::AnyMap> mergeConfigs(std::vector<ov::AnyMap> configs, const ov::AnyMap& extraProperties) {
+    for (auto& config : configs) {
+        for (const auto& property : extraProperties) {
+            config[property.first] = property.second;
+        }
+    }
+    return configs;
+}
+
+inline const ov::AnyMap quietCompilerLogsConfig = {ov::intel_npu::compile_log_level(ov::log::Level::ERR),
+                                                   ov::log::level(ov::log::Level::ERR)};
 
 inline bool isDefaultDriverCompiler(const std::string& target_device) {
     ov::Core core;

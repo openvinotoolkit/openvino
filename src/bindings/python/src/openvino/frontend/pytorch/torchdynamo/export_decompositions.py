@@ -207,6 +207,7 @@ def ops_to_not_decompose() -> list:
         torch.ops.aten.leaky_relu_.default,
         torch.ops.aten.log_sigmoid_forward.default,
         torch.ops.aten.mish.default,
+        torch.ops.aten.rrelu.default,
         torch.ops.aten.silu.default,
         torch.ops.aten.silu_.default,
         # Normalization

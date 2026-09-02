@@ -101,13 +101,13 @@ struct ThreadLocal {
         auto operator*() -> decltype(it->second) {
             return it->second;
         }
-        auto operator-> () -> decltype(&(it->second)) {
+        auto operator->() -> decltype(&(it->second)) {
             return &(it->second);
         }
         auto operator*() const -> decltype(it->second) {
             return it->second;
         }
-        auto operator-> () const -> decltype(&(it->second)) {
+        auto operator->() const -> decltype(&(it->second)) {
             return &(it->second);
         }
     };
@@ -118,10 +118,10 @@ struct ThreadLocal {
     auto end() -> Iterator<decltype(_map.end())> {
         return {_map.end()};
     }
-    auto begin() const -> Iterator<decltype(_map.begin())> const {
+    auto begin() const -> const Iterator<decltype(_map.begin())> {
         return {_map.begin()};
     }
-    auto end() const -> Iterator<decltype(_map.end())> const {
+    auto end() const -> const Iterator<decltype(_map.end())> {
         return {_map.end()};
     }
 

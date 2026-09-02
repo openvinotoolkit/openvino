@@ -30,13 +30,14 @@ void merge_config_with(ov::AnyMap& lhs, const ov::AnyMap& rhs) {
     }
 }
 
-ov::AnyMap with_gqa_defaults(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties) {
-    enum class GQAModelStage {
-        UNKNOWN,
-        PREFILL,
-        GENERATE,
-    };
+enum class GQAModelStage {
+    UNKNOWN,
+    PREFILL,
+    GENERATE,
+};
 
+std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov::Model>& model,
+                                                       const ov::AnyMap& properties) {
     const auto detect_gqa_model_stage = [&]() {
         // The activation tensor ("input_hidden_states") is what the embedding
         // model stage feeds into the transformer.  For the generate (iter) model
@@ -84,8 +85,8 @@ ov::AnyMap with_gqa_defaults(const std::shared_ptr<ov::Model>& model, const ov::
                           {{std::string(::intel_npu::NPUW_FOLD::key()), "YES"},
                            {"NPUW_FOLD_ONLY", "attn"},
                            {"NPUW_ONLINE_ISOLATE", "ATTN"},
-                           {"NPUW_ATTN", "STATIC"},
-                           {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "2"}});
+                           {"NPUW_ONLINE_KEEP_BLOCKS_TAGGED", "attn"},
+                           {"NPUW_ATTN", "STATIC"}});
         LOG_INFO("Detected prefill-style GQA model; applying FOLD with ATTN isolation");
     } else if (stage == GQAModelStage::GENERATE) {
         merge_config_with(config,
@@ -98,14 +99,20 @@ ov::AnyMap with_gqa_defaults(const std::shared_ptr<ov::Model>& model, const ov::
         LOG_INFO("GQA model stage unknown; FOLD disabled");
     }
     merge_config_with(config, properties);
-    return config;
+    return {config, stage};
 }
 
 }  // namespace
 
 ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(const std::shared_ptr<ov::Model>& model,
                                                                               const ov::AnyMap& properties) {
-    auto prepared_properties = with_gqa_defaults(model, properties);
+    auto [prepared_properties, stage] = with_gqa_defaults(model, properties);
+
+    model->set_friendly_name(model->get_friendly_name() + "_gqa_" +
+                             (stage == GQAModelStage::PREFILL    ? "prefill"
+                              : stage == GQAModelStage::GENERATE ? "generate"
+                                                                 : "unknown"));
+
     // Untangle shared scale constants so every DequantizeLinear Multiply
     // gets its own copy.  Some exporters reuse a single scale node across
     // multiple layers; NPUW's FOLD pass requires per-instance scalars.

@@ -1,14 +1,14 @@
-const core = require('@actions/core');
-const fs = require('fs/promises');
-const path = require('path');
-const tar = require('tar');
-const os = require('os');
+import * as core from '@actions/core';
+import fs from 'fs/promises';
+import path from 'path';
+import * as tar from 'tar';
+import os from 'os';
 
-const {
+import {
   getSortedCacheFiles,
   humanReadableFileSize,
   checkFileExists
-} = require('./utils');
+} from './utils.js';
 
 /**
  * The main function for the action.
@@ -79,6 +79,4 @@ async function restore() {
   }
 }
 
-module.exports = {
-  restore
-};
+export { restore };

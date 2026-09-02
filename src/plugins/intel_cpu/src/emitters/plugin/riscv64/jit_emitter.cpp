@@ -311,7 +311,9 @@ void jit_emitter::store_context(const std::vector<size_t>& gpr_regs,
     {
         const auto gpr_all_size = gpr_regs.size() * get_gpr_length();
         const int frame_size = rnd_up(gpr_all_size, sp_alignment);
-        h->addi(sp, sp, -frame_size);
+        if (frame_size > 0) {
+            h->addi(sp, sp, -frame_size);
+        }
         int imm = 0;
         for (const auto& gpr_idx : gpr_regs) {
             h->sd(Reg(gpr_idx), sp, imm);
@@ -323,7 +325,9 @@ void jit_emitter::store_context(const std::vector<size_t>& gpr_regs,
     {
         const auto fp_gpr_all_size = fp_gpr_regs.size() * get_fp_gpr_length();
         const int frame_size = rnd_up(fp_gpr_all_size, sp_alignment);
-        h->addi(sp, sp, -frame_size);
+        if (frame_size > 0) {
+            h->addi(sp, sp, -frame_size);
+        }
         int imm = 0;
         for (const auto& fp_gpr_idx : fp_gpr_regs) {
             h->fsd(FReg(fp_gpr_idx), sp, imm);
@@ -363,7 +367,9 @@ void jit_emitter::restore_context(const std::vector<size_t>& gpr_regs,
             h->fld(FReg(fp_gpr_idx), sp, imm);
             imm += get_fp_gpr_length();
         }
-        h->addi(sp, sp, frame_size);
+        if (frame_size > 0) {
+            h->addi(sp, sp, frame_size);
+        }
     }
     // GPRs
     {
@@ -374,7 +380,9 @@ void jit_emitter::restore_context(const std::vector<size_t>& gpr_regs,
             h->ld(Reg(gpr_idx), sp, imm);
             imm += get_gpr_length();
         }
-        h->addi(sp, sp, frame_size);
+        if (frame_size > 0) {
+            h->addi(sp, sp, frame_size);
+        }
     }
 }
 

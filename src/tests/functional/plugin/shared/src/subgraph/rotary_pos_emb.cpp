@@ -1624,5 +1624,121 @@ std::string RoPETestLtxVideo::getTestCaseName(const testing::TestParamInfo<rope_
     return result.str();
 }
 
+std::shared_ptr<ov::Model> RoPETestCohere::buildROPE_Cohere(int batch,
+                                                            int seq_length,
+                                                            int num_head,
+                                                            int rotary_dims,
+                                                            ov::element::Type element_type,
+                                                            bool use_pa_pattern) {
+    // Q/K projection layout before Transpose: BSNH [batch, seq, num_head, rotary_dims].
+    auto input = std::make_shared<ov::op::v0::Parameter>(element_type, PartialShape{batch, seq_length, num_head, rotary_dims});
+    input->set_friendly_name("input");
+    // cos/sin broadcast over batch and heads: [1, 1, seq, rotary_dims].
+    auto cos = std::make_shared<ov::op::v0::Parameter>(element_type, PartialShape{1, 1, seq_length, rotary_dims});
+    cos->set_friendly_name("cos");
+    auto sin = std::make_shared<ov::op::v0::Parameter>(element_type, PartialShape{1, 1, seq_length, rotary_dims});
+    sin->set_friendly_name("sin");
+
+    // Transpose {0,2,1,3}: BSNH -> BNSH. RoPEFusionPreprocess absorbs it into the fused RoPE
+    // (input_trans0213=true), which is the code path fixed for the interleaved GPU kernel.
+    auto x = makeOP<ov::op::v1::Transpose>({input, {0, 2, 1, 3}});
+
+    // Cohere-style interleaved rotation using strided Slice (matches RoPEFusionCohere pattern).
+    // x_odd  = x[..., 1::2]  (odd indices along last axis)
+    // x_even = x[..., 0::2]  (even indices along last axis)
+    auto make_slice = [&](int64_t start) {
+        return std::make_shared<ov::op::v8::Slice>(
+            x,
+            makeConst(ov::element::i64, ov::Shape{1}, {start}),
+            makeConst(ov::element::i64, ov::Shape{1}, {std::numeric_limits<int64_t>::max()}),
+            makeConst(ov::element::i64, ov::Shape{1}, {int64_t{2}}),
+            makeConst(ov::element::i64, ov::Shape{1}, {int64_t{3}}));
+    };
+    auto x_odd  = make_slice(1);
+    auto x_even = make_slice(0);
+
+    auto neg_x_odd = std::make_shared<ov::op::v1::Multiply>(
+        x_odd, makeConst(element_type, ov::Shape{1}, {-1.0f}));
+
+    // stack((-x_odd, x_even), dim=-1):
+    //   PA pattern: Reshape(x, [B,H,L,rotary_dims/2,1]) — SDPAToPagedAttention canonicalizes
+    //               Unsqueeze into Reshape with explicit shapes when seq-length becomes 1.
+    //   SDPA pattern: Unsqueeze(x, -1)
+    std::shared_ptr<ov::Node> neg_x_odd_unsq, x_even_unsq;
+    if (use_pa_pattern) {
+        auto unsq_shape = makeConst(ov::element::i32, ov::Shape{5},
+                                    std::vector<int32_t>{batch, num_head, seq_length, rotary_dims / 2, 1});
+        neg_x_odd_unsq = std::make_shared<ov::op::v1::Reshape>(neg_x_odd, unsq_shape, false);
+        x_even_unsq = std::make_shared<ov::op::v1::Reshape>(x_even, unsq_shape, false);
+    } else {
+        neg_x_odd_unsq = std::make_shared<ov::op::v0::Unsqueeze>(
+            neg_x_odd, makeConst(ov::element::i64, ov::Shape{}, {-1}));
+        x_even_unsq = std::make_shared<ov::op::v0::Unsqueeze>(
+            x_even, makeConst(ov::element::i64, ov::Shape{}, {-1}));
+    }
+    auto stack = std::make_shared<ov::op::v0::Concat>(OutputVector{neg_x_odd_unsq, x_even_unsq}, -1);
+
+    // flatten(-2) using special_zero=true: {0,0,0,-1} -> [B,H,L,rotary_dims]
+    auto flatten_shape = makeConst(ov::element::i64, ov::Shape{4}, {0LL, 0LL, 0LL, -1LL});
+    auto x_rotate = std::make_shared<ov::op::v1::Reshape>(stack, flatten_shape, true);
+
+    auto y1 = std::make_shared<ov::op::v1::Multiply>(x, cos);
+    auto y2 = std::make_shared<ov::op::v1::Multiply>(x_rotate, sin);
+    auto y = std::make_shared<ov::op::v1::Add>(y1, y2);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{y}, ov::ParameterVector{input, cos, sin});
+}
+
+void RoPETestCohere::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    const auto& funcInputs = function->inputs();
+
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = -1;
+    in_data.range = 2;
+    in_data.resolution = 32768;
+
+    auto cos_data = in_data;
+    cos_data.seed = 10;
+
+    auto sin_data = in_data;
+    sin_data.seed = 20;
+
+    ov::Tensor t_input =
+        utils::create_and_fill_tensor(funcInputs[0].get_element_type(), targetInputStaticShapes[0], in_data);
+    ov::Tensor t_cos =
+        utils::create_and_fill_tensor(funcInputs[1].get_element_type(), targetInputStaticShapes[1], cos_data);
+    ov::Tensor t_sin =
+        utils::create_and_fill_tensor(funcInputs[2].get_element_type(), targetInputStaticShapes[2], sin_data);
+
+    inputs.clear();
+    inputs.insert({funcInputs[0].get_node_shared_ptr(), t_input});
+    inputs.insert({funcInputs[1].get_node_shared_ptr(), t_cos});
+    inputs.insert({funcInputs[2].get_node_shared_ptr(), t_sin});
+}
+
+void RoPETestCohere::SetUp() {
+    const auto& [element_type, _targetDevice, use_pa_pattern] = this->GetParam();
+    targetDevice = _targetDevice;
+
+    const int batch = 2;
+    const int seq_length = 7;
+    const int num_head = 8;
+    const int rotary_dims = 128;
+
+    InputShape input = {{batch, seq_length, num_head, rotary_dims}, {{batch, seq_length, num_head, rotary_dims}}};
+    InputShape cos = {{1, 1, seq_length, rotary_dims}, {{1, 1, seq_length, rotary_dims}}};
+    InputShape sin = {{1, 1, seq_length, rotary_dims}, {{1, 1, seq_length, rotary_dims}}};
+    init_input_shapes({input, cos, sin});
+    function = buildROPE_Cohere(batch, seq_length, num_head, rotary_dims, element_type, use_pa_pattern);
+}
+
+std::string RoPETestCohere::getTestCaseName(const testing::TestParamInfo<rope_params_cohere>& obj) {
+    const auto& [element_type, targetDevice, use_pa_pattern] = obj.param;
+    std::ostringstream result;
+    result << "targetDevice=" << targetDevice << "_element_type=" << element_type.to_string()
+           << "_use_pa_pattern=" << use_pa_pattern;
+    return result.str();
+}
+
 }  // namespace test
 }  // namespace ov

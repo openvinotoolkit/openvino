@@ -4,31 +4,39 @@
 
 #pragma once
 
-#include <xbyak/xbyak.h>
-
-#include <common/utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
-#include <cpu/x64/jit_generator.hpp>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <unordered_map>
 #include <vector>
 
-#include "emitters/plugin/x64/jit_emitter.hpp"
 #include "jit_kernel_base.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/visibility.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
-#endif
+#    include <xbyak/xbyak.h>
+
+#    include <common/utils.hpp>
+#    include <cpu/x64/cpu_isa_traits.hpp>
+#    include <cpu/x64/jit_generator.hpp>
+
+#    include "emitters/plugin/x64/jit_emitter.hpp"
+#endif  // OPENVINO_ARCH_X86_64
 
 namespace ov::intel_cpu::kernel {
 
 struct jit_rotary_compile_params {
+    enum class Mode : uint8_t {
+        ROTATE_HALF,
+        INTERLEAVE,
+        LTX_VIDEO,
+    };
     ov::element::Type src_prc;
     ov::element::Type dst_prc;
     size_t rotary_ndims = 0UL;
     size_t cos_sin_ndims = 0UL;
-    bool interleave = false;
+    Mode mode = Mode::ROTATE_HALF;
     bool mix_cos_sin = false;
 };
 
@@ -59,6 +67,8 @@ private:
     void generate() override;
     void rotary_half(size_t step);
     void rotary_interleave(size_t step);
+    void rotary_ltx_video(size_t step);
+    void deinterlace(const Vmm& src0, const Vmm& src1, const Vmm& tmp0, const Vmm& tmp1);
     void load(const Vmm& vmm_dst,
               const Xbyak::Reg64& reg_src,
               ov::element::Type src_prc,

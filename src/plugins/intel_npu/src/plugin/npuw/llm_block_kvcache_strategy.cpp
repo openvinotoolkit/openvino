@@ -52,20 +52,43 @@ ov::npuw::LLMBlockKVCacheStrategy::ClassifiedPortsMap build_classified_ports_map
     return result;
 }
 
+using DummyTensorVec = std::vector<ov::npuw::LLMBlockKVCacheStrategy::DummyTensorEntry>;
+
+// Locate the dummy tensor whose shape and element type both match the query.
+// Returns nullptr only if on_initialize() missed an entry (should not happen).
+const ov::SoPtr<ov::ITensor>* find_dummy_tensor(const DummyTensorVec& dummies,
+                                                const ov::Shape& shape,
+                                                const ov::element::Type& elem_type) {
+    for (const auto& entry : dummies) {
+        if (entry.shape == shape && entry.elem_type == elem_type) {
+            return &entry.tensor;
+        }
+    }
+    return nullptr;
+}
+
 // Set dummy tensors on all numbered block inputs in a classified ports map.
+// Each port is matched by exact (shape, element_type) — both dimensions are required
 // Returns the count of block inputs that were set.
 template <typename SetTensorFn>
 size_t set_dummy_block_tensors(const ov::npuw::LLMBlockKVCacheStrategy::ClassifiedPortsMap& ports_map,
                                SetTensorFn&& set_tensor_fn,
-                               const ov::SoPtr<ov::ITensor>& dummy_key_tensor,
-                               const ov::SoPtr<ov::ITensor>& dummy_value_tensor) {
+                               const DummyTensorVec& dummies) {
     using ov::npuw::BlockParamKind;
     size_t block_count = 0;
     for (const auto& [name, cp] : ports_map) {
         if (cp.kind == BlockParamKind::Skip || cp.kind == BlockParamKind::TailBlock) {
             continue;  // skip non-block ports and tail ports (tail is copy-filled separately)
         }
-        set_tensor_fn(cp.port, cp.kind == BlockParamKind::KeyBlock ? dummy_key_tensor : dummy_value_tensor);
+        const auto* dummy = find_dummy_tensor(dummies, cp.port.get_shape(), cp.port.get_element_type());
+        OPENVINO_ASSERT(dummy != nullptr,
+                        "No dummy tensor registered for block port '",
+                        name,
+                        "' with shape ",
+                        cp.port.get_shape(),
+                        " type ",
+                        cp.port.get_element_type());
+        set_tensor_fn(cp.port, *dummy);
         block_count++;
     }
     return block_count;
@@ -156,54 +179,38 @@ void copy_block_to_tail_input(const ov::SoPtr<ov::ITensor>& block_tensor,
     uu::copy_tensor_by_dim(src_slice, dst_slice, kv_dim, kv_dim);
 }
 
-// Shapes and element type of one key/value block pair — derived from the first
-// numbered block port found during initialization.
-struct BlockShapeInfo {
-    ov::Shape key_shape;
-    ov::Shape value_shape;
-    ov::element::Type elem_type;
-    bool found_key = false;
-    bool found_value = false;
-};
-
-// Scan classified prefill input ports to discover the shape and element type of block tensors.
-BlockShapeInfo find_block_shapes(const ov::npuw::LLMBlockKVCacheStrategy::ClassifiedPortsMap& classified_ports) {
+// Collect all unique (shape, element_type) pairs from classified block input ports.
+// Returns a DummyTensorVec with tensor fields left empty (filled in on_initialize()).
+// In typical LLM models this returns 1 entry; Gemma4 26B A4B MoE returns 2.
+DummyTensorVec collect_unique_block_tensor_entries(
+    const ov::npuw::LLMBlockKVCacheStrategy::ClassifiedPortsMap& classified_ports) {
     using ov::npuw::BlockParamKind;
-    BlockShapeInfo shapes;
+    DummyTensorVec result;
     for (const auto& [name, cp] : classified_ports) {
         if (cp.kind == BlockParamKind::Skip || cp.kind == BlockParamKind::TailBlock) {
             continue;
         }
-        const bool is_key = cp.kind == BlockParamKind::KeyBlock;
-        if (!shapes.found_key && is_key) {
-            shapes.key_shape = cp.port.get_shape();
-            shapes.elem_type = cp.port.get_element_type();
-            shapes.found_key = true;
-            LOG_DEBUG("Detected key block shape: " << shapes.key_shape << ", type: " << shapes.elem_type);
-        }
-        if (!shapes.found_value && !is_key) {
-            shapes.value_shape = cp.port.get_shape();
-            shapes.found_value = true;
-            LOG_DEBUG("Detected value block shape: " << shapes.value_shape);
-        }
-        if (shapes.found_key && shapes.found_value) {
-            break;
+        const ov::Shape shape = cp.port.get_shape();
+        const ov::element::Type elem_type = cp.port.get_element_type();
+        if (find_dummy_tensor(result, shape, elem_type) == nullptr) {
+            result.push_back({shape, elem_type, {}});
+            LOG_DEBUG("collect_unique_block_tensor_entries: port='" << name << "' shape=" << shape
+                                                                    << " type=" << elem_type);
         }
     }
-    return shapes;
+    return result;
 }
 
 // Set dummy tensors on all numbered block input ports of a single inference request.
 size_t set_dummy_tensors_to_request(const std::shared_ptr<ov::IAsyncInferRequest>& request,
                                     const ov::npuw::LLMBlockKVCacheStrategy::ClassifiedPortsMap& classified_ports,
-                                    const ov::npuw::LLMBlockKVCacheStrategy::DummyTensors& dummies) {
+                                    const DummyTensorVec& dummies) {
     return set_dummy_block_tensors(
         classified_ports,
         [&request](const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
             request->set_tensor(port, tensor);
         },
-        dummies.key_tensor,
-        dummies.value_tensor);
+        dummies);
 }
 
 }  // anonymous namespace
@@ -221,32 +228,24 @@ void LLMBlockKVCacheStrategy::on_initialize() {
     const auto& prefill_in_ports = m_req.m_prefill_in_ports;
     const auto& prefill_out_ports = m_req.m_prefill_out_ports;
 
-    // Pre-classify all port names once — reused by find_block_shapes,
+    // Pre-classify all port names once — reused by collect_unique_block_shapes,
     // set_dummy_block_tensors, and the phase-1 layer scan.
     m_prefill_classified_in_ports = build_classified_ports_map(prefill_in_ports);
     for (const auto& [request, ports] : m_req.m_generate_variant_in_ports) {
         m_gen_classified_in_ports.emplace(request, build_classified_ports_map(ports));
     }
 
-    auto block_shapes = find_block_shapes(m_prefill_classified_in_ports);
-    if (block_shapes.found_key) {
-        // Dummy tensor optimization: share one dummy tensor per shape across all block inputs.
-        // Store in m_dummy_tensors so on_reset() can restore ports to release block tensor refs.
+    auto dummy_entries = collect_unique_block_tensor_entries(m_prefill_classified_in_ports);
+    if (!dummy_entries.empty()) {
+        // Allocate one dummy tensor per distinct (shape, element_type) pair.
+        // Keying on both dimensions prevents type-mismatch errors in mixed-precision models.
         const auto& plugin = m_req.m_npuw_llm_compiled_model->get_plugin();
-        m_dummy_tensors.key_tensor =
-            ov::npuw::util::allocMem(block_shapes.elem_type, block_shapes.key_shape, m_req.m_pre_alloc_device, plugin);
-        LOG_INFO("Allocated shared dummy key tensor: " << block_shapes.key_shape << " ("
-                                                       << m_dummy_tensors.key_tensor->get_byte_size() << " bytes)");
-        if (block_shapes.found_value && block_shapes.value_shape != block_shapes.key_shape) {
-            m_dummy_tensors.value_tensor = ov::npuw::util::allocMem(block_shapes.elem_type,
-                                                                    block_shapes.value_shape,
-                                                                    m_req.m_pre_alloc_device,
-                                                                    plugin);
-            LOG_INFO("Allocated shared dummy value tensor: "
-                     << block_shapes.value_shape << " (" << m_dummy_tensors.value_tensor->get_byte_size() << " bytes)");
-        } else {
-            m_dummy_tensors.value_tensor = m_dummy_tensors.key_tensor;
+        for (auto& entry : dummy_entries) {
+            entry.tensor = ov::npuw::util::allocMem(entry.elem_type, entry.shape, m_req.m_pre_alloc_device, plugin);
+            LOG_INFO("Allocated dummy block tensor shape=" << entry.shape << " type=" << entry.elem_type << " ("
+                                                           << entry.tensor->get_byte_size() << " bytes)");
         }
+        m_dummy_tensors = std::move(dummy_entries);
         set_dummy_tensors_to_all_requests();
     }
 
@@ -268,6 +267,7 @@ void LLMBlockKVCacheStrategy::on_initialize() {
         }
     }
     LOG_INFO("Snapshotted " << m_prefill_original_output_tensors.size() << " original prefill output tensors");
+
     LOG_INFO("=== Block-based KV Cache Initialization Complete ===");
 }
 
@@ -328,7 +328,10 @@ void LLMBlockKVCacheStrategy::on_reset(uint32_t next_prompt_length) {
             std::find(m_req.m_generate_requests.begin(), m_req.m_generate_requests.end(), m_req.m_kvcache_request);
         if (it != m_req.m_generate_requests.end()) {
             const size_t idx = static_cast<size_t>(std::distance(m_req.m_generate_requests.begin(), it));
-            m_req.m_generate_base_requests[idx]->propagate_params_to_subrequests();
+            // The base request is absent when a test factory builds plain sub-requests.
+            if (m_req.m_generate_base_requests[idx]) {
+                m_req.m_generate_base_requests[idx]->propagate_params_to_subrequests();
+            }
         }
     }
 
@@ -460,6 +463,16 @@ void LLMBlockKVCacheStrategy::on_generate_kv_init() {
     LOG_DEBUG("Initial binding complete.");
 }
 
+// Rebind existing block tensors to the new (larger) variant's ports (zero-copy).
+// Lincache is shared across all variants by on_initialize(), so no migration is needed.
+void LLMBlockKVCacheStrategy::on_generate_variant_switch(const std::shared_ptr<ov::IAsyncInferRequest>& /*old_req*/,
+                                                         const PortsMap& /*old_in_ports*/,
+                                                         const std::shared_ptr<ov::IAsyncInferRequest>& /*new_req*/,
+                                                         const PortsMap& /*new_in_ports*/) {
+    LOG_DEBUG("Rebinding KV blocks to new generate variant.");
+    on_generate_kv_init();
+}
+
 void LLMBlockKVCacheStrategy::on_generate_step_done(uint32_t input_tokens_len) {
     const auto& kvcache_desc = m_req.m_npuw_llm_compiled_model->m_kvcache_desc;
     const uint32_t tokens_after = kvcache_desc.num_stored_tokens;
@@ -470,6 +483,93 @@ void LLMBlockKVCacheStrategy::on_generate_step_done(uint32_t input_tokens_len) {
                            kvcache_desc.v_tensors_transposed_gen,
                            tokens_before);
     update_generate_bindings(tokens_before, tokens_after, m_req.m_kvcache_request);
+}
+
+// Continuing a prefill on the block pool truncates metadata only, since blocks
+// need no KV movement. Every manager in every layer is validated before any of
+// them changes.
+void LLMBlockKVCacheStrategy::continue_prefill(uint32_t keep, uint32_t delta_len) {
+    OPENVINO_ASSERT(!m_kv_cache_block_managers.empty(), "Continued prefill: block managers are not initialized.");
+    OPENVINO_ASSERT(m_block_size > 0u && keep % m_block_size == 0u,
+                    "Continued prefill: keep (",
+                    keep,
+                    ") must be a multiple of the block size (",
+                    m_block_size,
+                    ").");
+    const auto& kvcache_desc = m_req.m_npuw_llm_compiled_model->m_kvcache_desc;
+    OPENVINO_ASSERT(keep + delta_len <= kvcache_desc.max_prompt_size,
+                    "Continued prefill: keep plus delta exceeds the maximum prompt size.");
+
+    const uint32_t keep_blocks = keep / m_block_size;
+
+    // Each retained block must exist and be completely full, since a partially
+    // filled block would make the continuation prefix incoherent.
+    auto validate = [&](uint32_t layer_idx, KVCacheBlockManager* manager, const char* kv_type) {
+        if (!manager) {
+            return;
+        }
+        const auto allocated = manager->get_allocated_blocks();
+        OPENVINO_ASSERT(allocated.size() >= keep_blocks,
+                        "Continued prefill: layer ",
+                        layer_idx,
+                        " ",
+                        kv_type,
+                        " has only ",
+                        allocated.size(),
+                        " allocated blocks, ",
+                        keep_blocks,
+                        " are required.");
+        for (uint32_t i = 0; i < keep_blocks; ++i) {
+            OPENVINO_ASSERT(manager->get_block_tokens(allocated[i]) == m_block_size,
+                            "Continued prefill: retained block ",
+                            i,
+                            " of layer ",
+                            layer_idx,
+                            " ",
+                            kv_type,
+                            " is not full.");
+        }
+    };
+    for (const auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
+        validate(layer_idx, layer_managers.key_manager.get(), "key");
+        validate(layer_idx, layer_managers.value_manager.get(), "value");
+    }
+
+    LOG_DEBUG("Continued prefill: truncating block pool to " << keep_blocks << " blocks per layer.");
+
+    // Drop prefill output redirections left over from a previous zero-copy chunk so
+    // the model does not write into a block we are about to release.
+    if (m_zero_copy_last_chunk) {
+        restore_prefill_output_buffers(m_req.m_prefill_request, m_req.m_prefill_out_ports);
+        m_zero_copy_last_chunk = false;
+    }
+
+    // Release every input binding that may reference a suffix block. Retained blocks
+    // are rebound by load_past_kv_blocks_to_prefill() at the next chunk begin, and by
+    // on_generate_kv_init() for the generate phase. Dummies go to all variants because
+    // any of them may have been bound during earlier turns.
+    set_dummy_tensors_to_request(m_req.m_prefill_request, m_prefill_classified_in_ports, m_dummy_tensors);
+    for (const auto& generate_request : m_req.m_generate_requests) {
+        set_dummy_tensors_to_request(generate_request, m_gen_classified_in_ports.at(generate_request), m_dummy_tensors);
+    }
+    for (const auto& base_req : m_req.m_generate_base_requests) {
+        // The base request is absent when a test factory builds plain sub-requests.
+        if (base_req) {
+            base_req->propagate_params_to_subrequests();
+        }
+    }
+
+    // Truncate the managers. Stale bytes beyond the retained prefix are inert once no
+    // metadata or binding exposes them, and on_reset() must not run here because it
+    // would release the retained block tensors back to the allocator.
+    for (auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
+        if (layer_managers.key_manager) {
+            layer_managers.key_manager->truncate_allocated(keep_blocks);
+        }
+        if (layer_managers.value_manager) {
+            layer_managers.value_manager->truncate_allocated(keep_blocks);
+        }
+    }
 }
 
 // ============================================================================

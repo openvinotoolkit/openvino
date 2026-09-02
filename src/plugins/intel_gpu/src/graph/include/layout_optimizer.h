@@ -43,10 +43,9 @@ struct reorder_cache_key {
     friend bool operator<(reorder_cache_key const& lhs, reorder_cache_key const& rhs) {
         if (lhs.data_source != rhs.data_source)
             return (lhs.data_source < rhs.data_source);
-        else if (lhs.expected_layout != rhs.expected_layout)
+        if (lhs.expected_layout != rhs.expected_layout)
             return (lhs.expected_layout < rhs.expected_layout);
-        else
-            return lhs.expected_layout.format.traits().block_sizes < rhs.expected_layout.format.traits().block_sizes;
+        return lhs.expected_layout.format.traits().block_sizes < rhs.expected_layout.format.traits().block_sizes;
     }
 };
 
@@ -106,7 +105,7 @@ public:
         int32_t b_fs_yx_fsv16_network = 0;
         int32_t b_fs_zyx_fsv16_network = 0;
         int32_t bs_fs_yx_bsv16_fsv16_network = 0;
-        std::map<primitive_type_id, bool> onednn_impls = {};
+        std::map<primitive_type_id, bool> onednn_impls;
 
         void save(BinaryOutputBuffer& ob) const {
             ob << group_convolution;
@@ -144,7 +143,7 @@ public:
                 bool enabled = false;
                 ib >> p_id;
                 ib >> enabled;
-                auto ptype_id = prim_map_storage::instance().get_type_id(p_id);
+                auto* ptype_id = prim_map_storage::instance().get_type_id(p_id);
                 onednn_impls[ptype_id] = enabled;
             }
         }

@@ -3,6 +3,9 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
+#if INPUT0_IS_F8E4M3 || INPUT2_IS_F8E4M3
+#include "include/f8_utils.cl"  // fp8e4m3_t typedef
+#endif
 
 #define AXIS_B (0)
 #define AXIS_F (1)
@@ -19,10 +22,43 @@
 
 #if OUTPUT_DIMS == 4
     #define ORDER b,f,y,x
+#    if AXIS_VALUE == AXIS_B
+#        define AXIS_SIZE OUTPUT_BATCH_NUM
+#    elif AXIS_VALUE == AXIS_F
+#        define AXIS_SIZE OUTPUT_FEATURE_NUM
+#    elif AXIS_VALUE == AXIS_Y
+#        define AXIS_SIZE OUTPUT_SIZE_Y
+#    else
+#        define AXIS_SIZE OUTPUT_SIZE_X
+#    endif
 #elif OUTPUT_DIMS == 5
     #define ORDER b,f,z,y,x
+#    if AXIS_VALUE == AXIS_B
+#        define AXIS_SIZE OUTPUT_BATCH_NUM
+#    elif AXIS_VALUE == AXIS_F
+#        define AXIS_SIZE OUTPUT_FEATURE_NUM
+#    elif AXIS_VALUE == AXIS_Z
+#        define AXIS_SIZE OUTPUT_SIZE_Z
+#    elif AXIS_VALUE == AXIS_Y
+#        define AXIS_SIZE OUTPUT_SIZE_Y
+#    else
+#        define AXIS_SIZE OUTPUT_SIZE_X
+#    endif
 #elif OUTPUT_DIMS == 6
     #define ORDER b,f,w,z,y,x
+#    if AXIS_VALUE == AXIS_B
+#        define AXIS_SIZE OUTPUT_BATCH_NUM
+#    elif AXIS_VALUE == AXIS_F
+#        define AXIS_SIZE OUTPUT_FEATURE_NUM
+#    elif AXIS_VALUE == AXIS_W
+#        define AXIS_SIZE OUTPUT_SIZE_W
+#    elif AXIS_VALUE == AXIS_Z
+#        define AXIS_SIZE OUTPUT_SIZE_Z
+#    elif AXIS_VALUE == AXIS_Y
+#        define AXIS_SIZE OUTPUT_SIZE_Y
+#    else
+#        define AXIS_SIZE OUTPUT_SIZE_X
+#    endif
 #endif
 
 #ifdef USE_LAYOUT_AWARE_INDEXING
@@ -132,6 +168,9 @@ KERNEL(scatter_update_ref)(OPTIONAL_SHAPE_INFO_ARG
     #if HAS_FUSED_OPS
         FUSED_OPS_FIRST_KERNEL;
         output[output_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_FIRST_KERNEL);
+    #elif INPUT0_IS_F8E4M3
+        // fp8 is a 1-byte struct; ScatterUpdate just moves data, so copy the byte (ACTIVATION won't compile on it).
+        output[output_idx] = val;
     #else
         output[output_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
     #endif
@@ -201,6 +240,11 @@ KERNEL(scatter_update_ref)(OPTIONAL_SHAPE_INFO_ARG
         const uint index_by_axis = convert_int(indices[OUTPUT_INDEX_ON_AXIS]);
     #endif
 
+        // No exception path on GPU (unlike CPU's assert in scatter_update.cpp): skip OOB writes instead.
+        if (index_by_axis >= (uint)AXIS_SIZE) {
+            return;
+        }
+
     const uint output_idx = GET_OUTPUT_INDEX(SECOND_ITER_OUTPUT_INDEX_ORDER);
 
     #ifdef USE_LAYOUT_AWARE_INDEXING
@@ -232,6 +276,9 @@ KERNEL(scatter_update_ref)(OPTIONAL_SHAPE_INFO_ARG
     #if HAS_FUSED_OPS
         FUSED_OPS_SECOND_KERNEL;
         output[output_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_SECOND_KERNEL);
+    #elif INPUT2_IS_F8E4M3
+        // fp8 is a 1-byte struct; ScatterUpdate just moves data, so copy the byte (ACTIVATION won't compile on it).
+        output[output_idx] = val;
     #else
         output[output_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
     #endif
@@ -249,3 +296,4 @@ KERNEL(scatter_update_ref)(OPTIONAL_SHAPE_INFO_ARG
 #undef AXIS_Z
 #undef AXIS_Y
 #undef AXIS_X
+#undef AXIS_SIZE

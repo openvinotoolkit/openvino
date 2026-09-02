@@ -10,7 +10,7 @@ import torch
 
 from models_hub_common.constants import hf_cache_dir, clean_hf_cache_dir
 from models_hub_common.utils import cleanup_dir, get_models_list, retry
-from torch_utils import TestTorchConvertModel
+from torch_utils import TestTorchConvertModel, skip_npu_precommit
 
 
 def flattenize_tuples(list_input):
@@ -33,6 +33,14 @@ def flattenize_outputs(outputs):
 
 # To make tests reproducible we seed the random generator
 torch.manual_seed(0)
+
+# Precommit models out of the NPU scope, per platform ("*" = all platforms).
+NPU_PRECOMMIT_SKIP = {
+    "google/flan-t5-base": "*",
+    "google/tapas-large-finetuned-wtq": "*",
+    "allenai/led-base-16384": "*",
+    "openai/clip-vit-large-patch14": "*",
+}
 
 
 class TestTransformersModel(TestTorchConvertModel):
@@ -437,6 +445,10 @@ class TestTransformersModel(TestTorchConvertModel):
                     example = dict(input_ids=encoded_input["input_ids"],
                                    token_type_ids=encoded_input["token_type_ids"],
                                    attention_mask=encoded_input["attention_mask"])
+                elif 'image-classification' in mi.tags:
+                    image_processor = AutoImageProcessor.from_pretrained(model_cached)
+                    encoded_input = image_processor(images=self.image, return_tensors="pt")
+                    example = dict(encoded_input)
                 else:
                     text = "Replace me by any text you'd like."
                     if auto_processor is not None and "Tokenizer" not in auto_processor:
@@ -549,6 +561,7 @@ class TestTransformersModel(TestTorchConvertModel):
     def test_convert_model_precommit(self, name, type, ie_device):
         if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
             pytest.skip("hf_transformers models are not enabled on ARM")
+        skip_npu_precommit(name, ie_device, NPU_PRECOMMIT_SKIP)
         self.run(model_name=name, model_link=type, ie_device=ie_device)
 
     @pytest.mark.parametrize("name,type", [("bert-base-uncased", "bert"),
@@ -558,6 +571,7 @@ class TestTransformersModel(TestTorchConvertModel):
     def test_convert_model_precommit_export(self, name, type, ie_device):
         if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
             pytest.skip("hf_transformers models are not enabled on ARM")
+        skip_npu_precommit(name, ie_device, NPU_PRECOMMIT_SKIP)
         self.mode = "export"
         self.run(model_name=name, model_link=type, ie_device=ie_device)
 

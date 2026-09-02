@@ -81,11 +81,7 @@ struct mvn : public primitive_base<mvn> {
 
     bool across_channels() const {
         int64_t channel_axis = 1;
-        if (std::find(reduction_axes.begin(), reduction_axes.end(), channel_axis) != reduction_axes.end()) {
-            return true;
-        } else {
-            return false;
-        }
+        return std::find(reduction_axes.begin(), reduction_axes.end(), channel_axis) != reduction_axes.end();
     }
 
     bool requires_alignment(const ov::PartialShape& shape) const {

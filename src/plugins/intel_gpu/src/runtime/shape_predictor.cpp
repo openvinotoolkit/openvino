@@ -156,7 +156,8 @@ std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std
             auto preallocation_shape = diffs[0] * mul_shape;
             auto new_shape = current_shape + preallocation_shape;
             return {true, new_shape};
-        } else if (_settings.buffers_preallocation_ratio > 1.0f) {
+        }
+        if (_settings.buffers_preallocation_ratio > 1.0f) {
             if (format::is_blocked(layout.format))
                 return {false, {}};
             // Apply percentage buffer preallocation

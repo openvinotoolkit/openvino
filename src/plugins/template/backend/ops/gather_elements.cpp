@@ -13,8 +13,7 @@ bool evaluate(const std::shared_ptr<ov::op::v6::GatherElements>& op,
               ov::TensorVector& outputs,
               const ov::TensorVector& inputs) {
     using T = typename ov::element_type_traits<ET>::value_type;
-    ov::Shape params_shape = inputs[0].get_shape();
-    ov::Shape indices_shape = inputs[1].get_shape();
+    const auto& indices_shape = inputs[1].get_shape();
 
     outputs[0].set_shape(indices_shape);
 

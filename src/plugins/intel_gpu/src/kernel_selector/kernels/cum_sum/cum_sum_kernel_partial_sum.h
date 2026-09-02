@@ -10,7 +10,7 @@ namespace kernel_selector {
 class CumSumKernelPartialSum : public CumSumKernelBase {
 public:
     CumSumKernelPartialSum() : CumSumKernelBase("cum_sum_partial_sum") {}
-    virtual ~CumSumKernelPartialSum() = default;
+    ~CumSumKernelPartialSum() override = default;
 
     ParamsKey GetSupportedKey() const override;
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;

@@ -43,10 +43,7 @@ struct SliceScatter : public ImplementationManager {
         if (out_layout.get_rank() > 5)
             return false;
 
-        if (node.has_fused_primitives())
-            return false;
-
-        return true;
+        return !node.has_fused_primitives();
     }
 };
 

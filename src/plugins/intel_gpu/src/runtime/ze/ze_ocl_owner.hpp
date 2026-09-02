@@ -27,9 +27,7 @@ enum class ocl_resource_type : uint8_t {
 
 /// @brief Provides information about specific OpenCL resource
 template <ocl_resource_type resource_type>
-struct ocl_resource_info {
-    static_assert(false, "Specialization for given resource type is not implemented");
-};
+struct ocl_resource_info {};
 
 template <>
 struct ocl_resource_info<ocl_resource_type::platform> {

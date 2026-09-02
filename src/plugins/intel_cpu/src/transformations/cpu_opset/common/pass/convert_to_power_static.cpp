@@ -36,6 +36,7 @@
 #include "ov_ops/fully_connected.hpp"
 #include "transformations/cpu_opset/common/op/power_static.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "utils/general_utils.h"
 
 namespace {
@@ -184,6 +185,12 @@ ov::intel_cpu::ConvertToPowerStatic::ConvertToPowerStatic() {
         }
         toReplace->set_friendly_name(node->get_friendly_name());
         ov::copy_runtime_info(node, toReplace);
+        // DisablePrecisionConversion is non-copyable and dropped by copy_runtime_info, re-apply it
+        const auto& rt_info = node->get_rt_info();
+        const auto dpc_it = rt_info.find(ov::DisablePrecisionConversion::get_type_info_static());
+        if (dpc_it != rt_info.end()) {
+            toReplace->get_rt_info().insert(*dpc_it);
+        }
         ov::replace_node(node, toReplace);
         return true;
     };

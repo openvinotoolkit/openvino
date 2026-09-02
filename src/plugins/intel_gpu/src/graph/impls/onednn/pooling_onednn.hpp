@@ -76,10 +76,7 @@ struct PoolingImplementationManager : public ImplementationManager {
         if (!one_of(in_layout.format.value, supported_formats) || !one_of(out_layout.format.value, supported_formats))
             return false;
 
-        if (!is_supported_post_ops(node))
-            return false;
-
-        return true;
+        return is_supported_post_ops(node);
     }
 };
 

@@ -33,12 +33,14 @@ static inline bool IsSwappingFX(const std::vector<uint16_t>& order) {
 ParamsKey PermuteKernel_tile_8x8_4x4::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::INT64);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
@@ -106,7 +108,7 @@ static inline std::vector<std::string> GetFusedOpOrderVector(size_t size, bool s
 static inline std::string GetTiledOutputOrder(const permute_params& params) {
     std::pair<size_t, size_t> dim_change = {params.inputs[0].GetDims().size(), params.outputs[0].GetDims().size()};
 
-    std::string order_str = "";
+    std::string order_str;
     int32_t dim_diff = static_cast<int32_t>(dim_change.first) - static_cast<int32_t>(dim_change.second);
 
     const bool swap_f_x = IsSwappingFX(params.order);
@@ -152,8 +154,8 @@ static inline std::string GetTiledOutputOrder(const permute_params& params) {
             order_str = "b, w, z * INPUT0_SIZE_Y + y, x * TILE_SIZE + lh, (f * TILE_SIZE)";
         }
     } else {
-        std::string out_y_str = "";
-        std::string out_z_str = "";
+        std::string out_y_str;
+        std::string out_z_str;
         const auto& output = params.outputs[0];
         if (params.has_dynamic_outputs()) {
             DimensionAccessHelperJit dims(output);
@@ -186,7 +188,7 @@ static inline std::string GetTiledOutputOrder(const permute_params& params) {
 }
 
 static inline std::string GetTiledInputOrder(size_t size) {
-    std::string order_str = "";
+    std::string order_str;
     switch (size) {
         case 4 :
             order_str = "b, (f * TILE_SIZE + lh), y, (x * TILE_SIZE)";
@@ -225,7 +227,7 @@ JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& p
         std::string x_remainder_cond = "true";
         std::string f_remainder_cond = "true";
 
-        if (params.inputs[0].X().v % tile_size) {
+        if ((params.inputs[0].X().v % tile_size) != 0u) {
             jit.AddConstant(MakeJitConstant("X_REMAINDER_ITEM", params.inputs[0].X().v / tile_size));
             jit.AddConstant(MakeJitConstant("X_REMAINDER_SIZE", params.inputs[0].X().v % tile_size));
             jit.AddConstant(MakeJitConstant("X_REMAINDER_SIZE_AS_VECTOR", CeilDiv(params.inputs[0].X().v % tile_size, vector_width)));
@@ -233,7 +235,7 @@ JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& p
             x_remainder_cond += " && (x == X_REMAINDER_ITEM)";
             f_remainder_cond += " && (x < X_REMAINDER_ITEM)";
         }
-        if (params.inputs[0].Feature().v % tile_size) {
+        if ((params.inputs[0].Feature().v % tile_size) != 0u) {
             jit.AddConstant(MakeJitConstant("F_REMAINDER_ITEM", params.inputs[0].Feature().v / tile_size));
             jit.AddConstant(MakeJitConstant("F_REMAINDER_SIZE", params.inputs[0].Feature().v % tile_size));
             jit.AddConstant(MakeJitConstant("F_REMAINDER_SIZE_AS_VECTOR", CeilDiv(params.inputs[0].Feature().v % tile_size, vector_width)));
@@ -373,10 +375,10 @@ KernelsPriority PermuteKernel_tile_8x8_4x4::GetKernelsPriority(const Params& par
 
     if ((newParams.inputs[0].Feature().v >= DEFAULT_TILE_SIZE) && (newParams.inputs[0].X().v >= DEFAULT_TILE_SIZE)) {
         return FORCE_PRIORITY_1;
-    } else if ((newParams.inputs[0].Feature().v >= DEFAULT_TILE_SIZE) || (newParams.inputs[0].X().v >= DEFAULT_TILE_SIZE)) {
-        return FORCE_PRIORITY_2;
-    } else {
-        return FORCE_PRIORITY_3;
     }
+    if ((newParams.inputs[0].Feature().v >= DEFAULT_TILE_SIZE) || (newParams.inputs[0].X().v >= DEFAULT_TILE_SIZE)) {
+        return FORCE_PRIORITY_2;
+    }
+    return FORCE_PRIORITY_3;
 }
 }  // namespace kernel_selector

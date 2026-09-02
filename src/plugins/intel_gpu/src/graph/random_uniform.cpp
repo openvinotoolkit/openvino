@@ -32,7 +32,7 @@ std::vector<layout> random_uniform_inst::calc_output_layouts(random_uniform_node
                                             impl_param.get_input_layout(1).get_partial_shape(),
                                             impl_param.get_input_layout(2).get_partial_shape() };
 
-    auto& memory_deps = impl_param.memory_deps;
+    const auto& memory_deps = impl_param.memory_deps;
     std::unordered_map<size_t, ov::Tensor> const_data;
 
     auto run_shape_infer = [&]() {
@@ -47,9 +47,9 @@ std::vector<layout> random_uniform_inst::calc_output_layouts(random_uniform_node
             const_data.emplace(2, make_tensor(max_val->get_layout(), max_val_lock.data()));
 
             return ov::op::v8::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
-        } else {
-            return ov::op::v8::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
         }
+        return ov::op::v8::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
+
     };
 
     if (memory_deps.count(0) > 0) {

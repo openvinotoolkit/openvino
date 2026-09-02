@@ -160,12 +160,6 @@ You can use converted tokenizers in C++ pipelines with prebuild binaries.
 
             <openvino_dir>\runtime\bin\intel64\Release\
 
-      .. tab-item:: MacOS_x86
-
-         .. code-block:: sh
-
-            <openvino_dir>/runtime/lib/intel64/Release
-
       .. tab-item:: MacOS_arm64
 
          .. code-block:: sh

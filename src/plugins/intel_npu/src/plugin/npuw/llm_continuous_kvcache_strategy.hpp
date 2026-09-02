@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <string>
+#include <vector>
+
 #include "llm_kvcache_strategy.hpp"
 
 namespace ov {
@@ -30,7 +33,24 @@ public:
     void on_prefill_chunk_begin(uint32_t current_prompts_len) override;
     void on_prefill_chunk_done(uint32_t current_prompts_len, bool is_last) override;
     void on_generate_kv_init() override;
+    void on_generate_variant_switch(const std::shared_ptr<ov::IAsyncInferRequest>& old_req,
+                                    const PortsMap& old_in_ports,
+                                    const std::shared_ptr<ov::IAsyncInferRequest>& new_req,
+                                    const PortsMap& new_in_ports) override;
     void on_generate_step_done(uint32_t input_tokens_len) override;
+
+    // Continuous prefill. Repack the preserved KV prefix [0, keep) into the prefill
+    // model's past KV layout so the chunked prefill can resume from `keep`.
+    void continue_prefill(uint32_t keep, uint32_t delta_len) override;
+
+private:
+    // Static per-tensor facts, derived once in on_initialize() so the
+    // continuation paths do not reclassify tensors on every call.
+    struct KVPairInfo {
+        std::string past;
+        bool is_value = false;
+    };
+    std::vector<KVPairInfo> m_kv_pairs;
 };
 
 }  // namespace npuw
