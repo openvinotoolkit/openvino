@@ -601,7 +601,7 @@ void ov::Node::on_output_access(size_t output_index) {}
 void ov::Node::validate_output_index(size_t output_index) const {
     // All nodes will have at least 1 output
     if (output_index > 0 && output_index >= m_outputs.size()) {
-        OPENVINO_THROW("Index ", output_index, " is out of range for node type ", get_type_info().name);
+        OPENVINO_THROW(node_idx_out_of_range_txt);
     }
 }
 
