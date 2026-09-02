@@ -12,13 +12,17 @@ namespace ov::util {
 namespace {
 // u3/u6 use a linear, LSB-first bit-stream layout (values may straddle byte boundaries).
 size_t get_split_bit_memory_size(const element::Type& type, const size_t elements_count) {
-    size_t used_bits;
-    OPENVINO_ASSERT(!mul_overflow<size_t>(elements_count, type.bitwidth(), used_bits));
-    return (used_bits + 7) / 8;
+    const auto bit_width = type.bitwidth();
+    // ceil(elements_count * bit_width / 8) split to keep the intermediate from overflowing.
+    const auto full_bytes = (elements_count / 8) * bit_width;
+    const auto tail_bits = (elements_count % 8) * bit_width;
+    return full_bytes + (tail_bits + 7) / 8;
 }
 
 size_t get_split_elements_count(const element::Type& type, const size_t memory_size) {
-    return (memory_size * 8) / type.bitwidth();
+    size_t total_bits;
+    OPENVINO_ASSERT(!mul_overflow<size_t>(memory_size, 8, total_bits));
+    return total_bits / type.bitwidth();
 }
 
 size_t get_bit_memory_size(const element::Type& type, const size_t shape_size) {
