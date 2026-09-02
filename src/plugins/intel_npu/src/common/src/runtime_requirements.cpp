@@ -7,18 +7,28 @@
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/itt.hpp"
-#include "intel_npu/common/major_minor_verison.hpp"
+#include "intel_npu/common/major_minor_version.hpp"
 #include "intel_npu/compat_string_parser.hpp"
 
 namespace {
 
 constexpr std::string_view VERSION_KEY = "version";
 constexpr std::string_view CRE_KEY = "cre";
+constexpr char REQUIREMENTS_SEPARATOR = ';';
+constexpr char KEY_VALUE_SEPARATOR = '=';
 
-constexpr size_t KEY_VALUE_SEPARATOR_SIZE = 1;
 constexpr size_t MINIMUM_VERSION_STRING_SIZE = 3;  // x.y
 constexpr size_t MINIMUM_RUNTIME_REQUIREMENTS_SIZE =
-    VERSION_KEY.size() + KEY_VALUE_SEPARATOR_SIZE + MINIMUM_VERSION_STRING_SIZE;  // x.y
+    VERSION_KEY.size() + sizeof(KEY_VALUE_SEPARATOR) + MINIMUM_VERSION_STRING_SIZE;  // x.y
+
+void write_requirements_entry(intel_npu::BlobWriterInterface& writer, std::string_view key, std::string_view value) {
+    if (!writer.get_offset_relative_to_current_section() == 0) {
+        writer.write_from(&REQUIREMENTS_SEPARATOR, sizeof(REQUIREMENTS_SEPARATOR));
+    }
+    writer.write_from(key.data(), key.size());
+    writer.write_from(&KEY_VALUE_SEPARATOR, sizeof(KEY_VALUE_SEPARATOR));
+    writer.write_from(value.data(), value.size());
+}
 
 }  // namespace
 
@@ -99,13 +109,25 @@ RuntimeRequirementsSection::RuntimeRequirementsSection(const RuntimeRequirements
       m_runtime_requirements(runtime_requirements),
       m_logger("RuntimeRequirementsSection", log_level) {}
 
-// TODO "sections_requirements" and CRE as string
 void RuntimeRequirementsSection::write(BlobWriterInterface& writer) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "RuntimeRequirementsSection::write");
 
-    writer.write_from(m_cre.get_expression().data(), m_cre.get_expression_length() * sizeof(CREToken));
+    // TODO logs?
+    // Version
+    write_requirements_entry(writer, VERSION_KEY, major_minor_version_to_string(CURRENT_RUNTIME_REQUIREMENTS_VERSION));
 
-    m_logger.debug("%lu tokens written", m_cre.get_expression_length());
+    // CRE
+    write_requirements_entry(writer, CRE_KEY, cre_to_string(m_runtime_requirements.get_cre()));
+
+    // All section requirements, following the format "<section type name>_<id>=<value>"
+    const std::map<SectionID, std::string> sections_requirements = m_runtime_requirements.get_sections_requirements();
+    const std::unordered_map<SectionID, SectionType> section_id_to_type =
+        m_runtime_requirements.get_section_id_to_type_mapping();
+
+    for (const auto [section_id, section_requirements] : sections_requirements) {
+        const SectionType section_type = section_id_to_type.at(section_id);
+        write_requirements_entry(writer, section_type_and_id_to_string(section_type, section_id), section_requirements);
+    }
 }
 
 RuntimeRequirements RuntimeRequirementsSection::get_runtime_requirements() const {
