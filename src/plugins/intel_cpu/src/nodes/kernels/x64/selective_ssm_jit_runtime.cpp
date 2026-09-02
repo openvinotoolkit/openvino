@@ -103,28 +103,6 @@ struct TensorCursor {
     }
 };
 
-struct CacheSchedule {
-    bool enabled;
-    uint64_t interval;
-    uint64_t offset;
-
-    [[nodiscard]] uint64_t cached_tokens(size_t processed_tokens) const {
-        return offset + processed_tokens;
-    }
-
-    [[nodiscard]] bool should_store(uint64_t token_count, bool is_last) const {
-        return enabled && (token_count % interval == 0 || is_last);
-    }
-
-    [[nodiscard]] size_t write_slot(uint64_t token_count) const {
-        return 1 + (token_count - 1) / interval;
-    }
-
-    [[nodiscard]] size_t write_count(size_t processed_tokens) const {
-        return enabled ? write_slot(cached_tokens(processed_tokens)) : 0;
-    }
-};
-
 template <typename Data>
 void run_selective_ssm(const Data* state_decay_rates,
                        const Data* time_steps,
@@ -140,28 +118,25 @@ void run_selective_ssm(const Data* state_decay_rates,
                        const CpuParallelPtr& cpu_parallel,
                        const JitKernelBase& fp32_state_kernel,
                        const JitKernelBase* direct_state_kernel) {
-    const auto batch_state_stride =
-        node::kernel::checked_size_product({shape.num_heads, shape.head_dim, shape.state_size},
-                                           "JIT recurrent state batch");
-    const auto head_state_stride =
-        node::kernel::checked_size_product({shape.head_dim, shape.state_size}, "JIT recurrent state head");
-    const auto scratch_stride =
-        node::kernel::checked_size_product({head_dim_tile, shape.state_size}, "JIT state scratch");
-    const auto heads_per_group = shape.num_heads / shape.num_groups;
-    const auto head_dim_tile_count = ov::util::ceil_div(shape.head_dim, head_dim_tile);
+    const auto layout = make_state_work_layout(shape.num_heads,
+                                               shape.num_groups,
+                                               shape.head_dim,
+                                               shape.state_size,
+                                               head_dim_tile,
+                                               "JIT recurrent state batch");
     const auto projection_stride = shape.num_groups * shape.state_size;
     const auto input_stride = shape.num_heads * shape.head_dim;
 
     cpu_parallel->parallel_for3d(
         shape.batch_size,
         shape.num_heads,
-        head_dim_tile_count,
+        layout.head_dim_tile_count,
         [&](size_t batch, size_t head, size_t tile) {
             const auto head_dim_begin = tile * head_dim_tile;
             const auto head_dim_count = std::min(head_dim_tile, shape.head_dim - head_dim_begin);
-            const auto projection_group = head / heads_per_group;
+            const auto projection_group = head / layout.heads_per_group;
             const auto state_offset =
-                batch * batch_state_stride + head * head_state_stride + head_dim_begin * shape.state_size;
+                batch * layout.container_stride + head * layout.head_stride + head_dim_begin * shape.state_size;
             const auto state_elements = head_dim_count * shape.state_size;
             const auto state_decay_rate = static_cast<float>(state_decay_rates[head]);
             auto token_head_offset = (batch * shape.sequence_length) * shape.num_heads + head;
@@ -188,7 +163,7 @@ void run_selective_ssm(const Data* state_decay_rates,
             if constexpr (std::is_same_v<Data, float>) {
                 local_state = final_state + state_offset;
             } else {
-                local_state = state_scratch + static_cast<size_t>(parallel_get_thread_num()) * scratch_stride;
+                local_state = state_scratch + static_cast<size_t>(parallel_get_thread_num()) * layout.scratch_stride;
             }
             copy_convert(local_state, initial_state + state_offset, state_elements);
 
@@ -262,6 +237,7 @@ void run_paged_selective_ssm(const PagedSelectiveSSMJitRuntimeArgs& args) {
                                                "JIT state block");
     const auto projection_stride = shape.num_groups * shape.state_size;
     const auto input_stride = shape.num_heads * shape.head_dim;
+    const bool reuse_single_snapshot_as_workspace = should_reuse_state_cache_as_fp32_working_buffer();
 
     args.cpu_parallel->parallel_for3d(
         shape.sequence_count,
@@ -283,13 +259,8 @@ void run_paged_selective_ssm(const PagedSelectiveSSMJitRuntimeArgs& args) {
             const auto* initial_state = state_cache + read_block * layout.container_stride + state_offset;
             const auto state_decay_rate = static_cast<float>(state_decay_rates[head]);
             const auto interval = static_cast<int64_t>(cache_intervals[sequence]);
-            const CacheSchedule cache{
-                interval > 0,
-                interval > 0 ? static_cast<uint64_t>(interval) : uint64_t{1},
-                interval > 0 ? static_cast<uint64_t>(static_cast<int64_t>(num_processed_tokens[sequence])) %
-                                   static_cast<uint64_t>(interval)
-                             : uint64_t{0},
-            };
+            const auto cache =
+                PagedCacheSchedule::make(interval, static_cast<uint64_t>(num_processed_tokens[sequence]));
             TensorCursor cursor{
                 token_begin * shape.num_heads + head,
                 (token_begin * shape.num_groups + projection_group) * shape.state_size,
@@ -300,9 +271,9 @@ void run_paged_selective_ssm(const PagedSelectiveSSMJitRuntimeArgs& args) {
             if (token_end == token_begin + 1) {
                 const auto time_step = static_cast<float>(time_steps[cursor.token_head]);
                 if (cache.enabled && direct_state_kernel != nullptr) {
-                    const auto token_count = cache.cached_tokens(1);
+                    const auto token_count = cache.absolute_token_count(1);
                     const auto write_block =
-                        static_cast<size_t>(block_indices[logical_block_begin + cache.write_slot(token_count)]);
+                        static_cast<size_t>(block_indices[logical_block_begin + cache.snapshot_slot(token_count)]);
                     auto* snapshot = state_cache + write_block * layout.container_stride + state_offset;
                     run_recurrence_kernel(*direct_state_kernel,
                                           initial_state,
@@ -333,9 +304,9 @@ void run_paged_selective_ssm(const PagedSelectiveSSMJitRuntimeArgs& args) {
 
             auto* local_state = state_scratch + static_cast<size_t>(parallel_get_thread_num()) * layout.scratch_stride;
             if constexpr (std::is_same_v<Data, float>) {
-                const auto snapshot_count = cache.write_count(token_end - token_begin);
+                const auto snapshot_count = cache.snapshot_count(token_end - token_begin);
                 // A single f32 snapshot can hold the working state, avoiding the scratch buffer and final copy.
-                if (snapshot_count == 1 && should_reuse_state_cache_as_fp32_working_buffer()) {
+                if (snapshot_count == 1 && reuse_single_snapshot_as_workspace) {
                     const auto write_block = static_cast<size_t>(block_indices[logical_block_begin + snapshot_count]);
                     local_state = state_cache + write_block * layout.container_stride + state_offset;
                 }
@@ -356,11 +327,11 @@ void run_paged_selective_ssm(const PagedSelectiveSSMJitRuntimeArgs& args) {
                                       head_dim_count);
 
                 const auto processed_tokens = (token - token_begin) + 1;
-                const auto token_count = cache.cached_tokens(processed_tokens);
+                const auto token_count = cache.absolute_token_count(processed_tokens);
                 const bool is_last = token + 1 == token_end;
                 if (cache.should_store(token_count, is_last)) {
                     const auto write_block =
-                        static_cast<size_t>(block_indices[logical_block_begin + cache.write_slot(token_count)]);
+                        static_cast<size_t>(block_indices[logical_block_begin + cache.snapshot_slot(token_count)]);
                     auto* snapshot = state_cache + write_block * layout.container_stride + state_offset;
                     copy_convert(snapshot, local_state, state_elements);
                 }

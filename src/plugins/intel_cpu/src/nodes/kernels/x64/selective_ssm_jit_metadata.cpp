@@ -115,14 +115,13 @@ void validate(const PagedSelectiveSSMJitRuntimeArgs& args) {
         if (interval <= 0) {
             continue;
         }
-        const auto positive_interval = static_cast<uint64_t>(interval);
-        const auto offset = static_cast<uint64_t>(processed_tokens) % positive_interval;
-        OPENVINO_ASSERT(token_count <= std::numeric_limits<uint64_t>::max() - offset,
+        const auto cache =
+            PagedCacheSchedule::make(static_cast<int64_t>(interval), static_cast<uint64_t>(processed_tokens));
+        OPENVINO_ASSERT(token_count <= std::numeric_limits<uint64_t>::max() - cache.offset,
                         "PagedSelectiveSSM: token count overflow at sequence ",
                         sequence,
                         ".");
-        const auto cached_token_count = offset + token_count;
-        const auto write_count = (cached_token_count - 1) / positive_interval + 1;
+        const auto write_count = cache.snapshot_count(token_count);
         const auto available_writes = block_end - block_begin - 1;
         OPENVINO_ASSERT(available_writes >= write_count,
                         "PagedSelectiveSSM: sequence ",

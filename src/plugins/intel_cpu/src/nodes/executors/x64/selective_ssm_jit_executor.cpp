@@ -20,7 +20,6 @@
 #include "nodes/executors/paged_selective_ssm_config.hpp"
 #include "nodes/executors/selective_ssm_config.hpp"
 #include "nodes/kernels/selective_ssm.hpp"
-#include "nodes/kernels/x64/selective_ssm_jit_config.hpp"
 #include "nodes/kernels/x64/selective_ssm_jit_kernel.hpp"
 #include "nodes/kernels/x64/selective_ssm_jit_runtime.hpp"
 #include "onednn/iml_type_mapper.h"
@@ -100,6 +99,22 @@ std::shared_ptr<kernel::JitKernelBase> get_or_create_kernel(const ExecutorContex
 SelectiveSSMJitExecutorBase::SelectiveSSMJitExecutorBase(ExecutorContext::CPtr context)
     : m_context(std::move(context)) {}
 
+size_t SelectiveSSMJitExecutorBase::ResourceRequirements::projection_scratch_elements() const {
+    return data_precision == ov::element::f32
+               ? size_t{0}
+               : node::kernel::checked_size_product({size_t{2}, projection_elements}, "JIT B/C projection scratch");
+}
+
+size_t SelectiveSSMJitExecutorBase::ResourceRequirements::metadata_scratch_offset() const {
+    return node::kernel::checked_size_sum({state_scratch_elements, projection_scratch_elements()},
+                                          "JIT metadata scratch offset");
+}
+
+size_t SelectiveSSMJitExecutorBase::ResourceRequirements::total_scratch_elements() const {
+    return node::kernel::checked_size_sum({metadata_scratch_offset(), metadata_scratch_elements},
+                                          "JIT combined scratch");
+}
+
 bool SelectiveSSMJitExecutorBase::configure_resources(const ResourceRequirements& requirements) {
     if (!is_supported_state_size(requirements.state_size) || requirements.head_dim_tile == 0) {
         return false;
@@ -136,17 +151,9 @@ bool SelectiveSSMJitExecutorBase::configure_resources(const ResourceRequirements
             return false;
         }
     }
-    const auto projection_scratch_elements =
-        requirements.data_precision == ov::element::f32
-            ? size_t{0}
-            : node::kernel::checked_size_product({size_t{2}, requirements.projection_elements},
-                                                 "JIT B/C projection scratch");
-    const auto total_scratch_elements = node::kernel::checked_size_sum(
-        {requirements.state_scratch_elements, projection_scratch_elements, requirements.metadata_scratch_elements},
-        "JIT combined scratch");
-    const auto descriptor =
-        std::make_shared<CpuBlockedMemoryDesc>(ov::element::f32,
-                                               ov::intel_cpu::Shape{std::max(size_t{1}, total_scratch_elements)});
+    const auto descriptor = std::make_shared<CpuBlockedMemoryDesc>(
+        ov::element::f32,
+        ov::intel_cpu::Shape{std::max(size_t{1}, requirements.total_scratch_elements())});
     auto scratch = m_context->getScratchPad()->createScratchPadMem(descriptor);
     if (scratch == nullptr) {
         return false;
@@ -403,13 +410,8 @@ void PagedSelectiveSSMJitExecutor::execute(const MemoryArgs& memory) {
     args.data_precision = precision;
     args.index_precision = memory.at(ARG_PAGED_SSM_SUBSEQUENCE_BEGINS)->getDescPtr()->getPrecision();
     args.state_scratch = m_scratch->getDataAs<float>();
-    const auto projection_scratch_elements =
-        precision == ov::element::f32
-            ? size_t{0}
-            : node::kernel::checked_size_product({size_t{2}, m_requirements.projection_elements},
-                                                 "JIT B/C projection scratch");
-    args.metadata_validation_scratch = reinterpret_cast<int32_t*>(
-        args.state_scratch + m_requirements.state_scratch_elements + projection_scratch_elements);
+    args.metadata_validation_scratch =
+        reinterpret_cast<int32_t*>(args.state_scratch + m_requirements.metadata_scratch_offset());
     args.head_dim_tile = m_requirements.head_dim_tile;
     args.cpu_parallel = m_context->getCpuParallel();
     args.fp32_state_kernel = m_kernels.fp32_state.get();

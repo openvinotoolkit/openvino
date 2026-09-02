@@ -31,6 +31,10 @@ protected:
         size_t metadata_scratch_elements = 0;
         bool needs_no_state_store_kernel = false;
 
+        [[nodiscard]] size_t projection_scratch_elements() const;
+        [[nodiscard]] size_t metadata_scratch_offset() const;
+        [[nodiscard]] size_t total_scratch_elements() const;
+
         bool operator==(const ResourceRequirements& rhs) const {
             return data_precision == rhs.data_precision && state_size == rhs.state_size &&
                    head_dim_tile == rhs.head_dim_tile && state_scratch_elements == rhs.state_scratch_elements &&

@@ -15,6 +15,36 @@ namespace ov::intel_cpu::kernel {
 
 class JitKernelBase;
 
+struct PagedCacheSchedule {
+    bool enabled = false;
+    uint64_t interval = 1;
+    uint64_t offset = 0;
+
+    static PagedCacheSchedule make(int64_t cache_interval, uint64_t processed_tokens) {
+        if (cache_interval <= 0) {
+            return {};
+        }
+        const auto interval = static_cast<uint64_t>(cache_interval);
+        return {true, interval, processed_tokens % interval};
+    }
+
+    [[nodiscard]] uint64_t absolute_token_count(size_t current_tokens) const {
+        return offset + current_tokens;
+    }
+
+    [[nodiscard]] bool should_store(uint64_t absolute_token_count, bool is_last) const {
+        return enabled && (absolute_token_count % interval == 0 || is_last);
+    }
+
+    [[nodiscard]] size_t snapshot_slot(uint64_t absolute_token_count) const {
+        return 1 + (absolute_token_count - 1) / interval;
+    }
+
+    [[nodiscard]] size_t snapshot_count(size_t current_tokens) const {
+        return enabled && current_tokens > 0 ? snapshot_slot(absolute_token_count(current_tokens)) : 0;
+    }
+};
+
 struct SelectiveSSMJitRuntimeArgs {
     const void* state_decay_rates = nullptr;
     const void* time_steps = nullptr;
