@@ -105,7 +105,22 @@ std::vector<ov::MemorySolver::Box> SolveBufferMemory::init_boxes(const Buffers& 
                 }
             }
         }
-        OPENVINO_ASSERT(e_start <= e_finish, "Incorrect life time of buffer!");
+        if (e_start > e_finish) {
+            std::string msg = "buffer " + buffer_expr->get_node()->get_friendly_name() + " cluster " +
+                              std::to_string(cluster_id) + " start " + std::to_string(e_start) + " finish " +
+                              std::to_string(e_finish);
+            for (const auto& buffer_in : buffer_expr->get_input_port_connectors()) {
+                msg += "\n  src: " + buffer_in->get_source().get_expr()->get_node()->get_friendly_name() + " #" +
+                       std::to_string(casted_execution_number(buffer_in->get_source().get_expr()));
+            }
+            for (const auto& buffer_out : buffer_expr->get_output_port_connectors()) {
+                for (const auto& consumer : buffer_out->get_consumers()) {
+                    msg += "\n  dst: " + consumer.get_expr()->get_node()->get_friendly_name() + " #" +
+                           std::to_string(casted_execution_number(consumer.get_expr()));
+                }
+            }
+            OPENVINO_THROW("Incorrect life time of buffer! ", msg);
+        }
 
         auto buffer_size = static_cast<int64_t>(buffer_expr->get_byte_size());
         box.size = std::max(buffer_size, box.size);
