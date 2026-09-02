@@ -189,6 +189,76 @@ std::vector<ScatterElementsUpdateParams<T, T_IND>> generateScatterElementsUpdate
     return result;
 }
 
+// Every output element takes exactly two contributions, from work items half a work group
+// apart and so in different subgroups, which is the smallest case that puts more than one
+// contribution into the work-group-local accumulator. Do not consolidate them onto fewer
+// output elements: two contributors in different subgroups is the point.
+template<typename T, typename T_IND>
+std::vector<ScatterElementsUpdateParams<T, T_IND>> generateScatterElementsUpdateParamsDuplicateIndices() {
+    constexpr size_t data_count = 32;
+    constexpr size_t updates_count = 2 * data_count;
+    std::vector<T> data(data_count);
+    std::vector<T_IND> indices(updates_count);
+    std::vector<T> updates(updates_count);
+    for (size_t i = 0; i < data_count; ++i) {
+        data[i] = static_cast<T>(i);
+    }
+    for (size_t i = 0; i < updates_count; ++i) {
+        indices[i] = static_cast<T_IND>(i % data_count);
+        updates[i] = static_cast<T>(i + 1);
+    }
+
+    return {
+        {   3,
+            tensor{1, 1, static_cast<int32_t>(data_count), 1},
+            data,
+            tensor{1, 1, static_cast<int32_t>(updates_count), 1},
+            indices,
+            updates,
+        },
+    };
+}
+
+// Duplicate indices whose updates all lie outside the window that the integer accumulator
+// encoding uses for its MIN and MAX neutral elements. For that encoding to_int() is the
+// identity and FP_INT_MAX / FP_INT_MIN are +/-32767, so the neutral is an ordinary in-range
+// value rather than a saturating sentinel: any MIN whose operands all exceed +32767, or MAX
+// whose operands are all below -32767, saturates at the neutral instead of reducing. (The
+// other two encodings are unaffected -- f32 bit-reinterprets +/-MAXFLOAT and reduces it with
+// fmin/fmax, and fp16 pushes the same 32767 through to_int()'s FP_SCALE multiply, where it
+// clamps to +/-2^31 and does act as a sentinel.)
+//
+// Two updates land on every output element, from work items half a work group apart and so in
+// different subgroups, which is what puts more than one contribution into the local
+// accumulator and lets its starting value participate in the reduction. Every operand has to
+// sit on the same side of the window: one in-range operand is itself below the MIN neutral
+// (resp. above the MAX one) and would mask the saturation. `sign` picks the side, the data
+// operand is placed an order of magnitude further out for the same reason, and use_init_value
+// is left on so that only the work-group-local accumulator is under test.
+template<typename T, typename T_IND>
+std::vector<ScatterElementsUpdateParams<T, T_IND>>
+generateScatterElementsUpdateParamsOutsideAccumulatorRange(float sign, float floor_value, float step) {
+    constexpr size_t data_count = 32;
+    constexpr size_t updates_count = 2 * data_count;
+    std::vector<float> data(data_count, sign * floor_value * 10.0f);
+    std::vector<float> indices(updates_count);
+    std::vector<float> updates(updates_count);
+    for (size_t i = 0; i < updates_count; ++i) {
+        indices[i] = static_cast<float>(i % data_count);
+        updates[i] = sign * (floor_value + static_cast<float>(i) * step);
+    }
+
+    return {
+        {   3,
+            tensor{1, 1, static_cast<int32_t>(data_count), 1},
+            getValues<T>(data),
+            tensor{1, 1, static_cast<int32_t>(updates_count), 1},
+            getValues<T_IND>(indices),
+            getValues<T>(updates),
+        },
+    };
+}
+
 template<typename T, typename T_IND>
 std::vector<ScatterElementsUpdateParams<T, T_IND>> generateScatterElementsUpdateParams3D() {
     const std::vector<ScatterElementsUpdateParams<T, T_IND>> result = {
@@ -647,6 +717,46 @@ INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_reduction_none_test_f32_2d,
                          ::testing::Combine(
                                  ::testing::ValuesIn(generateScatterElementsUpdateParams2D<float, int32_t>()),
                                  ::testing::Values(ov::op::v12::ScatterElementsUpdate::Reduction::NONE),
+                                 ::testing::Values(true),
+                                 ::testing::Values(format::bfyx)
+                         ),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_duplicate_indices_f32,
+                         scatter_elements_update_gpu_reduction_test_f32,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateScatterElementsUpdateParamsDuplicateIndices<float, int32_t>()),
+                                 ::testing::Values(ov::op::v12::ScatterElementsUpdate::Reduction::SUM),
+                                 ::testing::Values(true, false),
+                                 ::testing::Values(format::bfyx)
+                         ),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_duplicate_indices_i32,
+                         scatter_elements_update_gpu_reduction_test_i32,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateScatterElementsUpdateParamsDuplicateIndices<int32_t, int32_t>()),
+                                 ::testing::Values(ov::op::v12::ScatterElementsUpdate::Reduction::SUM),
+                                 ::testing::Values(true, false),
+                                 ::testing::Values(format::bfyx)
+                         ),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_outside_accumulator_range_min_i32,
+                         scatter_elements_update_gpu_reduction_test_i32,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateScatterElementsUpdateParamsOutsideAccumulatorRange<int32_t, int32_t>(1.0f, 100000.0f, 1000.0f)),
+                                 ::testing::Values(ov::op::v12::ScatterElementsUpdate::Reduction::MIN),
+                                 ::testing::Values(true),
+                                 ::testing::Values(format::bfyx)
+                         ),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_outside_accumulator_range_max_i32,
+                         scatter_elements_update_gpu_reduction_test_i32,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateScatterElementsUpdateParamsOutsideAccumulatorRange<int32_t, int32_t>(-1.0f, 100000.0f, 1000.0f)),
+                                 ::testing::Values(ov::op::v12::ScatterElementsUpdate::Reduction::MAX),
                                  ::testing::Values(true),
                                  ::testing::Values(format::bfyx)
                          ),
