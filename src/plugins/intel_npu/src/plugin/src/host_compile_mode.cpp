@@ -39,12 +39,11 @@ bool enable_host_compile_if_needed(const std::shared_ptr<const ov::Model>& model
             return false;
         }
 
-        // Assumed N,C,H,W order. Height (H) and width (W) must both be dynamic and bounded; channel (C) must stay
-        // static. Batch (N) may be either static ("HW dynamic" pattern) or dynamic ("NHW dynamic" pattern) - both
-        // are accepted, since N being static or dynamic are the only two possible states.
-        const bool channelStatic = shape[1].is_static();
-        const bool heightAndWidthDynamic = shape[2].is_dynamic() && shape[3].is_dynamic();
-        return channelStatic && heightAndWidthDynamic;
+        // Assumed N,C,H,W order. Height (H) and width (W) must both be dynamic and bounded; channel (C) is not
+        // considered and may be either static or dynamic. Batch (N) may be either static ("HW dynamic" pattern) or
+        // dynamic ("NHW dynamic" pattern) - both are accepted, since N being static or dynamic are the only two
+        // possible states.
+        return shape[2].is_dynamic() && shape[3].is_dynamic();
     };
 
     const auto& modelInputs = model->inputs();

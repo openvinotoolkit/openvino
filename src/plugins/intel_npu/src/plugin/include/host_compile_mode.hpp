@@ -17,11 +17,11 @@ namespace intel_npu {
  *
  * The mode is enabled only for Plugin compiler requests that have no explicit compilation mode and no
  * dynamic-to-static conversion, when both inputs and outputs contain a bounded dynamic static-rank 4D port (assumed
- * N,C,H,W order) with a static channel (C) dimension and dynamic height (H) and width (W) dimensions, and every I/O
- * port dimension has a finite upper bound (HostCompile allocates dynamic buffers from these upper bounds). The batch
- * (N) dimension may be either static ("HW dynamic") or dynamic ("NHW dynamic") - both are accepted as long as H and W
- * are dynamic; any other combination (e.g. only the channel dynamic, or only one of H/W dynamic) falls back to the
- * regular batch handling path.
+ * N,C,H,W order) with dynamic height (H) and width (W) dimensions - the channel (C) dimension's static/dynamic state
+ * is not considered - and every I/O port dimension has a finite upper bound (HostCompile allocates dynamic buffers
+ * from these upper bounds). The batch (N) dimension may be either static ("HW dynamic") or dynamic ("NHW dynamic") -
+ * both are accepted as long as H and W are dynamic; any other combination (e.g. only one of H/W dynamic) falls back
+ * to the regular batch handling path.
  *
  * @param model  Model being compiled.
  * @param config Configuration updated in place with the selected compilation mode when the criteria are met.

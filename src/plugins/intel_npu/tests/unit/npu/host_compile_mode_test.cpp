@@ -122,11 +122,19 @@ TEST_F(EnableHostCompileTest, DynamicBatchAndWidthOnlyDoesNotEnableHostCompile) 
     EXPECT_FALSE(config->has<COMPILATION_MODE>());
 }
 
-// A static batch with only the channel dynamic (H/W static) is neither the "HW" nor the "NHW" pattern.
-TEST_F(EnableHostCompileTest, OnlyChannelDynamicDoesNotEnableHostCompile) {
+// H/W being static means neither the "HW" nor the "NHW" pattern applies, regardless of channel (C) dynamism.
+TEST_F(EnableHostCompileTest, DynamicChannelWithStaticSpatialDoesNotEnableHostCompile) {
     auto model = make_relu_model({1, bounded(), UPPER, UPPER});
     EXPECT_FALSE(run(model));
     EXPECT_FALSE(config->has<COMPILATION_MODE>());
+}
+
+// Channel (C) dynamism is ignored: HostCompile is still selected when H and W are dynamic even if C is dynamic too.
+TEST_F(EnableHostCompileTest, DynamicChannelWithDynamicSpatialEnablesHostCompile) {
+    auto model = make_relu_model({1, bounded(), bounded(), bounded()});
+    EXPECT_TRUE(run(model));
+    EXPECT_TRUE(config->has<COMPILATION_MODE>());
+    EXPECT_EQ(config->get<COMPILATION_MODE>(), "HostCompile_Interpreter");
 }
 
 // A fully static model is not a HostCompile candidate.
@@ -181,6 +189,7 @@ TEST_F(EnableHostCompileTest, NonPluginCompilerDoesNotEnable) {
 }
 
 // An explicit compilation mode is respected and never overridden.
+// Use an uncommon compilation mode to check for overrides.
 TEST_F(EnableHostCompileTest, ExplicitCompilationModeIsRespected) {
     config->update({{ov::intel_npu::compilation_mode.name(), "ReferenceSW"}});
     auto model = make_relu_model({1, 3, bounded(), bounded()});
