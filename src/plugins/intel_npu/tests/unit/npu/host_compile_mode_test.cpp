@@ -92,25 +92,27 @@ TEST_F(EnableHostCompileTest, DynamicSpatialEnablesHostCompile) {
     EXPECT_EQ(config->get<COMPILATION_MODE>(), "HostCompile_Interpreter");
 }
 
-// A dynamic batch alone, with H and W static, is a single dynamic dimension among N/H/W - not enough on its own.
+// A dynamic batch alone, with H and W static, is the only N/H/W combination that does not enable HostCompile.
 TEST_F(EnableHostCompileTest, OnlyBatchDynamicDoesNotEnableHostCompile) {
     auto model = make_relu_model({bounded(), 3, UPPER, UPPER});
     EXPECT_FALSE(run(model));
     EXPECT_FALSE(config->has<COMPILATION_MODE>());
 }
 
-// A static batch with only H dynamic (W static) is also a single dynamic dimension among N/H/W - not enough.
-TEST_F(EnableHostCompileTest, OnlyHeightDynamicDoesNotEnableHostCompile) {
+// A static batch with only H dynamic (W static) is enough on its own - only H or W dynamic is required.
+TEST_F(EnableHostCompileTest, OnlyHeightDynamicEnablesHostCompile) {
     auto model = make_relu_model({1, 3, bounded(), UPPER});
-    EXPECT_FALSE(run(model));
-    EXPECT_FALSE(config->has<COMPILATION_MODE>());
+    EXPECT_TRUE(run(model));
+    EXPECT_TRUE(config->has<COMPILATION_MODE>());
+    EXPECT_EQ(config->get<COMPILATION_MODE>(), "HostCompile_Interpreter");
 }
 
 // Same as above, but only W is dynamic (H static).
-TEST_F(EnableHostCompileTest, OnlyWidthDynamicDoesNotEnableHostCompile) {
+TEST_F(EnableHostCompileTest, OnlyWidthDynamicEnablesHostCompile) {
     auto model = make_relu_model({1, 3, UPPER, bounded()});
-    EXPECT_FALSE(run(model));
-    EXPECT_FALSE(config->has<COMPILATION_MODE>());
+    EXPECT_TRUE(run(model));
+    EXPECT_TRUE(config->has<COMPILATION_MODE>());
+    EXPECT_EQ(config->get<COMPILATION_MODE>(), "HostCompile_Interpreter");
 }
 
 // A dynamic batch is accepted as long as H and W are also dynamic (the "NHW dynamic" pattern).
@@ -121,7 +123,7 @@ TEST_F(EnableHostCompileTest, DynamicBatchAndSpatialEnablesHostCompile) {
     EXPECT_EQ(config->get<COMPILATION_MODE>(), "HostCompile_Interpreter");
 }
 
-// Batch and height both dynamic (width static) is the "NH" pattern - two of N/H/W are dynamic, so it is accepted.
+// Batch and height both dynamic (width static) is the "NH" pattern - accepted because H alone is dynamic.
 TEST_F(EnableHostCompileTest, DynamicBatchAndHeightEnablesHostCompile) {
     auto model = make_relu_model({bounded(), 3, bounded(), UPPER});
     EXPECT_TRUE(run(model));
