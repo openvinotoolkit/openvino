@@ -40,10 +40,12 @@ bool enable_host_compile_if_needed(const std::shared_ptr<const ov::Model>& model
         }
 
         // Assumed N,C,H,W order. Height (H) and width (W) must both be dynamic and bounded; channel (C) is not
-        // considered and may be either static or dynamic. Batch (N) may be either static ("HW dynamic" pattern) or
-        // dynamic ("NHW dynamic" pattern) - both are accepted, since N being static or dynamic are the only two
+        // considered and may be either static or dynamic. Batch (N) may be either static or dynamic,
         // possible states.
-        return shape[2].is_dynamic() && shape[3].is_dynamic();
+        // not change onlu dynamic batch shape to use host compiler interpreter, will influence may influence test TryToCompileStridedTensorWithDynamicBoundsExpectedThrow.
+        // Note: When batch is larger than 1, use compiler batch + host compile interpreter can cause ConvertBatchedLayerTo1N and AdjustScaleShiftForDWConv to fail on certain models (e.g., in maxpool models), as their internal reshape operations do not support dynamic batch shapes;
+        // while use batch is larger than 1 + plugin batch + host compiler interpreter, the inference's result shape will not match the input shape on certain models (e.g., in maxpool models).
+        return shape[2].is_dynamic() || shape[3].is_dynamic();
     };
 
     const auto& modelInputs = model->inputs();
