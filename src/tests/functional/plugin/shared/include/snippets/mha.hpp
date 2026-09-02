@@ -127,6 +127,15 @@ protected:
     void init_thresholds() override;
 };
 
+// The same graph with the Softmax quantized on a softmax's theoretical [0, 1] range rather than on
+// a calibrated one. That is the form on which SoftmaxDecomposition would defer the normalization
+// past MatMul1 if a plugin asked it to, so this is the model that pins the default: the CPU plugin
+// does not ask, so the result must stay within the int8 MHA tolerance of the reference.
+class MHAINT8MatMulUnitRange : public MHAINT8MatMul {
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
+};
+
 class MHAQuantMatMul0 : public MHA {
 protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;

@@ -316,6 +316,10 @@ void MHAINT8MatMul::init_thresholds() {
     abs_threshold = 4e-6;
 }
 
+std::shared_ptr<SnippetsFunctionBase> MHAINT8MatMulUnitRange::get_subgraph() const {
+    return std::make_shared<ov::test::snippets::MHAINT8MatMulFunction>(inputDynamicShapes, 1.f);
+}
+
 std::shared_ptr<SnippetsFunctionBase> MHAQuantMatMul0::get_subgraph() const {
     return std::make_shared<ov::test::snippets::MHAQuantMatMul0Function>(inputDynamicShapes);
 }
@@ -418,6 +422,12 @@ TEST_P(MHATransposedB, CompareWithRefImpl) {
 }
 
 TEST_P(MHAINT8MatMul, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MHAINT8MatMulUnitRange, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();

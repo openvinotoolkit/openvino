@@ -234,7 +234,11 @@ Subgraph::Subgraph(const OutputVector& args, const std::shared_ptr<ov::Model>& b
 
 std::shared_ptr<Node> Subgraph::clone_with_new_inputs(const OutputVector& inputs) const {
     INTERNAL_OP_SCOPE(Subgraph);
-    return std::make_shared<Subgraph>(inputs, body().clone());
+    auto result = std::make_shared<Subgraph>(inputs, body().clone());
+    // The rest of the config is recomputed from the body by init_config(); this one cannot be,
+    // because it is a caller's decision rather than a property of the graph.
+    result->config.m_defer_softmax_normalization = config.m_defer_softmax_normalization;
+    return result;
 }
 
 void Subgraph::validate_and_infer_types() {
@@ -437,6 +441,10 @@ std::shared_ptr<Subgraph> Subgraph::clone() const {
     // so we have to cast away constness to copy runtime info
     ov::copy_runtime_info(std::const_pointer_cast<Node>(shared_from_this()), result);
     result->set_friendly_name(get_friendly_name());
+    // Every other config field is recomputed from the body by init_config(); this one cannot be,
+    // because it is a caller's decision rather than a property of the graph, and the CPU plugin
+    // clones the tokenized Subgraph before any transformation runs on it.
+    result->config.m_defer_softmax_normalization = config.m_defer_softmax_normalization;
     if (m_linear_ir) {
         result->m_linear_ir = lowered::LinearIRBuilder().clone(m_linear_ir);
     }
@@ -477,7 +485,7 @@ void Subgraph::data_flow_transformations(
         manager.register_pass<snippets::pass::MatMulToBrgemm>();
         manager.register_pass<snippets::pass::FuseTransposeBrgemm>();
         manager.register_pass<snippets::pass::TransposeDecomposition>();
-        manager.register_pass<snippets::pass::SoftmaxDecomposition>();
+        manager.register_pass<snippets::pass::SoftmaxDecomposition>(config.m_defer_softmax_normalization);
         manager.register_pass<snippets::pass::GNDecomposition>();
     }
     manager.register_pass<snippets::pass::BroadcastToMoveBroadcast>();
