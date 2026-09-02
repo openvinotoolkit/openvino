@@ -50,6 +50,47 @@ KERNEL (permute_f_y_axes)(
     }
 }
 
+#elif defined (PERMUTE_FY_TILED)
+
+// Square SLM tile, sized so that both the load and the store move a full cache line per
+// subgroup. The default path for this shape picks TILE_SIZE 8 and lws {1,1,8}: eight work
+// items each reading 16 contiguous bytes 1152 bytes apart, so most of every 64-byte line
+// fetched is discarded on the read and again on the write.
+__attribute__((reqd_work_group_size(FY_TILE, FY_TH, 1)))
+KERNEL (permute_f_y_axes)(
+    const __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output
+    )
+{
+    __local OUTPUT_TYPE tile[FY_TILE][FY_TILE + 1];
+
+    const int tx = get_local_id(0);
+    const int ty = get_local_id(1);
+    const int y0 = get_group_id(0) * FY_TILE;
+    const int f0 = get_group_id(1) * FY_TILE;
+    const int b_idx = get_global_id(2);
+    const int y_idx = y0 + tx;
+
+    __attribute__((opencl_unroll_hint))
+    for (int i = 0; i < FY_TILE; i += FY_TH) {
+        const int f_idx = f0 + ty + i;
+        if (f_idx < INPUT0_FEATURE_NUM) {
+            INPUT0_TYPE res = input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, 0)];
+            tile[tx][ty + i] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(res), ACTIVATION_PARAMS));
+        }
+    }
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    const int f_out = f0 + tx;
+    if (f_out < INPUT0_FEATURE_NUM) {
+        __attribute__((opencl_unroll_hint))
+        for (int i = 0; i < FY_TILE; i += FY_TH) {
+            output[OUTPUT_GET_INDEX(b_idx, y0 + ty + i, f_out, 0)] = tile[ty + i][tx];
+        }
+    }
+}
+
 #elif defined (THREE_DIM_TRANSPOSE)
 
 #ifdef SUB_GROUP_SIZE

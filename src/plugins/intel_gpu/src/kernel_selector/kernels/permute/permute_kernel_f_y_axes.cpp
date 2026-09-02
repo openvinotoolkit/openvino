@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <string>
 
 #include "common_tools.h"
@@ -33,6 +34,36 @@ bool IsSimpleMemCopyOperation(const permute_params& params) {
 
 bool Is3DTranspose(const permute_params& params) {
     return params.inputs[0].X().v > 1 && params.inputs[0].GetLayout() != DataLayout::bfyx;
+}
+
+// veesion: OV_PERMUTE_TILE is the side of a square SLM tile; 0 keeps the stock path.
+// 64 halves this node (34.7 -> 66.9 GB/s) but is a wash end to end: at two requests in flight
+// the transpose is hidden behind compute, so freeing bandwidth buys nothing (iteration 42).
+size_t TiledSide() {
+    static const size_t side = [] {
+        const char* v = std::getenv("OV_PERMUTE_TILE");
+        return v ? static_cast<size_t>(std::atoi(v)) : 64UL;
+    }();
+    return side;
+}
+
+// Rows of the tile loaded per work-item pass; the work group is FY_TILE x FY_TH.
+size_t TiledHeight() {
+    static const size_t h = [] {
+        const char* v = std::getenv("OV_PERMUTE_TH");
+        return v ? static_cast<size_t>(std::atoi(v)) : 8UL;
+    }();
+    return h;
+}
+
+bool UseTiled(const permute_params& params) {
+    const size_t side = TiledSide();
+    const size_t th = TiledHeight();
+    if (side < 8 || (side & (side - 1)) != 0 || th == 0 || side % th != 0)
+        return false;
+    const auto& in = params.inputs[0];
+    return in.X().v == 1 && SimpleLayout(in.GetLayout()) && SimpleLayout(params.outputs[0].GetLayout()) &&
+           params.fused_ops.empty() && in.Y().v % side == 0;
 }
 
 size_t GetFeatureBlockSize(const permute_params& params) {
@@ -125,6 +156,14 @@ JitConstants PermuteKernel_f_y_axes::GetJitConstants(const permute_params& param
                                                      const CommonDispatchData& dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
 
+    if (UseTiled(params)) {
+        jit.AddConstant(MakeJitConstant("PERMUTE_FY_TILED", ""));
+        jit.AddConstant(MakeJitConstant("FY_TILE", TiledSide()));
+        jit.AddConstant(MakeJitConstant("FY_TH", TiledHeight()));
+        jit.Merge(MakeTypeJitConstants(params.inputs[0].GetDType(), "ACCUMULATOR"));
+        return jit;
+    }
+
     if (params.inputs[0].X().v != 1) {
         if (IsSimpleMemCopyOperation(params)) {
             jit.AddConstant(MakeJitConstant("PERMUTE_SIMPLE_MEM_COPY", ""));
@@ -183,6 +222,14 @@ static inline std::vector<size_t> GetGWS(const permute_params& params) {
 
 CommonDispatchData PermuteKernel_f_y_axes::SetDefault(const permute_params& params) const {
     CommonDispatchData dispatchData;
+    if (UseTiled(params)) {
+        const auto& in = params.inputs[0];
+        const size_t side = TiledSide();
+        const size_t th = TiledHeight();
+        dispatchData.gws = {in.Y().v, CeilDiv(in.Feature().v, side) * th, in.Batch().v};
+        dispatchData.lws = {side, th, 1};
+        return dispatchData;
+    }
     dispatchData.gws = GetGWS(params);
     if (IsSimpleMemCopyOperation(params)) {
         auto in_layout = params.inputs[0].GetLayout();

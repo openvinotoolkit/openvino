@@ -102,6 +102,11 @@ JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params, MVNKern
             MakeJitConstant("DATA_SETS_COUNT", dispatchData.dataSetsCount),
             MakeJitConstant("DATA_SET_SIZE", dispatchData.dataSetSize),
         });
+        // Hold each work item's slice of the data set in registers so the mean, variance and
+        // normalize loops share one pass over global memory instead of taking three.
+        const size_t iters = CeilDiv(dispatchData.dataSetSize, dispatchData.lws[0]);
+        if (iters <= 8)
+            jit.AddConstant(MakeJitConstant("MVN_CACHE_ITERS", iters));
     }
     auto activation_dt = GetActivationType(params);
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));

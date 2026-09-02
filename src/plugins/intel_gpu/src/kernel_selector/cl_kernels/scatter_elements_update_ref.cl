@@ -320,11 +320,12 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
                     #endif
                 }
             #endif
-            if (reduction_thread[output_idx] > 1) {
-                FUNC_CALL(atomic_reduce_local)(&reduction_v[output_idx], val_fixed);
-            } else {
-                reduction_v[output_idx] = val_fixed;
-            }
+            // reduction_v was set to the reduction's neutral element before the barrier, so
+            // an unconditional atomic reduce is correct for every mode. Selecting a plain
+            // store when the counter reads 1 is a race: the counter is still being
+            // incremented by the other work items sharing this output_idx, so a work item
+            // can read 1, take the store, and clobber contributions already accumulated.
+            FUNC_CALL(atomic_reduce_local)(&reduction_v[output_idx], val_fixed);
 
             barrier(CLK_LOCAL_MEM_FENCE);
 
