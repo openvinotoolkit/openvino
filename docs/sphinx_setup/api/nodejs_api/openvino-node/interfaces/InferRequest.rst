@@ -296,8 +296,9 @@ Methods
               [inputName: string]: Tensor;
           }
 
-       Either an object mapping input names to tensors, or an array of tensors
-       in model input order.
+       An object with the key-value pairs where the key is the input name and
+       value is a tensor or an array with tensors. If the model has multiple
+       inputs, the Tensors must be passed in the correct order.
 
    * **Returns:**
 
@@ -435,3 +436,4 @@ Methods
 
    * **Defined in:**
      `addon.ts:561 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L561>`__
+

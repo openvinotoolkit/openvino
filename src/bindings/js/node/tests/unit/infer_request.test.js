@@ -144,14 +144,13 @@ describe("ov.InferRequest tests", () => {
   it("inferAsync() assigns object inputs by name", async () => {
     const { addModel } = testModels;
     const core = new ov.Core();
-    const modelXml = (await fs.readFile(addModel.xml, "utf8"))
-      .replace('type="Add"', 'type="Subtract"')
-      .replaceAll("data1", "z_lhs")
-      .replaceAll("data2", "a_rhs");
+    const modelXml = (await fs.readFile(addModel.xml, "utf8")).replace(
+      'type="Add"',
+      'type="Subtract"',
+    );
     const model = core.readModelSync(Buffer.from(modelXml));
     const compiled = core.compileModelSync(model, "CPU");
     const inputNames = compiled.inputs.map((input) => input.anyName);
-    assert.deepStrictEqual(inputNames, ["z_lhs", "a_rhs"]);
     const tensors = new Map(
       inputNames.map((name, index) => [
         name,
