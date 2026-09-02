@@ -18,9 +18,9 @@ using namespace ov;
 using namespace ov::opset13;
 
 namespace {
-std::shared_ptr<ov::Model> build_model(const string& mask_name) {
+std::shared_ptr<ov::Model> build_model(const string& mask_name, element::Type key_type = element::f32) {
     auto q = std::make_shared<Parameter>(element::f32, PartialShape{-1, 8, 32}); /* L,H,S */
-    auto k = std::make_shared<Parameter>(element::f32, PartialShape{-1, 8, 32});
+    auto k = std::make_shared<Parameter>(key_type, PartialShape{-1, 8, 32});
     auto v = std::make_shared<Parameter>(element::f32, PartialShape{-1, 8, 32});
 
     q->set_friendly_name("q");
@@ -97,4 +97,16 @@ TEST_F(TransformationTestsF, SDPA2VLSDPAWindowAttentionMaskTest) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CmpValues::NAMES);
+}
+
+// A key holding quantization codes has no meaning VLSDPA can express, so the rewrite must leave
+// the model alone rather than produce a VLSDPA that reads the codes as values.
+TEST_F(TransformationTestsF, SDPA2VLSDPAQuantizedKeyIsNotConverted) {
+    disable_rt_info_check();
+    {
+        model = build_model("attention_mask", element::i8);
+        model->set_rt_info("QWenVL", "model_type_hint");
+        manager.register_pass<ov::pass::SDPAToVLSDPA>();
+    }
+    { model_ref = build_model("attention_mask", element::i8); }
 }
