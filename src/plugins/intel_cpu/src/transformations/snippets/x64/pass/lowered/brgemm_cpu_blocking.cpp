@@ -5,6 +5,7 @@
 #include "brgemm_cpu_blocking.hpp"
 
 #include <cassert>
+#include <cstdlib>
 #include <cstddef>
 #include <iterator>
 #include <memory>
@@ -115,9 +116,14 @@ std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(
 
     const auto [m, n, k] = get_brgemm_dimensions(brgemm_expr);
 
-    const auto default_m_blk = 32;
-    const auto default_n_blk = 64;
-    const auto default_k_blk = !ov::snippets::utils::is_dynamic_value(k) && k > 1024 ? 1024 : 512;
+    const auto env_blk = [](const char* name, size_t fallback) {
+        const char* v = std::getenv(name);
+        return v != nullptr ? static_cast<size_t>(std::atoi(v)) : fallback;
+    };
+    const auto default_m_blk = env_blk("OV_SNIPPETS_M_BLK", 32);
+    const auto default_n_blk = env_blk("OV_SNIPPETS_N_BLK", 64);
+    const auto default_k_blk =
+        env_blk("OV_SNIPPETS_K_BLK", !ov::snippets::utils::is_dynamic_value(k) && k > 1024 ? 1024 : 512);
 
     size_t m_blk = get_corrected_blk_size_by_dim(m, default_m_blk);
     size_t n_blk =

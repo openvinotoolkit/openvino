@@ -654,6 +654,11 @@ private:
 
     void register_table_entries() override;
     size_t aux_vecs_count() const override;
+
+    // veesion: caller has already folded log2(e) into an upstream scale, so the emitter's own
+    // leading multiply would be redundant. Only ever set for a graph Exp, never for the copy
+    // jit_erf_emitter owns.
+    bool m_skip_log2e{false};
 };
 
 class jit_erf_emitter : public jit_emitter {

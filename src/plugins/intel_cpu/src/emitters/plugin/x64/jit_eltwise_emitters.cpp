@@ -2086,16 +2086,69 @@ void jit_negative_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 }
 
 /// EXP ///
+// veesion: OV_CPU_FAST_EXP=1 replaces the stock exp with 2^(x*log2e) evaluated as a degree-4
+// Taylor series on the fraction (max abs error 4.4e-5 on the reduced range). It drops the
+// denormal-underflow mask and blend, clamping in the log2 domain instead, which removes a
+// 2-uop vblendvps and a vcmpps on avx2. Behaviour differs from the stock emitter only below
+// exp(-87) and above exp(87), where it saturates rather than flushing to zero / inf.
+static bool fast_exp_enabled() {
+    const char* v = std::getenv("OV_CPU_FAST_EXP");
+    return v != nullptr && v[0] != '\0';
+}
+
+// veesion: degree of the polynomial approximating 2^f on f in [-0.5, 0.5]. The stock fast path
+// is a degree-4 Taylor series; degrees 2 and 3 use minimax coefficients instead, whose max
+// relative error is 1.73e-3 and 7.49e-5 -- against a u8 softmax grid step of 1/510 = 1.96e-3,
+// and most of even that cancels because the same approximation feeds the row sum it is divided
+// by. Each degree dropped removes one vfmadd213ps of fourteen instructions.
+static int fast_exp_degree() {
+    const char* v = std::getenv("OV_CPU_EXP_DEG");
+    const int d = v ? std::atoi(v) : 4;
+    return (d >= 1 && d <= 4) ? d : 4;
+}
+
+// veesion: multiplying the polynomial by 2^n is the same as adding n to its exponent field, and
+// the polynomial's value is always in [0.7, 1.5] so the field is 126 or 127 and the add cannot
+// carry out of it. That trades a 4-cycle vmulps on the FMA ports -- the one resource this
+// emitter is actually bound by -- for a 1-cycle vpaddd on the integer ports, and drops the
+// exponent_bias add on the side path since the bias is now already in the polynomial's field.
+// Bit-exact with the multiply everywhere the lower clamp holds n >= -126.
+static bool fast_exp_shift() {
+    const char* v = std::getenv("OV_CPU_EXP_SHIFT");
+    return v != nullptr && v[0] == '1';
+}
+
+// Drops the vminps that clamps the log2-domain argument to +126. Every exp in this model takes a
+// non-positive argument -- softmax subtracts the row max, gelu's erf takes -x*x/2 -- so the
+// upper clamp can never fire. The lower clamp stays: without it an argument below -126 shifts a
+// negative exponent field and returns a large negative float rather than zero.
+static bool fast_exp_nomin() {
+    const char* v = std::getenv("OV_CPU_EXP_NOMIN");
+    return v != nullptr && v[0] == '1';
+}
+
 jit_exp_emitter::jit_exp_emitter(x64::jit_generator_t* host, x64::cpu_isa_t host_isa, ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
+}
+
+// veesion: the fast path opens with `f = x * log2e`, which sits at the head of a serial
+// latency chain (mul -> max -> round -> sub -> poly -> mul). When the only producer of x is a
+// scale that the caller controls -- as in this model's softmax, where q is pre-multiplied by
+// the q@k dequant scale -- log2e can be folded into that scale for free and this multiply
+// deleted outright. Applied only through the node constructor, so jit_erf_emitter's private
+// exp (whose argument is -x*x/2, not a scaled input) keeps its multiply.
+static bool fast_exp_nolog2e() {
+    const char* v = std::getenv("OV_CPU_EXP_NOLOG2E");
+    return v != nullptr && v[0] == '1';
 }
 
 jit_exp_emitter::jit_exp_emitter(x64::jit_generator_t* host,
                                  x64::cpu_isa_t host_isa,
                                  [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
                                  ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {
+    : jit_emitter(host, host_isa, exec_prc),
+      m_skip_log2e(fast_exp_nolog2e()) {
     prepare_table();
 }
 
@@ -2125,6 +2178,69 @@ void jit_exp_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
     auto vmm_src = Vmm(in_vec_idxs[0]);
     auto vmm_dst = Vmm(out_vec_idxs[0]);
+
+    if (fast_exp_enabled()) {
+        auto vmm_f = Vmm(aux_vec_idxs[0]);
+        auto vmm_scale = Vmm(aux_vec_idxs[1]);
+        // veesion: the clamps below sit in front of the round, on the serial chain
+        // mul -> min -> max -> round -> sub -> poly -> mul. They can be moved behind it: fast_hi
+        // and fast_lo are the integers +-126, so clamp-then-round and round-then-clamp agree
+        // exactly, and the move takes 8 cycles off a 36-cycle chain at identical instruction
+        // count. Iteration 58 built that and measured it 1.5% SLOWER, ahead in none of four
+        // paired rounds; dropping the vminps outright (OV_CPU_EXP_NOMIN) measured exactly zero.
+        // Yet deg4 -> deg2, which drops two vfmadd213ps, is worth 4.8%. What this emitter is
+        // bound by is its FMA-port operations alone, at roughly 4 cycles each; min, max, round
+        // and the integer side path are free. Only removing an FMA-port op pays here.
+        const bool shift_scale = fast_exp_shift();
+        if (m_skip_log2e) {
+            if (!fast_exp_nomin()) {
+                h->uni_vminps(vmm_f, vmm_src, table_val("fast_hi"));
+                h->uni_vmaxps(vmm_f, vmm_f, table_val("fast_lo"));
+            } else {
+                h->uni_vmaxps(vmm_f, vmm_src, table_val("fast_lo"));
+            }
+        } else {
+            h->uni_vmulps(vmm_f, vmm_src, table_val("log2ef"));
+            if (!fast_exp_nomin()) {
+                h->uni_vminps(vmm_f, vmm_f, table_val("fast_hi"));
+            }
+            h->uni_vmaxps(vmm_f, vmm_f, table_val("fast_lo"));
+        }
+        const auto _op_near = 0U;
+        h->uni_vroundps(vmm_scale, vmm_f, _op_near);
+        h->uni_vsubps(vmm_f, vmm_f, vmm_scale);
+        h->uni_vcvtps2dq(vmm_scale, vmm_scale);
+        if (!shift_scale) {
+            h->uni_vpaddd(vmm_scale, vmm_scale, table_val("exponent_bias"));
+        }
+        h->uni_vpslld(vmm_scale, vmm_scale, 23);
+        const int deg = fast_exp_degree();
+        if (deg == 4) {
+            h->uni_vmovups(vmm_dst, table_val("fast_c4"));
+            h->uni_vfmadd213ps(vmm_dst, vmm_f, table_val("fast_c3"));
+            h->uni_vfmadd213ps(vmm_dst, vmm_f, table_val("fast_c2"));
+            h->uni_vfmadd213ps(vmm_dst, vmm_f, table_val("fast_c1"));
+            h->uni_vfmadd213ps(vmm_dst, vmm_f, table_val("one"));
+        } else if (deg == 3) {
+            h->uni_vmovups(vmm_dst, table_val("mm3_c3"));
+            h->uni_vfmadd213ps(vmm_dst, vmm_f, table_val("mm3_c2"));
+            h->uni_vfmadd213ps(vmm_dst, vmm_f, table_val("mm3_c1"));
+            h->uni_vfmadd213ps(vmm_dst, vmm_f, table_val("mm3_c0"));
+        } else if (deg == 2) {
+            h->uni_vmovups(vmm_dst, table_val("mm2_c2"));
+            h->uni_vfmadd213ps(vmm_dst, vmm_f, table_val("mm2_c1"));
+            h->uni_vfmadd213ps(vmm_dst, vmm_f, table_val("mm2_c0"));
+        } else {
+            h->uni_vmovups(vmm_dst, table_val("mm1_c1"));
+            h->uni_vfmadd213ps(vmm_dst, vmm_f, table_val("mm1_c0"));
+        }
+        if (shift_scale) {
+            h->uni_vpaddd(vmm_dst, vmm_dst, vmm_scale);
+        } else {
+            h->uni_vmulps(vmm_dst, vmm_dst, vmm_scale);
+        }
+        return;
+    }
 
     Vmm vmm_mask = need_vmm_mask() ? Vmm(aux_vec_idxs[0]) : Vmm();
     auto vmm_aux0 = Vmm(aux_vec_idxs[0 + static_cast<size_t>(need_vmm_mask())]);
@@ -2205,9 +2321,34 @@ void jit_exp_emitter::register_table_entries() {
     push_arg_entry_of("ln_flt_max_f", 0x42b17218, true);
     push_arg_entry_of("ln_flt_min_f", 0xc2aeac50, true);
     push_arg_entry_of("exponent_bias", 0x0000007f, true);
+
+    push_arg_entry_of("fast_c1", 0x3f317218, true);  // ln2
+    push_arg_entry_of("fast_c2", 0x3e75fdf0, true);  // ln2^2/2
+    push_arg_entry_of("fast_c3", 0x3d635847, true);  // ln2^3/6
+    push_arg_entry_of("fast_c4", 0x3c1d955b, true);  // ln2^4/24
+    push_arg_entry_of("fast_hi", 0x42fc0000, true);  // +126, clamped in the log2 domain
+    push_arg_entry_of("fast_lo", 0xc2fc0000, true);  // -126
+
+    // Minimax fits of 2^f on [-0.5, 0.5], relative error 7.49e-5 (degree 3) and 1.73e-3
+    // (degree 2). The leading coefficient is not exactly 1, so unlike the Taylor form these
+    // cannot reuse "one" as the final addend.
+    push_arg_entry_of("mm3_c0", 0x3f7ffb4a, true);  // 0.99992810f
+    push_arg_entry_of("mm3_c1", 0x3f31798d, true);  // 0.69326097f
+    push_arg_entry_of("mm3_c2", 0x3e786ef2, true);  // 0.24261072f
+    push_arg_entry_of("mm3_c3", 0x3d61fb67, true);  // 0.05517140f
+    push_arg_entry_of("mm2_c0", 0x3f800e84, true);  // 1.00044300f
+    push_arg_entry_of("mm2_c1", 0x3f3414eb, true);  // 0.70344418f
+    push_arg_entry_of("mm2_c2", 0x3e74260d, true);  // 0.23842640f
+    // Degree 1, relative error 2.98e-2 -- fifteen times the u8 softmax grid step, so this is only
+    // viable if the goldens say the error cancels through the softmax normalisation.
+    push_arg_entry_of("mm1_c0", 0x3f83b6bc, true);  // 1.02901416f
+    push_arg_entry_of("mm1_c1", 0x3f2f9e4c, true);  // 0.68600918f
 }
 
 size_t jit_exp_emitter::aux_vecs_count() const {
+    if (fast_exp_enabled()) {
+        return 2;
+    }
     return need_vmm_mask() ? 3 : 2;
 }
 

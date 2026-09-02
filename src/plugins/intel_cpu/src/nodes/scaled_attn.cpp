@@ -2221,7 +2221,7 @@ bool ScaledDotProductAttention::isSupportedOperation(const std::shared_ptr<const
             }
         }
         // using mha should be better for static shapes
-        if (!op->is_dynamic()) {
+        if (!op->is_dynamic() && std::getenv("OV_CPU_KEEP_SDPA") == nullptr) {
             errorMessage = "Only run in dynamic mode";
             return false;
         }

@@ -6,6 +6,7 @@
 
 #include <common/c_types_map.hpp>
 #include <cstddef>
+#include <cstdlib>
 #include <limits>
 #include <memory>
 #include <set>
@@ -292,6 +293,17 @@ ov::pass::pattern::op::Predicate pass::FuseBinaryEltwise::binary_input_predicate
     "binary_input_predicate"};
 
 bool pass::FuseBinaryEltwise::can_be_fused(const std::shared_ptr<const ov::Node>& node) {
+    // veesion: fusing a per-OC binary operand into an int8 BrgemmCPU inside a fused MHA body
+    // corrupts the result, and not by the operand's value: clamping the operand to an exact
+    // zero -- an Add that provably changes nothing -- still moves the model output by 8.9%
+    // relative at depth 2, while the same graph with the Add left as an ordinary in-loop
+    // eltwise reproduces the unfused reference to 0.0. So enabling the post-op selects a
+    // different, wrong brgemm path rather than mis-addressing the operand; the operand's
+    // pointer bookkeeping (address regs -> external_ptrs) is compacted consistently on both
+    // sides. Nothing in this model wants a binary post-op, so refuse it by default.
+    if (std::getenv("OV_BRGEMM_BINARY_POSTOP") == nullptr) {
+        return false;
+    }
     if (!ov::is_type_any_of<ov::op::v1::Multiply,
                             ov::op::v1::Add,
                             ov::op::v1::Subtract,

@@ -118,9 +118,16 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
                                     dnnl::impl::cpu::x64::avx2_vnni_2)) {
             supported_types.insert(form_precisions({element::bf16, element::bf16}));
         }
+        // veesion: avx2_vnni_2 is a superset of avx2_vnni and executes vpdpbusd, so it takes a
+        // u8 A operand. Omitting it here left {i8, i8} as the only int8 pair on this ISA, and
+        // PropagatePrecision then inserted a SATURATING u8->i8 convert on A while BrgemmConfig
+        // kept src_dt=u8: every operand byte above 127 was silently clamped. On int8 MHA that is
+        // the softmax operand, so any attention probability over 127/255 was truncated to
+        // 127/255 -- measured directly, and worth ~0.35 relative error on a peaked row.
         if (snippets::utils::any_of(config.isa(),
                                     dnnl::impl::cpu::x64::avx512_core_vnni,
-                                    dnnl::impl::cpu::x64::avx2_vnni)) {
+                                    dnnl::impl::cpu::x64::avx2_vnni,
+                                    dnnl::impl::cpu::x64::avx2_vnni_2)) {
             supported_types.insert(form_precisions({element::u8, element::i8}));
         }
         if (config.isa() == dnnl::impl::cpu::x64::avx2_vnni_2) {

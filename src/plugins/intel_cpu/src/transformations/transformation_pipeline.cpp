@@ -124,6 +124,7 @@
 #include "transformations/op_conversions/mvn6_decomposition.hpp"
 #include "transformations/op_conversions/normalize_l2_decomposition.hpp"
 #include "transformations/op_conversions/rnn_cell_decomposition.hpp"
+#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
 #include "transformations/op_conversions/softmax_decomposition.hpp"
 #include "transformations/op_conversions/softsign_decomposition.hpp"
@@ -872,6 +873,12 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertScatterNDUpdate15ToScatterNDUpdate3);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertSliceScatter);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::SDPAFusion);
+    // CommonOptimizations decomposes every v13::SDPA into MatMul/Softmax/MatMul, so the
+    // plugin's own blocked ScaledDotProductAttention node is unreachable for a plain
+    // (non-KV-cache) encoder. Keeping the node is opt-in while it is being evaluated.
+    if (std::getenv("OV_CPU_KEEP_SDPA") != nullptr) {
+        CPU_DISABLE_PASS_COMMON(manager, ov::pass::ScaledDotProductAttentionDecomposition);
+    }
     CPU_DISABLE_PASS_X64(manager, ov::pass::HSigmoidDecomposition);
     CPU_DISABLE_PASS_ARM64(manager, ov::pass::HSigmoidDecomposition);
 
