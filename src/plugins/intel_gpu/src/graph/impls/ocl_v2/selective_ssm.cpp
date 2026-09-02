@@ -86,6 +86,7 @@ protected:
         const size_t discrete_target = get_discrete_head_dim_target(params);
         const size_t head_dim_block =
             selective_ssm_jit::get_head_dim_block(head_dim, state_size, subgroup_size, params.get_device_info(), Kind, private_values_budget, discrete_target);
+        OPENVINO_ASSERT(subgroup_size != 0, "SelectiveSSM JIT kernel requires a non-zero subgroup size");
 
         jit.make("SSM_SEQUENCE_SIZE", x_shape[1].get_length());
         jit.make("SSM_NUM_HEADS", x_shape[2].get_length());
@@ -137,6 +138,7 @@ protected:
                                                                                 Kind,
                                                                                 private_values_budget,
                                                                                 discrete_target);
+            OPENVINO_ASSERT(head_dim_block != 0, "SelectiveSSM JIT kernel requires a non-zero head dimension block");
 
             // get_head_dim_block() returns 0 for unsupported configurations; the clamp only keeps the divisor defined.
             kd.params.workGroups.global = {cldnn::ceil_div(head_dim, std::max<size_t>(head_dim_block, 1)) * subgroup_size, num_heads, batch};
