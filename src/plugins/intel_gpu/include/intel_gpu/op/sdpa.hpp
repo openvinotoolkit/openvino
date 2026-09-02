@@ -28,6 +28,16 @@ public:
          const std::vector<int64_t>& order_out,
          const ov::element::Type output_type = ov::element::dynamic);
 
+    /// Overload that takes Q unrotated plus a trailing (cos, sin) pair of inputs.
+    SDPA(const OutputVector& inputs,
+         const bool is_causal,
+         const std::vector<int64_t>& order_q,
+         const std::vector<int64_t>& order_k,
+         const std::vector<int64_t>& order_v,
+         const std::vector<int64_t>& order_out,
+         const ov::element::Type output_type,
+         bool rope_q);
+
     SDPA(const OutputVector& inputs,
          const bool is_causal,
          const std::vector<int64_t>& order_q,
@@ -52,6 +62,10 @@ public:
     ov::element::Type get_output_type() const { return m_output_type; }
 
     bool get_kv_compressed() const { return m_compressed; }
+
+    /// Q arrives unrotated; the last two inputs carry the interleaved RoPE cos/sin table
+    /// (batch, tokens, head_size) and the SDPA kernel rotates Q while staging it.
+    bool get_rope_q() const { return m_rope_q; }
     QuantizationAttribute get_quantization_attrs() const { return m_quantization_attrs; }
     size_t get_compression_inputs_num() const;
 
@@ -70,6 +84,7 @@ protected:
     ov::element::Type m_output_type;
 
     bool m_compressed = false;
+    bool m_rope_q = false;
     QuantizationAttribute m_quantization_attrs = {};
 };
 

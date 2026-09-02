@@ -14,6 +14,7 @@
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 #include "ocl_v2/utils/jitter.hpp"
 #include "scaled_dot_product_attention_inst.h"
+#include "quantize_inst.h"
 #include "paged_attention_inst.h"
 #include "paged_attention_opt.hpp"
 #include "sdpa_base.hpp"
@@ -41,6 +42,11 @@ inline size_t get_d_max(size_t head_size) {
         }
     }
     return head_size;
+}
+
+const char* veesion_env(const char* name) {
+    const char* v = std::getenv(name);
+    return (v && *v) ? v : nullptr;
 }
 
 micro::Type convert_type(ov::element::Type t) {
@@ -261,6 +267,18 @@ inline size_t micro_get_value_cache_id(const kernel_impl_params& params) {
     }
     auto desc = params.typed_desc<scaled_dot_product_attention>();
     return get_value_cache_id(*desc);
+}
+
+// veesion: true when V has been physically materialised as (batch, heads, head_size, tokens),
+// which the graph signals with input_v_transpose_order == {0, 1, 3, 2}. The V*S microkernel
+// contracts V over tokens, so that layout makes its reduction axis the contiguous one and
+// gemmstone can load A straight to registers instead of staging it through SLM.
+inline bool micro_transpose_v(const kernel_impl_params& params) {
+    if (params.is_type<paged_attention>())
+        return false;
+    if (params.input_layouts[2].get_partial_shape().is_dynamic())
+        return false;
+    return params.typed_desc<scaled_dot_product_attention>()->input_v_transpose_order == std::vector<int64_t>{0, 1, 3, 2};
 }
 
 struct sdpa_config_t {
@@ -955,8 +973,17 @@ KernelData SDPAMicroGenerator::get_kernel_data(const kernel_impl_params& params)
     kd.code->jit += generateShim(gemms[vs_id], micro::HostLanguage::OpenCL_C, shim_options);
 
     bool need_256_grf = false;
+    // OV_SDPA_GRF=256 forces the large register file even when the chosen microkernels do not
+    // demand it. Occupancy here is capped by SLM (~52 KB of a 64 KB budget = one workgroup per
+    // Xe-core), not by thread slots, so halving the slots per EU costs nothing while doubling
+    // the register budget available to the tile.
+    if (const char* grf = std::getenv("OV_SDPA_GRF")) {
+        need_256_grf = std::string(grf) == "256";
+    }
     if (gemms[kq_id].grfMin > 128 || gemms[vs_id].grfMin > 128) {
         need_256_grf = true;
+    }
+    if (need_256_grf) {
         kd.code->options += " -cl-intel-256-GRF-per-thread";
     }
 
@@ -1069,7 +1096,11 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
 
     auto ldq = k_head_size * ov::element::Type(Q.data_type).size();
     auto ldk = k_head_size * ov::element::Type(K.data_type).size();
-    auto ldv = v_head_size * ov::element::Type(V.data_type).size();
+    const bool transpose_v = micro_transpose_v(params);
+    const auto v_seq_len = micro_get_seq_length(params, 2).get_max_length();
+    // With a transposed V the leading dimension is the token count, not the head size.
+    auto ldv = static_cast<size_t>(transpose_v && v_seq_len > 0 ? v_seq_len : static_cast<int64_t>(v_head_size)) *
+               ov::element::Type(V.data_type).size();
     auto lda = v_head_size * ov::element::Type(out.data_type).size();
 
     jit.make("D_MAX", d_max);
@@ -1107,6 +1138,12 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         jit.make("WITH_SCALE", data_inputs_num > scale_input_idx);
     }
 
+    if (!config.is_paged_attention && params.typed_desc<scaled_dot_product_attention>()->has_rope_q) {
+        // cos/sin are (batch, tokens, HEAD_SIZE) halves, shared by every head, so the table's
+        // row stride is HEAD_SIZE and its batch stride is q * HEAD_SIZE.
+        jit.make("WITH_ROPE_Q", 1);
+    }
+
     jit.make("Q_ALIGN", micro::alignment_for_ld(static_cast<int>(ldq)));
     jit.make("K_ALIGN", micro::alignment_for_ld(static_cast<int>(ldk)));
     jit.make("V_ALIGN", micro::alignment_for_ld(static_cast<int>(ldv)));
@@ -1115,6 +1152,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     jit.make("IS_PREFILL", m_is_prefill);
     jit.make("IS_GQA_SINGLE_TOKEN", m_is_gqa_single_token);
     jit.make("TRANSPOSE_K", false);
+    jit.make("TRANSPOSE_V", transpose_v);
     jit.make("IS_PAGED_ATTENTION", config.is_paged_attention ? 1 : 0);
     jit.make("KV_HEADS_NUM", config.kv_heads_num);
     jit.make("HEADS_NUM", m_is_gqa_single_token ? config.kv_heads_num : config.heads_num);
@@ -1122,6 +1160,98 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     jit.make("QRY_DATA_T", to_ocl_type(Q.data_type));
     jit.make("KEY_DATA_T", to_ocl_type(K.data_type));
     jit.make("VAL_DATA_T", to_ocl_type(V.data_type));
+
+    // Integer K^T*Q, selected by an s8 key. Q must then already hold integer codes (the graph
+    // folds both quantization steps into the op's scale input, which the kernel applies to S
+    // anyway), so the in-kernel quantization that packs Q into SLM is exact at step 1.
+    jit.make("I8_KQ", (K.data_type == ov::element::i8 || veesion_env("OV_SDPA_I8KQ")) ? 1 : 0);
+
+    // Integer V*S, selected by an s8 value. The softmax operand is already exp(s - rowmax),
+    // i.e. in [0, 1] with at least one 1 per query column, and micro-SDPA defers the 1/rowsum
+    // past the accumulation -- so a FIXED [0, 1] grid is fully used on every row and every key
+    // block. That is the one condition under which quantising softmax probabilities is not
+    // resolution-bound (iteration 34 on the CPU track).
+    // Occupancy probe. The per-workgroup SLM budget decides how many workgroups an Xe-core can
+    // host: 64 KB total, so 32 KB is the cliff. SLM_SHAVE shrinks the declaration WITHOUT
+    // shrinking the pointers, so the arithmetic is unchanged and the answers are garbage --
+    // it prices the cliff before anyone pays to reach it honestly.
+    if (const char* shave = std::getenv("OV_SDPA_SLM_SHAVE"))
+        jit.make("SLM_SHAVE", std::atoi(shave));
+    jit.make("SLM_DUMP", veesion_env("OV_SDPA_SLM_DUMP") ? 1 : 0);
+
+    const bool i8_vs = (V.data_type == ov::element::i8 || veesion_env("OV_SDPA_I8VS"));
+    jit.make("I8_VS", i8_vs ? 1 : 0);
+    if (i8_vs) {
+        // s8 x s8 is the only pair gemmstone selects here, so the probability grid is
+        // [0, 127]. The graph carries the rest of the dequantisation: it divides V by
+        // absmax/127 per head before narrowing, and folds the matching per-head factor into
+        // attn.proj's weight columns, leaving one global constant for the kernel.
+        jit.make("I8_VS_LEVELS", 127);
+        const char* deq = veesion_env("OV_SDPA_VS_DEQ");
+        jit.make("I8_VS_DEQ", deq ? deq : "1.0f");
+        if (veesion_env("OV_SDPA_I8VS_FOLD")) {
+            // exp(x - (m - ln(LEVELS))) = LEVELS * exp(x - m): the quantize multiply
+            // disappears, the running-max differences that drive the rescale cancel the
+            // shift, and the final dequant drops its /LEVELS. ln(127).
+            jit.make("I8_VS_EXP_FOLDED", 1);
+            jit.make("I8_VS_MAX_SHIFT", "4.8441871f");
+        }
+        if (veesion_env("OV_SDPA_I8VS_MAGIC"))
+            // RTE via the 2^23 exponent bias; see tile_quantize_to_char4.
+            jit.make("I8_VS_QUANT_MAGIC", 1);
+    }
+
+    // veesion: when the trailing per-tensor quantizer is fused into micro-SDPA
+    // (OV_SDPA_OUT_I8, see prepare_primitive_fusing), the output layout turns i8 and the
+    // store epilogue must emit the quantizer itself. Mirror scale_shift_opt's per-tensor
+    // branch exactly: tmp = in*pre_scale [+pre_shift] [round] [*post_scale] [+post_shift]
+    // [clamp] convert_char_sat_rte. When no post scale/shift intervenes the round folds
+    // into the saturated conversion, which is what the generic epilogue relies on too.
+    bool out_i8 = out.data_type == ov::element::i8;
+    if (veesion_env("OV_SDPA_OUT_I8_DEBUG"))
+        std::cerr << "[veesion] micro jit: out_dt=" << out.data_type << " out_i8=" << out_i8
+                  << " fused_desc=" << params.fused_desc.size() << std::endl;
+    if (out_i8) {
+        bool found_quantize = false;
+        for (const auto& fd : params.fused_desc) {
+            if (!fd.is_type<quantize>())
+                continue;
+            const auto p = fd.get_typed_fuse_params<QuantizeFuseParams>();
+            if (veesion_env("OV_SDPA_OUT_I8_DEBUG")) {
+                std::cerr << "[veesion] SDPA_OUT_I8 fused: in_scale=" << p->_in_scale
+                          << " in_shift=" << p->_in_shift << " need_pre_shift=" << p->_need_pre_shift
+                          << " out_scale=" << p->_out_scale << " out_shift=" << p->_out_shift
+                          << " need_post_scale=" << p->_need_post_scale
+                          << " need_post_shift=" << p->_need_post_shift
+                          << " out_lo=" << p->_out_lo << " out_hi=" << p->_out_hi
+                          << " need_clamp=" << p->_need_clamp
+                          << " need_min_clamp=" << p->_need_min_clamp
+                          << " need_max_clamp=" << p->_need_max_clamp
+                          << " per_tensor_in_range=" << p->_per_tensor_input_range
+                          << " per_tensor_in_scale=" << p->_per_tensor_input_scale
+                          << std::endl;
+            }
+            jit.make("SDPA_Q_PRE_SCALE", p->_in_scale);
+            jit.make("SDPA_Q_PRE_SHIFT", p->_in_shift);
+            jit.make("SDPA_Q_NEED_PRE_SHIFT", p->_need_pre_shift ? 1 : 0);
+            jit.make("SDPA_Q_POST_SCALE", p->_out_scale);
+            jit.make("SDPA_Q_POST_SHIFT", p->_out_shift);
+            jit.make("SDPA_Q_NEED_POST_SCALE", p->_need_post_scale ? 1 : 0);
+            jit.make("SDPA_Q_NEED_POST_SHIFT", p->_need_post_shift ? 1 : 0);
+            jit.make("SDPA_Q_OUT_LO", p->_out_lo);
+            jit.make("SDPA_Q_OUT_HI", p->_out_hi);
+            jit.make("SDPA_Q_NEED_CLAMP", p->_need_clamp ? 1 : 0);
+            jit.make("SDPA_Q_NEED_MIN_CLAMP", p->_need_min_clamp ? 1 : 0);
+            jit.make("SDPA_Q_NEED_MAX_CLAMP", p->_need_max_clamp ? 1 : 0);
+            found_quantize = true;
+            break;
+        }
+        // An i8 output layout can only come from the fused quantize epilogue; if the
+        // constants are missing the buffer is i8 while the store would be half, so fail hard.
+        OPENVINO_ASSERT(found_quantize,
+                        "[GPU] SDPA micro kernel has i8 output but no fused quantize epilogue");
+    }
+    jit.make("SDPA_OUT_I8", out_i8 ? 1 : 0);
 
     auto elems_per_byte = [](ov::element::Type dt) {
         switch (dt) {
@@ -1221,6 +1351,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     // const ov::Dimension n_values = micro_get_seq_length(params, 2);
     const ov::Dimension n_values = ov::Dimension(v_head_size);
 
+
     bool d_full = (head_size == static_cast<size_t>(d_max));
     bool v_full = (head_size == static_cast<size_t>(tile_v));
     bool k_full = !n_keys.is_dynamic() && (n_keys.get_length() % tile_k) == 0;
@@ -1252,14 +1383,25 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         // tile_ops.cl defines DEF_BLOCK2D_LOAD_STORE for half up to vl=16 (BR=32, BC=8).
         // tile element vector = sg_tile_m * max_BC / sg_size; must be <= 16 (max defined vl).
         const bool block2d_compatible = (sg_tile_m * 8 / sg_size) <= 16;  // sg_tile_m <= 32
-        const bool use_block2d = lda % 16 == 0 && vbytes % 4 == 0 && block2d_compatible;
+        // veesion: the block2d store is defined on the half tile only; keep it off when the
+        // fused quantizer turns the output into i8 (char tile store).
+        const bool use_block2d = lda % 16 == 0 && vbytes % 4 == 0 && block2d_compatible && !out_i8;
         GPU_DEBUG_TRACE_DETAIL << "BLOCK_2D_A check: sg_tile_m=" << sg_tile_m << " sg_size=" << sg_size << " lda=" << lda << " vbytes=" << vbytes
                                << " block2d_compatible=" << block2d_compatible << " => " << (use_block2d ? "enabled" : "disabled") << std::endl;
         if (use_block2d)
             jit.make("BLOCK_2D_A", 1);
     }
 
-    if (device_info.arch >= gpu_arch::xe_hpc) {
+    // veesion: upstream gates the cooperative K/V prefetch behind xe_hpc, but it is written
+    // against __builtin_IB_lsc_prefetch_global_*, which Xe-HPG/Xe-LPG implement too. Without
+    // it every key-block iteration stalls on the global loads of K and V. Opt in with
+    // OV_SDPA_PREFETCH=1; read here rather than from the plugin config because the config is
+    // frozen at OpenVINO import while kernels are built later, so both spellings can be
+    // compared inside one process.
+    bool prefetch_arch = device_info.arch >= gpu_arch::xe_hpc;
+    if (const char* pf = std::getenv("OV_SDPA_PREFETCH"))
+        prefetch_arch = std::string(pf) != "0";
+    if (prefetch_arch) {
         jit.make("PREFETCH_MASK", 1);
         jit.make("PREFETCH_K0", (config.is_paged_attention && !m_is_prefill) ? 0 : 1);
         jit.make("PREFETCH_K", (config.is_paged_attention && !m_is_prefill) ? 0 : 1);
@@ -1335,13 +1477,72 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     if (data_inputs_num > 3 && !config.is_paged_attention && sdpa_has_runtime_attn_mask_input(params)) {
         jit.add(convert_strides("MSK", "INPUT3", {0, 1, 2, 3}));
         jit.add(unit_parameters("MSK"));
+
+        // veesion: a [b, h, 1, k] mask carries one value per KEY and none per query, yet the
+        // general path in sdpa_micro.cl materialises it as a full S-shaped tile through a
+        // transposed load -- sg_tile_n times the traffic and registers for the same
+        // information, plus a half->float tile copy and a full-tile add. MASK_PER_KEY loads a
+        // coalesced sg_tile_m vector instead and broadcasts it along the query direction with
+        // the machinery REMAINDER_K's k_mask already uses. Off with OV_SDPA_MASK_K=0.
+        const auto& msk_shape = params.input_layouts[3].get_partial_shape();
+        bool per_key = msk_shape.size() == 4 && msk_shape[2].is_static() && msk_shape[2].get_length() == 1 &&
+                       msk_shape[3].is_static() && msk_shape[3].get_length() > 1;
+        if (const char* e = std::getenv("OV_SDPA_MASK_K"))
+            per_key = per_key && std::string(e) != "0";
+        jit.make("MASK_PER_KEY", per_key ? 1 : 0);
     }
 
-    // std::cout << "JIT for micro kernel:" << std::endl;
-    // for (auto it : jit) {
-    //     std::cout << "jit[" << it.name << "] = " << it.value << std::endl;
-    // }
-    // std::cout << std::endl;
+    // veesion: OV_SDPA_SOFTMAX is read at kernel-build time rather than from the plugin
+    // config, which is frozen when OpenVINO is imported -- so two spellings can be compared
+    // in one process and drift cannot favour either.
+    //
+    // "nomax" computes softmax as exp(s)/sum(exp(s)) instead of the max-shifted form. It is
+    // the same function; the running maximum exists only to keep exp() from overflowing
+    // f32, and dropping it removes an SLM atomic-max reduction, one split workgroup barrier
+    // per key block, and the per-key-block rescale of the output accumulator. Safe exactly
+    // when the pre-softmax scores stay below ~88; measured error on this model is unchanged
+    // (slightly better, since the accumulator is no longer repeatedly rescaled).
+    //
+    // "noexp" replaces the exponential with a multiply. Diagnostic only -- it establishes
+    // that the transcendental itself is not the cost.
+    if (const char* mode = std::getenv("OV_SDPA_SOFTMAX")) {
+        const std::string m(mode);
+        if (m.find("nomax") != std::string::npos) {
+            jit.make("DIAG_NO_MAX", 1);
+        }
+        if (m.find("noexp") != std::string::npos) {
+            jit.make("DIAG_NO_EXP", 1);
+        }
+        // "altmax" exponentiates against the subgroup-local maximum immediately, then
+        // corrects with the workgroup maximum afterwards, so the SLM barrier wait leaves the
+        // critical path. Same function, extra multiply. The kernel already carries the arm;
+        // nothing upstream ever defines it.
+        if (m.find("altmax") != std::string::npos) {
+            jit.make("ALT_MAX", 1);
+        }
+        // Attribution arms. Each deletes one stage and produces wrong answers; they exist
+        // only to split the measured SDPA time between the two micro-GEMMs and the softmax
+        // that sits between them.
+        if (m.find("skipkq") != std::string::npos) {
+            jit.make("DIAG_SKIP_KQ", 1);
+        }
+        if (m.find("skipvs") != std::string::npos) {
+            jit.make("DIAG_SKIP_VS", 1);
+        }
+        if (m.find("skipsm") != std::string::npos) {
+            jit.make("DIAG_SKIP_SM", 1);
+        }
+        // "skipstore" keeps the quantize (or the f16 pack) but deletes the S staging
+        // store; "skipqnt" deletes the whole staging. Only meaningful under skipvs,
+        // where nothing consumes S: they split the measured i8-vs-f16 staging penalty
+        // between the quantize ALU and the store itself.
+        if (m.find("skipstore") != std::string::npos) {
+            jit.make("DIAG_SKIP_STORE", 1);
+        }
+        if (m.find("skipqnt") != std::string::npos) {
+            jit.make("DIAG_SKIP_QNT", 1);
+        }
+    }
 
     return jit;
 }
@@ -1409,6 +1610,12 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
         const uint32_t sink_idx = ScaledDotProductAttentionInputIdx::SINK;
         if (config.input_num > sink_idx)
             args.push_back({ArgumentDescriptor::Types::INPUT, sink_idx});  // Sink
+
+        if (params.typed_desc<scaled_dot_product_attention>()->has_rope_q) {
+            const auto total = static_cast<uint32_t>(params.input_layouts.size());
+            args.push_back({ArgumentDescriptor::Types::INPUT, total - 2});  // RoPE cos
+            args.push_back({ArgumentDescriptor::Types::INPUT, total - 1});  // RoPE sin
+        }
 
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // D
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // K
@@ -1501,6 +1708,32 @@ size_t SDPAMicroGenerator::get_tile_qsize(const KernelData& kernel_data) {
     return wg_tile_q;
 }
 
+namespace {
+void veesion_dump_strategy(const char* tag, micro::GEMMStrategy& s) {
+    if (!veesion_env("OV_SDPA_DUMP"))
+        return;
+    std::cerr << "[sdpa-strategy] " << tag << " unroll=" << s.unroll[0] << "x" << s.unroll[1] << "x" << s.unroll[2]
+              << " wg=" << s.wg[0] << "x" << s.wg[1] << "x" << s.wg[2] << " systolic=" << s.systolic << " dpasw=" << s.dpasw
+              << " fused=" << s.fused << " fixedSystolic=" << s.fixedSystolic << " slmA=" << s.slmA << " slmB=" << s.slmB
+              << " slmATrans=" << s.slmATrans << " slmBTrans=" << s.slmBTrans << " slmBuffers=" << s.slmBuffers
+              << " unrollKSLM=" << s.unrollKSLM << " ka_load=" << s.ka_load << " kb_load=" << s.kb_load
+              << " ka_prefetch=" << s.ka_prefetch << " kb_prefetch=" << s.kb_prefetch << " prefetchA=" << s.prefetchA
+              << " prefetchB=" << s.prefetchB << " barrierFreq=" << s.barrierFreq << " coopA=" << static_cast<int>(s.coopA)
+              << " registerScheme=" << static_cast<int>(s.registerScheme) << " GRFs=" << s.GRFs << std::endl;
+}
+void veesion_dump_kq(micro::GEMMStrategy& s) {
+    if (const char* v = veesion_env("OV_SDPA_KQ_KSLM"))
+        s.unrollKSLM = std::atoi(v);
+    // Iteration 46: forcing s.slmA=1 here (to stage K through SLM and kill the ~4x redundant
+    // global K reads that wg=8x4 with coopA=0 implies) segfaults the nGEN generator during
+    // microkernel emission, for every combination of coopA and unrollKSLM tried. It is not an
+    // SLM-budget rejection -- preflight runs after this hook and would have skipped the
+    // strategy cleanly. The knob is removed rather than left in as a diagnostic: it crashes
+    // the process instead of reporting, so it can only mislead.
+    veesion_dump_strategy("kq", s);
+}
+}  // namespace
+
 std::mutex SDPAMicroGenerator::m;
 void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
                                            const sdpa_configuration& configuration,
@@ -1529,6 +1762,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     const ov::Dimension n_keys = micro_get_seq_length(params, 1);
     const ov::Dimension n_queries = micro_get_seq_length(params, 0);
     const ov::Dimension n_values = ov::Dimension(v_head_size);
+    const bool transpose_v = micro_transpose_v(params);
     const auto head_num = micro_get_num_heads(params, 0);
     const auto batch = out_ps[0] * static_cast<ov::Dimension>(head_num);
 
@@ -1538,6 +1772,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     /* Retrieve pre-tuned kernel configuration */
     sdpa_config_t* config = nullptr;
+    sdpa_config_t config_override{};
     bool thin_q = (!n_queries.is_dynamic() && n_queries.get_length() <= 16) || !is_prefill;
     if (is_paged_attention && !is_prefill)
         thin_q = is_gqa_single_token;
@@ -1567,9 +1802,37 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     }
     }
 
-    if (!is_prefill) {
-        const auto& wg_cfg = GPU_DEBUG_VALUE_OR(params.get_program().get_config().get_micro_sdpa_workgroup_config(), std::vector<int>{});
-        if (wg_cfg.size() >= 4) {
+    {  // veesion: debug override must apply in prefill too, so the tile config is tunable for ViT-shaped SDPA.
+       // 4 ints override the workgroup shape only; 8 ints also override the subgroup tile sizes
+       // (unroll_*), which are what actually set the microkernel's register tile and are otherwise
+       // unreachable from outside the chooser.
+        auto wg_cfg = GPU_DEBUG_VALUE_OR(params.get_program().get_config().get_micro_sdpa_workgroup_config(), std::vector<int>{});
+        // OV_SDPA_TILE is re-read on every kernel build, unlike the plugin config, which is
+        // frozen when OpenVINO is imported. Without it two tile shapes cannot be compared in
+        // one process, and comparing them across processes cannot cancel this iGPU's drift.
+        if (const char* tile_env = std::getenv("OV_SDPA_TILE")) {
+            wg_cfg.clear();
+            std::istringstream is(tile_env);
+            for (int v = 0; is >> v;) {
+                wg_cfg.push_back(v);
+            }
+        }
+        // The chooser hands back a pointer into a table of file-scope configs, so writing the
+        // override through it would corrupt that table for every later compile in the process.
+        if (!wg_cfg.empty()) {
+            config_override = *config;
+            config = &config_override;
+        }
+        if (wg_cfg.size() >= 8) {
+            config->unroll_m_kq = wg_cfg[0];
+            config->unroll_n_kq = wg_cfg[1];
+            config->unroll_m_vs = wg_cfg[2];
+            config->unroll_n_vs = wg_cfg[3];
+            config->wg_m_kq = wg_cfg[4];
+            config->wg_n_kq = wg_cfg[5];
+            config->wg_m_vs = wg_cfg[6];
+            config->wg_n_vs = wg_cfg[7];
+        } else if (wg_cfg.size() >= 4) {
             config->wg_m_kq = wg_cfg[0];
             config->wg_n_kq = wg_cfg[1];
             config->wg_m_vs = wg_cfg[2];
@@ -1612,6 +1875,12 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     micro::GEMMOptions opts_kq;
     opts_kq.localB = true;
     opts_kq.slmPtr = true;
+    // Probe: can gemmstone build a K^T*Q microkernel that reads K from SLM? That is the
+    // prerequisite for rotating K in the caller's staging loop and deleting the standalone
+    // k-side RoPE node. Selection happens here, long before the OCL build, so a failure is
+    // reported cheaply.
+    if (veesion_env("OV_SDPA_KQ_LOCALA"))
+        opts_kq.localA = true;
 
     const bool use_asymmetric_quantization = configuration.use_asymmetric_quantization;
 
@@ -1721,9 +1990,22 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     reqs_kq.push_back(micro::StrategyRequirement::WGM == config->wg_m_kq);
     reqs_kq.push_back(micro::StrategyRequirement::WGN == config->wg_n_kq);
 
+    if (K.data_type == ov::element::i8 || veesion_env("OV_SDPA_I8KQ")) {
+        // s8 x s8 -> s32. The paged-attention "quantized" path only ever sets Ta = s8 as a
+        // DECOMPRESSION hint (Tb stays f16 and A is dequantised on load), so it cannot be
+        // reused here: this needs integer dpas on both operands.
+        problem_kq.Ta = problem_kq.Tb = micro::Type::s8;
+        problem_kq.Ta_ext = problem_kq.Tb_ext = micro::Type::s8;
+        problem_kq.Tc = problem_kq.Tc_ext = micro::Type::s32;
+        problem_kq.Ts = micro::Type::s32;
+        problem_kq.B.crosspack = 4;
+        problem_kq.A.setAlignment(micro::alignment_for_ld(static_cast<int>(k_head_size * problem_kq.Ta)));
+    }
+
     /* Ask microkernel provider for microkernel */
     try {
-        gemm_kq = micro::select_gemm_microkernel(opts_kq, hw_info, sizes, problem_kq, reqs_kq);
+        const bool kq_hook = veesion_env("OV_SDPA_DUMP") || veesion_env("OV_SDPA_KQ_KSLM");
+        gemm_kq = micro::select_gemm_microkernel(opts_kq, hw_info, sizes, problem_kq, reqs_kq, kq_hook ? veesion_dump_kq : nullptr);
     } catch (const std::runtime_error& ex) {
         GPU_DEBUG_TRACE_DETAIL << "Can't create KQ sdpa_micro kernel: " << ex.what() << "\n";
         throw;
@@ -1833,6 +2115,11 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     if (is_int4_kv_cache && is_paged_attention && !is_prefill) {
         // INT4 V: ldv = packed_head_bytes + scales = v_head_size * u4 + 4 = 68
         problem_vs.A.setAlignment(static_cast<int>(v_head_size * problem_vs.Ta_ext) + 4);
+    } else if (transpose_v) {
+        // V is physically (batch, heads, head_size, tokens): A is k-contiguous, leading
+        // dimension is the token count. Lets gemmstone load A to registers instead of SLM.
+        problem_vs.A.layout = micro::MatrixLayout::T;
+        problem_vs.A.setAlignment(micro::alignment_for_ld(static_cast<int>(n_keys.get_length() * problem.Ta)));
     } else {
         problem_vs.A.setAlignment(micro::alignment_for_ld(static_cast<int>(v_head_size * problem.Ta)));
     }
@@ -1855,7 +2142,35 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     auto adjust_vs = [](micro::GEMMStrategy& strategy) {
         /* Enable dpasw */
         strategy.dpasw |= strategy.fused;
+        if (const char* v = veesion_env("OV_SDPA_VS_SLMA")) {
+            if (std::atoi(v) == 0) {
+                strategy.slmA = false;
+                if (!strategy.slmB)
+                    strategy.slmBuffers = 0;
+            }
+        }
+        if (const char* v = veesion_env("OV_SDPA_VS_KSLM"))
+            strategy.unrollKSLM = std::atoi(v);
+        if (const char* v = veesion_env("OV_SDPA_VS_SLMATRANS"))
+            strategy.slmATrans = std::atoi(v) != 0;
+        if (const char* v = veesion_env("OV_SDPA_VS_KALOAD"))
+            strategy.ka_load = std::atoi(v);
+        veesion_dump_strategy("vs", strategy);
     };
+    if (V.data_type == ov::element::i8 || veesion_env("OV_SDPA_I8VS")) {
+        problem_vs.Ta = problem_vs.Tb = micro::Type::s8;
+        problem_vs.Ta_ext = problem_vs.Tb_ext = micro::Type::s8;
+        problem_vs.Tc = problem_vs.Tc_ext = micro::Type::s32;
+        problem_vs.Ts = micro::Type::s32;
+        // 32 bytes of k per crosspack group, matching tile_store_t_sys_src2's
+        // cp = 32 / sizeof(element). At f16 that spelling is 16 elements; at s8 it is 32.
+        problem_vs.B.crosspack = 32;
+        if (transpose_v)
+            problem_vs.A.setAlignment(micro::alignment_for_ld(static_cast<int>(n_keys.get_length() * problem_vs.Ta)));
+        else
+            problem_vs.A.setAlignment(micro::alignment_for_ld(static_cast<int>(v_head_size * problem_vs.Ta)));
+    }
+
     /* Ask microkernel provider for microkernel */
     try {
         gemm_vs = micro::select_gemm_microkernel(opts_vs, hw_info, sizes, problem_vs, reqs_vs, adjust_vs);

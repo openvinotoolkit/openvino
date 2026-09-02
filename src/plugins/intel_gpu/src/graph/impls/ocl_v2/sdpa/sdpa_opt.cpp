@@ -49,6 +49,10 @@ public:
     SDPAOptImpl() : SDPAImplBase(SDPAOpt::get_type_info_static()) {}
     explicit SDPAOptImpl(const RuntimeParams& impl_param) : SDPAOptImpl() {
         auto params = SDPABase::requires_shape_canonicalization(impl_param) ? SDPABase::static_canonicalize_shapes(impl_param) : impl_param;
+        if (std::getenv("OV_SDPA_OUT_I8_DEBUG"))
+            std::cerr << "[veesion] SDPAOptImpl ctor: node out_dt=" << static_cast<int>(impl_param.output_layouts[0].data_type)
+                      << " canon out_dt=" << static_cast<int>(params.output_layouts[0].data_type)
+                      << " fused=" << impl_param.fused_desc.size() << " canon_fused=" << params.fused_desc.size() << std::endl;
         GPU_DEBUG_TRACE_DETAIL << "create stages for dynamic = " << params.is_dynamic() << "\n";
         if (params.is_dynamic()) {
             GPU_DEBUG_TRACE_DETAIL << "add stages for dynamic ...\n";
@@ -76,11 +80,15 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 } else if (SDPAOpt::supports_micro_sdpa(params)) {
                     GPU_DEBUG_TRACE_DETAIL << "add stage for micro_sdpa non-dynamic with prefill_stage \n";
+                    if (std::getenv("OV_SDPA_TRACE"))
+                        std::cerr << "[veesion] micro_sdpa prefill stage added\n";
                     add_stage(regular_micro_multi_tokens, params);
                     // Sometimes micro kernel will fail due to "Insufficient registers in requested bundle",
                     // In this case, fallback to opt kernel.
                     if (!has_stage(regular_micro_multi_tokens)) {
                         GPU_DEBUG_TRACE_DETAIL << "fail to create micro kernel, fallback to regular_multi_tokens for prefill \n";
+                        if (std::getenv("OV_SDPA_TRACE"))
+                            std::cerr << "[veesion] micro_sdpa FAILED, fallback to opt\n";
                         add_stage(regular_multi_tokens, params);
                     }
 #endif
@@ -217,7 +225,12 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
     ov::Dimension K_num_heads_dim = get_num_heads(k_layout, extended_input_k_transpose_order);
     ov::Dimension V_num_heads_dim = get_num_heads(v_layout, extended_input_v_transpose_order);
 
-    if (extended_input_q_transpose_order[3] != 3 || extended_input_k_transpose_order[3] != 3 || extended_input_v_transpose_order[3] != 3) {
+    // veesion: {0, 1, 3, 2} on V means the value tensor is physically (batch, heads, head_size,
+    // tokens), which is the layout the V*S microkernel wants -- see TRANSPOSE_V in
+    // sdpa_gen_micro.cpp. Every other order still has to keep head_size last.
+    const bool value_transposed = extended_input_v_transpose_order == std::vector<int64_t>{0, 1, 3, 2};
+    if (extended_input_q_transpose_order[3] != 3 || extended_input_k_transpose_order[3] != 3 ||
+        (extended_input_v_transpose_order[3] != 3 && !value_transposed)) {
         return false;
     }
 
@@ -256,6 +269,8 @@ std::unique_ptr<primitive_impl> SDPAOpt::create_impl(const program_node& node, c
     try {
         return std::make_unique<SDPAOptImpl>(params);
     } catch (const std::exception& e) {
+        if (std::getenv("OV_SDPA_OUT_I8_DEBUG"))
+            std::cerr << "[veesion] SDPAOptImpl creation FAILED: " << e.what() << std::endl;
         OPENVINO_THROW("Failed to create SDPAOptImpl: ", e.what());
     }
 }
