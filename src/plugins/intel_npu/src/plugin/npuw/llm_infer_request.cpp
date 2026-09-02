@@ -1112,12 +1112,12 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                 m_prefill_base_request->update_history_size(kvcache_desc.num_stored_tokens);
             }
 
-            // Gemma4 E2B/E4B: copy the current chunk of per_layer_inputs right-aligned on seq_len dim.
+            // Gemma4 E2B/E4B: copy the current chunk of per_layer_inputs left-aligned on seq_len dim.
             // Source shape: [1, input_prompt_len, num_layers, proj_dim]
             // Dest shape:   [1, chunk_prompt_len, num_layers, proj_dim] (static)
             if (per_layer_inputs) {
                 auto dst = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::per_layer_inputs));
-                ov::npuw::util::copy_per_layer_inputs_chunk_to_right(
+                ov::npuw::util::copy_per_layer_inputs_chunk_to_left(
                     per_layer_inputs,
                     dst,
                     kvcache_desc.num_stored_tokens - m_continued_prefill_base,
