@@ -60,6 +60,11 @@ void op::v13::ScaledDotProductAttention::validate_and_infer_types() {
     }
     for (size_t i = 1; i < input_size; i++) {
         const auto& element_type = get_input_element_type(i);
+        // An s8 key or value is a legal input for an integer micro-SDPA: the codes are
+        // dequantized by the scale input, so the output type still follows the query.
+        if ((i == 1 || i == 2) && element_type == element::i8) {
+            continue;
+        }
         if (i == 3 && (element_type == element::boolean || causal)) {
             // Skip checking attention_mask in loop when boolean or skipped to not affect merged dtype.
             continue;
