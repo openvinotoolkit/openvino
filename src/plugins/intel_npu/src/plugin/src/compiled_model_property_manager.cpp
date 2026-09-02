@@ -72,7 +72,7 @@ CompiledModelPropertyManager::CompiledModelPropertyManager(const FilteredConfig&
     for (const auto& property : properties) {
         const auto propertyDescriptorIt = _properties.find(property.first);
         OPENVINO_ASSERT(propertyDescriptorIt != _properties.end(), "Unsupported configuration key: ", property.first);
-        OPENVINO_ASSERT(propertyDescriptorIt->second.isSupported(ov::AnyMap{}),
+        OPENVINO_ASSERT(propertyDescriptorIt->second.isSupported(properties),
                         "Unsupported configuration key: ",
                         property.first);
         propertyDescriptorIt->second.set(property.second);
@@ -88,9 +88,7 @@ void CompiledModelPropertyManager::setProperty(const ov::AnyMap& properties) {
         OPENVINO_ASSERT(propertyIt->second.mutability != ov::PropertyMutability::RO,
                         "READ-ONLY configuration key: ",
                         property.first);
-        OPENVINO_ASSERT(propertyIt->second.isSupported(ov::AnyMap{}),
-                        "Unsupported configuration key: ",
-                        property.first);
+        OPENVINO_ASSERT(propertyIt->second.isSupported(properties), "Unsupported configuration key: ", property.first);
     }
 
     for (const auto& property : properties) {
@@ -275,8 +273,10 @@ void CompiledModelPropertyManager::registerProperties() {
             return true;
         },
         [this](const ov::AnyMap&) {
-            return ov::Any(utils::getOptimalNumberOfInferRequestsInParallel(_device->getName(),
-                                                                            _config.get<PERFORMANCE_HINT>()));
+            if (!_device) {
+                return ov::Any(uint32_t{0});
+            }
+            return ov::Any(utils::getOptimalNumberOfInferRequestsInParallel(_device->getName(), _config.get<PERFORMANCE_HINT>()));
         },
         readOnlySetter
     );

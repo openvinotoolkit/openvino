@@ -22,7 +22,7 @@
 
 namespace intel_npu {
 
-enum class ConfigMergeMode { Compile, Import };
+enum class ConfigMergeMode { Compile, Import, Query };
 
 class PluginPropertyManager final : private PropertyRegistrationBase {
 public:

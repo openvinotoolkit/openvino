@@ -18,10 +18,6 @@
 #include "metadata.hpp"
 
 namespace {
-// These properties are special because support is not guaranteed by either the compiler or the plugin.
-bool isSpecialBothProperty(const std::string& key) {
-    return key == ov::intel_npu::turbo.name();
-}
 
 void logCpuPinningDeprecationWarning(intel_npu::Logger& logger) {
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -278,15 +274,6 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
     propertyArguments[std::string(ov::device::id.name())] = normalizedArguments.deviceId;
     propertyArguments[ov::intel_npu::platform.name()] = normalizedArguments.platform;
 
-    if (isSpecialBothProperty(name)) {
-        // Fast path: Remove compiler type for special both properties and check if supported.
-        propertyArguments.erase(ov::intel_npu::compiler_type.name());
-        if (propertyDescriptorIt->second.isPublic && propertyDescriptorIt->second.isSupported(propertyArguments)) {
-            return true;
-        }
-        propertyArguments[ov::intel_npu::compiler_type.name()] = normalizedArguments.compilerType;
-    }
-
     return propertyDescriptorIt->second.isPublic && propertyDescriptorIt->second.isSupported(propertyArguments);
 }
 
@@ -301,6 +288,26 @@ std::pair<FilteredConfig, ov::AnyMap> PluginPropertyManager::getMergedConfigAndU
     if (properties.find(ov::hint::enable_cpu_pinning.name()) != properties.end()) {
         logCpuPinningDeprecationWarning(logger);
     }
+
+    ov::AnyMap propertyArguments = properties;
+    auto normalizedArguments = resolveRequestContext(properties,
+                                                     updatedConfig.get<COMPILER_TYPE>(),
+                                                     updatedConfig.get<DEVICE_ID>(),
+                                                     updatedConfig.get<PLATFORM>());
+    if (mergeMode == ConfigMergeMode::Import) {
+        // Make sure the compiler type is removed from the property arguments when importing a model with both
+        // compile-time and runtime options to check only runtime availability.
+        if (propertyArguments.find(ov::intel_npu::compiler_type.name()) != propertyArguments.end()) {
+            logger.warning("Property '%s' is used to specify the compiler type, will not be used for current "
+                           "configuration.",
+                           ov::intel_npu::compiler_type.name());
+            propertyArguments.erase(ov::intel_npu::compiler_type.name());
+        }
+    } else {
+        propertyArguments[ov::intel_npu::compiler_type.name()] = normalizedArguments.compilerType;
+    }
+    propertyArguments[std::string(ov::device::id.name())] = normalizedArguments.deviceId;
+    propertyArguments[ov::intel_npu::platform.name()] = normalizedArguments.platform;
 
     ov::AnyMap unknownProperties;
     for (auto&& value : properties) {
@@ -323,6 +330,13 @@ std::pair<FilteredConfig, ov::AnyMap> PluginPropertyManager::getMergedConfigAndU
                 continue;
             }
 
+            // If the config has the option, but is not recognized as a known property for the plugin, we assume it is
+            // suported and can be changed for the current configuration.
+            OPENVINO_ASSERT(!isKnownProperty || propertyDescriptorIt->second.isSupported(propertyArguments),
+                            "[ NOT_FOUND ] Option '",
+                            key,
+                            "' is not supported for current configuration");
+
             if (key == ov::hint::model.name()) {
                 const auto model =
                     value.second.is<std::shared_ptr<const ov::Model>>()
@@ -341,9 +355,9 @@ std::pair<FilteredConfig, ov::AnyMap> PluginPropertyManager::getMergedConfigAndU
 
         // Property doesn't exist - check whether the compiler supports it as an internal option.
         bool isSupportedByCompiler = false;
-        const auto resolvedCompilerType = resolveCompilerType(updatedConfig.get<COMPILER_TYPE>(),
-                                                              updatedConfig.get<DEVICE_ID>(),
-                                                              updatedConfig.get<PLATFORM>());
+        const auto resolvedCompilerType = resolveCompilerType(normalizedArguments.compilerType,
+                                                              normalizedArguments.deviceId,
+                                                              normalizedArguments.platform);
         if (resolvedCompilerType.has_value()) {
             try {
                 isSupportedByCompiler =
@@ -367,10 +381,20 @@ std::pair<FilteredConfig, ov::AnyMap> PluginPropertyManager::getMergedConfigAndU
             continue;
         }
 
+        OPENVINO_ASSERT(mergeMode != ConfigMergeMode::Query, "Unsupported configuration key: ", key);
+
         // property doesn't exist, send it as it is to compiled model anyway, it may be used by compiled model
         logger.info("Property '%s' is unknown to the plugin property manager, will be sent to the compiled model.",
                     key.c_str());
         unknownProperties.emplace(key, value.second);
+    }
+
+    if (mergeMode == ConfigMergeMode::Import) {
+        // Remove the compiler type from the updated configuration as it has been resolved and applied on the import
+        // path. Shouldn't be used further in the stack.
+        updatedConfig.remove(ov::intel_npu::compiler_type.name());
+        // Remove all compile-time-only configurations as they are not relevant for the import path.
+        updatedConfig.removeCompileTimeConfigs();
     }
 
     return {std::move(updatedConfig), std::move(unknownProperties)};
@@ -705,7 +729,8 @@ void PluginPropertyManager::registerProperties() {
     );
     register_property(ov::intel_npu::turbo.name(), true, ov::PropertyMutability::RW,
         [this, isCompilerOptionSupported](const ov::AnyMap& arguments) {
-            return isCompilerOptionSupported(ov::intel_npu::turbo.name(), arguments) || (_backend != nullptr && _backend->isCommandQueueExtSupported());
+            return (_backend != nullptr && _backend->isCommandQueueExtSupported()) ||
+                   isCompilerOptionSupported(ov::intel_npu::turbo.name(), arguments);
         },
         [this](const ov::AnyMap&) {
             return _config.get<TURBO>();

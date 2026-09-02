@@ -14,16 +14,6 @@ details::OptionConcept FilteredConfig::getOpt(std::string_view key) const {
     return _desc->get(key);
 }
 
-bool FilteredConfig::isOptPublic(std::string_view key) const {
-    auto log = Logger::global().clone("Config");
-    if (_desc->has(key)) {
-        return _desc->get(key).isPublic();
-    } else {
-        log.warning("Option '%s' not registered in config", key.data());
-        return true;
-    }
-}
-
 void FilteredConfig::walkInternals(std::function<void(const std::string&)> cb) const {
     for (const auto& itr : _internal_compiler_configs) {
         cb(itr.first);

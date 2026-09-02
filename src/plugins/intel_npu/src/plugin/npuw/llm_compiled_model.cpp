@@ -446,7 +446,7 @@ void resolve_hfa_fused_attention(::intel_npu::Config& cfg,
     // If NPUW_LLM_PREFILL_ATTENTION_HINT was not provided, set HFA automatically
     // when the hardware and prompt length favor the fused flash attention tile implementation
     if (!prefill_attn_hint_provided && hfa_fused_npu_supported && prompt_length_supported) {
-        cfg.update({{"NPUW_LLM_PREFILL_ATTENTION_HINT", "HFA"}});
+        cfg.update("NPUW_LLM_PREFILL_ATTENTION_HINT", "HFA");
         LOG_INFO("Auto-selected NPUW_LLM_PREFILL_ATTENTION_HINT to HFA");
     }
 
