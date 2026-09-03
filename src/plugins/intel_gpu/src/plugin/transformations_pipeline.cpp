@@ -90,6 +90,7 @@
 #include "transformations/common_optimizations/moe_op_fusion.hpp"
 #include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
 #include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
+#include "plugin/transformations/decompose_one_hot_non_const_values.hpp"
 #include "plugin/transformations/decompose_reduce_scalar_output.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
 #include "plugin/transformations/fc_convert_fusion.hpp"
@@ -119,6 +120,8 @@
 #include "plugin/transformations/sdpa_transpose_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/expand_broadcast_reshape_sdpa_fusion.hpp"
+#include "plugin/transformations/disable_fp16_comp_direct_multiply_sin_cos.hpp"
+#include "plugin/transformations/disable_fp16_comp_gated_residual.hpp"
 #include "plugin/transformations/disable_fp16_comp_rms.hpp"
 #include "plugin/transformations/swiglu_fusion_with_clamp.hpp"
 #include "plugin/transformations/disable_fp16_comp_cumsum_sin_gen.hpp"
@@ -750,7 +753,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         });
         manager.register_pass<ov::pass::RMSFusion>(false, true);
         manager.register_pass<DisableFP16CompForGemma3RMSPattern>();
+        const bool fp16_activation_scaling_enabled =
+            config.get_activations_scale_factor() > 0.f && infer_precision == ov::element::f16;
+        // Gated residuals need FP32 protection only when FP16 activation scaling is enabled.
+        if (fp16_activation_scaling_enabled)
+            manager.register_pass<DisableFP16CompForQwenImageGatedResidualPattern>();
         manager.register_pass<DisableFP16ComForGPTOSSROPEPattern>();
+        manager.register_pass<DisableFP16CompForDirectMultiplySinCos>();
         manager.register_pass<DisableFP16CompCumSumSinGen>();
         // HiFiGAN matches a strict suffix of the CumSumSinGen chain — skip
         // when the same Sin was already marked above.
@@ -776,6 +785,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                           keep_precision_sensitive_in_fp32_1,
                                                           convert_input_output_precision,
                                                           store_original_precision_as_rt_attribute);
+
+        // The one_hot primitive takes on/off as compile time values,
+        // so OneHot ops fed by a runtime scalar are turned into a boolean mask + Select.
+        // This runs right before "CommonOptimizations",
+        // whose ConstantFolding folds the mask away when indices and depth are constants.
+        manager.register_pass<ov::intel_gpu::DecomposeOneHotNonConstValues>();
 
         manager.register_pass<ov::pass::CommonOptimizations>();
 

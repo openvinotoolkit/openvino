@@ -246,35 +246,16 @@ VCL_APIEXPORT vcl_result_t VCL_APICALL vclQueryNetworkDestroy(vcl_query_handle_t
 VCL_APIEXPORT vcl_result_t VCL_APICALL vclExecutableCreate(vcl_compiler_handle_t compiler, vcl_executable_desc_t desc,
                                                            vcl_executable_handle_t* executable);
 
-DEPRECATED typedef struct __vcl_allocator_t {
-    uint8_t* (*allocate)(uint64_t);
-    void (*deallocate)(uint8_t*);
-} vcl_allocator_t;
-
 typedef struct __vcl_allocator2_t {
     uint8_t* (*allocate)(struct __vcl_allocator2_t*, uint64_t);
     void (*deallocate)(struct __vcl_allocator2_t*, uint8_t*);
 } vcl_allocator2_t;
-
-DEPRECATED VCL_APIEXPORT vcl_result_t VCL_APICALL vclAllocatedExecutableCreate(vcl_compiler_handle_t compiler,
-                                                                               vcl_executable_desc_t desc,
-                                                                               vcl_allocator_t const* allocator,
-                                                                               uint8_t** blobBuffer,
-                                                                               uint64_t* blobSize);
 
 VCL_APIEXPORT vcl_result_t VCL_APICALL vclAllocatedExecutableCreate2(vcl_compiler_handle_t compiler,
                                                                      vcl_executable_desc_t desc,
                                                                      vcl_allocator2_t* allocator,
                                                                      uint8_t** blobBuffer,
                                                                      uint64_t* blobSize);
-
-DEPRECATED VCL_APIEXPORT vcl_result_t VCL_APICALL vclAllocatedExecutableCreate3(vcl_compiler_handle_t compiler,
-                                                                                vcl_executable_desc_t desc,
-                                                                                vcl_allocator2_t* allocator,
-                                                                                uint8_t** blobBuffer,
-                                                                                uint64_t* blobSize,
-                                                                                uint8_t** compatibilityStringBuffer,
-                                                                                uint64_t* compatibilityStringSize);
 
 VCL_APIEXPORT vcl_result_t VCL_APICALL vclAllocatedExecutableCreate4(vcl_compiler_handle_t compiler,
                                                                      vcl_executable_desc_t desc,
