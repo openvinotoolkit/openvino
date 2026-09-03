@@ -1268,18 +1268,12 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #if PREFETCH_K
         /* Prefetch next K tile. */
         if (!last) {
-#if TRANSPOSE_K
-            const uint stride_k = ldk;
-#else
-            const uint stride_k = 1;
-#endif
-
-            cooperative_prefetch_2d_k(
-                    /* ptr */ K + (k0 + ugemm_kq_wg_tile_m) * stride_k,
-                    /* r */ causal_k - k0 - ugemm_kq_wg_tile_m,
-                    /* c */ d,
-                    /* rmax */ ugemm_kq_wg_tile_m,
-                    /* cmax */ D_MAX,
+            cooperative_prefetch_2d_maybe_rem(
+                    /* ptr */ K + (size_t)(k0 + ugemm_kq_wg_tile_m) * (TRANSPOSE_K ? 1 : ldk),
+                    /* r */ d,
+                    /* c */ causal_k - k0 - ugemm_kq_wg_tile_m,
+                    /* rmax */ PREFETCH_D_MAX,
+                    /* cmax */ ugemm_kq_wg_tile_m,
                     /* ld*/ ldk,
                     /* sg_id */ sg_ij,
                     /* n_sg */ sg_per_wg,
