@@ -742,6 +742,31 @@ TEST_P(InferWithHostCompileTests, DynamicBatchUsesOneVMExecution) {
     ASSERT_EQ(countVMExecutions(logCapture.str()), 1u) << logCapture.str();
 }
 
+TEST_P(InferWithHostCompileTests, GetProfilingInfoDoesNotThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    configuration[ov::enable_profiling.name()] = true;
+
+    auto model = createModelByName(selectedModelName);
+    auto setupResult = prepareRuntimeCompareContext(model);
+    if (setupResult.status == RuntimeCompareStatus::fail) {
+        FAIL() << setupResult.message;
+    }
+    if (setupResult.status == RuntimeCompareStatus::skip) {
+        GTEST_SKIP() << setupResult.message;
+    }
+    auto& testContext = setupResult.context;
+
+    OV_ASSERT_NO_THROW(testContext.reqDynamic.infer());
+
+    std::vector<ov::ProfilingInfo> profilingInfo;
+    OV_ASSERT_NO_THROW(profilingInfo = testContext.reqDynamic.get_profiling_info());
+    ASSERT_TRUE(profilingInfo.empty());
+}
+
 using InferWithDefaultHostCompileTests = InferWithHostCompileTests;
 
 inline bool isByteCodeBlob(const std::string& blob) {
