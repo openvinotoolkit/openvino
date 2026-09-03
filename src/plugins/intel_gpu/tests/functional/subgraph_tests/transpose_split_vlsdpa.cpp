@@ -449,7 +449,6 @@ protected:
 
 private:
     std::vector<int32_t> m_cu_seqlens;
-    AttentionType m_attn_type;
     ov::TensorVector inputs_ref;
 };
 
