@@ -4,6 +4,11 @@
 
 #ifdef ENABLE_TP_GPU
 
+// Must come first, for the reason spelled out in tp_allreduce.cpp: zero_api.hpp
+// undefines its symbols_list macro on the way out unless the includer asked to
+// keep it, and ze_common.hpp is the one that asks.
+#include "ze/ze_stream.hpp"
+
 #include "impls/cpu/cpu_impl_helpers.hpp"
 #include "register.hpp"
 #include "tp_gather_inst.h"
@@ -11,8 +16,24 @@
 
 #include "tp_gpu/tp_device_coordinator.hpp"
 
+#include <cstdlib>
+
 namespace cldnn {
 namespace ocl {
+
+namespace {
+
+// The immediate command list intel_gpu runs the model on.  Kept local rather
+// than shared with tp_allreduce.cpp: the include order above is what makes the
+// Level Zero headers usable here, and a shared header would have to be pulled
+// in ahead of everything to preserve it.
+ze_command_list_handle_t model_queue_of(stream& s) {
+    auto* ze = dynamic_cast<cldnn::ze::ze_stream*>(&s);
+    OPENVINO_ASSERT(ze != nullptr, "[GPU] tp_gather expects the Level Zero stream");
+    return ze->get_queue();
+}
+
+}  // namespace
 
 // Like tp_allreduce, an "OCL" impl that compiles no OpenCL kernel: the work is
 // a strided cross-device copy issued through Level Zero by the coordinator.
@@ -67,11 +88,6 @@ struct tp_gather_impl : public typed_primitive_impl<tp_gather> {
                             tp_gather_inst& instance) override {
         auto& stream = instance.get_network().get_stream();
 
-        if (!events.empty()) {
-            stream.wait_for_events(events);
-        }
-        stream.finish();
-
         auto params = instance.get_impl_params();
         const auto& input_layout = params->input_layouts[0];
         auto input_mem_ptr = instance.input_memory_ptr();
@@ -107,13 +123,28 @@ struct tp_gather_impl : public typed_primitive_impl<tp_gather> {
         OPENVINO_ASSERT(coordinator != nullptr,
             "[GPU] tp_gather ocl impl requires TPDeviceCoordinator (shared L0 context)");
 
-        coordinator->gather_to_root(static_cast<int>(collective_id),
-                                    static_cast<int>(rank),
-                                    input_mem_ptr->buffer_ptr(),
-                                    output_mem_ptr->buffer_ptr(),
-                                    rows,
-                                    slice_elems,
-                                    ov_dtype);
+        // Spliced, the recording lands in the model's in-order queue after the
+        // projection that produced our slice, so nothing has to be waited for
+        // here.  Draining is only the fallback: on its own queue the copy has
+        // no ordering against the model at all, and the drain is what supplies
+        // it.
+        const bool async = coordinator->async_supported() &&
+                           std::getenv("TP_SYNC_COLLECTIVE") == nullptr;
+        if (!async) {
+            if (!events.empty()) {
+                stream.wait_for_events(events);
+            }
+            stream.finish();
+        }
+
+        coordinator->gather_to_root_async(static_cast<int>(collective_id),
+                                          static_cast<int>(rank),
+                                          input_mem_ptr->buffer_ptr(),
+                                          output_mem_ptr->buffer_ptr(),
+                                          rows,
+                                          slice_elems,
+                                          ov_dtype,
+                                          async ? model_queue_of(stream) : nullptr);
         return cpu::make_output_event(stream, instance.is_output());
     }
 

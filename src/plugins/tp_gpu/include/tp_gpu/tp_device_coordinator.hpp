@@ -167,6 +167,30 @@ public:
                                 std::size_t slice_elems,
                                 ov::element::Type dtype);
 
+    /// gather_to_root spliced into the model's queue, the counterpart of
+    /// allreduce_async.
+    ///
+    /// The blocking form is the expensive one here: it drains the rank's
+    /// model stream, runs the copy on the coordinator's own queue and waits
+    /// for it, once per token on the vocabulary projection.  Splicing removes
+    /// both waits, but it also removes what made the blocking form correct --
+    /// the host barrier no longer implies the slices have landed, because the
+    /// ranks now write from four independent queues.  The recording carries
+    /// that ordering instead: every other rank signals when its slice is
+    /// down, and the root's recording waits on all of them, so the model
+    /// queue of the rank that reads the gathered buffer is held until it is
+    /// whole.
+    ///
+    /// Falls back to the synchronous path when the driver has no splice.
+    virtual void gather_to_root_async(int collective_id,
+                                      int rank,
+                                      void* in_dev,
+                                      void* out_dev,
+                                      std::size_t rows,
+                                      std::size_t slice_elems,
+                                      ov::element::Type dtype,
+                                      ze_command_list_handle_t model_queue);
+
 private:
     // Per-rank L0 state.
     struct RankState {
@@ -256,6 +280,13 @@ private:
         // outgoing copy at that step and waited on by its successor.  Laid
         // out as [step * N + rank] over 2*(N-1) steps.
         std::vector<ze_event_handle_t> ev_ring;
+
+        // Gather only: rank r != 0 signals ev_gather[r] when its slice is
+        // down, and the root waits on all of them.  Created on first use --
+        // one collective out of the whole model is a gather, so building
+        // these for every plan would be waste.
+        ze_event_pool_handle_t      gather_pool{nullptr};
+        std::vector<ze_event_handle_t> ev_gather;   // [N], index 0 unused
 
         // Optional device-side timestamp probes (N=2 path).
         // ts_pool is a separate KERNEL_TIMESTAMP pool (timestamp events
@@ -451,9 +482,31 @@ private:
 
     /// Records one rank's contribution to a gather: a single strided copy of
     /// its slice into the root's buffer.  Ranks write disjoint columns, so
-    /// unlike the ring there is nothing to order between them and no event is
-    /// needed -- the exit barrier is what keeps the root from reading early.
+    /// there is no data to order between them, but the root still has to know
+    /// when the columns are down: every other rank signals ev_gather[r] and
+    /// the root's recording waits on all of them before it ends.  On the
+    /// spliced path that wait is the only thing holding the root's model
+    /// queue back; on the blocking path the exit barrier would do as well,
+    /// and one recording shape for both keeps the two from drifting apart.
     void record_gather_rank(Plan& plan, int rank);
+
+    /// Creates the gather ordering events on `plan` if they are not there.
+    void ensure_gather_events(Plan& plan);
+
+    /// Waits until the previous splice of this rank's recording has finished,
+    /// so the list can be appended or re-recorded.  The allreduce path has
+    /// the same wait inlined, where it also feeds the skew counters.
+    void await_previous_splice(Plan& plan, int rank, int collective_id);
+
+    /// The body behind gather_to_root() and gather_to_root_async().
+    void run_gather(int collective_id,
+                    int rank,
+                    void* in_dev,
+                    void* out_dev,
+                    std::size_t rows,
+                    std::size_t slice_elems,
+                    ov::element::Type dtype,
+                    ze_command_list_handle_t model_queue);
 
     /// Records the direct two-rank exchange for one rank: push our input into
     /// the peer's staging, then reduce our input with what the peer pushed

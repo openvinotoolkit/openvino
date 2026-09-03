@@ -575,6 +575,8 @@ void TPDeviceCoordinator::destroy_plan(Plan& plan) {
     for (auto& e : plan.ev_recv)  if (e) ov::zeEventDestroy(e);
     for (auto& e : plan.ev_bcast) if (e) ov::zeEventDestroy(e);
     for (auto& e : plan.ev_ring)  if (e) ov::zeEventDestroy(e);
+    for (auto& e : plan.ev_gather) if (e) ov::zeEventDestroy(e);
+    if (plan.gather_pool) ov::zeEventPoolDestroy(plan.gather_pool);
     if (plan.ev_reduce) ov::zeEventDestroy(plan.ev_reduce);
     if (plan.pool)      ov::zeEventPoolDestroy(plan.pool);
     for (auto& e : plan.ev_ts_copy)   if (e) ov::zeEventDestroy(e);
@@ -587,6 +589,8 @@ void TPDeviceCoordinator::destroy_plan(Plan& plan) {
     plan.ev_recv.clear();
     plan.ev_bcast.clear();
     plan.ev_ring.clear();
+    plan.ev_gather.clear();
+    plan.gather_pool = nullptr;
     plan.ev_reduce = nullptr;
     plan.pool = nullptr;
     plan.ev_ts_copy.clear();
@@ -2071,6 +2075,30 @@ void TPDeviceCoordinator::fail_collective(bool timed_out, int collective_id, int
     OPENVINO_THROW("[TP][L0] collective ", collective_id, " failed on rank ", rank, " at the ", stage);
 }
 
+void TPDeviceCoordinator::ensure_gather_events(Plan& plan) {
+    if (!plan.ev_gather.empty()) {
+        return;
+    }
+    // Plain signal/wait events: nothing here is timed, and the timestamp flag
+    // costs a write in the command processor on every signal.
+    ze_event_pool_desc_t epd{ZE_STRUCTURE_TYPE_EVENT_POOL_DESC, nullptr};
+    epd.flags = 0;
+    epd.count = static_cast<uint32_t>(m_world_size);
+    std::vector<ze_device_handle_t> devs(m_shared->devices.begin(), m_shared->devices.end());
+    ZE_THROW(ov::zeEventPoolCreate(m_shared->context, &epd,
+                                   static_cast<uint32_t>(devs.size()),
+                                   devs.data(), &plan.gather_pool));
+
+    plan.ev_gather.assign(static_cast<std::size_t>(m_world_size), nullptr);
+    for (int r = 0; r < m_world_size; ++r) {
+        ze_event_desc_t ed{ZE_STRUCTURE_TYPE_EVENT_DESC, nullptr};
+        ed.signal = ZE_EVENT_SCOPE_FLAG_DEVICE;
+        ed.wait   = ZE_EVENT_SCOPE_FLAG_DEVICE;
+        ed.index  = static_cast<uint32_t>(r);
+        ZE_THROW(ov::zeEventCreate(plan.gather_pool, &ed, &plan.ev_gather[r]));
+    }
+}
+
 void TPDeviceCoordinator::record_gather_rank(Plan& plan, int rank) {
     const std::size_t elem = plan.dtype.size();
     const std::size_t slice_bytes = checked_multiply(plan.slice_elems, elem, "gather slice");
@@ -2105,6 +2133,9 @@ void TPDeviceCoordinator::record_gather_rank(Plan& plan, int rank) {
     src_region.depth   = 1;
 
     ze_command_list_handle_t list = plan.compute_lists[rank];
+    // The root is the only waiter, so it is the only rank whose slice nobody
+    // has to be told about.
+    ze_event_handle_t signal = (rank == 0) ? nullptr : plan.ev_gather[rank];
     ZE_THROW(ze_api()->zeCommandListAppendMemoryCopyRegion(
         list,
         plan.out_ptrs[0],
@@ -2115,11 +2146,53 @@ void TPDeviceCoordinator::record_gather_rank(Plan& plan, int rank) {
         &src_region,
         static_cast<uint32_t>(slice_bytes),
         0,
-        nullptr,
+        signal,
         0,
         nullptr));
 
+    if (rank == 0 && m_world_size > 1) {
+        // Hold everything queued behind this recording until the other ranks
+        // have written their columns.  On the spliced path "everything queued
+        // behind" is the rest of the model on the root, which is exactly what
+        // used to be held by draining the queue on the host.
+        std::vector<ze_event_handle_t> waits;
+        waits.reserve(static_cast<std::size_t>(m_world_size - 1));
+        for (int r = 1; r < m_world_size; ++r) {
+            waits.push_back(plan.ev_gather[r]);
+        }
+        ZE_THROW(ze_api()->zeCommandListAppendWaitOnEvents(
+            list, static_cast<uint32_t>(waits.size()), waits.data()));
+        // Each of these has exactly one waiter -- this rank, just above -- so
+        // clearing them here cannot race with anyone, and the wait orders the
+        // resets behind the copies that signaled them.  Unlike the ring's
+        // resets this is not behind use_device_event_reset(): a host reset
+        // would need a point where the root knows the events are consumed,
+        // and on the spliced path there is no such point.
+        for (auto* e : waits) {
+            ZE_THROW(ze_api()->zeCommandListAppendEventReset(list, e));
+        }
+    }
+
     close_list(list);
+}
+
+void TPDeviceCoordinator::await_previous_splice(Plan& plan, int rank, int collective_id) {
+    if (!plan.in_flight[rank].load(std::memory_order_acquire)) {
+        return;
+    }
+    // Query before waiting: the status check is a memory read, while
+    // zeEventHostSynchronize measured 7.2 us a call even with nothing to wait
+    // for.  The blocking wait is kept for when the device really is behind.
+    ze_result_t r = ze_api()->zeEventQueryStatus(plan.ev_done[rank]);
+    if (r == ZE_RESULT_NOT_READY) {
+        r = ze_api()->zeEventHostSynchronize(plan.ev_done[rank], timeout_ns());
+        if (r == ZE_RESULT_NOT_READY) {
+            fail_collective(true, collective_id, rank, "previous splice of this recording");
+        }
+    }
+    ZE_THROW(r);
+    ZE_THROW(ze_api()->zeEventHostReset(plan.ev_done[rank]));
+    plan.in_flight[rank].store(0, std::memory_order_release);
 }
 
 void TPDeviceCoordinator::gather_to_root(int collective_id,
@@ -2129,6 +2202,31 @@ void TPDeviceCoordinator::gather_to_root(int collective_id,
                                          std::size_t rows,
                                          std::size_t slice_elems,
                                          ov::element::Type dtype) {
+    run_gather(collective_id, rank, in_dev, out_dev, rows, slice_elems, dtype, nullptr);
+}
+
+void TPDeviceCoordinator::gather_to_root_async(int collective_id,
+                                               int rank,
+                                               void* in_dev,
+                                               void* out_dev,
+                                               std::size_t rows,
+                                               std::size_t slice_elems,
+                                               ov::element::Type dtype,
+                                               ze_command_list_handle_t model_queue) {
+    // Without the splice there is nowhere to put the recording but our own
+    // queue, and that means draining it -- the synchronous path exactly.
+    run_gather(collective_id, rank, in_dev, out_dev, rows, slice_elems, dtype,
+               async_supported() ? model_queue : nullptr);
+}
+
+void TPDeviceCoordinator::run_gather(int collective_id,
+                                     int rank,
+                                     void* in_dev,
+                                     void* out_dev,
+                                     std::size_t rows,
+                                     std::size_t slice_elems,
+                                     ov::element::Type dtype,
+                                     ze_command_list_handle_t model_queue) {
     OPENVINO_ASSERT(m_ready, "[TP][L0] coordinator not initialized");
     OPENVINO_ASSERT(collective_id >= 0 && collective_id < m_num_collectives,
                     "[TP][L0] collective_id out of range: ", collective_id);
@@ -2194,6 +2292,7 @@ void TPDeviceCoordinator::gather_to_root(int collective_id,
             std::all_of(slot->recorded.begin(), slot->recorded.end(),
                         [](uint8_t v) { return v != 0; });
         if (!recorded_matches) {
+            ensure_gather_events(*slot);
             slot->kind = Plan::Kind::gather;
             slot->in_ptrs = rdz.in_ptrs;
             slot->out_ptrs = rdz.out_ptrs;
@@ -2203,7 +2302,13 @@ void TPDeviceCoordinator::gather_to_root(int collective_id,
             slot->dtype = dtype;
             for (int r = 0; r < m_world_size; ++r) {
                 auto& rs = m_ranks[r];
-                if (rs.compute_queue) {
+                // Resetting a list the device is still working through is
+                // undefined, and where that work lives depends on how the
+                // last recording was handed over: its own queue, or somebody
+                // else's queue via a splice.
+                if (model_queue != nullptr) {
+                    await_previous_splice(*slot, r, collective_id);
+                } else if (rs.compute_queue) {
                     sync_queue(rs.compute_queue, "gather re-record: compute queue drain");
                 }
                 ZE_THROW(ze_api()->zeCommandListReset(slot->compute_lists[r]));
@@ -2227,13 +2332,26 @@ void TPDeviceCoordinator::gather_to_root(int collective_id,
         }
     }
 
-    // Ranks write disjoint columns, so there is nothing to order between them.
-    submit_rank(*slot, rank);
-    sync_rank(*slot, rank);
+    // Ranks write disjoint columns, so there is nothing to order between them
+    // beyond the root's wait, which the recording carries.
+    if (model_queue != nullptr) {
+        await_previous_splice(*slot, rank, collective_id);
+        ZE_THROW(ze_api()->zeCommandListImmediateAppendCommandListsExp(
+            model_queue, 1, &slot->compute_lists[rank], slot->ev_done[rank], 0, nullptr));
+        slot->in_flight[rank].store(1, std::memory_order_release);
+        note_collective_started(rank);
+    } else {
+        submit_rank(*slot, rank);
+        sync_rank(*slot, rank);
+    }
     abort_guard.armed = false;
 
-    // Exit barrier: the root must not read its buffer until every slice has
-    // landed, and no rank may re-enter this slot while another is still here.
+    // Exit barrier: no rank may re-enter this slot while another is still
+    // here, or it would overwrite the pointers the recording was built from.
+    // Keeping the root from reading early is no longer this barrier's job on
+    // the spliced path -- the recording's wait does that on the device -- but
+    // it still is on the blocking path, where the drain above has already
+    // happened by the time anyone gets here.
     {
         std::unique_lock<std::mutex> lk(rdz.mtx);
         const uint64_t my_gen = rdz.exit_gen;
