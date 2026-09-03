@@ -55,7 +55,6 @@ std::shared_ptr<ov::Model> MatMulFunction::getOriginal(
 namespace {
 std::vector<float> generate_dequantization_values(
         const ov::Shape& shape,
-        const size_t levels,
         const bool low) {
     const auto shape_size = ov::shape_size(shape);
     std::vector<float> values(shape_size);
@@ -98,10 +97,10 @@ std::shared_ptr<ov::Model> MatMulFunction::getOriginal(
                           ov::test::utils::make_fake_quantize(
                                   weightsConst, precision, 256ul,
                                   Shape{channel, 1},
-                                  generate_dequantization_values(Shape{channel, 1}, 256ul, true),
-                                  generate_dequantization_values(Shape{channel, 1}, 256ul, false),
-                                  generate_dequantization_values(Shape{channel, 1}, 256ul, true),
-                                  generate_dequantization_values(Shape{channel, 1}, 256ul, false)) :
+                                  generate_dequantization_values(Shape{channel, 1}, true),
+                                  generate_dequantization_values(Shape{channel, 1}, false),
+                                  generate_dequantization_values(Shape{channel, 1}, true),
+                                  generate_dequantization_values(Shape{channel, 1}, false)) :
                           ov::test::utils::make_fake_quantize(
                                   weightsConst, precision, 256ul, {1ul, 1ul},
                                   {-128.f / 8.f}, {127.f / 8.f}, {-128.f / 8.f}, {127.f / 8.f});

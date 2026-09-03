@@ -23,8 +23,7 @@ std::shared_ptr<ov::Model> AlignConcatQuantizationParametersFunction::getOrigina
     const ov::element::Type inputPrecision,
     const ov::Shape& inputShape,
     const bool addFQ,
-    const std::string additionalLayer,
-    const ov::builder::subgraph::DequantizationOperations& dequantizationBefore) {
+    const std::string additionalLayer) {
     const auto input1 = std::make_shared<ov::opset1::Parameter>(inputPrecision, ov::Shape(inputShape));
     std::shared_ptr<ov::Node> parent1 = input1;
     {

@@ -63,8 +63,7 @@ public:
             testValues.actual.inputPrecision,
             shape,
             addFakeQuantize,
-            additionalLayer,
-            testValues.actual.dequantization);
+            additionalLayer);
 
         auto supportedPrecisions = std::vector<ov::pass::low_precision::PrecisionsRestriction>(
             {ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Convolution>(

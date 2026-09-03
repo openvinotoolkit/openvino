@@ -59,7 +59,6 @@ public:
 
         actualFunction = ElementwiseWithMultiParentDequantizationFunction::get(
             testValues.inputShape,
-            TestTransformationParams::toParams(testValues.params),
             testValues.actual.precision1,
             testValues.actual.dequantization1,
             testValues.actual.dequantization2);
@@ -70,7 +69,6 @@ public:
 
         referenceFunction = ElementwiseWithMultiParentDequantizationFunction::get(
             testValues.inputShape,
-            TestTransformationParams::toParams(testValues.params),
             testValues.expected.precision1,
             testValues.expected.dequantization1,
             testValues.expected.dequantization2);

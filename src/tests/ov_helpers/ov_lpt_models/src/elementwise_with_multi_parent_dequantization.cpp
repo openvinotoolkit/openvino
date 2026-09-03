@@ -14,7 +14,6 @@ namespace subgraph {
 
 std::shared_ptr<ov::Model> ElementwiseWithMultiParentDequantizationFunction::get(
     const ov::Shape& inputShape,
-    const ov::pass::low_precision::LayerTransformation::Params& params,
     const ov::element::Type& precision1,
     const ov::builder::subgraph::DequantizationOperations& dequantization1,
     const ov::builder::subgraph::DequantizationOperations& dequantization2) {
