@@ -84,7 +84,7 @@ static HFATileInputs create_hfa_tile_inputs(const ov::Shape& q_shape,
 
     HFATileInputs inputs;
 
-    auto set_param_name = [](std::shared_ptr<ov::op::v0::Parameter>& param, HFATileInputId id) {
+    auto set_param_name = [](const std::shared_ptr<ov::op::v0::Parameter>& param, HFATileInputId id) {
         const char* name = hfa_tile_input_id_to_string(id);
         param->set_friendly_name(name);
         param->output(0).get_tensor().set_names({name});
