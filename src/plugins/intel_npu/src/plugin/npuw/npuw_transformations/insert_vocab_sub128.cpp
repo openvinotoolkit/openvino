@@ -16,6 +16,7 @@
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/rt_info/decompression.hpp"
 
 namespace opp = ov::pass::pattern;
 
@@ -59,6 +60,11 @@ public:
             const auto zerop_convert = subtract->input_value(1);
             const auto compute_type = weight_convert.get_element_type();
             const auto shift = ov::op::v0::Constant::create(compute_type, ov::Shape{}, {128});
+            // PPP may not recognize the DQ subgraph after Sub128 insertion. Mark the source
+            // converts as decompression to prevent PPP constant folding from materializing
+            // enormous vocabulary tensors during KV-cache precision conversion.
+            ov::mark_as_decompression(weight_convert.get_node_shared_ptr());
+            ov::mark_as_decompression(zerop_convert.get_node_shared_ptr());
             const auto shifted_weight = std::make_shared<ov::op::v1::Subtract>(weight_convert, shift);
             const auto shifted_zerop = std::make_shared<ov::op::v1::Subtract>(zerop_convert, shift);
             subtract->input(0).replace_source_output(shifted_weight);
