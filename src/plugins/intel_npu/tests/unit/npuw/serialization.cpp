@@ -1571,7 +1571,7 @@ TEST(SerializationTest, FuncallSubmodelValidHostGatherPasses) {
     auto stream = Stream::writer(ss);
     EXPECT_NO_THROW(submodels[0].serialize(stream, {}));
     EXPECT_NO_THROW(submodels[1].serialize(stream, {}));
-    EXPECT_NO_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_orc_submodels(submodels));
+    EXPECT_NO_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels));
 }
 
 TEST(SerializationTest, FuncallSubmodelHostGatherDstIdxOOBFails) {
@@ -1601,7 +1601,7 @@ TEST(SerializationTest, FuncallSubmodelHostGatherDstIdxOOBFails) {
     auto stream = Stream::writer(ss);
     EXPECT_NO_THROW(submodels[0].serialize(stream, {}));
     EXPECT_NO_THROW(submodels[1].serialize(stream, {}));
-    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_orc_submodels(submodels), ov::Exception);
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
 }
 
 TEST(SerializationTest, FuncallSubmodelClosureOverflowFails) {
@@ -1630,7 +1630,87 @@ TEST(SerializationTest, FuncallSubmodelClosureOverflowFails) {
     auto stream = Stream::writer(ss);
     EXPECT_NO_THROW(submodels[0].serialize(stream, {}));
     EXPECT_NO_THROW(submodels[1].serialize(stream, {}));
-    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_orc_submodels(submodels), ov::Exception);
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
+}
+
+TEST(SerializationTest, FuncallSubmodelRoundTripThroughReadPath) {
+    auto plugin = std::make_shared<NullPlugin>();
+    auto model = make_validation_model(8);
+    ov::SoPtr<ov::ICompiledModel> body_cm{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+
+    auto sub0 = ov::npuw::CompiledModelDescTestAccessor::make();
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(sub0) = body_cm;
+
+    // Submodel 1: function call into submodel 0, carrying an active host gather
+    auto sub1 = ov::npuw::CompiledModelDescTestAccessor::make();
+    sub1.replaced_by = 0;
+    Gather hg{5, 3, 6};
+    ov::npuw::CompiledModelDescTestAccessor::host_gather(sub1) = hg;
+    ov::npuw::CompiledModelDescTestAccessor::param_base(sub1) = 2;
+    auto& closure1 = ov::npuw::CompiledModelDescTestAccessor::closure(sub1);
+    closure1.get().closure.resize(4);
+    closure1.get().closure_uid.resize(4, -1);
+    closure1.get().is_remote.resize(4, false);
+
+    std::stringstream ss;
+    auto writer = Stream::writer(ss);
+    ASSERT_NO_THROW(sub0.serialize(writer, {}));
+    ASSERT_NO_THROW(sub1.serialize(writer, {}));
+
+    ov::npuw::CompiledModelDescTestAccessor::SubmodelVec imported;
+    imported.push_back(ov::npuw::CompiledModelDescTestAccessor::make());
+    imported.push_back(ov::npuw::CompiledModelDescTestAccessor::make());
+
+    // Reading a funcall desc must not trip the in-codec index check, which is skipped
+    // because the funcall has no compiled model of its own at this point.
+    auto reader = Stream::reader(ss);
+    ASSERT_NO_THROW(imported[0].serialize(reader, {}));
+    ASSERT_NO_THROW(imported[1].serialize(reader, {}));
+
+    ASSERT_EQ(ov::npuw::CompiledModelDescTestAccessor::host_gather(imported[1]).dst_idx, 5);
+    ASSERT_FALSE(ov::npuw::CompiledModelDescTestAccessor::compiled_model(imported[1]));
+
+    // Import attaches a compiled model to the function body only.
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(imported[0]) = body_cm;
+
+    EXPECT_NO_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(imported));
+
+    ov::npuw::CompiledModelDescTestAccessor::host_gather(imported[1]).dst_idx = 8;
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(imported), ov::Exception);
+}
+
+// The checks below need no compiled model, so a funcall desc must be rejected by the codec itself.
+TEST(SerializationTest, FuncallSubmodelNegativeGatherIndexFails) {
+    auto desc = ov::npuw::CompiledModelDescTestAccessor::make();
+    desc.replaced_by = 0;
+    Gather hg{-5, 3, 6};
+    ov::npuw::CompiledModelDescTestAccessor::host_gather(desc) = hg;
+    ov::npuw::CompiledModelDescTestAccessor::param_base(desc) = 2;
+    auto& closure = ov::npuw::CompiledModelDescTestAccessor::closure(desc);
+    closure.get().closure.resize(4);
+    closure.get().closure_uid.resize(4, -1);
+    closure.get().is_remote.resize(4, false);
+
+    std::stringstream ss;
+    auto stream = Stream::writer(ss);
+    EXPECT_THROW(desc.serialize(stream, {}), ov::Exception);
+}
+
+TEST(SerializationTest, FuncallSubmodelHostGatherSrcIdxOutOfClosureFails) {
+    auto desc = ov::npuw::CompiledModelDescTestAccessor::make();
+    desc.replaced_by = 0;
+    // src_idx - param_base == 7, past the end of a 4-entry closure
+    Gather hg{5, 9, 6};
+    ov::npuw::CompiledModelDescTestAccessor::host_gather(desc) = hg;
+    ov::npuw::CompiledModelDescTestAccessor::param_base(desc) = 2;
+    auto& closure = ov::npuw::CompiledModelDescTestAccessor::closure(desc);
+    closure.get().closure.resize(4);
+    closure.get().closure_uid.resize(4, -1);
+    closure.get().is_remote.resize(4, false);
+
+    std::stringstream ss;
+    auto stream = Stream::writer(ss);
+    EXPECT_THROW(desc.serialize(stream, {}), ov::Exception);
 }
 
 TEST(SerializationTest, ReplacedByOutOfRangeFails) {
@@ -1641,7 +1721,7 @@ TEST(SerializationTest, ReplacedByOutOfRangeFails) {
     ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
     submodels.push_back(std::move(sub0));
 
-    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_orc_submodels(submodels), ov::Exception);
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
 }
 
 TEST(SerializationTest, FunctionBodyWithCorruptedReplacedByFails) {
@@ -1657,7 +1737,7 @@ TEST(SerializationTest, FunctionBodyWithCorruptedReplacedByFails) {
     ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
     submodels.push_back(std::move(sub0));
 
-    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_orc_submodels(submodels), ov::Exception);
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
 }
 
 TEST(SerializationTest, MultiHopReplacedByFails) {
@@ -1682,7 +1762,7 @@ TEST(SerializationTest, MultiHopReplacedByFails) {
     submodels.push_back(std::move(sub1));
     submodels.push_back(std::move(sub2));
 
-    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_orc_submodels(submodels), ov::Exception);
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
 }
 
 TEST(SerializationTest, CompiledModelDesc_rejects_oob_cpu_closure_index_weightful) {

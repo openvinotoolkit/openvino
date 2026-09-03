@@ -328,7 +328,7 @@ private:
 
     std::shared_future<void> m_eval_future;
 
-    static void validate_orc_submodels(const std::vector<CompiledModelDesc>& submodels);
+    static void validate_submodels(const std::vector<CompiledModelDesc>& submodels);
 };
 
 struct CompiledModelDescTestAccessor {
@@ -353,21 +353,21 @@ struct CompiledModelDescTestAccessor {
     static auto& closure(SubmodelDesc& desc) {
         return desc.closure;
     }
-    static void validate_orc_submodels(const SubmodelVec& submodels) {
-        CompiledModel::validate_orc_submodels(submodels);
+    static void validate_submodels(const SubmodelVec& submodels) {
+        CompiledModel::validate_submodels(submodels);
     }
 };
 
-// Validates that routing indices deserialized from an ORC blob are in bounds.
+// Validates that submodel routing indices are in bounds. Runs on both export and import.
 // Throws ov::Exception when an index would cause an out-of-bounds vector access
 // in bind_global_params / unpack_closure at inference time.
 // has_compiled_model: true when a compiled_model was loaded (enables input-bounds checks).
-void validate_orc_submodel_indices(const Subgraph::Gather& host_gather,
-                                   const Subgraph::QuantUnpackGather& quant_unpack_gather,
-                                   std::size_t param_base,
-                                   std::size_t closure_size,
-                                   bool has_compiled_model,
-                                   std::size_t n_model_inputs);
+void validate_submodel_indices(const Subgraph::Gather& host_gather,
+                               const Subgraph::QuantUnpackGather& quant_unpack_gather,
+                               std::size_t param_base,
+                               std::size_t closure_size,
+                               bool has_compiled_model,
+                               std::size_t n_model_inputs);
 
 }  // namespace npuw
 }  // namespace ov
