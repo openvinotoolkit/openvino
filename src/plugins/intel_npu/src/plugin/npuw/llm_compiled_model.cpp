@@ -446,7 +446,7 @@ void resolve_hfa_fused_attention(::intel_npu::Config& cfg,
     // If NPUW_LLM_PREFILL_ATTENTION_HINT was not provided, set HFA automatically
     // when the hardware and prompt length favor the fused flash attention tile implementation
     if (!prefill_attn_hint_provided && hfa_fused_npu_supported && prompt_length_supported) {
-        cfg.update("NPUW_LLM_PREFILL_ATTENTION_HINT", "HFA");
+        cfg.update({{"NPUW_LLM_PREFILL_ATTENTION_HINT", "HFA"}});
         LOG_INFO("Auto-selected NPUW_LLM_PREFILL_ATTENTION_HINT to HFA");
     }
 
@@ -489,6 +489,14 @@ void disable_ws_for_whisper(ov::AnyMap& config) {
 
 void update_config_for_text_embed(ov::AnyMap& config) {
     config.erase("NPUW_SLICE_OUT");
+}
+
+std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
+    std::map<std::string, std::string> result;
+    for (auto&& value : params) {
+        result.emplace(value.first, value.second.as<std::string>());
+    }
+    return result;
 }
 
 // Detect Gemma-4 E2B/E4B by a consumed "per_layer_inputs" input with nonzero PLE dim.
@@ -757,7 +765,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const auto npudesc = extract_npu_descriptor(plugin, other_props);
     auto use_eagle_key = pop_option(other_props, std::string("NPUW_EAGLE"));
 
-    // Remove map-valued section configs before m_cfg.update(), since Config expects string options.
+    // Remove map-valued section configs before m_cfg.update(any_copy(...)), since Config expects string options.
     auto prefill_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_PREFILL_CONFIG"));
     auto generate_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_GENERATE_CONFIG"));
     auto prefill_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_PREFILL_CONFIG"));
@@ -766,9 +774,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto lm_head_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_SHARED_HEAD_CONFIG"));
     auto lm_head_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_SHARED_HEAD_CONFIG"));
 
-    for (const auto& [key, value] : npuw_llm_props) {
-        m_cfg.update(key, value.as<std::string>());
-    }
+    m_cfg.update(any_copy(npuw_llm_props));
 
     // m_cfg should be updated before checking for optimize_fp8, because affect the decision on kv-cache storage type
     auto kv_kache_storage_type = choose_kv_cache_storage_type(model, m_cfg, other_props);
@@ -777,18 +783,16 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_non_llm_props = other_props;
 
     refine_dynamic_props(npuw_llm_props, npudesc);
-    for (const auto& [key, value] : npuw_llm_props) {
-        m_cfg.update(key, value.as<std::string>());
-    }
+    m_cfg.update(any_copy(npuw_llm_props));
 
     resolve_hfa_fused_attention(m_cfg, other_props, npudesc);
 
     m_is_whisper = m_cfg.get<::intel_npu::NPUW_WHISPER>();
     if (m_is_whisper) {
-        m_cfg.update("NPUW_LLM_SHARED_HEAD", "NO");
-        m_cfg.update("NPUW_LLM_PREFILL_CHUNK_SIZE", "0");
-        m_cfg.update("NPUW_LLM_CACHE_ROPE", "NO");
-        m_cfg.update("NPUW_LLM_OPTIMIZE_V_TENSORS", "NO");
+        m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
+        m_cfg.update({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "0"}});
+        m_cfg.update({{"NPUW_LLM_CACHE_ROPE", "NO"}});
+        m_cfg.update({{"NPUW_LLM_OPTIMIZE_V_TENSORS", "NO"}});
 
         m_eos_token_id = m_cfg.get<::intel_npu::NPUW_WHISPER_EOS_TOKEN>();
     }
@@ -805,7 +809,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         // HOST_ROUTED
         if (npuw_llm_props.find("NPUW_LLM_GENERATE_MOE_HINT") == npuw_llm_props.end() && npudesc->arch == "5010" &&
             npudesc->compiler_ver >= ONEAPI_MAKE_VERSION(7, 29)) {
-            m_cfg.update("NPUW_LLM_GENERATE_MOE_HINT", "DEVICE_ROUTED");
+            m_cfg.update({{"NPUW_LLM_GENERATE_MOE_HINT", "DEVICE_ROUTED"}});
         }
     }
 
@@ -911,7 +915,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                     // compiled. GenAI reads NPUW_LLM_MAX_PROMPT_LEN off the compiled model to
                     // decide how long a prompt it may submit, and a stale larger value would let
                     // it send one this model cannot take, failing at infer time instead of here.
-                    m_cfg.update("NPUW_LLM_MAX_PROMPT_LEN", std::to_string(max_prompt_len));
+                    m_cfg.update({{"NPUW_LLM_MAX_PROMPT_LEN", std::to_string(max_prompt_len)}});
                 }
             }
             ov::npuw::util::validate_encoder_embedding_model(kvcache_model);

@@ -26,7 +26,8 @@ namespace {
     auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();
     auto cfg = ::intel_npu::Config(opt_desc);
     ::intel_npu::registerNPUWOptions(*opt_desc);
-    cfg.update("NPUW_ONLINE_KEEP_BLOCK_SIZE", std::to_string(size));
+    std::map<std::string, std::string> cfg_map = {{"NPUW_ONLINE_KEEP_BLOCK_SIZE", std::to_string(size)}};
+    cfg.update(cfg_map);
     return cfg;
 }
 
@@ -569,8 +570,9 @@ TEST(OnlinePartitioningTest, Partitioning_Avoids_Pipeline_None) {
     auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();
     auto cfg = ::intel_npu::Config(opt_desc);
     ::intel_npu::registerNPUWOptions(*opt_desc);
-    cfg.update("NPUW_ONLINE_PIPELINE", "NONE");
-    cfg.update("NPUW_ONLINE_AVOID", "Op:Sin/NPU,Op:Cos/NPU");
+    std::map<std::string, std::string> cfg_map = {{"NPUW_ONLINE_AVOID", "Op:Sin/NPU,Op:Cos/NPU"},
+                                                  {"NPUW_ONLINE_PIPELINE", "NONE"}};
+    cfg.update(cfg_map);
 
     auto ens = ov::npuw::online::buildPartitioning(model, cfg);
 

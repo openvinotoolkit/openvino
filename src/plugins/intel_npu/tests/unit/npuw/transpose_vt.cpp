@@ -84,8 +84,9 @@ public:
             auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();
             auto cfg = ::intel_npu::Config(opt_desc);
             ::intel_npu::registerNPUWOptions(*opt_desc);
-            cfg.update("NPUW_F16IC", "YES");
-            // cfg.update("NPUW_ONLINE_PIPELINE", "NONE");
+            std::map<std::string, std::string> cfg_map = {
+                {"NPUW_F16IC", "YES"}};  //, {"NPUW_ONLINE_PIPELINE", "NONE"}};
+            cfg.update(cfg_map);
 
             ov::npuw::Partitioning partitioning;
             ASSERT_NO_THROW(partitioning = ov::npuw::getPartitioning(model, cfg));

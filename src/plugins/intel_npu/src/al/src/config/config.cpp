@@ -268,6 +268,24 @@ void Config::remove(std::string key) {
     _impl.erase(key);
 }
 
+void Config::update(const ConfigMap& options) {
+    for (const auto& p : options) {
+        _log.trace("Update option '%s' to value '%s'", p.first.c_str(), p.second.c_str());
+
+        const auto opt = _desc->get(p.first);
+        _impl[opt.key().data()] = opt.validateAndParseFromString(p.second);
+    }
+}
+
+void Config::updateAny(const ov::AnyMap& options) {
+    for (const auto& p : options) {
+        _log.trace("Update option '%s' to given 'ov::Any' value", p.first.c_str());
+
+        const auto opt = _desc->get(p.first);
+        _impl[opt.key().data()] = opt.validateAndParseFromAny(p.second);
+    }
+}
+
 void Config::update(std::string_view key, std::string_view value) {
     _log.trace("Update option '%s' to value '%s'", std::string(key).c_str(), std::string(value).c_str());
 
