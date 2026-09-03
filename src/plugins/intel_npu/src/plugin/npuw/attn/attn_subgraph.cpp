@@ -858,9 +858,13 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             return;
                         }
                         if (this_case == pyramid_attention::Selector::Case::PREFILL) {
-                            // Pyramid prefill is enabled only with chunked prefill. The staging mask
-                            // stores past and current tokens as one left-aligned context interval.
-                            copy_mask_segment(0, 0, pyramid->get_context_length(pyramid_id));
+                            if (pyramid->_data_left_aligned) {
+                                copy_mask_segment(0, 0, pyramid->get_context_length(pyramid_id));
+                            } else {
+                                const auto present_len = pyramid->get_context_length(pyramid_id) - past_len;
+                                copy_mask_segment(past_len, full_mask_shape[ATTN_KV_DIM] - present_len, present_len);
+                                copy_mask_segment(0, 0, past_len);
+                            }
                             state.cached_attention_mask = dst;
                             return;
                         }
