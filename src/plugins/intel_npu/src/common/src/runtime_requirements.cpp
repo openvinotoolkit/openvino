@@ -157,15 +157,15 @@ std::shared_ptr<ISection> RuntimeRequirementsSection::read(BlobReaderInterface& 
     }
 
     // Check the format version
-    const MajorMinorVersion parsed_version = major_minor_version_from_string(parsed_content.at(VERSION_KEY));
+    const MajorMinorVersion parsed_version = major_minor_version_from_string(parsed_content.at(VERSION_KEY.data()));
     OPENVINO_ASSERT(parsed_version == CURRENT_RUNTIME_REQUIREMENTS_VERSION,
                     "Unsupported runtime requirements version: ",
                     parsed_version);
-    sections_requirements.erase(VERSION_KEY);
+    parsed_content.erase(VERSION_KEY.data());
 
     // Parse the CRE
-    const CRE cre = cre_from_string(sections_requirements.at(CRE_KEY));
-    sections_requirements.erase(CRE_KEY);
+    const CRE cre = cre_from_string(parsed_content.at(CRE_KEY.data()));
+    parsed_content.erase(CRE_KEY.data());
 
     // All other entries should have the key format "<section type name>_<id>"
     std::map<SectionID, std::string> sections_requirements;
@@ -183,6 +183,15 @@ std::shared_ptr<ISection> RuntimeRequirementsSection::read(BlobReaderInterface& 
     return std::make_shared<RuntimeRequirementsSection>(
         RuntimeRequirements(sections_requirements, cre, section_id_to_type),
         logger.level());
+}
+
+bool is_runtime_requirements_format_v3(std::string_view runtime_requirements) {
+    try {
+        compat::Parser parser(runtime_requirements, std::vector<int>());
+        return parser.getAttributes().count(VERSION_KEY.data());
+    } catch (const std::exception& ex) {
+        OPENVINO_THROW("The content of the runtime requirements section is malformed: ", ex.what());
+    }
 }
 
 }  // namespace intel_npu

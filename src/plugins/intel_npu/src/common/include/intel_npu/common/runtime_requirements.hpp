@@ -75,4 +75,6 @@ private:
     Logger m_logger;
 };
 
+bool is_runtime_requirements_format_v3(std::string_view runtime_requirements);
+
 }  // namespace intel_npu

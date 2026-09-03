@@ -21,7 +21,6 @@ CompilerScheduleInstanceEvaluator::CompilerScheduleInstanceEvaluator(
 
 bool CompilerScheduleInstanceEvaluator::evaluate(std::string_view runtime_requirements) const {
     if (runtime_requirements.empty()) {
-        // TODO should this throw?
         return true;
     }
 
@@ -33,14 +32,9 @@ bool CompilerScheduleInstanceEvaluator::evaluate(std::string_view runtime_requir
     }
 
     // Fallback routed through the option support helper
-    try {
-        return m_option_support_helper->isOptionSupported(ov::intel_npu::CompilerType::PLUGIN,
-                                                          ov::compatibility_check.name(),
-                                                          std::make_optional(std::string(runtime_requirements)));
-    } catch (...) {
-        // TODO is this correct?
-        return false;
-    }
+    return m_option_support_helper->isOptionSupported(ov::intel_npu::CompilerType::PLUGIN,
+                                                      ov::compatibility_check.name(),
+                                                      std::make_optional(std::string(runtime_requirements)));
 }
 
 }  // namespace intel_npu

@@ -644,7 +644,16 @@ private:
     }
 
     std::optional<std::string> extract_compiler_compatibility_descriptor() const override {
-        // TODO finish the compat string section
+        const auto main_schedule_section = std::dynamic_pointer_cast<ELFMainScheduleSection>(
+            m_blob_reader.retrieve_first_section(PredefinedSectionType::ELF_MAIN_SCHEDULE));
+        if (main_schedule_section) {
+            return main_schedule_section->get_inidividual_compatibility_requirements();
+        }
+
+        const auto dynamic_schedule_section = std::dynamic_pointer_cast<DynamicScheduleSection>(
+            m_blob_reader.retrieve_first_section(PredefinedSectionType::DYNAMIC_SCHEDULE));
+        OPENVINO_ASSERT(dynamic_schedule_section, MISSING_MAIN_SCHEDULE_MESSAGE);
+        return dynamic_schedule_section->get_inidividual_compatibility_requirements();
     }
 
     std::optional<BlobType> extract_blob_type() const override {

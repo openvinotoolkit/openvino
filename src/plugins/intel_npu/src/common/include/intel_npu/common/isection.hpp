@@ -79,8 +79,8 @@ static inline const std::unordered_set<SectionType> DEFAULT_SUPPORTED_SECTION_TY
     PredefinedSectionType::RUNTIME_REQUIREMENTS,
     PredefinedSectionType::MANIFEST,
     PredefinedSectionType::ELF_MAIN_SCHEDULE,
-    PredefinedSectionType::ELF_INIT_SCHEDULES,  // TODO needs a check?
-    PredefinedSectionType::DYNAMIC_SCHEDULE,    // TODO needs a check?
+    PredefinedSectionType::ELF_INIT_SCHEDULES,
+    PredefinedSectionType::DYNAMIC_SCHEDULE,
     PredefinedSectionType::IO_LAYOUTS,
     PredefinedSectionType::BATCH_SIZE,
     PredefinedSectionType::ENCRYPTED_SCHEDULES_FLAG,
