@@ -42,7 +42,7 @@ class VariablesIndex {
     bool m_mmap_enabled = false;
 
 public:
-    VariablesIndex(bool mmap_enabled = false) : m_mmap_enabled(mmap_enabled) {}
+    explicit VariablesIndex(bool mmap_enabled = false) : m_mmap_enabled(mmap_enabled) {}
     /// \brief Returns mmap_enabled state.
     /// \returns True if mmap is enabled, false otherwise
     bool is_mmap_enabled(void) const {
@@ -54,6 +54,12 @@ public:
     /// \param is_saved_model Flag shows variables index is a part of Saved Model format
     /// \returns Returns true in case of everything loads successfully, false otherwise
     bool read_variables(std::ifstream& vi_stream, const std::filesystem::path& path, const bool is_saved_model = true);
+
+    /// \brief Tells whether no *.index file was provided or present (no variables were read).
+    /// \returns True if the variables index holds no entries, false otherwise
+    bool empty() const {
+        return m_variables_index.empty();
+    }
 
     /// \brief Returns data and size of data of stored variable
     /// \param name Name of variable

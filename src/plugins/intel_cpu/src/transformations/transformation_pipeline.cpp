@@ -47,6 +47,7 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/swish.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "ov_ops/gather_compressed.hpp"
@@ -179,7 +180,6 @@
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
 #    include "openvino/op/add.hpp"
-#    include "openvino/op/swish.hpp"
 #    include "transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp"
 #else
 #    include "openvino/op/convolution.hpp"
@@ -277,7 +277,6 @@
 
 #if defined(OPENVINO_ARCH_RISCV64)
 #    include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
-#    include "openvino/op/swish.hpp"
 #endif
 
 #if defined(SNIPPETS_LIBXSMM_TPP)
