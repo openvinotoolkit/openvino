@@ -247,7 +247,6 @@ public:
     static std::shared_ptr<ov::Model> getReferenceWithDifferentPrecisionOnChildren(
         const ov::element::Type precision,
         const ov::PartialShape& inputShape,
-        const bool multiChannel,
         const std::int64_t axis,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2,

@@ -1324,7 +1324,7 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithIntermediate(
     const auto fakeQuantize2 = makeFakeQuantizeTypeRelaxed(input2, precision, fqOnData2);
     ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize2, precisionBeforeOp);
     fakeQuantize2->set_friendly_name("fakeQuantize2");
-    const auto deqBefore2 = makeDequantization(fakeQuantize2, dequantizationBefore1);
+    const auto deqBefore2 = makeDequantization(fakeQuantize2, dequantizationBefore2);
 
     std::shared_ptr<Node> intermediateOp;
     if (transparentIntermediate) {
@@ -1499,7 +1499,7 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithSplitedIntermediate(
 
     fakeQuantize2->set_friendly_name("fakeQuantize2");
     ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize2, precisionAfterOperation);
-    const auto deqBefore2 = makeDequantization(fakeQuantize2, dequantizationBefore1);
+    const auto deqBefore2 = makeDequantization(fakeQuantize2, dequantizationBefore2);
 
     std::shared_ptr<ov::op::Op> intermediateOp;
 
@@ -1764,7 +1764,6 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithStridedSlice(
 std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithDifferentPrecisionOnChildren(
     const ov::element::Type precision,
     const ov::PartialShape& inputShape,
-    const bool multiChannel,
     const std::int64_t axis,
     const FakeQuantizeOnData& fqOnData1,
     const FakeQuantizeOnData& fqOnData2,
