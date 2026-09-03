@@ -1850,7 +1850,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         uint32_t prefill_variant_count = 0;
         stream & prefill_variant_count;
         NPUW_ASSERT(prefill_variant_count > 0 && compiled->m_prefill_chunk_sizes.size() == prefill_variant_count &&
-                "Serialized Prefill variant metadata is inconsistent.");
+                    "Serialized Prefill variant metadata is inconsistent.");
         compiled->m_prefill_compiled_variants.reserve(prefill_variant_count);
         for (uint32_t i = 0; i < prefill_variant_count; ++i) {
             auto compiled_variant = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);

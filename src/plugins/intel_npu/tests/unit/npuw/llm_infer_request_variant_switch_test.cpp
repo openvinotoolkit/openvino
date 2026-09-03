@@ -16,8 +16,8 @@
 
 #include "executor.hpp"
 #include "llm_block_kvcache_strategy.hpp"
-#include "llm_infer_request.hpp"
 #include "llm_compiled_model.hpp"
+#include "llm_infer_request.hpp"
 #include "llm_test_helpers.hpp"
 #include "openvino/openvino.hpp"
 #include "util.hpp"
@@ -59,13 +59,11 @@ struct LLMVariantSwitchTestAccess {
         req.infer_chunked_prefill(input_ids, attention_mask, position_ids, {}, {}, {}, {});
     }
 
-    static ov::SoPtr<ov::ITensor> prefill_input_tensor(const ov::npuw::LLMInferRequest& req,
-                                                       const std::string& name) {
+    static ov::SoPtr<ov::ITensor> prefill_input_tensor(const ov::npuw::LLMInferRequest& req, const std::string& name) {
         return req.m_prefill_request->get_tensor(req.m_prefill_in_ports.at(name));
     }
 
-    static ov::SoPtr<ov::ITensor> prefill_output_tensor(const ov::npuw::LLMInferRequest& req,
-                                                        const std::string& name) {
+    static ov::SoPtr<ov::ITensor> prefill_output_tensor(const ov::npuw::LLMInferRequest& req, const std::string& name) {
         return req.m_prefill_request->get_tensor(req.m_prefill_out_ports.at(name));
     }
 
@@ -92,7 +90,8 @@ struct LLMVariantSwitchTestAccess {
         return compiled->m_is_block_kv_cache;
     }
 
-    static void set_num_stored_tokens(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled, uint32_t num_tokens) {
+    static void set_num_stored_tokens(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
+                                      uint32_t num_tokens) {
         compiled->m_kvcache_desc.num_stored_tokens = num_tokens;
     }
 
@@ -171,11 +170,11 @@ class FakeSubCompiledModel final : public ov::npuw::ICompiledModel_v0 {
 public:
     FakeSubCompiledModel(const std::shared_ptr<ov::Model>& model,
                          const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                 const ov::AnyMap&,
-                                                 std::shared_ptr<PrefillInferenceRecord> record)
+                         const ov::AnyMap&,
+                         std::shared_ptr<PrefillInferenceRecord> record)
         : ov::npuw::ICompiledModel_v0(model, plugin),
-                    m_model(model),
-                    m_record(std::move(record)) {}
+          m_model(model),
+          m_record(std::move(record)) {}
 
     void export_model(std::ostream&) const override {}
     std::shared_ptr<const ov::Model> get_runtime_model() const override {
@@ -238,8 +237,9 @@ FakeSubInferRequest::FakeSubInferRequest(std::shared_ptr<const FakeSubCompiledMo
                                           ov::get_tensor_impl(ov::Tensor(input.get_element_type(), input.get_shape())));
     }
     for (const auto& output : get_compiled_model()->outputs()) {
-        ov::ISyncInferRequest::set_tensor(output,
-                                          ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
+        ov::ISyncInferRequest::set_tensor(
+            output,
+            ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
     }
 }
 
@@ -260,8 +260,7 @@ void FakeSubInferRequest::infer() {
 
 class VariantSwitchFactory {
 public:
-    explicit VariantSwitchFactory(std::shared_ptr<PrefillInferenceRecord> record = {})
-        : m_record(std::move(record)) {}
+    explicit VariantSwitchFactory(std::shared_ptr<PrefillInferenceRecord> record = {}) : m_record(std::move(record)) {}
 
     ov::npuw::LLMCompiledModel::CompiledModelFactory make_factory() {
         const auto record = m_record;
@@ -354,8 +353,10 @@ TEST_F(LLMInferRequestVariantSwitchTest, ContinuousKvSwitchMigratesStoredTokensT
     for (const auto& name : LLMVariantSwitchTestAccess::kvcache_past_names(req)) {
         auto src = LLMVariantSwitchTestAccess::kvcache_request(req)->get_tensor(
             LLMVariantSwitchTestAccess::kvcache_in_ports(req).at(name));
-        auto src_slice = ov::npuw::util::make_tensor_slice(
-            src, LLMVariantSwitchTestAccess::kv_dim_for_name(req, name), 0u, stored_tokens);
+        auto src_slice = ov::npuw::util::make_tensor_slice(src,
+                                                           LLMVariantSwitchTestAccess::kv_dim_for_name(req, name),
+                                                           0u,
+                                                           stored_tokens);
         fill_tensor_pattern(src_slice, seed);
         expected_kv_bytes.emplace(name, materialize_bytes(src_slice));
         seed = static_cast<uint8_t>(seed + 37u);
@@ -367,8 +368,10 @@ TEST_F(LLMInferRequestVariantSwitchTest, ContinuousKvSwitchMigratesStoredTokensT
     for (const auto& name : LLMVariantSwitchTestAccess::kvcache_past_names(req)) {
         auto dst = LLMVariantSwitchTestAccess::kvcache_request(req)->get_tensor(
             LLMVariantSwitchTestAccess::kvcache_in_ports(req).at(name));
-        auto dst_slice = ov::npuw::util::make_tensor_slice(
-            dst, LLMVariantSwitchTestAccess::kv_dim_for_name(req, name), 0u, stored_tokens);
+        auto dst_slice = ov::npuw::util::make_tensor_slice(dst,
+                                                           LLMVariantSwitchTestAccess::kv_dim_for_name(req, name),
+                                                           0u,
+                                                           stored_tokens);
         EXPECT_EQ(materialize_bytes(dst_slice), expected_kv_bytes.at(name)) << name;
     }
 }
@@ -404,9 +407,9 @@ TEST_F(LLMInferRequestVariantSwitchTest, ShorterPrefillChunkRunsDefaultThenShort
     auto attention_mask = make_i64_filled(96u, 1);
     auto position_ids = make_i64_iota(96u, 0);
     LLMVariantSwitchTestAccess::run_chunked_prefill(short_request,
-                                                     ov::get_tensor_impl(input_ids),
-                                                     ov::get_tensor_impl(attention_mask),
-                                                     ov::get_tensor_impl(position_ids));
+                                                    ov::get_tensor_impl(input_ids),
+                                                    ov::get_tensor_impl(attention_mask),
+                                                    ov::get_tensor_impl(position_ids));
 
     ASSERT_EQ(short_record->sequence_sizes, (std::vector<size_t>{64u, 32u}));
     ASSERT_EQ(short_record->friendly_names.size(), 2u);
@@ -416,15 +419,15 @@ TEST_F(LLMInferRequestVariantSwitchTest, ShorterPrefillChunkRunsDefaultThenShort
 
     const auto default_record = std::make_shared<PrefillInferenceRecord>();
     VariantSwitchFactory default_factory(default_record);
-    auto default_compiled = create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
-                                                   {"NPUW_LLM_PREFILL_CHUNK_SIZE", "64"}},
-                                                  default_factory);
+    auto default_compiled =
+        create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "64"}},
+                              default_factory);
     ASSERT_NE(default_compiled, nullptr);
     ov::npuw::LLMInferRequest default_request(default_compiled);
     LLMVariantSwitchTestAccess::run_chunked_prefill(default_request,
-                                                     ov::get_tensor_impl(input_ids),
-                                                     ov::get_tensor_impl(attention_mask),
-                                                     ov::get_tensor_impl(position_ids));
+                                                    ov::get_tensor_impl(input_ids),
+                                                    ov::get_tensor_impl(attention_mask),
+                                                    ov::get_tensor_impl(position_ids));
 
     ASSERT_EQ(default_record->sequence_sizes, (std::vector<size_t>{64u, 64u}));
     EXPECT_EQ(LLMVariantSwitchTestAccess::stored_tokens(default_request), 96u);
@@ -462,11 +465,11 @@ TEST_F(LLMInferRequestVariantSwitchTest, BlockKvVariantsExposeCompatibleBindings
     ASSERT_NE(compiled, nullptr);
     ASSERT_EQ(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 2u);
     ASSERT_TRUE(LLMVariantSwitchTestAccess::is_block_kv_cache(compiled));
-    auto small_variant = std::dynamic_pointer_cast<FakeSubCompiledModel>(
-        LLMVariantSwitchTestAccess::generate_variant(compiled, 0u));
-    auto large_variant = std::dynamic_pointer_cast<FakeSubCompiledModel>(
-        LLMVariantSwitchTestAccess::generate_variant(compiled,
-                                                     LLMVariantSwitchTestAccess::generate_variant_count(compiled) - 1u));
+    auto small_variant =
+        std::dynamic_pointer_cast<FakeSubCompiledModel>(LLMVariantSwitchTestAccess::generate_variant(compiled, 0u));
+    auto large_variant = std::dynamic_pointer_cast<FakeSubCompiledModel>(LLMVariantSwitchTestAccess::generate_variant(
+        compiled,
+        LLMVariantSwitchTestAccess::generate_variant_count(compiled) - 1u));
     ASSERT_NE(small_variant, nullptr);
     ASSERT_NE(large_variant, nullptr);
 
