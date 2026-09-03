@@ -19,15 +19,15 @@
 namespace {
 using namespace ov;
 
-// excludes a Constant and a Convert(Constant), e.g. a bias -- not a residual activation
-bool is_not_constant_like(const std::shared_ptr<Node>& node) {
+// a Constant or a Convert(Constant), e.g. a bias -- not a residual activation
+bool is_constant_like(const std::shared_ptr<Node>& node) {
     if (is_type<op::v0::Constant>(node)) {
-        return false;
+        return true;
     }
     if (auto convert = as_type_ptr<op::v0::Convert>(node)) {
-        return !is_type<op::v0::Constant>(convert->get_input_node_shared_ptr(0));
+        return is_type<op::v0::Constant>(convert->get_input_node_shared_ptr(0));
     }
-    return true;
+    return false;
 }
 
 // if `output` is (optionally, through one Convert) a constant-weight, f16, single-consumer
@@ -58,7 +58,9 @@ namespace pass {
 ClampFP16FCOutput::ClampFP16FCOutput() {
     using namespace ov::op;
 
-    ov::matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
+    auto add_m = ov::pass::pattern::wrap_type<v1::Add>();
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto add = ov::as_type_ptr<v1::Add>(m.get_match_root());
         if (!add || transformation_callback(add)) {
             return false;
@@ -68,7 +70,7 @@ ClampFP16FCOutput::ClampFP16FCOutput() {
             auto fc_output = add->input_value(fc_idx);
             auto residual = add->input_value(1 - fc_idx);
             auto matmul = get_fc_matmul(fc_output);
-            if (!matmul || !is_not_constant_like(residual.get_node_shared_ptr())) {
+            if (!matmul || is_constant_like(residual.get_node_shared_ptr())) {
                 continue;
             }
 
@@ -83,7 +85,7 @@ ClampFP16FCOutput::ClampFP16FCOutput() {
         return false;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(ov::pass::pattern::wrap_type<v1::Add>(), "ClampFP16FCOutput");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(add_m, "ClampFP16FCOutput");
     this->register_matcher(m, callback);
 }
 
