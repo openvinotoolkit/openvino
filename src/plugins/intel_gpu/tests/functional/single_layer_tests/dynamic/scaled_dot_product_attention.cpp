@@ -233,14 +233,14 @@ void ScaledAttnLayerGPUTest::SetUp() {
     } else if (inType == ov::element::bf16) {
         // bf16 has ~3 bits fewer mantissa than fp16, so loosen thresholds accordingly.
         if (has_sink || (has_diff_head_size && !has_scale)) {
-            abs_threshold = 0.2;
-            rel_threshold = 0.2;
-        } else if (has_long_seq || has_non_pow2_head) {
             abs_threshold = 0.1;
             rel_threshold = 0.1;
+        } else if (has_long_seq || has_non_pow2_head) {
+            abs_threshold = 0.050;
+            rel_threshold = 0.050;
         } else {
-            abs_threshold = 0.05;
-            rel_threshold = 0.05;
+            abs_threshold = 0.010;
+            rel_threshold = 0.010;
         }
     }
 }
