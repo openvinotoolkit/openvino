@@ -30,6 +30,7 @@
 #include "openvino/core/log.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
+#include "openvino/util/codec_xor.hpp"
 #include "plugin_property_manager.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "zero_backend.hpp"
@@ -131,6 +132,8 @@ public:
         REGISTER_OPTION(SHARED_COMMON_QUEUE);
         REGISTER_OPTION(CACHE_ENCRYPTION_CALLBACKS);
         REGISTER_OPTION(MAX_TILES);
+        REGISTER_OPTION(MODEL_PTR);
+        REGISTER_OPTION(DISABLE_IDLE_MEMORY_PRUNING);
 
         if (backend) {
             REGISTER_OPTION(MODEL_PRIORITY);
@@ -372,14 +375,21 @@ TEST_P(CompatibilityCheckTests, CheckTurboWithGetMergedConfigAndUnknownPropertie
         logs.push_back('\n');
     };
 
-    {
-        utils::LogCallbackGuard log_callback_guard(log_cb);
-        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
-        if (backend->isCommandQueueExtSupported()) {
-            OV_ASSERT_NO_THROW(
-                propertiesManager->getMergedConfigAndUnknownProperties({{ov::intel_npu::turbo(true)}},
-                                                                       ::intel_npu::ConfigMergeMode::Import));
-        } else {
+    if (backend->isCommandQueueExtSupported()) {
+        auto [filteredConfig, unknownProperties] = [&]() {
+            utils::LogCallbackGuard log_callback_guard(log_cb);
+            utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
+            return propertiesManager->getMergedConfigAndUnknownProperties({{ov::intel_npu::turbo(true)}},
+                                                                          ::intel_npu::ConfigMergeMode::Import);
+        }();
+
+        ASSERT_TRUE(filteredConfig.has<::intel_npu::TURBO>());
+        ASSERT_TRUE(filteredConfig.get<::intel_npu::TURBO>());
+        ASSERT_TRUE(unknownProperties.empty());
+    } else {
+        {
+            utils::LogCallbackGuard log_callback_guard(log_cb);
+            utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
             OV_EXPECT_THROW(
                 propertiesManager->getMergedConfigAndUnknownProperties({{ov::intel_npu::turbo(true)}},
                                                                        ::intel_npu::ConfigMergeMode::Import),
@@ -388,6 +398,10 @@ TEST_P(CompatibilityCheckTests, CheckTurboWithGetMergedConfigAndUnknownPropertie
         }
     }
 
+    ASSERT_EQ(
+        logs.find("Property 'NPU_COMPILER_TYPE' is used to specify the compiler type, will not be used for current "
+                  "configuration."),
+        std::string::npos);
     ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
     ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
 }
@@ -405,24 +419,310 @@ TEST_P(CompatibilityCheckTests, CheckTurboWithGetMergedConfigAndUnknownPropertie
 
     propertiesManager->setProperty({{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}});
 
-    {
+    auto [filteredConfig, unknownProperties] = [&]() {
         utils::LogCallbackGuard log_callback_guard(log_cb);
         utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
-        if (backend->isCommandQueueExtSupported()) {
-            OV_ASSERT_NO_THROW(
-                propertiesManager->getMergedConfigAndUnknownProperties({{ov::intel_npu::turbo(true)}},
-                                                                       ::intel_npu::ConfigMergeMode::Compile));
-            ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+        return propertiesManager->getMergedConfigAndUnknownProperties({{ov::intel_npu::turbo(true)}},
+                                                                      ::intel_npu::ConfigMergeMode::Compile);
+    }();
 
-        } else {
-            OV_ASSERT_NO_THROW(
-                propertiesManager->getMergedConfigAndUnknownProperties({{ov::intel_npu::turbo(true)}},
-                                                                       ::intel_npu::ConfigMergeMode::Compile));
-            ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
-        }
+    ASSERT_TRUE(filteredConfig.has<::intel_npu::TURBO>());
+    ASSERT_TRUE(filteredConfig.get<::intel_npu::TURBO>());
+    ASSERT_TRUE(unknownProperties.empty());
+
+    if (backend->isCommandQueueExtSupported()) {
+        ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+    } else {
+        ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
     }
 
     ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+    ASSERT_EQ(
+        logs.find("Property 'NPU_COMPILER_TYPE' is used to specify the compiler type, will not be used for current "
+                  "configuration."),
+        std::string::npos);
+}
+
+TEST_P(CompatibilityCheckTests, CheckCompilerPropertyWithGetMergedConfigAndUnknownPropertiesOnCompile) {
+    std::string logs;
+    std::mutex logs_mutex;
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    auto [filteredConfig, unknownProperties] = [&]() {
+        utils::LogCallbackGuard log_callback_guard(log_cb);
+        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
+        return propertiesManager->getMergedConfigAndUnknownProperties(
+            {{ov::intel_npu::platform("NPU3720"), ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}},
+            ::intel_npu::ConfigMergeMode::Compile);
+    }();
+
+    ASSERT_EQ(
+        logs.find("Property 'NPU_COMPILER_TYPE' is used to specify the compiler type, will not be used for current "
+                  "configuration."),
+        std::string::npos);
+    ASSERT_TRUE(filteredConfig.has<::intel_npu::PLATFORM>());
+    ASSERT_EQ(filteredConfig.get<::intel_npu::PLATFORM>(), "NPU3720");
+    ASSERT_TRUE(unknownProperties.empty());
+
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+    ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+}
+
+TEST_P(CompatibilityCheckTests, CheckCompilerPropertyWithGetMergedConfigAndUnknownPropertiesOnImport) {
+    std::string logs;
+    std::mutex logs_mutex;
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    auto [filteredConfig, unknownProperties] = [&]() {
+        utils::LogCallbackGuard log_callback_guard(log_cb);
+        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
+        return propertiesManager->getMergedConfigAndUnknownProperties(
+            {{ov::intel_npu::platform("NPU3720"), ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}},
+            ::intel_npu::ConfigMergeMode::Import);
+    }();
+
+    ASSERT_FALSE(filteredConfig.has<::intel_npu::COMPILER_TYPE>());
+    ASSERT_FALSE(filteredConfig.has<::intel_npu::PLATFORM>());
+    ASSERT_FALSE(filteredConfig.has<::intel_npu::COMPILER_TYPE>());
+    ASSERT_TRUE(unknownProperties.empty());
+
+    ASSERT_NE(
+        logs.find("Property 'NPU_COMPILER_TYPE' is used to specify the compiler type, will not be used for current "
+                  "configuration."),
+        std::string::npos);
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+    ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+    ASSERT_NE(logs.find("Property 'NPU_PLATFORM' is recognized as a compiler option, will not be used for current "
+                        "configuration."),
+              std::string::npos);
+}
+
+TEST_P(CompatibilityCheckTests, CheckLoadedFromCacheWithGetMergedConfigAndUnknownPropertiesOnImport) {
+    std::string logs;
+    std::mutex logs_mutex;
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    auto [filteredConfig, unknownProperties] = [&]() {
+        utils::LogCallbackGuard log_callback_guard(log_cb);
+        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
+        return propertiesManager->getMergedConfigAndUnknownProperties(
+            {{{ov::loaded_from_cache.name(), ov::Any(true)},
+              ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}},
+            ::intel_npu::ConfigMergeMode::Import);
+    }();
+
+    ASSERT_FALSE(filteredConfig.has<::intel_npu::COMPILER_TYPE>());
+    ASSERT_TRUE(filteredConfig.has<::intel_npu::LOADED_FROM_CACHE>());
+    ASSERT_TRUE(filteredConfig.get<::intel_npu::LOADED_FROM_CACHE>());
+    ASSERT_TRUE(unknownProperties.empty());
+
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+    ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+}
+
+TEST_P(CompatibilityCheckTests, CheckDummyPropertyWithGetMergedConfigAndUnknownPropertiesOnCompile) {
+    std::string logs;
+    std::mutex logs_mutex;
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    auto [filteredConfig, unknownProperties] = [&]() {
+        utils::LogCallbackGuard log_callback_guard(log_cb);
+        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
+        return propertiesManager->getMergedConfigAndUnknownProperties(
+            {{{"Dummy_Property", ov::Any(true)}, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}},
+            ::intel_npu::ConfigMergeMode::Compile);
+    }();
+
+    ASSERT_TRUE(filteredConfig.has<::intel_npu::COMPILER_TYPE>());
+    ASSERT_EQ(filteredConfig.get<::intel_npu::COMPILER_TYPE>(), ov::intel_npu::CompilerType::PLUGIN);
+    ASSERT_FALSE(unknownProperties.empty());
+    ASSERT_EQ(unknownProperties.size(), 1);
+
+    ASSERT_EQ(
+        logs.find("Property 'NPU_COMPILER_TYPE' is used to specify the compiler type, will not be used for current "
+                  "configuration."),
+        std::string::npos);
+    ASSERT_NE(
+        logs.find(
+            "Property 'Dummy_Property' is unknown to the plugin property manager, will be sent to the compiled model."),
+        std::string::npos);
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+    ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+}
+
+TEST_P(CompatibilityCheckTests, CheckDummyPropertyWithGetMergedConfigAndUnknownPropertiesOnImport) {
+    std::string logs;
+    std::mutex logs_mutex;
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    auto [filteredConfig, unknownProperties] = [&]() {
+        utils::LogCallbackGuard log_callback_guard(log_cb);
+        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
+        return propertiesManager->getMergedConfigAndUnknownProperties(
+            {{{"Dummy_Property", ov::Any(true)}, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}},
+            ::intel_npu::ConfigMergeMode::Import);
+    }();
+
+    ASSERT_FALSE(filteredConfig.has<::intel_npu::COMPILER_TYPE>());
+    ASSERT_FALSE(unknownProperties.empty());
+    ASSERT_EQ(unknownProperties.size(), 1);
+
+    ASSERT_NE(
+        logs.find("Property 'NPU_COMPILER_TYPE' is used to specify the compiler type, will not be used for current "
+                  "configuration."),
+        std::string::npos);
+    ASSERT_NE(
+        logs.find(
+            "Property 'Dummy_Property' is unknown to the plugin property manager, will be sent to the compiled model."),
+        std::string::npos);
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+    ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+}
+
+TEST_P(CompatibilityCheckTests, CheckDummyPropertyWithGetMergedConfigAndUnknownPropertiesOnQuery) {
+    std::string logs;
+    std::mutex logs_mutex;
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    {
+        utils::LogCallbackGuard log_callback_guard(log_cb);
+        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
+
+        OV_EXPECT_THROW(propertiesManager->getMergedConfigAndUnknownProperties(
+                            {{{"Dummy_Property", ov::Any(true)},
+                              ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}},
+                            ::intel_npu::ConfigMergeMode::Query),
+                        ov::Exception,
+                        testing::HasSubstr("Unsupported configuration key: Dummy_Property"));
+    }
+
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+    ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+}
+
+TEST_P(CompatibilityCheckTests, CheckROPropertyWithGetMergedConfigAndUnknownProperties) {
+    std::string logs;
+    std::mutex logs_mutex;
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    {
+        utils::LogCallbackGuard log_callback_guard(log_cb);
+        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
+
+        OV_EXPECT_THROW(propertiesManager->getMergedConfigAndUnknownProperties(
+                            {{{ov::intel_npu::compiler_version.name(), ov::Any(true)}}},
+                            ::intel_npu::ConfigMergeMode::Compile),
+                        ov::Exception,
+                        testing::HasSubstr("READ-ONLY configuration key: NPU_COMPILER_VERSION"));
+    }
+
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+    ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+}
+
+TEST_P(CompatibilityCheckTests, CheckUnsupportedConfigWithGetMergedConfigAndUnknownProperties) {
+    std::string logs;
+    std::mutex logs_mutex;
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    std::shared_ptr<::intel_npu::OptionsDesc> localOptions = std::make_shared<::intel_npu::OptionsDesc>();
+    localOptions->add<::intel_npu::COMPILER_TYPE>();
+    auto localPropertiesManager = std::make_unique<::intel_npu::PluginPropertyManager>(
+        localOptions,
+        backend,
+        std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend, ::intel_npu::CompilerAdapterFactory()),
+        ::intel_npu::Logger::global());
+
+    {
+        utils::LogCallbackGuard log_callback_guard(log_cb);
+        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
+
+        OV_EXPECT_THROW(
+            localPropertiesManager->getMergedConfigAndUnknownProperties({{ov::device::id("3720")}},
+                                                                        ::intel_npu::ConfigMergeMode::Compile),
+            ov::Exception,
+            testing::HasSubstr("Property 'DEVICE_ID' exists but is not part of the config"));
+    }
+
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+    ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+}
+
+TEST_P(CompatibilityCheckTests, CheckModelPtrWithGetMergedConfigAndUnknownProperties) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+    auto result = std::make_shared<ov::op::v0::Result>(param);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+    auto constModel = std::const_pointer_cast<const ov::Model>(model);
+
+    for (const auto& modelProperty : {ov::hint::model(model), ov::hint::model(constModel)}) {
+        auto [filteredConfig, unknownProperties] = [&]() {
+            return propertiesManager->getMergedConfigAndUnknownProperties({{modelProperty}},
+                                                                          ::intel_npu::ConfigMergeMode::Import);
+        }();
+
+        ASSERT_TRUE(filteredConfig.has<::intel_npu::MODEL_PTR>());
+        ASSERT_EQ(filteredConfig.get<::intel_npu::MODEL_PTR>().lock(), model);
+        ASSERT_TRUE(unknownProperties.empty());
+    }
+}
+
+TEST_P(CompatibilityCheckTests, CheckCacheEncryptionCallbacksWithGetMergedConfigAndUnknownProperties) {
+    auto [filteredConfig, unknownProperties] = [&]() {
+        return propertiesManager->getMergedConfigAndUnknownProperties(
+            {{ov::cache_encryption_callbacks(ov::EncryptionCallbacks{ov::util::codec_xor, nullptr})}},
+            ::intel_npu::ConfigMergeMode::Import);
+    }();
+
+    ASSERT_TRUE(filteredConfig.has<::intel_npu::CACHE_ENCRYPTION_CALLBACKS>());
+    ASSERT_TRUE(unknownProperties.empty());
 }
 
 using ExpectLoadingCompilerPropertySupported = PropertiesManagerTests;
