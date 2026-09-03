@@ -96,6 +96,12 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
+    const bool rawBlobExportRequested = _propertiesManager->getConfig().get<EXPORT_RAW_BLOB>();
+    OPENVINO_ASSERT(rawBlobExportRequested
+                        ? _graph->get_blob_type() == BlobType::ELF && _graph->get_kind() == GraphKind::Weightful
+                        : true,
+                    "Requested raw blob export, but the graph is not a weightful ELF one.");
+
     uint64_t blobSizesBeforeVersioning;
     std::optional<uint64_t> blobSizeAfterEncryption = std::nullopt;
     std::optional<std::vector<uint64_t>> initBlobSizes;
@@ -122,9 +128,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
         std::tie(blobSizesBeforeVersioning, initBlobSizes) = _graph->export_blob(stream);
     }
 
-    if (_propertiesManager->getConfig().get<EXPORT_RAW_BLOB>()) {
-        OPENVINO_ASSERT(_graph->get_blob_type() == BlobType::ELF && _graph->get_kind() == GraphKind::Weightful,
-                        "Requested raw blob export, but the graph is not a weightful ELF one.");
+    if (rawBlobExportRequested) {
         return;
     }
 
