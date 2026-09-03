@@ -306,10 +306,17 @@ public:
 
 TEST_P(sdpa_micro_prefetch_k_test, multi_tile_k_matches_reference) {
     auto& engine = get_test_engine();
-    if (!engine.get_device_info().supports_immad)
-        GTEST_SKIP() << "sdpa_micro requires a device with systolic (immad) support";
-
+    const auto& device_info = engine.get_device_info();
     const auto p = GetParam();
+
+    if (!device_info.supports_immad)
+        GTEST_SKIP() << "sdpa_micro requires a device with systolic (immad) support";
+    if (device_info.arch < cldnn::gpu_arch::xe_hpc)
+        GTEST_SKIP() << "PREFETCH_K0/PREFETCH_K are only emitted for arch >= xe_hpc; this device "
+                        "runs sdpa_micro without the prefetch under test";
+    if (device_info.arch == cldnn::gpu_arch::xe3p && p.head_size <= 64)
+        GTEST_SKIP() << "micro SDPA is disabled on xe3p for head_size <= 64";
+
     const ov::Shape q_shape{1, static_cast<size_t>(p.num_heads), static_cast<size_t>(p.seq_len_q),
                             static_cast<size_t>(p.head_size)};
     const ov::Shape kv_shape{1, static_cast<size_t>(p.num_heads), static_cast<size_t>(p.seq_len_kv),
