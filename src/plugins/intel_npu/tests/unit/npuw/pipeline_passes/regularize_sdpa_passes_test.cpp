@@ -75,8 +75,7 @@ static std::size_t count_ops(const std::shared_ptr<Model>& model) {
 // with a static-shape kv_param so the pass can fold the shape chain away.
 static std::shared_ptr<Model> build_attention_broadcast4_static_model() {
     // kv has static shape – bounds can be evaluated so the pass can fold.
-    auto kv_param = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 4, 8});
-    kv_param->set_friendly_name("kv_param");
+    auto kv_param = ov::test::utils::create_param(element::f32, Shape{1, 2, 4, 8}, "kv_param");
 
     // Multiply is required by the updated pattern: ShapeOf(Multiply(...))
     auto scale = op::v0::Constant::create(element::f32, Shape{}, {0.5f});
@@ -116,9 +115,7 @@ static std::shared_ptr<Model> build_attention_broadcast4_static_model() {
 // Same as above but with a dynamic sequence dimension so the pass cannot fold.
 static std::shared_ptr<Model> build_attention_broadcast4_dynamic_model() {
     // Sequence dimension is dynamic → bounds cannot be fully evaluated, pass must not fire.
-    auto kv_param = std::make_shared<op::v0::Parameter>(
-        element::f32, PartialShape{1, 2, Dimension::dynamic(), 8});
-    kv_param->set_friendly_name("kv_param");
+    auto kv_param = ov::test::utils::create_param(element::f32, PartialShape{1, 2, Dimension::dynamic(), 8}, "kv_param");
 
     // Same Multiply→ShapeOf pattern as the static model.
     auto scale    = op::v0::Constant::create(element::f32, Shape{}, {0.5f});

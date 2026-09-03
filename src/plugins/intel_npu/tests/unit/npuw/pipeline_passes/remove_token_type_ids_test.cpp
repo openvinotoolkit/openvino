@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/ops.hpp"
 
 // Tests for ov::npuw::RemoveTokenTypeIds.
@@ -58,22 +59,6 @@ using namespace ov::op;
 constexpr size_t SEQ = 8;
 constexpr int64_t SEQ_I64 = static_cast<int64_t>(SEQ);
 
-std::shared_ptr<v0::Parameter> make_token_type_ids() {
-    auto tti = std::make_shared<v0::Parameter>(element::i64, Shape{1, SEQ});
-    tti->set_friendly_name("token_type_ids");
-    tti->output(0).set_names({"token_type_ids"});
-    return tti;
-}
-
-std::shared_ptr<v0::Parameter> make_named_param(const element::Type& type,
-                                                const Shape& shape,
-                                                const std::string& name) {
-    auto param = std::make_shared<v0::Parameter>(type, shape);
-    param->set_friendly_name(name);
-    param->output(0).set_names({name});
-    return param;
-}
-
 // Appends the vision-mask subgraph matched by RemoveTTIVisionSubgraph: one shared blockwise-mask
 // chain (subg1) and one shared Reshape chain (subg2), both branching into a global and a local
 // attention path that each merge into BitwiseOr(causal_mask, vision_block).
@@ -104,7 +89,7 @@ void add_vision_chain(const std::shared_ptr<v0::Parameter>& tti, ParameterVector
                                                      v0::Constant::create(element::i64, Shape{}, {1}),
                                                      v0::Constant::create(element::i32, Shape{}, {0}));
 
-    auto range_input = make_named_param(element::i64, Shape{1, 1, 1, SEQ}, "range_input");
+    auto range_input = ov::test::utils::create_param(element::i64, Shape{1, 1, 1, SEQ}, "range_input");
     auto subg1_less = std::make_shared<v1::Less>(range_input, subg1_gather);
     params.push_back(range_input);
 
@@ -124,9 +109,9 @@ void add_vision_chain(const std::shared_ptr<v0::Parameter>& tti, ParameterVector
     for (const char* branch : {"global", "local"}) {
         const std::string suffix = std::string("_") + branch;
 
-        auto select_input = make_named_param(element::i64, Shape{1, 1, 1, SEQ}, "select_input" + suffix);
+        auto select_input = ov::test::utils::create_param(element::i64, Shape{1, 1, 1, SEQ}, "select_input" + suffix);
         auto branch_select = std::make_shared<v1::Select>(subg1_less, select_input, zeros);
-        auto image_group_ids = make_named_param(element::i64, Shape{1, 1, SEQ, 1}, "image_group_ids" + suffix);
+        auto image_group_ids = ov::test::utils::create_param(element::i64, Shape{1, 1, SEQ, 1}, "image_group_ids" + suffix);
         auto branch_equal = std::make_shared<v1::Equal>(image_group_ids, branch_select);
 
         // First subg2 chain: Gather -> Reshape -> Reshape -> Equal.
@@ -139,7 +124,7 @@ void add_vision_chain(const std::shared_ptr<v0::Parameter>& tti, ParameterVector
         auto gather2 = std::make_shared<v8::Gather>(subg2_reshape, gather_indices, gather_axis);
         auto gather2_reshape = std::make_shared<v1::Reshape>(gather2, row_shape, false);
         auto gather2_reshape2 = std::make_shared<v1::Reshape>(gather2_reshape, col_shape, false);
-        auto image_token_mask = make_named_param(element::boolean, Shape{1, 1, 1, SEQ}, "image_token_mask" + suffix);
+        auto image_token_mask = ov::test::utils::create_param(element::boolean, Shape{1, 1, 1, SEQ}, "image_token_mask" + suffix);
         auto gather2_select = std::make_shared<v1::Select>(image_token_mask, gather2_reshape2, zeros);
         auto gather2_equal = std::make_shared<v1::Equal>(gather2_select, group_ids);
 
@@ -147,7 +132,7 @@ void add_vision_chain(const std::shared_ptr<v0::Parameter>& tti, ParameterVector
         auto vision_block = std::make_shared<v13::BitwiseAnd>(subg2_bw_and, branch_equal);
         vision_block->set_friendly_name("vision_block" + suffix);
 
-        auto causal_mask = make_named_param(element::boolean, Shape{1, 1, SEQ, SEQ}, "causal_mask" + suffix);
+        auto causal_mask = ov::test::utils::create_param(element::boolean, Shape{1, 1, SEQ, SEQ}, "causal_mask" + suffix);
         auto causal_or_vision = std::make_shared<v13::BitwiseOr>(causal_mask, vision_block);
         causal_or_vision->set_friendly_name("causal_or_vision" + suffix);
 
@@ -164,9 +149,9 @@ void add_shapeof_chain(const std::shared_ptr<v0::Parameter>& tti, ParameterVecto
     auto tti_gather = std::make_shared<v8::Gather>(tti_shape_of,
                                                    v0::Constant::create(element::i64, Shape{}, {1}),
                                                    v0::Constant::create(element::i32, Shape{}, {0}));
-    auto tti_range = make_named_param(element::i64, Shape{1, SEQ}, "tti_range");
+    auto tti_range = ov::test::utils::create_param(element::i64, Shape{1, SEQ}, "tti_range");
     auto tti_less = std::make_shared<v1::Less>(tti_range, tti_gather);
-    auto tti_pos_data = make_named_param(element::i64, Shape{1, SEQ}, "tti_pos_data");
+    auto tti_pos_data = ov::test::utils::create_param(element::i64, Shape{1, SEQ}, "tti_pos_data");
     auto tti_select =
         std::make_shared<v1::Select>(tti_less, tti_pos_data, v0::Constant::create(element::i64, Shape{}, {0}));
     auto tti_convert = std::make_shared<v0::Convert>(tti_select, element::i32);
@@ -177,11 +162,11 @@ void add_shapeof_chain(const std::shared_ptr<v0::Parameter>& tti, ParameterVecto
 
     const auto row_shape = v0::Constant::create(element::i64, Shape{2}, {int64_t{1}, SEQ_I64});
 
-    auto attention_mask = make_named_param(element::i64, Shape{1, SEQ}, "attention_mask");
+    auto attention_mask = ov::test::utils::create_param(element::i64, Shape{1, SEQ}, "attention_mask");
     auto attn_convert = std::make_shared<v0::Convert>(attention_mask, element::boolean);
     auto attn_reshape = std::make_shared<v1::Reshape>(attn_convert, row_shape, false);
 
-    auto attn_idx_src = make_named_param(element::i32, Shape{1, SEQ}, "attn_idx_src");
+    auto attn_idx_src = ov::test::utils::create_param(element::i32, Shape{1, SEQ}, "attn_idx_src");
     auto attn_idx_add = std::make_shared<v1::Add>(attn_idx_src, v0::Constant::create(element::i32, Shape{1, 1}, {0}));
     attn_idx_add->set_friendly_name("attn_idx_add");
 
@@ -191,7 +176,7 @@ void add_shapeof_chain(const std::shared_ptr<v0::Parameter>& tti, ParameterVecto
     auto attn_tti_reshape = std::make_shared<v1::Reshape>(attn_reshape_2, tti_shape_of_2, false);
     attn_tti_reshape->set_friendly_name("attn_tti_reshape");
 
-    auto preceding_mask = make_named_param(element::boolean, Shape{1, 1, SEQ, SEQ}, "preceding_mask");
+    auto preceding_mask = ov::test::utils::create_param(element::boolean, Shape{1, 1, SEQ, SEQ}, "preceding_mask");
     auto final_and = std::make_shared<v13::BitwiseAnd>(preceding_mask, attn_tti_reshape);
 
     params.insert(params.end(), {tti_range, tti_pos_data, attention_mask, attn_idx_src, preceding_mask});
@@ -199,7 +184,7 @@ void add_shapeof_chain(const std::shared_ptr<v0::Parameter>& tti, ParameterVecto
 }
 
 std::shared_ptr<ov::Model> make_vision_model() {
-    auto tti = make_token_type_ids();
+    auto tti = ov::test::utils::create_param(element::i64, Shape{1, SEQ}, "token_type_ids");
     ParameterVector params{tti};
     ResultVector results;
     add_vision_chain(tti, params, results);
@@ -207,7 +192,7 @@ std::shared_ptr<ov::Model> make_vision_model() {
 }
 
 std::shared_ptr<ov::Model> make_shapeof_model() {
-    auto tti = make_token_type_ids();
+    auto tti = ov::test::utils::create_param(element::i64, Shape{1, SEQ}, "token_type_ids");
     ParameterVector params{tti};
     ResultVector results;
     add_shapeof_chain(tti, params, results);
@@ -215,7 +200,7 @@ std::shared_ptr<ov::Model> make_shapeof_model() {
 }
 
 std::shared_ptr<ov::Model> make_combined_model() {
-    auto tti = make_token_type_ids();
+    auto tti = ov::test::utils::create_param(element::i64, Shape{1, SEQ}, "token_type_ids");
     ParameterVector params{tti};
     ResultVector results;
     add_vision_chain(tti, params, results);
@@ -226,7 +211,7 @@ std::shared_ptr<ov::Model> make_combined_model() {
 // Both known patterns plus a `token_type_ids` reader neither of them covers - stands in for e.g. an
 // attention branch whose vision subgraph deviates from the matched topology.
 std::shared_ptr<ov::Model> make_model_with_unmatched_consumer() {
-    auto tti = make_token_type_ids();
+    auto tti = ov::test::utils::create_param(element::i64, Shape{1, SEQ}, "token_type_ids");
     ParameterVector params{tti};
     ResultVector results;
     add_vision_chain(tti, params, results);
@@ -278,7 +263,7 @@ TEST(RemoveTokenTypeIdsTest, TestModelsAreValid) {
 // ---------------------------------------------------------------------------
 
 TEST(RemoveTokenTypeIdsTest, NoOpWhenTokenTypeIdsAbsent) {
-    auto input = make_named_param(element::f32, Shape{1, SEQ}, "input_ids");
+    auto input = ov::test::utils::create_param(element::f32, Shape{1, SEQ}, "input_ids");
     auto model = std::make_shared<ov::Model>(ResultVector{std::make_shared<v0::Result>(input)},
                                              ParameterVector{input},
                                              "no_tti_model");

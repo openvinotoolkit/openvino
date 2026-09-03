@@ -9,6 +9,7 @@
 
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
@@ -24,15 +25,6 @@ namespace helpers {
 
 static constexpr size_t MAX_CONTEXT_LEN = 1024;
 static constexpr size_t BLOCK_SIZE = 16;  //< Default for standard PA on GPU.
-
-static std::shared_ptr<ov::op::v0::Parameter> MakeParam(const PartialShape& pshape,
-                                                        element::Type element_type,
-                                                        const std::string& name) {
-    auto param = std::make_shared<v0::Parameter>(element_type, pshape);
-    param->set_friendly_name(name);
-    param->get_output_tensor(0).set_names({name});
-    return param;
-}
 
 static ov::Tensor GenerateTokenTypeTensor(size_t seq_len) {
     ov::Tensor tensor(ov::element::i32, {seq_len});
@@ -87,23 +79,23 @@ static std::shared_ptr<ov::Model> PrepareModel(ov::element::Type data_type,
                                                ov::Dimension::value_type head_size,
                                                ov::Dimension::value_type head_num,
                                                int32_t sliding_window_size) {
-    auto q = MakeParam(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "q");
-    auto k = MakeParam(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "k");
-    auto v = MakeParam(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "v");
+    auto q = ov::test::utils::create_param(data_type, PartialShape{-1, head_num * head_size}, "q");
+    auto k = ov::test::utils::create_param(data_type, PartialShape{-1, head_num * head_size}, "k");
+    auto v = ov::test::utils::create_param(data_type, PartialShape{-1, head_num * head_size}, "v");
 
     // GPU plugin expects 4-dim cache with concrete element type
     // key_cache: [num_blocks, num_kv_heads, head_size, block_size]
     // value_cache: [num_blocks, num_kv_heads, block_size, head_size]
     const int64_t block_size = helpers::BLOCK_SIZE;
     auto key_cache =
-        MakeParam(PartialShape{ov::Dimension::dynamic(), head_num, head_size, block_size}, data_type, "key_cache.0");
+        ov::test::utils::create_param(data_type, PartialShape{-1, head_num, head_size, block_size}, "key_cache.0");
     auto value_cache =
-        MakeParam(PartialShape{ov::Dimension::dynamic(), head_num, block_size, head_size}, data_type, "value_cache.0");
-    auto past_lens = MakeParam(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "past_lens");
-    auto subsequence_begins = MakeParam(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "subsequence_begins");
-    auto block_indices = MakeParam(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "block_indices");
+        ov::test::utils::create_param(data_type, PartialShape{-1, head_num, block_size, head_size}, "value_cache.0");
+    auto past_lens = ov::test::utils::create_param(ov::element::i32, PartialShape{-1}, "past_lens");
+    auto subsequence_begins = ov::test::utils::create_param(ov::element::i32, PartialShape{-1}, "subsequence_begins");
+    auto block_indices = ov::test::utils::create_param(ov::element::i32, PartialShape{-1}, "block_indices");
     auto block_indices_begins =
-        MakeParam(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "block_indices_begins");
+        ov::test::utils::create_param(ov::element::i32, PartialShape{-1}, "block_indices_begins");
 
     float scale_value = 1.0f / std::sqrt(static_cast<float>(head_size));
     auto scale = std::make_shared<v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{scale_value});
@@ -128,7 +120,7 @@ static std::shared_ptr<ov::Model> PrepareModel(ov::element::Type data_type,
     auto adaptive_rkv_diversity_block_set_indices_begins =
         std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
 
-    auto token_type_ids = MakeParam(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "token_type_ids");
+    auto token_type_ids = ov::test::utils::create_param(ov::element::i32, PartialShape{-1}, "token_type_ids");
     auto qq_bias = std::make_shared<v0::Constant>(ov::element::u8, Shape{0}, std::vector<uint8_t>{0});
     auto qq_bias_begins = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
 

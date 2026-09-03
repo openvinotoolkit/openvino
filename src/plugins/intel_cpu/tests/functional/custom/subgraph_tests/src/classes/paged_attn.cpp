@@ -298,8 +298,7 @@ std::shared_ptr<ov::Model> PagedAttnTestBase::get_ref_model(ov::element::Type da
     std::shared_ptr<ov::Node> q_in = std::make_shared<ov::op::v1::Transpose>(inputParams[0], preOrder);
 
     auto concat_axis = transposeOrder[2];
-    auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
-    beam_idx->set_friendly_name("beam_idx");
+    auto beam_idx = ov::test::utils::create_param(ov::element::i32, ov::PartialShape{-1}, "beam_idx");
     inputParams.push_back(beam_idx);
     auto gatherK =
         std::make_shared<ov::op::v8::Gather>(pastk,
