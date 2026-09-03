@@ -22,6 +22,7 @@
 #include <stdexcept>
 
 #include "op_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
@@ -373,8 +374,7 @@ namespace {
 // arbitrary op fed by the state Parameter; its friendly name is what
 // make_recurrent_states_stateful matches a Result's producer against (see make_stateful.cpp).
 std::shared_ptr<ov::Model> recurrent_state_model(bool with_kv_cache) {
-    auto state_in = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 4});
-    state_in->set_friendly_name("state_in");
+    auto state_in = ov::test::utils::create_param(ov::element::f32, ov::Shape{1, 2, 4}, "state_in");
     auto state_out = std::make_shared<ov::op::v0::Abs>(state_in);
     state_out->set_friendly_name("state_out");
     auto state_result = std::make_shared<ov::op::v0::Result>(state_out);
@@ -387,8 +387,7 @@ std::shared_ptr<ov::Model> recurrent_state_model(bool with_kv_cache) {
         // element type before constructing SetRows, so data and cache always agree here too.
         auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, -1, 2, 4});
         auto idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 1, 1, -1});
-        auto cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, -1, 2, 4});
-        cache->set_friendly_name("cache");
+        auto cache = ov::test::utils::create_param(ov::element::f16, ov::PartialShape{1, -1, 2, 4}, "cache");
         auto set_rows = std::make_shared<SetRows>(data, idx, cache);
         auto cache_result = std::make_shared<ov::op::v0::Result>(set_rows);
         params.insert(params.end(), {data, idx, cache});
