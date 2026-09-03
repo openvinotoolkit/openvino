@@ -1198,11 +1198,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     if (m_is_whisper) {
         update_config_for_whisper(prefill_config);
-        if (is_int8_compressed(model)) {
-            disable_ws_for_whisper(prefill_config);
-            disable_ws_for_whisper(generate_config);
-            LOG_INFO(" WS is disabled for Whisper int8 model!");
-        }
+        disable_ws_for_whisper(prefill_config);
+        disable_ws_for_whisper(generate_config);
+        LOG_INFO("NPUW_FOLD and NPUW_FUNCALL_FOR_ALL are disabled for Whisper model.");
     }
 
     if (m_is_embedding) {
