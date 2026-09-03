@@ -97,7 +97,6 @@ TEST_P(OVCompiledGraphImportExportTestNPU, NonELFBlobExportThrows) {
     auto rawBlobConfig = configuration;
     const ov::AnyMap nonBlobConfigs{
         ov::enable_weightless(true),
-        ov::intel_npu::compilation_mode(::intel_npu::test_constants::HostCompile),
         ov::intel_npu::compilation_mode(::intel_npu::test_constants::HostCompile_Interpreter)};
     rawBlobConfig.emplace(ov::intel_npu::export_raw_blob(true));
     rawBlobConfig.emplace(ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN));

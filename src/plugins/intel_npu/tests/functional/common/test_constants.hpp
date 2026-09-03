@@ -19,7 +19,6 @@ inline constexpr uint32_t TARGET_ZE_CONTEXT_NPU_EXT_VERSION = ZE_CONTEXT_NPU_EXT
 inline constexpr uint32_t TARGET_ZE_MUTABLE_COMMAND_LIST_EXT_VERSION = ZE_MUTABLE_COMMAND_LIST_EXP_VERSION_1_1;
 inline constexpr uint32_t TARGET_ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION = ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION_1_0;
 
-inline constexpr std::string_view HostCompile = "HostCompile";
 inline constexpr std::string_view HostCompile_Interpreter = "HostCompile_Interpreter";
 
 }  // namespace test_constants
