@@ -6,6 +6,7 @@
 
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "internal_properties.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -96,15 +97,6 @@ std::string PagedAttnTestBase::getTestCaseName(const testing::TestParamInfo<Page
     return result.str();
 }
 
-std::shared_ptr<ov::op::v0::Parameter> PagedAttnTestBase::make_param(const PartialShape& pshape,
-                                                            element::Type element_type,
-                                                            const std::string& name) {
-    auto param = std::make_shared<v0::Parameter>(element_type, pshape);
-    param->set_friendly_name(name);
-    param->get_output_tensor(0).set_names({name});
-    return param;
-}
-
 std::shared_ptr<ov::Model> PagedAttnTestBase::get_model(ov::element::Type data_type,
                                         bool enable_xattn,
                                         ov::Dimension::value_type head_size,
@@ -115,25 +107,25 @@ std::shared_ptr<ov::Model> PagedAttnTestBase::get_model(ov::element::Type data_t
     // q [batch_in_tokens, head_num * head_size]
     // k [batch_in_tokens, head_num * head_size]
     // v [batch_in_tokens, head_num * head_size]
-    auto q = make_param(PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, data_type, "q");
-    auto k = make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "k");
-    auto v = make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "v");
-    auto key_cache = make_param(PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic()},
-                                ov::element::dynamic,
-                                "key_cache.0");
-    auto value_cache = make_param(PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic()},
-                                    ov::element::dynamic,
-                                    "value_cache.0");
+    auto q = utils::create_param(data_type, PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, "q");
+    auto k = utils::create_param(data_type, PartialShape{ov::Dimension::dynamic(), head_num * head_size}, "k");
+    auto v = utils::create_param(data_type, PartialShape{ov::Dimension::dynamic(), head_num * head_size}, "v");
+    auto key_cache = utils::create_param(ov::element::dynamic,
+                                                   PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic()},
+                                                   "key_cache.0");
+    auto value_cache = utils::create_param(ov::element::dynamic,
+                                                      PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic()},
+                                                      "value_cache.0");
 
     enable_keep_const_precision(key_cache);
     enable_keep_const_precision(value_cache);
     
-    auto past_lens = make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "past_lens");
+    auto past_lens = utils::create_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "past_lens");
     auto subsequence_begins =
-        make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "subsequence_begins");
-    auto block_indices = make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "block_indices");
+        utils::create_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "subsequence_begins");
+    auto block_indices = utils::create_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "block_indices");
     auto block_indices_begins =
-        make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "block_indices_begins");
+        utils::create_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "block_indices_begins");
     float scale_value = 1.0 / std::sqrt(head_size);
     auto scale =
         std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{scale_value});
@@ -234,9 +226,9 @@ std::shared_ptr<ov::Model> PagedAttnTestBase::get_model(ov::element::Type data_t
         // whatever the original graph had into these ports. When write_kv_cache=false,
         // the kernel ignores them entirely — it only reads from the shared cache.
         auto k_reader =
-            make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "k_reader");
+            utils::create_param(data_type, PartialShape{ov::Dimension::dynamic(), head_num * head_size}, "k_reader");
         auto v_reader =
-            make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "v_reader");
+            utils::create_param(data_type, PartialShape{ov::Dimension::dynamic(), head_num * head_size}, "v_reader");
         params.push_back(k_reader);
         params.push_back(v_reader);
 
@@ -270,16 +262,16 @@ std::shared_ptr<ov::Model> PagedAttnTestBase::get_ref_model(ov::element::Type da
     scale_shape = {1};
     sink_shape = {1, head_num, 1, 1};
 
-    auto q = make_param(q_shape, data_type, "q");
-    auto k = make_param(kv_shape, data_type, "k");
-    auto v = make_param(kv_shape, data_type, "v");
-    auto atten_mask = make_param(atten_mask_shape, data_type, "atten_mask");
-    auto scale = make_param(scale_shape, data_type, "scale");
+    auto q = utils::create_param(data_type, q_shape, "q");
+    auto k = utils::create_param(data_type, kv_shape, "k");
+    auto v = utils::create_param(data_type, kv_shape, "v");
+    auto atten_mask = utils::create_param(data_type, atten_mask_shape, "atten_mask");
+    auto scale = utils::create_param(data_type, scale_shape, "scale");
     std::shared_ptr<ov::op::v0::Parameter> sink = nullptr;
     if (use_sink_input) {
-        sink = make_param(sink_shape, data_type, "sink");
+        sink = utils::create_param(data_type, sink_shape, "sink");
     }
-    auto past_kv = make_param(past_shape, data_type, "past_kv");
+    auto past_kv = utils::create_param(data_type, past_shape, "past_kv");
     inputParams.push_back(q);
     inputParams.push_back(k);
     inputParams.push_back(v);
@@ -306,8 +298,7 @@ std::shared_ptr<ov::Model> PagedAttnTestBase::get_ref_model(ov::element::Type da
     std::shared_ptr<ov::Node> q_in = std::make_shared<ov::op::v1::Transpose>(inputParams[0], preOrder);
 
     auto concat_axis = transposeOrder[2];
-    auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
-    beam_idx->set_friendly_name("beam_idx");
+    auto beam_idx = ov::test::utils::create_param(ov::element::i32, ov::PartialShape{-1}, "beam_idx");
     inputParams.push_back(beam_idx);
     auto gatherK =
         std::make_shared<ov::op::v8::Gather>(pastk,
@@ -734,13 +725,13 @@ std::shared_ptr<ov::Model> PagedAttnVSMatmulTest::get_ref_model(ov::element::Typ
     atten_mask_shape = {1, head_num, -1, -1};
     scale_shape = {1};
 
-    auto q = make_param(q_shape, data_type, "q");
-    auto k = make_param(kv_shape, data_type, "k");
-    auto v = make_param(kv_shape, data_type, "v");
-    auto atten_mask = make_param(atten_mask_shape, data_type, "atten_mask");
-    auto scale = make_param(scale_shape, data_type, "scale");
-    auto past_kv = make_param(past_shape, data_type, "past_kv");
-    auto beam_idx = make_param(ov::PartialShape{-1}, ov::element::i32, "beam_idx");
+    auto q = utils::create_param(data_type, q_shape, "q");
+    auto k = utils::create_param(data_type, kv_shape, "k");
+    auto v = utils::create_param(data_type, kv_shape, "v");
+    auto atten_mask = utils::create_param(data_type, atten_mask_shape, "atten_mask");
+    auto scale = utils::create_param(data_type, scale_shape, "scale");
+    auto past_kv = utils::create_param(data_type, past_shape, "past_kv");
+    auto beam_idx = utils::create_param(ov::element::i32, ov::PartialShape{-1}, "beam_idx");
 
     inputParams.push_back(q);
     inputParams.push_back(k);
@@ -913,30 +904,30 @@ void PagedAttnCacheCollisionTest::SetUp() {
 }
 
 std::shared_ptr<ov::Model> PagedAttnCacheCollisionTest::get_mixed_head_model(ov::element::Type data_type, int64_t hs1, int64_t hn) {
-    auto q1 = make_param(PartialShape{Dimension::dynamic(), Dimension::dynamic()}, data_type, "q1");
-    auto k1 = make_param(PartialShape{Dimension::dynamic(), hn * hs1}, data_type, "k1");
-    auto v1 = make_param(PartialShape{Dimension::dynamic(), hn * hs1}, data_type, "v1");
-    auto kc1 = make_param(PartialShape{Dimension::dynamic(), 32, Dimension::dynamic()},
-                            element::dynamic, "key_cache.0");
-    auto vc1 = make_param(PartialShape{Dimension::dynamic(), 32, Dimension::dynamic()},
-                            element::dynamic, "value_cache.0");
+    auto q1 = utils::create_param(data_type, PartialShape{Dimension::dynamic(), Dimension::dynamic()}, "q1");
+    auto k1 = utils::create_param(data_type, PartialShape{Dimension::dynamic(), hn * hs1}, "k1");
+    auto v1 = utils::create_param(data_type, PartialShape{Dimension::dynamic(), hn * hs1}, "v1");
+    auto kc1 = utils::create_param(element::dynamic,
+                                             PartialShape{Dimension::dynamic(), 32, Dimension::dynamic()}, "key_cache.0");
+    auto vc1 = utils::create_param(element::dynamic,
+                                             PartialShape{Dimension::dynamic(), 32, Dimension::dynamic()}, "value_cache.0");
     enable_keep_const_precision(kc1);
     enable_keep_const_precision(vc1);
 
-    auto q2 = make_param(PartialShape{Dimension::dynamic(), Dimension::dynamic()}, data_type, "q2");
-    auto k2 = make_param(PartialShape{Dimension::dynamic(), hn * hs2_val}, data_type, "k2");
-    auto v2 = make_param(PartialShape{Dimension::dynamic(), hn * hs2_val}, data_type, "v2");
-    auto kc2 = make_param(PartialShape{Dimension::dynamic(), 32, Dimension::dynamic()},
-                            element::dynamic, "key_cache.1");
-    auto vc2 = make_param(PartialShape{Dimension::dynamic(), 32, Dimension::dynamic()},
-                            element::dynamic, "value_cache.1");
+    auto q2 = utils::create_param(data_type, PartialShape{Dimension::dynamic(), Dimension::dynamic()}, "q2");
+    auto k2 = utils::create_param(data_type, PartialShape{Dimension::dynamic(), hn * hs2_val}, "k2");
+    auto v2 = utils::create_param(data_type, PartialShape{Dimension::dynamic(), hn * hs2_val}, "v2");
+    auto kc2 = utils::create_param(element::dynamic,
+                                             PartialShape{Dimension::dynamic(), 32, Dimension::dynamic()}, "key_cache.1");
+    auto vc2 = utils::create_param(element::dynamic,
+                                             PartialShape{Dimension::dynamic(), 32, Dimension::dynamic()}, "value_cache.1");
     enable_keep_const_precision(kc2);
     enable_keep_const_precision(vc2);
 
-    auto past_lens = make_param(PartialShape{Dimension::dynamic()}, element::i32, "past_lens");
-    auto subseq = make_param(PartialShape{Dimension::dynamic()}, element::i32, "subsequence_begins");
-    auto blk_idx = make_param(PartialShape{Dimension::dynamic()}, element::i32, "block_indices");
-    auto blk_begins = make_param(PartialShape{Dimension::dynamic()}, element::i32, "block_indices_begins");
+    auto past_lens = utils::create_param(element::i32, PartialShape{Dimension::dynamic()}, "past_lens");
+    auto subseq = utils::create_param(element::i32, PartialShape{Dimension::dynamic()}, "subsequence_begins");
+    auto blk_idx = utils::create_param(element::i32, PartialShape{Dimension::dynamic()}, "block_indices");
+    auto blk_begins = utils::create_param(element::i32, PartialShape{Dimension::dynamic()}, "block_indices_begins");
 
     auto make_consts = [](int64_t hs) {
         float sv = 1.0f / std::sqrt(static_cast<float>(hs));

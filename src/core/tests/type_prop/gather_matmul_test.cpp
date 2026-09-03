@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/constant.hpp"
@@ -21,10 +22,6 @@ auto make_const(element::Type et, const Shape& shape) {
     return Constant::create(et, shape, {0.f});
 }
 
-auto make_param(element::Type et, const PartialShape& shape) {
-    return std::make_shared<Parameter>(et, shape);
-}
-
 auto make_empty_bias() {
     return std::make_shared<Constant>(element::dynamic, Shape{0});
 }
@@ -38,9 +35,9 @@ using GatherMatmulTest = TypePropOpTest<ov::op::internal::GatherMatmul>;
 
 // 3-arg constructor: A[0]=1 broadcasts to topk=2
 TEST_F(GatherMatmulTest, shape_3arg_gate_broadcast) {
-    auto a = make_param(element::f32, {1, 64, 2048});
+    auto a = ov::test::utils::create_param(element::f32, {1, 64, 2048});
     auto b = make_const(element::f32, {8, 4096, 2048});
-    auto idx = make_param(element::i32, {64, 2});
+    auto idx = ov::test::utils::create_param(element::i32, {64, 2});
 
     auto op = make_op(a, b, idx);
 
@@ -50,9 +47,9 @@ TEST_F(GatherMatmulTest, shape_3arg_gate_broadcast) {
 
 // 3-arg constructor: A[0]=topk (non-broadcast)
 TEST_F(GatherMatmulTest, shape_3arg_down_projection) {
-    auto a = make_param(element::f32, {2, 64, 4096});
+    auto a = ov::test::utils::create_param(element::f32, {2, 64, 4096});
     auto b = make_const(element::f32, {8, 2048, 4096});
-    auto idx = make_param(element::i32, {64, 2});
+    auto idx = ov::test::utils::create_param(element::i32, {64, 2});
 
     auto op = make_op(a, b, idx);
 
@@ -61,9 +58,9 @@ TEST_F(GatherMatmulTest, shape_3arg_down_projection) {
 
 // 4-arg constructor with 3D bias [n_experts, 1, N]
 TEST_F(GatherMatmulTest, shape_4arg_bias_3d) {
-    auto a = make_param(element::f32, {1, 64, 2048});
+    auto a = ov::test::utils::create_param(element::f32, {1, 64, 2048});
     auto b = make_const(element::f32, {8, 8192, 2048});
-    auto idx = make_param(element::i32, {64, 2});
+    auto idx = ov::test::utils::create_param(element::i32, {64, 2});
     auto bias = make_const(element::f32, {8, 1, 8192});
 
     auto op = make_op(a, b, idx, bias);
@@ -73,9 +70,9 @@ TEST_F(GatherMatmulTest, shape_4arg_bias_3d) {
 
 // 4-arg constructor with 1D bias
 TEST_F(GatherMatmulTest, shape_4arg_bias_1d) {
-    auto a = make_param(element::f32, {1, 64, 2048});
+    auto a = ov::test::utils::create_param(element::f32, {1, 64, 2048});
     auto b = make_const(element::f32, {8, 4096, 2048});
-    auto idx = make_param(element::i32, {64, 2});
+    auto idx = ov::test::utils::create_param(element::i32, {64, 2});
     auto bias = make_const(element::f32, {4096});
 
     auto op = make_op(a, b, idx, bias);
@@ -85,9 +82,9 @@ TEST_F(GatherMatmulTest, shape_4arg_bias_1d) {
 
 // 4-arg constructor with scalar bias
 TEST_F(GatherMatmulTest, shape_4arg_bias_scalar) {
-    auto a = make_param(element::f32, {1, 64, 2048});
+    auto a = ov::test::utils::create_param(element::f32, {1, 64, 2048});
     auto b = make_const(element::f32, {8, 4096, 2048});
-    auto idx = make_param(element::i32, {64, 2});
+    auto idx = ov::test::utils::create_param(element::i32, {64, 2});
     auto bias = make_const(element::f32, {});
 
     auto op = make_op(a, b, idx, bias);
@@ -97,9 +94,9 @@ TEST_F(GatherMatmulTest, shape_4arg_bias_scalar) {
 
 // 4D group-compressed weights
 TEST_F(GatherMatmulTest, shape_weights_4d_grouped) {
-    auto a = make_param(element::f32, {1, 64, 2048});
+    auto a = ov::test::utils::create_param(element::f32, {1, 64, 2048});
     auto b = make_const(element::f32, {8, 4096, 16, 128});
-    auto idx = make_param(element::i32, {64, 2});
+    auto idx = ov::test::utils::create_param(element::i32, {64, 2});
 
     auto op = make_op(a, b, idx);
 
@@ -108,9 +105,9 @@ TEST_F(GatherMatmulTest, shape_weights_4d_grouped) {
 
 // Output element type should match input A
 TEST_F(GatherMatmulTest, output_type_matches_A) {
-    auto a = make_param(element::f16, {1, 64, 2048});
+    auto a = ov::test::utils::create_param(element::f16, {1, 64, 2048});
     auto b = make_const(element::f16, {8, 4096, 2048});
-    auto idx = make_param(element::i32, {64, 2});
+    auto idx = ov::test::utils::create_param(element::i32, {64, 2});
 
     auto op = make_op(a, b, idx);
 
@@ -119,9 +116,9 @@ TEST_F(GatherMatmulTest, output_type_matches_A) {
 
 // Dynamic sequence length in A and indices
 TEST_F(GatherMatmulTest, shape_dynamic_seq_len) {
-    auto a = make_param(element::f32, {1, Dimension::dynamic(), 2048});
+    auto a = ov::test::utils::create_param(element::f32, {1, Dimension::dynamic(), 2048});
     auto b = make_const(element::f32, {8, 4096, 2048});
-    auto idx = make_param(element::i32, {Dimension::dynamic(), 2});
+    auto idx = ov::test::utils::create_param(element::i32, {Dimension::dynamic(), 2});
 
     auto op = make_op(a, b, idx);
 
@@ -133,9 +130,9 @@ TEST_F(GatherMatmulTest, shape_dynamic_seq_len) {
 
 // Dynamic topk dimension
 TEST_F(GatherMatmulTest, shape_dynamic_topk) {
-    auto a = make_param(element::f32, {Dimension::dynamic(), 64, 2048});
+    auto a = ov::test::utils::create_param(element::f32, {Dimension::dynamic(), 64, 2048});
     auto b = make_const(element::f32, {8, 4096, 2048});
-    auto idx = make_param(element::i32, {64, Dimension::dynamic()});
+    auto idx = ov::test::utils::create_param(element::i32, {64, Dimension::dynamic()});
 
     auto op = make_op(a, b, idx);
 
@@ -147,9 +144,9 @@ TEST_F(GatherMatmulTest, shape_dynamic_topk) {
 
 // Edge case: single expert, topk=1
 TEST_F(GatherMatmulTest, shape_single_expert) {
-    auto a = make_param(element::f32, {1, 32, 1024});
+    auto a = ov::test::utils::create_param(element::f32, {1, 32, 1024});
     auto b = make_const(element::f32, {1, 512, 1024});
-    auto idx = make_param(element::i32, {32, 1});
+    auto idx = ov::test::utils::create_param(element::i32, {32, 1});
 
     auto op = make_op(a, b, idx);
 
@@ -161,9 +158,9 @@ TEST_F(GatherMatmulTest, shape_single_expert) {
 // ============================================================================
 
 TEST_F(GatherMatmulTest, fail_A_rank_2d) {
-    auto a = make_param(element::f32, {64, 2048});
+    auto a = ov::test::utils::create_param(element::f32, {64, 2048});
     auto b = make_const(element::f32, {8, 4096, 2048});
-    auto idx = make_param(element::i32, {64, 2});
+    auto idx = ov::test::utils::create_param(element::i32, {64, 2});
 
     OV_EXPECT_THROW(std::ignore = make_op(a, b, idx),
                     ov::NodeValidationFailure,
@@ -171,9 +168,9 @@ TEST_F(GatherMatmulTest, fail_A_rank_2d) {
 }
 
 TEST_F(GatherMatmulTest, fail_A_rank_4d) {
-    auto a = make_param(element::f32, {1, 1, 64, 2048});
+    auto a = ov::test::utils::create_param(element::f32, {1, 1, 64, 2048});
     auto b = make_const(element::f32, {8, 4096, 2048});
-    auto idx = make_param(element::i32, {64, 2});
+    auto idx = ov::test::utils::create_param(element::i32, {64, 2});
 
     OV_EXPECT_THROW(std::ignore = make_op(a, b, idx),
                     ov::NodeValidationFailure,
@@ -181,9 +178,9 @@ TEST_F(GatherMatmulTest, fail_A_rank_4d) {
 }
 
 TEST_F(GatherMatmulTest, fail_B_rank_2d) {
-    auto a = make_param(element::f32, {1, 64, 2048});
+    auto a = ov::test::utils::create_param(element::f32, {1, 64, 2048});
     auto b = make_const(element::f32, {4096, 2048});
-    auto idx = make_param(element::i32, {64, 2});
+    auto idx = ov::test::utils::create_param(element::i32, {64, 2});
 
     OV_EXPECT_THROW(std::ignore = make_op(a, b, idx),
                     ov::NodeValidationFailure,
@@ -191,9 +188,9 @@ TEST_F(GatherMatmulTest, fail_B_rank_2d) {
 }
 
 TEST_F(GatherMatmulTest, fail_B_rank_5d) {
-    auto a = make_param(element::f32, {1, 64, 2048});
+    auto a = ov::test::utils::create_param(element::f32, {1, 64, 2048});
     auto b = make_const(element::f32, {8, 4096, 4, 4, 32});
-    auto idx = make_param(element::i32, {64, 2});
+    auto idx = ov::test::utils::create_param(element::i32, {64, 2});
 
     OV_EXPECT_THROW(std::ignore = make_op(a, b, idx),
                     ov::NodeValidationFailure,
@@ -201,9 +198,9 @@ TEST_F(GatherMatmulTest, fail_B_rank_5d) {
 }
 
 TEST_F(GatherMatmulTest, fail_indices_rank_1d) {
-    auto a = make_param(element::f32, {1, 64, 2048});
+    auto a = ov::test::utils::create_param(element::f32, {1, 64, 2048});
     auto b = make_const(element::f32, {8, 4096, 2048});
-    auto idx = make_param(element::i32, {64});
+    auto idx = ov::test::utils::create_param(element::i32, {64});
 
     OV_EXPECT_THROW(std::ignore = make_op(a, b, idx),
                     ov::NodeValidationFailure,
@@ -211,9 +208,9 @@ TEST_F(GatherMatmulTest, fail_indices_rank_1d) {
 }
 
 TEST_F(GatherMatmulTest, fail_indices_rank_3d) {
-    auto a = make_param(element::f32, {1, 64, 2048});
+    auto a = ov::test::utils::create_param(element::f32, {1, 64, 2048});
     auto b = make_const(element::f32, {8, 4096, 2048});
-    auto idx = make_param(element::i32, {1, 64, 2});
+    auto idx = ov::test::utils::create_param(element::i32, {1, 64, 2});
 
     OV_EXPECT_THROW(std::ignore = make_op(a, b, idx),
                     ov::NodeValidationFailure,
@@ -221,9 +218,9 @@ TEST_F(GatherMatmulTest, fail_indices_rank_3d) {
 }
 
 TEST_F(GatherMatmulTest, fail_bias_rank_2d) {
-    auto a = make_param(element::f32, {1, 64, 2048});
+    auto a = ov::test::utils::create_param(element::f32, {1, 64, 2048});
     auto b = make_const(element::f32, {8, 4096, 2048});
-    auto idx = make_param(element::i32, {64, 2});
+    auto idx = ov::test::utils::create_param(element::i32, {64, 2});
     auto bias = make_const(element::f32, {1, 4096});
 
     OV_EXPECT_THROW(std::ignore = make_op(a, b, idx, bias),
@@ -233,9 +230,9 @@ TEST_F(GatherMatmulTest, fail_bias_rank_2d) {
 
 // A[0]=3 but topk=2 → 3 is neither 1 nor 2
 TEST_F(GatherMatmulTest, fail_A0_not_broadcastable_to_topk) {
-    auto a = make_param(element::f32, {3, 64, 2048});
+    auto a = ov::test::utils::create_param(element::f32, {3, 64, 2048});
     auto b = make_const(element::f32, {8, 4096, 2048});
-    auto idx = make_param(element::i32, {64, 2});
+    auto idx = ov::test::utils::create_param(element::i32, {64, 2});
 
     OV_EXPECT_THROW(std::ignore = make_op(a, b, idx),
                     ov::NodeValidationFailure,
@@ -244,9 +241,9 @@ TEST_F(GatherMatmulTest, fail_A0_not_broadcastable_to_topk) {
 
 // topk=8 > n_experts=4
 TEST_F(GatherMatmulTest, fail_topk_exceeds_experts) {
-    auto a = make_param(element::f32, {1, 64, 2048});
+    auto a = ov::test::utils::create_param(element::f32, {1, 64, 2048});
     auto b = make_const(element::f32, {4, 4096, 2048});
-    auto idx = make_param(element::i32, {64, 8});
+    auto idx = ov::test::utils::create_param(element::i32, {64, 8});
 
     OV_EXPECT_THROW(std::ignore = make_op(a, b, idx),
                     ov::NodeValidationFailure,
@@ -255,9 +252,9 @@ TEST_F(GatherMatmulTest, fail_topk_exceeds_experts) {
 
 // A[1]=64 but idx[0]=32
 TEST_F(GatherMatmulTest, fail_seq_length_mismatch) {
-    auto a = make_param(element::f32, {1, 64, 2048});
+    auto a = ov::test::utils::create_param(element::f32, {1, 64, 2048});
     auto b = make_const(element::f32, {8, 4096, 2048});
-    auto idx = make_param(element::i32, {32, 2});
+    auto idx = ov::test::utils::create_param(element::i32, {32, 2});
 
     OV_EXPECT_THROW(std::ignore = make_op(a, b, idx),
                     ov::NodeValidationFailure,
@@ -269,9 +266,9 @@ TEST_F(GatherMatmulTest, fail_seq_length_mismatch) {
 // ============================================================================
 
 TEST_F(GatherMatmulTest, clone_preserves_output_shape) {
-    auto a = make_param(element::f32, {1, 64, 2048});
+    auto a = ov::test::utils::create_param(element::f32, {1, 64, 2048});
     auto b = make_const(element::f32, {8, 4096, 2048});
-    auto idx = make_param(element::i32, {64, 2});
+    auto idx = ov::test::utils::create_param(element::i32, {64, 2});
 
     auto op = make_op(a, b, idx);
     auto cloned = op->clone_with_new_inputs({a, b, idx, make_empty_bias()});

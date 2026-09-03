@@ -8,6 +8,7 @@
 #include <numeric>
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "internal_properties.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node_vector.hpp"
@@ -74,14 +75,6 @@ public:
 
         return result.str();
     }
-    static std::shared_ptr<ov::op::v0::Parameter> make_param(const PartialShape& pshape,
-                                                             element::Type element_type,
-                                                             const std::string& name) {
-        auto param = std::make_shared<v0::Parameter>(element_type, pshape);
-        param->set_friendly_name(name);
-        param->get_output_tensor(0).set_names({name});
-        return param;
-    }
     virtual std::shared_ptr<ov::Model> get_model(ov::element::Type data_type,
                                                      ov::Dimension::value_type head_size = 64,
                                                      ov::Dimension::value_type head_num = 8) {
@@ -95,13 +88,13 @@ public:
         scale_shape = {1};
         sink_shape = {1, head_num, 1, 1};
 
-        auto q = make_param(q_shape, data_type, "q");
-        auto k = make_param(kv_shape, data_type, "k");
-        auto v = make_param(kv_shape, data_type, "v");
-        auto past_kv = make_param(past_shape, data_type, "past_kv");
-        auto atten_mask = make_param(atten_mask_shape, data_type, "atten_mask");
-        auto scale = make_param(scale_shape, data_type, "scale");
-        auto sink = make_param(sink_shape, data_type, "sink");
+        auto q = utils::create_param(data_type, q_shape, "q");
+        auto k = utils::create_param(data_type, kv_shape, "k");
+        auto v = utils::create_param(data_type, kv_shape, "v");
+        auto past_kv = utils::create_param(data_type, past_shape, "past_kv");
+        auto atten_mask = utils::create_param(data_type, atten_mask_shape, "atten_mask");
+        auto scale = utils::create_param(data_type, scale_shape, "scale");
+        auto sink = utils::create_param(data_type, sink_shape, "sink");
         inputParams.push_back(q);
         inputParams.push_back(k);
         inputParams.push_back(v);
@@ -122,8 +115,7 @@ public:
         std::shared_ptr<ov::Node> q_in = std::make_shared<ov::op::v1::Transpose>(inputParams[0], preOrder);
 
         auto concat_axis = transposeOrder[2];
-        auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
-        beam_idx->set_friendly_name("beam_idx");
+        auto beam_idx = ov::test::utils::create_param(ov::element::i32, ov::PartialShape{-1}, "beam_idx");
         inputParams.push_back(beam_idx);
         auto gatherK =
             std::make_shared<ov::op::v8::Gather>(pastk,

@@ -126,6 +126,17 @@ namespace ov {
 namespace test {
 namespace utils {
 
+std::shared_ptr<ov::op::v0::Parameter> create_param(ov::element::Type et,
+                                                    const ov::PartialShape& shape,
+                                                    const std::string& name) {
+    auto p = std::make_shared<ov::op::v0::Parameter>(et, shape);
+    if (!name.empty()) {
+        p->set_friendly_name(name);
+        p->get_output_tensor(0).set_names({name});
+    }
+    return p;
+}
+
 ov::TensorVector infer_on_template(const std::shared_ptr<ov::Model>& model, const ov::TensorVector& input_tensors) {
     std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs;
     auto params = model->inputs();

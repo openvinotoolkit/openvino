@@ -313,20 +313,17 @@ TEST_F(TransformationTestsF, StateConcatSDPASharedKVCache) {
 // SDPA_s1 and SDPA_s2 must remain as plain ScaledDotProductAttention.
 static std::shared_ptr<ov::Model> makeMixedSharedAndExclusiveKVModel(const ov::PartialShape& inputShape,
                                                                      bool isRef = false) {
-    auto make_param = [&](element::Type t, const ov::PartialShape& s) {
-        return std::make_shared<ov::op::v0::Parameter>(t, s);
-    };
-    auto beam_idx = make_param(element::i32, ov::PartialShape{-1});
+    auto beam_idx = ov::test::utils::create_param(element::i32, ov::PartialShape{-1});
 
     // Shared part
-    auto q_s1 = make_param(element::f32, inputShape);
-    auto k_s1 = make_param(element::f32, inputShape);
-    auto v_s1 = make_param(element::f32, inputShape);
-    auto q_s2 = make_param(element::f32, inputShape);
-    auto k_s2 = make_param(element::f32, inputShape);
-    auto v_s2 = make_param(element::f32, inputShape);
-    auto init_ks = make_param(element::f32, inputShape);
-    auto init_vs = make_param(element::f32, inputShape);
+    auto q_s1 = ov::test::utils::create_param(element::f32, inputShape);
+    auto k_s1 = ov::test::utils::create_param(element::f32, inputShape);
+    auto v_s1 = ov::test::utils::create_param(element::f32, inputShape);
+    auto q_s2 = ov::test::utils::create_param(element::f32, inputShape);
+    auto k_s2 = ov::test::utils::create_param(element::f32, inputShape);
+    auto v_s2 = ov::test::utils::create_param(element::f32, inputShape);
+    auto init_ks = ov::test::utils::create_param(element::f32, inputShape);
+    auto init_vs = ov::test::utils::create_param(element::f32, inputShape);
     auto var_ks = std::make_shared<ov::op::util::Variable>(
         ov::op::util::VariableInfo{inputShape, element::f32, "shared_pastk"});
     auto var_vs = std::make_shared<ov::op::util::Variable>(
@@ -353,11 +350,11 @@ static std::shared_ptr<ov::Model> makeMixedSharedAndExclusiveKVModel(const ov::P
     auto assign_vs = std::make_shared<op::v6::Assign>(c_vs1, var_vs);
 
     // Exclusive part (single SDPA on its own Variables — eligible for fusion)
-    auto q_e = make_param(element::f32, inputShape);
-    auto k_e = make_param(element::f32, inputShape);
-    auto v_e = make_param(element::f32, inputShape);
-    auto init_ke = make_param(element::f32, inputShape);
-    auto init_ve = make_param(element::f32, inputShape);
+    auto q_e = ov::test::utils::create_param(element::f32, inputShape);
+    auto k_e = ov::test::utils::create_param(element::f32, inputShape);
+    auto v_e = ov::test::utils::create_param(element::f32, inputShape);
+    auto init_ke = ov::test::utils::create_param(element::f32, inputShape);
+    auto init_ve = ov::test::utils::create_param(element::f32, inputShape);
     auto var_ke = std::make_shared<ov::op::util::Variable>(
         ov::op::util::VariableInfo{inputShape, element::f32, "excl_pastk"});
     auto var_ve = std::make_shared<ov::op::util::Variable>(
@@ -413,21 +410,18 @@ TEST_F(TransformationTestsF, StateConcatSDPAMixedSharedAndExclusive) {
 // ShapeOf chain in ways that make a precise post-pass model_ref fragile.
 static std::shared_ptr<ov::Model>
 makeNonSharedKVWithSharedShapeOfRopeModel(const ov::PartialShape& inputShape) {
-    auto make_param = [&](ov::element::Type t, const ov::PartialShape& s) {
-        return std::make_shared<ov::op::v0::Parameter>(t, s);
-    };
     auto make_var = [&](const std::string& id) {
         return std::make_shared<ov::op::util::Variable>(
             ov::op::util::VariableInfo{inputShape, ov::element::f32, id});
     };
-    auto beam_idx = make_param(ov::element::i32, ov::PartialShape{-1});
+    auto beam_idx = ov::test::utils::create_param(ov::element::i32, ov::PartialShape{-1});
 
     // Layer 0
-    auto q0 = make_param(ov::element::f32, inputShape);
-    auto k0 = make_param(ov::element::f32, inputShape);
-    auto v0 = make_param(ov::element::f32, inputShape);
-    auto init_k0 = make_param(ov::element::f32, inputShape);
-    auto init_v0 = make_param(ov::element::f32, inputShape);
+    auto q0 = ov::test::utils::create_param(ov::element::f32, inputShape);
+    auto k0 = ov::test::utils::create_param(ov::element::f32, inputShape);
+    auto v0 = ov::test::utils::create_param(ov::element::f32, inputShape);
+    auto init_k0 = ov::test::utils::create_param(ov::element::f32, inputShape);
+    auto init_v0 = ov::test::utils::create_param(ov::element::f32, inputShape);
     auto var_k0 = make_var("pastk_0");
     auto var_v0 = make_var("pastv_0");
     auto rv_k0 = std::make_shared<ov::op::v6::ReadValue>(init_k0, var_k0);
@@ -456,8 +450,8 @@ makeNonSharedKVWithSharedShapeOfRopeModel(const ov::PartialShape& inputShape) {
     auto pos_const = ov::op::v0::Constant::create(ov::element::f32, {1, 1, 1, 1}, {0.7f});
     auto pos_bcast = std::make_shared<ov::op::v3::Broadcast>(pos_const, pos_shape);
 
-    auto mask0_param = make_param(ov::element::f32, ov::PartialShape{-1, 8, -1, -1});
-    auto mask1_param = make_param(ov::element::f32, ov::PartialShape{-1, 8, -1, -1});
+    auto mask0_param = ov::test::utils::create_param(ov::element::f32, ov::PartialShape{-1, 8, -1, -1});
+    auto mask1_param = ov::test::utils::create_param(ov::element::f32, ov::PartialShape{-1, 8, -1, -1});
     auto mask0 = std::make_shared<ov::op::v1::Add>(mask0_param, pos_bcast);
     auto mask1 = std::make_shared<ov::op::v1::Add>(mask1_param, pos_bcast);
 
@@ -468,11 +462,11 @@ makeNonSharedKVWithSharedShapeOfRopeModel(const ov::PartialShape& inputShape) {
     auto assign_v0 = std::make_shared<ov::op::v6::Assign>(c_v0, var_v0);
 
     // Layer 1 — independent Variables, no cache sharing with layer 0
-    auto q1 = make_param(ov::element::f32, inputShape);
-    auto k1 = make_param(ov::element::f32, inputShape);
-    auto v1 = make_param(ov::element::f32, inputShape);
-    auto init_k1 = make_param(ov::element::f32, inputShape);
-    auto init_v1 = make_param(ov::element::f32, inputShape);
+    auto q1 = ov::test::utils::create_param(ov::element::f32, inputShape);
+    auto k1 = ov::test::utils::create_param(ov::element::f32, inputShape);
+    auto v1 = ov::test::utils::create_param(ov::element::f32, inputShape);
+    auto init_k1 = ov::test::utils::create_param(ov::element::f32, inputShape);
+    auto init_v1 = ov::test::utils::create_param(ov::element::f32, inputShape);
     auto var_k1 = make_var("pastk_1");
     auto var_v1 = make_var("pastv_1");
     auto rv_k1 = std::make_shared<ov::op::v6::ReadValue>(init_k1, var_k1);

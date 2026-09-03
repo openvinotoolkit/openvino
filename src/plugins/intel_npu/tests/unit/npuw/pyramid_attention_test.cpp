@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "attn/attn_subgraph.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
 #include "npuw_transformations/split_kvcache_into_blocks.hpp"
 #include "openvino/op/add.hpp"
@@ -64,20 +65,13 @@ std::shared_ptr<ov::Model> build_isolated_attention_model(const AttentionModelCo
     for (size_t n = 0; n < cfg.num_layers; ++n) {
         const std::string idx = std::to_string(n);
 
-        auto make_param = [&](const std::string& name, const Shape& shape) {
-            auto p = std::make_shared<op::v0::Parameter>(element::f32, shape);
-            p->set_friendly_name(name);
-            p->output(0).get_tensor().set_names({name});
-            params.push_back(p);
-            return p;
-        };
-
-        auto query = make_param("query." + idx, new_token_shape);
-        auto past_key = make_param("past_key_values." + idx + ".key", past_shape);
-        auto past_value = make_param("past_key_values." + idx + ".value", past_shape);
-        auto new_key = make_param("new_key." + idx, new_token_shape);
-        auto new_value = make_param("new_value." + idx, new_token_shape);
-        auto mask = make_param("mask." + idx, mask_shape);
+        auto query = ov::test::utils::create_param(element::f32, new_token_shape, "query." + idx);
+        auto past_key = ov::test::utils::create_param(element::f32, past_shape, "past_key_values." + idx + ".key");
+        auto past_value = ov::test::utils::create_param(element::f32, past_shape, "past_key_values." + idx + ".value");
+        auto new_key = ov::test::utils::create_param(element::f32, new_token_shape, "new_key." + idx);
+        auto new_value = ov::test::utils::create_param(element::f32, new_token_shape, "new_value." + idx);
+        auto mask = ov::test::utils::create_param(element::f32, mask_shape, "mask." + idx);
+        params.insert(params.end(), {query, past_key, past_value, new_key, new_value, mask});
 
         auto key_concat = std::make_shared<op::v0::Concat>(OutputVector{past_key, new_key}, 2);
         key_concat->set_friendly_name("concat_key." + idx);

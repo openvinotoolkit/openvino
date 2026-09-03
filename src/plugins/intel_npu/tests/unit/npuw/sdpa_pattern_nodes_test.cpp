@@ -18,6 +18,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/openvino.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "util.hpp"
 
 namespace {
@@ -47,9 +48,7 @@ ModelBuildResult build_sdpa_model(size_t num_sdpa, bool miss_key_concat = false,
         const std::string idx = std::to_string(n);
 
         auto make_param = [&](const std::string& name, const Shape& shape) {
-            auto p = std::make_shared<op::v0::Parameter>(element::f32, shape);
-            p->set_friendly_name(name);
-            p->output(0).get_tensor().set_names({name});
+            auto p = ov::test::utils::create_param(element::f32, shape, name);
             params.push_back(p);
             return p;
         };
@@ -166,9 +165,7 @@ PoisonBuildResult make_poisoned_sdpa(const std::string& idx,
     const Shape score_bias_shape = {1, 1, 1, 9};
 
     auto make_param = [&](const std::string& name, const Shape& shape) {
-        auto p = std::make_shared<op::v0::Parameter>(element::f32, shape);
-        p->set_friendly_name(name);
-        p->output(0).get_tensor().set_names({name});
+        auto p = ov::test::utils::create_param(element::f32, shape, name);
         params.push_back(p);
         return p;
     };
@@ -278,9 +275,7 @@ ModelBuildResult build_noisy_sdpa_model(size_t num_sdpa, size_t broken_idx, size
         const bool is_broken = (n == broken_idx);
 
         auto make_param = [&](const std::string& name, const Shape& shape) {
-            auto p = std::make_shared<op::v0::Parameter>(element::f32, shape);
-            p->set_friendly_name(name);
-            p->output(0).get_tensor().set_names({name});
+            auto p = ov::test::utils::create_param(element::f32, shape, name);
             params.push_back(p);
             return p;
         };
@@ -384,9 +379,7 @@ ModelBuildResult build_sdpa_model_with_wrapped_concats(size_t num_sdpa) {
         const std::string idx = std::to_string(n);
 
         auto make_param = [&](const std::string& name, const Shape& shape) {
-            auto p = std::make_shared<op::v0::Parameter>(element::f32, shape);
-            p->set_friendly_name(name);
-            p->output(0).get_tensor().set_names({name});
+            auto p = ov::test::utils::create_param(element::f32, shape, name);
             params.push_back(p);
             return p;
         };
@@ -468,9 +461,7 @@ ModelBuildResult build_sdpa_model_without_concats(size_t num_sdpa) {
         const std::string idx = std::to_string(n);
 
         auto make_param = [&](const std::string& name, const Shape& shape) {
-            auto p = std::make_shared<op::v0::Parameter>(element::f32, shape);
-            p->set_friendly_name(name);
-            p->output(0).get_tensor().set_names({name});
+            auto p = ov::test::utils::create_param(element::f32, shape, name);
             params.push_back(p);
             return p;
         };
@@ -534,9 +525,7 @@ ModelBuildResult build_sdpa_model_with_block_kv_cache(size_t num_sdpa, size_t nu
         const std::string idx = std::to_string(n);
 
         auto make_param = [&](const std::string& name, const Shape& shape) {
-            auto p = std::make_shared<op::v0::Parameter>(element::f32, shape);
-            p->set_friendly_name(name);
-            p->output(0).get_tensor().set_names({name});
+            auto p = ov::test::utils::create_param(element::f32, shape, name);
             params.push_back(p);
             return p;
         };
