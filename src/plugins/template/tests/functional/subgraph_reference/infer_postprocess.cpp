@@ -4,14 +4,18 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <cstdint>
+#include <vector>
+
 #include "common_test_utils/ov_plugin_cache.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/core.hpp"
 
-using namespace ov;
-
+namespace ov {
+namespace test {
 namespace {
 
 // infer_postprocess() regression test: ICompiledModel freezes its public output shape before
@@ -103,3 +107,5 @@ TEST(TemplateInferPostprocess, PresentKeyValueCopiedAfterShapeResolvesPostDecomp
 }
 
 }  // namespace
+}  // namespace test
+}  // namespace ov
