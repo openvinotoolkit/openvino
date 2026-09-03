@@ -17,7 +17,6 @@
 #include <string>
 #include <vector>
 
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "eltwise.h"
@@ -36,6 +35,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/binary_convolution.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
@@ -43,6 +43,7 @@
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <xbyak/xbyak.h>
 
+#    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #    include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #    include "cpu/x64/jit_generator.hpp"
@@ -62,9 +63,11 @@
 using namespace dnnl;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu;
-using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
+#endif
 
 namespace ov::intel_cpu::node {
 #if defined(OPENVINO_ARCH_X86_64)
@@ -1009,11 +1012,11 @@ BinaryConvolution::BinaryConvolution(const std::shared_ptr<ov::Node>& op, const 
         paddingL = binConv->get_pads_begin();
         paddingR = binConv->get_pads_end();
 
-        if (mayiuse(x64::avx512_core)) {
+        if (ov::with_cpu_x86_avx512_core()) {
             implType = impl_desc_type::jit_avx512;
-        } else if (mayiuse(x64::avx2)) {
+        } else if (ov::with_cpu_x86_avx2()) {
             implType = impl_desc_type::jit_avx2;
-        } else if (mayiuse(x64::sse41)) {
+        } else if (ov::with_cpu_x86_sse42()) {
             implType = impl_desc_type::jit_sse42;
         } else {
             implType = impl_desc_type::ref;
@@ -1293,19 +1296,27 @@ void BinaryConvolution::executeOptimized(const uint8_t* src,
 
         auto par_conv = jit_bin_conv_call_args();
 
-        const size_t ij = oh * jcp.stride_h;
-        const size_t i_t_overflow =
-            nstl::min(jcp.kh, div_up(nstl::max(static_cast<size_t>(0), jcp.t_pad - ij), (jcp.dilate_h + 1)));
-        const size_t i_b_overflow =
-            nstl::min(jcp.kh,
-                      div_up(nstl::max(jcp.ih, ij + (jcp.kh - 1) * (jcp.dilate_h + 1) - jcp.t_pad + 1) - jcp.ih,
-                             (jcp.dilate_h + 1)));
+        // Padding-overflow math must be signed: with size_t, nstl::max(0, ...) can no longer clamp
+        // the negative t_pad - ij / ij - t_pad cases and underflows, corrupting the convolution.
+        const auto ij = static_cast<int>(oh * jcp.stride_h);
+        const auto i_t_overflow =
+            nstl::min(static_cast<int>(jcp.kh),
+                      div_up(nstl::max(0, static_cast<int>(jcp.t_pad) - ij), static_cast<int>(jcp.dilate_h) + 1));
+        const auto i_b_overflow =
+            nstl::min(static_cast<int>(jcp.kh),
+                      div_up(nstl::max(static_cast<int>(jcp.ih),
+                                       ij + (static_cast<int>(jcp.kh) - 1) * (static_cast<int>(jcp.dilate_h) + 1) -
+                                           static_cast<int>(jcp.t_pad) + 1) -
+                                 static_cast<int>(jcp.ih),
+                             static_cast<int>(jcp.dilate_h) + 1));
 
         const size_t _oc = g * jcp.nb_oc + ocb;
         const size_t _ic = g * jcp.nb_ic;
 
-        const auto ih = nstl::max(ij - jcp.t_pad + i_t_overflow * (jcp.dilate_h + 1), static_cast<size_t>(0));
-        par_conv.src = &src[(n * s_str[0] + _ic * jcp.ic_block * s_str[1] + ih * s_str[2]) / nbits];
+        const auto ih =
+            nstl::max(ij - static_cast<int>(jcp.t_pad) + i_t_overflow * (static_cast<int>(jcp.dilate_h) + 1), 0);
+        par_conv.src =
+            &src[(n * s_str[0] + _ic * jcp.ic_block * s_str[1] + static_cast<size_t>(ih) * s_str[2]) / nbits];
 
         if (jcp.with_binarization) {
             par_conv.dst = &dst[(n * d_str[0] + _oc * jcp.oc_block * d_str[1] + oh * d_str[2]) / nbits];
@@ -1313,16 +1324,16 @@ void BinaryConvolution::executeOptimized(const uint8_t* src,
             par_conv.dst = &dst_f32[n * d_str[0] + _oc * jcp.oc_block * d_str[1] + oh * d_str[2]];
         }
 
-        const auto wh = jcp.exclude_pad ? i_t_overflow : static_cast<size_t>(0);
-        par_conv.filt = &weights[(ocb * w_str[0] + wh * w_str[2]) / nbits];
+        const auto wh = jcp.exclude_pad ? i_t_overflow : 0;
+        par_conv.filt = &weights[(ocb * w_str[0] + static_cast<size_t>(wh) * w_str[2]) / nbits];
 
         par_conv.oc_work = nstl::min((ocb + ocb_num) * jcp.oc_block, jcp.oc) - ocb * jcp.oc_block;
 
         par_conv.kw_padding = 0;
-        const auto kh_padding = jcp.kh - i_t_overflow - i_b_overflow;
-        par_conv.kh_padding = nstl::max(static_cast<size_t>(0), kh_padding);
-        par_conv.t_overflow = i_t_overflow;
-        par_conv.b_overflow = i_b_overflow;
+        const int kh_padding = static_cast<int>(jcp.kh) - i_t_overflow - i_b_overflow;
+        par_conv.kh_padding = static_cast<size_t>(nstl::max(0, kh_padding));
+        par_conv.t_overflow = static_cast<size_t>(i_t_overflow);
+        par_conv.b_overflow = static_cast<size_t>(i_b_overflow);
 
         par_conv.oc_off = _oc * jcp.oc_block * sizeof(float);
         par_conv.post_op_data = postOpsDataPtrs.data();

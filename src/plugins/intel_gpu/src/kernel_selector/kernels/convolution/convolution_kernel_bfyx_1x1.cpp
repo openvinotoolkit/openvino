@@ -85,7 +85,7 @@ bool ConvolutionKernel_bfyx_1x1::Validate(const Params& p) const {
 JitConstants ConvolutionKernel_bfyx_1x1::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
 
-    if (params.outputs[0].Feature().v % 16)
+    if ((params.outputs[0].Feature().v % 16) != 0u)
         jit.AddConstant(MakeJitConstant("LEFTOVERS", 1));
 
     return jit;

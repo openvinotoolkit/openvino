@@ -183,10 +183,7 @@ struct device_info {
         if (ip_version != other.ip_version || device_id != other.device_id)
             return false;
 
-        if (execution_units_count != other.execution_units_count || max_global_mem_size != other.max_global_mem_size)
-            return false;
-
-        return true;
+        return execution_units_count == other.execution_units_count && max_global_mem_size == other.max_global_mem_size;
     }
 };
 

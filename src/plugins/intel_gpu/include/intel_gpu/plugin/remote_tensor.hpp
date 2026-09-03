@@ -19,6 +19,8 @@
 #endif
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
+#include "openvino/runtime/tensor.hpp"
+#include "openvino/util/mmap_object.hpp"
 
 #include "intel_gpu/runtime/memory_caps.hpp"
 #include "intel_gpu/runtime/memory.hpp"
@@ -43,7 +45,8 @@ public:
                      cldnn::shared_surface surf = 0,
                      uint32_t plane = 0,
                      ov::intel_gpu::SharedBufferHandle shared_buffer_handle = {},
-                     ov::intel_gpu::VirtualAddressMemory va_mem = ov::intel_gpu::VirtualAddressMemory(nullptr));
+                     ov::intel_gpu::VirtualAddressMemory va_mem = ov::intel_gpu::VirtualAddressMemory(nullptr),
+                     std::shared_ptr<ov::MappedMemory> mapped_memory = nullptr);
 
     ~RemoteTensorImpl() override;
     const AnyMap& get_properties() const override;
@@ -76,7 +79,7 @@ private:
 
     ov::element::Type m_element_type;
     ov::Shape m_shape;
-    ov::Strides m_strides{};
+    ov::Strides m_strides;
     ov::AnyMap m_properties;
 
     cldnn::memory::ptr m_memory_object = nullptr;
@@ -88,6 +91,7 @@ private:
     uint32_t m_plane;
     ov::intel_gpu::SharedBufferHandle m_shared_buffer_handle;
     ov::intel_gpu::VirtualAddressMemory m_va_mem;
+    std::shared_ptr<ov::MappedMemory> m_mapped_memory;  // keeps the file mapping alive for the whole tensor lifetime
     size_t m_hash = 0;
 
     bool supports_caching() const;

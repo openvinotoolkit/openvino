@@ -16,7 +16,7 @@ public:
 
     reverse_kernel_selector();
 
-    virtual ~reverse_kernel_selector() {}
+    ~reverse_kernel_selector() override = default;
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

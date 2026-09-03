@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -74,11 +73,8 @@ struct InputDataVisitor {
 void InputDataVisitor::operator()(std::monostate) {
     LOG_INFO() << "Input data path for model: " << infer.tag << " hasn't been provided. Will be generated randomly"
                << std::endl;
-    auto initializers = opts.initializers_map.at(infer.tag);
-    auto default_initialzer =
-            opts.global_initializer ? opts.global_initializer : std::make_shared<UniformGenerator>(0.0, 255.0);
-    auto per_layer_initializers =
-            unpackWithDefault(initializers, extractLayerNames(infer.input_layers), default_initialzer);
+    const auto& initializers = opts.initializers_map.at(infer.tag);
+    auto per_layer_initializers = resolveInitializers(infer.input_layers, initializers, opts.global_initializer);
     providers = createRandomProviders(infer.input_layers, per_layer_initializers);
 };
 
@@ -90,11 +86,8 @@ void InputDataVisitor::operator()(const std::string& path_str) {
         auto layers_data = uploadData(path, infer.tag, infer.input_layers, LayersType::INPUT);
         providers = createConstantProviders(std::move(layers_data), extractLayerNames(infer.input_layers));
     } else {
-        auto initializers = opts.initializers_map.at(infer.tag);
-        auto default_initialzer =
-                opts.global_initializer ? opts.global_initializer : std::make_shared<UniformGenerator>(0.0, 255.0);
-        auto per_layer_initializers =
-                unpackWithDefault(initializers, extractLayerNames(infer.input_layers), default_initialzer);
+        const auto& initializers = opts.initializers_map.at(infer.tag);
+        auto per_layer_initializers = resolveInitializers(infer.input_layers, initializers, opts.global_initializer);
         LOG_INFO() << "Input data path: " << path << " for model: " << infer.tag
                    << " provided but doesn't exist - will be generated randomly" << std::endl;
         providers = createRandomProviders(infer.input_layers, per_layer_initializers);

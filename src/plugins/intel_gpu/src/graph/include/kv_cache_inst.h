@@ -84,7 +84,7 @@ public:
         const int64_t sequence_element_size = total_elements / concat_axis_size;
         const int64_t max_sequence_elements = buffer_size / sequence_element_size;
         auto max_pad = std::max<int64_t>(max_sequence_elements - concat_axis_size, 0);
-        auto target_layout_name = (target_name != "") ? target_name : "target_layout";
+        auto target_layout_name = (!target_name.empty()) ? target_name : "target_layout";
         GPU_DEBUG_TRACE_DETAIL << "[get_max_pad] " << target_name  << " : " << target_layout.to_string() << std::endl;
         GPU_DEBUG_TRACE_DETAIL << "[get_max_pad] buffer size " << buffer_size << std::endl;
         GPU_DEBUG_TRACE_DETAIL << "[get_max_pad] total_elements " << total_elements << std::endl;

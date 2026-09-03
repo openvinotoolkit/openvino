@@ -25,6 +25,11 @@ static bool is_shape_of_subgraph_root(program_node& node) {
         return true;
     }
 
+    // Marked via "gpu_shape_of_subgraph_root" rt_info (e.g. GQA's windowed-cache eviction bound).
+    if (node.get_primitive()->is_shape_of_subgraph_root) {
+        return true;
+    }
+
     // Allow input_layout to be the root of the shape_of subgraph if it's 'max_context_len'
     // input of PagedAttention, which can be used as a shape calculation flow source in some
     // models like Qwen and Qwen2
@@ -50,7 +55,7 @@ void mark_shape_of_subgraphs::look_for_shape_of_subgraph(program_node& node) {
     // Check if all dependencies are constant or marked as a part of shape_of subgraph
     bool can_execute_in_subgraph = true;
     bool has_shape_of_subgraph_dep = false;
-    for (auto& dependency : node.get_dependencies()) {
+    for (const auto& dependency : node.get_dependencies()) {
         if (dependency.first->is_in_shape_of_subgraph()) {
             has_shape_of_subgraph_dep = true;
         } else if (!dependency.first->is_constant()) {
@@ -92,7 +97,7 @@ bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
     // couldn't save result in int8 data type (as it requested by GPU plugin,
     // because we use it instead of boolean data type)
     if (node.is_type<eltwise>()) {
-        auto& eltwise_node = node.as<eltwise>();
+        const auto& eltwise_node = node.as<eltwise>();
         auto eltwise_mode = eltwise_node.get_primitive()->mode;
         if (eltwise::eltwise_bool_modes.find(eltwise_mode) != eltwise::eltwise_bool_modes.end())
             return false;
@@ -100,7 +105,7 @@ bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
 
     // Exclude gather_compressed primitive because gather_cpu_impl doesn't support it.
     if (node.is_type<gather>()) {
-        auto& gather_node = node.as<gather>();
+        const auto& gather_node = node.as<gather>();
         auto gather_compressed_weight_mode = gather_node.get_primitive()->compressed_weights;
         if (gather_compressed_weight_mode)
             return false;
@@ -114,7 +119,7 @@ bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
     }
 
     // skip mark_node for broadcast node if dependency nodes are data and shape_of
-    auto& dependencies = node.get_dependencies();
+    const auto& dependencies = node.get_dependencies();
     if (node.is_type<broadcast>() && dependencies.size() == 2) {
         if (dependencies[0].first->is_type<data>() && dependencies[1].first->is_type<shape_of>() && (dependencies[1].first->get_users().size() == 1))
             return false;
@@ -134,7 +139,7 @@ void mark_shape_of_subgraphs::mark_node(program_node& node) {
     // Add parent shape_of nodes from other dependencies if there are any
     for (auto dep : node.get_dependencies()) {
         if (dep.first->is_in_shape_of_subgraph()) {
-            for (auto shape_of : dep.first->get_dependant_shape_of_nodes()) {
+            for (const auto* shape_of : dep.first->get_dependant_shape_of_nodes()) {
                 node.add_dependant_shape_of_node(shape_of);
             }
         }
@@ -143,7 +148,7 @@ void mark_shape_of_subgraphs::mark_node(program_node& node) {
 
 void mark_shape_of_subgraphs::run(program& p) {
     if (p.is_new_shape_infer()) {
-        for (auto& node : p.get_processing_order()) {
+        for (const auto& node : p.get_processing_order()) {
             look_for_shape_of_subgraph(*node);
         }
     }

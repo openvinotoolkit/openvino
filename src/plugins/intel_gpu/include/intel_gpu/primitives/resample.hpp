@@ -66,7 +66,6 @@ struct resample : public primitive_base<resample> {
              InterpolateOp::CoordinateTransformMode ctm = InterpolateOp::CoordinateTransformMode::HALF_PIXEL,
              InterpolateOp::NearestMode nm = InterpolateOp::NearestMode::ROUND_PREFER_FLOOR)
         : primitive_base(id, {input}),
-          output_size(tensor()),
           num_filter(0),
           sizes(sizes),
           scales(scales),
@@ -99,7 +98,6 @@ struct resample : public primitive_base<resample> {
              InterpolateOp::NearestMode nm = InterpolateOp::NearestMode::ROUND_PREFER_FLOOR,
              const int scales_port = 2)
         : primitive_base(id, {input, sizes_id, scales_id}),
-          output_size(tensor()),
           num_filter(0),
           scales_port(scales_port),
           sizes({}),

@@ -18,7 +18,6 @@ void event::wait() {
     // TODO: refactor in context of multiple simultaneous calls (for generic engine)
     wait_impl();
     _set = true;
-    return;
 }
 
 void event::set() {

@@ -25,11 +25,11 @@ namespace cldnn {
 struct gemm : public primitive_base<gemm> {
     CLDNN_DECLARE_PRIMITIVE(gemm)
 
-    typedef enum {
+    enum TransposeType {
         X_LAST = 0,
         Y_LAST,
         OTHER,
-    } TransposeType;
+    };
 
     gemm() : primitive_base("", {}) {}
 
@@ -158,7 +158,7 @@ struct gemm : public primitive_base<gemm> {
     size_t weight_rank = 4;
 
     /// @brief Beam table input for indirect access for one of the inputs
-    input_info beam_table = {};
+    input_info beam_table;
     bool indirect_a = false;
     bool indirect_b = false;
     int64_t indirect_axis = 0;
@@ -249,13 +249,12 @@ private:
         if (rank == order_idx[rank]) {
             // normal
             return TransposeType::X_LAST;
-        } else if (rank == order_idx[rank - 1]) {
+        }
+        if (rank == order_idx[rank - 1]) {
             // the second last dim is moved to the last
             return TransposeType::Y_LAST;
-        } else {
-            // other
+        }  // other
             return TransposeType::OTHER;
-        }
     }
 };
 

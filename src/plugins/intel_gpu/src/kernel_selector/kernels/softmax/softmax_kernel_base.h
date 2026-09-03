@@ -29,7 +29,7 @@ struct softmax_params : public base_params {
 class SoftmaxKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~SoftmaxKernelBase() {}
+    ~SoftmaxKernelBase() override = default;
 
     struct DispatchData : public CommonDispatchData {
         size_t itemsNum;
@@ -49,8 +49,7 @@ protected:
     Datatype GetActivationType(const softmax_params& params) const {
         if (params.inputs[0].GetDType() == Datatype::F16)
             return Datatype::F16;
-        else
-            return Datatype::F32;
+        return Datatype::F32;
     }
 };
 
@@ -58,7 +57,7 @@ class SoftmaxKernelBaseBF : public SoftmaxKernelBase {
 public:
     using Parent = SoftmaxKernelBase;
     using Parent::Parent;
-    virtual ~SoftmaxKernelBaseBF() {}
+    ~SoftmaxKernelBaseBF() override = default;
 
 protected:
     bool Validate(const Params&) const override;

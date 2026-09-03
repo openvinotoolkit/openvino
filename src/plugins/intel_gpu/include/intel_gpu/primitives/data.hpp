@@ -67,15 +67,14 @@ public:
                 mapped_memory->data() + bin_offset,
                 original_size,
                 mapped_memory);
-        } else {
-            auto model_ptr = std::get<std::shared_ptr<const ov::Model>>(weights_memory);
-            auto const_it = offset_to_constant_map.find(bin_offset);
-            if (const_it == offset_to_constant_map.end()) {
-                OPENVINO_THROW("Constant with bin_offset ", bin_offset, " not found in the model");
-            }
+        }
+        auto model_ptr = std::get<std::shared_ptr<const ov::Model>>(weights_memory);
+        auto const_it = offset_to_constant_map.find(bin_offset);
+        if (const_it == offset_to_constant_map.end()) {
+            OPENVINO_THROW("Constant with bin_offset ", bin_offset, " not found in the model");
+        }
             auto const_ptr = const_it->second;
             return const_ptr;
-        }
     }
 
 private:
@@ -83,7 +82,7 @@ private:
                                      std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map = nullptr) {
         const auto& ops = model->get_ops();
 
-        if (cache_attr_map != nullptr && cache_attr_map->size() > 0) {
+        if (cache_attr_map != nullptr && !cache_attr_map->empty()) {
             for (const auto& node : ops) {
                 if (ov::op::util::is_constant(node)) {
                     auto it = cache_attr_map->find(node->get_instance_id());
@@ -104,7 +103,7 @@ private:
                         auto const_ptr = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
                         offset_to_constant_map.emplace(attr.bin_offset, const_ptr);
                     }
-                } else if (auto ti = ov::as_type<const ov::op::v0::TensorIterator>(node.get())) {
+                } else if (const auto* ti = ov::as_type<const ov::op::v0::TensorIterator>(node.get())) {
                     auto ti_body = ti->get_body();
                     fill_offset_to_constant_map(ti_body);
                 }
@@ -113,7 +112,7 @@ private:
     }
 
     weights_memory_ptr weights_memory;
-    offset_const_map_t offset_to_constant_map{};
+    offset_const_map_t offset_to_constant_map;
 };
 
 struct reorder_replication {
@@ -229,7 +228,7 @@ private:
     size_t original_size = SIZE_MAX;
     ov::element::Type original_dtype = ov::element::Type_t::dynamic;
     ov::element::Type curr_dtype = ov::element::Type_t::dynamic;
-    ov::Shape shape{};
+    ov::Shape shape;
 
     bool should_run_reorder() const {
         return reorder_rep.reorder != nullptr;
@@ -253,10 +252,10 @@ private:
             if (std::holds_alternative<std::shared_ptr<ov::op::v0::Constant>>(constant_ptr)) {
                 auto cptr = std::get<std::shared_ptr<ov::op::v0::Constant>>(constant_ptr);
                 return reinterpret_cast<const uint8_t*>(cptr->get_data_ptr());
-            } else {
-                auto shared_buf = std::get<shared_mapped_memory_ptr>(constant_ptr);
-                return shared_buf->get_ptr<uint8_t>();
             }
+            auto shared_buf = std::get<shared_mapped_memory_ptr>(constant_ptr);
+            return shared_buf->get_ptr<uint8_t>();
+
         };
 
         // Note: this works only until the data is copied to dst_mem.

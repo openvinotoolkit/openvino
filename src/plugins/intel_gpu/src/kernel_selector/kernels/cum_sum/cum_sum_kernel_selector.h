@@ -15,7 +15,7 @@ public:
     }
 
     cum_sum_kernel_selector();
-    virtual ~cum_sum_kernel_selector() = default;
+    ~cum_sum_kernel_selector() override = default;
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

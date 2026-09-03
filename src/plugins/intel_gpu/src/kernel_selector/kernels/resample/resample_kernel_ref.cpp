@@ -16,10 +16,12 @@ ParamsKey ResampleKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableDifferentTypes();
     k.EnableAllInputLayout();
@@ -85,10 +87,7 @@ static bool use_packing(const resample_params& params) {
     size_t max_work_items_per_eu = 32 * static_cast<size_t>(params.engineInfo.maxThreadsPerExecutionUnit);
     auto minimum_work_items = params.engineInfo.computeUnitsCount * max_work_items_per_eu;
 
-    if (packed_work_items < minimum_work_items)
-        return false;
-
-    return true;
+    return packed_work_items >= minimum_work_items;
 }
 
 JitConstants ResampleKernelRef::GetJitConstants(const resample_params& params) const {

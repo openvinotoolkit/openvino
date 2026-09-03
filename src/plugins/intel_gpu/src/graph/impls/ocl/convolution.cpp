@@ -182,7 +182,7 @@ public:
                 && cp.outputs[0].GetLayout() == kernel_selector::Tensor::DataLayout::bfyx
                 && cp.outputs[0].X().v == 1 && cp.outputs[0].Y().v > 1
                 && cp.weights.X().v == 1 && cp.weights.Y().v > 1
-                && !(cp.groups == cp.inputs[0].Feature().v && cp.inputs[0].Feature().v == cp.outputs[0].Feature().v)) {
+                && (cp.groups != cp.inputs[0].Feature().v || cp.inputs[0].Feature().v != cp.outputs[0].Feature().v)) {
                 auto can_swap = [](const kernel_selector::Tensor::DataTensor& dt) -> bool {
                     auto x_channel_idx = kernel_selector::Tensor::DataTensor::Channelndex(dt.GetLayout(),
                                                                                         kernel_selector::Tensor::DataChannelName::X);
@@ -209,7 +209,7 @@ public:
         };
 
         // Swap XY axes
-        if (can_swap_xy(conv_params) && primitive->deformable_mode == false) {
+        if (can_swap_xy(conv_params) && !primitive->deformable_mode) {
             conv_params.inputs[0].SwapXY();
             conv_params.outputs[0].SwapXY();
             conv_params.weights.SwapXY();

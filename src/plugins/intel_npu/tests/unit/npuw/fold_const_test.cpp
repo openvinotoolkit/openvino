@@ -220,4 +220,133 @@ TEST(FoldConstTest, RouterSliceStopInputFoldedToConst) {
     EXPECT_TRUE(found_slice) << "Slice node not found in model";
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Tests for ov::npuw::patterns::util::FoldEltwiseOfConsts.
+//
+// FoldEltwiseOfConsts folds a binary element-wise op (Add/Subtract/Multiply/
+// Divide) of two scalar integer Constants into a single Constant. It is the
+// opt-in matcher used pre-partitioning to collapse a VariadicSplit split size
+// expressed as (total - other): shape-compute arithmetic works on individual
+// dimension sizes (scalars) which are later Unsqueeze'd and Concat'ed into the
+// split_lengths vector. The scalar-integer-operand guard means it can never fold
+// a (multi-element) weight/decompression constant.
+//
+// The tests below cover:
+//   1. the expected fold (scalar Subtract) with value check,
+//   2. Add/Multiply/Divide also fold on scalars,
+//   3. the guard rejects non-integral (weight/float) operands,
+//   4. the guard rejects non-scalar (vector) operands.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Run FoldEltwiseOfConsts (a MatcherPass) over the whole model.
+static void run_fold_eltwise(const std::shared_ptr<ov::Model>& model) {
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ov::npuw::patterns::util::FoldEltwiseOfConsts>();
+    rewr.run_on_model(model);
+}
+
+// Build a model whose single Result consumes `eltwise`, so the folded node stays
+// reachable and can be inspected after the pass runs.
+static std::shared_ptr<ov::Model> make_single_eltwise_model(const std::shared_ptr<ov::Node>& eltwise) {
+    auto result = std::make_shared<op::v0::Result>(eltwise);
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{}, "fold_eltwise_test");
+}
+
+// Make a scalar i64 Constant.
+static std::shared_ptr<op::v0::Constant> scalar_i64(int64_t v) {
+    return op::v0::Constant::create(element::i64, Shape{}, std::vector<int64_t>{v});
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Subtract of two scalar i64 constants (split size = total - other) folds to a
+// scalar Constant carrying the correct difference.
+// ─────────────────────────────────────────────────────────────────────────────
+TEST(FoldConstTest, EltwiseSubtractOfScalarIntConstsFolded) {
+    auto lhs = scalar_i64(30);
+    auto rhs = scalar_i64(3);
+    auto sub = std::make_shared<op::v1::Subtract>(lhs, rhs);
+    sub->set_friendly_name("split_lengths/Subtract");
+    auto model = make_single_eltwise_model(sub);
+
+    ASSERT_EQ(count_ops_of_type<op::v1::Subtract>(model), 1u);
+
+    run_fold_eltwise(model);
+
+    EXPECT_EQ(count_ops_of_type<op::v1::Subtract>(model), 0u) << "Subtract of two scalar Constants must be folded";
+
+    auto folded = model->get_results().front()->input_value(0).get_node_shared_ptr();
+    auto c = ov::as_type_ptr<op::v0::Constant>(folded);
+    ASSERT_NE(c, nullptr) << "Result input must be a Constant after folding";
+    auto vals = c->cast_vector<int64_t>();
+    ASSERT_EQ(vals.size(), 1u);
+    EXPECT_EQ(vals[0], 27);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Add / Multiply / Divide of two scalar i64 constants also fold (matcher covers
+// all four arithmetic ops), with correct results.
+// ─────────────────────────────────────────────────────────────────────────────
+TEST(FoldConstTest, EltwiseAddMulDivOfScalarIntConstsFolded) {
+    {
+        auto add = std::make_shared<op::v1::Add>(scalar_i64(12), scalar_i64(4));
+        auto model = make_single_eltwise_model(add);
+        run_fold_eltwise(model);
+        EXPECT_EQ(count_ops_of_type<op::v1::Add>(model), 0u) << "Add of two scalar Constants must be folded";
+        auto c = ov::as_type_ptr<op::v0::Constant>(model->get_results().front()->input_value(0).get_node_shared_ptr());
+        ASSERT_NE(c, nullptr);
+        EXPECT_EQ(c->cast_vector<int64_t>(), (std::vector<int64_t>{16}));
+    }
+    {
+        auto mul = std::make_shared<op::v1::Multiply>(scalar_i64(12), scalar_i64(4));
+        auto model = make_single_eltwise_model(mul);
+        run_fold_eltwise(model);
+        EXPECT_EQ(count_ops_of_type<op::v1::Multiply>(model), 0u) << "Multiply of two scalar Constants must be folded";
+        auto c = ov::as_type_ptr<op::v0::Constant>(model->get_results().front()->input_value(0).get_node_shared_ptr());
+        ASSERT_NE(c, nullptr);
+        EXPECT_EQ(c->cast_vector<int64_t>(), (std::vector<int64_t>{48}));
+    }
+    {
+        auto div = std::make_shared<op::v1::Divide>(scalar_i64(20), scalar_i64(5));
+        auto model = make_single_eltwise_model(div);
+        run_fold_eltwise(model);
+        EXPECT_EQ(count_ops_of_type<op::v1::Divide>(model), 0u) << "Divide of two scalar Constants must be folded";
+        auto c = ov::as_type_ptr<op::v0::Constant>(model->get_results().front()->input_value(0).get_node_shared_ptr());
+        ASSERT_NE(c, nullptr);
+        EXPECT_EQ(c->cast_vector<int64_t>(), (std::vector<int64_t>{4}));
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Guard: a scalar float (weight-like) Subtract must NOT be folded, so the matcher
+// can never materialise a constant out of a dequantization subgraph.
+// ─────────────────────────────────────────────────────────────────────────────
+TEST(FoldConstTest, EltwiseScalarFloatConstsNotFolded) {
+    auto lhs = op::v0::Constant::create(element::f32, Shape{}, std::vector<float>{30.f});
+    auto rhs = op::v0::Constant::create(element::f32, Shape{}, std::vector<float>{3.f});
+    auto sub = std::make_shared<op::v1::Subtract>(lhs, rhs);
+    auto model = make_single_eltwise_model(sub);
+
+    run_fold_eltwise(model);
+
+    EXPECT_EQ(count_ops_of_type<op::v1::Subtract>(model), 1u)
+        << "Non-integral (float) operands must NOT be folded by FoldEltwiseOfConsts";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Guard: a non-scalar (vector) integer Subtract must NOT be folded - only scalar
+// shape-compute values are eligible, so a multi-element integer tensor (which
+// could be a weight) is never materialised.
+// ─────────────────────────────────────────────────────────────────────────────
+TEST(FoldConstTest, EltwiseVectorIntConstsNotFolded) {
+    auto lhs = op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{10, 20, 30});
+    auto rhs = op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{1, 2, 3});
+    auto sub = std::make_shared<op::v1::Subtract>(lhs, rhs);
+    auto model = make_single_eltwise_model(sub);
+
+    run_fold_eltwise(model);
+
+    EXPECT_EQ(count_ops_of_type<op::v1::Subtract>(model), 1u)
+        << "Non-scalar (vector) operands must NOT be folded by FoldEltwiseOfConsts";
+}
+
 }  // namespace

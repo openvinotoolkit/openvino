@@ -33,7 +33,7 @@ bool GridSampleKernelOpt_BilinearZeros::Validate(const Params& params) const {
 
     auto PaddedSpatial = [](const MultiDataTensor& tensors) -> bool {
         bool is_padded = false;
-        for (auto& tensor : tensors) {
+        for (const auto& tensor : tensors) {
             is_padded |= tensor.X().pad.Total() != 0;
             is_padded |= tensor.Y().pad.Total() != 0;
         }
@@ -71,6 +71,8 @@ ParamsKey GridSampleKernelOpt_BilinearZeros::GetSupportedKey() const {
     key.EnableDifferentTypes();
     key.EnableInputLayout(DataLayout::bfyx);
     key.EnableOutputLayout(DataLayout::bfyx);
+    key.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
+    key.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     key.EnableTensorOffset();
     key.EnableTensorPitches();
     key.EnableBatching();

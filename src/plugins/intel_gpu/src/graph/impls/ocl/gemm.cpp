@@ -169,14 +169,13 @@ protected:
                 kernel.skip_execution = true;
             }
             return execute_stage(events, instance, indirect_gemm);
-        } else {
-            if (_kernels_data.size() == 2) {
-                for (auto& kernel : _kernels_data[indirect_gemm].kernels) {
-                    kernel.skip_execution = true;
-                }
-            }
-            return execute_stage(events, instance, default_gemm);
         }
+        if (_kernels_data.size() == 2) {
+            for (auto& kernel : _kernels_data[indirect_gemm].kernels) {
+                kernel.skip_execution = true;
+            }
+        }
+        return execute_stage(events, instance, default_gemm);
     }
 
 public:
@@ -215,13 +214,13 @@ public:
                         transposed_pshape[i + rank_diff] = pshape[rank_diff + order[i]];
                     }
                     return transposed_pshape;
-                } else {
-                    auto transposed_pshape = ov::PartialShape::dynamic(pshape.rank());
-                    for (size_t i = 0; i < order.size(); i++) {
-                        transposed_pshape[i] = pshape[order[i]];
-                    }
-                    return transposed_pshape;
                 }
+                auto transposed_pshape = ov::PartialShape::dynamic(pshape.rank());
+                for (size_t i = 0; i < order.size(); i++) {
+                    transposed_pshape[i] = pshape[order[i]];
+                }
+                return transposed_pshape;
+
             };
             size_t max_rank = input0_pshape.size();
             auto default_order = ov::intel_gpu::op::Gemm::default_order(max_rank);
@@ -253,7 +252,7 @@ public:
         }
 
         bool is_quantized = true;
-        for (auto& input : impl_param.input_layouts)
+        for (const auto& input : impl_param.input_layouts)
             is_quantized &= data_type_traits::is_quantized(input.data_type);
 
         if (is_quantized) {
