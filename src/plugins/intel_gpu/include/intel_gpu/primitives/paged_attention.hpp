@@ -81,7 +81,7 @@ struct paged_attention : public primitive_base<paged_attention> {
             seed = hash_combine(seed, scale_val.value());
         }
         seed = hash_combine(seed, is_key_by_channel);
-
+        seed = hash_combine(seed, use_cm_kernel);
         return seed;
     }
 
@@ -106,7 +106,8 @@ struct paged_attention : public primitive_base<paged_attention> {
                has_qq_bias == rhs_casted.has_qq_bias &&
                write_kv_cache == rhs_casted.write_kv_cache &&
                scale_val.value_or(1.0f) == rhs_casted.scale_val.value_or(1.0f) &&
-               is_key_by_channel == rhs_casted.is_key_by_channel;
+               is_key_by_channel == rhs_casted.is_key_by_channel &&
+               use_cm_kernel == rhs_casted.use_cm_kernel;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -133,6 +134,7 @@ struct paged_attention : public primitive_base<paged_attention> {
             ob << false;
         }
         ob << is_key_by_channel;
+        ob << use_cm_kernel;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -162,6 +164,7 @@ struct paged_attention : public primitive_base<paged_attention> {
             scale_val = std::optional<float>();
         }
         ib >> is_key_by_channel;
+        ib >> use_cm_kernel;
     }
 
     std::optional<float> scale_val;
@@ -180,5 +183,6 @@ struct paged_attention : public primitive_base<paged_attention> {
     bool is_key_by_channel = false;
     bool has_qq_bias = false;
     bool write_kv_cache = true;
+    bool use_cm_kernel = false;  // set when attn_kernel_mode == PA_CM
 };
 }  // namespace cldnn

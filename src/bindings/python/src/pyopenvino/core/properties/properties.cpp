@@ -82,6 +82,10 @@ void regmodule_properties(py::module m) {
         .value("THROUGHPUT", ov::hint::PerformanceMode::THROUGHPUT)
         .value("CUMULATIVE_THROUGHPUT", ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT);
 
+    py::enum_<ov::hint::AttnKernelMode>(m_hint, "AttnKernelMode", py::arithmetic())
+        .value("AUTO", ov::hint::AttnKernelMode::AUTO)
+        .value("PA_CM", ov::hint::AttnKernelMode::PA_CM);
+
     py::enum_<ov::hint::SchedulingCoreType>(m_hint, "SchedulingCoreType", py::arithmetic())
         .value("ANY_CORE", ov::hint::SchedulingCoreType::ANY_CORE)
         .value("PCORE_ONLY", ov::hint::SchedulingCoreType::PCORE_ONLY)
@@ -99,6 +103,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_hint, ov::hint::inference_precision, "inference_precision");
     wrap_property_RW(m_hint, ov::hint::model_priority, "model_priority");
     wrap_property_RW(m_hint, ov::hint::performance_mode, "performance_mode");
+    wrap_property_RW(m_hint, ov::hint::attn_kernel_mode, "attn_kernel_mode");
     wrap_property_RW(m_hint, ov::hint::enable_cpu_pinning, "enable_cpu_pinning");
     wrap_property_RW(m_hint, ov::hint::enable_cpu_reservation, "enable_cpu_reservation");
     wrap_property_RW(m_hint, ov::hint::scheduling_core_type, "scheduling_core_type");

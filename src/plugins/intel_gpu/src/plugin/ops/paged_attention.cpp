@@ -3,6 +3,7 @@
 //
 
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/runtime/properties.hpp"
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
@@ -40,7 +41,15 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     if (value_cache_ps[2].get_length() == cldnn::paged_attention::block_size_xattn) {
         prim.has_xattention = true;
     }
-    const auto k_head_size_idx = prim.has_xattention ? 3 : 2;
+    // The KEY cache Parameter's dim ordering is [N, K, B, H] (token-major, head_size at index 3)
+    // whenever CM kernels consume it: either the runtime is doing XAttention, or the user
+    // explicitly requested attn_kernel_mode=PA_CM. Otherwise (OCL/micro-SDPA) the ordering is
+    // [N, K, H, B] with head_size at index 2. Kept in sync with transformations_pipeline.cpp's
+    // keyCacheDimOrder selection.
+    const bool use_cm_kernel_layout =
+        (p.get_config().get_attn_kernel_mode() == ov::hint::AttnKernelMode::PA_CM);
+    const bool key_cache_token_major = prim.has_xattention || use_cm_kernel_layout;
+    const auto k_head_size_idx = key_cache_token_major ? 3 : 2;
 
     auto k_head_size = has_rt_params ? rt_info.at(k_head_size_id).as<int64_t>() : key_cache_ps[k_head_size_idx].get_length();
     auto v_head_size = has_rt_params ? rt_info.at(v_head_size_id).as<int64_t>() : value_cache_ps[3].get_length();
@@ -127,6 +136,7 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     }
     prim.is_key_by_channel = p.get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL;
     prim.write_kv_cache = op->get_write_kv_cache();
+    prim.use_cm_kernel = p.get_config().get_attn_kernel_mode() == ov::hint::AttnKernelMode::PA_CM;
     prim.num_outputs = 1;
 
     if (op->get_output_size() > 1) {

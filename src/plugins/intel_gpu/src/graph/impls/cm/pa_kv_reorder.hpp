@@ -30,7 +30,8 @@ struct PaKVReorderImplementationManager : public cldnn::ImplementationManager {
             return false;
         }
 
-        return desc->has_xattention;
+        const auto& config = node.get_program().get_config();
+        return desc->has_xattention || config.get_attn_kernel_mode() == ov::hint::AttnKernelMode::PA_CM;
     }
 };
 
