@@ -24,9 +24,8 @@ DisableFP16CompForQwenImageGatedResidualPattern::DisableFP16CompForQwenImageGate
     using namespace ov::pass;
     using namespace ov::pass::pattern;
 
-    auto outer_split = wrap_type_strict_index<ov::op::v1::VariadicSplit>({any_input(), any_input(), any_input()});
-    auto outer_split_out = outer_split->output(0) | outer_split->output(1);
-    auto inner_split = wrap_type_strict_index<ov::op::v1::VariadicSplit>({outer_split_out, any_input(), any_input()});
+    auto outer_split = wrap_type<ov::op::v1::VariadicSplit>({any_input(), any_input(), any_input()});
+    auto inner_split = wrap_type_strict_index<ov::op::v1::VariadicSplit>({outer_split, any_input(), any_input()});
     auto gate = wrap_type<ov::op::v0::Unsqueeze>({inner_split->output(2), any_input()}, type_matches(element::f32));
 
     auto branch_matmul = wrap_type<ov::op::v0::MatMul>({any_input(), any_input()}, type_matches(element::f32));
