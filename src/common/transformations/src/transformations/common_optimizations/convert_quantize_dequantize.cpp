@@ -135,12 +135,12 @@ ConvertQuantizeDequantize::ConvertQuantizeDequantize(const ov::element::TypeVect
         if (!op_util::get_single_value(output_high, out_high_val))
             return false;
 
-#define PRECISION_LIMITS_FOR(type)                                                                           \
-    {                                                                                                        \
-        ov::element::type,                                                                                   \
-            std::pair<float, float>{                                                                        \
-                static_cast<float>(std::numeric_limits<ov::fundamental_type_for<ov::element::type>>::min()), \
-                static_cast<float>(std::numeric_limits<ov::fundamental_type_for<ov::element::type>>::max())} \
+#define PRECISION_LIMITS_FOR(type)                                                                          \
+    {                                                                                                       \
+        ov::element::type, std::pair<float, float> {                                                        \
+            static_cast<float>(std::numeric_limits<ov::fundamental_type_for<ov::element::type>>::min()),    \
+                static_cast<float>(std::numeric_limits<ov::fundamental_type_for<ov::element::type>>::max()) \
+        }                                                                                                   \
     }
 
         static const std::unordered_map<ov::element::Type_t, std::pair<float, float>> supported_intervals{
