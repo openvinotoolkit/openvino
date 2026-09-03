@@ -66,6 +66,19 @@ TEST(DeviceMonitorTest, low_power_mode_gear_mapping_matches_expected_policy) {
     EXPECT_FALSE(device_monitor::is_low_power_gear(3));
     EXPECT_TRUE(device_monitor::is_low_power_gear(4));
     EXPECT_TRUE(device_monitor::is_low_power_gear(7));
+    // Gears above the EPO-defined range are not low power.
+    EXPECT_FALSE(device_monitor::is_low_power_gear(8));
+    EXPECT_FALSE(device_monitor::is_low_power_gear(100));
+}
+
+TEST(DeviceMonitorTest, valid_gear_range_matches_epo_specification) {
+    // EPO defines gears 1-7; anything outside that range is not a valid gear.
+    EXPECT_FALSE(device_monitor::is_valid_gear(-1));
+    EXPECT_FALSE(device_monitor::is_valid_gear(0));
+    EXPECT_TRUE(device_monitor::is_valid_gear(1));
+    EXPECT_TRUE(device_monitor::is_valid_gear(7));
+    EXPECT_FALSE(device_monitor::is_valid_gear(8));
+    EXPECT_FALSE(device_monitor::is_valid_gear(100));
 }
 
 TEST(DeviceMonitorTest, telemetry_client_low_power_mode_is_safe) {
