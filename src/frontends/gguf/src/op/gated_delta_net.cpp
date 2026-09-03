@@ -157,6 +157,20 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
     const int64_t rq1 = H_v / H_k;  // GQA head repeat factor
     const float scale = 1.0f / std::sqrt((float)S_v);
 
+    if (context.has_input("chunk_valid_len")) {
+        std::vector<int64_t> positions(T);
+        std::iota(positions.begin(), positions.end(), 0);
+        auto valid = std::make_shared<ov::op::v1::Less>(
+            ov::op::v0::Constant::create(ov::element::i64, {static_cast<size_t>(T)}, positions),
+            context.get_input("chunk_valid_len"));
+        auto mask = std::make_shared<ov::op::v1::Reshape>(
+            std::make_shared<ov::op::v0::Convert>(valid, g.get_element_type()),
+            ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, T, 1, 1}),
+            false);
+        g = std::make_shared<ov::op::v1::Multiply>(g, mask);
+        beta = std::make_shared<ov::op::v1::Multiply>(beta, mask);
+    }
+
     // T is dynamic at runtime: T-dependent reshapes use -1 and the Loop trip count is read at
     // runtime, so the convert-time T is only used for the static dims (B/H_v/S_v/H_k).
     (void)T;

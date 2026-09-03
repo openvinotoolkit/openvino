@@ -57,6 +57,10 @@ OutputVector translate_cpy(const NodeContext& context) {
         return {context.get_input(1)};
     }
 
+    if (op_case == 5) {
+        return rename_outputs_with_suffix({context.get_input(1)}, context.get_name());
+    }
+
     if (op_case == 4) {
         ov::Output<ov::Node> src = context.get_input(0);
         auto base = context.get_input(1);
@@ -166,9 +170,25 @@ OutputVector translate_cpy(const NodeContext& context) {
         return rename_outputs_with_suffix({res}, context.get_name());
     }
 
+    ov::Output<ov::Node> value = context.get_input(0);
+    if (op_case == 2) {
+        // A recurrent convolution update copies the trailing d_conv - 1 columns from the
+        // [state | current chunk] window.  The VIEW carrying that slice can be folded out of the
+        // decoder graph, so recover the logical window from its declared shape before flattening
+        // it into the cache row.  Slicing is also correct when the input has already been narrowed.
+        FRONT_END_OP_CONVERSION_CHECK(
+            input_shape.rank().is_static() && input_shape.rank().get_length() == 4 && input_shape[3].is_static(),
+            "Convolution-state CPY requires a static window width");
+        const auto window_size = input_shape[3].get_length();
+        value = std::make_shared<ov::op::v8::Slice>(value,
+                                                    ov::op::v0::Constant::create(ov::element::i64, {1}, {-window_size}),
+                                                    ov::op::v0::Constant::create(ov::element::i64, {1}, {INT_MAX}),
+                                                    ov::op::v0::Constant::create(ov::element::i64, {1}, {1}),
+                                                    ov::op::v0::Constant::create(ov::element::i64, {1}, {3}));
+    }
+
     ov::Output<ov::Node> res =
-        std::make_shared<ov::op::v0::Convert>(context.get_input(0),
-                                              context.get_attribute<ov::element::Type>("output_type"));
+        std::make_shared<ov::op::v0::Convert>(value, context.get_attribute<ov::element::Type>("output_type"));
 
     // A CPY may reinterpret the source layout into its destination's (e.g. qwen3-next's conv-state
     // writeback flattens the contiguous [S, F] conv_state_last into the flat [S*F] recurrent cache

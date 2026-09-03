@@ -243,6 +243,14 @@ inline ov::Tensor make_f32_tensor(const ov::Shape& shape, const std::vector<floa
     return t;
 }
 
+inline ov::Tensor make_f16_tensor(const ov::Shape& shape, const std::vector<float>& data) {
+    ov::Tensor tensor(ov::element::f16, shape);
+    std::transform(data.begin(), data.end(), tensor.data<ov::float16>(), [](float value) {
+        return ov::float16(value);
+    });
+    return tensor;
+}
+
 inline ov::Tensor make_i64_tensor(const ov::Shape& shape, const std::vector<int64_t>& data) {
     ov::Tensor tensor(ov::element::i64, shape);
     std::copy(data.begin(), data.end(), tensor.data<int64_t>());

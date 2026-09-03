@@ -97,6 +97,8 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
 
     float scale = context.get_attribute<float>("scale");
     float kq_soft_cap = context.get_attribute<float>("kq_soft_cap", 0.0f);
+    FRONT_END_OP_CONVERSION_CHECK(has_mask || kq_soft_cap == 0.0f,
+                                  "Maskless FLASH_ATTN_EXT does not support a non-zero soft cap");
 
     const auto sdpa_type = ov::element::f16;
     auto q = std::make_shared<ov::op::v0::Convert>(q_f32, sdpa_type);

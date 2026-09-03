@@ -10,6 +10,7 @@
 #include "op_table.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/avg_pool.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "utils.hpp"
 
@@ -40,6 +41,10 @@ OutputVector translate_pool_2d(const NodeContext& context) {
         break;
     default:
         FRONT_END_OP_CONVERSION_CHECK(false, "Unsupported POOL_2D mode");
+    }
+
+    if (result.get_element_type() != context.get_output_type()) {
+        result = std::make_shared<ov::op::v0::Convert>(result, context.get_output_type());
     }
 
     return rename_outputs_with_suffix({std::move(result)}, context.get_name());
