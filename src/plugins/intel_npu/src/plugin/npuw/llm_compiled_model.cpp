@@ -937,8 +937,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     ov::npuw::log_detected_masks(kvcache_model);
 
     if (!m_is_whisper) {
-        LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
-        ov::npuw::PatchSlidingWindowMask().run_on_model(kvcache_model);
+        if (!m_use_chunk_prefill) {
+            LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
+            ov::npuw::PatchSlidingWindowMask().run_on_model(kvcache_model);
+        }
     }
 
     LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");

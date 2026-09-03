@@ -252,6 +252,7 @@ TEST(PyramidAttentionTest, ValidateSucceedsForPrefillChunkModel) {
     EXPECT_EQ(contiguous.query_length, 128u);
     EXPECT_EQ(contiguous.full_context_length, 256u);
     EXPECT_EQ(contiguous.past_kv_length, 128u);
+    EXPECT_FALSE(contiguous.data_left_aligned);
 }
 
 // --- Tests for process_pyramid_model ---
