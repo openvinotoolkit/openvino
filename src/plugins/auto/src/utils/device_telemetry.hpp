@@ -15,6 +15,13 @@ namespace ov {
 namespace auto_plugin {
 namespace device_monitor {
 
+// IPF (Intel(R) Innovation Platform Framework): Intel's telemetry/policy client API used
+//     here to query platform state and subscribe to runtime platform events (e.g. DTT gear changes).
+// DTT (Intel(R) Dynamic Tuning Technology): Intel driver/service that manages platform
+//     power/thermal policy and exposes its state (status, version, current EPO gear) through IPF.
+// EPO (Energy Performance Optimizer): one of DTT's policies; its "gear" (1-7) indicates whether
+//     the platform currently favors low-latency/performance (gears 1-3) or low power (gears 4-7).
+
 #ifdef OV_AUTO_ENABLE_IPF
 void gear_changed_callback(const char* path, const char* event, void* context);
 #endif
