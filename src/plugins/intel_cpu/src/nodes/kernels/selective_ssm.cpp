@@ -83,11 +83,16 @@ void selective_ssm_typed(const DataT* A,
                          float* state_scratch,
                          size_t scratch_head_dim,
                          const CpuParallelPtr& cpu_parallel) {
+    OPENVINO_ASSERT(shape.num_groups > 0, "SelectiveSSM requires a positive number of groups.");
+    const auto heads_per_group = shape.num_heads / shape.num_groups;
+    OPENVINO_ASSERT(heads_per_group > 0 && heads_per_group * shape.num_groups == shape.num_heads,
+                    "SelectiveSSM requires the number of groups to evenly divide the number of heads.");
+    OPENVINO_ASSERT(scratch_head_dim > 0, "SelectiveSSM scratch head dimension must be positive.");
+
     const auto batch_state_stride =
         checked_size_product({shape.num_heads, shape.head_dim, shape.state_size}, "recurrent state batch");
     const auto head_state_stride = checked_size_product({shape.head_dim, shape.state_size}, "recurrent state head");
     const auto scratch_stride = checked_size_product({scratch_head_dim, shape.state_size}, "state scratch");
-    const auto heads_per_group = shape.num_heads / shape.num_groups;
     const auto p_block_count = ov::util::ceil_div(shape.head_dim, scratch_head_dim);
 
     cpu_parallel
@@ -340,19 +345,25 @@ void validate_paged_metadata(const PagedMetadata& metadata,
     }
 }
 
-template <typename DataT, typename ProjectionT>
+template <typename DataT, typename StateT, typename ProjectionT>
 void paged_selective_ssm_typed(const DataT* A,
                                const DataT* dt,
                                const ProjectionT* B,
                                const DataT* x,
                                const ProjectionT* C,
-                               DataT* recurrent_state_table,
+                               StateT* recurrent_state_table,
                                const PagedMetadata& metadata,
                                DataT* output,
                                const PagedSelectiveSSMShape& shape,
                                float* state_scratch,
                                size_t scratch_head_dim,
                                const CpuParallelPtr& cpu_parallel) {
+    OPENVINO_ASSERT(shape.num_groups > 0, "PagedSelectiveSSM requires a positive number of groups.");
+    const auto heads_per_group = shape.num_heads / shape.num_groups;
+    OPENVINO_ASSERT(heads_per_group > 0 && heads_per_group * shape.num_groups == shape.num_heads,
+                    "PagedSelectiveSSM requires the number of groups to evenly divide the number of heads.");
+    OPENVINO_ASSERT(scratch_head_dim > 0, "PagedSelectiveSSM scratch head dimension must be positive.");
+
     const auto& subsequence_begins = metadata.subsequence_begins;
     const auto& block_indices = metadata.block_indices;
     const auto& block_indices_begins = metadata.block_indices_begins;
@@ -362,7 +373,6 @@ void paged_selective_ssm_typed(const DataT* A,
     const auto block_stride = checked_size_product({shape.num_heads, shape.head_dim, shape.state_size}, "state block");
     const auto head_stride = checked_size_product({shape.head_dim, shape.state_size}, "state head");
     const auto scratch_stride = checked_size_product({scratch_head_dim, shape.state_size}, "state scratch");
-    const auto heads_per_group = shape.num_heads / shape.num_groups;
     const auto p_block_count = ov::util::ceil_div(shape.head_dim, scratch_head_dim);
 
     cpu_parallel->parallel_for3d(
@@ -471,7 +481,7 @@ void dispatch_selective_projection(const void* A,
     }
 }
 
-template <typename DataT>
+template <typename DataT, typename StateT>
 void dispatch_paged_projection(const void* A,
                                const void* dt,
                                const void* B,
@@ -492,7 +502,7 @@ void dispatch_paged_projection(const void* A,
                                   B_data,
                                   static_cast<const DataT*>(x),
                                   C_data,
-                                  static_cast<DataT*>(recurrent_state_table),
+                                  static_cast<StateT*>(recurrent_state_table),
                                   metadata,
                                   static_cast<DataT*>(output),
                                   shape,
@@ -507,6 +517,58 @@ void dispatch_paged_projection(const void* A,
     }
 }
 
+struct PagedSelectiveSSMCallArgs {
+    const void* A;
+    const void* dt;
+    const void* B;
+    const void* x;
+    const void* C;
+    void* recurrent_state_table;
+    const PagedMetadata& metadata;
+    void* output;
+    const PagedSelectiveSSMShape& shape;
+    float* state_scratch;
+    size_t scratch_head_dim;
+    const CpuParallelPtr& cpu_parallel;
+    const float* converted_B;
+    const float* converted_C;
+};
+
+template <typename DataT, typename StateT>
+void dispatch_paged_typed(const PagedSelectiveSSMCallArgs& args) {
+    dispatch_paged_projection<DataT, StateT>(args.A,
+                                             args.dt,
+                                             args.B,
+                                             args.x,
+                                             args.C,
+                                             args.recurrent_state_table,
+                                             args.metadata,
+                                             args.output,
+                                             args.shape,
+                                             args.state_scratch,
+                                             args.scratch_head_dim,
+                                             args.cpu_parallel,
+                                             args.converted_B,
+                                             args.converted_C);
+}
+
+template <typename DataT>
+void dispatch_paged_state_type(const PagedSelectiveSSMCallArgs& args, const ov::element::Type& state_precision) {
+    switch (state_precision) {
+    case ov::element::f32:
+        dispatch_paged_typed<DataT, float>(args);
+        return;
+    case ov::element::f16:
+        dispatch_paged_typed<DataT, ov::float16>(args);
+        return;
+    case ov::element::bf16:
+        dispatch_paged_typed<DataT, ov::bfloat16>(args);
+        return;
+    default:
+        OPENVINO_THROW("PagedSelectiveSSM supports only f32/f16/bf16 state, got ", state_precision, ".");
+    }
+}
+
 }  // namespace
 
 size_t checked_size_product(std::initializer_list<size_t> dimensions, const char* tensor_name) {
@@ -516,11 +578,12 @@ size_t checked_size_product(std::initializer_list<size_t> dimensions, const char
 
     size_t result = 1;
     for (const auto dimension : dimensions) {
-        OPENVINO_ASSERT(result <= std::numeric_limits<size_t>::max() / dimension,
+        size_t product = 0;
+        OPENVINO_ASSERT(!ov::util::mul_overflow(result, dimension, product),
                         "SelectiveSSM size overflow while calculating ",
                         tensor_name,
                         ".");
-        result *= dimension;
+        result = product;
     }
     return result;
 }
@@ -609,7 +672,8 @@ void paged_selective_ssm(const void* A,
                          const void* cache_interval,
                          void* output,
                          const PagedSelectiveSSMShape& shape,
-                         const ov::element::Type& precision,
+                         const ov::element::Type& data_precision,
+                         const ov::element::Type& state_precision,
                          const ov::element::Type& index_precision,
                          float* state_scratch,
                          size_t scratch_head_dim,
@@ -630,31 +694,33 @@ void paged_selective_ssm(const void* A,
     if (metadata_validation_scratch != nullptr) {
         validate_paged_metadata(metadata, shape, metadata_validation_scratch);
     }
-#define OV_CPU_PAGED_SSM_CALL(DataT)                        \
-    dispatch_paged_projection<DataT>(A,                     \
-                                     dt,                    \
-                                     B,                     \
-                                     x,                     \
-                                     C,                     \
-                                     recurrent_state_table, \
-                                     metadata,              \
-                                     output,                \
-                                     shape,                 \
-                                     state_scratch,         \
-                                     scratch_head_dim,      \
-                                     cpu_parallel,          \
-                                     converted_B,           \
-                                     converted_C)
-    if (precision == ov::element::f32) {
-        OV_CPU_PAGED_SSM_CALL(float);
-    } else if (precision == ov::element::f16) {
-        OV_CPU_PAGED_SSM_CALL(ov::float16);
-    } else if (precision == ov::element::bf16) {
-        OV_CPU_PAGED_SSM_CALL(ov::bfloat16);
-    } else {
-        OPENVINO_THROW("PagedSelectiveSSM supports only f32/f16/bf16, got ", precision, ".");
+    const PagedSelectiveSSMCallArgs args{A,
+                                         dt,
+                                         B,
+                                         x,
+                                         C,
+                                         recurrent_state_table,
+                                         metadata,
+                                         output,
+                                         shape,
+                                         state_scratch,
+                                         scratch_head_dim,
+                                         cpu_parallel,
+                                         converted_B,
+                                         converted_C};
+    switch (data_precision) {
+    case ov::element::f32:
+        dispatch_paged_state_type<float>(args, state_precision);
+        return;
+    case ov::element::f16:
+        dispatch_paged_state_type<ov::float16>(args, state_precision);
+        return;
+    case ov::element::bf16:
+        dispatch_paged_state_type<ov::bfloat16>(args, state_precision);
+        return;
+    default:
+        OPENVINO_THROW("PagedSelectiveSSM supports only f32/f16/bf16 data, got ", data_precision, ".");
     }
-#undef OV_CPU_PAGED_SSM_CALL
 }
 
 }  // namespace ov::intel_cpu::node::kernel
