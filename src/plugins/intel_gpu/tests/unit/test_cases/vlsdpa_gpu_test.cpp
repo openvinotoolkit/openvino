@@ -438,9 +438,9 @@ static void run_mixed_pitch_case(const mixed_pitch_case_params& p,
     auto attn_mask_mem = engine.allocate_memory(attn_mask_static);
     auto cu_mem = engine.allocate_memory(cu_static);
 
-    auto q_data = rg.generate_random_1d<ov::float16>(L * H * S, -0.5f, 0.5f);
-    auto k_data = rg.generate_random_1d<ov::float16>(L * H * S, -0.5f, 0.5f);
-    auto v_data = rg.generate_random_1d<ov::float16>(L * H * S, -0.5f, 0.5f);
+    auto q_data = rg.generate_random_1d<ov::float16>(L * H * S, 0, 0);
+    auto k_data = rg.generate_random_1d<ov::float16>(L * H * S, 0, 0);
+    auto v_data = rg.generate_random_1d<ov::float16>(L * H * S, 0, 0);
     set_values(q_mem, q_data);
     set_values(k_mem, k_data);
     set_values(v_mem, v_data);

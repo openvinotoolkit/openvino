@@ -464,7 +464,7 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
 
     auto hidden_states_mem = create_f16_tensor_3d(hidden_states, config.batch_size, config.seq_len, config.hidden_size);
     auto routing_weights_mem = create_f16_tensor_3d(routing_weights, config.batch_size, config.seq_len, config.num_experts);
-    auto routing_bias_data = rg.generate_random_1d<ov::float16>(config.num_experts, -0.5f, 0.5f, 1000);
+    auto routing_bias_data = rg.generate_random_1d<ov::float16>(config.num_experts, 0, 0, 1000);
     auto routing_bias_mem = create_f16_tensor(routing_bias_data, 1, 1, 1, config.num_experts);
     ov::float16 routing_eps_val = ov::float16(1e-6f);
 
@@ -1156,7 +1156,7 @@ TEST_P(moe_3gemm_compressed_gpu_symmetric_random, moe_accuracy_test_symmetric) {
 
     auto hidden_states_mem = create_f16_tensor_3d(hidden_states, config.batch_size, config.seq_len, config.hidden_size);
     auto routing_weights_mem = create_f16_tensor_3d(routing_weights, config.batch_size, config.seq_len, config.num_experts);
-    auto routing_bias_data = rg.generate_random_1d<ov::float16>(config.num_experts, -0.5f, 0.5f, 1000);
+    auto routing_bias_data = rg.generate_random_1d<ov::float16>(config.num_experts, 0, 0, 1000);
     auto routing_bias_mem = create_f16_tensor(routing_bias_data, 1, 1, 1, config.num_experts);
     ov::float16 routing_eps_val = ov::float16(1e-6f);
 
