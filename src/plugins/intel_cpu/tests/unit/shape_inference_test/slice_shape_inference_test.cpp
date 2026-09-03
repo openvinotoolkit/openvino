@@ -107,3 +107,46 @@ TEST_F(SliceStaticShapeInferenceTest, forward_step_all_data_in_const_map) {
     EXPECT_EQ(output_shapes.size(), num_of_outputs);
     EXPECT_EQ(output_shapes.front(), StaticShape({10, 3, 0, 4, max_d, max_d, 3}));
 }
+
+TEST_F(SliceStaticShapeInferenceTest, identity_and_step_2_on_unbounded_dims_in_const_map) {
+    constexpr auto et = element::i64;
+
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto start = std::make_shared<op::v0::Parameter>(et, PartialShape::dynamic());
+    const auto stop = std::make_shared<op::v0::Parameter>(et, PartialShape::dynamic());
+    const auto steps = std::make_shared<op::v0::Parameter>(et, PartialShape::dynamic());
+    const auto axes = op::v0::Constant::create(element::i64, ov::Shape{4}, {0, 1, 2, 3});
+
+    auto start_buff = std::vector<int64_t>{0, 0, 0, INT64_MAX};
+    auto stop_buff = std::vector<int64_t>{INT64_MAX, INT64_MAX, 10, INT64_MIN};
+    auto steps_buff = std::vector<int64_t>{1, 2, 1, -1};
+
+    const auto start_tensor = ov::Tensor(element::i64, ov::Shape{4}, static_cast<void*>(start_buff.data()));
+    const auto stop_tensor = ov::Tensor(element::i64, ov::Shape{4}, static_cast<void*>(stop_buff.data()));
+    const auto steps_tensor = ov::Tensor(element::i64, ov::Shape{4}, static_cast<void*>(steps_buff.data()));
+    const auto const_data =
+        std::unordered_map<size_t, ov::Tensor>{{1, start_tensor}, {2, stop_tensor}, {3, steps_tensor}};
+
+    const auto op = make_op(data, start, stop, steps, axes);
+
+    input_shapes = StaticShapeVector{{max_d, max_d, 10, 4}, {4}, {4}, {4}, {4}};
+    output_shapes = shape_inference(op.get(), input_shapes, const_data);
+
+    EXPECT_EQ(output_shapes.size(), num_of_outputs);
+    EXPECT_EQ(output_shapes.front(), StaticShape({max_d, max_d, 10, 4}));
+}
+
+TEST(SliceShapeInferenceUtils, is_identity_slice_with_static_dimension) {
+    // The production call sites of the size-preservation predicate are compiled for ov::Dimension only (they sit
+    // inside `if constexpr`), so this is the instantiation that keeps the helper free of the ov::Dimension symbol API.
+    using ov::op::slice::Bounds;
+    constexpr auto i64_max = std::numeric_limits<int64_t>::max();
+    constexpr auto i64_min = std::numeric_limits<int64_t>::min();
+    const auto max_d = std::numeric_limits<StaticDimension::value_type>::max();
+
+    EXPECT_TRUE(ov::op::slice::is_identity_slice(StaticDimension(10), Bounds{0, 0}, Bounds{i64_max, i64_max}, 1));
+    EXPECT_FALSE(ov::op::slice::is_identity_slice(StaticDimension(10), Bounds{0, 0}, Bounds{i64_max, i64_max}, 2));
+    EXPECT_TRUE(ov::op::slice::is_identity_slice(StaticDimension(10), Bounds{-1, -1}, Bounds{i64_min, i64_min}, -1));
+    EXPECT_TRUE(ov::op::slice::is_identity_slice(StaticDimension(max_d), Bounds{0, 0}, Bounds{i64_max, i64_max}, 1));
+    EXPECT_FALSE(ov::op::slice::is_identity_slice(StaticDimension(max_d), Bounds{0, 0}, Bounds{i64_max, i64_max}, 2));
+}

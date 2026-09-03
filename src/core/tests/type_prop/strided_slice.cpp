@@ -857,3 +857,172 @@ TEST_P(StridedSliceIntervalTest, begin_end_as_interval) {
 
     EXPECT_EQ(op->get_output_partial_shape(0), exp_shape);
 }
+
+TEST(type_prop, strided_slice_stride_2_on_unbounded_dims_does_not_propagate_symbols) {
+    // Regression: a stride-2 slice over dims with bounds [1..inf] keeps the same interval as its input,
+    // but its size is ceil(D/2) != D, so the input dimension symbols must not be propagated to the output.
+    auto shape = PartialShape{2, Dimension(1, -1), Dimension(1, -1), 96};
+    auto symbols = set_shape_symbols(shape);
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
+    auto begin = ov::op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+    auto end = ov::op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+    auto stride = ov::op::v0::Constant::create(element::i64, Shape{4}, {1, 2, 2, 1});
+    auto mask = std::vector<int64_t>(shape.size(), 1);  // begin/end ignored -> full range on every axis
+
+    auto strided_slice = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, mask, mask);
+
+    EXPECT_EQ(strided_slice->get_output_partial_shape(0), PartialShape({2, Dimension(1, -1), Dimension(1, -1), 96}));
+    EXPECT_THAT(get_shape_symbols(strided_slice->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], nullptr, nullptr, symbols[3]));
+}
+
+TEST(type_prop, strided_slice_full_range_stride_1_on_unbounded_dims_propagates_symbols) {
+    // Control: an identity slice preserves the size, so symbols are kept.
+    auto shape = PartialShape{2, Dimension(1, -1), Dimension(1, -1), 96};
+    auto symbols = set_shape_symbols(shape);
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
+    auto begin = ov::op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+    auto end = ov::op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+    auto stride = ov::op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1});
+    auto mask = std::vector<int64_t>(shape.size(), 1);
+
+    auto strided_slice = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, mask, mask);
+
+    EXPECT_EQ(strided_slice->get_output_partial_shape(0), PartialShape({2, Dimension(1, -1), Dimension(1, -1), 96}));
+    EXPECT_THAT(get_shape_symbols(strided_slice->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], symbols[1], symbols[2], symbols[3]));
+}
+
+TEST(type_prop, strided_slice_converted_from_slice_keeps_symbols_on_masked_axes) {
+    // x[..., :5] after SliceToStridedSlice: the non-sliced axes are masked (full range, stride 1) and keep the symbols.
+    auto shape = PartialShape{2, Dimension(1, -1), Dimension(1, -1), 8};
+    auto symbols = set_shape_symbols(shape);
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
+    auto begin = ov::op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+    auto end = ov::op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 5});
+    auto stride = ov::op::v0::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1});
+    auto mask = std::vector<int64_t>{1, 1, 1, 0};
+
+    auto strided_slice = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, mask, mask);
+
+    EXPECT_EQ(strided_slice->get_output_partial_shape(0), PartialShape({2, Dimension(1, -1), Dimension(1, -1), 5}));
+    EXPECT_THAT(get_shape_symbols(strided_slice->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], symbols[1], symbols[2], nullptr));
+}
+
+TEST(type_prop, strided_slice_bounded_dims_masks_stride_pm1_propagate_symbols) {
+    // Masked full range keeps the size for stride +1 and -1 on bounded dims, but not for stride 2.
+    auto shape = PartialShape{Dimension(2, 5), Dimension(2, 5), Dimension(2, 5)};
+    auto symbols = set_shape_symbols(shape);
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
+    auto begin = ov::op::v0::Constant::create(element::i64, Shape{3}, {0, 0, 0});
+    auto end = ov::op::v0::Constant::create(element::i64, Shape{3}, {0, 0, 0});
+    auto stride = ov::op::v0::Constant::create(element::i64, Shape{3}, {1, -1, 2});
+    auto mask = std::vector<int64_t>(shape.size(), 1);
+
+    auto strided_slice = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, mask, mask);
+
+    EXPECT_EQ(strided_slice->get_output_partial_shape(0),
+              PartialShape({Dimension(2, 5), Dimension(2, 5), Dimension(1, 3)}));
+    EXPECT_THAT(get_shape_symbols(strided_slice->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], symbols[1], nullptr));
+}
+
+TEST(type_prop, strided_slice_reverse_full_range_masks_on_unbounded_dims_propagates_symbols) {
+    // Masked full range with stride -1 reverses the whole dimension, so the size is preserved.
+    auto shape = PartialShape{2, Dimension(1, -1), Dimension(1, -1), 96};
+    auto symbols = set_shape_symbols(shape);
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
+    auto begin = ov::op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+    auto end = ov::op::v0::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+    auto stride = ov::op::v0::Constant::create(element::i64, Shape{4}, {1, -1, -1, 1});
+    auto mask = std::vector<int64_t>(shape.size(), 1);
+
+    auto strided_slice = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, mask, mask);
+
+    EXPECT_EQ(strided_slice->get_output_partial_shape(0), PartialShape({2, Dimension(1, -1), Dimension(1, -1), 96}));
+    EXPECT_THAT(get_shape_symbols(strided_slice->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], symbols[1], symbols[2], symbols[3]));
+}
+
+TEST(type_prop, strided_slice_size_preserving_predicate_matches_probe) {
+    // Cross-check of the closed-form size-preservation predicate against the slice arithmetic itself: a slice is size
+    // preserving for a length L iff make_dim(Dimension(L), ...) is exactly [L, L]; probing the largest (or a large
+    // finite stand-in for an unbounded) and the smallest relevant length decides the whole interval.
+    using ov::op::slice::Bounds;
+    constexpr auto i64_max = std::numeric_limits<int64_t>::max();
+    constexpr auto i64_min = std::numeric_limits<int64_t>::min();
+
+    const auto probe = [](const Dimension& dim, const Bounds& start, const Bounds& stop, int64_t step) {
+        const int64_t d_min = dim.get_min_length();
+        const int64_t d_max = dim.get_max_length();
+        const int64_t hi = d_max == -1 ? i64_max / 4 : d_max;
+        const int64_t lo = std::min<int64_t>(hi, std::max<int64_t>(d_min, 2));
+        for (const auto length : {hi, lo}) {
+            const auto sliced = ov::op::slice::make_dim(Dimension(length), start, stop, step);
+            if (!sliced.is_static() || sliced.get_length() != length) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    struct Row {
+        Dimension dim;
+        Bounds start;
+        Bounds stop;
+        int64_t step;
+        bool expected;
+        bool expected_probe;
+    };
+    const auto inf = Dimension(1, -1);
+    const std::vector<Row> rows{
+        {inf, {0, 0}, {i64_max, i64_max}, 1, true, true},
+        {inf, {0, 0}, {i64_max, i64_max}, 2, false, false},
+        {inf, {0, 0}, {i64_max, i64_max}, 3, false, false},
+        {inf, {0, 0}, {i64_max, i64_max}, -1, false, false},
+        {inf, {i64_min, i64_min}, {i64_max, i64_max}, 1, true, true},
+        {inf, {i64_max, i64_max}, {i64_min, i64_min}, -1, true, true},
+        {inf, {-1, -1}, {i64_min, i64_min}, -1, true, true},
+        {inf, {1, 1}, {i64_max, i64_max}, 1, false, false},
+        {inf, {0, 0}, {2147483647, 2147483647}, 1, false, false},
+        {inf, {i64_min, 0}, {i64_max, i64_max}, 1, false, false},
+        {inf, {0, 0}, {1, i64_max}, 1, false, false},
+        {Dimension(10), {0, 0}, {10, 10}, 1, true, true},
+        {Dimension(10), {0, 0}, {9, 9}, 1, false, false},
+        {Dimension(10), {-20, -20}, {20, 20}, 1, true, true},
+        {Dimension(10), {9, 9}, {-11, -11}, -1, true, true},
+        {Dimension(4, 8), {0, 0}, {8, 8}, 1, true, true},
+        {Dimension(4, 8), {0, 0}, {6, 6}, 1, false, false},
+        {Dimension(4, 8), {0, 0}, {4, 8}, 1, false, false},
+        {Dimension(2, 5), {-5, -5}, {5, 5}, 1, true, true},
+        {Dimension(2, 5), {-5, -3}, {5, 5}, 1, false, false},
+        {Dimension(2, 5), {0, 0}, {5, 5}, -1, false, false},
+        {Dimension(2, 5), {4, 4}, {-6, -6}, -1, true, true},
+        {Dimension(2, 5), {3, 3}, {-6, -6}, -1, false, false},
+        // lengths 0 and 1 are trivially preserved by any step: the predicate is conservative here
+        {Dimension(0, 1), {0, 0}, {i64_max, i64_max}, 2, false, true},
+    };
+
+    for (size_t i = 0; i < rows.size(); ++i) {
+        const auto& r = rows[i];
+        EXPECT_EQ(ov::op::slice::is_identity_slice(r.dim, r.start, r.stop, r.step), r.expected) << "row " << i;
+        EXPECT_EQ(probe(r.dim, r.start, r.stop, r.step), r.expected_probe) << "row " << i;
+    }
+}
+
+TEST(type_prop, strided_slice_non_const_begin_end_on_bounded_dims_does_not_propagate_symbols) {
+    // Unknown begin/end give a [0..max] output, which equals a [0..max] input, but the size is not provably preserved.
+    auto shape = PartialShape{Dimension(0, 5), Dimension(0, 4)};
+    auto symbols = set_shape_symbols(shape);
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
+    auto begin = std::make_shared<ov::op::v0::Parameter>(element::i64, Shape{2});
+    auto end = std::make_shared<ov::op::v0::Parameter>(element::i64, Shape{2});
+    auto stride = ov::op::v0::Constant::create(element::i64, Shape{2}, {1, 1});
+    auto mask = std::vector<int64_t>(2, 0);
+
+    auto strided_slice = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, mask, mask);
+
+    EXPECT_EQ(strided_slice->get_output_partial_shape(0), PartialShape({Dimension(0, 5), Dimension(0, 4)}));
+    EXPECT_THAT(get_shape_symbols(strided_slice->get_output_partial_shape(0)), Each(nullptr));
+}

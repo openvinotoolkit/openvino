@@ -4,11 +4,14 @@
 
 #include "openvino/op/slice.hpp"
 
+#include <limits>
 #include <numeric>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/subtract.hpp"
 #include "sequence_generator.hpp"
 
@@ -253,9 +256,10 @@ TEST(type_prop, slice_v8_basic_param_inputs_default_axes_symbols_prop) {
 
     EXPECT_EQ(op->get_element_type(), et);
     EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
-    EXPECT_THAT(
-        get_shape_symbols(op->get_output_partial_shape(0)),
-        ElementsAre(symbols[0], nullptr, nullptr, nullptr, nullptr, nullptr, symbols[6], symbols[7], symbols[8]));
+    // start, stop and step are not constant: the sliced size is unknown for every axis in the axes list (0..6), so
+    // no symbol is propagated there even if the output interval matches the input one (dims 0 and 6)
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, symbols[7], symbols[8]));
 }
 
 TEST(type_prop, slice_v8_sss_param_inputs_mixed_neg_const_axes) {
@@ -1260,4 +1264,184 @@ TEST_P(SliceV8IntervalTest, start_stop_as_interval) {
     const auto op = make_op(data, start, stop, steps);
 
     EXPECT_EQ(op->get_output_partial_shape(0), exp_shape);
+}
+
+TEST(type_prop, slice_v8_step_2_on_unbounded_dims_does_not_propagate_symbols) {
+    // Regression: a strided (step 2) slice over dims with bounds [1..inf] keeps the same interval as its input,
+    // but its size is ceil(D/2) != D, so the input dimension symbols must not be propagated to the output.
+    PartialShape data_shape{-1, Dimension(1, -1), Dimension(1, -1), 96};
+    PartialShape expected_out_shape{-1, Dimension(1, -1), Dimension(1, -1), 96};
+    auto symbols = set_shape_symbols(data_shape);
+
+    std::vector<int32_t> start_val{0, 0};
+    std::vector<int32_t> stop_val{std::numeric_limits<int32_t>::max(), std::numeric_limits<int32_t>::max()};
+    std::vector<int32_t> step_val{2, 2};
+    std::vector<int32_t> axes_val{1, 2};
+
+    constexpr auto et = element::i32;
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], nullptr, nullptr, symbols[3]));
+}
+
+TEST(type_prop, slice_v8_step_2_from_1_on_unbounded_dims_does_not_propagate_symbols) {
+    // Control: the same slice starting at 1 yields [0..inf] which already blocks the symbol propagation today.
+    PartialShape data_shape{-1, Dimension(1, -1), Dimension(1, -1), 96};
+    PartialShape expected_out_shape{-1, Dimension(0, -1), Dimension(0, -1), 96};
+    auto symbols = set_shape_symbols(data_shape);
+
+    std::vector<int32_t> start_val{1, 1};
+    std::vector<int32_t> stop_val{std::numeric_limits<int32_t>::max(), std::numeric_limits<int32_t>::max()};
+    std::vector<int32_t> step_val{2, 2};
+    std::vector<int32_t> axes_val{1, 2};
+
+    constexpr auto et = element::i32;
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], nullptr, nullptr, symbols[3]));
+}
+
+TEST(type_prop, slice_v8_full_range_step_1_on_unbounded_dims_propagates_symbols) {
+    // Control: an identity slice (start 0, stop max, step 1) preserves the size, so symbols are kept.
+    PartialShape data_shape{-1, Dimension(1, -1), Dimension(1, -1), 96};
+    PartialShape expected_out_shape{-1, Dimension(1, -1), Dimension(1, -1), 96};
+    auto symbols = set_shape_symbols(data_shape);
+
+    std::vector<int32_t> start_val{0, 0};
+    std::vector<int32_t> stop_val{std::numeric_limits<int32_t>::max(), std::numeric_limits<int32_t>::max()};
+    std::vector<int32_t> step_val{1, 1};
+    std::vector<int32_t> axes_val{1, 2};
+
+    constexpr auto et = element::i32;
+    std::vector<std::vector<int32_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], symbols[1], symbols[2], symbols[3]));
+}
+
+TEST(type_prop, slice_v8_bounded_dims_full_range_propagates_symbols_only_when_stop_covers_max) {
+    // start 0 (or <= -max) with stop >= max keeps the size for every length in [2..5]; stop 4 does not (5 -> 4).
+    PartialShape data_shape{Dimension(2, 5), Dimension(2, 5), Dimension(2, 5)};
+    PartialShape expected_out_shape{Dimension(2, 5), Dimension(2, 4), Dimension(2, 5)};
+    auto symbols = set_shape_symbols(data_shape);
+
+    std::vector<int64_t> start_val{0, 0, -5};
+    std::vector<int64_t> stop_val{5, 4, 5};
+    std::vector<int64_t> step_val{1, 1, 1};
+    std::vector<int64_t> axes_val{0, 1, 2};
+
+    constexpr auto et = element::i64;
+    std::vector<std::vector<int64_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(symbols[0], nullptr, symbols[2]));
+}
+
+TEST(type_prop, slice_v8_bounded_dims_full_reverse_propagates_symbols) {
+    // start >= max - 1 with stop <= -max - 1 and step -1 reverses the whole dimension for every length in [2..5].
+    PartialShape data_shape{Dimension(2, 5), Dimension(2, 5)};
+    PartialShape expected_out_shape{Dimension(2, 5), Dimension(2, 4)};
+    auto symbols = set_shape_symbols(data_shape);
+
+    std::vector<int64_t> start_val{4, 3};
+    std::vector<int64_t> stop_val{-6, -6};
+    std::vector<int64_t> step_val{-1, -1};
+    std::vector<int64_t> axes_val{0, 1};
+
+    constexpr auto et = element::i64;
+    std::vector<std::vector<int64_t>> input_vals{start_val, stop_val, step_val, axes_val};
+    const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(symbols[0], nullptr));
+}
+
+TEST(type_prop, slice_v8_negative_start_with_bounds_does_not_propagate_symbols) {
+    // x[-n:] with an unknown n >= 1 (start bounds (-inf.., -1)): the output interval equals the input [1..inf], but
+    // the bounds do not prove that the size is preserved.
+    PartialShape data_shape{-1, Dimension(1, -1), 8};
+    auto symbols = set_shape_symbols(data_shape);
+
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+    const auto start = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
+    int64_t start_lower[] = {std::numeric_limits<int64_t>::min() + 1};
+    int64_t start_upper[] = {-1};
+    start->get_output_tensor(0).set_lower_value(ov::Tensor(element::i64, Shape{1}, start_lower));
+    start->get_output_tensor(0).set_upper_value(ov::Tensor(element::i64, Shape{1}, start_upper));
+    const auto stop = op::v0::Constant::create(element::i64, Shape{1}, {std::numeric_limits<int64_t>::max()});
+    const auto step = op::v0::Constant::create(element::i64, Shape{1}, {1});
+    const auto axes = op::v0::Constant::create(element::i64, Shape{1}, {1});
+    const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), data_shape);
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(symbols[0], nullptr, symbols[2]));
+}
+
+TEST(type_prop, slice_v8_stop_is_shape_of_input_dim_on_unbounded_dims) {
+    // x[:, :ShapeOf(x)[1], :ShapeOf(x)[2]]: the stop bounds are (1, INT64_MAX) so the output interval equals the input,
+    // but the bounds alone do not prove the size is preserved; the symbols are not propagated.
+    PartialShape data_shape{-1, Dimension(1, -1), Dimension(1, -1), 96};
+    auto symbols = set_shape_symbols(data_shape);
+
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+    const auto stop = std::make_shared<op::v8::Gather>(std::make_shared<op::v3::ShapeOf>(data),
+                                                       op::v0::Constant::create(element::i64, Shape{2}, {1, 2}),
+                                                       op::v0::Constant::create(element::i64, Shape{}, {0}));
+    const auto start = op::v0::Constant::create(element::i64, Shape{2}, {0, 0});
+    const auto step = op::v0::Constant::create(element::i64, Shape{2}, {1, 1});
+    const auto axes = op::v0::Constant::create(element::i64, Shape{2}, {1, 2});
+    const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), data_shape);
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], nullptr, nullptr, symbols[3]));
+}
+
+TEST(type_prop, slice_v8_stop_is_shape_of_other_input_does_not_propagate_symbols) {
+    // The stop is the shape of another tensor with the same interval: the sizes are unrelated.
+    PartialShape data_shape{-1, Dimension(1, -1), Dimension(1, -1), 96};
+    PartialShape other_shape{-1, Dimension(1, -1), Dimension(1, -1), 96};
+    auto symbols = set_shape_symbols(data_shape);
+    set_shape_symbols(other_shape);
+
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+    const auto other = std::make_shared<op::v0::Parameter>(element::f32, other_shape);
+    const auto stop = std::make_shared<op::v8::Gather>(std::make_shared<op::v3::ShapeOf>(other),
+                                                       op::v0::Constant::create(element::i64, Shape{2}, {1, 2}),
+                                                       op::v0::Constant::create(element::i64, Shape{}, {0}));
+    const auto start = op::v0::Constant::create(element::i64, Shape{2}, {0, 0});
+    const auto step = op::v0::Constant::create(element::i64, Shape{2}, {1, 1});
+    const auto axes = op::v0::Constant::create(element::i64, Shape{2}, {1, 2});
+    const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), data_shape);
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], nullptr, nullptr, symbols[3]));
+}
+
+TEST(type_prop, slice_v8_stop_is_shape_of_fully_dynamic_dim_stays_symbol_free) {
+    // A fully dynamic dimension never propagates its symbol through a slice (the output is [0..inf] as well).
+    PartialShape data_shape{-1, -1, 8};
+    auto symbols = set_shape_symbols(data_shape);
+
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+    const auto stop = std::make_shared<op::v8::Gather>(std::make_shared<op::v3::ShapeOf>(data),
+                                                       op::v0::Constant::create(element::i64, Shape{1}, {1}),
+                                                       op::v0::Constant::create(element::i64, Shape{}, {0}));
+    const auto start = op::v0::Constant::create(element::i64, Shape{1}, {0});
+    const auto step = op::v0::Constant::create(element::i64, Shape{1}, {1});
+    const auto axes = op::v0::Constant::create(element::i64, Shape{1}, {1});
+    const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), data_shape);
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(symbols[0], nullptr, symbols[2]));
 }

@@ -132,15 +132,21 @@ std::vector<TRShape> shape_infer(const Slice* op,
                 const auto& step = (*steps)[i];
                 NODE_VALIDATION_CHECK(op, step != 0, "Step must be non-zero");
                 out.push_back(slice::make_dim(input_dim, (*start)[i], (*stop)[i], step));
-            } else {
-                out.emplace_back(0, input_dim.get_max_length());
-            }
 
-            auto& last_dim = out[out.size() - 1];
-            if (std::is_same<DimType, ov::Dimension>::value &&
-                (last_dim == input_dim && last_dim != Dimension::dynamic())) {
-                // for equal ov::Dimension do merge to get input label (always success)
-                DimType::merge(last_dim, last_dim, input_dim);
+                if constexpr (std::is_same_v<DimType, ov::Dimension>) {
+                    auto& last_dim = out[out.size() - 1];
+                    // Propagate the input symbol only if the sliced dimension is equal to the input dimension and the
+                    // slice provably preserves its size. Equal intervals do not imply equal sizes (e.g. step 2 on
+                    // [1..inf]); the interval check itself is unchanged, so this can only remove symbol equalities.
+                    if (last_dim == input_dim && last_dim != Dimension::dynamic() &&
+                        (input_dim.is_static() || slice::is_identity_slice(input_dim, (*start)[i], (*stop)[i], step))) {
+                        DimType::merge(last_dim, last_dim, input_dim);
+                    }
+                }
+            } else {
+                // start, stop or step is unknown: the sliced size cannot be proven equal to the input size, so the
+                // input symbol is not propagated even if the output interval happens to match the input one
+                out.emplace_back(0, input_dim.get_max_length());
             }
             ++axis_it;
         } else if (axes_map.is_valid) {
