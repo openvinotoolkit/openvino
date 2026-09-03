@@ -28,6 +28,7 @@
 #include "openvino/op/clamp.hpp"
 #include "snippets/op/powerstatic.hpp"
 #include "utils/general_utils.h"
+#include "utils/rt_info/approximate_exp_attribute.hpp"
 
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;
@@ -2086,6 +2087,28 @@ void jit_negative_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 }
 
 /// EXP ///
+// A cheaper exp for softmax numerators, selected per Exp node by MarkApproximateSoftmaxExp and
+// enabled per compiled model with ov::intel_cpu::snippets_approximate_softmax_exp. It evaluates
+// 2^(x*log2e) as a degree-1 minimax polynomial on the fraction and clamps in the log2 domain
+// rather than masking and blending the denormal underflow: one vfmadd213ps where the accurate
+// path has a degree-5 polynomial, and no compare/blend pair.
+//
+// What a caller is accepting:
+//  - Max relative error 2.98e-2, where the accurate path measures 3.9e-7. Normalising the softmax
+//    does not cancel it -- the error is a function of frac(x*log2e) and a minimax fit
+//    equioscillates about zero, so there is no common bias to divide out -- and the worst case on
+//    the normalised probabilities is 2e/(1-e) = 6.15e-2, worse than on the raw exponential.
+//  - exp(0) returns c0 = 1.0290141, not 1.
+//  - Saturation rather than underflow or overflow at both ends, at neither of the accurate path's
+//    knees and to neither of its values. At or below x = -87.3365 (fast_lo/log2e) this returns
+//    c0*2^-126 = 1.2096e-38, where the accurate path still evaluates its polynomial and flushes to
+//    zero only strictly below ln_flt_min_f. This floor sits just above FLT_MIN, so arithmetic
+//    downstream of it underflows readily, and denormal arithmetic costs one to two orders of
+//    magnitude on x86 unless FTZ is set: worth pairing with CPU_DENORMALS_OPTIMIZATION. At or
+//    above x = 88.0297 (fast_hi/log2e) this returns c0*2^127 = 1.7508e38, where the accurate path
+//    reaches +inf from x = 88.3763 upwards. No input yields an infinity, a denormal or a NaN:
+//    vminps returns its second source operand when either is NaN, so a NaN saturates high too.
+
 jit_exp_emitter::jit_exp_emitter(x64::jit_generator_t* host, x64::cpu_isa_t host_isa, ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
@@ -2093,9 +2116,10 @@ jit_exp_emitter::jit_exp_emitter(x64::jit_generator_t* host, x64::cpu_isa_t host
 
 jit_exp_emitter::jit_exp_emitter(x64::jit_generator_t* host,
                                  x64::cpu_isa_t host_isa,
-                                 [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
+                                 const std::shared_ptr<ov::Node>& node,
                                  ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {
+    : jit_emitter(host, host_isa, exec_prc),
+      m_use_fast_exp(node != nullptr && is_approximate_exp(node)) {
     prepare_table();
 }
 
@@ -2125,6 +2149,29 @@ void jit_exp_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
     auto vmm_src = Vmm(in_vec_idxs[0]);
     auto vmm_dst = Vmm(out_vec_idxs[0]);
+
+    if (m_use_fast_exp) {
+        auto vmm_f = Vmm(aux_vec_idxs[0]);
+        auto vmm_scale = Vmm(aux_vec_idxs[1]);
+        // The clamps must stay ahead of the exponent-field build below, which computes
+        // (n + 127) << 23. They pin n to [-126, 127], which is exactly the range over which that
+        // field is a finite normal positive power of two.
+        h->uni_vmulps(vmm_f, vmm_src, table_val("log2ef"));
+        h->uni_vminps(vmm_f, vmm_f, table_val("fast_hi"));
+        h->uni_vmaxps(vmm_f, vmm_f, table_val("fast_lo"));
+        // Round to nearest, so the fraction lands in [-0.5, 0.5] -- the interval the polynomial
+        // below is fitted on.
+        const auto _op_near = 0U;
+        h->uni_vroundps(vmm_scale, vmm_f, _op_near);
+        h->uni_vsubps(vmm_f, vmm_f, vmm_scale);
+        h->uni_vcvtps2dq(vmm_scale, vmm_scale);
+        h->uni_vpaddd(vmm_scale, vmm_scale, table_val("exponent_bias"));
+        h->uni_vpslld(vmm_scale, vmm_scale, 23);
+        h->uni_vmovups(vmm_dst, table_val("fast_exp_c1"));
+        h->uni_vfmadd213ps(vmm_dst, vmm_f, table_val("fast_exp_c0"));
+        h->uni_vmulps(vmm_dst, vmm_dst, vmm_scale);
+        return;
+    }
 
     Vmm vmm_mask = need_vmm_mask() ? Vmm(aux_vec_idxs[0]) : Vmm();
     auto vmm_aux0 = Vmm(aux_vec_idxs[0 + static_cast<size_t>(need_vmm_mask())]);
@@ -2192,6 +2239,26 @@ void jit_exp_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
 }
 
 void jit_exp_emitter::register_table_entries() {
+    // Both paths build the exponent field from these two.
+    push_arg_entry_of("log2ef", 0x3fb8aa3b, true);
+    push_arg_entry_of("exponent_bias", 0x0000007f, true);
+
+    if (m_use_fast_exp) {
+        // Minimax fit of 2^f on f in [-0.5, 0.5]: max relative error 2.98e-2. Its constant
+        // term is not exactly 1, so unlike a Taylor form this cannot reuse "one" as the final
+        // addend.
+        push_arg_entry_of("fast_exp_c0", 0x3f83b6bc, true);  // 1.029014111f
+        push_arg_entry_of("fast_exp_c1", 0x3f2f9e4c, true);  // 0.686009169f
+        // The clamp bounds, in the log2 domain. Clamping at an integer pins the rounded
+        // exponent to it and the fraction to one side of zero, so the polynomial is c0 exactly
+        // at the bottom and at most c0 at the top: +127 gives 1.029 * 2^127 = 1.75e38, below
+        // FLT_MAX, and -126 gives 1.029 * 2^-126 = 1.21e-38, above FLT_MIN. So no input yields
+        // an infinity or a denormal.
+        push_arg_entry_of("fast_hi", 0x42fe0000, true);  // +127
+        push_arg_entry_of("fast_lo", 0xc2fc0000, true);  // -126
+        return;
+    }
+
     push_arg_entry_of("pol1", 0x3f7ffffb, true);  // p1 = 0.999999701f
     push_arg_entry_of("pol2", 0x3efffee3, true);  // p2 = 0.499991506f
     push_arg_entry_of("pol3", 0x3e2aad40, true);  // p3 = 0.166676521f
@@ -2201,13 +2268,14 @@ void jit_exp_emitter::register_table_entries() {
     push_arg_entry_of("one", CONST_1_F, true);
     push_arg_entry_of("half", 0x3f000000, true);
     push_arg_entry_of("ln2f", 0x3f317218, true);
-    push_arg_entry_of("log2ef", 0x3fb8aa3b, true);
     push_arg_entry_of("ln_flt_max_f", 0x42b17218, true);
     push_arg_entry_of("ln_flt_min_f", 0xc2aeac50, true);
-    push_arg_entry_of("exponent_bias", 0x0000007f, true);
 }
 
 size_t jit_exp_emitter::aux_vecs_count() const {
+    if (m_use_fast_exp) {
+        return 2;
+    }
     return need_vmm_mask() ? 3 : 2;
 }
 
