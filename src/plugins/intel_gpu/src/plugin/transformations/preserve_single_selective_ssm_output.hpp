@@ -26,13 +26,4 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
-// Prevents generic precision conversion from changing SelectiveSSM and PagedSelectiveSSM
-// operations or any of their inputs, preserving the precision required by the GPU kernels.
-class PreserveSelectiveSSMPrecision final : public ov::pass::ModelPass {
-public:
-    OPENVINO_MODEL_PASS_RTTI("PreserveSelectiveSSMPrecision");
-
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
-};
-
 }  // namespace ov::intel_gpu

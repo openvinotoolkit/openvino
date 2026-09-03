@@ -34,8 +34,9 @@ OutputVector translate_get_rows(const NodeContext& context) {
     }
 
     if (op_case == 4) {
-        auto flat_indices = std::make_shared<ov::op::v0::Squeeze>(
-            indices, ov::op::v0::Constant::create(ov::element::i64, {3}, {0, 1, 2}));
+        auto flat_indices =
+            std::make_shared<ov::op::v0::Squeeze>(indices,
+                                                  ov::op::v0::Constant::create(ov::element::i64, {3}, {0, 1, 2}));
         auto axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {2});
         res = std::make_shared<ov::op::v8::Gather>(data, flat_indices, axis);
         if (res.get_element_type() != context.get_output_type()) {
