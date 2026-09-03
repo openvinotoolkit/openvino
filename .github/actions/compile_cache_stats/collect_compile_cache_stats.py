@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import re
@@ -367,23 +368,47 @@ def _ci_context() -> dict[str, Any]:
     return {key.lower(): os.environ.get(key) for key in keys if os.environ.get(key)}
 
 
-def collect() -> dict[str, Any]:
-    executable: str | None = None
-    tool = ""
+def resolve_compile_cache_tool() -> tuple[str, str]:
     sccache = resolve_sccache()
     if sccache:
-        executable = sccache
-        tool = "sccache"
-    elif resolve_ccache():
-        ccache = resolve_ccache()
-        executable = ccache
-        tool = "ccache"
+        return sccache, "sccache"
+    ccache = resolve_ccache()
+    if ccache:
+        return ccache, "ccache"
+    raise FileNotFoundError(
+        "Neither sccache nor ccache was found (checked SCCACHE_PATH, PATH for sccache, then PATH for ccache)."
+    )
 
-    if not executable:
-        raise FileNotFoundError(
-            "Neither sccache nor ccache was found (checked SCCACHE_PATH, PATH for sccache, then PATH for ccache)."
+
+def zero_compile_cache_stats() -> int:
+    try:
+        executable, tool = resolve_compile_cache_tool()
+    except FileNotFoundError as exc:
+        print(f"::error::{exc}")
+        return 1
+
+    result = subprocess.run(
+        [executable, "--zero-stats"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        stderr = result.stderr.strip()
+        print(
+            f"::error::{executable} --zero-stats failed with exit code {result.returncode}"
+            + (f": {stderr}" if stderr else "")
         )
+        return 1
 
+    print(f"Reset {tool} statistics ({executable})")
+    if result.stdout.strip():
+        print(result.stdout)
+    return 0
+
+
+def collect() -> dict[str, Any]:
+    executable, tool = resolve_compile_cache_tool()
     stdout = run_show_stats(executable)
     if tool == "sccache":
         report = parse_sccache_stats(stdout)
@@ -391,6 +416,9 @@ def collect() -> dict[str, Any]:
         report = parse_ccache_stats(stdout)
     report["executable"] = executable
     report["ci"] = _ci_context()
+    build_label = os.environ.get("COMPILE_CACHE_BUILD_LABEL", "").strip()
+    if build_label:
+        report["build_label"] = build_label
     return report
 
 
@@ -441,4 +469,11 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    parser = argparse.ArgumentParser(description="Collect or reset sccache/ccache statistics.")
+    parser.add_argument(
+        "--zero-stats",
+        action="store_true",
+        help="Reset compile cache statistics (sccache/ccache --zero-stats).",
+    )
+    args = parser.parse_args()
+    sys.exit(zero_compile_cache_stats() if args.zero_stats else main())
