@@ -401,16 +401,18 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     if (compiled_model->m_lm_head_compiled) {
         m_lm_head_request = compiled_model->m_lm_head_compiled->create_infer_request();
         OPENVINO_ASSERT(m_lm_head_request);
-        const ov::Output<const ov::Node> lm_head_embed_port = m_lm_head_request->get_inputs()[0];
+        m_lm_head_embed_port = m_lm_head_request->get_inputs()[0];
         m_lm_head_logits_port = m_lm_head_request->get_outputs()[0];
-        m_prefill_request->set_tensor(m_prefill_out_ports.at(layer_names::output_embeds),
-                                      m_lm_head_request->get_tensor(lm_head_embed_port));
+        if (!compiled_model->m_use_chunk_prefill) {
+            m_prefill_request->set_tensor(m_prefill_out_ports.at(layer_names::output_embeds),
+                                          m_lm_head_request->get_tensor(m_lm_head_embed_port));
+        }
 
         // Set output_embeds tensor for all generate variants
         for (auto& generate_req : m_generate_requests) {
             const auto& variant_out_ports = m_generate_variant_out_ports.at(generate_req);
             generate_req->set_tensor(variant_out_ports.at(layer_names::output_embeds),
-                                     m_lm_head_request->get_tensor(lm_head_embed_port));
+                                     m_lm_head_request->get_tensor(m_lm_head_embed_port));
         }
     }
 
@@ -1250,6 +1252,40 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
     LOG_DEBUG("Done");
 }
 
+void ov::npuw::LLMInferRequest::copy_last_prefill_embeds_to_lm_head(uint32_t valid_token_count) {
+    OPENVINO_ASSERT(m_lm_head_request, "Shared LM-head request is not initialized.");
+    OPENVINO_ASSERT(valid_token_count > 0u, "Chunked prefill must produce at least one valid token.");
+
+    auto prefill_embeds = m_prefill_request->get_tensor(m_prefill_out_ports.at(layer_names::output_embeds));
+    auto lm_head_embeds = m_lm_head_request->get_tensor(m_lm_head_embed_port);
+    const uint32_t batch_dim = m_npuw_llm_compiled_model->m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();
+    OPENVINO_ASSERT(batch_dim <= 1u, "Shared LM-head supports only batch dimensions 0 or 1.");
+
+    const uint32_t sequence_dim = 1u - batch_dim;
+    const auto& prefill_shape = prefill_embeds->get_shape();
+    const auto& lm_head_shape = lm_head_embeds->get_shape();
+    OPENVINO_ASSERT(prefill_shape.size() == 3u && lm_head_shape.size() == 3u,
+                    "Shared LM-head embeddings must be rank-3 tensors.");
+    OPENVINO_ASSERT(prefill_embeds->get_element_type() == lm_head_embeds->get_element_type(),
+                    "Prefill and LM-head embedding types must match.");
+    OPENVINO_ASSERT(valid_token_count <= prefill_shape[sequence_dim],
+                    "Valid prefill tokens exceed the embedding output length.");
+
+    const uint32_t lm_head_token_count = static_cast<uint32_t>(lm_head_shape[sequence_dim]);
+    const uint32_t tokens_to_copy = std::min(valid_token_count, lm_head_token_count);
+    ov::npuw::util::fill_tensor_bytes(lm_head_embeds, 0u);
+
+    const auto prefill_slice = ov::npuw::util::make_tensor_slice(prefill_embeds,
+                                                                 sequence_dim,
+                                                                 valid_token_count - tokens_to_copy,
+                                                                 valid_token_count);
+    const auto lm_head_slice = ov::npuw::util::make_tensor_slice(lm_head_embeds,
+                                                                 sequence_dim,
+                                                                 lm_head_token_count - tokens_to_copy,
+                                                                 lm_head_token_count);
+    ov::npuw::util::copy_tensor_by_dim(prefill_slice, lm_head_slice, sequence_dim, sequence_dim);
+}
+
 void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                               ov::SoPtr<ov::ITensor> attention_mask,
                                               ov::SoPtr<ov::ITensor> position_ids,
@@ -1314,6 +1350,9 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 
     m_llm_profile["1/prefill:4.lm_head"].record([&]() {
         if (m_lm_head_request) {
+            if (use_chunk_prefill) {
+                copy_last_prefill_embeds_to_lm_head(static_cast<uint32_t>(m_tokens_in_present_chunk));
+            }
             LOG_DEBUG("Calling inference for LM head model.");
             m_lm_head_request->infer();
             m_logits = m_lm_head_request->get_tensor(m_lm_head_logits_port);

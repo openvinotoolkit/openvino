@@ -858,13 +858,9 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             return;
                         }
                         if (this_case == pyramid_attention::Selector::Case::PREFILL) {
-                            if (pyramid->_data_left_aligned) {
-                                copy_mask_segment(0, 0, pyramid->get_context_length(pyramid_id));
-                            } else {
-                                const auto present_len = pyramid->get_context_length(pyramid_id) - past_len;
-                                copy_mask_segment(past_len, full_mask_shape[ATTN_KV_DIM] - present_len, present_len);
-                                copy_mask_segment(0, 0, past_len);
-                            }
+                            // Pyramid prefill is enabled only with chunked prefill. The staging mask
+                            // stores past and current tokens as one left-aligned context interval.
+                            copy_mask_segment(0, 0, pyramid->get_context_length(pyramid_id));
                             state.cached_attention_mask = dst;
                             return;
                         }
@@ -1126,7 +1122,10 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                 "Final tile must process entire present KV sequence in a single inference. "
                                 "This is guaranteed during compilation (tile_size = query_size = present_seq_length).");
                             const int64_t mask_total_length = attention_mask_tensor->get_shape()[MASK_KV_SEQ_DIM];
-                            const int64_t final_mask_offset = mask_total_length - final_tile_length;
+                            const bool is_prefill = state.hfa_selector->this_case() ==
+                                                    runtime::host_flash_attention::Selector::Case::PREFILL;
+                            const int64_t final_mask_offset = is_prefill ? total_kv_length - final_tile_length
+                                                                         : mask_total_length - final_tile_length;
                             process_tile(final_tile_request,
                                          hfa_desc->_compiled_final_tile_model,
                                          present_key_tensor,

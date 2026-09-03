@@ -106,6 +106,8 @@ protected:
                         ov::SoPtr<ov::ITensor> position_ids,
                         ov::SoPtr<ov::ITensor> per_layer_inputs);
 
+    void copy_last_prefill_embeds_to_lm_head(uint32_t valid_token_count);
+
     // Continuation counterpart of prepare_for_new_conversation(), run by
     // infer_prefill() when a granted keep is armed. Validates the delta inputs,
     // repacks the preserved prefix through the strategy, restores the history
@@ -160,6 +162,7 @@ protected:
     std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, PortsMap> m_generate_variant_in_ports;
     std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, PortsMap> m_generate_variant_out_ports;
 
+    ov::Output<const ov::Node> m_lm_head_embed_port;
     ov::Output<const ov::Node> m_lm_head_logits_port;
 
     std::vector<std::string> m_kvcache_past_names;
