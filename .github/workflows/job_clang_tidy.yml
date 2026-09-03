@@ -112,6 +112,12 @@ jobs:
             -S "${OPENVINO_REPO}" \
             -B "${BUILD_DIR}"
 
+      - name: Zero compile cache stats (clang-tidy build)
+        if: ${{ inputs.show-sccache-stats }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
       - name: Cmake build with clang-tidy enabled
         env:
           BUILD_TARGET: ${{ inputs.build-target }}
@@ -124,6 +130,13 @@ jobs:
             --target "${BUILD_TARGET}" \
             -- ${BUILD_EXTRA_ARGS}
 
+      - name: Compile cache statistics (clang-tidy build)
+        if: ${{ inputs.show-sccache-stats }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: clang-tidy-${{ inputs.build-target }}
+          artifact-name: compile-cache-stats-clang-tidy-${{ inputs.compile-commands-artifact }}-${{ inputs.build-target }}
+
       - name: Upload compile_commands
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         if: always()
@@ -131,7 +144,3 @@ jobs:
           name: ${{ inputs.compile-commands-artifact }}
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
-
-      - name: Show sccache stats
-        if: ${{ inputs.show-sccache-stats }}
-        run: ${SCCACHE_PATH} --show-stats

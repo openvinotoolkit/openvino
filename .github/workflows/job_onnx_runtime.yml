@@ -71,6 +71,7 @@ jobs:
         with:
           sparse-checkout: |
             src/frontends/onnx/tests/ci_utils/onnxruntime
+            .github/actions/compile_cache_stats
           sparse-checkout-cone-mode: false
 
       - name: Get ONNX runtime version
@@ -102,6 +103,11 @@ jobs:
       # Tests
       #
 
+      - name: Zero compile cache stats (onnx runtime build)
+        uses: ./.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
       - name: Build Lin ONNX Runtime
         run: |
           source ${INSTALL_DIR}/setupvars.sh
@@ -118,8 +124,11 @@ jobs:
         env:
           CXXFLAGS: "-Wno-error=deprecated-declarations"
 
-      - name: Show sccache stats
-        run: ${SCCACHE_PATH} --show-stats
+      - name: Compile cache statistics (onnx runtime build)
+        uses: ./.github/actions/compile_cache_stats
+        with:
+          build-label: onnx-runtime-build
+          artifact-name: compile-cache-stats-onnx-runtime-build
 
       - name: Run onnxruntime_test_all
         if: ${{ runner.arch != 'ARM64' }} # Ticket: 126277

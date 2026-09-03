@@ -166,7 +166,7 @@ jobs:
           save_to: ${{ env.MANIFEST_PATH }}
           trigger_repo_branch: ${{ inputs.target-branch }}
 
-      - name: Build OpenVINO
+      - name: Configure OpenVINO build
         run: |
           python3.12 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
           /usr/bin/cmake -DPython3_EXECUTABLE=/usr/local/bin/python3.12 \
@@ -178,11 +178,30 @@ jobs:
                          -DENABLE_WHEEL=ON \
                          -S ${{ env.OPENVINO_REPO }} \
                          -B ${{ env.BUILD_DIR }}
+        env:
+          CXXFLAGS: "-Wno-dangling-reference" # bug in gcc-14: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=107532
+
+      - name: Zero compile cache stats (openvino main build)
+        uses: ./src/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
+      - name: Build OpenVINO
+        run: |
           /usr/bin/cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
           /usr/bin/cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
           /usr/bin/cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_TEST_DIR }} --component tests
-        env:
-          CXXFLAGS: "-Wno-dangling-reference" # bug in gcc-14: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=107532
+
+      - name: Compile cache statistics (openvino main build)
+        uses: ./src/.github/actions/compile_cache_stats
+        with:
+          build-label: openvino-main
+          artifact-name: compile-cache-stats-manylinux-openvino-main
+
+      - name: Zero compile cache stats (python api wheels)
+        uses: ./src/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
 
       - name: Build Python API (Python 3.10-3.14t)
         run: |
@@ -212,14 +231,34 @@ jobs:
 
           done
 
-      - name: Build OpenVINO JS API
+      - name: Compile cache statistics (python api wheels)
+        uses: ./src/.github/actions/compile_cache_stats
+        with:
+          build-label: python-api-wheels
+          artifact-name: compile-cache-stats-manylinux-python-api-wheels
+
+      - name: Configure OpenVINO JS API build
         run: |
           /usr/bin/cmake -UTBB* -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }} \
                 -DCPACK_GENERATOR=NPM \
                 -DENABLE_SYSTEM_TBB=OFF \
                 -DENABLE_WHEEL=OFF
+
+      - name: Zero compile cache stats (openvino js api)
+        uses: ./src/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
+      - name: Build OpenVINO JS API
+        run: |
           /usr/bin/cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc) -- --quiet
           /usr/bin/cmake --install ${{ env.BUILD_DIR }} --prefix ${{ env.OPENVINO_REPO }}/src/bindings/js/node/bin
+
+      - name: Compile cache statistics (openvino js api)
+        uses: ./src/.github/actions/compile_cache_stats
+        with:
+          build-label: openvino-js-api
+          artifact-name: compile-cache-stats-manylinux-openvino-js-api
 
       - name: Pack Artifacts
         run: mkdir -p ${{ env.BUILD_DIR }} && tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz

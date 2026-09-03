@@ -187,9 +187,6 @@ jobs:
       # Build
       #
 
-      - name: Clean ccache stats
-        run: ${SCCACHE_PATH} --zero-stats
-
       - name: Clone OneTBB
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
@@ -217,8 +214,19 @@ jobs:
             -S ${TBB_SRC} \
             -B ${TBB_BUILD}
 
+      - name: Zero compile cache stats (onetbb)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
       - name: Build OneTBB project
         run: cmake --build ${TBB_BUILD} --parallel $(nproc) -- --quiet
+
+      - name: Compile cache statistics (onetbb)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: onetbb-${{ matrix.arch }}
+          artifact-name: compile-cache-stats-android-${{ matrix.arch }}-onetbb
 
       - name: Install OneTBB project
         run: cmake --install ${TBB_BUILD}
@@ -255,11 +263,19 @@ jobs:
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
+      - name: Zero compile cache stats (openvino)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
       - name: CMake - build OpenVINO
         run: cmake --build ${BUILD_DIR} --parallel $(nproc) -- --quiet
 
-      - name: Show ccache stats
-        run: ${SCCACHE_PATH} --show-stats
+      - name: Compile cache statistics (openvino)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: openvino-${{ matrix.arch }}
+          artifact-name: compile-cache-stats-android-${{ matrix.arch }}-openvino
 
       #
       # Upload build logs and artifacts

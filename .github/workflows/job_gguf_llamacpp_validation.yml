@@ -61,6 +61,15 @@ jobs:
             gguf-llamacpp-sccache-${{ runner.os }}-${{ github.base_ref || github.ref_name }}-
             gguf-llamacpp-sccache-${{ runner.os }}-
 
+      - name: Checkout compile cache statistics action
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 5
+        with:
+          path: openvino-ci-actions
+          sparse-checkout: |
+            .github/actions/compile_cache_stats
+          sparse-checkout-cone-mode: false
+
       - name: Checkout llama.cpp
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
@@ -78,11 +87,19 @@ jobs:
             -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
             -DGGML_OPENVINO=ON
 
+      - name: Zero compile cache stats (llama.cpp build)
+        uses: ./openvino-ci-actions/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
       - name: Build llama.cpp
         run: cmake --build llama.cpp/build --parallel "$(nproc)"
 
-      - name: Show sccache stats
-        run: sccache --show-stats
+      - name: Compile cache statistics (llama.cpp build)
+        uses: ./openvino-ci-actions/.github/actions/compile_cache_stats
+        with:
+          build-label: llama-cpp-build
+          artifact-name: compile-cache-stats-gguf-llamacpp-llama-cpp-build
 
       - name: Run llama.cpp tests against the ggml-openvino backend
         env:

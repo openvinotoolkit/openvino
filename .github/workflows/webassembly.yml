@@ -140,9 +140,17 @@ jobs:
             -S ${OPENVINO_REPO} \
             -B ${OPENVINO_BUILD_DIR}
 
+      - name: Zero compile cache stats (hello_query_device)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
       - name: cmake --build - build
         run: cmake --build ${OPENVINO_BUILD_DIR} --target hello_query_device --parallel $(nproc)
 
-      - name: Show ccache stats
-        run: ${SCCACHE_PATH} --show-stats
+      - name: Compile cache statistics (hello_query_device)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: hello-query-device
+          artifact-name: compile-cache-stats-webassembly-hello-query-device
 

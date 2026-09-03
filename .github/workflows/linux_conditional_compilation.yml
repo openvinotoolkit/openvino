@@ -185,22 +185,54 @@ jobs:
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
-      - name: Cmake build - CC COLLECT
-        run: |
-          cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
-          cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- --quiet
+      - name: Zero compile cache stats (openvino cc collect main)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
 
-      - name: Show sccache stats
-        run: ${SCCACHE_PATH} --show-stats
+      - name: Cmake build - CC COLLECT (openvino)
+        run: cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+
+      - name: Compile cache statistics (openvino cc collect main)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: cc-collect-openvino-main
+          artifact-name: compile-cache-stats-linux-cc-collect-openvino-main
+
+      - name: Zero compile cache stats (sea_itt_lib)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
+      - name: Cmake build - CC COLLECT (sea_itt_lib)
+        run: cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- --quiet
+
+      - name: Compile cache statistics (sea_itt_lib)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: cc-collect-sea-itt-lib
+          artifact-name: compile-cache-stats-linux-cc-collect-sea-itt-lib
 
       - name: Cmake install - OpenVINO
         run: |
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake
 
+      - name: Configure C++ samples build
+        run: cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${BUILD_DIR} -S ${INSTALL_DIR}/samples/cpp -B ${BUILD_DIR}/cpp_samples
+
+      - name: Zero compile cache stats (cpp samples)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
       - name: Build C++ samples - OpenVINO build tree
-        run: |
-          cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${BUILD_DIR} -S ${INSTALL_DIR}/samples/cpp -B ${BUILD_DIR}/cpp_samples
-          cmake --build ${BUILD_DIR}/cpp_samples --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device -- --quiet
+        run: cmake --build ${BUILD_DIR}/cpp_samples --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device -- --quiet
+
+      - name: Compile cache statistics (cpp samples)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: cc-collect-cpp-samples
+          artifact-name: compile-cache-stats-linux-cc-collect-cpp-samples
 
       - name: Build C samples - OpenVINO install tree
         run: ${INSTALL_DIR}/samples/c/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/c_samples
@@ -346,11 +378,19 @@ jobs:
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
+      - name: Zero compile cache stats (cc on benchmark_app)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
       - name: Cmake build - CC ON
         run: cmake --build ${BUILD_DIR} --parallel 8 --target benchmark_app -- --quiet
 
-      - name: Show ccache stats
-        run: ${SCCACHE_PATH} --show-stats
+      - name: Compile cache statistics (cc on benchmark_app)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: cc-on-benchmark-app
+          artifact-name: compile-cache-stats-linux-cc-on-benchmark-app
 
       - name: Upload compile_commands
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main

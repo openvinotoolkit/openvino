@@ -157,14 +157,19 @@ jobs:
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
-      - name: Clean sccache stats
-        run: ${SCCACHE_PATH} --zero-stats
+      - name: Zero compile cache stats (openvino main build)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
 
       - name: Cmake build - OpenVINO
         run: cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
-      - name: Show sccache stats
-        run: ${SCCACHE_PATH} --show-stats
+      - name: Compile cache statistics (openvino main build)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: openvino-main
+          artifact-name: compile-cache-stats-snippets-libxsmm-openvino-main
 
       - name: Cmake install - OpenVINO
         run: |

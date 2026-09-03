@@ -208,9 +208,6 @@ jobs:
       #
       # Build
       #
-      - name: Clean ccache stats
-        run: ccache --zero-stats
-
       - name: CMake - Configure
         run: |
           source ${OPENVINO_BUILD_DIR}/env/bin/activate
@@ -240,14 +237,33 @@ jobs:
             -B ${OPENVINO_BUILD_DIR}
           source ${OPENVINO_BUILD_DIR}/dependencies/deactivate_conanbuild.sh
 
+      - name: Zero compile cache stats (openvino main build)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
       - name: Cmake - Build
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel $(nproc) -- --quiet
 
-      - name: Show ccache stats
-        run: ccache --show-stats
+      - name: Compile cache statistics (openvino main build)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: openvino-main
+          artifact-name: compile-cache-stats-linux-riscv-conan-openvino-main
+
+      - name: Zero compile cache stats (cmake install target)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
 
       - name: Cmake - Install
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel $(nproc) --target install -- --quiet
+
+      - name: Compile cache statistics (cmake install target)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: cmake-install-target
+          artifact-name: compile-cache-stats-linux-riscv-conan-cmake-install-target
 
       - name: Build OpenVINO C++ samples
         run: |
