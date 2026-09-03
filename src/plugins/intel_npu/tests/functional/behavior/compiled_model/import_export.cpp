@@ -9,6 +9,7 @@
 #include <sstream>
 
 #include "common/npu_test_env_cfg.hpp"
+#include "common/test_constants.hpp"
 #include "common/utils.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "intel_npu/npu_private_properties.hpp"
@@ -94,8 +95,10 @@ TEST_P(OVCompiledGraphImportExportTestNPU, NonELFBlobExportThrows) {
     std::stringstream sstream;
 
     auto rawBlobConfig = configuration;
-    const ov::AnyMap nonBlobConfigs{ov::enable_weightless(true),
-                                    ov::intel_npu::compilation_mode("HostCompiler_Interpreter")};
+    const ov::AnyMap nonBlobConfigs{
+        ov::enable_weightless(true),
+        ov::intel_npu::compilation_mode(::intel_npu::test_constants::HostCompile),
+        ov::intel_npu::compilation_mode(::intel_npu::test_constants::HostCompile_Interpreter)};
     rawBlobConfig.emplace(ov::intel_npu::export_raw_blob(true));
     rawBlobConfig.emplace(ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN));
 

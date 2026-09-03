@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "common/npu_test_env_cfg.hpp"
+#include "common/test_constants.hpp"
 #include "common/utils.hpp"
 #include "common/zero_init_mock.hpp"
 #include "common_test_utils/file_utils.hpp"
