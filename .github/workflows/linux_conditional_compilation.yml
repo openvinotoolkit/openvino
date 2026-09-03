@@ -241,6 +241,12 @@ jobs:
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
+      - name: Locate Ninja build log
+        if: always()
+        uses: ./openvino/.github/actions/locate_ninja_log
+        with:
+          build-dir: ${{ env.BUILD_DIR }}
+
       - name: Upload Ninja build log
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         if: always()

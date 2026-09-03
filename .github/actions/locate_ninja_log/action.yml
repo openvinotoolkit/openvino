@@ -1,0 +1,87 @@
+name: 'Locate Ninja build log'
+description: >-
+  Print filesystem hints for .ninja_log (Ninja manual: build root, or builddir
+  variable in build.ninja). Used while debugging CI Ninja profiling uploads.
+inputs:
+  build-dir:
+    description: 'Primary CMake binary directory (CMAKE_BINARY_DIR)'
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Locate .ninja_log (Unix)
+      if: runner.os != 'Windows'
+      shell: bash
+      env:
+        BUILD_DIR: ${{ inputs.build-dir }}
+        WORKSPACE_DIR: ${{ github.workspace }}
+      run: |
+        set -x
+        echo "=== Environment ==="
+        echo "BUILD_DIR=${BUILD_DIR}"
+        echo "github.workspace=${WORKSPACE_DIR}"
+        echo "PWD=$(pwd)"
+        echo ""
+        echo "=== Ninja manual: .ninja_log lives in the build root (or builddir in build.ninja) ==="
+        if [[ -e "${BUILD_DIR}/.ninja_log" ]]; then
+          ls -la "${BUILD_DIR}/.ninja_log"
+        else
+          echo "No file at ${BUILD_DIR}/.ninja_log"
+        fi
+        echo ""
+        echo "=== Top of BUILD_DIR (including dotfiles) ==="
+        ls -la "${BUILD_DIR}" 2>&1 | head -80 || true
+        echo ""
+        echo "=== build.ninja / .ninja_log under BUILD_DIR (depth 5) ==="
+        find "${BUILD_DIR}" -maxdepth 5 \( -name '.ninja_log' -o -name 'build.ninja' \) 2>/dev/null | sort || true
+        echo ""
+        echo "=== All .ninja_log under workspace (depth 8) ==="
+        find "${WORKSPACE_DIR}" -maxdepth 8 -name '.ninja_log' 2>/dev/null | sort || true
+        if [[ -f "${BUILD_DIR}/build.ninja" ]]; then
+          echo ""
+          echo "=== builddir from ${BUILD_DIR}/build.ninja ==="
+          grep -m3 '^builddir = ' "${BUILD_DIR}/build.ninja" || echo "(no builddir line)"
+        fi
+
+    - name: Locate .ninja_log (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      env:
+        BUILD_DIR: ${{ inputs.build-dir }}
+        WORKSPACE_DIR: ${{ github.workspace }}
+      run: |
+        $ErrorActionPreference = 'Continue'
+        $BuildDir = $env:BUILD_DIR
+        Write-Host "=== Environment ==="
+        Write-Host "BUILD_DIR=$BuildDir"
+        Write-Host "github.workspace=$env:WORKSPACE_DIR"
+        Write-Host "PWD=$(Get-Location)"
+        Write-Host ""
+        Write-Host "=== Ninja manual: .ninja_log in build root (or builddir in build.ninja) ==="
+        $expected = Join-Path $BuildDir '.ninja_log'
+        if (Test-Path -LiteralPath $expected) {
+          Get-Item -LiteralPath $expected -Force | Format-List
+        } else {
+          Write-Host "No file at $expected"
+        }
+        Write-Host ""
+        Write-Host "=== Top of BUILD_DIR (including hidden) ==="
+        if (Test-Path -LiteralPath $BuildDir) {
+          Get-ChildItem -LiteralPath $BuildDir -Force | Select-Object -First 80 | Format-Table -AutoSize
+        }
+        Write-Host ""
+        Write-Host "=== .ninja_log / build.ninja under BUILD_DIR (depth 5) ==="
+        if (Test-Path -LiteralPath $BuildDir) {
+          Get-ChildItem -LiteralPath $BuildDir -Recurse -Depth 5 -Force -Include '.ninja_log','build.ninja' -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty FullName | Sort-Object
+        }
+        Write-Host ""
+        Write-Host "=== All .ninja_log under workspace (depth 8) ==="
+        Get-ChildItem -LiteralPath $env:WORKSPACE_DIR -Recurse -Depth 8 -Force -Filter '.ninja_log' -ErrorAction SilentlyContinue |
+          Select-Object -ExpandProperty FullName | Sort-Object
+        $buildNinja = Join-Path $BuildDir 'build.ninja'
+        if (Test-Path -LiteralPath $buildNinja) {
+          Write-Host ""
+          Write-Host "=== builddir from $buildNinja ==="
+          Select-String -Path $buildNinja -Pattern '^builddir = ' | Select-Object -First 3
+        }
