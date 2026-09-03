@@ -20,6 +20,7 @@
 #include "builder/blocks/common.hpp"
 #include "builder/blocks/ffn.hpp"
 #include "builder/blocks/gated_delta_net.hpp"
+#include "builder/sdk/metadata_store.hpp"
 #include "openvino/op/parameter.hpp"
 
 namespace ov {
@@ -37,10 +38,24 @@ constexpr int64_t D = -1;
 
 DecoderBuilder::DecoderBuilder(const std::map<std::string, GGUFMetaData>& config,
                                std::unordered_map<std::string, ov::Tensor>& weights,
-                               std::unordered_map<std::string, GgufTensorType>& qtypes)
-    : m_cfg(config, weights),
+                               std::unordered_map<std::string, GgufTensorType>& qtypes,
+                               const ArchRegistry& registry)
+    : m_cfg(detail::DecoderMeta{config}, weights),
       m_emit(weights, qtypes, m_cfg.arch),
       m_kv(blocks::KvCachePlan::build(m_cfg)) {
+    // A registered ArchitectureExtension speaks last: the RoPE mode is the one per-architecture
+    // fact that cannot be derived from the file, so an extension enabling a new architecture must
+    // be able to state it, and a Tier-2 hook then adjusts whatever structural detection could not
+    // settle. Only the NORMAL/NEOX bit is overridden -- IMROPE stays the qwen35-specific detail
+    // DecoderConfig derived.
+    if (m_cfg.rope_op_case != ROPE_OP_CASE_IMROPE) {
+        m_cfg.rope_op_case = registry.uses_neox_rope(m_cfg.arch) ? ROPE_OP_CASE_NEOX : ROPE_OP_CASE_NORMAL;
+    }
+    registry.configure(m_cfg.arch, m_cfg);
+
+    // The KV plan reads the (possibly adjusted) layer layout, so build it after the hook.
+    m_kv = blocks::KvCachePlan::build(m_cfg);
+
     auto& graph = *m_emit.graph();
     graph.has_rope = true;
     graph.rope_config = m_cfg.rope_config;

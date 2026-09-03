@@ -15,9 +15,10 @@
 //   arch_registry.hpp     which architectures are accepted, and their RoPE mode
 //   model_kind.hpp        which family a file belongs to
 //
-// Adding an ARCHITECTURE of an existing family is a name in arch_registry.cpp.
-// Adding a FAMILY (mmproj vision/audio, encoder-decoder) is a new ModelBuilder subclass plus a
-// branch in build_ggml_graph_from_gguf below; nothing existing changes.
+// Adding an ARCHITECTURE of an existing family is a name in arch_registry.cpp, or -- without
+// rebuilding anything -- an ArchitectureExtension registered by the caller.
+// Adding a FAMILY (mmproj vision/audio, encoder-decoder) is a ModelBuilder subclass, which an
+// extension may also supply; see the dispatch in build_ggml_graph_from_gguf below.
 
 #include "gguf_builder.hpp"
 
@@ -26,10 +27,11 @@
 
 #include "builder/arch/decoder_builder.hpp"
 #include "builder/arch_registry.hpp"
-#include "builder/model_builder.hpp"
 #include "builder/model_kind.hpp"
+#include "builder/sdk/metadata_store.hpp"
 #include "gguf_graph.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/frontend/gguf/builder/model_builder.hpp"
 #include "openvino/util/log.hpp"
 #include "quant/gguf.hpp"
 
@@ -67,34 +69,67 @@ ov::AnyMap extract_tokenizer_config(const std::unordered_map<std::string, GGUFMe
 
 }  // namespace
 
-std::shared_ptr<GgufGraph> build_ggml_graph_from_gguf(const std::string& file) {
+std::shared_ptr<GgufGraph> build_ggml_graph_from_gguf(const std::string& file, const ArchRegistry& registry) {
     auto [metadata, weights, qtypes, mmap, quant_buf] = get_gguf_data(file);
 
-    // Decide the family FIRST: the metadata key layout differs per family, so reading any
-    // decoder hyperparameter before this point would misreport an mmproj file as a broken LLM.
+    const detail::MetadataStore meta_store{metadata};
+    const GgufMetadata meta_view(meta_store);
+    detail::WeightStore weight_store{weights, qtypes};
+
+    // A registered architecture extension gets first refusal, BEFORE the family is decided.
+    //
+    // This ordering is what lets an extension add a non-decoder architecture. The built-in path
+    // below can only build the decoder family, and it reads decoder hyperparameters to do it; an
+    // mmproj or encoder-decoder file has none of those keys, so anything that inspected the family
+    // first would reject the file before its extension was ever consulted.
+    if (auto ext = registry.find(meta_view); ext && ext->has_builder()) {
+        BuildContext ctx{meta_view, meta_view.architecture(), &weight_store};
+        if (!ext->verified()) {
+            OPENVINO_WARN("[GGUF] architecture '",
+                          ext->architecture(),
+                          "' is provided by an extension that reports itself unverified. Validate accuracy "
+                          "before relying on it.");
+        }
+        auto builder = ext->builder_factory()(ctx);
+        OPENVINO_ASSERT(builder,
+                        "[GGUF] the extension for architecture '",
+                        ext->architecture(),
+                        "' returned no builder");
+        auto graph = builder->build();
+        OPENVINO_ASSERT(graph, "[GGUF] the builder for architecture '", ext->architecture(), "' returned no graph");
+        graph->tokenizer_config = extract_tokenizer_config(metadata);
+        return graph;
+    }
+
+    // Decide the family: the metadata key layout differs per family, so reading any decoder
+    // hyperparameter before this point would misreport an mmproj file as a broken LLM.
     const ModelKind kind = detect_model_kind(metadata);
     OPENVINO_ASSERT(kind == ModelKind::DECODER,
                     "[GGUF] this file holds a ",
                     model_kind_name(kind),
-                    " model; the native GGUF builder currently implements the decoder family only. "
-                    "Support is added by implementing a ModelBuilder subclass for that family (see "
-                    "builder/model_builder.hpp).");
+                    " model; the native GGUF builder implements the decoder family only. Support for another "
+                    "family is added by registering an ov::frontend::gguf::ArchitectureExtension that supplies "
+                    "its own ModelBuilder -- no frontend rebuild required. See "
+                    "docs/porting_a_llama_cpp_model.md.");
 
     auto config = decoder_config_from_meta(metadata);
 
     const std::string arch = std::get<std::string>(config.at("architecture"));
-    OPENVINO_ASSERT(supported_archs().count(arch),
+    OPENVINO_ASSERT(registry.is_supported(arch),
                     "[GGUF] native GGUF builder does not support architecture '",
                     arch,
-                    "'. See supported_archs() in builder/arch_registry.cpp for the full list.");
-    if (experimental_archs().count(arch)) {
+                    "'. Supported: ",
+                    registry.describe_supported(),
+                    ". A new architecture can be added at runtime with an "
+                    "ov::frontend::gguf::ArchitectureExtension; see docs/adding_an_architecture.md.");
+    if (registry.is_experimental(arch)) {
         OPENVINO_WARN("[GGUF] architecture '",
                       arch,
                       "' is experimental: it is built by structural auto-detection but has not been "
                       "end-to-end verified against a reference. Validate accuracy before relying on it.");
     }
 
-    std::unique_ptr<ModelBuilder> builder = std::make_unique<DecoderBuilder>(config, weights, qtypes);
+    std::unique_ptr<ModelBuilder> builder = std::make_unique<DecoderBuilder>(config, weights, qtypes, registry);
     auto graph = builder->build();
     graph->tokenizer_config = extract_tokenizer_config(metadata);
     return graph;

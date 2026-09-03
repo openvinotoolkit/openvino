@@ -74,6 +74,11 @@ public:
     // ---- emitted-tensor queries ----
     const ov::PartialShape& shape_of_tensor(const std::string& name) const;
 
+    // Element type recorded for an already-emitted tensor (or a model input registered through
+    // set_tensor_meta). Counterpart of shape_of_tensor, needed wherever a tensor is referenced by
+    // name alone and its type has to travel with it -- the builder SDK's value handles do that.
+    ov::element::Type type_of_tensor(const std::string& name) const;
+
     // Static shape of an already-emitted tensor, for ops whose translator needs its input's own
     // layout (VIEW op_case 3's "input_ggml_shape", which it uses to restore that layout before
     // slicing). Per-node shapes are static except for the model-input Parameters, so a dynamic dim

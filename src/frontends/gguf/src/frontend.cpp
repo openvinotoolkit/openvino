@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 
+#include "builder/arch_registry.hpp"
 #include "builder/gguf_builder.hpp"
 #include "builder/gguf_builder_decoder.hpp"
 #include "input_model.hpp"
@@ -17,6 +18,7 @@
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/gguf/decoder.hpp"
+#include "openvino/frontend/gguf/extension/architecture.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "translate_session.hpp"
 
@@ -45,6 +47,9 @@ struct FrontEnd::Impl {
     // default (stateless) SetRows lowering for an alternative (e.g. a backend stateful lowering).
     std::vector<DecoderTransformationExtension::Ptr> transformation_extensions;
     TelemetryExtension::Ptr telemetry;
+    // Architectures this frontend accepts: the built-in set plus any registered at runtime.
+    // Per-instance, like the extension lists above, so two frontends do not share registrations.
+    ArchRegistry arch_registry;
 };
 
 namespace {
@@ -106,6 +111,8 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         m_extensions.push_back(so_ext);
     } else if (const auto& transformation = std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {
         m_impl->transformation_extensions.push_back(transformation);
+    } else if (const auto& arch_ext = std::dynamic_pointer_cast<ArchitectureExtension>(extension)) {
+        m_impl->arch_registry.add_extension(arch_ext);
     } else if (const auto& telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
         m_impl->telemetry = telemetry;
     } else if (auto op_base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(extension)) {
@@ -149,7 +156,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         FRONT_END_GENERAL_CHECK(model_path.extension() == ".gguf",
                                 "GGUF Frontend file loading expects a .gguf file, got: ",
                                 model_path.string());
-        auto graph = build_ggml_graph_from_gguf(model_path.string());
+        auto graph = build_ggml_graph_from_gguf(model_path.string(), m_impl->arch_registry);
         auto decoder = std::make_shared<GgufBuilderDecoder>(graph);
         return std::make_shared<InputModel>(decoder);
     }

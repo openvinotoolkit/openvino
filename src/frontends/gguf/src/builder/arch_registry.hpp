@@ -4,8 +4,11 @@
 
 #pragma once
 
+#include <map>
 #include <set>
 #include <string>
+
+#include "openvino/frontend/gguf/extension/architecture.hpp"
 
 namespace ov {
 namespace frontend {
@@ -35,6 +38,47 @@ const std::set<std::string>& experimental_archs();
 
 // All architectures the native builder accepts = verified + experimental.
 const std::set<std::string>& supported_archs();
+
+// The set of architectures ONE FrontEnd instance accepts: the built-in lists above, plus whatever
+// ArchitectureExtensions have been registered on it.
+//
+// Extensions are held per FrontEnd rather than in a process-wide singleton, matching how
+// ConversionExtension and DecoderTransformationExtension are already scoped, so two Core/FrontEnd
+// instances with different registrations do not interfere.
+class ArchRegistry {
+public:
+    // Seeded with the built-in architectures.
+    ArchRegistry() = default;
+
+    void add_extension(const ArchitectureExtension::Ptr& ext);
+
+    // The extension that claims this file, or nullptr. Fails with both names when two claim it,
+    // rather than silently picking one.
+    ArchitectureExtension::Ptr find(const GgufMetadata& meta) const;
+
+    // Built-in or extension-registered?
+    bool is_supported(const std::string& arch) const;
+
+    // Not end-to-end verified, so conversion warns once. An extension declares this itself.
+    bool is_experimental(const std::string& arch) const;
+
+    // NEOX rope (rotate halves) rather than NORMAL (rotate consecutive pairs). An extension
+    // registration wins over the built-in answer, so an extension can also correct one.
+    bool uses_neox_rope(const std::string& arch) const;
+
+    // Apply a registered Tier-2 configuration hook, if any.
+    void configure(const std::string& arch, DecoderConfig& config) const;
+
+    // Accepted architectures, for a diagnostic; extension-registered ones are marked so a missing
+    // registration is distinguishable from a missing built-in.
+    std::string describe_supported() const;
+
+private:
+    std::map<std::string, ArchitectureExtension::Ptr> m_extensions;
+};
+
+// A registry holding only the built-in architectures, for a caller that registers no extensions.
+const ArchRegistry& default_arch_registry();
 
 }  // namespace gguf
 }  // namespace frontend

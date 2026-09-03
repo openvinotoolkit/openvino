@@ -10,6 +10,8 @@
 
 #include "arch_registry.hpp"
 
+#include "openvino/core/except.hpp"
+
 namespace ov {
 namespace frontend {
 namespace gguf {
@@ -90,6 +92,75 @@ const std::set<std::string>& supported_archs() {
         return a;
     }();
     return archs;
+}
+
+void ArchRegistry::add_extension(const ArchitectureExtension::Ptr& ext) {
+    OPENVINO_ASSERT(ext, "[GGUF] null ArchitectureExtension");
+    OPENVINO_ASSERT(!ext->architecture().empty(), "[GGUF] ArchitectureExtension has an empty architecture name");
+    // Last registration wins, so a caller can override a built-in architecture or replace its own
+    // earlier registration; that is the only way to correct a built-in without rebuilding.
+    m_extensions[ext->architecture()] = ext;
+}
+
+ArchitectureExtension::Ptr ArchRegistry::find(const GgufMetadata& meta) const {
+    ArchitectureExtension::Ptr found;
+    for (const auto& [name, ext] : m_extensions) {
+        if (!ext->matches(meta)) {
+            continue;
+        }
+        // Two extensions claiming the same file is a registration bug, and picking one silently
+        // would make it surface later as an inexplicably wrong graph. Name both.
+        OPENVINO_ASSERT(!found,
+                        "[GGUF] architectures '",
+                        found->architecture(),
+                        "' and '",
+                        name,
+                        "' both claim this file; unregister one of them");
+        found = ext;
+    }
+    return found;
+}
+
+bool ArchRegistry::is_supported(const std::string& arch) const {
+    return supported_archs().count(arch) > 0 || m_extensions.count(arch) > 0;
+}
+
+bool ArchRegistry::is_experimental(const std::string& arch) const {
+    if (auto it = m_extensions.find(arch); it != m_extensions.end()) {
+        return !it->second->verified();
+    }
+    return experimental_archs().count(arch) > 0;
+}
+
+bool ArchRegistry::uses_neox_rope(const std::string& arch) const {
+    if (auto it = m_extensions.find(arch); it != m_extensions.end()) {
+        return it->second->rope_neox();
+    }
+    return arch_uses_neox_rope(arch);
+}
+
+void ArchRegistry::configure(const std::string& arch, DecoderConfig& config) const {
+    if (auto it = m_extensions.find(arch); it != m_extensions.end()) {
+        it->second->configure(config);
+    }
+}
+
+std::string ArchRegistry::describe_supported() const {
+    std::string out;
+    for (const auto& a : supported_archs()) {
+        out += (out.empty() ? "" : ", ") + a;
+    }
+    for (const auto& [name, ext] : m_extensions) {
+        if (supported_archs().count(name) == 0) {
+            out += (out.empty() ? "" : ", ") + name + " (extension)";
+        }
+    }
+    return out;
+}
+
+const ArchRegistry& default_arch_registry() {
+    static const ArchRegistry registry;
+    return registry;
 }
 
 }  // namespace gguf

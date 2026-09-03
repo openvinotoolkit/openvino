@@ -37,6 +37,11 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/builder/arch_registry.cpp"
     "${FE_SRC_DIR}/builder/decoder_config.cpp"
     "${FE_SRC_DIR}/builder/model_kind.cpp"
+    "${FE_SRC_DIR}/extension/architecture.cpp"
+    "${FE_SRC_DIR}/builder/sdk/graph_context.cpp"
+    "${FE_SRC_DIR}/builder/sdk/hparams.cpp"
+    "${FE_SRC_DIR}/builder/sdk/metadata.cpp"
+    "${FE_SRC_DIR}/builder/sdk/tensor_table.cpp"
     "${FE_SRC_DIR}/builder/arch/decoder_builder.cpp"
     "${FE_SRC_DIR}/builder/blocks/attention.cpp"
     "${FE_SRC_DIR}/builder/blocks/common.cpp"
@@ -89,6 +94,7 @@ set(FRONTEND_SRCS
 set(TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/test_adapt_to_genai.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_arch_conversion.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_architecture_extension.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_dequant_vs_ggml.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_extensions.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_op_coverage.cpp"
@@ -112,6 +118,7 @@ ov_add_test_target(
     INCLUDES
         "${CMAKE_CURRENT_SOURCE_DIR}/../src"
         "${CMAKE_CURRENT_SOURCE_DIR}/../include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../dev_api"
         # frontend.cpp (compiled into the self-contained test binary) includes the native
         # .gguf load path (get_path_from_any in openvino/frontend/common/path_util.hpp).
         "${OpenVINO_SOURCE_DIR}/src/frontends/common/include"

@@ -38,6 +38,12 @@ public:
     ///   AHEAD of the frontend's built-in lowerings. A caller that wants an OpenVINO KV cache
     ///   registers `ov::frontend::gguf::pass::GGUFMakeStateful` (or its own variant) here; without one
     ///   the frontend converts to a stateless graph.
+    /// - `ov::frontend::gguf::ArchitectureExtension` — registers support for a GGUF
+    ///   architecture at runtime, so a new model can be enabled without rebuilding this
+    ///   frontend. Ranges from a name plus a RoPE mode, for an architecture the generic
+    ///   decoder builder can already derive from the file, up to a whole custom
+    ///   `ModelBuilder` for a new family (a vision or audio encoder), which is consulted
+    ///   ahead of the built-in family detection. See docs/porting_a_llama_cpp_model.md.
     /// - `ov::frontend::TelemetryExtension` — receives error / event callbacks.
     /// - `ov::detail::SOExtension` — shared-library extension; its inner extension is
     ///   recursively registered.
