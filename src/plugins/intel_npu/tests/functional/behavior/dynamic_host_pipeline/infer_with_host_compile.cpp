@@ -29,16 +29,8 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-inline std::shared_ptr<ov::Model> createMaxPoolModel(bool dynamicBatch = false, bool nhwcLayout = true) {
-    std::shared_ptr<ov::op::v0::Parameter> input;
-    if (dynamicBatch) {
-        input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
-                                                        ov::PartialShape{ov::Dimension(1, 10), 16, 720, 1280});
-    } else {
-        input = std::make_shared<ov::op::v0::Parameter>(
-            ov::element::f16,
-            ov::PartialShape{1, 16, ov::Dimension(10, 720), ov::Dimension(10, 1280)});
-    }
+inline std::shared_ptr<ov::Model> buildMaxPoolModel(const ov::PartialShape& inputShape, bool nhwcLayout) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, inputShape);
 
     std::string inputName = "input1";
     input->set_friendly_name(inputName);
@@ -75,6 +67,13 @@ inline std::shared_ptr<ov::Model> createMaxPoolModel(bool dynamicBatch = false, 
     }
 
     return model;
+}
+
+inline std::shared_ptr<ov::Model> createMaxPoolModel(bool dynamicBatch = false, bool nhwcLayout = true) {
+    const ov::PartialShape inputShape =
+        dynamicBatch ? ov::PartialShape{ov::Dimension(1, 10), 16, 720, 1280}
+                     : ov::PartialShape{1, 16, ov::Dimension(10, 720), ov::Dimension(10, 1280)};
+    return buildMaxPoolModel(inputShape, nhwcLayout);
 }
 
 inline std::shared_ptr<ov::Model> createCustomNetModel(bool dynamicBatch = false) {
@@ -742,6 +741,113 @@ TEST_P(InferWithHostCompileTests, DynamicBatchUsesOneVMExecution) {
     ASSERT_EQ(countVMExecutions(logCapture.str()), 1u) << logCapture.str();
 }
 
+// Grow N, H and W simultaneously (still within the model's declared bounds: N in [1,10], H in [1,1080], W in
+// [10,1920]) and verify both output correctness and command-list reconfiguration behavior.
+TEST_P(InferWithHostCompileTests, DynamicNHWIncreasedSize) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+    // MaxPool dynamic models contain operators that are not yet supported by the dynamic pipeline.
+    if (selectedModelName != "CustomNet_DynBatch") {
+        GTEST_SKIP() << "Only applies to the dynamic-batch model";
+    }
+
+    auto model = createModelByName(selectedModelName);
+    ScopedLogCapture logCapture;
+
+    core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
+    auto setupResult = prepareRuntimeCompareContext(model);
+    if (setupResult.status == RuntimeCompareStatus::fail) {
+        FAIL() << setupResult.message;
+    }
+    if (setupResult.status == RuntimeCompareStatus::skip) {
+        GTEST_SKIP() << setupResult.message;
+    }
+    auto& testContext = setupResult.context;
+
+    // Start with a small valid N/H/W combination.
+    ov::Shape smallShape = {1, 720, 1280, 16};
+    ov::Tensor smallTensor =
+        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), smallShape, 100, 0);
+    setInputInferAndCompare(model,
+                            testContext.reqDynamic,
+                            testContext.reqReference,
+                            smallTensor,
+                            "DynamicNHWIncreasedSize_small");
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected log to contain 'Reset command list to run with runtime', but got: " << logCapture.str();
+
+    logCapture.clear();
+    // Grow N, H and W at once, up to the upper bound of each dynamic dimension.
+    ov::Shape largeShape = {2, 1080, 1920, 16};
+    ov::Tensor largeTensor =
+        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), largeShape, 100, 0);
+    setInputInferAndCompare(model,
+                            testContext.reqDynamic,
+                            testContext.reqReference,
+                            largeTensor,
+                            "DynamicNHWIncreasedSize_large");
+    ASSERT_EQ(testContext.reqDynamic.get_tensor(model->output()).get_shape(), largeShape);
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected log to contain 'Reset command list to run with runtime' after growing N/H/W simultaneously, but "
+           "got: "
+        << logCapture.str();
+}
+
+// Shrink N, H and W simultaneously and verify both output correctness and command-list reconfiguration behavior.
+TEST_P(InferWithHostCompileTests, DynamicNHWDecreasedSize) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+    // MaxPool dynamic models contain operators that are not yet supported by the dynamic pipeline.
+    if (selectedModelName != "CustomNet_DynBatch") {
+        GTEST_SKIP() << "Only applies to the dynamic-batch model";
+    }
+
+    auto model = createModelByName(selectedModelName);
+    ScopedLogCapture logCapture;
+
+    core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
+    auto setupResult = prepareRuntimeCompareContext(model);
+    if (setupResult.status == RuntimeCompareStatus::fail) {
+        FAIL() << setupResult.message;
+    }
+    if (setupResult.status == RuntimeCompareStatus::skip) {
+        GTEST_SKIP() << setupResult.message;
+    }
+    auto& testContext = setupResult.context;
+
+    // Start with the largest N/H/W combination.
+    ov::Shape largeShape = {2, 1080, 1920, 16};
+    ov::Tensor largeTensor =
+        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), largeShape, 100, 0);
+    setInputInferAndCompare(model,
+                            testContext.reqDynamic,
+                            testContext.reqReference,
+                            largeTensor,
+                            "DynamicNHWDecreasedSize_large");
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected log to contain 'Reset command list to run with runtime', but got: " << logCapture.str();
+
+    logCapture.clear();
+    // Shrink N, H and W at once.
+    ov::Shape smallShape = {1, 720, 1280, 16};
+    ov::Tensor smallTensor =
+        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), smallShape, 100, 0);
+    setInputInferAndCompare(model,
+                            testContext.reqDynamic,
+                            testContext.reqReference,
+                            smallTensor,
+                            "DynamicNHWDecreasedSize_small");
+    ASSERT_EQ(testContext.reqDynamic.get_tensor(model->output()).get_shape(), smallShape);
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected log to contain 'Reset command list to run with runtime' after shrinking N/H/W simultaneously, "
+           "but got: "
+        << logCapture.str();
+}
+
 using InferWithDefaultHostCompileTests = InferWithHostCompileTests;
 
 inline bool isByteCodeBlob(const std::string& blob) {
@@ -856,3 +962,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                                             ::testing::ValuesIn(defaultHostCompileconfigs),
                                             ::testing::ValuesIn(defaultHCModelNames)),
                          ov::test::utils::appendPlatformTypeTestName<InferWithDefaultHostCompileTests>);
+

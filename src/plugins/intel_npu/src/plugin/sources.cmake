@@ -11,6 +11,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/compiled_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/compiled_model_property_manager.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/executor.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/host_compile_mode.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/metadata.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/plugin.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/plugin_property_manager.hpp
@@ -26,6 +27,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model_property_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/executor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/extension.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/host_compile_mode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/metadata.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_property_manager.cpp
