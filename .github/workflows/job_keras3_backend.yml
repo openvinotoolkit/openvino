@@ -55,7 +55,7 @@ jobs:
         with:
           repository: 'keras-team/keras'
           path: ${{ env.KERAS_REPO }}
-          ref: '2aeecf06e0dc6886d962d14f8056f7ca8b15792b'
+          ref: 'f35ac786096fe3594c88ac8d41866cc8851ab759'
 
       - name: Download OpenVINO artifacts (wheels)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
