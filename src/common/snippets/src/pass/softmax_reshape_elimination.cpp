@@ -21,10 +21,9 @@
 #include "snippets/itt.hpp"
 #include "snippets/utils/utils.hpp"
 
-bool ov::snippets::pass::SoftmaxReshapeElimination::eliminate(
-    const std::shared_ptr<ov::op::v1::Reshape>& reshape0,
-    const std::shared_ptr<ov::Node>& softmax,
-    const std::shared_ptr<ov::op::v1::Reshape>& reshape1) {
+bool ov::snippets::pass::SoftmaxReshapeElimination::eliminate(const std::shared_ptr<ov::op::v1::Reshape>& reshape0,
+                                                              const std::shared_ptr<ov::Node>& softmax,
+                                                              const std::shared_ptr<ov::op::v1::Reshape>& reshape1) {
     const auto input_shape = reshape0->get_input_partial_shape(0);
     const auto output_shape = reshape1->get_output_partial_shape(0);
     const auto softmax_shape = softmax->get_input_partial_shape(0);
@@ -72,16 +71,16 @@ ov::snippets::pass::SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
     const auto m_reshape1 = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>(
         {m_softmax, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
 
-    register_matcher(
-        std::make_shared<ov::pass::pattern::Matcher>(m_reshape1, matcher_name),
-        [=](ov::pass::pattern::Matcher& m) {
-            OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::SoftmaxReshapeElimination")
-            auto& pattern_to_output = m.get_pattern_value_map();
-            auto reshape0 = pattern_to_output[m_reshape0].get_node_shared_ptr();
-            auto softmax = pattern_to_output[m_softmax].get_node_shared_ptr();
-            auto reshape1 = pattern_to_output[m_reshape1].get_node_shared_ptr();
-            return eliminate(ov::as_type_ptr<ov::op::v1::Reshape>(reshape0),
-                             softmax,
-                             ov::as_type_ptr<ov::op::v1::Reshape>(reshape1));
-        });
+    register_matcher(std::make_shared<ov::pass::pattern::Matcher>(m_reshape1, matcher_name),
+                     [=](ov::pass::pattern::Matcher& m) {
+                         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform,
+                                            "Snippets::op::SoftmaxReshapeElimination")
+                         auto& pattern_to_output = m.get_pattern_value_map();
+                         auto reshape0 = pattern_to_output[m_reshape0].get_node_shared_ptr();
+                         auto softmax = pattern_to_output[m_softmax].get_node_shared_ptr();
+                         auto reshape1 = pattern_to_output[m_reshape1].get_node_shared_ptr();
+                         return eliminate(ov::as_type_ptr<ov::op::v1::Reshape>(reshape0),
+                                          softmax,
+                                          ov::as_type_ptr<ov::op::v1::Reshape>(reshape1));
+                     });
 }

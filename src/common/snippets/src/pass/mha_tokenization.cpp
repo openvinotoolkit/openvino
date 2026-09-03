@@ -25,6 +25,7 @@
 #include "openvino/op/select.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -122,17 +123,35 @@ void tokenize_broadcast(const std::shared_ptr<ov::Node>& interm_op, ov::NodeVect
     }
 }
 
+bool is_shape_of_consumer(const ov::Input<ov::Node>& input) {
+    return ov::is_type<ov::op::util::ShapeOfBase>(input.get_node());
+}
+
+bool has_shape_of_consumer(const std::shared_ptr<ov::opset1::MatMul>& matmul) {
+    const auto& target_inputs = matmul->get_output_target_inputs(0);
+    return target_inputs.size() == 2 && std::any_of(target_inputs.begin(), target_inputs.end(), is_shape_of_consumer);
+}
+
+std::shared_ptr<ov::Node> get_matmul0_data_consumer(const std::shared_ptr<ov::opset1::MatMul>& matmul) {
+    const auto& target_inputs = matmul->get_output_target_inputs(0);
+    const auto it = std::find_if(target_inputs.begin(), target_inputs.end(), [](const ov::Input<ov::Node>& input) {
+        return !is_shape_of_consumer(input);
+    });
+    return it == target_inputs.end() ? nullptr : it->get_node()->shared_from_this();
+}
+
+std::shared_ptr<ov::Node> get_matmul0_shape_of_consumer(const std::shared_ptr<ov::opset1::MatMul>& matmul) {
+    const auto& target_inputs = matmul->get_output_target_inputs(0);
+    const auto it = std::find_if(target_inputs.begin(), target_inputs.end(), is_shape_of_consumer);
+    return it == target_inputs.end() ? nullptr : it->get_node()->shared_from_this();
+}
+
 bool tokenize_reshape_around_softmax(std::shared_ptr<ov::Node>& interm_op,
                                      std::shared_ptr<ov::opset1::Reshape>& reshape,
                                      ov::NodeVector& ordered_ops) {
     reshape = ov::as_type_ptr<ov::opset1::Reshape>(interm_op);
     if (reshape) {
-        const auto in_shape = reshape->get_input_partial_shape(0);
-        const auto out_shape = reshape->get_output_partial_shape(0);
-        const auto in_last_dim = *in_shape.crbegin();
-        const auto out_last_dim = *out_shape.crbegin();
-        if (in_last_dim.is_dynamic() || out_last_dim.is_dynamic() || in_last_dim != out_last_dim ||
-            reshape->get_output_target_inputs(0).size() != 1) {
+        if (reshape->get_output_target_inputs(0).size() != 1) {
             return false;
         }
 
@@ -214,7 +233,8 @@ std::vector<int32_t> ov::snippets::pass::TokenizeMHASnippets::get_decomposed_tra
 }
 
 bool ov::snippets::pass::TokenizeMHASnippets::is_matmul0_supported(const std::shared_ptr<ov::opset1::MatMul>& matmul) {
-    if (!matmul || matmul->get_output_target_inputs(0).size() != 1 || matmul->get_transpose_a() ||
+    if (!matmul || (matmul->get_output_target_inputs(0).size() != 1 && !has_shape_of_consumer(matmul)) ||
+        matmul->get_transpose_a() ||
         !is_supported_tensor(matmul->get_input_tensor(0)) || !is_supported_tensor(matmul->get_input_tensor(1))) {
         return false;
     }
@@ -282,9 +302,13 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const Config& confi
 
             ordered_ops.push_back(matmul0);
 
+            if (matmul0->get_output_target_inputs(0).size() == 2) {
+                ordered_ops.push_back(get_matmul0_shape_of_consumer(matmul0));
+            }
+
             const auto pattern_rank = matmul0->get_output_partial_shape(0).size();
 
-            auto interm_op = matmul0->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+            auto interm_op = get_matmul0_data_consumer(matmul0);
             // Add supported operations which are between MatMul0 and Softmax to ordered_ops
             if (!update_intermediate_supported_ops(interm_op, ordered_ops, n_potential_body_params)) {
                 return false;
@@ -296,7 +320,9 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const Config& confi
             }
 
             const auto softmax = interm_op;
-            if (softmax->get_output_target_inputs(0).size() != 1) {
+            const auto axis = ov::snippets::utils::get_softmax_axis(softmax);
+            const auto rank = static_cast<int64_t>(softmax->get_input_partial_shape(0).rank().get_length());
+            if (!axis || *axis != (rank - 1) || softmax->get_output_target_inputs(0).size() != 1) {
                 return false;
             }
 
@@ -318,12 +344,6 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const Config& confi
                 }
                 ordered_ops.erase(std::find(ordered_ops.begin(), ordered_ops.end(), reshape0));
                 ordered_ops.erase(std::find(ordered_ops.begin(), ordered_ops.end(), reshape1));
-            }
-
-            const auto axis = ov::snippets::utils::get_softmax_axis(softmax);
-            const auto rank = static_cast<int64_t>(softmax->get_input_partial_shape(0).rank().get_length());
-            if (!axis || *axis != (rank - 1)) {
-                return false;
             }
 
             // Add supported operations which are between Softmax and MatMul1 to ordered_ops

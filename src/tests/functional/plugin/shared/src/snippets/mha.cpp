@@ -277,6 +277,20 @@ std::shared_ptr<SnippetsFunctionBase> MHAWithBroadcast::get_subgraph() const {
                                                               is_with_reshape);
 }
 
+std::shared_ptr<SnippetsFunctionBase> MHAWithShapeOfReshape::get_subgraph() const {
+    const auto with_mul = std::get<3>(this->GetParam());
+    const bool is_with_reshape =
+        std::all_of(inputDynamicShapes.begin(), inputDynamicShapes.end(), [](const ov::PartialShape& ps) {
+            return ps.is_static();
+        });
+    return std::make_shared<ov::test::snippets::MHAFunction>(inputDynamicShapes,
+                                                              m_input_types,
+                                                              with_mul,
+                                                              is_with_reshape,
+                                                              false,
+                                                              is_with_reshape);
+}
+
 void MHASelect::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     auto model_inputs = function->inputs();
@@ -392,6 +406,11 @@ TEST_P(MHA2D, CompareWithRefImpl) {
 
 TEST_P(MHAWithBroadcast, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MHAWithShapeOfReshape, CompareWithRefImpl) {
     run();
     validateNumSubgraphs();
 }
