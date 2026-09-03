@@ -902,6 +902,9 @@ std::vector<std::string> Plugin::get_device_capabilities(const cldnn::device_inf
     if (info.supports_fp16) {
         capabilities.emplace_back(ov::device::capability::FP16);
     }
+    if (info.supports_bf16()) {
+        capabilities.emplace_back(ov::device::capability::BF16);
+    }
     if (info.supports_imad || info.supports_immad) {
         capabilities.emplace_back(ov::device::capability::INT8);
     }

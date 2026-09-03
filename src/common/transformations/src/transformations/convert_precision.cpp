@@ -4,6 +4,8 @@
 
 #include "transformations/convert_precision.hpp"
 
+#include <cmath>
+#include <limits>
 #include <memory>
 #include <vector>
 
@@ -1123,6 +1125,26 @@ inline int32_t convert_value<uint32_t, int32_t>(uint32_t val) {
     return static_cast<int32_t>(val);
 }
 
+// The bf16 rounding bias is added to the raw f32 bits, so a NaN payload can carry into the sign bit
+// and turn NaN into -0.0 (the f16 quiet NaN 0x7FFF becomes 0x7FFFE000 and then 0x8000). Keep NaN a
+// quiet NaN; the range clamping of the generic convert_value is preserved.
+template <>
+inline bfloat16 convert_value<float, bfloat16>(float val) {
+    if (std::isnan(val)) {
+        return std::numeric_limits<bfloat16>::quiet_NaN();
+    } else if (val > std::numeric_limits<bfloat16>::max()) {
+        return std::numeric_limits<bfloat16>::max();
+    } else if (val < std::numeric_limits<bfloat16>::lowest()) {
+        return std::numeric_limits<bfloat16>::lowest();
+    }
+    return static_cast<bfloat16>(val);
+}
+
+template <>
+inline bfloat16 convert_value<float16, bfloat16>(float16 val) {
+    return convert_value<float, bfloat16>(static_cast<float>(val));
+}
+
 namespace {
 template <ov::element::Type_t PREC_FROM, ov::element::Type_t PREC_TO>
 std::shared_ptr<ov::Node> change_constant_precision(std::shared_ptr<v0::Constant>& constant) {
@@ -1351,6 +1373,10 @@ bool fuse_type_to_constant(const std::shared_ptr<ov::Node>& node,
             new_const = change_constant_precision<ov::element::Type_t::bf16, ov::element::Type_t::f16>(constant);
         } else if (from == ov::element::f32 && to == ov::element::f16) {
             new_const = change_constant_precision<ov::element::Type_t::f32, ov::element::Type_t::f16>(constant);
+        } else if (from == ov::element::f32 && to == ov::element::bf16) {
+            new_const = change_constant_precision<ov::element::Type_t::f32, ov::element::Type_t::bf16>(constant);
+        } else if (from == ov::element::f16 && to == ov::element::bf16) {
+            new_const = change_constant_precision<ov::element::Type_t::f16, ov::element::Type_t::bf16>(constant);
         } else if (from == ov::element::f16 && to == ov::element::f32) {
             new_const = change_constant_precision<ov::element::Type_t::f16, ov::element::Type_t::f32>(constant);
         } else if (from == ov::element::boolean && to == ov::element::u8) {
