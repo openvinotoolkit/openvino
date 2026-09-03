@@ -36,6 +36,11 @@ on:
         type: boolean
         required: false
         default: false
+      upload-ninja-log:
+        description: 'Whether to upload Ninja .ninja_log from the OpenVINO build directory'
+        type: boolean
+        required: false
+        default: true
 
 permissions: read-all
 
@@ -413,6 +418,14 @@ jobs:
           name: compile_commands_windows_${{ inputs.build-type }}
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
+
+      - name: Upload Ninja build log
+        if: ${{ always() && inputs.upload-ninja-log }}
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: ninja_log_windows_${{ inputs.build-type }}_${{ inputs.build-variant }}
+          path: ${{ env.BUILD_DIR }}/.ninja_log
+          if-no-files-found: error
 
       - name: Upload OpenVINO package
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main

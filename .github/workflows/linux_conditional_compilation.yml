@@ -241,6 +241,14 @@ jobs:
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
+      - name: Upload Ninja build log
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        if: always()
+        with:
+          name: ninja_log_linux_cc_collect
+          path: ${{ env.BUILD_DIR }}/.ninja_log
+          if-no-files-found: error
+
       - name: Upload OpenVINO package
         if: ${{ always() }}
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
@@ -359,6 +367,14 @@ jobs:
           name: compile_commands_linux_cc_on
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
+
+      - name: Upload Ninja build log
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        if: always()
+        with:
+          name: ninja_log_linux_cc_on
+          path: ${{ env.BUILD_DIR }}/.ninja_log
+          if-no-files-found: error
 
       - name: Run with CC-ed runtime
         run: ${OPENVINO_REPO}/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 -m ${MODELS_PATH}/models/test_model/test_model_fp32.xml -d CPU

@@ -80,6 +80,11 @@ on:
         type: boolean
         required: false
         default: true
+      upload-ninja-log:
+        description: 'Whether to upload Ninja .ninja_log from the OpenVINO build directory'
+        type: boolean
+        required: false
+        default: true
       install-frontend-test-deps:
         description: 'Whether to install TensorFlow/TFLite/Paddle frontend unit test requirements (no Python 3.14 wheels yet)'
         type: boolean
@@ -439,6 +444,14 @@ jobs:
           name: compile_commands_${{ inputs.os }}_${{ inputs.arch }}
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
+
+      - name: Upload Ninja build log
+        if: ${{ always() && inputs.upload-ninja-log }}
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: ninja_log_${{ inputs.os }}_${{ inputs.arch }}${{ inputs.build-variant && format('_{0}', inputs.build-variant) || '' }}
+          path: ${{ env.BUILD_DIR }}/.ninja_log
+          if-no-files-found: error
 
       - name: Upload OpenVINO package
         if: ${{ always() }}
