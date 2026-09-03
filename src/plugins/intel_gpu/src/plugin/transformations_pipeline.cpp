@@ -36,6 +36,7 @@
 #include "low_precision/mvn.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/recurrent_cell.hpp"
+#include "low_precision/reshape.hpp"
 #include "low_precision/prelu.hpp"
 #include "low_precision/transpose.hpp"
 #include "low_precision/variadic_split.hpp"
@@ -1432,6 +1433,36 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         lptPassConfig->disable<ov::pass::low_precision::PReluTransformation>();
         lptPassConfig->set_callback<SplitTransformation, VariadicSplitTransformation>([](const_node_ptr& node) -> bool {
             return !has_dequantization_absorbing_consumer(node);
+        });
+        auto isFp32LptAddWithFp16Scale = [defaultPrecisions](const_node_ptr& node) -> bool {
+            const auto dequantization = NetworkHelper::getDequantization(node, defaultPrecisions);
+            if (dequantization.subtract != nullptr || dequantization.multiply == nullptr || dequantization.data.get_element_type() != element::f32) {
+                return false;
+            }
+
+            const auto relaxed_add = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(dequantization.data.get_node_shared_ptr());
+            const auto relaxed_multiply = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(dequantization.multiply);
+            return ov::is_type<ov::opset1::Add>(dequantization.data.get_node_shared_ptr()) && relaxed_add != nullptr &&
+                   relaxed_add->get_overridden_output_type() == element::f32 && relaxed_multiply != nullptr &&
+                   relaxed_multiply->get_origin_input_type(0) == element::f32 && relaxed_multiply->get_origin_input_type(1) == element::f32 &&
+                   relaxed_multiply->get_overridden_output_type() == element::f16;
+        };
+        // Keep this scale before normalization paths; moving it exposes the FP32 inner Add to GPU.
+        lptPassConfig->set_callback<MVNTransformation>([infer_precision, isFp32LptAddWithFp16Scale](const_node_ptr& node) -> bool {
+            return infer_precision == element::f16 && node->get_input_element_type(0) == element::f16 && isFp32LptAddWithFp16Scale(node);
+        });
+        lptPassConfig->set_callback<ReshapeTransformation>([infer_precision, isFp32LptAddWithFp16Scale](const_node_ptr& node) -> bool {
+            if (infer_precision != element::f16 || node->get_input_element_type(0) != element::f16 || !isFp32LptAddWithFp16Scale(node)) {
+                return false;
+            }
+
+            const auto consumers = node->get_output_target_inputs(0);
+            if (consumers.size() != 1) {
+                return false;
+            }
+
+            const auto consumer = consumers.begin()->get_node()->shared_from_this();
+            return ov::is_type<ov::op::v0::MVN>(consumer) || ov::is_type<ov::op::v6::MVN>(consumer);
         });
         lptPassConfig->set_callback<ConvolutionBackpropDataTransformation>([func, defaultPrecisions](const_node_ptr& node) -> bool {
             auto fillStaticChannel = [func](const ov::PartialShape& shape, size_t& channel) -> bool {
