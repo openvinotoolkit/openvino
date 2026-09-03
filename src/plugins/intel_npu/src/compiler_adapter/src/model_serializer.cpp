@@ -731,7 +731,7 @@ std::string serializeConfig(const FilteredConfig& originalConfig,
     }
 
     // INFER profiling is timed by the plugin around the whole inference, so the compiler must not be asked
-    // to instrument layers for it
+    // to instrument layers for it.
     if (originalConfig.has<PERF_COUNT>() && originalConfig.get<PERF_COUNT>() &&
         originalConfig.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
         logger.info("%s is enabled with %s=INFER. Disabling it for the compiler",
@@ -740,7 +740,7 @@ std::string serializeConfig(const FilteredConfig& originalConfig,
         if (!configForCompiler.has_value()) {
             configForCompiler = originalConfig;
         }
-        configForCompiler->update({{ov::enable_profiling.name(), "NO"}});
+        configForCompiler->update({{ov::enable_profiling.name(), PERF_COUNT::toString(false)}});
     }
 
     const FilteredConfig& config = configForCompiler.has_value() ? *configForCompiler : originalConfig;

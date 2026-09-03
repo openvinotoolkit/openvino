@@ -38,13 +38,11 @@ public:
                                         size_t batch_index,
                                         const std::shared_ptr<ov::ITensor>& userTensor = nullptr) = 0;
 
-    virtual std::vector<ov::ProfilingInfo> get_profiling_info() const;
+    std::vector<ov::ProfilingInfo> get_profiling_info() const;
 
     virtual ~IPipeline() = default;
 
 protected:
-    // Opt-in: only pipelines that own their command list recording can be instrumented.
-    void setup_profiling();
     void enable_profiling();
 
     // Helper function handling strides for Zero Pipeline and ZeroDynamicPipeline. Stateless regarding pipeline

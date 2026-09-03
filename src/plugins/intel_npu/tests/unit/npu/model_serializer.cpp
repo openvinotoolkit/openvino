@@ -11,25 +11,18 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
 #include "model_serializer.hpp"
-#include "openvino/runtime/intel_npu/properties.hpp"
 
 namespace {
 
-class CompileLogLevelSerializeConfigTests : public ::testing::Test {
+using namespace intel_npu;
+
+class SerializeConfigTests : public ::testing::Test {
 protected:
-    std::shared_ptr<::intel_npu::OptionsDesc> options;
-    std::unique_ptr<::intel_npu::FilteredConfig> config;
+    std::shared_ptr<OptionsDesc> options;
+    std::unique_ptr<FilteredConfig> config;
 
-    void SetUp() override {
-        using namespace ::intel_npu;
-
-        options = std::make_shared<OptionsDesc>();
-        options->add<LOG_LEVEL>();
-        options->add<COMPILE_LOG_LEVEL>();
-
+    void initialize_config() {
         config = std::make_unique<FilteredConfig>(options);
-
-        config->enable(ov::log::level.name(), true);
         config->enableRuntimeOptions();
     }
 
@@ -44,7 +37,19 @@ protected:
         const auto allSupported = [](const std::string&) {
             return true;
         };
-        return ::intel_npu::compiler_utils::serializeConfig(*config, modernCompilerVersion(), allSupported);
+        return compiler_utils::serializeConfig(*config, modernCompilerVersion(), allSupported);
+    }
+};
+
+class CompileLogLevelSerializeConfigTests : public SerializeConfigTests {
+protected:
+    void SetUp() override {
+        options = std::make_shared<OptionsDesc>();
+        options->add<LOG_LEVEL>();
+        options->add<COMPILE_LOG_LEVEL>();
+
+        initialize_config();
+        config->enable(ov::log::level.name(), true);
     }
 };
 
@@ -77,6 +82,47 @@ TEST_F(CompileLogLevelSerializeConfigTests, CompileLogLevelSetPrioritizedOverCha
     EXPECT_NE(flags.find(std::string(ov::log::level.name()) + "=\"LOG_TRACE\""), std::string::npos) << flags;
     EXPECT_EQ(flags.find(ov::intel_npu::compile_log_level.name()), std::string::npos)
         << "NPU_COMPILE_LOG_LEVEL must never be serialized under its own key: " << flags;
+}
+
+class PerfCountProfilingTypeSerializeConfigTests : public SerializeConfigTests {
+protected:
+    void SetUp() override {
+        options = std::make_shared<OptionsDesc>();
+        options->add<PERF_COUNT>();
+        options->add<PROFILING_TYPE>();
+
+        initialize_config();
+        config->enable(ov::enable_profiling.name(), true);
+    }
+
+    static std::string perf_count_option(const char* value) {
+        return std::string(ov::enable_profiling.name()) + "=\"" + value + "\"";
+    }
+};
+
+TEST_F(PerfCountProfilingTypeSerializeConfigTests, ModelProfilingForwardsPerfCountToCompiler) {
+    config->update({{ov::enable_profiling.name(), "YES"}, {ov::intel_npu::profiling_type.name(), "MODEL"}});
+
+    const std::string flags = serialize();
+
+    EXPECT_NE(flags.find(perf_count_option("YES")), std::string::npos) << flags;
+}
+
+TEST_F(PerfCountProfilingTypeSerializeConfigTests, InferProfilingDisablesPerfCountForCompiler) {
+    config->update({{ov::enable_profiling.name(), "YES"}, {ov::intel_npu::profiling_type.name(), "INFER"}});
+
+    const std::string flags = serialize();
+
+    EXPECT_NE(flags.find(perf_count_option("NO")), std::string::npos) << flags;
+    EXPECT_EQ(flags.find(perf_count_option("YES")), std::string::npos) << flags;
+}
+
+TEST_F(PerfCountProfilingTypeSerializeConfigTests, DefaultModelProfilingForwardsPerfCountToCompiler) {
+    config->update({{ov::enable_profiling.name(), "YES"}});
+
+    const std::string flags = serialize();
+
+    EXPECT_NE(flags.find(perf_count_option("YES")), std::string::npos) << flags;
 }
 
 }  // namespace

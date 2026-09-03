@@ -73,9 +73,7 @@ IPipeline::IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
       _pipeline_unique_id_per_graph(get_graph_unique_id_or_throw(graph)),
       _logger(logName, _config.get<LOG_LEVEL>()) {
     _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, _graph->get_command_queue_desc());
-};
 
-void IPipeline::setup_profiling() {
     bool perf_count_enabled = _config.has<PERF_COUNT>() && _config.get<PERF_COUNT>();
     std::optional<bool> compiled_with_profiling = _graph->is_profiling_blob();
 
@@ -113,7 +111,7 @@ void IPipeline::setup_profiling() {
             enable_profiling();
         }  // else appendGraphExecute will fail in case the model was compiled with profiling enabled
     }
-}
+};
 
 std::vector<ov::ProfilingInfo> IPipeline::get_profiling_info() const {
     _logger.debug("get_profiling_info - started");
@@ -162,8 +160,6 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::Pipeline::Pipeline");
 
     _logger.debug("Pipeline - initialization started, batch size: %i", _batch_size);
-
-    setup_profiling();
 
     if (_run_inferences_sequentially) {
         _graph->resize_last_submitted_event(_batch_size);

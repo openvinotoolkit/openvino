@@ -507,14 +507,12 @@ void DynamicPipeline::pull() {
     } else {
         _events.front()->hostSynchronize();
     }
+    /// sample npu timestamps if feature was activated
+    if (_npu_profiling != nullptr) {
+        _npu_profiling->sampleNpuTimestamps();
+    }
 
     _logger.debug("pull - completed");
-}
-
-std::vector<ov::ProfilingInfo> DynamicPipeline::get_profiling_info() const {
-    // The VM runtime records and closes the command lists itself, so the plugin cannot instrument them.
-    _logger.warning("get_profiling_info - profiling is not supported for dynamic graphs");
-    return {};
 }
 
 void DynamicPipeline::reset() const {
