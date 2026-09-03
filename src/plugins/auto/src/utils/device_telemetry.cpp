@@ -10,6 +10,7 @@
 #    include <cmath>
 #    include <memory>
 #    include <mutex>
+#    include <optional>
 #    include <vector>
 
 #    include "ClientApiC.h"
@@ -24,10 +25,9 @@ inline std::string get_log_tag() {
     return "[IPF]";
 }
 
-// IPF namespace/paths confirmed against the DttSampleEfApp sample (Demo.cpp / Constants.h) and
-// DTT team feedback. Note the registered event path ends in "OnEpoGearChanged", not
-// "OnGearChanged"; the event's own eventPath argument is delivered as the parent node
-// ("...Policy.EPO"), with the real event name/value inside the JSON payload instead.
+// The registered event path ends in "OnEpoGearChanged", not "OnGearChanged"; the event's
+// own eventPath argument is delivered as the parent node ("...Policy.EPO"), with the real
+// event name/value inside the JSON payload instead.
 constexpr const char* k_dtt_root_path = "Platform.Features.DTT";
 constexpr const char* k_dtt_status_path = "Platform.Features.DTT.Software.Status";
 constexpr const char* k_dtt_version_path = "Platform.Features.DTT.Software.Version";
@@ -96,20 +96,38 @@ std::optional<float> parse_utilization_from_aiselector_json_impl(const std::stri
 // Calls into the statically linked IPF ClientApi through the plain-C ABI (ClientApiC.h).
 class TelemetryClient::Impl {
 public:
+    // Rejects anything outside the EPO-defined range so untrusted telemetry cannot force a mode.
+    static std::optional<int> parse_gear(const std::string& gear_str) {
+        int gear = 0;
+        try {
+            gear = std::stoi(gear_str);
+        } catch (const std::exception&) {
+            LOG_WARNING_TAG("TelemetryClient: EPO gear value is not an integer: %s", gear_str.c_str());
+            return std::nullopt;
+        }
+        if (!is_valid_gear(gear)) {
+            LOG_WARNING_TAG("TelemetryClient: EPO gear %d is out of the supported range [%d, %d]",
+                            gear,
+                            k_min_gear,
+                            k_max_gear);
+            return std::nullopt;
+        }
+        return gear;
+    }
+
     static void handle_gear_changed_event(void* context, const std::string& gear_str) {
         auto* sp = static_cast<std::shared_ptr<std::atomic<int>>*>(context);
         if (sp == nullptr || !*sp) {
             return;
         }
-        try {
-            const int gear = std::stoi(gear_str);
-            const int previous_gear = (*sp)->exchange(gear);
-            // Suppress repeated same-gear notifications so a spurious event storm can't flood the log.
-            if (gear != previous_gear) {
-                LOG_INFO_TAG("TelemetryClient: EPO gear changed to %d", gear);
-            }
-        } catch (const std::exception&) {
-            LOG_WARNING_TAG("TelemetryClient: EPO gear value is not an integer: %s", gear_str.c_str());
+        const auto gear = parse_gear(gear_str);
+        if (!gear.has_value()) {
+            return;
+        }
+        const int previous_gear = (*sp)->exchange(*gear);
+        // Suppress repeated same-gear notifications so a spurious event storm can't flood the log.
+        if (*gear != previous_gear) {
+            LOG_INFO_TAG("TelemetryClient: EPO gear changed to %d", *gear);
         }
     }
 
@@ -183,27 +201,28 @@ public:
     }
 
     void on_gear_changed(const std::string& gear_str) {
-        try {
-            const int gear = std::stoi(gear_str);
-            m_shared_gear->store(gear);
-        } catch (const std::exception&) {
-            LOG_WARNING_TAG("TelemetryClient: EPO gear value is not an integer: %s", gear_str.c_str());
+        if (const auto gear = parse_gear(gear_str)) {
+            m_shared_gear->store(*gear);
         }
     }
 
 private:
-    // Retries until registration succeeds; a failed attempt does not permanently disable tracking.
+    // DTT is probed once per client
     void ensure_gear_tracking_registered() {
-        if (m_gear_event_registered) {
+        if (m_gear_tracking_initialized.load(std::memory_order_acquire)) {
             return;
         }
         std::lock_guard<std::mutex> lock(m_low_power_init_mutex);
-        if (m_gear_event_registered) {
+        if (m_gear_tracking_initialized.load(std::memory_order_relaxed)) {
             return;
         }
-        if (!m_shared_gear) {
-            m_shared_gear = std::make_shared<std::atomic<int>>(-1);
-        }
+        initialize_gear_tracking();
+        m_gear_tracking_initialized.store(true, std::memory_order_release);
+    }
+
+    // Must be called while holding m_low_power_init_mutex.
+    void initialize_gear_tracking() {
+        m_shared_gear = std::make_shared<std::atomic<int>>(-1);
         refresh_dtt_nodes();
         if (!is_dtt_available()) {
             LOG_WARNING_TAG("TelemetryClient: DTT unavailable, EPO gear tracking is disabled");
@@ -343,6 +362,7 @@ private:
     }
 
     void* m_handle = nullptr;
+    std::atomic<bool> m_gear_tracking_initialized{false};
     bool m_gear_event_registered = false;
     std::mutex m_low_power_init_mutex;
     std::shared_ptr<std::atomic<int>> m_shared_gear;
