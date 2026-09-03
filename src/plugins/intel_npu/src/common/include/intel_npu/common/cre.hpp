@@ -67,7 +67,7 @@ public:
      *
      * @param section_type_evaluators A mapping between CRE tokens and their (lazy) evaluators.
      */
-    bool check_compatibility(
+    ov::CompatibilityCheck check_compatibility(
         const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
         const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_instance_evaluators = {}) const;
 
@@ -100,7 +100,7 @@ private:
      * @param skip_all_evaluations If set to "true", all operand evaluations wihtin this subexpressions will be skipped.
      * However, CRE validity checks will still be performed.
      */
-    bool evaluate(
+    ov::CompatibilityCheck evaluate(
         std::vector<CREToken>::const_iterator& expression_iterator,
         const std::vector<CREToken>::const_iterator& expression_end,
         const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,

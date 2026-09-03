@@ -74,7 +74,7 @@ std::unordered_map<SectionID, SectionInstanceEvaluator> RuntimeRequirements::bui
     return per_instance_evaluators;
 }
 
-bool RuntimeRequirements::get_compatibility_check_result(
+ov::CompatibilityCheck RuntimeRequirements::get_compatibility_check_result(
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& type_evaluators,
     const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators) {
     if (!m_compatibility_check_result.has_value()) {

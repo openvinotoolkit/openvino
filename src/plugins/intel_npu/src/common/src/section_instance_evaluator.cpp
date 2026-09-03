@@ -11,15 +11,15 @@ SectionInstanceEvaluator::SectionInstanceEvaluator(const std::shared_ptr<ISectio
     : m_impl(impl),
       m_runtime_requirements(runtime_requirements) {}
 
-bool SectionInstanceEvaluator::get_result() const {
-    if (!m_supported.has_value()) {
-        m_supported = m_impl->evaluate(m_runtime_requirements);
+ov::CompatibilityCheck SectionInstanceEvaluator::get_result() const {
+    if (!m_result.has_value()) {
+        m_result = m_impl->evaluate(m_runtime_requirements);
     }
-    return m_supported.value();
+    return m_result.value();
 }
 
 bool SectionInstanceEvaluator::evaluated() const {
-    return m_supported.has_value();
+    return m_result.has_value();
 }
 
 }  // namespace intel_npu

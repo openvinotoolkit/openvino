@@ -215,7 +215,7 @@ bool CRE::end_condition(const std::vector<CREToken>::const_iterator& expression_
     }
 }
 
-bool CRE::evaluate(
+ov::CompatibilityCheck CRE::evaluate(
     std::vector<CREToken>::const_iterator& expression_iterator,
     const std::vector<CREToken>::const_iterator& expression_end,
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
@@ -332,7 +332,7 @@ bool CRE::evaluate(
     return result;
 }
 
-bool CRE::check_compatibility(
+ov::CompatibilityCheck CRE::check_compatibility(
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
     const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_instance_evaluators) const {
     if (m_subexpressions.empty()) {
@@ -342,11 +342,11 @@ bool CRE::check_compatibility(
     const std::vector<CREToken> expression = get_expression();
     std::vector<CREToken>::const_iterator expression_iterator = expression.begin();
     const std::vector<CREToken>::const_iterator expression_end = expression.end();
-    const bool result = evaluate(expression_iterator,
-                                 expression_end,
-                                 section_type_evaluators,
-                                 section_instance_evaluators,
-                                 Delimiter::SIZE);
+    const ov::CompatibilityCheck result = evaluate(expression_iterator,
+                                                   expression_end,
+                                                   section_type_evaluators,
+                                                   section_instance_evaluators,
+                                                   Delimiter::SIZE);
     CRE_EVAL_ASSERT(expression_iterator == expression.end(),
                     "CRE evaluation ended before parsing the whole expression");
 

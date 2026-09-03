@@ -5,6 +5,7 @@
 #pragma once
 
 #include "intel_npu/common/isection.hpp"
+#include "openvino/runtime/properties.hpp"
 
 namespace intel_npu {
 
@@ -27,7 +28,7 @@ public:
      * @brief Checks whether or not the NPU plugin supports a section instance described by the given runtime
      * requirements
      */
-    virtual bool evaluate(std::string_view runtime_requirements) const = 0;
+    virtual ov::CompatibilityCheck evaluate(std::string_view runtime_requirements) const = 0;
 };
 
 }  // namespace intel_npu

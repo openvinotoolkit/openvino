@@ -24,7 +24,7 @@ public:
 
     std::unordered_map<SectionID, SectionType> get_section_id_to_type_mapping() const;
 
-    bool get_compatibility_check_result(
+    ov::CompatibilityCheck get_compatibility_check_result(
         const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& type_evaluators,
         const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators);
 
@@ -45,7 +45,7 @@ private:
     std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> m_type_evaluators;
     std::unordered_map<SectionID, SectionInstanceEvaluator> m_instance_evaluators;
 
-    std::optional<bool> m_compatibility_check_result;
+    std::optional<ov::CompatibilityCheck> m_compatibility_check_result;
 };
 
 /**

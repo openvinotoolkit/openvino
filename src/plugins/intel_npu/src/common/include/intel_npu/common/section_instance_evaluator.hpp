@@ -24,7 +24,7 @@ public:
      * @brief Checks whether or not the NPU plugin supports the section instance.
      * @details After evaluation, the result is stored for future use.
      */
-    bool get_result() const;
+    ov::CompatibilityCheck get_result() const;
 
     /**
      * @brief Tells whether or not the section type instance has been already evaluated.
@@ -41,7 +41,7 @@ private:
     /**
      * @brief If evaluation is performed, the result will be stored here for future use.
      */
-    mutable std::optional<bool> m_supported;
+    mutable std::optional<ov::CompatibilityCheck> m_result;
 };
 
 }  // namespace intel_npu

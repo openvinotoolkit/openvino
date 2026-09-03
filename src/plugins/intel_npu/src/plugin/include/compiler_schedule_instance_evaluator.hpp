@@ -16,7 +16,7 @@ public:
     CompilerScheduleInstanceEvaluator(const ov::SoPtr<intel_npu::IEngineBackend>& backend,
                                       const std::shared_ptr<CompilerOptionSupportHelper>& option_support_helper);
 
-    bool evaluate(std::string_view runtime_requirements) const override;
+    ov::CompatibilityCheck evaluate(std::string_view runtime_requirements) const override;
 
 private:
     ov::SoPtr<intel_npu::IEngineBackend> m_backend;
