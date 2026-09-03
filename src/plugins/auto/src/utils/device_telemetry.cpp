@@ -103,8 +103,11 @@ public:
         }
         try {
             const int gear = std::stoi(gear_str);
-            (*sp)->store(gear);
-            LOG_WARNING_TAG("TelemetryClient: EPO gear changed to %d", gear);
+            const int previous_gear = (*sp)->exchange(gear);
+            // Suppress repeated same-gear notifications so a spurious event storm can't flood the log.
+            if (gear != previous_gear) {
+                LOG_INFO_TAG("TelemetryClient: EPO gear changed to %d", gear);
+            }
         } catch (const std::exception&) {
             LOG_WARNING_TAG("TelemetryClient: EPO gear value is not an integer: %s", gear_str.c_str());
         }
@@ -165,34 +168,10 @@ public:
         if (m_handle == nullptr) {
             return std::nullopt;
         }
-        std::call_once(m_low_power_init_once, [this]() {
-            m_shared_gear = std::make_shared<std::atomic<int>>(-1);
-            refresh_dtt_nodes();
-            if (!is_dtt_available()) {
-                LOG_WARNING_TAG("TelemetryClient: DTT unavailable, EPO gear tracking is disabled");
-                return;
-            }
-            log_dtt_version();
-            // Seed the gear only while EPO is enabled; otherwise CurrentGear may be stale.
-            if (is_epo_enabled()) {
-                log_current_gear();
-            }
-            // Context is kept alive here; raw pointer passed to IPF and freed only after confirmed unregister.
-            m_callback_context = std::make_unique<std::shared_ptr<std::atomic<int>>>(m_shared_gear);
-            const ipf_err_t reg_status =
-                IpfRegisterEvent(m_handle, k_dtt_gear_changed_path, gear_changed_callback, m_callback_context.get());
-            if (reg_status != IpfError::IPF_ERR_OK) {
-                LOG_WARNING_TAG("TelemetryClient: failed to register for %s: %s: %s",
-                                k_dtt_gear_changed_path,
-                                ipf_ef_error_str(reg_status),
-                                IpfGetLastErrorMessage());
-                m_callback_context.reset();
-            } else {
-                m_gear_event_registered = true;
-                LOG_INFO_TAG("TelemetryClient: registered for %s", k_dtt_gear_changed_path);
-            }
-        });
-        // After first init, this is an atomic read; the call_once body does not re-run.
+        ensure_gear_tracking_registered();
+        if (!m_shared_gear) {
+            return std::nullopt;
+        }
         const int gear = m_shared_gear->load();
         if (gear < 0) {
             LOG_DEBUG_TAG("TelemetryClient: EPO gear unknown, low power mode unavailable");
@@ -213,6 +192,44 @@ public:
     }
 
 private:
+    // Retries until registration succeeds; a failed attempt does not permanently disable tracking.
+    void ensure_gear_tracking_registered() {
+        if (m_gear_event_registered) {
+            return;
+        }
+        std::lock_guard<std::mutex> lock(m_low_power_init_mutex);
+        if (m_gear_event_registered) {
+            return;
+        }
+        if (!m_shared_gear) {
+            m_shared_gear = std::make_shared<std::atomic<int>>(-1);
+        }
+        refresh_dtt_nodes();
+        if (!is_dtt_available()) {
+            LOG_WARNING_TAG("TelemetryClient: DTT unavailable, EPO gear tracking is disabled");
+            return;
+        }
+        log_dtt_version();
+        // Seed the gear only while EPO is enabled; otherwise CurrentGear may be stale.
+        if (is_epo_enabled()) {
+            log_current_gear();
+        }
+        // Context is kept alive here; raw pointer passed to IPF and freed only after confirmed unregister.
+        m_callback_context = std::make_unique<std::shared_ptr<std::atomic<int>>>(m_shared_gear);
+        const ipf_err_t reg_status =
+            IpfRegisterEvent(m_handle, k_dtt_gear_changed_path, gear_changed_callback, m_callback_context.get());
+        if (reg_status != IpfError::IPF_ERR_OK) {
+            LOG_WARNING_TAG("TelemetryClient: failed to register for %s: %s: %s",
+                            k_dtt_gear_changed_path,
+                            ipf_ef_error_str(reg_status),
+                            IpfGetLastErrorMessage());
+            m_callback_context.reset();
+            return;
+        }
+        m_gear_event_registered = true;
+        LOG_INFO_TAG("TelemetryClient: registered for %s", k_dtt_gear_changed_path);
+    }
+
     using IpfQueryFn = ipf_err_t (*)(void*, const char*, char*, size_t*);
 
     // Query IPF node/value data with the two-call buffer-size protocol.
@@ -327,7 +344,7 @@ private:
 
     void* m_handle = nullptr;
     bool m_gear_event_registered = false;
-    std::once_flag m_low_power_init_once;
+    std::mutex m_low_power_init_mutex;
     std::shared_ptr<std::atomic<int>> m_shared_gear;
     // Owns the heap-allocated shared_ptr passed to IpfRegisterEvent; freed only after confirmed unregister.
     std::unique_ptr<std::shared_ptr<std::atomic<int>>> m_callback_context;
