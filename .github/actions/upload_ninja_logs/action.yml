@@ -1,0 +1,78 @@
+name: 'Upload Ninja build logs'
+description: >-
+  Collect every .ninja_log under the CMake build tree (main build plus nested
+  ExternalProject / FetchContent subbuilds) and upload as one artifact.
+inputs:
+  build-dir:
+    description: 'Primary CMake binary directory (CMAKE_BINARY_DIR)'
+    required: true
+  artifact-name:
+    description: 'Artifact name for upload-artifact'
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Collect Ninja logs (Unix)
+      id: collect_unix
+      if: runner.os != 'Windows'
+      shell: bash
+      env:
+        BUILD_DIR: ${{ inputs.build-dir }}
+      run: |
+        set -euo pipefail
+        STAGING="${RUNNER_TEMP}/ninja_logs_upload"
+        rm -rf "${STAGING}"
+        mkdir -p "${STAGING}"
+        mapfile -d '' -t logs < <(find "${BUILD_DIR}" -name '.ninja_log' -print0 2>/dev/null || true)
+        if [[ ${#logs[@]} -eq 0 ]]; then
+          echo "No .ninja_log files under ${BUILD_DIR}"
+        else
+          echo "Collecting ${#logs[@]} .ninja_log file(s):"
+          for f in "${logs[@]}"; do
+            rel="${f#"${BUILD_DIR}"/}"
+            dest="${STAGING}/${rel}"
+            mkdir -p "$(dirname "${dest}")"
+            cp -a "${f}" "${dest}"
+            echo "  ${f} -> ${dest}"
+          done
+        fi
+        echo "staging-dir=${STAGING}" >> "${GITHUB_OUTPUT}"
+
+    - name: Collect Ninja logs (Windows)
+      id: collect_win
+      if: runner.os == 'Windows'
+      shell: pwsh
+      env:
+        BUILD_DIR: ${{ inputs.build-dir }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $staging = Join-Path $env:RUNNER_TEMP 'ninja_logs_upload'
+        if (Test-Path -LiteralPath $staging) {
+          Remove-Item -LiteralPath $staging -Recurse -Force
+        }
+        New-Item -ItemType Directory -Path $staging -Force | Out-Null
+        $logs = Get-ChildItem -LiteralPath $env:BUILD_DIR -Recurse -Force -Filter '.ninja_log' -ErrorAction SilentlyContinue
+        if (-not $logs) {
+          Write-Host "No .ninja_log files under $($env:BUILD_DIR)"
+        } else {
+          Write-Host "Collecting $($logs.Count) .ninja_log file(s):"
+          foreach ($log in $logs) {
+            $rel = $log.FullName.Substring($env:BUILD_DIR.Length).TrimStart('\', '/')
+            $dest = Join-Path $staging $rel
+            $destDir = Split-Path -Parent $dest
+            if (-not (Test-Path -LiteralPath $destDir)) {
+              New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+            }
+            Copy-Item -LiteralPath $log.FullName -Destination $dest -Force
+            Write-Host "  $($log.FullName) -> $dest"
+          }
+        }
+        "staging-dir=$staging" >> $env:GITHUB_OUTPUT
+
+    - name: Upload collected Ninja logs
+      uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ runner.os == 'Windows' && steps.collect_win.outputs.staging-dir || steps.collect_unix.outputs.staging-dir }}
+        include-hidden-files: true
+        if-no-files-found: error

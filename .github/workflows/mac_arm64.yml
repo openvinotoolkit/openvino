@@ -334,19 +334,12 @@ jobs:
       # Upload build artifacts
       #
 
-      - name: Locate Ninja build log
+      - name: Upload Ninja build logs
         if: always()
-        uses: ./openvino/.github/actions/locate_ninja_log
+        uses: ./openvino/.github/actions/upload_ninja_logs
         with:
           build-dir: ${{ env.BUILD_DIR }}
-
-      - name: Upload Ninja build log
-        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-        if: always()
-        with:
-          name: ninja_log_mac_arm64
-          path: ${{ env.BUILD_DIR }}/.ninja_log
-          if-no-files-found: error
+          artifact-name: ninja_log_mac_arm64
 
       - name: Upload OpenVINO package
         if: ${{ always() }}
