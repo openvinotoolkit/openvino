@@ -204,7 +204,7 @@ namespace frontend {
 namespace ir {
 
 class InputModel::InputModelIRImpl {
-    const std::shared_ptr<ov::util::WeightsProvider>& m_weights_provider;
+    std::shared_ptr<ov::util::WeightsProvider> m_weights_provider;
     std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> m_extensions;
     std::unordered_map<std::string, ov::OpSet> m_opsets;
     pugi::xml_node m_root;
@@ -212,7 +212,7 @@ class InputModel::InputModelIRImpl {
 
 public:
     InputModelIRImpl(std::istream& model,
-                     const std::shared_ptr<ov::util::WeightsProvider>& weights_provider,
+                     std::shared_ptr<ov::util::WeightsProvider> weights_provider,
                      const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions)
         : m_weights_provider(std::move(weights_provider)),
           m_extensions(extensions) {
@@ -222,7 +222,7 @@ public:
     }
 
     InputModelIRImpl(const std::shared_ptr<ov::AlignedBuffer>& model,
-                     const std::shared_ptr<ov::util::WeightsProvider>& weights_provider,
+                     std::shared_ptr<ov::util::WeightsProvider> weights_provider,
                      const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions)
         : m_weights_provider(std::move(weights_provider)),
           m_extensions(extensions) {
@@ -243,14 +243,14 @@ private:
 };
 
 InputModel::InputModel(std::istream& model,
-                       const std::shared_ptr<ov::util::WeightsProvider>& weights_provider,
+                       std::shared_ptr<ov::util::WeightsProvider> weights_provider,
                        const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
                        std::filesystem::path) {
     _impl = std::make_shared<InputModelIRImpl>(model, std::move(weights_provider), extensions);
 }
 
 InputModel::InputModel(const std::shared_ptr<ov::AlignedBuffer>& model,
-                       const std::shared_ptr<ov::util::WeightsProvider>& weights_provider,
+                       std::shared_ptr<ov::util::WeightsProvider> weights_provider,
                        const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
                        std::filesystem::path) {
     _impl = std::make_shared<InputModelIRImpl>(model, std::move(weights_provider), extensions);
