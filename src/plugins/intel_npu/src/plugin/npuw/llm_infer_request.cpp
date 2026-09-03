@@ -1502,22 +1502,12 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             uu::fill_tensor_bytes(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name)), 0u);
             uu::fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::attention_mask)),
                                      0);
-<<<<<<< HEAD
-            uu::fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids)),
-                                     0);
-=======
             // NOTE: Granite-4.0-h-micro uses no Positional Encoding, it doesn't need it because
             //       Mamba inherently does preserve information about the order of tokens.
             if (m_kvcache_in_ports.find(layer_names::position_ids) != m_kvcache_in_ports.end()) {
                 uu::fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids)),
                                         0);
             }
-            if (token_type_ids) {
-                uu::fill_tensor<int64_t>(
-                    m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::token_type_ids)),
-                    0);
-            }
->>>>>>> a605413534 (Changes to launch granite-4.0-h-micro without correct position_ids)
 
             m_generate_initialized = true;
         }
