@@ -219,7 +219,40 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
     auto reshape2 = opp::optional<ov::op::v1::Reshape>({broadcast2, opp::any_input()}, single_user);
 
     auto transpose1 = opp::optional<ov::op::v1::Transpose>({reshape1, opp::any_input()}, single_user);
-    auto matmul1 = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), transpose1});
+    auto matmul1_pred = [](const ov::Output<ov::Node>& output) {
+        const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(output.get_node_shared_ptr());
+        if (!matmul || matmul->get_transpose_a()) {
+            return false;
+        }
+
+        const auto key_input = matmul->input_value(1).get_node_shared_ptr();
+        const auto key_transpose = ov::as_type_ptr<ov::op::v1::Transpose>(key_input);
+        if (!key_transpose) {
+            return matmul->get_transpose_b();
+        }
+        if (matmul->get_transpose_b()) {
+            return false;
+        }
+
+        const auto order = ov::as_type_ptr<ov::op::v0::Constant>(key_transpose->input_value(1).get_node_shared_ptr());
+        if (!order) {
+            return false;
+        }
+
+        const auto permutation = order->cast_vector<int64_t>();
+        if (permutation.size() < 2u) {
+            return false;
+        }
+        for (std::size_t index = 0; index + 2u < permutation.size(); ++index) {
+            if (permutation[index] != static_cast<int64_t>(index)) {
+                return false;
+            }
+        }
+        const auto rank = permutation.size();
+        return permutation[rank - 2u] == static_cast<int64_t>(rank - 1u) &&
+               permutation[rank - 1u] == static_cast<int64_t>(rank - 2u);
+    };
+    auto matmul1 = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), transpose1}, matmul1_pred);
     auto score_scale = opp::optional<ov::op::v1::Multiply>({matmul1, opp::any_input()});
     auto add = opp::wrap_type<ov::op::v1::Add>({score_scale, opp::any_input()});
     // Six-input SDPA appends a sink score before Softmax and removes its

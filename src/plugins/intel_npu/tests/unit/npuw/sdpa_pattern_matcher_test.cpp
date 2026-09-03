@@ -6,7 +6,9 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <string>
+#include <vector>
 
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
@@ -57,7 +59,9 @@ std::shared_ptr<ov::Model> build_decomposed_sdpa_model(size_t num_layers = 1,
                                                        int64_t sink_slice_end = -1,
                                                        int64_t sink_slice_step = 1,
                                                        int64_t sink_slice_axis = -1,
-                                                       bool include_sink_slice = true) {
+                                                       bool include_sink_slice = true,
+                                                       std::vector<int64_t> key_transpose_order = {0, 1, 3, 2},
+                                                       std::optional<bool> matmul_transpose_b_override = std::nullopt) {
     using namespace ov;
 
     const size_t context_len = past_len + query_len;
@@ -143,13 +147,14 @@ std::shared_ptr<ov::Model> build_decomposed_sdpa_model(size_t num_layers = 1,
         if (transpose_key) {
             auto key_transpose = std::make_shared<op::v1::Transpose>(
                 key_for_matmul,
-                op::v0::Constant::create(element::i64, Shape{4}, std::vector<int64_t>{0, 1, 3, 2}));
+                op::v0::Constant::create(element::i64, Shape{4}, key_transpose_order));
             key_transpose->set_friendly_name("transpose_key." + idx);
             key_for_matmul = key_transpose;
         }
 
         // Q @ K^T → Add(mask) → Softmax → @ V → Transpose → Reshape
-        auto qk = std::make_shared<op::v0::MatMul>(query, key_for_matmul, false, !transpose_key);
+        const auto transpose_b = matmul_transpose_b_override.value_or(!transpose_key);
+        auto qk = std::make_shared<op::v0::MatMul>(query, key_for_matmul, false, transpose_b);
         qk->set_friendly_name("matmul_qk." + idx);
 
         Output<Node> scores = qk;
@@ -390,6 +395,77 @@ TEST(SDPAPatternMatcherTest, SDPADecomposedRejectsAttentionSinkWithoutSlice) {
 
     EXPECT_EQ(count_groups_with_tag(ens, "attn"), 0u)
         << "SDPADecomposed should reject an attention sink without probability removal";
+}
+
+TEST(SDPAPatternMatcherTest, SDPADecomposedRejectsNonCanonicalKeyTranspose) {
+    auto model = build_decomposed_sdpa_model(/*num_layers=*/1,
+                                             /*with_gqa=*/false,
+                                             /*num_heads=*/4,
+                                             /*num_kv_heads=*/4,
+                                             /*head_dim=*/16,
+                                             /*query_len=*/8,
+                                             /*past_len=*/8,
+                                             /*with_attention_sink=*/false,
+                                             /*transpose_key=*/true,
+                                             /*scale_scores=*/false,
+                                             /*sink_slice_begin=*/0,
+                                             /*sink_slice_end=*/-1,
+                                             /*sink_slice_step=*/1,
+                                             /*sink_slice_axis=*/-1,
+                                             /*include_sink_slice=*/true,
+                                             /*key_transpose_order=*/{0, 1, 2, 3});
+    auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "REP"}, {"NPUW_ONLINE_ISOLATE", "P:SDPADecomposed/attn"}});
+    auto ens = ov::npuw::online::buildPartitioning(model, cfg);
+
+    EXPECT_EQ(count_groups_with_tag(ens, "attn"), 0u);
+}
+
+TEST(SDPAPatternMatcherTest, SDPADecomposedRejectsUnexpectedMatMulTransposeB) {
+    auto model = build_decomposed_sdpa_model(/*num_layers=*/1,
+                                             /*with_gqa=*/false,
+                                             /*num_heads=*/4,
+                                             /*num_kv_heads=*/4,
+                                             /*head_dim=*/16,
+                                             /*query_len=*/8,
+                                             /*past_len=*/8,
+                                             /*with_attention_sink=*/false,
+                                             /*transpose_key=*/true,
+                                             /*scale_scores=*/false,
+                                             /*sink_slice_begin=*/0,
+                                             /*sink_slice_end=*/-1,
+                                             /*sink_slice_step=*/1,
+                                             /*sink_slice_axis=*/-1,
+                                             /*include_sink_slice=*/true,
+                                             /*key_transpose_order=*/{0, 1, 3, 2},
+                                             /*matmul_transpose_b_override=*/true);
+    auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "REP"}, {"NPUW_ONLINE_ISOLATE", "P:SDPADecomposed/attn"}});
+    auto ens = ov::npuw::online::buildPartitioning(model, cfg);
+
+    EXPECT_EQ(count_groups_with_tag(ens, "attn"), 0u);
+}
+
+TEST(SDPAPatternMatcherTest, SDPADecomposedRejectsMissingKeyTranspose) {
+    auto model = build_decomposed_sdpa_model(/*num_layers=*/1,
+                                             /*with_gqa=*/false,
+                                             /*num_heads=*/4,
+                                             /*num_kv_heads=*/4,
+                                             /*head_dim=*/16,
+                                             /*query_len=*/8,
+                                             /*past_len=*/8,
+                                             /*with_attention_sink=*/false,
+                                             /*transpose_key=*/false,
+                                             /*scale_scores=*/false,
+                                             /*sink_slice_begin=*/0,
+                                             /*sink_slice_end=*/-1,
+                                             /*sink_slice_step=*/1,
+                                             /*sink_slice_axis=*/-1,
+                                             /*include_sink_slice=*/true,
+                                             /*key_transpose_order=*/{0, 1, 3, 2},
+                                             /*matmul_transpose_b_override=*/false);
+    auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "REP"}, {"NPUW_ONLINE_ISOLATE", "P:SDPADecomposed/attn"}});
+    auto ens = ov::npuw::online::buildPartitioning(model, cfg);
+
+    EXPECT_EQ(count_groups_with_tag(ens, "attn"), 0u);
 }
 
 TEST(SDPAPatternMatcherTest, SDPADecomposedDoesNotMatchDQModel) {
