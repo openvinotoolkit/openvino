@@ -89,6 +89,35 @@ TEST_P(OVCompiledGraphImportExportTestNPU, CheckSizeOfRawBlobIfMultipleOfPageSiz
     ASSERT_TRUE(size % 4096 == 0) << "Size of the blob should be multiple of 4096";
 }
 
+TEST_P(OVCompiledGraphImportExportTestNPU, NonELFBlobExportThrows) {
+    ov::Core core;
+    std::stringstream sstream;
+
+    auto rawBlobConfig = configuration;
+    const ov::AnyMap nonBlobConfigs{ov::enable_weightless(true),
+                                    ov::intel_npu::compilation_mode("HostCompiler_Interpreter")};
+    rawBlobConfig.emplace(ov::intel_npu::export_raw_blob(true));
+    rawBlobConfig.emplace(ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN));
+
+    std::stringstream modelIR, weights;
+    ov::pass::Serialize serialzePass(
+        modelIR,
+        weights);  // serialization needed to re-read the model with WeightlessCacheAttribute set
+    auto model = ov::test::utils::make_conv_pool_relu();
+    serialzePass.run_on_model(model);
+    const auto& weightsStr = weights.str();
+    ov::Tensor weightsTensor(ov::element::u8, ov::Shape{weightsStr.size()}, weightsStr.c_str());
+    model = core.read_model(modelIR.str(), weightsTensor);
+
+    for (const auto& nonBlobConfig : nonBlobConfigs) {
+        rawBlobConfig.emplace(nonBlobConfig);
+        OV_EXPECT_THROW(core.compile_model(model, target_device, rawBlobConfig).export_model(sstream),
+                        ov::Exception,
+                        testing::HasSubstr("Requested raw blob export, but the graph is not a weightful ELF one."));
+        rawBlobConfig.erase(nonBlobConfig.first);
+    }
+}
+
 TEST_P(OVCompiledGraphImportExportTestNPU, CheckSizeOfExportedModelIfMultipleOfPageSize) {
     ov::Core core;
     std::stringstream sstream;
