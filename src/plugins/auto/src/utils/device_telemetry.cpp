@@ -99,9 +99,15 @@ public:
     // Rejects anything outside the EPO-defined range so untrusted telemetry cannot force a mode.
     static std::optional<int> parse_gear(const std::string& gear_str) {
         int gear = 0;
+        std::size_t parsed_chars = 0;
         try {
-            gear = std::stoi(gear_str);
+            gear = std::stoi(gear_str, &parsed_chars);
         } catch (const std::exception&) {
+            LOG_WARNING_TAG("TelemetryClient: EPO gear value is not an integer: %s", gear_str.c_str());
+            return std::nullopt;
+        }
+        // std::stoi accepts a numeric prefix (e.g. "4garbage"); require the whole string to be consumed.
+        if (parsed_chars != gear_str.size()) {
             LOG_WARNING_TAG("TelemetryClient: EPO gear value is not an integer: %s", gear_str.c_str());
             return std::nullopt;
         }
