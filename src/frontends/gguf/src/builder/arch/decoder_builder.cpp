@@ -251,7 +251,7 @@ std::string DecoderBuilder::inject_per_layer_embedding(int il, const std::string
 
 std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
     const std::string p = "blk." + std::to_string(il) + ".";
-    const std::string inpSA = layer_in;
+    const std::string& inpSA = layer_in;
     std::string cur = layer_in;
 
     // eps for the post-attention / post-FFN norms; 0 in the config means "reuse rms_eps"
