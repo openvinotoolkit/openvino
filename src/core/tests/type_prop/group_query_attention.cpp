@@ -173,6 +173,43 @@ TEST(type_prop, group_query_attention_rotary_inputs_static_shapes) {
     EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{1, 2, 5, 8}));
 }
 
+TEST(type_prop, group_query_attention_partial_rotary_dim_accepted) {
+    // head_size == 8; cos_cache last dim == 2 -> rotary_dim == 4 < head_size (GPT-NeoX/Phi-style partial RoPE).
+    auto args = make_valid_gqa_args();
+    const auto cos_cache = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{16, 2});
+    const auto sin_cache = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{16, 2});
+    args.push_back(cos_cache);
+    args.push_back(sin_cache);
+
+    const auto op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, true, false);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 4, 48}));
+}
+
+TEST(type_prop, group_query_attention_rotary_dim_exceeds_head_size) {
+    // head_size == 8; cos_cache last dim == 8 -> rotary_dim == 16 > head_size.
+    auto args = make_valid_gqa_args();
+    const auto cos_cache = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{16, 8});
+    const auto sin_cache = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{16, 8});
+    args.push_back(cos_cache);
+    args.push_back(sin_cache);
+
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, true, false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("must not exceed head_size"));
+}
+
+TEST(type_prop, group_query_attention_rotary_dim_dynamic_cos_with_static_head_size) {
+    auto args = make_valid_gqa_args();
+    const auto cos_cache = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{16, -1});
+    const auto sin_cache = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{16, -1});
+    args.push_back(cos_cache);
+    args.push_back(sin_cache);
+
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, true, false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("must be statically known"));
+}
+
 TEST(type_prop, group_query_attention_quant_type_enum_names) {
     EXPECT_EQ(as_string(op::internal::GroupQueryAttentionQuantType::NONE), "NONE");
     EXPECT_EQ(as_string(op::internal::GroupQueryAttentionQuantType::PER_TENSOR), "PER_TENSOR");
@@ -253,6 +290,54 @@ TEST(type_prop, group_query_attention_quantized_kv_requires_quantized_cache_type
             op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false, 8, quantize_type, quantize_type),
         ov::NodeValidationFailure,
         HasSubstr("quantized KV cache element type"));
+}
+
+// ---------- causal ----------
+
+TEST(type_prop, group_query_attention_causal_defaults_true) {
+    const auto args = make_valid_gqa_args();
+    const auto op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false);
+    EXPECT_TRUE(op->get_causal());
+}
+
+TEST(type_prop, group_query_attention_bidirectional_without_window_is_valid) {
+    const auto args = make_valid_gqa_args();
+    const auto op =
+        std::make_shared<op::internal::GroupQueryAttention>(args,
+                                                            6,
+                                                            2,
+                                                            1.0f,
+                                                            false,
+                                                            false,
+                                                            /*kv_cache_bit_width*/ 0,
+                                                            op::internal::GroupQueryAttentionQuantType::NONE,
+                                                            op::internal::GroupQueryAttentionQuantType::NONE,
+                                                            /*local_window_size*/ -1,
+                                                            /*sliding_window_cache*/ false,
+                                                            /*smooth_softmax*/ false,
+                                                            /*causal*/ false);
+    EXPECT_FALSE(op->get_causal());
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 4, 48}));
+}
+
+TEST(type_prop, group_query_attention_causal_false_rejects_window) {
+    const auto args = make_valid_gqa_args();
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GroupQueryAttention>(
+                        args,
+                        6,
+                        2,
+                        1.0f,
+                        false,
+                        false,
+                        /*kv_cache_bit_width*/ 0,
+                        op::internal::GroupQueryAttentionQuantType::NONE,
+                        op::internal::GroupQueryAttentionQuantType::NONE,
+                        /*local_window_size*/ 2,
+                        /*sliding_window_cache*/ false,
+                        /*smooth_softmax*/ false,
+                        /*causal*/ false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("local_window_size requires causal=1"));
 }
 
 }  // namespace testing

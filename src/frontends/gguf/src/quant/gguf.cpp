@@ -500,8 +500,8 @@ GGUFLoad get_gguf_data(const std::string& file) {
             return {w_bytes, s_nelems * sizeof(uint16_t), 0};  // symmetric: no zp
         }
 
-        // Weights: i8 or u8 stored in byte arrays (not u32-packed anymore for sym; u32 only for 4-bit).
-        // 4-bit types: Q4_0(i4 in u32), Q4_1(u4 in u32), Q4_K(u4 in u32).
+        // Weights: i8 or u8 stored in byte arrays (u32 only for asymmetric 4-bit).
+        // 4-bit types: Q4_0(i4), Q4_1(u4 in u32), Q4_K(u4 in u32).
         // 8-bit types: Q8_0(i8), Q5_0(i8), Q5_1(i8), Q5_K(i8), Q6_K(i8).
         const bool is_4bit = (ti.type == GGUF_TYPE_Q4_0 || ti.type == GGUF_TYPE_Q4_1 || ti.type == GGUF_TYPE_Q4_K);
         uint64_t weights_per_byte = is_4bit ? 2 : 1;
@@ -611,20 +611,18 @@ GGUFLoad get_gguf_data(const std::string& file) {
             auto [wb, sb, bb] = quant_sizes(ti);
             char* buf_ptr = quant_buf->get_ptr<char>();
             auto shape = get_shape(tensor);
-            auto weights_shape = shape;
-            weights_shape.back() /= 8;  // u32 packs 8 i4 nibbles
             auto scale_shape = shape;
             scale_shape.back() /= 32;
 
             std::shared_ptr<void> so_buf(quant_buf);
-            ov::Tensor w_view(ov::element::u32, weights_shape, static_cast<void*>(buf_ptr + quant_offset));
+            ov::Tensor w_view(ov::element::i4, shape, static_cast<void*>(buf_ptr + quant_offset));
             ov::Tensor weights(w_view, so_buf);
             quant_offset += wb;
             ov::Tensor s_view(ov::element::f16, scale_shape, static_cast<void*>(buf_ptr + quant_offset));
             ov::Tensor scales(s_view, so_buf);
             quant_offset += sb;
 
-            gguf_fill_q4_0(tensor, weights, scales);
+            gguf_fill_sym(tensor, weights, scales);
             mapped->hint_evict(abs_off, tensor.bsize);
 
             arrays.emplace(name, std::move(weights));

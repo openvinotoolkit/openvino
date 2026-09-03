@@ -86,6 +86,7 @@ protected:
         const size_t discrete_target = get_discrete_head_dim_target(params);
         const size_t head_dim_block =
             selective_ssm_jit::get_head_dim_block(head_dim, state_size, subgroup_size, params.get_device_info(), Kind, private_values_budget, discrete_target);
+        OPENVINO_ASSERT(subgroup_size != 0, "SelectiveSSM JIT kernel requires a non-zero subgroup size");
 
         jit.make("SSM_SEQUENCE_SIZE", x_shape[1].get_length());
         jit.make("SSM_NUM_HEADS", x_shape[2].get_length());
@@ -94,7 +95,8 @@ protected:
         jit.make("SSM_STATE_SIZE", state_size);
         jit.make("SSM_SUBGROUP_SIZE", subgroup_size);
         jit.make("SSM_HEAD_DIM_BLOCK", head_dim_block);
-        jit.make("SSM_STATE_ITERATIONS", cldnn::ceil_div(state_size, subgroup_size));
+        // get_subgroup_size() returns 0 for unsupported devices; the clamp only keeps the divisor defined.
+        jit.make("SSM_STATE_ITERATIONS", cldnn::ceil_div(state_size, std::max<size_t>(subgroup_size, 1)));
         jit.make("SSM_PAGED", false);
         jit.make("SSM_JIT_PRECOMPUTE_DA", false);
         jit.make("SSM_JIT_USE_SLM", Kind == selective_ssm_jit::device_kind::discrete && use_discrete_slm(params));
@@ -136,8 +138,10 @@ protected:
                                                                                 Kind,
                                                                                 private_values_budget,
                                                                                 discrete_target);
+            OPENVINO_ASSERT(head_dim_block != 0, "SelectiveSSM JIT kernel requires a non-zero head dimension block");
 
-            kd.params.workGroups.global = {cldnn::ceil_div(head_dim, head_dim_block) * subgroup_size, num_heads, batch};
+            // get_head_dim_block() returns 0 for unsupported configurations; the clamp only keeps the divisor defined.
+            kd.params.workGroups.global = {cldnn::ceil_div(head_dim, std::max<size_t>(head_dim_block, 1)) * subgroup_size, num_heads, batch};
             kd.params.workGroups.local = {subgroup_size, 1, 1};
             kd.params.scalars.clear();
             cldnn::scalar_desc sequence_desc;

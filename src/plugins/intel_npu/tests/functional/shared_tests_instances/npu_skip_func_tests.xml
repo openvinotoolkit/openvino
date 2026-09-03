@@ -274,9 +274,10 @@ Example:
 
     <!-- C#191861 -->
     <skip_config>
-        <message>Blobs for OVBlobCompatibilityNPU need to be updated for NPU5010</message>
+        <message>Blobs for OVBlobCompatibilityNPU need to be updated for NPU5010 and NPU6010</message>
         <enable_rules>
             <device>5010</device>
+            <device>6010</device>
         </enable_rules>
         <filters>
             <filter>.*OVBlobCompatibilityNPU.*</filter>
