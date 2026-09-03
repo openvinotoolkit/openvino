@@ -96,6 +96,23 @@ public:
     }
 
     /**
+     * @brief Remove the entry associated with a key
+     *
+     * @param key
+     * @return true if any value associated with the key was existed and removed
+     * @return false otherwise
+     */
+    bool erase(const Key& key) {
+        auto iter = _key_map.find(key);
+        if (iter == _key_map.end())
+            return false;
+
+        _lru_data_list.erase(iter->second);
+        _key_map.erase(iter);
+        return true;
+    }
+
+    /**
      * @brief Remove all entries
      *
      */
@@ -204,6 +221,11 @@ public:
     Value get(const Key& key) {
         std::lock_guard<std::mutex> lock(_mutex);
         return parent::get(key);
+    }
+
+    bool erase(const Key& key) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        return parent::erase(key);
     }
 
     void set_remove_item_callback(FuncRemoveItem callback) {

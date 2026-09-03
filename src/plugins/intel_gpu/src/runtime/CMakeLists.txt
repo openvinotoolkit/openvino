@@ -29,6 +29,12 @@ file(GLOB LIBRARY_SOURCES_SYCL
     "${CMAKE_CURRENT_SOURCE_DIR}/sycl/*.cpp"
 )
 
+file(GLOB LIBRARY_SOURCES_SYCL_INTEL
+    "${CMAKE_CURRENT_SOURCE_DIR}/sycl/intel/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/sycl/intel/*.cpp"
+)
+list(APPEND LIBRARY_SOURCES_SYCL ${LIBRARY_SOURCES_SYCL_INTEL})
+
 file(GLOB_RECURSE OCL_SYCL_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ocl/sycl_*.[ch]pp")
 
 if(NOT OV_GPU_WITH_SYCL)
@@ -76,6 +82,11 @@ target_compile_options(${TARGET_NAME} PRIVATE
 if(OV_GPU_WITH_SYCL)
     add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES ${SYCL_SOURCES})
     target_compile_definitions(${TARGET_NAME} PUBLIC OV_GPU_WITH_SYCL)
+endif()
+
+if(GPU_RT_TYPE STREQUAL "SYCL")
+    find_path(OCLOC_API_INCLUDE_DIR NAMES ocloc_api.h REQUIRED)
+    target_include_directories(${TARGET_NAME} PRIVATE ${OCLOC_API_INCLUDE_DIR})
 endif()
 
 if(ENABLE_ONEDNN_FOR_GPU)

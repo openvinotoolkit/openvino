@@ -2696,6 +2696,80 @@ TEST(prepare_buffer_fusing, in_place_crop_along_feature_reshape_scales_feature_p
     }
 }
 
+TEST(prepare_buffer_fusing, dynamic_chained_variadic_split_not_optimized_in_place) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    constexpr int64_t batch = 1;
+    constexpr int64_t split_size = 9216;
+    constexpr int64_t chunk_size = 3072;
+    constexpr int64_t input_size = 2 * split_size;
+
+    for (const int64_t rank : {2, 3}) {
+        SCOPED_TRACE("rank=" + std::to_string(rank));
+        const auto axis = rank - 1;
+        const auto input_shape = rank == 2 ? ov::Shape{batch, input_size} : ov::Shape{batch, 1, input_size};
+        const auto input_pshape = rank == 2 ? ov::PartialShape{-1, input_size} : ov::PartialShape{-1, 1, input_size};
+        const layout input_layout_dynamic{input_pshape, data_types::f32, format::bfyx};
+        auto input_mem = engine.allocate_memory({input_shape, data_types::f32, format::bfyx});
+        auto axis_mem = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+        auto split_lengths_mem = engine.allocate_memory({{2}, data_types::i64, format::bfyx});
+        auto chunk_lengths_mem = engine.allocate_memory({{3}, data_types::i64, format::bfyx});
+
+        const auto input_data = rg.generate_random_1d<float>(batch * input_size, -1.f, 1.f);
+        set_values(input_mem, input_data);
+        set_values<int64_t>(axis_mem, {axis});
+        set_values<int64_t>(split_lengths_mem, {split_size, split_size});
+        set_values<int64_t>(chunk_lengths_mem, {chunk_size, chunk_size, chunk_size});
+
+        topology topo(
+            input_layout("input", input_layout_dynamic),
+            data("axis", axis_mem),
+            data("split_lengths", split_lengths_mem),
+              data("chunk_lengths", chunk_lengths_mem),
+              crop("half",
+                  {input_info("input"), input_info("axis"), input_info("split_lengths")},
+                  tensor(1),
+                  tensor(0),
+                  crop_ngraph_op_mode::variadic_split,
+                  1,
+                  axis),
+              crop("chunk0",
+                  {input_info("half"), input_info("axis"), input_info("chunk_lengths")},
+                  tensor(1),
+                  tensor(0),
+                  crop_ngraph_op_mode::variadic_split,
+                  0,
+                  axis),
+              crop("chunk2",
+                  {input_info("half"), input_info("axis"), input_info("chunk_lengths")},
+                  tensor(1),
+                  tensor(0),
+                  crop_ngraph_op_mode::variadic_split,
+                  2,
+                  axis),
+              reorder("output0", input_info("chunk0"), format::bfyx, data_types::f32),
+              reorder("output2", input_info("chunk2"), format::bfyx, data_types::f32));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+
+        network net(engine, topo, config);
+        net.set_input_data("input", input_mem);
+        const auto outputs = net.execute();
+
+        mem_lock<float, mem_lock_type::read> output0(outputs.at("output0").get_memory(), get_test_stream());
+        mem_lock<float, mem_lock_type::read> output2(outputs.at("output2").get_memory(), get_test_stream());
+        for (int64_t feature = 0; feature < chunk_size; feature++) {
+            ASSERT_FLOAT_EQ(output0[feature], input_data[split_size + feature]);
+            ASSERT_FLOAT_EQ(output2[feature], input_data[split_size + 2 * chunk_size + feature]);
+        }
+
+        ASSERT_FALSE(net.get_primitive("half")->can_be_optimized());
+    }
+}
+
 // =============================================================================
 // UNIT TEST: build-time and runtime must agree on which axis carries the
 //            dyn-pad mask for the TransposeSplitMatcher pattern.
