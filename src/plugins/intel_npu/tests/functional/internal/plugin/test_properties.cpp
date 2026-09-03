@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <exception>
 #include <memory>
+#include <optional>
 #include <random>
 #include <thread>
 #include <vector>
@@ -689,7 +690,7 @@ TEST_P(CompatibilityCheckTests, CheckUnsupportedConfigWithGetMergedConfigAndUnkn
             localPropertiesManager->getMergedConfigAndUnknownProperties({{ov::device::id("3720")}},
                                                                         ::intel_npu::ConfigMergeMode::Compile),
             ov::Exception,
-            testing::HasSubstr("Property 'DEVICE_ID' exists but is not part of the config"));
+            testing::HasSubstr("[ NOT_FOUND ] Option 'DEVICE_ID' is not supported for current configuration"));
     }
 
     ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
@@ -702,16 +703,21 @@ TEST_P(CompatibilityCheckTests, CheckModelPtrWithGetMergedConfigAndUnknownProper
     auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
     auto constModel = std::const_pointer_cast<const ov::Model>(model);
 
+    std::optional<::intel_npu::FilteredConfig> filteredConfig;
     for (const auto& modelProperty : {ov::hint::model(model), ov::hint::model(constModel)}) {
-        auto [filteredConfig, unknownProperties] = [&]() {
-            return propertiesManager->getMergedConfigAndUnknownProperties({{modelProperty}},
-                                                                          ::intel_npu::ConfigMergeMode::Import);
-        }();
+        auto [config, unknownProperties] =
+            propertiesManager->getMergedConfigAndUnknownProperties({{modelProperty}},
+                                                                   ::intel_npu::ConfigMergeMode::Import);
+        filteredConfig = std::move(config);
 
-        ASSERT_TRUE(filteredConfig.has<::intel_npu::MODEL_PTR>());
-        ASSERT_EQ(filteredConfig.get<::intel_npu::MODEL_PTR>().lock(), model);
+        ASSERT_TRUE(filteredConfig->has<::intel_npu::MODEL_PTR>());
+        ASSERT_EQ(filteredConfig->get<::intel_npu::MODEL_PTR>().lock(), model);
         ASSERT_TRUE(unknownProperties.empty());
     }
+
+    model.reset();
+    constModel.reset();
+    ASSERT_EQ(filteredConfig->get<::intel_npu::MODEL_PTR>().lock(), nullptr);
 }
 
 TEST_P(CompatibilityCheckTests, CheckCacheEncryptionCallbacksWithGetMergedConfigAndUnknownProperties) {

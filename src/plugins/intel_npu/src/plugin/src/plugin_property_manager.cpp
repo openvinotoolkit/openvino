@@ -351,7 +351,10 @@ std::pair<FilteredConfig, ov::AnyMap> PluginPropertyManager::getMergedConfigAndU
             continue;
         }
 
-        OPENVINO_ASSERT(!isKnownProperty, "Property '", key, "' exists but is not part of the config.");
+        OPENVINO_ASSERT(!isKnownProperty,
+                        "[ NOT_FOUND ] Option '",
+                        key,
+                        "' is not supported for current configuration.");
 
         // Property doesn't exist - check whether the compiler supports it as an internal option.
         bool isSupportedByCompiler = false;
