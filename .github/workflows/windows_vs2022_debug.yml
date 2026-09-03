@@ -80,16 +80,3 @@ jobs:
         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
         -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja"
 
-  Overall_Status:
-    name: ci/gha_overall_status_build_profiling
-    needs: [Smart_CI, Build]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check status of all jobs
-        if: >-
-          ${{
-            contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')
-          }}
-        run: exit 1

@@ -265,16 +265,3 @@ jobs:
           path: ${{ env.BUILD_DIR }}/openvino_selective_build_stat.tar.gz
           if-no-files-found: 'error'
 
-  Overall_Status:
-    name: ci/gha_overall_status_build_profiling
-    needs: [Smart_CI, Docker, Build_And_Run_Collect_Mode]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check status of all jobs
-        if: >-
-          ${{
-            contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')
-          }}
-        run: exit 1

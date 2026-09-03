@@ -129,16 +129,3 @@ jobs:
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
             -DENABLE_FASTER_BUILD=ON
 
-  Overall_Status:
-    name: ci/gha_overall_status_build_profiling
-    needs: [Smart_CI, Docker, Build]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check status of all jobs
-        if: >-
-          ${{
-            contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')
-          }}
-        run: exit 1

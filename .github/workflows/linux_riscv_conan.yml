@@ -276,16 +276,3 @@ jobs:
           path: ${{ env.OPENVINO_BUILD_DIR }}/.ninja_log
           if-no-files-found: error
 
-  Overall_Status:
-    name: ci/gha_overall_status_build_profiling
-    needs: [Smart_CI, Docker, Build]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check status of all jobs
-        if: >-
-          ${{
-            contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')
-          }}
-        run: exit 1
