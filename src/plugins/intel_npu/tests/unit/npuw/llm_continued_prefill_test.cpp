@@ -65,9 +65,9 @@ struct LLMContinuedPrefillTestAccess {
 
     static ov::SoPtr<ov::ITensor> prefill_present(Request& req, const std::string& past_name) {
         auto present_name = past_name;
-        present_name.replace(present_name.find(Request::layer_names::past_key_values),
-                             std::string(Request::layer_names::past_key_values).size(),
-                             "present");
+        const auto pos = present_name.find(Request::layer_names::past_key_values);
+        OPENVINO_ASSERT(pos != std::string::npos, "Unexpected KV cache name: ", past_name);
+        present_name.replace(pos, std::string(Request::layer_names::past_key_values).size(), "present");
         return req.m_prefill_request->get_tensor(req.m_prefill_out_ports.at(present_name));
     }
 
