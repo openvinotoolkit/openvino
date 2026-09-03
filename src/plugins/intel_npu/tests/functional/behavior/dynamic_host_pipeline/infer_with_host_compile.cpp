@@ -748,8 +748,6 @@ TEST_P(InferWithHostCompileTests, GetProfilingInfoDoesNotThrow) {
         GTEST_SKIP() << "Skip test for current device";
     }
 
-    configuration[ov::enable_profiling.name()] = true;
-
     auto model = createModelByName(selectedModelName);
     auto setupResult = prepareRuntimeCompareContext(model);
     if (setupResult.status == RuntimeCompareStatus::fail) {
