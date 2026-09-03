@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "signature": "smoke_Snippets_Softmax accuracy mismatch: COMPARATION FAILED abs_threshold exceeded|Flaky Test",
+  "signature_hash": "2330f1abe60fbda7",
+  "title": "smoke_Snippets_Softmax tests fail on comparison",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-09-03T12:24:00Z",
+  "last_seen": "2026-09-03T12:24:00Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/33751824393"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/37526"],
+  "recent_timestamps": ["2026-09-03T12:24:00Z"],
+  "rerun_search_string": "COMPARATION FAILED abs_threshold"
+}

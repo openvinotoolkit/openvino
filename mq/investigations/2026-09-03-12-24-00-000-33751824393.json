@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-03-12-24-00-000-33751824393",
+  "timestamp": "2026-09-03T12:24:00Z",
+  "run_id": "33751824393",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33751824393",
+  "workflow_name": "CPU functional tests",
+  "pr_number": "37526",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37526",
+  "author": "miaobin",
+  "category": "Flaky Test",
+  "title": "smoke_Snippets_Softmax tests fail on comparison",
+  "signature": "smoke_Snippets_Softmax accuracy mismatch: COMPARATION FAILED abs_threshold exceeded|Flaky Test",
+  "signature_hash": "2330f1abe60fbda7",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "1 of 71623 CPU func tests failed: smoke_Snippets_Softmax accuracy comparison mismatch"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check failed because upstream CPU functional tests job failed"
+    }
+  ],
+  "key_errors": [
+    "[ RUN      ] smoke_Snippets_Softmax/Softmax.CompareWithRefImpl/IS[0]=[?.?]_([1.16].[1.32].[1.1].[1.9].[1.17].[1.19].[1.49].[1.50].[5.16].[1.16].[1.9])_Axis=-1_#N=1_#S=1_targetDevice=CPU\nTensor: [1,17] Mismatch: [17/17] Print: [0/17]\nCoordinate with max diff: [0,10] Expected: 0.255283 Actual: 0 Diff: 0.255283 abs_threshold: 2.56475e-05\nsrc/tests/functional/base_func_tests/src/base/ov_subgraph.cpp:97: Failure\n[ COMPARATION ] COMPARATION FAILED! abs_threshold: 0.000000 rel_threshold: 0.000100 incorrect elem counter: 17 among 17 shapes."
+  ],
+  "root_cause": "Only 1 of 71623 CPU functional tests failed (smoke_Snippets_Softmax/Softmax.CompareWithRefImpl with a dynamic-shape input), with actual output 0 vs expected 0.255283 across all 17 elements. The PR under test (#37526) only touches src/plugins/intel_npu/* files unrelated to CPU snippets/softmax code, so the failure cannot be attributed to the PR's diff. An all-zero output for a full-tensor mismatch on a single dynamic-shape parametrization is a known signature of a CPU Snippets (JIT) codegen/scheduling race or an uninitialized-buffer read that manifests only for specific runner hardware/shapes - consistent with pre-existing CPU plugin test flakiness rather than a deterministic regression.",
+  "reproduction_steps": "Build with `-DENABLE_TESTS=ON` and run: `./bin/intel64/Release/ov_cpu_func_tests --gtest_filter='*smoke_Snippets_Softmax*CompareWithRefImpl*IS0*1.16*1.32*1.1*1.9*1.17*1.19*1.49*1.50*5.16*1.16*1.9*Axis=-1*'` repeatedly (10-20x) to check for reproducibility/flakiness; if it always passes locally, this indicates a CI-runner-specific timing/threading issue.",
+  "recommended_actions": [
+    "Re-run only the failed CPU functional tests job (this failure is unrelated to PR #37526's NPU-only diff)",
+    "If the test fails again on rerun, check the CPU Snippets Softmax lowering/JIT emitter for the Axis=-1 dynamic-shape case against src/plugins/intel_cpu/src/nodes/ for potential uninitialized memory or race conditions",
+    "Consider marking smoke_Snippets_Softmax/Softmax.CompareWithRefImpl/IS[0]... as a known-flaky test if it continues to intermittently fail across unrelated PRs, and file a tracking issue with the CPU plugin owners"
+  ],
+  "prevention_strategies": "Add flaky-test quarantine tracking for single-test failures unrelated to the PR diff; consider adding a retry-on-failure wrapper for parametrized accuracy tests with all-zero-output symptoms to distinguish genuine regressions from transient runner issues.",
+  "historical_context": "No prior CI Doctor MQ pattern record exists for this specific smoke_Snippets_Softmax parametrization; this is the first recorded occurrence in the merge-queue investigation database."
+}
