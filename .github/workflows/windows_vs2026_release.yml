@@ -84,8 +84,8 @@ jobs:
             -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config"
 
   Overall_Status:
-    name: ci/gha_overall_status_windows_vs2026
-    needs: [ Smart_CI, Build]
+    name: ci/gha_overall_status_build_profiling
+    needs: [Smart_CI, Build]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
