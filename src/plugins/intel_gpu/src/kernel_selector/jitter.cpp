@@ -88,6 +88,11 @@ JitTerm isinf(const JitTerm& arg) {
     return jit_term;
 }
 
+JitTerm isnan(const JitTerm& arg) {
+    JitTerm jit_term{"(isnan(" + arg.str() + "))"};
+    return jit_term;
+}
+
 JitTerm exp(const JitTerm& arg) {
     JitTerm jit_term{"(exp(" + arg.str() + "))"};
     return jit_term;
@@ -1299,9 +1304,16 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             break;
         }
         case ActivationFunction::SIGN:
-            jitConstants.AddConstant(MakeJitConstant(
-                    macro_def,
-                    ternary(input.gt(zero), one, ternary(input.eq(zero), zero, neg(one))).str()));
+            if (out_dt == Datatype::F32 || out_dt == Datatype::F16 || out_dt == Datatype::BF16) {
+                jitConstants.AddConstant(MakeJitConstant(
+                        macro_def,
+                        ternary(isnan(input), input,
+                                ternary(input.gt(zero), one, ternary(input.eq(zero), zero, neg(one)))).str()));
+            } else {
+                jitConstants.AddConstant(MakeJitConstant(
+                        macro_def,
+                        ternary(input.gt(zero), one, ternary(input.eq(zero), zero, neg(one))).str()));
+            }
             break;
         case ActivationFunction::RECIPROCAL:
             jitConstants.AddConstant(MakeJitConstant(macro_def, (one / input).str()));
