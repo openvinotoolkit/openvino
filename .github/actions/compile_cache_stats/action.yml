@@ -1,0 +1,43 @@
+name: 'Compile cache statistics'
+description: 'Collect sccache or ccache --show-stats metrics as human-readable logs and JSON (sccache preferred, then ccache), and upload JSON as a workflow artifact.'
+inputs:
+  artifact-name:
+    description: 'Name of the uploaded artifact containing the JSON report.'
+    required: false
+    default: 'compile-cache-stats'
+  json-path:
+    description: 'Filesystem path for the JSON report. Defaults to $RUNNER_TEMP/compile-cache-stats.json.'
+    required: false
+    default: ''
+  upload-artifact:
+    description: 'Whether to upload the JSON report as a workflow artifact.'
+    required: false
+    default: 'true'
+outputs:
+  tool:
+    description: 'Compile cache utility used (sccache or ccache).'
+    value: ${{ steps.collect.outputs.tool }}
+  stats-json:
+    description: 'Full statistics report as a JSON object (metrics, computed fields, raw_stdout).'
+    value: ${{ steps.collect.outputs.stats-json }}
+  stats-json-path:
+    description: 'Filesystem path where the JSON report was written.'
+    value: ${{ steps.collect.outputs.stats-json-path }}
+runs:
+  using: 'composite'
+  steps:
+    - name: Collect compile cache statistics
+      id: collect
+      shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
+      run: python3 ${{ env.ACTION_PATH }}/collect_compile_cache_stats.py
+      env:
+        ACTION_PATH: ${{ runner.os == 'Windows' && '$env:GITHUB_ACTION_PATH' || '$GITHUB_ACTION_PATH' }}
+        COMPILE_CACHE_STATS_JSON_PATH: ${{ inputs.json-path != '' && inputs.json-path || format('{0}/compile-cache-stats.json', runner.temp) }}
+
+    - name: Upload compile cache statistics
+      if: ${{ inputs.upload-artifact == 'true' }}
+      uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ steps.collect.outputs.stats-json-path }}
+        if-no-files-found: error
