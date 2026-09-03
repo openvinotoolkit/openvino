@@ -111,19 +111,11 @@ void CompilerAdapterFactory::decideCompilerType(ov::intel_npu::CompilerType& com
     compilerType = ov::intel_npu::CompilerType::PLUGIN;
 }
 
-const std::vector<ov::intel_npu::CompilerType>& CompilerAdapterFactory::getSupportedCompilerTypes() const {
-    static const std::vector<ov::intel_npu::CompilerType> supportedCompilerTypes = {
-        ov::intel_npu::CompilerType::DRIVER};
-    static const std::vector<ov::intel_npu::CompilerType> supportedCompilerTypesWithPlugin = {
-        ov::intel_npu::CompilerType::DRIVER,
-        ov::intel_npu::CompilerType::PLUGIN};
+const std::vector<ov::intel_npu::CompilerType>& CompilerAdapterFactory::getKnownCompilerTypes() const {
+    static const std::vector<ov::intel_npu::CompilerType> knownCompiler = {ov::intel_npu::CompilerType::DRIVER,
+                                                                           ov::intel_npu::CompilerType::PLUGIN};
 
-    const auto pluginCompilerPresence = _pluginCompilerPresence.load(std::memory_order_acquire);
-    if (pluginCompilerPresence == PluginCompilerPresence::ABSENT) {
-        return supportedCompilerTypes;
-    }
-
-    return supportedCompilerTypesWithPlugin;
+    return knownCompiler;
 }
 
 }  // namespace intel_npu

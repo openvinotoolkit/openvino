@@ -29,7 +29,7 @@ public:
 
     void decideCompilerType(ov::intel_npu::CompilerType& compilerType, std::string_view platform);
 
-    const std::vector<ov::intel_npu::CompilerType>& getSupportedCompilerTypes() const;
+    const std::vector<ov::intel_npu::CompilerType>& getKnownCompilerTypes() const;
 
 private:
     enum class PluginCompilerPresence : std::uint8_t {
