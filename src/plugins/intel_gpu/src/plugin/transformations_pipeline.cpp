@@ -38,11 +38,13 @@
 #include "low_precision/recurrent_cell.hpp"
 #include "low_precision/prelu.hpp"
 #include "low_precision/transpose.hpp"
+#include "low_precision/variadic_split.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/gated_delta_net.hpp"
@@ -449,6 +451,47 @@ bool is_hybrid_linear_attention_model(const ov::Model& model) {
         if (ov::is_type<ov::op::internal::GatedDeltaNet>(op) ||
             ov::is_type<ov::op::internal::PagedGatedDeltaNet>(op)) {
             return true;
+        }
+    }
+    return false;
+}
+
+// LPT's Split/VariadicSplitTransformation moves the dequantization from above the split to
+// below it, once per split output. That only pays off if the moved dequantization can be
+// absorbed by one of the consumers (a layer with quantized weights). If it cannot, the plugin
+// is left with one standalone per-channel eltwise per split output and, on top of that, the
+// single original dequantization can no longer be fused into the producer.
+// Typical case: the QKV VariadicSplit of a transformer block, whose outputs feed
+// bias Add -> Reshape -> SDPA and whose producer is the quantized QKV MatMul.
+bool has_dequantization_absorbing_consumer(const std::shared_ptr<const ov::Node>& split) {
+    constexpr size_t max_visited = 32;
+    std::deque<std::shared_ptr<ov::Node>> queue;
+    for (const auto& user : split->get_users()) {
+        queue.push_back(user);
+    }
+
+    for (size_t visited = 0; !queue.empty() && visited < max_visited; ++visited) {
+        const auto node = queue.front();
+        queue.pop_front();
+
+        if (is_type_any_of<ov::op::v0::MatMul,
+                           ov::op::v1::Convolution,
+                           ov::op::v1::GroupConvolution,
+                           ov::op::v1::ConvolutionBackpropData,
+                           ov::op::v1::GroupConvolutionBackpropData>(node)) {
+            return true;
+        }
+
+        // Data movement ops LPT propagates the dequantization further through, so a quantized
+        // layer behind them is still reachable.
+        if (is_type_any_of<ov::op::v0::Concat,
+                           ov::op::v1::Reshape,
+                           ov::op::v1::Transpose,
+                           ov::op::v0::Squeeze,
+                           ov::op::v0::Unsqueeze>(node)) {
+            for (const auto& user : node->get_users()) {
+                queue.push_back(user);
+            }
         }
     }
     return false;
@@ -1387,6 +1430,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         lptPassConfig->disable<ov::pass::low_precision::RecurrentCellTransformation>();
         // Ticket 168015: Low precision PRelu is not supported on GPU
         lptPassConfig->disable<ov::pass::low_precision::PReluTransformation>();
+        lptPassConfig->set_callback<SplitTransformation, VariadicSplitTransformation>([](const_node_ptr& node) -> bool {
+            return !has_dequantization_absorbing_consumer(node);
+        });
         lptPassConfig->set_callback<ConvolutionBackpropDataTransformation>([func, defaultPrecisions](const_node_ptr& node) -> bool {
             auto fillStaticChannel = [func](const ov::PartialShape& shape, size_t& channel) -> bool {
                 const auto rank = shape.rank();
