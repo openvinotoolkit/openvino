@@ -170,17 +170,15 @@ void ov::npuw::FuncMemMgr::assign_memory() {
 
     const auto num_submodels = m_model->m_compiled_submodels.size();
 
-    // Build the set of funcall outputs that are ONLY global results
-    // (no inter-subgraph consumers). These don't need pre-allocation
-    // because the user will provide tensors via set_tensor().
+    // Global results don't need pre-allocation because the user will provide tensors
+    // via set_tensor() or they will be allocated via get_tensor() on-demand.
     for (auto&& go : m_model->m_outputs_to_submodels_outputs) {
         m_global_outputs.insert(go);
     }
 
     if (!m_global_outputs.empty()) {
-        LOG_VERB("Skipping FMM allocation for "
-                 << m_global_outputs.size()
-                 << " global-output-only funcall outputs (user will provide via set_tensor)");
+        LOG_VERB("Skipping FMM allocation for " << m_global_outputs.size()
+                                                << " global funcall outputs - will be allocated on-demand");
     }
 
     // Walk over the subgraphs, pre-allocate and pre-assign tensors to the subgraphs
@@ -208,7 +206,8 @@ void ov::npuw::FuncMemMgr::assign_memory() {
             for (std::size_t out_idx = 0u; out_idx < num_outs; out_idx++) {
                 const LinkFrom this_out = LinkFrom{idx, out_idx};
                 if (m_global_outputs.count(this_out)) {
-                    // Skip allocation - user will provide tensor via set_tensor()
+                    // Skip allocation - user will provide tensor via set_tensor() or
+                    // will be allocated via get_tensor() on-demand
                     continue;
                 }
                 assign(this_out);
@@ -380,7 +379,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                 if (tensor) {
                     m_funcall_result[from] = tensor;
                 }
-                // else: global-output-only, user must provide via set_tensor()
+                // else: global-output-only, they will be allocated on demand
             }
             if (real_idx != i) {
                 // If this function call is NOT the function body, do nothing here - the original
@@ -702,7 +701,7 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
         unpack_closure(id, m_subrequests[id]);
     }
 
-    // Check that all global output tensors are set by user. Otherwise, allocating here.
+    // Check that all global function output tensors are set by user. Otherwise, allocating here.
     for (std::size_t out_idx = 0; out_idx < m_npuw_model->outputs().size(); ++out_idx) {
         const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(out_idx);
         if (m_funcall_result.count(from_submodel) == 0) {
@@ -862,13 +861,11 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
 
         auto result_iter = m_funcall_result.find({idx, i});
         if (result_iter == m_funcall_result.end()) {
-            // Global-output-only and user hasn't called set_tensor() for this output yet.
-            // This shouldn't happen in normal usage (user must bind KV-cache outputs).
             OPENVINO_THROW("Funcall output Subgraph[",
                            idx,
                            "]/",
                            i,
-                           " has no tensor. Did you forget to call set_tensor() for this output?");
+                           " has no tensor. Check if set_tensor() or get_tensor() was called for this output");
         }
         auto o_tensor = result_iter->second;
 

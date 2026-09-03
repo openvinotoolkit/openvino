@@ -225,7 +225,6 @@ std::string ov::npuw::IBaseInferRequest::profile_tag(std::size_t idx) const {
 
 void ov::npuw::IBaseInferRequest::infer() {
     m_now_idx.reset();
-
     prepare_for_infer();
     for (std::size_t idx = 0u; idx < m_num_submodels; idx++) {
         m_now_idx = idx;

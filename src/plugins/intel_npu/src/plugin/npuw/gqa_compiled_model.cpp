@@ -172,7 +172,7 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
                              (stage == GQAModelStage::PREFILL    ? "prefill"
                               : stage == GQAModelStage::GENERATE ? "generate"
                                                                  : "unknown"));
-    
+
     // Untangle shared scale constants so every DequantizeLinear Multiply
     // gets its own copy.  Some exporters reuse a single scale node across
     // multiple layers; NPUW's FOLD pass requires per-instance scalars.
