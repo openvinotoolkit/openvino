@@ -2525,6 +2525,20 @@ TEST(GGUFOps, Cpy) {
     expect_near(out, expected, 0.0f);
 }
 
+TEST(GGUFOps, CpyEmptyCompactionPreservesCacheProducerName) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_CPY")
+                     .input("empty_rows", ov::element::f32, {1, 1, 0, 4})
+                     .input("cache", ov::element::f32, {1, 1, 2, 4})
+                     .output("out", ov::element::f32, {1, 1, 2, 4})
+                     .op_case(5)
+                     .build();
+
+    const auto& cache = model->get_results()[0]->input_value(0).get_node_shared_ptr();
+    EXPECT_STREQ(cache->get_type_name(), "Parameter");
+    EXPECT_EQ(cache->get_friendly_name(), "cache");
+}
+
 // Cont (op_case 1/2): after a PERMUTE/TRANSPOSE the OV tensor is already logically contiguous, so
 // CONT is an identity passthrough of its input.
 TEST(GGUFOps, Cont) {
@@ -2535,9 +2549,23 @@ TEST(GGUFOps, Cont) {
                      .op_case(1)  // input from PERMUTE
                      .build();
 
+    EXPECT_EQ(model->get_parameters()[0]->get_friendly_name(), "x");
+
     std::vector<float> x{1, 2, 3, 4, 5, 6, 7, 8};
     auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 4}, x)}});
     expect_near(out, x, 0.0f);
+}
+
+TEST(GGUFOps, ContViewPassThroughPreservesProducerName) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_CONT")
+                     .input("x", ov::element::f32, {2, 4})
+                     .output("out", ov::element::f32, {2, 4})
+                     .op_case(3)
+                     .build();
+
+    EXPECT_EQ(model->get_parameters()[0]->get_friendly_name(), "x");
+    EXPECT_EQ(model->get_results()[0]->input_value(0).get_node_shared_ptr(), model->get_parameters()[0]);
 }
 
 // GeGLU: split the last axis in half -> gelu(a) * b, where gelu is ggml's tanh approximation.

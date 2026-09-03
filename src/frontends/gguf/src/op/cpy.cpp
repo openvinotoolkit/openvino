@@ -58,7 +58,9 @@ OutputVector translate_cpy(const NodeContext& context) {
     }
 
     if (op_case == 5) {
-        return rename_outputs_with_suffix({context.get_input(1)}, context.get_name());
+        // Empty recurrent compaction is a true no-op. Do not rename the shared cache producer:
+        // it can feed other nodes and its stable name is used by stateful passes/fingerprints.
+        return {context.get_input(1)};
     }
 
     if (op_case == 4) {

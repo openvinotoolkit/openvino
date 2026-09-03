@@ -32,7 +32,7 @@ OutputVector translate_cont(const NodeContext& context) {
         // tensor with an extra head axis.
         auto input = context.get_input(0);
         if (input.get_partial_shape().compatible(context.get_output_shape())) {
-            return rename_outputs_with_suffix({input}, context.get_name());
+            return {input};
         }
         auto tgt = context.get_attribute<std::vector<int64_t>>("cont_reshape", {});
         FRONT_END_OP_CONVERSION_CHECK(!tgt.empty(),
@@ -67,7 +67,8 @@ OutputVector translate_cont(const NodeContext& context) {
             res.get_node_shared_ptr()->set_friendly_name("cont_reshape_" + context.get_name());
         }
         if (!res.get_node_shared_ptr()) {
-            res = input;
+            // A pass-through CONT must not rename the shared input producer.
+            return {input};
         }
     }
 
