@@ -149,12 +149,10 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
         const auto max_seq_length = get_model_max_seq_length();
         const auto transposed_value_tensors = has_transposed_value_tensors();
         if (max_seq_length > 8192 && !transposed_value_tensors) {
-            merge_config_with(config,
-                              {{std::string(::intel_npu::NPUW_UNFOLD_IREQS::key()), "NO"}});
-            LOG_INFO("Detected generate-style GQA model with max sequence length " << max_seq_length
-                                                                                   << " and transposed value tensors="
-                                                                                   << transposed_value_tensors
-                                                                                   << "; disabling NPUW_UNFOLD_IREQS");
+            merge_config_with(config, {{std::string(::intel_npu::NPUW_UNFOLD_IREQS::key()), "NO"}});
+            LOG_INFO("Detected generate-style GQA model with max sequence length "
+                     << max_seq_length << " and transposed value tensors=" << transposed_value_tensors
+                     << "; disabling NPUW_UNFOLD_IREQS");
         }
         LOG_INFO("Detected generate-style GQA model; applying FOLD with async funcall");
     } else {

@@ -173,28 +173,13 @@ void ov::npuw::FuncMemMgr::assign_memory() {
     // Build the set of funcall outputs that are ONLY global results
     // (no inter-subgraph consumers). These don't need pre-allocation
     // because the user will provide tensors via set_tensor().
-    std::set<LinkFrom> global_outputs;
-    for (auto&& link : m_model->m_outputs_to_submodels_outputs) {
-        if (link != CompiledModel::NO_LINK) {
-            global_outputs.insert(link);
-        }
+    for (auto&& go : m_model->m_outputs_to_submodels_outputs) {
+        m_global_outputs.insert(go);
     }
-    // Find outputs that have inter-subgraph consumers
-    std::set<LinkFrom> has_intersubgraph_readers;
-    for (const auto& kvp : m_model->m_submodels_input_to_prev_output) {
-        const auto& read_from = kvp.second;
-        if (read_from != CompiledModel::NO_LINK) {
-            has_intersubgraph_readers.insert(read_from);
-        }
-    }
-    // Global-output-only = global outputs WITHOUT inter-subgraph readers
-    for (auto&& go : global_outputs) {
-        if (has_intersubgraph_readers.count(go) == 0) {
-            m_global_outputs.insert(go);
-        }
-    }
+
     if (!m_global_outputs.empty()) {
-        LOG_VERB("Skipping FMM allocation for " << m_global_outputs.size()
+        LOG_VERB("Skipping FMM allocation for "
+                 << m_global_outputs.size()
                  << " global-output-only funcall outputs (user will provide via set_tensor)");
     }
 
@@ -306,7 +291,7 @@ void ov::npuw::FuncMemMgr::assign(const LinkFrom& from) {
 ov::npuw::TensorPtr ov::npuw::FuncMemMgr::get_tensor(const LinkFrom& from) {
     auto it = m_table.find(from);
     if (it == m_table.end()) {
-        return nullptr;  // Global-output-only: not pre-allocated
+        return {};  // Global-output-only: not pre-allocated
     }
     return it->second;
 }
@@ -879,7 +864,10 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
         if (result_iter == m_funcall_result.end()) {
             // Global-output-only and user hasn't called set_tensor() for this output yet.
             // This shouldn't happen in normal usage (user must bind KV-cache outputs).
-            OPENVINO_THROW("Funcall output Subgraph[", idx, "]/", i,
+            OPENVINO_THROW("Funcall output Subgraph[",
+                           idx,
+                           "]/",
+                           i,
                            " has no tensor. Did you forget to call set_tensor() for this output?");
         }
         auto o_tensor = result_iter->second;
