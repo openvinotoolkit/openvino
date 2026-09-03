@@ -499,7 +499,7 @@ void LLMBlockKVCacheStrategy::rerotate_longrope_keys(const std::shared_ptr<ov::I
 
     std::vector<ov::npuw::longrope::KeyBlock> blocks;
     for (const auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
-        auto* manager = layer_managers.key_manager.get();
+        auto& manager = layer_managers.key_manager;
         if (!manager) {
             continue;
         }
@@ -907,7 +907,7 @@ void LLMBlockKVCacheStrategy::refresh_key_tail_bindings(const std::shared_ptr<ov
     }
     const uint32_t kv_dim = m_req.m_npuw_llm_compiled_model->m_kvcache_desc.dim;
     for (const auto& [layer_idx, layer_managers] : m_kv_cache_block_managers) {
-        auto* manager = layer_managers.key_manager.get();
+        auto& manager = layer_managers.key_manager;
         if (!manager) {
             continue;
         }
