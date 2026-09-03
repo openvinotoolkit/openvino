@@ -30,7 +30,7 @@ const std::shared_ptr<OptionSupportCache>& CompilerOptionSupportHelper::getOptio
 bool CompilerOptionSupportHelper::isOptionSupported(ov::intel_npu::CompilerType compilerType,
                                                     const std::string& optionName,
                                                     const std::optional<std::string>& optionValue) {
-    const auto supportedCompilerTypes = _adapterFactory.getSupportedCompilerTypes();
+    const auto supportedCompilerTypes = _adapterFactory.getKnownCompilerTypes();
     OPENVINO_ASSERT(std::find(supportedCompilerTypes.begin(), supportedCompilerTypes.end(), compilerType) !=
                         supportedCompilerTypes.end(),
                     "Unsupported compiler type");

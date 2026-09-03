@@ -479,7 +479,9 @@ TEST(SerializationTest, OVTypes_Config) {
     ::intel_npu::Config var(options_desc);
     ::intel_npu::Config res(options_desc);
 
-    var.update("NPUW_LLM_BATCH_DIM", "42");
+    std::map<std::string, std::string> tmp;
+    tmp["NPUW_LLM_BATCH_DIM"] = "42";
+    var.update(tmp);
 
     std::stringstream ss;
 

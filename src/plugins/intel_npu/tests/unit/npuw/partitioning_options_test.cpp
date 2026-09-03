@@ -32,9 +32,7 @@ namespace {
     auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();
     ::intel_npu::registerNPUWOptions(*opt_desc);
     auto cfg = ::intel_npu::Config(opt_desc);
-    for (const auto& [key, value] : cfg_map) {
-        cfg.update(key, value);
-    }
+    cfg.update(cfg_map);
     return cfg;
 }
 

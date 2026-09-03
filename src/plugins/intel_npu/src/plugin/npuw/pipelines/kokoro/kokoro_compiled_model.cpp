@@ -26,6 +26,22 @@ void split_kokoro_properties(const ov::AnyMap& properties,
     }
 }
 
+std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
+    std::map<std::string, std::string> result;
+    for (auto&& value : params) {
+        if (value.second.is<std::string>()) {
+            result.emplace(value.first, value.second.as<std::string>());
+        } else if (value.second.is<bool>()) {
+            result.emplace(value.first, value.second.as<bool>() ? "YES" : "NO");
+        } else {
+            std::stringstream ss;
+            value.second.print(ss);
+            result.emplace(value.first, ss.str());
+        }
+    }
+    return result;
+}
+
 /**
  * @brief Kokoro's CPU-offloaded subgraphs are precision-sensitive.
  * Setting default CPU inference precision to f32 to ensure better accuracy, if not set by user.
@@ -66,18 +82,7 @@ ov::npuw::KokoroCompiledModel::KokoroCompiledModel(const std::shared_ptr<ov::Mod
     common_props["NPUW_FALLBACK_EXEC"] = "NO";
 
     m_cfg.parseEnvVars();
-    for (const auto& [key, value] : npuw_kokoro_props) {
-        if (value.is<std::string>()) {
-            m_cfg.update(key, value.as<std::string>());
-
-        } else if (value.is<bool>()) {
-            m_cfg.update(key, value.as<bool>() ? "YES" : "NO");
-        } else {
-            std::stringstream ss;
-            value.print(ss);
-            m_cfg.update(key, ss.str());
-        }
-    }
+    m_cfg.update(any_copy(npuw_kokoro_props));
 
     // Get configuration from m_cfg, which now has defaults, env vars and user properties merged
     m_kokoro_cfg.block_size = m_cfg.get<::intel_npu::NPUW_KOKORO_BLOCK_SIZE>();

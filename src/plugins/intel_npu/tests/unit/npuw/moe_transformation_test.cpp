@@ -748,8 +748,7 @@ inline ::intel_npu::Config make_moe_isolate_cfg() {
     auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();
     ::intel_npu::registerNPUWOptions(*opt_desc);
     ::intel_npu::Config cfg(opt_desc);
-    cfg.update("NPUW_ONLINE_PIPELINE", "REP");
-    cfg.update("NPUW_ONLINE_ISOLATE", "MOE");
+    cfg.update({{"NPUW_ONLINE_PIPELINE", "REP"}, {"NPUW_ONLINE_ISOLATE", "MOE"}});
     return cfg;
 }
 
