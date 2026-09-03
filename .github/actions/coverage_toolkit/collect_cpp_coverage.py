@@ -7,7 +7,8 @@ import os
 import re
 import shlex
 import shutil
-import subprocess
+# Coverage CI: fixed toolchain argv (lcov/gcov/genhtml), no shell.
+import subprocess  # nosec B404
 from pathlib import Path
 
 from coverage_workflow import CoverageContext, LOGGER, run_cmd
