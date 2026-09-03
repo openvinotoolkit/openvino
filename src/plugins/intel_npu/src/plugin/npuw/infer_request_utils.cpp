@@ -285,7 +285,10 @@ void ov::npuw::util::copy_per_layer_inputs_chunk_to_left(const ov::SoPtr<ov::ITe
     const size_t chunk_bytes = static_cast<size_t>(chunk_tokens) * src_per_token_bytes;
     const size_t offset_bytes = static_cast<size_t>(src_offset_tokens) * src_per_token_bytes;
 
-    fill_tensor_bytes(dst, 0u);
+    if (chunk_tokens < dst_seq_len) {
+        auto* dst_data = reinterpret_cast<uint8_t*>(dst->data());
+        std::memset(dst_data + chunk_bytes, 0, dst_seq_len_bytes - chunk_bytes);
+    }
     std::copy_n(reinterpret_cast<const uint8_t*>(src->data()) + offset_bytes,
                 chunk_bytes,
                 reinterpret_cast<uint8_t*>(dst->data()));
