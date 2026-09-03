@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "couldn't get torchscript module by scripting: retrying hit method redefinition|Flaky Test",
+  "signature_hash": "184bee2aff548cb1",
+  "title": "PyTorch layer test test_tuple_unpack fails with TorchScript method redefinition on retry",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-09-03T13:13:23Z",
+  "last_seen": "2026-09-03T13:13:23Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/33753760233"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37799"
+  ],
+  "recent_timestamps": [
+    "2026-09-03T13:13:23Z"
+  ],
+  "rerun_search_string": "Couldn't get TorchScript module by scripting"
+}

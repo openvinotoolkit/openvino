@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-03-13-13-23-000-33753760233",
+  "timestamp": "2026-09-03T13:13:23Z",
+  "run_id": "33753760233",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33753760233",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "37799",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37799",
+  "author": "praasz",
+  "category": "Flaky Test",
+  "title": "LLM accuracy GPU test fails \u2014 Qwen2-0.5B-Instruct-INT8 metric drop exceeds threshold",
+  "signature": "metric drop exceeds threshold|Flaky Test",
+  "signature_hash": "47caedf70a4041f8",
+  "confidence": "Medium",
+  "failed_jobs": [
+    "Pytorch Layer Tests / PyTorch Layer Tests",
+    "LLM accuracy iGPU tests / LLM accuracy GPU tests",
+    "ci/gha_overall_status_ubuntu_24"
+  ],
+  "key_errors": [
+    "FAILED tests/llm/accuracy_conformance.py::test_accuracy_conformance[Qwen/Qwen2-0.5B-Instruct-INT8-GPU] - AssertionError: Metric drop 0.05254477262496948 exceeds threshold 0.03",
+    "FAILED .../pytorch_tests/test_tuple_unpack.py::TestTupleUnpack::test_tuple_unpack[ie_device:CPU - precision:FP32] - RuntimeError: Couldn't get TorchScript module by scripting. Can't redefine method: forward on class __torch__.test_tuple_unpack.TupleArgument"
+  ],
+  "root_cause": "Two independent test-only failures unrelated to the PR's core Assign/ReadValue variable-validation changes: (1) the LLM accuracy iGPU job hit a known recurring metric-drop flake for Qwen2-0.5B-Instruct-INT8 (previously seen twice, unrelated to this PR's diff), and (2) the PyTorch layer test test_tuple_unpack failed due to a TorchScript re-scripting/method-redefinition retry artifact, a known intermittent PyTorch tracing/scripting issue rather than a regression caused by src/core/src/op/assign.cpp or read_value.cpp changes."
+}
