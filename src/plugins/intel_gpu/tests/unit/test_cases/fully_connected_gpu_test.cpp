@@ -5248,6 +5248,101 @@ TEST(fully_connected_3d_onednn_gpu, compressed_int4_scale_static) {
 }
 #endif
 
+// Regression guard for the N==1 int4 dynamic-quantization skip: the plugin keeps weight-only
+// quantization (f16 activation) for the single-output-feature (N == 1) u4-compressed fully-connected
+// -- MoE-gate shape M=80, K=2048, group=64 -- so the f16:u4 oneDNN GEMM path is used and the
+// unprofitable activation quantization is skipped. This test validates that path's numerical output
+// by cross-checking it against the OpenCL FC used purely as an independent reference (forced via
+// impl_types), comparing with a norm-based L2 relative error.
+TEST(fully_connected_3d_onednn_gpu, compressed_int4_single_output_feature_onednn_matches_ocl) {
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    const long int batch_num = 80;      // M (Qwen MoE shared_expert_gate token count)
+    const long int ifm_num = 2048;      // K (hidden size)
+    const long int ofm_num = 1;         // N == 1
+    const long int scales_group_size = 64;
+
+    auto input_mem   = engine.allocate_memory({ {1, batch_num, ifm_num, 1}, data_types::f16, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num, 1, 1}, data_types::u4, format::bfyx });
+    auto scale_mem   = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size, 1, 1}, data_types::f16, format::bfyx });
+    auto dcomp_zp_mem = engine.allocate_memory({ {1, 1, 1, 1}, data_types::u8, format::bfyx });
+
+    set_values<int8_t>(dcomp_zp_mem, {8});
+    set_values(input_mem, rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -2.0f, 2.0f));
+    set_values(weights_mem, rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 255));
+    set_values(scale_mem, rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -4.0f, 4.0f));
+
+    auto in_layout = layout{ {1, batch_num, ifm_num, 1}, data_types::f16, format::bfyx };
+
+    auto build_topology = [&]() {
+        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "dcomp_zp", data_types::f16, 3, 2);
+        fc_prim.decompression_zero_point_scalar = 8;
+        return topology(
+            input_layout("input", in_layout),
+            data("weights", weights_mem),
+            data("scale", scale_mem),
+            data("dcomp_zp", dcomp_zp_mem),
+            fc_prim);
+    };
+
+    auto run_with_impl = [&](impl_types impl, bool& is_onednn_out) {
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        ov::intel_gpu::ImplementationDesc desc = { format::bfyx, "", impl };
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", desc} }));
+
+        network network(engine, build_topology(), config);
+        network.set_input_data("input", input_mem);
+        auto outputs = network.execute();
+
+        is_onednn_out = network.get_primitive("fc_prim")->get_impl()->is_onednn();
+
+        auto output_mem = outputs.at("fc_prim").get_memory();
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> ptr(output_mem, get_test_stream());
+        std::vector<float> result(output_mem->count());
+        for (size_t i = 0; i < result.size(); ++i)
+            result[i] = static_cast<float>(ptr[i]);
+        return result;
+    };
+
+    bool ocl_is_onednn = true;
+    bool onednn_is_onednn = false;
+    auto ocl_out    = run_with_impl(impl_types::ocl, ocl_is_onednn);
+    auto onednn_out = run_with_impl(impl_types::onednn, onednn_is_onednn);
+
+    // Confirm the two distinct code paths were actually exercised.
+    ASSERT_FALSE(ocl_is_onednn) << "forced OCL path did not use the OCL FC impl";
+    ASSERT_TRUE(onednn_is_onednn) << "forced oneDNN path did not engage";
+
+    ASSERT_EQ(ocl_out.size(), onednn_out.size());
+    ASSERT_EQ(ocl_out.size(), static_cast<size_t>(batch_num * ofm_num));
+
+    double sum_sq_diff = 0.0, sum_sq_ref = 0.0;
+    float max_abs_diff = 0.0f, max_abs_out = 0.0f;
+    for (size_t i = 0; i < ocl_out.size(); ++i) {
+        const double d = static_cast<double>(ocl_out[i]) - static_cast<double>(onednn_out[i]);
+        sum_sq_diff += d * d;
+        sum_sq_ref  += static_cast<double>(ocl_out[i]) * static_cast<double>(ocl_out[i]);
+        max_abs_diff = std::max(max_abs_diff, std::abs(ocl_out[i] - onednn_out[i]));
+        max_abs_out  = std::max(max_abs_out, std::abs(ocl_out[i]));
+    }
+    const double l2_rel = (sum_sq_ref > 0.0) ? std::sqrt(sum_sq_diff / sum_sq_ref) : 0.0;
+
+    std::cout << "[parity] N=" << ocl_out.size()
+              << " max_abs_out=" << max_abs_out
+              << " max_abs_diff=" << max_abs_diff
+              << " L2_rel=" << l2_rel << std::endl;
+
+    EXPECT_LT(l2_rel, 0.02)
+        << "oneDNN diverged from OCL FC (max_abs_diff=" << max_abs_diff
+        << ", max_abs_out=" << max_abs_out << ", L2_rel=" << l2_rel
+        << ") -> possible kernel logic error";
+}
+
 TEST_F(fully_connected_gpu_tests, compressed_scale_zp_bias) {
     this->test_compressed_scale_zp_bias(false);
 }
