@@ -89,15 +89,7 @@ std::shared_ptr<ov::Model> make_parameter_gather_model(float shift_value) {
     return make_parameter_gather_model(shift_value, shift_value);
 }
 
-bool run_unpack(const std::shared_ptr<ov::Model>& model) {
-    ov::npuw::patterns::opt::Context context;
-    ov::pass::GraphRewrite rewrite;
-    rewrite.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatheru>(std::ref(context));
-    return rewrite.run_on_model(model);
-}
-
-bool run_host_gather(const std::shared_ptr<ov::Model>& model) {
-    ov::npuw::patterns::opt::Context context;
+bool run_host_gather(const std::shared_ptr<ov::Model>& model, ov::npuw::patterns::opt::Context& context) {
     ov::pass::GraphRewrite rewrite;
     rewrite.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm<>>(std::ref(context));
     return rewrite.run_on_model(model);
@@ -119,30 +111,15 @@ TEST(DQLiftGatherAsymCWTest, RejectsNon128Subtractions) {
     EXPECT_EQ(count_gathers(model), 1);
 }
 
-TEST(DQUnpackDictGatheruTest, AcceptsPairedSub128Shifts) {
-    EXPECT_TRUE(run_unpack(make_parameter_gather_model(128.0f)));
-}
-
-TEST(DQUnpackDictGatheruTest, RejectsNon128Subtractions) {
-    EXPECT_FALSE(run_unpack(make_parameter_gather_model(127.0f)));
-}
-
-TEST(DQUnpackDictGatheruTest, RejectsWeightOnlySub128Shift) {
-    EXPECT_FALSE(run_unpack(make_parameter_gather_model(128.0f, std::nullopt)));
-}
-
-TEST(DQUnpackDictGatheruTest, RejectsZeroPointOnlySub128Shift) {
-    EXPECT_FALSE(run_unpack(make_parameter_gather_model(std::nullopt, 128.0f)));
-}
-
-TEST(DQUnpackDictGatheruTest, RejectsMixedSub128AndNon128Shifts) {
-    EXPECT_FALSE(run_unpack(make_parameter_gather_model(128.0f, 127.0f)));
-}
-
 TEST(HostGatherQuantAsymmTest, AcceptsPairedSub128Shifts) {
-    EXPECT_TRUE(run_host_gather(make_parameter_gather_model(128.0f)));
+    ov::npuw::patterns::opt::Context context;
+    EXPECT_TRUE(run_host_gather(make_parameter_gather_model(128.0f), context));
+    ASSERT_TRUE(context.params_to_quant_gather_unpack.has_value());
+    ASSERT_EQ(context.params_to_quant_gather_unpack->params_to_runtime_unpack_gather.size(), 1);
+    EXPECT_TRUE(context.params_to_quant_gather_unpack->params_to_runtime_unpack_gather.begin()->second.apply_sub128);
 }
 
 TEST(HostGatherQuantAsymmTest, RejectsNon128Subtractions) {
-    EXPECT_FALSE(run_host_gather(make_parameter_gather_model(127.0f)));
+    ov::npuw::patterns::opt::Context context;
+    EXPECT_FALSE(run_host_gather(make_parameter_gather_model(127.0f), context));
 }

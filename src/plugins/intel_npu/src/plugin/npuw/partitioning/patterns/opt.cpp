@@ -161,7 +161,8 @@ Context::PPtr Context::host_gather_unpack_quant(const Context::PPtr& ids,
                                                 const Context::PPtr& w,
                                                 const Context::PPtr& z,
                                                 const Context::PPtr& s,
-                                                ov::element::Type type) {
+                                                ov::element::Type type,
+                                                bool apply_sub128) {
     const auto& w_shape = w->get_shape();
     const auto& ids_shape = ids->get_shape();
 
@@ -196,7 +197,7 @@ Context::PPtr Context::host_gather_unpack_quant(const Context::PPtr& ids,
 
     NPUW_ASSERT(new_param);
     params_to_quant_gather_unpack = QuantizedGather{};
-    params_to_quant_gather_unpack->params_to_runtime_unpack_gather[new_param] = {w, z, s};
+    params_to_quant_gather_unpack->params_to_runtime_unpack_gather[new_param] = {w, z, s, apply_sub128};
     params_to_quant_gather_unpack->pids = ids;
     return new_param;
 }
@@ -1310,9 +1311,7 @@ DQUnpackDictGatheru::DQUnpackDictGatheru(Context::Ref ctx) {
 
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qgthrw});
     auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qgthrz});
-    auto qshiftw = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0), opp::any_input()});
-    auto qshiftz = opp::optional<ov::op::v1::Subtract>({qcvtz->output(0), opp::any_input()});
-    auto qsubz = opp::wrap_type<ov::op::v1::Subtract>({qshiftw, qshiftz});
+    auto qsubz = opp::wrap_type<ov::op::v1::Subtract>({qcvtw, qcvtz});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsubz, qgthrs});
     auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
 
@@ -1325,14 +1324,6 @@ DQUnpackDictGatheru::DQUnpackDictGatheru(Context::Ref ctx) {
         auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
         auto matched_out_ids = uat::_(node_to_output).at_or_at(cvtids, pids);
         auto matched_node_cvt = node_to_output.at(qcvtm).get_node_shared_ptr();
-
-        if (node_to_output.count(qshiftw) != node_to_output.count(qshiftz)) {
-            return false;
-        }
-        if (node_to_output.count(qshiftw) && (!is_subtract_128(node_to_output.at(qshiftw).get_node_shared_ptr()) ||
-                                             !is_subtract_128(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
-            return false;
-        }
 
         auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
         auto matched_qzerop = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qzerop);
@@ -1434,6 +1425,9 @@ HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_
         if (node_to_output.count(qshiftw) != node_to_output.count(qshiftz)) {
             return false;
         }
+        // The paired shifts mark u8 tensors adapted for an i8 DQ graph. The current
+        // host path replaces that graph with direct u8 dequantization, where the
+        // equal shifts cancel: (W - 128) - (Z - 128) == W - Z.
         if (node_to_output.count(qshiftw) && (!is_subtract_128(node_to_output.at(qshiftw).get_node_shared_ptr()) ||
                                              !is_subtract_128(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
             return false;
@@ -1478,7 +1472,8 @@ HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_
                                                              matched_qweight,
                                                              matched_qzerop,
                                                              matched_qcoeff,
-                                                             ov::element::f16);
+                                                             ov::element::f16,
+                                                             node_to_output.count(qshiftw) != 0);
             matched_node_cvt->input(0).replace_source_output(new_wi);
 
             matched_node_cvt->validate_and_infer_types();
