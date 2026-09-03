@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common_test_utils/test_assertions.hpp>
 #include <gtest/gtest.h>
 #include <stdlib.h>
 
+#include <common_test_utils/test_assertions.hpp>
+
 #include "common/npu_test_env_cfg.hpp"
+#include "common/test_constants.hpp"
 #include "common/utils.hpp"
 #include "common/zero_init_mock.hpp"
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
