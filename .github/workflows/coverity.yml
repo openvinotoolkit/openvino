@@ -35,7 +35,6 @@ env:
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
-
   Smart_CI:
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false || github.run_attempt > 1
