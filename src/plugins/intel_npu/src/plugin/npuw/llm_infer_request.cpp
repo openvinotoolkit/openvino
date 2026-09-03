@@ -1071,8 +1071,8 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
     // DeepStack (Qwen3-VL): the deepstack injection is scattered per chunk inside the loop
     // below, the same way attention_mask / input_ids are sliced for the current chunk.
-    const auto deepstack_it = m_prefill_in_ports.find(layer_names::deepstack_visual_embeds);
-    const bool has_deepstack = deepstack_it != m_prefill_in_ports.end();
+    const bool has_deepstack =
+        m_prefill_in_ports.find(layer_names::deepstack_visual_embeds) != m_prefill_in_ports.end();
     if (has_deepstack) {
         OPENVINO_ASSERT(deepstack_visual_embeds && visual_pos_masks,
                         "deepstack_visual_embeds and visual_pos_masks must be provided for DeepStack VLM prefill.");
@@ -1208,6 +1208,9 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             // chunk. The chunk's visual_pos_masks slice gives their chunk-local positions, and
             // the deepstack rows for those tokens follow the visual tokens of earlier chunks.
             if (has_deepstack) {
+                const auto deepstack_it = m_prefill_in_ports.find(layer_names::deepstack_visual_embeds);
+                OPENVINO_ASSERT(deepstack_it != m_prefill_in_ports.end(),
+                                "DeepStack input is missing from the active Prefill variant.");
                 auto deepstack_local = m_prefill_request->get_tensor(deepstack_it->second);
                 const uint32_t seq_dim = static_cast<uint32_t>(visual_pos_masks->get_shape().size() - 1);
                 auto chunk_mask = ov::npuw::util::make_tensor_slice(

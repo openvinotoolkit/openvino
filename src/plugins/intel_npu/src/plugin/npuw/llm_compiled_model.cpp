@@ -1585,9 +1585,6 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
         auto variant_count = static_cast<uint32_t>(m_generate_compiled_variants.size());
         stream & m_kvcache_sizes & variant_count;
 
-        auto prefill_variant_count = static_cast<uint32_t>(m_prefill_compiled_variants.size());
-        stream & m_prefill_chunk_sizes & prefill_variant_count;
-
         // Serialize CompiledModels
         // Note: no need to pass any encryption here as it's done in export_model()
         // This cache is collected on the original LLM graph before BF16->FP16
@@ -1599,6 +1596,10 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
         for (const auto& compiled_variant : m_generate_compiled_variants) {
             compiled_variant->serialize(model_stream, enc_ctx);
         }
+
+        // Serialize Prefill metadata immediately before the corresponding child models.
+        auto prefill_variant_count = static_cast<uint32_t>(m_prefill_compiled_variants.size());
+        stream & m_prefill_chunk_sizes & prefill_variant_count;
 
         for (const auto& compiled_variant : m_prefill_compiled_variants) {
             compiled_variant->serialize(model_stream, enc_ctx);
@@ -1848,6 +1849,8 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         stream & compiled->m_prefill_chunk_sizes;
         uint32_t prefill_variant_count = 0;
         stream & prefill_variant_count;
+        NPUW_ASSERT(prefill_variant_count > 0 && compiled->m_prefill_chunk_sizes.size() == prefill_variant_count &&
+                "Serialized Prefill variant metadata is inconsistent.");
         compiled->m_prefill_compiled_variants.reserve(prefill_variant_count);
         for (uint32_t i = 0; i < prefill_variant_count; ++i) {
             auto compiled_variant = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
