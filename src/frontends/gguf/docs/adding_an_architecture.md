@@ -13,7 +13,7 @@ translators (`src/op/*.cpp`) run for both the native path and the llama.cpp cgra
 |---|---|---|
 | [`graph_emitter.hpp`](../src/builder/graph_emitter.hpp) | `add_op` / `add_input` / `add_weight` + shape & type bookkeeping | nothing about transformers |
 | [`blocks/`](../src/builder/blocks) | reusable graph fragments: `common` (norm/scale/bias), `ffn` (dense/GeGLU/MoE), `attention`, `gated_delta_net`, `qkv_repack` | a decoder layer |
-| [`decoder_config.hpp`](../src/builder/decoder_config.hpp) | all per-architecture detection + per-layer accessors | one model's hyperparameters |
+| [`decoder_config.hpp`](../dev_api/openvino/frontend/gguf/builder/decoder_config.hpp) | all per-architecture detection + per-layer accessors | one model's hyperparameters |
 | [`arch/decoder_builder.cpp`](../src/builder/arch/decoder_builder.cpp) | the order a decoder is assembled in | the whole decoder family |
 | [`arch_registry.cpp`](../src/builder/arch_registry.cpp) | which architectures are accepted, and their RoPE mode | names only |
 | [`model_kind.hpp`](../src/builder/model_kind.hpp) | which model *family* a file holds | raw metadata |
@@ -23,6 +23,20 @@ A single generic `DecoderBuilder` covers the whole "llama family" of decoder-onl
 This is deliberately **not** llama.cpp's one-file-per-architecture layout: llama.cpp needs that
 because every architecture enumerates its tensors by hand, whereas this builder derives them from
 the tensor table, so a same-family architecture costs zero lines of code.
+
+## Two routes: in-tree, or an extension
+
+Everything below adds an architecture **to the frontend itself**, which means rebuilding it.
+
+An architecture can also be added **at runtime**, with no rebuild of the frontend or of OpenVINO, by
+registering an `ArchitectureExtension` -- including a non-decoder family, which the sections below
+cannot cover. That route is documented separately in
+[porting_a_llama_cpp_model.md](porting_a_llama_cpp_model.md), and it uses the same detection and the
+same builder, so an architecture can move between the two mechanically.
+
+Contribute in-tree when the architecture would benefit every user and belongs to a family already
+supported here; ship an extension when it is yours to maintain, or when you need it in a released
+OpenVINO you cannot rebuild.
 
 ## The 90% case: add a name
 
@@ -117,6 +131,12 @@ An architecture is data; a **family** is code. A family is a distinct graph shap
 inputs and its own notion of a layer — a vision/mmproj encoder and an audio encoder are each one,
 and neither is a causal decoder. Do **not** add flags to `DecoderConfig` for them.
 
+A family does not have to live in this frontend, though. An `ArchitectureExtension` can supply a
+whole `ModelBuilder` and claim the files it owns by a metadata predicate, which is how a vision or
+audio encoder is added without touching anything here; see
+[porting_a_llama_cpp_model.md](porting_a_llama_cpp_model.md). The steps below are for a family that
+should ship in-tree; the builder itself is written the same way either way.
+
 Instead:
 
 1. Detect it in [`model_kind.cpp`](../src/builder/model_kind.cpp). mmproj files set
@@ -125,7 +145,7 @@ Instead:
    check runs *before* any decoder hyperparameter is read, because those keys do not exist there.
 2. Add a metadata reader next to `decoder_config_from_meta()` for that family's key layout, and a
    config struct next to `DecoderConfig`.
-3. Subclass [`ModelBuilder`](../src/builder/model_builder.hpp) in `arch/`, reusing `GraphEmitter`
+3. Subclass [`ModelBuilder`](../dev_api/openvino/frontend/gguf/builder/model_builder.hpp) in `arch/`, reusing `GraphEmitter`
    and `blocks/common`. A ViT needs its own attention — non-causal, no KV cache, no RoPE — so it
    will not reuse `blocks::attention`; this is the same split llama.cpp makes between
    `llm_graph_context` and `clip_graph`.
