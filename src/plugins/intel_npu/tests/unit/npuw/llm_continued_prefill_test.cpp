@@ -108,6 +108,10 @@ struct LLMContinuedPrefillTestAccess {
         return req.m_prefill_request->get_tensor(req.m_prefill_out_ports.at(output_name));
     }
 
+    static ov::SoPtr<ov::ITensor> lm_head_input(Request& req) {
+        return req.m_lm_head_request->get_tensor(req.m_lm_head_embed_port);
+    }
+
     static void copy_prefill_outputs_to_blocks(Request& req, uint32_t num_tokens, uint32_t current_kv_position) {
         auto* strategy = block_strategy(req);
         OPENVINO_ASSERT(strategy != nullptr, "Block-KV strategy is not initialized");
@@ -213,7 +217,14 @@ FakeSubInferRequest::FakeSubInferRequest(std::shared_ptr<const FakeSubCompiledMo
 void FakeSubInferRequest::infer() {
     for (const auto& output : get_compiled_model()->outputs()) {
         auto tensor = ov::ISyncInferRequest::get_tensor(output);
-        std::memset(tensor->data(), 0, tensor->get_byte_size());
+        if (output.get_any_name() == ov::npuw::LLMCompiledModel::output_embeds) {
+            auto* data = static_cast<uint8_t*>(tensor->data());
+            for (size_t index = 0; index < tensor->get_byte_size(); ++index) {
+                data[index] = static_cast<uint8_t>(index % 251u);
+            }
+        } else {
+            std::memset(tensor->data(), 0, tensor->get_byte_size());
+        }
     }
 }
 
@@ -566,6 +577,21 @@ TEST_F(LLMContinuedPrefillTest, ShortTailChunkKeepsInputsAndKvSourceLeftAligned)
             ov::npuw::util::make_tensor_slice(generate, generate_seq_dim(name), last_token_position, prompt_len);
         EXPECT_EQ(materialize_bytes(last_token), expected_kv_bytes.at(name)) << name;
     }
+}
+
+TEST_F(LLMContinuedPrefillTest, ShortTailChunkRoutesLeftAlignedEmbedToSharedHead) {
+    auto& req = request();
+
+    run_full_prefill(65u);
+
+    auto prefill_embeds = LLMContinuedPrefillTestAccess::prefill_output(req, ov::npuw::LLMCompiledModel::output_embeds);
+    ASSERT_EQ(prefill_embeds->get_shape(), (ov::Shape{1, 32, 64}));
+    auto expected_embed = ov::npuw::util::make_tensor_slice(prefill_embeds, 1u, 0u, 1u);
+    auto stale_tail_embed = ov::npuw::util::make_tensor_slice(prefill_embeds, 1u, 31u, 32u);
+
+    auto lm_head_input = LLMContinuedPrefillTestAccess::lm_head_input(req);
+    EXPECT_EQ(materialize_bytes(lm_head_input), materialize_bytes(expected_embed));
+    EXPECT_NE(materialize_bytes(lm_head_input), materialize_bytes(stale_tail_embed));
 }
 
 // A preflight rejection mutates nothing and leaves the command pending, so a
