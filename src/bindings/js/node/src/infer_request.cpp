@@ -206,8 +206,14 @@ void perform_inference_thread(TsfnContext* context) {
     std::exception_ptr stored_exception;
     try {
         const std::lock_guard<std::mutex> lock(infer_mutex);
-        for (size_t i = 0; i < context->_inputs.size(); ++i) {
-            context->_ir->set_input_tensor(i, context->_inputs[i]);
+        if (const auto* positional_inputs = std::get_if<ov::TensorVector>(&context->_inputs)) {
+            for (size_t i = 0; i < positional_inputs->size(); ++i) {
+                context->_ir->set_input_tensor(i, positional_inputs->at(i));
+            }
+        } else {
+            for (const auto& [name, tensor] : std::get<NamedInputData>(context->_inputs)) {
+                context->_ir->set_tensor(name, tensor);
+            }
         }
         context->_ir->infer();
 
@@ -260,8 +266,7 @@ Napi::Value InferRequestWrap::infer_async(const Napi::CallbackInfo& info) {
     auto context = new TsfnContext(env);
     context->_ir = &_infer_request;
     try {
-        auto parsed_input = parse_input_data(info[0]);
-        context->_inputs = parsed_input;
+        context->_inputs = parse_input_data(info[0]);
     } catch (std::exception& e) {
         reportError(info.Env(), e.what());
     }
