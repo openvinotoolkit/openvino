@@ -37,33 +37,34 @@ std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_sdpa(const ov::
                                        is_causal ? op::SDPA::CausalMaskAlignment::LOWER_RIGHT : op::SDPA::CausalMaskAlignment::UPPER_LEFT);
 }
 
-std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_attention_mask(
-    const ov::Output<ov::Node>& curr_seqlen_scalar,
-    const ov::Output<ov::Node>& kv_len_scalar,
-    const ov::Output<ov::Node>& kv_len_1d,
-    const ov::Output<ov::Node>& past_seqlen,
-    const ov::element::Type& compute_type,
-    bool causal,
-    int64_t local_window_size,
-    const ov::Output<ov::Node>& external_bias,
-    const ov::Output<ov::Node>& bias_col_offset,
-    bool sliding_window_cache,
-    float scale) {
-    if (causal && !sliding_window_cache && !external_bias.get_node() && scale == 0.0f) {
+std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_attention_mask(const ov::Output<ov::Node>& curr_seqlen_scalar,
+                                                                                const ov::Output<ov::Node>& kv_len_scalar,
+                                                                                const ov::Output<ov::Node>& kv_len_1d,
+                                                                                const ov::Output<ov::Node>& past_seqlen,
+                                                                                const ov::element::Type& compute_type,
+                                                                                bool causal,
+                                                                                int64_t local_window_size,
+                                                                                const ov::Output<ov::Node>& external_bias,
+                                                                                const ov::Output<ov::Node>& bias_col_offset,
+                                                                                bool sliding_window_cache,
+                                                                                float scale,
+                                                                                bool has_sink) {
+    if (causal && local_window_size == -1 && !sliding_window_cache && !external_bias.get_node() && scale == 0.0f && !has_sink) {
         return nullptr;
     }
 
     return ov::pass::GroupQueryAttentionDecomposition::make_attention_mask(curr_seqlen_scalar,
-                                                                            kv_len_scalar,
-                                                                            kv_len_1d,
-                                                                            past_seqlen,
-                                                                            compute_type,
-                                                                            causal,
-                                                                            local_window_size,
-                                                                            external_bias,
-                                                                            bias_col_offset,
-                                                                            sliding_window_cache,
-                                                                            scale);
+                                                                           kv_len_scalar,
+                                                                           kv_len_1d,
+                                                                           past_seqlen,
+                                                                           compute_type,
+                                                                           causal,
+                                                                           local_window_size,
+                                                                           external_bias,
+                                                                           bias_col_offset,
+                                                                           sliding_window_cache,
+                                                                           scale,
+                                                                           has_sink);
 }
 
 }  // namespace ov::intel_gpu

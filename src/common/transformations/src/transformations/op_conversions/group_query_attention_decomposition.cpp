@@ -342,6 +342,8 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     if (has_input(GQAInputs::ATTENTION_BIAS)) {
         external_bias = get_input(GQAInputs::ATTENTION_BIAS);
     }
+    const bool has_head_sink = has_input(GQAInputs::HEAD_SINK);
+    const bool has_sink = has_head_sink || smooth_softmax;
     const auto mask = make_attention_mask(curr_seqlen_scalar,
                                           concat_kv_len_scalar,
                                           concat_kv_len,
@@ -352,14 +354,14 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
                                           external_bias,
                                           bias_col_offset,
                                           node->get_sliding_window_cache(),
-                                          scale);
+                                          scale,
+                                          has_sink);
 
     // head_sink (input 11) or smooth_softmax add an extra logit to the softmax denominator. SDPA models
     // this with its sink input: a [1, num_heads, 1, 1] tensor appended as one logit column, included in
     // the softmax, then sliced out. head_sink provides a per-head value; plain smooth_softmax uses 0.
     ov::Output<ov::Node> sink;
-    const bool has_head_sink = has_input(GQAInputs::HEAD_SINK);
-    if (has_head_sink || smooth_softmax) {
+    if (has_sink) {
         const auto sink_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, -1, 1, 1}));
         if (has_head_sink) {
             auto head_sink = get_input(GQAInputs::HEAD_SINK);
@@ -458,7 +460,8 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_atten
     const ov::Output<ov::Node>& external_bias,
     const ov::Output<ov::Node>& bias_col_offset,
     [[maybe_unused]] bool sliding_window_cache,
-    [[maybe_unused]] float scale) {
+    [[maybe_unused]] float scale,
+    [[maybe_unused]] bool has_sink) {
     const bool has_bias = external_bias.get_node_shared_ptr() != nullptr;
     // A window is active for local_window_size >= 1; -1 disables it and 0 is rejected upstream (FE + op).
     // A window is only ever paired with causal=1 (enforced upstream by the FE and the op), so it is only
