@@ -191,6 +191,7 @@ jobs:
           mode: zero-stats
 
       - name: Cmake build - CC COLLECT (openvino)
+        shell: bash -x {0}
         run: cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
       - name: Compile cache statistics (openvino cc collect main)
@@ -205,6 +206,7 @@ jobs:
           mode: zero-stats
 
       - name: Cmake build - CC COLLECT (sea_itt_lib)
+        shell: bash -x {0}
         run: cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- --quiet
 
       - name: Compile cache statistics (sea_itt_lib)
@@ -226,6 +228,7 @@ jobs:
           mode: zero-stats
 
       - name: Build C++ samples - OpenVINO build tree
+        shell: bash -x {0}
         run: cmake --build ${BUILD_DIR}/cpp_samples --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device -- --quiet
 
       - name: Compile cache statistics (cpp samples)
@@ -384,6 +387,7 @@ jobs:
           mode: zero-stats
 
       - name: Cmake build - CC ON
+        shell: bash -x {0}
         run: cmake --build ${BUILD_DIR} --parallel 8 --target benchmark_app -- --quiet
 
       - name: Compile cache statistics (cc on benchmark_app)

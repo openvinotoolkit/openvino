@@ -191,7 +191,9 @@ jobs:
           mode: zero-stats
 
       - name: Cmake build - OpenVINO
-        run: cmake --build ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --parallel $ENV:NUMBER_OF_PROCESSORS -- --quiet
+        run: |
+          Set-PSDebug -Trace 1
+          cmake --build ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --parallel $ENV:NUMBER_OF_PROCESSORS -- --quiet
 
       - name: Compile cache statistics (openvino main build)
         if: ${{ inputs.build-type != 'Debug' }}
@@ -261,6 +263,7 @@ jobs:
       - name: Build additional Python wheels
         if: ${{ inputs.build-additional-python-wheels }}
         run: |
+          Set-PSDebug -Trace 1
           $pyVersions = '3.10', '3.11', '3.12', '3.13', '3.14'
           foreach ($pyVersion in $pyVersions) {
             $pyBuildDir = "${{ github.workspace }}/py$pyVersion"
@@ -317,6 +320,7 @@ jobs:
       - name: Build additional Python wheels - Python 3.14t
         if: ${{ inputs.build-additional-python-wheels }}
         run: |
+          Set-PSDebug -Trace 1
           $pyVersion = '3.14t'
           $pyBuildDir = "${{ github.workspace }}/py$pyVersion"
           New-Item -ItemType Directory -Path "$pyBuildDir" -Force
@@ -406,7 +410,9 @@ jobs:
 
       - name: Cmake build - OpenVINO JS API
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS -- --quiet
+        run: |
+          Set-PSDebug -Trace 1
+          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS -- --quiet
 
       - name: Compile cache statistics (openvino js api)
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-type != 'Debug' }}
@@ -458,7 +464,9 @@ jobs:
           mode: zero-stats
 
       - name: Cmake build - OpenVINO Contrib
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS -- --quiet
+        run: |
+          Set-PSDebug -Trace 1
+          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS -- --quiet
 
       - name: Compile cache statistics (openvino contrib)
         if: ${{ inputs.build-type != 'Debug' }}

@@ -93,6 +93,7 @@ jobs:
           mode: zero-stats
 
       - name: Build llama.cpp
+        shell: bash -x {0}
         run: cmake --build llama.cpp/build --parallel "$(nproc)"
 
       - name: Compile cache statistics (llama.cpp build)

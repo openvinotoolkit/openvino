@@ -243,6 +243,7 @@ jobs:
           mode: zero-stats
 
       - name: Cmake - Build
+        shell: bash -x {0}
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel $(nproc) -- --quiet
 
       - name: Compile cache statistics (openvino main build)
@@ -257,6 +258,7 @@ jobs:
           mode: zero-stats
 
       - name: Cmake - Install
+        shell: bash -x {0}
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel $(nproc) --target install -- --quiet
 
       - name: Compile cache statistics (cmake install target)

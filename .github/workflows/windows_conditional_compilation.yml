@@ -177,7 +177,9 @@ jobs:
           mode: zero-stats
 
       - name: Cmake build - CC COLLECT (openvino)
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+        run: |
+          Set-PSDebug -Trace 1
+          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
       - name: Compile cache statistics (openvino cc collect main)
         uses: ./openvino/.github/actions/compile_cache_stats
@@ -191,7 +193,9 @@ jobs:
           mode: zero-stats
 
       - name: Cmake build - CC COLLECT (sea_itt_lib)
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- --quiet
+        run: |
+          Set-PSDebug -Trace 1
+          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- --quiet
 
       - name: Compile cache statistics (sea_itt_lib)
         uses: ./openvino/.github/actions/compile_cache_stats
@@ -213,7 +217,9 @@ jobs:
           mode: zero-stats
 
       - name: Build C++ samples - OpenVINO build tree
-        run: cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device -- --quiet
+        run: |
+          Set-PSDebug -Trace 1
+          cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device -- --quiet
 
       - name: Compile cache statistics (cpp samples)
         uses: ./openvino/.github/actions/compile_cache_stats
@@ -274,6 +280,7 @@ jobs:
           # install PDB files to OpenVINO main installation folder to ensure that they are used instead of PDB files from build folder
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }} --component pdb
           # then, we need to clean build tree to remove PDB files
+          Set-PSDebug -Trace 1
           cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target clean -- /verbosity:minimal
           & ${{ env.INSTALL_DIR }}/samples/c/build_samples.ps1 -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
         env:
@@ -396,7 +403,9 @@ jobs:
           mode: zero-stats
 
       - name: Cmake build - CC ON
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /verbosity:minimal
+        run: |
+          Set-PSDebug -Trace 1
+          cmake --build ${{ env.BUILD_DIR }} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /verbosity:minimal
 
       - name: Compile cache statistics (cc on benchmark_app)
         uses: ./openvino/.github/actions/compile_cache_stats
