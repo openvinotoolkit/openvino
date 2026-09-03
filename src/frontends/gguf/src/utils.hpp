@@ -14,7 +14,11 @@
 #include "openvino/op/topk.hpp"
 
 namespace ov {
+class Model;
 namespace op {
+namespace v0 {
+class Parameter;
+}  // namespace v0
 namespace v3 {
 class ShapeOf;
 }  // namespace v3
@@ -24,6 +28,10 @@ namespace frontend {
 namespace gguf {
 
 void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs);
+
+/// \brief Find a Parameter whose friendly name or output tensor names include `name`.
+/// Returns nullptr if the model has no such Parameter.
+std::shared_ptr<ov::op::v0::Parameter> find_parameter(const std::shared_ptr<ov::Model>& model, const std::string& name);
 
 int non_cont_dim(std::vector<size_t> ne, std::vector<size_t> nb);
 
