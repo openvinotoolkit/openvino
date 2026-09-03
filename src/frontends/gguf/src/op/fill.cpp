@@ -35,7 +35,7 @@ OutputVector translate_fill(const NodeContext& context) {
     auto target_shape = std::make_shared<ov::op::v3::ShapeOf>(x, ov::element::i64);
     auto res = std::make_shared<ov::op::v3::Broadcast>(val, target_shape);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

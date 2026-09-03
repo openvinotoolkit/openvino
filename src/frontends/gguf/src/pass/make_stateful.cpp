@@ -110,7 +110,7 @@ static bool make_recurrent_states_stateful(const std::shared_ptr<ov::Model>& mod
     if (it == model->get_rt_info().end()) {
         return false;
     }
-    const auto flat = it->second.as<std::vector<std::string>>();
+    const auto& flat = it->second.as<std::vector<std::string>>();
     if (flat.empty() || flat.size() % 2 != 0) {
         return false;
     }

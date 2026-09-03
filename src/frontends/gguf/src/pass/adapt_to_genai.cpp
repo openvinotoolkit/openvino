@@ -376,7 +376,8 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // and both layouts hold seq*vocab contiguous values, so collapse everything ahead of vocab into
     // the sequence axis with a fixed batch of 1. (batch > 1 is not part of the genai stateful
     // contract this pass targets; token_len_per_seq above is likewise a whole-input token count.)
-    auto old_result = model->get_results()[0];
+    // Keep ownership while add_results() may reallocate the model's ResultVector below.
+    const std::shared_ptr<ov::op::v0::Result> old_result = model->get_results()[0];
     auto logits_src = old_result->input_value(0);
     auto vocab = get_dimensions(logits_src, {-1});  // [1]
     auto batch_seq_flat = v0::Constant::create(ov::element::i64, {2}, {1, -1});
