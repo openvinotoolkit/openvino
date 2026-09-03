@@ -215,8 +215,7 @@ TEST(ElementIteratorTest, read_non_const_u3_data) {
 
 TEST(ElementIteratorTest, read_const_u3_data) {
     constexpr auto elements_count = 8;
-    constexpr auto input =
-        std::array<int8_t, 3>{0x1a, static_cast<int8_t>(0xc2), static_cast<int8_t>(0xfa)};
+    constexpr auto input = std::array<int8_t, 3>{0x1a, static_cast<int8_t>(0xc2), static_cast<int8_t>(0xfa)};
     auto iter = element::iterator<element::u3>(input.data());
 
     EXPECT_THAT(std::vector<int8_t>(iter, iter + elements_count), ElementsAre(2, 3, 0, 1, 4, 5, 6, 7));
@@ -502,15 +501,9 @@ TEST(ElementIteratorTest, read_u6_data_increment_decrement_iterator) {
 
 TEST(ElementIteratorTest, read_u6_data_iterator_with_offset) {
     // Has values {1, 2, 3, 10, [3], 8, 7, 2, 1, 42, 4, 20}
-    auto input = std::array<int8_t, 9>{static_cast<int8_t>(0x81),
-                                       0x30,
-                                       0x28,
-                                       0x03,
-                                       0x72,
-                                       0x08,
-                                       static_cast<int8_t>(0x81),
-                                       0x4a,
-                                       0x50};
+    auto input =
+        std::array<int8_t,
+                   9>{static_cast<int8_t>(0x81), 0x30, 0x28, 0x03, 0x72, 0x08, static_cast<int8_t>(0x81), 0x4a, 0x50};
     auto iter = element::iterator<element::u6>(input.data() + 3);
 
     EXPECT_EQ(*iter, 3);
@@ -551,15 +544,9 @@ TEST(ElementIteratorTest, u6_last_value_straddles_byte_boundary) {
 
 TEST(ElementIteratorTest, read_u6_from_tensor) {
     // Has values {1, 2, 3, 10, 3, 8, 7, 2, 1, 42, 4, 20}
-    auto input = std::array<int8_t, 9>{static_cast<int8_t>(0x81),
-                                       0x30,
-                                       0x28,
-                                       0x03,
-                                       0x72,
-                                       0x08,
-                                       static_cast<int8_t>(0x81),
-                                       0x4a,
-                                       0x50};
+    auto input =
+        std::array<int8_t,
+                   9>{static_cast<int8_t>(0x81), 0x30, 0x28, 0x03, 0x72, 0x08, static_cast<int8_t>(0x81), 0x4a, 0x50};
     auto t = ov::Tensor(element::u6, Shape{4, 1, 3}, input.data());
     auto iter = element::iterator<element::u6>(static_cast<int8_t*>(t.data(element::u6)));
 

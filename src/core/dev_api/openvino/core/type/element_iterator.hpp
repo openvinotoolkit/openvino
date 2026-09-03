@@ -458,8 +458,8 @@ public:
             }
         } else if constexpr (is_split_bit_type(ET)) {
             // floor-divide the new absolute bit position by 8 to get byte advance + new offset
-            const auto total_bits = static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift) +
-                                     n * static_cast<std::ptrdiff_t>(m_et_ptr.m_bits);
+            const auto total_bits =
+                static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift) + n * static_cast<std::ptrdiff_t>(m_et_ptr.m_bits);
             auto div = total_bits / 8;
             auto rem = total_bits % 8;
             if (rem < 0) {
@@ -522,8 +522,8 @@ public:
             }
         } else if constexpr (is_split_bit_type(ET)) {
             // same as operator+=(-n): floor-divide the new absolute bit position by 8
-            const auto total_bits = static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift) -
-                                     n * static_cast<std::ptrdiff_t>(m_et_ptr.m_bits);
+            const auto total_bits =
+                static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift) - n * static_cast<std::ptrdiff_t>(m_et_ptr.m_bits);
             auto div = total_bits / 8;
             auto rem = total_bits % 8;
             if (rem < 0) {

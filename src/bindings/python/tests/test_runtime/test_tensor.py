@@ -432,7 +432,7 @@ def test_init_with_packed_buffer(dtype, ov_type):
     shape = [1, 3, 32, 32]
     byte_size = (np.prod(shape) * ov_type.bitwidth + 7) // 8
     itemsize = np.dtype(dtype).itemsize
-    assert byte_size % itemsize == 0
+    assert byte_size % itemsize == 0  # noqa: S001 - flake8-pep3101 known bug, misdetects modulo as string formatting
     size = int(byte_size // itemsize)
     buffer = np.random.normal(size=size).astype(dtype)
     ov_tensor = ov.Tensor(buffer, shape, ov_type)
