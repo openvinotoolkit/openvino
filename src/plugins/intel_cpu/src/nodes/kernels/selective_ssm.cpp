@@ -83,11 +83,16 @@ void selective_ssm_typed(const DataT* A,
                          float* state_scratch,
                          size_t scratch_head_dim,
                          const CpuParallelPtr& cpu_parallel) {
+    OPENVINO_ASSERT(shape.num_groups > 0, "SelectiveSSM requires a positive number of groups.");
+    const auto heads_per_group = shape.num_heads / shape.num_groups;
+    OPENVINO_ASSERT(heads_per_group > 0 && heads_per_group * shape.num_groups == shape.num_heads,
+                    "SelectiveSSM requires the number of groups to evenly divide the number of heads.");
+    OPENVINO_ASSERT(scratch_head_dim > 0, "SelectiveSSM scratch head dimension must be positive.");
+
     const auto batch_state_stride =
         checked_size_product({shape.num_heads, shape.head_dim, shape.state_size}, "recurrent state batch");
     const auto head_state_stride = checked_size_product({shape.head_dim, shape.state_size}, "recurrent state head");
     const auto scratch_stride = checked_size_product({scratch_head_dim, shape.state_size}, "state scratch");
-    const auto heads_per_group = shape.num_heads / shape.num_groups;
     const auto p_block_count = ov::util::ceil_div(shape.head_dim, scratch_head_dim);
 
     cpu_parallel
@@ -353,6 +358,12 @@ void paged_selective_ssm_typed(const DataT* A,
                                float* state_scratch,
                                size_t scratch_head_dim,
                                const CpuParallelPtr& cpu_parallel) {
+    OPENVINO_ASSERT(shape.num_groups > 0, "PagedSelectiveSSM requires a positive number of groups.");
+    const auto heads_per_group = shape.num_heads / shape.num_groups;
+    OPENVINO_ASSERT(heads_per_group > 0 && heads_per_group * shape.num_groups == shape.num_heads,
+                    "PagedSelectiveSSM requires the number of groups to evenly divide the number of heads.");
+    OPENVINO_ASSERT(scratch_head_dim > 0, "PagedSelectiveSSM scratch head dimension must be positive.");
+
     const auto& subsequence_begins = metadata.subsequence_begins;
     const auto& block_indices = metadata.block_indices;
     const auto& block_indices_begins = metadata.block_indices_begins;
@@ -362,7 +373,6 @@ void paged_selective_ssm_typed(const DataT* A,
     const auto block_stride = checked_size_product({shape.num_heads, shape.head_dim, shape.state_size}, "state block");
     const auto head_stride = checked_size_product({shape.head_dim, shape.state_size}, "state head");
     const auto scratch_stride = checked_size_product({scratch_head_dim, shape.state_size}, "state scratch");
-    const auto heads_per_group = shape.num_heads / shape.num_groups;
     const auto p_block_count = ov::util::ceil_div(shape.head_dim, scratch_head_dim);
 
     cpu_parallel->parallel_for3d(
@@ -568,11 +578,12 @@ size_t checked_size_product(std::initializer_list<size_t> dimensions, const char
 
     size_t result = 1;
     for (const auto dimension : dimensions) {
-        OPENVINO_ASSERT(result <= std::numeric_limits<size_t>::max() / dimension,
+        size_t product = 0;
+        OPENVINO_ASSERT(!ov::util::mul_overflow(result, dimension, product),
                         "SelectiveSSM size overflow while calculating ",
                         tensor_name,
                         ".");
-        result *= dimension;
+        result = product;
     }
     return result;
 }
