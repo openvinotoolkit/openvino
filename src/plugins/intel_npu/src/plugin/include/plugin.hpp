@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <string>
@@ -11,13 +12,49 @@
 #include "backends_registry.hpp"
 #include "blob_source.hpp"
 #include "compiler_option_support_helper.hpp"
+#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/npu.hpp"
+#include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "plugin_property_manager.hpp"
 
 namespace intel_npu {
+
+inline void enable_host_compile_if_needed(const std::shared_ptr<const ov::Model>& model, FilteredConfig& config) {
+    if (config.get<COMPILER_TYPE>() != ov::intel_npu::CompilerType::PLUGIN || config.has<COMPILATION_MODE>() ||
+        config.get<DYNAMIC_SHAPE_TO_STATIC>()) {
+        return;
+    }
+
+    const auto hasFiniteUpperBounds = [](const auto& port) {
+        const auto& shape = port.get_partial_shape();
+        const auto rank = shape.rank();
+        return rank.is_static() && std::all_of(shape.begin(), shape.end(), [](const ov::Dimension& dimension) {
+                   return dimension.get_interval().has_upper_bound();
+               });
+    };
+
+    const auto isDynamicHostCompilePort = [&hasFiniteUpperBounds](const auto& port) {
+        const auto& shape = port.get_partial_shape();
+        const auto rank = shape.rank();
+        return shape.is_dynamic() && rank.is_static() && rank.get_length() == 4 && shape[0].is_static() &&
+               hasFiniteUpperBounds(port);
+    };
+
+    const auto& modelInputs = model->inputs();
+    const auto& modelOutputs = model->outputs();
+    const bool inputsDynamic = std::any_of(modelInputs.begin(), modelInputs.end(), isDynamicHostCompilePort);
+    const bool outputsDynamic = std::any_of(modelOutputs.begin(), modelOutputs.end(), isDynamicHostCompilePort);
+    const bool allPortsHaveFiniteUpperBounds =
+        std::all_of(modelInputs.begin(), modelInputs.end(), hasFiniteUpperBounds) &&
+        std::all_of(modelOutputs.begin(), modelOutputs.end(), hasFiniteUpperBounds);
+
+    if (inputsDynamic && outputsDynamic && allPortsHaveFiniteUpperBounds) {
+        config.update({{ov::intel_npu::compilation_mode.name(), "HostCompile_Interpreter"}});
+    }
+}
 
 class Plugin : public ov::IPlugin {
 public:
