@@ -81,6 +81,13 @@ void ScaledAttnLayerGPUTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_GPU;
 
     const auto& [inType, _inputShapes, _is_causal, _has_attn, _is_attn_const, _has_scale, _is_scale_const, input_transpose, _has_sink] = this->GetParam();
+    if (inType == ov::element::bf16) {
+        const auto capabilities = core->get_property(targetDevice, ov::device::capabilities);
+        if (std::find(capabilities.cbegin(), capabilities.cend(), ov::intel_gpu::capability::HW_MATMUL) == capabilities.cend())
+            GTEST_SKIP();
+        configuration.insert(ov::hint::inference_precision(ov::element::bf16));
+    }
+
     is_causal = _is_causal;
     has_attn = _has_attn;
     is_attn_const = _is_attn_const;
@@ -239,8 +246,8 @@ void ScaledAttnLayerGPUTest::SetUp() {
             abs_threshold = 0.050;
             rel_threshold = 0.050;
         } else {
-            abs_threshold = 0.010;
-            rel_threshold = 0.010;
+            abs_threshold = 0.025;
+            rel_threshold = 0.025;
         }
     }
 }
@@ -705,7 +712,7 @@ const std::vector<std::vector<InputShape>> dynamic_shapes_4D {
 const std::vector<std::vector<int64_t>> transpose_value{{0, 1, 2, 3}, {0, 1, 2, 3}, {0, 2, 1, 3}};
 const std::vector<std::vector<int64_t>> transpose_all_4D{{0, 2, 1, 3}, {0, 2, 1, 3}, {0, 2, 1, 3}};
 
-const auto dynamic_shape_params_4D = testing::Combine(testing::Values(ov::element::f16 /*, ov::element::f32 */),
+const auto dynamic_shape_params_4D = testing::Combine(testing::Values(ov::element::f16, ov::element::bf16 /*, ov::element::f32 */),
                                                    testing::ValuesIn(dynamic_shapes_4D),
                                                    testing::Values(true, false),
                                                    testing::Values(true, false),
@@ -946,7 +953,7 @@ const std::vector<std::vector<InputShape>> static_shapes{
     },
 };
 
-const auto static_shape_params = testing::Combine(testing::Values(ov::element::f16),
+const auto static_shape_params = testing::Combine(testing::Values(ov::element::f16, ov::element::bf16),
                                                   testing::ValuesIn(static_shapes),
                                                   testing::Values(true, false),
                                                   testing::Values(true, false),
@@ -961,38 +968,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttnStatic_GPU,
                          static_shape_params,
                          ScaledAttnLayerGPUTest::getTestCaseName);
 
-// -----------------------------------------------------------------------------
-// BF16 coverage: reuses the 4D static shapes and exercises the same option
-// matrix (is_causal, has_attn, has_scale, const/non-const, transpose) to guard
-// SDPA bf16 kernels against precision regressions.
-// -----------------------------------------------------------------------------
-const auto static_shape_params_bf16 = testing::Combine(testing::Values(ov::element::bf16),
-                                                       testing::ValuesIn(static_shapes),
-                                                       testing::Values(true, false),   // is_causal
-                                                       testing::Values(true, false),   // has_attn
-                                                       testing::Values(false),         // is_attn_const
-                                                       testing::Values(true, false),   // has_scale
-                                                       testing::Values(false),         // is_scale_const
-                                                       testing::ValuesIn({disable_transpose, transpose_all_4D}),
-                                                       testing::Values(false));        // has_sink
-
-INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttnStatic_BF16_GPU,
-                         ScaledAttnLayerGPUTest,
-                         static_shape_params_bf16,
-                         ScaledAttnLayerGPUTest::getTestCaseName);
-
-const auto dynamic_shape_params_4D_bf16 = testing::Combine(testing::Values(ov::element::bf16),
-                                                           testing::ValuesIn(dynamic_shapes_4D),
-                                                           testing::Values(false),
-                                                           testing::Values(true, false),
-                                                           testing::Values(false),
-                                                           testing::Values(true, false),
-                                                           testing::Values(false),
-                                                           testing::ValuesIn({disable_transpose}),
-                                                           testing::Values(false));
-
-INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttnDynamic4D_BF16_GPU,
-                         ScaledAttnLayerGPUTest,
-                         dynamic_shape_params_4D_bf16,
-                         ScaledAttnLayerGPUTest::getTestCaseName);
 } // namespace

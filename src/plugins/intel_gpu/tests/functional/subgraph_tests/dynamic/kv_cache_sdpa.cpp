@@ -47,8 +47,12 @@ public:
 #endif
         auto core = ov::test::utils::PluginCache::get().core();
 
-        // Match inference and KV-cache precision to the model element type so that bf16
-        // parameters actually exercise the bf16 execution path.
+        if (p.model_element_type == ov::element::bf16) {
+            const auto capabilities = core->get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
+            if (std::find(capabilities.cbegin(), capabilities.cend(), ov::intel_gpu::capability::HW_MATMUL) == capabilities.cend())
+                GTEST_SKIP();
+        }
+
         ov::AnyMap properties = {ov::hint::inference_precision(p.model_element_type),
                                  ov::intel_gpu::hint::enable_sdpa_optimization(true)};
 

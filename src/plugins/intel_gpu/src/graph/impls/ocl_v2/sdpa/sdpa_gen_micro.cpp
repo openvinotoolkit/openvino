@@ -1530,7 +1530,6 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     const ov::Dimension n_keys = micro_get_seq_length(params, 1);
     const ov::Dimension n_queries = micro_get_seq_length(params, 0);
-    // const ov::Dimension n_values = micro_get_seq_length(params, 2);
     const ov::Dimension n_values = ov::Dimension(v_head_size);
     const auto head_num = micro_get_num_heads(params, 0);
     const auto batch = out_ps[0] * static_cast<ov::Dimension>(head_num);

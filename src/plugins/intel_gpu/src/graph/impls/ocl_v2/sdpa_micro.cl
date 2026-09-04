@@ -89,19 +89,23 @@ DECLARE_2D_TILE_COPY_REBLOCK(a_tile_type, SUBGROUP_SIZE, ugemm_vs_c_type_block0,
         ugemm_vs_c_type_block1, ugemm_vs_c_type_nblock0,
         ugemm_vs_c_type_nblock1, a_tile_type_half, SUBGROUP_SIZE,
         ugemm_vs_sg_tile_m, 1, 1, ugemm_vs_sg_tile_n)
+#if INPUT0_IS_BF16
 DECLARE_2D_TILE_COPY_REBLOCK_TO_BF16BITS(a_tile_type, SUBGROUP_SIZE, ugemm_vs_c_type_block0,
         ugemm_vs_c_type_block1, ugemm_vs_c_type_nblock0,
         ugemm_vs_c_type_nblock1, a_tile_type_half, SUBGROUP_SIZE,
         ugemm_vs_sg_tile_m, 1, 1, ugemm_vs_sg_tile_n)
+#endif
 #else
 DECLARE_2D_TILE_COPY_REBLOCK(a_tile_type, SUBGROUP_SIZE, ugemm_vs_c_type_block0,
         ugemm_vs_c_type_block1, ugemm_vs_c_type_nblock0,
         ugemm_vs_c_type_nblock1, a_tile_type_half, SUBGROUP_SIZE,
         ugemm_vs_sg_tile_m, 8, 1, ugemm_vs_sg_tile_n / 8)
+#if INPUT0_IS_BF16
 DECLARE_2D_TILE_COPY_REBLOCK_TO_BF16BITS(a_tile_type, SUBGROUP_SIZE, ugemm_vs_c_type_block0,
         ugemm_vs_c_type_block1, ugemm_vs_c_type_nblock0,
         ugemm_vs_c_type_nblock1, a_tile_type_half, SUBGROUP_SIZE,
         ugemm_vs_sg_tile_m, 8, 1, ugemm_vs_sg_tile_n / 8)
+#endif
 #endif
 
 DECLARE_2D_TILE_VREDUCE(s_tile_type, SUBGROUP_SIZE, ugemm_kq_c_type_block0,

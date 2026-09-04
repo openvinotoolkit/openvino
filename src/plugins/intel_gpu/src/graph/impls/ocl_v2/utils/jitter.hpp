@@ -63,8 +63,6 @@ inline std::string get_ocl_type_name<ov::float16>() {
 }
 template <>
 inline std::string get_ocl_type_name<ov::bfloat16>() {
-    // OpenCL has no native bfloat16 type; storage/pass-through is done via 16-bit
-    // unsigned integer, matching the convention used by sdpa_micro.cl (INPUT0_IS_BF16).
     return "ushort";
 }
 template <>
