@@ -52,14 +52,56 @@ protected:
                             const PortsMap& out_ports,
                             uint32_t num_tokens,
                             bool v_transposed) override;
+
+    // Builds m_kvcache_past_names / m_lincache_past_names / m_swa_past_names from
+    // the selected generate model inputs.
+    void init_past_name_lists();
+    // Zero-fills prefill-side past tensors for the given name list when present.
+    void zero_prefill_past_tensors(const std::vector<std::string>& past_names);
+    // Fills SWA attention mask input when present (no-op otherwise).
+    void fill_attention_masks_for_request(const std::shared_ptr<ov::IAsyncInferRequest>& request,
+                                          const PortsMap& in_ports,
+                                          uint32_t num_real_new_tokens,
+                                          const int64_t* token_type_ids_real = nullptr) const;
+
+    /// \brief Linear cache lifecycle hooks.
+    /// Keep linear-cache state consistent across prefill, generate, and variant switches.
+
+    /// Persists lincache after intermediate chunked-prefill steps.
+    void update_lincache_prefill();
+    /// Seeds lincache for the first generate step.
+    void copy_lincache_to_generate();
+    /// Persists lincache after each generate step.
+    void update_lincache_generate();
+    /// Shared copier used by lincache wrapper hooks.
     void copy_lincache(std::shared_ptr<ov::IAsyncInferRequest> from_request,
                        std::shared_ptr<ov::IAsyncInferRequest> to_request,
                        const std::unordered_map<std::string, ov::Output<const ov::Node>>& from_ports,
                        const std::unordered_map<std::string, ov::Output<const ov::Node>>& to_ports);
-    // Share lincache tensors from the largest generate variant to all smaller variants so
-    // that a variant switch requires no explicit lincache migration. Called once after
-    // m_kvcache_strategy->on_initialize() and is strategy-independent.
+    /// Shares lincache tensors from the largest generate variant to avoid migration on promotion.
     void share_lincache_across_generate_variants();
+
+    /// \brief SWA cache lifecycle hooks.
+    /// Keep windowed-cache state explicit at phase handoff and step-wise persistence.
+
+    /// Persists SWA after intermediate chunked-prefill steps (left-aligned policy).
+    void update_swa_prefill(uint32_t num_tokens);
+    /// Seeds SWA for the first generate step.
+    void copy_swa_to_generate();
+    /// Persists SWA after each generate step (circular policy).
+    void update_swa_generate(uint32_t num_tokens);
+    /// Seeds SWA past tensors on prefill to generate handoff.
+    void copy_swa_cache();
+    /// Persists SWA present deltas into past with explicit write layout.
+    void update_swa_cache(std::shared_ptr<ov::IAsyncInferRequest> request,
+                          const PortsMap& in_ports,
+                          const PortsMap& out_ports,
+                          uint32_t num_tokens,
+                          bool v_transposed,
+                          bool use_circular_layout);
+    /// Shares SWA tensors from the largest generate variant to avoid migration on promotion.
+    void share_swa_across_generate_variants();
+
     // Select appropriate generate request variant based on prompt length
     // Internally calculates expected total tokens (prompt + min_response_len) to ensure
     // sufficient capacity for both input prompt and minimum response generation
@@ -164,6 +206,7 @@ protected:
 
     std::vector<std::string> m_kvcache_past_names;
     std::vector<std::string> m_lincache_past_names;
+    std::vector<std::string> m_swa_past_names;
 
     // NB: It can be either input_ids(LLM) or inputs_embeds(VLM)
     std::string m_input_ids_name;
