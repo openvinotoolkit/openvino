@@ -2129,7 +2129,13 @@ void primitive_inst::set_out_event(event::ptr&& ev) {
     _impl_params->out_event = ev;
 }
 
-void primitive_inst::reset_events() {
+void primitive_inst::reset_out_event() {
+    if (_impl_params->out_event) {
+        _impl_params->out_event->reset();
+    }
+}
+
+void primitive_inst::clear_events() {
     _impl_params->dep_events.clear();
     _impl_params->out_event = nullptr;
 }
@@ -2334,7 +2340,8 @@ void primitive_inst::prepare_primitive() {
                     // Use marker to ensure proper synchronization for both events and barriers
                     auto dep_events = out_of_order_queue ? std::vector<event::ptr>{get_network().get_stream().enqueue_marker(_impl_params->dep_events)}
                                                          : std::vector<event::ptr>{};
-                    add_dep_event(output->fill(get_network().get_stream(), dep_events));
+                    // Add dependency event for the output fill operation but do not sync with host
+                    add_dep_event(output->fill(get_network().get_stream(), dep_events, false));
                 }
             }
         }

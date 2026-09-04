@@ -8,6 +8,7 @@
 #include "kernel.hpp"
 #include "kernel_args.hpp"
 #include "execution_config.hpp"
+#include "command_recorder.hpp"
 
 #include <memory>
 #include <vector>
@@ -54,6 +55,10 @@ public:
     virtual void flush() const = 0;
     virtual void finish() const = 0;
     virtual void wait() = 0;
+
+    /// @brief Get the command recorder associated with the stream.
+    /// @return Command recorder object or nullptr if not supported.
+    virtual command_recorder::ptr get_recorder() const { return nullptr; }
 
     virtual void set_arguments(kernel& kernel, const kernel_arguments_desc& args_desc, const kernel_arguments_data& args) = 0;
     virtual event::ptr enqueue_kernel(kernel& kernel,

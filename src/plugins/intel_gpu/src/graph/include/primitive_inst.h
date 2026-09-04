@@ -82,6 +82,11 @@ struct primitive_impl {
     virtual bool is_cpu() const { return true; }
     virtual bool is_onednn() const { return false; }
 
+    // Implementation is replay safe when for a given shape all subsequent calls to execute() result
+    // in the same sequence of GPU API commands and there is no host-side synchronization.
+    // By default implementations are not considered replay safe.
+    virtual bool is_replay_safe() const { return false; }
+
     // Whether this impl needs its inputs to be in host-accessible (lockable) memory.
     // Defaults to is_cpu(), because CPU impls typically read/write tensor data from the host.
     // Impls whose execute path only performs GPU-side USM operations (e.g. an enqueue_memcpy
@@ -299,7 +304,8 @@ public:
     bool get_flag(size_t flag) const;
     void reset_flags();
 
-    void reset_events();
+    void clear_events();
+    void reset_out_event();
 
     void prepare_primitive();
     void execute();

@@ -83,6 +83,7 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_use_gpu_mask_gen_prefill, f
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_use_grouped_gemm_prefill, true, "MoE 3GEMM: use a single OneDNN grouped matmul per GEMM layer for the prefill path. Takes priority over micro-kernel GEMM")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_batched_gemv_threshold, 32, "MoE 3-GEMM: token count (<=) that selects the batched GEMV decode path instead of the prefill path")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_disable_fusion, false, "Disable fusion of MoE subgraph to composite MoE operation")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, record_replay, false, "Enable level-zero command list through record and replay for static models")
 
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, help, false, "Print help message for all config options")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, verbose, 0, "Enable logging for debugging purposes. The higher value the more verbose output. 0 - Disabled, 4 - Maximum verbosity")
@@ -127,3 +128,4 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, list_layers, false, "Print layers list")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, print_input_data_shapes, false, "print input data shapes")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, pa_integrity_check, false, "Enable in-kernel SDPA micro-GEMM integrity checks (per-row K^T*Q and V*S reference comparisons)")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, micro_sdpa_workgroup_config, std::vector<int>{}, "Override SDPA micro-kernel workgroup config: 4 ints [wg_m_kq wg_n_kq wg_m_vs wg_n_vs]")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, record_replay_dynamic_wip, false, "Enable level-zero command list through record and replay for all (static and dynamic) models")

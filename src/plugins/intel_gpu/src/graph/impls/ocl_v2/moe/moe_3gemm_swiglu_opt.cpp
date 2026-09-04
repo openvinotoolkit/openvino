@@ -566,6 +566,12 @@ static int64_t get_bytes_count(int64_t element_count, const cldnn::layout& layou
 class moe_3gemm_swiglu_opt_impl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoE3GemmSwigluImpl)
+
+    // Routing/expert selection is read back to the host (topk_ids, expert masks)
+    bool is_replay_safe() const override {
+        return false;
+    }
+
     Stage::Ptr gather = make_stage<MoE3GemmSwigluGather>();
     Stage::Ptr scatter = make_stage<MoE3GemmSwigluScatter>();
     Stage::Ptr mlp_gate_up = make_stage<MoE3GemmSwigluMLPGateUp>();

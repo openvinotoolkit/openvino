@@ -11,12 +11,12 @@
 using namespace cldnn;
 using namespace ze;
 
-ze_event_factory::ze_event_factory(const ze_engine &engine, bool enable_profiling, uint32_t capacity)
-: ze_base_event_factory(engine, enable_profiling)
+ze_event_factory::ze_event_factory(const ze_engine &ze_engine, bool enable_profiling, uint32_t capacity)
+: ze_base_event_factory(ze_engine, enable_profiling)
 , m_capacity(capacity)
 , m_num_used(0) { }
 
-event::ptr ze_event_factory::create_event(uint64_t queue_stamp) {
+std::shared_ptr<ze_base_event> ze_event_factory::create_event(uint64_t queue_stamp) {
     std::lock_guard<std::mutex> lock(_mutex);
 
     if (m_num_used >= m_capacity || m_current_pool.is_empty()) {
@@ -29,8 +29,9 @@ event::ptr ze_event_factory::create_event(uint64_t queue_stamp) {
             flags,
             m_capacity
         };
-        auto ctx_handle = m_engine.get_context().handle();
-        auto device_handle = m_engine.get_device().handle();
+        const auto &engine = get_engine();
+        auto ctx_handle = engine.get_context().handle();
+        auto device_handle = engine.get_device().handle();
         ze_event_pool_handle_t event_pool;
         OV_ZE_EXPECT(ze::zeEventPoolCreate(ctx_handle, &event_pool_desc, 1, &device_handle, &event_pool));
         m_current_pool = ze_event_pool_resource{event_pool};

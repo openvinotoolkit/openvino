@@ -10,14 +10,18 @@
 #include "ze_resource.hpp"
 #include "ze_engine.hpp"
 #include "ze_event.hpp"
-#include "ze_base_event_factory.hpp"
+#include "ze_command_list.hpp"
+
 
 namespace cldnn {
 namespace ze {
+struct ze_base_event_factory;
+class ze_command_recorder;
 
 class ze_stream : public stream {
 public:
-    ze_command_list_handle_t get_queue() const { return m_cmd_list.handle(); }
+    ze_command_list_handle_t get_immediate_command_list() const { return m_imm_cmd_list.handle(); }
+    ze_command_list_handle_t get_current_command_list() const;
     const ze_engine& get_engine() const { return _engine; }
 
     ze_stream(const ze_engine& engine, const ExecutionConfig& config);
@@ -25,13 +29,13 @@ public:
     ze_stream(ze_stream&& other)
         : stream(other.m_queue_type, other.m_sync_method)
         , _engine(other._engine)
-        , m_cmd_list(std::move(other.m_cmd_list))
+        , m_imm_cmd_list(std::move(other.m_imm_cmd_list))
         , m_queue_counter(other.m_queue_counter.load())
         , m_last_barrier(other.m_last_barrier.load())
         , m_last_barrier_ev(other.m_last_barrier_ev)
         , m_ev_factory(std::move(other.m_ev_factory))
-        , m_user_ev_factory(std::move(other.m_user_ev_factory)) {
-        }
+        , m_user_ev_factory(std::move(other.m_user_ev_factory))
+        , m_recorder(std::move(other.m_recorder)) {}
 
     ~ze_stream();
 
@@ -53,25 +57,28 @@ public:
     event::ptr create_base_event() override;
     std::unique_ptr<surfaces_lock> create_surfaces_lock(const std::vector<memory::ptr> &mem) const override;
     ze_context_resource get_context() const;
+    bool is_profiling_enabled() const { return m_profiling_enabled; }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::stream& get_onednn_stream() override;
 #endif
 
+    command_recorder::ptr get_recorder() const override;
 private:
     void sync_events(std::vector<event::ptr> const& deps, bool is_output = false);
 
     const ze_engine& _engine;
-    ze_command_list_resource m_cmd_list;
+    ze_command_list_resource m_imm_cmd_list;
     mutable std::atomic<uint64_t> m_queue_counter{0};
     std::atomic<uint64_t> m_last_barrier{0};
     std::shared_ptr<ze_event> m_last_barrier_ev = nullptr;
     std::shared_ptr<ze_base_event_factory> m_ev_factory;
     std::shared_ptr<ze_base_event_factory> m_user_ev_factory;
-
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::shared_ptr<dnnl::stream> _onednn_stream = nullptr;
 #endif
+    std::shared_ptr<command_recorder> m_recorder = nullptr;
+    bool m_profiling_enabled;
 };
 
 }  // namespace ze

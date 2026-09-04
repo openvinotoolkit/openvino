@@ -231,6 +231,11 @@ class VLSDPAOptImpl : public PrimitiveImplCM {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::cm::VLSDPAOptImpl)
 
+    // Dispatch is decided by reading cu_seqlens tensor contents on the host
+    bool is_replay_safe() const override {
+        return false;
+    }
+
     Stage::Ptr vl_sdpa = make_stage<VLSDPAGenerator>();
 
     VLSDPAOptImpl() : PrimitiveImplOCL(VLSDPAOptImplementationManager::get_type_info_static()) {}
