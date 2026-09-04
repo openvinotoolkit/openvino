@@ -29,6 +29,7 @@
 #include "convolution_inst.h"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "graph/impls/onednn/utils.hpp"
+#include "graph/impls/onednn/primitive_onednn_base.h"
 #endif
 
 using namespace cldnn;
@@ -11474,6 +11475,68 @@ TEST(convolution_gpu_onednn, alloc_intermediate_when_concat_optimized) {
     network.set_input_data("input2", input_mem2);
 
     auto outputs = network.execute();
+}
+
+TEST(convolution_gpu_onednn, preserves_accumulation_mode_in_cache) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "oneDNN (immad) convolution path is required for this test";
+
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    const int batch = 1, ifm = 64, ofm = 64, spatial = 16, ksize = 3, pad = 1;
+
+    auto input_size = tensor(batch, ifm, spatial, spatial);
+    auto weights_size = tensor(ofm, ifm, ksize, ksize);
+
+    auto input_data = rg.generate_random_4d<ov::float16>(batch, ifm, spatial, spatial, -1, 1);
+    auto weights_data = rg.generate_random_4d<ov::float16>(ofm, ifm, ksize, ksize, -1, 1);
+
+    auto input_mem = engine.allocate_memory({data_types::f16, format::bfyx, input_size});
+    auto weights_mem = engine.allocate_memory({data_types::f16, format::bfyx, weights_size});
+
+    set_values(input_mem, flatten_4d(format::bfyx, input_data));
+    set_values(weights_mem, flatten_4d(format::bfyx, weights_data));
+
+    topology topology(input_layout("input", input_mem->get_layout()),
+                      data("weights", weights_mem),
+                      reorder("input_fsv", input_info("input"), format::b_fs_yx_fsv16, data_types::f16),
+                      convolution("conv", input_info("input_fsv"), "weights", no_bias, 1, {1, 1}, {1, 1}, {pad, pad}, {pad, pad}, false),
+                      reorder("output", input_info("conv"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    ov::intel_gpu::ImplementationDesc conv_impl = {format::b_fs_yx_fsv16, no_bias, impl_types::onednn};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", conv_impl}}));
+
+    auto stream = get_test_stream_ptr();
+
+    auto run = [&](bool is_caching_test) -> std::pair<dnnl::accumulation_mode, std::vector<float>> {
+        auto net = get_network(engine, topology, config, stream, is_caching_test);
+
+        auto* impl = net->get_primitive("conv")->get_impl();
+        auto* onednn_impl = dynamic_cast<cldnn::onednn::typed_primitive_onednn_impl<cldnn::convolution>*>(impl);
+        OPENVINO_ASSERT(onednn_impl != nullptr, "conv is not a oneDNN primitive implementation");
+
+        auto acc_mode = (onednn_impl->_attrs && onednn_impl->_attrs->get()) ? onednn_impl->_attrs->get_accumulation_mode() : dnnl::accumulation_mode::strict;
+
+        net->set_input_data("input", input_mem);
+        auto outputs = net->execute();
+
+        return {acc_mode, get_output_values_to_float(*net, outputs.at("output"))};
+    };
+
+    auto ref = run(false);
+    auto cached = run(true);
+
+    ASSERT_EQ(ref.first, dnnl::accumulation_mode::any);
+    ASSERT_EQ(cached.first, dnnl::accumulation_mode::any);
+
+    ASSERT_EQ(ref.second.size(), cached.second.size());
+    for (size_t i = 0; i < ref.second.size(); ++i) {
+        ASSERT_EQ(cached.second[i], ref.second[i]);
+    }
 }
 
 #endif   // ENABLE_ONEDNN_FOR_GPU
