@@ -9,9 +9,12 @@
 #include <optional>
 #include <vector>
 
+#include "npuw_transformations/insert_vocab_sub128.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "partitioning/patterns/opt.hpp"
+#include "transformations/rt_info/decompression.hpp"
 
 namespace {
 
@@ -95,6 +98,29 @@ bool run_host_gather(const std::shared_ptr<ov::Model>& model, ov::npuw::patterns
     return rewrite.run_on_model(model);
 }
 
+std::shared_ptr<ov::Model> make_vocab_matmul_model() {
+    auto hidden = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{1, 2});
+    auto weights = ov::opset10::Constant::create(ov::element::u8, ov::Shape{4, 2}, std::vector<uint8_t>(8, 200));
+    auto zero_point = ov::opset10::Constant::create(ov::element::u8, ov::Shape{4, 1}, std::vector<uint8_t>(4, 128));
+    auto scale = ov::opset10::Constant::create(ov::element::f16, ov::Shape{4, 1}, std::vector<float>(4, 1.0f));
+    auto weight_convert = std::make_shared<ov::opset10::Convert>(weights, ov::element::f16);
+    weight_convert->set_friendly_name("vocab_weight_convert");
+    auto zero_point_convert = std::make_shared<ov::opset10::Convert>(zero_point, ov::element::f16);
+    zero_point_convert->set_friendly_name("vocab_zero_point_convert");
+    auto dequantized = std::make_shared<ov::opset10::Subtract>(weight_convert, zero_point_convert);
+    auto scaled = std::make_shared<ov::opset10::Multiply>(dequantized, scale);
+    auto converted = std::make_shared<ov::opset10::Convert>(scaled, ov::element::f32);
+    auto matmul = std::make_shared<ov::opset10::MatMul>(hidden, converted, false, true);
+    return std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{hidden});
+}
+
+bool contains_node(const std::shared_ptr<ov::Model>& model, const std::string& name) {
+    const auto nodes = model->get_ordered_ops();
+    return std::any_of(nodes.begin(), nodes.end(), [&](const auto& node) {
+        return node->get_friendly_name() == name;
+    });
+}
+
 }  // namespace
 
 TEST(DQLiftGatherAsymCWTest, LiftsPairedSub128Shifts) {
@@ -122,4 +148,26 @@ TEST(HostGatherQuantAsymmTest, AcceptsPairedSub128Shifts) {
 TEST(HostGatherQuantAsymmTest, RejectsNon128Subtractions) {
     ov::npuw::patterns::opt::Context context;
     EXPECT_FALSE(run_host_gather(make_parameter_gather_model(127.0f), context));
+}
+
+TEST(InsertVocabSub128PrePostProcessingTest, PreservesVocabularyConverts) {
+    const auto model = make_vocab_matmul_model();
+    ov::npuw::InsertVocabSub128().run_on_model(model);
+
+    const auto nodes = model->get_ordered_ops();
+    const auto weight_convert = std::find_if(nodes.begin(), nodes.end(), [](const auto& node) {
+        return node->get_friendly_name() == "vocab_weight_convert";
+    });
+    const auto zero_point_convert = std::find_if(nodes.begin(), nodes.end(), [](const auto& node) {
+        return node->get_friendly_name() == "vocab_zero_point_convert";
+    });
+    ASSERT_NE(weight_convert, nodes.end());
+    ASSERT_NE(zero_point_convert, nodes.end());
+    EXPECT_TRUE(ov::is_decompression(*weight_convert));
+    EXPECT_TRUE(ov::is_decompression(*zero_point_convert));
+
+    ov::preprocess::PrePostProcessor(model).build();
+
+    EXPECT_TRUE(contains_node(model, "vocab_weight_convert"));
+    EXPECT_TRUE(contains_node(model, "vocab_zero_point_convert"));
 }
