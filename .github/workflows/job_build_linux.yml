@@ -145,6 +145,7 @@ jobs:
       MANIFEST_PATH: '${{ github.workspace }}/openvino/manifest.yml'
       PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}${{ inputs.build-variant && format('_{0}', inputs.build-variant) || '' }}_release
       COVERAGE_NOTES_DIR: ${{ github.workspace }}/coverage_build_notes
+      NINJA_LOGS_ARCHIVE_DIR: ${{ github.workspace }}/ninja_logs_archive
       PIP_INDEX_URL: ${{ contains(inputs.runner, 'aks') && 'http://pip-proxy.pip-proxy.svc.cluster.local/simple/' || '' }}
       PIP_TRUSTED_HOST: ${{ contains(inputs.runner, 'aks') && 'pip-proxy.pip-proxy.svc.cluster.local' || '' }}
     steps:
@@ -249,11 +250,19 @@ jobs:
         env:
           CMAKE_OPTIONS: ${{ inputs.cmake-options }} -DENABLE_SAMPLES=${{ inputs.build-samples && 'ON' || 'OFF' }}
 
+      - name: Prepare Ninja log collection directory
+        if: ${{ inputs.upload-ninja-log }}
+        run: rm -rf "${NINJA_LOGS_ARCHIVE_DIR}" && mkdir -p "${NINJA_LOGS_ARCHIVE_DIR}"
+
       - name: Clean sccache stats
         run: ${SCCACHE_PATH} --zero-stats
 
       - name: Cmake build - OpenVINO
         run: cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+
+      - name: Snapshot Ninja logs after Cmake build - OpenVINO
+        if: ${{ inputs.upload-ninja-log }}
+        run: bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" "${NINJA_LOGS_ARCHIVE_DIR}" cmake_build_openvino "${BUILD_DIR}"
 
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats
@@ -318,11 +327,16 @@ jobs:
 
             cmake ${CMAKE_OPTIONS} -S ${OPENVINO_REPO}/src/bindings/python -B ${PY_BUILD_DIR}
             cmake --build ${PY_BUILD_DIR} --parallel $(nproc) -- --quiet
+            if [[ "${UPLOAD_NINJA_LOG}" == "true" ]]; then
+              bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" \
+                "${NINJA_LOGS_ARCHIVE_DIR}" "python_api_py${py_version}" "${PY_BUILD_DIR}"
+            fi
             cmake --install ${PY_BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_DIR} --component pyopenvino_python$py_version
             cmake --install ${PY_BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_WHEELS_DIR} --component python_wheels
           done
         env:
           ARCH: ${{ inputs.arch }}
+          UPLOAD_NINJA_LOG: ${{ inputs.upload-ninja-log }}
 
       - name: Pack openvino_package
         run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_package.tar.gz
@@ -369,6 +383,10 @@ jobs:
                 ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} --target package -- --quiet
 
+      - name: Snapshot Ninja logs after Build Debian packages
+        if: ${{ inputs.upload-ninja-log && inputs.build-debian-packages }}
+        run: bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" "${NINJA_LOGS_ARCHIVE_DIR}" debian_package "${BUILD_DIR}"
+
       - name: Cmake & Build - OpenVINO Contrib
         if: ${{ inputs.build-contrib }}
         run: |
@@ -380,6 +398,10 @@ jobs:
             -B ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
+      - name: Snapshot Ninja logs after Cmake & Build - OpenVINO Contrib
+        if: ${{ inputs.upload-ninja-log && inputs.build-contrib }}
+        run: bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" "${NINJA_LOGS_ARCHIVE_DIR}" contrib_build "${BUILD_DIR}"
+
       - name: CMake configure, build and install - OpenVINO JS API
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
         run: |
@@ -389,6 +411,10 @@ jobs:
                 -DENABLE_WHEEL=OFF
           cmake --build ${BUILD_DIR} --parallel $(nproc) -- --quiet
           cmake --install ${BUILD_DIR} --prefix ${INSTALL_DIR_JS}
+
+      - name: Snapshot Ninja logs after OpenVINO JS API build
+        if: ${{ inputs.upload-ninja-log && fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
+        run: bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" "${NINJA_LOGS_ARCHIVE_DIR}" js_api_build "${BUILD_DIR}"
 
       - name: Pack openvino_js_package
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
@@ -426,6 +452,10 @@ jobs:
                 ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel $(nproc) --target package -- --quiet
 
+      - name: Snapshot Ninja logs after Build RPM packages
+        if: ${{ inputs.upload-ninja-log && inputs.build-rpm-packages }}
+        run: bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" "${NINJA_LOGS_ARCHIVE_DIR}" rpm_package "${BUILD_DIR}"
+
       #
       # Upload build artifacts and logs
       #
@@ -445,12 +475,22 @@ jobs:
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
+      - name: Archive collected Ninja logs
+        if: ${{ always() && inputs.upload-ninja-log }}
+        run: |
+          if [[ ! -d "${NINJA_LOGS_ARCHIVE_DIR}" ]] || [[ -z "$(ls -A "${NINJA_LOGS_ARCHIVE_DIR}" 2>/dev/null)" ]]; then
+            echo "No Ninja log snapshots to archive"
+            exit 0
+          fi
+          tar -czf "${BUILD_DIR}/ninja_logs.tar.gz" -C "${NINJA_LOGS_ARCHIVE_DIR}" .
+
       - name: Upload Ninja build logs
         if: ${{ always() && inputs.upload-ninja-log }}
-        uses: ./openvino/.github/actions/upload_ninja_logs
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          build-dir: ${{ env.BUILD_DIR }}
-          artifact-name: ninja_log_${{ inputs.os }}_${{ inputs.arch }}${{ inputs.build-variant && format('_{0}', inputs.build-variant) || '' }}
+          name: ninja_log_${{ inputs.os }}_${{ inputs.arch }}${{ inputs.build-variant && format('_{0}', inputs.build-variant) || '' }}
+          path: ${{ env.BUILD_DIR }}/ninja_logs.tar.gz
+          if-no-files-found: warn
 
       - name: Upload OpenVINO package
         if: ${{ always() }}

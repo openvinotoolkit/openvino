@@ -49,6 +49,7 @@ jobs:
       SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.sccache-azure-key-prefix }}
       ONNX_RUNTIME_REPO: ${{ github.workspace }}/onnxruntime
       ONNX_RUNTIME_BUILD_DIR: ${{ github.workspace }}/onnxruntime/build
+      NINJA_LOGS_ARCHIVE_DIR: ${{ github.workspace }}/ninja_logs_archive
       ONNX_RUNTIME_UTILS: ${{ github.workspace }}/src/frontends/onnx/tests/ci_utils/onnxruntime
 
     steps:
@@ -71,7 +72,7 @@ jobs:
         with:
           sparse-checkout: |
             src/frontends/onnx/tests/ci_utils/onnxruntime
-            .github/actions/upload_ninja_logs
+            .github/scripts/collect_ninja_logs_snapshot.sh
           sparse-checkout-cone-mode: false
 
       - name: Get ONNX runtime version
@@ -103,6 +104,9 @@ jobs:
       # Tests
       #
 
+      - name: Prepare Ninja log collection directory
+        run: rm -rf "${NINJA_LOGS_ARCHIVE_DIR}" && mkdir -p "${NINJA_LOGS_ARCHIVE_DIR}"
+
       - name: Build Lin ONNX Runtime
         run: |
           source ${INSTALL_DIR}/setupvars.sh
@@ -119,12 +123,27 @@ jobs:
         env:
           CXXFLAGS: "-Wno-error=deprecated-declarations"
 
+      - name: Snapshot Ninja logs after ONNX Runtime build
+        if: always()
+        run: |
+          bash "${{ github.workspace }}/.github/scripts/collect_ninja_logs_snapshot.sh" \
+            "${NINJA_LOGS_ARCHIVE_DIR}" onnx_runtime_build "${ONNX_RUNTIME_BUILD_DIR}"
+
+      - name: Archive collected Ninja logs
+        if: always()
+        run: |
+          if [[ ! -d "${NINJA_LOGS_ARCHIVE_DIR}" ]] || [[ -z "$(ls -A "${NINJA_LOGS_ARCHIVE_DIR}" 2>/dev/null)" ]]; then
+            exit 0
+          fi
+          tar -czf "${ONNX_RUNTIME_BUILD_DIR}/ninja_logs.tar.gz" -C "${NINJA_LOGS_ARCHIVE_DIR}" .
+
       - name: Upload Ninja build logs
         if: always()
-        uses: ./.github/actions/upload_ninja_logs
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          build-dir: ${{ env.ONNX_RUNTIME_BUILD_DIR }}
-          artifact-name: ninja_log_onnx_runtime
+          name: ninja_log_onnx_runtime
+          path: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/ninja_logs.tar.gz
+          if-no-files-found: warn
 
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats

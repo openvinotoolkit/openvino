@@ -124,6 +124,7 @@ jobs:
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
+      NINJA_LOGS_ARCHIVE_DIR: /__w/openvino/openvino/ninja_logs_archive
       SELECTIVE_BUILD_STAT_DIR: /__w/openvino/openvino/selective_build_stat
       MODELS_PATH: /__w/openvino/openvino/testdata
       SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_itt_clang_Release_faster_build
@@ -165,6 +166,9 @@ jobs:
       # Build
       #
 
+      - name: Prepare Ninja log collection directory
+        run: rm -rf "${NINJA_LOGS_ARCHIVE_DIR}" && mkdir -p "${NINJA_LOGS_ARCHIVE_DIR}"
+
       - name: CMake configure
         run: |
           cmake \
@@ -188,7 +192,9 @@ jobs:
       - name: Cmake build - CC COLLECT
         run: |
           cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+          bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" "${NINJA_LOGS_ARCHIVE_DIR}" cmake_build_cc_collect "${BUILD_DIR}"
           cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- --quiet
+          bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" "${NINJA_LOGS_ARCHIVE_DIR}" cmake_build_sea_itt_lib "${BUILD_DIR}"
 
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats
@@ -201,6 +207,9 @@ jobs:
         run: |
           cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${BUILD_DIR} -S ${INSTALL_DIR}/samples/cpp -B ${BUILD_DIR}/cpp_samples
           cmake --build ${BUILD_DIR}/cpp_samples --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device -- --quiet
+
+      - name: Snapshot Ninja logs after C++ samples build
+        run: bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" "${NINJA_LOGS_ARCHIVE_DIR}" cpp_samples_hello_query_device "${BUILD_DIR}/cpp_samples"
 
       - name: Build C samples - OpenVINO install tree
         run: ${INSTALL_DIR}/samples/c/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/c_samples
@@ -241,12 +250,22 @@ jobs:
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
+      - name: Archive collected Ninja logs
+        if: always()
+        run: |
+          if [[ ! -d "${NINJA_LOGS_ARCHIVE_DIR}" ]] || [[ -z "$(ls -A "${NINJA_LOGS_ARCHIVE_DIR}" 2>/dev/null)" ]]; then
+            echo "No Ninja log snapshots to archive"
+            exit 0
+          fi
+          tar -czf "${BUILD_DIR}/ninja_logs.tar.gz" -C "${NINJA_LOGS_ARCHIVE_DIR}" .
+
       - name: Upload Ninja build logs
         if: always()
-        uses: ./openvino/.github/actions/upload_ninja_logs
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          build-dir: ${{ env.BUILD_DIR }}
-          artifact-name: ninja_log_linux_cc_collect
+          name: ninja_log_linux_cc_collect
+          path: ${{ env.BUILD_DIR }}/ninja_logs.tar.gz
+          if-no-files-found: warn
 
       - name: Upload OpenVINO package
         if: ${{ always() }}

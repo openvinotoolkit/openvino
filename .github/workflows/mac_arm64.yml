@@ -91,6 +91,7 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/tests_install
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       BUILD_DIR: ${{ github.workspace }}/build
+      NINJA_LOGS_ARCHIVE_DIR: ${{ github.workspace }}/ninja_logs_archive
     if: "!needs.smart_ci.outputs.skip_workflow"
     steps:
       - name: Clone OpenVINO
@@ -178,6 +179,9 @@ jobs:
           save_to: ${{ github.workspace }}/${{ env.MANIFEST_FILE }}
           trigger_repo_branch: ${{ inputs.target-branch }}
 
+      - name: Prepare Ninja log collection directory
+        run: rm -rf "${NINJA_LOGS_ARCHIVE_DIR}" && mkdir -p "${NINJA_LOGS_ARCHIVE_DIR}"
+
       - name: CMake configure
         run: |
           cmake \
@@ -196,6 +200,9 @@ jobs:
 
       - name: Cmake build - OpenVINO
         run: cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+
+      - name: Snapshot Ninja logs after Cmake build - OpenVINO
+        run: bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" "${NINJA_LOGS_ARCHIVE_DIR}" cmake_build_openvino "${BUILD_DIR}"
 
       - name: Upload compile_commands
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
@@ -287,6 +294,7 @@ jobs:
             cmake -DPython3_EXECUTABLE=$python_exec_path -DENABLE_WHEEL=ON $gil_option -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${{ github.workspace }}/py$py_version
 
             cmake --build ${{ github.workspace }}/py$py_version --parallel -- --quiet
+            bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" "${NINJA_LOGS_ARCHIVE_DIR}" "python_api_py${py_version}" "${{ github.workspace }}/py${py_version}"
             cmake --install ${{ github.workspace }}/py$py_version --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
           done
 
@@ -307,6 +315,9 @@ jobs:
             -B ${{ env.BUILD_DIR }}
           cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
+      - name: Snapshot Ninja logs after Cmake & Build - OpenVINO Contrib
+        run: bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" "${NINJA_LOGS_ARCHIVE_DIR}" contrib_build "${BUILD_DIR}"
+
       - name: CMake configure, build and install - OpenVINO JS API
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
         run: |
@@ -316,6 +327,10 @@ jobs:
             -B ${{ env.BUILD_DIR }}
           cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc) -- --quiet
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR_JS }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+
+      - name: Snapshot Ninja logs after OpenVINO JS API build
+        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+        run: bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" "${NINJA_LOGS_ARCHIVE_DIR}" js_api_build "${BUILD_DIR}"
 
       - name: Pack openvino_js_package
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
@@ -334,19 +349,22 @@ jobs:
       # Upload build artifacts
       #
 
+      - name: Archive collected Ninja logs
+        if: always()
+        run: |
+          if [[ ! -d "${NINJA_LOGS_ARCHIVE_DIR}" ]] || [[ -z "$(ls -A "${NINJA_LOGS_ARCHIVE_DIR}" 2>/dev/null)" ]]; then
+            echo "No Ninja log snapshots to archive"
+            exit 0
+          fi
+          tar -czf "${BUILD_DIR}/ninja_logs.tar.gz" -C "${NINJA_LOGS_ARCHIVE_DIR}" .
+
       - name: Upload Ninja build logs
         if: always()
-        uses: ./openvino/.github/actions/upload_ninja_logs
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          build-dir: ${{ env.BUILD_DIR }}
-          artifact-name: ninja_log_mac_arm64
-          extra-build-dirs: |
-            ${{ github.workspace }}/py3.10
-            ${{ github.workspace }}/py3.11
-            ${{ github.workspace }}/py3.12
-            ${{ github.workspace }}/py3.13
-            ${{ github.workspace }}/py3.14
-            ${{ github.workspace }}/py3.14t
+          name: ninja_log_mac_arm64
+          path: ${{ env.BUILD_DIR }}/ninja_logs.tar.gz
+          if-no-files-found: warn
 
       - name: Upload OpenVINO package
         if: ${{ always() }}

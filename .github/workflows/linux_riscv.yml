@@ -137,6 +137,7 @@ jobs:
       BUILD_DIR: ${{ github.workspace }}/build
       INSTALL_DIR: ${{ github.workspace }}/openvino_install
       INSTALL_TEST_DIR: ${{ github.workspace }}/tests_install
+      NINJA_LOGS_ARCHIVE_DIR: ${{ github.workspace }}/ninja_logs_archive
       CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu22_riscv64/gnu/${{ needs.Smart_CI.outputs.target_branch }}
       CCACHE_DIR: ${{ github.workspace }}/ccache
       CCACHE_TEMPDIR: ${{ github.workspace }}/ccache_temp
@@ -174,6 +175,9 @@ jobs:
       #
       # Build
       #
+      - name: Prepare Ninja log collection directory
+        run: rm -rf "${NINJA_LOGS_ARCHIVE_DIR}" && mkdir -p "${NINJA_LOGS_ARCHIVE_DIR}"
+
       - name: Clean ccache stats
         run: ccache --zero-stats
 
@@ -197,6 +201,9 @@ jobs:
 
       - name: Cmake - Build
         run: cmake --build ${BUILD_DIR} --parallel $(nproc) -- --quiet
+
+      - name: Snapshot Ninja logs after Cmake - Build
+        run: bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" "${NINJA_LOGS_ARCHIVE_DIR}" cmake_build_openvino "${BUILD_DIR}"
 
       - name: Show ccache stats and cleanup
         run: |
@@ -241,10 +248,20 @@ jobs:
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
+      - name: Archive collected Ninja logs
+        if: always()
+        run: |
+          if [[ ! -d "${NINJA_LOGS_ARCHIVE_DIR}" ]] || [[ -z "$(ls -A "${NINJA_LOGS_ARCHIVE_DIR}" 2>/dev/null)" ]]; then
+            echo "No Ninja log snapshots to archive"
+            exit 0
+          fi
+          tar -czf "${BUILD_DIR}/ninja_logs.tar.gz" -C "${NINJA_LOGS_ARCHIVE_DIR}" .
+
       - name: Upload Ninja build logs
         if: always()
-        uses: ./openvino/.github/actions/upload_ninja_logs
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          build-dir: ${{ env.BUILD_DIR }}
-          artifact-name: ninja_log_linux_riscv
+          name: ninja_log_linux_riscv
+          path: ${{ env.BUILD_DIR }}/ninja_logs.tar.gz
+          if-no-files-found: warn
 

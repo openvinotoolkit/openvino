@@ -74,6 +74,7 @@ jobs:
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       BUILD_DIR: /__w/openvino/openvino/openvino_build
+      NINJA_LOGS_ARCHIVE_DIR: /__w/openvino/openvino/ninja_logs_archive
       SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.sccache-prefix }}
 
     steps:
@@ -91,6 +92,10 @@ jobs:
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'recursive'
+
+      - name: Prepare Ninja log collection directory
+        if: ${{ contains(inputs.cmake-generator, 'Ninja') }}
+        run: rm -rf "${NINJA_LOGS_ARCHIVE_DIR}" && mkdir -p "${NINJA_LOGS_ARCHIVE_DIR}"
 
       - name: CMake configure
         env:
@@ -124,6 +129,10 @@ jobs:
             --target "${BUILD_TARGET}" \
             -- ${BUILD_EXTRA_ARGS}
 
+      - name: Snapshot Ninja logs after clang-tidy build
+        if: ${{ contains(inputs.cmake-generator, 'Ninja') }}
+        run: bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" "${NINJA_LOGS_ARCHIVE_DIR}" clang_tidy_build "${BUILD_DIR}"
+
       - name: Upload compile_commands
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         if: always()
@@ -132,12 +141,22 @@ jobs:
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
+      - name: Archive collected Ninja logs
+        if: ${{ always() && contains(inputs.cmake-generator, 'Ninja') }}
+        run: |
+          if [[ ! -d "${NINJA_LOGS_ARCHIVE_DIR}" ]] || [[ -z "$(ls -A "${NINJA_LOGS_ARCHIVE_DIR}" 2>/dev/null)" ]]; then
+            echo "No Ninja log snapshots to archive"
+            exit 0
+          fi
+          tar -czf "${BUILD_DIR}/ninja_logs.tar.gz" -C "${NINJA_LOGS_ARCHIVE_DIR}" .
+
       - name: Upload Ninja build logs
         if: ${{ always() && contains(inputs.cmake-generator, 'Ninja') }}
-        uses: ./openvino/.github/actions/upload_ninja_logs
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          build-dir: ${{ env.BUILD_DIR }}
-          artifact-name: ninja_log_clang_tidy_${{ inputs.sccache-prefix }}
+          name: ninja_log_clang_tidy_${{ inputs.sccache-prefix }}
+          path: ${{ env.BUILD_DIR }}/ninja_logs.tar.gz
+          if-no-files-found: warn
 
       - name: Show sccache stats
         if: ${{ inputs.show-sccache-stats }}

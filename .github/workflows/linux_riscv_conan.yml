@@ -112,6 +112,7 @@ jobs:
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
+      NINJA_LOGS_ARCHIVE_DIR: /__w/openvino/openvino/ninja_logs_archive
       CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_master_release/.conan
       CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu22_riscv64/${{ needs.Smart_CI.outputs.target_branch }}
       CCACHE_DIR: /__w/openvino/openvino/ccache
@@ -208,6 +209,9 @@ jobs:
       #
       # Build
       #
+      - name: Prepare Ninja log collection directory
+        run: rm -rf "${NINJA_LOGS_ARCHIVE_DIR}" && mkdir -p "${NINJA_LOGS_ARCHIVE_DIR}"
+
       - name: Clean ccache stats
         run: ccache --zero-stats
 
@@ -243,11 +247,17 @@ jobs:
       - name: Cmake - Build
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel $(nproc) -- --quiet
 
+      - name: Snapshot Ninja logs after Cmake - Build
+        run: bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" "${NINJA_LOGS_ARCHIVE_DIR}" cmake_build_openvino "${OPENVINO_BUILD_DIR}"
+
       - name: Show ccache stats
         run: ccache --show-stats
 
       - name: Cmake - Install
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel $(nproc) --target install -- --quiet
+
+      - name: Snapshot Ninja logs after Cmake - Install
+        run: bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" "${NINJA_LOGS_ARCHIVE_DIR}" cmake_install "${OPENVINO_BUILD_DIR}"
 
       - name: Build OpenVINO C++ samples
         run: |
@@ -268,10 +278,20 @@ jobs:
           path: ${{ env.OPENVINO_BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
+      - name: Archive collected Ninja logs
+        if: always()
+        run: |
+          if [[ ! -d "${NINJA_LOGS_ARCHIVE_DIR}" ]] || [[ -z "$(ls -A "${NINJA_LOGS_ARCHIVE_DIR}" 2>/dev/null)" ]]; then
+            echo "No Ninja log snapshots to archive"
+            exit 0
+          fi
+          tar -czf "${OPENVINO_BUILD_DIR}/ninja_logs.tar.gz" -C "${NINJA_LOGS_ARCHIVE_DIR}" .
+
       - name: Upload Ninja build logs
         if: always()
-        uses: ./openvino/.github/actions/upload_ninja_logs
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          build-dir: ${{ env.OPENVINO_BUILD_DIR }}
-          artifact-name: ninja_log_linux_riscv_conan
+          name: ninja_log_linux_riscv_conan
+          path: ${{ env.OPENVINO_BUILD_DIR }}/ninja_logs.tar.gz
+          if-no-files-found: warn
 

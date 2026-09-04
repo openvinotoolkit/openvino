@@ -82,6 +82,7 @@ jobs:
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
       INSTALL_PDB_DIR: "${{ github.workspace }}\\install_pdb"
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
+      NINJA_LOGS_ARCHIVE_DIR: "${{ github.workspace }}\\ninja_logs_archive"
       MODELS_PATH: "${{ github.workspace }}\\testdata"
       SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
 
@@ -171,13 +172,22 @@ jobs:
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
+      - name: Prepare Ninja log collection directory
+        run: |
+          if (Test-Path -LiteralPath $env:NINJA_LOGS_ARCHIVE_DIR) {
+            Remove-Item -LiteralPath $env:NINJA_LOGS_ARCHIVE_DIR -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $env:NINJA_LOGS_ARCHIVE_DIR -Force | Out-Null
+
       - name: Clean ccache stats
         run: '& ccache --zero-stats'
 
       - name: Cmake build - CC COLLECT
         run: |
-          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet && `
+          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+          & "${{ env.OPENVINO_REPO }}/.github/scripts/collect_ninja_logs_snapshot.ps1" -ArchiveRoot $env:NINJA_LOGS_ARCHIVE_DIR -SnapshotName cmake_build_cc_collect -BuildDirs @($env:BUILD_DIR)
           cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- --quiet
+          & "${{ env.OPENVINO_REPO }}/.github/scripts/collect_ninja_logs_snapshot.ps1" -ArchiveRoot $env:NINJA_LOGS_ARCHIVE_DIR -SnapshotName cmake_build_sea_itt_lib -BuildDirs @($env:BUILD_DIR)
 
       - name: Show ccache stats
         run: '& ccache --show-stats'
@@ -191,6 +201,13 @@ jobs:
         run: |
           cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples
           cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device -- --quiet
+
+      - name: Snapshot Ninja logs after C++ samples build
+        run: |
+          & "${{ env.OPENVINO_REPO }}/.github/scripts/collect_ninja_logs_snapshot.ps1" `
+            -ArchiveRoot $env:NINJA_LOGS_ARCHIVE_DIR `
+            -SnapshotName cpp_samples_hello_query_device `
+            -BuildDirs @("${{ env.BUILD_DIR }}/cpp_samples")
 
       - name: Perform code tracing via ITT collector
         shell: cmd
@@ -289,10 +306,19 @@ jobs:
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
+      - name: Archive collected Ninja logs
+        if: always()
+        run: |
+          if (-not (Test-Path -LiteralPath $env:NINJA_LOGS_ARCHIVE_DIR)) { exit 0 }
+          $items = Get-ChildItem -LiteralPath $env:NINJA_LOGS_ARCHIVE_DIR -Force
+          if (-not $items) { exit 0 }
+          tar -czf "$env:BUILD_DIR/ninja_logs.tar.gz" -C $env:NINJA_LOGS_ARCHIVE_DIR .
+
       - name: Upload Ninja build logs
         if: always()
-        uses: ./openvino/.github/actions/upload_ninja_logs
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          build-dir: ${{ env.BUILD_DIR }}
-          artifact-name: ninja_log_windows_cc_collect
+          name: ninja_log_windows_cc_collect
+          path: ${{ env.BUILD_DIR }}/ninja_logs.tar.gz
+          if-no-files-found: warn
 

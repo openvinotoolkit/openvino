@@ -124,6 +124,7 @@ jobs:
       OPENVINO_REPO: '/__w/openvino/openvino/openvino'
       OPENVINO_GENAI_REPO: '/__w/openvino/openvino/openvino.genai'
       BUILD_DIR: '/__w/openvino/openvino/build'
+      NINJA_LOGS_ARCHIVE_DIR: '/__w/openvino/openvino/ninja_logs_archive'
       ANDROID_TOOLS: '/deps/android_tools'
       ANDROID_NDK_HOME: '/deps/android_tools/ndk/29.0.14206865'
       ANDROID_SDK_VERSION: 35
@@ -186,6 +187,9 @@ jobs:
       # Build
       #
 
+      - name: Prepare Ninja log collection directory
+        run: rm -rf "${NINJA_LOGS_ARCHIVE_DIR}" && mkdir -p "${NINJA_LOGS_ARCHIVE_DIR}"
+
       - name: Clean ccache stats
         run: ${SCCACHE_PATH} --zero-stats
 
@@ -218,6 +222,9 @@ jobs:
 
       - name: Build OneTBB project
         run: cmake --build ${TBB_BUILD} --parallel $(nproc) -- --quiet
+
+      - name: Snapshot Ninja logs after Build OneTBB project
+        run: bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" "${NINJA_LOGS_ARCHIVE_DIR}" build_onetbb "${TBB_BUILD}"
 
       - name: Install OneTBB project
         run: cmake --install ${TBB_BUILD}
@@ -257,6 +264,9 @@ jobs:
       - name: CMake - build OpenVINO
         run: cmake --build ${BUILD_DIR} --parallel $(nproc) -- --quiet
 
+      - name: Snapshot Ninja logs after CMake - build OpenVINO
+        run: bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" "${NINJA_LOGS_ARCHIVE_DIR}" cmake_build_openvino "${BUILD_DIR}"
+
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats
 
@@ -279,12 +289,22 @@ jobs:
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
+      - name: Archive collected Ninja logs
+        if: always()
+        run: |
+          if [[ ! -d "${NINJA_LOGS_ARCHIVE_DIR}" ]] || [[ -z "$(ls -A "${NINJA_LOGS_ARCHIVE_DIR}" 2>/dev/null)" ]]; then
+            echo "No Ninja log snapshots to archive"
+            exit 0
+          fi
+          tar -czf "${BUILD_DIR}/ninja_logs.tar.gz" -C "${NINJA_LOGS_ARCHIVE_DIR}" .
+
       - name: Upload Ninja build logs
         if: always()
-        uses: ./openvino/.github/actions/upload_ninja_logs
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          build-dir: ${{ env.BUILD_DIR }}
-          artifact-name: ninja_log_android_${{ matrix.arch }}
+          name: ninja_log_android_${{ matrix.arch }}
+          path: ${{ env.BUILD_DIR }}/ninja_logs.tar.gz
+          if-no-files-found: warn
 
       - name: Prepare build and test artifacts (split)
         run: |
