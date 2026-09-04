@@ -3,6 +3,7 @@
 //
 
 #include "resample_kernel_bfyx_cubic_opt.h"
+#include <algorithm>
 #include <vector>
 #include <kernel_selector_utils.h>
 
@@ -72,9 +73,14 @@ bool ResampleKernelBfyxCubicOpt::Validate(const Params& p) const {
     if (params.inputs[0].Dimentions() != 4)
         DO_NOT_USE_THIS_KERNEL(p.layerID);
 
-    // Only spatial axes (Y, X) may be resized.
+    if (ResampleKernelBase::has_padding(params))
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+
+    // Explicit axes may include B/F with unit scale. The optimized kernel is still valid
+    // as long as only spatial dimensions actually change.
     for (const auto& axis : params.axes) {
-        if (axis != InterpolateAxis::Y && axis != InterpolateAxis::X)
+        if (axis != InterpolateAxis::BATCH && axis != InterpolateAxis::FEATURE &&
+            axis != InterpolateAxis::Y && axis != InterpolateAxis::X)
             DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 

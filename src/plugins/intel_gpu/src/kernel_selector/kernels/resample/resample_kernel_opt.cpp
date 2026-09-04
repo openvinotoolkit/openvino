@@ -3,8 +3,11 @@
 //
 
 #include "resample_kernel_opt.h"
+
+#include <algorithm>
 #include <vector>
 #include <kernel_selector_utils.h>
+#include "resample/utils.hpp"
 
 namespace kernel_selector {
 
@@ -94,6 +97,55 @@ static int get_feature_slice_size(const resample_params &params) {
     return static_cast<int>(16 * get_vec_size(params));
 }
 
+static bool is_asymmetric_simple_optimized_case(const resample_params& params) {
+    const auto& input = params.inputs[0];
+    const auto& output = params.outputs[0];
+
+    if (params.coordTransMode != CoordinateTransformationMode::ASYMMETRIC || params.nearestMode != NearestMode::SIMPLE) {
+        return false;
+    }
+
+    if (!is_integral_upsampling_ratio(output.X().v, input.X().v) ||
+        !is_integral_upsampling_ratio(output.Y().v, input.Y().v)) {
+        return false;
+    }
+
+    return input.Dimentions() != 5 || is_integral_upsampling_ratio(output.Z().v, input.Z().v);
+}
+
+static bool is_tf_half_pixel_for_nn_floor_optimized_case(const resample_params& params) {
+    const auto& input = params.inputs[0];
+    const auto& output = params.outputs[0];
+
+    if (params.coordTransMode != CoordinateTransformationMode::TF_HALF_PIXEL_FOR_NN ||
+        params.nearestMode != NearestMode::FLOOR) {
+        return false;
+    }
+
+    if (!is_integral_upsampling_ratio(output.X().v, input.X().v) ||
+        !is_integral_upsampling_ratio(output.Y().v, input.Y().v)) {
+        return false;
+    }
+
+    return input.Dimentions() != 5 || is_integral_upsampling_ratio(output.Z().v, input.Z().v);
+}
+
+static bool is_half_pixel_round_prefer_floor_optimized_case(const resample_params& params) {
+    const auto& input = params.inputs[0];
+    const auto& output = params.outputs[0];
+
+    if (params.coordTransMode != CoordinateTransformationMode::HALF_PIXEL ||
+        params.nearestMode != NearestMode::ROUND_PREFER_FLOOR) {
+        return false;
+    }
+
+    if (!is_integral_ratio(output.X().v, input.X().v) || !is_integral_ratio(output.Y().v, input.Y().v)) {
+        return false;
+    }
+
+    return input.Dimentions() != 5 || is_integral_ratio(output.Z().v, input.Z().v);
+}
+
 ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_selector::resample_params &arg) const {
     DispatchData dispatchData;
     auto in_layout = arg.inputs[0].GetLayout();
@@ -153,6 +205,9 @@ bool ResampleKernelOpt::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     const auto& input = params.inputs[0];
+    const auto& output = params.outputs[0];
+
+    const auto has_padding = ResampleKernelBase::has_padding(params);
 
     if ((input.GetDType() == Datatype::UINT8 || input.GetDType() == Datatype::INT8) &&
         params.resampleType != ResampleType::NEAREST_NEIGHBOR &&
@@ -163,11 +218,37 @@ bool ResampleKernelOpt::Validate(const Params& p) const {
     if (input.Dimentions() == 5 && params.resampleType != ResampleType::NEAREST_NEIGHBOR)
         DO_NOT_USE_THIS_KERNEL(p.layerID);
 
+    if (params.resampleType == ResampleType::NEAREST_NEIGHBOR) {
+        const auto optimized_nearest_case =
+            (params.coordTransMode == CoordinateTransformationMode::ASYMMETRIC && params.nearestMode == NearestMode::FLOOR) ||
+            is_asymmetric_simple_optimized_case(params) ||
+            is_tf_half_pixel_for_nn_floor_optimized_case(params) ||
+            is_half_pixel_round_prefer_floor_optimized_case(params);
+
+        if (has_padding ||
+            !optimized_nearest_case ||
+            input.Batch().v != output.Batch().v ||
+            input.Feature().v != output.Feature().v) {
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
+    }
+
+    if (params.resampleType == ResampleType::BILINEAR_INTERP) {
+        if (has_padding ||
+            params.coordTransMode != CoordinateTransformationMode::ASYMMETRIC ||
+            input.Batch().v != output.Batch().v ||
+            input.Feature().v != output.Feature().v) {
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
+    }
+
     return true;
 }
 
 JitConstants ResampleKernelOpt::GetJitConstants(const resample_params &params) const {
     auto jit = Parent::GetJitConstants(params);
+    jit.RemoveConstant("SCALES");
+    jit.AddConstant(MakeJitConstant("SCALES", get_legacy_scales(params)));
 
     auto opt_x_block_size = GetOptimalBlockSize(params);
     if (params.outputs[0].X().v > 32 && opt_x_block_size == 1) {
