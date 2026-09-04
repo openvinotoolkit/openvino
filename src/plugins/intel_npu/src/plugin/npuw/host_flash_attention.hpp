@@ -10,6 +10,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -197,6 +198,10 @@ struct HostFlashAttentionInfo {
 
 // Compile-time host flash attention information
 struct HostFlashAttention {
+    // Upper bound on the number of tiles a single HFA inference may be split into. Only used to
+    // reject corrupted _context_size / _query_size combinations coming from a cache blob.
+    static constexpr std::size_t kMaxTiles = 1u << 20;
+
     // Models to compile (will be cleared after compilation)
     std::shared_ptr<ov::Model> _tile_model_to_compile;
     std::shared_ptr<ov::Model> _final_tile_model_to_compile;
@@ -233,9 +238,7 @@ struct HostFlashAttention {
         _final_tile_model_to_compile.reset();  // Free memory after compilation
     }
 
-    bool is_valid() const {
-        return _compiled_tile_model != nullptr && _compiled_final_tile_model != nullptr && _tile_size > 0;
-    }
+    bool is_valid() const;
 };
 
 }  // namespace compiled
