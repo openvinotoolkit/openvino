@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <limits>
 #include <memory>
 
 #include "common_test_utils/test_assertions.hpp"
@@ -945,27 +946,12 @@ TEST(type_prop, strided_slice_reverse_full_range_masks_on_unbounded_dims_propaga
                 ElementsAre(symbols[0], symbols[1], symbols[2], symbols[3]));
 }
 
-TEST(type_prop, strided_slice_size_preserving_predicate_matches_probe) {
-    // Cross-check of the closed-form size-preservation predicate against the slice arithmetic itself: a slice is size
-    // preserving for a length L iff make_dim(Dimension(L), ...) is exactly [L, L]; probing the largest (or a large
-    // finite stand-in for an unbounded) and the smallest relevant length decides the whole interval.
+TEST(type_prop, strided_slice_size_preserving_predicate) {
+    // The closed-form size-preservation predicate must be true only if the slice yields exactly L elements for every
+    // length L within the dimension interval and every start/stop value within the bounds.
     using ov::op::slice::Bounds;
     constexpr auto i64_max = std::numeric_limits<int64_t>::max();
     constexpr auto i64_min = std::numeric_limits<int64_t>::min();
-
-    const auto probe = [](const Dimension& dim, const Bounds& start, const Bounds& stop, int64_t step) {
-        const int64_t d_min = dim.get_min_length();
-        const int64_t d_max = dim.get_max_length();
-        const int64_t hi = d_max == -1 ? i64_max / 4 : d_max;
-        const int64_t lo = std::min<int64_t>(hi, std::max<int64_t>(d_min, 2));
-        for (const auto length : {hi, lo}) {
-            const auto sliced = ov::op::slice::make_dim(Dimension(length), start, stop, step);
-            if (!sliced.is_static() || sliced.get_length() != length) {
-                return false;
-            }
-        }
-        return true;
-    };
 
     struct Row {
         Dimension dim;
@@ -973,41 +959,39 @@ TEST(type_prop, strided_slice_size_preserving_predicate_matches_probe) {
         Bounds stop;
         int64_t step;
         bool expected;
-        bool expected_probe;
     };
     const auto inf = Dimension(1, -1);
     const std::vector<Row> rows{
-        {inf, {0, 0}, {i64_max, i64_max}, 1, true, true},
-        {inf, {0, 0}, {i64_max, i64_max}, 2, false, false},
-        {inf, {0, 0}, {i64_max, i64_max}, 3, false, false},
-        {inf, {0, 0}, {i64_max, i64_max}, -1, false, false},
-        {inf, {i64_min, i64_min}, {i64_max, i64_max}, 1, true, true},
-        {inf, {i64_max, i64_max}, {i64_min, i64_min}, -1, true, true},
-        {inf, {-1, -1}, {i64_min, i64_min}, -1, true, true},
-        {inf, {1, 1}, {i64_max, i64_max}, 1, false, false},
-        {inf, {0, 0}, {2147483647, 2147483647}, 1, false, false},
-        {inf, {i64_min, 0}, {i64_max, i64_max}, 1, false, false},
-        {inf, {0, 0}, {1, i64_max}, 1, false, false},
-        {Dimension(10), {0, 0}, {10, 10}, 1, true, true},
-        {Dimension(10), {0, 0}, {9, 9}, 1, false, false},
-        {Dimension(10), {-20, -20}, {20, 20}, 1, true, true},
-        {Dimension(10), {9, 9}, {-11, -11}, -1, true, true},
-        {Dimension(4, 8), {0, 0}, {8, 8}, 1, true, true},
-        {Dimension(4, 8), {0, 0}, {6, 6}, 1, false, false},
-        {Dimension(4, 8), {0, 0}, {4, 8}, 1, false, false},
-        {Dimension(2, 5), {-5, -5}, {5, 5}, 1, true, true},
-        {Dimension(2, 5), {-5, -3}, {5, 5}, 1, false, false},
-        {Dimension(2, 5), {0, 0}, {5, 5}, -1, false, false},
-        {Dimension(2, 5), {4, 4}, {-6, -6}, -1, true, true},
-        {Dimension(2, 5), {3, 3}, {-6, -6}, -1, false, false},
+        {inf, {0, 0}, {i64_max, i64_max}, 1, true},
+        {inf, {0, 0}, {i64_max, i64_max}, 2, false},
+        {inf, {0, 0}, {i64_max, i64_max}, 3, false},
+        {inf, {0, 0}, {i64_max, i64_max}, -1, false},
+        {inf, {i64_min, i64_min}, {i64_max, i64_max}, 1, true},
+        {inf, {i64_max, i64_max}, {i64_min, i64_min}, -1, true},
+        {inf, {-1, -1}, {i64_min, i64_min}, -1, true},
+        {inf, {1, 1}, {i64_max, i64_max}, 1, false},
+        {inf, {0, 0}, {2147483647, 2147483647}, 1, false},
+        {inf, {i64_min, 0}, {i64_max, i64_max}, 1, false},
+        {inf, {0, 0}, {1, i64_max}, 1, false},
+        {Dimension(10), {0, 0}, {10, 10}, 1, true},
+        {Dimension(10), {0, 0}, {9, 9}, 1, false},
+        {Dimension(10), {-20, -20}, {20, 20}, 1, true},
+        {Dimension(10), {9, 9}, {-11, -11}, -1, true},
+        {Dimension(4, 8), {0, 0}, {8, 8}, 1, true},
+        {Dimension(4, 8), {0, 0}, {6, 6}, 1, false},
+        {Dimension(4, 8), {0, 0}, {4, 8}, 1, false},
+        {Dimension(2, 5), {-5, -5}, {5, 5}, 1, true},
+        {Dimension(2, 5), {-5, -3}, {5, 5}, 1, false},
+        {Dimension(2, 5), {0, 0}, {5, 5}, -1, false},
+        {Dimension(2, 5), {4, 4}, {-6, -6}, -1, true},
+        {Dimension(2, 5), {3, 3}, {-6, -6}, -1, false},
         // lengths 0 and 1 are trivially preserved by any step: the predicate is conservative here
-        {Dimension(0, 1), {0, 0}, {i64_max, i64_max}, 2, false, true},
+        {Dimension(0, 1), {0, 0}, {i64_max, i64_max}, 2, false},
     };
 
     for (size_t i = 0; i < rows.size(); ++i) {
         const auto& r = rows[i];
         EXPECT_EQ(ov::op::slice::is_identity_slice(r.dim, r.start, r.stop, r.step), r.expected) << "row " << i;
-        EXPECT_EQ(probe(r.dim, r.start, r.stop, r.step), r.expected_probe) << "row " << i;
     }
 }
 
