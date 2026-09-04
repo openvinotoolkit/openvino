@@ -21,7 +21,7 @@ OutputVector translate_unary_silu(const NodeContext& context) {
     auto sigmoid = std::make_shared<ov::op::v0::Sigmoid>(input);
     auto res = std::make_shared<ov::op::v1::Multiply>(input, sigmoid);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

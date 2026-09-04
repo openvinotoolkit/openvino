@@ -25,9 +25,16 @@ OutputVector translate_pool_2d(const NodeContext& context) {
     const auto params = context.get_attribute<std::vector<int32_t>>("pool_params");
     FRONT_END_OP_CONVERSION_CHECK(params.size() == 6, "POOL_2D requires 6 params");
 
-    const ov::Shape kernel{static_cast<size_t>(params[1]), static_cast<size_t>(params[0])};
-    const ov::Strides strides{static_cast<size_t>(params[3]), static_cast<size_t>(params[2])};
-    const ov::Shape pads_begin{static_cast<size_t>(params[5]), static_cast<size_t>(params[4])};
+    const auto kernel_width = static_cast<size_t>(params[0]);
+    const auto kernel_height = static_cast<size_t>(params[1]);
+    const auto stride_x = static_cast<size_t>(params[2]);
+    const auto stride_y = static_cast<size_t>(params[3]);
+    const auto padding_x = static_cast<size_t>(params[4]);
+    const auto padding_y = static_cast<size_t>(params[5]);
+
+    const ov::Shape kernel{kernel_height, kernel_width};
+    const ov::Strides strides{stride_y, stride_x};
+    const ov::Shape pads_begin{padding_y, padding_x};
     const ov::Shape pads_end = pads_begin;
 
     ov::Output<Node> result;

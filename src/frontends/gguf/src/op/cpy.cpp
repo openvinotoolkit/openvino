@@ -50,7 +50,7 @@ OutputVector translate_cpy(const NodeContext& context) {
         }
         auto target = ov::op::v0::Constant::create(ov::element::i64, {output_shape.size()}, output_shape.to_shape());
         auto res = std::make_shared<ov::op::v1::Reshape>(value, target, false);
-        return rename_outputs_with_suffix({res}, context.get_name());
+        return rename_outputs_with_suffix({std::move(res)}, context.get_name());
     }
 
     if (op_case == 3 && input_shape.is_static() && ov::shape_size(input_shape.to_shape()) == 0) {
@@ -89,7 +89,7 @@ OutputVector translate_cpy(const NodeContext& context) {
         auto head_part = std::make_shared<ov::op::v8::Slice>(base, zero, begin, one, axis);
         auto tail_part = std::make_shared<ov::op::v8::Slice>(base, end, int_max, one, axis);
         auto res = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{head_part, src, tail_part}, 3);
-        return rename_outputs_with_suffix({res}, context.get_name());
+        return rename_outputs_with_suffix({std::move(res)}, context.get_name());
     }
 
     const std::string writeback_name = context.get_attribute<std::string>("rs_writeback_name", context.get_name());
@@ -169,7 +169,7 @@ OutputVector translate_cpy(const NodeContext& context) {
         auto head_part = std::make_shared<ov::op::v8::Slice>(base, zero, begin, one, axis);
         auto tail_part = std::make_shared<ov::op::v8::Slice>(base, end, int_max, one, axis);
         auto res = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{head_part, src, tail_part}, slot_axis);
-        return rename_outputs_with_suffix({res}, context.get_name());
+        return rename_outputs_with_suffix({std::move(res)}, context.get_name());
     }
 
     ov::Output<ov::Node> value = context.get_input(0);
@@ -244,7 +244,7 @@ OutputVector translate_cpy(const NodeContext& context) {
                                                       false);
         }
     }
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op
