@@ -119,7 +119,7 @@ runs:
             Write-Host "No .ninja_log files under $Root"
             return
           }
-          Write-Host "Collecting $($logs.Count) .ninja_log file(s) from $Root:"
+          Write-Host "Collecting $($logs.Count) .ninja_log file(s) from ${Root}:"
           foreach ($log in $logs) {
             $rel = $log.FullName.Substring($Root.Length).TrimStart('\', '/')
             $dest = Join-Path $destRoot $rel
