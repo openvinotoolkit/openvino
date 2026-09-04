@@ -140,9 +140,9 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
 
             // Handle input reorder
             if (param.portIndex < static_cast<int>(inputs.size()) && reordered_inputs[param.portIndex].pid.empty()) {
-                // todo: add support for multiple reorders of the same input? (read as bfyx for one arg and yxfb for another)
                 if (param.format != cldnn::format::any) {
-                    auto reorderPrimName = inputs[param.portIndex].pid + "_" + op->get_friendly_name() + ProgramBuilder::m_preCustomLayerTag;
+                    auto reorderPrimName = inputs[param.portIndex].pid + "_" + op->get_friendly_name() +
+                                            "_" + std::to_string(param.portIndex) + ProgramBuilder::m_preCustomLayerTag;
                     auto preprocessPrim = cldnn::reorder(
                         reorderPrimName,
                         inputs[param.portIndex],
@@ -185,6 +185,19 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
     std::vector<cldnn::layout> outputLayouts(op->get_output_size());
     for (size_t i = 0; i < op->get_output_size(); i++) {
         auto dims = op->get_output_partial_shape(i);
+
+        // format="ANY" on an output means "inherit the first input's format", which is
+        // resolved later in custom_gpu_primitive_inst::calc_output_layout. Build it with
+        // the shape-based layout ctor: the tensor-based one stores a format::any layout's
+        // sizes in raw internal order at full internal rank rather than the shape's own
+        // order, which silently transposes the WorkSizes resolution and the shape that
+        // downstream nodes see.
+        if (outputFormats[i] == cldnn::format::any) {
+            outputLayouts[i] = cldnn::layout(dims,
+                                             cldnn::element_type_to_data_type(op->get_output_element_type(i)),
+                                             outputFormats[i]);
+            continue;
+        }
 
         constexpr size_t kDynamic = std::numeric_limits<size_t>::max();
         size_t N = (dims.size() > 0) ? dims[0].is_dynamic() ? kDynamic : dims[0].get_length() : 1;

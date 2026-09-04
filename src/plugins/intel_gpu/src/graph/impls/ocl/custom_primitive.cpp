@@ -69,6 +69,8 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     using parent = typed_primitive_impl<custom_gpu_primitive>;
     using parent::parent;
 
+    bool is_cpu() const override { return false; }
+
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::custom_gpu_primitive_impl)
 
     std::shared_ptr<kernel_selector::cl_kernel_data> cl_kernel;
@@ -305,7 +307,7 @@ static void add_layout_to_jit(kernel_selector::jit_constants& mem_consts, const 
     // #define INPUT0_OFFSET 0
     auto offset =
         (pitches[0] * l.data_padding._lower_size[0]) + (pitches[1] * l.data_padding._lower_size[1]) +
-        (pitches[2] * l.data_padding._lower_size[3]) + (pitches[3] * l.data_padding._lower_size[2]);
+        (pitches[2] * l.data_padding._lower_size[2]) + (pitches[3] * l.data_padding._lower_size[3]);
     mem_consts.AddConstant(kernel_selector::MakeJitConstant(name + "_OFFSET", std::to_string(offset)));
 }
 
