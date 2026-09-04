@@ -170,7 +170,7 @@ static void mha_softmax(const PlainTensor& attn_w,
                         const CpuParallelPtr& cpu_parallel) {
     auto precision = ov::element::f32;
     auto softmax_body = [&](size_t b, size_t h, size_t m) {
-        auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
+        auto ncausal = auto_causal ? std::min<size_t>(m + 1, kv_len) : kv_len;
         float* alibi_ptr = alibi_mask ? &alibi_mask.at<float>({b, h, m, 0}, true) : nullptr;
         uint8_t* attn_mask_ptr = nullptr;
         auto attn_mask_prec = attention_mask.get_precision();
