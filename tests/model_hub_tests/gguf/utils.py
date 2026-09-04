@@ -54,7 +54,13 @@ def _kv_cache_head_count(compiled_model) -> int:
     return 1
 
 
-def build_single_token_inputs(compiled_model, token_id: int = 1, is_imrope: bool = False):
+def build_single_token_inputs(
+    compiled_model,
+    token_id: int = 1,
+    position: int = 0,
+    state: dict[str, np.ndarray] | None = None,
+    is_imrope: bool = False,
+):
     """Build a minimal, single-new-token input feed for the GGUF frontend's stateless IO
     contract (inp_tokens / inp_pos / inp_out_ids / self_kq_mask[_swa] / token_len_per_seq /
     inp_kv_idx), plus zero-filled tensors for every other input the model declares (per-layer
@@ -68,6 +74,9 @@ def build_single_token_inputs(compiled_model, token_id: int = 1, is_imrope: bool
     caller to also register the MakeStateful extension. That keeps this check to exactly
     what "verify basic correctness" needs: the model converts, compiles, and produces a
     finite, correctly shaped output for one forward pass.
+
+    state contains cache outputs from a preceding inference step. Passing them back as the
+    matching inputs exercises the frontend's stateless state contract on decode.
 
     is_imrope selects the interleaved M-RoPE position layout (qwen35 / qwen3vl), read from
     the model's "gguf_is_imrope" rt_info by the caller (CompiledModel does not expose
@@ -84,7 +93,7 @@ def build_single_token_inputs(compiled_model, token_id: int = 1, is_imrope: bool
         if name == "inp_tokens":
             feed[name] = ov.Tensor(np.array([[[[token_id]]]], dtype=np.int32))
         elif name == "inp_pos":
-            feed[name] = ov.Tensor(np.zeros((1, 1, 1, n_pos_sections), dtype=np.int32))
+            feed[name] = ov.Tensor(np.full((1, 1, 1, n_pos_sections), position, dtype=np.int32))
         elif name == "inp_out_ids":
             feed[name] = ov.Tensor(np.array([[[[0]]]], dtype=np.int32))
         elif name in ("self_kq_mask", "self_kq_mask_swa"):
@@ -98,6 +107,8 @@ def build_single_token_inputs(compiled_model, token_id: int = 1, is_imrope: bool
             # rows to [.., 1, tokens * n_head_kv, row_size] before the default ScatterUpdate
             # lowering, so indices must cover that same flattened extent.
             feed[name] = ov.Tensor(np.arange(n_head_kv, dtype=np.int32).reshape(1, 1, 1, n_head_kv))
+        elif state is not None and name in state:
+            feed[name] = ov.Tensor(state[name])
         else:
             # Any other input (a per-layer KV cache, or a recurrent/linear-attention state
             # such as qwen35's Gated-DeltaNet conv window and delta matrix): zero-fill,
@@ -122,8 +133,75 @@ def convert_gguf_model(path: str) -> ov.Model:
     return fe.convert(fe.load(path))
 
 
+def _state_outputs(compiled_model, outputs) -> dict[str, np.ndarray]:
+    """Copy state outputs and map them back to their corresponding input names."""
+    data_input_names = {
+        "beam_idx",
+        "inp_kv_idx",
+        "inp_out_ids",
+        "inp_pos",
+        "inp_tokens",
+        "self_kq_mask",
+        "self_kq_mask_swa",
+        "token_len_per_seq",
+    }
+    state_input_names = {
+        next(iter(port.get_names()))
+        for port in compiled_model.inputs
+        if next(iter(port.get_names()), "") not in data_input_names
+    }
+    state = {}
+    for port, value in outputs.items():
+        state_name = port.get_node().get_friendly_name()
+        if state_name.endswith("_1"):
+            state_name = state_name[:-2]
+        if state_name.endswith("_out"):
+            state_name = state_name[:-4]
+        if state_name in state_input_names:
+            state[state_name] = np.array(value, copy=True)
+
+    assert state.keys() == state_input_names, "GGUF state outputs do not match state inputs"
+    return state
+
+
+def _assert_valid_kv_cache(state: dict[str, np.ndarray]):
+    kv_tensors = {name: value for name, value in state.items() if name.startswith(("cache_k_", "cache_v_"))}
+    assert kv_tensors, "GGUF model exposes no K/V cache tensors"
+    for name, value in kv_tensors.items():
+        assert value.size > 0, f"{name} is empty"
+        assert np.isfinite(value).all(), f"{name} contains NaN/Inf"
+        assert np.any(value != 0), f"{name} was not populated"
+
+
+def _run_two_steps(compiled_model, is_imrope: bool) -> np.ndarray:
+    request = compiled_model.create_infer_request()
+
+    first_feed = build_single_token_inputs(compiled_model, token_id=1, is_imrope=is_imrope)
+    first_outputs = request.infer(first_feed)
+    first_state = _state_outputs(compiled_model, first_outputs)
+    _assert_valid_kv_cache(first_state)
+
+    second_feed = build_single_token_inputs(
+        compiled_model,
+        token_id=2,
+        position=1,
+        state=first_state,
+        is_imrope=is_imrope,
+    )
+    second_outputs = request.infer(second_feed)
+    second_state = _state_outputs(compiled_model, second_outputs)
+    _assert_valid_kv_cache(second_state)
+
+    kv_names = [name for name in first_state if name.startswith(("cache_k_", "cache_v_"))]
+    assert all(not np.array_equal(first_state[name], second_state[name]) for name in kv_names), (
+        "K/V cache values did not change on the second inference step"
+    )
+
+    return second_outputs[compiled_model.output(0)]
+
+
 def run_gguf_model(repo_id: str, filename: str, device: str = "CPU"):
-    """Download, convert, compile, and run one forward step of a .gguf model.
+    """Download, convert, compile, and run two state-carrying steps of a .gguf model.
 
     Returns the raw logits tensor as a numpy array. Raises on any conversion / compilation /
     inference failure; the caller is expected to additionally sanity-check the result (shape,
@@ -136,10 +214,7 @@ def run_gguf_model(repo_id: str, filename: str, device: str = "CPU"):
     if "gguf_is_imrope" in model.get_rt_info():
         is_imrope = bool(model.get_rt_info(["gguf_is_imrope"]).get())
     compiled_model = core.compile_model(model, device)
-    request = compiled_model.create_infer_request()
-    feed = build_single_token_inputs(compiled_model, is_imrope=is_imrope)
-    outputs = request.infer(feed)
-    return next(iter(outputs.values()))
+    return _run_two_steps(compiled_model, is_imrope)
 
 
 def assert_valid_logits(logits: np.ndarray):
