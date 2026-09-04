@@ -34,7 +34,7 @@ def main() -> None:
 namespace cldnn {{
 namespace vulkan {{
 
-// Generated from {args.source_name} with glslc --target-env=vulkan1.3 and dead-constant elimination.
+// Generated from {args.source_name}; validated for Vulkan 1.3.
 inline constexpr uint32_t {args.array_name}[] = {{
 {chr(10).join(lines)}
 }};
