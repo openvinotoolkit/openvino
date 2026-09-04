@@ -51,7 +51,14 @@ struct SDPAOpt : public ImplementationManager {
             return false;
         }
 
-        if (!one_of(q_layout.data_type, supported_q_types) || !one_of(out_layout.data_type, supported_q_types)) {
+        // veesion: an i8 output is only produced when the trailing quantizer was fused into
+        // this SDPA (OV_SDPA_OUT_I8, see prepare_primitive_fusing.cpp), so accept it only in
+        // that shape; everything else keeps the stock f32/f16 output contract.
+        const bool fused_i8_output = std::getenv("OV_SDPA_OUT_I8") != nullptr &&
+                                     out_layout.data_type == ov::element::i8 &&
+                                     node.has_fused_primitives();
+        if (!one_of(q_layout.data_type, supported_q_types) ||
+            (!one_of(out_layout.data_type, supported_q_types) && !fused_i8_output)) {
             return false;
         }
 

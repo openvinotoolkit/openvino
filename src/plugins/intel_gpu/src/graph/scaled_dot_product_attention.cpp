@@ -39,6 +39,10 @@ layout scaled_dot_product_attention_inst::calc_output_layout(scaled_dot_product_
 
     auto default_out_dt = data_type_traits::is_floating_point(input0_layout.data_type) ? input0_layout.data_type : data_types::f32;
     auto output_type = desc->output_data_types[0].value_or(default_out_dt);
+    // veesion: honor the fused epilogue output type (mirrors softmax_inst::calc_output_layout), so the
+    // recalc_output_layout at the end of program::fuse_nodes doesn't revert the i8 layout of a fused quantize.
+    if (impl_param.has_fused_primitives())
+        output_type = impl_param.get_output_element_type();
     auto output_format = input0_layout.format;
     auto q_shape = transpose_shape(input0_layout.get_partial_shape(),
                                 desc->input_q_transpose_order);
