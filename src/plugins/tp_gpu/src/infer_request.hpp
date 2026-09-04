@@ -47,6 +47,23 @@ private:
     /// still the current ones.
     void bind_cache();
 
+    /// Returns the tensor to hand rank `rank` for user input `input_idx`, or a
+    /// null pointer to hand the caller's tensor unchanged.
+    ///
+    /// A plain host tensor forces the GPU plugin to stage every input through
+    /// a device copy, and for the inputs a CPU implementation reads it makes
+    /// that copy blocking: measured at 4 us alone but 500 us once four ranks
+    /// share the process, three times per token.  A tensor that already lives
+    /// in the rank's context is taken as-is instead, with no copy and no wait.
+    ///
+    /// Only small inputs are staged this way.  The wait it removes is a fixed
+    /// cost, so it dominates exactly when the payload is tiny, while a large
+    /// input is better left in device memory -- the GPU plugin itself avoids
+    /// USM host for big buffers on discrete cards.
+    ov::SoPtr<ov::ITensor> stage_input(size_t rank,
+                                       size_t input_idx,
+                                       const ov::SoPtr<ov::ITensor>& user_tensor);
+
     std::shared_ptr<const CompiledModel> m_compiled_model;
 
     /// One infer request per rank.
@@ -65,6 +82,19 @@ private:
 
     /// Cache generation the rank requests were last bound to.
     uint64_t m_bound_cache_generation = 0;
+
+    /// Plugin-owned USM-host staging for small user inputs, indexed
+    /// [rank][user input index].  Empty entries mean "not staged": either the
+    /// input is too large, or the caller already supplies device-side memory,
+    /// or the rank's context refused to allocate.
+    std::vector<std::vector<ov::SoPtr<ov::ITensor>>> m_input_stage;
+    /// Bytes actually allocated per staging tensor.  Kept apart from the
+    /// tensor's own size because set_shape() shrinks that, and a port that
+    /// alternates between a long prompt and a single token would otherwise
+    /// reallocate on every switch.
+    std::vector<std::vector<size_t>> m_input_stage_capacity;
+    /// Ports whose staging was tried and failed; never retried.
+    std::vector<std::vector<uint8_t>> m_input_stage_refused;
 };
 
 }  // namespace tp_gpu
