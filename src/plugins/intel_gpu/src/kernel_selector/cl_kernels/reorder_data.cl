@@ -2,11 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#define IS_F8 (F8E5M2_INPUT || F8E4M3_INPUT || F8E8M0_INPUT || F8E5M2_OUTPUT || F8E4M3_OUTPUT || F8E8M0_OUTPUT)
+#define IS_FP8 (F8E5M2_INPUT || F8E4M3_INPUT || F8E8M0_INPUT || F8E5M2_OUTPUT || F8E4M3_OUTPUT || F8E8M0_OUTPUT)
+#define IS_FP4 (F4E2M1_INPUT || F4E2M1_OUTPUT)
 
-#if IS_F8
+#if (IS_FP8 || IS_FP4)
 #include "include/batch_headers/common.cl"
 #include "include/f8_utils.cl"
+#endif
+
+#if IS_FP4
+#include "include/f4_utils.cl"
 #endif
 
 #include "include/reshape_dims.cl"
@@ -161,7 +166,17 @@ KERNEL (reorder_data)(
         const uint uint4_idx = input_idx >> 1;
         OUTPUT_COMPUTE_TYPE res_tmp = TO_OUTPUT_REORDER_COMPUTE_TYPE(convert_as_uint4_float(input[uint4_idx], input_idx));
     #elif (F8E5M2_INPUT || F8E4M3_INPUT || F8E8M0_INPUT)
-            OUTPUT_COMPUTE_TYPE res_tmp = TO_OUTPUT_REORDER_COMPUTE_TYPE(_convert_float(input[input_idx]));
+        OUTPUT_COMPUTE_TYPE res_tmp = TO_OUTPUT_REORDER_COMPUTE_TYPE(_convert_float(input[input_idx]));
+    #elif F4E2M1_INPUT
+        // FP4 unpacking: 2 elements per byte
+        const uint byte_idx = input_idx / 2;
+        const uint sub_idx = input_idx % 2;
+        const uint shift = sub_idx * 4;
+
+        uchar packed_byte = ((const __global uchar*)input)[byte_idx];
+        uchar val_u8 = (packed_byte >> shift) & 0x0F;
+
+        OUTPUT_COMPUTE_TYPE res_tmp = TO_OUTPUT_REORDER_COMPUTE_TYPE(_convert_float(as_fp4e2m1_t(val_u8)));
     #else
         CALC_TYPE res_tmp = TO_CALC_TYPE(DECODE_INPUT_REORDER_COMPUTE_TYPE(input[input_idx]));
     #endif
@@ -247,6 +262,21 @@ KERNEL (reorder_data)(
         OUTPUT_REORDER_TYPE res = __TO_OUTPUT_REORDER_TYPE(res_tmp);
         FUSED_OPS;
         output[output_idx] = FUSED_OPS_RESULT;
+    #elif F4E2M1_OUTPUT
+        // FP4 packing: 2 elements per byte
+        OUTPUT_TYPE val_fp_out = ACTIVATION_TYPED(OUTPUT_REORDER, __TO_OUTPUT_REORDER_TYPE(res), ACTIVATION_PARAMS_TYPED);
+        half val_half_out = (half)val_fp_out;
+        fp4e2m1_t val_fp4_out = _convert_fp4e2m1_t(val_half_out);
+        uchar val_u8_out = val_fp4_out.data;
+
+        volatile __global uint* output_u32 = (volatile __global uint*)output;
+        uint main_idx_out = output_idx / 8;
+        uint sub_idx_u32_out = output_idx % 8;
+        uint shift_u32_out = sub_idx_u32_out * 4;
+        uint val_u32_out = (uint)(val_u8_out & 0x0F);
+        
+        atomic_and(&output_u32[main_idx_out], ~(0x0F << shift_u32_out));
+        atomic_or(&output_u32[main_idx_out], (val_u32_out << shift_u32_out));
     #elif defined(INT4_OUTPUT) || defined(UINT4_OUTPUT)
         OUTPUT_TYPE val_char = __TO_OUTPUT_REORDER_TYPE(res_tmp);
         int val_i32 = convert_int(val_char);

@@ -261,7 +261,7 @@ public:
     const std::vector<primitive_inst*>& get_user_insts() const { return _users; }
     void init_users() {
         std::vector<primitive_id> users;
-        for (auto u : get_users()) {
+        for (const auto* u : get_users()) {
             users.push_back(u->id());
         }
         _users = get_network().get_primitives(users);
@@ -627,11 +627,9 @@ private:
                 return false;
         }
 
-        if (typ_node.template have_user_with_type<concatenation>() && typ_node.get_users().size() == 1 &&
-            typ_node.get_users().front()->can_be_optimized()) {  // check if the only user is concat
-            return false;
-        }
-        return true;
+        // check if the only user is concat
+        return !(typ_node.template have_user_with_type<concatenation>() && typ_node.get_users().size() == 1 &&
+                 typ_node.get_users().front()->can_be_optimized());
     }
 };
 

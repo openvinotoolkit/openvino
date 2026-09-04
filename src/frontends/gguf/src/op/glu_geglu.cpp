@@ -3,15 +3,15 @@
 //
 
 #include <memory>
+
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gelu.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/slice.hpp"
-
-#include "node_context.hpp"
-#include "op_table.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -28,7 +28,7 @@ OutputVector translate_glu_geglu(const NodeContext& context) {
         src0 = context.get_input(0);
         src1 = context.get_input(1);
     } else {
-        // GGML splits along ne[0] (OV last axis) using floor division: nc = ne[0] / 2.
+        // GGUF splits along ne[0] (OV last axis) using floor division: nc = ne[0] / 2.
         // Both halves are nc elements; if the dimension is odd, the last element is dropped.
         // Use Slice instead of Split to handle odd dimensions correctly.
         auto combined = context.get_input(0);
@@ -51,11 +51,13 @@ OutputVector translate_glu_geglu(const NodeContext& context) {
         std::swap(src0, src1);
     }
 
-    // ggml's GEGLU uses the tanh GELU approximation (ggml_gelu_f32); v7::Gelu defaults to ERF.
+    // ggml's GGML_GLU_OP_GEGLU uses the tanh GELU approximation, not OV's default ERF form. The
+    // ERF/tanh difference is small per call but compounds across layers into a wrong argmax on
+    // deep models (e.g. gemma3-1b), so match ggml with TANH.
     auto gelu = std::make_shared<ov::op::v7::Gelu>(src0, ov::op::GeluApproximationMode::TANH);
     auto res = std::make_shared<ov::op::v1::Multiply>(gelu, src1);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

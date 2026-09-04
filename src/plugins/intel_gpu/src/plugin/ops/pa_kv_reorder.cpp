@@ -10,6 +10,7 @@
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/pa_kv_reorder.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 
 namespace ov {
@@ -61,6 +62,14 @@ static void CreatePA_KV_ReorderOp(ProgramBuilder& p, const std::shared_ptr<ov::o
     prim.is_kv_compressed = prim.scales_zp_size > 0;
     prim.is_key_by_channel = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
 
+    if (auto model = p.get_model()) {
+        const auto& model_rt_info = model->get_rt_info();
+        const auto it = model_rt_info.find("sparse_enabled");
+        if (it != model_rt_info.end()) {
+            prim.has_xattention = it->second.as<bool>();
+        }
+    }
+
     const auto key_cache_ps = op->get_input_partial_shape(cldnn::pa_kv_reorder::PaKVReorderInputIdx::KEY_CACHE);
     const auto value_cache_ps = op->get_input_partial_shape(cldnn::pa_kv_reorder::PaKVReorderInputIdx::VALUE_CACHE);
 
@@ -70,9 +79,9 @@ static void CreatePA_KV_ReorderOp(ProgramBuilder& p, const std::shared_ptr<ov::o
                     "[GPU] pa_kv_reorder expects 4D value cache, got rank ", value_cache_ps.rank());
 
     const auto& rt_info = op->get_rt_info();
-    const auto k_head_size_id = "k_head_size";
-    const auto v_head_size_id = "v_head_size";
-    const auto num_k_heads_id = "num_k_heads";
+    const auto* const k_head_size_id = "k_head_size";
+    const auto* const v_head_size_id = "v_head_size";
+    const auto* const num_k_heads_id = "num_k_heads";
 
     OPENVINO_ASSERT(rt_info.find(k_head_size_id) != rt_info.end() &&
                     rt_info.find(v_head_size_id) != rt_info.end() &&
@@ -83,7 +92,8 @@ static void CreatePA_KV_ReorderOp(ProgramBuilder& p, const std::shared_ptr<ov::o
     const size_t k_head_size = rt_info.at(k_head_size_id).as<int64_t>();
     const size_t v_head_size = rt_info.at(v_head_size_id).as<int64_t>();
     const size_t kv_heads_num = rt_info.at(num_k_heads_id).as<int64_t>();
-    const size_t block_size = cldnn::paged_attention::block_size;
+
+    const size_t block_size = prim.has_xattention ? cldnn::paged_attention::block_size_xattn : cldnn::paged_attention::block_size;
 
     prim.kv_heads_num = kv_heads_num;
     if (prim.is_kv_compressed) {

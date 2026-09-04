@@ -56,15 +56,13 @@ inline uint32_t BytesPerElement(WeightsType wt) {
 inline Datatype GetComputeDatatype(Datatype dt) {
     if (dt == Datatype::BF16)
         return Datatype::F32;
-    else
-        return dt;
+    return dt;
 }
 
 inline WeightsType GetComputeWeightsType(WeightsType dt) {
     if (dt == WeightsType::BF16)
         return WeightsType::F32;
-    else
-        return dt;
+    return dt;
 }
 
 inline uint8_t GetActivationAdditionalParamsNumber(ActivationFunction func) {

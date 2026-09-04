@@ -447,6 +447,105 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_global_lp_pool_p3) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lp_pool_p2) {
+    auto model = convert_model("lp_pool_p2.onnx");
+
+    Inputs inputs{std::vector<float>(1 * 1 * 4 * 4)};
+    std::iota(std::begin(inputs.front()), std::end(inputs.front()), 0.f);
+
+    std::vector<float> expected_output{6.480741f, 9.899495f, 21.400934f, 25.337719f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(Shape{1, 1, 2, 2}, expected_output);
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
+// LpPool requires a strictly positive 'p' attribute; p=0 must fail fast at conversion time.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lp_pool_p0_invalid) {
+    EXPECT_THROW(convert_model("lp_pool_p0_invalid.onnx"), ov::Exception);
+}
+
+// The 'p' attribute is a float in the opset 1 version of LpPool.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lp_pool_opset1_float_p) {
+    auto model = convert_model("lp_pool_opset1_float_p.onnx");
+
+    Inputs inputs{std::vector<float>(1 * 1 * 4 * 4)};
+    std::iota(std::begin(inputs.front()), std::end(inputs.front()), 0.f);
+
+    std::vector<float> expected_output{6.480741f, 9.899495f, 21.400934f, 25.337719f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(Shape{1, 1, 2, 2}, expected_output);
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
+// The opset 1 'p' attribute is a float, so non-integer values must not be truncated.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lp_pool_opset1_fractional_p) {
+    auto model = convert_model("lp_pool_opset1_fractional_p.onnx");
+
+    Inputs inputs{std::vector<float>(1 * 1 * 4 * 4)};
+    std::iota(std::begin(inputs.front()), std::end(inputs.front()), 0.f);
+
+    std::vector<float> expected_output{7.412289f, 11.936901f, 26.713474f, 31.712298f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(Shape{1, 1, 2, 2}, expected_output);
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
+// Zero padding must not contribute to the pooled Lp norm.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lp_pool_p1_pads) {
+    auto model = convert_model("lp_pool_p1_pads.onnx");
+
+    std::vector<float> input{-1.f, 2.f, -3.f, 4.f, -5.f, 6.f, -7.f, 8.f, -9.f};
+
+    std::vector<float> expected_output{12.f, 21.f, 16.f, 27.f, 45.f, 33.f, 24.f, 39.f, 28.f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input(input);
+    test_case.add_expected_output(Shape{1, 1, 3, 3}, expected_output);
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lp_pool_p3_dilations) {
+    auto model = convert_model("lp_pool_p3_dilations.onnx");
+
+    Inputs inputs{std::vector<float>(1 * 1 * 4 * 4)};
+    std::iota(std::begin(inputs.front()), std::end(inputs.front()), 0.f);
+
+    std::vector<float> expected_output{11.497794f, 12.632719f, 14.460854f, 15.874010f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(Shape{1, 1, 2, 2}, expected_output);
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lp_pool_same_upper) {
+    auto model = convert_model("lp_pool_same_upper.onnx");
+
+    Inputs inputs{std::vector<float>(1 * 1 * 3 * 3)};
+    std::iota(std::begin(inputs.front()), std::end(inputs.front()), 1.f);
+
+    std::vector<float> expected_output{6.782330f,
+                                       8.602325f,
+                                       6.708204f,
+                                       12.409674f,
+                                       14.352700f,
+                                       10.816654f,
+                                       10.630146f,
+                                       12.041595f,
+                                       9.000000f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(Shape{1, 1, 3, 3}, expected_output);
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape) {
     auto model = convert_model("convtranspose_output_shape.onnx");
 

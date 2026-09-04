@@ -12,7 +12,7 @@ namespace kernel_selector {
 class MVNKernelBfyxOpt : public MVNKernelBase {
 public:
     MVNKernelBfyxOpt() : MVNKernelBase("mvn_gpu_bfyx_opt") {}
-    ~MVNKernelBfyxOpt() override {}
+    ~MVNKernelBfyxOpt() override = default;
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

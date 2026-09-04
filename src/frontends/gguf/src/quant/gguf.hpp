@@ -20,7 +20,7 @@ namespace ov::frontend::gguf {
 // GGUF tensor (quantization) type ids, matching the on-disk GGUF format numbering.
 // Only the subset the frontend handles is enumerated explicitly; others are accepted
 // numerically but rejected at dequant time.
-enum gguf_tensor_type {
+enum GgufTensorType {
     GGUF_TYPE_F32 = 0,
     GGUF_TYPE_F16 = 1,
     GGUF_TYPE_Q4_0 = 2,
@@ -42,11 +42,12 @@ enum gguf_tensor_type {
     GGUF_TYPE_F64 = 28,
     GGUF_TYPE_BF16 = 30,
     GGUF_TYPE_MXFP4 = 39,  // 4-bit microscaling (gpt-oss): 1-byte E8M0 scale + 32x E2M1
+    GGUF_TYPE_Q2_0 = 42,   // ternary: f16 scale + 64x 2-bit codes, value = (code - 1) * scale
     GGUF_TYPE_COUNT,
 };
 
 // GGUF metadata value type ids (the kv-pair value encoding).
-enum gguf_value_type {
+enum GgufValueType {
     GGUF_VALUE_TYPE_UINT8 = 0,
     GGUF_VALUE_TYPE_INT8 = 1,
     GGUF_VALUE_TYPE_UINT16 = 2,
@@ -66,10 +67,10 @@ enum gguf_value_type {
 // into the memory-mapped file (zero-copy); the owning reader keeps the mapping alive.
 // Field names mirror the classic gguf-tools layout so the dequant code in
 // gguf_quants.cpp reads them unchanged.
-struct gguf_tensor {
+struct GgufTensor {
     const char* name = nullptr;  // points into the mmap (not null-terminated)
     size_t namelen = 0;
-    uint32_t type = 0;  // gguf_tensor_type
+    uint32_t type = 0;  // GgufTensorType
     uint32_t ndim = 0;
     uint64_t dim[4] = {1, 1, 1, 1};
     uint64_t offset = 0;       // offset from the start of the tensor-data section
@@ -90,35 +91,35 @@ using GGUFMetaData =
 //   tensors in `arrays` for quantized weights are SharedBuffer slices into this buffer.
 using GGUFLoad = std::tuple<std::unordered_map<std::string, GGUFMetaData>,
                             std::unordered_map<std::string, ov::Tensor>,
-                            std::unordered_map<std::string, gguf_tensor_type>,
+                            std::unordered_map<std::string, GgufTensorType>,
                             std::shared_ptr<ov::MappedMemory>,
                             std::shared_ptr<ov::AlignedBuffer>>;
 
-// Fill pre-allocated i4 weights (u32-packed, XORed for i4 sign) and f16 scales from a
-// Q4_0 tensor. No bias: Q4_0 is symmetric (zp = -8*scale is implicit, not stored).
-void gguf_fill_q4_0(const gguf_tensor& tensor, ov::Tensor& weights, ov::Tensor& scales);
-
 // Fill pre-allocated weights and f16 scales from a symmetric GGUF tensor
-// (Q8_0/Q5_0/Q6_K: i8 weights; Q3_K: i4 weights packed as u8).
+// (Q8_0/Q5_0/Q6_K: i8 weights; Q4_0/Q3_K: i4 weights packed as u8).
 // No zero-point: the center value is subtracted during unpacking so weights are centered at 0.
-void gguf_fill_sym(const gguf_tensor& tensor, ov::Tensor& weights, ov::Tensor& scales);
+void gguf_fill_sym(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales);
 
 // Fill pre-allocated weights, f16 scales, and integer zero-points from an asymmetric GGUF
 // tensor (Q4_1: u4 zp; Q4_K: u4 zp; Q5_K/Q5_1: u8 zp; Q2_K: u8 zp).
 // Tensor shapes must match quant_sizes.
-void gguf_fill_asym(const gguf_tensor& tensor, ov::Tensor& weights, ov::Tensor& scales, ov::Tensor& zp);
+void gguf_fill_asym(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales, ov::Tensor& zp);
 
 // Fill pre-allocated f4e2m1 weights and f8e8m0 scales from an MXFP4 GGUF tensor.
-void gguf_fill_mxfp4(const gguf_tensor& tensor, ov::Tensor& weights, ov::Tensor& scales);
+void gguf_fill_mxfp4(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales);
+
+// Fill pre-allocated u2 weights, f16 scales and u8 zero-points from a Q2_0 (ternary) tensor.
+// The zero-point is the constant 1 for every block: value = (code - 1) * scale.
+void gguf_fill_q2_0(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales, ov::Tensor& zp);
 
 // Fused bit-exact ggml dequant + channel-wise Q8_0_C requant for the token_embd/output/Q6_K/Q5_K
 // requant path. Streams one row at a time (never materializes the full f32 weight). Fills i8
 // weights [rows,cols] + f16 scales [rows,1]; matches upstream's to_float->quantize_q8_0 exactly so
 // those tensors are bit-identical to the vendored backend. Returns false for unsupported qtypes.
-bool requantize_q8_0_channelwise_faithful(const gguf_tensor& tensor,
+bool requantize_q8_0_channelwise_faithful(const GgufTensor& tensor,
                                           size_t rows,
                                           size_t cols,
-                                          gguf_tensor_type qtype,
+                                          GgufTensorType qtype,
                                           int8_t* out_weights,
                                           ov::float16* out_scales);
 
@@ -133,9 +134,19 @@ void dequant_row_q6_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 // repacked weight/scale/bias data lives in one allocation (IR-frontend pattern).
 GGUFLoad get_gguf_data(const std::string& file);
 
-// Extract the architecture config (architecture, layer_num, head_num, head_size,
-// head_num_kv, hidden_size, max_position_embeddings, rms_norm_eps, rope_freq_base,
-// file_type) from parsed metadata.
-std::map<std::string, GGUFMetaData> config_from_meta(const std::unordered_map<std::string, GGUFMetaData>& metadata);
+// Extract the DECODER-family architecture config (architecture, layer_num, head_num, head_size,
+// head_num_kv, hidden_size, max_position_embeddings, rms_norm_eps, rope_freq_base, file_type, ...)
+// from parsed metadata.
+//
+// Every key it reads is prefixed with the LLM architecture name ("<arch>.block_count",
+// "<arch>.attention.head_count", ...), so it is only meaningful for a causal-decoder GGUF. Call
+// detect_model_kind() first: an mmproj file names its architecture "clip" and carries "clip.*"
+// keys instead, and would fail here on a missing block_count. A future non-decoder family gets its
+// own reader next to this one rather than extending it.
+std::map<std::string, GGUFMetaData> decoder_config_from_meta(
+    const std::unordered_map<std::string, GGUFMetaData>& metadata);
+
+// Reverse of the GGML dimension order (GGUF stores dims fastest-first).
+ov::Shape get_shape(const GgufTensor& tensor);
 
 }  // namespace ov::frontend::gguf

@@ -240,5 +240,6 @@ std::unique_ptr<primitive_impl> PagedGatedDeltaNetOpt::create_impl(const program
 
 }  // namespace ov::intel_gpu::ocl
 
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::paged_gated_delta_net)
 BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::PagedGatedDeltaNetRefImpl)
 BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::PagedGatedDeltaNetOptImpl)

@@ -7,9 +7,11 @@ set(TARGET_NAME "openvino_xml_util")
 set(TARGET_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 set(LIBRARY_SRC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/weights_provider.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/xml_deserialize_util.cpp
 )
 set(PUBLIC_HEADERS
+    ${TARGET_INCLUDE_DIR}/openvino/xml_util/weights_provider.hpp
     ${TARGET_INCLUDE_DIR}/openvino/xml_util/xml_deserialize_util.hpp
 )
 

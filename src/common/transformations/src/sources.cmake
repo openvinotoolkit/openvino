@@ -14,6 +14,7 @@ set(COMMON_OPTIMIZATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/batch_to_space_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/binarize_weights.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/broadcast_elementwise_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/broadcast_matmul_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/broadcast_transition.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/change_placeholder_types.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/clamp_fusion.cpp
@@ -50,6 +51,7 @@ set(COMMON_OPTIMIZATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_gated_delta_net.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_moe_experts.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_rotary_positional_embeddings.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_ssm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fused_names_cleanup.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/gelu_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/glu_fusion.cpp
@@ -252,6 +254,7 @@ set(PAGED_ATTENTION_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/eliminate_conv_padding_mask_gating.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_causal_conv1d_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_gated_delta_net_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_selective_ssm_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/position_ids_replacer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/prev_sequence_length_pattern.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/state_management_pattern.cpp

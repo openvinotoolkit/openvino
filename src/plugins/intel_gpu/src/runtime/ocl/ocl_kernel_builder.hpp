@@ -30,7 +30,7 @@ class ocl_kernel_builder : public kernel_builder{
             KernelFormat src_format,
             const std::string &options,
             std::vector<kernel::ptr> &out) const override {
-            auto context = m_device.get_context().get();
+            auto* context = m_device.get_context().get();
 
             cl_program program_handle;
             cl_int err = CL_INVALID_VALUE;

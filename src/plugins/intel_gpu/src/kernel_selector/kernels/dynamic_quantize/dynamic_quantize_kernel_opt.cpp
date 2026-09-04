@@ -50,11 +50,11 @@ static DynQuanMode get_dynamic_quantize_mode(const dynamic_quantize_params& para
     auto gs = params.group_sizes.back();
     if (gs == std::numeric_limits<uint64_t>::max()) {
         return DynQuanMode::PER_TOKEN;
-    } else if (gs > simd * 2) {
-        return DynQuanMode::LARGE_GS;
-    } else {
-        return DynQuanMode::SMALL_GS;
     }
+    if (gs > simd * 2) {
+        return DynQuanMode::LARGE_GS;
+    }
+    return DynQuanMode::SMALL_GS;
 }
 
 static size_t get_match_vector_size(const dynamic_quantize_params& params) {
@@ -78,6 +78,7 @@ ParamsKey DynamicQuantizeKernelOpt::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::F4E2M1);
     k.EnableOutputDataType(Datatype::F8E4M3);
     k.EnableOutputDataType(Datatype::F8E5M2);
     k.EnableOutputDataType(Datatype::F8E8M0);
@@ -111,6 +112,7 @@ JitConstants DynamicQuantizeKernelOpt::GetJitConstants(const dynamic_quantize_pa
     jit.AddConstant(MakeJitConstant("MODE_SMALL_GS", static_cast<int>(DynQuanMode::SMALL_GS)));
     jit.AddConstant(MakeJitConstant("MODE_LARGE_GS", static_cast<int>(DynQuanMode::LARGE_GS)));
     jit.AddConstant(MakeJitConstant("MODE_PER_TOKEN", static_cast<int>(DynQuanMode::PER_TOKEN)));
+    jit.AddConstant(MakeJitConstant("F4E2M1_OUTPUT", params.outputs[0].GetDType() == Datatype::F4E2M1 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E5M2_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E5M2 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E4M3_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E4M3 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("IS_MXFP", params.outputs[1].GetDType() == Datatype::F8E8M0 ? 1 : 0));
@@ -138,11 +140,15 @@ CommonDispatchData DynamicQuantizeKernelOpt::SetDefault(const dynamic_quantize_p
     } else if (mode == DynQuanMode::LARGE_GS) {
         auto vec_size = get_match_vector_size(params);
         auto bf_size = get_input_bf_size(params);
-        size_t total_block_num = bf_size.second / (simd * vec_size);
+        const size_t total_block_num = bf_size.second / (simd * vec_size);
         size_t batch = bf_size.first;
         size_t block_num = (total_block_num > 32) ? 32 : total_block_num;
+        size_t dispatch_block_num = total_block_num;
+#ifdef OV_GPU_WITH_ZE_RT
+        dispatch_block_num = Align(dispatch_block_num, block_num); //align for ZE RT
+#endif
 
-        dispatchData.gws = {simd, total_block_num, batch};
+        dispatchData.gws = {simd, dispatch_block_num, batch};
         dispatchData.lws = {simd, block_num, 1};
     } else if (mode == DynQuanMode::PER_TOKEN) {
         auto vec_size = get_match_vector_size(params);

@@ -39,6 +39,7 @@ set(OV_CORE_TESTS_VISITORS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op/convert.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/convert_color_i420.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/convert_color_nv12.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/convert_color_to_nv12.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/convert_like.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/convert_promote_types.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/convolution.cpp
@@ -138,6 +139,7 @@ set(OV_CORE_TESTS_VISITORS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op/pad.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/paged_causal_conv1d.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/paged_gated_delta_net.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/paged_selective_ssm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/parameter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/power.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/prelu.cpp
@@ -177,6 +179,7 @@ set(OV_CORE_TESTS_VISITORS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op/scatter_update.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/segment_max.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/select.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/selective_ssm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/selu.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/shape_of.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/shuffle_channels.cpp

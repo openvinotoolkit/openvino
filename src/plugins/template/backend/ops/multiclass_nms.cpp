@@ -51,11 +51,11 @@ InfoForNMS get_info_for_nms_eval(const std::shared_ptr<op::util::MulticlassNmsBa
                                  const ov::TensorVector& inputs) {
     InfoForNMS result;
 
-    const auto boxes_ps = inputs[boxes_port].get_shape();
-    const auto scores_ps = inputs[scores_port].get_shape();
+    const auto& boxes_ps = inputs[boxes_port].get_shape();
+    const auto& scores_ps = inputs[scores_port].get_shape();
     std::vector<PartialShape> input_shapes = {boxes_ps, scores_ps};
     if (nms->get_input_size() == 3) {
-        const auto roisnum_ps = inputs[roisnum_port].get_shape();
+        const auto& roisnum_ps = inputs[roisnum_port].get_shape();
         input_shapes.push_back(roisnum_ps);
     }
 

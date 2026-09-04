@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/pad.hpp"
+
 #include <array>
 #include <cstdint>
-#include "openvino/frontend/exception.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/pad.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/shape_of.hpp"
 #include <vector>
 
 #include "node_context.hpp"
 #include "op_table.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -63,18 +64,24 @@ OutputVector translate_pad(const NodeContext& context) {
     if (context.get_input_shape(0) == context.get_output_shape()) {
         auto input_shape = std::make_shared<ov::op::v3::ShapeOf>(input);
         auto res = std::make_shared<ov::op::v1::Reshape>(input, input_shape, false);
-        return rename_outputs_with_suffix({res}, context.get_name());
+        return rename_outputs_with_suffix({std::move(res)}, context.get_name());
     }
 
     auto pad_params = context.get_attribute<std::vector<int32_t>>("pad_params");
     FRONT_END_CHECK_IMPLEMENTED(pad_params.size() >= 8, "PAD requires 8 pad extents");
-    const std::array<int32_t, 8> pads = {pad_params[0], pad_params[1], pad_params[2], pad_params[3],
-                                         pad_params[4], pad_params[5], pad_params[6], pad_params[7]};
+    const std::array<int32_t, 8> pads = {pad_params[0],
+                                         pad_params[1],
+                                         pad_params[2],
+                                         pad_params[3],
+                                         pad_params[4],
+                                         pad_params[5],
+                                         pad_params[6],
+                                         pad_params[7]};
     const bool circular = context.get_attribute<bool>("pad_circular", false);
 
     if (circular) {
         auto res = translate_circular_pad(input, pads, context.get_input_shape(0).to_shape());
-        return rename_outputs_with_suffix({res}, context.get_name());
+        return rename_outputs_with_suffix({std::move(res)}, context.get_name());
     }
 
     const std::vector<int64_t> pads_begin = {pads[6], pads[4], pads[2], pads[0]};
@@ -85,7 +92,7 @@ OutputVector translate_pad(const NodeContext& context) {
     auto res =
         std::make_shared<ov::op::v1::Pad>(input, pads_begin_node, pads_end_node, pad_value, ov::op::PadMode::CONSTANT);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

@@ -124,6 +124,9 @@ std::shared_ptr<ov::AlignedBuffer> get_buffer(const Context& shared_context,
         source_it != shared_context.m_cache_sources.end()) {
         if (auto wt_buffer = source_it->second.m_weights.lock()) {
             if (const auto meta = get_constant_meta(shared_context.m_weight_registry, source_id, constant_id)) {
+                OPENVINO_ASSERT(
+                    meta->m_offset <= wt_buffer->size() && meta->m_size <= wt_buffer->size() - meta->m_offset,
+                    "WeightlessCacheAttribute offset/size is out of bounds for source buffer");
                 return std::make_shared<ov::SharedBuffer<WeightBuffer>>(wt_buffer->get_ptr<char>() + meta->m_offset,
                                                                         meta->m_size,
                                                                         wt_buffer);
@@ -140,6 +143,9 @@ std::shared_ptr<ov::AlignedBuffer> get_buffer(const Context& shared_context,
         const auto& desc = source_buffer->get_descriptor();
         const auto wt_id = desc ? desc->get_id() : ov::wsh::invalid_source_id;
         if (const auto meta_data = get_constant_meta(shared_context.m_weight_registry, wt_id, constant_id)) {
+            OPENVINO_ASSERT(meta_data->m_offset <= source_buffer->size() &&
+                                meta_data->m_size <= source_buffer->size() - meta_data->m_offset,
+                            "WeightlessCacheAttribute offset/size is out of bounds for source buffer");
             return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
                 source_buffer->get_ptr<char>() + meta_data->m_offset,
                 meta_data->m_size,
@@ -155,6 +161,9 @@ std::shared_ptr<ov::AlignedBuffer> get_buffer(const Context& shared_context,
     if (source_buffer) {
         if (const auto meta_data =
                 get_constant_meta(shared_context.m_weight_registry, source_buffer->get_id(), constant_id)) {
+            OPENVINO_ASSERT(meta_data->m_offset <= source_buffer->size() &&
+                                meta_data->m_size <= source_buffer->size() - meta_data->m_offset,
+                            "WeightlessCacheAttribute offset/size is out of bounds for source buffer");
             return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
                 source_buffer->data() + meta_data->m_offset,
                 meta_data->m_size,

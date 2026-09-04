@@ -66,7 +66,7 @@ cldnn::memory::ptr convert_zp_data_to_s32(const memory::ptr zp_memory) {
     if (!data_type_traits::is_i8_u8(src_dtype))
         return nullptr;
 
-    auto engine = zp_memory->get_engine();
+    auto* engine = zp_memory->get_engine();
     auto& stream = engine->get_service_stream();
 
     zp_s32_layout.data_type = data_types::i32;
@@ -111,18 +111,22 @@ dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims, forma
         auto tag = convert_data_format(target);
         if (tag != dnnl::memory::format_tag::undef) {
             return tag;
-        } else {
-            throw std::invalid_argument("[clDNN] Unsupported conversion from "+ target.to_string() + " to onednn format_tag");
         }
-    } else {
-        switch (dims.size()) {
-        case 2: return dnnl::memory::format_tag::ab;
-        case 3: return dnnl::memory::format_tag::abc;
-        case 4: return dnnl::memory::format_tag::abcd;
-        case 5: return dnnl::memory::format_tag::abcde;
-        case 6: return dnnl::memory::format_tag::abcdef;
-        default: throw std::invalid_argument("[clDNN] Unsupported conversion from "+ std::to_string(dims.size()) + " to onednn format_tag");
-        }
+        throw std::invalid_argument("[clDNN] Unsupported conversion from " + target.to_string() + " to onednn format_tag");
+    }
+    switch (dims.size()) {
+    case 2:
+        return dnnl::memory::format_tag::ab;
+    case 3:
+        return dnnl::memory::format_tag::abc;
+    case 4:
+        return dnnl::memory::format_tag::abcd;
+    case 5:
+        return dnnl::memory::format_tag::abcde;
+    case 6:
+        return dnnl::memory::format_tag::abcdef;
+    default:
+        throw std::invalid_argument("[clDNN] Unsupported conversion from " + std::to_string(dims.size()) + " to onednn format_tag");
     }
 }
 
@@ -154,6 +158,7 @@ dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
         case cldnn::data_types::i32: return dnnl::memory::data_type::s32;
         case cldnn::data_types::i4: return dnnl::memory::data_type::s4;
         case cldnn::data_types::u4: return dnnl::memory::data_type::u4;
+        case cldnn::data_types::f4e2m1: return dnnl::memory::data_type::f4_e2m1;
         case cldnn::data_types::f8e4m3: return dnnl::memory::data_type::f8_e4m3;
         case cldnn::data_types::f8e5m2: return dnnl::memory::data_type::f8_e5m2;
         case cldnn::data_types::f8e8m0: return dnnl::memory::data_type::e8m0;
@@ -270,6 +275,7 @@ int64_t get_offset(const cldnn::layout& l, dnnl::memory::desc&& desc) {
     switch (desc.get_data_type()) {
         case dnnl::memory::data_type::s4:
         case dnnl::memory::data_type::u4:
+        case dnnl::memory::data_type::f4_e2m1:
             return offset / 2;
         case dnnl::memory::data_type::s8:
         case dnnl::memory::data_type::u8:
@@ -350,12 +356,10 @@ public:
             OPENVINO_ASSERT(!_flatten, "The padded layout cannot be flattened.");
             auto strides = calculate_strides(updated_fmt);
             return dnnl::memory::desc(dims, dt, strides);
-        } else {
-            dnnl::memory::format_tag fmt = updated_fmt == dnnl::memory::format_tag::undef
-                ? convert_data_format(_layout.format) : updated_fmt;
-            dnnl::memory::desc res(dims, dt, fmt);
-            return res;
         }
+        dnnl::memory::format_tag fmt = updated_fmt == dnnl::memory::format_tag::undef ? convert_data_format(_layout.format) : updated_fmt;
+        dnnl::memory::desc res(dims, dt, fmt);
+        return res;
     }
 
 private:
@@ -527,7 +531,7 @@ dnnl::memory::desc layout_to_memory_desc_strides(const cldnn::layout& l, dnnl::m
 }
 
 dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, bool use_default_format, bool is_output_blocked) {
-    OPENVINO_ASSERT(!(use_default_format && is_output_blocked), "[GPU] use_default_format and is_output_blocked are mutually exclusive.");
+    OPENVINO_ASSERT(!use_default_format || !is_output_blocked, "[GPU] use_default_format and is_output_blocked are mutually exclusive.");
 
     if (use_default_format) {
         return MemoryDescriptorBuilder(l, get_default_data_format(l)).build();
@@ -648,11 +652,14 @@ cldnn::format find_data_format(dnnl::memory::desc desc) {
         // Special case for 3D tensors without blocking
         if (compare_orders(order, { {0, 1, 2} })) {
             return static_cast<format::type>(format::bfyx);
-        } else if (compare_orders(order, { {0, 2, 1} })) {
+        }
+        if (compare_orders(order, {{0, 2, 1}})) {
             return static_cast<format::type>(format::byxf);
-        } else if (compare_orders(order, { {1, 0, 2} })) {
+        }
+        if (compare_orders(order, {{1, 0, 2}})) {
             return static_cast<format::type>(format::fbyx);
-        } else if (compare_orders(order, { {1, 2, 0} })) {
+        }
+        if (compare_orders(order, {{1, 2, 0}})) {
             return static_cast<format::type>(format::fybx);
         }
     }
@@ -766,7 +773,7 @@ dnnl::algorithm convert_activation_func(cldnn::activation_func func) {
 template <typename T>
 bool is_per_tensor(cldnn::data_node& node, int32_t& zp_val) {
     auto ptr = node.get_attached_memory_ptr();
-    auto engine = ptr->get_engine();
+    auto* engine = ptr->get_engine();
     auto& stream = engine->get_service_stream();
     auto num_elems = node.get_output_layout().count();
     mem_lock<T, mem_lock_type::read> old_data {ptr, stream};
@@ -901,10 +908,12 @@ bool keep_weights_reorder_shape_consistent(cldnn::layout& layout, const dnnl::me
     layout.set_partial_shape(desc_dims);
     if (layout.get_rank() == desc_dims.size()) {
         return true;
-    } else if (layout.get_rank() == 4 && desc_dims.size() == 3) {
+    }
+    if (layout.get_rank() == 4 && desc_dims.size() == 3) {
         // In the case of a 3D shape, cldnn::layout::get_rank() returns 4.
         return true;
-    } else if (layout.get_rank() == 4 && desc_dims.size() == 5) {
+    }
+    if (layout.get_rank() == 4 && desc_dims.size() == 5) {
         // Since onednn does not support 1D group convolution, a z-axis is added, and format change is required in this case.
         auto is_weights = cldnn::format::is_weights_format(layout.format);
         auto is_grouped = cldnn::format::is_grouped(layout.format);
@@ -913,9 +922,9 @@ bool keep_weights_reorder_shape_consistent(cldnn::layout& layout, const dnnl::me
         if (layout.format == expected_default_format) {
             layout.format = cldnn::format::get_default_format(desc_dims.size(), is_weights, is_grouped);
             return true;
-        } else {
-            OPENVINO_ASSERT(false, "Need default format for axis expansion.");
         }
+        OPENVINO_ASSERT(false, "Need default format for axis expansion.");
+
     } else {
         return false;
     }
@@ -923,8 +932,8 @@ bool keep_weights_reorder_shape_consistent(cldnn::layout& layout, const dnnl::me
 
 size_t get_post_ops_count(const program_node& node) {
     size_t onednn_post_ops_count = 0;
-    for (auto& fo : node.get_fused_primitives()) {
-       onednn_post_ops_count += fo.f_param->ops_count();
+    for (const auto& fo : node.get_fused_primitives()) {
+        onednn_post_ops_count += fo.f_param->ops_count();
     }
 
     return onednn_post_ops_count;
@@ -935,7 +944,7 @@ bool is_supported_post_ops(const program_node& node) {
         return false;
     }
 
-    for (auto& fo : node.get_fused_primitives()) {
+    for (const auto& fo : node.get_fused_primitives()) {
         if (fo.is_type<activation>()) {
             // Some activations aren't implemented in oneDNN
             auto activation_prim = fo.typed_desc<activation>();
@@ -991,8 +1000,7 @@ int get_prelu_mask_from_layouts(const std::function<layout()>& get_output_layout
 
     if (is_scalar)
         return 0;
-    else
-        return (1 << 1);
+    return (1 << 1);
 }
 std::string dnnl_status_to_string(dnnl_status_t status) {
     switch (status) {

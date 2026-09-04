@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import os.path
 from sphinx.directives.code import LiteralInclude, LiteralIncludeReader, container_wrapper
 from sphinx.util import logging
@@ -178,8 +181,7 @@ class DataTable(Directive):
                 csv_table_html += '<tr class="' + parity + '">'
                 for value in row:
                     csv_table_html += '<td><p>%s</p></td>' % value
-            csv_table_html += '</tr>\n</tbody>'
-            csv_table_html += "</tr>"
+                csv_table_html += '</tr>\n'
             csv_table_html += '</tbody></table>'
         csv_node.append(nodes.raw(csv_table_html, csv_table_html, format="html"))
 

@@ -467,8 +467,8 @@ layout layout::with_padding(padding const& padd) const {
 //       this behavior is required to force buffer allocation for smaller buffer which, currently, should always be
 //       performed
 bool layout::compatible(const layout& other) const {
-    auto& l1 = *this;
-    auto& l2 = other;
+    const auto& l1 = *this;
+    const auto& l2 = other;
 
     if (l1.is_dynamic() || l2.is_dynamic())
         return false;
@@ -550,10 +550,7 @@ bool layout::compatible(const layout& other) const {
 
     auto l1_offset = l1.get_linear_offset();
     auto l2_offset = l2.get_linear_offset();
-    if (l1_pitch == l2_pitch && l1_offset == l2_offset)
-        return true;
-
-    return false;
+    return l1_pitch == l2_pitch && l1_offset == l2_offset;
 }
 
 bool layout::identical(const layout& other) const {

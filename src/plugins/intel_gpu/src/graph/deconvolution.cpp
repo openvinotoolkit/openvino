@@ -162,7 +162,7 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
         input_layout.get<ShapeType>()
     };
     std::vector<ShapeType> output_shapes;
-    auto& memory_deps = impl_param.memory_deps;
+    const auto& memory_deps = impl_param.memory_deps;
     // Dimensions order of weights is IOYX, but the selected format is OIYX by default and I/O dimensions are
     // already swapped when creating constant op. So we need to swap I/O dimensions according to the original
     // dimension order for shape inference.

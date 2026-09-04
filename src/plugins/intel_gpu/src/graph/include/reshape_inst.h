@@ -79,6 +79,7 @@ public:
                 axis == 1 &&
                 !input_pshape[1].is_dynamic() &&
                 input_pshape[1].get_length() == 1 &&
+                prim->output_partial_shape.size() >= 2 &&
                 prim->output_partial_shape.size() + 1 == input_pshape.size();
             if (!is_axis1_size1_squeeze)
                 return false;
@@ -101,9 +102,7 @@ public:
             // e.g. [1,C,H,W] -> [1,C,H*W] has pattern [1,-1] => reject
             //      [1,N,H,W,C] -> [N,H,W,C] has pattern [-1,H,W,C] => allow
             auto first_out_pattern = prim->output_pattern[0];
-            if (first_out_pattern == 0 || first_out_pattern == 1)
-                return false;
-            return true;
+            return first_out_pattern != 0 && first_out_pattern != 1;
         }
 
         // TransposeSplitMatcher optimization: when Transpose+Split(axis=0) over a
@@ -136,8 +135,15 @@ public:
         // shape tensor (not a compile-time constant) for the Reshape second input,
         // leaving output_pattern empty — requiring it would incorrectly block this
         // case even though conditions 1–3 are fully sufficient.
+        // Only the TransposeSplitMatcher pattern is safe: crop [batch, 1, H, S] → reshape
+        // drops the size-1 dim → [batch, H, S].  The output must stay ≥ 2D so that the
+        // downstream CM/OCL kernel still has at least one inner stride to carry the offset.
+        // A 2D → 1D squeeze (e.g. NMS bbox-coord split [-1, 4] → [-1, 1] → [-1]) does NOT
+        // meet this condition and must not be optimized — its downstream arithmetic kernels
+        // are compiled without dynamic-padding support.
         if (axis == 1 && !input_pshape[1].is_dynamic() && input_pshape[1].get_length() == 1) {
-            if (prim->output_partial_shape.size() + 1 == input_pshape.size()) {
+            if (prim->output_partial_shape.size() >= 2 &&
+                prim->output_partial_shape.size() + 1 == input_pshape.size()) {
                 return true;
             }
         }
@@ -170,10 +176,7 @@ public:
         // Reject when reshape drops the cropped axis (e.g. [N,M,1] -> [N,M]): no output axis can
         // carry the cropped axis padding, so sibling crop outputs would all point to the same
         // base buffer region (aliased).
-        if (matched_trailing_dims == 0 && output_pshape.size() < input_pshape.size())
-            return false;
-
-        return true;
+        return matched_trailing_dims != 0 || output_pshape.size() >= input_pshape.size();
     }
 
     bool has_padding() const {
@@ -201,11 +204,8 @@ public:
             input_pad._upper_size[1] != 0)
             return false;
 
-        if (format::is_multi_blocked(input_layout.format))
-            return false;
-
         // Outer padding exists. It might need to update padding size of output layout
-        return true;
+        return !format::is_multi_blocked(input_layout.format);
     }
 
     bool is_in_place() const {
@@ -215,10 +215,7 @@ public:
         if (input().get_output_layout(false).data_padding.is_dynamic() && is_runtime_propagatable_padding())
             return true;
 
-        if (has_padding())
-            return false;
-
-        return true;
+        return !has_padding();
     }
 
     void adjust_output_padding() {

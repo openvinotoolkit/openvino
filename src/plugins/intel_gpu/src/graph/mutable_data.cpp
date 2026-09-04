@@ -76,8 +76,7 @@ event::ptr mutable_data_inst::set_output_memory(memory::ptr mem_new, bool check,
     auto ev = primitive_inst::set_output_memory(mem_new, check);
     if (input_ev == nullptr)
         return ev;
-    else
-        return _network.get_stream().group_events({ev, input_ev});
+    return _network.get_stream().group_events({ev, input_ev});
 }
 
 mutable_data_inst::typed_primitive_inst(network& network, mutable_data_node const& node)

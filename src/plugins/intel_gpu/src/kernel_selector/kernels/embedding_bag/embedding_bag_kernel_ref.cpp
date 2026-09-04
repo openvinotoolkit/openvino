@@ -107,9 +107,7 @@ bool EmbeddingBagKernelRef::Validate(const Params& p) const {
     const embedding_bag_params& params = static_cast<const embedding_bag_params&>(p);
 
     auto checkIntType = [](Datatype dt) {
-        if (dt != Datatype::INT32 && dt != Datatype::UINT32)
-            return false;
-        return true;
+        return dt == Datatype::INT32 || dt == Datatype::UINT32;
     };
 
     if (!checkIntType(params.inputs[1].GetDType()))

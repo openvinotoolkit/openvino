@@ -23,10 +23,12 @@ struct std::hash<ov::intel_gpu::SharedBufferHandle> {
 template <>
 struct std::hash<ov::intel_gpu::VirtualAddressMemory> {
     size_t operator()(const ov::intel_gpu::VirtualAddressMemory& mem) const noexcept {
-        // Hash both pointer and size to distinguish different allocations
-        size_t h1 = std::hash<const void*>{}(mem.ptr);
-        size_t h2 = std::hash<int64_t>{}(mem.size);
-        return h1 ^ (h2 << 1);
+        // Hash pointer, size and access mode to distinguish different allocations/imports
+        size_t seed = 0;
+        seed = cldnn::hash_combine(seed, mem.ptr);
+        seed = cldnn::hash_combine(seed, mem.size);
+        seed = cldnn::hash_combine(seed, mem.access);
+        return seed;
     }
 };
 
@@ -139,7 +141,9 @@ static void validate_and_check_shapes(const std::shared_ptr<const ov::ITensor>& 
                     " != dst: ",
                     dst->get_element_type(),
                     ")");
-    OPENVINO_ASSERT(src->get_element_type().bitwidth() >= 8, "[GPU] Unsupported element type for copying: ", src->get_element_type());
+    // Sub-byte types require contiguous (non-ROI) copies
+    OPENVINO_ASSERT(src->get_element_type().bitwidth() >= 8 || roi_shape.empty(),
+                    "[GPU] ROI copy is not supported for sub-byte element type: ", src->get_element_type());
 
     // If it's a simple copy_to/copy_from call, then change dst shape
     if (roi_shape.empty()) {
@@ -170,7 +174,8 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
                                    cldnn::shared_surface surf,
                                    uint32_t plane,
                                    ov::intel_gpu::SharedBufferHandle shared_buffer_handle,
-                                   ov::intel_gpu::VirtualAddressMemory va_mem)
+                                   ov::intel_gpu::VirtualAddressMemory va_mem,
+                                   std::shared_ptr<ov::MappedMemory> mapped_memory)
     : m_context(context)
     , m_element_type(element_type)
     , m_shape(shape)
@@ -180,7 +185,12 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
     , m_surf(surf)
     , m_plane(plane)
     , m_shared_buffer_handle(shared_buffer_handle)
-    , m_va_mem(va_mem) {
+    , m_va_mem(va_mem)
+    , m_mapped_memory(std::move(mapped_memory)) {
+#ifdef OV_GPU_WITH_SYCL_RT
+    // TODO: enable RemoteTensor for SYCL_RT once SYCL interop is wired up.
+    OPENVINO_THROW("[GPU] RemoteTensor is not supported with SYCL runtime yet");
+#endif
     update_hash();
     allocate();
 }
@@ -215,6 +225,22 @@ void RemoteTensorImpl::copy_to(const std::shared_ptr<ov::ITensor>& dst,
     auto dst_remote_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(dst);
     auto shape = roi_shape.empty() ? get_shape() : roi_shape;
 
+    // Sub-byte types use flat contiguous copy
+    if (m_element_type.bitwidth() < 8) {
+        const auto byte_size = get_byte_size();
+        if (dst_remote_tensor != nullptr) {
+            auto src_mem = MemWrapper(stream, get_memory(), nullptr);
+            auto dst_mem = MemWrapper(stream, dst_remote_tensor->get_memory(), nullptr);
+            src_mem.copy_to(dst_mem, src_offset, dst_offset, byte_size);
+        } else {
+            OPENVINO_ASSERT(!std::dynamic_pointer_cast<ov::IRemoteTensor>(dst), "[GPU] Unsupported Remote Tensor type");
+            auto src_mem = MemWrapper(stream, get_memory(), nullptr);
+            auto dst_mem = MemWrapper(stream, nullptr, dst->data());
+            src_mem.copy_to(dst_mem, src_offset, dst_offset, byte_size);
+        }
+        return;
+    }
+
     ov::Strides roi_strides = calculate_strides(shape, m_element_type);
     if (dst_remote_tensor != nullptr) {
         GPU_DEBUG_TRACE_DETAIL << "Copying from RemoteTensor (" << get_memory()->get_allocation_type() << ") to RemoteTensor ("
@@ -248,6 +274,22 @@ void RemoteTensorImpl::copy_from(const std::shared_ptr<const ov::ITensor>& src,
 
     auto& stream = m_context->get_engine().get_service_stream();
     auto src_remote_tensor = std::dynamic_pointer_cast<const RemoteTensorImpl>(src);
+
+    // Sub-byte types use flat contiguous copy
+    if (m_element_type.bitwidth() < 8) {
+        const auto byte_size = get_byte_size();
+        if (src_remote_tensor != nullptr) {
+            auto src_mem = MemWrapper(stream, src_remote_tensor->get_memory(), nullptr);
+            auto dst_mem = MemWrapper(stream, get_memory(), nullptr);
+            src_mem.copy_to(dst_mem, src_offset, dst_offset, byte_size);
+        } else {
+            OPENVINO_ASSERT(!std::dynamic_pointer_cast<const ov::IRemoteTensor>(src), "[GPU] Unsupported Remote Tensor type");
+            auto src_mem = MemWrapper(stream, nullptr, const_cast<void*>(src->data()));
+            auto dst_mem = MemWrapper(stream, get_memory(), nullptr);
+            src_mem.copy_to(dst_mem, src_offset, dst_offset, byte_size);
+        }
+        return;
+    }
 
     ov::Strides roi_strides = calculate_strides(shape, m_element_type);
     if (src_remote_tensor != nullptr) {
@@ -373,10 +415,20 @@ void RemoteTensorImpl::allocate() {
         break;
     }
     case TensorType::BT_CPU_VA: {
-        m_memory_object = engine.create_hostbuffer(m_va_mem.ptr,
-                                        m_va_mem.size > -1 ? m_va_mem.size : m_layout.bytes_count(),
-                                        cldnn::allocation_type::cl_mem,
-                                        m_layout);
+        const auto buffer_size = m_va_mem.size > -1 ? m_va_mem.size : m_layout.bytes_count();
+        if (m_va_mem.access == ov::intel_gpu::AccessMode::READ) {
+            // host_read_only is set for the file-mmap case, since the host side will never write it either.
+            m_memory_object = engine.create_hostbuffer(static_cast<const void*>(m_va_mem.ptr),
+                                            buffer_size,
+                                            cldnn::allocation_type::cl_mem,
+                                            m_layout,
+                                            /*host_read_only=*/m_mapped_memory != nullptr);
+        } else {
+            m_memory_object = engine.create_hostbuffer(m_va_mem.ptr,
+                                            buffer_size,
+                                            cldnn::allocation_type::cl_mem,
+                                            m_layout);
+        }
         break;
     }
 #ifdef _WIN32
@@ -405,7 +457,7 @@ void RemoteTensorImpl::allocate() {
     update_properties();
     update_strides();
 
-    if (enable_caching)
+    if (enable_caching && m_memory_object)
         context->add_to_cache(m_hash, m_memory_object);
 }
 
@@ -424,7 +476,11 @@ bool RemoteTensorImpl::is_shared() const noexcept {
 }
 
 bool RemoteTensorImpl::supports_caching() const {
-    return is_shared();
+#ifdef _WIN32
+    return is_shared() && !m_mapped_memory;
+#else
+    return is_shared() && !m_mapped_memory && m_mem_type != TensorType::BT_SURF_SHARED;
+#endif
 }
 
 void RemoteTensorImpl::update_hash() {
@@ -448,7 +504,7 @@ bool RemoteTensorImpl::is_surface() const noexcept {
 }
 
 cldnn::memory::ptr RemoteTensorImpl::get_memory() const {
-    auto engine = m_memory_object->get_engine();
+    auto* engine = m_memory_object->get_engine();
     return engine->reinterpret_buffer(*m_memory_object, m_layout);
 }
 
@@ -461,7 +517,7 @@ void* RemoteTensorImpl::get_original_memory_buf_ptr() const {
 }
 
 void RemoteTensorImpl::set_memory(cldnn::memory::ptr memory, size_t actual_size) {
-    auto engine = m_memory_object->get_engine();
+    auto* engine = m_memory_object->get_engine();
     m_layout = memory->get_layout();
     m_shape = m_layout.get_shape();
 

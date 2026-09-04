@@ -38,10 +38,7 @@ struct SDPARef : public ImplementationManager {
         if (!one_of(k_layout.data_type, supported_kv_types) || !one_of(v_layout.data_type, supported_kv_types))
             return false;
 
-        if (!one_of(q_layout.data_type, supported_q_types) || !one_of(out_layout.data_type, supported_q_types))
-            return false;
-
-        return true;
+        return one_of(q_layout.data_type, supported_q_types) && one_of(out_layout.data_type, supported_q_types);
     }
 };
 

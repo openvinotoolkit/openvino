@@ -55,6 +55,7 @@ OP_CONVERTER(translate_avg_pool3d);
 OP_CONVERTER(translate_bool);
 OP_CONVERTER(translate_batch_norm);
 OP_CONVERTER(translate_bernoulli);
+OP_CONVERTER(translate_bincount);
 OP_CONVERTER(translate_bitwise_and);
 OP_CONVERTER(translate_bitwise_left_shift);
 OP_CONVERTER(translate_bitwise_not);
@@ -272,6 +273,7 @@ OP_CONVERTER(translate_t);
 OP_CONVERTER(translate_take_along_dim);
 OP_CONVERTER(translate_to);
 OP_CONVERTER(translate_topk);
+OP_CONVERTER(translate_transformer_encoder_layer_fwd);
 OP_CONVERTER(translate_transpose);
 OP_CONVERTER(translate_tril);
 OP_CONVERTER(translate_triu);
@@ -403,6 +405,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::_pad_packed_sequence", op::translate_pad_packed_sequence},
         {"aten::_set_item", op::translate_set_item},
         {"aten::_shape_as_tensor", op::translate_shape_as_tensor},
+        {"aten::_transformer_encoder_layer_fwd", op::translate_transformer_encoder_layer_fwd},
         {"aten::_unique2", op::translate_unique2},
         {"aten::_upsample_bicubic2d_aa", op::translate_upsample_bicubic2d_aa},
         {"aten::_upsample_bilinear2d_aa", op::translate_upsample_bilinear2d_aa},
@@ -459,6 +462,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::baddbmm", op::translate_addmm},
         {"aten::batch_norm", op::translate_batch_norm},
         {"aten::bernoulli", op::translate_bernoulli},
+        {"aten::bincount", op::translate_bincount},
         {"aten::bitwise_and", op::translate_bitwise_and},
         {"aten::bitwise_left_shift", op::translate_bitwise_left_shift},
         {"aten::bitwise_not", op::translate_bitwise_not},
@@ -890,6 +894,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"openvino.paged_attention.default", op::translate_openvino_paged_attention},
         {"aten._softmax.default", op::translate_softmax_fx},
         {"aten._to_copy.default", op::translate_to_fx},
+        {"aten._transformer_encoder_layer_fwd.default", op::translate_transformer_encoder_layer_fwd},
         {"aten._unsafe_view.default", op::translate_reshape},
         {"aten.abs.default", op::translate_1to1_match_1_inputs<opset10::Abs>},
         {"aten.absolute.default", op::translate_1to1_match_1_inputs<opset10::Abs>},

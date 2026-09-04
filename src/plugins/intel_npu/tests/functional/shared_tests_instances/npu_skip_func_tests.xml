@@ -47,6 +47,61 @@ Example:
     </skip_config>
 
     <skip_config>
+        <message>Data type u1 not supported by NPU</message>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u1\D.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Data type u2 and 4-bit network outputs not supported by NPU3720</message>
+        <enable_rules>
+            <device>3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u2.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=i4.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u4.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=nf4.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u2.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=i4.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u4.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=nf4.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Data type f4e2m1 not supported by NPU</message>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=f4e2m1.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=f4e2m1.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Data type f8e8m0 not supported by NPU</message>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=f8e8m0.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=f8e8m0.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Data types f8e4m3, f8e5m2 not supported by NPU3720, NPU4000</message>
+        <enable_rules>
+            <device>3720</device>
+            <device>4000</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=f8e4m3.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=f8e5m2.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=f8e4m3.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=f8e5m2.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
         <message>Data types not supported by NPU3720 PV Driver.</message>
         <enable_rules>
             <device>3720</device>
@@ -54,8 +109,6 @@ Example:
         </enable_rules>
         <filters>
             <filter>.*InferRequestIOTensorSetPrecisionTest.*type=boolean.*</filter>
-            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=i4.*</filter>
-            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u4.*</filter>
             <filter>.*InferRequestIOTensorSetPrecisionTest.*type=i16.*</filter>
             <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u16.*</filter>
             <filter>.*InferRequestIOTensorSetPrecisionTest.*type=bf16.*</filter>
@@ -79,9 +132,6 @@ Example:
     <!-- E#108600 -->
     <skip_config>
         <message>Unsupported NPU properties</message>
-        <enable_rules>
-            <backend>LEVEL0</backend>
-        </enable_rules>
         <filters>
             <filter>.*OVCheckMetricsPropsTests_ModelDependceProps.*</filter>
         </filters>
@@ -99,22 +149,9 @@ Example:
         </filters>
     </skip_config>
 
-    <skip_config>
-        <message>Output I4 / U4 precision is not currently supported.</message>
-        <filters>
-            <filter>.*smoke.*OVInferRequestCheckTensorPrecision.*type=i4.*</filter>
-            <filter>.*smoke.*OVInferRequestCheckTensorPrecision.*type=u4.*</filter>
-            <filter>.*smoke.*OVInferRequestIOTensorSetPrecisionTestNPU.*type=i4.*</filter>
-            <filter>.*smoke.*OVInferRequestIOTensorSetPrecisionTestNPU.*type=u4.*</filter>
-        </filters>
-    </skip_config>
-
     <!-- E#112064 -->
     <skip_config>
         <message>INFERENCE_PRECISION_HINT = FP32 not supported on NPU</message>
-        <enable_rules>
-            <backend>LEVEL0</backend>
-        </enable_rules>
         <filters>
             <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel_Accuracy_SingleCore.*</filter>
             <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel_Accuracy_MultipleCores.*</filter>
@@ -137,9 +174,6 @@ Example:
     <!-- E#133153 -->
     <skip_config>
         <message>Failing properties tests</message>
-        <enable_rules>
-            <backend>LEVEL0</backend>
-        </enable_rules>
         <filters>
             <filter>.*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*DEVICE_ID.*</filter>
         </filters>
@@ -148,9 +182,6 @@ Example:
     <!-- E####### -->
     <skip_config>
         <message>Test will set NPU_TILES to -1 which is an invalid value, in this case default values don't work</message>
-        <enable_rules>
-            <backend>LEVEL0</backend>
-        </enable_rules>
         <filters>
             <filter>.*OVCompiledModelPropertiesDefaultSupportedTests.CanCompileWithDefaultValueFromPlugin.*</filter>
         </filters>
@@ -210,28 +241,17 @@ Example:
     <skip_config>
         <message>compiled_blob test use `CACHE_MODE` which is not supported on NPU</message>
         <filters>
-            <filter>.*smoke_BehaviorTests/OVCompiledModelBaseTest.compile_from_regular_blob/.*</filter>
-            <filter>.*smoke_BehaviorTests/OVCompiledModelBaseTest.compile_from_weightless_blob_but_no_weights/.*</filter>
-            <filter>.*smoke_BehaviorTests/OVCompiledModelBaseTest.compile_from_cached_weightless_blob_use_weight_hint/.*</filter>
-            <filter>.*smoke_BehaviorTests/OVCompiledModelBaseTest.use_blob_hint_has_priority_over_cache/.*</filter>
-            <filter>.*smoke_BehaviorTests/OVCompiledModelBaseTest.use_blob_hint_has_priority_over_cache_but_weights_bind_from_model_hint/.*</filter>
-            <filter>.*smoke_BehaviorTests/OVCompiledModelBaseTest.use_blob_hint_has_priority_over_cache_but_weights_from_model_path/.*</filter>
-            <filter>.*smoke_BehaviorTests/OVCompiledModelBaseTest.compile_from_cached_weightless_blob_but_no_weights/.*</filter>
-            <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.use_blob_hint_has_priority_over_cache/.*</filter>
-            <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.use_blob_hint_has_priority_over_cache_but_weights_bind_from_model_hint/.*</filter>
-            <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.use_blob_hint_has_priority_over_cache_but_weights_from_model_path/.*</filter>
-            <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.compile_from_cached_weightless_blob_but_no_weights/.*</filter>
-            <filter>.*smoke_BehaviorTests/OVCompiledModelBaseTest.import_from_weightless_blob/.*</filter>
-            <filter>.*smoke_BehaviorTests/OVCompiledModelBaseTest.compile_from_weightless_blob/.*</filter>
-            <filter>.*smoke_BehaviorTests/OVCompiledModelBaseTest.compile_from_cached_weightless_blob_no_hint/.*</filter>
-            <filter>.*smoke_BehaviorTests/OVCompiledModelBaseTest.use_blob_hint_which_fails_load_from_cache/.*</filter>
-            <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.compile_from_cached_weightless_blob_use_weight_hint/.*</filter>
-            <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.use_blob_hint_which_fails_load_from_cache/.*</filter>
-            <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.import_from_weightless_blob/.*</filter>
-            <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.compile_from_regular_blob/.*</filter>
-            <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.compile_from_weightless_blob/.*</filter>
-            <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.compile_from_weightless_blob_but_no_weights/.*</filter>
-            <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.compile_from_cached_weightless_blob_no_hint/.*</filter>
+            <filter>.*OVCompiledModelBaseTest.compile_from_cached_weightless_blob_no_hint/.*</filter>
+            <filter>.*OVCompiledModelBaseTest.compile_from_cached_weightless_blob_but_no_weights/.*</filter>
+            <filter>.*OVCompiledModelBaseTest.compile_from_cached_weightless_blob_use_weight_hint/.*</filter>
+            <filter>.*OVCompiledModelBaseTest.compile_from_regular_blob/.*</filter>
+            <filter>.*OVCompiledModelBaseTest.compile_from_weightless_blob/.*</filter>
+            <filter>.*OVCompiledModelBaseTest.compile_from_weightless_blob_but_no_weights/.*</filter>
+            <filter>.*OVCompiledModelBaseTest.import_from_weightless_blob/.*</filter>
+            <filter>.*OVCompiledModelBaseTest.use_blob_hint_has_priority_over_cache/.*</filter>
+            <filter>.*OVCompiledModelBaseTest.use_blob_hint_has_priority_over_cache_but_weights_from_model_path/.*</filter>
+            <filter>.*OVCompiledModelBaseTest.use_blob_hint_has_priority_over_cache_but_weights_bind_from_model_hint/.*</filter>
+            <filter>.*OVCompiledModelBaseTest.use_blob_hint_which_fails_load_from_cache/.*</filter>
         </filters>
     </skip_config>
 
@@ -240,33 +260,6 @@ Example:
         <message>Non "developer build" CiDs don't support weights separation yet</message>
         <filters>
             <filter>.*WeightsSeparationIterativeTests.*DRIVER.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- E#170977 -->
-    <skip_config>
-        <message>Data type u1/u2 not supported by NPU3720.</message>
-        <enable_rules>
-            <device>3720</device>
-        </enable_rules>
-        <filters>
-            <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
-            <filter>.*InferRequestCheckTensorPrecision.*type=u2.*</filter>
-            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u1\D.*</filter>
-            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u2.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- E###### -->
-    <skip_config>
-        <message>Data type u1 not supported by NPU4000 and NPU5010.</message>
-        <enable_rules>
-            <device>4000</device>
-            <device>5010</device>
-        </enable_rules>
-        <filters>
-            <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
-            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u1\D.*</filter>
         </filters>
     </skip_config>
 
@@ -281,9 +274,10 @@ Example:
 
     <!-- C#191861 -->
     <skip_config>
-        <message>Blobs for OVBlobCompatibilityNPU need to be updated for NPU5010</message>
+        <message>Blobs for OVBlobCompatibilityNPU need to be updated for NPU5010 and NPU6010</message>
         <enable_rules>
             <device>5010</device>
+            <device>6010</device>
         </enable_rules>
         <filters>
             <filter>.*OVBlobCompatibilityNPU.*</filter>
@@ -316,9 +310,6 @@ Example:
     <!-- C#187111 -->
     <skip_config>
         <message>TiWithLstmCell model won't provide `WeightlessCacheAttribute` in constants' rt_info</message>
-        <enable_rules>
-            <backend>LEVEL0</backend>
-        </enable_rules>
         <filters>
             <filter>.*WeightlessCacheAccuracy.TiWithLstmCell.*ENABLE_WEIGHTLESS.*</filter>
         </filters>
@@ -327,9 +318,6 @@ Example:
     <!-- C#185847 -->
     <skip_config>
         <message>Write only (WO) properties will return empty ov::Any objects</message>
-        <enable_rules>
-            <backend>LEVEL0</backend>
-        </enable_rules>
         <filters>
             <filter>.*OVClassCompiledModelPropertiesTests.canCompileModelWithPropertiesAndCheckGetProperty.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
             <filter>.*OVPropertiesTests.canSetPropertyAndCheckGetProperty.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
@@ -342,7 +330,6 @@ Example:
     <skip_config>
         <message>UD12 driver does not support CACHE_ENCRYPTION_CALLBACKS on MTL</message>
         <enable_rules>
-            <backend>LEVEL0</backend>
             <device>3720</device>
             <driver_version>2020568</driver_version>
         </enable_rules>
@@ -358,7 +345,6 @@ Example:
     <skip_config>
         <message>UD12 driver does not support secure compilation</message>
         <enable_rules>
-            <backend>LEVEL0</backend>
             <driver_version>2020568</driver_version>
         </enable_rules>
         <filters>
@@ -391,7 +377,6 @@ Example:
     <skip_config>
         <message>Test failed with compile error.</message>
         <enable_rules>
-            <backend>LEVEL0</backend>
             <device>3720</device>
         </enable_rules>
         <filters>

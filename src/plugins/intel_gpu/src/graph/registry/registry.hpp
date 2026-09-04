@@ -18,11 +18,7 @@
     #define OV_GPU_WITH_SYCL 0
 #endif
 
-#ifdef OV_GPU_WITH_SYCL_RT
-#define OV_GPU_WITH_OCL 0
-#else
 #define OV_GPU_WITH_OCL 1
-#endif
 #define OV_GPU_WITH_COMMON 1
 #define OV_GPU_WITH_CPU 1
 #ifdef ENABLE_CM_FOR_GPU
@@ -153,6 +149,7 @@ REGISTER_IMPLS(gated_mlp);
 REGISTER_IMPLS(gather);
 REGISTER_IMPLS(gather_nd);
 REGISTER_IMPLS(gated_delta_net);
+REGISTER_IMPLS(selective_ssm);
 REGISTER_IMPLS(gemm);
 REGISTER_IMPLS(group_normalization);
 REGISTER_IMPLS(loop);
@@ -160,9 +157,11 @@ REGISTER_IMPLS(lora);
 REGISTER_IMPLS(lstm_cell);
 REGISTER_IMPLS(lstm_seq);
 REGISTER_IMPLS(gru_seq);
+REGISTER_IMPLS(mvn);
 REGISTER_IMPLS(non_max_suppression);
 REGISTER_IMPLS(paged_attention);
 REGISTER_IMPLS(paged_gated_delta_net);
+REGISTER_IMPLS(paged_selective_ssm);
 REGISTER_IMPLS(pa_kv_reorder);
 REGISTER_IMPLS(paged_causal_conv1d);
 REGISTER_IMPLS(pooling);
@@ -222,7 +221,6 @@ REGISTER_DEFAULT_IMPLS(lrn, OCL_S);
 REGISTER_DEFAULT_IMPLS(multiclass_nms, OCL_S);
 REGISTER_DEFAULT_IMPLS(multinomial, OCL_S);
 REGISTER_DEFAULT_IMPLS(mutable_data, OCL_S);
-REGISTER_DEFAULT_IMPLS(mvn, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(matrix_nms, OCL_S);
 REGISTER_DEFAULT_IMPLS(normalize, OCL_S);
 REGISTER_DEFAULT_IMPLS(one_hot, OCL_S);

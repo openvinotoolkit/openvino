@@ -8,6 +8,7 @@
 
 #include "base_sync_infer_request.hpp"
 #include "llm_compiled_model.hpp"
+#include "llm_continuation.hpp"
 #include "llm_eagle3_extension.hpp"
 #include "llm_infer_base_request.hpp"
 #include "llm_kvcache_strategy.hpp"
@@ -21,6 +22,9 @@ namespace ov {
 namespace test {
 namespace npuw {
 struct LLMVariantSwitchTestAccess;
+struct LLMTrimKVCacheTestAccess;
+struct LLMPortNameRegistrationTestAccess;
+struct LLMContinuedPrefillTestAccess;
 }  // namespace npuw
 }  // namespace test
 }  // namespace ov
@@ -100,8 +104,29 @@ protected:
     void infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                         ov::SoPtr<ov::ITensor> attention_mask,
                         ov::SoPtr<ov::ITensor> position_ids,
-                        ov::SoPtr<ov::ITensor> token_type_ids,
                         ov::SoPtr<ov::ITensor> per_layer_inputs);
+
+    // Continuation counterpart of prepare_for_new_conversation(), run by
+    // infer_prefill() when a granted keep is armed. Validates the delta inputs,
+    // repacks the preserved prefix through the strategy, restores the history
+    // attention mask and selects the generate variant. The KV state and the
+    // lincache are left alone.
+    void prepare_for_continued_prefill(uint32_t keep,
+                                       ov::SoPtr<ov::ITensor> input_ids,
+                                       ov::SoPtr<ov::ITensor> attention_mask,
+                                       ov::SoPtr<ov::ITensor> position_ids);
+    // Validates the delta position ids as a sequence against the latched baseline
+    // and the delta length.
+    void validate_continued_position_ids(const ov::SoPtr<ov::ITensor>& position_ids,
+                                         uint32_t keep,
+                                         uint32_t delta_len) const;
+
+    // Zeroes the prefill model's staging inputs (input ids, token type ids,
+    // attention mask, position ids, per-layer inputs), leaving KV state alone.
+    void zero_prefill_staging();
+    // Selects the generate variant for the given prompt length and rebinds the
+    // request, its port maps and the variant index together.
+    void bind_generate_variant(int64_t prompt_length);
 
     // Multiple generate inference request variants, each with a different KV cache size
     std::vector<std::shared_ptr<ov::IAsyncInferRequest>> m_generate_requests;
@@ -161,6 +186,14 @@ protected:
     // Support reset of stored tokens to 0 from external pipeline
     ov::SoPtr<ov::npuw::StoredTokensState> m_stored_tokens_state;
 
+    // Continuous prefill transaction coordinator, disabled unless the compiled model
+    // reports the capability.
+    ContinuationCoordinator m_continuation;
+    // Absolute KV position the current chunked prefill started at. Non-zero only while
+    // a continued prefill is running, where the caller tensors hold just the delta and
+    // must be indexed relative to this base.
+    uint32_t m_continued_prefill_base = 0u;
+
     // Support LoRA
     std::vector<ov::SoPtr<ov::IVariableState>> m_variableStates;
     void init_lora_states();
@@ -187,6 +220,9 @@ protected:
     friend class LLMBlockKVCacheStrategy;
     friend class PrefixCachingHelper;
     friend struct ov::test::npuw::LLMVariantSwitchTestAccess;
+    friend struct ov::test::npuw::LLMTrimKVCacheTestAccess;
+    friend struct ov::test::npuw::LLMPortNameRegistrationTestAccess;
+    friend struct ov::test::npuw::LLMContinuedPrefillTestAccess;
 };
 
 }  // namespace npuw

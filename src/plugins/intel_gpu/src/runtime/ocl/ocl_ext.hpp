@@ -583,7 +583,7 @@ public:
     }
 
     //! \brief Default constructor - initializes to NULL.
-    ImageVA() { }
+    ImageVA() = default;
 
     /*! \brief Constructor from cl_mem - takes ownership.
     *
@@ -607,16 +607,12 @@ public:
     /*! \brief Copy constructor to forward copy to the superclass correctly.
     * Required for MSVC.
     */
-    ImageVA(const ImageVA& img) :
-        Image2D(img) {}
+    ImageVA(const ImageVA& img) = default;
 
     /*! \brief Copy assignment to forward copy to the superclass correctly.
     * Required for MSVC.
     */
-    ImageVA& operator = (const ImageVA &img) {
-        Image2D::operator=(img);
-        return *this;
-    }
+    ImageVA& operator = (const ImageVA &img) = default;
 
     /*! \brief Move constructor to forward move to the superclass correctly.
     * Required for MSVC.
@@ -767,7 +763,7 @@ private:
 class PlatformVA : public Platform {
 public:
     //! \brief Default constructor - initializes to NULL.
-    PlatformVA() { }
+    PlatformVA() = default;
 
     explicit PlatformVA(const cl_platform_id &platform, bool retainObject = false) :
         Platform(platform, retainObject) { }
@@ -1047,21 +1043,21 @@ public:
 
     void allocateHost(size_t size, const cl_mem_properties_intel* properties = nullptr) {
         cl_int error = CL_SUCCESS;
-        auto ptr = _usmHelper.allocate_host(properties, size, 0, &error);
+        auto* ptr = _usmHelper.allocate_host(properties, size, 0, &error);
         _check_error(size, ptr, error, "Host");
         _allocate(ptr);
     }
 
     void allocateShared(size_t size, const cl_mem_properties_intel* properties = nullptr) {
         cl_int error = CL_SUCCESS;
-        auto ptr = _usmHelper.allocate_shared(properties, size, 0, &error);
+        auto* ptr = _usmHelper.allocate_shared(properties, size, 0, &error);
         _check_error(size, ptr, error, "Shared");
         _allocate(ptr);
     }
 
     void allocateDevice(size_t size, const cl_mem_properties_intel* properties = nullptr) {
         cl_int error = CL_SUCCESS;
-        auto ptr = _usmHelper.allocate_device(properties, size, 0, &error);
+        auto* ptr = _usmHelper.allocate_device(properties, size, 0, &error);
         _check_error(size, ptr, error, "Device");
         _allocate(ptr);
     }
@@ -1089,8 +1085,7 @@ private:
             sout << "[CL ext] Can not allocate " << size << " bytes for USM " << usm_type << ". ptr: " << ptr << ", error: " << error << std::endl;
             if (ptr == nullptr)
                 throw std::runtime_error(sout.str());
-            else
-                detail::errHandler(error, sout.str().c_str());
+            detail::errHandler(error, sout.str().c_str());
         }
     }
 };
