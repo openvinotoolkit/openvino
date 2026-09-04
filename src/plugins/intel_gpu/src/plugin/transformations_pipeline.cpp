@@ -123,6 +123,7 @@
 #include "plugin/transformations/disable_fp16_comp_direct_multiply_sin_cos.hpp"
 #include "plugin/transformations/disable_fp16_comp_gated_residual.hpp"
 #include "plugin/transformations/disable_fp16_comp_rms.hpp"
+#include "plugin/transformations/disable_fp16_comp_qwen3_omni_suffix.hpp"
 #include "plugin/transformations/swiglu_fusion_with_clamp.hpp"
 #include "plugin/transformations/disable_fp16_comp_cumsum_sin_gen.hpp"
 #include "plugin/transformations/disable_fp16_comp_sin_gen.hpp"
@@ -707,8 +708,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
         }
 
-        type_to_fuse_map empty_fuse_map = {};
-
         // fuse softmax, MVN patterns, so that they will not be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::SoftmaxFusion>();
         manager.register_pass<ov::pass::MVNFusion>();
@@ -765,9 +764,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->set_callback<DisableFP16ComSinGenPatternForHiFiGAN>(
             [](const_node_ptr& node) -> bool { return ov::is_conversion_disabled(node, ov::element::f16); });
         manager.register_pass<DisableFP16ComSinGenPatternForHiFiGAN>();
-        const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
-        const bool store_original_precision_as_rt_attribute = true;
         const auto add_precision_sensitive_convert = true;
 
         manager.register_pass<ov::pass::KeepDequantizationPrecision>(
@@ -779,11 +776,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::KeepGQAKVScalePrecision>();
         manager.register_pass<ov::intel_gpu::EliminateEmptySelectiveSSM>();
 
-        manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
-                                                          empty_fuse_map,
-                                                          keep_precision_sensitive_in_fp32_1,
-                                                          convert_input_output_precision,
-                                                          store_original_precision_as_rt_attribute);
+        manager.register_pass<ConvertPrecisionForQwen3OmniCodePredictor>(fp_convert_precision_map);
 
         // The one_hot primitive takes on/off as compile time values,
         // so OneHot ops fed by a runtime scalar are turned into a boolean mask + Select.
