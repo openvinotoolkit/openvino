@@ -551,8 +551,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             case ov::element::f16: return device_info.supports_fp16;
             case ov::element::f32: return true; // assume that all GPUs support f32 data type
             case ov::element::f64: return device_info.supports_fp64;
-            // TODO: Remove get_use_onednn() guard once OCL kernels support bf16
-            case ov::element::bf16: return device_info.supports_immad && config.get_use_onednn();
+            case ov::element::bf16: return device_info.supports_immad;
             default: return false;
         }
         return false;
@@ -942,11 +941,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const auto& value_ps = sdpa->get_input_partial_shape(2);
 
             // Known limitations:
-            // - The data type of SDPA should be fp16
-            if (sdpa->get_output_element_type(0) != ov::element::f16)
+            // - The data type of SDPA should be fp16 or bf16
+            if (sdpa->get_output_element_type(0) != ov::element::f16 &&
+                sdpa->get_output_element_type(0) != ov::element::bf16)
                 return false;
 
-            // - The attn mask type of SDPA should be fp16
+            // - The attn mask type of SDPA should be fp16 or bf16
             if (!sdpa->get_causal() && sdpa->get_input_size() >= 4 && sdpa->get_input_element_type(3) == ov::element::boolean) {
                 return false;
             }

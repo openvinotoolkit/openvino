@@ -174,6 +174,33 @@ DEF_BLOCK2D_LOAD_STORE(half, ushort, 16, 16, u16_m8k32v1, 32, 8)
                 = __builtin_convertvector(t.x[i], __typeof__(t_new.x[i])); \
     } while (0)
 
+#define tile_copy_to_bf16x2(t, t_new) \
+    do { \
+        _Pragma("unroll") for (int i = 0; i < sizeof(t.x) / sizeof(t.x[0]); \
+                               i++) { \
+            _Pragma("unroll") for (int s = 0; \
+                                   s < sizeof(t.x[0]) / sizeof(t.x[0][0]) / 2; \
+                                   s++) { \
+                float2 fv = {t.x[i][2 * s], t.x[i][2 * s + 1]}; \
+                t_new.x[i][s] = as_uint(_convert_bfloat162_as_ushort2(fv)); \
+            } \
+        } \
+    } while (0)
+
+// Reinterpret each element of a half tile as bf16 bits and convert to float,
+// storing the result into a float tile of matching shape.
+#define tile_copy_bf16bits_to_float(t, t_new) \
+    do { \
+        _Pragma("unroll") for (int i = 0; i < sizeof(t.x) / sizeof(t.x[0]); \
+                               i++) { \
+            _Pragma("unroll") for (int s = 0; \
+                                   s < sizeof(t.x[0]) / sizeof(t.x[0][0]); \
+                                   s++) { \
+                t_new.x[i][s] = _convert_as_bfloat16_float(as_ushort(t.x[i][s])); \
+            } \
+        } \
+    } while (0)
+
 #define tile_copy_to_half2(t, t_new) \
     do { \
         _Pragma("unroll") for (int i = 0; i < sizeof(t.x) / sizeof(t.x[0]); \
@@ -473,6 +500,18 @@ DEF_BLOCK2D_LOAD_STORE(half, ushort, 16, 16, u16_m8k32v1, 32, 8)
             _Pragma("unroll") for (int i0 = 0; i0 < br0 * nbr0; i0 += sg0) { \
                 tile_access(*t1, i0, j, sg1, br1, bc1, nbr1) \
                         = tile_access(t0, i0, j, sg0, br0, bc0, nbr0); \
+            } \
+        } \
+    }
+
+#define DECLARE_2D_TILE_COPY_REBLOCK_TO_BF16BITS(tile_type0, sg0, br0, bc0, nbr0, nbc0, \
+        tile_type1, sg1, br1, bc1, nbr1, nbc1) \
+    __attribute__((overloadable)) void tile_copy_reblock_to_bf16bits( \
+            tile_type0 t0, tile_type1 *t1) { \
+        _Pragma("unroll") for (int j = 0; j < bc0 * nbc0; j++) { \
+            _Pragma("unroll") for (int i0 = 0; i0 < br0 * nbr0; i0 += sg0) { \
+                tile_access(*t1, i0, j, sg1, br1, bc1, nbr1) \
+                        = as_half(_convert_bfloat16_as_ushort(convert_float(tile_access(t0, i0, j, sg0, br0, bc0, nbr0)))); \
             } \
         } \
     }
