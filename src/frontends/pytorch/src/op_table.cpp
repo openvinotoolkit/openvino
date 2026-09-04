@@ -26,6 +26,8 @@ OP_CONVERTER(translate_adaptive_avg_pool2d);
 OP_CONVERTER(translate_adaptive_avg_pool1d);
 OP_CONVERTER(translate_adaptive_max_pool3d);
 OP_CONVERTER(translate_adaptive_max_pool2d);
+OP_CONVERTER(translate_fractional_max_pool2d);
+OP_CONVERTER(translate_fractional_max_pool3d);
 OP_CONVERTER(translate_adaptive_max_pool1d);
 OP_CONVERTER(translate_add);
 OP_CONVERTER(translate_add_);
@@ -309,6 +311,8 @@ OP_CONVERTER(translate_xor);
 OP_CONVERTER(translate_adaptive_max_pool1d_fx);
 OP_CONVERTER(translate_adaptive_max_pool2d_fx);
 OP_CONVERTER(translate_adaptive_max_pool3d_fx);
+OP_CONVERTER(translate_fractional_max_pool2d_fx);
+OP_CONVERTER(translate_fractional_max_pool3d_fx);
 OP_CONVERTER(translate_addcmul_fx);
 OP_CONVERTER(translate_addmm_fx);
 OP_CONVERTER(translate_any_fx);
@@ -424,6 +428,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::adaptive_max_pool1d", op::quantizable_op<op::translate_adaptive_max_pool1d>},
         {"aten::adaptive_max_pool2d", op::quantizable_op<op::translate_adaptive_max_pool2d>},
         {"aten::adaptive_max_pool3d", op::quantizable_op<op::translate_adaptive_max_pool3d>},
+        {"aten::fractional_max_pool2d", op::quantizable_op<op::translate_fractional_max_pool2d>},
+        {"aten::fractional_max_pool3d", op::quantizable_op<op::translate_fractional_max_pool3d>},
         {"aten::add", op::translate_add},
         {"aten::add_", op::translate_add_},
         {"aten::addcmul", op::translate_addcmul},
@@ -901,6 +907,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.adaptive_max_pool1d.default", op::translate_adaptive_max_pool1d_fx},
         {"aten.adaptive_max_pool2d.default", op::translate_adaptive_max_pool2d_fx},
         {"aten.adaptive_max_pool3d.default", op::translate_adaptive_max_pool3d_fx},
+        {"aten.fractional_max_pool2d.default", op::translate_fractional_max_pool2d_fx},
+        {"aten.fractional_max_pool3d.default", op::translate_fractional_max_pool3d_fx},
         {"aten.add.Scalar", op::translate_add},
         {"aten.add.Tensor", op::translate_add},
         {"aten.add_.Tensor", op::translate_add},
