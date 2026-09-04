@@ -148,7 +148,10 @@ protected:
     void initialize_moe_executor();
 
     FuncMemMgr m_func_mem_mgr;                       // Owns memory
-    std::map<LinkFrom, TensorPtr> m_funcall_result;  // Provides a convenient link
+    // Mutable so alloc_global_out() (a const override) can lazily cache a global-output tensor
+    // here when the caller did not supply one, keeping the funcall result and the global Result
+    // bound to the same buffer.
+    mutable std::map<LinkFrom, TensorPtr> m_funcall_result;  // Provides a convenient link
 
     bool is_pipelined(std::size_t idx) const;
     bool m_use_function_pipelining = false;

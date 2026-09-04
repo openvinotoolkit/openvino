@@ -192,8 +192,16 @@ void ov::npuw::FuncMemMgr::assign_memory() {
             const auto& proto_comp_model_desc = m_model->m_compiled_submodels[real_idx];
 
             const auto num_outs = proto_comp_model_desc.compiled_model->outputs().size();
+            const auto& global_outs = m_model->m_outputs_to_submodels_outputs;
             for (std::size_t out_idx = 0u; out_idx < num_outs; out_idx++) {
                 const LinkFrom this_out = LinkFrom{idx, out_idx};
+                // Funcall outputs that are also global model outputs are provided in-place by the
+                // caller (e.g. an in-place KV cache where present == past), so pre-allocating a
+                // full-size buffer here is wasted memory. Skip; alloc_global_out() lazily allocates
+                // only if the caller never supplies the tensor.
+                if (std::find(global_outs.begin(), global_outs.end(), this_out) != global_outs.end()) {
+                    continue;
+                }
                 assign(this_out);
             }
         }
@@ -272,7 +280,8 @@ void ov::npuw::FuncMemMgr::assign(const LinkFrom& from) {
 }
 
 ov::npuw::TensorPtr ov::npuw::FuncMemMgr::get_tensor(const LinkFrom& from) {
-    return m_table.at(from);
+    const auto it = m_table.find(from);
+    return it == m_table.end() ? TensorPtr{} : it->second;
 }
 
 ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
@@ -586,10 +595,18 @@ void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& po
 ov::npuw::TensorPtr ov::npuw::JustInferRequest::alloc_global_out(std::size_t out_idx) const {
     const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(out_idx);
     auto funcall_result_iter = m_funcall_result.find(from_submodel);
-    if (funcall_result_iter != m_funcall_result.end()) {
+    if (funcall_result_iter != m_funcall_result.end() && funcall_result_iter->second._ptr) {
         return funcall_result_iter->second;
     }
-    return IBaseInferRequest::alloc_global_out(out_idx);
+    // This funcall output is also a global model output whose eager buffer was intentionally
+    // skipped in assign_memory(). The caller has not supplied a tensor for it, so allocate one
+    // lazily and cache it in m_funcall_result, so function_prologue() binds the SAME buffer to
+    // the subrequest output -- preserving the zero-copy link to the global Result.
+    auto tensor = IBaseInferRequest::alloc_global_out(out_idx);
+    if (funcall_result_iter != m_funcall_result.end()) {
+        funcall_result_iter->second = tensor;
+    }
+    return tensor;
 }
 
 void ov::npuw::JustInferRequest::connect_subrequests() {
@@ -837,6 +854,19 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
         LOG_DEBUG("Binding result[" << i << "]...");
         auto& oport = func_desc.compiled_model->outputs()[i];
         auto o_tensor = m_funcall_result.at({idx, i});
+        if (!o_tensor._ptr) {
+            // The eager buffer for this funcall output was intentionally skipped in
+            // assign_memory() because it is also a global model output (typically bound in-place
+            // by the caller). Since the caller has not supplied a tensor, allocate one lazily now
+            // (mirroring the eager path's device/shape) and cache it, so this funcall output and
+            // the global Result - obtained later via alloc_global_out() - share the same buffer.
+            ov::Shape oshape = oport.get_shape();
+            if (is_spatial) {
+                oshape[func_desc.spatial->out_dim] = func_desc.spatial->range;
+            }
+            o_tensor = allocMem(oport.get_element_type(), oshape, m_npuw_model->funcall_mem_device(real_idx));
+            m_funcall_result.at({idx, i}) = o_tensor;
+        }
         if (ov::npuw::moe::has_compiled_experts(func_desc.pipeline)) {
             // MoE case - delegate to executor for output binding
             m_moe_executor->function_prologue_moe_output(idx, i, o_tensor);

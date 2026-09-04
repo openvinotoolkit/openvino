@@ -527,4 +527,78 @@ TEST_F(SubgraphBehaviorInferTest, DynAttnBehaviorNotAttachedWithoutAttnIsolation
         << "DynAttnBehavior must NOT be attached when NPUW_ONLINE_ISOLATE=ATTN is not set";
 }
 
+// --- Lazy allocation of global funcall outputs ---
+//
+// A funcall output that is also a global model output is bound in place by the caller in the
+// common LLM case (an in-place KV cache where present == past).  Pre-allocating a full-size
+// buffer for it in FuncMemMgr::assign_memory() is wasted memory, so it is skipped and allocated
+// lazily instead.  These tests drive both resulting paths through the public infer API.
+
+// Count global model outputs that are produced by a folded function (funcall) - i.e. the outputs
+// whose eager buffer the optimization skips.
+std::size_t count_funcall_global_outputs(const std::shared_ptr<ov::npuw::CompiledModel>& compiled) {
+    std::size_t n = 0;
+    for (const auto& to : compiled->m_outputs_to_submodels_outputs) {
+        if (compiled->m_compiled_submodels[to.first].replaced_by.has_value()) {
+            ++n;
+        }
+    }
+    return n;
+}
+
+TEST_F(SubgraphBehaviorInferTest, GlobalFuncallOutputsAreAllocatedLazily) {
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    auto model = build_static_llm_model();
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, base_props());
+    ASSERT_GT(count_funcall_global_outputs(compiled), 0u)
+        << "test model must expose at least one global model output produced by a funcall";
+
+    auto request = compiled->create_infer_request();
+    ASSERT_NE(request, nullptr);
+
+    // The caller binds no output tensor, so the funcall global outputs (whose eager buffer was
+    // skipped) must be allocated lazily during inference.  Before the fix this path bound an
+    // empty tensor and threw.
+    ASSERT_NO_THROW(request->infer());
+
+    for (const auto& out : compiled->outputs()) {
+        auto tensor = request->get_tensor(out);
+        ASSERT_NE(tensor._ptr, nullptr);
+        EXPECT_NE(tensor->data(), nullptr) << "every model output must be backed by a real buffer";
+    }
+}
+
+TEST_F(SubgraphBehaviorInferTest, InPlaceGlobalOutputReusesCallerTensor) {
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+
+    auto model = build_static_llm_model();
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, base_props());
+    ASSERT_GT(count_funcall_global_outputs(compiled), 0u)
+        << "test model must expose at least one global model output produced by a funcall";
+
+    auto request = compiled->create_infer_request();
+    ASSERT_NE(request, nullptr);
+
+    // Bind a caller-owned tensor to every model output (the in-place case a KV cache relies on).
+    std::map<std::string, ov::SoPtr<ov::ITensor>> bound;
+    for (const auto& out : compiled->outputs()) {
+        auto tensor = ov::get_tensor_impl(ov::Tensor(out.get_element_type(), out.get_shape()));
+        request->set_tensor(out, tensor);
+        bound[out.get_any_name()] = tensor;
+    }
+
+    ASSERT_NO_THROW(request->infer());
+
+    // No duplicate buffer is allocated: each funcall writes straight into the caller's tensor.
+    for (const auto& out : compiled->outputs()) {
+        EXPECT_EQ(request->get_tensor(out)._ptr, bound[out.get_any_name()]._ptr)
+            << "in-place output tensor must be reused, not replaced by an internally allocated one";
+    }
+}
+
 }  // namespace
