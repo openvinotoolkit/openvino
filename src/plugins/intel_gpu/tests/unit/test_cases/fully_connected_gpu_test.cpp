@@ -5157,6 +5157,53 @@ TEST(fully_connected_3d_onednn_gpu, no_biases_int8) {
     }
 }
 
+// oneDNN routes a 4-bit compressed FC with a single output feature (N==1) to the slow
+// reference matmul; the dispatch guard must divert that exact case to the OCL FC impl.
+TEST(fully_connected_3d_onednn_gpu, compressed_int4_single_output_feature_not_onednn) {
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    long int batch_num = 2;
+    long int ifm_num = 64;
+    long int ofm_num = 1;               // N == 1 (e.g. Qwen MoE shared_expert_gate)
+    long int scales_group_size = 32;
+
+    auto input_mem = engine.allocate_memory({ { 1, batch_num, ifm_num, 1}, data_types::f16, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num, 1, 1}, data_types::u4, format::bfyx });
+    auto scale_mem = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size, 1, 1}, data_types::f16, format::bfyx });
+    auto dcomp_zp_mem = engine.allocate_memory({ {1, 1, 1, 1}, data_types::u8, format::bfyx });
+
+    set_values<int8_t>(dcomp_zp_mem, {8});
+    set_values(input_mem, rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -2.0f, 2.0f));
+    set_values(weights_mem, rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 10));
+    set_values(scale_mem, rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -4.0f, 4.0f));
+
+    auto in_layout = layout{ {1, batch_num, ifm_num, 1}, data_types::f16, format::bfyx };
+    auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "dcomp_zp", data_types::f16, 3, 2);
+    fc_prim.decompression_zero_point_scalar = 8;
+
+    topology topology(
+        input_layout("input", in_layout),
+        data("weights", weights_mem),
+        data("scale", scale_mem),
+        data("dcomp_zp", dcomp_zp_mem),
+        fc_prim
+    );
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto fc_impl = network.get_primitive("fc_prim")->get_impl();
+    ASSERT_TRUE(fc_impl != nullptr);
+    ASSERT_FALSE(fc_impl->is_onednn());
+}
+
 TEST(fully_connected_3d_onednn_gpu, compressed_int4_scale_static) {
     tests::random_generator rg(GET_SUITE_NAME);
 

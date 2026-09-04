@@ -92,6 +92,16 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
             }
         }
 
+        // oneDNN's systolic gemm skips N==1 (use_nocopy) and no other low-bit gemm accepts it,
+        // so 4-bit compressed FCs with a single output feature always fall back to the slow
+        // reference matmul; divert only that exact case to the OCL FC impl.
+        if (fc_prim->compressed_weights && one_of(wei_dt, {data_types::u4, data_types::i4})) {
+            const auto& out_pshape = out_layout.get_partial_shape();
+            const auto rank = out_pshape.size();
+            if (rank > 0 && out_pshape[rank - 1].is_static() && out_pshape[rank - 1].get_length() == 1)
+                LOG_AND_RETURN_FALSE(node);
+        }
+
         return true;
     }
 
