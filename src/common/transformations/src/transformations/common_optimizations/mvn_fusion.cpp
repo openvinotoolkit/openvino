@@ -312,7 +312,7 @@ ov::pass::MVNFusionWithConstantsInside::MVNFusionWithConstantsInside() {
         }
 
         float eps_value;
-        bool valid_constant_values = op_util::has_constant_value<float>(const_0_5_node, -0.5) &&
+        bool valid_constant_values = op_util::has_constant_value<float>(const_0_5_node, -0.5f, 0.0f) &&
                                      op_util::get_single_value(const_eps_node, eps_value);
         if (!valid_constant_values) {
             return false;
