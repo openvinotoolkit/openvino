@@ -1111,13 +1111,6 @@ inline ExecutionConfig get_radix_topk_config(const cldnn::engine& engine) {
     return config;
 }
 
-// Helper: check that forcing actually resulted in the radix kernel being used
-inline void assert_radix_topk_selected(const cldnn::network& net) {
-    auto info = net.get_primitive_info("arg_max");
-    ASSERT_TRUE(info.find("arg_max_min_topk_radix") != std::string::npos)
-        << "Expected arg_max_min_topk_radix, got: " << info;
-}
-
 // --------------------------------------------------------------------------
 // Parameterized test: value-only verification with various configurations
 // --------------------------------------------------------------------------
