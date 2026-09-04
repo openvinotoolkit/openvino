@@ -18,6 +18,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 
@@ -96,6 +97,12 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
         actual_b_size == expected_b_size,
         "Expected input B shape is static and compatible with shape [N][n_blocks_per_col][blob_size], got: ",
         b_shape);
+
+    // Detect reordered layout: [n_blocks_per_col, N, blob_size] instead of [N, n_blocks_per_col, blob_size]
+    const bool b_is_reordered = (b_shape_static.size() == 3 &&
+                                 b_shape_static[0] == static_cast<size_t>(n_blocks_per_col) &&
+                                 b_shape_static[1] == static_cast<size_t>(N) &&
+                                 n_blocks_per_col != static_cast<uint64_t>(N));
     CHECK_VALID_NODE(node,
                      a.get_element_type() == ov::element::f16 || a.get_element_type() == ov::element::f32 ||
                          a.get_element_type() == ov::element::dynamic,
@@ -159,25 +166,25 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
         // b -> [N][n_blocks_per_col][block_size]
         switch (bits) {
         case 2:
-            casted_b_shape = ov::Shape{static_cast<size_t>(N),
-                                       static_cast<size_t>(n_blocks_per_col),
-                                       static_cast<size_t>(blob_size * 4)};
+            casted_b_shape = b_is_reordered
+                ? ov::Shape{static_cast<size_t>(n_blocks_per_col), static_cast<size_t>(N), static_cast<size_t>(blob_size * 4)}
+                : ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), static_cast<size_t>(blob_size * 4)};
             casted_b = std::make_shared<v0::Constant>(ov::element::u2, casted_b_shape, b_const->get_data_ptr());
             default_zp = std::make_shared<v0::Constant>(ov::element::u2, Shape{1}, 2);
             zp_element_type = ov::element::u2;
             break;
         case 4:
-            casted_b_shape = ov::Shape{static_cast<size_t>(N),
-                                       static_cast<size_t>(n_blocks_per_col),
-                                       static_cast<size_t>(blob_size * 2)};
+            casted_b_shape = b_is_reordered
+                ? ov::Shape{static_cast<size_t>(n_blocks_per_col), static_cast<size_t>(N), static_cast<size_t>(blob_size * 2)}
+                : ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), static_cast<size_t>(blob_size * 2)};
             casted_b = std::make_shared<v0::Constant>(ov::element::u4, casted_b_shape, b_const->get_data_ptr());
             default_zp = std::make_shared<v0::Constant>(ov::element::u4, Shape{1}, 8);
             zp_element_type = ov::element::u4;
             break;
         case 8:
-            casted_b_shape = ov::Shape{static_cast<size_t>(N),
-                                       static_cast<size_t>(n_blocks_per_col),
-                                       static_cast<size_t>(blob_size)};
+            casted_b_shape = b_is_reordered
+                ? ov::Shape{static_cast<size_t>(n_blocks_per_col), static_cast<size_t>(N), static_cast<size_t>(blob_size)}
+                : ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), static_cast<size_t>(blob_size)};
             casted_b = std::make_shared<v0::Constant>(ov::element::u8, casted_b_shape, b_const->get_data_ptr());
             default_zp = std::make_shared<v0::Constant>(ov::element::u8, Shape{1}, 128);
             zp_element_type = ov::element::u8;
@@ -232,7 +239,9 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                                  "got: ",
                                  zp_shape);
 
-                ov::Shape casted_zp_shape = ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1};
+                ov::Shape casted_zp_shape = b_is_reordered
+                    ? ov::Shape{static_cast<size_t>(n_blocks_per_col), static_cast<size_t>(N), 1}
+                    : ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1};
                 converted_zero_points = std::make_shared<v0::Constant>(a.get_element_type(),
                                                                        casted_zp_shape,
                                                                        zero_points_const->get_data_ptr());
@@ -247,8 +256,11 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                 uint64_t num_per_byte = 8 / bits;
                 uint64_t num_byte = (n_blocks_per_col + (num_per_byte - 1)) / num_per_byte;
                 uint64_t num_elements_aligned = num_byte * num_per_byte;
-                ov::Shape casted_zp_shape =
-                    ov::Shape{static_cast<size_t>(N), static_cast<size_t>(num_elements_aligned), 1};
+                // When reordered, zp data is repacked for [n_blocks, N] layout in the data file
+                // (unpack u2 → transpose → repack along N axis). Direct reshape is safe.
+                ov::Shape casted_zp_shape = b_is_reordered
+                    ? ov::Shape{static_cast<size_t>(n_blocks_per_col), static_cast<size_t>(N), 1}
+                    : ov::Shape{static_cast<size_t>(N), static_cast<size_t>(num_elements_aligned), 1};
                 auto casted_zp_org =
                     std::make_shared<v0::Constant>(zp_element_type, casted_zp_shape, zero_points_const->get_data_ptr());
                 // Preserve the original zero_point name on the repacked Constant (as done for B) so weight
@@ -257,11 +269,9 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                 // Slice below is inserted, so name it unconditionally.
                 preserve_initializer_name(casted_zp_org, zero_points_const);
                 converted_zero_points = std::make_shared<v0::Convert>(casted_zp_org, a.get_element_type());
-                if (n_blocks_per_col != num_elements_aligned) {
-                    // if not align
-                    // for example, n_blocks_per_col is 13, bits is 2, num_per_byte is 4, it will packed into 4 bytes
-                    // need to make a constant: uint2, {N, 16}
-                    // then slice to: uint2, {N, 13}
+                if (!b_is_reordered && n_blocks_per_col != num_elements_aligned) {
+                    // if not aligned and not reordered — slice to trim padding
+                    // (reordered data is already trimmed during repacking)
                     const auto num_elements = std::make_shared<v0::Constant>(ov::element::i32,
                                                                              Shape{1},
                                                                              static_cast<int32_t>(n_blocks_per_col));
@@ -285,10 +295,20 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
 
         // sub and scale via the shared low-precision dequantization helper
         const auto scales_fp16 = std::make_shared<v0::Convert>(scales, a.get_element_type());
-        const auto scales_reshaped =
-            op::util::reshape(scales_fp16, ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1});
+        // When B is reordered, scales data is also reordered to [n_blocks_per_col, N].
+        // Reshape directly to match B's layout — no Transpose needed.
+        ov::Output<ov::Node> scales_reshaped = b_is_reordered
+            ? op::util::reshape(scales_fp16, ov::Shape{static_cast<size_t>(n_blocks_per_col), static_cast<size_t>(N), 1})
+            : op::util::reshape(scales_fp16, ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1});
 
         auto scaled_b = ov::decomposition::low_precision_dequantize(casted_b, scales_reshaped, converted_zero_points);
+
+        // When B is reordered, dequant output is [n_blocks_per_col, N, block_size].
+        // Transpose to [N, n_blocks_per_col, block_size] before reshaping to [N, K].
+        if (b_is_reordered) {
+            auto perm = v0::Constant::create(ov::element::i64, Shape{3}, std::vector<int64_t>{1, 0, 2});
+            scaled_b = std::make_shared<v1::Transpose>(scaled_b, perm);
+        }
 
         // reshape b to [N, K]
         auto shape_b = v0::Constant::create(ov::element::i32, ov::Shape{2}, {0, -1});
