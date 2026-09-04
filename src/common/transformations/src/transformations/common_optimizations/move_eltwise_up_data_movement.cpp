@@ -16,11 +16,13 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/batch_to_space.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/depth_to_space.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/reverse_sequence.hpp"
 #include "openvino/op/roll.hpp"
 #include "openvino/op/shuffle_channels.hpp"
@@ -30,6 +32,7 @@
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/op/util/broadcast_base.hpp"
 #include "openvino/op/util/gather_base.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"
 #include "transformations/utils/utils.hpp"
@@ -205,6 +208,33 @@ std::optional<size_t> map_reshape_axis(const ov::PartialShape& input_shape,
         mapped_axis = input_axis;
     }
     return mapped_axis;
+}
+
+// If `out` is `in` with a single unit dimension inserted, return that axis,
+// otherwise return -1. Dynamic dimensions are treated as compatible.
+int64_t unsqueeze_axis(const ov::PartialShape& in, const ov::PartialShape& out) {
+    if (in.rank().is_dynamic() || out.rank().is_dynamic())
+        return -1;
+    const int64_t n = in.rank().get_length();
+    if (out.rank().get_length() != n + 1)
+        return -1;
+    for (int64_t a = 0; a <= n; a++) {
+        if (out[a].is_dynamic() || out[a].get_length() != 1)
+            continue;  // inserted axis must be a static unit dimension
+        bool match = true;
+        for (int64_t i = 0, j = 0; i <= n; i++) {
+            if (i == a)
+                continue;
+            if (!out[i].same_scheme(in[j])) {
+                match = false;
+                break;
+            }
+            j++;
+        }
+        if (match)
+            return a;
+    }
+    return -1;
 }
 }  // namespace
 
@@ -418,6 +448,155 @@ ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerC
         new_parent->set_friendly_name(parent->get_friendly_name());
 
         ov::replace_node(parent, new_parent);
+        return true;
+    };
+
+    auto m = std::make_shared<Matcher>(eltwise_pattern, matcher_name);
+    register_matcher(m, callback);
+}
+
+ov::pass::MoveEltwiseUpThroughDataMovFusableProducer::MoveEltwiseUpThroughDataMovFusableProducer(
+    std::vector<DiscreteTypeInfo> fusable_producer_types,
+    bool check_bias_add) {
+    MATCHER_SCOPE(MoveEltwiseUpThroughDataMovFusableProducer);
+
+    // Producer whose kernel can absorb the eltwise as a post-op: one of the configured
+    // op types, optionally seen through a single bias Add. Add is commutative, so the
+    // matcher already tries both input orders - no need to spell them out separately.
+    // Built from a runtime vector (not wrap_type<...>()) because the types may be
+    // plugin-private and thus invisible here, e.g. ov::intel_gpu::op::FullyConnected.
+    auto fusable_op = std::make_shared<ov::pass::pattern::op::WrapType>(fusable_producer_types);
+    std::shared_ptr<ov::Node> fusable_producer = fusable_op;
+    if (check_bias_add) {
+        auto bias_in = ov::pass::pattern::any_input();
+        fusable_producer = fusable_op | wrap_type<v1::Add>({fusable_op, bias_in});
+    }
+
+    // Rank-changing data movement (e.g. a unit-dim insertion) applied to the producer output.
+    auto data_mov = wrap_type<v1::Reshape, v0::Unsqueeze, v0::Squeeze>(
+        ov::OutputVector{fusable_producer, ov::pass::pattern::any_input()});
+
+    // The eltwise's other operand.
+    auto other_in = ov::pass::pattern::any_input();
+
+    auto eltw_predicate_fusable = [](const ov::Output<ov::Node>& output) {
+        return !output.get_node()->get_output_partial_shape(0).rank().is_dynamic();
+    };
+
+    // Binary eltwise consuming the data-movement op on either input. Both input orders
+    // are spelled out because BinaryElementwiseArithmetic also covers non-commutative ops
+    // (Subtract, Divide, Power, ...), for which the matcher does NOT try input permutations
+    // - e.g. we must match both Subtract(data_mov, R) and Subtract(R, data_mov). For
+    // commutative ops (Add, Multiply) the second alternative is redundant but harmless.
+    auto eltwise_pattern =
+        wrap_type<op_util::BinaryElementwiseArithmetic>(ov::OutputVector{data_mov, other_in}, eltw_predicate_fusable) |
+        wrap_type<op_util::BinaryElementwiseArithmetic>(ov::OutputVector{other_in, data_mov}, eltw_predicate_fusable);
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+
+        auto eltwise = m.get_match_root();
+        if (transformation_callback(eltwise))
+            return false;
+
+        // The data-movement op bound by the pattern and which eltwise input it feeds.
+        auto rn = pattern_map.at(data_mov).get_node_shared_ptr();
+        const size_t s = (eltwise->get_input_node_shared_ptr(0) == rn) ? 0 : 1;
+
+        // Determine the inserted unit-dimension axis from the op's constant input
+        // (axes for Unsqueeze, target shape for Reshape).
+        int64_t axis = -1;
+        if (auto unsqueeze = ov::as_type_ptr<v0::Unsqueeze>(rn)) {
+            auto axes = ov::as_type_ptr<v0::Constant>(unsqueeze->get_input_node_shared_ptr(1));
+            if (axes && ov::shape_size(axes->get_shape()) == 1)
+                axis = axes->cast_vector<int64_t>().front();
+        } else if (auto reshape = ov::as_type_ptr<v1::Reshape>(rn)) {
+            auto shape_const = ov::as_type_ptr<v0::Constant>(reshape->get_input_node_shared_ptr(1));
+            if (shape_const) {
+                const auto target = shape_const->cast_vector<int64_t>();
+                const auto in_ps = rn->get_input_partial_shape(0);
+                const int64_t n = in_ps.rank().is_dynamic() ? -1 : in_ps.rank().get_length();
+                if (n >= 0 && n + 1 == static_cast<int64_t>(target.size())) {
+                    // Exactly one target dim must be the inserted unit dimension,
+                    // with the rest matching the producer's shape (an inferred -1
+                    // dim is compatible with anything).
+                    for (int64_t a = 0; a <= n; ++a) {
+                        if (target[a] != 1)
+                            continue;
+                        bool match = true;
+                        for (int64_t i = 0, j = 0; i <= n; ++i) {
+                            if (i == a)
+                                continue;
+                            if (target[i] == -1 || in_ps[j].same_scheme(ov::Dimension(target[i]))) {
+                                ++j;
+                                continue;
+                            }
+                            match = false;
+                            break;
+                        }
+                        if (match) {
+                            axis = a;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        // Squeeze lowers the rank and cannot be a unit-dimension insertion.
+        // Fall back to input/output shape comparison for non-constant patterns.
+        if (axis < 0)
+            axis = unsqueeze_axis(rn->get_input_partial_shape(0), rn->get_output_partial_shape(0));
+        if (axis < 0)
+            return false;
+
+        const size_t other_idx = 1 - s;
+        auto other = eltwise->get_input_source_output(other_idx);
+
+        auto out_rank = eltwise->get_output_partial_shape(0).rank();
+        if (out_rank.is_dynamic())
+            return false;
+        const int64_t rank = out_rank.get_length();
+        if (axis < 0)
+            axis += rank;
+        if (axis < 0 || axis >= rank)
+            return false;
+
+        // Both eltwise inputs must have the same rank as the output so the
+        // unit-dim axis aligns after Squeeze/Unsqueeze.
+        if (rn->get_output_partial_shape(0).rank() != out_rank)
+            return false;
+        auto other_ps = other.get_partial_shape();
+        if (other_ps.rank() != out_rank)
+            return false;
+        if (other_ps[axis].is_dynamic() || other_ps[axis].get_length() != 1)
+            return false;
+
+        // Transform: Eltwise(R, Unsqueeze(P, axis)) -> Unsqueeze(Eltwise(Squeeze(R, axis), P), axis)
+        auto sq_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
+        auto squeezed = std::make_shared<v0::Squeeze>(other, sq_axis);
+
+        ov::OutputVector eltwise_inputs(2);
+        eltwise_inputs[s] = rn->input_value(0);
+        eltwise_inputs[other_idx] = squeezed;
+        auto eltwise_low = eltwise->clone_with_new_inputs(eltwise_inputs);
+
+        auto un_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
+        auto unsqueezed = std::make_shared<v0::Unsqueeze>(eltwise_low, un_axis);
+
+        // Preserve the eltwise friendly name. If the eltwise feeds a model output, the
+        // name must stay on the terminal Unsqueeze so the output name is preserved (done
+        // by replace_output_update_name). Otherwise keep it on the eltwise (Add) node so
+        // the op is still reported as an Add (e.g. in exec graph / perf counters) instead
+        // of the surrounding Unsqueeze.
+        const auto& consumers = eltwise->output(0).get_target_inputs();
+        const bool feeds_result = std::any_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& in) {
+            return ov::is_type<v0::Result>(in.get_node());
+        });
+        if (!feeds_result)
+            eltwise_low->set_friendly_name(eltwise->get_friendly_name());
+
+        ov::copy_runtime_info(eltwise, {squeezed, eltwise_low, unsqueezed});
+        ov::replace_output_update_name(eltwise->output(0), unsqueezed->output(0));
         return true;
     };
 
