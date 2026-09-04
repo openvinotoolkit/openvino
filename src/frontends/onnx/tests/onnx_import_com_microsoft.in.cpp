@@ -6104,14 +6104,6 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_staging) {
 // the FE conversion-time path directly. The decomposition picks the staging vs. in-place branch from the
 // runtime past/total length, not static-ness of S, so results must be byte-identical to the dynamic version.
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_static_staging) {
-    // INTERPRETER returns present_key/present_value with shape [0] instead of [1,1,4,16] on this fully-static
-    // staging graph, while CPU matches expected values exactly - a template-backend constant-folding quirk in
-    // this backend, not a decomposition bug. Needs follow-up; not blocking.
-    if (std::string("${BACKEND_NAME}") == std::string("INTERPRETER")) {
-        GTEST_SKIP() << "INTERPRETER computes present_key/present_value as shape [0] on this fully-static "
-                        "staging graph; verified correct on CPU (exact expected-value match). Likely a "
-                        "template-backend constant-folding quirk, not a decomposition bug. Needs follow-up.";
-    }
     auto model = convert_model("com.microsoft/gqa_sliding_window_cache_static_staging.onnx");
     model->reshape({{"past_key", ov::PartialShape{1, 1, 4, 16}},
                     {"past_value", ov::PartialShape{1, 1, 4, 16}},
