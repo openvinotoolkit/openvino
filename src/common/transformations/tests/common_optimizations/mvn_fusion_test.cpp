@@ -528,3 +528,63 @@ TEST_F(TransformationTestsF, MVNFusionTestRsqrtWithNarrowedEpsilon) {
         model_ref = std::make_shared<ov::Model>(OutputVector{mvn}, ParameterVector{input});
     }
 }
+
+namespace {
+std::shared_ptr<ov::Model> create_mvn_decomposition(float const_2_value,
+                                                    float const_0_5_value,
+                                                    float const_neg_1_value) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
+    auto mean1_axes = ov::op::v0::Constant::create(element::i32, Shape{3}, {1, 2, 3});
+    auto mean1 = std::make_shared<ov::op::v1::ReduceMean>(input, mean1_axes);
+    auto sub1 = std::make_shared<ov::op::v1::Subtract>(input, mean1);
+    auto const_2 = ov::op::v0::Constant::create(element::f32, Shape{}, {const_2_value});
+    auto power_sqr = std::make_shared<ov::op::v1::Power>(sub1, const_2);
+    auto mean3_axes = ov::op::v0::Constant::create(element::i32, Shape{3}, {1, 2, 3});
+    auto mean3 = std::make_shared<ov::op::v1::ReduceMean>(power_sqr, mean3_axes);
+    auto const_0_5 = ov::op::v0::Constant::create(element::f32, Shape{}, {const_0_5_value});
+    auto power_sqrt = std::make_shared<ov::op::v1::Power>(mean3, const_0_5);
+    auto eps = ov::op::v0::Constant::create(element::f32, Shape{}, {1e-9f});
+    auto add_eps = std::make_shared<ov::op::v1::Add>(power_sqrt, eps);
+    auto const_neg_1 = ov::op::v0::Constant::create(element::f32, Shape{}, {const_neg_1_value});
+    auto power_div = std::make_shared<ov::op::v1::Power>(add_eps, const_neg_1);
+    auto div = std::make_shared<ov::op::v1::Multiply>(sub1, power_div);
+
+    return std::make_shared<ov::Model>(OutputVector{div}, ParameterVector{input});
+}
+}  // namespace
+
+TEST_F(TransformationTestsF, MVNFusionTestDoesNotFuseApproximateSquareExponent) {
+    model = create_mvn_decomposition(2.000004f, 0.5f, -1.0f);
+    manager.register_pass<ov::pass::MVNFusion>();
+}
+
+TEST_F(TransformationTestsF, MVNFusionTestDoesNotFuseApproximateSquareRootExponent) {
+    model = create_mvn_decomposition(2.0f, 0.500004f, -1.0f);
+    manager.register_pass<ov::pass::MVNFusion>();
+}
+
+TEST_F(TransformationTestsF, MVNFusionTestDoesNotFuseApproximateReciprocalExponent) {
+    model = create_mvn_decomposition(2.0f, 0.5f, -1.000004f);
+    manager.register_pass<ov::pass::MVNFusion>();
+}
+
+TEST_F(TransformationTestsF, MVNFusionTestDoesNotFuseApproximateRsqrtNumerator) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 224});
+    auto mean1_axes = ov::op::v0::Constant::create(element::i32, Shape{1}, {2});
+    auto mean1 = std::make_shared<ov::op::v1::ReduceMean>(input, mean1_axes, true);
+    auto sub1 = std::make_shared<ov::op::v1::Subtract>(input, mean1);
+    auto const_2 = ov::op::v0::Constant::create(element::f32, Shape{}, {2.0f});
+    auto power_sqr = std::make_shared<ov::op::v1::Power>(sub1, const_2);
+    auto mean3_axes = ov::op::v0::Constant::create(element::i32, Shape{1}, {2});
+    auto mean3 = std::make_shared<ov::op::v1::ReduceMean>(power_sqr, mean3_axes, true);
+    auto eps = ov::op::v0::Constant::create(element::f32, Shape{}, {1e-9f});
+    auto add_eps = std::make_shared<ov::op::v1::Add>(mean3, eps);
+    auto sqrt_node = std::make_shared<ov::op::v0::Sqrt>(add_eps);
+    auto const_1 = ov::op::v0::Constant::create(element::f32, Shape{}, {1.000004f});
+    auto rsqrt = std::make_shared<ov::op::v1::Divide>(const_1, sqrt_node);
+    auto result = std::make_shared<ov::op::v1::Multiply>(sub1, rsqrt);
+
+    model = std::make_shared<ov::Model>(OutputVector{result}, ParameterVector{input});
+
+    manager.register_pass<ov::pass::MVNFusion>();
+}
