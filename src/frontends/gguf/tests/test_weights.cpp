@@ -29,7 +29,8 @@ constexpr size_t kRows = 4;
 constexpr size_t kCols = 256;
 constexpr float kTolFaithful = 3e-3f;
 constexpr float kTolRequant = 1.5e-2f;
-constexpr float kTolU4Requant = 6e-2f;
+// Native Q4_K group-wise requantization improves on the former 5e-2 integer-zp tolerance.
+constexpr float kTolU4Requant = 4e-2f;
 
 struct WeightCase {
     const char* stem;        // test_data prefix

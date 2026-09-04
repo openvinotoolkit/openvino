@@ -122,9 +122,9 @@ constexpr uint64_t kRows = 4;
 constexpr uint64_t kCols = 256;
 constexpr float kTolFaithful = 3e-3f;   // f16-scale dequant noise
 constexpr float kTolRequant = 1.5e-2f;  // channel-wise Q8_0_C requant round-off
-// Q4_K is faithfully decoded and then requantized per 32 values to OpenVINO u4. Its integral
-// zero-point keeps the compressed-FC path available but necessarily adds a second u4 error.
-constexpr float kTolU4Requant = 6e-2f;
+// Q4_K is faithfully decoded and then requantized in its native 32-value groups to OpenVINO u4.
+// Keep its worst error below the former rounded-zero-point path's 5e-2 tolerance.
+constexpr float kTolU4Requant = 4e-2f;
 // Q2_0: (code - 1) * d on both sides and the zero-point of 1 is exact, so hold it to bit-equality.
 constexpr float kTolExact = 0.0f;
 
@@ -145,16 +145,16 @@ TEST_P(DequantVsGGML, MatchesGgmlToFloat) {
         << c.stem << ": frontend dequant diverges from ggml to_float beyond tolerance";
 }
 
-// Guard the quality of the second u4 quantization, not just its worst outlier. The threshold is
-// below both the old rounded-zero-point representation and plain asymmetric min/max on this real
-// ggml oracle tensor, so dropping the least-squares refinement is detected.
-TEST(DequantVsGGML, Q4KRequantizationMinimizesWeightError) {
+// Guard both aggregate quality and the worst outlier against the real ggml CPU oracle. The
+// previous SSE-only candidate selection lowered MSE but raised max error above 5e-2.
+TEST(DequantVsGGML, Q4KRequantizationImprovesWithoutOutliers) {
     const auto qbytes = load_npy<uint8_t>("q4_k_qbytes");
     const auto ref = load_npy<float>("q4_k_deq");
     const auto ours = frontend_dequant(GGUF_TYPE_Q4_K, qbytes, kRows, kCols);
 
     ASSERT_EQ(ours.size(), ref.size());
-    EXPECT_LE(mean_squared_error(ours, ref), 3.5e-4f);
+    EXPECT_LE(mean_squared_error(ours, ref), 2.8e-4f);
+    EXPECT_LE(max_abs_diff(ours, ref), kTolU4Requant);
 }
 
 // The faithful per-row K-quant dequant used as the Q8_0_C requant source must match ggml's

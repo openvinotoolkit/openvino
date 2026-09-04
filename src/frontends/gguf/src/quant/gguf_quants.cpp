@@ -141,7 +141,9 @@ void unpack_256_4(const uint8_t* data, uint8_t* dst) {
 // With a u8 zp, faithfully decode one 32-value group to f32 and requantize it to a NEW u4 grid.
 // The latter follows NNCF's data-free INT4_ASYM baseline (range includes zero, min/max scale,
 // integral clipped zp), followed by one cheap least-squares scale refinement. Candidate errors
-// are evaluated with the actually stored f16 scale. Only 32 f32 values are live per worker.
+// are evaluated with the actually stored f16 scale. A candidate is used only when it reduces
+// squared error without increasing the maximum error versus the former rounded-zp representation.
+// Only 32 f32 values are live per worker.
 void fill_q4_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr, ov::Tensor& zp_arr) {
     const uint64_t bytes_per_block = kQ4K_BLOCK_BYTES;
     const uint64_t n_super_block = tensor.bsize / bytes_per_block;
@@ -178,15 +180,40 @@ void fill_q4_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& sc
             }
 
             float values[32];
+            uint8_t source_q[32];
             const uint8_t* source = block_data + 16 + (j / 2) * 32;
             float min_value = 0.0f;
             float max_value = 0.0f;
             for (int k = 0; k < 32; ++k) {
                 const uint8_t q = (j % 2 == 0) ? (source[k] & 0x0F) : (source[k] >> 4);
+                source_q[k] = q;
                 values[k] = sc * static_cast<float>(q) - mn;
                 min_value = std::min(min_value, values[k]);
                 max_value = std::max(max_value, values[k]);
             }
+
+            struct Error {
+                double squared;
+                float max_abs;
+            };
+            const auto measure = [&](float runtime_scale, uint8_t zp, const uint8_t* quantized) {
+                Error error{0.0, 0.0f};
+                for (int k = 0; k < 32; ++k) {
+                    const float diff = values[k] - runtime_scale * (static_cast<int>(quantized[k]) - zp);
+                    error.squared += static_cast<double>(diff) * diff;
+                    error.max_abs = std::max(error.max_abs, std::fabs(diff));
+                }
+                return error;
+            };
+
+            // Start from the previous compressed-FC representation. Requantization must not
+            // regress either its total error or its worst reconstructed value.
+            uint8_t best_q[32];
+            std::copy_n(source_q, 32, best_q);
+            ov::float16 best_scale(sc);
+            uint8_t best_zp = quantize_zp_u8((sc != 0.0f) ? (mn / sc) : 0.0f);
+            Error best_error = measure(static_cast<float>(best_scale), best_zp, best_q);
+            const float fallback_max_error = best_error.max_abs;
 
             float initial_scale = (max_value - min_value) / 15.0f;
             if (std::fabs(initial_scale) < std::numeric_limits<float>::epsilon()) {
@@ -195,53 +222,51 @@ void fill_q4_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& sc
             const auto rounded_zp = static_cast<long>(std::nearbyint(-min_value / initial_scale));
             const uint8_t zp = static_cast<uint8_t>(std::min<long>(15, std::max<long>(0, rounded_zp)));
 
-            uint8_t best_q[32];
-            ov::float16 best_scale(initial_scale);
-            double best_error = std::numeric_limits<double>::infinity();
             const auto evaluate = [&](float scale_candidate, uint8_t* quantized) {
                 const ov::float16 scale_f16(scale_candidate);
                 const float runtime_scale = static_cast<float>(scale_f16);
                 if (!(runtime_scale > 0.0f) || !std::isfinite(runtime_scale)) {
-                    return std::make_pair(scale_f16, std::numeric_limits<double>::infinity());
+                    return std::make_pair(
+                        scale_f16,
+                        Error{std::numeric_limits<double>::infinity(), std::numeric_limits<float>::infinity()});
                 }
-                double error = 0.0;
                 for (int k = 0; k < 32; ++k) {
                     const long rounded = static_cast<long>(std::nearbyint(values[k] / runtime_scale)) + zp;
-                    const uint8_t q = static_cast<uint8_t>(std::min<long>(15, std::max<long>(0, rounded)));
-                    quantized[k] = q;
-                    const double diff = static_cast<double>(values[k]) -
-                                        static_cast<double>(runtime_scale) * (static_cast<int>(q) - zp);
-                    error += diff * diff;
+                    quantized[k] = static_cast<uint8_t>(std::min<long>(15, std::max<long>(0, rounded)));
                 }
-                return std::make_pair(scale_f16, error);
+                return std::make_pair(scale_f16, measure(runtime_scale, zp, quantized));
+            };
+
+            const auto accept = [&](const std::pair<ov::float16, Error>& candidate, const uint8_t* candidate_q) {
+                if (candidate.second.squared < best_error.squared && candidate.second.max_abs <= fallback_max_error) {
+                    best_scale = candidate.first;
+                    best_zp = zp;
+                    best_error = candidate.second;
+                    std::copy_n(candidate_q, 32, best_q);
+                }
             };
 
             uint8_t candidate_q[32];
             auto candidate = evaluate(initial_scale, candidate_q);
-            best_scale = candidate.first;
-            best_error = candidate.second;
-            std::copy_n(candidate_q, 32, best_q);
+            accept(candidate, candidate_q);
 
-            // With the baseline assignments fixed, this is the least-squares optimal scale for
+            // With the min/max assignments fixed, this is the least-squares optimal scale for
             // x ~= scale * (q-zp). Requantize once more with it and retain it only if the actual
-            // f16-scale reconstruction error improves.
+            // f16-scale reconstruction improves both criteria versus the retained representation.
             double numerator = 0.0;
             double denominator = 0.0;
             for (int k = 0; k < 32; ++k) {
-                const int centered = static_cast<int>(best_q[k]) - zp;
+                const int centered = static_cast<int>(candidate_q[k]) - zp;
                 numerator += static_cast<double>(values[k]) * centered;
                 denominator += static_cast<double>(centered) * centered;
             }
             if (denominator != 0.0) {
                 candidate = evaluate(static_cast<float>(numerator / denominator), candidate_q);
-                if (candidate.second < best_error) {
-                    best_scale = candidate.first;
-                    std::copy_n(candidate_q, 32, best_q);
-                }
+                accept(candidate, candidate_q);
             }
 
             scales[i * 8 + j] = best_scale;
-            zp_u8[i * 8 + j] = zp;
+            zp_u8[i * 8 + j] = best_zp;
             uint8_t* destination = weights + i * 128 + j * 16;
             std::fill_n(destination, 16, 0);
             for (int k = 0; k < 32; ++k) {
