@@ -5,6 +5,7 @@
 #include "kv_cache_sliding_window_manager.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <limits>
 
@@ -219,58 +220,52 @@ void fill_causal_sliding_window_mask_typed(const MaskView& mask_view,
     const int64_t window_i64 = static_cast<int64_t>(window_size);
     const int64_t row_pad_i64 = static_cast<int64_t>(row_pad);
 
-    // Same fill values regardless of buffer width: 0 to attend, f16's lowest (safe as a
-    // large-negative "-inf" surrogate on NPU) to mask. Only the storage type T differs.
     const T kAttend = T(0.0f);
     const T kMasked = T(std::numeric_limits<ov::float16>::lowest());
 
-    // Layout per mask row:
-    //   columns = [past circular slots][current-chunk columns]
-    //           = [0 .. past_width-1] [past_width .. past_width+row_dim-1]
-    //   If past_width == 0, this degenerates to current-chunk-only masking.
+    // Row columns = [past circular slots][current-chunk columns]
+    //             = [0 .. past_width-1] [past_width .. past_width+row_dim-1].
+    // past_width == 0 degenerates to current-chunk-only masking.
     //
-    // Past circular mapping (slot -> absolute token index):
-    //   1) Unsaturated (stored_tokens_before < past_width)
-    //      valid prefix only:
-    //      slot->abs: [0, 1, 2, ..., stored_tokens_before-1, invalid, ...]
-    //   2) Saturated (stored_tokens_before >= past_width)
-    //      wrap_slot = stored_tokens_before % past_width
-    //      slot->abs is split into two contiguous ranges:
-    //        [0, wrap_slot):          abs = (stored_tokens_before - wrap_slot) + slot
-    //        [wrap_slot, past_width): abs = (stored_tokens_before - wrap_slot) + slot - past_width
-    //      example: past_width=8, stored_tokens_before=11, wrap_slot=3
-    //               slot->abs: [8,9,10,3,4,5,6,7]
+    // Past slot -> absolute token index:
+    //   unsaturated (stored_tokens_before < past_width): abs == slot, for slot < stored_tokens_before.
+    //   saturated (stored_tokens_before >= past_width), wrap_slot = stored_tokens_before % past_width:
+    //     [0, wrap_slot):          abs = (stored_tokens_before - wrap_slot) + slot
+    //     [wrap_slot, past_width): abs = (stored_tokens_before - wrap_slot) + slot - past_width
+    //   example: past_width=8, stored_tokens_before=11, wrap_slot=3 -> slot->abs: [8,9,10,3,4,5,6,7]
     //
-    // Visibility rule for a row at absolute position row_abs_pos:
-    //   attend(abs) iff abs <= row_abs_pos AND row_abs_pos - abs < window_size
-    //   => visible abs interval: [row_abs_pos - window_size + 1, row_abs_pos]
-    //
-    // Current-chunk area is a causal diagonal clipped by the same window:
-    //   local key index local_c is visible in this row when
-    //   local_c in [max(row_pad, row-window_size+1), row].
-    auto fill_clamped_range =
-        [](T* ptr, int64_t range_begin, int64_t range_end, int64_t domain_begin, int64_t domain_end, T fill_value) {
-            const int64_t clamped_begin = std::max(range_begin, domain_begin);
-            const int64_t clamped_end = std::min(range_end, domain_end);
-            if (clamped_begin <= clamped_end) {
-                std::fill_n(ptr + clamped_begin, static_cast<size_t>(clamped_end - clamped_begin + 1), fill_value);
-            }
-        };
+    // Visibility: attend(abs) iff abs <= row_abs_pos AND row_abs_pos - abs < window_size, i.e.
+    // abs in [row_abs_pos - window_size + 1, row_abs_pos]. The current-chunk area is the same
+    // window clipped to the causal diagonal: local_c in [max(row_pad, row-window_size+1), row].
 
-    T* base = static_cast<T*>(mask_view.data);
-    for (uint32_t row = 0; row < row_dim; ++row) {
-        T* row_ptr = base + static_cast<size_t>(row) * mask_view.col_dim;
+    // Inclusive [begin, end] slot interval; begin > end means "empty".
+    struct VisibleRange {
+        int64_t begin;
+        int64_t end;
+    };
+    constexpr VisibleRange kEmptyRange{1, 0};
 
-        // Fill both regions with masked value first; then unmask only visible intervals.
-        std::fill_n(row_ptr, past_width, kMasked);
-        std::fill_n(row_ptr + past_width, row_dim, kMasked);
+    // Step 1 helper: pure range arithmetic, no memory access. Clamps the visibility window
+    // [range_begin, range_end] against a region's own domain [domain_begin, domain_end].
+    auto compute_visible_range =
+        [](int64_t range_begin, int64_t range_end, int64_t domain_begin, int64_t domain_end) -> VisibleRange {
+        return {std::max(range_begin, domain_begin), std::min(range_end, domain_end)};
+    };
 
-        const int64_t row_i64 = static_cast<int64_t>(row);
-        const int64_t row_abs_pos = stored_tokens_before_i64 + (row_i64 - row_pad_i64);
-        const int64_t min_visible_abs_pos = row_abs_pos - window_i64 + 1;
-        const int64_t max_visible_abs_pos = row_abs_pos;
+    // Step 2 helper: pure memory write, no range math. Fills an already-clamped range.
+    auto fill_visible_range = [](T* ptr, VisibleRange range, T fill_value) {
+        if (range.begin <= range.end) {
+            std::fill_n(ptr + range.begin, static_cast<size_t>(range.end - range.begin + 1), fill_value);
+        }
+    };
 
-        // Past region [0, past_width).
+    // Visible slot ranges in the past region for one row. A saturated ring wraps into at most
+    // two contiguous ranges (returned as a fixed-size array to avoid a per-row allocation).
+    auto compute_visible_past_slots = [&](int64_t min_visible_abs_pos,
+                                          int64_t max_visible_abs_pos) -> std::array<VisibleRange, 2> {
+        if (!has_past_region) {
+            return {kEmptyRange, kEmptyRange};
+        }
         if (is_past_saturated) {
             // Saturated ring: at most two contiguous slot ranges can be visible,
             // one in [wrap_slot, past_width) and one in [0, wrap_slot).
@@ -278,41 +273,59 @@ void fill_causal_sliding_window_mask_typed(const MaskView& mask_view,
             const int64_t older_segment_bias = ring_base_abs - past_width_i64;  // abs = older_segment_bias + slot
 
             // Segment 1: c in [wrap_slot, past_width-1].
-            fill_clamped_range(row_ptr,
-                               min_visible_abs_pos - older_segment_bias,
-                               max_visible_abs_pos - older_segment_bias,
-                               static_cast<int64_t>(wrap_slot),
-                               past_width_i64 - 1,
-                               kAttend);
-
-            // Segment 2: c in [0, wrap_slot-1].
-            if (wrap_slot > 0u) {
-                fill_clamped_range(row_ptr,
-                                   min_visible_abs_pos - ring_base_abs,
-                                   max_visible_abs_pos - ring_base_abs,
-                                   0,
-                                   static_cast<int64_t>(wrap_slot) - 1,
-                                   kAttend);
-            }
-        } else if (has_past_region && stored_tokens_before > 0u) {
-            // Unsaturated prefix: slot index equals absolute position for valid slots.
-            fill_clamped_range(row_ptr,
-                               min_visible_abs_pos,
-                               max_visible_abs_pos,
-                               0,
-                               static_cast<int64_t>(stored_tokens_before) - 1,
-                               kAttend);
+            const VisibleRange segment1 = compute_visible_range(min_visible_abs_pos - older_segment_bias,
+                                                                max_visible_abs_pos - older_segment_bias,
+                                                                static_cast<int64_t>(wrap_slot),
+                                                                past_width_i64 - 1);
+            // Segment 2: c in [0, wrap_slot-1], only when the ring actually wrapped.
+            const VisibleRange segment2 = (wrap_slot > 0u) ? compute_visible_range(min_visible_abs_pos - ring_base_abs,
+                                                                                   max_visible_abs_pos - ring_base_abs,
+                                                                                   0,
+                                                                                   static_cast<int64_t>(wrap_slot) - 1)
+                                                           : kEmptyRange;
+            return {segment1, segment2};
         }
+        if (stored_tokens_before > 0u) {
+            // Unsaturated prefix: slot index equals absolute position for valid slots.
+            return {compute_visible_range(min_visible_abs_pos, max_visible_abs_pos, 0, stored_tokens_before_i64 - 1),
+                    kEmptyRange};
+        }
+        return {kEmptyRange, kEmptyRange};
+    };
 
-        // Current chunk diagonal region [past_width, past_width + row_dim).
+    T* base = static_cast<T*>(mask_view.data);
+    for (uint32_t row = 0; row < row_dim; ++row) {
+        T* row_ptr = base + static_cast<size_t>(row) * mask_view.col_dim;
+
+        const int64_t row_i64 = static_cast<int64_t>(row);
+        const int64_t row_abs_pos = stored_tokens_before_i64 + (row_i64 - row_pad_i64);
+        const int64_t min_visible_abs_pos = row_abs_pos - window_i64 + 1;
+        const int64_t max_visible_abs_pos = row_abs_pos;
+
+        // Step 1: compute which slots are visible in this row. Pure arithmetic only --
+        // nothing is written to the mask buffer yet.
+        const std::array<VisibleRange, 2> past_slots =
+            compute_visible_past_slots(min_visible_abs_pos, max_visible_abs_pos);
+
+        // Current chunk ("present") diagonal region [past_width, past_width + row_dim).
         // local_c must satisfy all constraints below:
         //   1) valid key in right-aligned chunk: local_c >= row_pad
         //   2) causal:                         local_c <= row
         //   3) window:                         row - local_c < window_size
         // => local_c in [max(row_pad, row-window+1), row].
-        const int64_t local_begin = std::max(row_pad_i64, row_i64 - window_i64 + 1);
-        const int64_t local_end = row_i64;
-        fill_clamped_range(row_ptr + past_width, local_begin, local_end, 0, static_cast<int64_t>(row_dim) - 1, kAttend);
+        const VisibleRange present_segment = compute_visible_range(std::max(row_pad_i64, row_i64 - window_i64 + 1),
+                                                                   row_i64,
+                                                                   0,
+                                                                   static_cast<int64_t>(row_dim) - 1);
+
+        // Step 2: populate masked and attended values.
+        // 2.1 init row: all masked.
+        std::fill_n(row_ptr, mask_view.col_dim, kMasked);
+        // 2.2 attend past in ranges (from step 1).
+        fill_visible_range(row_ptr, past_slots[0], kAttend);
+        fill_visible_range(row_ptr, past_slots[1], kAttend);
+        // 2.3 attend present.
+        fill_visible_range(row_ptr + past_width, present_segment, kAttend);
     }
 }
 
