@@ -135,13 +135,15 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         torch.bool: Type.boolean
     }
 
-    # vLLM path handles int/symint inputs by baking them as Constants; the
+    # vLLM path handles int/symint inputs itself, either baking them as
+    # Constants or rebuilding them from a ShapeOf of the tensor input whose
+    # dimension they denote (which needs gm, for the FX symbol metadata). The
     # hook returns False for non-vLLM graphs, in which case we fall through
     # to the upstream loop below.
     _shaped = False
     try:
         from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh
-        _shaped = _vh.apply_input_shapes(om, args, options)
+        _shaped = _vh.apply_input_shapes(om, args, options, gm=gm)
     except Exception as _ee:
         logger.debug("vllm.apply_input_shapes skipped: %s", _ee)
 

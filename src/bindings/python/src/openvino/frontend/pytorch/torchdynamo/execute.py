@@ -4,6 +4,7 @@
 
 # mypy: ignore-errors
 
+import os
 from copy import deepcopy
 from dataclasses import dataclass
 from functools import lru_cache
@@ -48,12 +49,54 @@ partitioned_modules = {}
 structural_cache = {}
 
 
-def _structural_key(gm, args):
+def _shape_agnostic_compile(gm, args, options):
+    """Will the OV model compiled from this graph accept any input shape?
+
+    True only when nothing about the trace-time sizes gets frozen into the
+    model, which needs both halves to hold:
+
+      * every int (symbolic size) input is rebuilt from a ShapeOf of the
+        tensor whose dimension it denotes -- a single int left baked as a
+        Constant pins the model to this trace, and
+      * the tensor Parameters are given dynamic shapes.
+
+    vllm.compile_hooks.bake_symint_constants couples these: it forces dynamic
+    tensor shapes exactly when it sourced every int from a ShapeOf, since
+    otherwise the ShapeOf would const-fold back to the frozen size. So the
+    first condition implies the second, and the remaining case is a graph with
+    no int inputs at all, which is shape-agnostic iff dynamic shapes are on.
+    """
+    if os.environ.get("OV_SHAPE_AGNOSTIC_CACHE", "1") == "0":
+        return False  # kill switch: go back to one compiled model per shape
+    try:
+        from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh
+        from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt
+        n_int = sum(1 for a in args if isinstance(a, int))
+        # Same guard as vllm.compile_hooks.apply_input_shapes: when it falls
+        # through, compile.py's upstream loop pins every Parameter to its
+        # trace-time shape.
+        if not (bool_opt(options, "vllm", False) or n_int):
+            return False
+        if n_int == 0:
+            return bool_opt(options, "dynamic_shapes", True)
+        return len(_vh.symint_shape_sources(gm, args)) == n_int
+    except Exception as e:
+        logger.debug("shape-agnostic check unavailable: %s", e)
+        return False
+
+
+def _structural_key(gm, args, options=None):
     """Structural hash of the FX graph that's stable across re-traces.
 
     Uses normalized node ops + consumer chain instead of gm.code (which has
     arbitrary name suffixes like 'arg99_1' vs 'arg132_1' that differ across
     traces despite identical structure).
+
+    Input sizes are part of the key only when the compiled model actually
+    depends on them. A shape-agnostic model keyed by exact sizes would be
+    recompiled for every new prefill length -- measured at ~14 s each on
+    Llama-3.2-1B, against a 0.25 s infer -- while the model already in the
+    cache would have served that shape unchanged.
     """
     try:
         parts = []
@@ -77,12 +120,18 @@ def _structural_key(gm, args):
             node_id[n] = f"n{len(node_id)}"
     except Exception:
         parts = [str(id(gm))]
+    shape_agnostic = _shape_agnostic_compile(gm, args, options)
     sig = ["|".join(parts)]
     for a in args:
         if isinstance(a, torch.Tensor):
-            sig.append(f"T{a.dtype}:{tuple(a.size())}")
+            # Rank and dtype still matter even when sizes don't: they change
+            # which ops the frontend emits, not just the Parameter shapes.
+            if shape_agnostic:
+                sig.append(f"T{a.dtype}:r{a.dim()}")
+            else:
+                sig.append(f"T{a.dtype}:{tuple(a.size())}")
         elif isinstance(a, int):
-            sig.append(f"I:{a}")
+            sig.append("I:dyn" if shape_agnostic else f"I:{a}")
         else:
             sig.append(f"S{type(a).__name__}")
     import hashlib
@@ -161,7 +210,10 @@ def openvino_execute(
         compiled = compiled_cache[cache_key]
         req = req_cache[cache_key]
     else:
-        struct_key = _structural_key(gm, args)
+        # options decides whether the sizes belong in the key at all, so it has
+        # to be threaded in: a shape-agnostic model keyed by size would be
+        # recompiled per prefill length even though it accepts every one.
+        struct_key = _structural_key(gm, args, options)
         if use_cache and struct_key in structural_cache:
             compiled, req = structural_cache[struct_key]
         else:
@@ -172,14 +224,34 @@ def openvino_execute(
         req_cache[cache_key] = req
 
     flat_args, _ = tree_flatten(args)
-    # Int args are either baked into the compiled OV model as Constants
-    # (vLLM path via vllm.compile_hooks.bake_symint_constants) or left as
-    # int64[1] Parameters (upstream default). Detect which case applies by
-    # comparing compiled.inputs count to the flat_args count; skip the int
-    # entries only when the Parameters have been removed.
+    # Int args either have no Parameter left in the compiled OV model (vLLM
+    # path: vllm.compile_hooks.bake_symint_constants replaces them with
+    # Constants or with Gather(ShapeOf(tensor)) nodes) or are still int64[1]
+    # Parameters (upstream default). Skip the int entries only in the former
+    # case, otherwise the remaining tensors bind to the wrong ports.
+    #
+    # Counting inputs alone is not enough to tell the cases apart: a
+    # PagedAttention graph carries dozens of extra __pa__ side-channel
+    # Parameters, so compiled.inputs is far *larger* than flat_args even
+    # though every int Parameter is gone. Under torch.compile(dynamic=True)
+    # ints do appear (dynamo passes the symbolic sizes as graph inputs), and
+    # the old count comparison then wrongly kept them, shifting every
+    # subsequent tensor by one port:
+    #
+    #   Can't set the input tensor with index: 1, because the model input
+    #   (shape=[26]) and the tensor (shape=()) are incompatible
+    #
+    # So compare against the ports that positional args can actually bind
+    # to, i.e. excluding the __pa__ ones (see vllm.runtime_hooks.
+    # build_call_kwargs, which walks compiled.inputs in exactly this order).
     _n_compiled_inputs = len(compiled.inputs)
     _n_flat = len(flat_args)
-    _skip_ints = _n_compiled_inputs < _n_flat and any(isinstance(a, int) for a in flat_args)
+    _n_tensor_args = sum(1 for a in flat_args if not isinstance(a, int))
+    _n_positional_ports = sum(
+        1 for inp in compiled.inputs
+        if not any(n.startswith("__pa__") for n in inp.get_names()))
+    _skip_ints = _n_tensor_args != _n_flat and (
+        _n_positional_ports == _n_tensor_args or _n_compiled_inputs < _n_flat)
     ov_inputs = []
     for arg in flat_args:
         if isinstance(arg, int):
