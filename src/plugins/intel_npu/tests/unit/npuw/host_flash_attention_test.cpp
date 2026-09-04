@@ -74,8 +74,6 @@ std::shared_ptr<ov::Model> build_sdpa_model(size_t query_size = QUERY_SIZE,
         results.push_back(std::make_shared<op::v0::Result>(out));
         results.back()->set_friendly_name(name);
     };
-    make_result(key_concat->output(0), "present.0.key");
-    make_result(val_concat->output(0), "present.0.value");
     make_result(matmul2->output(0), "attn_out.0");
 
     auto model = std::make_shared<Model>(results, params, "sdpa_model");
@@ -140,8 +138,6 @@ std::shared_ptr<ov::Model> build_sdpa_model_mixed_dtype(size_t query_size = QUER
         results.push_back(std::make_shared<op::v0::Result>(out));
         results.back()->set_friendly_name(name);
     };
-    make_result(key_concat->output(0), "present.0.key");
-    make_result(val_concat->output(0), "present.0.value");
     make_result(matmul2->output(0), "attn_out.0");
 
     auto model = std::make_shared<Model>(results, params, "sdpa_model_mixed_dtype");
@@ -486,8 +482,6 @@ std::shared_ptr<ov::Model> build_sdpa_model_transposed_v(size_t query_size = QUE
         results.push_back(std::make_shared<op::v0::Result>(out));
         results.back()->set_friendly_name(name);
     };
-    make_result(key_concat->output(0), "present.0.key");
-    make_result(val_concat->output(0), "present.0.value");
     make_result(matmul2->output(0), "attn_out.0");
 
     auto model = std::make_shared<Model>(results, params, "sdpa_model_transposed_v");
@@ -580,17 +574,18 @@ TEST(HostFlashAttentionFromTest, NonFused_RegularTileOutputShapes) {
     check_output_shapes(result->_tile_model, expected, "non-fused regular tile");
 }
 
-// Final tile output: [B, QUERY_SIZE, NUM_HEADS * HEAD_DIM] after transpose + reshape
+// These fixtures have no post-attention layout tail, so the final tile preserves
+// the source model's [B, H, Q, D] output shape.
 TEST(HostFlashAttentionFromTest, Fused_FinalTileOutputShape) {
     auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), true);
     ASSERT_TRUE(result.has_value());
-    check_output_shapes(result->_final_tile_model, {{BATCH, QUERY_SIZE, NUM_HEADS * HEAD_DIM}}, "fused final tile");
+    check_output_shapes(result->_final_tile_model, {{BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM}}, "fused final tile");
 }
 
 TEST(HostFlashAttentionFromTest, NonFused_FinalTileOutputShape) {
     auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), false);
     ASSERT_TRUE(result.has_value());
-    check_output_shapes(result->_final_tile_model, {{BATCH, QUERY_SIZE, NUM_HEADS * HEAD_DIM}}, "non-fused final tile");
+    check_output_shapes(result->_final_tile_model, {{BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM}}, "non-fused final tile");
 }
 
 // ============================================================================
@@ -655,7 +650,7 @@ TEST(HostFlashAttentionTransposedVTest, Fused_FinalTileOutputShape) {
     auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_transposed_v(), true);
     ASSERT_TRUE(result.has_value());
     check_output_shapes(result->_final_tile_model,
-                        {{BATCH, QUERY_SIZE, NUM_HEADS * HEAD_DIM}},
+                        {{BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM}},
                         "transposed-V fused final tile");
 }
 

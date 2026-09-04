@@ -200,59 +200,6 @@ static void collect_concat_block_indices(const std::shared_ptr<ov::Model>& model
     }
 }
 
-// Determine, for `concat_node`, the input index carrying the past KV cache.
-//
-// The past input traces back (through the usual dequant / layout ops) to a
-// past_key_values Parameter; the present input is computed from the current tokens and
-// never reaches such a Parameter. Returns nullopt when no past input is found.
-static std::optional<size_t> find_past_concat_input_index(const std::shared_ptr<ov::Node>& concat_node, bool is_key) {
-    auto concat_op = std::dynamic_pointer_cast<ov::op::v0::Concat>(concat_node);
-    if (!concat_op) {
-        return std::nullopt;
-    }
-
-    auto reaches_past_param = [is_key](std::shared_ptr<ov::Node> node) -> bool {
-        // Walk back along the data input (input 0) through dequant / layout ops until a
-        // Parameter (or an unrecognized op) is reached.
-        while (node) {
-            if (auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(node)) {
-                const auto& name = param->get_friendly_name();
-                return is_key ? ov::npuw::util::isPastKeyValuesKeyContiguous(name).has_value()
-                              : ov::npuw::util::isPastKeyValuesValueContiguous(name).has_value();
-            }
-            if (ov::is_type<ov::op::v0::Convert>(node) || ov::is_type<ov::op::v1::Multiply>(node) ||
-                ov::is_type<ov::op::v1::Reshape>(node) || ov::is_type<ov::op::v1::Transpose>(node) ||
-                ov::is_type<ov::op::v0::Unsqueeze>(node) || ov::is_type<ov::op::v3::Broadcast>(node)) {
-                if (node->get_input_size() == 0) {
-                    break;
-                }
-                node = node->get_input_node_shared_ptr(0);
-                continue;
-            }
-            break;
-        }
-        return false;
-    };
-
-    const size_t n = concat_op->get_input_size();
-    for (size_t i = 0; i < n; ++i) {
-        if (reaches_past_param(concat_op->get_input_node_shared_ptr(i))) {
-            return i;
-        }
-    }
-    return std::nullopt;
-}
-
-// True when, for `concat_node`, the freshly-computed present KV input precedes the past
-// KV cache input (Concat order [present | past], i.e. the past cache is appended last).
-// This encodes the left-aligned KV layout independently of tensor dtype or seq-dim index.
-static bool concat_present_before_past(const std::shared_ptr<ov::Node>& concat_node, bool is_key) {
-    const auto past_idx = find_past_concat_input_index(concat_node, is_key);
-    // "present before past" means the past input is not the first input (a present input
-    // precedes it). For the contiguous 2-input case this is simply past_idx == 1.
-    return past_idx.has_value() && *past_idx > 0;
-}
-
 // Helper function to process a single pyramid model (clone, reshape, patch, optimize)
 std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov::Model>& original_model,
                                                         size_t model_idx,
@@ -709,11 +656,9 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
         return std::nullopt;
     }
 
-    // Left-aligned KV layout is defined structurally: for both K and V the freshly-computed
-    // present KV is concatenated *before* the past KV cache (Concat order [present | past],
-    // i.e. the past cache is appended last).
-    const bool present_before_past = concat_present_before_past(pattern_nodes.past_key_concat_node, /*is_key=*/true) &&
-                                     concat_present_before_past(pattern_nodes.past_value_concat_node, /*is_key=*/false);
+    using ov::npuw::util::KVOrder;
+    const auto detected_order = ov::npuw::util::kv_concat_order(pattern_nodes.past_key_concat_node,
+                                                                pattern_nodes.past_value_concat_node);
 
     // Additional guard: the specific quantized layout this path was validated against
     // (i8 KV, key sequence dim 1, value sequence dim 3).
@@ -722,12 +667,15 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
                                           pattern_nodes.past_key_concat_node->get_element_type() == ov::element::i8 &&
                                           pattern_nodes.past_value_concat_node->get_element_type() == ov::element::i8;
 
-    const bool data_left_aligned = present_before_past && matches_quantized_layout;
+    // Only the quantized layout above was validated for a present-first cache.
+    const auto kv_order = (detected_order == KVOrder::PresentFirst && matches_quantized_layout)
+                              ? KVOrder::PresentFirst
+                              : KVOrder::PastFirst;
 
     return PyramidValidationContiguousResult{query_length,
                                              full_context_length,
                                              past_kv_length,
-                                             data_left_aligned,
+                                             kv_order,
                                              std::move(past_key_sequence_dims),
                                              std::move(past_value_sequence_dims)};
 }
@@ -743,7 +691,7 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
     size_t query_length = 0;
     size_t full_past_kv_length = 0;
     size_t full_context_length = 0;
-    bool is_left_aligned = false;
+    ov::npuw::util::KVOrder kv_order = ov::npuw::util::KVOrder::PastFirst;
     std::map<std::string, size_t> past_key_sequence_dims;
     std::map<std::string, size_t> past_value_sequence_dims;
     bool is_block_split = false;
@@ -760,7 +708,7 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
                 full_past_kv_length = result.past_kv_length;
                 past_key_sequence_dims = result.past_key_sequence_dims;
                 past_value_sequence_dims = result.past_value_sequence_dims;
-                is_left_aligned = result.data_left_aligned;
+                kv_order = result.kv_order;
             } else {
                 static_assert(std::is_same_v<T, PyramidValidationBlockResult>);
                 full_past_kv_length = result.past_kv_length;
@@ -846,7 +794,7 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
     pyramid_attention._full_context_length = full_context_length;
     pyramid_attention._models = pyramid_models;
     pyramid_attention._attentions = pyramid_attentions;
-    pyramid_attention._data_left_aligned = is_left_aligned;
+    pyramid_attention._kv_order = kv_order;
     // Block indices are empty in contiguous mode; assigned unconditionally for simplicity.
     pyramid_attention.past_key_block_global_param_indices = std::move(block_key_global_indices);
     pyramid_attention.past_value_block_global_param_indices = std::move(block_val_global_indices);
@@ -1024,7 +972,7 @@ std::shared_ptr<PyramidAttention> PyramidAttention::make(const function::Pyramid
         obj->query_size = func_pyramid._query_length;
         obj->full_context_size = func_pyramid._full_context_length;
         obj->_models_to_compile = func_pyramid._models;
-        obj->_data_left_aligned = func_pyramid._data_left_aligned;
+        obj->_kv_order = func_pyramid._kv_order;
         obj->_attention_infos.reserve(num_models);
         obj->_context_lengths.reserve(num_models);
 
@@ -1134,12 +1082,12 @@ Selector::Ptr PositionIDs::find(const compiled::PyramidAttention& d, const ov::I
 
     const auto param_idx = std::distance(inputs.begin(), pos_ids_iter);
 
-    // Reuse the same structural signal as the mask/left-alignment decision: a left-aligned
-    // KV layout (present concatenated before past, quantized i8 KV) corresponds to the
+    // Reuse the same structural signal as the mask decision: a present-first KV layout
+    // (present concatenated before past, quantized i8 KV) corresponds to the
     // QuantizedSDPAWithGlobalMask pattern, where a large query is matched against a
     // smaller-granularity KV cache update and GlobalPositionIDs is required. The regular
-    // contiguous case (e.g. SDPADecomposed) is not left-aligned and uses PositionIDs.
-    if (d._data_left_aligned) {
+    // contiguous case (e.g. SDPADecomposed) is past-first and uses PositionIDs.
+    if (d._kv_order == ov::npuw::util::KVOrder::PresentFirst) {
         return Selector::Ptr{new GlobalPositionIDs(param_idx, d, rq)};
     }
     return Selector::Ptr{new PositionIDs(param_idx, d, rq)};
