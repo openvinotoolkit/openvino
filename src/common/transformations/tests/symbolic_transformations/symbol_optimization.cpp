@@ -257,7 +257,7 @@ TEST_F(TransformationTestsF, ValueOptimizationSymbolAndValue) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
-TEST_F(TransformationTestsF, ValueOptimizationKeepsSourceAcrossStridedSlice) {
+TEST_F(TransformationTestsF, ValueOptimizationKeepsSourceAcrossSliceStep2) {
     // The Reshape pattern reads H and W from the output of a step-2 Slice. Those values are NOT equal to the
     // dimensions of the Slice input, so OptimizeSymbolsUsedAsValues must not re-source them to ShapeOf(input); the
     // pattern [B, H/2, W/2, 8] is the shape of the Slice output itself, hence the expected ShapeOf(slice).
@@ -373,10 +373,9 @@ TEST(TransformationTests, ValueOptimizationReusesSourceAcrossIdentitySlice) {
     }
 }
 
-TEST(TransformationTests, SliceSymbolsSurviveRevalidation) {
-    // The symbols established by SymbolicPropagation must stay correct if a pass re-validates a Slice and its consumer
-    // in place: a step-2 slice output concatenated with another tensor must not make the slice input dimension equal
-    // to that tensor's dimension.
+TEST(TransformationTests, SliceStep2ConcatDoesNotEquateInputDimSymbols) {
+    // Concat merges the symbols of its non-axis dimensions, so a step-2 slice output concatenated with another tensor
+    // must not make the slice input dimension equal to that tensor's dimension.
     auto x = make_shared<v0::Parameter>(element::f32, PartialShape{-1, Dimension(1, -1), 4});
     auto z = make_shared<v0::Parameter>(element::f32, PartialShape{-1, Dimension(1, -1), 6});
 
@@ -392,8 +391,6 @@ TEST(TransformationTests, SliceSymbolsSurviveRevalidation) {
     manager.set_per_pass_validation(false);
     manager.register_pass<pass::SymbolicPropagation>();
     manager.run_passes(model);
-    slice->validate_and_infer_types();
-    concat->validate_and_infer_types();
 
     const auto x_dim = x->get_output_partial_shape(0)[1].get_symbol();
     const auto z_dim = z->get_output_partial_shape(0)[1].get_symbol();

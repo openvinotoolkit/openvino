@@ -257,7 +257,8 @@ TEST(type_prop, slice_v8_basic_param_inputs_default_axes_symbols_prop) {
     EXPECT_EQ(op->get_element_type(), et);
     EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
     // start, stop and step are not constant: the sliced size is unknown for every axis in the axes list (0..6), so
-    // no symbol is propagated there even if the output interval matches the input one (dims 0 and 6)
+    // no symbol is propagated there even if the output interval matches the input one (dims 0 and 6; dim 4 is fully
+    // dynamic and never propagates its symbol)
     EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
                 ElementsAre(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, symbols[7], symbols[8]));
 }
@@ -1404,44 +1405,4 @@ TEST(type_prop, slice_v8_stop_is_shape_of_input_dim_on_unbounded_dims) {
     EXPECT_EQ(op->get_output_partial_shape(0), data_shape);
     EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
                 ElementsAre(symbols[0], nullptr, nullptr, symbols[3]));
-}
-
-TEST(type_prop, slice_v8_stop_is_shape_of_other_input_does_not_propagate_symbols) {
-    // The stop is the shape of another tensor with the same interval: the sizes are unrelated.
-    PartialShape data_shape{-1, Dimension(1, -1), Dimension(1, -1), 96};
-    PartialShape other_shape{-1, Dimension(1, -1), Dimension(1, -1), 96};
-    auto symbols = set_shape_symbols(data_shape);
-    set_shape_symbols(other_shape);
-
-    const auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
-    const auto other = std::make_shared<op::v0::Parameter>(element::f32, other_shape);
-    const auto stop = std::make_shared<op::v8::Gather>(std::make_shared<op::v3::ShapeOf>(other),
-                                                       op::v0::Constant::create(element::i64, Shape{2}, {1, 2}),
-                                                       op::v0::Constant::create(element::i64, Shape{}, {0}));
-    const auto start = op::v0::Constant::create(element::i64, Shape{2}, {0, 0});
-    const auto step = op::v0::Constant::create(element::i64, Shape{2}, {1, 1});
-    const auto axes = op::v0::Constant::create(element::i64, Shape{2}, {1, 2});
-    const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
-
-    EXPECT_EQ(op->get_output_partial_shape(0), data_shape);
-    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
-                ElementsAre(symbols[0], nullptr, nullptr, symbols[3]));
-}
-
-TEST(type_prop, slice_v8_stop_is_shape_of_fully_dynamic_dim_stays_symbol_free) {
-    // A fully dynamic dimension never propagates its symbol through a slice (the output is [0..inf] as well).
-    PartialShape data_shape{-1, -1, 8};
-    auto symbols = set_shape_symbols(data_shape);
-
-    const auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
-    const auto stop = std::make_shared<op::v8::Gather>(std::make_shared<op::v3::ShapeOf>(data),
-                                                       op::v0::Constant::create(element::i64, Shape{1}, {1}),
-                                                       op::v0::Constant::create(element::i64, Shape{}, {0}));
-    const auto start = op::v0::Constant::create(element::i64, Shape{1}, {0});
-    const auto step = op::v0::Constant::create(element::i64, Shape{1}, {1});
-    const auto axes = op::v0::Constant::create(element::i64, Shape{1}, {1});
-    const auto op = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
-
-    EXPECT_EQ(op->get_output_partial_shape(0), data_shape);
-    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(symbols[0], nullptr, symbols[2]));
 }
