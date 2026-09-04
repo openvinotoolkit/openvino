@@ -8,6 +8,7 @@ namespace kernel_selector {
 ParamsKey BroadcastKernelRef::GetSupportedKey() const {
     ParamsKey k;
 
+    k.EnableInputDataType(Datatype::BOOLEAN);
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
@@ -23,6 +24,7 @@ ParamsKey BroadcastKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::INT64);
+    k.EnableOutputDataType(Datatype::BOOLEAN);
 
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();

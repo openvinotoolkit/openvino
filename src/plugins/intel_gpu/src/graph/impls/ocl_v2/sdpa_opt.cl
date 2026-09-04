@@ -523,11 +523,15 @@ KERNEL(sdpa_opt)(
 #elif !IS_CAUSAL && HAS_ATTN_MASK_INPUT
                         const uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0_idx, b1_idx, target_seq_idx + seq_idx, start_partition_idx + seq_len);
                         INPUT3_TYPE mask_val = attn_mask[attn_mask_offset];
+#ifdef BOOLEAN_ATTN_MASK
+                        qk_val[seq_idx] += mask_val ? SOFTMAX_ACCUMULATOR_VAL_ZERO : INPUT0_VAL_MIN;
+#else
 #ifdef CLAMP_ATTN_MASK_INPUT
                         // Conditionally clamp attention mask when attention mask differs from SOFTMAX_ACCUMULATOR_TYPE(f32)
                         mask_val = INPUT3_MAX_FUNC(mask_val, INPUT3_VAL_MIN);
 #endif
                         qk_val[seq_idx] += mask_val;
+#endif
 #elif defined(STATIC_SCALAR_ATTN_MASK_VALUE)
                         qk_val[seq_idx] += STATIC_SCALAR_ATTN_MASK_VALUE;
 #endif
@@ -1010,13 +1014,23 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
         if (source_seq_idx + SUBGROUP_SIZE <= (uint)SOURCE_SEQ_LEN) {
             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
                 const INPUT3_TYPE mask_val = attn_mask[attn_mask_offset + i];
+#ifdef BOOLEAN_ATTN_MASK
+                mask_vec[i] = mask_val ? INPUT0_VAL_ZERO : INPUT0_VAL_MIN;
+#else
                 mask_vec[i] = mask_val;
+#endif
             }
         } else {
             const uint max_mask_offset = min(source_seq_idx + SUBGROUP_SIZE, (uint)SOURCE_SEQ_LEN);
             for (uint i = 0; i < SUBGROUP_SIZE; i++) {
                 const INPUT3_TYPE mask_val = source_seq_idx + i < max_mask_offset ? attn_mask[attn_mask_offset + i] : NAN;
+#ifdef BOOLEAN_ATTN_MASK
+                mask_vec[i] = source_seq_idx + i < max_mask_offset
+                    ? (mask_val ? INPUT0_VAL_ZERO : INPUT0_VAL_MIN)
+                    : NAN;
+#else
                 mask_vec[i] = mask_val;
+#endif
             }
         }
     }

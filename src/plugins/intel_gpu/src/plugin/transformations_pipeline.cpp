@@ -946,11 +946,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             if (sdpa->get_output_element_type(0) != ov::element::f16)
                 return false;
 
-            // - The attn mask type of SDPA should be fp16
-            if (!sdpa->get_causal() && sdpa->get_input_size() >= 4 && sdpa->get_input_element_type(3) == ov::element::boolean) {
-                return false;
-            }
-
             // - The number of dimensions for each input is expected to be 4 or 3
             if ((query_ps.size() != 3 && query_ps.size() != 4) ||
                 (key_ps.size() != 3 && key_ps.size() != 4) ||
@@ -1081,14 +1076,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             {ov::element::i16, ov::element::i32},
             {ov::element::u16, ov::element::i32},
             {ov::element::u32, ov::element::i32},
-            {ov::element::boolean, ov::element::u8},
             {ov::element::i4, ov::element::i8},
             {ov::element::u4, ov::element::u8},
         };
 
         const bool keep_precision_sensitive_in_fp32_2 = true;
 
-        // To convert to f16 input to boolean which is converted to u8, add abs + ceiling + clamp before convert.
         type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
         manager.register_pass<ov::pass::ConvertPrecision>(int_convert_precision_map,
                                                           type_to_fuse,

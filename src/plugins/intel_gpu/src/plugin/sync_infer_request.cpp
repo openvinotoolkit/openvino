@@ -38,7 +38,7 @@
 namespace {
 
 bool is_convert_required(ov::element::Type src_et, ov::element::Type dst_et) {
-    return src_et != dst_et && (dst_et != ov::element::boolean || src_et != ov::element::u8);
+    return src_et != dst_et;
 }
 
 bool same_host_mem(cldnn::memory::cptr memory, const uint8_t* host_ptr) {
@@ -77,8 +77,6 @@ cldnn::data_types data_type_for_remote_tensor(ov::element::Type t) {
         return cldnn::data_types::f32;
     case ov::element::Type_t::u64:
         return cldnn::data_types::i32;
-    case ov::element::Type_t::boolean:
-        return cldnn::data_types::u8;
     default: return t;
     }
 }

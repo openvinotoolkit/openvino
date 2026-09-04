@@ -86,7 +86,8 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
 namespace detail {
 
 attach_activation_impl::attach_activation_impl() {
-     auto types = {
+    auto types = {
+        data_types::boolean,
         data_types::f32,
         data_types::f16,
         data_types::bf16,

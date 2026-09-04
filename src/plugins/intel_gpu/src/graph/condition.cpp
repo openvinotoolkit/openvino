@@ -92,6 +92,7 @@ bool condition_inst::get_pred_from_memory(memory::ptr mem, stream& stream) {
             return convert_data<int32_t>(mem, stream);
         case cldnn::data_types::i8:
             return convert_data<int8_t>(mem, stream);
+        case cldnn::data_types::boolean:
         case cldnn::data_types::u8:
             return convert_data<uint8_t>(mem, stream);
         case cldnn::data_types::u1:

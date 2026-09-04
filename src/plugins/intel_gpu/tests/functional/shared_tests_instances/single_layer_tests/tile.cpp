@@ -8,7 +8,8 @@ namespace {
 using ov::test::TileLayerTest;
 
 const std::vector<ov::element::Type> netPrecisions = {
-        ov::element::f32
+        ov::element::f32,
+        ov::element::boolean
 };
 
 const std::vector<std::vector<int64_t>> repeats = {

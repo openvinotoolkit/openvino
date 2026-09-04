@@ -47,6 +47,9 @@ DeviceFeaturesKey EngineInfo::get_supported_device_features_key() const {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void ParamsKey::EnableInputDataType(Datatype dt) {
     switch (dt) {
+        case Datatype::BOOLEAN:
+            key.inputType.val.boolean = 1;
+            break;
         case Datatype::INT4:
             key.inputType.val.int4 = 1;
             break;
@@ -104,6 +107,9 @@ void ParamsKey::EnableAllInputDataType() { key.inputType.raw = 0xffffffff; }
 
 void ParamsKey::EnableOutputDataType(Datatype dt) {
     switch (dt) {
+        case Datatype::BOOLEAN:
+            key.outputType.val.boolean = 1;
+            break;
         case Datatype::INT4:
             key.outputType.val.int4 = 1;
             break;

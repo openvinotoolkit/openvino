@@ -171,6 +171,21 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
     bool is_fp = false;
     bool is_bf16 = false;
     switch (value) {
+    case ov::element::boolean:
+        type = "uchar";
+        max_val = "1";
+        min_val = "0";
+        val_one = "(uchar) 1";
+        val_zero = "(uchar) 0";
+        to_type = "((v) != 0)";
+        to_type_sat = "((v) != 0)";
+        as_type = "as_uchar(v)";
+        max_func = "max";
+        min_func = "min";
+        abs_func = "abs";
+        type_size = "1";
+        is_fp = false;
+        break;
     case ov::element::i8:
         type = "char";
         max_val = "CHAR_MAX";
@@ -597,6 +612,8 @@ JitConstants make_layout_jit_constants(const std::string& name, const cldnn::lay
 
 std::string to_ocl_type(ov::element::Type_t et) {
     switch (et) {
+    case ov::element::Type_t::boolean:
+        return get_ocl_type_name<uint8_t>();
     case ov::element::Type_t::i8:
         return get_ocl_type_name<int8_t>();
     case ov::element::Type_t::u8:
