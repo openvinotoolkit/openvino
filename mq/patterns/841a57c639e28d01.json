@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "artifact upload to blob storage failed html error page returned during finalizeartifact|Infrastructure",
+  "signature_hash": "841a57c639e28d01",
+  "title": "LLM accuracy iGPU tests fail uploading test results - artifact blob storage returns HTML error page",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-09-04T09:54:54Z",
+  "last_seen": "2026-09-04T09:54:54Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/33854130288"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37898"
+  ],
+  "recent_timestamps": [
+    "2026-09-04T09:54:54Z"
+  ],
+  "rerun_search_string": "Beginning upload of artifact content to blob storage"
+}

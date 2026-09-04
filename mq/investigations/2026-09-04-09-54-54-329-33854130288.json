@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-04-09-54-54-329-33854130288",
+  "timestamp": "2026-09-04T09:54:54Z",
+  "run_id": "33854130288",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33854130288",
+  "workflow_name": "LLM accuracy iGPU tests",
+  "pr_number": "37898",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37898",
+  "author": "pereanub",
+  "category": "Infrastructure",
+  "title": "LLM accuracy iGPU tests fail uploading test results - artifact blob storage returns HTML error page",
+  "signature": "artifact upload to blob storage failed html error page returned during finalizeartifact|Infrastructure",
+  "signature_hash": "841a57c639e28d01",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "LLM accuracy iGPU tests / LLM accuracy GPU tests",
+      "conclusion": "failure",
+      "symptom": "Test suite passed (4 passed, 4 deselected) but the 'Upload LLM accuracy test results' step failed uploading llm_accuracy.xml/html artifact - blob storage endpoint returned an HTML error page instead of a JSON response"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_24",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check failed because the LLM accuracy iGPU tests job failed (exit 1), downstream of the artifact upload failure"
+    }
+  ],
+  "key_errors": [
+    "Beginning upload of artifact content to blob storage",
+    "##[error]<!DOCTYPE html><html lang=\"en\"> <head> <meta charset=\"UTF-8\"> ... (Actions artifact service returned a generic HTML error page instead of a JSON API response during blob upload)",
+    "=========== 4 passed, 4 deselected, 23 warnings in 550.13s (0:09:10) ==========="
+  ],
+  "root_cause": "The pytest suite itself completed successfully (4 passed, 0 failed). The job failure originates entirely in the post-test 'Upload LLM accuracy test results' step, where actions/upload-artifact's call to the Actions artifact/blob storage service received an HTML error page instead of the expected API JSON response while 'Beginning upload of artifact content to blob storage'. This is characteristic of a transient outage, rate-limiting, or edge/proxy error on the GitHub Actions artifact backend (or an intermediate network proxy) unrelated to the PR's code changes (a single-line NPU mutex/exception-ordering fix in zero_mem_pool.cpp) or the test content being uploaded.",
+  "reproduction_steps": "N/A - not reproducible locally; requires hitting the GitHub Actions artifact/blob storage backend on the self-hosted iGPU runner at time of failure.",
+  "recommended_actions": [
+    "Re-run the failed 'LLM accuracy iGPU tests' job; the underlying tests already passed and this is very likely a transient artifact-service hiccup.",
+    "If the failure recurs, check GitHub Actions status page for artifact/blob storage service incidents around the failure timestamp (2026-09-04T09:45:59Z).",
+    "Consider adding retry/backoff wrapping around the upload-artifact step or setting continue-on-error for informational test-result artifacts so a transient upload issue does not fail the whole job when the actual test run passed.",
+    "No action needed on the PR itself (src/plugins/intel_npu/src/utils/src/zero/zero_mem_pool.cpp) - the failure is unrelated to the changed code."
+  ],
+  "prevention_strategies": "Wrap non-critical result-artifact uploads (e.g., test result XML/HTML for reporting only) with retry logic or continue-on-error, since a failed upload of informational artifacts should not fail an otherwise-passing test job. Monitor for recurrence to distinguish a one-off blip from a systemic self-hosted runner networking issue.",
+  "historical_context": "No prior CI Doctor MQ pattern exactly matches this signature (artifact upload receiving an HTML error page from blob storage). Related but distinct patterns exist for ECONNREFUSED/ENOTFOUND artifact upload/download failures on self-hosted Windows runners (patterns 1808e665f1f70825, 4e9cf236bf92d555, 669fb8e126e09420, b889d24cd154d2dd, c903843ea6da862b), all categorized Network/Infrastructure and generally resolved by re-running. This is the first occurrence of the HTML-error-page variant on the iGPU self-hosted runner."
+}

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 217,
+  "total": 218,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -2136,6 +2136,15 @@
       "title": "NPU Models Tests fail installing TF Models tests requirements, unrelated to NPU mutex fix PR",
       "category": "Infrastructure",
       "signature_hash": "6e384cf2944ada58",
+      "pr_number": "37898"
+    },
+    {
+      "investigation_id": "2026-09-04-09-54-54-329-33854130288",
+      "run_id": "33854130288",
+      "timestamp": "2026-09-04T09:54:54Z",
+      "title": "LLM accuracy iGPU tests fail uploading test results - artifact blob storage returns HTML error page",
+      "category": "Infrastructure",
+      "signature_hash": "841a57c639e28d01",
       "pr_number": "37898"
     }
   ]
