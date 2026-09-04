@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <memory>
 #include <string>
 #include <system_error>
 
@@ -116,4 +117,95 @@ void vm_decommit(void* ptr, size_t size) noexcept;
  * @pre  ptr != nullptr && size > 0; violated preconditions are a programming error (assert fires in debug).
  */
 void vm_release(void* ptr, size_t size) noexcept;
+
+/**
+ * @brief Queryable facts about a memory buffer's allocation, set once at construction/mapping time.
+ */
+struct MemoryProperties {
+    /// @brief Opaque id of the buffer's ultimate backing allocation (e.g. weight-sharing/mmap root). 0 == unknown.
+    size_t source_id = 0;
+    /// @brief This buffer's byte offset within the source_id allocation. Meaningless when source_id == 0.
+    size_t offset = 0;
+};
+
+/// @brief Read-only, non-owning view (pointer + size) of a buffer's contents.
+class MemoryView {
+public:
+    constexpr MemoryView() noexcept = default;
+    constexpr MemoryView(const std::byte* data, size_t size) noexcept : m_data{data}, m_size{size} {}
+
+    constexpr const std::byte* data() const noexcept {
+        return m_data;
+    }
+    constexpr size_t size() const noexcept {
+        return m_size;
+    }
+    constexpr const std::byte* begin() const noexcept {
+        return data();
+    }
+    constexpr const std::byte* end() const noexcept {
+        return data() + size();
+    }
+
+private:
+    const std::byte* m_data = nullptr;
+    size_t m_size = 0;
+};
+
+/**
+ * @brief Common, read-only access to a contiguous block of memory plus its properties.
+ */
+class IBuffer {
+public:
+    // Declared first so new virtual methods always append after it, keeping this slot stable.
+    virtual ~IBuffer() = default;
+
+    virtual const void* data() const noexcept = 0;
+    virtual size_t size() const noexcept = 0;
+    virtual const MemoryProperties& get_properties() const noexcept = 0;
+
+    /// @brief Read-only view for bulk reads/copies (e.g. memcpy, std::copy); not virtual, built on data()/size().
+    MemoryView view() const noexcept {
+        return {static_cast<const std::byte*>(data()), size()};
+    }
+
+    /// @brief Hint to release the underlying memory if possible (e.g. unmaps/decommits); no-op by default.
+    virtual void hint_evict() noexcept {}
+    /**
+     * @brief Hint to fetch the data to memory. No-op by default.
+     */
+    virtual void hint_prefetch() const {}
+
+    /// @brief Buffer this one is a view into (see MemoryProperties::source_id/offset), if any. Default: none.
+    virtual std::shared_ptr<IBuffer> get_source_buffer() const {
+        return nullptr;
+    }
+};
+
+/**
+ * @brief Extends IBuffer with mutable access.
+ */
+class IMutableBuffer : public IBuffer {
+public:
+    using IBuffer::data;
+    virtual void* data() noexcept = 0;
+};
+
+/**
+ * @brief CRTP mixin adding typed pointer-cast convenience (data_as<T>()) to a type exposing data()/data()
+ * const.
+ */
+template <typename Derived>
+class TypedMemoryAccessor {
+public:
+    template <typename T>
+    constexpr const T* data_as() const noexcept {
+        return reinterpret_cast<const T*>(static_cast<const Derived*>(this)->Derived::data());
+    }
+    template <typename T>
+    constexpr T* data_as() noexcept {
+        return reinterpret_cast<T*>(static_cast<Derived*>(this)->Derived::data());
+    }
+};
+
 }  // namespace ov::util
