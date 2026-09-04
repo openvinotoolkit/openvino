@@ -376,10 +376,7 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         # try to find newer version first (major is changed)
         # see https://protobuf.dev/support/version-support/ and
         # https://github.com/protocolbuffers/protobuf/commit/d61f75ff6db36b4f9c0765f131f8edc2f86310fa
-        find_package(Protobuf 5.26.0 QUIET CONFIG)
-        if(NOT Protobuf_FOUND)
-            find_package(Protobuf 5.26.0 QUIET CONFIG)
-        endif()
+        find_package(Protobuf 6.30.0 QUIET CONFIG)
         if(Protobuf_FOUND)
             # protobuf was found via CONFIG mode, let's save it for later usage in OpenVINOConfig.cmake static build
             set(protobuf_config CONFIG)
@@ -387,8 +384,14 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
             if(OV_VCPKG_BUILD)
                 set(protobuf_config CONFIG)
             endif()
+
+            find_package(Protobuf 6.30.0 QUIET ${protobuf_config})
+
             # otherwise, fallback to existing default
-            find_package(Protobuf 5.26.0 REQUIRED ${protobuf_config})
+            if(NOT Protobuf_FOUND)
+                find_package(Protobuf 4.25.1 REQUIRED CONFIG)
+                set(protobuf_config CONFIG)
+            endif()
         endif()
 
         # with newer protobuf versions (4.22 and newer), we use CONFIG first

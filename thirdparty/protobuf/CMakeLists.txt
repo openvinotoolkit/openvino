@@ -72,6 +72,15 @@ endif()
 
 set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
 
+# Protobuf 6.30 unconditionally sets ABSL_MSVC_STATIC_RUNTIME=ON for static
+# builds (protobuf_BUILD_SHARED_LIBS=OFF), ignoring protobuf_MSVC_STATIC_RUNTIME.
+# This causes abseil to compile with /MT while protobuf uses /MD, resulting in
+# LNK2038 "mismatch detected for RuntimeLibrary" on MSVC.  Patch protobuf's
+# CMakeLists.txt to propagate protobuf_MSVC_STATIC_RUNTIME to abseil.
+ov_apply_patch(
+    PATCH "${CMAKE_CURRENT_SOURCE_DIR}/patches/0001-fix-absl-msvc-runtime.patch"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/protobuf")
+
 add_subdirectory(${protobuf_dir} EXCLUDE_FROM_ALL)
 get_directory_property(protobuf_VERSION DIRECTORY ${protobuf_dir} DEFINITION protobuf_VERSION)
 
@@ -144,10 +153,6 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
                    "-Dprotobuf_WITH_ZLIB=${protobuf_WITH_ZLIB}"
         NATIVE_SOURCE_SUBDIR "${protobuf_dir}"
         NATIVE_TARGETS protoc libprotobuf-lite
-        # Declare the produced protoc binary as a byproduct so that Ninja knows
-        # the rule that generates it. Newer ONNX (>=1.22) adds the imported
-        # protobuf::protoc target to the DEPENDS of its proto-generation custom
-        # commands, which CMake lowers to a file-level dependency on this path.
         BUILD_BYPRODUCTS "${PROTOC_EXECUTABLE}")
 
     add_executable(protobuf::protoc IMPORTED GLOBAL)
