@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 
+#include "openvino/core/except.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace intel_npu {
@@ -36,9 +37,10 @@ protected:
                            std::function<bool(const ov::AnyMap&)> isSupported,
                            std::function<ov::Any(const ov::AnyMap&)> getter,
                            std::function<void(const ov::Any&)> setter) {
-        _properties.emplace(
+        const auto [it, inserted] = _properties.emplace(
             propertyName,
             PropertyDescriptor{isPublic, mutability, std::move(isSupported), std::move(getter), std::move(setter)});
+        OPENVINO_ASSERT(inserted, "Property '", propertyName, "' is already registered");
     }
 
     std::map<std::string, PropertyDescriptor> _properties;

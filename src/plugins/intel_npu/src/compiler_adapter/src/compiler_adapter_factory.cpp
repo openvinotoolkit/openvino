@@ -111,7 +111,7 @@ void CompilerAdapterFactory::decideCompilerType(ov::intel_npu::CompilerType& com
     compilerType = ov::intel_npu::CompilerType::PLUGIN;
 }
 
-const std::vector<ov::intel_npu::CompilerType>& CompilerAdapterFactory::getKnownCompilerTypes() const {
+const std::vector<ov::intel_npu::CompilerType>& CompilerAdapterFactory::getKnownCompilerTypes() {
     static const std::vector<ov::intel_npu::CompilerType> knownCompiler = {ov::intel_npu::CompilerType::DRIVER,
                                                                            ov::intel_npu::CompilerType::PLUGIN};
 

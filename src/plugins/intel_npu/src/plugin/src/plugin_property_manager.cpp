@@ -280,27 +280,24 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
 std::pair<FilteredConfig, ov::AnyMap> PluginPropertyManager::getMergedConfigAndUnknownProperties(
     const ov::AnyMap& properties,
     ConfigMergeMode mergeMode) {
-    auto [updatedConfig, logger] = [&]() {
-        std::lock_guard<std::mutex> lock(_mutex);
-        return std::make_tuple(_config, _logger);
-    }();
+    std::lock_guard<std::mutex> lock(_mutex);
 
     if (properties.find(ov::hint::enable_cpu_pinning.name()) != properties.end()) {
-        logCpuPinningDeprecationWarning(logger);
+        logCpuPinningDeprecationWarning(_logger);
     }
 
     ov::AnyMap propertyArguments = properties;
     auto normalizedArguments = resolveRequestContext(properties,
-                                                     updatedConfig.get<COMPILER_TYPE>(),
-                                                     updatedConfig.get<DEVICE_ID>(),
-                                                     updatedConfig.get<PLATFORM>());
+                                                     _config.get<COMPILER_TYPE>(),
+                                                     _config.get<DEVICE_ID>(),
+                                                     _config.get<PLATFORM>());
     if (mergeMode == ConfigMergeMode::Import) {
         // Make sure the compiler type is removed from the property arguments when importing a model with both
         // compile-time and runtime options to check only runtime availability.
         if (propertyArguments.find(ov::intel_npu::compiler_type.name()) != propertyArguments.end()) {
-            logger.warning("Property '%s' is used to specify the compiler type, will not be used for current "
-                           "configuration.",
-                           ov::intel_npu::compiler_type.name());
+            _logger.warning("Property '%s' is used to specify the compiler type, will not be used for current "
+                            "configuration.",
+                            ov::intel_npu::compiler_type.name());
             propertyArguments.erase(ov::intel_npu::compiler_type.name());
         }
     } else {
@@ -310,86 +307,89 @@ std::pair<FilteredConfig, ov::AnyMap> PluginPropertyManager::getMergedConfigAndU
     propertyArguments[ov::intel_npu::platform.name()] = normalizedArguments.platform;
 
     ov::AnyMap unknownProperties;
+    auto updatedConfig = _config;
     for (auto&& value : properties) {
         const auto& key = value.first;
         const auto propertyDescriptorIt = _properties.find(key);
-        const bool isKnownProperty = propertyDescriptorIt != _properties.end();
 
-        // If the property exists, check its mutability before allowing any modifications in the config.
-        // If the property doesn't exist, it is considered mutable by default.
-        OPENVINO_ASSERT(!isKnownProperty || propertyDescriptorIt->second.mutability != ov::PropertyMutability::RO,
-                        "READ-ONLY configuration key: ",
-                        key);
+        if (propertyDescriptorIt == _properties.end()) {
+            // Property doesn't exist - check whether the compiler supports it as an internal option.
+            bool isSupportedByCompiler = false;
+            const auto resolvedCompilerType = resolveCompilerType(normalizedArguments.compilerType,
+                                                                  normalizedArguments.deviceId,
+                                                                  normalizedArguments.platform);
+            if (resolvedCompilerType.has_value()) {
+                try {
+                    isSupportedByCompiler =
+                        _compilerOptionSupportHelper->isOptionSupported(resolvedCompilerType.value(), key);
+                } catch (...) {
+                    // ignore any exceptions from the compiler and treat the property as unsupported
+                    isSupportedByCompiler = false;
+                }
+            }
 
-        if (updatedConfig.hasOpt(key)) {
-            if (mergeMode == ConfigMergeMode::Import && updatedConfig.getOpt(key).mode() == OptionMode::CompileTime) {
-                // Compile-time-only options are not relevant when importing a model, skip them.
-                logger.warning("Property '%s' is recognized as a compiler option, will not be used for current "
-                               "configuration.",
-                               key.c_str());
+            if (isSupportedByCompiler) {
+                if (mergeMode == ConfigMergeMode::Import) {
+                    // Compile-time-only options are not relevant when no compiler config is being built.
+                    _logger.warning("Property '%s' is recognized as a compiler option, will not be used for current "
+                                    "configuration.",
+                                    key.c_str());
+                    continue;
+                }
+                // Compiler supports this option, add it as an internal property.
+                updatedConfig.addOrUpdateInternal(key, value.second.as<std::string>());
                 continue;
             }
 
-            // If the config has the option, but is not recognized as a known property for the plugin, we assume it is
-            // suported and can be changed for the current configuration.
-            OPENVINO_ASSERT(!isKnownProperty || propertyDescriptorIt->second.isSupported(propertyArguments),
+            OPENVINO_ASSERT(mergeMode != ConfigMergeMode::Query, "Unsupported configuration key: ", key);
+
+            // property doesn't exist, send it as it is to compiled model anyway, it may be used by compiled model
+            _logger.info("Property '%s' is unknown to the plugin property manager, will be sent to the compiled model.",
+                         key.c_str());
+            unknownProperties.emplace(key, value.second);
+            continue;
+        }
+
+        // If the property exists, check its mutability before allowing any modifications in the config.
+        // If the property doesn't exist, it is considered mutable by default.
+        OPENVINO_ASSERT(propertyDescriptorIt->second.mutability != ov::PropertyMutability::RO,
+                        "READ-ONLY configuration key: ",
+                        key);
+
+        if (!updatedConfig.hasOpt(key)) {
+            OPENVINO_ASSERT(propertyDescriptorIt->second.isSupported(propertyArguments),
                             "[ NOT_FOUND ] Option '",
                             key,
                             "' is not supported for current configuration");
 
-            if (key == ov::hint::model.name()) {
-                const auto model =
-                    value.second.is<std::shared_ptr<const ov::Model>>()
-                        ? value.second.as<std::shared_ptr<const ov::Model>>()
-                        : std::shared_ptr<const ov::Model>(value.second.as<std::shared_ptr<ov::Model>>());
-                updatedConfig.updateAny(key, std::weak_ptr<const ov::Model>(model));
-            } else if (key == ov::cache_encryption_callbacks.name()) {
-                updatedConfig.updateAny(key, value.second);
-            } else {
-                updatedConfig.update(key, value.second.as<std::string>());
-            }
+            OPENVINO_THROW("Property '", key, "' can be set only through 'set_property' method");
+        }
+
+        if (mergeMode == ConfigMergeMode::Import && updatedConfig.getOpt(key).mode() == OptionMode::CompileTime) {
+            // Compile-time-only options are not relevant when importing a model, skip them.
+            _logger.warning("Property '%s' is recognized as a compiler option, will not be used for current "
+                            "configuration.",
+                            key.c_str());
             continue;
         }
 
-        OPENVINO_ASSERT(!isKnownProperty,
+        // If the config has the option, but is not recognized as a known property for the plugin, we assume it is
+        // suported and can be changed for the current configuration.
+        OPENVINO_ASSERT(propertyDescriptorIt->second.isSupported(propertyArguments),
                         "[ NOT_FOUND ] Option '",
                         key,
-                        "' is not supported for current configuration.");
+                        "' is not supported for current configuration");
 
-        // Property doesn't exist - check whether the compiler supports it as an internal option.
-        bool isSupportedByCompiler = false;
-        const auto resolvedCompilerType = resolveCompilerType(normalizedArguments.compilerType,
-                                                              normalizedArguments.deviceId,
-                                                              normalizedArguments.platform);
-        if (resolvedCompilerType.has_value()) {
-            try {
-                isSupportedByCompiler =
-                    _compilerOptionSupportHelper->isOptionSupported(resolvedCompilerType.value(), key);
-            } catch (...) {
-                // ignore any exceptions from the compiler and treat the property as unsupported
-                isSupportedByCompiler = false;
-            }
+        if (key == ov::hint::model.name()) {
+            const auto model = value.second.is<std::shared_ptr<const ov::Model>>()
+                                   ? value.second.as<std::shared_ptr<const ov::Model>>()
+                                   : std::shared_ptr<const ov::Model>(value.second.as<std::shared_ptr<ov::Model>>());
+            updatedConfig.updateAny(key, std::weak_ptr<const ov::Model>(model));
+        } else if (key == ov::cache_encryption_callbacks.name()) {
+            updatedConfig.updateAny(key, value.second);
+        } else {
+            updatedConfig.update(key, value.second.as<std::string>());
         }
-
-        if (isSupportedByCompiler) {
-            if (mergeMode == ConfigMergeMode::Import) {
-                // Compile-time-only options are not relevant when no compiler config is being built.
-                logger.warning("Property '%s' is recognized as a compiler option, will not be used for current "
-                               "configuration.",
-                               key.c_str());
-                continue;
-            }
-            // Compiler supports this option, add it as an internal property.
-            updatedConfig.addOrUpdateInternal(key, value.second.as<std::string>());
-            continue;
-        }
-
-        OPENVINO_ASSERT(mergeMode != ConfigMergeMode::Query, "Unsupported configuration key: ", key);
-
-        // property doesn't exist, send it as it is to compiled model anyway, it may be used by compiled model
-        logger.info("Property '%s' is unknown to the plugin property manager, will be sent to the compiled model.",
-                    key.c_str());
-        unknownProperties.emplace(key, value.second);
     }
 
     if (mergeMode == ConfigMergeMode::Import) {
@@ -463,11 +463,8 @@ void PluginPropertyManager::registerProperties() {
         return hasBackend;
     };
 
-    struct DeviceValidationCache {
-        std::mutex mutex;
-        std::optional<std::pair<std::string, bool>> value;
-    };
-    auto hasBackendAndValidDeviceCache = std::make_shared<DeviceValidationCache>();
+    // Guarded by PluginPropertyManager::_mutex, held by all call sites that invoke this predicate.
+    auto hasBackendAndValidDeviceCache = std::make_shared<std::optional<std::pair<std::string, bool>>>();
 
     const auto getDeviceId = [](const ov::AnyMap& arguments) -> std::string {
         const auto deviceIdIt = arguments.find(ov::device::id.name());
@@ -486,20 +483,14 @@ void PluginPropertyManager::registerProperties() {
             try {
                 const auto specifiedDeviceName = getDeviceId(arguments);
 
-                {
-                    std::lock_guard<std::mutex> lock(hasBackendAndValidDeviceCache->mutex);
-                    if (hasBackendAndValidDeviceCache->value.has_value() &&
-                        hasBackendAndValidDeviceCache->value->first == specifiedDeviceName) {
-                        return hasBackendAndValidDeviceCache->value->second;
-                    }
+                if (hasBackendAndValidDeviceCache->has_value() &&
+                    hasBackendAndValidDeviceCache->value().first == specifiedDeviceName) {
+                    return hasBackendAndValidDeviceCache->value().second;
                 }
 
                 const bool isValidDevice = utils::getDeviceById(_backend, specifiedDeviceName) != nullptr;
 
-                {
-                    std::lock_guard<std::mutex> lock(hasBackendAndValidDeviceCache->mutex);
-                    hasBackendAndValidDeviceCache->value = std::make_pair(specifiedDeviceName, isValidDevice);
-                }
+                *hasBackendAndValidDeviceCache = std::make_pair(specifiedDeviceName, isValidDevice);
                 return isValidDevice;
             } catch (...) {
                 _logger.debug("Property is not supported for current configuration due to unavailable device.");
@@ -609,8 +600,8 @@ void PluginPropertyManager::registerProperties() {
             propertyName,
             isPublic,
             ov::PropertyMutability::RW,
-            [propertyName, isCompilerOptionSupported](const ov::AnyMap& arguments) {
-                return isCompilerOptionSupported(propertyName, arguments);
+            [this, propertyName, isCompilerOptionSupported](const ov::AnyMap& arguments) {
+                return _config.hasOpt(propertyName) && isCompilerOptionSupported(propertyName, arguments);
             },
             [this](const ov::AnyMap&) {
                 return _config.get<OptionType>();
@@ -659,13 +650,8 @@ void PluginPropertyManager::registerProperties() {
     );
     register_property(ov::intel_npu::disable_idle_memory_prunning.name(), true, ov::PropertyMutability::RW,
         [this](const ov::AnyMap&) {
-            if (!_config.hasOpt(ov::intel_npu::disable_idle_memory_prunning.name())) {
-                return false;
-            }
-            if (_backend != nullptr && _backend->isContextExtSupported()) {
-                return true;
-            }
-            return false;
+            return _config.hasOpt(ov::intel_npu::disable_idle_memory_prunning.name()) && _backend != nullptr &&
+                   _backend->isContextExtSupported();
         },
         [this](const ov::AnyMap&) {
             return _config.get<DISABLE_IDLE_MEMORY_PRUNING>();
@@ -719,8 +705,9 @@ void PluginPropertyManager::registerProperties() {
         }
     );
     register_property(ov::intel_npu::platform.name(), true, ov::PropertyMutability::RW,
-        [isCompilerOptionSupported](const ov::AnyMap& arguments) {
-            return isCompilerOptionSupported(ov::intel_npu::platform.name(), arguments);
+        [this, isCompilerOptionSupported](const ov::AnyMap& arguments) {
+            return _config.hasOpt(ov::intel_npu::platform.name()) &&
+                   isCompilerOptionSupported(ov::intel_npu::platform.name(), arguments);
         },
         [this](const ov::AnyMap& arguments) -> ov::Any {
             const auto platformIt = arguments.find(ov::intel_npu::platform.name());
@@ -732,8 +719,9 @@ void PluginPropertyManager::registerProperties() {
     );
     register_property(ov::intel_npu::turbo.name(), true, ov::PropertyMutability::RW,
         [this, isCompilerOptionSupported](const ov::AnyMap& arguments) {
-            return (_backend != nullptr && _backend->isCommandQueueExtSupported()) ||
-                   isCompilerOptionSupported(ov::intel_npu::turbo.name(), arguments);
+            return _config.hasOpt(ov::intel_npu::turbo.name()) &&
+                   ((_backend != nullptr && _backend->isCommandQueueExtSupported()) ||
+                    isCompilerOptionSupported(ov::intel_npu::turbo.name(), arguments));
         },
         [this](const ov::AnyMap&) {
             return _config.get<TURBO>();
@@ -744,7 +732,8 @@ void PluginPropertyManager::registerProperties() {
     );
     register_property(ov::intel_npu::enable_strides_for.name(), true, ov::PropertyMutability::RW,
         [this, isCompilerOptionSupported](const ov::AnyMap& arguments) {
-            if (!isCompilerOptionSupported(ov::intel_npu::enable_strides_for.name(), arguments)) {
+            if (!_config.hasOpt(ov::intel_npu::enable_strides_for.name()) ||
+                !isCompilerOptionSupported(ov::intel_npu::enable_strides_for.name(), arguments)) {
                 return false;
             }
             if (_backend != nullptr && _backend->getGraphExtVersion() < ZE_MAKE_VERSION(1, 16)) {
@@ -828,13 +817,11 @@ void PluginPropertyManager::registerProperties() {
         [this](const ov::AnyMap&) {
             return _config.hasOpt(ov::hint::model.name());
         },
-        [this](const ov::AnyMap&) {
-            return _config.get<MODEL_PTR>().lock();
+        [](const ov::AnyMap&) -> ov::Any {
+            OPENVINO_THROW("Property '", ov::hint::model.name(),"' can only be provided when importing a compiled model, and read from compiled model");
         },
         [](const ov::Any&) {
-            OPENVINO_THROW("Property '",
-                            ov::hint::model.name(),
-                            "' can only be provided when importing a compiled model, it cannot be set otherwise");
+            OPENVINO_THROW("Property '", ov::hint::model.name(),"' can only be provided when importing a compiled model, it cannot be set otherwise");
         }
     );
     register_property(ov::supported_properties.name(), true, ov::PropertyMutability::RO, alwaysSupported, [this, getCompilerTypeOrDefault, getDeviceId](const ov::AnyMap& arguments) {
@@ -859,6 +846,20 @@ void PluginPropertyManager::registerProperties() {
         return supportedProperties;
     }, readOnlySetter);
 
+    register_property(ov::loaded_from_cache.name(), false, ov::PropertyMutability::RW,
+        [this](const ov::AnyMap&) {
+            return _config.hasOpt(ov::loaded_from_cache.name());
+        },
+        [](const ov::AnyMap&) -> ov::Any {
+            OPENVINO_THROW("Property '", ov::loaded_from_cache.name(),"' can only be provided when importing a compiled model, and read from compiled model");
+        },
+        [](const ov::Any&) {
+            OPENVINO_THROW("Property '", ov::loaded_from_cache.name(),"' can only be provided when importing a compiled model from OpenVINO Cache, it cannot be set otherwise");
+        }
+    );
+    register_property(ov::internal::caching_with_mmap.name(), false, ov::PropertyMutability::RO, alwaysSupported, [](const ov::AnyMap&) {
+        return true;
+    }, readOnlySetter);
     register_property(ov::internal::supported_properties.name(), false, ov::PropertyMutability::RO, alwaysSupported, [](const ov::AnyMap&) {
         return std::vector<ov::PropertyName>{ov::internal::caching_properties.name(),
                                              ov::internal::caching_with_mmap.name(),
@@ -924,18 +925,14 @@ void PluginPropertyManager::registerProperties() {
         return utils::getDeviceLUID(_backend, getDeviceId(arguments));
     }, readOnlySetter);
     
-    struct CompatibilityCheckSupportCache {
-        std::mutex mutex;
-        std::optional<bool> value;
-    };
-    auto compatibilityCheckSupportCache = std::make_shared<CompatibilityCheckSupportCache>();
+    // Guarded by PluginPropertyManager::_mutex, held by all call sites that invoke this predicate.
+    auto compatibilityCheckSupportCache = std::make_shared<std::optional<bool>>();
     register_property(ov::compatibility_check.name(), true, ov::PropertyMutability::RO,
         [this, compatibilityCheckSupportCache](const ov::AnyMap&) {
-            std::lock_guard<std::mutex> lock(compatibilityCheckSupportCache->mutex);
-            if (!compatibilityCheckSupportCache->value.has_value()) {
-                compatibilityCheckSupportCache->value = isCompatibilityCheckSupported(_backend, *_compilerOptionSupportHelper);
+            if (!compatibilityCheckSupportCache->has_value()) {
+                *compatibilityCheckSupportCache = isCompatibilityCheckSupported(_backend, *_compilerOptionSupportHelper);
             }
-            return compatibilityCheckSupportCache->value.value();
+            return compatibilityCheckSupportCache->value();
         },
         [this](const ov::AnyMap& arguments) { 
             return validateCompatibilityDescriptor(_backend, arguments, *_compilerOptionSupportHelper);
