@@ -16,6 +16,7 @@
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/logical_not.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
@@ -320,8 +321,14 @@ const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(std::
         mask = std::make_shared<v1::Broadcast>(minus_inf, mask_shape);
         auto horizontal_range = std::make_shared<v4::Range>(zero_i, source_s_len, one_i, element::i32)->output(0);
         horizontal_range = std::make_shared<v0::Unsqueeze>(horizontal_range, zero_i);
-        const auto stop = std::make_shared<v1::Add>(target_s_len, one_i);
-        auto vertical_range = std::make_shared<v4::Range>(one_i, stop, one_i, element::i32)->output(0);
+        // For decoding: past_seq = max(0, source_s_len - target_s_len)
+        // vertical_range starts from (1 + past_seq) to account for past context
+        // Clamp to 0 for cases where seq_q > seq_kv
+        auto past_seq = std::make_shared<v1::Subtract>(source_s_len, target_s_len)->output(0);
+        past_seq = std::make_shared<v1::Maximum>(past_seq, zero_i);
+        const auto start = std::make_shared<v1::Add>(one_i, past_seq);
+        const auto stop = std::make_shared<v1::Add>(start, target_s_len);
+        auto vertical_range = std::make_shared<v4::Range>(start, stop, one_i, element::i32)->output(0);
         vertical_range = std::make_shared<v0::Unsqueeze>(vertical_range, one_i);
         const auto triu = std::make_shared<v1::GreaterEqual>(horizontal_range, vertical_range);
         atten_mask = std::make_shared<v1::Select>(triu, mask, zero_f);

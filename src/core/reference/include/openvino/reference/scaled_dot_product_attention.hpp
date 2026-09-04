@@ -19,9 +19,13 @@ std::vector<T> create_causal_attention_mask(const ov::Shape& shape) {
     std::vector<T> mask_data(shape_size(shape), std::numeric_limits<T>::lowest());
     const auto L = shape[shape.size() - 2];
     const auto S = shape[shape.size() - 1];
+    // For decoding scenario: offset = max(0, S - L) (past_seq)
+    // Query position i corresponds to absolute position (i + offset) in the KV sequence
+    // Clamp to 0 for cases where seq_q > seq_kv (L > S)
+    const auto offset = (S > L) ? (S - L) : 0;
     for (size_t i = 0; i < L; ++i) {
         size_t j = 0;
-        while (i >= j && j < S) {
+        while ((i + offset) >= j && j < S) {
             mask_data[i * S + j] = 0;
             ++j;
         }
