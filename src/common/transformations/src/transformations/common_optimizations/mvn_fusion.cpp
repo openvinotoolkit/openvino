@@ -10,6 +10,7 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -124,9 +125,11 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(x);
 
-        auto const_eps_node = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(eps).get_node_shared_ptr());
+        const auto& eps_out = pattern_to_output.count(opt_convert_eps) ? pattern_to_output.at(opt_convert_eps)
+                                                                       : pattern_to_output.at(eps);
+        const auto const_eps_node = ov::util::get_constant_from_source(eps_out);
         float eps_value;
-        if (!op_util::get_single_value(const_eps_node, eps_value)) {
+        if (!const_eps_node || !op_util::get_single_value(const_eps_node, eps_value)) {
             return false;
         }
 
