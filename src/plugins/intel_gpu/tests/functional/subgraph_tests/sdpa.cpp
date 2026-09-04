@@ -85,9 +85,6 @@ protected:
         } else if (inType == ov::element::bf16) {
             abs_threshold = has_long_seq ? 0.050 : 0.025;
             rel_threshold = has_long_seq ? 0.050 : 0.025;
-        } else if (inType == ov::element::f32) {
-            abs_threshold = has_long_seq ? 0.01 : 0.001;
-            rel_threshold = has_long_seq ? 0.01 : 0.001;
         }
     }
 };
