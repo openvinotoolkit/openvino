@@ -20,7 +20,7 @@ namespace ov {
 namespace reference {
 template <typename T>
 size_t normalize_index(const T idx, const size_t dim_value) {
-    // Per the operator specification the index must lie within [-dim_value, dim_value - 1]. 
+    // Per the operator specification the index must lie within [-dim_value, dim_value - 1].
     if (idx < 0) {
         const int64_t normalized = static_cast<int64_t>(idx) + static_cast<int64_t>(dim_value);
         OPENVINO_ASSERT(normalized >= 0,
