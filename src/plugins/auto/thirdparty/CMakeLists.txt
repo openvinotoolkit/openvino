@@ -3,7 +3,8 @@
 #
 
 # Intel Platform Framework (IPF) telemetry client (MSVC only).
-# ClientApiLib is linked statically into openvino_auto_plugin.
+# ClientApi.dll is loaded dynamically (delay-loaded) by openvino_auto_plugin, so a
+# missing/incompatible ClientApi.dll only disables IPF telemetry, not the whole plugin.
 # IPF requires the dynamic CRT (/MD); static CRT toolchains disable IPF.
 
 set(_ipf_ef_dir "${CMAKE_CURRENT_SOURCE_DIR}/ipf/IPF_EF")
@@ -29,38 +30,70 @@ if(TARGET nlohmann_json::nlohmann_json OR TARGET nlohmann_json)
     set_property(GLOBAL PROPERTY _FetchContent_nlohmann_json_populated TRUE)
 endif()
 
-# Use the same configuration-specific dynamic CRT for ClientApiLib and the plugin.
+# The native ClientApiProxy.dll shipped by the IPF driver today is Release-only. IPF's
+# own runtime compatibility check (DllProxy::Open()) fails with ENOEXEC if ClientApi.dll
+# does not use the same CRT "debug-ness" as ClientApiProxy.dll, regardless of whether
+# OpenVINO itself is built Debug or Release.
+option(ENABLE_IPF_DEBUG_WITH_RELEASE_CRT
+       "Build IPF ClientApi.dll with the Release dynamic CRT (/MD) even in a Debug OpenVINO \
+build, matching the Release-only ClientApiProxy.dll currently shipped by the IPF driver. \
+Turn OFF once a CRT-matching (e.g. Debug) ClientApiProxy.dll is available, so ClientApi.dll \
+instead matches OpenVINO's own build configuration." ON)
+
+# Use the same configuration-specific dynamic CRT as the rest of OpenVINO.
 if(DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
     set(_ov_msvc_runtime "${CMAKE_MSVC_RUNTIME_LIBRARY}")
 else()
     set(_ov_msvc_runtime "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 endif()
 
+if(ENABLE_IPF_DEBUG_WITH_RELEASE_CRT)
+    set(_ipf_client_api_runtime "MultiThreadedDLL")
+else()
+    set(_ipf_client_api_runtime "${_ov_msvc_runtime}")
+endif()
+
 add_subdirectory("${_ipf_ef_dir}" "${CMAKE_CURRENT_BINARY_DIR}/ipf" EXCLUDE_FROM_ALL)
 
-if(NOT TARGET ClientApiLib)
-    message(STATUS "[AUTO] IPF: ClientApiLib target not produced by submodule, device utilization monitoring disabled")
+if(NOT TARGET ClientApi)
+    message(STATUS "[AUTO] IPF: ClientApi target not produced by submodule, device utilization monitoring disabled")
     return()
 endif()
 
-set_target_properties(ClientApiLib PROPERTIES EXPORT_NAME ipf_client_api
-                                              MSVC_RUNTIME_LIBRARY "${_ov_msvc_runtime}")
-add_library(openvino::ipf_client_api ALIAS ClientApiLib)
+# ClientApiC.h only applies dllexport/dllimport when ClientApi_EXPORTS/ClientApi_IMPORTS
+# is defined; the submodule itself defines neither, so without this the DLL would not
+# export IpfCreate/IpfDestroy/etc. at all.
+target_compile_definitions(ClientApi PRIVATE ClientApi_EXPORTS)
+set_target_properties(ClientApi PROPERTIES EXPORT_NAME ipf_client_api_dynamic
+                                            MSVC_RUNTIME_LIBRARY "${_ipf_client_api_runtime}")
+add_library(openvino::ipf_client_api_dynamic ALIAS ClientApi)
 
-# The submodule also defines the stand-alone ClientApi DLL, which OpenVINO does not ship.
-if(TARGET ClientApi)
-    set_target_properties(ClientApi PROPERTIES EXCLUDE_FROM_ALL TRUE
-                                               EXCLUDE_FROM_DEFAULT_BUILD TRUE)
+# Use OpenVINO's per-config CRT for the static client; see auto/CMakeLists.txt for selection.
+if(TARGET ClientApiLib)
+    set_target_properties(ClientApiLib PROPERTIES EXCLUDE_FROM_ALL FALSE
+                                                  EXPORT_NAME ipf_client_api_static
+                                                  MSVC_RUNTIME_LIBRARY "${_ov_msvc_runtime}")
+    add_library(openvino::ipf_client_api_static ALIAS ClientApiLib)
+
+    # Keep the header-only nlohmann/json dependency out of the exported link interface.
+    get_target_property(_ipf_link_interface ClientApiLib INTERFACE_LINK_LIBRARIES)
+    if(_ipf_link_interface)
+        list(FILTER _ipf_link_interface EXCLUDE REGEX "^(\\$<LINK_ONLY:)?nlohmann_json(::nlohmann_json)?>?$")
+        set_property(TARGET ClientApiLib PROPERTY INTERFACE_LINK_LIBRARIES "${_ipf_link_interface}")
+    endif()
+
+    ov_install_static_lib(ClientApiLib ${OV_CPACK_COMP_CORE_DEV} ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
 endif()
 
-# Keep the header-only nlohmann/json dependency out of the exported link interface.
-get_target_property(_ipf_link_interface ClientApiLib INTERFACE_LINK_LIBRARIES)
-if(_ipf_link_interface)
-    list(FILTER _ipf_link_interface EXCLUDE REGEX "^(\\$<LINK_ONLY:)?nlohmann_json(::nlohmann_json)?>?$")
-    set_property(TARGET ClientApiLib PROPERTY INTERFACE_LINK_LIBRARIES "${_ipf_link_interface}")
+# Install ClientApi.dll only for configurations that delay-load it.
+if(ENABLE_IPF_DEBUG_WITH_RELEASE_CRT)
+    install(TARGETS ClientApi
+            RUNTIME DESTINATION ${OV_CPACK_PLUGINSDIR}
+            COMPONENT ${OV_CPACK_COMP_CORE}
+            CONFIGURATIONS Debug
+            ${OV_CPACK_COMP_CORE_EXCLUDE_ALL})
 endif()
 
-# Install ClientApiLib for static OpenVINO builds.
-ov_install_static_lib(ClientApiLib ${OV_CPACK_COMP_CORE_DEV} ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
-
-message(STATUS "[AUTO] IPF: successfully configured (ClientApiLib linked statically)")
+message(STATUS "[AUTO] IPF: successfully configured (Release: static ClientApiLib; "
+               "Debug: dynamic ClientApi.dll delay-loaded when ENABLE_IPF_DEBUG_WITH_RELEASE_CRT=ON, "
+               "else static ClientApiLib; ENABLE_IPF_DEBUG_WITH_RELEASE_CRT=${ENABLE_IPF_DEBUG_WITH_RELEASE_CRT})")

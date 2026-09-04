@@ -21,7 +21,7 @@ namespace auto_plugin {
 namespace device_monitor {
 
 inline std::string get_log_tag() {
-    return "[IPF]";
+    return "IPF";
 }
 
 // IPF namespace/paths confirmed against the DttSampleEfApp sample (Demo.cpp / Constants.h) and

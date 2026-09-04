@@ -729,11 +729,14 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
     std::list<DeviceInformation> valid_devices = get_valid_device(meta_devices, model_precision);
 
     if (!perf_curve_table.empty()) {
-        LOG_DEBUG_TAG("PERF_CURVE_TABLE contains %zu device curves", perf_curve_table.size());
+        LOG_DEBUG_TAG("PERF_CURVE_TABLE contains %s device curves",
+                       std::to_string(perf_curve_table.size()).c_str());
         for (const auto& [device_key, curve] : perf_curve_table) {
-            LOG_DEBUG_TAG("PERF_CURVE_TABLE[%s] contains %zu points", device_key.c_str(), curve.size());
+            LOG_DEBUG_TAG("PERF_CURVE_TABLE[%s] contains %s points",
+                          device_key.c_str(),
+                          std::to_string(curve.size()).c_str());
             for (const auto& [utilization, score] : curve) {
-                LOG_DEBUG_TAG("PERF_CURVE_TABLE[%s]: utilization=%u, score=%f",
+                LOG_DEBUG_TAG("PERF_CURVE_TABLE[%s]: utilization=%u, score=%lf",
                               device_key.c_str(),
                               utilization,
                               score);
@@ -945,7 +948,7 @@ std::list<DeviceInformation> Plugin::sort_device_by_perf_curve(
         }
         try {
             scores[i] = interpolate_perf_score(curve_it->second, utilization.value());
-            LOG_DEBUG_TAG("[%s] perf_curve_table: key=%s, utilization=%f, performance_score=%f",
+            LOG_DEBUG_TAG("[%s] perf_curve_table: key=%s, utilization=%lf, performance_score=%lf",
                           device.device_name.c_str(),
                           device_key.logical_key.c_str(),
                           utilization.value(),
