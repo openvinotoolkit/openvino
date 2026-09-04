@@ -485,3 +485,40 @@ TEST_F(TransformationTestsF, MVNFusionTestRsqrtWithConvertedConstants) {
         model_ref = std::make_shared<ov::Model>(OutputVector{mvn}, ParameterVector{input});
     }
 }
+
+TEST_F(TransformationTestsF, MVNFusionTestRsqrtWithNarrowedEpsilon) {
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{1, 3, 224});
+        auto mean1_axes = ov::op::v0::Constant::create(element::i32, Shape{1}, {2});
+        auto mean1 = std::make_shared<ov::op::v1::ReduceMean>(input, mean1_axes, true);
+        auto sub1 = std::make_shared<ov::op::v1::Subtract>(input, mean1);
+        auto const_2 = ov::op::v0::Constant::create(element::f16, Shape{}, {2});
+        auto power_sqr = std::make_shared<ov::op::v1::Power>(sub1, const_2);
+        auto mean3_axes = ov::op::v0::Constant::create(element::i32, Shape{1}, {2});
+        auto mean3 = std::make_shared<ov::op::v1::ReduceMean>(power_sqr, mean3_axes, true);
+        auto eps_f32 = ov::op::v0::Constant::create(element::f32, Shape{}, {1.0004f});
+        auto eps_convert = std::make_shared<ov::op::v0::Convert>(eps_f32, element::f16);
+        auto add_eps = std::make_shared<ov::op::v1::Add>(mean3, eps_convert);
+        auto sqrt_node = std::make_shared<ov::op::v0::Sqrt>(add_eps);
+        auto const_1 = ov::op::v0::Constant::create(element::f16, Shape{}, {1});
+        auto rsqrt = std::make_shared<ov::op::v1::Divide>(const_1, sqrt_node);
+        auto result = std::make_shared<ov::op::v1::Multiply>(sub1, rsqrt);
+
+        model = std::make_shared<ov::Model>(OutputVector{result}, ParameterVector{input});
+
+        manager.register_pass<ov::pass::MVNFusion>();
+    }
+
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{1, 3, 224});
+        auto axes = ov::op::v0::Constant::create(element::i32, Shape{1}, {2});
+        // Use a difference greater than the attribute comparator's 1e-4 tolerance to detect the wrong value.
+        // The f32 epsilon value 1.0004f is rounded to 1.0f by the conversion to f16.
+        auto mvn = std::make_shared<ov::op::v6::MVN>(input, axes, true, 1.0f, op::MVNEpsMode::INSIDE_SQRT);
+
+        model_ref = std::make_shared<ov::Model>(OutputVector{mvn}, ParameterVector{input});
+    }
+}
