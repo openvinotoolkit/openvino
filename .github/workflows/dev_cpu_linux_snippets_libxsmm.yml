@@ -25,7 +25,7 @@ concurrency:
 
 permissions: read-all
 
-env:
+
 
 
 jobs:
