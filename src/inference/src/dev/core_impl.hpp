@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 #include "cache_guard.hpp"
 #include "cache_manager.hpp"
 #include "dev/plugin.hpp"
@@ -48,6 +50,10 @@ public:
 
     bool get_enable_mmap() const;
 
+    bool get_enable_mmap_for_constants() const;
+
+    uint64_t get_mmap_min_constant_size() const;
+
     // Creating thread-safe copy of global config including shared_ptr to ICacheManager
     CacheConfig get_cache_config_for_device(const ov::Plugin& plugin) const;
 
@@ -59,6 +65,8 @@ private:
     CacheConfig m_cache_config{};
     std::map<std::string, CacheConfig> m_devices_cache_config{};
     bool m_flag_enable_mmap{true};
+    bool m_flag_enable_mmap_for_constants{false};
+    uint64_t m_mmap_min_constant_size{64ULL * 1024ULL * 1024ULL};
 };
 
 struct Parsed {

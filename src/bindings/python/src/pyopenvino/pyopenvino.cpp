@@ -8,8 +8,11 @@
 #include <openvino/core/model.hpp>
 #include <openvino/core/node.hpp>
 #include <openvino/core/version.hpp>
+#include <cstdint>
+#include <memory>
 #include <string>
 
+#include "openvino/runtime/allocator_mmap.hpp"
 #include "openvino/runtime/core.hpp"
 #include "pyopenvino/graph/axis_set.hpp"
 #include "pyopenvino/graph/axis_vector.hpp"
@@ -106,6 +109,13 @@ PYBIND11_MODULE(_pyopenvino, m) {
                     "OpenVINO Runtime and Python libraries point to same release.");
 
     m.def("get_version", &get_version);
+    py::class_<ov::ScopedMMapConstantsConfig>(m, "_TemporaryMMapConstantsScope")
+        .def(py::init([](bool enabled, uint64_t min_constant_size) {
+                 return std::make_unique<ov::ScopedMMapConstantsConfig>(
+                     ov::MMapConstantsConfig{enabled, min_constant_size});
+             }),
+             py::arg("enabled"),
+             py::arg("min_constant_size"));
     m.def(
         "serialize",
         [](py::object& ie_api_model,
