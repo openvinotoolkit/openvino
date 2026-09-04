@@ -9,6 +9,7 @@
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -99,10 +100,18 @@ ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
     }
 
     if (common::is_input_valid(node, 3)) {
-        const auto data_rank = static_cast<size_t>(data.get_partial_shape().rank().get_length());
-        auto zeroes = v0::Constant::create(ov::element::i64, ov::Shape{data_rank}, std::vector<int64_t>(data_rank, 0));
+        const auto data_rank = data.get_partial_shape().rank();
+        CHECK_VALID_NODE(node, data_rank.is_static(), "Data rank must be static to validate Pad axes.");
+        const int64_t rank_length = data_rank.get_length();
+        auto zeroes = v0::Constant::create(ov::element::i64,
+                                           ov::Shape{static_cast<size_t>(rank_length)},
+                                           std::vector<int64_t>(rank_length, 0));
 
         const auto axes = inputs[3];
+        // Axes may be a runtime input per spec (opset 18+); only constant values can be range-checked here.
+        if (const auto axes_const = ov::as_type_ptr<v0::Constant>(axes.get_node_shared_ptr())) {
+            ov::util::validate_axes(axes_const->cast_vector<int64_t>(), data_rank, *axes_const);
+        }
 
         auto scatter_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
 
