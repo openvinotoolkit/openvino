@@ -29,6 +29,7 @@ constexpr size_t kRows = 4;
 constexpr size_t kCols = 256;
 constexpr float kTolFaithful = 3e-3f;
 constexpr float kTolRequant = 1.5e-2f;
+constexpr float kTolU4Requant = 6e-2f;
 
 struct WeightCase {
     const char* stem;        // test_data prefix
@@ -81,7 +82,7 @@ INSTANTIATE_TEST_SUITE_P(AllQuantTypes,
                                            WeightCase{"q8_0", "Q8_0", kTolFaithful},
                                            WeightCase{"q2_k", "Q2_K", kTolFaithful},
                                            WeightCase{"q3_k", "Q3_K", kTolFaithful},
-                                           WeightCase{"q4_k", "Q4_K", kTolFaithful},
+                                           WeightCase{"q4_k", "Q4_K", kTolU4Requant},
                                            WeightCase{"q5_k", "Q5_K", kTolRequant},
                                            WeightCase{"q6_k", "Q6_K", kTolRequant},
                                            WeightCase{"q2_0", "Q2_0", kTolFaithful}),
@@ -293,10 +294,10 @@ TEST(GGUFWeight, RejectsMissingAuxiliaryTensors) {
     EXPECT_THROW(make_weight_node(without_zero_point, GGUF_TYPE_Q4_K), ov::Exception);
 }
 
-TEST(GGUFWeight, UsesFaithfulQ4KZeroPointByDefault) {
+TEST(GGUFWeight, UsesIntegerZeroPointForQ4KMatmulWeights) {
     using namespace ov::frontend::gguf;
 
-    EXPECT_EQ(gguf_zero_point_type("blk.0.attn_q.weight", GGUF_TYPE_Q4_K), ov::element::f16);
+    EXPECT_EQ(gguf_zero_point_type("blk.0.attn_q.weight", GGUF_TYPE_Q4_K), ov::element::u8);
     EXPECT_EQ(gguf_zero_point_type("token_embd.weight", GGUF_TYPE_Q4_K), ov::element::f16);
     EXPECT_EQ(gguf_zero_point_type("blk.0.attn_q.weight", GGUF_TYPE_Q2_0), ov::element::u8);
 }

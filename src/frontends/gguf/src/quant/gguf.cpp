@@ -760,8 +760,8 @@ GGUFLoad get_gguf_data(const std::string& file) {
             qtype.emplace(name_prefix + ".qtype", static_cast<GgufTensorType>(ti.type));
         } else if (ti.type == GGUF_TYPE_Q4_1 || ti.type == GGUF_TYPE_Q4_K || ti.type == GGUF_TYPE_Q5_K ||
                    ti.type == GGUF_TYPE_Q5_1) {
-            // Asymmetric: weights + f16 scales + a faithful f16 zero-point by default.
-            // Q4_K may use u8 only through the explicit performance opt-in.
+            // Asymmetric: weights + f16 scales + zero-point. Q4_K matmul weights are decoded and
+            // requantized group-wise to u4 with an integer zero-point; Q8_0_C sources keep f16.
             auto [wb, sb, zb] = quant_sizes(ti);
             char* buf_ptr = quant_buf->get_ptr<char>();
 
@@ -786,9 +786,9 @@ GGUFLoad get_gguf_data(const std::string& file) {
             // Both ingest paths must agree on the zero-point representation; see
             // gguf_zero_point_type in quant/weights.hpp for why it matters.
             const auto zp_elem = gguf_zero_point_type(name, static_cast<GgufTensorType>(ti.type));
-            // Only Q4_K's integer zp actually rounds: Q2_0's zero-point is the exact integer 1.
+            // Q4_K performs a real group-wise requantization; Q2_0's integer zero-point is exact.
             if (zp_elem == ov::element::u8 && ti.type == GGUF_TYPE_Q4_K) {
-                notify_lossy_weight_approximation(LossyWeightApproximation::INTEGER_ZERO_POINT);
+                notify_lossy_weight_approximation(LossyWeightApproximation::Q4_K_REQUANT);
             }
             ov::Tensor zp(zp_elem, scale_shape);
             quant_offset += zb;
