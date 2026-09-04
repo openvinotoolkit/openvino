@@ -279,6 +279,13 @@ jobs:
         with:
           build-dir: ${{ env.BUILD_DIR }}
           artifact-name: ninja_log_manylinux_2_28
+          extra-build-dirs: |
+            ${{ github.workspace }}/build_py3.10
+            ${{ github.workspace }}/build_py3.11
+            ${{ github.workspace }}/build_py3.12
+            ${{ github.workspace }}/build_py3.13
+            ${{ github.workspace }}/build_py3.14
+            ${{ github.workspace }}/build_py3.14t
 
       - name: Store artifacts to a shared drive
         id: store_artifacts

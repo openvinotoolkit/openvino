@@ -69,6 +69,14 @@ jobs:
           ref: ${{ env.LLAMA_CPP_REF }}
           path: llama.cpp
 
+      - name: Checkout upload_ninja_logs action
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          path: ci-action-openvino
+          sparse-checkout: .github/actions/upload_ninja_logs
+          sparse-checkout-cone-mode: true
+
       - name: Configure llama.cpp against the OpenVINO package
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
@@ -80,6 +88,13 @@ jobs:
 
       - name: Build llama.cpp
         run: cmake --build llama.cpp/build --parallel "$(nproc)"
+
+      - name: Upload Ninja build logs
+        if: always()
+        uses: ./ci-action-openvino/.github/actions/upload_ninja_logs
+        with:
+          build-dir: ${{ github.workspace }}/llama.cpp/build
+          artifact-name: ninja_log_gguf_llamacpp_validation
 
       - name: Show sccache stats
         run: sccache --show-stats

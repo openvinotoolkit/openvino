@@ -132,6 +132,13 @@ jobs:
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
+      - name: Upload Ninja build logs
+        if: ${{ always() && contains(inputs.cmake-generator, 'Ninja') }}
+        uses: ./openvino/.github/actions/upload_ninja_logs
+        with:
+          build-dir: ${{ env.BUILD_DIR }}
+          artifact-name: ninja_log_clang_tidy_${{ inputs.sccache-prefix }}
+
       - name: Show sccache stats
         if: ${{ inputs.show-sccache-stats }}
         run: ${SCCACHE_PATH} --show-stats

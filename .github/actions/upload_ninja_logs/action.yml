@@ -1,7 +1,9 @@
 name: 'Upload Ninja build logs'
 description: >-
-  Collect every .ninja_log under the CMake build tree (main build plus nested
-  ExternalProject / FetchContent subbuilds) and upload as one artifact.
+  Collect every .ninja_log under one or more CMake build trees (main build plus
+  nested ExternalProject / FetchContent subbuilds) and upload as one artifact.
+  Paths inside the artifact mirror each build directory layout so logs stay
+  distinguishable; optional path-prefix and extra-build-dirs add more trees.
 inputs:
   build-dir:
     description: 'Primary CMake binary directory (CMAKE_BINARY_DIR)'
@@ -9,6 +11,22 @@ inputs:
   artifact-name:
     description: 'Artifact name for upload-artifact'
     required: true
+  path-prefix:
+    description: >-
+      Optional prefix inside the artifact for logs from build-dir (e.g. openvino_main).
+      Extra build directories always use their directory basename as prefix.
+    required: false
+    default: ''
+  extra-build-dirs:
+    description: >-
+      Additional CMake binary directories, one absolute path per line. Each tree
+      is stored under <basename-of-path>/... inside the artifact.
+    required: false
+    default: ''
+  if-no-files-found:
+    description: 'Passed to upload-artifact (ignore, warn, or error)'
+    required: false
+    default: 'error'
 runs:
   using: composite
   steps:
@@ -18,24 +36,53 @@ runs:
       shell: bash
       env:
         BUILD_DIR: ${{ inputs.build-dir }}
+        PATH_PREFIX: ${{ inputs.path-prefix }}
+        EXTRA_BUILD_DIRS: ${{ inputs.extra-build-dirs }}
       run: |
         set -euo pipefail
         STAGING="${RUNNER_TEMP}/ninja_logs_upload"
         rm -rf "${STAGING}"
         mkdir -p "${STAGING}"
-        mapfile -d '' -t logs < <(find "${BUILD_DIR}" -name '.ninja_log' -print0 2>/dev/null || true)
-        if [[ ${#logs[@]} -eq 0 ]]; then
-          echo "No .ninja_log files under ${BUILD_DIR}"
-        else
-          echo "Collecting ${#logs[@]} .ninja_log file(s):"
+
+        collect_tree() {
+          local root="$1"
+          local prefix="$2"
+          if [[ ! -d "${root}" ]]; then
+            echo "Skip missing build directory: ${root}"
+            return 0
+          fi
+          local dest_root="${STAGING}"
+          if [[ -n "${prefix}" ]]; then
+            dest_root="${STAGING}/${prefix}"
+          fi
+          mapfile -d '' -t logs < <(find "${root}" -name '.ninja_log' -print0 2>/dev/null || true)
+          if [[ ${#logs[@]} -eq 0 ]]; then
+            echo "No .ninja_log files under ${root}"
+            return 0
+          fi
+          echo "Collecting ${#logs[@]} .ninja_log file(s) from ${root}:"
           for f in "${logs[@]}"; do
-            rel="${f#"${BUILD_DIR}"/}"
-            dest="${STAGING}/${rel}"
+            rel="${f#"${root}"/}"
+            dest="${dest_root}/${rel}"
             mkdir -p "$(dirname "${dest}")"
             cp -a "${f}" "${dest}"
             echo "  ${f} -> ${dest}"
           done
+        }
+
+        main_prefix="${PATH_PREFIX}"
+        if [[ -z "${main_prefix}" ]]; then
+          main_prefix="$(basename "${BUILD_DIR}")"
         fi
+        collect_tree "${BUILD_DIR}" "${main_prefix}"
+
+        while IFS= read -r extra || [[ -n "${extra}" ]]; do
+          extra="${extra#"${extra%%[![:space:]]*}"}"
+          extra="${extra%"${extra##*[![:space:]]}"}"
+          [[ -z "${extra}" ]] && continue
+          collect_tree "${extra}" "$(basename "${extra}")"
+        done <<< "${EXTRA_BUILD_DIRS}"
+
         echo "staging-dir=${STAGING}" >> "${GITHUB_OUTPUT}"
 
     - name: Collect Ninja logs (Windows)
@@ -44,6 +91,8 @@ runs:
       shell: pwsh
       env:
         BUILD_DIR: ${{ inputs.build-dir }}
+        PATH_PREFIX: ${{ inputs.path-prefix }}
+        EXTRA_BUILD_DIRS: ${{ inputs.extra-build-dirs }}
       run: |
         $ErrorActionPreference = 'Stop'
         $staging = Join-Path $env:RUNNER_TEMP 'ninja_logs_upload'
@@ -51,14 +100,29 @@ runs:
           Remove-Item -LiteralPath $staging -Recurse -Force
         }
         New-Item -ItemType Directory -Path $staging -Force | Out-Null
-        $logs = Get-ChildItem -LiteralPath $env:BUILD_DIR -Recurse -Force -Filter '.ninja_log' -ErrorAction SilentlyContinue
-        if (-not $logs) {
-          Write-Host "No .ninja_log files under $($env:BUILD_DIR)"
-        } else {
-          Write-Host "Collecting $($logs.Count) .ninja_log file(s):"
+
+        function Collect-Tree {
+          param(
+            [string]$Root,
+            [string]$Prefix
+          )
+          if (-not (Test-Path -LiteralPath $Root)) {
+            Write-Host "Skip missing build directory: $Root"
+            return
+          }
+          $destRoot = $staging
+          if ($Prefix) {
+            $destRoot = Join-Path $staging $Prefix
+          }
+          $logs = Get-ChildItem -LiteralPath $Root -Recurse -Force -Filter '.ninja_log' -ErrorAction SilentlyContinue
+          if (-not $logs) {
+            Write-Host "No .ninja_log files under $Root"
+            return
+          }
+          Write-Host "Collecting $($logs.Count) .ninja_log file(s) from $Root:"
           foreach ($log in $logs) {
-            $rel = $log.FullName.Substring($env:BUILD_DIR.Length).TrimStart('\', '/')
-            $dest = Join-Path $staging $rel
+            $rel = $log.FullName.Substring($Root.Length).TrimStart('\', '/')
+            $dest = Join-Path $destRoot $rel
             $destDir = Split-Path -Parent $dest
             if (-not (Test-Path -LiteralPath $destDir)) {
               New-Item -ItemType Directory -Path $destDir -Force | Out-Null
@@ -67,7 +131,20 @@ runs:
             Write-Host "  $($log.FullName) -> $dest"
           }
         }
-        "staging-dir=$staging" >> $env:GITHUB_OUTPUT
+
+        $mainPrefix = $env:PATH_PREFIX
+        if (-not $mainPrefix) {
+          $mainPrefix = Split-Path -Leaf $env:BUILD_DIR
+        }
+        Collect-Tree -Root $env:BUILD_DIR -Prefix $mainPrefix
+
+        foreach ($line in ($env:EXTRA_BUILD_DIRS -split "`n")) {
+          $extra = $line.Trim()
+          if (-not $extra) { continue }
+          Collect-Tree -Root $extra -Prefix (Split-Path -Leaf $extra)
+        }
+
+        "staging-dir=$staging" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
     - name: Upload collected Ninja logs
       uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
@@ -75,4 +152,4 @@ runs:
         name: ${{ inputs.artifact-name }}
         path: ${{ runner.os == 'Windows' && steps.collect_win.outputs.staging-dir || steps.collect_unix.outputs.staging-dir }}
         include-hidden-files: true
-        if-no-files-found: error
+        if-no-files-found: ${{ inputs.if-no-files-found }}

@@ -169,6 +169,13 @@ jobs:
       - name: Cmake build - OpenVINO with Coverity
         run: ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-build --dir ${BUILD_DIR}/cov-int cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
+      - name: Upload Ninja build logs
+        if: always()
+        uses: ./openvino/.github/actions/upload_ninja_logs
+        with:
+          build-dir: ${{ env.BUILD_DIR }}
+          artifact-name: ninja_log_coverity
+
       - name: Pack Artefacts
         run: tar -cvf - cov-int | pigz > openvino.tgz
         working-directory: ${{ env.BUILD_DIR }}

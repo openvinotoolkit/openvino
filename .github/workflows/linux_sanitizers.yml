@@ -208,6 +208,13 @@ jobs:
         run: |
           cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
+      - name: Upload Ninja build logs
+        if: always()
+        uses: ./openvino/.github/actions/upload_ninja_logs
+        with:
+          build-dir: ${{ env.BUILD_DIR }}
+          artifact-name: ninja_log_linux_sanitizer_${{ matrix.SANITIZER }}
+
       - name: Upload compile_commands
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         if: always()

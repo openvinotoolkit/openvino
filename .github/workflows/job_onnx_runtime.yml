@@ -71,6 +71,7 @@ jobs:
         with:
           sparse-checkout: |
             src/frontends/onnx/tests/ci_utils/onnxruntime
+            .github/actions/upload_ninja_logs
           sparse-checkout-cone-mode: false
 
       - name: Get ONNX runtime version
@@ -117,6 +118,13 @@ jobs:
             --build_dir ${ONNX_RUNTIME_BUILD_DIR}
         env:
           CXXFLAGS: "-Wno-error=deprecated-declarations"
+
+      - name: Upload Ninja build logs
+        if: always()
+        uses: ./.github/actions/upload_ninja_logs
+        with:
+          build-dir: ${{ env.ONNX_RUNTIME_BUILD_DIR }}
+          artifact-name: ninja_log_onnx_runtime
 
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats

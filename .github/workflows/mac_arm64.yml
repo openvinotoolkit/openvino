@@ -340,6 +340,13 @@ jobs:
         with:
           build-dir: ${{ env.BUILD_DIR }}
           artifact-name: ninja_log_mac_arm64
+          extra-build-dirs: |
+            ${{ github.workspace }}/py3.10
+            ${{ github.workspace }}/py3.11
+            ${{ github.workspace }}/py3.12
+            ${{ github.workspace }}/py3.13
+            ${{ github.workspace }}/py3.14
+            ${{ github.workspace }}/py3.14t
 
       - name: Upload OpenVINO package
         if: ${{ always() }}
