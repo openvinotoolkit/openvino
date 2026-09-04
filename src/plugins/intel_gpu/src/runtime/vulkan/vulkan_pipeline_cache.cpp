@@ -388,16 +388,15 @@ std::shared_ptr<const vulkan_pipeline_state> vulkan_pipeline_cache::get_or_creat
     specialization_key constants;
     constants.reserve(specialization_constants.size());
     for (const auto& constant : specialization_constants) {
-        constants.emplace_back(constant.id, constant.value);
+        // Kernel selection may provide a family-wide superset. Keep only the
+        // specialization constants retained by this compiled shader variant.
+        if (std::binary_search(shader->interface.specialization_ids.begin(), shader->interface.specialization_ids.end(), constant.id)) {
+            constants.emplace_back(constant.id, constant.value);
+        }
     }
     std::sort(constants.begin(), constants.end());
     for (size_t index = 1; index < constants.size(); ++index) {
         OPENVINO_ASSERT(constants[index - 1].first != constants[index].first, "[GPU][Vulkan] Duplicate specialization constant id ", constants[index].first);
-    }
-    for (const auto& constant : constants) {
-        OPENVINO_ASSERT(std::binary_search(shader->interface.specialization_ids.begin(), shader->interface.specialization_ids.end(), constant.first),
-                        "[GPU][Vulkan] Shader does not declare specialization constant id ",
-                        constant.first);
     }
 
     std::lock_guard<std::mutex> lock(_mutex);
