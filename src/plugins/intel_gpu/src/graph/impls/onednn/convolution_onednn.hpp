@@ -92,7 +92,10 @@ struct ConvolutionImplementationManager : public ImplementationManager {
         bool int8_conv = one_of(in_dt, {data_types::i8, data_types::u8}) && one_of(wei_dt, {data_types::i8, data_types::u8}) &&
                          one_of(out_dt, {data_types::i32, data_types::f16, data_types::bf16, data_types::f32, data_types::u8, data_types::i8});
 
-        if (!f16_conv && !bf16_conv && !int8_conv)
+        // f32 convolution is enabled on Xe3 only
+        bool f32_conv = info.arch == gpu_arch::xe3 && everyone_is(data_types::f32, in_dt, wei_dt);
+
+        if (!f16_conv && !bf16_conv && !int8_conv && !f32_conv)
             return false;
 
         if (!is_supported_post_ops(conv_node))
