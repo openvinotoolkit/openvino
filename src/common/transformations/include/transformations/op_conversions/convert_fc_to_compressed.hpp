@@ -32,7 +32,8 @@ public:
     ConvertFullyConnectedToFullyConnectedCompressed(const std::vector<ov::element::Type>& supported_activation_types,
                                                     const std::vector<ov::element::Type>& supported_weights_types,
                                                     SupportsPredicate supports_config = nullptr,
-                                                    bool convert_u4zp_to_u8 = false);
+                                                    bool convert_u4zp_to_u8 = false,
+                                                    bool enable_parameter_weights = false);
 
     /**
      * @brief Processes compressed weights from a pattern block and prepares them for compressed operations.
@@ -44,6 +45,8 @@ public:
      * @param grouped Flag indicating whether the compression uses grouped quantization
      * @param batched_weights Flag indicating whether the weights have a batch dimension
      * @param result_nodes Output vector to collect intermediate nodes created during processing
+     * @param enable_parameter_weights When true, the "absent zero-point" placeholder uses the weight
+     *        element type instead of element::dynamic, which VCL (NPU) cannot handle.
      *
      * @return A tuple containing processed compressed weights, decompression scales, and decompression zero points.
      */
@@ -54,5 +57,6 @@ public:
                                bool has_transpose,
                                bool grouped,
                                bool batched_weights,
-                               std::vector<std::shared_ptr<ov::Node>>& result_nodes);
+                               std::vector<std::shared_ptr<ov::Node>>& result_nodes,
+                               bool enable_parameter_weights = false);
 };

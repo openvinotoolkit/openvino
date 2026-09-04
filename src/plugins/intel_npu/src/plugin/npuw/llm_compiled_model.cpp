@@ -573,9 +573,8 @@ void apply_moe_config(ov::AnyMap& stage_config,
         }
     } else if (moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
         if (stage_name == "PREFILL") {
-            NPUW_ASSERT(false && "MoE DEVICE_ROUTED is not supported for PREFILL stage. "
-                                 "DEVICE_ROUTED mode uses in-graph gather-based expert selection which is only "
-                                 "optimized for GENERATE stage. Please use HOST_ROUTED or DENSE for PREFILL.");
+            LOG_INFO("MoE config for PREFILL stage: DEVICE_ROUTED (raw block -> compiler MOE-op fusion)");
+            stage_config["NPUW_ONLINE_PIPELINE"] = "REP";
         }
         stage_config["NPUW_UNFOLD_IREQS"] = "YES";
     } else if (moe_hint == ::intel_npu::npuw::llm::MoEHint::DENSE) {

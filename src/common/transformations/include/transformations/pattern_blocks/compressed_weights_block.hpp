@@ -18,5 +18,6 @@ class TRANSFORMATIONS_API CompressedWeightsBlock;
 class ov::pass::pattern::op::CompressedWeightsBlock : public ov::pass::pattern::op::Block {
 public:
     CompressedWeightsBlock(const std::vector<ov::element::Type>& supported_weights_types,
-                           const std::set<size_t>& supported_weights_ranks);
+                           const std::set<size_t>& supported_weights_ranks,
+                           bool enable_parameter_weights = false);
 };
