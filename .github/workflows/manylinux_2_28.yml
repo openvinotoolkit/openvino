@@ -104,6 +104,7 @@ jobs:
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -v ${{ github.workspace }}:${{ github.workspace }}
     env:
       CMAKE_BUILD_TYPE: 'Release'
+      CMAKE_GENERATOR: 'Ninja'
       ARCH: 'x86_64'
       OPENVINO_REPO: ${{ github.workspace }}/src
       INSTALL_DIR: ${{ github.workspace }}/install/openvino
@@ -163,7 +164,8 @@ jobs:
       - name: Build OpenVINO
         run: |
           python3.12 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
-          /usr/bin/cmake -DPython3_EXECUTABLE=/usr/local/bin/python3.12 \
+          /usr/bin/cmake -G "${{ env.CMAKE_GENERATOR }}" \
+                         -DPython3_EXECUTABLE=/usr/local/bin/python3.12 \
                          -DENABLE_NCC_STYLE=OFF \
                          -DENABLE_TESTS=ON \
                          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
@@ -195,9 +197,9 @@ jobs:
             ${python_path} -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
 
             if [[ $PY_VER == "3.14t" ]]; then
-              /usr/bin/cmake -DPython3_EXECUTABLE=${python_path} -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -DENABLE_GIL_PYTHON_API=OFF -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${py_build_dir}
+              /usr/bin/cmake -G "${{ env.CMAKE_GENERATOR }}" -DPython3_EXECUTABLE=${python_path} -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -DENABLE_GIL_PYTHON_API=OFF -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${py_build_dir}
             else
-              /usr/bin/cmake -DPython3_EXECUTABLE=${python_path} -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${py_build_dir}
+              /usr/bin/cmake -G "${{ env.CMAKE_GENERATOR }}" -DPython3_EXECUTABLE=${python_path} -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${py_build_dir}
             fi
 
             /usr/bin/cmake --build ${py_build_dir} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
@@ -208,7 +210,7 @@ jobs:
 
       - name: Build OpenVINO JS API
         run: |
-          /usr/bin/cmake -UTBB* -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }} \
+          /usr/bin/cmake -G "${{ env.CMAKE_GENERATOR }}" -UTBB* -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }} \
                 -DCPACK_GENERATOR=NPM \
                 -DENABLE_SYSTEM_TBB=OFF \
                 -DENABLE_WHEEL=OFF
