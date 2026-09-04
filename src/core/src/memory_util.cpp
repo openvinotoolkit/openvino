@@ -10,21 +10,19 @@
 
 namespace ov::util {
 namespace {
-constexpr size_t split_unit_bit_size = 24;
-constexpr size_t split_unit_byte_size = split_unit_bit_size / 8;
+// u3/u6 use a linear, LSB-first bit-stream layout (values may straddle byte boundaries).
 size_t get_split_bit_memory_size(const element::Type& type, const size_t elements_count) {
-    const size_t elements_per_storage_unit = split_unit_bit_size / type.bitwidth();
-    auto units_count = elements_count / elements_per_storage_unit;
-    units_count += static_cast<size_t>(units_count * elements_per_storage_unit != elements_count);
-    return units_count * split_unit_byte_size;
+    const auto bit_width = type.bitwidth();
+    // ceil(elements_count * bit_width / 8) split to keep the intermediate from overflowing.
+    const auto full_bytes = (elements_count / 8) * bit_width;
+    const auto tail_bits = (elements_count % 8) * bit_width;
+    return full_bytes + (tail_bits + 7) / 8;
 }
 
 size_t get_split_elements_count(const element::Type& type, const size_t memory_size) {
-    const size_t elements_per_storage_unit = split_unit_bit_size / type.bitwidth();
-    const size_t storage_unit_count = memory_size / split_unit_byte_size;
-    size_t elements_count;
-    OPENVINO_ASSERT(!mul_overflow<size_t>(storage_unit_count, elements_per_storage_unit, elements_count));
-    return elements_count;
+    size_t total_bits;
+    OPENVINO_ASSERT(!mul_overflow<size_t>(memory_size, 8, total_bits));
+    return total_bits / type.bitwidth();
 }
 
 size_t get_bit_memory_size(const element::Type& type, const size_t shape_size) {
