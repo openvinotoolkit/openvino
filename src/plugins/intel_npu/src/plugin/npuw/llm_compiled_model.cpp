@@ -936,16 +936,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     ov::npuw::DetectAttentionMask().run_on_model(kvcache_model);
     ov::npuw::log_detected_masks(kvcache_model);
 
-    if (!m_is_whisper) {
-        if (!m_use_chunk_prefill) {
-            LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
-            ov::npuw::PatchSlidingWindowMask().run_on_model(kvcache_model);
-        }
-    }
-
     LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
     prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
+
+    if (!m_is_whisper) {
+        LOG_DEBUG("Try patch sliding window attention mask for the generate model, if it exists.");
+        ov::npuw::PatchSlidingWindowMask().run_on_model(kvcache_model);
+        if (!m_use_chunk_prefill) {
+            LOG_DEBUG("Apply the same sliding window attention mask patch to whole-prefill model.");
+            ov::npuw::PatchSlidingWindowMask().run_on_model(prefill_model);
+        }
+    }
 
     if (m_use_chunk_prefill && !m_is_embedding) {
         LOG_DEBUG("Right-align attention_mask slice for Conv operations in generate model: LFM-2 case.");

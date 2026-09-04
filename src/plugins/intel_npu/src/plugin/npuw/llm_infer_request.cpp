@@ -149,19 +149,20 @@ size_t count_visual_tokens_before(const ov::SoPtr<ov::ITensor>& mask, size_t seq
 //
 //   src  : [num_layers, N, emb]   (N visual tokens, k-th row = k-th visual token)
 //   mask : [batch, real_len]      (non-zero at visual-token positions, ascending)
-//   dst  : [num_layers, seq, emb] (right-aligned static window)
+//   dst  : [num_layers, seq, emb] (right-aligned whole-prefill or left-aligned chunk window)
 //
 // `src_row_offset` skips the first deepstack rows (visual tokens already handled by earlier
 // chunks in chunked prefill); it is 0 for whole prefill. Returns the number of visual tokens
 // (deepstack rows) actually scattered, so the caller can advance `src_row_offset` for the next
 // chunk.
 //
-// Real tokens are right-aligned, so a visual token at real-sequence coordinate `c`
-// lands at static position `c + (seq - real_len)`.
+// Whole-prefill real tokens are right-aligned, while chunked-prefill real tokens are
+// left-aligned. The caller selects the corresponding destination offset.
 size_t scatter_deepstack_visual_embeds(const ov::SoPtr<ov::ITensor>& src,
                                        const ov::SoPtr<ov::ITensor>& mask,
                                        const ov::SoPtr<ov::ITensor>& dst,
-                                       size_t src_row_offset = 0) {
+                                       size_t src_row_offset = 0,
+                                       bool left_aligned = false) {
     OPENVINO_ASSERT(dst);
     std::fill_n(reinterpret_cast<uint8_t*>(dst->data()), dst->get_byte_size(), 0);
 
@@ -188,9 +189,7 @@ size_t scatter_deepstack_visual_embeds(const ov::SoPtr<ov::ITensor>& src,
 
     const size_t mask_total = mask->get_size();
     OPENVINO_ASSERT(mask_total <= dst_seq);
-    // Real tokens are right-aligned in the static window, i.e. left-padded, so this is the
-    // amount of left padding (offset of the first real/masked position in dst).
-    const size_t seq_left_pad = dst_seq - mask_total;
+    const size_t seq_offset = left_aligned ? 0u : dst_seq - mask_total;
 
     const size_t elem_size = src->get_element_type().size();
     const size_t row_bytes = emb * elem_size;
@@ -205,7 +204,7 @@ size_t scatter_deepstack_visual_embeds(const ov::SoPtr<ov::ITensor>& src,
             continue;
         }
         OPENVINO_ASSERT(src_row_offset + k < src_seq, "More visual tokens in mask than rows in deepstack source");
-        const size_t dst_pos = linear_idx + seq_left_pad;
+        const size_t dst_pos = linear_idx + seq_offset;
         for (size_t l = 0; l < num_layers; ++l) {
             const auto* src_row = src_ptr + (l * src_seq + src_row_offset + k) * row_bytes;
             auto* dst_row = dst_ptr + (l * dst_seq + dst_pos) * row_bytes;
@@ -1095,7 +1094,8 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                 visual_tokens_scattered += scatter_deepstack_visual_embeds(deepstack_visual_embeds,
                                                                            chunk_mask._ptr,
                                                                            deepstack_local,
-                                                                           visual_tokens_scattered);
+                                                                           visual_tokens_scattered,
+                                                                           true);
             }
 
             if (m_eagle3_ext.is_eagle3_model()) {

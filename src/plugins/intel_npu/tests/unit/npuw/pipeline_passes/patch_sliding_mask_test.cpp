@@ -214,12 +214,12 @@ TEST_F(ChunkedPrefillSlidingMaskTest, ChunkedPrefillSkipsRightPaddingPatch) {
 
     ASSERT_NO_THROW(create_compiled_model(
         model,
-        { {"NPUW_LLM_SHARED_HEAD", "NO"},
-          {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
-          {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"} },
+                {{"NPUW_LLM_SHARED_HEAD", "NO"}, {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"}},
         recorder));
     const auto& prefill = require_sub_model(recorder, "_prefill");
     EXPECT_EQ(count_ops<ov::op::v13::BitwiseOr>(prefill.model), 0u);
+    const auto& generate = require_sub_model_containing(recorder, "_kv");
+    EXPECT_GT(count_ops<ov::op::v13::BitwiseOr>(generate.model), 0u);
 }
 
 // Real Gemma exports build two mask subgraphs and share them across all
