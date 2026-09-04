@@ -26,9 +26,11 @@
 #include "intel_gpu/primitives/dynamic_quantize.hpp"
 #include "intel_gpu/primitives/grouped_matmul.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/paged_attention.hpp"
 #include "dynamic_quantize_inst.h"
 #include "grouped_matmul_inst.h"
 #include "fully_connected_inst.h"
+#include "paged_attention_inst.h"
 
 #include <list>
 #include <set>
@@ -216,6 +218,14 @@ Graph::~Graph() {
 
 void Graph::build(std::shared_ptr<cldnn::program> program) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::build");
+
+    for (const auto& node : program->get_processing_order()) {
+        if (node->is_type<cldnn::paged_attention>()) {
+            auto pa_prim = node->as<cldnn::paged_attention>().get_primitive();
+            m_paged_attention_block_size = pa_prim->has_xattention ? cldnn::paged_attention::block_size_xattn : cldnn::paged_attention::block_size;
+            break;
+        }
+    }
 
     auto* external_queue = m_context->get_external_queue();
     if (external_queue) {
@@ -502,6 +512,10 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                             info["wzp_precision"] = ov::element::Type(zp_layout.data_type).get_type_name();
                         }
                     }
+                } else if (node.is_type<cldnn::paged_attention>()) {
+                    auto pa_prim = node.as<cldnn::paged_attention>().get_primitive();
+                    size_t block_size = pa_prim->has_xattention ? cldnn::paged_attention::block_size_xattn : cldnn::paged_attention::block_size;
+                    info["block_size"] = std::to_string(block_size);
                 }
             }
         }
@@ -575,7 +589,12 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
         create_ov_node(pi);
     }
 
-    return std::make_shared<ov::Model>(results, params, "runtime_gpu_graph");
+    auto runtime_model = std::make_shared<ov::Model>(results, params, "runtime_gpu_graph");
+    if (m_paged_attention_block_size.has_value()) {
+        runtime_model->get_rt_info()["paged_attention_block_size"] = m_paged_attention_block_size.value();
+        runtime_model->get_rt_info()["paged_attention"] = ov::AnyMap{{"block_size", m_paged_attention_block_size.value()}};
+    }
+    return runtime_model;
 }
 
 // Cache blob format:

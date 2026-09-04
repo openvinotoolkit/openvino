@@ -2221,6 +2221,15 @@ std::shared_ptr<ov::Model> Graph::dump() const {
     return dump_graph_as_ie_ngraph_net(*this);
 }
 
+std::optional<size_t> Graph::get_paged_attention_block_size() const {
+    for (const auto& node : graphNodes) {
+        if (node->getType() == Type::PagedAttention) {
+            return static_cast<size_t>(32);
+        }
+    }
+    return std::nullopt;
+}
+
 std::vector<MemStatePtr> Graph::memoryStates() const {
     std::vector<MemStatePtr> resultVector;
 

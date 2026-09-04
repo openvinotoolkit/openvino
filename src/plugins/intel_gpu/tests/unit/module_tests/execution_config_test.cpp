@@ -4,7 +4,9 @@
 
 #include "test_utils.h"
 
+#include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/primitives/paged_attention.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
 
 #include "openvino/op/constant.hpp"
@@ -243,4 +245,22 @@ TEST(execution_config, kv_cache_4bit_by_token_throws) {
     config.set_user_property(ov::internal::key_cache_quant_mode(ov::internal::CacheQuantMode::BY_TOKEN));
 
     ASSERT_ANY_THROW(config.finalize(ctx.get(), model.get()));
+}
+
+TEST(execution_config, paged_attention_block_size_exposed) {
+    auto& engine = get_test_engine();
+    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto model = make_pa_matmul_model(ov::element::f32);
+
+    ExecutionConfig config;
+    config.finalize(ctx.get(), model.get());
+
+    auto graph = std::make_shared<Graph>(model, ctx, config);
+    EXPECT_TRUE(graph->get_paged_attention_block_size().has_value());
+    EXPECT_EQ(graph->get_paged_attention_block_size().value(), cldnn::paged_attention::block_size);
+
+    auto runtime_model = graph->get_runtime_model();
+    ASSERT_NE(runtime_model, nullptr);
+    EXPECT_TRUE(runtime_model->has_rt_info("paged_attention_block_size"));
+    EXPECT_EQ(runtime_model->get_rt_info<size_t>("paged_attention_block_size"), cldnn::paged_attention::block_size);
 }

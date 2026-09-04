@@ -28,6 +28,7 @@
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -314,6 +315,10 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::value_cache_group_size.name()),
             RO_property(ov::runtime_requirements.name())};
 
+        if (graph.get_paged_attention_block_size().has_value()) {
+            ro_properties.push_back(RO_property(ov::internal::paged_attention_block_size.name()));
+        }
+
         return ro_properties;
     }
 
@@ -416,6 +421,13 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     }
     if (name == ov::runtime_requirements) {
         return static_cast<decltype(ov::runtime_requirements)::value_type>(m_runtime_requirements);
+    }
+    if (name == ov::internal::paged_attention_block_size || name == "paged_attention_block_size") {
+        auto pa_bs = graph.get_paged_attention_block_size();
+        if (pa_bs.has_value()) {
+            return pa_bs.value();
+        }
+        OPENVINO_THROW("[CPU] Model does not contain PagedAttention");
     }
     OPENVINO_THROW("Unsupported property: ", name);
 }
