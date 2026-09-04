@@ -4,6 +4,7 @@
 
 #include "prepare_whisper_model.hpp"
 
+#include <optional>
 #include <regex>
 
 #include "../llm_compiled_model_utils.hpp"
@@ -101,6 +102,33 @@ public:
     }
 };
 
+// If cross-attention SDPA has already been decomposed (by GenAI, or by
+// decompose_scaled_dot_product_attention_for_whisper() below), there's no SDPA node left
+// to find for it. The decomposition always tags the "QK scaled scores" node with this
+// well-known tensor name, so it doubles as a reliable marker for where the block lives.
+std::vector<std::shared_ptr<ov::Node>> find_decomposed_cross_attn_score_nodes(
+    const std::shared_ptr<ov::Model>& model) {
+    std::vector<std::shared_ptr<ov::Node>> found;
+    for (const auto& op : model->get_ordered_ops()) {
+        bool matched = false;
+        for (const auto& output : op->outputs()) {
+            for (const auto& name : output.get_names()) {
+                if (name.find("cross_attention_qk_scaled_scores") != std::string::npos) {
+                    matched = true;
+                    break;
+                }
+            }
+            if (matched) {
+                break;
+            }
+        }
+        if (matched) {
+            found.push_back(op);
+        }
+    }
+    return found;
+}
+
 class AttentionMaskInput : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::AttentionMaskInput");
@@ -123,6 +151,9 @@ public:
                 }
             }
         }
+        auto decomposed_cross_attn_nodes =
+            transform_cross_attn ? find_decomposed_cross_attn_score_nodes(model)
+                                 : std::vector<std::shared_ptr<ov::Node>>{};
 
         // Self-attention
         OPENVINO_ASSERT(!self_attn_nodes.empty());
@@ -161,7 +192,7 @@ public:
 
         if (transform_cross_attn) {
             // Cross attn
-            OPENVINO_ASSERT(!cross_attn_nodes.empty());
+            OPENVINO_ASSERT(!cross_attn_nodes.empty() || !decomposed_cross_attn_nodes.empty());
             // FIXME: Should be taken from topology - don't hardcode!!!
             auto shape_cst =
                 std::make_shared<ov::op::v0::Constant>(ov::element::i64,
@@ -189,6 +220,29 @@ public:
                     ov::replace_node(cross_attn_node, sdpa);
                 } else {
                     cross_attn_node->input(3).replace_source_output(unsq2->output(0));
+                }
+            }
+            for (const auto& qk_score_node : decomposed_cross_attn_nodes) {
+                if (ov::is_type<ov::op::v1::Add>(qk_score_node)) {
+                    // The original SDPA already had a mask input (or was causal), so
+                    // decomposition produced Add(scores, mask) - mirrors the "cross_attn_node
+                    // already has 4/5 inputs" branch above.
+                    qk_score_node->input(1).replace_source_output(unsq2->output(0));
+                } else {
+                    // Mirrors the "cross_attn_node has 3 inputs" branch above: the original
+                    // SDPA had no mask at all, so decomposition produced no Add either - splice
+                    // one in and move the "cross_attention_qk_scaled_scores*" tensor name(s)
+                    // onto it, since that's the value word-level-timestamp extraction expects.
+                    // Snapshot readers before wiring up new_add itself as a reader.
+                    auto readers = qk_score_node->output(0).get_target_inputs();
+                    auto new_add = std::make_shared<ov::op::v1::Add>(qk_score_node->output(0), unsq2->output(0));
+                    new_add->set_friendly_name(qk_score_node->get_friendly_name() + "/with_mask");
+                    auto names = qk_score_node->output(0).get_names();
+                    qk_score_node->output(0).set_names({});
+                    new_add->output(0).add_names(names);
+                    for (const auto& reader : readers) {
+                        reader.replace_source_output(new_add->output(0));
+                    }
                 }
             }
         }
@@ -471,24 +525,81 @@ public:
     }
 };
 
-auto remove_encoder_attn_read_value(const std::shared_ptr<ov::Node>& rv_node,
-                                    const ov::Output<ov::Node>& kv_out,
-                                    const ov::Input<ov::Node>& sdpa_in) {
-    // Find Assign node
-    OPENVINO_ASSERT(rv_node->outputs().size() == 1);
-    auto rv_out = rv_node->outputs()[0];
-    ov::NodeVector rv_readers;
-    for (const auto& target_in : rv_out.get_target_inputs()) {
-        rv_readers.push_back(target_in.get_node()->shared_from_this());
+// A cross-attention KV-cache state (the ReadValue producing the once-computed
+// encoder key/value) is consumed differently depending on whether the model
+// still has a fused cross-attention SDPA node, or whether cross-attention SDPA
+// has already been decomposed (by GenAI, or by
+// decompose_scaled_dot_product_attention_for_whisper() below):
+//   - fused:      ReadValue -> [FakeConvert ->] SDPA (key at port 1, value at port 2)
+//   - decomposed: key   feeds the Transpose that builds "kT" for QK^T (and,
+//                 separately, a ShapeOf reading the same state to size that
+//                 transpose - both are redirected, only the Transpose decides the role)
+//                 value feeds the final (softmax @ value) MatMul directly
+// Returns the role for a single direct reader of the ReadValue's output, or
+// nullopt if that reader alone doesn't tell us (e.g. Assign, ShapeOf).
+enum class EncoderKvRole { Key, Value };
+
+std::optional<EncoderKvRole> classify_encoder_kv_reader(const ov::Input<ov::Node>& reader) {
+    auto* node = reader.get_node();
+    if (strstr(node->get_type_name(), "FakeConvert") != nullptr) {
+        // fp8: ReadValue -> FakeConvert -> {SDPA | Transpose | MatMul}. FakeConvert has a
+        // single consumer, so its role is exactly the role of that consumer.
+        auto fc_readers = node->outputs()[0].get_target_inputs();
+        OPENVINO_ASSERT(fc_readers.size() == 1);
+        return classify_encoder_kv_reader(*fc_readers.begin());
     }
-    // Assign and SDPA
-    OPENVINO_ASSERT(rv_readers.size() == 2);
-    auto assign_node = (strstr(rv_readers[0]->get_type_name(), "Assign") != nullptr) ? rv_readers[0] : rv_readers[1];
-    OPENVINO_ASSERT(strstr(assign_node->get_type_name(), "Assign") != nullptr);
-    // Redirect KV-cache tensor to SDPA
-    sdpa_in.replace_source_output(kv_out);
-    return std::make_pair(std::make_shared<ov::op::v0::Result>(kv_out),
-                          ov::as_type_ptr<ov::op::v6::Assign>(assign_node));
+    if (strstr(node->get_type_name(), "ScaledDotProductAttention") != nullptr) {
+        return reader.get_index() == 1 ? EncoderKvRole::Key : EncoderKvRole::Value;
+    }
+    if (strstr(node->get_type_name(), "Transpose") != nullptr) {
+        return EncoderKvRole::Key;
+    }
+    if (strstr(node->get_type_name(), "MatMul") != nullptr) {
+        return EncoderKvRole::Value;
+    }
+    return std::nullopt;
+}
+
+// Splits an encoder-attn KV-cache ReadValue's readers into its single Assign and the
+// (one or more) readers that consume the state's value, and determines whether this
+// state is "key" or "value" from among the latter.
+struct EncoderKvState {
+    std::shared_ptr<ov::op::v6::Assign> assign_node;
+    std::vector<ov::Input<ov::Node>> value_readers;
+    EncoderKvRole role;
+};
+
+EncoderKvState analyze_encoder_kv_read_value(const std::shared_ptr<ov::Node>& rv_node) {
+    OPENVINO_ASSERT(rv_node->outputs().size() == 1);
+    EncoderKvState state;
+    std::optional<EncoderKvRole> role;
+    for (const auto& reader : rv_node->output(0).get_target_inputs()) {
+        if (strstr(reader.get_node()->get_type_name(), "Assign") != nullptr) {
+            OPENVINO_ASSERT(!state.assign_node, "More than one Assign reads an encoder-attn KV-cache state");
+            state.assign_node = ov::as_type_ptr<ov::op::v6::Assign>(reader.get_node()->shared_from_this());
+            continue;
+        }
+        state.value_readers.push_back(reader);
+        if (!role) {
+            role = classify_encoder_kv_reader(reader);
+        }
+    }
+    OPENVINO_ASSERT(state.assign_node, "encoder-attn KV-cache state has no Assign");
+    OPENVINO_ASSERT(!state.value_readers.empty(), "encoder-attn KV-cache state is never read");
+    OPENVINO_ASSERT(role, "Could not classify encoder-attn KV-cache state as key or value");
+    state.role = *role;
+    return state;
+}
+
+auto remove_encoder_attn_read_value(const std::shared_ptr<ov::Node>& rv_node, const EncoderKvState& state) {
+    auto kv_out = rv_node->input_value(0);
+    // Redirect every consumer of the state directly to its initial value - covers both
+    // the single fused-SDPA reader and the several decomposed-key readers (Transpose +
+    // ShapeOf) alike.
+    for (const auto& reader : state.value_readers) {
+        reader.replace_source_output(kv_out);
+    }
+    return std::make_pair(std::make_shared<ov::op::v0::Result>(kv_out), state.assign_node);
 }
 
 std::string transform_key_value_name(std::string input_string,
@@ -511,14 +622,6 @@ void set_name(std::shared_ptr<ov::Node> result, const std::string& name) {
     result->get_output_tensor(0).set_names({name});
 }
 
-bool is_fake_cvt_to_key_tensor(const ov::Input<ov::Node>& reader) {
-    auto fc_reader = reader.get_node()->outputs()[0].get_target_inputs();
-    // FakeConvert node has only 1 consumer
-    OPENVINO_ASSERT(fc_reader.size() == 1);
-    // FakeConvert -> SDPA : 'key' tensor is input with index 1 to SDPA
-    return fc_reader.begin()->get_index() == 1;
-}
-
 void expose_runtime_states_as_outputs(const std::shared_ptr<ov::Model>& model) {
     // Find all ReadValue nodes
     ov::NodeVector read_value_nodes;
@@ -535,35 +638,16 @@ void expose_runtime_states_as_outputs(const std::shared_ptr<ov::Model>& model) {
     // Go through all ReadValue nodes and remove them
     for (const auto& rv_node : read_value_nodes) {
         OPENVINO_ASSERT(rv_node->inputs().size() == 1);
-        OPENVINO_ASSERT(rv_node->outputs().size() == 1);
-        auto rv_in = rv_node->inputs()[0];
-        auto x = rv_in.get_source_output();
-        auto rv_out = rv_node->outputs()[0];
-        // Gather all nodes that read from ReadValue, there must be SDPA and Assign
-        auto rv_readers = rv_out.get_target_inputs();
-        OPENVINO_ASSERT(rv_readers.size() == 2);
-        // Input port for SDPA node
-        for (const auto& reader : rv_readers) {
-            bool is_fake_cvt = strstr(reader.get_node()->get_type_name(), "FakeConvert") != nullptr;
-            if (strstr(reader.get_node()->get_type_name(), "ScaledDotProductAttention") != nullptr || is_fake_cvt) {
-                auto sdpa_in = reader;
-
-                // In case there's additional FakeConvert node(fp8): ReadValue -> FakeConvert -> SDPA
-                auto is_fc_key_tensor = is_fake_cvt ? is_fake_cvt_to_key_tensor(reader) : false;
-
-                // Remove ReadValue, store new Result and Assign
-                auto key_or_value = (sdpa_in.get_index() == 1 || is_fc_key_tensor) ? "key" : "value";
-                auto [result, assign] = remove_encoder_attn_read_value(rv_node, rv_in.get_source_output(), sdpa_in);
-                auto normalized_name =
-                    transform_key_value_name(rv_node->inputs()[0].get_source_output().get_node()->get_friendly_name(),
-                                             "present",
-                                             ".encoder.",
-                                             key_or_value);
-                set_name(result, normalized_name);
-                results.push_back(result);
-                assigns.push_back(assign);
-            }
-        }
+        auto state = analyze_encoder_kv_read_value(rv_node);
+        auto [result, assign] = remove_encoder_attn_read_value(rv_node, state);
+        auto key_or_value = state.role == EncoderKvRole::Key ? "key" : "value";
+        auto normalized_name = transform_key_value_name(rv_node->input_value(0).get_node()->get_friendly_name(),
+                                                        "present",
+                                                        ".encoder.",
+                                                        key_or_value);
+        set_name(result, normalized_name);
+        results.push_back(result);
+        assigns.push_back(assign);
     }
 
     // Add, remove, validate
@@ -621,34 +705,25 @@ void expose_runtime_states_as_inputs(const std::shared_ptr<ov::Model>& model) {
     }
 
     for (const auto& rv_node : read_value_nodes) {
-        auto rv_out = rv_node->outputs()[0];
-        auto rv_readers = rv_out.get_target_inputs();
-        for (auto rv_reader : rv_readers) {
-            bool is_fake_cvt = strstr(rv_reader.get_node()->get_type_name(), "FakeConvert") != nullptr;
-            if (strstr(rv_reader.get_node()->get_type_name(), "Assign") != nullptr) {
-                auto assign_node = ov::as_type_ptr<ov::op::v6::Assign>(rv_reader.get_node()->shared_from_this());
-                assigns.push_back(assign_node);
-            } else if (strstr(rv_reader.get_node()->get_type_name(), "ScaledDotProductAttention") != nullptr ||
-                       is_fake_cvt) {
-                auto sdpa_in = rv_reader;
+        auto state = analyze_encoder_kv_read_value(rv_node);
 
-                auto shape = rv_node->get_output_partial_shape(0);
-                auto new_param = std::make_shared<ov::op::v0::Parameter>(rv_node->get_output_element_type(0), shape);
+        auto shape = rv_node->get_output_partial_shape(0);
+        auto new_param = std::make_shared<ov::op::v0::Parameter>(rv_node->get_output_element_type(0), shape);
+        auto key_or_value = state.role == EncoderKvRole::Key ? "key" : "value";
+        // Layer index comes from the state's producer (the initial-value subgraph),
+        // which is unaffected by whether cross-attention SDPA is fused or decomposed -
+        // unlike the readers, whose names/types differ between the two shapes.
+        auto normalized_name = transform_key_value_name(rv_node->input_value(0).get_node()->get_friendly_name(),
+                                                        "past_key_values",
+                                                        ".encoder.",
+                                                        key_or_value);
+        set_name(new_param, normalized_name);
+        params.push_back(new_param);
 
-                // In case there's additional FakeConvert node(fp8): ReadValue -> FakeConvert -> SDPA
-                auto is_fc_key_tensor = is_fake_cvt ? is_fake_cvt_to_key_tensor(rv_reader) : false;
-
-                auto key_or_value = (sdpa_in.get_index() == 1 || is_fc_key_tensor) ? "key" : "value";
-                auto normalized_name = transform_key_value_name(sdpa_in.get_node()->get_friendly_name(),
-                                                                "past_key_values",
-                                                                ".encoder.",
-                                                                key_or_value);
-                set_name(new_param, normalized_name);
-
-                params.push_back(new_param);
-                sdpa_in.replace_source_output(new_param->outputs()[0]);
-            }
+        for (const auto& reader : state.value_readers) {
+            reader.replace_source_output(new_param->output(0));
         }
+        assigns.push_back(state.assign_node);
     }
 
     // Remove sinks and add new params
@@ -661,7 +736,10 @@ void expose_runtime_states_as_inputs(const std::shared_ptr<ov::Model>& model) {
 void normalize_input_key_value_names(const std::shared_ptr<ov::Model>& model) {
     ov::ResultVector new_results, old_results;
     for (const auto& in : model->inputs()) {
-        if (in.get_any_name().find("decoder") == std::string::npos) {
+        // Decomposed cross-attention (word-level timestamps) exposes extra ports
+        // (e.g. the qk-score outputs) that may have no tensor name at all here -
+        // get_any_name() throws on those, unlike get_names().
+        if (in.get_names().empty() || in.get_any_name().find("decoder") == std::string::npos) {
             continue;
         }
 
@@ -677,7 +755,9 @@ void normalize_input_key_value_names(const std::shared_ptr<ov::Model>& model) {
 void normalize_output_key_value_names(const std::shared_ptr<ov::Model>& model) {
     ov::ResultVector new_results, old_results;
     for (const auto& out : model->outputs()) {
-        if (out.get_any_name().find("decoder") == std::string::npos) {
+        // See normalize_input_key_value_names: decomposed cross-attention adds
+        // outputs (qk scores) that can be nameless at this point in the pipeline.
+        if (out.get_names().empty() || out.get_any_name().find("decoder") == std::string::npos) {
             continue;
         }
 
@@ -804,4 +884,8 @@ bool ov::npuw::util::PrepareWhisperKVCacheModel::run_on_model(const std::shared_
     model->validate_nodes_and_infer_types();
 
     return true;
+}
+
+bool ov::npuw::util::has_decomposed_cross_attention_sdpa(const std::shared_ptr<ov::Model>& model) {
+    return !find_decomposed_cross_attn_score_nodes(model).empty();
 }
