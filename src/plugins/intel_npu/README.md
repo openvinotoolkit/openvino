@@ -246,16 +246,16 @@ The following table shows the default values for the number of Tiles and DMA Eng
 
 | Performance hint | NPU Platform        | Number of Tiles      |
 | :---             | :---                | :---                 |
-| THROUGHPUT       | 3720                | 2 (all of them)      |
-| THROUGHPUT       | 4000                | 2 (out of 5/6)       |
-| THROUGHPUT       | 5010                | 1 (out of 3)         |
-| THROUGHPUT       | 5020                | 1 (out of 1)         |
-| THROUGHPUT       | 6010                | 1 (out of 4)         |
-| LATENCY          | 3720                | 2 (all of them)      |
-| LATENCY          | 4000                | 4 (out of 5/6)       |
-| LATENCY          | 5010                | 3 (out of 3)         |
-| LATENCY          | 5020                | 1 (out of 1)         |
-| LATENCY          | 6010                | 3 (out of 4)         |
+| THROUGHPUT       | 3720                | 2                    |
+| THROUGHPUT       | 4000                | 2                    |
+| THROUGHPUT       | 5010                | 1                    |
+| THROUGHPUT       | 5020                | 1                    |
+| THROUGHPUT       | 6010                | 1                    |
+| LATENCY          | 3720                | 2                    |
+| LATENCY          | 4000                | 4                    |
+| LATENCY          | 5010                | 3                    |
+| LATENCY          | 5020                | 1                    |
+| LATENCY          | 6010                | 3                    |
 <br>
 
 ### Performance Hint: Optimal Number of Inference Requests
