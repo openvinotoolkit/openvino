@@ -1,0 +1,221 @@
+ir_version: 9
+graph {
+  node {
+    input: "s0"
+    input: "s1"
+    input: "s2"
+    output: "seq_init"
+    op_type: "SequenceConstruct"
+  }
+  node {
+    input: "trip_count"
+    input: "cond_init"
+    input: "seq_init"
+    input: "acc_init"
+    output: "seq_final"
+    output: "acc_final"
+    op_type: "Loop"
+    attribute {
+      name: "body"
+      g {
+        node {
+          input: "seq_in"
+          input: "iter_num"
+          output: "slot"
+          op_type: "SequenceAt"
+        }
+        node {
+          input: "acc_in"
+          input: "slot"
+          output: "acc_out"
+          op_type: "Add"
+        }
+        node {
+          input: "cond_in"
+          output: "cond_out"
+          op_type: "Identity"
+        }
+        node {
+          input: "seq_in"
+          output: "seq_out"
+          op_type: "Identity"
+        }
+        name: "bug1_body"
+        input {
+          name: "iter_num"
+          type {
+            tensor_type {
+              elem_type: 7
+              shape {
+                dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+        input {
+          name: "cond_in"
+          type {
+            tensor_type {
+              elem_type: 9
+              shape {
+              }
+            }
+          }
+        }
+        input {
+          name: "seq_in"
+          type {
+            sequence_type {
+              elem_type {
+                tensor_type {
+                  elem_type: 1
+                }
+              }
+            }
+          }
+        }
+        input {
+          name: "acc_in"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "cond_out"
+          type {
+            tensor_type {
+              elem_type: 9
+              shape {
+              }
+            }
+          }
+        }
+        output {
+          name: "seq_out"
+          type {
+            sequence_type {
+              elem_type {
+                tensor_type {
+                  elem_type: 1
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "acc_out"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+      }
+      type: GRAPH
+    }
+  }
+  name: "sal_sequence_at_loop_iter_index"
+  input {
+    name: "trip_count"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+        }
+      }
+    }
+  }
+  input {
+    name: "cond_init"
+    type {
+      tensor_type {
+        elem_type: 9
+        shape {
+        }
+      }
+    }
+  }
+  input {
+    name: "s0"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "s1"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "s2"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "acc_init"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "acc_final"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 16
+}
