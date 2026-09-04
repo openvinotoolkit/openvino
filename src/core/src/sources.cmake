@@ -186,6 +186,7 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/pa_kv_reorder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/pad.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/paged_attention.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/paged_attention_onnx.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/paged_causal_conv1d.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/paged_gated_delta_net.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/paged_selective_ssm.cpp
