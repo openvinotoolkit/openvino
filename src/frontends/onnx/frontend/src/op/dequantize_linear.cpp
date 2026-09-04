@@ -20,6 +20,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/util/log.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 using namespace ov::op;
@@ -284,15 +285,17 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
         }
 
         for (int64_t i = 0; i < input_shape.rank().get_length(); ++i) {
-            const auto expected_dim =
-                i == candidate_axis ? input_shape[i].get_length() / block_size : input_shape[i].get_length();
-            if (scale_shape[i].get_length() != expected_dim) {
+            const int64_t expected_dim = i == candidate_axis
+                                             ? static_cast<int64_t>(input_shape[i].get_length() / block_size)
+                                             : static_cast<int64_t>(input_shape[i].get_length());
+            if (static_cast<int64_t>(scale_shape[i].get_length()) != expected_dim) {
                 return false;
             }
         }
         return true;
     };
 
+    const auto declared_axis = axis;
     if (!is_scale_compatible_with_axis(axis)) {
         int64_t compatible_axis = -1;
         for (int64_t candidate_axis = 0; candidate_axis < input_shape.rank().get_length(); ++candidate_axis) {
@@ -303,6 +306,17 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
             }
         }
         if (compatible_axis != -1) {
+            FRONT_END_GENERAL_CHECK(declared_axis == 0 && compatible_axis == input_shape.rank().get_length() - 1,
+                                    "DequantizeLinear scale shape is incompatible with the declared axis");
+            OPENVINO_WARN("DequantizeLinear '",
+                          node.get_name(),
+                          "': declared axis ",
+                          declared_axis,
+                          " is inconsistent with the x_scale shape ",
+                          scale_shape,
+                          "; the model is not ONNX-conformant. Falling back to axis ",
+                          compatible_axis,
+                          ". Please re-export the model (CVS-191631).");
             axis = compatible_axis;
         }
     }
