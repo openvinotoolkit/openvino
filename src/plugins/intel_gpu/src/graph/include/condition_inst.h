@@ -38,13 +38,29 @@ public:
     }
 
     void update_primitive_map(const primitive_id& prevID, const primitive_id& newID) {
-        auto replace_external_id = [&](std::map<primitive_id, primitive_id>& input_map, const primitive_id& prevID, const primitive_id& newID) {
-            auto iter = input_map.find(prevID);
-            if (iter != input_map.end()) {
-                primitive_id new_external_id = newID;
-                primitive_id internal_id = iter->second;
-                input_map.erase(iter);
-                input_map.insert({new_external_id, internal_id});
+        auto replace_external_id = [&](std::map<primitive_id, primitive_id>& input_map,
+                                      const primitive_id& prevID,
+                                      const primitive_id& newID) {
+            std::vector<std::pair<primitive_id, primitive_id>> replacements;
+            for (auto it = input_map.begin(); it != input_map.end(); ++it) {
+                const auto& existing_key = it->first;
+                if (existing_key == prevID) {
+                    replacements.emplace_back(existing_key, newID);
+                } else {
+                    const auto suffix_pos = existing_key.rfind(".out");
+                    if (suffix_pos != primitive_id::npos && existing_key.substr(0, suffix_pos) == prevID) {
+                        replacements.emplace_back(existing_key, newID + existing_key.substr(suffix_pos));
+                    }
+                }
+            }
+
+            for (const auto& replacement : replacements) {
+                auto it = input_map.find(replacement.first);
+                if (it != input_map.end()) {
+                    const primitive_id internal_id = it->second;
+                    input_map.erase(it);
+                    input_map.insert({replacement.second, internal_id});
+                }
             }
         };
 
