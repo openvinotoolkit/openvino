@@ -112,10 +112,6 @@ constexpr uint64_t kRows = 4;
 constexpr uint64_t kCols = 256;
 constexpr float kTolFaithful = 3e-3f;   // f16-scale dequant noise
 constexpr float kTolRequant = 1.5e-2f;  // channel-wise Q8_0_C requant round-off
-// Q4_K uses an INTEGER (u8) zero-point so the CPU plugin fuses the dequant into the MatMul
-// (matching the original ggml-openvino backend). The integer zp rounds min to a multiple of
-// scale, so the dequant diverges from ggml's faithful to_float by up to ~0.045 per weight.
-constexpr float kTolIntZp = 5e-2f;
 // Q2_0: (code - 1) * d on both sides and the zero-point of 1 is exact, so hold it to bit-equality.
 constexpr float kTolExact = 0.0f;
 
@@ -181,7 +177,7 @@ INSTANTIATE_TEST_SUITE_P(AllQuantTypes,
                                            DeqCase{"q8_0", GGUF_TYPE_Q8_0, kTolFaithful},
                                            DeqCase{"q2_k", GGUF_TYPE_Q2_K, kTolFaithful},
                                            DeqCase{"q3_k", GGUF_TYPE_Q3_K, kTolFaithful},
-                                           DeqCase{"q4_k", GGUF_TYPE_Q4_K, kTolIntZp},
+                                           DeqCase{"q4_k", GGUF_TYPE_Q4_K, kTolFaithful},
                                            DeqCase{"q5_k", GGUF_TYPE_Q5_K, kTolRequant},
                                            DeqCase{"q6_k", GGUF_TYPE_Q6_K, kTolRequant},
                                            // Q2_0 is bit-exact: both sides compute (code - 1) * d

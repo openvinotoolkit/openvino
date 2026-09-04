@@ -196,7 +196,7 @@ static inline void get_scale_min_k4(int j, const uint8_t* q, uint8_t* d, uint8_t
 // ports of ggml's dequantize_row_q{4,5,6}_K: they compute w = (d*sc)*q - (dmin*m) with the products
 // kept in f32 (d/dmin are the f16 super-block scales widened to f32), matching what the upstream
 // backend feeds into its Q8_0_C requant. This is NOT the general dequant path -- the compressed
-// matmul weights still go through fill_*/make_int4 (f16 scales, integer zp) unchanged. Each function
+// matmul weights still go through fill_*/make_int4 unchanged. Each function
 // fills ONE row (`cols` floats) so the caller never materializes the whole f32 weight.
 static void dequant_row_q4_k_f32(const uint8_t* row, size_t cols, float* y) {
     const uint64_t bpb = kQ4K_BLOCK_BYTES;
@@ -709,7 +709,7 @@ void gguf_fill_sym(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& sc
     }
 }
 
-// Asymmetric types (Q4_1, Q4_K, Q5_K, Q5_1, Q2_K): fill weights + scales + integer zero-points.
+// Asymmetric types (Q4_1, Q4_K, Q5_K, Q5_1, Q2_K): fill weights, scales, and zero-points.
 void gguf_fill_asym(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales, ov::Tensor& zp) {
     if (tensor.type == GGUF_TYPE_Q4_1) {
         fill_q4_1(tensor, weights, scales, zp);
