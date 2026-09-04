@@ -82,7 +82,23 @@ target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_GEN_TAG=\"${paddle_gen
 if(PADDLEDET_RESULT)
     set(TEST_PADDLE_MODELS ${TEST_MODEL_ZOO_OUTPUT_DIR}/paddle_test_models/${PD_MODEL_TAG}/)
 
-    file(GLOB_RECURSE PADDLE_ALL_SCRIPTS ${CODE_ROOT_DIR}/*.py)
+    set(PADDLE_GEN_WRAPPER ${CODE_ROOT_DIR}/test_models/gen_wrapper.py)
+    set(PADDLE_GEN_SCRIPTS_LIST ${CODE_ROOT_DIR}/test_models/gen_scripts.list)
+    if(NOT EXISTS ${PADDLE_GEN_SCRIPTS_LIST})
+        message(FATAL_ERROR "Paddle generator manifest is missing: ${PADDLE_GEN_SCRIPTS_LIST}")
+    endif()
+    file(STRINGS ${PADDLE_GEN_SCRIPTS_LIST} PADDLE_GEN_SCRIPT_NAMES)
+    set(PADDLE_GEN_SCRIPTS)
+    foreach(PADDLE_GEN_SCRIPT_NAME IN LISTS PADDLE_GEN_SCRIPT_NAMES)
+        string(STRIP "${PADDLE_GEN_SCRIPT_NAME}" PADDLE_GEN_SCRIPT_NAME)
+        if(PADDLE_GEN_SCRIPT_NAME STREQUAL "" OR PADDLE_GEN_SCRIPT_NAME MATCHES "^#")
+            continue()
+        endif()
+        list(APPEND PADDLE_GEN_SCRIPTS ${CODE_ROOT_DIR}/test_models/gen_scripts/${PADDLE_GEN_SCRIPT_NAME})
+    endforeach()
+    set(PADDLE_ALL_SCRIPTS
+        ${PADDLE_GEN_WRAPPER}
+        ${PADDLE_GEN_SCRIPTS})
     set(OUT_FILE ${TEST_PADDLE_MODELS}/generate_done_${PD_MODEL_TAG}.txt)
     add_custom_command(OUTPUT ${OUT_FILE}
             COMMAND  ${CMAKE_COMMAND} -E env PYTHONPATH=${PADDLEDET_DIRNAME} FLAGS_enable_pir_api=${ENABLE_PIR}
