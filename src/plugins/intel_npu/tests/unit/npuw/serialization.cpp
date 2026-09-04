@@ -262,7 +262,7 @@ void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttentionCo
     EXPECT_EQ(expected.full_context_size, actual.full_context_size);
     EXPECT_EQ(expected._context_lengths, actual._context_lengths);
     EXPECT_EQ(expected.global_mask_idx, actual.global_mask_idx);
-    EXPECT_EQ(expected._data_left_aligned, actual._data_left_aligned);
+    EXPECT_EQ(expected._kv_order, actual._kv_order);
     ASSERT_EQ(expected._attention_infos.size(), actual._attention_infos.size());
     for (std::size_t i = 0; i < expected._attention_infos.size(); ++i) {
         const auto& lhs = expected._attention_infos[i];
@@ -286,7 +286,7 @@ void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttentionBl
     EXPECT_EQ(expected.past_key_block_global_param_indices, actual.past_key_block_global_param_indices);
     EXPECT_EQ(expected.past_value_block_global_param_indices, actual.past_value_block_global_param_indices);
     EXPECT_EQ(expected.global_mask_idx, actual.global_mask_idx);
-    EXPECT_EQ(expected._data_left_aligned, actual._data_left_aligned);
+    EXPECT_EQ(expected._kv_order, actual._kv_order);
     ASSERT_EQ(expected._attention_infos.size(), actual._attention_infos.size());
     for (std::size_t i = 0; i < expected._attention_infos.size(); ++i) {
         const auto& lhs = expected._attention_infos[i];
@@ -722,7 +722,7 @@ TEST(SerializationTest, OVTypes_PyramidAttention) {
     var.full_context_size = 128;
     var._context_lengths = {16, 32, 64, 128};
     var.global_mask_idx = 4;
-    var._data_left_aligned = true;
+    var._kv_order = ov::npuw::util::KVOrder::PresentFirst;
 
     ov::npuw::compiled::PyramidAttentionContiguousInfo info1;
     info1.params = {{0, 2}, {1, 3}};
@@ -758,7 +758,7 @@ TEST(SerializationTest, OVTypes_PyramidAttention_BlockMode) {
     var.past_key_block_global_param_indices = {10, 11, 12};
     var.past_value_block_global_param_indices = {20, 21, 22};
     var.global_mask_idx = 4;
-    var._data_left_aligned = true;
+    var._kv_order = ov::npuw::util::KVOrder::PresentFirst;
 
     ov::npuw::compiled::PyramidAttentionBlockInfo info1;
     info1.mask_idx_local = 4;
@@ -803,7 +803,7 @@ TEST(SerializationTest, OVTypes_PyramidAttention_BlockMode_RebuildsGlobalBlockSe
     var.past_key_block_global_param_indices = {10, 11, 12};
     var.past_value_block_global_param_indices = {20, 21, 22};
     var.global_mask_idx = 4;
-    var._data_left_aligned = true;
+    var._kv_order = ov::npuw::util::KVOrder::PresentFirst;
 
     std::stringstream ss;
     {

@@ -1193,3 +1193,58 @@ std::shared_ptr<ov::op::v0::Parameter> ov::npuw::util::find_mask_parameter(const
     }
     return nullptr;
 }
+
+std::optional<std::size_t> ov::npuw::util::find_past_concat_input_index(const std::shared_ptr<ov::Node>& concat_node,
+                                                                        bool is_key) {
+    auto concat_op = std::dynamic_pointer_cast<ov::op::v0::Concat>(concat_node);
+    if (!concat_op) {
+        return std::nullopt;
+    }
+
+    auto reaches_past_param = [is_key](std::shared_ptr<ov::Node> node) -> bool {
+        // Walk back along the data input (input 0) through dequant / layout ops until a
+        // Parameter (or an unrecognized op) is reached.
+        while (node) {
+            if (auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(node)) {
+                const auto& name = param->get_friendly_name();
+                return is_key ? ov::npuw::util::isPastKeyValuesKeyContiguous(name).has_value()
+                              : ov::npuw::util::isPastKeyValuesValueContiguous(name).has_value();
+            }
+            if (ov::is_type<ov::op::v0::Convert>(node) || ov::is_type<ov::op::v1::Multiply>(node) ||
+                ov::is_type<ov::op::v1::Reshape>(node) || ov::is_type<ov::op::v1::Transpose>(node) ||
+                ov::is_type<ov::op::v0::Unsqueeze>(node) || ov::is_type<ov::op::v3::Broadcast>(node)) {
+                if (node->get_input_size() == 0) {
+                    break;
+                }
+                node = node->get_input_node_shared_ptr(0);
+                continue;
+            }
+            break;
+        }
+        return false;
+    };
+
+    const std::size_t n = concat_op->get_input_size();
+    for (std::size_t i = 0; i < n; ++i) {
+        if (reaches_past_param(concat_op->get_input_node_shared_ptr(i))) {
+            return i;
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<ov::npuw::util::KVOrder> ov::npuw::util::kv_concat_order(const std::shared_ptr<ov::Node>& key_concat,
+                                                                       const std::shared_ptr<ov::Node>& value_concat) {
+    const auto key_past_idx = find_past_concat_input_index(key_concat, /*is_key=*/true);
+    const auto value_past_idx = find_past_concat_input_index(value_concat, /*is_key=*/false);
+    if (!key_past_idx || !value_past_idx) {
+        return std::nullopt;
+    }
+    // The past input not being the first input means a present input precedes it.
+    const auto key_order = *key_past_idx > 0 ? KVOrder::PresentFirst : KVOrder::PastFirst;
+    const auto value_order = *value_past_idx > 0 ? KVOrder::PresentFirst : KVOrder::PastFirst;
+    if (key_order != value_order) {
+        return std::nullopt;
+    }
+    return key_order;
+}

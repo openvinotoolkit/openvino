@@ -13,6 +13,7 @@
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "util.hpp"
 
 namespace ov {
 namespace npuw {
@@ -97,6 +98,11 @@ struct HostFlashAttention {
     // Used for selector compatibility and runtime decision-making
     std::size_t _query_size = 0;
 
+    // Order of the KV Concat inputs.  With KVOrder::PresentFirst the present tile occupies
+    // the first _tile_size mask columns and the past cache follows, so the final (present)
+    // tile runs at mask offset 0 - after all regular past tiles.
+    ov::npuw::util::KVOrder _kv_order = ov::npuw::util::KVOrder::PastFirst;
+
     // Context size (extracted from K concat output shape - kv_cache_size dimension)
     // Represents the total KV cache length available for attention computation
     std::size_t _context_size = 0;
@@ -155,6 +161,9 @@ namespace compiled {
 struct HostFlashAttentionInfo {
     std::size_t _query_size = 0u;  // query size for selector compatibility
     std::size_t _context_size = 0u;
+
+    // See function::HostFlashAttention::_kv_order.
+    ov::npuw::util::KVOrder _kv_order = ov::npuw::util::KVOrder::PastFirst;
 
     // Sequence dimension indices for K and V tensors in the original SDPA model
     // These indicate which dimension is the sequence/cache dimension in past_key and past_value tensors
@@ -313,15 +322,15 @@ struct HFARuntimeContext {
 
         // Calculate maximum number of tiles based on context size
         const size_t context_size = hfa_desc._sdpa_attention_info._context_size;
-        const size_t query_size = hfa_desc._sdpa_attention_info._query_size;
+        const size_t tile_size = static_cast<size_t>(hfa_desc._tile_size);
 
         // Validate configuration
-        if (context_size % query_size != 0) {
+        if (tile_size == 0 || context_size % tile_size != 0) {
             throw std::runtime_error("HFA: context_size (" + std::to_string(context_size) +
-                                     ") must be divisible by query_size (" + std::to_string(query_size) + ")");
+                                     ") must be divisible by tile_size (" + std::to_string(tile_size) + ")");
         }
 
-        const size_t max_num_tiles = context_size / query_size;
+        const size_t max_num_tiles = context_size / tile_size;
 
         // Allocate temporary buffers for mask tile extraction
         m_mask_tile_buffers.clear();
@@ -464,16 +473,28 @@ class PositionIDs final : public Selector {
     std::size_t _position_ids_idx = 0u;
     int64_t _current_length = 0;
     int64_t _past_length = 0;
-    std::size_t _query_size = 0u;
+    // KV granularity of a single call: the number of present-KV slots the final tile
+    // consumes, and the step regular tiles walk the past cache with.  Equal to the Q
+    // sequence length for the usual layout, but not when Q is GQA-grouped.
+    std::size_t _tile_size = 0u;
+    // With KVOrder::PresentFirst the caller-supplied history length is unreliable (the
+    // graph is driven externally, not by LLMInferRequest) and the past length is derived
+    // from the position ids instead - see prepare().
+    ov::npuw::util::KVOrder _kv_order = ov::npuw::util::KVOrder::PastFirst;
 
     std::reference_wrapper<const ov::ISyncInferRequest> _rq;
 
-    PositionIDs(std::size_t param_idx, std::size_t query_size, const ov::ISyncInferRequest& rq);
+    PositionIDs(std::size_t param_idx,
+                std::size_t tile_size,
+                ov::npuw::util::KVOrder kv_order,
+                const ov::ISyncInferRequest& rq);
     void prepare(int64_t past_len) override;
     int64_t context_length() const override;
 
 public:
-    static Selector::Ptr find(std::size_t query_size, const ov::ISyncInferRequest& rq);
+    static Selector::Ptr find(std::size_t tile_size,
+                              ov::npuw::util::KVOrder kv_order,
+                              const ov::ISyncInferRequest& rq);
 };
 
 }  // namespace host_flash_attention

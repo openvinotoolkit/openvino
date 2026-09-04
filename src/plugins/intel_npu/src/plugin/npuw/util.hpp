@@ -275,6 +275,23 @@ std::vector<SDPAPatternNodes> find_all_sdpa_pattern_nodes(const std::shared_ptr<
 // Parameter.  Only unary ops are traversed; returns nullptr on failure.
 std::shared_ptr<ov::op::v0::Parameter> find_mask_parameter(const std::shared_ptr<ov::Node>& add_node);
 
+// Determine, for a KV `concat_node`, the input index carrying the past KV cache.
+// The past input traces back (through the usual dequant / layout ops) to a
+// past_key_values Parameter; the present input is computed from the current tokens
+// and never reaches such a Parameter.  Returns nullopt when no past input is found.
+std::optional<std::size_t> find_past_concat_input_index(const std::shared_ptr<ov::Node>& concat_node, bool is_key);
+
+// Which end of the KV Concat carries the freshly-computed present KV.
+enum class KVOrder : uint8_t {
+    PastFirst,    // [past.. | present] - the usual GenAI layout
+    PresentFirst  // [present | past..] - the past cache is appended last
+};
+
+// Order of the K and V Concats.  Returns nullopt when K and V disagree, or when the
+// past input cannot be identified on either of them.
+std::optional<KVOrder> kv_concat_order(const std::shared_ptr<ov::Node>& key_concat,
+                                       const std::shared_ptr<ov::Node>& value_concat);
+
 template <typename T>
 void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) {
     T* tensor_data = tensor->data<T>();
