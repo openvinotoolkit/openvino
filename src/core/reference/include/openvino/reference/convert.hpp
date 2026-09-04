@@ -144,11 +144,5 @@ void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t c
 
 // Convert values from bf16 to f16 with clamping to f16 min/max when value is out of normal finite numbers range
 void convert_from_bf16_to_f16_with_clamp(const bfloat16* arg, float16* out, size_t count);
-
-// Same as convert_from_f32_to_f16_with_clamp, but ±inf/NaN pass through unclamped
-void convert_from_f32_to_f16_with_clamp_preserve_specials(const float* arg, float16* out, size_t count);
-
-// Same as convert_from_bf16_to_f16_with_clamp, but ±inf/NaN pass through unclamped
-void convert_from_bf16_to_f16_with_clamp_preserve_specials(const bfloat16* arg, float16* out, size_t count);
 }  // namespace reference
 }  // namespace ov

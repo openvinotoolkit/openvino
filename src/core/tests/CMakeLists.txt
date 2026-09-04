@@ -79,7 +79,6 @@ set(OV_CORE_TESTS_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/pattern.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/pattern_block.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/preprocess.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/reference_convert_f16_clamp.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/replace_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/reshape_opt_kernel.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/rtti.cpp

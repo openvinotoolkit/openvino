@@ -21,10 +21,6 @@ template <>
 template <>
 __m256 Clamp<float, float16>::apply<__m256, __m256>(const __m256 vec_f32);
 
-template <>
-template <>
-__m256 ClampPreserveSpecials<float, float16>::apply<__m256, __m256>(const __m256 vec_f32);
-
 // Conversion optimized specializations
 // --- f32 -> other
 template <>
@@ -37,13 +33,6 @@ struct Converter<float, float16>::Optimized<NoClamp> {
 template <>
 template <>
 struct Converter<float, float16>::Optimized<Clamp<float, float16>> {
-    static constexpr bool enabled = true;
-    static void run(const float* in, float16* out);
-};
-
-template <>
-template <>
-struct Converter<float, float16>::Optimized<ClampPreserveSpecials<float, float16>> {
     static constexpr bool enabled = true;
     static void run(const float* in, float16* out);
 };
@@ -74,13 +63,6 @@ struct Converter<float16, int8_t>::Optimized<NoClamp> {
 template <>
 template <>
 struct Converter<bfloat16, float16>::Optimized<Clamp<float, float16>> {
-    static constexpr bool enabled = true;
-    static void run(const bfloat16* in, float16* out);
-};
-
-template <>
-template <>
-struct Converter<bfloat16, float16>::Optimized<ClampPreserveSpecials<float, float16>> {
     static constexpr bool enabled = true;
     static void run(const bfloat16* in, float16* out);
 };
