@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "TensorFlow Models tests requirements pip install failure, unrelated to NPU code change|Infrastructure",
+  "signature_hash": "6e384cf2944ada58",
+  "title": "NPU Models Tests fail installing TF Models tests requirements, unrelated to NPU mutex fix PR",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-09-04T08:38:10Z",
+  "last_seen": "2026-09-04T08:38:10Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/33844291174"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37898"
+  ],
+  "recent_timestamps": [
+    "2026-09-04T08:38:10Z"
+  ],
+  "rerun_search_string": "Install TF Models tests requirements"
+}

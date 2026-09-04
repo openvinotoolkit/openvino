@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-04-08-38-10-000-33844291174",
+  "timestamp": "2026-09-04T08:38:10Z",
+  "run_id": "33844291174",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33844291174",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37898",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37898",
+  "author": "pereanub",
+  "category": "Infrastructure",
+  "title": "NPU Models Tests fail installing TF Models tests requirements, unrelated to NPU mutex fix PR",
+  "signature": "TensorFlow Models tests requirements pip install failure, unrelated to NPU code change|Infrastructure",
+  "signature_hash": "6e384cf2944ada58",
+  "confidence": "Low",
+  "failed_jobs": [
+    {
+      "name": "NPU Models Tests / 6010",
+      "conclusion": "failure",
+      "symptom": "Step 'Install TF Models tests requirements' failed, causing 'TensorFlow Models Tests - NPU compile-only (read_model)' to fail and downstream TF/PyTorch steps (groups C/D) to be skipped; PyTorch groups A/B and JAX/Flax tests in the same job passed."
+    }
+  ],
+  "key_errors": [
+    "Job logs for the failing steps ('Install TF Models tests requirements', 'TensorFlow Models Tests - NPU compile-only (read_model)') could not be retrieved: get_job_logs consistently returned tail-anchored content (JAX/PyTorch pass output, artifact upload) regardless of requested tail_lines (400 up to 1,000,000), and direct blob-storage/log-archive URLs were blocked by the sandbox network proxy (403 Forbidden).",
+    "Job environment showed PIP_INDEX_URL=http://pip-proxy.pip-proxy.svc.cluster.local/simple/ and PIP_TRUSTED_HOST=pip-proxy.pip-proxy.svc.cluster.local, consistent with an internal pip proxy dependency for the failing install step."
+  ],
+  "root_cause": "The only PR change is src/plugins/intel_npu/src/utils/src/zero/zero_mem_pool.cpp (a mutex/object-lifetime fix), and all NPU-relevant tests in the same job (PyTorch groups A/B, JAX/Flax) passed. The failure occurred in a generic 'Install TF Models tests requirements' pip-install step feeding an NPU compile-only TF read_model check, not in any NPU runtime behavior touched by the PR. This pattern (unrelated TF dependency-install/test failures blocking unrelated PRs) has precedent in this repo's history, including a confirmed transient PyPI-index Network failure for the same requirements.txt family (grpcio) in a prior investigation. Exact error text for this run could not be captured due to log-retrieval tool limitations, so the specific sub-cause (proxy hiccup vs. package resolution vs. transient network blip) cannot be pinned down with high confidence.",
+  "reproduction_steps": "N/A - could not reproduce without the captured pip error text; re-running the 'NPU Models Tests' job's 'Install TF Models tests requirements' step for run 33844291174 would show if it is transient.",
+  "recommended_actions": [
+    "Re-run the failed 'NPU Models Tests' job; PR's own code change (NPU mutex fix) is unaffected and unrelated to this failure.",
+    "If the failure recurs, capture the raw log for 'Install TF Models tests requirements' via the GitHub UI (tool-side log retrieval was blocked in this investigation) to confirm exact pip/proxy error.",
+    "Consider adding retry/backoff to pip install steps that depend on the internal pip-proxy service, mirroring the existing grpcio/PyPI mitigation recommendation from investigation 2026-06-29-21-12-18-000-28401943026."
+  ],
+  "prevention_strategies": "Add resilience (retries, caching, or pre-baked images) for TF Models tests dependency installation so transient proxy/network blips do not block unrelated PRs merging through the queue.",
+  "historical_context": "Two prior investigations recorded unrelated TensorFlow test/dependency failures blamed on non-TF PRs: 2026-06-29-21-12-18-000-28401943026 (pip install to resolve grpcio failed due to a truncated PyPI Simple API JSON response, category Network, High confidence) and a separate 'TensorFlow 2 Layer Tests TF FE fail unrelated to GPU plugin PR' entry (Flaky Test). This run fits the same broader theme of TF-related infra flakiness unrelated to the PR under test, though exact log evidence for this specific run was unobtainable."
+}
