@@ -53,6 +53,23 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(CPUTestUtils::empty_plugin_config)),
     MHA::getTestCaseName);
 
+// The same graph, but with the Softmax quantized on a softmax's theoretical [0, 1] range instead of
+// a calibrated one -- the only in-tree form on which SoftmaxDecomposition's deferred normalization
+// can fire, so a change of its default would show up here first. Only the first shape set is used:
+// the last two are dynamic, and the rewrite declines on a dynamic anchor, so they would pin nothing.
+INSTANTIATE_TEST_SUITE_P(
+    smoke_Snippets_MHAINT8MatMulUnitRange,
+    MHAINT8MatMulUnitRange,
+    ::testing::Combine(::testing::Values(inputShapesQuantized.front()),
+                       ::testing::Values(std::vector<element::Type>{}),
+                       ::testing::Values(ov::element::f32),
+                       ::testing::Values(false),  // The graph doesn't contain Multiply
+                       ::testing::Values(7),      // FQx3, Transpose1 on inputs + MHA + Transpose on output + Deq Mul
+                       ::testing::Values(5),      // FQx3 on inputs + MHA + Deq Mul
+                       ::testing::Values(ov::test::utils::DEVICE_CPU),
+                       ::testing::Values(CPUTestUtils::empty_plugin_config)),
+    MHA::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MHAQuantMatMul0,
     MHAQuantMatMul0,
