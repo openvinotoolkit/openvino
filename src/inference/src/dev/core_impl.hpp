@@ -226,7 +226,6 @@ private:
     bool is_hidden_device(const std::string& device_name) const;
     void register_plugin_in_registry_unsafe(const std::string& device_name, PluginDescriptor& desc);
 
-
     void add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& extensions) const;
 
     std::vector<ov::Extension::Ptr> get_extensions_copy() const;
@@ -274,7 +273,9 @@ public:
      * @param device_name A name of device
      * @param properties Plugin configuration
      */
-    void register_plugin(const std::filesystem::path& plugin, const std::string& device_name, const ov::AnyMap& properties);
+    void register_plugin(const std::filesystem::path& plugin,
+                         const std::string& device_name,
+                         const ov::AnyMap& properties);
 
     /**
      * @brief Provides a list of plugin names in registry; physically such plugins may not be created

@@ -47,7 +47,7 @@ OutputVector translate_weight(const NodeContext& context) {
         FRONT_END_OP_CONVERSION_CHECK(tensors.weight, "GGML_OP_NONE weight leaf has no 'gguf.blob.weight' attribute");
         auto qtype = static_cast<GgufTensorType>(context.get_attribute<int>("gguf_qtype"));
         auto node = make_weight_node(tensors, qtype, context.get_name());
-        return rename_outputs_with_suffix({node}, context.get_name());
+        return rename_outputs_with_suffix({std::move(node)}, context.get_name());
     }
 
     // Path 2: raw ggml bytes from a live cgraph decoder.
@@ -71,7 +71,7 @@ OutputVector translate_weight(const NodeContext& context) {
         FRONT_END_OP_CONVERSION_CHECK(data.get_byte_size() == n_expert * m * k_blocks * kBlockBytes,
                                       "MXFP4 MoE packed byte size mismatch");
         auto packed = std::make_shared<ov::op::v0::Constant>(ov::element::u8, packed_shape, data.data());
-        return rename_outputs_with_suffix({packed}, context.get_name());
+        return rename_outputs_with_suffix({std::move(packed)}, context.get_name());
     }
 
     // MoE expert weights are rank > 2 ([1, n_expert, m, k]). The dequant path works on a 2D
@@ -84,11 +84,11 @@ OutputVector translate_weight(const NodeContext& context) {
         std::vector<int64_t> full(shape.begin(), shape.end());
         auto target = ov::op::v0::Constant::create(ov::element::i64, {full.size()}, full);
         auto reshaped = std::make_shared<ov::op::v1::Reshape>(node, target, false);
-        return rename_outputs_with_suffix({reshaped}, context.get_name());
+        return rename_outputs_with_suffix({std::move(reshaped)}, context.get_name());
     }
 
     auto node = make_weight_node(data, quant_type, shape, context.get_name());
-    return rename_outputs_with_suffix({node}, context.get_name());
+    return rename_outputs_with_suffix({std::move(node)}, context.get_name());
 }
 
 }  // namespace op
