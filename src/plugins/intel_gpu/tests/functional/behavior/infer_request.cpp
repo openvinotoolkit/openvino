@@ -167,6 +167,197 @@ TEST(TensorTest, smoke_lazyAllocStaticOutputReusesUserTensor) {
     }
 }
 
+// Dynamic output bound to a caller-owned iGPU USM-host buffer produces correct values.
+TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHost) {
+    auto core = ov::Core();
+    if (core.get_property(ov::test::utils::DEVICE_GPU, ov::device::type) != ov::device::Type::INTEGRATED) {
+        GTEST_SKIP() << "Caller-owned USM-host output sharing is enabled only on iGPU";
+    }
+
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 4});
+    auto relu = std::make_shared<ov::op::v0::Relu>(input);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{relu}, ov::ParameterVector{input});
+
+    auto remote_context = core.get_default_context(ov::test::utils::DEVICE_GPU);
+    auto compiled_model = core.compile_model(model, remote_context);
+
+    const ov::Shape shape{2, 4};
+    ov::Tensor input_tensor(ov::element::f32, shape);
+    const std::vector<float> input_values{-4.0f, -3.0f, -2.0f, -1.0f, 1.0f, 2.0f, 3.0f, 4.0f};
+    std::copy(input_values.begin(), input_values.end(), input_tensor.data<float>());
+
+    auto gpu_context = remote_context.as<ov::intel_gpu::ocl::ClContext>();
+    auto usm_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
+    ov::Tensor output_tensor(ov::element::f32, shape, usm_allocation.get());
+    ASSERT_FALSE(output_tensor.is<ov::intel_gpu::ocl::USMTensor>());
+    std::fill_n(output_tensor.data<float>(), output_tensor.get_size(), -1.0f);
+
+    auto request = compiled_model.create_infer_request();
+    request.set_input_tensor(input_tensor);
+    request.set_output_tensor(output_tensor);
+    OV_ASSERT_NO_THROW(request.infer());
+
+    const std::vector<float> expected{0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 2.0f, 3.0f, 4.0f};
+    auto actual = request.get_output_tensor();
+    ASSERT_EQ(actual.data(), usm_allocation.get());
+    ASSERT_EQ(actual.get_size(), expected.size());
+    for (size_t i = 0; i < actual.get_size(); ++i) {
+        ASSERT_FLOAT_EQ(actual.data<const float>()[i], expected[i]);
+    }
+}
+
+static std::shared_ptr<ov::Model> makeDynamicReluModel() {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 4});
+    auto relu = std::make_shared<ov::op::v0::Relu>(input);
+    return std::make_shared<ov::Model>(ov::OutputVector{relu}, ov::ParameterVector{input});
+}
+
+// A caller buffer sized for the max shape stays bound and correct across smaller/larger runtime shapes.
+TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostGrowthWithinCapacity) {
+    auto core = ov::Core();
+    if (core.get_property(ov::test::utils::DEVICE_GPU, ov::device::type) != ov::device::Type::INTEGRATED) {
+        GTEST_SKIP() << "Caller-owned USM-host output sharing is enabled only on iGPU";
+    }
+
+    auto compiled_model = core.compile_model(makeDynamicReluModel(), core.get_default_context(ov::test::utils::DEVICE_GPU));
+    auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    auto request = compiled_model.create_infer_request();
+
+    const ov::Shape max_shape{8, 4};
+    auto usm_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, max_shape);
+
+    for (const size_t rows : {size_t{2}, size_t{8}, size_t{4}}) {
+        const ov::Shape shape{rows, 4};
+        // wait() shrinks the bound tensor to the runtime shape, so rebind full capacity each iter.
+        ov::Tensor output_tensor(ov::element::f32, max_shape, usm_allocation.get());
+        request.set_output_tensor(output_tensor);
+
+        ov::Tensor input_tensor(ov::element::f32, shape);
+        for (size_t i = 0; i < input_tensor.get_size(); ++i) {
+            input_tensor.data<float>()[i] = static_cast<float>(i) - 4.0f;
+        }
+        request.set_input_tensor(input_tensor);
+        OV_ASSERT_NO_THROW(request.infer());
+
+        auto actual = request.get_output_tensor();
+        ASSERT_EQ(actual.data(), usm_allocation.get());
+        ASSERT_EQ(actual.get_shape(), shape);
+        for (size_t i = 0; i < actual.get_size(); ++i) {
+            const float in = static_cast<float>(i) - 4.0f;
+            ASSERT_FLOAT_EQ(actual.data<const float>()[i], in > 0.0f ? in : 0.0f);
+        }
+    }
+}
+
+// Runtime output exceeding the caller buffer fails safely (throws) without corrupting caller memory.
+TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostGrowthBeyondCapacityIsSafe) {
+    auto core = ov::Core();
+    if (core.get_property(ov::test::utils::DEVICE_GPU, ov::device::type) != ov::device::Type::INTEGRATED) {
+        GTEST_SKIP() << "Caller-owned USM-host output sharing is enabled only on iGPU";
+    }
+
+    auto compiled_model = core.compile_model(makeDynamicReluModel(), core.get_default_context(ov::test::utils::DEVICE_GPU));
+    auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    auto request = compiled_model.create_infer_request();
+
+    const ov::Shape small_shape{2, 4};
+    auto usm_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, small_shape);
+    ov::Tensor output_tensor(ov::element::f32, small_shape, usm_allocation.get());
+    request.set_output_tensor(output_tensor);
+
+    ov::Tensor small_input(ov::element::f32, small_shape);
+    std::fill_n(small_input.data<float>(), small_input.get_size(), 1.0f);
+    request.set_input_tensor(small_input);
+    OV_ASSERT_NO_THROW(request.infer());
+    ASSERT_EQ(request.get_output_tensor().data(), usm_allocation.get());
+
+    // Sentinel detects any out-of-bounds write into the caller buffer during the oversized run.
+    constexpr float sentinel = -17.0f;
+    std::fill_n(static_cast<float*>(usm_allocation.get()), ov::shape_size(small_shape), sentinel);
+
+    ov::Tensor large_input(ov::element::f32, ov::Shape{8, 4});
+    std::fill_n(large_input.data<float>(), large_input.get_size(), 1.0f);
+    request.set_input_tensor(large_input);
+    ASSERT_ANY_THROW(request.infer());
+
+    const auto* caller_data = static_cast<const float*>(usm_allocation.get());
+    for (size_t i = 0; i < ov::shape_size(small_shape); ++i) {
+        ASSERT_FLOAT_EQ(caller_data[i], sentinel);
+    }
+}
+
+// Rebinding to a different caller USM-host allocation writes the new buffer, leaves the old untouched.
+TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostRebindsAllocation) {
+    auto core = ov::Core();
+    if (core.get_property(ov::test::utils::DEVICE_GPU, ov::device::type) != ov::device::Type::INTEGRATED) {
+        GTEST_SKIP() << "Caller-owned USM-host output sharing is enabled only on iGPU";
+    }
+
+    auto compiled_model = core.compile_model(makeDynamicReluModel(), core.get_default_context(ov::test::utils::DEVICE_GPU));
+    auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    auto request = compiled_model.create_infer_request();
+    const ov::Shape shape{2, 4};
+
+    auto first_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
+    auto second_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
+    ov::Tensor input_tensor(ov::element::f32, shape);
+
+    std::fill_n(input_tensor.data<float>(), input_tensor.get_size(), 1.0f);
+    request.set_input_tensor(input_tensor);
+    request.set_output_tensor(ov::Tensor(ov::element::f32, shape, first_allocation.get()));
+    OV_ASSERT_NO_THROW(request.infer());
+
+    constexpr float sentinel = -23.0f;
+    std::fill_n(static_cast<float*>(first_allocation.get()), ov::shape_size(shape), sentinel);
+    std::fill_n(input_tensor.data<float>(), input_tensor.get_size(), 2.0f);
+    request.set_output_tensor(ov::Tensor(ov::element::f32, shape, second_allocation.get()));
+    OV_ASSERT_NO_THROW(request.infer());
+
+    auto actual = request.get_output_tensor();
+    ASSERT_EQ(actual.data(), second_allocation.get());
+    const auto* first_data = static_cast<const float*>(first_allocation.get());
+    const auto* second_data = static_cast<const float*>(second_allocation.get());
+    for (size_t i = 0; i < ov::shape_size(shape); ++i) {
+        ASSERT_FLOAT_EQ(first_data[i], sentinel);
+        ASSERT_FLOAT_EQ(second_data[i], 2.0f);
+    }
+}
+
+// Switching from a bound caller USM-host buffer to an ineligible ordinary host tensor copies correctly.
+TEST(TensorTest, smoke_dynamicOutputSwitchesFromUsmHostToCopyFallback) {
+    auto core = ov::Core();
+    if (core.get_property(ov::test::utils::DEVICE_GPU, ov::device::type) != ov::device::Type::INTEGRATED) {
+        GTEST_SKIP() << "Caller-owned USM-host output sharing is enabled only on iGPU";
+    }
+
+    auto compiled_model = core.compile_model(makeDynamicReluModel(), core.get_default_context(ov::test::utils::DEVICE_GPU));
+    auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    auto request = compiled_model.create_infer_request();
+    const ov::Shape shape{2, 4};
+
+    auto usm_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
+    ov::Tensor input_tensor(ov::element::f32, shape);
+    std::fill_n(input_tensor.data<float>(), input_tensor.get_size(), 1.0f);
+    request.set_input_tensor(input_tensor);
+    request.set_output_tensor(ov::Tensor(ov::element::f32, shape, usm_allocation.get()));
+    OV_ASSERT_NO_THROW(request.infer());
+
+    constexpr float sentinel = -31.0f;
+    std::fill_n(static_cast<float*>(usm_allocation.get()), ov::shape_size(shape), sentinel);
+    std::vector<float> host_output(ov::shape_size(shape), sentinel);
+    std::fill_n(input_tensor.data<float>(), input_tensor.get_size(), 3.0f);
+    request.set_output_tensor(ov::Tensor(ov::element::f32, shape, host_output.data()));
+    OV_ASSERT_NO_THROW(request.infer());
+
+    auto actual = request.get_output_tensor();
+    ASSERT_EQ(actual.data(), host_output.data());
+    const auto* usm_data = static_cast<const float*>(usm_allocation.get());
+    for (size_t i = 0; i < ov::shape_size(shape); ++i) {
+        ASSERT_FLOAT_EQ(usm_data[i], sentinel);
+        ASSERT_FLOAT_EQ(host_output[i], 3.0f);
+    }
+}
+
 // AUTO_BATCH's shared buffer must be sized batch=N, not the slot's own batch=1 port. Checked
 // by value: an offset bug doesn't change the exposed shape, only which bytes get read/written.
 TEST(TensorTest, smoke_lazyAllocAutoBatchUsesBatchedShapeNotSlotShape) {
