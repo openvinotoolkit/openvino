@@ -280,6 +280,10 @@ void ScatterUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
             kd.kernels[i].params.workGroups.global = dispatchData.gws;
             kd.kernels[i].params.workGroups.local = dispatchData.lws;
             kd.kernels[i].skip_execution = KernelData::SkipKernelExecution(prim_params);
+            if (i == 0 && !kd.kernels[i].skip_execution) {
+                GPU_DEBUG_TRACE_DETAIL << "[scatter_update_ref] check init stage with inplace[" << prim_params.is_inplace << "]" << std::endl;
+                kd.kernels[i].skip_execution = prim_params.is_inplace;
+            }
         }
     };
 }

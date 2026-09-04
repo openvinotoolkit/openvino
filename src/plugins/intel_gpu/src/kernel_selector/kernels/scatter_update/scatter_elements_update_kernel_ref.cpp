@@ -244,6 +244,10 @@ bool ScatterElementsUpdateKernelRef::SkipKernelExecution(const scatter_elements_
         if (params.outputs[0].LogicalSize() != 0 && params.outputs[0] != params.inputs[0]) {
             return false;
         }
+        GPU_DEBUG_TRACE_DETAIL << "[scatter_elements_update_ref] check init stage with inplace[" << params.is_inplace << "]" << std::endl;
+        if (params.is_inplace) {
+            return true;
+        }
     }
     return KernelData::SkipKernelExecution(params);
 }

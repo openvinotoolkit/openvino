@@ -40,6 +40,7 @@
 #include "gather_inst.h"
 #include "broadcast_inst.h"
 #include "dynamic_quantize_inst.h"
+#include "stateless_kv_inst.h"
 #include "swiglu_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "lora_inst.h"
@@ -487,7 +488,9 @@ void primitive_inst::update_shape() {
         auto& new_layout = new_layouts[idx];
         auto new_pshape = new_layout.get_partial_shape();
         auto& impl_layout = _impl_params->get_output_layout(idx);
-        if (!get_node().is_type<reshape>() || (!get_node().get_input_layout(0).data_padding.is_dynamic() && !get_node().can_be_optimized())) {
+        if (get_node().is_type<stateless_kv>() && idx == 1) {
+            // stateless_kv updates padding in every iteration, don't accumulate.
+        } else if (!get_node().is_type<reshape>() || (!get_node().get_input_layout(0).data_padding.is_dynamic() && !get_node().can_be_optimized())) {
             auto data_padding = padding::max(impl_layout.data_padding, new_layout.data_padding);
             new_layout.data_padding = padding::max(get_node().get_primitive()->get_output_padding(idx), data_padding);
         }
@@ -774,6 +777,57 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     // input_layout node is supposed to always use external memory in dynamic case
     if (get_node().is_type<input_layout>())
         return;
+
+    
+    if (get_node().is_type<stateless_kv>()) {
+        const auto output_it = std::find_if(users.begin(), users.end(), [](primitive_inst* user) {
+            return user->is_output();
+        });
+        OPENVINO_ASSERT(output_it != users.end(), "[GPU] stateless_kv should directly connect to an output");
+
+        const auto& past_layout = _impl_params->get_input_layout();
+        const auto& mid_layout = _impl_params->get_output_layout(0);
+        const auto& target_layout = _impl_params->get_output_layout(1);
+
+        auto& result = **output_it;
+        if (result.is_dynamic()) {
+            if (!result._update_shape_done_by_other) {
+                result.update_shape();
+                result._update_shape_done_by_other = true;
+            }
+        }
+        if (!result.output_memory_ptr() || past_layout != mid_layout) {
+            result.set_can_be_optimized(false);
+        }
+        result.realloc_if_needed();
+
+        const auto past_tensor = input_memory_ptr(0);
+        OPENVINO_ASSERT(past_tensor, "[GPU] Input memory is not prepared for stateless_kv node ", id());
+        const auto present_tensor = result.output_memory_ptr();
+        OPENVINO_ASSERT(present_tensor, "[GPU] Output memory of ", result.id(), " is not prepared for stateless_kv node ", id());
+        const auto is_same = _network.get_engine().is_the_same_buffer(*present_tensor, *past_tensor);
+        const auto& present_layout = result._impl_params->get_output_layout();
+        if (mid_layout == present_layout) {
+            result.set_can_be_optimized(true);
+        }
+        GPU_DEBUG_TRACE_DETAIL << id() << ": input[" << past_tensor->buffer_ptr() << "](" << past_tensor->get_layout().to_short_string() << ") and output["
+                               << present_tensor->buffer_ptr() << "](" << present_tensor->get_layout().to_short_string() << ")(" << result.id()
+                               << ") same:" << is_same << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << id() << ": input[" << past_layout.to_short_string() << "] -> mid[" << mid_layout.to_short_string() << "]["
+                               << target_layout.to_short_string() << "] -> output[" << present_layout.to_short_string() << "](" << result.id()
+                               << ") opt:" << result.can_be_optimized() << std::endl;
+        // const auto target_axis = get_typed_desc<stateless_kv>()->concat_axis;
+        // OPENVINO_ASSERT(present_layout.get_dim(target_axis) >= target_layout.get_dim(target_axis));
+
+        if (_outputs[0] && _mem_allocated) {
+            GPU_DEBUG_TRACE_DETAIL << id() << ": release previous allocated memory[" << _outputs[0]->buffer_ptr() << "]" << std::endl;
+            get_network().get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), get_node().id(), _network.get_id());
+        }
+        _outputs[0] = present_tensor;
+        _outputs[1] = get_network().get_engine().reinterpret_buffer(*present_tensor, target_layout);
+        this->_mem_allocated = false;
+        return;
+    }
 
     // Forward probe: walk through single-user optimized chains to find an output
     // node with an external output memory block (ext_block).  If found, use the
@@ -1508,6 +1562,10 @@ void primitive_inst::do_runtime_skip_reorder() {
         if (u->get_node().is_type<reorder>()) {
             if (u->get_node().can_be_optimized() && u->get_node().is_runtime_skippable()) {
                 auto out_port_idx = u->get_node().get_dependency_with_port(0).second;
+                if (out_port_idx == 0 && get_node().is_type<stateless_kv>()) {
+                    GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] user " << u->id() << " ignored since it's stateless_kv's target output" << std::endl;
+                    continue;
+                }
                 // If current node's output_node is not dynamic, the memory is already allocated at build time
                 auto alloc_type = allocation_type::unknown;
                 if (!get_node().is_dynamic_output_layout(out_port_idx) && static_cast<int64_t>(_outputs.size()) > out_port_idx) {
@@ -2241,6 +2299,11 @@ void primitive_inst::prepare_primitive() {
             }
         }
 
+        // StatelessKV uses next output's memory, may change even if the input shapes haven't been changed
+        if (get_node().is_type<stateless_kv>() && !get_flag(ExecutionFlags::IMPL_CHANGED)) {
+            realloc_if_needed(prev_execution_skipped);
+        }
+
         // Paged Attention may require dispatch data update and internal buffers reallocation
         // even if the input shapes haven't been changed
         if (get_node().is_type<paged_attention>() && !get_flag(ExecutionFlags::IMPL_CHANGED) && _impl->requires_update(*this, *_impl_params)) {
@@ -2483,6 +2546,15 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
         };
         allocate_memory = _mem_allocated = available_allocate_memory(_impl_params->output_layouts);
     }
+    if (allocate_memory && node.is_type<stateless_kv>()) {
+        allocate_memory = _mem_allocated = false;
+    }
+    if (allocate_memory && node.is_output() && node.is_type<reorder>()) {
+        if (const auto [prev_node, prev_idx] = node.get_dependency_with_port(0); prev_node->is_type<stateless_kv>() && prev_idx == 0) {
+            allocate_memory = _mem_allocated = false;
+        }
+    }
+
 
     if (allocate_memory) {
         // In case when output is mutable_data primitive, and other users dependencies are only used for
@@ -2542,8 +2614,11 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
 }
 
 memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_t idx, bool reset, bool lockable, bool shareable) {
-    if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr)
+    if (_impl == nullptr || _outputs.empty() || std::any_of(_outputs.begin(), _outputs.end(), [](const auto& output){
+            return output == nullptr;
+        })) {
         return nullptr;
+    }
 
     auto device_mem_acc = [&](size_t a, std::pair<primitive_inst*, int32_t> b) {
         if (!b.first->mem_allocated()) return a;
