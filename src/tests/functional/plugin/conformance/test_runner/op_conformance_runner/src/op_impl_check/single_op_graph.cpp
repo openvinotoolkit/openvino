@@ -1157,6 +1157,34 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v13::ScaledDot
     return std::make_shared<ov::Model>(results, ov::ParameterVector{query, key, value, attention_mask, scale}, "ScaledDotProductAttentionGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v17::BlockSparseAttention> &node) {
+    // 2 query blocks (L=4, block_size=2) each selecting 2 of the 3 available key/value
+    // blocks (S=6, block_size=2); block_indices/mask share the query head count (no
+    // head-broadcast) so the graph exercises the "default"/most common shape combination.
+    const auto query = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 4, 8});
+    const auto key = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 6, 8});
+    const auto value = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 6, 8});
+    const auto block_indices = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{1, 2, 2, 2});
+    const auto block_indices_mask = std::make_shared<ov::op::v0::Parameter>(element::boolean, Shape{1, 2, 2, 2});
+    const auto scale = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
+    const int64_t block_size = 2;
+    const bool causal = false;
+
+    const auto op = std::make_shared<ov::op::v17::BlockSparseAttention>(query,
+                                                                          key,
+                                                                          value,
+                                                                          block_indices,
+                                                                          block_indices_mask,
+                                                                          scale,
+                                                                          block_size,
+                                                                          causal);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(op)};
+    return std::make_shared<ov::Model>(
+        results,
+        ov::ParameterVector{query, key, value, block_indices, block_indices_mask, scale},
+        "BlockSparseAttentionGraph");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v3::ScatterElementsUpdate> &node) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{2, 2}}),
                                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{2, 2}})};
