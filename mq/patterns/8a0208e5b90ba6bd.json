@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "system outofmemoryexception was thrown during debian packages docker container step|Infrastructure",
+  "signature_hash": "8a0208e5b90ba6bd",
+  "title": "Debian Packages job fails - runner OutOfMemoryException during apt-get install inside Docker container",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-09-04T11:16:56Z",
+  "last_seen": "2026-09-04T11:16:56Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/33859120806"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37274"
+  ],
+  "recent_timestamps": [
+    "2026-09-04T11:16:56Z"
+  ],
+  "rerun_search_string": "Exception of type System OutOfMemoryException was thrown"
+}

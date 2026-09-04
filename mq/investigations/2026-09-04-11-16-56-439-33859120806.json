@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-04-11-16-56-439-33859120806",
+  "timestamp": "2026-09-04T11:16:56Z",
+  "run_id": "33859120806",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33859120806",
+  "workflow_name": "Debian Packages",
+  "pr_number": "37274",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37274",
+  "author": "mangguo321",
+  "category": "Infrastructure",
+  "title": "Debian Packages job fails - runner OutOfMemoryException during apt-get install inside Docker container",
+  "signature": "system outofmemoryexception was thrown during debian packages docker container step|Infrastructure",
+  "signature_hash": "8a0208e5b90ba6bd",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "Step 'Install debian packages & check conflicts' aborted with a .NET System.OutOfMemoryException raised by the Actions runner host while apt-get was retrying delayed downloads of libexpat1 from azure.archive.ubuntu.com."
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check failed because the Debian Packages job it depends on failed."
+    }
+  ],
+  "key_errors": [
+    "apt-get install --no-install-recommends -y gnupg wget ca-certificates lsb-release\napt-get install -y openvino\napt-get install --no-install-recommends -y dpkg-dev\napt-get install openvino -y",
+    "W: Tried to start delayed item http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libexpat1 amd64 2.4.7-1ubuntu0.7, but failed\n(repeated hundreds of times)",
+    "##[error]Exception of type 'System.OutOfMemoryException' was thrown.\nStop and remove container: 38eb2c1e14fd49b3a15bfd671f34c336_openvinogithubactionsazurecriodockerhububuntu2204_92bc69"
+  ],
+  "root_cause": "The 'Install debian packages & check conflicts' step ran apt-get inside a Docker container on the Actions runner. apt-get repeatedly failed to fetch libexpat1 from azure.archive.ubuntu.com's delayed-download queue, logging hundreds of near-identical 'W: Tried to start delayed item ... but failed' warnings within milliseconds of each other. This warning storm, combined with process/log buffering inside the GitHub Actions runner's Docker step host process, exhausted available memory and the .NET runner process threw a System.OutOfMemoryException, aborting the step and forcing a container teardown. The underlying trigger is a flaky/degraded mirror connection to azure.archive.ubuntu.com (consistent with several prior Network-category patterns for this same job), but the fatal symptom here is the runner host's own OutOfMemoryException rather than a clean apt-get failure, so it is tracked as an Infrastructure issue distinct from the existing Network patterns.",
+  "reproduction_steps": "N/A - failure is tied to GitHub Actions runner/container resource behavior when the apt mirror stalls; not reliably reproducible locally. To approximate: run `apt-get install openvino` in the same ubuntu:22.04 container image while throttling/blocking outbound access to azure.archive.ubuntu.com and observe repeated delayed-item retries.",
+  "recommended_actions": [
+    "Re-run the failed 'Debian Packages' job; this is a transient infrastructure/network condition, not a code defect in PR #37274.",
+    "Consider lowering apt's Acquire::Retries or adding a shorter per-item timeout in the workflow's apt configuration to fail fast instead of looping on delayed items until the runner process exhausts memory.",
+    "Monitor whether azure.archive.ubuntu.com mirror instability recurs; if it does, consider pointing the Debian Packages job at an alternate/cached apt mirror."
+  ],
+  "prevention_strategies": "Add a bounded timeout/retry budget around apt-get invocations in the Debian Packages job so a slow/flaky mirror surfaces as a clean apt failure (fail-fast) instead of an unbounded retry loop that can exhaust the runner container's memory. Consider capturing apt output to a size-capped log file rather than letting thousands of near-duplicate warnings stream to the Actions log/host process.",
+  "historical_context": "Multiple prior investigations recorded Network-category failures for this same job (apt-get unable to connect to azure.archive.ubuntu.com, timeouts/refused connections; see patterns 7d2e2ff59d37c6b4 count=9, 7d52cc57d8ed2a36, 98edf6d4fbc865bd, a3d456bd40bd9f42, c8d00529252cfb02, e65acb49deb19d88). This is the first occurrence where the failure manifested as a runner-level System.OutOfMemoryException rather than an apt-level connection error, so it is recorded as a new, related but distinct Infrastructure pattern."
+}
