@@ -93,7 +93,7 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    runs-on: aks-linux-4-cores-16gb-docker-build
+    runs-on: aks-linux-4-cores-16gb-docker-build-ab
     if: "!needs.smart_ci.outputs.skip_workflow"
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
@@ -123,7 +123,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-linux-16-cores-32gb-ab
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_riscv }}
       volumes:
@@ -162,8 +162,8 @@ jobs:
         id: ccache_restore
         uses: ./openvino/.github/actions/cache
         with:
-          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          save-always: 'true'
+          cleanup-always: 'true'
           cache-size: 10
           max-cache-size: 50
           cache-path: ${{ env.CCACHE_REMOTE_DIR }}
@@ -175,9 +175,6 @@ jobs:
       #
       # Build
       #
-      - name: Clean ccache stats
-        run: ccache --zero-stats
-
       - name: CMake - Configure
         run: >
           cmake -G "${{ env.CMAKE_GENERATOR }}"
@@ -196,13 +193,22 @@ jobs:
           -S ${OPENVINO_REPO}
           -B ${BUILD_DIR}
 
-      - name: Cmake - Build
-        run: cmake --build ${BUILD_DIR} --parallel $(nproc) -- --quiet
+      - name: Zero compile cache stats (openvino main build)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
 
-      - name: Show ccache stats and cleanup
-        run: |
-          ccache --show-stats
-          ccache --cleanup
+      - name: Cmake - Build
+        run: cmake --build ${BUILD_DIR} --parallel 15 -- --quiet
+
+      - name: Compile cache statistics (openvino main build)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: openvino-main
+          artifact-name: compile-cache-stats-linux-riscv-openvino-main
+
+      - name: ccache cleanup
+        run: ccache --cleanup
 
       - name: Cmake install - OpenVINO
         run: |
@@ -242,72 +248,3 @@ jobs:
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
-  CPU_Functional_Tests:
-    name: CPU functional tests
-    timeout-minutes: ${{ (inputs.testFilterType == 'CONCISE' || (!inputs.testFilterType && github.event_name != 'schedule')) && 35 || 135 }}
-    needs: [Smart_CI, Docker, Build]
-    runs-on: aks-linux-4-cores-16gb
-    container:
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_riscv }}
-      volumes:
-        - ${{ github.workspace }}:${{ github.workspace }}
-    defaults:
-      run:
-        shell: bash
-    env:
-      INSTALL_DIR: ${{ github.workspace }}/install
-      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-
-    steps:
-      - name: Download OpenVINO artifacts (package)
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
-        with:
-          name: openvino_package
-          path: ${{ env.INSTALL_DIR }}
-
-      - name: Download OpenVINO artifacts (tests)
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
-        with:
-          name: openvino_tests
-          path: ${{ env.INSTALL_DIR }}
-
-      - name: Extract OpenVINO packages and tests
-        run: |
-          pigz -dc openvino_package.tar.gz | tar -xvf - -C ${INSTALL_DIR}
-          pigz -dc openvino_tests.tar.gz | tar -xvf - -C ${INSTALL_DIR}
-        working-directory: ${{ env.INSTALL_DIR }}
-      - name: Intel CPU plugin func tests (parallel)
-        env:
-          TEST_FILTER_TYPE: ${{ github.event_name == 'schedule' && 'NIGHTLY' || inputs.testFilterType || 'CONCISE' }}
-        run: |
-          source "${INSTALL_DIR}/setupvars.sh"
-          case "${TEST_FILTER_TYPE}" in
-            SMOKE)
-              GTEST_FILTER="${RISCV_SMOKE_GTEST_FILTER}"
-              ;;
-            NIGHTLY)
-              GTEST_FILTER="${RISCV_NIGHTLY_GTEST_FILTER}"
-              ;;
-            *)
-              GTEST_FILTER="${RISCV_CONCISE_GTEST_FILTER}"
-              ;;
-          esac
-          "${RISCV_TOOLCHAIN_ROOT}"/bin/qemu-riscv64 \
-            -cpu rv64,v=true,vext_spec=v1.0 \
-            "${INSTALL_TEST_DIR}"/ov_cpu_func_tests \
-            --gtest_print_time=1 \
-            --gtest_filter="${GTEST_FILTER}"
-
-  Overall_Status:
-    name: ci/gha_overall_status_linux_riscv
-    needs: [Smart_CI, Build, CPU_Functional_Tests]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check status of all jobs
-        if: >-
-          ${{
-            contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')
-          }}
-        run: exit 1

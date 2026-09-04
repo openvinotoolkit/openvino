@@ -67,7 +67,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-32-cores-128gb-build
+    runs-on: aks-win-32-cores-128gb-build-ab
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
@@ -136,8 +136,8 @@ jobs:
       - name: Setup ccache
         uses: ./openvino/.github/actions/cache
         with:
-          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          save-always: 'true'
+          cleanup-always: 'true'
           cache-path: ${{ env.CCACHE_REMOTE_DIR }}
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
@@ -171,26 +171,55 @@ jobs:
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
-      - name: Clean ccache stats
-        run: '& ccache --zero-stats'
+      - name: Zero compile cache stats (openvino cc collect main)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
 
-      - name: Cmake build - CC COLLECT
-        run: |
-          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet && `
-          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- --quiet
+      - name: Cmake build - CC COLLECT (openvino)
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
-      - name: Show ccache stats
-        run: '& ccache --show-stats'
+      - name: Compile cache statistics (openvino cc collect main)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: cc-collect-openvino-main
+          artifact-name: compile-cache-stats-windows-cc-collect-openvino-main
+
+      - name: Zero compile cache stats (sea_itt_lib)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
+      - name: Cmake build - CC COLLECT (sea_itt_lib)
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- --quiet
+
+      - name: Compile cache statistics (sea_itt_lib)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: cc-collect-sea-itt-lib
+          artifact-name: compile-cache-stats-windows-cc-collect-sea-itt-lib
 
       - name: Cmake install - OpenVINO
         run: |
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_PDB_DIR }} --component pdb
 
+      - name: Configure C++ samples build
+        run: cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples
+
+      - name: Zero compile cache stats (cpp samples)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
       - name: Build C++ samples - OpenVINO build tree
-        run: |
-          cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples
-          cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device -- --quiet
+        run: cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device -- --quiet
+
+      - name: Compile cache statistics (cpp samples)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: cc-collect-cpp-samples
+          artifact-name: compile-cache-stats-windows-cc-collect-cpp-samples
 
       - name: Perform code tracing via ITT collector
         shell: cmd
@@ -296,7 +325,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-16-cores-32gb-build
+    runs-on: aks-win-16-cores-32gb-build-ab
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_TOOLCHAIN_FILE: "${{ github.workspace }}\\openvino\\cmake\\toolchains\\onecoreuap.toolchain.cmake"
@@ -361,8 +390,19 @@ jobs:
 
         # Number of threads is hardcoded due to OutOfMemory issues. Unless we switch CMake's generator to Ninja, we can't
         # set number of jobs separately for compilation and linking. The issue most likely occurs during linking.
+      - name: Zero compile cache stats (cc on benchmark_app)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
       - name: Cmake build - CC ON
         run: cmake --build ${{ env.BUILD_DIR }} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /verbosity:minimal
+
+      - name: Compile cache statistics (cc on benchmark_app)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: cc-on-benchmark-app
+          artifact-name: compile-cache-stats-windows-cc-on-benchmark-app
 
       - name: List bin files
         shell: cmd
@@ -374,16 +414,3 @@ jobs:
           set path=%path%;${{ env.OPENVINO_REPO }}\temp\Windows_AMD64\tbb\bin;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
           ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }}\benchmark_app.exe -niter 1 -nireq 1 -m ${{ env.MODELS_PATH }}\models\test_model\test_model_fp32.xml -d CPU
 
-  Overall_Status:
-    name: ci/gha_overall_status_windows_cc
-    needs: [Smart_CI, Build_And_Run_Collect_Mode, Build_And_Run_On_Mode]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check status of all jobs
-        if: >-
-          ${{
-            contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')
-          }}
-        run: exit 1

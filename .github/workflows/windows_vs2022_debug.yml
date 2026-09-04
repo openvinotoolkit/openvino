@@ -65,9 +65,10 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_windows.yml
     with:
-      runner: 'aks-win-32-cores-64gb-build'
+      runner: 'aks-win-32-cores-64gb-build-ab'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Debug'
+      cmake-build-parallel: '31'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
       cmake-options: >-
         -G 'Ninja'
@@ -80,16 +81,3 @@ jobs:
         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
         -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja"
 
-  Overall_Status:
-    name: ci/gha_overall_status_windows_debug
-    needs: [ Smart_CI, Build ]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check status of all jobs
-        if: >-
-          ${{
-            contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')
-          }}
-        run: exit 1

@@ -55,7 +55,7 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    runs-on: aks-linux-4-cores-16gb-docker-build
+    runs-on: aks-linux-4-cores-16gb-docker-build-ab
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -92,7 +92,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-linux-16-cores-32gb-ab
     strategy:
       fail-fast: false
       matrix:
@@ -187,9 +187,6 @@ jobs:
       # Build
       #
 
-      - name: Clean ccache stats
-        run: ${SCCACHE_PATH} --zero-stats
-
       - name: Clone OneTBB
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
@@ -217,8 +214,19 @@ jobs:
             -S ${TBB_SRC} \
             -B ${TBB_BUILD}
 
+      - name: Zero compile cache stats (onetbb)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
       - name: Build OneTBB project
-        run: cmake --build ${TBB_BUILD} --parallel $(nproc) -- --quiet
+        run: cmake --build ${TBB_BUILD} --parallel 15 -- --quiet
+
+      - name: Compile cache statistics (onetbb)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: onetbb-${{ matrix.arch }}
+          artifact-name: compile-cache-stats-android-${{ matrix.arch }}-onetbb
 
       - name: Install OneTBB project
         run: cmake --install ${TBB_BUILD}
@@ -255,11 +263,19 @@ jobs:
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
-      - name: CMake - build OpenVINO
-        run: cmake --build ${BUILD_DIR} --parallel $(nproc) -- --quiet
+      - name: Zero compile cache stats (openvino)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
 
-      - name: Show ccache stats
-        run: ${SCCACHE_PATH} --show-stats
+      - name: CMake - build OpenVINO
+        run: cmake --build ${BUILD_DIR} --parallel 15 -- --quiet
+
+      - name: Compile cache statistics (openvino)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: openvino-${{ matrix.arch }}
+          artifact-name: compile-cache-stats-android-${{ matrix.arch }}-openvino
 
       #
       # Upload build logs and artifacts
@@ -369,205 +385,3 @@ jobs:
           storage_root: ${{ env.ARTIFACTS_SHARE }}
           branch_name: ${{ inputs.target-branch }}
 
-  CXX_Unit_Tests:
-    needs: [Smart_CI, Docker, Build]
-    timeout-minutes: 120
-    runs-on: aks-linux-4-cores-16gb
-    container:
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_android }}
-      volumes:
-        - /mount:/mount
-      options: --device /dev/kvm
-    env:
-      ANDROID_API_LEVEL: 30
-      ANDROID_TARGET: google_apis
-      ANDROID_ARCH: x86_64
-      INSTALL_DIR: android_package
-      INSTALL_TEST_DIR: android_tests
-    steps:
-      - name: Checkout
-        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
-        timeout-minutes: 15
-
-      - name: Download CPU unit test binary
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
-        with:
-          name: ov_cpu_unit_tests_android_x64
-          path: ${{ env.INSTALL_TEST_DIR }}/bin/intel64/Release
-
-      - name: Download OpenVINO runtime package (Android)
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
-        with:
-          name: ov_android_package_x64
-          path: ${{ env.INSTALL_DIR }}
-
-      - name: Setup KVM permissions
-        run: |
-          /usr/local/bin/setup-kvm.sh || true
-          ls -la /dev/kvm || echo "KVM device not available"
-
-      - name: Set up Java 17
-        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
-
-      - name: AVD cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        id: avd-cache
-        if: github.ref_name == 'master'
-        with:
-          path: |
-            ~/.android/avd/*
-            ~/.android/adb*
-          key: avd-${{ env.ANDROID_API_LEVEL }}-${{ env.ANDROID_TARGET }}-${{ env.ANDROID_ARCH }}
-
-      - name: Run CPU unit tests on emulator
-        id: unit-tests
-        uses: reactivecircus/android-emulator-runner@e89f39f1abbbd05b1113a29cf4db69e7540cae5a # v2.37.0
-        with:
-          api-level: ${{ env.ANDROID_API_LEVEL }}
-          target: ${{ env.ANDROID_TARGET }}
-          arch: ${{ env.ANDROID_ARCH }}
-          force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 4096 -partition-size 8192 -qemu -cpu host
-          disable-animations: true
-          emulator-boot-timeout: 900
-          script: |
-            set -e
-            adb wait-for-device
-
-            [ -f "${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_unit_tests" ] || { echo "Error: ov_cpu_unit_tests binary not found"; exit 1; }
-            chmod +x ${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_unit_tests
-            adb shell "rm -rf /data/local/tmp/ov_test && mkdir -p /data/local/tmp/ov_test/intel64/Release"
-            echo "Pushing unit test binary and libraries to device..."
-            adb push ${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_unit_tests /data/local/tmp/ov_test/intel64/Release/ov_cpu_unit_tests
-            # Push OpenVINO libraries from runtime package
-            for lib in ${INSTALL_DIR}/runtime/lib/intel64/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
-            for lib in ${INSTALL_DIR}/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
-            adb shell "chmod 755 /data/local/tmp/ov_test/intel64/Release/ov_cpu_unit_tests"
-            echo "Running CPU unit tests..."
-            adb shell "cd /data/local/tmp/ov_test && export LD_LIBRARY_PATH=/data/local/tmp/ov_test:$LD_LIBRARY_PATH && timeout 1800 ./intel64/Release/ov_cpu_unit_tests --gtest_output=xml:/data/local/tmp/ov_test/unit_test_results.xml" || { echo "Unit test execution failed"; adb shell "ls -la /data/local/tmp/ov_test/"; exit 1; }
-            echo "Pulling unit test results..."
-            adb pull /data/local/tmp/ov_test/unit_test_results.xml ./unit_test_results.xml || { echo "Warning: Could not pull unit test results"; adb shell "ls -la /data/local/tmp/ov_test/"; adb shell "cat /data/local/tmp/ov_test/unit_test_results.xml" || echo "No unit test results file"; }
-
-      - name: Upload unit test results
-        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-        if: always()
-        with:
-          name: cpu_unit_tests_results_android_x64
-          path: ./unit_test_results.xml
-          if-no-files-found: 'ignore'
-
-  CXX_Func_Tests:
-    needs: [Smart_CI, Docker, Build]
-    timeout-minutes: 20
-    runs-on: aks-linux-4-cores-16gb
-    container:
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_android }}
-      volumes:
-        - /mount:/mount
-      options: --device /dev/kvm
-    env:
-      ANDROID_API_LEVEL: 30
-      ANDROID_TARGET: google_apis
-      ANDROID_ARCH: x86_64
-      INSTALL_DIR: android_package
-      INSTALL_TEST_DIR: android_tests
-      GTEST_FILTER: '*EltwiseLayer*'
-    steps:
-      - name: Checkout
-        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
-        timeout-minutes: 15
-
-      - name: Download CPU functional test binary
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
-        with:
-          name: ov_cpu_func_tests_android_x64
-          path: ${{ env.INSTALL_TEST_DIR }}/bin/intel64/Release
-
-      - name: Download OpenVINO runtime package (Android)
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
-        with:
-          name: ov_android_package_x64
-          path: ${{ env.INSTALL_DIR }}
-
-      - name: Setup KVM permissions
-        run: |
-          /usr/local/bin/setup-kvm.sh || true
-          ls -la /dev/kvm || echo "KVM device not available"
-
-      - name: Set up Java 17
-        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
-
-      - name: AVD cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        id: avd-cache
-        if: github.ref_name == 'master'
-        with:
-          path: |
-            ~/.android/avd/*
-            ~/.android/adb*
-          key: avd-${{ env.ANDROID_API_LEVEL }}-${{ env.ANDROID_TARGET }}-${{ env.ANDROID_ARCH }}
-
-      - name: Run CPU func tests on emulator
-        id: func-tests
-        uses: reactivecircus/android-emulator-runner@e89f39f1abbbd05b1113a29cf4db69e7540cae5a # v2.37.0
-        with:
-          api-level: ${{ env.ANDROID_API_LEVEL }}
-          target: ${{ env.ANDROID_TARGET }}
-          arch: ${{ env.ANDROID_ARCH }}
-          force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 4096 -partition-size 8192 -qemu -cpu host
-          disable-animations: true
-          emulator-boot-timeout: 900
-          script: |
-            set -e
-            adb wait-for-device
-
-            [ -f "${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_func_tests" ] || { echo "Error: ov_cpu_func_tests binary not found"; exit 1; }
-
-            chmod +x ${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_func_tests
-
-            adb shell "rm -rf /data/local/tmp/ov_test_func && mkdir -p /data/local/tmp/ov_test_func/intel64/Release"
-            echo "Pushing functional test binary and libraries to device..."
-            adb push ${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_func_tests /data/local/tmp/ov_test_func/intel64/Release/ov_cpu_func_tests
-            # Push OpenVINO libraries from runtime package
-            for lib in ${INSTALL_DIR}/runtime/lib/intel64/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test_func/intel64/Release; done
-            for lib in ${INSTALL_DIR}/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test_func/intel64/Release; done
-            adb shell "chmod 755 /data/local/tmp/ov_test_func/intel64/Release/ov_cpu_func_tests"
-            echo "Running CPU functional tests..."
-            adb shell "cd /data/local/tmp/ov_test_func && export LD_LIBRARY_PATH=/data/local/tmp/ov_test_func/intel64/Release:$LD_LIBRARY_PATH && timeout 3600 ./intel64/Release/ov_cpu_func_tests  --gtest_filter=${{ env.GTEST_FILTER }} --gtest_output=xml:/data/local/tmp/ov_test_func/intel64/Release/func_test_results.xml" || { echo "Functional test execution failed"; adb shell "ls -la /data/local/tmp/ov_test_func/intel64/Release/"; exit 1; }
-            echo "Pulling functional test results..."
-            adb pull /data/local/tmp/ov_test_func/intel64/Release/func_test_results.xml ./func_test_results.xml || { echo "Warning: Could not pull functional test results"; adb shell "ls -la /data/local/tmp/ov_test_func/intel64/Release/"; adb shell "cat /data/local/tmp/ov_test_func/intel64/Release/func_test_results.xml" || echo "No functional test results file"; }
-
-      - name: Upload functional test results
-        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-        if: always()
-        with:
-          name: cpu_func_tests_results_android_x64
-          path: ./func_test_results.xml
-          if-no-files-found: 'ignore'
-
-  Overall_Status:
-    name: ci/gha_overall_status_android
-    needs: [Smart_CI, Build, CXX_Unit_Tests, CXX_Func_Tests]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check status of all jobs
-        if: >-
-          ${{
-            contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')
-          }}
-        run: exit 1

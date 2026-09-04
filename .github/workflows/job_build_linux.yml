@@ -244,14 +244,19 @@ jobs:
         env:
           CMAKE_OPTIONS: ${{ inputs.cmake-options }} -DENABLE_SAMPLES=${{ inputs.build-samples && 'ON' || 'OFF' }}
 
-      - name: Clean sccache stats
-        run: ${SCCACHE_PATH} --zero-stats
+      - name: Zero compile cache stats (openvino main build)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
 
       - name: Cmake build - OpenVINO
-        run: cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+        run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
-      - name: Show sccache stats
-        run: ${SCCACHE_PATH} --show-stats
+      - name: Compile cache statistics (openvino main build)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: openvino-main
+          artifact-name: compile-cache-stats-${{ inputs.os }}-${{ inputs.arch }}-openvino-main
 
       - name: Cmake install - OpenVINO
         run: |
@@ -281,11 +286,17 @@ jobs:
           python3 ${OPENVINO_REPO}/src/frontends/gguf/tests/gen_arch_fixtures.py \
             --fetch \
             --out-dir ${INSTALL_TEST_DIR}/tests/test_data/arch_fixtures \
-            -j $(nproc)
+            -j 15
 
       - name: Install Python wheels for the main Python
         if: ${{ ! inputs.build-additional-python-packages }}
         run: cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_WHEELS_DIR} --component python_wheels
+
+      - name: Zero compile cache stats (python api wheels)
+        if: ${{ inputs.build-additional-python-packages }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
 
       - name: Build Python API and wheels
         if: ${{ inputs.build-additional-python-packages }}
@@ -312,12 +323,19 @@ jobs:
             fi
 
             cmake ${CMAKE_OPTIONS} -S ${OPENVINO_REPO}/src/bindings/python -B ${PY_BUILD_DIR}
-            cmake --build ${PY_BUILD_DIR} --parallel $(nproc) -- --quiet
+            cmake --build ${PY_BUILD_DIR} --parallel 15 -- --quiet
             cmake --install ${PY_BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_DIR} --component pyopenvino_python$py_version
             cmake --install ${PY_BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_WHEELS_DIR} --component python_wheels
           done
         env:
           ARCH: ${{ inputs.arch }}
+
+      - name: Compile cache statistics (python api wheels)
+        if: ${{ inputs.build-additional-python-packages }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: python-api-wheels
+          artifact-name: compile-cache-stats-${{ inputs.os }}-${{ inputs.arch }}-python-api-wheels
 
       - name: Pack openvino_package
         run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_package.tar.gz
@@ -341,7 +359,7 @@ jobs:
             find . -type f -name '*.gcno' -exec cp --parents {} "${COVERAGE_NOTES_DIR}/main-build/" \;
           )
 
-      - name: Build Debian packages
+      - name: Configure Debian packages build
         if: ${{ inputs.build-debian-packages }}
         env:
           OS: ${{ inputs.os }}
@@ -362,9 +380,25 @@ jobs:
                 -DPython3_EXECUTABLE=$python_exec \
                 -DCPACK_GENERATOR=DEB \
                 ${BUILD_DIR}
-          cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} --target package -- --quiet
 
-      - name: Cmake & Build - OpenVINO Contrib
+      - name: Zero compile cache stats (debian packages)
+        if: ${{ inputs.build-debian-packages }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
+      - name: Build Debian packages
+        if: ${{ inputs.build-debian-packages }}
+        run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} --target package -- --quiet
+
+      - name: Compile cache statistics (debian packages)
+        if: ${{ inputs.build-debian-packages }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: debian-packages
+          artifact-name: compile-cache-stats-${{ inputs.os }}-${{ inputs.arch }}-debian-packages
+
+      - name: Configure OpenVINO Contrib build
         if: ${{ inputs.build-contrib }}
         run: |
           cmake \
@@ -373,17 +407,52 @@ jobs:
             -DENABLE_WHEEL=OFF \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
-          cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
-      - name: CMake configure, build and install - OpenVINO JS API
+      - name: Zero compile cache stats (openvino contrib)
+        if: ${{ inputs.build-contrib }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
+      - name: Cmake build - OpenVINO Contrib
+        if: ${{ inputs.build-contrib }}
+        run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+
+      - name: Compile cache statistics (openvino contrib)
+        if: ${{ inputs.build-contrib }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: openvino-contrib
+          artifact-name: compile-cache-stats-${{ inputs.os }}-${{ inputs.arch }}-openvino-contrib
+
+      - name: Configure OpenVINO JS API build
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
         run: |
           cmake -UTBB* -S ${OPENVINO_REPO} -B ${BUILD_DIR} \
                 -DCPACK_GENERATOR=NPM \
                 -DENABLE_SYSTEM_TBB=OFF \
                 -DENABLE_WHEEL=OFF
-          cmake --build ${BUILD_DIR} --parallel $(nproc) -- --quiet
-          cmake --install ${BUILD_DIR} --prefix ${INSTALL_DIR_JS}
+
+      - name: Zero compile cache stats (openvino js api)
+        if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
+      - name: Cmake build - OpenVINO JS API
+        if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
+        run: cmake --build ${BUILD_DIR} --parallel 15 -- --quiet
+
+      - name: Compile cache statistics (openvino js api)
+        if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: openvino-js-api
+          artifact-name: compile-cache-stats-${{ inputs.os }}-${{ inputs.arch }}-openvino-js-api
+
+      - name: Cmake install - OpenVINO JS API
+        if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
+        run: cmake --install ${BUILD_DIR} --prefix ${INSTALL_DIR_JS}
 
       - name: Pack openvino_js_package
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
@@ -407,7 +476,7 @@ jobs:
             find . -type f -name '*.gcno' -exec cp --parents {} "${COVERAGE_NOTES_DIR}/js-build/" \;
           )
 
-      - name: Build RPM packages
+      - name: Configure RPM packages build
         if: ${{ inputs.build-rpm-packages }}
         run: |
           # RPM packages always ship the openvino-samples package, so enable samples regardless of build-samples
@@ -419,7 +488,23 @@ jobs:
                 -DENABLE_TESTS=OFF \
                 -DENABLE_SAMPLES=ON \
                 ${BUILD_DIR}
-          cmake --build ${BUILD_DIR} --parallel $(nproc) --target package -- --quiet
+
+      - name: Zero compile cache stats (rpm packages)
+        if: ${{ inputs.build-rpm-packages }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
+      - name: Build RPM packages
+        if: ${{ inputs.build-rpm-packages }}
+        run: cmake --build ${BUILD_DIR} --parallel 15 --target package -- --quiet
+
+      - name: Compile cache statistics (rpm packages)
+        if: ${{ inputs.build-rpm-packages }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: rpm-packages
+          artifact-name: compile-cache-stats-${{ inputs.os }}-${{ inputs.arch }}-rpm-packages
 
       #
       # Upload build artifacts and logs
