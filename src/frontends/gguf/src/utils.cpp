@@ -9,14 +9,17 @@
 #include <memory>
 #include <string>
 
+#include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sin.hpp"
@@ -33,6 +36,16 @@ void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_
     auto input_size = context.get_input_size();
     FRONT_END_OP_CONVERSION_CHECK(input_size >= min_inputs, "Got less inputs than expected");
     FRONT_END_OP_CONVERSION_CHECK(input_size <= max_inputs, "Got more inputs than expected");
+}
+
+std::shared_ptr<ov::op::v0::Parameter> find_parameter(const std::shared_ptr<ov::Model>& model,
+                                                      const std::string& name) {
+    for (const auto& p : model->get_parameters()) {
+        if (p->get_friendly_name() == name || p->output(0).get_names().count(name)) {
+            return p;
+        }
+    }
+    return nullptr;
 }
 
 int non_cont_dim(std::vector<size_t> ne, std::vector<size_t> nb) {
@@ -59,7 +72,7 @@ std::shared_ptr<ov::Node> get_dimensions(const ov::Output<ov::Node>& output, con
     return get_dimensions(std::make_shared<ov::op::v3::ShapeOf>(output), dims);
 }
 
-OutputVector rename_outputs_with_suffix(const OutputVector& outputs, const std::string& suffix) {
+OutputVector rename_outputs_with_suffix(OutputVector outputs, const std::string& suffix) {
     for (const auto& output : outputs) {
         auto node = output.get_node_shared_ptr();
         std::string name = node->get_friendly_name();

@@ -4720,13 +4720,6 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i4kv_sliding_window_cache) {
 // last 2 f8 rows + the new token, tail zeroed. Runs on CPU and GPU (both now have an f8e4m3 Gather
 // kernel for the windowed present assembly).
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_f8e4m3fnkv_sliding_window_cache) {
-    // TEMPLATE hits a pre-existing shape-inference quirk on this fully-static graph ("to_shape was
-    // called on a dynamic shape"), the same class of INTERPRETER-only issue documented on
-    // onnx_model_gqa_sliding_window_cache_static_staging below; verified correct on CPU/GPU.
-    if (s_device == ov::test::utils::DEVICE_TEMPLATE) {
-        GTEST_SKIP() << "TEMPLATE hits a pre-existing dynamic-shape quirk on this fully-static "
-                        "f8e4m3 windowed-cache graph; verified correct on CPU/GPU. Needs follow-up.";
-    }
     auto model = convert_model("com.microsoft/gqa_f8e4m3fnkv_swc.onnx");
     model->reshape({{"query", ov::PartialShape{1, 1, 64}},
                     {"past_key", ov::PartialShape{1, 1, 4, 16}},
