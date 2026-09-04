@@ -563,10 +563,22 @@ public:
         uint32_t surface,
 #endif
         uint32_t plane,
+        cl_int * err = nullptr) :
+        ImageVA(context(), flags, surface, plane, err) {}
+
+    ImageVA(
+        cl_context context,
+        cl_mem_flags flags,
+#ifdef WIN32
+        void* surface,
+#else
+        uint32_t surface,
+#endif
+        uint32_t plane,
         cl_int * err = nullptr) {
         cl_int error;
         object_ = pfn_clCreateFromMediaSurfaceINTEL(
-            context(),
+            context,
             flags,
 #ifdef WIN32
             surface,
@@ -639,16 +651,22 @@ public:
             pfn_clCreateFromD3D11Buffer = try_load_entrypoint<PFN_clCreateFromD3D11Buffer>((cl_platform_id)platform, fname);
         }
     }
-
     BufferDX(
         const Context& context,
+        cl_mem_flags flags,
+        void* resource,
+        cl_int * err = NULL)
+        : BufferDX(context(), flags, resource, err) {}
+
+    BufferDX(
+        cl_context context,
         cl_mem_flags flags,
         void* resource,
         cl_int * err = NULL) {
         cl_int error;
         ID3D11Buffer* buffer = static_cast<ID3D11Buffer*>(resource);
         object_ = pfn_clCreateFromD3D11Buffer(
-            context(),
+            context,
             flags,
             buffer,
             &error);
