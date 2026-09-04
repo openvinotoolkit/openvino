@@ -164,6 +164,10 @@ inline size_t micro_get_head_size(const kernel_impl_params& params, size_t qkv_i
         }
     } else {
         const auto desc = params.typed_desc<scaled_dot_product_attention>();
+        if (qkv_idx != 0 && desc->is_kv_compressed && data_type_traits::is_i4_u4(desc->quantization_attributes.quantization_dt)) {
+            return get_head_size(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));
+        }
+
         switch (qkv_idx) {
         case 0: {
             const auto head_size = get_head_size(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));
@@ -503,11 +507,13 @@ sdpa_config_t* choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
             return is_prefill ? &xehpg_h128 : &xehpg_h128_pa;
         if (quantized) {
             if (thin_q) {
-                if (seq <= 1)
-                    return &xehpg_q_h128_2nd;
-                if (seq <= 96)
+                // xehpg_q_h128_2nd (unroll_m_kq = 32) does not fit the Xe HPG register budget once K
+                // is integer-typed: the KQ strategy is rejected, micro-kernel generation throws, and
+                // SDPA silently falls back to sdpa_opt - which cannot index per-channel scales at
+                // all. xehpg_h128_2nd differs only in unroll_m_kq (8) and does fit.
+                if (seq <= 96 && seq > 1)
                     return &xehpg_q_h128_s96_2nd;
-                return &xehpg_q_h128_2nd;
+                return &xehpg_h128_2nd;
             }
             if (seq <= 64)
                 return &xehpg_q_h128_s64;
@@ -989,6 +995,48 @@ KernelData SDPAMicroGenerator::get_kernel_data(const kernel_impl_params& params)
 [[maybe_unused]] const bool vs_common_scales = false;
 [[maybe_unused]] const bool vs_common_zp = false;
 
+// Per-channel key scales ([b, heads, 1, head_size]) vary along the KQ GEMM's *reduction* axis, so
+// gemmstone has to broadcast them across the whole M extent. Describing that through 2D
+// A-quantization is both fragile (the group descriptor has to cover every key tile) and expensive:
+// with a zero point added on top, the register budget of the pinned KQ strategy is exceeded and
+// micro-kernel generation fails outright, silently dropping SDPA onto sdpa_opt. Fold the scales
+// into Q instead, which is exact and needs no quantization parameters in the GEMM at all:
+//     sum_d K_int[m,d] * kscale[d] * Q[n,d] == sum_d K_int[m,d] * (kscale[d] * Q[n,d])
+// K then becomes a plain int -> f16 upconvert; see FOLD_KEY_SCALES_INTO_Q in sdpa_micro.cl.
+//
+// For asymmetric quantization the key zero point is dropped along with the scale instead of being
+// applied: -sum_d zp[d] * kscale[d] * Q[n,d] does not depend on the key m, so it shifts every logit
+// of a query by the same constant, and softmax over the keys is invariant to such a shift (the
+// attention scale and the mask preserve that). A sink logit, however, joins the softmax denominator
+// unshifted, so with sinks the shift would survive - don't fold then.
+inline bool micro_fold_key_scales_into_q(const kernel_impl_params& params, bool is_kv_compressed, bool use_asymmetric_quantization) {
+    if (params.is_type<paged_attention>() || !is_kv_compressed || kq_common_scales)
+        return false;
+    if (use_asymmetric_quantization && params.typed_desc<scaled_dot_product_attention>()->has_sink_input)
+        return false;
+    // Per-channel scales have seq == 1 and one entry per channel; per-token scales have seq > 1.
+    const auto& ps = params.input_layouts[micro_get_key_cache_id(params)].get_partial_shape();
+    return ps[2].get_length() == 1 && ps[3].get_length() > 1;
+}
+
+// Per-channel value scales/zero points ([b, heads, 1, head_size]) are constant along the VS GEMM's
+// *reduction* axis (the keys), so nothing forces them to be applied inside the k-loop. With
+//     acc[d,n] = sum_t V_int[d,t] * S[t,n]     and     l[n] = sum_t S[t,n]
+// (l is the softmax denominator the kernel already accumulates in SLM), the dequantized output is
+//     out[d,n] = vscale[d] * (acc[d,n] / l[n] - vzp[d])
+// exactly, for any number of k-chunks: both terms are linear in the chunk contributions, and the
+// running-maximum correction rescales acc and l by the same per-query factor. Applying the scales
+// once in the epilogue removes the per-element dequantization from the VS k-loop, the scale/zero
+// point loads and prefetches, and gemmstone's ABOffset::Calc column-sum bookkeeping. It is also
+// slightly more accurate: V enters the GEMM as an exactly representable integer instead of a
+// dequantized value rounded to f16. See FOLD_VAL_SCALES_INTO_OUTPUT in sdpa_micro.cl.
+inline bool micro_fold_value_scales_into_output(const kernel_impl_params& params, bool is_kv_compressed) {
+    if (params.is_type<paged_attention>() || !is_kv_compressed || vs_common_scales || vs_common_zp)
+        return false;
+    const auto& ps = params.input_layouts[micro_get_value_cache_id(params)].get_partial_shape();
+    return ps[2].get_length() == 1 && ps[3].get_length() > 1;
+}
+
 JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& params, const micro::Package& gemm_kq, const micro::Package& gemm_vs) const {
     auto jit = make_base_jit_constants(params);
     sdpa_configuration config;
@@ -1145,8 +1193,32 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         int vs_scale_mask = (static_cast<int>(config.is_kv_compressed) << 1) | static_cast<int>(vs_common_scales);
         jit.make("KEY_SCALES", kq_scale_mask);
         jit.make("VAL_SCALES", vs_scale_mask);
-        jit.make("KEY_GROUP_SIZE", head_size);
-        jit.make("VAL_GROUP_SIZE", head_size);
+
+        // Derive group size from the scale tensor shape.
+        // Scale shape is [batch, heads, seq, num_groups], where num_groups = head_size / group_size.
+        // If seq == 1, the scale is broadcast across all tokens (per-channel quantization).
+        const auto key_scale_seq = key_cache_comp_scale.get_partial_shape()[2].get_length();
+        const auto key_scale_groups = key_cache_comp_scale.get_partial_shape()[3].get_length();
+        const auto key_group_size = head_size / key_scale_groups;
+        const auto val_scale_seq = value_cache_comp_scale.get_partial_shape()[2].get_length();
+        const auto val_scale_groups = value_cache_comp_scale.get_partial_shape()[3].get_length();
+        const auto val_group_size = head_size / val_scale_groups;
+        jit.make("KEY_GROUP_SIZE", key_group_size);
+        jit.make("VAL_GROUP_SIZE", val_group_size);
+        const bool is_key_by_channel = (key_scale_seq == 1 && key_scale_groups > 1);
+        const bool is_value_by_channel = (val_scale_seq == 1 && val_scale_groups > 1);
+        if (is_key_by_channel)
+            jit.make("IS_KEY_BY_CHANNEL", 1);
+        if (is_value_by_channel)
+            jit.make("IS_VALUE_BY_CHANNEL", 1);
+        // Per-channel key scales are folded into Q rather than applied to K in the KQ micro-kernel,
+        // and the key zero point is dropped with them; see micro_fold_key_scales_into_q().
+        if (is_key_by_channel && micro_fold_key_scales_into_q(params, config.is_kv_compressed, use_asymmetric_quantization))
+            jit.make("FOLD_KEY_SCALES_INTO_Q", 1);
+        // Per-channel value scales/zero points are applied once in the epilogue rather than to every
+        // V element inside the VS k-loop; see micro_fold_value_scales_into_output().
+        if (is_value_by_channel && micro_fold_value_scales_into_output(params, config.is_kv_compressed))
+            jit.make("FOLD_VAL_SCALES_INTO_OUTPUT", 1);
 
         jit.add(make_layout_jit_constants("KEY_SCALE", key_cache_comp_scale, params.in_port_to_shape_info_offset.at(data_inputs_num)));
         jit.add(make_layout_jit_constants("VAL_SCALE", value_cache_comp_scale, params.in_port_to_shape_info_offset.at(data_inputs_num + 1)));
@@ -1209,8 +1281,16 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size);
     }
 
-    jit.make("KEY_ELEMENTS_PER_BYTE", elems_per_byte(params.input_layouts[1].data_type));
-    jit.make("VAL_ELEMENTS_PER_BYTE", elems_per_byte(params.input_layouts[2].data_type));
+    const auto compressed_dt = !config.is_paged_attention && config.is_kv_compressed
+                                   ? params.typed_desc<scaled_dot_product_attention>()->quantization_attributes.quantization_dt
+                                   : ov::element::dynamic;
+    const bool is_byte_packed_int4 = !config.is_paged_attention && data_type_traits::is_i4_u4(compressed_dt);
+    if (is_byte_packed_int4)
+        jit.make("IS_INT4_KV_CACHE", 1);
+    jit.make("KEY_ELEMENTS_PER_BYTE",
+             elems_per_byte(compressed_dt.is_dynamic() ? K.data_type : ov::element::Type(compressed_dt)));
+    jit.make("VAL_ELEMENTS_PER_BYTE",
+             elems_per_byte(compressed_dt.is_dynamic() ? V.data_type : ov::element::Type(compressed_dt)));
 
     int tile_k = gemm_kq.getSetting("wg_tile_m");
     int tile_q = gemm_kq.getSetting("wg_tile_n");
@@ -1261,9 +1341,10 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
 
     if (device_info.arch >= gpu_arch::xe_hpc) {
         jit.make("PREFETCH_MASK", 1);
-        jit.make("PREFETCH_K0", (config.is_paged_attention && !m_is_prefill) ? 0 : 1);
-        jit.make("PREFETCH_K", (config.is_paged_attention && !m_is_prefill) ? 0 : 1);
-        jit.make("PREFETCH_V", (config.is_paged_attention && !m_is_prefill) ? 0 : 1);
+        const bool enable_kv_prefetch = !(config.is_paged_attention && !m_is_prefill) && !is_byte_packed_int4;
+        jit.make("PREFETCH_K0", enable_kv_prefetch);
+        jit.make("PREFETCH_K", enable_kv_prefetch);
+        jit.make("PREFETCH_V", enable_kv_prefetch);
         bool no_rem = d_full && v_full && k_full;
         jit.make("PREFETCH_REMAINDER", !no_rem);
         jit.make("PREFETCH_D_MAX", std::min<int64_t>(d_max, 64));
@@ -1591,12 +1672,12 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     problem.Ta_ext = convert_type(K.data_type);
     problem.Tb_ext = convert_type(Q.data_type);
 
-    // Detect INT4 KV cache: stored as u8 but logical precision is u4/i4
-    const auto kv_cache_precision = is_paged_attention ? params.get_program().get_config().get_kv_cache_precision() : ov::element::dynamic;
+    // INT4 cache is byte-backed, so use its logical precision rather than the physical layout type.
+    const auto kv_cache_precision = is_paged_attention ? params.get_program().get_config().get_kv_cache_precision()
+                                                       : params.typed_desc<scaled_dot_product_attention>()->quantization_attributes.quantization_dt;
     const bool is_int4_kv_cache = data_type_traits::is_i4_u4(kv_cache_precision);
 
-    // For INT4 PA generate: override Ta_ext to u4/i4 so micro-kernel handles u4 unpacking
-    if (is_int4_kv_cache && is_paged_attention && !is_prefill) {
+    if (is_int4_kv_cache && (!is_paged_attention || !is_prefill)) {
         problem.Ta_ext = convert_type(kv_cache_precision);
     }
 
@@ -1652,7 +1733,14 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         opts_kq.offsetA = true;
     } else {
         const auto key_cache_id = micro_get_key_cache_id(params);
-        if (configuration.is_kv_compressed && !kq_common_scales) {
+
+        // Per-channel key scales are folded into Q instead of being applied to K, and for asymmetric
+        // quantization the key zero point is dropped with them; see micro_fold_key_scales_into_q(),
+        // which get_jit_constants() consults as well so the two agree on whether the micro-kernel
+        // takes quantization arguments.
+        const bool fold_key_scales_into_q = micro_fold_key_scales_into_q(params, configuration.is_kv_compressed, use_asymmetric_quantization);
+
+        if (configuration.is_kv_compressed && !kq_common_scales && !fold_key_scales_into_q) {
             const auto& key_cache_comp_scale = params.input_layouts[key_cache_id];
             const auto scale_dt = convert_type(key_cache_comp_scale.data_type);
             problem_kq.Ta_scale = scale_dt;
@@ -1662,7 +1750,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
             GPU_DEBUG_TRACE_DETAIL << "kq: key_cache_id = " << key_cache_id << std::endl;
         }
 
-        if (configuration.is_kv_compressed && use_asymmetric_quantization) {
+        if (configuration.is_kv_compressed && use_asymmetric_quantization && !fold_key_scales_into_q) {
             const auto& key_cache_comp_zp = params.input_layouts[key_cache_id + 2];
             const auto zp_dt = convert_type(key_cache_comp_zp.data_type);
             problem_kq.Tao = zp_dt;
@@ -1672,18 +1760,23 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
             problem_kq.aOffset = micro::ABOffset::Calc;
         }
 
-        if (configuration.is_kv_compressed) {
+        if (configuration.is_kv_compressed && !fold_key_scales_into_q) {
+            const auto& key_cache_comp_scale_layout = params.input_layouts[key_cache_id];
+            const auto key_scale_groups = key_cache_comp_scale_layout.get_partial_shape()[3].get_length();
+            const auto key_group_size = k_head_size / key_scale_groups;
+            // KQ GEMM: A=K[M=seq_k, K=head_size]. Per-token scales only (the per-channel case is
+            // folded into Q above): each token has its own scale, so aqGroupM = 1.
             problem_kq.aqGroupM = 1;
-            problem_kq.aqGroupK = (kq_common_scales || kq_common_zp) ? 1 : static_cast<int>(k_head_size);
+            problem_kq.aqGroupK = (kq_common_scales || kq_common_zp) ? 1 : static_cast<int>(key_group_size);
         }
 
-        opts_kq.scaleA = configuration.is_kv_compressed && !kq_common_scales;
-        opts_kq.offsetA = configuration.is_kv_compressed && use_asymmetric_quantization;
+        opts_kq.scaleA = configuration.is_kv_compressed && !kq_common_scales && !fold_key_scales_into_q;
+        opts_kq.offsetA = configuration.is_kv_compressed && use_asymmetric_quantization && !fold_key_scales_into_q;
     }
 
     problem_kq.B.layout = micro::MatrixLayout::Pr;
     problem_kq.C.layout = micro::MatrixLayout::T;
-    problem_kq.A.setAlignment(micro::alignment_for_ld(static_cast<int>(k_head_size * problem.Ta)));
+    problem_kq.A.setAlignment(micro::alignment_for_ld(static_cast<int>(k_head_size * problem_kq.Ta_ext)));
     if (is_paged_attention && !is_prefill) {
         auto pa_desc = params.typed_desc<paged_attention>();
         const auto paged_attention_block_size = static_cast<int>(paged_attention::block_size);
@@ -1764,8 +1857,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     /* Update for second GEMM: V*S */
     auto problem_vs = problem;
     problem_vs.Ta_ext = convert_type(V.data_type);
-    // For INT4 V: override Ta_ext to u4/i4
-    if (is_int4_kv_cache && is_paged_attention && !is_prefill) {
+    if (is_int4_kv_cache && (!is_paged_attention || !is_prefill)) {
         problem_vs.Ta_ext = convert_type(kv_cache_precision);
     }
     problem_vs.A.layout = micro::MatrixLayout::N;
@@ -1798,7 +1890,14 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         opts_vs.offsetA = true;
     } else {
         const auto value_cache_id = micro_get_value_cache_id(params);
-        if (configuration.is_kv_compressed && !vs_common_scales) {
+
+        // Per-channel value scales and zero points are applied in the epilogue instead of inside the
+        // VS GEMM, which then needs no quantization arguments at all; see
+        // micro_fold_value_scales_into_output(), which get_jit_constants() consults as well so the
+        // two agree on the micro-kernel's signature.
+        const bool fold_value_scales = micro_fold_value_scales_into_output(params, configuration.is_kv_compressed);
+
+        if (configuration.is_kv_compressed && !vs_common_scales && !fold_value_scales) {
             const auto& value_cache_comp_scale = params.input_layouts[value_cache_id];
             auto scale_dt = convert_type(value_cache_comp_scale.data_type);
             problem_vs.Ta_scale = scale_dt;
@@ -1808,7 +1907,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
             GPU_DEBUG_TRACE_DETAIL << "vs: value_cache_id = " << value_cache_id << std::endl;
         }
 
-        if (configuration.is_kv_compressed && use_asymmetric_quantization) {
+        if (configuration.is_kv_compressed && use_asymmetric_quantization && !fold_value_scales) {
             const auto& value_cache_comp_zp = params.input_layouts[value_cache_id + 2];
             auto zp_dt = convert_type(value_cache_comp_zp.data_type);
             problem_vs.Tao = zp_dt;
@@ -1818,13 +1917,27 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
             problem_vs.aOffset = micro::ABOffset::Calc;
         }
 
-        if (configuration.is_kv_compressed) {
-            problem_vs.aqGroupM = (vs_common_scales || vs_common_zp) ? 1 : static_cast<int>(micro::rnd_up_pow2(v_head_size));
-            problem_vs.aqGroupK = 1;
+        if (configuration.is_kv_compressed && !fold_value_scales) {
+            const auto& value_cache_comp_scale_layout = params.input_layouts[value_cache_id];
+            const auto val_scale_seq = value_cache_comp_scale_layout.get_partial_shape()[2].get_length();
+            const auto val_scale_groups = value_cache_comp_scale_layout.get_partial_shape()[3].get_length();
+            const auto val_group_size = v_head_size / val_scale_groups;
+            // VS GEMM: A=V[M=head_size, K=seq_k]
+            // Per-channel broadcast (seq=1): each head_size row has own scale, all tokens share it
+            //   -> aqGroupM = group_size, aqGroupK >= k_chunk (bounded by wg_tile_m)
+            // Per-token (seq>1): all head_size share one scale per token
+            //   -> aqGroupM = head_size (don't vary per head_size), aqGroupK = 1 (vary per token)
+            if (val_scale_seq == 1) {
+                problem_vs.aqGroupM = (vs_common_scales || vs_common_zp) ? 1 : static_cast<int>(val_group_size);
+                problem_vs.aqGroupK = config->unroll_m_kq * config->wg_m_kq;
+            } else {
+                problem_vs.aqGroupM = (vs_common_scales || vs_common_zp) ? 1 : static_cast<int>(micro::rnd_up_pow2(v_head_size));
+                problem_vs.aqGroupK = 1;
+            }
         }
 
-        opts_vs.scaleA = configuration.is_kv_compressed && !vs_common_scales;
-        opts_vs.offsetA = configuration.is_kv_compressed && use_asymmetric_quantization;
+        opts_vs.scaleA = configuration.is_kv_compressed && !vs_common_scales && !fold_value_scales;
+        opts_vs.offsetA = configuration.is_kv_compressed && use_asymmetric_quantization && !fold_value_scales;
     }
 
     problem_vs.B.layout = micro::MatrixLayout::Pr;
@@ -1834,7 +1947,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         // INT4 V: ldv = packed_head_bytes + scales = v_head_size * u4 + 4 = 68
         problem_vs.A.setAlignment(static_cast<int>(v_head_size * problem_vs.Ta_ext) + 4);
     } else {
-        problem_vs.A.setAlignment(micro::alignment_for_ld(static_cast<int>(v_head_size * problem.Ta)));
+        problem_vs.A.setAlignment(micro::alignment_for_ld(static_cast<int>(v_head_size * problem_vs.Ta_ext)));
     }
 
     problem_vs.B.setAlignment(64);  // S is packed in SLM

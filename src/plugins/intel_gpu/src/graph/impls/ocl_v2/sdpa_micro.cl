@@ -102,6 +102,20 @@ DECLARE_2D_TILE_HREDUCE(a_tile_type, SUBGROUP_SIZE, ugemm_vs_c_type_block0,
         ugemm_vs_c_type_nblock1, a_scale_tile_type, SUBGROUP_SIZE,
         ugemm_vs_sg_tile_n, 1, 1, 1)
 
+#if FOLD_VAL_SCALES_INTO_OUTPUT
+/* Per-channel value scales/zero points apply to the A tile's rows (head size), unlike the softmax
+ * denominator, which applies to its columns (queries) -- hence vbroadcast rather than hbroadcast.
+ * Round the tile up to one element per lane; the extra rows are never touched. */
+#define v_scale_tile_m MAX(ugemm_vs_sg_tile_m, SUBGROUP_SIZE)
+
+DECLARE_2D_TILE(v_scale_tile_type, float, SUBGROUP_SIZE, v_scale_tile_m, 1, 1, 1)
+
+DECLARE_2D_TILE_VREDUCE(a_tile_type, SUBGROUP_SIZE, ugemm_vs_c_type_block0,
+        ugemm_vs_c_type_block1, ugemm_vs_c_type_nblock0,
+        ugemm_vs_c_type_nblock1, v_scale_tile_type, SUBGROUP_SIZE,
+        v_scale_tile_m, 1, 1, 1)
+#endif
+
 #if ugemm_kq_wg_tile_n == ugemm_vs_wg_tile_n \
         && (ugemm_kq_sg_tile_n % ugemm_vs_sg_tile_n) == 0
 DECLARE_2D_TILE_RSELECT(a_scale_tile_type, SUBGROUP_SIZE, ugemm_vs_sg_tile_n, 1,
@@ -178,9 +192,13 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 #ifdef KV_COMPRESSED
         , const global KEY_ATTR_SCALES_DATA_T *K_scales
+#if KEY_ZERO_POINTS
         , const global KEY_ATTR_ZP_DATA_T *K_zp
+#endif
         , const global VAL_ATTR_SCALES_DATA_T *V_scales
+#if VAL_ZERO_POINTS
         , const global VAL_ATTR_ZP_DATA_T *V_zp
+#endif
 #endif
         ) {
 #if IS_PAGED_ATTENTION
@@ -324,19 +342,29 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         #endif
     #endif
 #else
-    uint ldk = TRANSPOSE_K ? KEY_S3 : KEY_S2;
+    /* Layout pitches are physical KEY/VAL elements (bytes for packed INT4), while the
+       micro-kernel leading dimensions use logical elements (nibbles for i4/u4). */
+    uint ldk = (TRANSPOSE_K ? KEY_S3 : KEY_S2) * KEY_ELEMENTS_PER_BYTE;
     uint ldq = QRY_S2;
-    uint ldv = VAL_S2;
+    uint ldv = VAL_S2 * VAL_ELEMENTS_PER_BYTE;
     uint lda = DST_S2;
 #endif
 
 #if KEY_SCALES || KEY_ZERO_POINTS
-    uint ldkq = DIV_UP(d, KEY_GROUP_SIZE);
     uint num_key_groups = d / KEY_GROUP_SIZE;
+    #if IS_KEY_BY_CHANNEL
+    uint ldkq = 1;
+    #else
+    uint ldkq = num_key_groups;
+    #endif
 #endif
 #if VAL_SCALES || VAL_ZERO_POINTS
-    uint ldvq = DIV_UP(d, VAL_GROUP_SIZE);
     uint num_val_groups = d / VAL_GROUP_SIZE;
+    #if IS_VALUE_BY_CHANNEL
+    uint ldvq = 1;
+    #else
+    uint ldvq = num_val_groups;
+    #endif
 #endif
 
     /* Subgroup IDs for each GEMM */
@@ -403,9 +431,10 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             + b0_kv * HEAD_SIZE + INPUT2_PAD_BEFORE_FEATURE_NUM;
     #endif
 #else
-    K += (KEY_OFF(b1, b0_kv, 0, 0) + INPUT1_OFFSET) / KEY_ELEMENTS_PER_BYTE;
+    /* KEY_OFF/VAL_OFF and offsets address the physical byte-backed layouts. */
+    K += KEY_OFF(b1, b0_kv, 0, 0) + INPUT1_OFFSET;
     Q += (QRY_OFF(b1, b0, 0, 0) + INPUT0_OFFSET);
-    V += (VAL_OFF(b1, b0_kv, 0, 0) + INPUT2_OFFSET) / VAL_ELEMENTS_PER_BYTE;
+    V += VAL_OFF(b1, b0_kv, 0, 0) + INPUT2_OFFSET;
     A += DST_OFF(b1, b0, 0, 0, 0);
 #if WITH_ATTN_MASK
     uint ldmsk = MSK_S2;
@@ -440,10 +469,10 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #if SLIDING_WINDOW_SIZE && !(IS_PAGED_ATTENTION && !IS_PREFILL)
     if (window_k0_begin > 0) {
         V += (size_t)ldv * window_k0_begin / VAL_ELEMENTS_PER_BYTE;
-    #if VAL_SCALES == QUANTIZE_2D
+    #if VAL_SCALES == QUANTIZE_2D && !IS_VALUE_BY_CHANNEL
         V_scales += (size_t)ldvq * window_k0_begin;
     #endif
-    #if VAL_ZERO_POINTS == QUANTIZE_2D
+    #if VAL_ZERO_POINTS == QUANTIZE_2D && !IS_VALUE_BY_CHANNEL
         V_zp += (size_t)ldvq * window_k0_begin / VAL_ZP_ELEMENTS_PER_BYTE;
     #endif
     }
@@ -460,6 +489,32 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             wg_j0 + q0_copy);
 #else
     tile_load_packed_half(&Q_tile, Q, d, q, ldq, 0, wg_j0 + q0_copy);
+#endif
+
+#if FOLD_KEY_SCALES_INTO_Q
+    /* Fold the per-channel key scales into Q instead of dequantizing K in the KQ micro-kernel:
+     *   sum_d K_int8[m,d] * kscale[d] * Q[n,d] == sum_d K_int8[m,d] * (kscale[d] * Q[n,d])
+     * See sdpa_gen_micro.cpp for why. Q_tile packs pairs of halves along d into uints, spread over
+     * the subgroup: tile row i0 (channels 2*i0 and 2*i0+1) lives in lane (i0 % SUBGROUP_SIZE) at
+     * slot (i0 / SUBGROUP_SIZE). K_scales is already offset to this head. Channels past d are
+     * padding; K is zero there, so leaving them unscaled keeps their contribution zero. */
+    {
+        const int q_fold_lane = get_sub_group_local_id();
+#pragma unroll
+        for (int q_fold_t = 0; q_fold_t < (D_MAX / 2) / SUBGROUP_SIZE; q_fold_t++) {
+            const int q_fold_i0 = q_fold_t * SUBGROUP_SIZE + q_fold_lane;
+            const int q_fold_d0 = 2 * q_fold_i0;
+            if (q_fold_d0 >= d)
+                continue;
+            const half2 q_fold_s = (half2)(K_scales[q_fold_d0],
+                    (q_fold_d0 + 1 < d) ? K_scales[q_fold_d0 + 1] : (half)0.0h);
+#pragma unroll
+            for (int q_fold_j = 0; q_fold_j < q_tile_sg_n; q_fold_j++) {
+                Q_tile.x[q_fold_j][q_fold_t]
+                        = as_uint(as_half2(Q_tile.x[q_fold_j][q_fold_t]) * q_fold_s);
+            }
+        }
+    }
 #endif
 
 #if WITH_SCALE
@@ -527,7 +582,23 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             /* sg_size */ SUBGROUP_SIZE,
             /* cache */ LSC_LDCC_L1C_L3C);
 
-#if KEY_SCALES == QUANTIZE_2D
+/* Under FOLD_KEY_SCALES_INTO_Q the k-loop never reads the key scales or zero points: the scales were
+   consumed once, above, when folding them into the Q tile, and the zero points are dropped. */
+#if (KEY_SCALES == QUANTIZE_2D) && !FOLD_KEY_SCALES_INTO_Q
+  #if IS_KEY_BY_CHANNEL
+    /* Broadcast: prefetch only the single row of scale groups */
+    cooperative_prefetch_2d_maybe_rem(
+            /* ptr */ K_scales,
+            /* r */ 1,
+            /* c */ num_key_groups,
+            /* rmax */ 1,
+            /* cmax */ D_MAX / KEY_GROUP_SIZE,
+            /* ld */ ldkq,
+            /* sg_id */ sg_ij,
+            /* n_sg */ sg_per_wg,
+            /* sg_size */ SUBGROUP_SIZE,
+            /* cache */ LSC_LDCC_L1C_L3C);
+  #else
     cooperative_prefetch_2d_maybe_rem(
             /* ptr */ K_scales + window_k_begin,
             /* r */ causal_k - window_k_begin,
@@ -539,8 +610,22 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             /* n_sg */ sg_per_wg,
             /* sg_size */ SUBGROUP_SIZE,
             /* cache */ LSC_LDCC_L1C_L3C);
+  #endif
 #endif
-#if KEY_ZERO_POINTS == QUANTIZE_2D
+#if (KEY_ZERO_POINTS == QUANTIZE_2D) && !FOLD_KEY_SCALES_INTO_Q
+  #if IS_KEY_BY_CHANNEL
+    cooperative_prefetch_2d_maybe_rem(
+            /* ptr */ K_zp,
+            /* r */ 1,
+            /* c */ num_key_groups,
+            /* rmax */ 1,
+            /* cmax */ D_MAX / KEY_GROUP_SIZE,
+            /* ld */ ldkq,
+            /* sg_id */ sg_ij,
+            /* n_sg */ sg_per_wg,
+            /* sg_size */ SUBGROUP_SIZE,
+            /* cache */ LSC_LDCC_L1C_L3C);
+  #else
     cooperative_prefetch_2d_maybe_rem(
             /* ptr */ K_zp + window_k_begin,
             /* r */ causal_k - window_k_begin,
@@ -552,6 +637,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             /* n_sg */ sg_per_wg,
             /* sg_size */ SUBGROUP_SIZE,
             /* cache */ LSC_LDCC_L1C_L3C);
+  #endif
 #endif
 #endif
 
@@ -846,15 +932,18 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         s_tile_type S_tile
                 = ugemm_kq(K, ldk, Q_slm, D_MAX, causal_k, ugemm_kq_wg_tile_n, d, k0,
                         0, 0, sg_i_kq, sg_j_kq, (local char *)ugemm_slm
-        #if KEY_SCALES == QUANTIZE_2D
+        /* When FOLD_KEY_SCALES_INTO_Q, the micro-kernel is generated without A scaling or offsetting
+         * (the scales were already folded into Q above, and the zero point cancels in the softmax),
+         * so neither quantization argument must be passed. */
+        #if (KEY_SCALES == QUANTIZE_2D) && !FOLD_KEY_SCALES_INTO_Q
                         ,
                         K_scales
         #endif
-        #if KEY_ZERO_POINTS
+        #if KEY_ZERO_POINTS && !FOLD_KEY_SCALES_INTO_Q
                         ,
                         K_zp
         #endif
-        #if (KEY_SCALES == QUANTIZE_2D) || KEY_ZERO_POINTS
+        #if ((KEY_SCALES == QUANTIZE_2D) || KEY_ZERO_POINTS) && !FOLD_KEY_SCALES_INTO_Q
                         ,
                         ldkq
         #endif
@@ -1120,7 +1209,10 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                 /* sg_size */ SUBGROUP_SIZE,
                 /* cache */ LSC_LDCC_L1C_L3C);
 
-#if VAL_SCALES == QUANTIZE_2D
+/* Per-channel value scales/zero points are a single [num_val_groups, 1] column, not one entry per
+   token, so the per-token geometry below would fetch k_chunk columns that do not exist. They are not
+   read in the k-loop at all -- see FOLD_VAL_SCALES_INTO_OUTPUT. */
+#if (VAL_SCALES == QUANTIZE_2D) && !IS_VALUE_BY_CHANNEL
         /* Prefetch V scales. */
         cooperative_prefetch_2d_maybe_rem(
                 /* ptr */ V_scales + (size_t)ldvq * window_v_pf_begin,
@@ -1134,7 +1226,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                 /* sg_size */ SUBGROUP_SIZE,
                 /* cache */ LSC_LDCC_L1C_L3C);
 #endif
-#if VAL_ZERO_POINTS == QUANTIZE_2D
+#if (VAL_ZERO_POINTS == QUANTIZE_2D) && !IS_VALUE_BY_CHANNEL
         /* Prefetch V zero points. */
         cooperative_prefetch_2d_maybe_rem(
                 /* ptr */ V_zp + (size_t)ldvq * window_v_pf_begin / VAL_ZP_ELEMENTS_PER_BYTE,
@@ -1285,7 +1377,20 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                     /* n_sg */ sg_per_wg,
                     /* sg_size */ SUBGROUP_SIZE,
                     /* cache*/ LSC_LDCC_L1C_L3C);
-#if KEY_SCALES == QUANTIZE_2D
+#if (KEY_SCALES == QUANTIZE_2D) && !FOLD_KEY_SCALES_INTO_Q
+  #if IS_KEY_BY_CHANNEL
+            cooperative_prefetch_2d_maybe_rem(
+                    /* ptr */ K_scales,
+                    /* r */ 1,
+                    /* c */ num_key_groups,
+                    /* rmax */ 1,
+                    /* cmax */ D_MAX / KEY_GROUP_SIZE,
+                    /* ld */ ldkq,
+                    /* sg_id */ sg_ij,
+                    /* n_sg */ sg_per_wg,
+                    /* sg_size */ SUBGROUP_SIZE,
+                    /* cache */ LSC_LDCC_L1C_L3C);
+  #else
             cooperative_prefetch_2d_maybe_rem(
                     /* ptr */ K_scales + (k0 + ugemm_kq_wg_tile_m),
                     /* r */ causal_k - k0 - ugemm_kq_wg_tile_m,
@@ -1297,8 +1402,22 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                     /* n_sg */ sg_per_wg,
                     /* sg_size */ SUBGROUP_SIZE,
                     /* cache */ LSC_LDCC_L1C_L3C);
+  #endif
 #endif
-#if KEY_ZERO_POINTS == QUANTIZE_2D
+#if (KEY_ZERO_POINTS == QUANTIZE_2D) && !FOLD_KEY_SCALES_INTO_Q
+  #if IS_KEY_BY_CHANNEL
+            cooperative_prefetch_2d_maybe_rem(
+                    /* ptr */ K_zp,
+                    /* r */ 1,
+                    /* c */ num_key_groups,
+                    /* rmax */ 1,
+                    /* cmax */ D_MAX / KEY_GROUP_SIZE,
+                    /* ld */ ldkq,
+                    /* sg_id */ sg_ij,
+                    /* n_sg */ sg_per_wg,
+                    /* sg_size */ SUBGROUP_SIZE,
+                    /* cache */ LSC_LDCC_L1C_L3C);
+  #else
             cooperative_prefetch_2d_maybe_rem(
                     /* ptr */ K_zp + (k0 + ugemm_kq_wg_tile_m),
                     /* r */ causal_k - k0 - ugemm_kq_wg_tile_m,
@@ -1310,6 +1429,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                     /* n_sg */ sg_per_wg,
                     /* sg_size */ SUBGROUP_SIZE,
                     /* cache */ LSC_LDCC_L1C_L3C);
+  #endif
 #endif
         }
 #endif
@@ -1451,18 +1571,21 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         }
     #endif
 #else
+        /* When FOLD_VAL_SCALES_INTO_OUTPUT, the micro-kernel is generated without A scaling or
+           offsetting, so it takes no quantization arguments; they are applied in the epilogue. */
         a_tile_type A_tile1 = ugemm_vs(
                 V, ldv, S_slm, ugemm_kq_wg_tile_m, d, ugemm_kq_wg_tile_n,
                 k_chunk, 0, 0, 0, sg_i_vs, sg_j_vs, (local char *)ugemm_slm
-#if VAL_SCALES == QUANTIZE_2D
+#if (VAL_SCALES == QUANTIZE_2D) && !FOLD_VAL_SCALES_INTO_OUTPUT
                 ,
                 V_scales
 #endif
-#if VAL_ZERO_POINTS
+#if VAL_ZERO_POINTS && !FOLD_VAL_SCALES_INTO_OUTPUT
                 ,
                 V_zp
 #endif
-#if (VAL_SCALES == QUANTIZE_2D) || VAL_ZERO_POINTS
+#if ((VAL_SCALES == QUANTIZE_2D) || VAL_ZERO_POINTS) \
+        && !FOLD_VAL_SCALES_INTO_OUTPUT
                 ,
                 ldvq
 #endif
@@ -1472,10 +1595,14 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #if VAL_SCALES == QUANTIZE_2D
+  #if !IS_VALUE_BY_CHANNEL
         V_scales += ldvq * ugemm_kq_wg_tile_m;
+  #endif
 #endif
 #if VAL_ZERO_POINTS == QUANTIZE_2D
+  #if !IS_VALUE_BY_CHANNEL
         V_zp += ldvq * ugemm_kq_wg_tile_m / VAL_ZP_ELEMENTS_PER_BYTE;
+  #endif
 #endif
 #if IS_PAGED_ATTENTION && !IS_PREFILL
         // already done
@@ -1507,6 +1634,36 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     /* Rescale by 1 / (column sums) */
     tile_elementwise(A_scale_tile, native_vrecip);
     tile_hbroadcast_mul(&A_tile, A_scale_tile);
+
+#if FOLD_VAL_SCALES_INTO_OUTPUT
+    /* Apply the per-channel value scales/zero points that were kept out of the VS micro-kernel:
+     *   out[dd,n] = vscale[dd] * (sum_t V_int[dd,t] * S[t,n] / l[n] - vzp[dd])
+     * The division by the column sum l[n] just happened, so A_tile holds the bracketed accumulator.
+     * See sdpa_gen_micro.cpp for why this is exact. Tile rows past the head size are never stored;
+     * clamp their index so the loads stay inside the scale/zero point buffers. */
+    {
+        const int v_fold_row = sg_i_vs * ugemm_vs_sg_tile_m
+                + get_sub_group_local_id();
+        v_scale_tile_type V_scale_tile;
+#if VAL_ZERO_POINTS == QUANTIZE_2D
+        v_scale_tile_type V_zp_tile;
+#endif
+#pragma unroll
+        for (int i0 = 0; i0 < ugemm_vs_sg_tile_m; i0 += SUBGROUP_SIZE) {
+            const int v_fold_g = min(v_fold_row + i0, d - 1) / VAL_GROUP_SIZE;
+            tile_access(V_scale_tile, i0, 0, SUBGROUP_SIZE, v_scale_tile_m, 1, 1)
+                    = convert_float(V_scales[v_fold_g]);
+#if VAL_ZERO_POINTS == QUANTIZE_2D
+            tile_access(V_zp_tile, i0, 0, SUBGROUP_SIZE, v_scale_tile_m, 1, 1)
+                    = convert_float(V_zp[v_fold_g]);
+#endif
+        }
+#if VAL_ZERO_POINTS == QUANTIZE_2D
+        tile_vbroadcast_sub(&A_tile, V_zp_tile);
+#endif
+        tile_vbroadcast_mul(&A_tile, V_scale_tile);
+    }
+#endif
 
     /* Convert to half precision and store */
     a_tile_type_half A_tile_half;

@@ -145,6 +145,11 @@ inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uin
 #else
     #define GET_ZP(zp, scale, comp_offset) ((scale)[(comp_offset) + 1])
 #endif
+#if USE_ASYMMETRIC_QUANTIZATION
+    #define DEQUANTIZE_KV(value, zp, scale) (((value) - (zp)) * (scale))
+#else
+    #define DEQUANTIZE_KV(value, zp, scale) ((value) * (scale))
+#endif
 #endif
 
 #ifdef SDPA_STAGE_0
@@ -326,8 +331,8 @@ KERNEL(sdpa_opt)(
                     INPUT1_TYPE packed_byte = KEY_BLOCK_READ_1(key_input, key_offset + head_idx_index / 2);
                     char2 unpacked = unpack_to_char(*(uint4x2_t*)&packed_byte);
 
-                    KEY_COMPRESSION_SCALE_TYPE key_val0 = (CAT(convert_, KEY_COMPRESSION_SCALE_TYPE)(unpacked.s0) - comp_zp) * comp_scale;
-                    KEY_COMPRESSION_SCALE_TYPE key_val1 = (CAT(convert_, KEY_COMPRESSION_SCALE_TYPE)(unpacked.s1) - comp_zp) * comp_scale;
+                    KEY_COMPRESSION_SCALE_TYPE key_val0 = DEQUANTIZE_KV(CAT(convert_, KEY_COMPRESSION_SCALE_TYPE)(unpacked.s0), comp_zp, comp_scale);
+                    KEY_COMPRESSION_SCALE_TYPE key_val1 = DEQUANTIZE_KV(CAT(convert_, KEY_COMPRESSION_SCALE_TYPE)(unpacked.s1), comp_zp, comp_scale);
 
                     unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                         uint query_offset = seq_idx * K_HEAD_SIZE + head_idx_index;
@@ -347,8 +352,8 @@ KERNEL(sdpa_opt)(
                         ? KEY_BLOCK_READ_1(key_input, key_offset + head_idx_index / 2) : (INPUT1_TYPE)0;
                     char2 unpacked = unpack_to_char(*(uint4x2_t*)&packed_byte);
 
-                    KEY_COMPRESSION_SCALE_TYPE key_val0 = (CAT(convert_, KEY_COMPRESSION_SCALE_TYPE)(unpacked.s0) - comp_zp) * comp_scale;
-                    KEY_COMPRESSION_SCALE_TYPE key_val1 = (CAT(convert_, KEY_COMPRESSION_SCALE_TYPE)(unpacked.s1) - comp_zp) * comp_scale;
+                    KEY_COMPRESSION_SCALE_TYPE key_val0 = DEQUANTIZE_KV(CAT(convert_, KEY_COMPRESSION_SCALE_TYPE)(unpacked.s0), comp_zp, comp_scale);
+                    KEY_COMPRESSION_SCALE_TYPE key_val1 = DEQUANTIZE_KV(CAT(convert_, KEY_COMPRESSION_SCALE_TYPE)(unpacked.s1), comp_zp, comp_scale);
                     KEY_COMPRESSION_SCALE_TYPE lane_mask = (head_idx_index + 2 * sglid < K_HEAD_SIZE) ? (KEY_COMPRESSION_SCALE_TYPE)1 : (KEY_COMPRESSION_SCALE_TYPE)0;
                     key_val0 *= lane_mask;
                     key_val1 *= lane_mask;
@@ -809,7 +814,7 @@ KERNEL(sdpa_opt)(
                 VALUE_COMPRESSION_SCALE_TYPE value_val = (nibble_sel_p0 == 0 ?
                     CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked.s0) :
                     CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked.s1));
-                value_val = (value_val - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
+                value_val = DEQUANTIZE_KV(value_val, sub_group_broadcast(comp_zp, i), sub_group_broadcast(comp_scale, i));
 #elif IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                 VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
 #elif IS_KV_COMPRESSED
@@ -881,7 +886,7 @@ KERNEL(sdpa_opt)(
             VALUE_COMPRESSION_SCALE_TYPE value_val = (nibble_sel_p0 == 0 ?
                 CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_rem_unpacked.s0) :
                 CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_rem_unpacked.s1));
-            value_val = (value_val - comp_zp) * comp_scale;
+            value_val = DEQUANTIZE_KV(value_val, comp_zp, comp_scale);
 #elif IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
             const VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - comp_zp) * comp_scale;
 #elif IS_KV_COMPRESSED
@@ -1641,8 +1646,8 @@ KERNEL(sdpa_opt)(
                             const INPUT1_TYPE packed_byte = KEY_BLOCK_READ(key_input, key_offset + key_row_idx * key_pitch + hi / 2);
 #endif
                             char2 unpacked = unpack_to_char(*(uint4x2_t*)&packed_byte);
-                            KEY_COMPRESSION_SCALE_TYPE key_lo = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s0) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
-                            KEY_COMPRESSION_SCALE_TYPE key_hi = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s1) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
+                            KEY_COMPRESSION_SCALE_TYPE key_lo = DEQUANTIZE_KV(TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s0), sub_group_broadcast(comp_zp, key_row_idx), sub_group_broadcast(comp_scale, key_row_idx));
+                            KEY_COMPRESSION_SCALE_TYPE key_hi = DEQUANTIZE_KV(TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s1), sub_group_broadcast(comp_zp, key_row_idx), sub_group_broadcast(comp_scale, key_row_idx));
                             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
                                 qk_acc[key_row_idx] = mad(sub_group_broadcast(key_lo, i), qvec_lo[i], qk_acc[key_row_idx]);
                                 qk_acc[key_row_idx] = mad(sub_group_broadcast(key_hi, i), qvec_hi[i], qk_acc[key_row_idx]);
@@ -1669,8 +1674,8 @@ KERNEL(sdpa_opt)(
                                 ? KEY_BLOCK_READ(key_input, key_offset + key_row_idx * key_pitch + hi / 2) : (INPUT1_TYPE)0;
 #endif
                             char2 unpacked = unpack_to_char(*(uint4x2_t*)&packed_byte);
-                            KEY_COMPRESSION_SCALE_TYPE key_lo = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s0) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
-                            KEY_COMPRESSION_SCALE_TYPE key_hi = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s1) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
+                            KEY_COMPRESSION_SCALE_TYPE key_lo = DEQUANTIZE_KV(TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s0), sub_group_broadcast(comp_zp, key_row_idx), sub_group_broadcast(comp_scale, key_row_idx));
+                            KEY_COMPRESSION_SCALE_TYPE key_hi = DEQUANTIZE_KV(TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s1), sub_group_broadcast(comp_zp, key_row_idx), sub_group_broadcast(comp_scale, key_row_idx));
                             KEY_COMPRESSION_SCALE_TYPE lo_mask = (hi + 2 * sglid < K_HEAD_SIZE) ? (KEY_COMPRESSION_SCALE_TYPE)1 : (KEY_COMPRESSION_SCALE_TYPE)0;
                             KEY_COMPRESSION_SCALE_TYPE hi_mask = (hi + 2 * sglid + 1 < K_HEAD_SIZE) ? (KEY_COMPRESSION_SCALE_TYPE)1 : (KEY_COMPRESSION_SCALE_TYPE)0;
                             key_lo *= lo_mask;
@@ -1773,8 +1778,8 @@ KERNEL(sdpa_opt)(
                                 const INPUT1_TYPE packed_byte = KEY_BLOCK_READ(key_input, key_offset + key_row_idx * key_pitch_int4 + hi / 2);
 #endif
                                 char2 unpacked = unpack_to_char(*(uint4x2_t*)&packed_byte);
-                                key_lo = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s0) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
-                                key_hi = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s1) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
+                                key_lo = DEQUANTIZE_KV(TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s0), sub_group_broadcast(comp_zp, key_row_idx), sub_group_broadcast(comp_scale, key_row_idx));
+                                key_hi = DEQUANTIZE_KV(TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s1), sub_group_broadcast(comp_zp, key_row_idx), sub_group_broadcast(comp_scale, key_row_idx));
                             }
                             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
                                 qk_acc[key_row_idx] = mad(sub_group_broadcast(key_lo, i), qvec_lo[i], qk_acc[key_row_idx]);
@@ -1805,8 +1810,8 @@ KERNEL(sdpa_opt)(
                                     ? KEY_BLOCK_READ(key_input, key_offset + key_row_idx * key_pitch_int4 + hi / 2) : (INPUT1_TYPE)0;
 #endif
                                 char2 unpacked = unpack_to_char(*(uint4x2_t*)&packed_byte);
-                                key_lo = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s0) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
-                                key_hi = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s1) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
+                                key_lo = DEQUANTIZE_KV(TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s0), sub_group_broadcast(comp_zp, key_row_idx), sub_group_broadcast(comp_scale, key_row_idx));
+                                key_hi = DEQUANTIZE_KV(TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s1), sub_group_broadcast(comp_zp, key_row_idx), sub_group_broadcast(comp_scale, key_row_idx));
                             }
                             KEY_COMPRESSION_SCALE_TYPE lo_mask = (hi + 2 * sglid < K_HEAD_SIZE) ? (KEY_COMPRESSION_SCALE_TYPE)1 : (KEY_COMPRESSION_SCALE_TYPE)0;
                             KEY_COMPRESSION_SCALE_TYPE hi_mask = (hi + 2 * sglid + 1 < K_HEAD_SIZE) ? (KEY_COMPRESSION_SCALE_TYPE)1 : (KEY_COMPRESSION_SCALE_TYPE)0;
@@ -2269,7 +2274,7 @@ KERNEL(sdpa_opt)(
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (nibble_sel_s1 == 0 ?
                             CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked.s0) :
                             CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked.s1));
-                        value_val = (value_val - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
+                        value_val = DEQUANTIZE_KV(value_val, sub_group_broadcast(comp_zp, i), sub_group_broadcast(comp_scale, i));
                         #elif IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
                         #elif IS_KV_COMPRESSED
@@ -2299,7 +2304,7 @@ KERNEL(sdpa_opt)(
                             VALUE_COMPRESSION_SCALE_TYPE value_val = (nibble_sel_s1 == 0 ?
                                 CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked_elt.s0) :
                                 CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked_elt.s1));
-                            value_val = (value_val - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
+                            value_val = DEQUANTIZE_KV(value_val, sub_group_broadcast(comp_zp, i), sub_group_broadcast(comp_scale, i));
                         #elif IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                             VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
                         #elif IS_KV_COMPRESSED
@@ -2385,7 +2390,7 @@ KERNEL(sdpa_opt)(
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (nibble_sel_s1 == 0 ?
                             CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked.s0) :
                             CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked.s1));
-                        value_val = (value_val - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
+                        value_val = DEQUANTIZE_KV(value_val, sub_group_broadcast(comp_zp, i), sub_group_broadcast(comp_scale, i));
                 #elif IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
                 #elif IS_KV_COMPRESSED
@@ -2415,7 +2420,7 @@ KERNEL(sdpa_opt)(
                             VALUE_COMPRESSION_SCALE_TYPE value_val = (nibble_sel_s1 == 0 ?
                                 CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked_elt.s0) :
                                 CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked_elt.s1));
-                            value_val = (value_val - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
+                            value_val = DEQUANTIZE_KV(value_val, sub_group_broadcast(comp_zp, i), sub_group_broadcast(comp_scale, i));
                         #elif IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                             VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
                         #elif IS_KV_COMPRESSED
@@ -2509,7 +2514,7 @@ KERNEL(sdpa_opt)(
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (nibble_sel_s1 == 0 ?
                             CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_left_unpacked.s0) :
                             CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_left_unpacked.s1));
-                        value_val = (value_val - sub_group_broadcast(comp_zp, seq_len_idx)) * sub_group_broadcast(comp_scale, seq_len_idx);
+                        value_val = DEQUANTIZE_KV(value_val, sub_group_broadcast(comp_zp, seq_len_idx), sub_group_broadcast(comp_scale, seq_len_idx));
 #elif IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - sub_group_broadcast(comp_zp, seq_len_idx)) * sub_group_broadcast(comp_scale, seq_len_idx);
 #elif IS_KV_COMPRESSED

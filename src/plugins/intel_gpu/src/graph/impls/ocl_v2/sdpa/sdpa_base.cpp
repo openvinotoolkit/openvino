@@ -78,8 +78,13 @@ size_t get_beam_table_id(const std::shared_ptr<const scaled_dot_product_attentio
 // innermost dimension (head_size) of K/V layouts.  Any code that reads head_size
 // from K/V layouts must use the logical (un-halved) size from the query layout.
 bool SDPABase::is_int4_kv_cache(const kernel_impl_params& params) {
+    if (params.is_type<scaled_dot_product_attention>()) {
+        const auto& desc = params.typed_desc<scaled_dot_product_attention>();
+        return desc->is_kv_compressed && data_type_traits::is_i4_u4(desc->quantization_attributes.quantization_dt);
+    }
+
     const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-    return ov::element::Type(kv_cache_dt).bitwidth() == 4;
+    return data_type_traits::is_i4_u4(kv_cache_dt);
 }
 
 std::pair<int64_t, int64_t> SDPABase::get_gqa_params(const kernel_impl_params& params) const {
