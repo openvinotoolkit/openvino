@@ -1014,6 +1014,29 @@ INSTANTIATE_TEST_SUITE_P(
                       std::vector<ov::float16>{0, 1, 2, 3},
                       std::vector<uint8_t>{0xE4}),
 
+        // destination u3 - minimal essential coverage (8 values fill a full 3-byte packing group)
+        // Test 1: u8 -> u3 (most common quantization path)
+        ConvertParams(ConversionTypes::CONVERT,
+                      ov::PartialShape{8},
+                      ov::element::u8,
+                      ov::element::u3,
+                      std::vector<uint8_t>{0, 1, 2, 3, 4, 5, 6, 7},
+                      std::vector<uint8_t>{0x1B, 0x1B, 0x0F}),
+        // Test 2: i8 -> u3 (signed to unsigned quantization)
+        ConvertParams(ConversionTypes::CONVERT,
+                      ov::PartialShape{8},
+                      ov::element::i8,
+                      ov::element::u3,
+                      std::vector<int8_t>{0, 1, 2, 3, 4, 5, 6, 7},
+                      std::vector<uint8_t>{0x1B, 0x1B, 0x0F}),
+        // Test 3: f16 -> u3 (actual use case: matmul weights compression)
+        ConvertParams(ConversionTypes::CONVERT,
+                      ov::PartialShape{8},
+                      ov::element::f16,
+                      ov::element::u3,
+                      std::vector<ov::float16>{0, 1, 2, 3, 4, 5, 6, 7},
+                      std::vector<uint8_t>{0x1B, 0x1B, 0x0F}),
+
         // destination u8
         ConvertParams(ConversionTypes::CONVERT,
                       ov::PartialShape{8},

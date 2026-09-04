@@ -290,6 +290,16 @@ std::vector<TransposeParams> generateTransposeParamsForSubByte() {
                         reference_tests::Tensor(element::u2, {2, 2}, std::vector<uint8_t>{0xD8}),  // {0,2,1,3}
                         "transpose_u2_2d_swap"));
 
+    // u3 transpose test - swap dimensions (8 values fill a full 3-byte packing group)
+    // Input: [2,4] = {0,1,2,3,4,5,6,7} with axes {1,0}
+    // Output: [4,2] = {0,4,1,5,2,6,3,7}
+    params.push_back(
+        TransposeParams(PartialShape::dynamic(),
+                        reference_tests::Tensor(element::u3, {2, 4}, std::vector<uint8_t>{0x1B, 0x1B, 0x0F}),  // {0..7}
+                        reference_tests::Tensor(element::i64, {2}, std::vector<int64_t>{1, 0}),
+                        reference_tests::Tensor(element::u3, {4, 2}, std::vector<uint8_t>{0x05, 0xAF, 0x55}),  // {0,4,1,5,2,6,3,7}
+                        "transpose_u3_2d_swap"));
+
     // u4 transpose test - swap dimensions
     // Input: [2,2] = [[1,2], [3,4]] with axes {1,0}
     // Output: [2,2] = [[1,3], [2,4]] = {1,3,2,4}
