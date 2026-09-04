@@ -581,7 +581,14 @@ sdpa_config_t* choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
     return nullptr;
 }
 
-sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa, bool is_prefill) {
+sdpa_config_t* choose_config_xehpc(int head_size,
+                                   int seq,
+                                   bool thin_q,
+                                   bool quantized,
+                                   bool is_integrated,
+                                   bool is_pa,
+                                   bool is_prefill,
+                                   uint64_t max_local_mem_size) {
     if (head_size <= 32) {
         if (seq <= 0 && is_pa)
             return is_prefill ? &xehpc_h32 : &xehpc_h32_pa;
@@ -649,10 +656,13 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
                 return &xehpc_q_h128_s128;
             return &xehpc_q_h128;
         }
-        if (is_integrated)
-            return &xehpc_q_h128_2nd_integrated;
         if (thin_q)
             return &xehpc_h128_2nd;
+        constexpr uint64_t min_prefill_slm_size = 64 * 1024;
+        if (is_integrated && seq <= 32 && max_local_mem_size >= min_prefill_slm_size)
+            return &xehpc_h128_s32;
+        if (is_integrated)
+            return &xehpc_q_h128_2nd_integrated;
         if (seq <= 32)
             return &xehpc_h128_s32;
         if (seq <= 64)
@@ -728,9 +738,16 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
     return nullptr;
 }
 
-sdpa_config_t* choose_config_xe2(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa, bool is_prefill) {
+sdpa_config_t* choose_config_xe2(int head_size,
+                                 int seq,
+                                 bool thin_q,
+                                 bool quantized,
+                                 bool is_integrated,
+                                 bool is_pa,
+                                 bool is_prefill,
+                                 uint64_t max_local_mem_size) {
     if (seq <= 0 && is_pa) {
-        return choose_config_xehpc(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
+        return choose_config_xehpc(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill, max_local_mem_size);
     }
     if (head_size <= 64) {
         if (quantized) {
@@ -775,7 +792,7 @@ sdpa_config_t* choose_config_xe2(int head_size, int seq, bool thin_q, bool quant
     }
 
     if (head_size <= 128) {
-        return choose_config_xehpc(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
+        return choose_config_xehpc(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill, max_local_mem_size);
     }
 
     if (head_size <= 256) {
@@ -808,15 +825,22 @@ sdpa_config_t* choose_config_xe2(int head_size, int seq, bool thin_q, bool quant
             }
         }
     }
-    return choose_config_xehpc(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
+    return choose_config_xehpc(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill, max_local_mem_size);
 }
-sdpa_config_t* choose_config_xe3p(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa, bool is_prefill) {
+sdpa_config_t* choose_config_xe3p(int head_size,
+                                  int seq,
+                                  bool thin_q,
+                                  bool quantized,
+                                  bool is_integrated,
+                                  bool is_pa,
+                                  bool is_prefill,
+                                  uint64_t max_local_mem_size) {
     if (head_size <= 128) {
         return &xe3_h128;
     }
     if (head_size <= 256) {
         return &xe3_h256;
-        return choose_config_xe2(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
+        return choose_config_xe2(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill, max_local_mem_size);
     }
     if (head_size <= 512) {
         if (thin_q) {
@@ -827,7 +851,7 @@ sdpa_config_t* choose_config_xe3p(int head_size, int seq, bool thin_q, bool quan
         }
         return &xe3_h512;
     }
-    return choose_config_xe2(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
+    return choose_config_xe2(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill, max_local_mem_size);
 }
 
 }  // namespace
@@ -1548,6 +1572,16 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     bool is_quantized =
         (K.data_type == ov::element::u8 || K.data_type == ov::element::i8) || (V.data_type == ov::element::u8 || V.data_type == ov::element::i8);
     int32_t nkeys_v = static_cast<int32_t>(n_keys.is_dynamic() ? 0 : n_keys.get_length());
+    constexpr uint64_t min_prefill_slm_size = 64 * 1024;
+    const bool xe3_integrated_prefill_s32 = device_info.arch == gpu_arch::xe3 &&
+                                            is_integrated &&
+                                            is_prefill &&
+                                            !thin_q &&
+                                            !is_quantized &&
+                                            k_head_size > 64 &&
+                                            k_head_size <= 128 &&
+                                            nkeys_v <= 32 &&
+                                            device_info.max_local_mem_size >= min_prefill_slm_size;
 
     GPU_DEBUG_TRACE_DETAIL << "k_head_size = " << k_head_size << ", nkeys_v = " << nkeys_v << "\n";
     GPU_DEBUG_TRACE_DETAIL << "thin_q = " << thin_q << ", is_quantized = " << is_quantized << "\n";
@@ -1558,13 +1592,34 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     }
     case gpu_arch::xe2:
     case gpu_arch::xe3:
-        config = choose_config_xe2(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
+        config = choose_config_xe2(static_cast<int32_t>(k_head_size),
+                                   nkeys_v,
+                                   thin_q,
+                                   is_quantized,
+                                   is_integrated,
+                                   is_paged_attention,
+                                   is_prefill,
+                                   device_info.arch == gpu_arch::xe3 ? device_info.max_local_mem_size : 0);
         break;
     case gpu_arch::xe3p:
-        config = choose_config_xe3p(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
+        config = choose_config_xe3p(static_cast<int32_t>(k_head_size),
+                                    nkeys_v,
+                                    thin_q,
+                                    is_quantized,
+                                    is_integrated,
+                                    is_paged_attention,
+                                    is_prefill,
+                                    0);
         break;
     default: {
-        config = choose_config_xe2(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
+        config = choose_config_xe2(static_cast<int32_t>(k_head_size),
+                                   nkeys_v,
+                                   thin_q,
+                                   is_quantized,
+                                   is_integrated,
+                                   is_paged_attention,
+                                   is_prefill,
+                                   0);
         break;
     }
     }
@@ -1581,6 +1636,29 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     GPU_DEBUG_TRACE_DETAIL << "is_prefill=" << is_prefill << " single_token " << is_gqa_single_token << " Chosen config for xe_hpg: " << config->wg_m_kq << ", "
                            << config->wg_n_kq << ", " << config->wg_m_vs << ", " << config->wg_n_vs << ", " << std::endl;
     OPENVINO_ASSERT(config != nullptr);
+
+    GPU_DEBUG_COUT << "[SDPA_MICRO] input: arch=" << static_cast<int>(device_info.arch)
+                   << " ip_version=" << device_info.ip_version
+                   << " eu_count=" << device_info.execution_units_count
+                   << " integrated=" << is_integrated
+                   << " max_local_mem_size=" << device_info.max_local_mem_size
+                   << " xe3_integrated_prefill_s32=" << xe3_integrated_prefill_s32
+                   << " k_head_size=" << k_head_size
+                   << " v_head_size=" << v_head_size
+                   << " d_max=" << d_max
+                   << " n_keys=" << n_keys.to_string()
+                   << " n_queries=" << n_queries.to_string()
+                   << " prefill=" << is_prefill
+                   << " thin_q=" << thin_q
+                   << " quantized=" << is_quantized
+                   << " kq_requested={unroll_m=" << config->unroll_m_kq
+                   << ",unroll_n=" << config->unroll_n_kq
+                   << ",wgm=" << config->wg_m_kq
+                   << ",wgn=" << config->wg_n_kq
+                   << "} vs_requested={unroll_m=" << config->unroll_m_vs
+                   << ",unroll_n=" << config->unroll_n_vs
+                   << ",wgm=" << config->wg_m_vs
+                   << ",wgn=" << config->wg_n_vs << "}" << std::endl;
 
     /* Get device information */
     micro::HWInformation hw_info;
@@ -1865,6 +1943,21 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         GPU_DEBUG_TRACE_DETAIL << "Can't create VS sdpa_micro kernel: " << ex.what() << "\n";
         throw;
     }
+
+    GPU_DEBUG_COUT << "[SDPA_MICRO] selected: kq={sg_tile_m=" << gemm_kq.getSetting("sg_tile_m")
+                   << ",sg_tile_n=" << gemm_kq.getSetting("sg_tile_n")
+                   << ",wg_tile_m=" << gemm_kq.getSetting("wg_tile_m")
+                   << ",wg_tile_n=" << gemm_kq.getSetting("wg_tile_n")
+                   << ",sg_per_wg_m=" << gemm_kq.getSetting("sg_per_wg_m")
+                   << ",sg_per_wg_n=" << gemm_kq.getSetting("sg_per_wg_n")
+                   << ",grf_min=" << gemm_kq.grfMin
+                   << "} vs={sg_tile_m=" << gemm_vs.getSetting("sg_tile_m")
+                   << ",sg_tile_n=" << gemm_vs.getSetting("sg_tile_n")
+                   << ",wg_tile_m=" << gemm_vs.getSetting("wg_tile_m")
+                   << ",wg_tile_n=" << gemm_vs.getSetting("wg_tile_n")
+                   << ",sg_per_wg_m=" << gemm_vs.getSetting("sg_per_wg_m")
+                   << ",sg_per_wg_n=" << gemm_vs.getSetting("sg_per_wg_n")
+                   << ",grf_min=" << gemm_vs.grfMin << "}" << std::endl;
 
     if (!is_prefill && !is_gqa_single_token) {
         /* Update for optional GEMM: Vc*S */
