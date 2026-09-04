@@ -95,3 +95,17 @@ TEST(ONNXFeConvertException, exception_if_scan_body_fewer_outputs_than_initial_v
                     ov::frontend::OpConversionFailure,
                     testing::HasSubstr("num_scan_outputs can't be negative"));
 }
+
+/// Tests that Crop rejects a 'border' attribute with fewer than 2 values, since border[0] and
+/// border[1] are read to build the slice 'begin' constant regardless of the 'scale' attribute.
+TEST(ONNXFeConvertException, exception_if_crop_border_too_short) {
+    OV_EXPECT_THROW(convert_model("crop_border_too_short.onnx"),
+                    ov::AssertFailure,
+                    testing::HasSubstr("expects at least 2 values in 'border' attribute, found: 1"));
+}
+
+TEST(ONNXFeConvertException, exception_if_crop_border_empty) {
+    OV_EXPECT_THROW(convert_model("crop_border_empty.onnx"),
+                    ov::AssertFailure,
+                    testing::HasSubstr("expects at least 2 values in 'border' attribute, found: 0"));
+}
