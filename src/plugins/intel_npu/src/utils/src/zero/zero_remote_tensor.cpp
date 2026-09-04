@@ -5,6 +5,7 @@
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 
 #include <fstream>
+#include <sstream>
 
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_mem_pool.hpp"
@@ -324,7 +325,9 @@ void ZeroRemoteTensor::copy_file_data_to_level_zero_memory(const size_t size_to_
     _host_memory = zero_mem::allocate_memory(_init_structs,
                                              size_to_read,
                                              utils::STANDARD_PAGE_SIZE,
-                                             _tensor_type == TensorType::INPUT ? true : false);
+                                             _tensor_type == TensorType::INPUT ? true : false,
+                                             memory_purpose::weights,
+                                             generate_allocation_name("file_data"));
     _data = _host_memory->data();
 
     std::streamoff bytes_to_read = static_cast<std::streamoff>(size_to_read);
@@ -342,13 +345,17 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
         _host_memory = zero_mem::allocate_memory(_init_structs,
                                                  bytes,
                                                  utils::STANDARD_PAGE_SIZE,
-                                                 _tensor_type == TensorType::INPUT ? true : false);
+                                                 _tensor_type == TensorType::INPUT ? true : false,
+                                                 _tensor_type == TensorType::INPUT ? memory_purpose::input : memory_purpose::output,
+                                                 generate_allocation_name("l0"));
         _data = _host_memory->data();
         break;
     }
     case MemType::SHARED_BUF: {
         // set up the request to import the external memory handle
-        _host_memory = zero_mem::import_shared_memory(_init_structs, _mem, bytes);
+        _host_memory = zero_mem::import_shared_memory(_init_structs, _mem, bytes,
+                                                      _tensor_type == TensorType::INPUT ? memory_purpose::input : memory_purpose::output,
+                                                      generate_allocation_name("shared"));
         _data = _host_memory->data();
         break;
     }
@@ -387,7 +394,9 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
                 zero_mem::import_standard_allocation_memory(_init_structs,
                                                             std::as_const(_mmap_tensor).data(),
                                                             aligned_size,
-                                                            _tensor_type == TensorType::INPUT ? true : false);
+                                                            _tensor_type == TensorType::INPUT ? true : false,
+                                                            memory_purpose::weights,
+                                                            generate_allocation_name("mmap"));
             _data = _host_memory->data();
         } catch (const ZeroMemException&) {
             _logger.info("Failed to import mmaped memory. File data will be copied to the level zero memory");
@@ -400,7 +409,9 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
         _host_memory = zero_mem::import_standard_allocation_memory(_init_structs,
                                                                    _mem,
                                                                    bytes,
-                                                                   _tensor_type == TensorType::INPUT ? true : false);
+                                                                   _tensor_type == TensorType::INPUT ? true : false,
+                                                                   _tensor_type == TensorType::INPUT ? memory_purpose::input : memory_purpose::output,
+                                                                   generate_allocation_name("cpu_va"));
         _data = _host_memory->data();
         break;
     }
@@ -431,6 +442,33 @@ void ZeroRemoteTensor::update_properties() {
     default:
         OPENVINO_THROW("Unsupported object type ", static_cast<int>(_mem_type));
     }
+}
+
+std::string ZeroRemoteTensor::generate_allocation_name(const char* base_name) const {
+    std::ostringstream oss;
+    oss << "remote_" << base_name;
+    
+    // Add tensor direction
+    if (_tensor_type == TensorType::INPUT) {
+        oss << "_in";
+    } else if (_tensor_type == TensorType::OUTPUT) {
+        oss << "_out";
+    } else {
+        oss << "_bind";
+    }
+    
+    // Add element type
+    oss << "_" << _element_type.get_type_name();
+    
+    // Add shape
+    oss << "_[";
+    for (size_t i = 0; i < _shape.size(); ++i) {
+        if (i > 0) oss << ",";
+        oss << _shape[i];
+    }
+    oss << "]";
+    
+    return oss.str();
 }
 
 void* ZeroRemoteTensor::get_original_memory() const {

@@ -89,6 +89,7 @@ private:
     void update_strides();
     void update_properties();
     void copy_file_data_to_level_zero_memory(const size_t size_to_read);
+    std::string generate_allocation_name(const char* base_name) const;
 
     std::shared_ptr<ov::IRemoteContext> _context;
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;

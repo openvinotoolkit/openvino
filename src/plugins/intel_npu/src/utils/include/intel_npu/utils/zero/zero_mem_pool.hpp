@@ -9,8 +9,8 @@
 #include <memory>
 #include <mutex>
 #include <unordered_map>
-
 #include "openvino/core/except.hpp"
+#include "intel_npu/utils/zero/zero_mem_types.hpp"
 
 namespace intel_npu {
 
@@ -56,11 +56,15 @@ namespace zero_mem {
  * @param bytes Size in bytes of the memory that must be allocated.
  * @param alignment Alignment needed for the memory; it must be a multiple of the standard page size.
  * @param is_input Memory is used only as input or not.
+ * @param purpose Purpose of this memory allocation (for tracking/analysis).
+ * @param name Optional descriptive name for this allocation.
  */
 std::shared_ptr<ZeroMem> allocate_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                          const size_t bytes,
                                          const size_t alignment,
-                                         const bool is_input = false);
+                                         const bool is_input = false,
+                                         memory_purpose purpose = memory_purpose::unknown,
+                                         const std::string& name = "");
 
 /**
  * @brief Returns an imported shared(CMX-DMA in case of Linux, NT handle in case of Windows) memory in the level
@@ -68,10 +72,14 @@ std::shared_ptr<ZeroMem> allocate_memory(const std::shared_ptr<ZeroInitStructsHo
  * @param init_structs Holder for the level zero structures.
  * @param data Memory to be imported.
  * @param bytes Size in bytes of the memory that must be allocated.
+ * @param purpose Purpose of this memory allocation (for tracking/analysis).
+ * @param name Optional descriptive name for this allocation.
  */
 std::shared_ptr<ZeroMem> import_shared_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                               const void* data,
-                                              const size_t bytes);
+                                              const size_t bytes,
+                                              memory_purpose purpose = memory_purpose::unknown,
+                                              const std::string& name = "");
 
 /**
  * @brief Performs a look-up in the pool to check if the entire range given by [data, data + bytes] was previously
@@ -81,11 +89,15 @@ std::shared_ptr<ZeroMem> import_shared_memory(const std::shared_ptr<ZeroInitStru
  * @param data User memory to be checked.
  * @param bytes Size in bytes of the memory.
  * @param is_input Memory is used only as input or not.
+ * @param purpose Purpose of this memory allocation (for tracking/analysis).
+ * @param name Optional descriptive name for this allocation.
  */
 std::shared_ptr<ZeroMem> import_standard_allocation_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                                            const void* data,
                                                            const size_t bytes,
-                                                           const bool is_input = false);
+                                                           const bool is_input = false,
+                                                           memory_purpose purpose = memory_purpose::unknown,
+                                                           const std::string& name = "");
 
 }  // namespace zero_mem
 }  // namespace intel_npu

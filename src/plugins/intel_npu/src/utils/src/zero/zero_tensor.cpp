@@ -46,7 +46,10 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
 
     _bytes_capacity = get_byte_size();
 
-    _mem_ref = zero_mem::allocate_memory(_init_structs, byte_size.value(), utils::STANDARD_PAGE_SIZE, _is_input);
+    _mem_ref = zero_mem::allocate_memory(
+        _init_structs, byte_size.value(), utils::STANDARD_PAGE_SIZE, _is_input,
+        _is_input ? memory_purpose::input : memory_purpose::output,
+        _is_input ? "tensor_input" : "tensor_output");
     auto data = _mem_ref->data();
     OPENVINO_ASSERT(byte_size.value() == 0 || data != nullptr, "Failed to allocate zero memory");
     _ptr = data;
@@ -94,7 +97,10 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
     // _mem_ref will keep a reference to that allocation. Otherwise the function will try to import it into the level
     // zero context.
     _logger.debug("ZeroTensor::ZeroTensor - get tensor from pool or import it");
-    _mem_ref = zero_mem::import_standard_allocation_memory(_init_structs, _ptr, _bytes_capacity);
+    _mem_ref = zero_mem::import_standard_allocation_memory(
+        _init_structs, _ptr, _bytes_capacity, _is_input,
+        _is_input ? memory_purpose::input : memory_purpose::output,
+        _is_input ? "tensor_user_import_input" : "tensor_user_import_output");
 }
 
 // Note: Override data() members to not used OpenVINO library code to improve performance
@@ -205,7 +211,10 @@ void ZeroTensor::set_shape(ov::Shape new_shape) {
         // allocate buffer and initialize objects from scratch
         const auto byte_size = ov::util::get_memory_size_safe(_element_type, _shape);
         OPENVINO_ASSERT(byte_size, "Cannot allocate memory for type: ", _element_type, " and shape: ", _shape);
-        _mem_ref = zero_mem::allocate_memory(_init_structs, byte_size.value(), utils::STANDARD_PAGE_SIZE, _is_input);
+        _mem_ref = zero_mem::allocate_memory(
+            _init_structs, byte_size.value(), utils::STANDARD_PAGE_SIZE, _is_input,
+            _is_input ? memory_purpose::input : memory_purpose::output,
+            _is_input ? "tensor_reshape_input" : "tensor_reshape_output");
         _ptr = _mem_ref->data();
         OPENVINO_ASSERT(byte_size.value() == 0 || _ptr != nullptr, "Failed to allocate zero memory");
         _bytes_capacity = get_byte_size();
@@ -236,7 +245,10 @@ bool ZeroTensor::can_be_reused() {
 void ZeroTensor::allocate_data() {
     _logger.debug("ZeroTensor::allocate_data - import the tensor data");
     _ptr = _user_tensor->data();
-    _mem_ref = zero_mem::import_standard_allocation_memory(_init_structs, _ptr, _bytes_capacity);
+    _mem_ref = zero_mem::import_standard_allocation_memory(
+        _init_structs, _ptr, _bytes_capacity, _is_input,
+        _is_input ? memory_purpose::input : memory_purpose::output,
+        _is_input ? "tensor_allocate_data_input" : "tensor_allocate_data_output");
 }
 
 void ZeroTensor::detach_imported_allocation_for_custom_tensor() {
