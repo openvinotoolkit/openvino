@@ -6,6 +6,7 @@
 
 #include "intel_npu/common/network_metadata.hpp"
 #include "intel_npu/utils/vm/mem_ref_type.hpp"
+#include "intel_npu/utils/vm/npu_vm_runtime_utils.hpp"
 #include "zero_pipeline.hpp"
 
 namespace intel_npu {
@@ -22,13 +23,24 @@ struct VMExecutionContext {
     VMExecutionContext& operator=(VMExecutionContext&&) = delete;
     ~VMExecutionContext();
 
-    // Create the context for vmRuntime if not created yet; returns the handle.
     npu_vm_runtime_execution_context_handle_t ensure(npu_vm_runtime_handle_t vmRuntime);
+    npu_vm_runtime_execution_context_handle_t ensureV2(npu_vm_runtime_handle_t vmRuntime,
+                                                       ze_context_handle_t ctx,
+                                                       ze_device_handle_t device,
+                                                       ze_command_queue_handle_t commandQueue,
+                                                       ze_graph_dditable_ext_t* graphDdiTableExt,
+                                                       ze_command_queue_npu_dditable_ext_t* queueDdiTableExt);
+    npu_vm_runtime_execution_context_handle_t handle() const {
+        return _handle;
+    }
 };
 
 struct DynamicArguments {
     std::vector<MemRefType> _inputsMemRef;
     std::vector<MemRefType> _outputsMemRef;
+    std::vector<npu_vm_runtime_mem_ref_handle_t> _inputMemRefHandles;
+    std::vector<npu_vm_runtime_mem_ref_handle_t> _outputMemRefHandles;
+    npu_vm_runtime_execute_params2_t _executeParams2 = {};
 
     // True once the command lists have been recorded by a first npuVMRuntimeExecute call. Subsequent
     // executions can be replayed without re-recording when no tensor changed (see execute_vm_runtime).
@@ -55,25 +67,21 @@ class DynamicPipeline final : public IPipeline {
         // Store command list handles to pass it to ExecutionEngine
         std::vector<ze_command_list_handle_t> _commandListHandles;
 
-        PipelinedCommandLists(size_t numCommandLists, const std::shared_ptr<ZeroInitStructsHolder>& init_structs) {
-            _commandLists.reserve(numCommandLists);
-            for (size_t i = 0; i < numCommandLists; i++) {
-                _commandLists.emplace_back(std::make_unique<CommandList>(init_structs));
-            }
+        PipelinedCommandLists(size_t numCommandLists,
+                              const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                              bool useV2 = false) {
+            if (!useV2) {
+                _commandLists.reserve(numCommandLists);
+                for (size_t i = 0; i < numCommandLists; i++) {
+                    _commandLists.emplace_back(std::make_unique<CommandList>(init_structs));
+                }
 
-            for (size_t i = 0; i < numCommandLists; i++) {
-                _commandListHandles.push_back(_commandLists[i]->handle());
+                for (size_t i = 0; i < numCommandLists; i++) {
+                    _commandListHandles.push_back(_commandLists[i]->handle());
+                }
             }
 
             _arguments = std::make_shared<DynamicArguments>();
-        }
-
-        size_t size() const {
-            return _commandListHandles.size();
-        }
-
-        ze_command_list_handle_t* data() {
-            return _commandListHandles.data();
         }
 
         // Use metadata to initialize, which will later be updated again by setArgumentProperties
@@ -84,9 +92,7 @@ class DynamicPipeline final : public IPipeline {
                 // Use size as placeholder of stride
                 // For now, only considering the usage and subsequent comparison of shape, and strides
                 const auto& shape = metadata.inputs[i].shapeFromCompiler.get_shape();
-                inputs[i]._dimsCount = static_cast<int64_t>(shape.size());
-                inputs[i]._sizes.assign(shape.begin(), shape.end());
-                inputs[i]._strides.resize(shape.size());
+                inputs[i].setSize(shape);
                 inputs[i].updateStride();
             }
 
@@ -94,9 +100,7 @@ class DynamicPipeline final : public IPipeline {
             auto& outputs = _arguments->_outputsMemRef;
             for (size_t i = 0; i < outputs.size(); ++i) {
                 const auto& shape = metadata.outputs[i].shapeFromCompiler.get_shape();
-                outputs[i]._dimsCount = static_cast<int64_t>(shape.size());
-                outputs[i]._sizes.assign(shape.begin(), shape.end());
-                outputs[i]._strides.resize(shape.size());
+                outputs[i].setSize(shape);
                 outputs[i].updateStride();
             }
         }
@@ -164,9 +168,19 @@ private:
                             ze_command_queue_handle_t commandQueue,
                             ze_fence_handle_t fence,
                             ze_event_handle_t event);
+    void execute_vm_runtime_v2(npu_vm_runtime_handle_t vmRuntime,
+                               DynamicArguments& args,
+                               ze_command_queue_handle_t commandQueue,
+                               const npu_vm_runtime_config_desc_t* pConfig);
+    const npu_vm_runtime_config_desc_t* update_runtime_config(const CommandQueueDesc& previousCommandQueueDesc,
+                                                              const CommandQueueDesc& currentCommandQueueDesc);
 
     // VM execution context owned by this pipeline; shared between shape prediction and execution.
     VMExecutionContext _executionContext;
+    npu_vm_runtime_version_t _apiVersion = NPU_VM_RUNTIME_VERSION_1_0;
+    NpuVMRuntimeConfigChain _runtimeConfigChain;
+    CommandQueueDesc _runtime_config_command_queue_desc;
+    bool _runtime_config_command_queue_desc_valid = false;
     std::unique_ptr<PipelinedCommandLists> _command_list_group;
 };
 

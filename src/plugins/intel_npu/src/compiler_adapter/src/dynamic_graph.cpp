@@ -4,7 +4,6 @@
 
 #include "dynamic_graph.hpp"
 
-#include <array>
 #include <iterator>
 #include <ostream>
 
@@ -13,18 +12,56 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "intel_npu/utils/vm/npu_vm_runtime_utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 
 namespace intel_npu {
 
-void DynamicGraph::create_execution_engine() {
+namespace {
+void populateRuntimeConfigChain(NpuVMRuntimeConfigChain& configChain, const FilteredConfig& config) {
+    configChain.append(
+        NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_PRIORITY,
+        static_cast<npu_vm_runtime_config_value_t>(zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>())));
+    if (config.has<WORKLOAD_TYPE>()) {
+        const auto workloadType = zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>());
+        if (workloadType.has_value()) {
+            configChain.append(NPU_VM_RUNTIME_CONFIG_TYPE_WORKLOAD_TYPE,
+                               static_cast<npu_vm_runtime_config_value_t>(workloadType.value()));
+        }
+    }
+    uint32_t commandQueueOptions = 0;
+    if (config.has<TURBO>() && config.get<TURBO>()) {
+        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
+    }
+    if (config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
+    }
+    configChain.append(NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_OPTIONS, commandQueueOptions);
+}
+
+}  // namespace
+
+void DynamicGraph::create_execution_engine(const FilteredConfig& config) {
     npu_vm_runtime_blob_desc_t blobDesc;
     blobDesc.pInput = reinterpret_cast<const uint8_t*>(_blob.value().data());
     blobDesc.inputSize = _blob.value().get_byte_size();
 
-    if (npuVMRuntimeCreate(&blobDesc, &_engine, &_engineProperties) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+    if (npuVMRuntimeGetAPIVersion(&_apiVersion) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+        OPENVINO_THROW("Failed to get VM runtime API version");
+    }
+
+    const auto result = [&]() {
+        if (use_npu_vm_runtime_v2_api(_apiVersion)) {
+            NpuVMRuntimeConfigChain runtimeConfig;
+            populateRuntimeConfigChain(runtimeConfig, config);
+            return npuVMRuntimeCreate2(&blobDesc, runtimeConfig.head(), &_engine, &_engineProperties);
+        }
+        return npuVMRuntimeCreate(&blobDesc, &_engine, &_engineProperties);
+    }();
+
+    if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to create VM runtime engine");
     }
 }
@@ -150,9 +187,9 @@ void DynamicGraph::prepare_metadata() {
     _metadata.bindRelatedDescriptors();
 }
 
-void DynamicGraph::initialize_engine() {
+void DynamicGraph::initialize_engine(const FilteredConfig& config) {
     if (!_engineInitialized) {
-        create_execution_engine();
+        create_execution_engine(config);
         prepare_metadata();
         _engineInitialized = true;
         _metadata.numberOfSubgraphs = _engineProperties.numOfSubGraphs;
@@ -196,7 +233,7 @@ DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroIni
     // Metadata comes from the VM runtime parsing the blob; unlike a regular Graph, it is not prefetched by the
     // compiler/parser and must be available before plugin builds a dummy ov::Model for the CompiledModel.
     // This is CPU-side parsing only - no L0/device setup.
-    initialize_engine();
+    initialize_engine(config);
 }
 
 std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_blob(std::ostream& stream) const {
@@ -321,7 +358,7 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
 
     if (!_engineInitialized) {
         // initialize VM execution engine, metadata, input&output descriptors
-        initialize_engine();
+        initialize_engine(config);
     }
 
     if (!_zeroInitStruct) {
@@ -354,7 +391,7 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
             this,
             config.get<SHARED_COMMON_QUEUE>()};
 
-        if (config.get<SHARED_COMMON_QUEUE>() == false) {
+        if (!use_npu_vm_runtime_v2_api(_apiVersion) && config.get<SHARED_COMMON_QUEUE>() == false) {
             // Keep it alive per compiled model when the shared common queue feature is disabled.
             _commandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, _commandQueueDesc);
         }
