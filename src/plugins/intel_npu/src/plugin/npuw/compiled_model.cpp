@@ -15,6 +15,7 @@
 #include "gqa_compiled_model.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "just_sync_infer_request.hpp"
+#include "lazy_tensor.hpp"
 #include "logging.hpp"
 #include "moe/moe_subgraph.hpp"
 #include "openvino/core/parallel.hpp"
@@ -48,6 +49,7 @@
 #include "openvino/util/file_util.hpp"
 #include "partitioning/patterns/sdpa.hpp"
 #include "transformations/convert_precision.hpp"
+#include "wsh_lookup.hpp"
 
 namespace {
 std::string canonical_device_name(const std::string& device_name) {
@@ -122,6 +124,10 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
     std::string weights_path;
     WeightsContext::ConstsCache consts_cache;
     ov::FileHandleProvider handle_provider = nullptr;
+    // Optional sub-region of the handle to map (Option B, fd-backed sharing).
+    // size 0 keeps the legacy whole-handle mapping at offset 0.
+    std::size_t handle_region_offset = 0;
+    std::size_t handle_region_size = 0;
     if (is_weightless) {
         if (const auto handle_it = properties.find(ov::intel_npu::npuw::weights_handle_provider.name());
             handle_it != properties.end()) {
@@ -130,6 +136,16 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
             } else {
                 LOG_WARN("WEIGHTS_HANDLE_PROVIDER property is present but is not a FileHandleProvider; falling back to "
                          "other weightless import sources");
+            }
+        }
+        if (handle_provider) {
+            if (const auto it = properties.find(ov::intel_npu::npuw::weights_handle_region_size.name());
+                it != properties.end()) {
+                handle_region_size = it->second.as<std::size_t>();
+            }
+            if (const auto it = properties.find(ov::intel_npu::npuw::weights_handle_region_offset.name());
+                it != properties.end()) {
+                handle_region_offset = it->second.as<std::size_t>();
             }
         }
         if (!handle_provider && properties.find(ov::weights_path.name()) != properties.end()) {
@@ -149,14 +165,11 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
                     continue;
                 }
                 const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node);
-                auto rt_info = c->get_rt_info();
-                auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-                if (weightless_cache_attr == rt_info.end()) {
+                auto origin = ov::npuw::wsh::resolve_origin(*c);
+                if (!origin) {
                     continue;
                 }
-                std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
-                std::size_t size = c->get_byte_size();
-                consts_cache[{offset, size}] = node;
+                consts_cache[{origin->offset, c->get_byte_size()}] = node;
             }
         } else if (!handle_provider) {
             NPUW_ASSERT(false && "Blob is weightless but no WEIGHTS_PATH nor MODEL_PTR property is provided!");
@@ -168,7 +181,11 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
         std::shared_ptr<ov::MappedMemory> mapped_memory;
         if (handle_provider) {
             ov::FileHandle handle = handle_provider();
-            mapped_memory = ov::load_mmap_object(handle);
+            if (handle_region_size != 0) {
+                mapped_memory = ov::load_mmap_object(handle, handle_region_offset, handle_region_size);
+            } else {
+                mapped_memory = ov::load_mmap_object(handle);
+            }
         } else if (!weights_path.empty()) {
             mapped_memory = ov::load_mmap_object(ov::util::make_path(weights_path));
         }
@@ -177,7 +194,13 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
         }
     }
 
-    return WeightsContext(weights, weights_path, consts_cache, bf16_consts, handle_provider);
+    return WeightsContext(weights,
+                          weights_path,
+                          consts_cache,
+                          bf16_consts,
+                          handle_provider,
+                          handle_region_offset,
+                          handle_region_size);
 }
 
 std::function<std::string(const std::string&)> get_encrypt_callback(const ov::AnyMap& properties) {
@@ -1688,20 +1711,19 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
 
 void ov::npuw::CompiledModel::store_const_offsets(const std::shared_ptr<ov::Model>& model) {
     for (auto&& node_ptr : model->get_ordered_ops()) {
-        if (ov::op::util::is_constant(node_ptr)) {
-            const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node_ptr);
-            auto rt_info = c->get_rt_info();
-            auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-            if (weightless_cache_attr == rt_info.end()) {
-                continue;
-            }
-            std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
-            auto data_ptr = c->get_data_ptr();
-            auto inserted = m_const_to_offset.insert({data_ptr, offset});
-            if (!inserted.second) {
-                NPUW_ASSERT(inserted.first->second == offset &&
-                            "Model contains two constants with same pointer and different offset!");
-            }
+        if (!ov::op::util::is_constant(node_ptr)) {
+            continue;
+        }
+        const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node_ptr);
+        auto origin = ov::npuw::wsh::resolve_origin(*c);
+        if (!origin) {
+            continue;
+        }
+        auto data_ptr = c->get_data_ptr();
+        auto inserted = m_const_to_offset.insert({data_ptr, origin->offset});
+        if (!inserted.second) {
+            NPUW_ASSERT(inserted.first->second == origin->offset &&
+                        "Model contains two constants with same pointer and different offset!");
         }
     }
 }
