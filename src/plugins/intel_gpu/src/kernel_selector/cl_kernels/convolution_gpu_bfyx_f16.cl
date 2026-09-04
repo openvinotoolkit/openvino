@@ -21,6 +21,7 @@
 
 #define AS_FILTER_TYPE8   CAT(as_, FILTER_TYPE8)
 
+
 #if OUTPUT_FORMAT_BFYX
 #   define OUTPUTVTYPE(n)       CAT(OUTPUT_TYPE, n)
 #   define TO_OUTPUTVTYPE       CAT(convert_, OUTPUTVTYPE(OUTPUT_X_BLOCK_SIZE))
@@ -224,7 +225,7 @@ KERNEL(convolution_bfyx_f16)(
                         line_cache[xb + 6] = vv[6];
                         line_cache[xb + 7] = vv[7];
                     }
-                    for (; xb + 4 <= reachable_size; xb += 4) {
+                    for (; xb + 4 <= INPUT_LINE_SIZE; xb += 4) {
                         INPUT_TYPE4 vv = DT_INPUT_BLOCK_READ4(input, grouped_input_offset +
                                                                   icb * input_fs_pitch +
                                                                   kh * DILATION_SIZE_Y * input_y_pitch +
@@ -235,7 +236,7 @@ KERNEL(convolution_bfyx_f16)(
                         line_cache[xb + 2] = vv[2];
                         line_cache[xb + 3] = vv[3];
                     }
-                    for (; xb < reachable_size; xb++) {
+                    for (; xb < INPUT_LINE_SIZE; xb++) {
                         line_cache[xb] = DT_INPUT_BLOCK_READ(input, grouped_input_offset +
                                                                  icb * input_fs_pitch +
                                                                  kh * DILATION_SIZE_Y * input_y_pitch +

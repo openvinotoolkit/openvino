@@ -126,7 +126,7 @@ OutputVector translate_div(const NodeContext& context) {
         if (res.get_element_type() != output_type) {
             res = std::make_shared<ov::op::v0::Convert>(res, output_type);
         }
-        return rename_outputs_with_suffix({res}, context.get_name());
+        return rename_outputs_with_suffix({std::move(res)}, context.get_name());
     }
 
     input_1 = repeat_input_to_match(context, input_1, input_0, 1);
@@ -149,7 +149,7 @@ OutputVector translate_div(const NodeContext& context) {
         ov::mark_as_precision_sensitive(output_convert->input(0));
         res = output_convert;
     }
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

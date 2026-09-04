@@ -288,7 +288,8 @@ protected:
 #ifndef NDEBUG
         // These benchmarks measure wall-clock timing and are meaningless (and extremely slow for
         // multi-GB files) in a Debug (-O0) build. Build in Release for meaningful results.
-        GTEST_SKIP() << "FileLoadBenchmark is a Release-only benchmark; rebuild with -DCMAKE_BUILD_TYPE=Release, or remove the skip to run it in Debug.";
+        GTEST_SKIP() << "FileLoadBenchmark is a Release-only benchmark; rebuild with -DCMAKE_BUILD_TYPE=Release, or "
+                        "remove the skip to run it in Debug.";
 #endif
     }
 };
