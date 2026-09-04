@@ -8,7 +8,7 @@
 
 namespace ov::intel_gpu::op {
 
-Placeholder::Placeholder() : ov::op::Op() {
+Placeholder::Placeholder() {
     validate_and_infer_types();
     set_friendly_name(get_name());
     get_rt_info().emplace(FusedNames::get_type_info_static(), FusedNames{get_friendly_name()});

@@ -33,7 +33,7 @@ struct primitive_info;
 /// @brief Describes information of inputs.
 /// @details Contains infomation about id and output index of input primitive.
 struct input_info {
-    input_info() : pid(""), idx(0) {}
+    input_info() : idx(0) {}
     input_info(primitive_id pid) : pid(std::move(pid)), idx(0) {}
     input_info(primitive_id pid, int idx) : pid(std::move(pid)), idx(idx) {}
 
@@ -57,11 +57,11 @@ struct input_info {
         bool operator() (const input_info a, const input_info b) {
             if (a.pid < b.pid) {
                 return true;
-            } else if (a.pid == b.pid) {
-                return a.idx < b.idx;
-            } else {
-                return false;
             }
+            if (a.pid == b.pid) {
+                return a.idx < b.idx;
+            }
+            return false;
         }
     };
 
@@ -219,6 +219,9 @@ public:
     /// @brief Type name of original ov operation.
     std::string origin_op_type_name;
 
+    /// @brief Set via "gpu_shape_of_subgraph_root" rt_info; protected from fusion like shape_of.
+    bool is_shape_of_subgraph_root = false;
+
     /// @brief Requested output padding.
     std::vector<padding> output_paddings;
 
@@ -248,7 +251,7 @@ public:
         ob << origin_op_type_name;
         ob << output_paddings;
         ob << output_data_types.size();
-        for (auto& output_data_type : output_data_types) {
+        for (const auto& output_data_type : output_data_types) {
             if (output_data_type.has_value()) {
                 ob << true;
                 ob << make_data(&output_data_type.value(), sizeof(data_types));
@@ -258,6 +261,7 @@ public:
         }
         ob << input;
         ob << num_outputs;
+        ob << is_shape_of_subgraph_root;
     }
 
     virtual void load(BinaryInputBuffer& ib) {
@@ -284,22 +288,21 @@ public:
         }
         ib >> input;
         ib >> num_outputs;
+        ib >> is_shape_of_subgraph_root;
     }
 
     virtual padding get_output_padding(size_t idx) const {
         if (idx < output_paddings.size()) {
             return output_paddings[idx];
-        } else {
-            return padding();
         }
+        return padding();
     }
 
     virtual optional_data_type get_output_data_type(size_t idx) const {
         if (idx < output_data_types.size()) {
             return output_data_types[idx];
-        } else {
-            return optional_data_type();
         }
+        return optional_data_type();
     }
 
     /// @brief Returns mutable reference to input dependency at given index.

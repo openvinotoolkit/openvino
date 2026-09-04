@@ -4,6 +4,8 @@
 
 #include "node/include/core_wrap.hpp"
 
+#include <exception>
+
 #include "node/include/addon.hpp"
 #include "node/include/async_reader.hpp"
 #include "node/include/compiled_model.hpp"
@@ -55,7 +57,6 @@ Napi::Function CoreWrap::get_class(Napi::Env env) {
                         InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices),
                         InstanceMethod("importModel", &CoreWrap::import_model_async),
                         InstanceMethod("importModelSync", &CoreWrap::import_model),
-                        InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices),
                         InstanceMethod("getVersions", &CoreWrap::get_versions),
                         InstanceMethod("setProperty", &CoreWrap::set_property),
                         InstanceMethod("getProperty", &CoreWrap::get_property),
@@ -272,12 +273,7 @@ Napi::Value CoreWrap::get_versions(const Napi::CallbackInfo& info) {
     Napi::Object versions_object = Napi::Object::New(info.Env());
 
     for (const auto& dev : devices_map) {
-        Napi::Object device_properties = Napi::Object::New(info.Env());
-
-        device_properties.Set("buildNumber", Napi::String::New(info.Env(), dev.second.buildNumber));
-        device_properties.Set("description", Napi::String::New(info.Env(), dev.second.description));
-
-        versions_object.Set(dev.first, device_properties);
+        versions_object.Set(dev.first, cpp_to_js(info.Env(), dev.second));
     }
 
     return versions_object;

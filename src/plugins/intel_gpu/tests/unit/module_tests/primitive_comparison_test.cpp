@@ -10,6 +10,7 @@
 #include <intel_gpu/primitives/fully_connected.hpp>
 #include <intel_gpu/primitives/gather.hpp>
 #include <intel_gpu/primitives/permute.hpp>
+#include <intel_gpu/primitives/dynamic_quantize.hpp>
 
 namespace cldnn {
 // For gtest NE compare, class defines only `==` operator. Required when building using C++20
@@ -109,6 +110,27 @@ TEST(primitive_comparison, permute) {
 
     ASSERT_EQ(permute_prim, permute_prim_eq);
     ASSERT_NE(permute_prim, permute_prim_order);
+}
+
+TEST(primitive_comparison, dynamic_quantize_innermost_size) {
+    dynamic_quantize::Attributes attrs;
+    attrs.quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Symmetric;
+    attrs.quantization_dt = data_types::i8;
+    attrs.scale_dt = data_types::f16;
+    attrs.zp_dt = data_types::dynamic;
+    attrs.group_sizes = {1, 1, UINT64_MAX};
+    attrs.scales_zp_output_order = {0, 1, 2};
+    attrs.output_storage_type = ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
+
+    auto dq_prim = dynamic_quantize("dq", input_info("input"), attrs, 3, 4096);
+    auto dq_prim_eq = dynamic_quantize("dq_eq", input_info("input_eq"), attrs, 3, 4096);
+    // The innermost dimension drives the group count baked into the kernel, so two primitives that
+    // only differ by it must not compare equal - otherwise they share a kernel built for one of them
+    auto dq_prim_innermost = dynamic_quantize("dq", input_info("input"), attrs, 3, 8192);
+
+    ASSERT_EQ(dq_prim, dq_prim_eq);
+    ASSERT_NE(dq_prim, dq_prim_innermost);
+    ASSERT_NE(dq_prim.hash(), dq_prim_innermost.hash());
 }
 
 TEST(primitive_comparison, reorder_weights) {

@@ -136,7 +136,7 @@ protected:
         jit.make("OUTPUT3_TYPE", "int");  // tokens_lens_per_expert
         jit.make("OUTPUT4_TYPE", "int");  // num_actual_used_experts
 
-        auto& config = desc->_config;
+        const auto& config = desc->_config;
         jit.make("NUM_EXPERTS_PER_TOKEN", config.top_k);
         jit.make("SET_TOKEN_LEN", 1);
         jit.make("OPTIONAL_SHAPE_INFO_ARG", "");
@@ -975,7 +975,7 @@ public:
 
         // Remove this limitation once micro_gemm kernels has supported i8/u8 weights.
         const auto& weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).data_type;
-        if (!(weight_dt == data_types::u4 || weight_dt == data_types::i4) && use_micro_gemm_prefill) {
+        if (weight_dt != data_types::u4 && weight_dt != data_types::i4 && use_micro_gemm_prefill) {
             use_micro_gemm_prefill = false;
         }
 
@@ -1105,12 +1105,13 @@ public:
                         }
                     }
                     // weight shape: [ic, oc], type: u4/i8
-                    int64_t wei_offset = j * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc, moe_fusion_wei_addr.weight[i]->get_layout());
+                    int64_t wei_offset =
+                        j * get_bytes_count(static_cast<int64_t>(dnnl_weights[i].ic) * dnnl_weights[i].oc, moe_fusion_wei_addr.weight[i]->get_layout());
                     dnnl_weights[i].weight =
                         convert2dnnl(moe_fusion_wei_addr.weight[i], {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ba, wei_offset);
 
                     // scale shape: [ic / ic_group_size, oc], type: f16
-                    int64_t scale_offset = j * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size,
+                    int64_t scale_offset = j * get_bytes_count(static_cast<int64_t>(dnnl_weights[i].ic) * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size,
                                                                moe_fusion_wei_addr.scale[i]->get_layout());
                     dnnl_weights[i].scale = convert2dnnl(moe_fusion_wei_addr.scale[i],
                                                          {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},
@@ -1120,7 +1121,7 @@ public:
                     // zp shape: [ic / ic_group_size, oc], type: u4/i8
                     // Skip ZP memory allocation for symmetric quantization (has_zp=false) to save memory
                     if (cur_moe->_config.has_zp) {
-                        int64_t zp_offset = j * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size,
+                        int64_t zp_offset = j * get_bytes_count(static_cast<int64_t>(dnnl_weights[i].ic) * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size,
                                                                 moe_fusion_wei_addr.zp[i]->get_layout());
                         dnnl_weights[i].zp = convert2dnnl(moe_fusion_wei_addr.zp[i],
                                                           {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},
@@ -1272,7 +1273,16 @@ public:
         ib >> use_gpu_mask_gen_prefill;
         ib >> use_grouped_gemm_prefill;
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
-        init(impl_params->typed_desc<moe_3gemm_fused_compressed>());
+        auto cur_moe = impl_params->typed_desc<moe_3gemm_fused_compressed>();
+        init(cur_moe);
+        if (cur_moe->_otd.lru_expert_num > 0) {
+            _weight_provider = std::make_shared<OffloadExpertWeightProvider>(cur_moe->_otd.lru_expert_num,
+                                                                             cur_moe->_config,
+                                                                             cur_moe->_otd.weight_bin_offsets,
+                                                                             cur_moe->_otd.weights_path);
+        } else {
+            _weight_provider = std::make_shared<ResidentExpertWeightProvider>();
+        }
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
@@ -1534,7 +1544,7 @@ public:
             on_before_batched_gemv(stream, instance, scratch, topk_count, needs_fallback);
             if (needs_fallback) {
                 // Cannot fit all experts simultaneously → fall back to per-expert onednn loop
-                instance.output_memory_ptr(0)->fill(stream, false);
+                instance.output_memory_ptr(0)->fill(stream, 0u);
                 return exec_prefill_onednn(events, stream, instance, scratch);
             }
         }
@@ -1651,7 +1661,7 @@ public:
         _hidden_size = static_cast<int>(cur_moe->_config.hidden_size);
         _intermediate_size = static_cast<int>(cur_moe->_config.inter_size);
 
-        auto rtp = static_cast<MoE3GemmRuntimeParams*>(m_rt_params.get());
+        auto* rtp = static_cast<MoE3GemmRuntimeParams*>(m_rt_params.get());
         const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
 
         event::ptr ret_event;
@@ -1665,7 +1675,7 @@ public:
             bool needs_fallback = false;
             on_before_prefill(stream, instance, scratch, batch_mem_ptr, topk_count, needs_fallback);
             if (needs_fallback) {
-                instance.output_memory_ptr(0)->fill(stream, false);
+                instance.output_memory_ptr(0)->fill(stream, 0u);
                 return exec_prefill_onednn(events, stream, instance, scratch);
             }
         }
@@ -2112,9 +2122,8 @@ public:
             int num_k_groups = K / group_size;
             if (num_k_groups > 1) {
                 return dnnl::memory::desc({E, num_k_groups, N}, dt, dnnl::memory::format_tag::abc);
-            } else {
-                return dnnl::memory::desc({E, N}, dt, dnnl::memory::format_tag::ab);
             }
+            return dnnl::memory::desc({E, N}, dt, dnnl::memory::format_tag::ab);
         };
 
         auto gk = std::make_shared<grouped_onednn_kernel>();
@@ -2193,7 +2202,7 @@ public:
             if (expert_no >= expert_mask.pred_flag.size()) {
                 OPENVINO_THROW("expert_no=", expert_no, " is out of bounds");
             }
-            auto can_skip_subgraph = !expert_mask.pred_flag[expert_no];
+            auto can_skip_subgraph = expert_mask.pred_flag[expert_no] == 0;
             if (can_skip_subgraph) {
                 continue;
             }
@@ -2574,14 +2583,14 @@ public:
         // fallback to exec_prefill_onednn (when unique_experts > lru slots)
         // also accumulates via index_add.
         if (!use_micro_gemm_prefill && should_pre_zero_output()) {
-            final_hidden_states_mem_ptr->fill(stream, false);
+            final_hidden_states_mem_ptr->fill(stream, 0u);
         }
         // GPU mask gen is only supported for micro_gemm; both grouped_gemm and onednn loop
         // always use CPU mask gen and therefore always need topk to be ready first.
         const bool use_gpu_mask_gen = use_micro_gemm_prefill && use_gpu_mask_gen_prefill;
         if (!use_gpu_mask_gen) {
             // Wait for input events (topk produced upstream by MoERouterFused)
-            for (auto& ev : events) {
+            for (const auto& ev : events) {
                 if (ev) {
                     ev->wait();
                 }

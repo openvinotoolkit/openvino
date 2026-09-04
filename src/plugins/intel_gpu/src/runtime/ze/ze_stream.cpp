@@ -240,6 +240,13 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
     m_cmd_list = ze_command_list_resource(cmd_list);
 
     bool use_counter_based_events = m_queue_type == QueueTypes::in_order && info.supports_counter_based_events;
+
+    // Disable counter based events on Xe3, Xe3p, and unknown architectures due to performance issues
+    // To be removed once GSD-13050 is fixed
+    if (info.arch == gpu_arch::xe3 || info.arch == gpu_arch::xe3p || info.arch == gpu_arch::unknown) {
+        use_counter_based_events = false;
+    }
+
     m_user_ev_factory = std::make_shared<ze_event_factory>(engine, config.get_enable_profiling());
     if (use_counter_based_events) {
         m_ev_factory = std::make_shared<ze_counter_based_event_factory>(engine, config.get_enable_profiling());

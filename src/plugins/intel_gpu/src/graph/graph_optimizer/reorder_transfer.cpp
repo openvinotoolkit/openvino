@@ -12,7 +12,7 @@ using namespace cldnn;
 void reorder_transfer::run(program& p) {
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
-        auto& node = *itr++;
+        const auto& node = *itr++;
 
         if (!node->is_type<reorder>())
             continue;
@@ -48,7 +48,7 @@ void reorder_transfer::run(program& p) {
         }
 
         if (new_prev != nullptr) {
-            auto& new_next = new_prev->get_users().front();
+            const auto& new_next = new_prev->get_users().front();
             p.move_node(reorder_node, *new_prev, *new_next);
             reorder_node.recalc_output_layout(false);
         }

@@ -126,7 +126,8 @@ jobs:
             -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/hf_transformers.txt \
             -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/easyocr.txt \
             -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/gfpgan.txt \
-            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/tpsmm.txt
+            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/tpsmm.txt \
+            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/lightglue.txt
 
       - name: PyTorch Models Tests Not Timm or Torchvision
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope2' }}

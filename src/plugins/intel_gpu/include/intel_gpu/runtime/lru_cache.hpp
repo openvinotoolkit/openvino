@@ -37,11 +37,10 @@ public:
      * @return std::pair<Key, Value>
      */
     std::pair<Key, Value> get_lru_element() const {
-        if (_lru_data_list.size()) {
+        if (!_lru_data_list.empty()) {
             return _lru_data_list.back();
-        } else {
-            return std::make_pair(Key(), Value());
         }
+        return std::make_pair(Key(), Value());
     }
 
     /**
@@ -94,6 +93,23 @@ public:
         }
         touch_data(iter->second);
         return _lru_data_list.front().second;
+    }
+
+    /**
+     * @brief Remove the entry associated with a key
+     *
+     * @param key
+     * @return true if any value associated with the key was existed and removed
+     * @return false otherwise
+     */
+    bool erase(const Key& key) {
+        auto iter = _key_map.find(key);
+        if (iter == _key_map.end())
+            return false;
+
+        _lru_data_list.erase(iter->second);
+        _key_map.erase(iter);
+        return true;
     }
 
     /**
@@ -205,6 +221,11 @@ public:
     Value get(const Key& key) {
         std::lock_guard<std::mutex> lock(_mutex);
         return parent::get(key);
+    }
+
+    bool erase(const Key& key) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        return parent::erase(key);
     }
 
     void set_remove_item_callback(FuncRemoveItem callback) {

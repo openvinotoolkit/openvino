@@ -5,7 +5,6 @@
 #include <optional>
 #include <vector>
 
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/dnnl/dnnl_matmul_primitive.hpp"
 #include "nodes/executors/executor.hpp"
@@ -38,13 +37,6 @@ static const LayoutConfig dnnlMatMulLayoutConfig{LayoutType::ncsp,
                                                  LayoutType::ncsp,
                                                  LayoutType::ncsp,
                                                  LayoutType::ncsp};
-
-template <dnnl::impl::cpu::x64::cpu_isa_t ISA>
-struct Require {
-    bool operator()() {
-        return dnnl::impl::cpu::x64::mayiuse(ISA);
-    }
-};
 
 // clang-format off
 static const TypeMapping dnnlMatMulTypeMapping {

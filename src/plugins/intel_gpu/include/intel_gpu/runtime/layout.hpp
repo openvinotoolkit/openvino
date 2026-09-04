@@ -191,9 +191,9 @@ struct padding {
     friend bool operator<(const padding& lhs, const padding& rhs) {
         // Compare only actual padding size not _dynamic_dims_mask
         if (lhs._lower_size < rhs._lower_size) return true;
-        else if (lhs._lower_size > rhs._lower_size) return false;
-        if (lhs._upper_size < rhs._upper_size) return true;
-        return false;
+        if (lhs._lower_size > rhs._lower_size)
+            return false;
+        return lhs._upper_size < rhs._upper_size;
     }
 
     static padding max(padding const& lhs, padding const& rhs, float filling_value = 0.0f) {
@@ -270,9 +270,7 @@ struct layout {
 
     layout()
         : data_type(cldnn::data_types::dynamic),
-          format(cldnn::format::any),
-          data_padding(padding()),
-          size(ov::PartialShape()) {}
+          format(cldnn::format::any) {}
 
     layout& operator=(const layout& other) {
         if (this == &other)
@@ -342,9 +340,8 @@ struct layout {
             auto desc_size = format.traits().desc_size;
             OPENVINO_ASSERT(desc_size > 0, "[GPU] Invalid layout descriptor size: ", desc_size);
             return desc_size > bytes_of_layout ? desc_size : bytes_of_layout;
-        } else {
-            return (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3;
         }
+        return (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3;
     }
 
     const cldnn::format& get_format() const;
@@ -432,7 +429,7 @@ struct layout {
         }
 
         if (format == format::custom) {
-            for (auto& bs : format.traits().block_sizes) {
+            for (const auto& bs : format.traits().block_sizes) {
                 seed = hash_combine(seed, bs.first);
                 seed = hash_combine(seed, bs.second);
             }

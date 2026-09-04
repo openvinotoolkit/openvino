@@ -330,9 +330,12 @@ membuf make_oversized_data_blob(const layout& output_layout, size_t malicious_da
     ob << weightless_caching;
 
     // Mirror the reader's alignment padding so stream offsets stay in sync.
-    if (!ob.is_encrypted() && !ob.is_offset_sub_buffer_aligned()) {
-        std::vector<uint8_t> pad(ob.get_bytes_to_sub_buffer_boundary(), 0);
-        ob << make_data(pad.data(), pad.size());
+    if (get_test_engine().can_use_host_usm_zero_copy() && !ob.is_encrypted()) {
+        if (const auto pad = ov::util::align_padding_size(get_test_engine().get_device_info().sub_buffer_base_alignment.value_or(0), ob.get_offset());
+            pad > 0) {
+            std::vector<uint8_t> zeros(pad, 0);
+            ob << make_data(zeros.data(), zeros.size());
+        }
     }
 
     // Actually provide malicious_data_size bytes of payload so the vulnerable

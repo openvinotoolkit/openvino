@@ -24,6 +24,14 @@ public:
         return _finish - _start;
     }
 
+    [[nodiscard]] std::chrono::high_resolution_clock::time_point start() const {
+        return _start;
+    }
+
+    [[nodiscard]] std::chrono::high_resolution_clock::time_point finish() const {
+        return _finish;
+    }
+
     [[nodiscard]] uint64_t avg() const {
         return (num == 0) ? 0 : total_duration / num;
     }

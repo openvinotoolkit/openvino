@@ -109,11 +109,13 @@ jobs:
       build-debian-packages: false
       build-rpm-packages: false
       build-additional-python-packages: true
+      build-samples: true
       target-branch: ${{ inputs.target-branch }}
       cmake-options: >-
             -G 'Ninja Multi-Config'
             -DENABLE_NCC_STYLE=OFF
             -DENABLE_TESTS=ON
+            -DENABLE_OV_GGUF_FRONTEND=ON
             -DENABLE_STRICT_DEPENDENCIES=OFF
             -DENABLE_SYSTEM_OPENCL=ON
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON

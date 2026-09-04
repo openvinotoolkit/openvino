@@ -1,15 +1,34 @@
 /**
  * Unit tests for the action's main functionality, src/cleanupImpl.js
  */
-const core = require('@actions/core');
-const path = require('path');
-const os = require('os');
-const fs = require('fs');
-const cleanupImpl = require('../src/cleanupImpl');
+import {
+  jest,
+  describe,
+  it,
+  beforeEach,
+  afterEach,
+  expect
+} from '@jest/globals';
+import path from 'path';
+import os from 'os';
+import fs from 'fs';
 
 // Mock the GitHub Actions core library
-const getInputMock = jest.spyOn(core, 'getInput').mockImplementation();
-const setFailedMock = jest.spyOn(core, 'setFailed').mockImplementation();
+jest.unstable_mockModule('@actions/core', () => ({
+  getInput: jest.fn(),
+  setOutput: jest.fn(),
+  setFailed: jest.fn(),
+  debug: jest.fn(),
+  info: jest.fn(),
+  warning: jest.fn(),
+  error: jest.fn()
+}));
+
+const core = await import('@actions/core');
+const cleanupImpl = await import('../src/cleanupImpl.js');
+
+const getInputMock = core.getInput;
+const setFailedMock = core.setFailed;
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'test-cleanup-'));
 const cacheRemotePath = path.join(
@@ -21,9 +40,6 @@ const cacheRemotePath = path.join(
 
 const cacheFiles = ['cache_1.cache', 'cache_2.cache', 'cache_3.cache'];
 const minAccessTime = 7 * 24 * 60 * 60 * 1000; // 1 week
-
-// Mock the action's main function
-const runMock = jest.spyOn(cleanupImpl, 'cleanUp');
 
 describe('cleanup', () => {
   beforeEach(() => {
@@ -70,7 +86,6 @@ describe('cleanup', () => {
 
     await cleanupImpl.cleanUp();
 
-    expect(runMock).toHaveReturned();
     // cache2 and cache3 should be removed
     for (const cache of cacheFiles.slice(1, 2)) {
       expect(fs.existsSync(path.join(cacheRemotePath, cache))).toBe(false);
@@ -96,7 +111,6 @@ describe('cleanup', () => {
 
     await cleanupImpl.cleanUp();
 
-    expect(runMock).toHaveReturned();
     // cache2 and cache3 should be removed
     for (const cache of cacheFiles.slice(1, 2)) {
       expect(fs.existsSync(path.join(cacheRemotePath, cache))).toBe(false);
@@ -123,8 +137,6 @@ describe('cleanup', () => {
     });
 
     await cleanupImpl.cleanUp();
-
-    expect(runMock).toHaveReturned();
 
     for (const cache of cacheFiles) {
       expect(fs.existsSync(path.join(cacheRemotePath, cache))).toBe(true);
@@ -161,8 +173,6 @@ describe('cleanup', () => {
 
     await cleanupImpl.cleanUp();
 
-    expect(runMock).toHaveReturned();
-
     for (const cache of cacheFiles) {
       expect(fs.existsSync(path.join(cacheRemotePath, cache))).toBe(true);
     }
@@ -198,8 +208,6 @@ describe('cleanup', () => {
 
     await cleanupImpl.cleanUp();
 
-    expect(runMock).toHaveReturned();
-
     // cache2 and cache3 should be removed
     for (const cache of cacheFiles.slice(1, 2)) {
       expect(fs.existsSync(path.join(cacheRemotePath, cache))).toBe(false);
@@ -229,7 +237,6 @@ describe('cleanup', () => {
 
     await cleanupImpl.cleanUp();
 
-    expect(runMock).toHaveReturned();
     expect(setFailedMock).not.toHaveBeenCalled();
 
     fs.chmodSync(cacheRemotePath, '777');
@@ -255,7 +262,6 @@ describe('cleanup', () => {
 
     await cleanupImpl.cleanUp();
 
-    expect(runMock).toHaveReturned();
     expect(setFailedMock).not.toHaveBeenCalled();
   });
 
@@ -278,7 +284,6 @@ describe('cleanup', () => {
 
     await cleanupImpl.cleanUp();
 
-    expect(runMock).toHaveReturned();
     // cache2 and cache3 should be removed
     for (const cache of cacheFiles.slice(1, 2)) {
       expect(fs.existsSync(path.join(cacheRemotePath, cache))).toBe(false);
@@ -309,7 +314,6 @@ describe('cleanup', () => {
 
     await cleanupImpl.cleanUp();
 
-    expect(runMock).toHaveReturned();
     // cache2 and cache3 should be removed
     for (const cache of cacheFiles.slice(1, 2)) {
       expect(fs.existsSync(path.join(cacheRemotePath, cache))).toBe(false);
@@ -338,7 +342,6 @@ describe('cleanup', () => {
 
     await cleanupImpl.cleanUp();
 
-    expect(runMock).toHaveReturned();
     // cache2 and cache3 should be removed
     for (const cache of cacheFiles) {
       expect(fs.existsSync(path.join(cacheRemotePath, cache))).toBe(true);

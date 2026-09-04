@@ -47,6 +47,15 @@ jobs:
         with:
           sparse-checkout: '.github/scripts/workflow_rerun'
 
+      - name: Checkout CI Doctor MQ patterns
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        continue-on-error: true
+        with:
+          ref: memory/ci-doctor-mq
+          sparse-checkout: 'mq/patterns'
+          path: ci-doctor-patterns
+
       - name: Setup Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -74,7 +83,8 @@ jobs:
           python3 ${{ github.workspace }}/.github/scripts/workflow_rerun/rerunner.py \
           --run-id ${{ github.event.workflow_run.id }} \
           --rerunner-run-id ${{ github.run_id }} \
-          --repository-name ${GITHUB_REPOSITORY}
+          --repository-name ${GITHUB_REPOSITORY} \
+          --patterns-dir ${{ github.workspace }}/ci-doctor-patterns/mq/patterns
 
   rerunner_tests:
     name: Rerunner Tests
@@ -87,6 +97,16 @@ jobs:
         with:
           sparse-checkout: '.github/scripts/workflow_rerun'
           lfs: false
+
+      - name: Checkout CI Doctor MQ patterns
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        continue-on-error: true
+        with:
+          repository: openvinotoolkit/openvino
+          ref: memory/ci-doctor-mq
+          sparse-checkout: 'mq/patterns'
+          path: ci-doctor-patterns
 
       - name: Setup Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -117,3 +137,6 @@ jobs:
           run_id=$(python3 -c "from github import Github, Auth; import os; from datetime import datetime, timedelta, timezone; github=Github(auth=Auth.Token(token=os.environ.get('GITHUB_TOKEN'))); repo = github.get_repo('${GITHUB_REPOSITORY}'); cutoff_date=(datetime.now(timezone.utc)-timedelta(days=14)).date().isoformat(); runs=repo.get_workflow_runs(status='success', created=f'>={cutoff_date}'); print(runs[0].id)")
 
           python3 rerunner.py --repository-name ${GITHUB_REPOSITORY} --run-id $run_id --rerunner-run-id ${{ github.run_id }} --dry-run
+
+          # Same as above, but additionally exercising the CI Doctor MQ patterns integration
+          python3 rerunner.py --repository-name ${GITHUB_REPOSITORY} --run-id $run_id --rerunner-run-id ${{ github.run_id }} --patterns-dir ${{ github.workspace }}/ci-doctor-patterns/mq/patterns --dry-run

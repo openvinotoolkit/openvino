@@ -15,6 +15,24 @@ RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
 ENV DEBIAN_FRONTEND="noninteractive" \
     TZ="Europe/London"
 
+# Install RISC-V native debian packages
+RUN dpkg --add-architecture riscv64 && \
+    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy main restricted > sources.list && \
+    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-updates main restricted >> sources.list && \
+    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy universe >> sources.list && \
+    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-updates universe >> sources.list && \
+    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy multiverse >> sources.list && \
+    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-updates multiverse >> sources.list && \
+    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-backports main restricted universe multiverse >> sources.list && \
+    echo deb [arch=amd64] http://security.ubuntu.com/ubuntu/ jammy-security main restricted >> sources.list && \
+    echo deb [arch=amd64] http://security.ubuntu.com/ubuntu/ jammy-security universe >> sources.list && \
+    echo deb [arch=amd64] http://security.ubuntu.com/ubuntu/ jammy-security multiverse >> sources.list && \
+    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy main >> sources.list && \
+    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy universe >> sources.list && \
+    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-updates main >> sources.list && \
+    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-security main >> sources.list && \
+    mv sources.list /etc/apt/sources.list
+
 RUN apt-get update && \
     apt-get install software-properties-common wget && \
     add-apt-repository --yes --no-update ppa:git-core/ppa && \
@@ -25,53 +43,48 @@ RUN apt-get update && \
     # install compilers to build OpenVINO for RISC-V 64
     apt-get install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu binutils-riscv64-linux-gnu && \
     apt-get install \
-        curl \
-        git \
-        cmake \
-        ccache \
-        ninja-build \
-        fdupes \
-        patchelf \
-        ca-certificates \
-        gpg-agent \
-        tzdata \
-        # parallel gzip
-        pigz \
-        # Python \
-        python3-dev \
-        python3-pip \
-        python3-venv \
-        python3-distutils \
-        # Compilers
-        gcc \
-        g++ \
-        # For clang-tidy validation
-        clang-format-18 \
-        clang-tidy-18 \
-        libomp-18-dev \
-        && \
+    curl \
+    git \
+    cmake \
+    ccache \
+    ninja-build \
+    fdupes \
+    patchelf \
+    ca-certificates \
+    gpg-agent \
+    tzdata \
+    procps \
+    # parallel gzip
+    pigz \
+    # Python \
+    python3-dev \
+    python3-pip \
+    python3-venv \
+    python3-distutils \
+    # Compilers
+    gcc \
+    g++ \
+    # For clang-tidy validation
+    clang-format-18 \
+    clang-tidy-18 \
+    libomp-18-dev && \
+    # Pin ncurses/tinfo to the jammy release-pocket version for both arches. The
+    # amd64 and riscv64 (ports) mirrors update these multiarch "same" packages on
+    # different schedules, so an updated version is often available for only one
+    # arch, causing a "Breaks" version conflict. The release-pocket version is the
+    # one version guaranteed to exist on both mirrors permanently.
+    NCURSES_VERSION=$(apt-cache madison libtinfo6 | awk -F'|' '$3 ~ / jammy\/main / {gsub(/ /, "", $2); print $2; exit}') && \
+    apt-get install --allow-downgrades \
+    libncurses6=${NCURSES_VERSION} \
+    libncursesw6=${NCURSES_VERSION} \
+    libtinfo6=${NCURSES_VERSION} \
+    libncurses6:riscv64=${NCURSES_VERSION} \
+    libncursesw6:riscv64=${NCURSES_VERSION} \
+    libtinfo6:riscv64=${NCURSES_VERSION} && \
+    apt-get install \
+    libpython3-dev:riscv64 && \
+    apt-get clean && \
     rm -rf /var/lib/apt/lists/*
-
-# Install RISC-V native debian packages
-RUN echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy main restricted > riscv64-sources.list && \
-    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-updates main restricted >> riscv64-sources.list && \
-    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy universe >> riscv64-sources.list && \
-    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-updates universe >> riscv64-sources.list && \
-    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy multiverse >> riscv64-sources.list && \
-    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-updates multiverse >> riscv64-sources.list && \
-    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-backports main restricted universe multiverse >> riscv64-sources.list && \
-    echo deb [arch=amd64] http://security.ubuntu.com/ubuntu/ jammy-security main restricted >> riscv64-sources.list && \
-    echo deb [arch=amd64] http://security.ubuntu.com/ubuntu/ jammy-security universe >> riscv64-sources.list && \
-    echo deb [arch=amd64] http://security.ubuntu.com/ubuntu/ jammy-security multiverse >> riscv64-sources.list && \
-    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy main >> riscv64-sources.list && \
-    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy universe >> riscv64-sources.list && \
-    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-updates main >> riscv64-sources.list && \
-    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-security main >> riscv64-sources.list && \
-    mv riscv64-sources.list /etc/apt/sources.list.d/
-
-RUN dpkg --add-architecture riscv64 && \
-    apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/riscv64-sources.list && \
-    apt-get install -y --no-install-recommends libpython3-dev:riscv64
 
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
@@ -93,4 +106,3 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
 
 # Install newer ninja (apt ships 1.10.1 on 22.04 which lacks --quiet)
 RUN python3 -m pip install --no-cache-dir cmake==3.26.4 ninja==1.13.0
-

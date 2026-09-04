@@ -12,6 +12,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <type_traits>
 #include <typeindex>
 #include <typeinfo>
 #include <unordered_map>

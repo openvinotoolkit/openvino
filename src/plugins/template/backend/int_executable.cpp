@@ -42,11 +42,10 @@ public:
     }
 };
 
-ov::runtime::interpreter::INTExecutable::INTExecutable(const std::shared_ptr<ov::Model>& model) : m_is_compiled{true} {
-    m_model = model->clone();
-    for (auto node : m_model->get_ordered_ops()) {
-        m_nodes.push_back(node);
-    }
+ov::runtime::interpreter::INTExecutable::INTExecutable(const std::shared_ptr<ov::Model>& model)
+    : m_is_compiled{true},
+      m_model{model->clone()},
+      m_nodes{m_model->get_ordered_ops()} {
     set_parameters_and_results(*m_model);
 }
 
@@ -195,9 +194,7 @@ std::vector<ov::Tensor> ov::runtime::interpreter::INTExecutable::create_input_te
     std::vector<ov::Tensor> tensors;
     std::shared_ptr<op::v0::Parameter> parameter = get_parameter(input_index);
     for (size_t i = 0; i < pipeline_depth; i++) {
-        ov::Tensor tensor;
-        auto t = ov::Tensor(parameter->get_element_type(), parameter->get_shape());
-        tensors.push_back(t);
+        tensors.emplace_back(parameter->get_element_type(), parameter->get_shape());
     }
     return tensors;
 }
@@ -207,9 +204,7 @@ std::vector<ov::Tensor> ov::runtime::interpreter::INTExecutable::create_output_t
     std::vector<ov::Tensor> tensors;
     std::shared_ptr<op::v0::Result> result = get_result(output_index);
     for (size_t i = 0; i < pipeline_depth; i++) {
-        ov::Tensor tensor;
-        auto t = ov::Tensor(result->get_element_type(), result->get_shape());
-        tensors.push_back(t);
+        tensors.emplace_back(result->get_element_type(), result->get_shape());
     }
     return tensors;
 }

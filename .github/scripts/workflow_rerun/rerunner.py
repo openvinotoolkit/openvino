@@ -15,10 +15,11 @@ from requests.packages.urllib3.util.retry import Retry
 
 from workflow_rerun.argument_parser import get_arguments
 from workflow_rerun.constants import GITHUB_TOKEN, LOGGER
-from workflow_rerun.log_analyzer import LogAnalyzer
+from workflow_rerun.log_analyzer import LogAnalyzer, NO_CATEGORY
+from typing import Optional
 from workflow_rerun.log_collector import collect_logs_for_run
 
-def record_rerun_to_db(repository_full_name: str, run_id: int, ticket_number: int, rerunner_run_id: int, error_text: str):
+def record_rerun_to_db(repository_full_name: str, run_id: int, ticket_number: int, rerunner_run_id: int, error_text: str, category: str):
     """Record the rerun event to the PostgreSQL database."""
     db_username = os.environ.get('PGUSER')
     db_password = os.environ.get('PGPASSWORD')
@@ -35,16 +36,20 @@ def record_rerun_to_db(repository_full_name: str, run_id: int, ticket_number: in
     try:
         cursor = conn.cursor()
 
+        # Ensure the category column exists so pre-existing deployments keep working.
+        cursor.execute(sql.SQL("ALTER TABLE rerunner_stats ADD COLUMN IF NOT EXISTS category TEXT"))
+
         insert_query = sql.SQL("""
-            INSERT INTO rerunner_stats (repository_full_name, run_id, ticket_number, rerun_at, rerunner_run_id, error_text)
-            VALUES (%s, %s, %s, NOW() AT TIME ZONE 'UTC', %s, %s)
+            INSERT INTO rerunner_stats (repository_full_name, run_id, ticket_number, rerun_at, rerunner_run_id, error_text, category)
+            VALUES (%s, %s, %s, NOW() AT TIME ZONE 'UTC', %s, %s, %s)
         """)
 
-        cursor.execute(insert_query, (repository_full_name, run_id, ticket_number, rerunner_run_id, error_text))
+        cursor.execute(insert_query, (repository_full_name, run_id, ticket_number, rerunner_run_id, error_text, category))
         conn.commit()
 
         LOGGER.info(f'Successfully recorded rerun to database: repo={repository_full_name}, '
-                    f'run_id={run_id}, ticket={ticket_number}, rerunner_run_id={rerunner_run_id}, error_text={error_text}')
+                    f'run_id={run_id}, ticket={ticket_number}, rerunner_run_id={rerunner_run_id}, '
+                    f'error_text={error_text}, category={category}')
 
     except psycopg2.Error as e:
         LOGGER.error(f'Failed to record rerun to database: {e}')
@@ -68,7 +73,7 @@ def rerun_failed_jobs(repository_name: str, run_id: int, session: requests.Sessi
     LOGGER.info(f'RUN RETRIGGERED SUCCESSFULLY: {run.html_url}')
 
 def analyze_and_rerun(run, repository_name: str, run_id: int, rerunner_run_id: int,
-                      errors_file: Path, is_dry_run: bool, session: requests.Session):
+                      errors_file: Path, patterns_dir: Optional[Path], is_dry_run: bool, session: requests.Session):
     with tempfile.TemporaryDirectory() as temp_dir:
         logs_dir = Path(temp_dir)
         collect_logs_for_run(
@@ -79,7 +84,8 @@ def analyze_and_rerun(run, repository_name: str, run_id: int, rerunner_run_id: i
 
         log_analyzer = LogAnalyzer(
             path_to_logs=logs_dir,
-            path_to_errors_file=errors_file
+            path_to_errors_file=errors_file,
+            patterns_dir=patterns_dir
         )
         log_analyzer.analyze()
 
@@ -95,7 +101,8 @@ def analyze_and_rerun(run, repository_name: str, run_id: int, rerunner_run_id: i
                 record_rerun_to_db(repository_name, run_id,
                                    log_analyzer.found_error_ticket,
                                    rerunner_run_id,
-                                   log_analyzer.matched_error_text)
+                                   log_analyzer.matched_error_text,
+                                   log_analyzer.matched_category or NO_CATEGORY)
             else:
                 LOGGER.error(f'Cannot record to database: missing ticket_number or error_text')
                 raise ValueError('Missing ticket_number or error_text for database recording.')
@@ -108,6 +115,7 @@ if __name__ == '__main__':
     rerunner_run_id = args.rerunner_run_id
     repository_name = args.repository_name
     errors_file = args.errors_to_look_for_file
+    patterns_dir = args.patterns_dir
     is_dry_run = args.dry_run
     if is_dry_run:
         LOGGER.info('RUNNING IN DRY RUN MODE. IF ERROR WILL BE FOUND, WILL NOT RETRIGGER')
@@ -133,4 +141,4 @@ if __name__ == '__main__':
         LOGGER.info(f'THERE ARE {run.run_attempt} ATTEMPTS ALREADY. NOT CHECKING LOGS AND NOT RETRIGGERING. EXITING')
         sys.exit(0)
 
-    analyze_and_rerun(run, repository_name, run_id, rerunner_run_id, errors_file, is_dry_run, session)
+    analyze_and_rerun(run, repository_name, run_id, rerunner_run_id, errors_file, patterns_dir, is_dry_run, session)

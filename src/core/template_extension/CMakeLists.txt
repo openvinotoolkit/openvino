@@ -20,9 +20,13 @@ endif()
 
 find_package(OpenVINO REQUIRED PATHS "${OpenVINO_DIR_PY}")
 
-set(SRC identity.cpp ov_extension.cpp)
+add_library(${TARGET_NAME} MODULE)
 
-add_library(${TARGET_NAME} MODULE ${SRC})
+target_sources(${TARGET_NAME}
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/identity.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/identity.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/ov_extension.cpp)
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
 
@@ -33,5 +37,4 @@ install(TARGETS ${TARGET_NAME}
     LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 
 # Enable code style check
-file(GLOB_RECURSE template_extension_src "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
-ov_add_clang_format_target(openvino_template_extension_clang FOR_SOURCES ${template_extension_src})
+ov_add_clang_format_target(openvino_template_extension_clang FOR_TARGETS ${TARGET_NAME})

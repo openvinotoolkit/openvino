@@ -160,15 +160,14 @@ std::vector<ov::PartialShape> shape_infer(const SDPA* op,
     }
 
     OPENVINO_ASSERT(op != nullptr, "op should not be nullptr for shape_infer.");
-    auto op_v13 = ov::as_type<const ov::op::v13::ScaledDotProductAttention>(op);
+    const auto* op_v13 = ov::as_type<const ov::op::v13::ScaledDotProductAttention>(op);
     OPENVINO_ASSERT(op_v13 != nullptr, "ov::op::v13::ScaledDotProductAttention*>(op) should not be nullptr.");
     auto out_shapes = ov::op::v13::shape_infer(op_v13, transposed_input_shapes);
 
-    if (order_out.size() > 0) {
+    if (!order_out.empty()) {
         return { transpose_pshape(out_shapes[0], order_out) };
-    } else {
-        return { out_shapes[0] };
     }
+    return {out_shapes[0]};
 }
 
 }  // namespace ov::intel_gpu::op
