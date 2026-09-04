@@ -6,6 +6,7 @@
 
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "ov_ops/moe_compressed.hpp"
 #include "plugin/ops/moe_offload_constant.hpp"
 
@@ -19,6 +20,7 @@ using namespace ov::intel_gpu;
 struct MoETestGraph {
     std::shared_ptr<ov::op::internal::MOECompressed> moe_node;
     std::vector<std::shared_ptr<ov::op::v0::Constant>> constants;  // indices 3..21
+    ov::ParameterVector parameters;
 
     static MoETestGraph build(size_t num_experts = 4, size_t hidden_size = 128, size_t inter_size = 256, size_t group_size = 128) {
         MoETestGraph g;
@@ -42,14 +44,17 @@ struct MoETestGraph {
 
         // 0: hidden_states [1, 1, hidden_size]
         auto hidden = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, hidden_size});
+        g.parameters.push_back(hidden);
         inputs.push_back(hidden->output(0));
 
         // 1: routing_weights [1, 1, top_k]
         auto routing = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, top_k});
+        g.parameters.push_back(routing);
         inputs.push_back(routing->output(0));
 
         // 2: topk_indices [1, 1, top_k]
         auto topk_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1, 1, top_k});
+        g.parameters.push_back(topk_idx);
         inputs.push_back(topk_idx->output(0));
 
         // Helper to create a constant with given shape and type
@@ -89,7 +94,20 @@ struct MoETestGraph {
         g.moe_node = std::make_shared<ov::op::internal::MOECompressed>(inputs, config);
         return g;
     }
+
+    std::shared_ptr<ov::Model> to_model() const {
+        return std::make_shared<ov::Model>(ov::OutputVector{moe_node}, parameters);
+    }
 };
+
+static uint64_t sum_constant_bytes(const MoETestGraph& g, MoEConstantRole role) {
+    uint64_t bytes = 0;
+    for (const auto& constant : g.constants) {
+        if (get_moe_constant_role(constant) == role)
+            bytes += constant->get_byte_size();
+    }
+    return bytes;
+}
 
 // Test that routed expert constants (inputs 3-11) are classified as RoutedExpert
 TEST(moe_offload_constant, routed_expert_classification) {
@@ -147,4 +165,34 @@ TEST(moe_offload_constant, shared_expert_not_cropped_by_partial_upload) {
             << "Shared expert constant at input " << (i + 3)
             << " must NOT be classified as RoutedExpert (would be wrongly cropped by partial upload)";
     }
+}
+
+TEST(moe_offload_constant, auto_ratio_no_moe_model_resolves_zero) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 16});
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{input}, ov::ParameterVector{input});
+
+    EXPECT_EQ(resolve_auto_offload_ratio_for_budget(*model, 1), 0U);
+}
+
+TEST(moe_offload_constant, auto_ratio_all_moe_weights_fit_resolves_zero) {
+    auto g = MoETestGraph::build();
+
+    EXPECT_EQ(resolve_auto_offload_ratio_for_budget(*g.to_model(), uint64_t{1} << 40), 0U);
+}
+
+TEST(moe_offload_constant, auto_ratio_uses_routed_expert_bytes_for_resident_fraction) {
+    auto g = MoETestGraph::build();
+    const uint64_t routed_bytes = sum_constant_bytes(g, MoEConstantRole::RoutedExpert);
+    const uint64_t fixed_bytes = sum_constant_bytes(g, MoEConstantRole::SharedExpert);
+    const uint64_t budget = static_cast<uint64_t>((static_cast<double>(fixed_bytes) + 0.5 * static_cast<double>(routed_bytes)) / 0.85);
+
+    EXPECT_EQ(resolve_auto_offload_ratio_for_budget(*g.to_model(), budget), 50U);
+}
+
+TEST(moe_offload_constant, auto_ratio_counts_shared_expert_bytes_as_fixed_weights) {
+    auto g = MoETestGraph::build();
+    const uint64_t routed_bytes = sum_constant_bytes(g, MoEConstantRole::RoutedExpert);
+    const uint64_t budget = static_cast<uint64_t>(static_cast<double>(routed_bytes) / 0.85);
+
+    EXPECT_GT(resolve_auto_offload_ratio_for_budget(*g.to_model(), budget), 0U);
 }
