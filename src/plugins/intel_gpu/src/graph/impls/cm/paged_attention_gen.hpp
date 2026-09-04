@@ -301,7 +301,6 @@ public:
     // Reuse single-token's partition-size policy: spec windows are short relative
     // to past KV, so the large 256-token partition still amortises K/V loads well.
     static size_t get_partition_size(const bool has_xattention = false) {
-        std::cout << "has x attention ? " << has_xattention << std::endl;
         return PagedAttentionGeneratorSingleToken::get_partition_size(has_xattention);
     }
 };
