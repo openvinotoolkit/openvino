@@ -286,7 +286,9 @@ public:
     virtual void execute(Task task) = 0;
 };
 
-static std::mutex _streams_executor_mutex;
+// Defined in a baseline-compiled translation unit so cross-compiled ISA objects
+// do not instantiate the mutex at load time.
+extern std::mutex _streams_executor_mutex;
 
 }  // namespace threading
 }  // namespace ov

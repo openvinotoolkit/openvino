@@ -1792,6 +1792,7 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
 #ifdef __unix__
     rlimit limit;
     int64_t cur_vmem = -1;
+    int64_t host_alloc = 0;
     if (getrlimit(RLIMIT_AS, &limit) == 0) {
         cur_vmem = limit.rlim_cur;
     }
@@ -1807,14 +1808,15 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
                   return (lhs->get_output_layout().bytes_count() > rhs->get_output_layout().bytes_count());
               });
     auto& engine = get_engine();
-    int64_t host_alloc = 0;
     // just to prevent the memories from being freed during allocation
     std::unordered_set<memory::ptr> allocated_mem_ptrs;
     for (const auto& node : nodes_to_allocate) {
         auto out_size = node->get_output_layout().bytes_count();
         if (out_size > max_alloc_size && !get_config().get_enable_large_allocations()) {
             // to consider: if the base batch size is > 1, should we allow this single output allocation to host?
+#ifdef __unix__
             host_alloc += out_size;
+#endif
             continue;
         }
         #ifdef __unix__

@@ -58,6 +58,14 @@ target_link_libraries(${TARGET_NAME}
     PUBLIC $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.1>>:stdc++fs>
     $<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:c++fs>)
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR OV_COMPILER_IS_CLANG_CL)
+    # openvino links object files from openvino_core_obj together with static
+    # libraries that include openvino_core headers with dllimport attributes.
+    # MSVC link.exe and clang-cl's lld-link can warn about these known local
+    # imports while producing the final runtime DLL.
+    target_link_options(${TARGET_NAME} PRIVATE "/IGNORE:4217,4286")
+endif()
+
 if(BUILD_SHARED_LIBS)
     target_link_libraries(${TARGET_NAME} PRIVATE openvino::shutdown)
 endif()

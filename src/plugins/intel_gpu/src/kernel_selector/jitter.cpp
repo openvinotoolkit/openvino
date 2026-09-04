@@ -118,7 +118,7 @@ JitTerm fabs(const JitTerm& arg) {
     return jit_term;
 }
 
-JitTerm operator"" _jit(const char* str, size_t) {
+JitTerm operator""_jit(const char* str, size_t) {
     JitTerm jit_term{str};
     return jit_term;
 }

@@ -48,6 +48,15 @@ constexpr int TP_CPU_LIMIT = 32;
 
 namespace ov::intel_cpu {
 
+namespace {
+// Plugin-local baseline mutex. Keep this out of the shared threading header so
+// cross-compiled ISA objects do not instantiate it at load time.
+std::mutex& streams_executor_mutex() {
+    static std::mutex mutex;
+    return mutex;
+}
+}  // namespace
+
 namespace ThreadPreferenceConstants {
 
 [[maybe_unused]] constexpr int INT8_EFFICIENCY_THRESHOLD = 4;
@@ -1451,7 +1460,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
 
 void get_num_streams(const int streams, const std::shared_ptr<ov::Model>& model, Config& config) {
     {
-        std::lock_guard<std::mutex> lock{_streams_executor_mutex};
+        std::lock_guard<std::mutex> lock{streams_executor_mutex()};
         std::vector<std::vector<int>> proc_type_table = get_proc_type_table();
 
         generate_stream_info(streams, -1, model, config, proc_type_table);

@@ -20,6 +20,9 @@
 namespace ov {
 namespace threading {
 
+// Baseline definition for the shared streams executor mutex.
+std::mutex _streams_executor_mutex;
+
 IStreamsExecutor::~IStreamsExecutor() {}
 
 void IStreamsExecutor::Config::set_property(const std::string& key, const ov::Any& value) {
