@@ -213,6 +213,7 @@ public:
                                 multi_supported_configKeys.begin(), multi_supported_configKeys.end(), ov::intel_auto::enable_runtime_fallback.name()),
                                 multi_supported_configKeys.end());
         multi_supported_configKeys.erase(std::remove(
+                                multi_supported_configKeys.begin(), multi_supported_configKeys.end(), ov::intel_auto::compile_for_all.name()),
                                 multi_supported_configKeys.begin(), multi_supported_configKeys.end(), ov::intel_auto::devices_utilization_threshold.name()),
                                 multi_supported_configKeys.end());
         multi_supported_configKeys.erase(std::remove(
@@ -235,6 +236,9 @@ public:
                                 multi_supported_properties.end());
         multi_supported_properties.erase(std::remove(
                                 multi_supported_properties.begin(), multi_supported_properties.end(), ov::intel_auto::enable_runtime_fallback),
+                                multi_supported_properties.end());
+        multi_supported_properties.erase(std::remove(
+                                multi_supported_properties.begin(), multi_supported_properties.end(), ov::intel_auto::compile_for_all),
                                 multi_supported_properties.end());
         multi_supported_properties.erase(std::remove(multi_supported_properties.begin(),
                                                      multi_supported_properties.end(),
