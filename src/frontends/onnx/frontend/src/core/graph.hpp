@@ -41,6 +41,9 @@ public:
     const std::string& get_name() const {
         return m_model->get_graph().name();
     }
+    const std::string& get_producer_name() const {
+        return m_model->get_producer_name();
+    }
     const std::filesystem::path& model_dir() const {
         return m_model_dir;
     }

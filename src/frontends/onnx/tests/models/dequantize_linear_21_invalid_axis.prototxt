@@ -1,7 +1,7 @@
 ir_version: 3
-producer_name: "pytorch"
+producer_name: "OpenVINO ONNX Frontend"
 graph {
-  name: "test_dequantize_21_nncf_axis"
+  name: "test_dequantize_21_invalid_axis"
   input {
     name: "x"
     type {

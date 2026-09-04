@@ -127,6 +127,10 @@ public:
           m_input_info(input_info),
           m_output_info(output_info) {}
 
+    const std::string& get_producer_name() const override {
+        return m_parent->get_producer_name();
+    }
+
     size_t get_input_size() const override;
     size_t get_output_size() const override;
 

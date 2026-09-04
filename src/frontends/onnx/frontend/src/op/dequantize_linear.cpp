@@ -284,16 +284,18 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
         }
 
         for (int64_t i = 0; i < input_shape.rank().get_length(); ++i) {
-            const auto expected_dim =
-                i == candidate_axis ? input_shape[i].get_length() / block_size : input_shape[i].get_length();
-            if (scale_shape[i].get_length() != expected_dim) {
+            const int64_t expected_dim = i == candidate_axis
+                                             ? static_cast<int64_t>(input_shape[i].get_length() / block_size)
+                                             : static_cast<int64_t>(input_shape[i].get_length());
+            if (static_cast<int64_t>(scale_shape[i].get_length()) != expected_dim) {
                 return false;
             }
         }
         return true;
     };
 
-    if (!is_scale_compatible_with_axis(axis)) {
+    // NNCF models exported through PyTorch can declare axis 0 while serializing scales grouped over another axis.
+    if (node.get_producer_name() == "pytorch" && !is_scale_compatible_with_axis(axis)) {
         int64_t compatible_axis = -1;
         for (int64_t candidate_axis = 0; candidate_axis < input_shape.rank().get_length(); ++candidate_axis) {
             if (is_scale_compatible_with_axis(candidate_axis)) {
