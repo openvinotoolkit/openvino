@@ -107,7 +107,6 @@ jobs:
       volumes:
         - /mount:/mount
         - /home/runner/secrets/:/secrets:ro
-      options: -e SCCACHE_AZURE_BLOB_CONTAINER
     env:
       TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
@@ -115,12 +114,6 @@ jobs:
       BUILD_TYPE: Release
       INSTALL_DIR: android_package
       INSTALL_TEST_DIR: android_tests
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
-      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
-      SCCACHE_SERVER_PORT: 35555
-      SCCACHE_ERROR_LOG: /__w/openvino/sccache_log.txt
-      SCCACHE_LOG: warn
       OPENVINO_REPO: '/__w/openvino/openvino/openvino'
       OPENVINO_GENAI_REPO: '/__w/openvino/openvino/openvino.genai'
       BUILD_DIR: '/__w/openvino/openvino/build'
@@ -134,20 +127,10 @@ jobs:
       TBB_BUILD: "/__w/openvino/openvino/build/onetbb-build"
       TBB_INSTALL: "/__w/openvino/openvino/build/onetbb-install"
       TBB_CMAKE_DIR: "/__w/openvino/openvino/build/onetbb-install/lib/cmake/TBB"
-      SCCACHE_AZURE_KEY_PREFIX: android_${{ matrix.arch }}
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '${{ github.workspace }}/openvino/manifest.yml'
       PRODUCT_TYPE: public_android_${{ matrix.arch }}_release
     steps:
-      - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
-        shell: bash
-        run: |
-          SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
-          # nosemgrep: yaml.github-actions.security.audit.unsafe-add-mask-workflow-command.unsafe-add-mask-workflow-command
-          echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
-          echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
-          echo "✓ Connection string loaded and masked"
-
       - name: Clone OpenVINO
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
@@ -190,9 +173,6 @@ jobs:
       - name: Prepare Ninja log collection directory
         run: rm -rf "${NINJA_LOGS_ARCHIVE_DIR}" && mkdir -p "${NINJA_LOGS_ARCHIVE_DIR}"
 
-      - name: Clean ccache stats
-        run: ${SCCACHE_PATH} --zero-stats
-
       - name: Clone OneTBB
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
@@ -215,8 +195,6 @@ jobs:
             -DTBB_TEST=OFF \
             -DTBB_STRICT=OFF \
             -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--undefined-version" \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
-            -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -S ${TBB_SRC} \
             -B ${TBB_BUILD}
 
@@ -248,8 +226,6 @@ jobs:
             -DENABLE_FASTER_BUILD=ON \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_GENAI_REPO }} \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
-            -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DENABLE_LTO=ON \
             -DENABLE_INTEL_CPU=ON \
             -DENABLE_INTEL_GPU=ON \
@@ -267,20 +243,9 @@ jobs:
       - name: Snapshot Ninja logs after CMake - build OpenVINO
         run: bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" "${NINJA_LOGS_ARCHIVE_DIR}" cmake_build_openvino "${BUILD_DIR}"
 
-      - name: Show ccache stats
-        run: ${SCCACHE_PATH} --show-stats
-
       #
       # Upload build logs and artifacts
       #
-      - name: Upload build logs
-        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-        if: always()
-        with:
-          name: build_logs_${{ matrix.arch }}
-          path: ${{ env.SCCACHE_ERROR_LOG }}
-          if-no-files-found: 'ignore'
-
       - name: Upload compile_commands
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         if: always()

@@ -101,7 +101,7 @@ jobs:
       volumes:
         - /mount:/mount
         - /home/runner/secrets/:/secrets:ro
-      options: -e SCCACHE_AZURE_BLOB_CONTAINER -v ${{ github.workspace }}:${{ github.workspace }}
+      options: -v ${{ github.workspace }}:${{ github.workspace }}
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja'
@@ -112,12 +112,6 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       BUILD_DIR: ${{ github.workspace }}/build
       NINJA_LOGS_ARCHIVE_DIR: ${{ github.workspace }}/ninja_logs_archive
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
-      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
-      SCCACHE_SERVER_PORT: 35555
-      SCCACHE_CACHE_SIZE: 50G
-      SCCACHE_AZURE_KEY_PREFIX: manylinux_2_28
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: ${{ github.workspace }}/manifest.yml
       PRODUCT_TYPE: public_manylinux_2_28_x86_64_release
@@ -126,15 +120,6 @@ jobs:
       PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
 
     steps:
-      - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
-        shell: bash
-        run: |
-          SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
-          # nosemgrep: yaml.github-actions.security.audit.unsafe-add-mask-workflow-command.unsafe-add-mask-workflow-command
-          echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
-          echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
-          echo "✓ Connection string loaded and masked"
-
       - name: Clone OpenVINO
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15

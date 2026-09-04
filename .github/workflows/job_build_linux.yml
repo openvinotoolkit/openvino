@@ -118,20 +118,12 @@ jobs:
         - /mount:/mount
         - /home/runner/secrets/:/secrets:ro
         - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      options: >-
-        -e SCCACHE_AZURE_BLOB_CONTAINER
     defaults:
       run:
         shell: bash
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
-      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
-      SCCACHE_SERVER_PORT: 35555
-      SCCACHE_ERROR_LOG: ${{ github.workspace }}/sccache_log.txt
-      SCCACHE_LOG: warn
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
       INSTALL_DIR: ${{ github.workspace }}/openvino/openvino_install
@@ -140,7 +132,6 @@ jobs:
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/openvino/install/wheels
       DEVELOPER_PACKAGE_DIR: ${{ github.workspace }}/openvino/developer_package_install
       BUILD_DIR: ${{ github.workspace }}/openvino/openvino_build
-      SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.os }}_${{ inputs.arch }}${{ inputs.build-variant && format('_{0}', inputs.build-variant) || '' }}_Release
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '${{ github.workspace }}/openvino/manifest.yml'
       PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}${{ inputs.build-variant && format('_{0}', inputs.build-variant) || '' }}_release
@@ -149,15 +140,6 @@ jobs:
       PIP_INDEX_URL: ${{ contains(inputs.runner, 'aks') && 'http://pip-proxy.pip-proxy.svc.cluster.local/simple/' || '' }}
       PIP_TRUSTED_HOST: ${{ contains(inputs.runner, 'aks') && 'pip-proxy.pip-proxy.svc.cluster.local' || '' }}
     steps:
-      - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
-        shell: bash
-        run: |
-          SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
-          # nosemgrep: yaml.github-actions.security.audit.unsafe-add-mask-workflow-command.unsafe-add-mask-workflow-command
-          echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
-          echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
-          echo "✓ Connection string loaded and masked"
-
       - name: Clone OpenVINO (with trace)
         if: ${{ inputs.os == 'fedora_29' }} # to debug ticket 160901
         env:
@@ -254,18 +236,12 @@ jobs:
         if: ${{ inputs.upload-ninja-log }}
         run: rm -rf "${NINJA_LOGS_ARCHIVE_DIR}" && mkdir -p "${NINJA_LOGS_ARCHIVE_DIR}"
 
-      - name: Clean sccache stats
-        run: ${SCCACHE_PATH} --zero-stats
-
       - name: Cmake build - OpenVINO
         run: cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
       - name: Snapshot Ninja logs after Cmake build - OpenVINO
         if: ${{ inputs.upload-ninja-log }}
         run: bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" "${NINJA_LOGS_ARCHIVE_DIR}" cmake_build_openvino "${BUILD_DIR}"
-
-      - name: Show sccache stats
-        run: ${SCCACHE_PATH} --show-stats
 
       - name: Cmake install - OpenVINO
         run: |
@@ -459,14 +435,6 @@ jobs:
       #
       # Upload build artifacts and logs
       #
-      - name: Upload build logs
-        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-        if: always()
-        with:
-          name: build_logs
-          path: ${{ env.SCCACHE_ERROR_LOG }}
-          if-no-files-found: 'ignore'
-
       - name: Upload compile_commands
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         if: always()

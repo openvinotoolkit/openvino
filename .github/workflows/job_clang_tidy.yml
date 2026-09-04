@@ -56,7 +56,6 @@ jobs:
       volumes:
         - /mount:/mount
         - /home/runner/secrets/:/secrets:ro
-      options: -e SCCACHE_AZURE_BLOB_CONTAINER
     defaults:
       run:
         shell: bash
@@ -64,28 +63,13 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: ${{ inputs.cmake-generator }}
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
       CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
-      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
-      SCCACHE_SERVER_PORT: 35555
-      SCCACHE_ERROR_LOG: /__w/openvino/sccache_log.txt
-      SCCACHE_LOG: warn
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       NINJA_LOGS_ARCHIVE_DIR: /__w/openvino/openvino/ninja_logs_archive
-      SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.sccache-prefix }}
 
     steps:
-      - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
-        run: |
-          SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
-          # nosemgrep: yaml.github-actions.security.audit.unsafe-add-mask-workflow-command.unsafe-add-mask-workflow-command
-          echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
-          echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
-          echo "✓ Connection string loaded and masked"
-
       - name: Clone OpenVINO
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
@@ -112,8 +96,6 @@ jobs:
             -DENABLE_NCC_STYLE=OFF \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             ${CMAKE_EXTRA_ARGS} \
-            -DCMAKE_C_COMPILER_LAUNCHER="${CMAKE_C_COMPILER_LAUNCHER}" \
-            -DCMAKE_CXX_COMPILER_LAUNCHER="${CMAKE_CXX_COMPILER_LAUNCHER}" \
             -S "${OPENVINO_REPO}" \
             -B "${BUILD_DIR}"
 
@@ -157,7 +139,3 @@ jobs:
           name: ninja_log_clang_tidy_${{ inputs.sccache-prefix }}
           path: ${{ env.BUILD_DIR }}/ninja_logs.tar.gz
           if-no-files-found: warn
-
-      - name: Show sccache stats
-        if: ${{ inputs.show-sccache-stats }}
-        run: ${SCCACHE_PATH} --show-stats
