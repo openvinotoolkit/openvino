@@ -125,9 +125,34 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(x);
 
-        const auto& eps_out = pattern_to_output.count(opt_convert_eps) ? pattern_to_output.at(opt_convert_eps)
-                                                                       : pattern_to_output.at(eps);
-        const auto const_eps_node = ov::util::get_constant_from_source(eps_out);
+        const auto get_effective_constant = [&pattern_to_output](const auto& constant, const auto& optional_convert) {
+            const auto& output = pattern_to_output.count(optional_convert) ? pattern_to_output.at(optional_convert)
+                                                                           : pattern_to_output.at(constant);
+            return ov::util::get_constant_from_source(output);
+        };
+
+        if (pattern_to_output.count(const_2)) {
+            const auto const_2_node = get_effective_constant(const_2, opt_convert_const_2);
+            if (!const_2_node || !op_util::has_constant_value<float>(const_2_node, 2.0f, 0.0f)) {
+                return false;
+            }
+        }
+        if (pattern_to_output.count(const_0_5) &&
+            !op_util::has_constant_value<float>(pattern_to_output.at(const_0_5).get_node_shared_ptr(), 0.5f, 0.0f)) {
+            return false;
+        }
+        if (pattern_to_output.count(const_neg_1) &&
+            !op_util::has_constant_value<float>(pattern_to_output.at(const_neg_1).get_node_shared_ptr(), -1.0f, 0.0f)) {
+            return false;
+        }
+        if (pattern_to_output.count(const_1_rsqrt)) {
+            const auto const_1_node = get_effective_constant(const_1_rsqrt, opt_convert_const_1_rsqrt);
+            if (!const_1_node || !op_util::has_constant_value<float>(const_1_node, 1.0f, 0.0f)) {
+                return false;
+            }
+        }
+
+        const auto const_eps_node = get_effective_constant(eps, opt_convert_eps);
         float eps_value;
         if (!const_eps_node || !op_util::get_single_value(const_eps_node, eps_value)) {
             return false;
