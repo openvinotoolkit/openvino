@@ -35,6 +35,30 @@
 using namespace testing;
 using namespace ov::intel_gpu;
 
+namespace {
+
+class ConvertMatMulToFullyConnectedPolicyTestsF : public TransformationTestsF {
+public:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+};
+
+struct MediumF16MatMulPolicyParams {
+    size_t m;
+    size_t k;
+    size_t n;
+    bool expect_non_transposed;
+    std::string test_name;
+};
+
+class ConvertMatMulToFullyConnectedMediumF16PolicyTestsF
+    : public ConvertMatMulToFullyConnectedPolicyTestsF,
+      public WithParamInterface<MediumF16MatMulPolicyParams> {};
+
+}  // namespace
+
 TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest1) {
     {
         auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{ 3, 2, 2 });
@@ -946,6 +970,193 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_LargeF16_NonTranspose
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
     }
 }
+
+// Medium f16 matmul matching visual MLP-down shape: non-transposed path (transpose_b=false).
+TEST_F(ConvertMatMulToFullyConnectedPolicyTestsF,
+       ConvertMatMulToFullyConnected_MediumF16_NonTransposed_VisualMlpDown) {
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{256, 3420});
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{3420, 1280}, {1});
+        auto matmul = std::make_shared<ov::opset1::MatMul>(input, weights, false, false);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);  // supports_immad=true (XMX available)
+    }
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{256, 3420});
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{3420, 1280}, {1});
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input, weights, no_bias, ov::element::f16, false);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    }
+}
+
+// Medium f16 matmul near the target range: non-transposed path (transpose_b=false).
+TEST_F(ConvertMatMulToFullyConnectedPolicyTestsF,
+       ConvertMatMulToFullyConnected_MediumF16_NonTransposed_Nearby) {
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{256, 4096});
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{4096, 1280}, {1});
+        auto matmul = std::make_shared<ov::opset1::MatMul>(input, weights, false, false);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);  // supports_immad=true (XMX available)
+    }
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{256, 4096});
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{4096, 1280}, {1});
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input, weights, no_bias, ov::element::f16, false);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    }
+}
+
+// Medium f16 language-side shape with small M and small N: transposed path (transpose_b=true).
+TEST_F(ConvertMatMulToFullyConnectedPolicyTestsF,
+       ConvertMatMulToFullyConnected_MediumF16_LanguageShape_Transposed) {
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{92, 3584});
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{3584, 512}, {1});
+        auto matmul = std::make_shared<ov::opset1::MatMul>(input, weights, false, false);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);  // supports_immad=true (XMX available)
+    }
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{92, 3584});
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{3584, 512}, {1});
+        auto transpose_constant = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0});
+        auto transpose = std::make_shared<ov::opset1::Transpose>(weights, transpose_constant);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input, transpose, no_bias, ov::element::f16, true);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    }
+}
+
+// Medium f16 shape below the M bound: transposed path (transpose_b=true).
+TEST_F(ConvertMatMulToFullyConnectedPolicyTestsF,
+       ConvertMatMulToFullyConnected_MediumF16_LowerM_Transposed) {
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{64, 5120});
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{5120, 3584}, {1});
+        auto matmul = std::make_shared<ov::opset1::MatMul>(input, weights, false, false);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);  // supports_immad=true (XMX available)
+    }
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{64, 5120});
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{5120, 3584}, {1});
+        auto transpose_constant = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0});
+        auto transpose = std::make_shared<ov::opset1::Transpose>(weights, transpose_constant);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input, transpose, no_bias, ov::element::f16, true);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    }
+}
+
+// Medium non-f16 matmul matching target dimensions: transposed path (transpose_b=true).
+TEST_F(ConvertMatMulToFullyConnectedPolicyTestsF, ConvertMatMulToFullyConnected_MediumF32_Transposed) {
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{256, 3420});
+        auto weights = ov::opset1::Constant::create(ov::element::f32, ov::Shape{3420, 1280}, {1});
+        auto matmul = std::make_shared<ov::opset1::MatMul>(input, weights, false, false);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);  // supports_immad=true (XMX available)
+    }
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{256, 3420});
+        auto weights = ov::opset1::Constant::create(ov::element::f32, ov::Shape{3420, 1280}, {1});
+        auto transpose_constant = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0});
+        auto transpose = std::make_shared<ov::opset1::Transpose>(weights, transpose_constant);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input, transpose, no_bias, ov::element::f32, true);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    }
+}
+
+// Medium f16 target-like shape with compressed weights: transposed path (transpose_b=true).
+TEST_F(ConvertMatMulToFullyConnectedPolicyTestsF,
+       ConvertMatMulToFullyConnected_MediumF16_CompressedWeights_Transposed) {
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{256, 3420});
+        auto weights = ov::opset1::Constant::create(ov::element::u8, ov::Shape{3420, 1280}, {1});
+        auto convert = std::make_shared<ov::opset1::Convert>(weights, ov::element::f16);
+        auto sub_const = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1, 1280}, {1});
+        auto sub = std::make_shared<ov::opset1::Subtract>(convert, sub_const);
+        auto mul_const = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1, 1280}, {1});
+        auto mul = std::make_shared<ov::opset1::Multiply>(sub, mul_const);
+        auto matmul = std::make_shared<ov::opset1::MatMul>(input, mul, false, false);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);  // supports_immad=true (XMX available)
+    }
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{256, 3420});
+        auto weights = ov::opset1::Constant::create(ov::element::u8, ov::Shape{3420, 1280}, {1});
+        auto convert = std::make_shared<ov::opset1::Convert>(weights, ov::element::f16);
+        auto sub_const = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1, 1280}, {1});
+        auto sub = std::make_shared<ov::opset1::Subtract>(convert, sub_const);
+        auto mul_const = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1, 1280}, {1});
+        auto mul = std::make_shared<ov::opset1::Multiply>(sub, mul_const);
+        auto transpose_constant = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0});
+        auto transpose = std::make_shared<ov::opset1::Transpose>(mul, transpose_constant);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input, transpose, no_bias, ov::element::f16, true);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    }
+}
+
+TEST_P(ConvertMatMulToFullyConnectedMediumF16PolicyTestsF,
+       ConvertMatMulToFullyConnected_MediumF16_BoundaryAndPredicateCases) {
+    const auto& params = GetParam();
+
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{params.m, params.k});
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{params.k, params.n}, {1});
+        auto matmul = std::make_shared<ov::opset1::MatMul>(input, weights, false, false);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);  // supports_immad=true (XMX available)
+    }
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{params.m, params.k});
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{params.k, params.n}, {1});
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+
+        if (params.expect_non_transposed) {
+            auto fc = std::make_shared<op::FullyConnected>(input, weights, no_bias, ov::element::f16, false);
+            model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+        } else {
+            auto transpose_constant = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0});
+            auto transpose = std::make_shared<ov::opset1::Transpose>(weights, transpose_constant);
+            auto fc = std::make_shared<op::FullyConnected>(input, transpose, no_bias, ov::element::f16, true);
+            model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ConvertMatMulToFullyConnected_MediumF16Policy,
+    ConvertMatMulToFullyConnectedMediumF16PolicyTestsF,
+    Values(MediumF16MatMulPolicyParams{128, 2048, 1024, true, "LowerBoundsIncluded"},
+           MediumF16MatMulPolicyParams{512, 4097, 4096, true, "UpperBoundsIncluded"},
+           MediumF16MatMulPolicyParams{256, 2047, 1024, false, "BelowKLowerBound"},
+           MediumF16MatMulPolicyParams{127, 3420, 1280, false, "BelowMLowerBound"},
+           MediumF16MatMulPolicyParams{513, 3420, 1280, false, "AboveMUpperBound"},
+           MediumF16MatMulPolicyParams{256, 3420, 1023, false, "BelowNLowerBound"},
+           MediumF16MatMulPolicyParams{256, 4098, 4097, false, "AboveNUpperBound"},
+           MediumF16MatMulPolicyParams{256, 2048, 2048, false, "KNotGreaterThanN"}),
+    [](const TestParamInfo<MediumF16MatMulPolicyParams>& info) {
+        return info.param.test_name;
+    });
 
 // Large f16 matmul K>=8192, N<=4096: transposed path (transpose_b=true) when supports_immad=false.
 TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_LargeF16_NoImmad_Transposed) {
