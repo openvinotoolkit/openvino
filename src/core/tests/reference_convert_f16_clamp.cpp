@@ -12,13 +12,9 @@
 #include "openvino/core/type/float16.hpp"
 #include "openvino/reference/convert.hpp"
 
-// _with_clamp saturates ±inf to ±f16::max (used by FP16 compression/serialization, intentionally
-// lossy); _with_clamp_preserve_specials leaves ±inf/NaN unclamped (used by ConvertPrecision).
-//
-// NaN is deliberately not asserted for _with_clamp: its result is path-dependent. The scalar
-// Clamp lets NaN through (both range comparisons are false), while the JIT kernel turns it into
-// f16::max (x86 MINPS returns its second source when either operand is NaN). This pre-existing
-// discrepancy is out of scope here; only the ±inf contract is stable and is what callers rely on.
+// _with_clamp saturates ±inf to ±f16::max (FP16 compression/serialization); _preserve_specials
+// keeps ±inf/NaN (ConvertPrecision). NaN is not asserted for _with_clamp: the scalar path lets it
+// through while the JIT path returns f16::max (pre-existing, out of scope); only ±inf is stable.
 //
 // The input sizes are chosen so that the special values land inside a full vectorized lane
 // (indices 0..7) as well as in the scalar tail remainder (last elements), exercising both the
