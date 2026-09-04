@@ -246,6 +246,24 @@ TEST_P(GGUFArchConversion, MatchesManifestExpectation) {
             << "update fingerprints() -- and say why in the commit message.";
         EXPECT_EQ(model->inputs().size(), it->second.inputs)
             << "graph input count for " << fixture.header_file << " changed; see fingerprints().";
+        if (fixture.header_file == "hunyuan-dense-dense.gguf.hdr" ||
+            fixture.header_file == "hunyuan-moe-moe.gguf.hdr") {
+            size_t rope_pos = model->get_ordered_ops().size();
+            size_t norm_pos = model->get_ordered_ops().size();
+            const auto ordered_ops = model->get_ordered_ops();
+            for (size_t i = 0; i < ordered_ops.size(); ++i) {
+                const auto& name = ordered_ops[i]->get_friendly_name();
+                if (name.find("blk.0.Qcur_rope") != std::string::npos) {
+                    rope_pos = i;
+                } else if (name.find("blk.0.Qcur_normed") != std::string::npos &&
+                           name.find(".rms") == std::string::npos) {
+                    norm_pos = i;
+                }
+            }
+            ASSERT_LT(rope_pos, ordered_ops.size()) << "Hunyuan layer 0 has no Q RoPE output";
+            ASSERT_LT(norm_pos, ordered_ops.size()) << "Hunyuan layer 0 has no Q-norm output";
+            EXPECT_LT(rope_pos, norm_pos) << "Hunyuan must apply learned Q/K norm after RoPE, matching llama.cpp";
+        }
         break;
     }
     case Expectation::Reject: {

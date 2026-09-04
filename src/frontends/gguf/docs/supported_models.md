@@ -64,7 +64,7 @@ The builder's accept-list is the union of two sets, both defined in
 Anything not in either set is rejected with an explicit `OPENVINO_ASSERT` at load time
 rather than converting into a silently wrong graph.
 
-### `verified_archs()` — 10 architectures
+### `verified_archs()` — 11 architectures
 
 | Architecture | Notes |
 |---|---|
@@ -73,13 +73,14 @@ rather than converting into a silently wrong graph.
 | `qwen3` | QK-norm |
 | `phi3` | fused QKV |
 | `minicpm` | NORMAL rope + scalar embedding/residual/logit scales |
+| `hunyuan-dense` | NEOX rope + learned per-head Q/K norm after RoPE |
 | `olmoe` | OLMoE 1B-7B (MoE) |
 | `qwen35` | Qwen3.5/3.6 (and the Ternary-Bonsai backbone): hybrid Gated-DeltaNet + full attention, M-RoPE, interleaved query+gate projection. Greedy / batch 1 only |
 | `gpt-oss` | MoE + attention sinks + SWA + OAI gated activation |
 | `gemma3` | post-norms + final logit soft-cap |
 | `gemma4` | SWA, per-layer embeddings, shared KV |
 
-### `experimental_archs()` — 20 architectures
+### `experimental_archs()` — 19 architectures
 
 | Architecture | Notes |
 |---|---|
@@ -99,7 +100,6 @@ rather than converting into a silently wrong graph.
 | `mellum` | JetBrains Mellum: pure MoE |
 | `deepseek2-ocr` | DeepSeekOCR: dense lead layers + MoE |
 | `jais2` | JAIS-2: dense (biases auto-detected) |
-| `hunyuan-dense` | Demoted from `verified_archs()`: degenerate output through the builder (see below) |
 | `qwen3moe` | Qwen3 MoE; same topology as `olmoe`. Demoted: degenerate output through the builder |
 | `gemma` | Gemma 2B / 7B. Demoted: throws through the builder (see below) |
 | `gemma2` | post-norms + attention soft-cap. Demoted: degenerate output through the builder |
@@ -124,7 +124,7 @@ model/checkpoint that is simply weak on the prompt.
 | `qwen3` | verified | Qwen3-0.6B Q8_0 | generates (reasoning preamble) | same |
 | `phi3` | verified | Phi-3-mini-4k-instruct Q4 | generates | generates |
 | `minicpm` | verified | MiniCPM-2B-dpo Q4_K_M | generates | generates |
-| `hunyuan-dense` | experimental | Hunyuan-0.5B-Instruct Q4_K_M | **degenerate** | generates |
+| `hunyuan-dense` | verified | Hunyuan-0.5B-Instruct Q8_0 | matches reference | same |
 | `olmoe` | verified | OLMoE-1B-7B-Instruct Q4_K_M | generates | generates |
 | `qwen3moe` | experimental | Qwen3-0.9B-A0.6B Q4_K_M | **degenerate** | generates |
 | `gpt-oss` | verified | gpt-oss-20b MXFP4 | generates (harmony format) | same |
@@ -156,10 +156,10 @@ greedy completion is expected of it, not a defect. `gemma` (v1 base) and `plamo3
 instruct) are degenerate on the reference too, so those rows are checkpoint/prompt artifacts
 rather than frontend bugs.
 
-That leaves **5 architectures that generate correctly under llama.cpp but not through the
-builder** — `hunyuan-dense`, `qwen3moe`, `gemma2`, `exaone4` and `ernie4_5-moe` (blank output) —
+That leaves **4 architectures that generate correctly under llama.cpp but not through the
+builder** — `qwen3moe`, `gemma2`, `exaone4` and `ernie4_5-moe` (blank output) —
 i.e. real conversion defects, plus `gemma`, which throws instead of converting cleanly.
-`hunyuan-dense`, `qwen3moe`, `gemma2` and `gemma` were previously misclassified as
+`qwen3moe`, `gemma2` and `gemma` were previously misclassified as
 `verified_archs()`; they have been moved to `experimental_archs()` (and now emit the one-time
 `OPENVINO_WARN`) until the underlying defects are fixed and re-verified.
 
