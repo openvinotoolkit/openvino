@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+#include "common_utils/eltwise_kernel_params.hpp"
+#include "common_utils/kernel_selector_data_adapter.hpp"
 #include "common_utils/shape_utils.hpp"
 #include "intel_gpu/graph/fused_primitive_desc.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
@@ -93,16 +95,12 @@ struct layout;
 struct program;
 struct fused_primitive_desc;
 
-kernel_selector::data_type to_data_type(ov::element::Type_t dt);
 ov::element::Type_t from_data_type(kernel_selector::data_type dt);
 kernel_selector::weights_type to_weights_type(ov::element::Type_t dt);
 ov::element::Type_t from_weights_type(kernel_selector::weights_type dt);
-kernel_selector::data_layout to_data_layout(format f);
 cldnn::format from_data_layout(kernel_selector::data_layout l);
 kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped);
 cldnn::format::type from_weights_layout(kernel_selector::weights_layout l);
-kernel_selector::n_dims compute_tensor_dimensions(const layout& l, const size_t num_channels, const tensor view_offset = tensor{});
-kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor view_offset = tensor{});
 kernel_selector::weights_tensor convert_weights_tensor(const layout& l, bool is_grouped = false);
 layout from_weights_tensor(const kernel_selector::weights_tensor& t);
 kernel_selector::activation_function get_kernel_selector_activation_param(activation_func activation_func);
@@ -153,70 +151,6 @@ params_t get_weight_bias_zero_point_default_params(const kernel_impl_params& par
     params_t params;
     set_weight_bias_zero_point_default_params(param_info, params, has_group_dimension, is_shape_agnostic);
     return params;
-}
-
-inline kernel_selector::eltwise_mode convert_to_eltwise_mode(eltwise_mode mode) {
-    switch (mode) {
-    case eltwise_mode::sum:
-        return kernel_selector::eltwise_mode::ADD;
-    case eltwise_mode::sub:
-        return kernel_selector::eltwise_mode::SUB;
-    case eltwise_mode::max:
-        return kernel_selector::eltwise_mode::MAX;
-    case eltwise_mode::prod:
-        return kernel_selector::eltwise_mode::MUL;
-    case eltwise_mode::div:
-        return kernel_selector::eltwise_mode::DIV;
-    case eltwise_mode::min:
-        return kernel_selector::eltwise_mode::MIN;
-    case eltwise_mode::pow:
-        return kernel_selector::eltwise_mode::POW;
-    case eltwise_mode::mod:
-        return kernel_selector::eltwise_mode::MODULU;
-    case eltwise_mode::eq:
-        return kernel_selector::eltwise_mode::EQ;
-    case eltwise_mode::ne:
-        return kernel_selector::eltwise_mode::NE;
-    case eltwise_mode::lt:
-        return kernel_selector::eltwise_mode::LT;
-    case eltwise_mode::le:
-        return kernel_selector::eltwise_mode::LE;
-    case eltwise_mode::gt:
-        return kernel_selector::eltwise_mode::GT;
-    case eltwise_mode::ge:
-        return kernel_selector::eltwise_mode::GE;
-    case eltwise_mode::logic_and:
-        return kernel_selector::eltwise_mode::LOGIC_AND;
-    case eltwise_mode::logic_or:
-        return kernel_selector::eltwise_mode::LOGIC_OR;
-    case eltwise_mode::logic_xor:
-        return kernel_selector::eltwise_mode::LOGIC_XOR;
-    case eltwise_mode::squared_diff:
-        return kernel_selector::eltwise_mode::SQUARED_DIFF;
-    case eltwise_mode::floor_mod:
-        return kernel_selector::eltwise_mode::FLOOR_MOD;
-    case eltwise_mode::is_finite:
-        return kernel_selector::eltwise_mode::IS_FINITE;
-    case eltwise_mode::is_inf:
-        return kernel_selector::eltwise_mode::IS_INF;
-    case eltwise_mode::is_nan:
-        return kernel_selector::eltwise_mode::IS_NAN;
-    case eltwise_mode::right_shift:
-        return kernel_selector::eltwise_mode::RIGHT_SHIFT;
-    case eltwise_mode::left_shift:
-        return kernel_selector::eltwise_mode::LEFT_SHIFT;
-    case eltwise_mode::bitwise_and:
-        return kernel_selector::eltwise_mode::BITWISE_AND;
-    case eltwise_mode::bitwise_or:
-        return kernel_selector::eltwise_mode::BITWISE_OR;
-    case eltwise_mode::bitwise_xor:
-        return kernel_selector::eltwise_mode::BITWISE_XOR;
-    case eltwise_mode::atan2:
-        return kernel_selector::eltwise_mode::ATAN2;
-    default:
-        OPENVINO_ASSERT(false, "Unsupported eltwise mode!");
-        return kernel_selector::eltwise_mode::ADD;
-    }
 }
 
 inline bool broadcastable(const ov::PartialShape& first_pshape,

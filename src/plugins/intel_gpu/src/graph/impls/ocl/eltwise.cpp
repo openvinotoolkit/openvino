@@ -4,6 +4,9 @@
 
 #include "primitive_base.hpp"
 
+#include <utility>
+
+#include "common_utils/eltwise_kernel_params.hpp"
 #include "eltwise_inst.h"
 #include "eltwise/eltwise_kernel_selector.h"
 #include "eltwise/eltwise_kernel_base.h"
@@ -40,110 +43,12 @@ protected:
 
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
-        const auto& primitive = impl_param.typed_desc<eltwise>();
-        auto inputs_count = primitive->input.size();
-
         auto params = get_default_params<kernel_selector::eltwise_params>(impl_param, is_shape_agnostic);
-        const auto mode = convert_to_eltwise_mode(primitive->mode);
-
-        for (size_t i = 1; i < inputs_count; i++) {
-            params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
-        }
-
-        if (inputs_count == 1) {
-            params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0)}, mode});
-        } else {
-            params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0),
-                                          kernel_selector::eltwise_params::InputType::Buffer(1)},
-                                         mode});
-        }
-
-        for (uint32_t i = 2; i < static_cast<uint32_t>(inputs_count); i++) {
-            params.operations.push_back({{kernel_selector::eltwise_params::InputType::Intermediate(i - 2),
-                                          kernel_selector::eltwise_params::InputType::Buffer(i)},
-                                         mode});
-        }
-
-        params.coefficients = primitive->coefficients;
-
-        // WA to always match compiled dynamic kernel with dispatch data
-        // W/O enforcing this option we may generate kernel for "broadcast" scneario due to umatched tensor dimensions
-        // but in runtime dispatch data will be generated for non-broadcast case as shapes are actually same.
-        if (impl_param.get_program().get_node(primitive->id).is_dynamic()) {
-            params.broadcast = true;
-        } else {
-            for (size_t i = 0; i < params.inputs.size(); i++) {
-                if (!params.inputs[i].SameDims(params.outputs[0])) {
-                    std::vector<ov::Dimension::value_type> input_size = impl_param.input_layouts[i].get_tensor().raw.vector();
-                    std::vector<ov::Dimension::value_type> output_size = impl_param.get_output_layout().get_tensor().raw.vector();
-                    bool broadcast = false;
-                    for (size_t d = 0; d < output_size.size(); d++) {
-                        if (output_size[d] != 1 && input_size[d] == 1)
-                            broadcast = true;
-                    }
-                    if (broadcast) {
-                        params.broadcast = true;
-                        break;
-                    }
-                    params.layoutBased = true;
-                    break;
-                }
-            }
-        }
-
-        // stride
-        if (!primitive->stride.empty()) {
-            const auto& stride = primitive->stride;
-            params.stride.resize(stride.size());
-            for (size_t i = 0; i < primitive->stride.size(); i++) {
-                params.stride[i] = {(uint32_t)stride[i].spatial[0],
-                                    (uint32_t)stride[i].spatial[1],
-                                    (uint32_t)stride[i].spatial[2]};
-            }
-        }
-
-        // check if strides are the same
-        if (!params.stride.empty()) {
-            const auto& stride = params.stride[0];
-            for (size_t i = 1; i < params.stride.size(); i++) {
-                if (stride.x != params.stride[i].x || stride.y != params.stride[i].y)
-                    params.layoutBased = true;
-            }
-        } else if (params.inputs.size() > 1 && (!params.inputs[0].SameDimsSizes(params.inputs[1]))) {
-            params.broadcast = true;
-        }
-
-        // TODO [LOW PRECISION]: check if this parameter's really needed. Maybe data types are enough
-        bool quantization = true;
-        for (size_t i = 0; i < inputs_count; i++) {
-            if (impl_param.input_layouts[i].data_type != data_types::u8 &&
-                impl_param.input_layouts[i].data_type != data_types::i8) {
-                quantization = false;
-            }
-        }
-        params.int8_quantization = quantization;
-
-        return params;
+        return lower_eltwise_params(impl_param, std::move(params));
     }
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
-        auto updated_impl_params = canonicalize_fused_shapes(impl_params);
-        bool use_new_shape_infer = impl_params.prog->is_new_shape_infer();
-
-        auto& output_layout = updated_impl_params.output_layouts[0];
-        auto out_pshape = output_layout.get_partial_shape();
-        output_layout.set_partial_shape(extend_shape_to_rank_from_end(out_pshape));
-
-        for (auto& input_layout : updated_impl_params.input_layouts) {
-            auto input_pshape = input_layout.get_partial_shape();
-            if (!broadcastable(input_pshape, out_pshape, use_new_shape_infer)) {
-                input_pshape = extend_shape_to_rank_from_begin(input_pshape, out_pshape.size());
-            }
-            input_layout.set_partial_shape(extend_shape_to_rank_from_end(input_pshape));
-            input_layout.format = format::adjust_to_rank(input_layout.format, input_pshape.size());
-        }
-
-        return updated_impl_params;
+        return canonicalize_eltwise_shapes(impl_params);
     }
 
     kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {
