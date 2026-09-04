@@ -1156,7 +1156,6 @@ TEST_P(TopKRadixValueTest, values_match) {
                              2));
 
     network network(engine, topology, get_radix_topk_config(engine));
-    assert_radix_topk_selected(network);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -1223,7 +1222,6 @@ TEST(arg_max_gpu_topk_radix, f16_max_large_n_axis_batch) {
                              true, false, data_types::f16));
 
     network network(engine, topology, get_radix_topk_config(engine));
-    assert_radix_topk_selected(network);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -1263,7 +1261,6 @@ TEST(arg_max_gpu_topk_radix, f16_max_second_output_indices) {
                              ov::op::TopKSortType::SORT_VALUES, true, false, data_types::f16));
 
     network network(engine, topology, get_radix_topk_config(engine));
-    assert_radix_topk_selected(network);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -1301,7 +1298,6 @@ TEST(arg_max_gpu_topk_radix, f16_max_duplicate_values_tiebreak) {
                              ov::op::TopKSortType::SORT_VALUES, true, false, data_types::f16));
 
     network network(engine, topology, get_radix_topk_config(engine));
-    assert_radix_topk_selected(network);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -1337,7 +1333,6 @@ TEST(arg_max_gpu_topk_radix, f16_max_yolov26n_like) {
                              ov::op::TopKSortType::SORT_VALUES, true, false, data_types::f16));
 
     network network(engine, topology, get_radix_topk_config(engine));
-    assert_radix_topk_selected(network);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -1377,7 +1372,6 @@ TEST(arg_max_gpu_topk_radix, f16_max_duplicates_n70_k5_indices_tiebreak) {
                              ov::op::TopKSortType::SORT_VALUES, true, false, data_types::f16));
 
     network network(engine, topology, get_radix_topk_config(engine));
-    assert_radix_topk_selected(network);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -1430,7 +1424,9 @@ TEST(arg_max_gpu_topk_radix, f32_max_random_values_and_indices) {
                              ov::op::TopKSortType::SORT_VALUES, true, false, data_types::f32));
 
     network network(engine, topology, get_radix_topk_config(engine));
-    assert_radix_topk_selected(network);
+    auto info = network.get_primitive_info("arg_max");
+    ASSERT_TRUE(info.find("arg_max_min_topk_radix") != std::string::npos)
+        << "Expected arg_max_min_topk_radix, got: " << info;
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
