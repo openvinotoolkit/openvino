@@ -421,6 +421,9 @@ TEST_F(TransformationTestsF, MVNFusionTestWithParametersInside) {
 // Cohere-style MVN: rsqrt decomposition with inside-sqrt eps
 // Graph: Multiply(Subtract(x, ReduceMean(x)), Divide(1, Sqrt(Add(ReduceMean(Power(sub, 2)), eps))))
 TEST_F(TransformationTestsF, MVNFusionTestRsqrtInsideSqrt) {
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 224});
         auto mean1_axes = ov::op::v0::Constant::create(element::i32, Shape{1}, {2});
@@ -453,6 +456,9 @@ TEST_F(TransformationTestsF, MVNFusionTestRsqrtInsideSqrt) {
 
 // Cohere-style MVN with f16 compressed constants: all constants (const_2, const_1, eps) wrapped in Convert
 TEST_F(TransformationTestsF, MVNFusionTestRsqrtWithConvertedConstants) {
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 224});
         auto mean1_axes = ov::op::v0::Constant::create(element::i32, Shape{1}, {2});
