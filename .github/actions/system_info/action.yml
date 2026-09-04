@@ -16,8 +16,6 @@ runs:
         echo "CPU Info: "; lscpu
         echo "RAM Info: "; free -h --si
         echo "DISK Info: "; df -hl
-        echo "CMAKE build parallel jobs (nproc): $(nproc)"
-        echo "CMAKE build parallel jobs (NUMBER_OF_PROCESSORS): ${NUMBER_OF_PROCESSORS:-<unset>}"
 
     - if: runner.os == 'macOS'
       shell: bash
@@ -26,8 +24,6 @@ runs:
         echo "System Architecture: ${{ runner.arch }}"
         echo "CPU and RAM Info: "; system_profiler SPHardwareDataType
         echo "DISK Info: "; df -h
-        echo "CMAKE build parallel jobs (nproc): $(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo '<nproc not available>')"
-        echo "CMAKE build parallel jobs (NUMBER_OF_PROCESSORS): ${NUMBER_OF_PROCESSORS:-<unset>}"
 
     - if: runner.os == 'Windows'
       shell: pwsh
@@ -36,6 +32,3 @@ runs:
         echo "System Architecture: ${{ runner.arch }}"
         echo "CPU Info: "; Get-CimInstance –ClassName Win32_Processor | Select-Object -Property Name, NumberOfCores, NumberOfLogicalProcessors
         echo "RAM info: $(systeminfo | Select-String 'Total Physical Memory:')"
-        $nprocOut = try { (nproc 2>&1 | Out-String).Trim() } catch { '<nproc not available>' }
-        Write-Host "CMAKE build parallel jobs (nproc): $nprocOut"
-        Write-Host "CMAKE build parallel jobs (NUMBER_OF_PROCESSORS): $Env:NUMBER_OF_PROCESSORS"
