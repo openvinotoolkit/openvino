@@ -9,6 +9,21 @@ This article describes how to build OpenVINO for Android operating systems.
 - [Android SDK Platform Tools](https://developer.android.com/tools/releases/platform-tools) (this guide has been validated with the 35.0.0 release)
 - [Android NDK](https://developer.android.com/ndk/downloads) (this guide has been validated with r28c release)
 
+## Use the prebuilt x86-64 archive
+
+For Android x86-64 targets, you can use the prebuilt OpenVINO 2026.3.1 Runtime package instead of building OpenVINO from source:
+
+```sh
+mkdir openvino-android
+export OPV_HOME_DIR=${PWD}/openvino-android
+curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.3.1/linux/openvino_toolkit_android_2026.3.1.22476.56d9685302d_x86_64.tgz \
+  --output $OPV_HOME_DIR/openvino_toolkit_android_2026.3.1.tgz
+tar -xf $OPV_HOME_DIR/openvino_toolkit_android_2026.3.1.tgz -C $OPV_HOME_DIR
+export OpenVINO_DIR=$OPV_HOME_DIR/openvino_toolkit_android_2026.3.1.22476.56d9685302d_x86_64/runtime/cmake
+```
+
+The archive provides the OpenVINO headers, x86-64 Runtime libraries, CMake configuration, and required oneTBB libraries. For other Android architectures or a custom configuration, build OpenVINO from source as described below. The ADB example later in this guide demonstrates an aarch64 source build and does not apply directly to this x86-64 archive.
+
 ## How to build
 
 ### Create a work directory 

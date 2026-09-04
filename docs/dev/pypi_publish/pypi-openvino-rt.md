@@ -87,22 +87,22 @@ If installation was successful, you will see the list of available devices.
     <th>Description</th>
   </tr>
   <tr>
-    <td><a href="https://docs.openvino.ai/2025/openvino-workflow/running-inference.html">OpenVINO Runtime</a></td>
+    <td><a href="https://docs.openvino.ai/2026/openvino-workflow/running-inference.html">OpenVINO Runtime</a></td>
     <td>`openvino package`</td>
     <td>OpenVINO Runtime is a set of C++ libraries with C and Python bindings providing a common
         API to deliver inference solutions on the platform of your choice. Use the OpenVINO
         Runtime API to read PyTorch, TensorFlow, TensorFlow Lite, ONNX, and PaddlePaddle models
         and execute them on preferred devices. OpenVINO Runtime uses a plugin architecture and
         includes the following plugins:
-        <a href="https://docs.openvino.ai/2025/openvino-workflow/running-inference/inference-devices-and-modes/cpu-device.html">CPU</a>,
-        <a href="https://docs.openvino.ai/2025/openvino-workflow/running-inference/inference-devices-and-modes/gpu-device.html">GPU</a>,
-        <a href="https://docs.openvino.ai/2025/openvino-workflow/running-inference/inference-devices-and-modes/automatic-batching.html">Auto Batch</a>,
-        <a href="https://docs.openvino.ai/2025/openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection.html">Auto</a>,
-        <a href="https://docs.openvino.ai/2025/openvino-workflow/running-inference/inference-devices-and-modes/hetero-execution.html">Hetero</a>,
+        <a href="https://docs.openvino.ai/2026/openvino-workflow/running-inference/inference-devices-and-modes/cpu-device.html">CPU</a>,
+        <a href="https://docs.openvino.ai/2026/openvino-workflow/running-inference/inference-devices-and-modes/gpu-device.html">GPU</a>,
+        <a href="https://docs.openvino.ai/2026/openvino-workflow/running-inference/inference-devices-and-modes/automatic-batching.html">Auto Batch</a>,
+        <a href="https://docs.openvino.ai/2026/openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection.html">Auto</a>,
+        <a href="https://docs.openvino.ai/2026/openvino-workflow/running-inference/inference-devices-and-modes/hetero-execution.html">Hetero</a>,
     </td>
   </tr>
   <tr>
-    <td><a href="https://docs.openvino.ai/2025/openvino-workflow/model-preparation.html#convert-a-model-in-cli-ovc">OpenVINO Model Converter (OVC)</a></td>
+    <td><a href="https://docs.openvino.ai/2026/openvino-workflow/model-preparation.html#convert-a-model-in-cli-ovc">OpenVINO Model Converter (OVC)</a></td>
     <td>`ovc`</td>
     <td>OpenVINO Model Converter converts models that were trained in popular frameworks to a
         format usable by OpenVINO components. </br>Supported frameworks include ONNX, TensorFlow,
@@ -110,7 +110,7 @@ If installation was successful, you will see the list of available devices.
     </td>
   </tr>
   <tr>
-    <td><a href="https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/benchmark-tool.html">Benchmark Tool</a></td>
+    <td><a href="https://docs.openvino.ai/2026/get-started/learn-openvino/openvino-samples/benchmark-tool.html">Benchmark Tool</a></td>
     <td>`benchmark_app`</td>
     <td>Benchmark Application** allows you to estimate deep learning inference performance on
         supported devices for synchronous and asynchronous modes.
@@ -122,7 +122,7 @@ If installation was successful, you will see the list of available devices.
 ## Troubleshooting
 
 For general troubleshooting, see the
-[Troubleshooting Guide for OpenVINO Installation](https://docs.openvino.ai/2025/get-started/install-openvino/configurations/troubleshooting-install-config.html).
+[Troubleshooting Guide for OpenVINO Installation](https://docs.openvino.ai/2026/get-started/install-openvino/configurations/troubleshooting-install-config.html).
 The following sections also provide explanations to several error messages.
 
 ### Errors with Installing via PIP for Users in China
