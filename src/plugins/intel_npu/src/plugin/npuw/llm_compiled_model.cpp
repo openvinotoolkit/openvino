@@ -21,6 +21,7 @@
 #include "npuw_transformations/lora_stateful_to_stateless.hpp"
 #include "npuw_transformations/optimize_value_tensors.hpp"
 #include "npuw_transformations/patch_sliding_window_mask.hpp"
+#include "npuw_transformations/propagate_slice.hpp"
 #include "npuw_transformations/remove_token_type_ids.hpp"
 #include "npuw_transformations/replace_deepstack_scatter_with_add.hpp"
 #include "npuw_transformations/reshape_sliced_head_to_static.hpp"
@@ -1044,6 +1045,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         // KVCache model is already reshaped to [1, max_generation_token_len, embed size],
         // so only apply slice to the Prefill model:
         ov::npuw::SliceOutEmbeds(axes.batch, m_kvcache_desc.max_generation_token_len).run_on_model(prefill_model);
+        if (m_cfg.get<::intel_npu::NPUW_LLM_PROPAGATE_SLICE_UP>()) {
+            ov::npuw::PropagateSliceUp().run_on_model(prefill_model);
+        }
         LOG_DEBUG("Make LM head model with static shapes");
         ov::npuw::ReshapeSlicedHeadToStatic(axes.batch, m_kvcache_desc.max_generation_token_len)
             .run_on_model(lm_head_model);
@@ -1199,6 +1203,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         // reused across their respective instances.
         if (has_per_layer_inputs(prefill_model)) {
             prefill_config["NPUW_ONLINE_KEEP_BLOCKS"] = "3";
+            if (m_cfg.get<::intel_npu::NPUW_LLM_PROPAGATE_SLICE_UP>()) {
+                prefill_config["NPUW_ONLINE_KEEP_BLOCKS_TAGGED"] = "attn";
+            }
             LOG_INFO("Gemma-4 cross-group KV model: setting NPUW_ONLINE_KEEP_BLOCKS=3 for prefill");
         }
     }
@@ -1955,6 +1962,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::prefill_attn_hint, NPUW_LLM_PREFILL_ATTENTION_HINT, getString),
                           BIND(npuw::llm::generate_attn_hint, NPUW_LLM_GENERATE_ATTENTION_HINT, getString),
                           BIND(npuw::llm::shared_lm_head, NPUW_LLM_SHARED_HEAD, get),
+                          BIND(npuw::llm::propagate_slice_up, NPUW_LLM_PROPAGATE_SLICE_UP, get),
                           BIND(npuw::whisper::enabled, NPUW_WHISPER, get),
                           BIND(npuw::whisper::whisper_eos_token, NPUW_WHISPER_EOS_TOKEN, get),
                           BIND(npuw::whisper::whisper_decompose_sdpa, NPUW_WHISPER_DECOMPOSE_SDPA, get),

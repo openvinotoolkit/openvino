@@ -21,6 +21,13 @@ ov_add_plugin(NAME ${NPU_PLUGIN_TARGET}
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
+# rtti.hpp applies __attribute__((visibility("hidden"))) to static member functions.
+# GCC 13+ warns about this with -Wattributes. All transformation files are affected;
+# existing ones escape only because incremental CI caches their .o files.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(${TARGET_NAME} PRIVATE -Wno-attributes)
+endif()
+
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         openvino_npu_common

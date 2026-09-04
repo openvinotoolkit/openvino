@@ -93,8 +93,13 @@ struct HostFlashAttention {
     // Tile configuration
     int64_t _tile_size = 0;  // K/V tile size for flash attention chunking
 
-    // Query sequence length (extracted from Q shape[2])
-    // Used for selector compatibility and runtime decision-making
+    // Query length used for tile_size/PREFILL-GENERATE/context_length logic.
+    // Equal to Q shape[2] when PropagateSliceUp did not touch this SDPA (in which
+    // case it may legitimately be 1 for a true single-token GENERATE model).
+    // When PropagateSliceUp DID fire, this holds the original (pre-slice) query
+    // length recovered from rt_info, not the sliced-down physical shape[2] — the
+    // PREFILL/chunk-rounding math must keep using the original chunk size even
+    // though the actual per-call Q is now physically 1.
     std::size_t _query_size = 0;
 
     // Context size (extracted from K concat output shape - kv_cache_size dimension)
@@ -153,7 +158,8 @@ namespace compiled {
 // Simplified host flash attention parameter info
 // Contains parameter indices from the original SDPA model
 struct HostFlashAttentionInfo {
-    std::size_t _query_size = 0u;  // query size for selector compatibility
+    std::size_t _query_size = 0u;  // query length for tile_size/PREFILL-GENERATE/context_length logic
+                                   // (original, pre-slice length if PropagateSliceUp touched this SDPA)
     std::size_t _context_size = 0u;
 
     // Sequence dimension indices for K and V tensors in the original SDPA model
@@ -311,17 +317,17 @@ struct HFARuntimeContext {
         const auto mask_shape = mask_port.get_shape();
         const auto mask_dtype = mask_port.get_element_type();
 
-        // Calculate maximum number of tiles based on context size
+        // Calculate maximum number of tiles based on context size.
         const size_t context_size = hfa_desc._sdpa_attention_info._context_size;
-        const size_t query_size = hfa_desc._sdpa_attention_info._query_size;
+        const size_t tile_size = hfa_desc._sdpa_attention_info._query_size;
 
         // Validate configuration
-        if (context_size % query_size != 0) {
+        if (context_size % tile_size != 0) {
             throw std::runtime_error("HFA: context_size (" + std::to_string(context_size) +
-                                     ") must be divisible by query_size (" + std::to_string(query_size) + ")");
+                                     ") must be divisible by tile_size (" + std::to_string(tile_size) + ")");
         }
 
-        const size_t max_num_tiles = context_size / query_size;
+        const size_t max_num_tiles = context_size / tile_size;
 
         // Allocate temporary buffers for mask tile extraction
         m_mask_tile_buffers.clear();
@@ -464,16 +470,16 @@ class PositionIDs final : public Selector {
     std::size_t _position_ids_idx = 0u;
     int64_t _current_length = 0;
     int64_t _past_length = 0;
-    std::size_t _query_size = 0u;
+    std::size_t _original_query_length = 0u;  // original query length before PropagateSliceUp
 
     std::reference_wrapper<const ov::ISyncInferRequest> _rq;
 
-    PositionIDs(std::size_t param_idx, std::size_t query_size, const ov::ISyncInferRequest& rq);
+    PositionIDs(std::size_t param_idx, std::size_t original_query_length, const ov::ISyncInferRequest& rq);
     void prepare(int64_t past_len) override;
     int64_t context_length() const override;
 
 public:
-    static Selector::Ptr find(std::size_t query_size, const ov::ISyncInferRequest& rq);
+    static Selector::Ptr find(std::size_t original_query_length, const ov::ISyncInferRequest& rq);
 };
 
 }  // namespace host_flash_attention

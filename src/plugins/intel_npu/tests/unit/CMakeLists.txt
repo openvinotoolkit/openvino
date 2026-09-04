@@ -120,6 +120,7 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/reshape_to_static.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/replace_deepstack_scatter_with_add.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/right_align_mask_slice_for_conv.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/propagate_slice.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/slice_out_embeds.cpp
             # kokoro pipeline
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/pipelines/kokoro/kokoro_compiled_model.cpp
@@ -146,6 +147,13 @@ if(ENABLE_AVX2)
     ov_avx2_optimization_flags(avx2_flags)
     target_compile_options(${TARGET_NAME} PRIVATE "${avx2_flags}")
     target_compile_definitions(${TARGET_NAME} PRIVATE HAVE_AVX2)
+endif()
+
+# The unit test target compiles plugin source files directly without -fvisibility=hidden
+# (unlike the plugin itself). On GCC this causes -Wattributes for the visibility attribute
+# on static member functions in OpenVINO's rtti.hpp. Suppress the warning here.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(${TARGET_NAME} PRIVATE -Wno-attributes)
 endif()
 
 install(TARGETS ${TARGET_NAME}
