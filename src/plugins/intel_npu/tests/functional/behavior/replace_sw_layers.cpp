@@ -45,7 +45,7 @@ TEST_P(CompileWithDummy_NPU3720, CompilationForSpecificPlatform) {
     }
 }
 
-const std::vector<ov::AnyMap> configs = {{{ov::intel_npu::platform(ov::intel_npu::Platform::NPU3720)},
+const std::vector<ov::AnyMap> configs = {{{ov::intel_npu::platform(ov::intel_npu::platforms::NPU3720)},
                                           {ov::intel_npu::compilation_mode_params("dummy-op-replacement=true")}}};
 // Must be successfully compiled with dummy-op-replacement=true
 

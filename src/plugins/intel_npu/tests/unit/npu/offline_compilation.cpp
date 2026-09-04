@@ -106,8 +106,8 @@ TEST_P(OfflineCompilationUnitTests, CompatibilityCheckNotSupportedOffline) {
 INSTANTIATE_TEST_SUITE_P(
     OfflineCompilationPlatforms,
     OfflineCompilationUnitTests,
-    ::testing::Values(ov::AnyMap{{ov::intel_npu::platform.name(), ov::intel_npu::Platform::NPU5010}},
-                      ov::AnyMap{{ov::intel_npu::platform.name(), ov::intel_npu::Platform::NPU5020}}),
+    ::testing::Values(ov::AnyMap{{ov::intel_npu::platform.name(), ov::intel_npu::platforms::NPU5010}},
+                      ov::AnyMap{{ov::intel_npu::platform.name(), ov::intel_npu::platforms::NPU5020}}),
     OfflineCompilationUnitTests::getTestCaseName);
 
 using UnavailableDeviceTests = ::testing::Test;

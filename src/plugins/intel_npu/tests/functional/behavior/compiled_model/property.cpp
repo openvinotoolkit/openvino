@@ -279,7 +279,7 @@ TEST_P(ClassExecutableNetworkInvalidDeviceIDTestSuite, InvalidNPUdeviceIDTest) {
 
     auto backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
     auto device = backend->getDevice();
-    if (device != nullptr && device->getName() == ov::intel_npu::Platform::AUTO_DETECT) {
+    if (device != nullptr && device->getName() == ov::intel_npu::platforms::AUTO_DETECT) {
         if (is_non_negative_numeric_device_id) {
             GTEST_SKIP()
                 << "Skip since AUTO_DETECT platform should ignore numeric suffix and find the device successfully\n";
@@ -937,7 +937,7 @@ std::vector<std::pair<std::string, ov::Any>> plugin_public_mutable_properties = 
 std::vector<std::pair<std::string, ov::Any>> compat_plugin_internal_mutable_properties = {
     {ov::intel_npu::compilation_mode_params.name(), ov::Any("use-user-precision=false propagate-quant-dequant=0")},
     {ov::intel_npu::dma_engines.name(), ov::Any(1)},
-    {ov::intel_npu::platform.name(), ov::Any(ov::intel_npu::Platform::AUTO_DETECT)},
+    {ov::intel_npu::platform.name(), ov::Any(ov::intel_npu::platforms::AUTO_DETECT)},
     {ov::intel_npu::compilation_mode.name(), ov::Any("DefaultHW")},
     {ov::intel_npu::defer_weights_load.name(), ov::Any(true)},
 };
