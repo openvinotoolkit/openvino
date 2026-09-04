@@ -130,6 +130,12 @@ ov::OutputVector resize(const ov::frontend::onnx::Node& node) {
     if (axes_attr.empty()) {
         return {std::make_shared<v11::Interpolate>(data, scale_or_sizes, attrs)};
     }
+
+    const auto data_rank = data.get_partial_shape().rank();
+    for (auto& axis : axes_attr) {
+        axis = common::normalize_axis(node.get_description(), axis, data_rank);
+    }
+
     auto axes = std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{axes_attr.size()}, axes_attr);
     return {std::make_shared<v11::Interpolate>(data, scale_or_sizes, axes, attrs)};
 }
