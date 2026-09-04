@@ -75,9 +75,7 @@ public:
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::save(ob);
 
-        std::vector<uint8_t> prim_cache;
-        prim_cache = _prim.get_cache_blob();
-        ob << prim_cache;
+        ob << get_cache_blob_or_empty();
 #endif
     }
 
@@ -102,10 +100,7 @@ public:
         ib >> prim_cache;
 
         _scratchpad_md = _pd.scratchpad_desc();
-        if (!prim_cache.empty())
-            _prim = dnnl::reorder(_pd, prim_cache);
-        else
-            _prim = dnnl::reorder(_pd);
+        _prim = make_primitive_from_blob(prim_cache);
 #endif
     }
 
