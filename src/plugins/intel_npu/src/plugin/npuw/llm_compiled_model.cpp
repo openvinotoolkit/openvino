@@ -290,15 +290,15 @@ void apply_weights_bank_name(ov::AnyMap& config, const std::string& bank_name) {
 }
 
 ov::AnyMap get_baseline_common_config(const std::optional<NPUDesc>& npudesc) {
-    ov::AnyMap config = {
-        {"NPU_COMPILATION_MODE_PARAMS", "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm"},
-        {"NPUW_DEVICES", "NPU"},
-        {"NPU_USE_NPUW", "YES"},
-        {"NPUW_FOLD", "YES"},
-        {"NPUW_DCOFF_TYPE", "f16"},
-        {"NPUW_DCOFF_SCALE", "YES"},
-        {"NPUW_SLICE_OUT", "YES"},
-        {"NPUW_FUNCALL_ASYNC", "YES"}};
+    ov::AnyMap config = {{"NPU_COMPILATION_MODE_PARAMS",
+                          "compute-layers-with-higher-precision=Add_BeforeRMSNorm,Sqrt,Power,ReduceMean,Add_RMSNorm"},
+                         {"NPUW_DEVICES", "NPU"},
+                         {"NPU_USE_NPUW", "YES"},
+                         {"NPUW_FOLD", "YES"},
+                         {"NPUW_DCOFF_TYPE", "f16"},
+                         {"NPUW_DCOFF_SCALE", "YES"},
+                         {"NPUW_SLICE_OUT", "YES"},
+                         {"NPUW_FUNCALL_ASYNC", "YES"}};
     // FIXME: this config logic is getting more and more complex
     if (npudesc.has_value() && npudesc->compiler_dq) {
         config.emplace("NPUW_DQ", "YES");
