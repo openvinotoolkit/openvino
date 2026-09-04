@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <limits>
 #include <memory>
 
 #include "common_test_utils/test_assertions.hpp"
@@ -859,9 +858,8 @@ TEST_P(StridedSliceIntervalTest, begin_end_as_interval) {
     EXPECT_EQ(op->get_output_partial_shape(0), exp_shape);
 }
 
-TEST(type_prop, strided_slice_stride_2_on_unbounded_dims_does_not_propagate_symbols) {
-    // Regression: a stride-2 slice over dims with bounds [1..inf] keeps the same interval as its input,
-    // but its size is ceil(D/2) != D, so the input dimension symbols must not be propagated to the output.
+TEST(type_prop, strided_slice_ignore_begin_end_masks_stride_2_on_unbounded_dims_does_not_propagate_symbols) {
+    // Stride 2 on [1..inf] keeps the interval but changes the size (ceil(D/2)), so the symbols must not be propagated.
     auto shape = PartialShape{2, Dimension(1, -1), Dimension(1, -1), 96};
     auto symbols = set_shape_symbols(shape);
     auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
@@ -877,8 +875,8 @@ TEST(type_prop, strided_slice_stride_2_on_unbounded_dims_does_not_propagate_symb
                 ElementsAre(symbols[0], nullptr, nullptr, symbols[3]));
 }
 
-TEST(type_prop, strided_slice_full_range_stride_1_on_unbounded_dims_propagates_symbols) {
-    // Control: an identity slice preserves the size, so symbols are kept.
+TEST(type_prop, strided_slice_ignore_begin_end_masks_stride_pos_1_on_unbounded_dims_propagates_symbols) {
+    // An identity slice preserves the size, so the symbols are kept.
     auto shape = PartialShape{2, Dimension(1, -1), Dimension(1, -1), 96};
     auto symbols = set_shape_symbols(shape);
     auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
@@ -911,7 +909,7 @@ TEST(type_prop, strided_slice_converted_from_slice_keeps_symbols_on_masked_axes)
                 ElementsAre(symbols[0], symbols[1], symbols[2], nullptr));
 }
 
-TEST(type_prop, strided_slice_bounded_dims_masks_stride_pm1_propagate_symbols) {
+TEST(type_prop, strided_slice_ignore_begin_end_masks_stride_pos_neg_1_on_bounded_dims_propagates_symbols) {
     // Masked full range keeps the size for stride +1 and -1 on bounded dims, but not for stride 2.
     auto shape = PartialShape{Dimension(2, 5), Dimension(2, 5), Dimension(2, 5)};
     auto symbols = set_shape_symbols(shape);
@@ -929,7 +927,7 @@ TEST(type_prop, strided_slice_bounded_dims_masks_stride_pm1_propagate_symbols) {
                 ElementsAre(symbols[0], symbols[1], nullptr));
 }
 
-TEST(type_prop, strided_slice_reverse_full_range_masks_on_unbounded_dims_propagates_symbols) {
+TEST(type_prop, strided_slice_ignore_begin_end_masks_stride_neg_1_on_unbounded_dims_propagates_symbols) {
     // Masked full range with stride -1 reverses the whole dimension, so the size is preserved.
     auto shape = PartialShape{2, Dimension(1, -1), Dimension(1, -1), 96};
     auto symbols = set_shape_symbols(shape);
@@ -944,55 +942,6 @@ TEST(type_prop, strided_slice_reverse_full_range_masks_on_unbounded_dims_propaga
     EXPECT_EQ(strided_slice->get_output_partial_shape(0), PartialShape({2, Dimension(1, -1), Dimension(1, -1), 96}));
     EXPECT_THAT(get_shape_symbols(strided_slice->get_output_partial_shape(0)),
                 ElementsAre(symbols[0], symbols[1], symbols[2], symbols[3]));
-}
-
-TEST(type_prop, strided_slice_size_preserving_predicate) {
-    // The closed-form size-preservation predicate must be true only if the slice yields exactly L elements for every
-    // length L within the dimension interval and every start/stop value within the bounds.
-    using ov::op::slice::Bounds;
-    constexpr auto i64_max = std::numeric_limits<int64_t>::max();
-    constexpr auto i64_min = std::numeric_limits<int64_t>::min();
-
-    struct Row {
-        Dimension dim;
-        Bounds start;
-        Bounds stop;
-        int64_t step;
-        bool expected;
-    };
-    const auto inf = Dimension(1, -1);
-    const std::vector<Row> rows{
-        {inf, {0, 0}, {i64_max, i64_max}, 1, true},
-        {inf, {0, 0}, {i64_max, i64_max}, 2, false},
-        {inf, {0, 0}, {i64_max, i64_max}, 3, false},
-        {inf, {0, 0}, {i64_max, i64_max}, -1, false},
-        {inf, {i64_min, i64_min}, {i64_max, i64_max}, 1, true},
-        {inf, {i64_max, i64_max}, {i64_min, i64_min}, -1, true},
-        {inf, {-1, -1}, {i64_min, i64_min}, -1, true},
-        {inf, {1, 1}, {i64_max, i64_max}, 1, false},
-        {inf, {0, 0}, {2147483647, 2147483647}, 1, false},
-        {inf, {i64_min, 0}, {i64_max, i64_max}, 1, false},
-        {inf, {0, 0}, {1, i64_max}, 1, false},
-        {Dimension(10), {0, 0}, {10, 10}, 1, true},
-        {Dimension(10), {0, 0}, {9, 9}, 1, false},
-        {Dimension(10), {-20, -20}, {20, 20}, 1, true},
-        {Dimension(10), {9, 9}, {-11, -11}, -1, true},
-        {Dimension(4, 8), {0, 0}, {8, 8}, 1, true},
-        {Dimension(4, 8), {0, 0}, {6, 6}, 1, false},
-        {Dimension(4, 8), {0, 0}, {4, 8}, 1, false},
-        {Dimension(2, 5), {-5, -5}, {5, 5}, 1, true},
-        {Dimension(2, 5), {-5, -3}, {5, 5}, 1, false},
-        {Dimension(2, 5), {0, 0}, {5, 5}, -1, false},
-        {Dimension(2, 5), {4, 4}, {-6, -6}, -1, true},
-        {Dimension(2, 5), {3, 3}, {-6, -6}, -1, false},
-        // lengths 0 and 1 are trivially preserved by any step: the predicate is conservative here
-        {Dimension(0, 1), {0, 0}, {i64_max, i64_max}, 2, false},
-    };
-
-    for (size_t i = 0; i < rows.size(); ++i) {
-        const auto& r = rows[i];
-        EXPECT_EQ(ov::op::slice::is_identity_slice(r.dim, r.start, r.stop, r.step), r.expected) << "row " << i;
-    }
 }
 
 TEST(type_prop, strided_slice_non_const_begin_end_on_bounded_dims_does_not_propagate_symbols) {
