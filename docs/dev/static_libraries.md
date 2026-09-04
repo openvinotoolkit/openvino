@@ -211,9 +211,11 @@ These samples link against the static package the same way any consuming applica
 
 ### Using a custom TBB build
 
-`TBBBind_2_5` is not available on Windows x64 during a static OpenVINO build, so the capabilities it enables (see the `ENABLE_TBBBIND_2_5` CMake option in [CMake Options for Custom Compilation](cmake_options_for_custom_compilation.md)) are lost. To get them back — or to use a static oneTBB — build [oneTBB from source](https://github.com/uxlfoundation/oneTBB/blob/master/INSTALL.md) and set `TBBROOT` to the installation directory before configuring OpenVINO.
+To build against your own TBB instead of the prebuilt package, follow the [oneTBB installation instructions](https://github.com/uxlfoundation/oneTBB/blob/master/INSTALL.md) and set `TBBROOT` to the installation directory before configuring OpenVINO.
 
-> **NOTE**: A static oneTBB is not a recommended configuration: it is safe only if exactly one copy of oneTBB ends up in the process, and it disables features that rely on run-time dynamic loading (`tbbbind` topology constraints, `tbbmalloc_proxy`, TCM). Read [Static Linking of oneTBB](https://uxlfoundation.github.io/oneTBB/main/intro/static_linking.html) before choosing it, and validate performance and correctness of your application yourself.
+If you build that oneTBB as a static library, read [Static Linking of oneTBB](https://uxlfoundation.github.io/oneTBB/main/intro/static_linking.html) first. It is not a recommended configuration: it is safe only if exactly one copy of oneTBB ends up in the process, and it disables features that need run-time dynamic loading (`tbbbind` topology constraints, `tbbmalloc_proxy`, TCM).
+
+> **NOTE**: You may notice the `ENABLE_TBBBIND_2_5` option is `OFF` on Windows x64 in a static build. This is harmless — the option only matters for old TBB packages that lack a dynamic `tbbbind_2_5` library. The prebuilt oneTBB ships one, so NUMA and hybrid-core detection work regardless.
 
 ## See also
 
