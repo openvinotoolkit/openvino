@@ -146,7 +146,7 @@ jobs:
           mode: zero-stats
 
       - name: cmake --build - build
-        run: cmake --build ${OPENVINO_BUILD_DIR} --target hello_query_device --parallel $(nproc)
+        run: cmake --build ${OPENVINO_BUILD_DIR} --target hello_query_device --parallel 15
 
       - name: Compile cache statistics (hello_query_device)
         uses: ./openvino/.github/actions/compile_cache_stats

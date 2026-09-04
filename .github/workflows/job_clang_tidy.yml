@@ -125,7 +125,7 @@ jobs:
         run: |
           cmake \
             --build "${BUILD_DIR}" \
-            --parallel "$(($(nproc) - 1))" \
+            --parallel 15 \
             --config "${CMAKE_BUILD_TYPE}" \
             --target "${BUILD_TARGET}" \
             -- ${BUILD_EXTRA_ARGS}

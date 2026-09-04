@@ -68,6 +68,7 @@ jobs:
       runner: 'aks-win-32-cores-64gb-build-ab'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Debug'
+      cmake-build-parallel: '31'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
       cmake-options: >-
         -G 'Ninja'

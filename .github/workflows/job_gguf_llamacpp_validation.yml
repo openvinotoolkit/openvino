@@ -93,7 +93,7 @@ jobs:
           mode: zero-stats
 
       - name: Build llama.cpp
-        run: cmake --build llama.cpp/build --parallel "$(nproc)"
+        run: cmake --build llama.cpp/build --parallel 15
 
       - name: Compile cache statistics (llama.cpp build)
         uses: ./openvino-ci-actions/.github/actions/compile_cache_stats

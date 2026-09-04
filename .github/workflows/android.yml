@@ -220,7 +220,7 @@ jobs:
           mode: zero-stats
 
       - name: Build OneTBB project
-        run: cmake --build ${TBB_BUILD} --parallel $(nproc) -- --quiet
+        run: cmake --build ${TBB_BUILD} --parallel 15 -- --quiet
 
       - name: Compile cache statistics (onetbb)
         uses: ./openvino/.github/actions/compile_cache_stats
@@ -269,7 +269,7 @@ jobs:
           mode: zero-stats
 
       - name: CMake - build OpenVINO
-        run: cmake --build ${BUILD_DIR} --parallel $(nproc) -- --quiet
+        run: cmake --build ${BUILD_DIR} --parallel 15 -- --quiet
 
       - name: Compile cache statistics (openvino)
         uses: ./openvino/.github/actions/compile_cache_stats
