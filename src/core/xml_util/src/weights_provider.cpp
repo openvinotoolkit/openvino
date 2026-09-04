@@ -4,6 +4,8 @@
 
 #include "openvino/xml_util/weights_provider.hpp"
 
+#include <limits>
+
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
@@ -15,9 +17,9 @@ namespace ov::util {
 
 namespace {
 
+// CVS-193798: unreachable on purpose, mmap must stay disabled here.
 size_t get_mmap_region_threshold() {
-    const auto page_size = ov::util::get_system_page_size();
-    return page_size > 0 ? static_cast<size_t>(page_size) : 1024 * 1024;
+    return std::numeric_limits<size_t>::max();
 }
 
 }  // namespace

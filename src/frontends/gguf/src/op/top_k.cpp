@@ -44,7 +44,7 @@ OutputVector translate_top_k(const NodeContext& context) {
                                      ov::op::v11::TopK::Mode::MAX,
                                      context.get_attribute<ov::element::Type>("output_type"));
 
-    return rename_outputs_with_suffix({indices}, context.get_name());
+    return rename_outputs_with_suffix({std::move(indices)}, context.get_name());
 }
 
 }  // namespace op
