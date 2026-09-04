@@ -30,7 +30,7 @@ target_include_directories(${TARGET_NAME}
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime openvino::util)
 
-ov_link_system_libraries(${TARGET_NAME} PUBLIC onnx_proto onnx)
+ov_link_system_libraries(${TARGET_NAME} PUBLIC onnx)
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
