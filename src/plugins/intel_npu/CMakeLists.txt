@@ -18,6 +18,12 @@ set(NPU_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 include(cmake/features.cmake)
 
+if(ENABLE_COVERAGE)
+    add_compile_options(--coverage -O0)
+    add_link_options(--coverage)
+    message(STATUS "Build with Code Coverage enabled")
+endif()
+
 if(ENABLE_INTEL_NPU_COMPILER)
     if(BUILD_SHARED_LIBS)
         include(cmake/download_compiler_libs.cmake)
