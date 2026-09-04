@@ -6,6 +6,7 @@
 
 #include <vector>
 #include <utility>
+#include <cstdlib>
 
 namespace cldnn {
 namespace ze {
@@ -98,7 +99,22 @@ bool ze_ocl_interop::check_support(ze_device_handle_t ze_device) const {
     }
 };
 
+void ze_ocl_interop::set_driver_env_var() {
+    const char *varName = "EnableLEO";
+    const char *varValue = "1";
+#if defined(_WIN32) || defined(_WIN64)
+    if (_putenv_s(varName, varValue) != 0) {
+        std::cout << "Failed to set EnableLEO environment variable" << std::endl;
+    }
+#else
+    if (setenv(varName, varValue, 1) != 0) {
+        std::cout << "Failed to set EnableLEO environment variable" << std::endl;
+    }
+#endif
+}
+
 void ze_ocl_interop::init() {
+    set_driver_env_var();
     // Initialize Level Zero and find devices
     auto ze_devices = find_ze_devices();
     // Initialize OpenCL and find devices
