@@ -280,6 +280,9 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
 std::pair<FilteredConfig, ov::AnyMap> PluginPropertyManager::getMergedConfigAndUnknownProperties(
     const ov::AnyMap& properties,
     ConfigMergeMode mergeMode) {
+    const auto loadedFromCacheIt = properties.find(std::string(ov::loaded_from_cache.name()));
+    auto loadedFromCache = loadedFromCacheIt == properties.end() ? false : loadedFromCacheIt->second.as<bool>();
+
     std::lock_guard<std::mutex> lock(_mutex);
 
     if (properties.find(ov::hint::enable_cpu_pinning.name()) != properties.end()) {
@@ -314,34 +317,35 @@ std::pair<FilteredConfig, ov::AnyMap> PluginPropertyManager::getMergedConfigAndU
 
         if (propertyDescriptorIt == _properties.end()) {
             // Property doesn't exist - check whether the compiler supports it as an internal option.
-            bool isSupportedByCompiler = false;
-            const auto resolvedCompilerType = resolveCompilerType(normalizedArguments.compilerType,
-                                                                  normalizedArguments.deviceId,
-                                                                  normalizedArguments.platform);
-            if (resolvedCompilerType.has_value()) {
-                try {
-                    isSupportedByCompiler =
-                        _compilerOptionSupportHelper->isOptionSupported(resolvedCompilerType.value(), key);
-                } catch (...) {
-                    // ignore any exceptions from the compiler and treat the property as unsupported
-                    isSupportedByCompiler = false;
-                }
-            }
 
-            if (isSupportedByCompiler) {
-                if (mergeMode == ConfigMergeMode::Import) {
-                    // Compile-time-only options are not relevant when no compiler config is being built.
-                    _logger.warning("Property '%s' is recognized as a compiler option, will not be used for current "
-                                    "configuration.",
-                                    key.c_str());
+            if (mergeMode != ConfigMergeMode::Import || loadedFromCache) {
+                bool isSupportedByCompiler = false;
+                const auto resolvedCompilerType = resolveCompilerType(normalizedArguments.compilerType,
+                                                                      normalizedArguments.deviceId,
+                                                                      normalizedArguments.platform);
+                if (resolvedCompilerType.has_value()) {
+                    try {
+                        isSupportedByCompiler =
+                            _compilerOptionSupportHelper->isOptionSupported(resolvedCompilerType.value(), key);
+                    } catch (...) {
+                        // ignore any exceptions from the compiler and treat the property as unsupported
+                        isSupportedByCompiler = false;
+                    }
+                }
+
+                if (isSupportedByCompiler) {
+                    if (mergeMode == ConfigMergeMode::Import) {
+                        // Compile-time-only options are not relevant when no compiler config is being built.
+                        warnCompilerOnlyOptionSkipped(key);
+                        continue;
+                    }
+                    // Compiler supports this option, add it as an internal property.
+                    updatedConfig.addOrUpdateInternal(key, value.second.as<std::string>());
                     continue;
                 }
-                // Compiler supports this option, add it as an internal property.
-                updatedConfig.addOrUpdateInternal(key, value.second.as<std::string>());
-                continue;
-            }
 
-            OPENVINO_ASSERT(mergeMode != ConfigMergeMode::Query, "Unsupported configuration key: ", key);
+                OPENVINO_ASSERT(mergeMode != ConfigMergeMode::Query, "Unsupported configuration key: ", key);
+            }
 
             // property doesn't exist, send it as it is to compiled model anyway, it may be used by compiled model
             _logger.info("Property '%s' is unknown to the plugin property manager, will be sent to the compiled model.",
@@ -367,9 +371,7 @@ std::pair<FilteredConfig, ov::AnyMap> PluginPropertyManager::getMergedConfigAndU
 
         if (mergeMode == ConfigMergeMode::Import && updatedConfig.getOpt(key).mode() == OptionMode::CompileTime) {
             // Compile-time-only options are not relevant when importing a model, skip them.
-            _logger.warning("Property '%s' is recognized as a compiler option, will not be used for current "
-                            "configuration.",
-                            key.c_str());
+            warnCompilerOnlyOptionSkipped(key);
             continue;
         }
 
@@ -377,9 +379,7 @@ std::pair<FilteredConfig, ov::AnyMap> PluginPropertyManager::getMergedConfigAndU
             // In case of both property is import to not throw an error if they are not supported by the device but may
             // be by the compiler.
             if (mergeMode == ConfigMergeMode::Import && updatedConfig.getOpt(key).mode() == OptionMode::Both) {
-                _logger.warning("Property '%s' is recognized as a compiler option, will not be used for current "
-                                "configuration.",
-                                key.c_str());
+                warnCompilerOnlyOptionSkipped(key);
                 continue;
             }
 
@@ -459,6 +459,11 @@ std::optional<ov::intel_npu::CompilerType> PluginPropertyManager::resolveCompile
                         ex.what());
         return std::nullopt;
     }
+}
+
+void PluginPropertyManager::warnCompilerOnlyOptionSkipped(const std::string& key) const {
+    _logger.warning("Property '%s' is recognized as a compiler option, will not be used for current configuration.",
+                    key.c_str());
 }
 
 void PluginPropertyManager::registerProperties() {
