@@ -4,7 +4,9 @@
 
 #pragma once
 
-#include <cstddef>
+#include <algorithm>
+#include <cmath>
+#include <type_traits>
 
 #include "openvino/core/shape.hpp"
 #include "openvino/op/util/attr_types.hpp"
@@ -15,6 +17,12 @@ namespace reference {
 namespace func {
 template <class T>
 T max(const T a, const T b) {
+    if constexpr (std::is_floating_point<T>::value) {
+        if (std::isnan(a))
+            return a;
+        if (std::isnan(b))
+            return b;
+    }
     return std::max(a, b);
 }
 }  // namespace func
