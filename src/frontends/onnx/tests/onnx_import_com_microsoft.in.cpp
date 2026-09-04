@@ -2462,6 +2462,14 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_3x32_zp) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_zp_size_mismatch) {
+    // Regression for CWE-125: a packed uint8 zero_points initializer that is smaller than the
+    // destination shape [N][CeilDiv(n_blocks_per_col * bits, 8)] must be rejected before the
+    // Constant memcpy, otherwise it triggers an out-of-bounds read during model import. Here the
+    // node needs 6 zero_point bytes but the initializer only provides 1.
+    EXPECT_THROW(convert_model("com.microsoft/matmulnbits_zp_size_mismatch.onnx"), ov::Exception);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_no_zp_block_size) {
     const auto model = convert_model("com.microsoft/matmulnbits_no_zp_block_size.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
