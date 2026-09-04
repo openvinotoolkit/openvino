@@ -3,26 +3,31 @@
 //
 // Unit tests for jit_kernel_ir.hpp.
 //
-// Slice 1 coverage:
-//   - Straight-line interval computation on hand-built IR.
-//   - Linear scan assignment + peak tracker on pressure-free input.
-//   - Register reuse across non-overlapping intervals.
-//   - Pool overflow raises allocation_failure (no spill in Slice 1).
-//   - Values defined but never read get their register freed promptly.
-//   - Dump helpers don't crash on empty or populated IR.
-//
-// Slice 2 coverage:
+// Coverage:
+//   - Live range construction on hand-built IR: straight-line, branches,
+//     loops, half-open segments, early/late slots, re-defs.
+//   - Allocation: register reuse across disjoint ranges, coalescing of
+//     copies and tied operands, mixed Vec/GPR classes over two pools,
+//     rematerialization, pool exhaustion (there is no spiller, so
+//     exhaustion throws allocation_failure).
+//   - Verifier: rejects interference violations, missing assignments,
+//     dangling reads and out-of-pool registers.
+//   - Randomized allocation: fuzzed IR must always satisfy the verifier.
 //   - End-to-end IR mode: record through DSL operators, allocate, lower,
-//     execute generated kernel and verify output.
+//     execute the generated kernel and check results — including
+//     differential tests against a scalar reference over random widths.
 
 #include <gtest/gtest.h>
 #include <kernels/x64/jit_kernel.hpp>
 #include <kernels/x64/jit_kernel_ir.hpp>
 
 #include <array>
+#include <cmath>
 #include <cstdlib>
 #include <cstdint>
 #include <limits>
+#include <optional>
+#include <random>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -38,14 +43,28 @@ EmitFn stub() {
     return [](const EmitContext&) {};
 }
 
-// Helper: wrap old linear_scan API for tests that don't need spill.
-std::optional<Assignment> linear_scan_test(IR& ir, std::vector<LiveRange>& ranges,
+// Helper: total op count including nested region bodies.
+std::size_t count_ops_recursive(const std::list<Op>& ops) {
+    std::size_t n = 0;
+    for (const auto& op : ops) {
+        ++n;
+        if (op.body) {
+            n += count_ops_recursive(op.body->ops());
+        }
+    }
+    return n;
+}
+
+// Helper: assign_registers with an explicit pool configuration.
+std::optional<Assignment> assign_registers_test(IR& ir, std::vector<LiveRange>& ranges,
                                            std::uint32_t vec_pool_size,
                                            const std::vector<std::uint32_t>& gpr_pool = {}) {
     PassContext ctx;
-    ctx.vec_pool_size = vec_pool_size;
+    for (std::uint32_t i = 0; i < vec_pool_size; ++i) {
+        ctx.vec_pool_indices.push_back(i);
+    }
     ctx.gpr_pool_indices = gpr_pool;
-    return linear_scan(ir, ranges, ctx);
+    return assign_registers(ir, ranges, ctx);
 }
 
 // Helper: assert every value that appears in `intervals` (with a real start)
@@ -154,7 +173,7 @@ TEST(JitKernelIR, LinearScanFitsInPool) {
     (void)d;
 
     auto ranges = compute_live_ranges(ir);
-    const auto assignment = *linear_scan_test(ir, ranges, /*pool_size=*/4);
+    const auto assignment = *assign_registers_test(ir, ranges, /*pool_size=*/4);
 
     expect_all_assigned(ranges, assignment);
     expect_no_overlap_conflict(ranges, assignment);
@@ -180,7 +199,7 @@ TEST(JitKernelIR, LinearScanReusesFreedRegisters) {
     (void)prev;
 
     auto ranges = compute_live_ranges(ir);
-    const auto assignment = *linear_scan_test(ir, ranges, /*pool_size=*/2);
+    const auto assignment = *assign_registers_test(ir, ranges, /*pool_size=*/2);
 
     expect_all_assigned(ranges, assignment);
     expect_no_overlap_conflict(ranges, assignment);
@@ -188,7 +207,7 @@ TEST(JitKernelIR, LinearScanReusesFreedRegisters) {
     EXPECT_GE(assignment.peak_live, 1U);
 }
 
-TEST(JitKernelIR, LinearScanThrowsOnOverflow) {
+TEST(JitKernelIR, AssignmentThrowsOnPoolOverflow) {
     // Five long-lived values all bundled into one final op. The first is
     // remat-able but doesn't interfere with the failing value (v4), so
     // the allocator correctly throws rather than entering an infinite
@@ -212,7 +231,7 @@ TEST(JitKernelIR, LinearScanThrowsOnOverflow) {
     auto ranges = compute_live_ranges(ir);
     EXPECT_THROW({
         for (std::size_t attempt = 0, limit = ranges.size(); attempt < limit; ++attempt) {
-            auto result = linear_scan_test(ir, ranges, /*pool_size=*/4);
+            auto result = assign_registers_test(ir, ranges, /*pool_size=*/4);
             if (result) break;
             ranges = compute_live_ranges(ir);
         }
@@ -223,7 +242,7 @@ TEST(JitKernelIR, LinearScanThrowsOnOverflow) {
     IR ir2;
     build_chain(ir2);
     auto ranges2 = compute_live_ranges(ir2);
-    auto result2 = linear_scan_test(ir2, ranges2, /*pool_size=*/5);
+    auto result2 = assign_registers_test(ir2, ranges2, /*pool_size=*/5);
     ASSERT_TRUE(result2.has_value());
     expect_all_assigned(ranges2, *result2);
     expect_no_overlap_conflict(ranges2, *result2);
@@ -246,7 +265,7 @@ TEST(JitKernelIR, UseWithoutDefDoesNotCreateValue) {
     EXPECT_EQ(ranges[v].beginIndex(), 1U);   // def at late(0)
     EXPECT_EQ(ranges[v].endIndex(), 3U);    // read at early(1), half-open end=3
 
-    const auto assignment = *linear_scan_test(ir, ranges, /*pool_size=*/1);
+    const auto assignment = *assign_registers_test(ir, ranges, /*pool_size=*/1);
     EXPECT_EQ(assignment.peak_live, 1U);
 }
 
@@ -280,7 +299,7 @@ TEST(JitKernelIR, DumpProducesNonEmptyText) {
     (void)c;
 
     auto ranges = compute_live_ranges(ir);
-    const auto assignment = *linear_scan_test(ir, ranges, /*pool_size=*/3);
+    const auto assignment = *assign_registers_test(ir, ranges, /*pool_size=*/3);
 
     std::ostringstream op_dump;
     dump_ops(op_dump, ir);
@@ -302,16 +321,16 @@ TEST(JitKernelIR, DeadValueFreesRegisterImmediately) {
     (void)ir.def({}, stub());  // dead, would fail on pool=1 if dead value held its reg
 
     auto ranges = compute_live_ranges(ir);
-    const auto assignment = *linear_scan_test(ir, ranges, /*pool_size=*/1);
+    const auto assignment = *assign_registers_test(ir, ranges, /*pool_size=*/1);
     EXPECT_EQ(assignment.peak_live, 1U);
     EXPECT_EQ(assignment.reg.size(), 2U);
 }
 
-TEST(JitKernelIR, RematRewritesOnlySingleUse) {
-    // Conservative remat sees active.size()=3 > pool_size=2, triggers remat.
-    // The allocator could handle this via segment interference, but remat
-    // is conservative and fires anyway. Verify the clone is created and
-    // only the first branch use is rewritten.
+TEST(JitKernelIR, AllocatorRematerializesUnderPressure) {
+    // %c0, %hold and %pressure are live at the same point, so a pool of two
+    // cannot hold them. %c0 has no reads, hence is rematerializable: the
+    // allocator clones it at its uses, reports "IR modified" (nullopt) and
+    // the caller re-runs analysis.
     IR ir;
     const value_id c0 = ir.def({}, stub());       // remat-able
     const value_id hold = ir.def({c0}, stub());   // long-lived, not remat-able
@@ -327,11 +346,24 @@ TEST(JitKernelIR, RematRewritesOnlySingleUse) {
     ir.use({hold}, stub());  // keep `hold` live past both regions
 
     auto ranges = compute_live_ranges(ir);
-    // With early/late slot indexing, peak pressure no longer exceeds 2
-    // at pool_size=2, so remat doesn't fire.
-    EXPECT_FALSE(rematerialize_for_pressure(ir, ranges, /*pool_size=*/2));
-    EXPECT_EQ(ir.value_count(), 3U);
-    EXPECT_EQ(count_reads_recursive(ir.ops(), c0), 3U);
+    const auto values_before = ir.value_count();
+
+    const auto first = assign_registers_test(ir, ranges, /*pool_size=*/2);
+    EXPECT_FALSE(first.has_value()) << "expected remat (IR rewritten), not an assignment";
+    EXPECT_GT(ir.value_count(), values_before) << "remat should have introduced clones";
+    EXPECT_LT(count_reads_recursive(ir.ops(), c0), 2U)
+        << "uses of the victim should now read clones";
+
+    // Retry loop, as RegisterAllocator does, must converge.
+    for (int attempt = 0; attempt < 8; ++attempt) {
+        ranges = compute_live_ranges(ir);
+        const auto result = assign_registers_test(ir, ranges, /*pool_size=*/2);
+        if (result) {
+            expect_no_overlap_conflict(ranges, *result);
+            return;
+        }
+    }
+    FAIL() << "allocation did not converge after remat";
 }
 
 TEST(JitKernelIR, InputAwareRematClonesWithReads) {
@@ -378,7 +410,7 @@ TEST(JitKernelIR, InputAwareRematClonesWithReads) {
     // short-lived (right before the use). Pool = 3 should suffice
     // for c0, c1, and the clone (derived is dead).
     auto ranges = compute_live_ranges(ir);
-    auto result = linear_scan_test(ir, ranges, /*pool_size=*/3);
+    auto result = assign_registers_test(ir, ranges, /*pool_size=*/3);
     ASSERT_TRUE(result.has_value());
     expect_all_assigned(ranges, *result);
     expect_no_overlap_conflict(ranges, *result);
@@ -414,7 +446,7 @@ TEST(JitKernelIR, InputAwareRematReducesPressure) {
 
     // Allocation should now succeed with pool=4.
     auto ranges = compute_live_ranges(ir);
-    auto result = linear_scan_test(ir, ranges, /*pool_size=*/4);
+    auto result = assign_registers_test(ir, ranges, /*pool_size=*/4);
     ASSERT_TRUE(result.has_value()) << "allocation should succeed after remat";
     expect_all_assigned(ranges, *result);
     expect_no_overlap_conflict(ranges, *result);
@@ -470,36 +502,40 @@ TEST(JitKernelIR, LiveRangesPerBranchSegments) {
     // Value %b defined before branches, used only in else-branch.
     // Each gets a contiguous segment from def through its branch use
     // (the value must survive in its register from def to use).
+    // Region ops own an index too (they emit the branch), so indices are:
+    //   0: def a, 1: def b, 2: region, 3: use a, 4: region, 5: use b
     IR ir;
     const value_id a = ir.def({}, stub());     // index 0
     const value_id b = ir.def({}, stub());     // index 1
 
-    ir.region(stub(), [&]() {                  // then-branch
-        ir.use({a}, stub());                   // index 2
+    ir.region(stub(), [&]() {                  // index 2 (then-branch)
+        ir.use({a}, stub());                   // index 3
     });
-    ir.region(stub(), [&]() {                  // else-branch
-        ir.use({b}, stub());                   // index 3
+    ir.region(stub(), [&]() {                  // index 4 (else-branch)
+        ir.use({b}, stub());                   // index 5
     });
 
     auto ranges = compute_live_ranges(ir);
 
-    // %a: def at late(0)=1, use at early(2)=4. Parent extends → [1, 5).
+    // %a: def at late(0)=1, use at early(3)=6 → [1, 7).
     EXPECT_EQ(ranges[a].segments.size(), 1U);
     EXPECT_EQ(ranges[a].beginIndex(), 1U);
-    EXPECT_EQ(ranges[a].endIndex(), 5U);
+    EXPECT_EQ(ranges[a].endIndex(), 7U);
     EXPECT_FALSE(ranges[a].liveAt(0));
     EXPECT_TRUE(ranges[a].liveAt(1));
-    EXPECT_TRUE(ranges[a].liveAt(4));
-    EXPECT_FALSE(ranges[a].liveAt(5));
+    EXPECT_TRUE(ranges[a].liveAt(6));
+    EXPECT_FALSE(ranges[a].liveAt(7));
 
-    // %b: def at late(1)=3, use at early(3)=6. Parent extends → [3, 7).
+    // %b: def at late(1)=3, use at early(5)=10 → [3, 11). It stays live
+    // across the first region: the then-branch may be taken and %b is
+    // needed afterwards either way.
     EXPECT_EQ(ranges[b].segments.size(), 1U);
     EXPECT_EQ(ranges[b].beginIndex(), 3U);
-    EXPECT_EQ(ranges[b].endIndex(), 7U);
+    EXPECT_EQ(ranges[b].endIndex(), 11U);
     EXPECT_FALSE(ranges[b].liveAt(2));
     EXPECT_TRUE(ranges[b].liveAt(3));
-    EXPECT_TRUE(ranges[b].liveAt(6));
-    EXPECT_FALSE(ranges[b].liveAt(7));
+    EXPECT_TRUE(ranges[b].liveAt(10));
+    EXPECT_FALSE(ranges[b].liveAt(11));
 }
 
 TEST(JitKernelIR, LiveRangesUsedInBothBranches) {
@@ -508,20 +544,19 @@ TEST(JitKernelIR, LiveRangesUsedInBothBranches) {
     IR ir;
     const value_id a = ir.def({}, stub());     // index 0
 
-    ir.region(stub(), [&]() {
-        ir.use({a}, stub());                   // index 1
-    });
-    ir.region(stub(), [&]() {
+    ir.region(stub(), [&]() {                  // index 1
         ir.use({a}, stub());                   // index 2
+    });
+    ir.region(stub(), [&]() {                  // index 3
+        ir.use({a}, stub());                   // index 4
     });
 
     auto ranges = compute_live_ranges(ir);
 
-    // %a: def at late(0)=1, use in then early(1)=2, use in else early(2)=4.
-    // Parent extends through both → single segment [1, 5).
+    // %a: def at late(0)=1, last use at early(4)=8 → single segment [1, 9).
     EXPECT_EQ(ranges[a].segments.size(), 1U);
     EXPECT_EQ(ranges[a].beginIndex(), 1U);
-    EXPECT_EQ(ranges[a].endIndex(), 5U);
+    EXPECT_EQ(ranges[a].endIndex(), 9U);
 }
 
 TEST(JitKernelIR, LiveRangesUsedAfterBranch) {
@@ -530,22 +565,258 @@ TEST(JitKernelIR, LiveRangesUsedAfterBranch) {
     IR ir;
     const value_id a = ir.def({}, stub());     // index 0
 
-    ir.region(stub(), [&]() {
-        ir.use({a}, stub());                   // index 1
-    });
-    ir.region(stub(), [&]() {
+    ir.region(stub(), [&]() {                  // index 1
         ir.use({a}, stub());                   // index 2
     });
+    ir.region(stub(), [&]() {                  // index 3
+        ir.use({a}, stub());                   // index 4
+    });
 
-    ir.use({a}, stub());                       // index 3
+    ir.use({a}, stub());                       // index 5
 
     auto ranges = compute_live_ranges(ir);
 
-    // %a: def at late(0)=1, last read at early(3)=6.
-    // Branch flushes merged → single segment [1, 7).
+    // %a: def at late(0)=1, last read at early(5)=10 → one segment [1, 11).
     EXPECT_EQ(ranges[a].segments.size(), 1U);
     EXPECT_EQ(ranges[a].beginIndex(), 1U);
-    EXPECT_EQ(ranges[a].endIndex(), 7U);
+    EXPECT_EQ(ranges[a].endIndex(), 11U);
+}
+
+// ── Mask register class ────────────────────────────────────────────────
+
+namespace {
+
+std::optional<Assignment> assign_with_masks(IR& ir, std::vector<LiveRange>& ranges,
+                                            std::uint32_t vec_pool_size,
+                                            const std::vector<std::uint32_t>& gpr_pool,
+                                            const std::vector<std::uint32_t>& mask_pool) {
+    PassContext ctx;
+    for (std::uint32_t i = 0; i < vec_pool_size; ++i) {
+        ctx.vec_pool_indices.push_back(i);
+    }
+    ctx.gpr_pool_indices = gpr_pool;
+    ctx.mask_pool_indices = mask_pool;
+    return assign_registers(ir, ranges, ctx);
+}
+
+}  // namespace
+
+TEST(JitKernelIR, MaskValuesAllocateFromTheirOwnFile) {
+    // Predicates are a register class, not a special case: two live at
+    // once get two different mask registers, and a mask register index may
+    // coincide with a vec or gpr index without interfering.
+    IR ir;
+    const value_id vec = ir.def({}, stub(), "vec");
+    const value_id m0 = ir.def({}, stub(), "mask0", RegisterClass::Mask);
+    const value_id m1 = ir.def({}, stub(), "mask1", RegisterClass::Mask);
+    ir.use({vec, m0, m1}, stub(), "use_all");
+
+    auto ranges = compute_live_ranges(ir);
+    EXPECT_EQ(ranges[m0].rc, RegisterClass::Mask);
+
+    const auto assignment = assign_with_masks(ir, ranges, /*vec*/ 2, {3}, {1, 2, 3});
+    ASSERT_TRUE(assignment.has_value());
+    EXPECT_NE(assignment->reg.at(m0).idx, assignment->reg.at(m1).idx);
+    EXPECT_GE(assignment->reg.at(m0).idx, 1U) << "k0 is not in the allocation order";
+}
+
+TEST(JitKernelIR, MaskCopiesCoalesce) {
+    IR ir;
+    const value_id src = ir.def({}, stub(), "mask_src", RegisterClass::Mask);
+    const value_id cpy = ir.copy(src, stub(), "mask_copy", RegisterClass::Mask);
+    ir.use({cpy}, stub(), "use_copy");
+
+    auto ranges = compute_live_ranges(ir);
+    const auto assignment = assign_with_masks(ir, ranges, 0, {}, {1, 2});
+    ASSERT_TRUE(assignment.has_value());
+    EXPECT_EQ(assignment->reg.at(src).idx, assignment->reg.at(cpy).idx);
+}
+
+TEST(JitKernelIR, MaskAllocationFailsWhenTheIsaHasNoPredicates) {
+    // AVX2/SSE/NEON report an empty predicate pool. Asking for a mask must
+    // fail loudly rather than pick a register that does not exist.
+    IR ir;
+    const value_id m = ir.def({}, stub(), "mask", RegisterClass::Mask);
+    ir.use({m}, stub(), "use_mask");
+
+    auto ranges = compute_live_ranges(ir);
+    EXPECT_THROW(assign_with_masks(ir, ranges, 4, {3}, {}), allocation_failure);
+}
+
+// ── Early-clobber defs ─────────────────────────────────────────────────
+
+TEST(JitKernelIR, EarlyClobberDefDoesNotShareARegisterWithItsReads) {
+    // A plain def may take the register of a read that dies at the same op
+    // — reads happen at the early slot, defs at the late slot, so they do
+    // not interfere. That is wrong for multi-instruction expansions that
+    // write the destination before consuming the operand (computing an
+    // active-lane mask, for instance), which is what an early-clobber def
+    // expresses: the def starts at the early slot instead.
+    const std::vector<std::uint32_t> gpr_pool = {3, 7};
+
+    IR plain;
+    const value_id p_src = plain.def({}, stub(), "src", RegisterClass::GPR);
+    const value_id p_def = plain.def({p_src}, stub(), "plain", RegisterClass::GPR);
+    plain.use({p_def}, stub(), "use");
+
+    auto plain_ranges = compute_live_ranges(plain);
+    const auto plain_alloc = assign_registers_test(plain, plain_ranges, 0, gpr_pool);
+    ASSERT_TRUE(plain_alloc.has_value());
+    EXPECT_EQ(plain_alloc->reg.at(p_src).idx, plain_alloc->reg.at(p_def).idx)
+        << "a plain def should be free to reuse a dying read's register";
+
+    IR early;
+    const value_id e_src = early.def({}, stub(), "src", RegisterClass::GPR);
+    const value_id e_def =
+        early.def_early_clobber({e_src}, stub(), "early", RegisterClass::GPR);
+    early.use({e_def}, stub(), "use");
+
+    auto early_ranges = compute_live_ranges(early);
+    EXPECT_TRUE(early_ranges[e_src].overlaps(early_ranges[e_def]));
+
+    const auto early_alloc = assign_registers_test(early, early_ranges, 0, gpr_pool);
+    ASSERT_TRUE(early_alloc.has_value());
+    EXPECT_NE(early_alloc->reg.at(e_src).idx, early_alloc->reg.at(e_def).idx)
+        << "an early-clobber def must not land on its own read";
+
+    // With a single register there is nowhere to put it: the allocator
+    // either rematerializes the source (rewriting the IR, hence nullopt) or
+    // fails — what it must not do is hand out the one register twice.
+    IR tight;
+    const value_id t_src = tight.def({}, stub(), "src", RegisterClass::GPR);
+    (void)tight.def_early_clobber({t_src}, stub(), "early", RegisterClass::GPR);
+    auto tight_ranges = compute_live_ranges(tight);
+    const auto tight_alloc = assign_registers_test(tight, tight_ranges, 0, {5});
+    EXPECT_FALSE(tight_alloc.has_value())
+        << "one register cannot satisfy an early-clobber def plus its read";
+}
+
+// ── Liveness across region boundaries (dataflow, not tree walk) ────────
+//
+// These are the cases a per-nesting-level walk gets wrong: the def and the
+// use sit at different nesting levels, so a walk produces two disjoint
+// segments with a hole between them, and the allocator happily hands the
+// register to something defined inside that hole. Block-level dataflow
+// keeps the value live along every path from def to use.
+
+TEST(JitKernelIR, LivenessCoversLoopCarriedValueAroundBackEdge) {
+    // %acc is defined before the loop, read inside the body, and read again
+    // by an in-place redefinition (the post-TwoAddressPass shape of an
+    // accumulator or an advancing pointer). The value travels around the
+    // back edge, so it must be live from the start of the body, *before*
+    // the read — a per-nesting-level walk only covers [read, redef) and
+    // leaves the wrap-around uncovered, which lets a value defined at the
+    // top of the body steal the register.
+    value_id acc = invalid_value;
+    value_id idx = invalid_value;
+    value_id body_tmp = invalid_value;
+
+    auto build = [&](IR& ir) {
+        acc = ir.def({}, stub(), "acc");                            // 0
+        idx = ir.def({}, stub(), "idx", RegisterClass::GPR);        // 1
+        ir.loop({idx}, stub(), [&]() {                              // 2 (header)
+            body_tmp = ir.def({}, stub(), "body_tmp");              // 3
+            ir.use({acc, body_tmp}, stub(), "read_acc");            // 4
+            (void)ir.def({acc}, stub(), "redef_acc");               // 5
+            ir.use({idx}, stub(), "loop_footer");                   // 6 (latch)
+        });
+    };
+
+    IR ir;
+    build(ir);
+    auto ranges = compute_live_ranges(ir);
+
+    // Live from its def through the whole body: covers the body entry
+    // (early slot of op 3 = 6) even though the first read is at op 4.
+    EXPECT_TRUE(ranges[acc].liveAt(6))
+        << "%acc must be live at the top of the body — it arrives via the back edge";
+    EXPECT_TRUE(ranges[acc].overlaps(ranges[body_tmp]));
+
+    // Therefore they must not share a register.
+    const std::vector<std::uint32_t> gpr_pool = {3, 7};
+    const auto assignment = assign_registers_test(ir, ranges, /*vec_pool_size=*/3, gpr_pool);
+    ASSERT_TRUE(assignment.has_value());
+    EXPECT_NE(assignment->reg.at(acc).idx, assignment->reg.at(body_tmp).idx);
+}
+
+TEST(JitKernelIR, LivenessKeepsLoopInvariantValueLiveForWholeBody) {
+    // %c is loop-invariant: defined before the loop, read once inside. It
+    // has to stay live for the entire body because the next iteration
+    // reads it again — the read is not the end of its range.
+    IR ir;
+    const value_id c = ir.def({}, stub(), "c");                         // 0
+    const value_id idx = ir.def({}, stub(), "idx", RegisterClass::GPR); // 1
+
+    value_id late_tmp = invalid_value;
+    ir.loop({idx}, stub(), [&]() {                  // 2 (header)
+        ir.use({c}, stub(), "read_c");              // 3
+        late_tmp = ir.def({}, stub(), "late_tmp");  // 4 — after c's last read
+        ir.use({late_tmp}, stub(), "use_tmp");      // 5
+        ir.use({idx}, stub(), "loop_footer");       // 6 (latch)
+    });
+
+    auto ranges = compute_live_ranges(ir);
+
+    // Live past its read, to the end of the body (latch late slot + 1).
+    EXPECT_GE(ranges[c].endIndex(), 2U * 6U + 2U);
+    EXPECT_TRUE(ranges[c].liveAt(2 * 5));
+    EXPECT_TRUE(ranges[c].overlaps(ranges[late_tmp]));
+}
+
+TEST(JitKernelIR, LivenessSpansLoopForValueUsedOnlyAfterIt) {
+    // %a is defined before the loop and used only after it. It must stay
+    // live across the whole loop body — the loop can iterate any number of
+    // times, so its register cannot be reused inside the body.
+    IR ir;
+    const value_id a = ir.def({}, stub());       // index 0
+    const value_id idx = ir.def({}, stub(), "idx", RegisterClass::GPR);  // index 1
+
+    value_id body_val = invalid_value;
+    ir.loop({idx}, stub(), [&]() {               // index 2 (header)
+        body_val = ir.def({}, stub());           // index 3
+        ir.use({body_val}, stub());              // index 4
+        ir.use({idx}, stub(), "loop_footer");    // index 5 (latch)
+    });
+
+    ir.use({a}, stub());                         // index 6
+
+    auto ranges = compute_live_ranges(ir);
+
+    EXPECT_EQ(ranges[a].segments.size(), 1U);
+    EXPECT_EQ(ranges[a].beginIndex(), 1U);
+    EXPECT_EQ(ranges[a].endIndex(), 13U);        // early(6)+1
+    EXPECT_TRUE(ranges[a].liveAt(7)) << "%a must be live inside the loop body";
+    EXPECT_TRUE(ranges[a].overlaps(ranges[body_val]));
+
+    // The loop counter is live across the back edge: header read, latch
+    // read, and every point in between.
+    EXPECT_TRUE(ranges[idx].liveAt(2 * 4));      // early slot of the body use
+    EXPECT_GE(ranges[idx].endIndex(), 2U * 5U);
+}
+
+TEST(JitKernelIR, LivenessKeepsBranchLocalValuesDisjoint) {
+    // The flip side: values that die inside their own region must NOT be
+    // extended, otherwise branch-local temporaries stop sharing registers
+    // (this is what keeps store_interleaved3's intermediates cheap).
+    IR ir;
+    value_id then_tmp = invalid_value;
+    value_id else_tmp = invalid_value;
+
+    ir.region(stub(), [&]() {
+        then_tmp = ir.def({}, stub());
+        ir.use({then_tmp}, stub());
+    });
+    ir.region(stub(), [&]() {
+        else_tmp = ir.def({}, stub());
+        ir.use({else_tmp}, stub());
+    });
+
+    auto ranges = compute_live_ranges(ir);
+    EXPECT_FALSE(ranges[then_tmp].overlaps(ranges[else_tmp]));
+
+    const auto assignment = assign_registers_test(ir, ranges, /*pool_size=*/1);
+    ASSERT_TRUE(assignment.has_value()) << "branch-local values should share one register";
+    EXPECT_EQ(assignment->reg.at(then_tmp).idx, assignment->reg.at(else_tmp).idx);
 }
 
 // ── Slice 2: end-to-end integration tests ──────────────────────────────
@@ -563,7 +834,7 @@ struct VecAddParams {
 };
 
 // Kernel that adds two vectors using IR mode.
-// The operator+ goes through vec_op() → IR recording → linear_scan → lowering.
+// The operator+ goes through vec_op() → IR recording → assignment → lowering.
 template <size_t N>
 struct jit_ir_vec_add_kernel : public jit_kernel {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_ir_vec_add_kernel)
@@ -584,11 +855,11 @@ struct jit_ir_vec_add_kernel : public jit_kernel {
     void generate() override {
         preamble();
 
+        begin_ir();
+
         auto a_ptr = arg(&VecAddParams::a);
         auto b_ptr = arg(&VecAddParams::b);
         auto r_ptr = arg(&VecAddParams::result);
-
-        begin_ir();
 
         auto a = ir_load<N>(a_ptr);
         auto b = ir_load<N>(b_ptr);
@@ -649,11 +920,11 @@ struct jit_ir_vec_expr_kernel : public jit_kernel {
     void generate() override {
         preamble();
 
+        begin_ir();
+
         auto a_ptr = arg(&VecAddParams::a);
         auto b_ptr = arg(&VecAddParams::b);
         auto r_ptr = arg(&VecAddParams::result);
-
-        begin_ir();
 
         auto a = ir_load<N>(a_ptr);
         auto b = ir_load<N>(b_ptr);
@@ -725,12 +996,12 @@ struct jit_ir_fma_kernel : public jit_kernel {
     void generate() override {
         preamble();
 
+        begin_ir();
+
         auto a_ptr = arg(&FmaParams::a);
         auto b_ptr = arg(&FmaParams::b);
         auto c_ptr = arg(&FmaParams::c);
         auto r_ptr = arg(&FmaParams::result);
-
-        begin_ir();
 
         auto a = ir_load<N>(a_ptr);
         auto b = ir_load<N>(b_ptr);
@@ -803,38 +1074,26 @@ struct jit_ir_scale_kernel : public jit_kernel {
         using reg_type = typename reg_traits<float[N]>::type;
         preamble();
 
+        begin_ir();
+
         auto src_ptr = arg(&ScaleParams::src);
         auto dst_ptr = arg(&ScaleParams::dst);
         auto count   = arg(&ScaleParams::count);
 
-        begin_ir();
-
         // Broadcast scale — loop-invariant, defined before foreach.
-        // Tests that the allocator extends scale's interval across the loop.
+        // Tests that the allocator keeps scale live across the loop.
         auto scale_addr = argPtr(&ScaleParams::scale);
         auto scale = ir_def<N>({}, [this, scale_addr](const jit_kernel_ir::EmitContext& ctx) {
             uni_vbroadcastss(reg_type(ctx.def->idx), scale_addr);
         });
 
-        auto src_reg_idx = static_cast<std::uint32_t>(src_ptr.reg().getIdx());
-        auto dst_reg_idx = static_cast<std::uint32_t>(dst_ptr.reg().getIdx());
-
         foreach(size_t{0}, count, [&](const variable<size_t>& idx) {
-            // Load *src_ptr (current vector)
             auto x = ir_load<N>(src_ptr);
-
             auto result = vmulps(x, scale);
-
-            // Store to *dst_ptr
             ir_store<N>(dst_ptr, result);
 
-            // Advance pointers — must be inside an IR use() so the add
-            // instructions are emitted at lowering time, not recording time.
-            ir_use({}, [this, src_reg_idx, dst_reg_idx](
-                           const jit_kernel_ir::EmitContext&) {
-                add(Xbyak::Reg64(src_reg_idx), N * sizeof(float));
-                add(Xbyak::Reg64(dst_reg_idx), N * sizeof(float));
-            });
+            ir_advance(src_ptr, N * sizeof(float));
+            ir_advance(dst_ptr, N * sizeof(float));
         });
 
         end_ir();
@@ -918,12 +1177,12 @@ struct jit_ir_interleave3_kernel : public jit_kernel {
     void generate() override {
         preamble();
 
+        begin_ir();
+
         auto a_ptr = arg(&Interleave3Params::a);
         auto b_ptr = arg(&Interleave3Params::b);
         auto c_ptr = arg(&Interleave3Params::c);
         auto dst_ptr = arg(&Interleave3Params::dst);
-
-        begin_ir();
         auto a = ir_load<N>(a_ptr);
         auto b = ir_load<N>(b_ptr);
         auto c = ir_load<N>(c_ptr);
@@ -961,6 +1220,8 @@ struct jit_ir_foreach_branch_interleave3_kernel : public jit_kernel {
 
         preamble();
 
+        begin_ir();
+
         auto y_ptr = arg(&ForeachBranchInterleave3Params::y);
         auto u_ptr = arg(&ForeachBranchInterleave3Params::u);
         auto v_ptr = arg(&ForeachBranchInterleave3Params::v);
@@ -969,19 +1230,9 @@ struct jit_ir_foreach_branch_interleave3_kernel : public jit_kernel {
         auto flag = arg(&ForeachBranchInterleave3Params::flag);
         auto consts_ptr = arg(&ForeachBranchInterleave3Params::consts);
 
-        const auto y_reg_idx = static_cast<std::uint32_t>(y_ptr.reg().getIdx());
-        const auto u_reg_idx = static_cast<std::uint32_t>(u_ptr.reg().getIdx());
-        const auto v_reg_idx = static_cast<std::uint32_t>(v_ptr.reg().getIdx());
-        const auto dst_reg_idx = static_cast<std::uint32_t>(dst_ptr.reg().getIdx());
-        const auto consts_reg_idx = static_cast<std::uint32_t>(consts_ptr.reg().getIdx());
-
-        begin_ir();
-
+        // Broadcasts read through the IR-managed consts pointer.
         auto bc = [&](int slot) {
-            return ir_def<N>({}, [this, consts_reg_idx, slot](const jit_kernel_ir::EmitContext& ctx) {
-                uni_vbroadcastss(reg_type(ctx.def->idx),
-                                 ptr[Xbyak::Reg64(consts_reg_idx) + slot * sizeof(float)]);
-            });
+            return ir_broadcast<N>(consts_ptr, static_cast<size_t>(slot) * sizeof(float));
         };
 
         auto y_off = bc(0);
@@ -1018,12 +1269,10 @@ struct jit_ir_foreach_branch_interleave3_kernel : public jit_kernel {
                   [&]() { store_interleaved3(dst_ptr, r, g, b); },
                   [&]() { store_interleaved3(dst_ptr, b, g, r); });
 
-            ir_use({}, [this, y_reg_idx, u_reg_idx, v_reg_idx, dst_reg_idx](const jit_kernel_ir::EmitContext&) {
-                add(Xbyak::Reg64(y_reg_idx), N * sizeof(float));
-                add(Xbyak::Reg64(u_reg_idx), N * sizeof(float));
-                add(Xbyak::Reg64(v_reg_idx), N * sizeof(float));
-                add(Xbyak::Reg64(dst_reg_idx), 3 * N * sizeof(float));
-            });
+            ir_advance(y_ptr, N * sizeof(float));
+            ir_advance(u_ptr, N * sizeof(float));
+            ir_advance(v_ptr, N * sizeof(float));
+            ir_advance(dst_ptr, 3 * N * sizeof(float));
         });
 
         end_ir();
@@ -1051,12 +1300,12 @@ struct jit_ir_if_else_kernel : public jit_kernel {
     void generate() override {
         preamble();
 
+        begin_ir();
+
         auto a_ptr = arg(&IfElseParams::a);
         auto b_ptr = arg(&IfElseParams::b);
         auto r_ptr = arg(&IfElseParams::result);
         auto flag  = arg(&IfElseParams::flag);
-
-        begin_ir();
 
         auto a = ir_load<N>(a_ptr);
         auto b = ir_load<N>(b_ptr);
@@ -1269,30 +1518,26 @@ struct jit_ir_predicated_scale_kernel : public jit_kernel {
         using reg_type = typename reg_traits<float[N]>::type;
         preamble();
 
-        auto src_ptr = arg(&PredicatedScaleParams::src);
-        auto dst_ptr = arg(&PredicatedScaleParams::dst);
-        auto count   = arg(&PredicatedScaleParams::count);
-        auto src_reg_idx = static_cast<std::uint32_t>(src_ptr.reg().getIdx());
-        auto dst_reg_idx = static_cast<std::uint32_t>(dst_ptr.reg().getIdx());
-
         auto scale_addr = argPtr(&PredicatedScaleParams::scale);
 
         begin_ir();
+
+        auto src_ptr = arg(&PredicatedScaleParams::src);
+        auto dst_ptr = arg(&PredicatedScaleParams::dst);
+        auto count   = arg(&PredicatedScaleParams::count);
 
         auto scale = ir_def<N>({}, [this, scale_addr](const jit_kernel_ir::EmitContext& ctx) {
             uni_vbroadcastss(reg_type(ctx.def->idx), scale_addr);
         });
 
-        foreach_predicated<N>(count, [&](const Xbyak::Opmask&) {
-            auto x = ir_load<N>(src_ptr);        // automatically masked
+        foreach_predicated<N>(count, [&](const vlen& vl) {
+            auto x = ir_load<N>(src_ptr, vl);     // masked load
             auto result = vmulps(x, scale);
-            ir_store<N>(dst_ptr, result);         // automatically masked
+            ir_store<N>(dst_ptr, result, vl);     // masked store
 
             // Advance pointers.
-            ir_use({}, [this, src_reg_idx, dst_reg_idx](const jit_kernel_ir::EmitContext&) {
-                add(Xbyak::Reg64(src_reg_idx), N * sizeof(float));
-                add(Xbyak::Reg64(dst_reg_idx), N * sizeof(float));
-            });
+            ir_advance(src_ptr, N * sizeof(float));
+            ir_advance(dst_ptr, N * sizeof(float));
         });
 
         end_ir();
@@ -1355,7 +1600,7 @@ TEST(JitKernelIR, GprAllocation) {
 
     // Allocate with no vec pool, 4-entry GPR pool (indices 3, 6, 8, 10).
     std::vector<std::uint32_t> gpr_pool = {3, 6, 8, 10};
-    auto result = linear_scan_test(ir, ranges, /*vec_pool_size=*/0, gpr_pool);
+    auto result = assign_registers_test(ir, ranges, /*vec_pool_size=*/0, gpr_pool);
     ASSERT_TRUE(result.has_value());
 
     // Both values should be assigned physical GPR indices from the pool.
@@ -1385,7 +1630,7 @@ TEST(JitKernelIR, MixedVecGprAllocation) {
 
     // Vec pool size = 2, GPR pool = {5, 9}
     std::vector<std::uint32_t> gpr_pool = {5, 9};
-    auto result = linear_scan_test(ir, ranges, /*vec_pool_size=*/2, gpr_pool);
+    auto result = assign_registers_test(ir, ranges, /*vec_pool_size=*/2, gpr_pool);
     ASSERT_TRUE(result.has_value());
 
     // Vec values get indices 0..1, GPR values get indices from {5, 9}.
@@ -1412,7 +1657,7 @@ TEST(JitKernelIR, GprCoalescing) {
 
     auto ranges = jit_kernel_ir::compute_live_ranges(ir);
     std::vector<std::uint32_t> gpr_pool = {3, 7};
-    auto result = linear_scan_test(ir, ranges, /*vec_pool_size=*/0, gpr_pool);
+    auto result = assign_registers_test(ir, ranges, /*vec_pool_size=*/0, gpr_pool);
     ASSERT_TRUE(result.has_value());
 
     // Copy should be coalesced — same physical register.
@@ -1432,7 +1677,380 @@ TEST(JitKernelIR, GprPoolOverflow) {
 
     auto ranges = jit_kernel_ir::compute_live_ranges(ir);
     std::vector<std::uint32_t> gpr_pool = {8};  // only 1 register
-    auto result = linear_scan_test(ir, ranges, /*vec_pool_size=*/4, gpr_pool);
+    auto result = assign_registers_test(ir, ranges, /*vec_pool_size=*/4, gpr_pool);
     // Remat modifies the IR and returns nullopt — the pool was too small.
     EXPECT_FALSE(result.has_value()) << "expected remat (nullopt), not a successful assignment";
+}
+
+// ── Verifier ───────────────────────────────────────────────────────────
+
+TEST(JitKernelIR, VerifierRejectsInterferenceViolation) {
+    // Two simultaneously live values forced onto the same register.
+    IR ir;
+    const value_id a = ir.def({}, stub(), "a");
+    const value_id b = ir.def({}, stub(), "b");
+    ir.use({a, b}, stub(), "use_both");
+
+    auto ranges = compute_live_ranges(ir);
+    PassContext ctx;
+    for (std::uint32_t i = 0; i < 2; ++i) ctx.vec_pool_indices.push_back(i);
+
+    Assignment bad;
+    bad.reg[a] = PhysReg{0};
+    bad.reg[b] = PhysReg{0};
+    EXPECT_THROW(verify(ir, ranges, bad, ctx), verification_failure);
+
+    Assignment good;
+    good.reg[a] = PhysReg{0};
+    good.reg[b] = PhysReg{1};
+    EXPECT_NO_THROW(verify(ir, ranges, good, ctx));
+}
+
+TEST(JitKernelIR, VerifierRejectsMissingAssignmentAndDanglingRead) {
+    IR ir;
+    const value_id a = ir.def({}, stub(), "a");
+    ir.use({a}, stub(), "use_a");
+
+    auto ranges = compute_live_ranges(ir);
+    PassContext ctx;
+    for (std::uint32_t i = 0; i < 2; ++i) ctx.vec_pool_indices.push_back(i);
+
+    // Referenced but unassigned — lowering would throw out_of_range instead.
+    EXPECT_THROW(verify(ir, ranges, Assignment{}, ctx), verification_failure);
+
+    // Read of a value nothing defines — what a botched IR rewrite produces.
+    IR dangling;
+    dangling.use({7}, stub(), "read_of_nothing");
+    dangling.set_value_count(8);
+    auto dangling_ranges = compute_live_ranges(dangling);
+    Assignment any;
+    any.reg[7] = PhysReg{0};
+    EXPECT_THROW(verify(dangling, dangling_ranges, any, ctx), verification_failure);
+}
+
+TEST(JitKernelIR, VerifierRejectsOutOfPoolRegister) {
+    IR ir;
+    const value_id v = ir.def({}, stub(), "v");
+    ir.use({v}, stub(), "use_v");
+    auto ranges = compute_live_ranges(ir);
+
+    PassContext ctx;
+    for (std::uint32_t i = 0; i < 2; ++i) ctx.vec_pool_indices.push_back(i);
+    Assignment bad;
+    bad.reg[v] = PhysReg{5};  // outside the 2-register pool
+    EXPECT_THROW(verify(ir, ranges, bad, ctx), verification_failure);
+}
+
+// ── Randomized allocation ──────────────────────────────────────────────
+
+namespace {
+
+// Generates well-formed random IR: values defined inside a region stay
+// inside it (so reads never escape their defining scope), mixed register
+// classes, tied ops, copies, and nested branch/loop regions.
+void build_random_ops(IR& ir,
+                      std::mt19937& rng,
+                      std::vector<value_id>& vec_vals,
+                      std::vector<value_id>& gpr_vals,
+                      int op_count,
+                      int depth) {
+    auto roll = [&rng](int n) { return static_cast<int>(rng() % static_cast<unsigned>(n)); };
+
+    auto pick_reads = [&](const std::vector<value_id>& pool, int max_reads) {
+        std::vector<value_id> reads;
+        if (pool.empty()) {
+            return reads;
+        }
+        const int count = roll(max_reads + 1);
+        for (int k = 0; k < count; ++k) {
+            reads.push_back(pool[static_cast<std::size_t>(roll(static_cast<int>(pool.size())))]);
+        }
+        return reads;
+    };
+
+    for (int i = 0; i < op_count; ++i) {
+        const int kind = roll(100);
+        if (kind < 35) {
+            vec_vals.push_back(ir.def(pick_reads(vec_vals, 2), stub(), "rnd_vec"));
+        } else if (kind < 55) {
+            gpr_vals.push_back(ir.def(pick_reads(gpr_vals, 2), stub(), "rnd_gpr",
+                                      RegisterClass::GPR));
+        } else if (kind < 65 && !vec_vals.empty()) {
+            // FMA-shaped: three reads, first one tied to the def.
+            std::vector<value_id> reads = pick_reads(vec_vals, 3);
+            while (reads.size() < 3) {
+                reads.push_back(vec_vals[static_cast<std::size_t>(roll(static_cast<int>(vec_vals.size())))]);
+            }
+            vec_vals.push_back(ir.def_tied(reads, /*tied_to=*/0, stub(), "rnd_fma"));
+        } else if (kind < 72 && !vec_vals.empty()) {
+            vec_vals.push_back(ir.copy(
+                vec_vals[static_cast<std::size_t>(roll(static_cast<int>(vec_vals.size())))],
+                stub(), "rnd_copy"));
+        } else if (kind < 90 || depth >= 2) {
+            auto reads = pick_reads(vec_vals, 3);
+            if (!gpr_vals.empty()) {
+                reads.push_back(gpr_vals[static_cast<std::size_t>(roll(static_cast<int>(gpr_vals.size())))]);
+            }
+            if (!reads.empty()) {
+                ir.use(reads, stub(), "rnd_use");
+            }
+        } else {
+            const bool is_loop = roll(2) == 0;
+            std::vector<value_id> header_reads;
+            if (!gpr_vals.empty()) {
+                header_reads.push_back(
+                    gpr_vals[static_cast<std::size_t>(roll(static_cast<int>(gpr_vals.size())))]);
+            }
+            // Snapshot pool sizes: values defined in the body do not escape.
+            const auto vec_mark = vec_vals.size();
+            const auto gpr_mark = gpr_vals.size();
+            ir.region(header_reads, stub(), [&]() {
+                build_random_ops(ir, rng, vec_vals, gpr_vals, 1 + roll(4), depth + 1);
+            }, is_loop);
+            vec_vals.resize(vec_mark);
+            gpr_vals.resize(gpr_mark);
+        }
+    }
+}
+
+}  // namespace
+
+TEST(JitKernelIR, RandomizedAllocationSatisfiesVerifier) {
+    // Fuzz the allocator: any successful allocation must satisfy the
+    // verifier. Pool exhaustion is a legitimate outcome (no spiller), a
+    // verification failure never is.
+    std::size_t allocated = 0;
+    std::size_t exhausted = 0;
+
+    for (unsigned seed = 0; seed < 400; ++seed) {
+        std::mt19937 rng(seed);
+        IR ir;
+        std::vector<value_id> vec_vals;
+        std::vector<value_id> gpr_vals;
+        build_random_ops(ir, rng, vec_vals, gpr_vals, 10 + static_cast<int>(seed % 20), 0);
+
+        PassContext ctx;
+        for (std::uint32_t i = 0; i < 3 + seed % 14; ++i) ctx.vec_pool_indices.push_back(i);
+        for (std::uint32_t g = 0; g < 2 + seed % 7; ++g) {
+            ctx.gpr_pool_indices.push_back(g);
+        }
+
+        PassManager pm;
+        pm.add<TwoAddressPass>();
+        pm.add<LiveRangeAnalysis>();
+        pm.add<RegisterAllocator>();
+        pm.add<VerifyPass>();
+
+        try {
+            pm.run(ir, ctx);
+        } catch (const allocation_failure&) {
+            ++exhausted;  // pool too small for this random program
+            continue;
+        } catch (const ov::Exception&) {
+            ++exhausted;  // remat retries exhausted
+            continue;
+        }
+        ASSERT_TRUE(ctx.assignment.has_value()) << "seed " << seed;
+        ++allocated;
+    }
+
+    // Sanity: the fuzzer must actually be allocating, not just failing.
+    EXPECT_GT(allocated, 100U) << "allocated=" << allocated << " exhausted=" << exhausted;
+}
+
+// ── Differential: epilogue kernel vs scalar reference ──────────────────
+//
+// dst[i] = a[i] * b[i] + c[i] for i < width, driven by
+// foreach_with_epilogue. Exercises the main loop, the partial load path
+// and the partial store path over widths that are deliberately not
+// multiples of the vector width. Sentinels around the destination catch
+// stores past `width`.
+
+namespace {
+
+struct FmaEpilogueParams {
+    const float* a;
+    const float* b;
+    const float* c;
+    float* dst;
+    size_t width;
+};
+
+template <size_t N>
+struct jit_ir_fma_epilogue_kernel : public jit_kernel {
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_ir_fma_epilogue_kernel)
+
+    jit_ir_fma_epilogue_kernel() : jit_kernel(jit_name()) {}
+
+    using fn_t = void (*)(const FmaEpilogueParams*);
+    fn_t fn_ = nullptr;
+
+    void init() {
+        if (create_kernel() != dnnl::impl::status::success) {
+            OPENVINO_THROW("Can't generate jit kernel");
+        }
+        fn_ = (fn_t)(jit_ker());  // NOLINT
+    }
+
+    void operator()(const FmaEpilogueParams& args) const { fn_(&args); }
+
+    void generate() override {
+        preamble();
+        begin_ir();
+
+        auto width = arg(&FmaEpilogueParams::width);
+        auto a = make_ir_ptr(arg<const float*>(&FmaEpilogueParams::a), N);
+        auto b = make_ir_ptr(arg<const float*>(&FmaEpilogueParams::b), N);
+        auto c = make_ir_ptr(arg<const float*>(&FmaEpilogueParams::c), N);
+        auto dst = make_ir_ptr(arg<float*>(&FmaEpilogueParams::dst), N);
+
+        foreach_vec<N>(width, [&](const vlen& vl) {
+            auto va = ir_load<N>(a, vl);
+            auto vb = ir_load<N>(b, vl);
+            auto vc = ir_load<N>(c, vl);
+            ir_store<N>(dst.ptr, size_t{0}, fma(va, vb, vc), vl);
+
+            ir_advance(a, vl);
+            ir_advance(b, vl);
+            ir_advance(c, vl);
+            ir_advance(dst, vl);
+        });
+
+        end_ir();
+        postamble();
+    }
+};
+
+template <size_t N>
+void run_fma_epilogue_differential() {
+    constexpr float sentinel = -123456.0f;
+    constexpr size_t pad = 2 * N;
+
+    jit_ir_fma_epilogue_kernel<N> kernel;
+    kernel.init();
+
+    std::vector<size_t> widths = {0, 1, 2, 3, N - 1, N, N + 1, 2 * N - 1,
+                                  2 * N, 2 * N + 3, 5 * N + 7};
+    std::mt19937 rng(20260903);
+    std::uniform_int_distribution<size_t> width_dist(1, 6 * N);
+    for (int extra = 0; extra < 16; ++extra) {
+        widths.push_back(width_dist(rng));
+    }
+
+    std::uniform_real_distribution<float> val_dist(-4.0f, 4.0f);
+
+    for (auto width : widths) {
+        std::vector<float> a(width + pad);
+        std::vector<float> b(width + pad);
+        std::vector<float> c(width + pad);
+        std::vector<float> dst(width + pad, sentinel);
+        for (size_t i = 0; i < width + pad; ++i) {
+            a[i] = val_dist(rng);
+            b[i] = val_dist(rng);
+            c[i] = val_dist(rng);
+        }
+
+        FmaEpilogueParams args{a.data(), b.data(), c.data(), dst.data(), width};
+        kernel(args);
+
+        for (size_t i = 0; i < width; ++i) {
+            EXPECT_FLOAT_EQ(dst[i], std::fma(a[i], b[i], c[i]))
+                << "width=" << width << " index=" << i;
+        }
+        for (size_t i = width; i < width + pad; ++i) {
+            EXPECT_FLOAT_EQ(dst[i], sentinel)
+                << "store past width=" << width << " at index=" << i;
+        }
+    }
+}
+
+}  // namespace
+
+TEST(JitKernelIR, DifferentialFmaWithEpilogue) {
+    using namespace dnnl::impl::cpu::x64;
+
+    if (mayiuse(cpu_isa_t::avx512_core)) {
+        run_fma_epilogue_differential<16>();
+    } else if (mayiuse(cpu_isa_t::avx2)) {
+        run_fma_epilogue_differential<8>();
+    } else {
+        GTEST_SKIP() << "requires AVX2 or AVX-512";
+    }
+}
+
+// ── Type-converting store must not clobber its source ──────────────────
+//
+// The u8 store narrows f32 -> i32 -> u8. That conversion used to run in
+// place on the stored register while the IR only declared it as a read, so
+// any later use of the same value saw integers instead of floats. The
+// conversion is now its own IR value.
+
+namespace {
+
+struct StoreReuseParams {
+    const float* src;
+    uint8_t* dst_u8;
+    float* dst_f32;
+};
+
+template <size_t N>
+struct jit_ir_store_reuse_kernel : public jit_kernel {
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_ir_store_reuse_kernel)
+
+    jit_ir_store_reuse_kernel() : jit_kernel(jit_name()) {}
+
+    using fn_t = void (*)(const StoreReuseParams*);
+    fn_t fn_ = nullptr;
+
+    void init() {
+        if (create_kernel() != dnnl::impl::status::success) {
+            OPENVINO_THROW("Can't generate jit kernel");
+        }
+        fn_ = (fn_t)(jit_ker());  // NOLINT
+    }
+
+    void operator()(const StoreReuseParams& args) const { fn_(&args); }
+
+    void generate() override {
+        preamble();
+        begin_ir();
+
+        auto src = arg<const float*>(&StoreReuseParams::src);
+        auto dst_u8 = arg<uint8_t*>(&StoreReuseParams::dst_u8);
+        auto dst_f32 = arg<float*>(&StoreReuseParams::dst_f32);
+
+        auto v = ir_load<N>(src);
+        ir_store<N>(dst_u8, v);    // narrowing store, must not touch %v
+        ir_store<N>(dst_f32, v);   // same value, still floats
+
+        end_ir();
+        postamble();
+    }
+};
+
+}  // namespace
+
+TEST(JitKernelIR, TypeConvertingStoreKeepsSourceIntact) {
+    using namespace dnnl::impl::cpu::x64;
+    if (!mayiuse(cpu_isa_t::avx512_core)) {
+        GTEST_SKIP() << "u8 store path requires AVX-512 (vpmovusdb)";
+    }
+    constexpr size_t N = 16;
+
+    alignas(64) std::array<float, N> src{};
+    alignas(64) std::array<uint8_t, N> dst_u8{};
+    alignas(64) std::array<float, N> dst_f32{};
+    for (size_t i = 0; i < N; ++i) {
+        src[i] = static_cast<float>(i) + 0.25f;
+    }
+
+    jit_ir_store_reuse_kernel<N> kernel;
+    kernel.init();
+    kernel(StoreReuseParams{src.data(), dst_u8.data(), dst_f32.data()});
+
+    for (size_t i = 0; i < N; ++i) {
+        // f32 store sees the original value, not the converted integers.
+        EXPECT_FLOAT_EQ(dst_f32[i], src[i]) << "index " << i;
+        EXPECT_EQ(dst_u8[i], static_cast<uint8_t>(std::lround(src[i]))) << "index " << i;
+    }
 }

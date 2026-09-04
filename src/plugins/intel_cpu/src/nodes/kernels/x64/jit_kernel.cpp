@@ -49,8 +49,29 @@ bool isRegAllocable(int id) {
            && id != Operand::Code::RBP;  // frame pointer (used by preamble/postamble)
 }
 
-template <typename RegType>
-const RegType& reserveReg(jit_kernel::reg_indices& freeRegs, const registers<RegType>& regs) {
+// Vector register file sizes. AVX-512 has 32 architectural vector
+// registers; everything older has 16.
+constexpr std::size_t vec_reg_count_legacy = 16;
+constexpr std::size_t vec_reg_count_avx512 = 32;
+
+// Vector register table indexed by physical register number, always the
+// full 32 entries — which entries may be used is decided by the pool, not
+// by the table.
+template <typename VecType>
+const std::vector<VecType>& vec_table() {
+    static const std::vector<VecType> table = [] {
+        std::vector<VecType> regs;
+        regs.reserve(vec_reg_count_avx512);
+        for (std::size_t i = 0; i < vec_reg_count_avx512; ++i) {
+            regs.emplace_back(static_cast<int>(i));
+        }
+        return regs;
+    }();
+    return table;
+}
+
+template <typename RegType, typename Table>
+const RegType& reserveReg(jit_kernel::reg_indices& freeRegs, const Table& regs) {
     if (freeRegs.empty()) {
         throw std::runtime_error("No free registers");
     }
@@ -59,8 +80,8 @@ const RegType& reserveReg(jit_kernel::reg_indices& freeRegs, const registers<Reg
     return regs[idx];
 }
 
-template <typename RegType>
-void freeReg(jit_kernel::reg_indices& freeRegs, const registers<RegType>& regs, const RegType& reg) {
+template <typename RegType, typename Table>
+void freeReg(jit_kernel::reg_indices& freeRegs, const Table& regs, const RegType& reg) {
     const auto idx = reg.getIdx();
     // Debug:
     // auto it = std::find(freeRegs.begin(), freeRegs.end(), idx);
@@ -162,70 +183,16 @@ const registers<Reg8>& x8regs() {
     return _x8regs;
 }
 
-const registers<Xmm>& xmmregs() {
-    static const registers<Xmm> _xmmregs{{
-        Xbyak::util::xmm0,
-        Xbyak::util::xmm1,
-        Xbyak::util::xmm2,
-        Xbyak::util::xmm3,
-        Xbyak::util::xmm4,
-        Xbyak::util::xmm5,
-        Xbyak::util::xmm6,
-        Xbyak::util::xmm7,
-        Xbyak::util::xmm8,
-        Xbyak::util::xmm9,
-        Xbyak::util::xmm10,
-        Xbyak::util::xmm11,
-        Xbyak::util::xmm12,
-        Xbyak::util::xmm13,
-        Xbyak::util::xmm14,
-        Xbyak::util::xmm15,
-    }};
-    return _xmmregs;
+const std::vector<Xmm>& xmmregs() {
+    return vec_table<Xmm>();
 }
 
-const registers<Ymm>& ymmregs() {
-    static const registers<Ymm> _ymmregs{{
-        Xbyak::util::ymm0,
-        Xbyak::util::ymm1,
-        Xbyak::util::ymm2,
-        Xbyak::util::ymm3,
-        Xbyak::util::ymm4,
-        Xbyak::util::ymm5,
-        Xbyak::util::ymm6,
-        Xbyak::util::ymm7,
-        Xbyak::util::ymm8,
-        Xbyak::util::ymm9,
-        Xbyak::util::ymm10,
-        Xbyak::util::ymm11,
-        Xbyak::util::ymm12,
-        Xbyak::util::ymm13,
-        Xbyak::util::ymm14,
-        Xbyak::util::ymm15,
-    }};
-    return _ymmregs;
+const std::vector<Ymm>& ymmregs() {
+    return vec_table<Ymm>();
 }
 
-const registers<Zmm>& zmmregs() {
-    static const registers<Zmm> _zmmregs{{
-        Xbyak::util::zmm0,
-        Xbyak::util::zmm1,
-        Xbyak::util::zmm2,
-        Xbyak::util::zmm3,
-        Xbyak::util::zmm4,
-        Xbyak::util::zmm5,
-        Xbyak::util::zmm6,
-        Xbyak::util::zmm7,
-        Xbyak::util::zmm8,
-        Xbyak::util::zmm9,
-        Xbyak::util::zmm10,
-        Xbyak::util::zmm11,
-        Xbyak::util::zmm12,
-        Xbyak::util::zmm13,
-        Xbyak::util::zmm14,
-        Xbyak::util::zmm15,
-    }};
-    return _zmmregs;
+const std::vector<Zmm>& zmmregs() {
+    return vec_table<Zmm>();
 }
 
 }  // namespace
@@ -343,35 +310,43 @@ const void* consts_table::store(const void* data, size_t size) {
 }  // namespace internal
 
 jit_kernel::jit_kernel(const char* name) : jit_generator_t(name) {
-    _free_rmmregs.reserve(16);
-    _free_rmmregs.reserve(16);
-
     for (int reg = Operand::Code::RAX; reg <= Operand::Code::R15; ++reg) {
         if (isRegAllocable(reg)) {
             _free_x64regs.emplace_back(reg);
         }
-        _free_rmmregs.emplace_back(reg);
+    }
+
+    // The vector file is sized independently of the GPR file — it used to be
+    // filled from the GPR index range, which was a coincidence of both being
+    // 16 wide. Only the low 16 registers go in the eager pool: xmm16..31 and
+    // ymm16..31 exist on AVX-512 but are EVEX-only, so VEX/SSE-encoded
+    // instructions (which eager kernels emit freely) cannot reference them.
+    // IR mode can opt into the upper half via set_vec_width(512) — see
+    // end_ir().
+    _free_rmmregs.reserve(vec_reg_count_legacy);
+    for (size_t reg = 0; reg < vec_reg_count_legacy; ++reg) {
+        _free_rmmregs.emplace_back(static_cast<size_t>(reg));
     }
 }
 
 template <>
 const Reg64& jit_kernel::reserve<Reg64>() {
-    return reserveReg(_free_x64regs, x64regs());
+    return reserveReg<Reg64>(_free_x64regs, x64regs());
 }
 
 template <>
 const Reg32& jit_kernel::reserve<Reg32>() {
-    return reserveReg(_free_x64regs, x32regs());
+    return reserveReg<Reg32>(_free_x64regs, x32regs());
 }
 
 template <>
 const Reg16& jit_kernel::reserve<Reg16>() {
-    return reserveReg(_free_x64regs, x16regs());
+    return reserveReg<Reg16>(_free_x64regs, x16regs());
 }
 
 template <>
 const Reg8& jit_kernel::reserve<Reg8>() {
-    return reserveReg(_free_x64regs, x8regs());
+    return reserveReg<Reg8>(_free_x64regs, x8regs());
 }
 
 template <>
@@ -396,7 +371,7 @@ void jit_kernel::free<Reg8>(const Reg8& reg) {
 
 template <>
 const Xmm& jit_kernel::reserve<Xmm>() {
-    return reserveReg(_free_rmmregs, xmmregs());
+    return reserveReg<Xmm>(_free_rmmregs, xmmregs());
 }
 
 template <>
@@ -406,7 +381,7 @@ void jit_kernel::free<Xmm>(const Xmm& reg) {
 
 template <>
 const Ymm& jit_kernel::reserve<Ymm>() {
-    return reserveReg(_free_rmmregs, ymmregs());
+    return reserveReg<Ymm>(_free_rmmregs, ymmregs());
 }
 
 template <>
@@ -416,7 +391,7 @@ void jit_kernel::free<Ymm>(const Ymm& reg) {
 
 template <>
 const Zmm& jit_kernel::reserve<Zmm>() {
-    return reserveReg(_free_rmmregs, zmmregs());
+    return reserveReg<Zmm>(_free_rmmregs, zmmregs());
 }
 
 template <>
@@ -541,9 +516,8 @@ void jit_kernel::uni_vblendps(const Xbyak::Zmm& dst,
 
 void jit_kernel::ir_use(std::vector<jit_kernel_ir::value_id> reads,
                         jit_kernel_ir::EmitFn emit,
-                        const char* name,
-                        jit_kernel_ir::OpKind kind) {
-    _ir->use(std::move(reads), std::move(emit), name, kind);
+                        const char* name) {
+    _ir->use(std::move(reads), std::move(emit), name);
 }
 
 jit_kernel_ir::value_id jit_kernel::ir_def_gpr(std::vector<jit_kernel_ir::value_id> reads,
@@ -552,9 +526,22 @@ jit_kernel_ir::value_id jit_kernel::ir_def_gpr(std::vector<jit_kernel_ir::value_
     return _ir->def(std::move(reads), std::move(emit), name, jit_kernel_ir::RegisterClass::GPR);
 }
 
+jit_kernel_ir::value_id jit_kernel::ir_def_mask(std::vector<jit_kernel_ir::value_id> reads,
+                                                  jit_kernel_ir::EmitFn emit,
+                                                  const char* name) {
+    return _ir->def(std::move(reads), std::move(emit), name, jit_kernel_ir::RegisterClass::Mask);
+}
+
 // GPR arithmetic helpers — LLVM-style: def_tied + TwoAddressPass.
 // The tied operand constraint lets the allocator coalesce the copy
 // when the source dies, producing mov-free code like hand-written asm.
+
+jit_kernel::variable<size_t> jit_kernel::ir_gpr_imm(size_t value) {
+    return variable<size_t>(*this, _ir->def({},
+        [this, value](const jit_kernel_ir::EmitContext& ctx) {
+            mov(Xbyak::Reg64(ctx.def->idx), value);
+        }, "imm", jit_kernel_ir::RegisterClass::GPR));
+}
 
 jit_kernel::variable<size_t> jit_kernel::ir_shr(const variable<size_t>& src, int shift) {
     return variable<size_t>(*this, _ir->def_tied({src.vid()}, 0,
@@ -604,23 +591,34 @@ void jit_kernel::begin_ir() {
 void jit_kernel::end_ir() {
     if (!_ir) return;
 
-    // Unroll strategy from env var.
-    static const char* unroll_env = std::getenv("OV_JIT_IR_UNROLL");
-    auto unroll_strategy = jit_kernel_ir::UnrollStrategy::none;
-    if (unroll_env) {
-        std::string val(unroll_env);
-        if (val == "heuristic") unroll_strategy = jit_kernel_ir::UnrollStrategy::heuristic;
-        else if (val == "feedback") unroll_strategy = jit_kernel_ir::UnrollStrategy::feedback;
-    }
-
     // Build pass pipeline.
-    auto pm = jit_kernel_ir::build_default_pipeline(unroll_strategy);
+    auto pm = jit_kernel_ir::build_default_pipeline();
 
     // Set up pass context with dual register pools.
     jit_kernel_ir::PassContext ctx;
-    ctx.vec_pool_size = static_cast<std::uint32_t>(_free_rmmregs.size());
-    // GPR pool: actual register indices (non-contiguous after arg() reserves).
-    // Mirrors LLVM's AllocationOrder — the allocator picks from this list.
+    // Allocation orders: the physical registers still free at this point.
+    // Both lists are explicit — eager reservations (arg(), reserve<>())
+    // remove registers from them, so the allocator never hands out a
+    // register the kernel is already holding.
+    ctx.vec_pool_indices.assign(_free_rmmregs.begin(), _free_rmmregs.end());
+
+    // zmm16..zmm31 are available only to kernels that work exclusively in
+    // 512-bit vectors: those registers require EVEX encoding, so a kernel
+    // emitting any VEX-only instruction (vblendps, shufps, vperm2i128, ...)
+    // on a narrower value must not be given one. Kernels declare their
+    // width with set_vec_width(); the default keeps the legacy 16.
+    if (_vec_width_bits == 512 && mayiuse(cpu_isa_t::avx512_core)) {
+        for (size_t reg = vec_reg_count_legacy; reg < vec_reg_count_avx512; ++reg) {
+            ctx.vec_pool_indices.push_back(static_cast<std::uint32_t>(reg));
+        }
+    }
+
+    // Predicate registers come from the target: it owns the constraint
+    // (x86 cannot use k0 as a write-mask). ISAs without a predicate file
+    // return an empty order, so any attempt to allocate a mask fails
+    // loudly instead of picking a register that does not exist.
+    const auto& predicates = target().predicate_pool();
+    ctx.mask_pool_indices.assign(predicates.begin(), predicates.end());
     ctx.gpr_pool_indices.assign(_free_x64regs.begin(), _free_x64regs.end());
     ctx.dump = std::getenv("OV_JIT_IR_DUMP") != nullptr;
     ctx.trace = std::getenv("OV_JIT_IR_TRACE") != nullptr;
@@ -676,6 +674,11 @@ void jit_kernel::end_ir() {
                             // GPR copy: mov reg64, reg64
                             mov(Xbyak::Reg64(def_reg->idx),
                                 Xbyak::Reg64(read_regs[0].idx));
+                        } else if (op.def_rc == jit_kernel_ir::RegisterClass::Mask) {
+                            // Predicate copy: kmovq (kmovw would drop lanes
+                            // above 16 for 8-bit element masks).
+                            kmovq(Xbyak::Opmask(def_reg->idx),
+                                  Xbyak::Opmask(read_regs[0].idx));
                         } else {
                             // Vec copy: vmovups
                             using namespace dnnl::impl::cpu::x64;

@@ -7,10 +7,11 @@
 #include "openvino/core/except.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <cstdlib>
-#include <deque>
 #include <iostream>
+#include <map>
 #include <ostream>
 #include <sstream>
 #include <string>
@@ -25,219 +26,284 @@ bool env_enabled(const char* name) {
     return std::getenv(name) != nullptr;
 }
 
-struct remat_debug_config {
-    bool disable_remat = env_enabled("OV_JIT_IR_DISABLE_REMAT");
-    bool disable_remat_in_regions = env_enabled("OV_JIT_IR_DISABLE_REMAT_IN_REGIONS");
-    bool disable_remat_wraparound = env_enabled("OV_JIT_IR_DISABLE_REMAT_WRAPAROUND");
-    bool remat_single_use = env_enabled("OV_JIT_IR_REMAT_SINGLE_USE");
-    bool trace_remat = env_enabled("OV_JIT_IR_TRACE_REMAT");
+struct debug_config {
     bool trace_all = env_enabled("OV_JIT_IR_TRACE");
 };
 
-const remat_debug_config& get_remat_debug_config() {
-    static const remat_debug_config cfg{};
+const debug_config& get_debug_config() {
+    static const debug_config cfg{};
     return cfg;
 }
 
 void trace_ir(const std::string& msg) {
-    if (!get_remat_debug_config().trace_all) {
+    if (!get_debug_config().trace_all) {
         return;
     }
     std::cout << "[jit_kernel_ir] " << msg << "\n";
 }
 
-std::string format_reads(const std::vector<value_id>& reads) {
-    std::ostringstream os;
-    os << "[";
-    for (std::size_t i = 0; i < reads.size(); ++i) {
-        if (i != 0) {
-            os << ", ";
-        }
-        os << "%" << reads[i];
-    }
-    os << "]";
-    return os.str();
-}
+// ── CFG over the structured region tree ────────────────────────────────
+//
+// The IR nests bodies instead of holding a block graph, so liveness starts
+// by materializing the control flow that the region ops' emit closures
+// actually implement:
+//
+//   loop region:        preheader -> header
+//                       header    -> {body entry, loop exit}
+//                       latch     -> header                (back edge)
+//   conditional region: header    -> {body entry, join}     (body may be skipped)
+//                       body exit -> join
+//
+// A loop gets its own header block because the back edge targets the
+// compare, not the code that initialised the counter — folding the two
+// together would make values that live across the loop appear dead inside
+// it.
+//
+// Every op owns one index, region ops included: a region op is the branch
+// instruction of its header block, so its reads (loop counter, bound) are
+// live exactly where the compare reads them.
 
-void trace_remat_event(const char* phase,
-                       value_id victim_id,
-                       value_id clone_id,
-                       std::uint32_t evict_at,
-                       std::uint32_t insert_at,
-                       std::uint32_t rewrite_begin,
-                       std::uint32_t rewrite_end,
-                       bool wrapped,
-                       bool in_region) {
-    if (!get_remat_debug_config().trace_remat) {
-        return;
-    }
-    std::cout << "[jit_kernel_ir] remat " << phase
-              << " victim=%" << victim_id
-              << " clone=%" << clone_id
-              << " evict_at=" << evict_at
-              << " insert_at=" << insert_at
-              << " rewrite_begin=" << rewrite_begin
-              << " rewrite_end=";
-    if (rewrite_end == std::numeric_limits<std::uint32_t>::max()) {
-        std::cout << "end";
-    } else {
-        std::cout << rewrite_end;
-    }
-    std::cout << " wrapped=" << wrapped
-              << " in_region=" << in_region
-              << "\n";
-}
-
-// Per-recursion-level local segment tracking for a single value.
-struct LocalSeg {
-    std::uint32_t first;
-    std::uint32_t last;
-    std::uint32_t valno;  // index into LiveRange::valnos
+struct BlockOp {
+    const Op* op = nullptr;
+    std::uint32_t index = 0;   // early slot = 2*index, late slot = 2*index+1
 };
 
-// Recursive tree walk for live range computation. Each recursion level
-// tracks its own local segments. On return, local segments are flushed
-// into the LiveRange via addSegment(). Sibling branch bodies (separate
-// recursive calls) naturally produce separate segments.
-void compute_live_ranges_impl(const std::list<Op>& ops,
-                              std::vector<LiveRange>& ranges,
-                              std::uint32_t& index) {
-    std::unordered_map<value_id, LocalSeg> local;
+struct Block {
+    std::vector<BlockOp> ops;
+    std::vector<std::uint32_t> succs;
+    std::unordered_set<value_id> uses;      // read before any def in this block
+    std::unordered_set<value_id> defs;
+    std::unordered_set<value_id> live_in;
+    std::unordered_set<value_id> live_out;
+};
 
-    for (const auto& op : ops) {
-        if (op.body) {
-            auto region_begin = 2 * index;  // early slot of first op in region
+class CFG {
+public:
+    explicit CFG(const IR& ir) {
+        const auto entry = add_block();
+        build(ir.ops(), entry);
+        compute_local_sets();
+        solve();
+        trace();
+    }
 
-            // Commit segments for region reads (e.g., loop header's cmp reads
-            // idx and end). LLVM-style: every use creates a segment at its
-            // position. The existing loop extension logic (backedge handling)
-            // will extend these to cover the full loop body.
-            for (value_id read : op.reads) {
-                auto& lr = ranges[read];
-                auto vn = lr.valnos.empty() ? lr.getNextValue(region_begin) : lr.valnos.back().id;
-                lr.addSegment({region_begin, region_begin + 1, vn});
-                trace_ir("  region_read %" + std::to_string(read) +
-                         " commit [" + std::to_string(region_begin) +
-                         ", " + std::to_string(region_begin + 1) + ")");
-            }
-            trace_ir(std::string("ranges enter ") + (op.is_loop ? "loop" : "region") +
-                     " begin=" + std::to_string(region_begin));
-            compute_live_ranges_impl(op.body->ops(), ranges, index);
-            auto region_end = 2 * index;  // half-open: past last late slot
-            trace_ir(std::string("ranges exit ") + (op.is_loop ? "loop" : "region") +
-                     " begin=" + std::to_string(region_begin) +
-                     " end=" + std::to_string(region_end));
+    [[nodiscard]] const std::vector<Block>& blocks() const noexcept { return _blocks; }
 
-            // For ANY region (loop or branch): values defined BEFORE
-            // the region but used INSIDE must have their parent-level
-            // segment extended to cover through the child's uses.
-            // Without this, the parent's segment (just the def point)
-            // would be disconnected from the child's segment (the use
-            // point), creating a hole in straight-line code where the
-            // register could be incorrectly reused.
-            //
-            // For loops specifically, also extend committed child
-            // segments to cover the full loop body (the loop re-reads
-            // the value each iteration).
-            // All indices are in slot space (2*op_index for reads, 2*op_index+1 for defs).
-            // Region is [region_begin, region_end) in slot space.
-            for (auto& [vid, seg] : local) {
-                if (seg.first < region_begin) {
-                    for (const auto& committed : ranges[vid].segments) {
-                        if (committed.start >= region_begin &&
-                            committed.start < region_end) {
-                            // For loops, extend to cover the full body.
-                            // For branches, extend to cover through the child's end.
-                            // committed.end is half-open; subtract 1 for local
-                            // tracking (flushed as +1 later).
-                            auto extend_to = op.is_loop ? region_end - 1
-                                                        : committed.end - 1;
-                            seg.last = std::max(seg.last, extend_to);
-                            break;
-                        }
-                    }
-                }
+private:
+    std::uint32_t add_block() {
+        _blocks.emplace_back();
+        return static_cast<std::uint32_t>(_blocks.size() - 1);
+    }
+
+    // Appends `ops` starting in block `cur`; returns the block that control
+    // reaches after the list. Blocks are created in walk order, so block
+    // order is ascending slot order and consecutive blocks are adjacent in
+    // slot space (which lets addSegment merge across block boundaries).
+    std::uint32_t build(const std::list<Op>& ops, std::uint32_t cur) {
+        for (const auto& op : ops) {
+            if (!op.body) {
+                _blocks[cur].ops.push_back({&op, _index++});
+                continue;
             }
 
             if (op.is_loop) {
-                // Loop: also extend committed child segments to cover
-                // the full loop body.
-                for (auto& lr : ranges) {
-                    if (lr.empty()) continue;
-                    if (lr.beginIndex() >= region_begin) continue;
-                    for (auto& seg : lr.segments) {
-                        // Half-open: seg.end is one past last use.
-                        // Extend if it ends inside the region but before the end.
-                        if (seg.end > region_begin && seg.end < region_end) {
-                            trace_ir("extend %" + std::to_string(lr.id) +
-                                     " loop_end " + std::to_string(seg.end) +
-                                     " -> " + std::to_string(region_end));
-                            seg.end = region_end;
-                        }
+                const auto header = add_block();
+                _blocks[cur].succs.push_back(header);
+                _blocks[header].ops.push_back({&op, _index++});
+
+                const auto body_entry = add_block();
+                _blocks[header].succs.push_back(body_entry);
+                const auto latch = build(op.body->ops(), body_entry);
+                _blocks[latch].succs.push_back(header);
+
+                const auto loop_exit = add_block();
+                _blocks[header].succs.push_back(loop_exit);
+                cur = loop_exit;
+            } else {
+                _blocks[cur].ops.push_back({&op, _index++});
+
+                const auto body_entry = add_block();
+                _blocks[cur].succs.push_back(body_entry);
+                const auto body_exit = build(op.body->ops(), body_entry);
+
+                const auto join = add_block();
+                _blocks[cur].succs.push_back(join);
+                _blocks[body_exit].succs.push_back(join);
+                cur = join;
+            }
+        }
+        return cur;
+    }
+
+    void compute_local_sets() {
+        for (auto& b : _blocks) {
+            for (const auto& bop : b.ops) {
+                // Reads happen at the early slot, the def at the late slot,
+                // so a read of the value the op redefines is still a use.
+                for (auto r : bop.op->reads) {
+                    if (b.defs.count(r) == 0) {
+                        b.uses.insert(r);
                     }
                 }
-            }
-        } else {
-            // LLVM-style early/late slot model:
-            //   early = 2*index     (reads happen here)
-            //   late  = 2*index + 1 (defs happen here)
-            // A read extends the range to cover the early slot.
-            // A def starts at the late slot. With half-open intervals,
-            // [.., early+1) and [late, ..) don't overlap when early+1 == late,
-            // enabling coalescing for tied operands and copies.
-            auto early = 2 * index;
-            auto late  = 2 * index + 1;
-            trace_ir("visit op@" + std::to_string(index) +
-                     " def=" + (op.def == invalid_value ? std::string("-") : "%" + std::to_string(op.def)) +
-                     " reads=" + format_reads(op.reads) +
-                     (op.name[0] ? " name=" + std::string(op.name) : ""));
-            for (value_id read : op.reads) {
-                auto it = local.find(read);
-                if (it != local.end()) {
-                    if (early > it->second.last) {
-                        trace_ir("  last_use %" + std::to_string(read) +
-                                 " " + std::to_string(it->second.last) +
-                                 " -> " + std::to_string(early));
-                        it->second.last = early;
-                    }
-                } else {
-                    trace_ir("  first_use %" + std::to_string(read) +
-                             " at " + std::to_string(early));
-                    // Use the latest VNInfo for this value (defined in outer scope).
-                    auto& lr = ranges[read];
-                    auto vn = lr.valnos.empty() ? lr.getNextValue(0) : lr.valnos.back().id;
-                    local[read] = {early, early, vn};
+                if (bop.op->def != invalid_value) {
+                    b.defs.insert(bop.op->def);
                 }
             }
-            if (op.def != invalid_value) {
-                auto& lr = ranges[op.def];
-                lr.rc = op.def_rc;  // propagate register class from Op to LiveRange
-                auto dit = local.find(op.def);
-                if (dit != local.end()) {
-                    // Re-def (post-SSA, e.g. COPY then FMA for same value_id).
-                    // Flush the current segment for the previous def, then
-                    // start a new segment with a new VNInfo for this def.
-                    lr.addSegment({dit->second.first, late, dit->second.valno});
-                    auto vn = lr.getNextValue(late);
-                    dit->second = {late, late, vn};
-                } else {
-                    // First def of this value_id.
-                    auto vn = lr.getNextValue(late);
-                    local[op.def] = {late, late, vn};
-                }
-                if (op.is_copy && !op.reads.empty()) {
-                    lr.copy_of = op.reads[0];
-                } else if (op.tied_to >= 0 && op.tied_to < static_cast<int>(op.reads.size())) {
-                    lr.copy_of = op.reads[op.tied_to];
-                }
-            }
-            ++index;
         }
     }
 
-    // Flush local segments into LiveRanges (half-open: end = last + 1).
-    for (const auto& [vid, seg] : local) {
-        ranges[vid].addSegment({seg.first, seg.last + 1, seg.valno});
+    // Backward dataflow to fixpoint:
+    //   live_out[B] = U live_in[S], S in succ(B)
+    //   live_in[B]  = uses[B] U (live_out[B] - defs[B])
+    void solve() {
+        bool changed = true;
+        while (changed) {
+            changed = false;
+            for (auto i = _blocks.size(); i-- > 0;) {
+                std::unordered_set<value_id> out;
+                for (auto s : _blocks[i].succs) {
+                    out.insert(_blocks[s].live_in.begin(), _blocks[s].live_in.end());
+                }
+                auto in = _blocks[i].uses;
+                for (auto v : out) {
+                    if (_blocks[i].defs.count(v) == 0) {
+                        in.insert(v);
+                    }
+                }
+                if (out != _blocks[i].live_out || in != _blocks[i].live_in) {
+                    _blocks[i].live_out = std::move(out);
+                    _blocks[i].live_in = std::move(in);
+                    changed = true;
+                }
+            }
+        }
+    }
+
+    void trace() const {
+        if (!get_debug_config().trace_all) {
+            return;
+        }
+        for (std::size_t i = 0; i < _blocks.size(); ++i) {
+            const auto& b = _blocks[i];
+            std::string msg = "bb" + std::to_string(i) + " ops=" + std::to_string(b.ops.size());
+            if (!b.ops.empty()) {
+                msg += " slots=[" + std::to_string(2 * b.ops.front().index) + ", " +
+                       std::to_string(2 * b.ops.back().index + 2) + ")";
+            }
+            msg += " succs={";
+            for (std::size_t s = 0; s < b.succs.size(); ++s) {
+                if (s != 0) {
+                    msg += ", ";
+                }
+                msg += "bb" + std::to_string(b.succs[s]);
+            }
+            msg += "} live_in=" + std::to_string(b.live_in.size()) +
+                   " live_out=" + std::to_string(b.live_out.size());
+            trace_ir(msg);
+        }
+    }
+
+    std::vector<Block> _blocks;
+    std::uint32_t _index = 0;
+};
+
+// Value numbers: one per def, in slot order. Also propagates register
+// class and the coalescing hint from the defining op.
+void collect_value_numbers(const std::vector<Block>& blocks, std::vector<LiveRange>& ranges) {
+    for (const auto& b : blocks) {
+        for (const auto& bop : b.ops) {
+            const auto d = bop.op->def;
+            if (d == invalid_value) {
+                continue;
+            }
+            auto& lr = ranges[d];
+            lr.rc = bop.op->def_rc;
+            // Early-clobber defs start at the early slot, so they overlap
+            // the op's own reads and cannot be assigned the same register.
+            lr.getNextValue(2 * bop.index + (bop.op->early_clobber ? 0 : 1));
+            if (bop.op->is_copy && !bop.op->reads.empty()) {
+                lr.copy_of = bop.op->reads[0];
+            } else if (bop.op->tied_to >= 0 &&
+                       bop.op->tied_to < static_cast<int>(bop.op->reads.size())) {
+                lr.copy_of = bop.op->reads[static_cast<std::size_t>(bop.op->tied_to)];
+            }
+        }
+    }
+}
+
+// Turns block-level liveness into segments. Per block: values live-in open
+// at the block start, defs open at their late slot, and every open segment
+// closes at the block end (live-out) or at the last read inside the block.
+// Consecutive blocks are adjacent in slot space, so addSegment merges
+// pass-through liveness into one segment per value per live region.
+void build_segments(const std::vector<Block>& blocks, std::vector<LiveRange>& ranges) {
+    auto valno_at = [](const LiveRange& lr, std::uint32_t slot) -> std::uint32_t {
+        // The latest def at or before `slot`. Values whose def lives in
+        // another block keep valno 0 — there is no PHI numbering, and
+        // nothing but the dump consumes value numbers today.
+        std::uint32_t best = 0;
+        for (const auto& vn : lr.valnos) {
+            if (vn.def <= slot) {
+                best = vn.id;
+            }
+        }
+        return best;
+    };
+
+    for (const auto& b : blocks) {
+        if (b.ops.empty()) {
+            continue;  // pass-through block; liveness already flows through it
+        }
+        const auto block_begin = 2 * b.ops.front().index;
+        const auto block_end = 2 * b.ops.back().index + 2;  // half-open
+
+        std::unordered_map<value_id, std::uint32_t> open;       // value -> segment start
+        std::unordered_map<value_id, std::uint32_t> last_read;   // value -> early slot
+
+        for (auto v : b.live_in) {
+            open[v] = block_begin;
+        }
+
+        for (const auto& bop : b.ops) {
+            const auto early = 2 * bop.index;
+            const auto late = early + 1;
+
+            for (auto r : bop.op->reads) {
+                if (open.find(r) == open.end()) {
+                    open[r] = early;  // defensive: read with no live-in and no def
+                }
+                last_read[r] = early;
+            }
+
+            const auto d = bop.op->def;
+            if (d == invalid_value) {
+                continue;
+            }
+            const auto def_slot = bop.op->early_clobber ? early : late;
+            auto it = open.find(d);
+            if (it != open.end()) {
+                // Re-def inside the block (post-TwoAddressPass): close the
+                // previous segment before starting the new one.
+                const auto lr_it = last_read.find(d);
+                const auto end = lr_it != last_read.end() ? lr_it->second + 1
+                                                          : it->second + 1;
+                ranges[d].addSegment({it->second, std::max(end, it->second + 1),
+                                      valno_at(ranges[d], it->second)});
+                last_read.erase(d);
+            }
+            open[d] = def_slot;
+        }
+
+        for (const auto& [v, start] : open) {
+            std::uint32_t end = 0;
+            if (b.live_out.count(v) != 0) {
+                end = block_end;
+            } else {
+                auto it = last_read.find(v);
+                end = it != last_read.end() ? it->second + 1 : start + 1;
+            }
+            ranges[v].addSegment({start, std::max(end, start + 1), valno_at(ranges[v], start)});
+        }
     }
 }
 
@@ -339,31 +405,17 @@ std::vector<LiveRange> compute_live_ranges(const IR& ir) {
         ranges[v].id = v;
     }
 
-    std::uint32_t index = 0;
-    compute_live_ranges_impl(ir.ops(), ranges, index);
+    const CFG cfg(ir);
+    collect_value_numbers(cfg.blocks(), ranges);
+    build_segments(cfg.blocks(), ranges);
     return ranges;
 }
 
 namespace {
 
-struct PressureEntry {
-    std::size_t lr_idx = 0;
-};
-
-template <typename Entry>
-void insert_by_end(std::vector<Entry>& active,
-                   const std::vector<LiveRange>& ranges,
-                   std::size_t lr_idx) {
-    auto end = ranges[lr_idx].endIndex();
-    auto pos = std::upper_bound(active.begin(), active.end(), end,
-                                [&](std::uint32_t e, const Entry& ae) {
-                                    return e < ranges[ae.lr_idx].endIndex();
-                                });
-    active.insert(pos, Entry{lr_idx});
-}
-
-// Build a map: value_id → Op* (the defining op) by walking the IR tree.
-// Also collects which ops are rematerializable (empty reads, not a region).
+// Maps value_id -> defining Op by walking the region tree. Rematerializability
+// is derived from the def op itself (no reads, or reads that outlive the
+// victim), so no separate bookkeeping is needed.
 void collect_def_ops(std::list<Op>& ops,
                      std::unordered_map<value_id, Op*>& def_map) {
     for (auto& op : ops) {
@@ -374,83 +426,6 @@ void collect_def_ops(std::list<Op>& ops,
             collect_def_ops(op.body->ops(), def_map);
         }
     }
-}
-
-// Find the list position and iterator of the op that first reads `vid`
-// at or after op index `after`. Walks the tree linearly.
-struct UseLocation {
-    std::list<Op>* parent_list = nullptr;
-    std::list<Op>::iterator it;
-    std::uint32_t index = 0;
-};
-
-bool find_next_use_impl(std::list<Op>& ops, value_id vid, std::uint32_t after,
-                        std::uint32_t& index, UseLocation& result) {
-    for (auto it = ops.begin(); it != ops.end(); ++it) {
-        auto& op = *it;
-        if (op.body) {
-            if (find_next_use_impl(op.body->ops(), vid, after, index, result)) {
-                return true;
-            }
-        } else {
-            if (index >= after) {
-                for (auto read : op.reads) {
-                    if (read == vid) {
-                        result.parent_list = &ops;
-                        result.it = it;
-                        result.index = index;
-                        return true;
-                    }
-                }
-            }
-            ++index;
-        }
-    }
-    return false;
-}
-
-bool find_next_use(std::list<Op>& ops, value_id vid, std::uint32_t after,
-                   std::uint32_t& index, UseLocation& result) {
-    return find_next_use_impl(ops, vid, after, index, result);
-}
-
-std::uint32_t count_linear_ops(const std::list<Op>& ops) {
-    std::uint32_t count = 0;
-    for (const auto& op : ops) {
-        if (op.body) {
-            count += count_linear_ops(op.body->ops());
-        } else {
-            ++count;
-        }
-    }
-    return count;
-}
-
-std::uint32_t rewrite_reads_same_list_suffix(std::list<Op>& ops,
-                                             std::list<Op>::iterator first,
-                                             std::uint32_t first_index,
-                                             value_id old_id,
-                                             value_id new_id) {
-    std::uint32_t current_index = first_index;
-    std::uint32_t last_read = first_index;
-    for (auto it = first; it != ops.end(); ++it) {
-        if (it->body) {
-            current_index += count_linear_ops(it->body->ops());
-            continue;
-        }
-        bool rewritten = false;
-        for (auto& read : it->reads) {
-            if (read == old_id) {
-                read = new_id;
-                rewritten = true;
-            }
-        }
-        if (rewritten) {
-            last_read = current_index;
-        }
-        ++current_index;
-    }
-    return last_read;
 }
 
 // Remat all uses of `vid` in the op tree: for each op that reads `vid`,
@@ -478,6 +453,7 @@ bool remat_all_uses_impl(std::list<Op>& ops, IR& ir, value_id vid, const Op& vic
         clone.def = new_id;
         clone.emit = victim_def.emit;
         clone.def_rc = victim_def.def_rc;  // preserve register class
+        clone.early_clobber = victim_def.early_clobber;
         clone.name = "remat";
         ops.insert(it, std::move(clone));
 
@@ -489,293 +465,21 @@ bool remat_all_uses_impl(std::list<Op>& ops, IR& ir, value_id vid, const Op& vic
     return modified;
 }
 
-// ── Loop unrolling pass ──────────────────────────────────────────────
-
-// Clone a range of ops [begin, end) from a body, remapping value_ids.
-// `remap` maps old value_id → new value_id. Values not in the map
-// (defined outside the body) are kept as-is. Fresh value_ids are
-// allocated from `ir`.
-void clone_ops(const std::list<Op>& src_ops,
-               std::list<Op>& dst_ops,
-               std::list<Op>::const_iterator begin,
-               std::list<Op>::const_iterator end,
-               IR& ir,
-               std::unordered_map<value_id, value_id>& remap) {
-    for (auto it = begin; it != end; ++it) {
-        const auto& op = *it;
-        Op clone;
-        // Remap reads
-        clone.reads.reserve(op.reads.size());
-        for (auto r : op.reads) {
-            auto rit = remap.find(r);
-            clone.reads.push_back(rit != remap.end() ? rit->second : r);
-        }
-        // Allocate fresh def if the op defines a value
-        if (op.def != invalid_value) {
-            value_id new_id = ir.value_count();
-            ir.set_value_count(new_id + 1);
-            remap[op.def] = new_id;
-            clone.def = new_id;
-        }
-        clone.emit = op.emit;  // share the emit closure
-        clone.is_copy = op.is_copy;
-        clone.tied_to = op.tied_to;
-        clone.def_rc = op.def_rc;
-        clone.kind = op.kind;
-        clone.is_loop = op.is_loop;
-        clone.name = op.name;
-        // Note: nested body (regions) not cloned — unrolling only applies
-        // to flat loop bodies, not nested structures.
-        dst_ops.push_back(std::move(clone));
-    }
-}
-
-// Estimate peak register pressure in one loop iteration.
-// Walks the body ops, tracking live value count at each point.
-std::uint32_t estimate_body_pressure(const std::list<Op>& ops) {
-    // Track which values are live (defined but not yet last-used).
-    // For each value, find its last use index, then count live at each op.
-    std::unordered_map<value_id, std::uint32_t> last_use;
-    std::uint32_t idx = 0;
-    for (const auto& op : ops) {
-        for (auto r : op.reads) {
-            last_use[r] = idx;
-        }
-        ++idx;
-    }
-
-    std::unordered_set<value_id> live;
-    std::uint32_t peak = 0;
-    idx = 0;
-    for (const auto& op : ops) {
-        if (op.def != invalid_value) {
-            live.insert(op.def);
-        }
-        peak = std::max(peak, static_cast<std::uint32_t>(live.size()));
-        // Expire values whose last use is this op.
-        for (auto r : op.reads) {
-            if (last_use[r] == idx) {
-                live.erase(r);
-            }
-        }
-        ++idx;
-    }
-    return peak;
-}
-
-// Unroll a single loop body by factor K. Clones all body ops (except
-// the loop_footer) K-1 times before the footer.
-bool unroll_loop_body(Op& loop_op, IR& ir, std::uint32_t factor) {
-    if (factor <= 1 || !loop_op.body) return false;
-
-    auto& body_ops = loop_op.body->ops();
-    if (body_ops.empty()) return false;
-
-    // Find the loop_footer — it's the last op with name "loop_footer".
-    auto footer_it = body_ops.end();
-    for (auto it = body_ops.begin(); it != body_ops.end(); ++it) {
-        if (std::string(it->name) == "loop_footer") {
-            footer_it = it;
-        }
-    }
-
-    // Clone everything before the footer, K-1 times, inserting before footer.
-    for (std::uint32_t k = 1; k < factor; ++k) {
-        std::unordered_map<value_id, value_id> remap;
-        clone_ops(body_ops, body_ops, body_ops.begin(), footer_it, ir, remap);
-    }
-
-    trace_ir("unroll loop by " + std::to_string(factor) +
-             " (" + std::to_string(body_ops.size()) + " ops in body)");
-    return true;
-}
-
 }  // namespace
 
-// ── Public unroll_loops pass ────────────────────────────────────────
-
-bool unroll_loops(IR& ir, std::uint32_t vec_pool_size, UnrollStrategy strategy) {
-    if (strategy == UnrollStrategy::none) return false;
-
-    bool modified = false;
-
-    for (auto& op : ir.ops()) {
-        if (!op.body || !op.is_loop) continue;
-
-        auto& body_ops = op.body->ops();
-        auto pressure = estimate_body_pressure(body_ops);
-        trace_ir("unroll: found loop, body_ops=" + std::to_string(body_ops.size()) +
-                 " pressure=" + std::to_string(pressure) +
-                 " pool=" + std::to_string(vec_pool_size));
-        if (pressure == 0) continue;
-
-        std::uint32_t factor = 1;
-
-        if (strategy == UnrollStrategy::heuristic) {
-            // LLVM-style: unroll as much as register pressure allows.
-            factor = vec_pool_size / pressure;
-            if (factor < 2) continue;
-            // Cap at 8 to avoid code bloat.
-            factor = std::min(factor, 8u);
-        } else if (strategy == UnrollStrategy::feedback) {
-            // Feedback-directed: try increasing factors until allocation fails.
-            for (std::uint32_t try_factor = vec_pool_size / pressure;
-                 try_factor >= 2; try_factor /= 2) {
-                // Build a trial IR copy — expensive but optimal.
-                // For now, use the heuristic as a starting point.
-                // @todo claude: implement trial allocation for feedback mode
-                factor = try_factor;
-                break;
-            }
-            if (factor < 2) continue;
-            factor = std::min(factor, 8u);
-        }
-
-        if (unroll_loop_body(op, ir, factor)) {
-            modified = true;
-        }
-    }
-
-    return modified;
-}
-
-bool rematerialize_for_pressure(IR& ir,
-                                const std::vector<LiveRange>& ranges,
-                                std::uint32_t vec_pool_size,
-                                std::uint32_t gpr_pool_size) {
-    if (get_remat_debug_config().disable_remat) {
-        return false;
-    }
-
-    std::unordered_map<value_id, Op*> def_map;
-    collect_def_ops(ir.ops(), def_map);
-
-    std::vector<std::size_t> order;
-    order.reserve(ranges.size());
-    for (std::size_t idx = 0; idx < ranges.size(); ++idx) {
-        if (!ranges[idx].empty()) {
-            order.push_back(idx);
-        }
-    }
-    std::sort(order.begin(), order.end(), [&](std::size_t a, std::size_t b) {
-        if (ranges[a].beginIndex() != ranges[b].beginIndex()) {
-            return ranges[a].beginIndex() < ranges[b].beginIndex();
-        }
-        return ranges[a].id < ranges[b].id;
-    });
-
-    std::vector<PressureEntry> active;
-    auto expire = [&](std::uint32_t current_start) {
-        auto it = active.begin();
-        while (it != active.end()) {
-            if (ranges[it->lr_idx].endIndex() < current_start) {
-                it = active.erase(it);
-            } else {
-                ++it;
-            }
-        }
+std::optional<Assignment> assign_registers(IR& ir,
+                                           std::vector<LiveRange>& ranges,
+                                           PassContext& ctx) {
+    // Per-register interference allocation across register files. Each
+    // class has an allocation order — the physical registers it may use, in
+    // preference order — mirroring LLVM's AllocationOrder
+    // (RegisterClassInfo::getOrder). Files never interfere with each other.
+    auto pool_for = [&ctx](RegisterClass rc) -> const std::vector<std::uint32_t>& {
+        return ctx.pool(rc);
     };
 
-    for (auto lr_idx : order) {
-        expire(ranges[lr_idx].beginIndex());
-        // Per-class pressure check: count active values of the same register class.
-        auto current_rc = ranges[lr_idx].rc;
-        auto current_pool_size = (current_rc == RegisterClass::GPR) ? gpr_pool_size : vec_pool_size;
-        std::uint32_t class_active = 0;
-        for (const auto& ae : active) {
-            if (ranges[ae.lr_idx].rc == current_rc) ++class_active;
-        }
-        if (class_active < current_pool_size) {
-            insert_by_end(active, ranges, lr_idx);
-            continue;
-        }
-
-        std::vector<std::size_t> candidates;
-        for (std::size_t pos = 0; pos < active.size(); ++pos) {
-            const auto vid = ranges[active[pos].lr_idx].id;
-            auto def_it = def_map.find(vid);
-            if (def_it == def_map.end()) continue;
-            if (!def_it->second->reads.empty()) continue;
-            candidates.push_back(pos);
-        }
-        std::sort(candidates.begin(), candidates.end(),
-                  [&](std::size_t a, std::size_t b) {
-                      return ranges[active[a].lr_idx].endIndex() > ranges[active[b].lr_idx].endIndex();
-                  });
-
-        for (auto victim_pos : candidates) {
-            const auto victim_lr_idx = active[victim_pos].lr_idx;
-            const auto victim_id = ranges[victim_lr_idx].id;
-            auto* victim_def = def_map[victim_id];
-
-            UseLocation use_loc{};
-            std::uint32_t search_idx = 0;
-            find_next_use(ir.ops(), victim_id, ranges[lr_idx].beginIndex(), search_idx, use_loc);
-            if (!use_loc.parent_list) {
-                continue;
-            }
-
-            const auto new_id = static_cast<value_id>(ir.value_count());
-            ir.set_value_count(new_id + 1);
-
-            Op remat_op;
-            remat_op.def = new_id;
-            remat_op.emit = victim_def->emit;
-            remat_op.def_rc = victim_def->def_rc;  // preserve register class
-            remat_op.name = "remat";
-            use_loc.parent_list->insert(use_loc.it, std::move(remat_op));
-
-            const auto rewrite_end = get_remat_debug_config().remat_single_use
-                ? use_loc.index
-                : rewrite_reads_same_list_suffix(*use_loc.parent_list,
-                                                 use_loc.it,
-                                                 use_loc.index,
-                                                 victim_id,
-                                                 new_id);
-            if (get_remat_debug_config().remat_single_use) {
-                for (auto& read : use_loc.it->reads) {
-                    if (read == victim_id) {
-                        read = new_id;
-                    }
-                }
-            }
-
-            trace_remat_event("repair",
-                              victim_id,
-                              new_id,
-                              ranges[lr_idx].beginIndex(),
-                              use_loc.index,
-                              use_loc.index,
-                              rewrite_end,
-                              false,
-                              false);
-            return true;
-        }
-
-        return false;
-    }
-
-    return false;
-}
-
-std::optional<Assignment> linear_scan(IR& ir,
-                                      std::vector<LiveRange>& ranges,
-                                      PassContext& ctx) {
-    const auto vec_pool_size = ctx.vec_pool_size;
-    const auto& gpr_pool_indices = ctx.gpr_pool_indices;
-
-    // LLVM-style per-register interference allocation with dual register pools.
-    // One unified priority queue (sorted by beginIndex), per-class physical pools.
-    // GPR and Vec never interfere — separate hardware register files.
-    //
-    // Vec pool: contiguous 0..vec_pool_size-1 (phys index == pool slot).
-    // GPR pool: gpr_pool_indices maps pool slot → physical register index.
-    // Mirrors LLVM's AllocationOrder (RegisterClassInfo::getOrder).
-
-    const auto gpr_pool_size = static_cast<std::uint32_t>(gpr_pool_indices.size());
-
-    // Sort LiveRanges by beginIndex (standard linear-scan order).
-    // Single unified queue across all register classes — LLVM-style.
+    // Visit live ranges in order of first definition. Single unified work
+    // list across register classes — the pools are what differ.
     std::vector<std::size_t> order;
     order.reserve(ranges.size());
     for (std::size_t idx = 0; idx < ranges.size(); ++idx) {
@@ -790,32 +494,34 @@ std::optional<Assignment> linear_scan(IR& ir,
         return ranges[a].id < ranges[b].id;
     });
 
-    // Per-class segment unions keyed by physical register index.
-    // GPR and Vec are separate hardware — no cross-class interference.
-    std::vector<std::vector<Segment>> vec_reg_segments(vec_pool_size);
-    std::vector<std::vector<Segment>> gpr_reg_segments(gpr_pool_size);
+    // Segment unions per pool slot, one array per class.
+    std::array<std::vector<std::vector<Segment>>, register_class_count> reg_segments;
+    for (std::size_t rc = 0; rc < register_class_count; ++rc) {
+        reg_segments[rc].resize(pool_for(static_cast<RegisterClass>(rc)).size());
+    }
 
-    // Select the correct segment array for a register class + pool slot.
     auto segs_for = [&](RegisterClass rc, std::uint32_t slot) -> std::vector<Segment>& {
-        return (rc == RegisterClass::GPR) ? gpr_reg_segments[slot] : vec_reg_segments[slot];
+        return reg_segments[static_cast<std::size_t>(rc)][slot];
     };
 
     auto pool_size_for = [&](RegisterClass rc) -> std::uint32_t {
-        return (rc == RegisterClass::GPR) ? gpr_pool_size : vec_pool_size;
+        return static_cast<std::uint32_t>(pool_for(rc).size());
     };
 
-    // Map pool slot → physical register index.
+    // Pool slot → physical register index.
     auto phys_idx = [&](RegisterClass rc, std::uint32_t slot) -> std::uint32_t {
-        return (rc == RegisterClass::GPR) ? gpr_pool_indices[slot] : slot;
+        return pool_for(rc)[slot];
     };
 
-    // Reverse map: physical register index → pool slot (for coalescing lookups).
+    // Physical register index → pool slot (for coalescing lookups).
     auto slot_of = [&](RegisterClass rc, std::uint32_t phys) -> std::uint32_t {
-        if (rc == RegisterClass::Vec) return phys;
-        for (std::uint32_t i = 0; i < gpr_pool_size; ++i) {
-            if (gpr_pool_indices[i] == phys) return i;
+        const auto& pool = pool_for(rc);
+        for (std::uint32_t i = 0; i < pool.size(); ++i) {
+            if (pool[i] == phys) {
+                return i;
+            }
         }
-        return gpr_pool_size;  // not found
+        return static_cast<std::uint32_t>(pool.size());  // not found
     };
 
     // Check if any segment of `lr` overlaps any segment on pool slot `slot`.
@@ -845,7 +551,7 @@ std::optional<Assignment> linear_scan(IR& ir,
         auto vid = lr.id;
         auto rc = lr.rc;
         auto ps = pool_size_for(rc);
-        const char* rc_tag = (rc == RegisterClass::GPR) ? "gpr" : "vec";
+        const char* rc_tag = to_string(rc);
 
         trace_ir("alloc %" + std::to_string(vid) + " " + rc_tag +
                  " segs=" + std::to_string(lr.segments.size()) +
@@ -854,8 +560,9 @@ std::optional<Assignment> linear_scan(IR& ir,
 
         if (ps == 0) {
             throw allocation_failure(
-                "jit_kernel_ir::linear_scan: no " + std::string(rc_tag) +
-                " registers available for value %" + std::to_string(vid));
+                "jit_kernel_ir::assign_registers: no " + std::string(rc_tag) +
+                " registers available for value %" + std::to_string(vid) +
+                " (the ISA has no such register file, or the pool is empty)");
         }
 
         // Trivial coalescing: prefer the source's register if compatible.
@@ -943,84 +650,25 @@ std::optional<Assignment> linear_scan(IR& ir,
                 }
             }
 
-            // No remat possible. Spill: pick the assigned value with the
-            // furthest end (Belady's algorithm). Insert spill (store to stack)
-            // before the current value's start and reload before the victim's
-            // next use. LLVM-style: spill modifies the IR → return nullopt.
-            value_id spill_victim = invalid_value;
-            std::uint32_t spill_end = 0;
-            for (const auto& [v, preg] : result.reg) {
-                if (v >= ranges.size() || ranges[v].rc != rc) continue;
-                if (!ranges[v].overlaps(lr)) continue;
-                if (ranges[v].endIndex() > spill_end) {
-                    spill_end = ranges[v].endIndex();
-                    spill_victim = v;
+            // No remat possible and there is no spiller yet: fail loudly.
+            // A spiller needs (a) stack slots sized after allocation, which
+            // means frame setup must move behind the allocator, and (b)
+            // target hooks to emit store/load of a physical register, which
+            // the IR layer does not own. Until both exist, reporting the
+            // failure is the only correct behaviour — silently dropping the
+            // spill code would miscompile.
+            std::uint32_t interfering = 0;
+            for (const auto& [v, _reg] : result.reg) {
+                if (v < ranges.size() && ranges[v].rc == rc && ranges[v].overlaps(lr)) {
+                    ++interfering;
                 }
             }
-
-            if (spill_victim != invalid_value) {
-                // Allocate a spill slot.
-                auto slot_idx = static_cast<std::uint32_t>(ctx.spill_slots.size());
-                std::uint32_t slot_size = (rc == RegisterClass::GPR) ? 8 : 64;
-                ctx.spill_slots.push_back({slot_size, 0});
-
-                // Find the next use of the victim after the current value's start.
-                UseLocation use_loc{};
-                std::uint32_t search_idx = 0;
-                find_next_use(ir.ops(), spill_victim, lr.beginIndex() / 2, search_idx, use_loc);
-                if (!use_loc.parent_list) {
-                    throw allocation_failure(
-                        "jit_kernel_ir::linear_scan: spill victim %" +
-                        std::to_string(spill_victim) + " has no use after eviction point");
-                }
-
-                // Insert spill (store to stack) before the use location.
-                // The spill reads the victim and stores to [rsp + offset].
-                auto spill_vid = static_cast<value_id>(ir.value_count());
-                ir.set_value_count(spill_vid + 1);
-
-                // Reload: define a new value loaded from the spill slot.
-                Op reload_op;
-                reload_op.reads = {};
-                reload_op.def = spill_vid;
-                reload_op.def_rc = rc;
-                reload_op.name = "reload";
-                reload_op.emit = [slot_idx, rc](const EmitContext& ectx) {
-                    // Emit at lowering time — offset filled by end_ir()
-                    // @todo claude: the offset is on PassContext::spill_slots,
-                    // but the closure can't access PassContext. For now, the
-                    // lowering pass will handle reload ops specially.
-                    (void)ectx; (void)slot_idx; (void)rc;
-                };
-
-                // Spill: store the original value before the reload.
-                Op spill_op;
-                spill_op.reads = {spill_victim};
-                spill_op.name = "spill";
-                spill_op.emit = [slot_idx, rc](const EmitContext& ectx) {
-                    (void)ectx; (void)slot_idx; (void)rc;
-                };
-
-                // Insert spill + reload before the use, rewrite reads.
-                use_loc.parent_list->insert(use_loc.it, std::move(spill_op));
-                use_loc.parent_list->insert(use_loc.it, std::move(reload_op));
-
-                // Rewrite the victim's reads at and after the use to the new value.
-                for (auto& read : use_loc.it->reads) {
-                    if (read == spill_victim) read = spill_vid;
-                }
-
-                trace_ir("spill %" + std::to_string(spill_victim) +
-                         " → slot " + std::to_string(slot_idx) +
-                         ", reload as %" + std::to_string(spill_vid) +
-                         " — retry allocation");
-                return std::nullopt;
-            }
-
             throw allocation_failure(
-                "jit_kernel_ir::linear_scan: " + std::string(rc_tag) + " pool of " +
+                "jit_kernel_ir::assign_registers: " + std::string(rc_tag) + " pool of " +
                 std::to_string(ps) + " registers exhausted for value %" +
-                std::to_string(vid) + " at op index " + std::to_string(lr.beginIndex()));
+                std::to_string(vid) + " at slot " + std::to_string(lr.beginIndex()) +
+                " (" + std::to_string(interfering) + " interfering live values, none"
+                " rematerializable; no spiller implemented)");
         }
     }
 
@@ -1059,7 +707,15 @@ void dump_ops_impl(std::ostream& os, const std::list<Op>& ops, std::uint32_t& i,
     std::string indent(static_cast<std::size_t>(depth) * 2 + 2, ' ');
     for (const auto& op : ops) {
         if (op.body) {
-            os << indent << (op.is_loop ? "LOOP {\n" : "REGION {\n");
+            // Region ops own an index like any other op — they emit the
+            // compare/branch — so the dump numbering matches slot indices.
+            os << indent << i << ": " << (op.is_loop ? "LOOP" : "REGION") << "(";
+            for (std::size_t r = 0; r < op.reads.size(); ++r) {
+                if (r != 0) os << ", ";
+                os << "%" << op.reads[r];
+            }
+            os << ") {\n";
+            ++i;
             dump_ops_impl(os, op.body->ops(), i, depth + 1);
             os << indent << "}\n";
         } else {
@@ -1093,6 +749,139 @@ bool unit_test_api_remat_value(IR& ir, value_id vid) {
 void dump_ops(std::ostream& os, const IR& ir) {
     std::uint32_t i = 0;
     dump_ops_impl(os, ir.ops(), i, 0);
+}
+
+// ── Verifier ────────────────────────────────────────────────────────────
+
+namespace {
+
+// Collects, for every op in the tree, the values it defines and reads,
+// so the verifier can check completeness without re-walking per value.
+struct OpRefs {
+    std::unordered_set<value_id> defined;     // has a defining op
+    std::vector<value_id> referenced;         // appears as read or def
+    std::string shape_error;                  // first structural error found
+};
+
+void collect_op_refs(const std::list<Op>& ops, OpRefs& refs) {
+    for (const auto& op : ops) {
+        if (op.def != invalid_value) {
+            refs.defined.insert(op.def);
+            refs.referenced.push_back(op.def);
+        }
+        for (auto r : op.reads) {
+            refs.referenced.push_back(r);
+        }
+        if (refs.shape_error.empty()) {
+            if (op.tied_to >= 0) {
+                refs.shape_error = "op '" + std::string(op.name) +
+                    "' still carries tied_to=" + std::to_string(op.tied_to) +
+                    " after TwoAddressPass";
+            } else if (op.is_copy && op.reads.size() != 1) {
+                refs.shape_error = "copy op '" + std::string(op.name) +
+                    "' has " + std::to_string(op.reads.size()) + " reads, expected 1";
+            }
+        }
+        if (op.body) {
+            collect_op_refs(op.body->ops(), refs);
+        }
+    }
+}
+
+}  // namespace
+
+void verify(const IR& ir,
+            const std::vector<LiveRange>& ranges,
+            const Assignment& assignment,
+            const PassContext& ctx) {
+    auto fail = [](const std::string& what) {
+        throw verification_failure("jit_kernel_ir::verify: " + what);
+    };
+
+    OpRefs refs;
+    collect_op_refs(ir.ops(), refs);
+    if (!refs.shape_error.empty()) {
+        fail(refs.shape_error);
+    }
+
+    // 1. Live range structure and register class agreement.
+    for (const auto& lr : ranges) {
+        std::uint32_t prev_end = 0;
+        for (std::size_t i = 0; i < lr.segments.size(); ++i) {
+            const auto& s = lr.segments[i];
+            if (s.start >= s.end) {
+                fail("value %" + std::to_string(lr.id) + " has empty segment [" +
+                     std::to_string(s.start) + ", " + std::to_string(s.end) + ")");
+            }
+            if (i > 0 && s.start < prev_end) {
+                fail("value %" + std::to_string(lr.id) +
+                     " segments are unsorted or overlapping around index " +
+                     std::to_string(s.start));
+            }
+            if (s.valno >= lr.valnos.size()) {
+                fail("value %" + std::to_string(lr.id) + " segment references valno " +
+                     std::to_string(s.valno) + " but only " +
+                     std::to_string(lr.valnos.size()) + " exist");
+            }
+            prev_end = s.end;
+        }
+    }
+
+    // 2. No undefined reads. A read of a value nothing defines means an IR
+    //    rewrite (remat, unroll, two-address) left a dangling id behind.
+    for (auto v : refs.referenced) {
+        if (refs.defined.count(v) == 0) {
+            fail("value %" + std::to_string(v) + " is read but never defined");
+        }
+    }
+
+    // 3. Completeness: lowering resolves every read and def through the
+    //    assignment, so anything referenced must be assigned.
+    for (auto v : refs.referenced) {
+        if (assignment.reg.count(v) == 0) {
+            fail("value %" + std::to_string(v) + " is referenced by an op but "
+                 "has no register assigned");
+        }
+    }
+
+    // 5. Assigned register must belong to the value's pool.
+    for (const auto& [v, preg] : assignment.reg) {
+        if (v >= ranges.size()) {
+            fail("assignment mentions unknown value %" + std::to_string(v));
+        }
+        const auto rc = ranges[v].rc;
+        const auto& pool = ctx.pool(rc);
+        if (std::find(pool.begin(), pool.end(), preg.idx) == pool.end()) {
+            fail("value %" + std::to_string(v) + " assigned " + to_string(rc) + " " +
+                 std::to_string(preg.idx) + " which is not in its allocable pool");
+        }
+    }
+
+    // 4. Interference: values sharing a physical register (within a class)
+    //    must have disjoint live ranges. Group by (class, phys) first so the
+    //    pairwise check stays small.
+    std::map<std::pair<std::uint8_t, std::uint32_t>, std::vector<value_id>> by_reg;
+    for (const auto& [v, preg] : assignment.reg) {
+        if (v >= ranges.size() || ranges[v].empty()) {
+            continue;
+        }
+        by_reg[{static_cast<std::uint8_t>(ranges[v].rc), preg.idx}].push_back(v);
+    }
+    for (const auto& [key, values] : by_reg) {
+        for (std::size_t i = 0; i < values.size(); ++i) {
+            for (std::size_t j = i + 1; j < values.size(); ++j) {
+                const auto& a = ranges[values[i]];
+                const auto& b = ranges[values[j]];
+                if (a.overlaps(b)) {
+                    fail("values %" + std::to_string(a.id) + " and %" +
+                         std::to_string(b.id) + " share " +
+                         to_string(static_cast<RegisterClass>(key.first)) + " " +
+                         std::to_string(key.second) +
+                         " but their live ranges overlap");
+                }
+            }
+        }
+    }
 }
 
 void dump_assignment(std::ostream& os,
@@ -1172,21 +961,17 @@ bool LiveRangeAnalysis::run(IR& ir, PassContext& ctx) {
     return false;  // analysis, no IR modification
 }
 
-bool LoopUnrollPass::run(IR& ir, PassContext& ctx) {
-    return unroll_loops(ir, ctx.vec_pool_size, strategy);
-}
-
 bool RegisterAllocator::run(IR& ir, PassContext& ctx) {
     // No values to allocate — nothing to do.
     if (ctx.ranges.empty()) {
         ctx.assignment = Assignment{};
         return false;
     }
-    // Remat loop: linear_scan may modify the IR and return nullopt,
+    // Remat loop: assignment may rewrite the IR and return nullopt,
     // requiring recomputation of live ranges.
     for (std::size_t attempt = 0, limit = ctx.ranges.size();
          attempt < limit; ++attempt) {
-        auto result = linear_scan(ir, ctx.ranges, ctx);
+        auto result = assign_registers(ir, ctx.ranges, ctx);
         if (result) {
             ctx.assignment = std::move(*result);
             return false;
@@ -1197,11 +982,18 @@ bool RegisterAllocator::run(IR& ir, PassContext& ctx) {
     OPENVINO_THROW("RegisterAllocator: allocation failed after remat exhaustion");
 }
 
+bool VerifyPass::run(IR& ir, PassContext& ctx) {
+    OPENVINO_ASSERT(ctx.assignment, "VerifyPass: no assignment available");
+    verify(ir, ctx.ranges, *ctx.assignment, ctx);
+    return false;
+}
+
 bool DumpPass::run(IR& ir, PassContext& ctx) {
     if (!ctx.dump) return false;
     std::ostringstream os;
-    os << "=== " << label << ": vec_pool=" << ctx.vec_pool_size
+    os << "=== " << label << ": vec_pool=" << ctx.vec_pool_indices.size()
        << " gpr_pool=" << ctx.gpr_pool_indices.size()
+       << " mask_pool=" << ctx.mask_pool_indices.size()
        << " values=" << ctx.ranges.size() << " ===\n";
     dump_ops(os, ir);
     if (ctx.assignment) {
@@ -1222,14 +1014,14 @@ bool LoweringPass::run(IR& ir, PassContext& ctx) {
     return false;
 }
 
-PassManager build_default_pipeline(UnrollStrategy unroll) {
+PassManager build_default_pipeline() {
     PassManager pm;
-    pm.add<LoopUnrollPass>(unroll);
     pm.add<TwoAddressPass>();
     pm.add<LiveRangeAnalysis>();
     pm.add<DumpPass>("IR before allocation");
     pm.add<RegisterAllocator>();
     pm.add<DumpPass>("IR after allocation");
+    pm.add<VerifyPass>();
     pm.add<LoweringPass>();
     return pm;
 }

@@ -81,8 +81,8 @@ void jit_rotary_kernel_ir::rotary_half_ir() {
     const auto half_byte_offset = half_rotary_ndims * sizeof(T);
     const bool shift_cos_sin = (m_jcp.cos_sin_ndims != half_rotary_ndims);
 
-    auto loop_count = var<size_t>(half_rotary_ndims / N);
-
+    // Exclusively 512-bit on AVX-512 hosts: use the full register file.
+    set_vec_width(N * sizeof(float) * 8);  // 512 on AVX-512 (N=16)
     begin_ir();
 
     auto src = make_ir_ptr(arg<T*>(&Params::src), N);
@@ -90,35 +90,32 @@ void jit_rotary_kernel_ir::rotary_half_ir() {
     auto sin = make_ir_ptr(arg<const float*>(&Params::sin), N);
     auto dst = make_ir_ptr(arg<T*>(&Params::dst), N);
 
-    // @todo claude: foreach_with_epilogue generates an epilogue even when
-    // half_rotary_ndims is a multiple of N (tail never executes). The
-    // epilogue's ir_load_partial creates ~20 GPR values that exhaust the
-    // pool. Use plain foreach when no tail is needed.
-    if (half_rotary_ndims % N != 0) {
-        OPENVINO_THROW("rotary_half_ir: half_rotary_ndims must be a multiple of N");
-    }
+    // Element count for the loop. foreach_vec handles a count that is not
+    // a multiple of the vector width, so shapes like QwenVL's half=40 need
+    // no special casing here.
+    auto count = ir_gpr_imm(half_rotary_ndims);
 
-    foreach(size_t{0}, loop_count, [&](const variable<size_t>&) {
-        auto v_src0 = ir_load<N>(src);
-        auto v_src1 = ir_load<N>(src.ptr, half_byte_offset);
-        auto v_cos = ir_load<N>(cos);
-        auto v_sin = ir_load<N>(sin);
+    foreach_vec<N>(count, [&](const vlen& vl) {
+        auto v_src0 = ir_load<N>(src, vl);
+        auto v_src1 = ir_load<N>(src.ptr, half_byte_offset, vl);
+        auto v_cos = ir_load<N>(cos, vl);
+        auto v_sin = ir_load<N>(sin, vl);
 
         auto v_dst0 = fmsub(v_cos, v_src0, v_sin * v_src1);
-        ir_store(dst.ptr, size_t{0}, v_dst0);
+        ir_store(dst.ptr, size_t{0}, v_dst0, vl);
 
         if (shift_cos_sin) {
-            v_cos = ir_load<N>(cos.ptr, half_rotary_ndims * sizeof(float));
-            v_sin = ir_load<N>(sin.ptr, half_rotary_ndims * sizeof(float));
+            v_cos = ir_load<N>(cos.ptr, half_rotary_ndims * sizeof(float), vl);
+            v_sin = ir_load<N>(sin.ptr, half_rotary_ndims * sizeof(float), vl);
         }
 
         auto v_dst1 = fma(v_sin, v_src0, v_cos * v_src1);
-        ir_store(dst.ptr, half_byte_offset, v_dst1);
+        ir_store(dst.ptr, half_byte_offset, v_dst1, vl);
 
-        ir_advance(src);
-        ir_advance(cos);
-        ir_advance(sin);
-        ir_advance(dst);
+        ir_advance(src, vl);
+        ir_advance(cos, vl);
+        ir_advance(sin, vl);
+        ir_advance(dst, vl);
     });
 
     end_ir();
@@ -130,6 +127,8 @@ void jit_rotary_kernel_ir::rotary_interleave_ir() {
     constexpr size_t src_step = 2 * N * sizeof(T);
     const size_t cos_step = m_jcp.mix_cos_sin ? 2 * N * sizeof(float) : N * sizeof(float);
 
+    // Exclusively 512-bit on AVX-512 hosts: use the full register file.
+    set_vec_width(N * sizeof(float) * 8);  // 512 on AVX-512 (N=16)
     begin_ir();
 
     auto src = arg<T*>(&Params::src);

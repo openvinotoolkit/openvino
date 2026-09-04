@@ -9,6 +9,56 @@ developer's responsibility.** The DSL is a typed assembler, not a compiler.
 MLIR and similar compiler‑backed approaches are explicitly out of scope here —
 see the end of the document for why.
 
+## Implementation status (2026-09-03) — read this before the rest
+
+This document is the original design record. Substantial parts of it have
+been overtaken by the implementation. Sections that no longer describe the
+code are marked **superseded** in place; the rest still holds.
+
+What shipped, in one paragraph: the DSL gained vector operators, by-value
+value semantics, DSL-native type-converting load/store (f32, u8, f16,
+bf16), and an IR mode with an LLVM-shaped register allocator — live ranges
+with segments and value numbers, half-open intervals, early/late slots,
+tied operands with a two-address pass, liveness by CFG dataflow to a
+fixpoint, interference-based assignment, integrated rematerialization, a
+verifier, and a pass manager. GPRs are allocator-managed too, and vector
+operations take their active length as an explicit argument
+(`vlen::all()` / `elements(count)` / `predicated(mask, count)`) rather than
+reading ambient kernel state. `color_convert` (NV12/I420, f32 and u8) and a RoPE kernel
+are ported.
+
+Three of this document's stated constraints were crossed; one held after a
+detour:
+
+1. **"One overload = one instruction"** — no longer literal. Type-
+   converting load/store emit 2–3 instructions, `store_interleaved3` ~9,
+   partial access expands into a stack bounce with two loops. The rule that
+   survived is the weaker one: *the author picks the operation; the DSL
+   never re-opens instruction selection based on liveness.*
+2. **"Eager mode stays the default; IR mode is opt-in"** — eager mode for
+   *vector* work has been removed. Eager scalar/GPR code (`var<size_t>`,
+   `foreach`, `_if/_then/_else`, `stack_frame`, legacy emitter interop)
+   remains and is still used by `cpu_convert.cpp`.
+3. **"No auto-spill"** — still true, and now enforced with a diagnostic. A
+   spill *stub* existed for a while and emitted no code at all; it has
+   been removed.
+4. **"IR is a register allocator, not an optimizer"** — true again. The
+   pipeline is two-address lowering, liveness, allocation with
+   rematerialization, verification, lowering. A loop-unrolling pass was
+   added and removed (an IR pass cannot scale a trip count that lives
+   inside an emit closure; enabling it corrupted memory).
+
+**Multi-architecture is now committed** (2026-09-04). Targets: x86-64
+(AVX2, AVX-512), AArch64 (NEON, SVE), RISC-V (RVV 1.0). That settles
+Phase 3's trigger question below in the affirmative and puts one of its
+"hard compromises" — fixed vector width — up for revision, because SVE and
+RVV are length-agnostic. Measured coupling, the three real gaps and the
+A/B/C phasing are in `jit_kernel_journal.md`, "Multi-architecture plan".
+
+`jit_kernel_journal.md` holds the current status, the hazard list and the
+work queue. `jit_kernel_register_allocation.md` holds the allocator design
+with per-section implementation status.
+
 ## What the current wrapper already does well
 
 `jit_kernel` layers on top of `dnnl::impl::cpu::x64::jit_generator_t` and gives:
@@ -38,6 +88,16 @@ of `uni_v*` calls into ~4 lines of expression.
 
 This rule is the whole design. It's what keeps the layer a typed assembler
 rather than drifting into a smart‑codegen thing that fights the developer.
+
+**Partially superseded.** The rule held for arithmetic — `operator+` is
+still exactly `vaddps` — but memory access broke it deliberately:
+`ir_load`/`ir_store` fuse the type conversion (2–3 instructions),
+`store_interleaved3` emits ~9, `ir_load_partial` emits two loops. The
+principle that survived, and that new primitives are still held to, is
+narrower: *the author chooses the operation and the DSL never revisits
+that choice based on surrounding liveness.* An expansion is acceptable
+when it is a fixed, documented instruction sequence; it is not acceptable
+for the DSL to pick between sequences behind the author's back.
 
 In scope:
 - `operator+ - *` on `variable<T[N]>` → `uni_vaddps` / `uni_vsubps` / `uni_vmulps`
@@ -144,10 +204,16 @@ separate tail path at `color_convert.cpp:472`.
 - **No ISA polymorphism inside a stage.** Stages are templated on `T[N]` like
   `JitConverter<T[N]>` is today (`color_convert.cpp:425`).
 
-## Phase 3 — Arch generalization (only if multiple arches need it)
+## Phase 3 — Arch generalization — **triggered, not yet built**
 
 **Trigger condition: at least 3 kernels that want the same high‑level shape on
-multiple arches.** The evidence already in‑tree is
+multiple arches.** Superseded by a strategy decision: AArch64 and RISC-V are
+declared targets, so the phase is happening regardless of the kernel count.
+The boundary below is still unbuilt — `jit_kernel` remains a single x86
+class with 207 xbyak references across 63 emit closures — and building it
+is Phase A of the plan in `jit_kernel_journal.md`.
+
+The original evidence was
 `jit_uni_eltwise_generic.{cpp,hpp}` existing in `kernels/x64/`,
 `kernels/aarch64/`, and `kernels/riscv64/` as three parallel copies. Before
 committing to this phase, diff those three files. If they really are
@@ -167,17 +233,28 @@ materially, the abstraction will leak.
 
 ### What's arch‑specific (does not lift)
 
-- `reg_traits_by_size` (`jit_kernel.hpp:40‑86`). The "sizeof(T) →
-  Reg8/16/32/64/Xmm/Ymm/Zmm" mapping is pure x86. aarch64 has
-  `XReg/WReg/VReg/ZReg/PReg`; RVV has GPR + V with `LMUL`.
-- `isa_traits` with `length = 4/8/16 dwords` (`jit_kernel.hpp:117‑141`) —
-  assumes *fixed* vector length. SVE and RVV are scalable.
-- 2‑operand vs 3‑operand form. `operator+=` compiles to `add dst, src` on x86;
-  ARM and RVV are 3‑operand. This is why Phase 1 rules out vector `+=`.
-- Predication. SVE and RVV are predicated first‑class; AVX‑512 has k‑regs;
-  AVX2/SSE has none.
-- `jit_load_emitter` / `jit_store_emitter` (`jit_kernel.hpp:752`) — x86‑only in
-  oneDNN.
+Status added 2026-09-04 — three of these five turned out to be liftable
+after all, which is the useful part of the list:
+
+- `reg_traits_by_size`. The "sizeof(T) → Reg8/16/32/64/Xmm/Ymm/Zmm" mapping
+  is pure x86. aarch64 has `XReg/WReg/VReg/ZReg/PReg`; RVV has GPR + V with
+  `LMUL`. *Still arch-specific, and with 184 `float[N]`-shaped sites in the
+  DSL it is the main obstacle to scalable vectors.*
+- `isa_traits` with `length = 4/8/16 dwords` — assumes *fixed* vector
+  length. SVE and RVV are scalable. *Still true; see compromise 1 below,
+  now under revision.*
+- 2‑operand vs 3‑operand form. *Solved generically:* the DSL is
+  three-address, destructive forms are expressed as tied operands, and
+  `TwoAddressPass` + the coalescer turn them into in-place instructions
+  with no copy. SVE's `FMLA`/`MOVPRFX` fits the same mechanism.
+- Predication. *Solved generically:* `jit_kernel::vlen` carries a predicate
+  value and/or an element count, `RegisterClass::Mask` allocates predicate
+  registers with a per-target order (x86 `k1..k7`, SVE `PPR_3b`, RVV `v0`),
+  and `vector_target::preferred_tail_folding()` picks the loop shape. This
+  is compromise 3 below, delivered.
+- `jit_load_emitter` / `jit_store_emitter` — x86‑only in oneDNN.
+  *No longer on the critical path:* the DSL owns its load/store for f32,
+  u8, f16 and bf16, so there is nothing x86-only to lift.
 
 ### The boundary
 
@@ -191,6 +268,15 @@ jit_kernel_x64     : jit_kernel_base<ArchTraits_x64>,     dnnl::x64::jit_generat
 jit_kernel_aarch64 : jit_kernel_base<ArchTraits_aarch64>, dnnl::aarch64::jit_generator_t
 jit_kernel_riscv64 : jit_kernel_base<ArchTraits_riscv64>, riscv64::jit_generator
 ```
+
+As built so far, the split runs along a different seam than this sketch:
+the *IR, allocator, liveness and verifier* are already arch-neutral (zero
+xbyak references), and capability queries live in `vector_target` — the
+DSL's `TargetTransformInfo` — rather than in an `ArchTraits` template.
+What remains for Phase A is separating the DSL surface from the emit
+closures. Runtime ISA dispatch (AVX2 vs AVX-512 on the same binary) is why
+the queries are a virtual interface instead of a compile-time traits
+template.
 
 `ArchTraits` declares a small fixed vocabulary — ~20 ops — that every arch
 implements:
@@ -212,12 +298,22 @@ that doesn't.
 These are non‑negotiable for the abstraction to remain sane. If you can't live
 with any of them, don't start Phase 3.
 
-1. **Fixed vector width.** `variable<T[N]>` keeps compile‑time `N`. On aarch64
-   target NEON (`N=4` for `float`). On RVV pin `LMUL=1` and emit one
-   `vsetvli` at the top. Scalable SVE/RVV is **not** supported through this
-   DSL — if you need scalable form, write a separate source file. Fighting
-   this rule produces a DSL where no one can reason about register count or
-   live range, and drags the x86 experience down for no benefit.
+1. **Fixed vector width** — **under revision (2026-09-04).** The rule as
+   written (compile‑time `N`; NEON on aarch64; `LMUL=1` on RVV; scalable
+   form out of scope) is what the DSL still implements, and it is now the
+   thing standing between us and real SVE/RVV support. Two observations
+   have since weakened the argument for it:
+   - The stated cost — "no one can reason about register count or live
+     range" — applied to a scope-based allocator. Live ranges are now
+     computed over *values*, not bytes, so the allocator and the verifier
+     are already width-agnostic. So is `vlen`. The coupling is confined to
+     the DSL's type surface (`variable<float[N]>`, `reg_traits<T[N]>`,
+     stride arithmetic, alloca sizing).
+   - Pinning `N` to a runtime-detected width would give SVE-as-fixed-width,
+     i.e. NEON with extra steps, forfeiting the reason to target SVE.
+   Phase A of the plan in the journal exists to measure how much of a
+   symbolic-width redesign (LLVM's `vscale`) is actually required before
+   committing to it.
 2. **3‑operand form in the DSL, lowered to 2‑op on x86.** No vector `+=`.
    `uni_*` already does the 2‑op lowering silently on x86. Cost: slightly
    more verbose x86 source. Benefit: aarch64 and RVV are not second‑class.
@@ -225,6 +321,10 @@ with any of them, don't start Phase 3.
    AVX2 passing non‑default is an error. On AVX‑512 it becomes a `k` mask.
    On SVE/RVV it becomes a `P`/`v0.t` mask. Tails that can't use predication
    fall back to a scalar loop written in the same DSL.
+   **Shipped, and this prediction held up well.** The argument is
+   `jit_kernel::vlen`; the "error on AVX2" became a target query
+   (`supports_masked_access`) with a scalarized fallback rather than a hard
+   error; and the fallback is a stack-slot copy instead of a scalar loop.
 4. **Arch‑specific extensions live in arch‑specific files**, not behind
    `#ifdef`s in shared code. A kernel that needs `vpshufb` has
    `yuv_to_rgb_x64.cpp`, and if/when someone cares, `yuv_to_rgb_aarch64.cpp`.
@@ -758,7 +858,23 @@ inside the DSL-native load/store primitives, where it's under our control
 and can be tested directly, rather than being bundled into a centralized
 emitter that many other kernels also use.
 
-### IR mode vs. eager mode — explicit modes
+### IR mode vs. eager mode — explicit modes — **superseded**
+
+What actually happened: eager mode for vector work was deleted (commit
+`4bf978a5e9`). `vec_op`, `vec_copy`, `vec_permute`, `ir_load`, `ir_store`
+require an active `_ir`. Vector kernels are IR-mode kernels; the
+"escalate to IR mode only under measured pressure" gate no longer exists.
+Eager scalar/GPR machinery stays for `cpu_convert.cpp` and for anything
+that composes with legacy emitters.
+
+Reason the two-mode plan collapsed: every vector primitive needs the
+allocator to see its operands, so a parallel eager implementation meant
+two lowering paths per primitive — and the eager path is where the
+captured-physical-register bugs came from. Residual `vid != invalid ? ... :
+captured_idx` branches in `ir_load`/`ir_store`/`ir_advance` are the last
+traces, scheduled for removal.
+
+The original reasoning is kept below for the record.
 
 Even after the load/store split, not every kernel benefits from IR mode.
 Kernels with simple register footprints — loop-heavy code, few live
@@ -817,17 +933,24 @@ What's still missing:
   only when the C++ `variable` goes out of scope, not at the last actual
   use inside the emitted sequence. The color_convert investigation
   quantified this cost directly — see "Empirical evidence" below.
-- **Seed-move elision inside value-producing ops.** `fma(a, b, c)` still
-  emits `vmovups res, c; vfmadd231ps res, a, b`. The seed move is
-  move-eliminated by Haswell+ register renaming (zero ALU uops at runtime)
-  but still costs a decoded uop and counts as an "allocation" for our
-  pressure tracking. Move-hint overloads would close this for callers
-  willing to annotate.
+- ~~**Seed-move elision inside value-producing ops.**~~ **Done.** The FMA
+  seed is recorded as a tied operand (`def_tied(..., 0)`);
+  `TwoAddressPass` turns it into an explicit COPY plus an in-place FMA,
+  the allocator coalesces the COPY through `copy_of`, and lowering skips
+  copies whose def and source landed in the same register. No `vmovups`
+  in the generated code and no move-hint annotations at call sites.
 - **Liveness-aware fresh allocation.** When `var<float[N]>()` picks a
   register from the free pool, it has no preference for a just-freed slot
   vs. a cold one. A smarter pool could prefer reusing the most recently
   freed register to improve locality. ~20 lines. Minor win.
-- **Pool cap at 16 regs on AVX-512.** `jit_kernel.cpp:334` populates
+- ~~**Pool cap at 16 regs on AVX-512.**~~ **Fixed**, with a caveat the
+  original note missed: `xmm16..31` / `ymm16..31` are EVEX-only, so
+  VEX/SSE-encoded instructions cannot name them (handing one to eager code
+  produces Xbyak "not supported"). The eager pool therefore stays at 16,
+  and IR mode extends its allocation order to 32 only for kernels that
+  declare `set_vec_width(512)`. On `color_convert` NV12 f32 that removed 6
+  rematerializations per kernel. Original note follows.
+  `jit_kernel.cpp` used to populate
   `_free_rmmregs` from the GPR index range `RAX..R15` (16 entries). The
   `xmmregs()`/`ymmregs()`/`zmmregs()` arrays are also sized at 16 and
   only include `xmm0..xmm15` / `ymm0..ymm15` / `zmm0..zmm15`. On AVX-512
@@ -911,7 +1034,17 @@ pressure was close to the limit, but the fundamental fix — making dead
 variables *actually dead* in the allocator — requires liveness analysis,
 which requires the two-pass IR mode.
 
-### Recommended ordering
+### Recommended ordering — outcome
+
+Status of each step as of 2026-09-03: (1) **not done** — the pool is still
+16 on AVX-512; (2) **skipped** — the IR dump replaced the counters, and
+`Assignment::peak_live` is computed but unused; (3) **shipped**, extended
+to f16/bf16; (4) **shipped**, and grew beyond its stated scope (GPR
+allocation, remat, two-address lowering, unrolling, tail synthesis);
+(5) move-hints **not needed** — coalescing subsumed them; (6) expression
+templates **still off the roadmap**.
+
+Original text below.
 
 The color_convert investigation collapsed several earlier "gate on
 measurement" steps — we have the measurement now, and the pressure gap is
@@ -975,26 +1108,31 @@ color_convert empirical evidence shows ~48 instructions per pixel of
 wasted loop-invariant setup that the regalloc would eliminate directly,
 and it unblocks the by-value-everywhere idiom we want in the DSL.
 
-### What IR mode is explicitly NOT
+### What IR mode is explicitly NOT — with 2026-09 corrections
 
 Worth stating up-front to prevent scope creep:
 
 - **Not a compiler**. No CSE, no constant folding, no LICM, no dead-code
   elimination, no pattern matching, no instruction selection beyond what
-  the DSL primitives already committed to.
-- **Not a default**. Kernels stay on eager mode unless measurement shows
-  they benefit from IR mode.
+  the DSL primitives already committed to. *Still true for value-level
+  optimization. But the pipeline does contain loop unrolling, remat,
+  two-address lowering and tail synthesis, so the honest statement is
+  "no value-level optimization", not "nothing but allocation".*
+- ~~**Not a default**. Kernels stay on eager mode unless measurement shows
+  they benefit from IR mode.~~ *Superseded: eager vector mode was removed;
+  any kernel using vector `variable`s is an IR-mode kernel.*
 - **Not a path to std::datapar parity**. std::datapar users benefit from
   the full C++ compiler middle-end (inlining, autovectorization refinement,
   scalar CSE, etc.). IR mode here only matches **register allocation
   quality**, not the full optimizer stack. Real parity with std::datapar
   code quality requires MLIR or LLVM integration, which is the strategic
   decision explicitly declined in the "Why not MLIR" section.
-- **Not a replacement for `jit_load_emitter` and friends**. The legacy
-  emitters continue to handle BF16, F16, F8/F4, and other exotic type
-  pairs. IR mode accesses them via the escape hatch (leave IR mode, do the
-  thing eagerly, return to IR mode). The kernel author takes responsibility
-  for register allocation across the boundary.
+- **Not a replacement for `jit_load_emitter` and friends** — *partly
+  superseded*. The DSL now owns f32, u8, f16 and bf16 load/store (bf16
+  store truncates; `vcvtneps2bf16` pending), so no IR kernel calls a
+  legacy emitter today. The escape hatch and the `clobbers`-barrier design
+  were never implemented; f8/f4 and int8 quantization pairs would still
+  need one.
 - **Not something every kernel needs**. The whole premise is that register
   allocation is the one thing a kernel author cannot easily manage
   manually. Kernels that don't have a pressure problem don't need the
@@ -1006,14 +1144,30 @@ These are design decisions that weren't in the original plan but were forced
 by implementation experience. They should be treated as load-bearing
 constraints, not accidental choices.
 
-**GPRs are NOT IR-managed.** Only vector registers go through the IR
-allocator. GPRs are allocated eagerly via the existing `var<size_t>()`
-mechanism and must stay alive through lowering. Emit closures must not
-call `var<>()` or `reserve<>()` — the GPR pool state at lowering time
-differs from recording time. This means pointer arithmetic, loop counters,
-and constant-table addresses are all outside the IR's jurisdiction.
+**~~GPRs are NOT IR-managed.~~ Superseded — GPRs are IR-managed**
+(commit `0ac8064ff2`). `ir_def_gpr` records GPR values;
+`ir_shr/ir_and/ir_add/ir_imul` are IRBuilder-style helpers; `ir_alloca`
+returns a GPR value holding `lea rsp+offset`; `arg()` inside IR mode
+records parameter loads as GPR defs; `foreach` records its counter as a
+GPR value. `RegisterClass::{Vec,GPR}` on the virtual register drives a
+second physical pool (`gpr_pool_indices`, an LLVM-style allocation order,
+since allocable GPR indices are non-contiguous).
 
-**Two-phase recording/lowering model.** DSL calls during `begin_ir()` /
+What survives from the original note: **emit closures still must not call
+`var<>()` or `reserve<>()`** — pool state at lowering time is not the pool
+state at recording time. Anything a closure needs must arrive through
+`EmitContext`, be captured as an immediate, or be a register excluded from
+both pools.
+
+New consequence: the GPR pool is small (~10 allocable), so GPR-heavy
+expansions (`ir_load_partial`, `ir_memcpy`) can exhaust it. With spill
+unimplemented, exhaustion is a hard build failure — which is why
+`rotary_half_ir` currently refuses shapes that need an epilogue.
+
+**Two-phase recording/lowering model.** (Pass names below are the
+originals; the pipeline is now
+`TwoAddress → LiveRangeAnalysis → RegisterAllocator → Verify → Lowering`,
+and `linear_scan` is called `assign_registers`.) DSL calls during `begin_ir()` /
 `end_ir()` record `Op` structs into an op list. `end_ir()` runs
 `compute_intervals` → `linear_scan` → lowering (walking the tree, calling
 emit closures with physical register assignments). Any state mutation
@@ -1041,19 +1195,50 @@ last-read (not the original's end) to keep pressure minimal. Wrap-around
 search handles values whose next use is earlier in the loop body (next
 iteration). Rewriting victim→clone must recurse into nested REGION bodies.
 
-**`param1` (rdi) is the only safe scratch GPR for emit closures.** It's
-excluded from the GPR pool by `isRegAllocable()`. All other GPRs (including
-`rax`) can be allocated as loop counters or variables. `param1` holds the
-params pointer, so it must be saved/restored if clobbered — but during IR
-lowering, no emit closure accesses it (all param fields were loaded into
-their own GPRs during `arg()` calls before `begin_ir()`). The post-IR tail
-code uses `argPtr()` which needs `param1`, so the save/restore is necessary.
+**`param1` (rdi) is the only safe scratch GPR for emit closures** — and
+that is a hole in the model, not a design decision. It's excluded from the
+GPR pool by `isRegAllocable()`; every other GPR can be an allocated value.
+Two closures currently work around the absence of a scratch model by
+touching the stack: `vec_permute`'s AVX-512 table load does
+`push(param1) … pop(param1)`, and `foreach_predicated`'s mask setup pushes
+an arbitrary low GPR. Both should instead declare the scratch as an extra
+IR def on the op that needs it, so the allocator supplies a register — the
+`vpermps` split (table load as its own IR value) already demonstrates the
+correct shape for the table case.
 
-**Tail handling is eager, not IR.** After `end_ir()`, the remaining
-`width % N` pixels are processed in eager mode via masked loads/stores.
-This is correct and simple but means the IR loop only executes when
-`width >= N`. On AVX-512 with N=16, small test widths (e.g. 10) produce
-zero IR iterations — the entire conversion runs as tail.
+**~~Tail handling is eager, not IR.~~ Superseded twice.** The tail is IR,
+its active length is an explicit argument (`jit_kernel::vlen` — a
+predicate value plus an element count, shaped like LLVM's
+vector-predication operands), and the *choice* of tail strategy belongs to
+the target, not the kernel author: `foreach_vec<N>` consults
+`vector_target::preferred_tail_folding()` and lowers to one predicated
+loop (AVX-512, SVE), a full-width loop plus a counted tail (AVX2, SSE,
+NEON), or a per-iteration vector length (RVV, not yet implemented). The
+two lowerings:
+
+- `foreach_with_epilogue<N>(width, body)` — used by color_convert and
+  RoPE. Records the body twice (`LoopMode::Full` inside
+  `foreach(0, width/N)`, then `LoopMode::Partial` under
+  `ir_if(width % N != 0)`), with ambient mode flags read by `ir_load`,
+  `store_interleaved3` and `ir_advance`. Partial access goes through
+  `ir_load_partial`: alloca a slot, zero it, scalar-copy `count`
+  elements, load full width. Portable, but costs a stack bounce and many
+  GPR values.
+- `foreach_predicated<N>(count, body, unroll)` — AVX-512 only. One loop,
+  per-iteration k-mask derived from the remaining count, ambient
+  `_predicated`/`_active_mask` picked up by `ir_load`/`ir_store`. Better
+  code; used by unit tests only at the moment.
+
+The earlier design idea — record the body once and have an IR pass clone
+the loop and rewrite memory ops into partial variants — is no longer
+needed: under mask folding the body *is* recorded once, and the epilogue
+form only exists for ISAs without predication. The `OpKind` tag that
+existed for that pass was removed.
+
+Predicates are allocated, not hardcoded: `RegisterClass::Mask` is a third
+register class whose allocation order carries the per-target constraint
+(x86 omits `k0`, SVE would use `p0-p7`, RVV only `v0`) — the same place
+LLVM puts it, in register classes.
 
 ## Sharp edges
 

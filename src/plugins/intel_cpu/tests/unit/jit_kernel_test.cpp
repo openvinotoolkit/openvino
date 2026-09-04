@@ -4,6 +4,8 @@
 
 #include <gtest/gtest.h>
 #include <kernels/x64/jit_kernel.hpp>
+
+#include <array>
 #include <random>
 
 using namespace ov::intel_cpu;
@@ -165,11 +167,11 @@ private:
         void generate() override {
             preamble();
 
+            begin_ir();
+
             auto a_ptr = arg(&Params::a);
             auto b_ptr = arg(&Params::b);
             auto result_ptr = arg(&Params::result);
-
-            begin_ir();
 
             auto a = ir_load<N>(a_ptr);
             auto b = ir_load<N>(b_ptr);
@@ -293,3 +295,68 @@ TEST(JitKernel, loop_and_condition) {
 // accessible via raw xbyak for kernels that need them.
 
 }   // namespace
+
+// Eager-mode control flow: no begin_ir(), raw xbyak in the body. This is
+// the shape cpu_convert.cpp's jit_convert_array uses (arg + foreach +
+// stack + clear), so it has to keep working even though the vector DSL
+// operations are IR-only now.
+struct jit_eager_foreach_test_kernel {
+    struct Params {
+        const float* src;
+        float* dst;
+        size_t count;
+    };
+
+    void operator()(const Params& args) const { _kernel(args); }
+
+    jit_eager_foreach_test_kernel() { _kernel.init(); }
+
+private:
+    class kernel_impl : public jit_test_kernel<Params> {
+        void generate() override {
+            preamble();
+
+            auto src = arg(&Params::src);
+            auto dst = arg(&Params::dst);
+            auto count = arg(&Params::count);
+
+            // dst[i] = src[i] * 2, one element per iteration.
+            foreach (0, count, [&](const variable<size_t>& idx) {
+                auto tmp = var<float[4]>();
+                Xbyak::Xmm x(tmp.reg().getIdx());
+                movss(x, ptr[src.reg() + idx.reg() * sizeof(float)]);
+                addss(x, x);
+                movss(ptr[dst.reg() + idx.reg() * sizeof(float)], x);
+            })
+                ;
+
+            // stack_frame::clear() loops through foreach as well. Scoped so
+            // the frame is released before postamble() emits the ret.
+            {
+                auto scratch = stack(64);
+                scratch.clear();
+            }
+
+            postamble();
+        }
+    };
+
+    kernel_impl _kernel;
+};
+
+TEST(JitKernel, eager_foreach_and_stack_clear) {
+    jit_eager_foreach_test_kernel kernel;
+
+    constexpr size_t count = 7;
+    std::array<float, count> src{};
+    std::array<float, count> dst{};
+    for (size_t i = 0; i < count; ++i) {
+        src[i] = static_cast<float>(i) * 0.5F;
+    }
+
+    kernel({src.data(), dst.data(), count});
+
+    for (size_t i = 0; i < count; ++i) {
+        EXPECT_FLOAT_EQ(dst[i], src[i] * 2.0F) << "index " << i;
+    }
+}

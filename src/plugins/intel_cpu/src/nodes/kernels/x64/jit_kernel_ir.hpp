@@ -1,19 +1,25 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// Slice 1 of the jit_kernel register allocator — see jit_kernel_register_allocation.md
+// jit_kernel IR and register allocator — see jit_kernel_register_allocation.md
+// for the design and jit_kernel_journal.md for current status and hazards.
 //
-// Minimum viable IR + straight-line linear-scan allocator. No control flow,
-// no spill, no DSL integration yet. This slice exists to prove the allocator
-// core on hand-built IR with stub closures.
+// Shape: op list with nested regions (MLIR-style) for control flow, LLVM-style
+// live ranges (segments + value numbers, half-open, early/late slots), two
+// register classes (Vec, GPR) over two physical pools, interference-based
+// assignment with coalescing and integrated rematerialization, and a pass
+// pipeline (two-address -> liveness -> allocate -> verify -> lower).
 //
-// Invariants preserved from day one (see design doc, "Invariants to preserve
-// from day one"):
-//   - SSA at the IR level: every Op.def is a fresh value id.
+// Invariants:
+//   - SSA at record time: every Op.def is a fresh value id. TwoAddressPass
+//     deliberately breaks this afterwards (one id, several defs) exactly as
+//     LLVM does post-two-address; passes after it must not assume single-def.
 //   - Op is a plain struct with room to grow.
-//   - Allocator is a swappable pass over (IR, pool) -> Assignment.
-//   - Spill-victim is a swappable function (not exercised in Slice 1).
-//   - Lowering is mechanical substitution only.
+//   - Allocation is a pass over (IR, PassContext) -> Assignment.
+//   - Lowering is mechanical substitution: walk the IR, resolve reads/def to
+//     physical registers, call the op's emit closure. The one exception is
+//     is_copy ops, which lowering emits itself (and elides when coalesced).
+//   - No spiller: pool exhaustion with nothing rematerializable throws.
 
 #pragma once
 
@@ -34,14 +40,33 @@ namespace ov::intel_cpu::jit_kernel_ir {
 using value_id = std::uint32_t;
 inline constexpr value_id invalid_value = std::numeric_limits<value_id>::max();
 
-// LLVM-style register class. The allocator handles all classes in a single
-// unified priority queue, picking from the correct physical pool per value.
-// Class is stored per virtual register (on Op::def_rc / LiveRange::rc),
-// NOT on PhysReg — matching LLVM's MachineRegisterInfo design.
+// LLVM-style register class. The allocator handles all classes in one
+// unified work list, picking from the physical pool of the value's class.
+// Class is stored per virtual register (Op::def_rc / LiveRange::rc), NOT
+// on PhysReg — matching LLVM's MachineRegisterInfo design.
+//
+// Mask is a real class, not a special case: predicate registers are as
+// allocatable as any other file, and every target constrains them
+// differently (x86 cannot use k0 as a write-mask — LLVM spells that
+// VK*WM; SVE restricts governing predicates to p0-p7 — PPR_3b; RVV
+// requires masks in v0 — a one-register class, VMV0). Those constraints
+// live in the allocation order, so the allocator needs no target
+// knowledge.
 enum class RegisterClass : std::uint8_t {
-    Vec,   // Ymm/Zmm — SIMD register file
-    GPR,   // Reg64 — general-purpose register file
+    Vec,    // SIMD register file (xmm/ymm/zmm, v, z)
+    GPR,    // general-purpose register file
+    Mask,   // predicate register file (k, p, or v0 on RVV)
 };
+
+inline constexpr std::size_t register_class_count = 3;
+
+inline const char* to_string(RegisterClass rc) noexcept {
+    switch (rc) {
+    case RegisterClass::GPR:  return "gpr";
+    case RegisterClass::Mask: return "mask";
+    default:                  return "vec";
+    }
+}
 
 // A lightweight physical register handle — just an index into the hardware
 // register file. The register class is determined by the virtual register
@@ -69,17 +94,8 @@ using EmitFn = std::function<void(const EmitContext&)>;
 
 class IR;  // forward declaration for Op::body
 
-// LLVM-style semantic opcode. The allocator ignores this — it only matters
-// for IR transform passes (e.g., epilogue generation needs to distinguish
-// loads/stores from pure math to replace them with partial variants).
-enum class OpKind : std::uint8_t {
-    Generic,  // math, constants, control flow — clone as-is in transforms
-    Load,     // memory read  — epilogue replaces with partial/masked load
-    Store,    // memory write — epilogue replaces with partial/masked store
-};
-
 // The one and only op type. The allocator reads only the dependency shape
-// (reads/def/tied_to). OpKind is for transform passes.
+// (reads, def, tied_to, def_rc); everything else is for lowering or debug.
 struct Op {
     std::vector<value_id> reads;
     value_id def = invalid_value;        // invalid_value = no def (e.g. store)
@@ -89,7 +105,12 @@ struct Op {
                                          // that def must share a register with. -1 = none.
                                          // The allocator coalesces or inserts a copy.
     RegisterClass def_rc = RegisterClass::Vec;  // register class for the def value
-    OpKind kind = OpKind::Generic;       // semantic tag for transform passes
+    bool early_clobber = false;          // def is written before the reads are
+                                         // consumed, so it must not share a
+                                         // register with any of them. Mirrors
+                                         // LLVM's early-clobber operand: the
+                                         // def starts at the early slot, which
+                                         // makes it interfere with its own reads.
     std::unique_ptr<IR> body;            // non-null = region op (loop, branch)
     bool is_loop = false;                // true = extend intervals across body (repeats)
     const char* name = "";               // debug tag for dump (not used by allocator)
@@ -102,17 +123,33 @@ class IR {
 public:
     // Record an op that defines a fresh value. Returns the new value id.
     // RegisterClass specifies which register file (Vec or GPR).
-    // OpKind tags the op for transform passes (epilogue generation etc.).
     value_id def(std::vector<value_id> reads, EmitFn emit, const char* name = "",
-                 RegisterClass rc = RegisterClass::Vec,
-                 OpKind kind = OpKind::Generic) {
+                 RegisterClass rc = RegisterClass::Vec) {
         const value_id id = _next_value++;
         Op op;
         op.reads = std::move(reads);
         op.def = id;
         op.emit = std::move(emit);
         op.def_rc = rc;
-        op.kind = kind;
+        op.name = name;
+        target().push_back(std::move(op));
+        return id;
+    }
+
+    // Record an op whose def is written before its reads are consumed —
+    // a multi-instruction expansion that scribbles on the destination
+    // first. The def gets the early slot, so it interferes with the reads
+    // and the allocator gives it a different register.
+    value_id def_early_clobber(std::vector<value_id> reads, EmitFn emit,
+                               const char* name = "",
+                               RegisterClass rc = RegisterClass::Vec) {
+        const value_id id = _next_value++;
+        Op op;
+        op.reads = std::move(reads);
+        op.def = id;
+        op.emit = std::move(emit);
+        op.def_rc = rc;
+        op.early_clobber = true;
         op.name = name;
         target().push_back(std::move(op));
         return id;
@@ -136,12 +173,10 @@ public:
     }
 
     // Record an op that reads values but defines none (e.g. a store).
-    void use(std::vector<value_id> reads, EmitFn emit, const char* name = "",
-             OpKind kind = OpKind::Generic) {
+    void use(std::vector<value_id> reads, EmitFn emit, const char* name = "") {
         Op op;
         op.reads = std::move(reads);
         op.emit = std::move(emit);
-        op.kind = kind;
         op.name = name;
         target().push_back(std::move(op));
     }
@@ -295,51 +330,71 @@ struct Assignment {
     std::uint32_t peak_live = 0;         // max simultaneously-allocated regs
 };
 
-// Raised when the pool overflows. Slice 1 has no spill support — callers are
-// expected to size the pool to fit the kernel, or the allocator fails fast.
-// Spill support lands in Slice 4.
+// Raised when the pool overflows and no value is rematerializable. There is
+// no spiller, so this is a hard failure: the kernel author must reduce
+// pressure (fewer live values, smaller unroll, restructured body).
 class allocation_failure : public std::runtime_error {
 public:
     using std::runtime_error::runtime_error;
 };
 
-// Pressure-repair pass: rewrites the IR by inserting one local single-use
-// rematerialization when peak pressure exceeds the pool size for the value's
-// register class.
-// Returns true iff the IR was rewritten.
-bool rematerialize_for_pressure(IR& ir,
-                                const std::vector<LiveRange>& ranges,
-                                std::uint32_t vec_pool_size,
-                                std::uint32_t gpr_pool_size = 0);
-
-// LLVM-style interference-based allocator with integrated remat.
+// Interference-based register assignment with integrated rematerialization.
+//
+// Not linear scan (no active list, no expiry): live ranges are visited in
+// order of their first slot and each takes the first physical register in
+// its class whose assigned segments do not overlap. This is the
+// interference test LLVM's allocators use, with first-fit selection
+// instead of a priority queue.
 struct PassContext;  // forward declaration
 
-// Returns Assignment on success. Returns std::nullopt when the IR was
-// modified (a remat or spill was inserted) — the caller should recompute
-// live ranges and retry. Throws allocation_failure only when no strategy
-// (remat or spill) can free a register.
-// PassContext provides pool sizes, spill slot tracking, and config.
-std::optional<Assignment> linear_scan(IR& ir,
-                                      std::vector<LiveRange>& ranges,
-                                      PassContext& ctx);
+// Returns an Assignment on success, or std::nullopt when the IR was
+// rewritten (a value was rematerialized) — the caller must recompute live
+// ranges and retry. Throws allocation_failure when a register is needed
+// and nothing can be rematerialized; there is no spiller.
+std::optional<Assignment> assign_registers(IR& ir,
+                                           std::vector<LiveRange>& ranges,
+                                           PassContext& ctx);
 
-// Loop unrolling strategies.
-enum class UnrollStrategy {
-    none,       // no unrolling
-    heuristic,  // LLVM-style: unroll_factor = min(trip_count, pool_size / body_pressure)
-    feedback    // feedback-directed: trial allocation to find optimal factor
-};
-
-// IR transform pass: unroll loops in the IR.
-// Clones loop body ops, remaps value_ids. Runs before allocation.
-// Returns true if any loop was unrolled.
-bool unroll_loops(IR& ir, std::uint32_t vec_pool_size, UnrollStrategy strategy = UnrollStrategy::heuristic);
+// Loop unrolling deliberately has no IR pass. The trip count lives inside
+// the loop header's emit closure, so a pass over the IR cannot scale it to
+// match a cloned body — an earlier attempt silently made kernels process
+// factor x the data (heap corruption on RoPE, wrong pixels on
+// color_convert). Unrolling therefore stays at recording time, where the
+// DSL still knows the bound (foreach_predicated's `unroll` argument). An
+// IR-level pass becomes possible once the loop bound and step are IR
+// operands of a real loop op instead of captured immediates.
 
 // Test-only: remat a specific value — insert a clone (with reads
 // preserved) before each use and rewrite reads.
 // Returns true if the IR was modified.
 bool unit_test_api_remat_value(IR& ir, value_id vid);
+
+// Verifier — the MachineVerifier equivalent. Checks the invariants that
+// allocation and lowering rely on, and throws `verification_failure`
+// naming the offending value/op when one is violated. Cheap at kernel
+// scale (tens of ops), so it runs unconditionally in the pipeline.
+//
+// Checked:
+//   1. live range structure: segments non-empty, sorted, non-overlapping;
+//      register class agrees with the defining op.
+//   2. no undefined reads: every read has a defining op in the tree.
+//   3. completeness: every value the lowering pass will look up has an
+//      assignment (otherwise lowering throws std::out_of_range with no
+//      context).
+//   4. interference: two values sharing a physical register must have
+//      disjoint live ranges. This is the property the allocator exists to
+//      guarantee.
+//   5. post-pass shape: no tied operand survives TwoAddressPass; copies
+//      read exactly one value; assigned registers lie inside their pool.
+class verification_failure : public std::runtime_error {
+public:
+    using std::runtime_error::runtime_error;
+};
+
+void verify(const IR& ir,
+            const std::vector<LiveRange>& ranges,
+            const Assignment& assignment,
+            const PassContext& ctx);
 
 // Debug helper: text dump of the op stream. Used by IR::dump and by tests
 // to eyeball what was recorded.
@@ -355,22 +410,29 @@ void dump_assignment(std::ostream& os,
 // PassContext carries shared state (analysis results, config) between passes.
 
 struct PassContext {
-    // Per-class register pools. LLVM-style: one allocator, class-specific pools.
-    // Vec pool is contiguous 0..vec_pool_size-1 (physical index == pool slot).
-    // GPR pool uses an indirection table (gpr_pool_indices) because allocable
-    // GPR indices are non-contiguous (rsp, rbp, abi_param excluded).
-    // Mirrors LLVM's AllocationOrder (RegisterClassInfo::getOrder).
-    std::uint32_t vec_pool_size = 0;
-    std::vector<std::uint32_t> gpr_pool_indices;  // allocable GPR register indices
+    // Allocation order per register class: the physical registers the class
+    // may use, in preference order. Both classes use an explicit list
+    // because neither is guaranteed contiguous — GPR excludes rsp/rbp/abi
+    // params, and a kernel may have reserved vector registers eagerly
+    // before entering IR mode. Mirrors LLVM's AllocationOrder
+    // (RegisterClassInfo::getOrder).
+    std::vector<std::uint32_t> vec_pool_indices;
+    std::vector<std::uint32_t> gpr_pool_indices;
+    std::vector<std::uint32_t> mask_pool_indices;   // empty when the ISA has no predicates
 
-    // Spill slots — each spilled value gets a stack slot.
-    // Slot sizes are register-class dependent (64 bytes for Vec/Zmm, 8 for GPR).
-    // Offsets computed by end_ir() alongside ir_alloca offsets.
-    struct SpillSlot {
-        std::uint32_t size;       // bytes (64 for Vec, 8 for GPR)
-        std::uint32_t offset = 0; // filled before lowering
-    };
-    std::vector<SpillSlot> spill_slots;
+    [[nodiscard]] const std::vector<std::uint32_t>& pool(RegisterClass rc) const noexcept {
+        switch (rc) {
+        case RegisterClass::GPR:  return gpr_pool_indices;
+        case RegisterClass::Mask: return mask_pool_indices;
+        default:                  return vec_pool_indices;
+        }
+    }
+
+    // No spill slots: there is no spiller. When the allocator runs out of
+    // registers and nothing is rematerializable it throws
+    // allocation_failure. Adding a spiller requires frame setup to move
+    // behind allocation plus target hooks for store/load of a physical
+    // register — see jit_kernel_journal.md, "Immediate work queue".
 
     // Analysis results — populated by analysis passes, consumed by later passes.
     std::vector<LiveRange> ranges;
@@ -420,14 +482,6 @@ struct LiveRangeAnalysis : IRPass {
     const char* name() const override { return "LiveRangeAnalysis"; }
 };
 
-// Transform: loop unrolling (IR rewrite).
-struct LoopUnrollPass : IRPass {
-    UnrollStrategy strategy;
-    explicit LoopUnrollPass(UnrollStrategy s = UnrollStrategy::none) : strategy(s) {}
-    bool run(IR& ir, PassContext& ctx) override;
-    const char* name() const override { return "LoopUnroll"; }
-};
-
 // Transform: insert explicit COPY ops before tied-operand instructions.
 // LLVM's TwoAddressInstructionPass equivalent. Rewrites:
 //   %result = FMA(%seed, %a, %b)  [tied_to=0]
@@ -447,6 +501,13 @@ struct RegisterAllocator : IRPass {
     const char* name() const override { return "RegisterAllocator"; }
 };
 
+// Verification: assert the invariants lowering depends on. Throws on
+// violation — a failed verification means the kernel would be miscompiled.
+struct VerifyPass : IRPass {
+    bool run(IR& ir, PassContext& ctx) override;
+    const char* name() const override { return "Verify"; }
+};
+
 // Debug: dump IR and allocation state.
 struct DumpPass : IRPass {
     const char* label;
@@ -462,6 +523,6 @@ struct LoweringPass : IRPass {
 };
 
 // Build the default pass pipeline.
-PassManager build_default_pipeline(UnrollStrategy unroll = UnrollStrategy::none);
+PassManager build_default_pipeline();
 
 }  // namespace ov::intel_cpu::jit_kernel_ir

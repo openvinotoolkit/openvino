@@ -21,6 +21,7 @@
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include "jit_kernel_ir.hpp"
+#include "jit_kernel_target.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
@@ -765,6 +766,73 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator_t {
     template <typename T>
     using boolean_expression = internal::boolean_expression<T>;
 
+public:
+    // How many lanes of a vector operation are active — the DSL's
+    // equivalent of LLVM's vector-predication operands, and deliberately
+    // the same shape: a mask and an explicit vector length, either of
+    // which may be absent.
+    //
+    //   all()                  — every lane; no predication needed
+    //   elements(count)        — `count` leading lanes are active, count in
+    //                            a GPR value. The portable form: every ISA
+    //                            can express it (AVX-512 turns it into a
+    //                            k-mask, SVE into whilelt, RVV into vsetvli,
+    //                            AVX2 into vmaskmov or a scalar fallback).
+    //   predicated(mask, count) — a materialized predicate value, with the
+    //                            count kept alongside it for operations that
+    //                            cannot consume a mask (interleaved stores
+    //                            on x86, for instance).
+    //
+    // Nothing here names a register type: `mask` is an IR value in the Mask
+    // register class, so the allocator tracks it like any other operand.
+    // That is what LLVM does at IR level (`<n x i1>` mask + i32 evl) and at
+    // MIR level (a predicate register operand).
+    class vlen {
+    public:
+        static vlen all() { return {}; }
+
+        static vlen elements(jit_kernel_ir::value_id count, bool terminal = false) {
+            vlen v;
+            v._count = count;
+            v._terminal = terminal;
+            return v;
+        }
+
+        static vlen predicated(jit_kernel_ir::value_id mask,
+                               jit_kernel_ir::value_id count = jit_kernel_ir::invalid_value,
+                               bool terminal = false) {
+            vlen v;
+            v._mask = mask;
+            v._count = count;
+            v._terminal = terminal;
+            return v;
+        }
+
+        // All lanes active, statically known. Lets a target pick the
+        // cheaper unpredicated encoding.
+        [[nodiscard]] bool is_all() const noexcept {
+            return _count == jit_kernel_ir::invalid_value && _mask == jit_kernel_ir::invalid_value;
+        }
+        [[nodiscard]] bool has_mask() const noexcept {
+            return _mask != jit_kernel_ir::invalid_value;
+        }
+        [[nodiscard]] bool has_count() const noexcept {
+            return _count != jit_kernel_ir::invalid_value;
+        }
+        [[nodiscard]] jit_kernel_ir::value_id mask() const noexcept { return _mask; }
+        [[nodiscard]] jit_kernel_ir::value_id count() const noexcept { return _count; }
+
+        // Last iteration of the enclosing loop: nothing after it reads the
+        // induction state, so pointer bumps can be skipped. True for an
+        // epilogue tail, false inside any loop that iterates.
+        [[nodiscard]] bool is_terminal() const noexcept { return _terminal; }
+
+    private:
+        jit_kernel_ir::value_id _mask = jit_kernel_ir::invalid_value;
+        jit_kernel_ir::value_id _count = jit_kernel_ir::invalid_value;
+        bool _terminal = false;
+    };
+
     template <typename T, typename U>
     Xbyak::Address argPtr(U T::*member) const {
         auto memPtr = &(reinterpret_cast<const T*>(0)->*member);
@@ -992,7 +1060,7 @@ public:
     //           Equivalent to legacy manual unrolling.
     template <size_t N>
     void foreach_predicated(const variable<size_t>& total_count,
-                            const std::function<void(const Xbyak::Opmask&)>& fn,
+                            const std::function<void(const vlen&)>& fn,
                             size_t unroll = 1);
 
     template <typename T>
@@ -1046,10 +1114,26 @@ public:
     // Opt-in recording mode. DSL calls record into IR instead of emitting
     // xbyak immediately. end_ir() runs allocation + lowering.
 
+    // Element type behind a pointer type — spelled once so the memory
+    // operations can ask the target about it.
+    template <typename PtrT>
+    using elem_of = std::remove_cv_t<std::remove_pointer_t<PtrT>>;
+
+    // Capabilities of the ISA this kernel is generated for. Queried before
+    // recording; see jit_kernel_target.hpp.
+    [[nodiscard]] const vector_target& target() const { return host_vector_target(); }
+
     // IR mode is always active between begin_ir() and end_ir().
     [[nodiscard]] bool ir_mode() const noexcept { return _ir != nullptr; }
     void begin_ir();
     void end_ir();
+
+    // Declare the vector width this kernel works in, in bits. A kernel that
+    // is exclusively 512-bit gets the full AVX-512 register file (32
+    // registers) in IR mode; anything else is limited to the low 16, because
+    // xmm16..31 / ymm16..31 are EVEX-only and VEX-encoded instructions
+    // cannot address them. Call before end_ir().
+    void set_vec_width(size_t bits) noexcept { _vec_width_bits = bits; }
 
     // Generic dispatch: binary vector op. Handles IR/eager branching,
     // register allocation, and width dispatch in one place.
@@ -1070,21 +1154,31 @@ public:
     variable<float[N]> vec_permute(const variable<float[N]>& src,
                                    const uint8_t* order);
 
-    // IR-mode load/store for f32 vectors. The pointer variable is an
-    // eager-mode Reg64; the vector result/source is an IR value_id.
-    // These emit vmovups — no type conversion. Type-converting loads
-    // (u8→f32 etc.) require the barrier mechanism (not yet implemented).
+    // Type-converting load/store. The pointer must be an IR value (call
+    // arg() inside IR mode). The element type of the pointer selects the
+    // conversion: f32 (plain move), u8, f16, bf16.
+    //
+    // `vl` says how many lanes are active: vlen::all() for a whole
+    // vector, vlen::masked(k) for AVX-512 masked access, vlen::count(v)
+    // for a runtime element count.
     template <size_t N, typename PtrT>
-    variable<float[N]> ir_load(const variable<PtrT>& ptr, size_t byte_offset = 0);
+    variable<float[N]> ir_load(const variable<PtrT>& ptr, size_t byte_offset = 0,
+                               const vlen& vl = vlen::all());
+
+    template <size_t N, typename PtrT>
+    variable<float[N]> ir_load(const variable<PtrT>& ptr, const vlen& vl) {
+        return ir_load<N>(ptr, size_t{0}, vl);
+    }
 
     template <size_t N, typename PtrT, typename ElemT>
     void ir_store(const variable<PtrT>& ptr, size_t byte_offset,
-                  const variable<ElemT[N]>& val);
+                  const variable<ElemT[N]>& val, const vlen& vl = vlen::all());
 
     // Convenience: ir_store without offset.
     template <size_t N, typename PtrT, typename ElemT>
-    void ir_store(const variable<PtrT>& ptr, const variable<ElemT[N]>& val) {
-        ir_store<N>(ptr, size_t{0}, val);
+    void ir_store(const variable<PtrT>& ptr, const variable<ElemT[N]>& val,
+                  const vlen& vl = vlen::all()) {
+        ir_store<N>(ptr, size_t{0}, val, vl);
     }
 
     // Low-level bridge helpers for IR mode: record a def/use op with a
@@ -1096,14 +1190,34 @@ public:
                               const char* name = "");
     void ir_use(std::vector<jit_kernel_ir::value_id> reads,
                 jit_kernel_ir::EmitFn emit,
-                const char* name = "",
-                jit_kernel_ir::OpKind kind = jit_kernel_ir::OpKind::Generic);
+                const char* name = "");
 
     // Define a GPR IR value. The allocator assigns a physical GPR register.
     // At lowering time, ctx.def->idx is the physical Reg64 index.
     jit_kernel_ir::value_id ir_def_gpr(std::vector<jit_kernel_ir::value_id> reads,
                                         jit_kernel_ir::EmitFn emit,
                                         const char* name = "");
+
+    // Define a predicate (Mask class) IR value. ctx.def->idx is the
+    // physical mask register index at lowering time.
+    jit_kernel_ir::value_id ir_def_mask(std::vector<jit_kernel_ir::value_id> reads,
+                                        jit_kernel_ir::EmitFn emit,
+                                        const char* name = "");
+
+    // Materialize a predicate for the first `count` lanes of an N-lane
+    // vector — the DSL's llvm.get.active.lane.mask. Two ops, because that
+    // is how the hardware works: compute the lane bits in a GPR, then move
+    // them into a predicate register.
+    template <size_t N>
+    jit_kernel_ir::value_id ir_active_lane_mask(const variable<size_t>& count);
+
+    // A compile-time constant in a GPR IR value.
+    variable<size_t> ir_gpr_imm(size_t value);
+
+    // `ptr + byte_offset` as an IR pointer value. Returns the original
+    // value id when the offset is zero, so the common case costs nothing.
+    template <typename PtrT>
+    jit_kernel_ir::value_id ir_offset_ptr(const variable<PtrT>& base, size_t byte_offset);
 
     // GPR arithmetic helpers — IRBuilder-style wrappers over ir_def_gpr.
     // Each creates a fresh IR GPR value = src OP imm.
@@ -1118,7 +1232,19 @@ public:
     // Internally: clear stack slot → scalar copy → full-width vector load.
     template <size_t N, typename PtrT>
     variable<float[N]> ir_load_partial(const variable<PtrT>& src_ptr,
-                                       const variable<size_t>& count);
+                                       const variable<size_t>& count,
+                                       size_t byte_offset = 0);
+
+    // Runtime-count partial store — the mirror of ir_load_partial. Writes
+    // exactly `count` elements to `dst_ptr` and touches nothing past them.
+    // Internally: full-width (type-converting) store into a stack slot →
+    // scalar copy of `count` elements to the destination.
+    // Both pointers must be IR values (call arg() inside IR mode).
+    template <size_t N, typename PtrT, typename ElemT>
+    void ir_store_partial(const variable<PtrT>& dst_ptr,
+                          const variable<ElemT[N]>& val,
+                          const variable<size_t>& count,
+                          size_t byte_offset = 0);
 
     // Lowering: maps instruction enum to xbyak call. The only code that
     // names specific xbyak instructions. Templated on register type so
@@ -1175,8 +1301,17 @@ public:
     Op3 vfmsub231ps{this, Insn3::fmsub231ps};
 
     // Broadcast a scalar from memory into an IR vector variable.
+    //
+    // The Address overload is for addresses built from registers outside the
+    // allocator's jurisdiction (the constants-table register, for example).
+    // Prefer the pointer overload when the base is a kernel argument: it
+    // takes the pointer as an IR value, so the allocator sees the
+    // dependency.
     template <size_t N>
     variable<float[N]> ir_broadcast(const Xbyak::Address& addr);
+
+    template <size_t N, typename PtrT>
+    variable<float[N]> ir_broadcast(const variable<PtrT>& ptr, size_t byte_offset = 0);
 
     // Zero vector — vxorps into a fresh register.
     template <size_t N>
@@ -1203,6 +1338,25 @@ private:
     // IR state — non-null between begin_ir() and end_ir().
     std::unique_ptr<jit_kernel_ir::IR> _ir;
 
+    // Vector width declared via set_vec_width(); 0 = unspecified.
+    size_t _vec_width_bits = 0;
+
+    // Active-lane masks already materialized in the body being recorded,
+    // keyed by the count they were derived from. Cleared per body instance
+    // (per loop iteration, per unroll step, per epilogue phase), so several
+    // accesses sharing one active length share one predicate instead of
+    // recomputing it. Reset by lane_mask_scope.
+    std::unordered_map<jit_kernel_ir::value_id, jit_kernel_ir::value_id> _lane_masks;
+
+    // RAII: a body instance starts with no materialized predicates.
+    struct lane_mask_scope {
+        explicit lane_mask_scope(jit_kernel& k) : _kernel(k) { _kernel._lane_masks.clear(); }
+        ~lane_mask_scope() { _kernel._lane_masks.clear(); }
+        lane_mask_scope(const lane_mask_scope&) = delete;
+        lane_mask_scope& operator=(const lane_mask_scope&) = delete;
+        jit_kernel& _kernel;
+    };
+
     // Stack allocations requested by ir_alloca(). Offsets computed in end_ir()
     // before lowering. One sub/add rsp pair for the total.
     struct AllocaRequest {
@@ -1211,17 +1365,6 @@ private:
         size_t offset = 0;  // filled before lowering
     };
     std::vector<AllocaRequest> _alloca_requests;
-
-    // Predicated loop state: when active, ir_load/ir_store automatically
-    // use the mask. Set by foreach_predicated, cleared on exit.
-    bool _predicated = false;
-    Xbyak::Opmask _active_mask{0};
-
-    // Loop epilogue mode: controls how ir_load / store_interleaved3 /
-    // ir_advance dispatch. Set by foreach_with_epilogue.
-    enum class LoopMode { Full, Partial };
-    LoopMode _loop_mode = LoopMode::Full;
-    jit_kernel_ir::value_id _partial_count = jit_kernel_ir::invalid_value;
 
 public:
     // Pointer with stride — carries the number of elements accessed per
@@ -1241,35 +1384,52 @@ public:
         return {std::move(ptr), stride};
     }
 
-    // Single-body loop with automatic epilogue. The body builder is
-    // invoked twice: once for the main loop (Full mode, full-width ops)
-    // and once for the tail (Partial mode, partial loads/stores).
-    // DSL methods dispatch based on _loop_mode — user writes one body.
+    // Vectorized loop over `count` elements. The body is called with the
+    // active length for the iteration and passes it to its memory
+    // operations; how the leftover elements are handled is the target's
+    // decision, not the kernel author's:
+    //
+    //   mask     -> one predicated loop (AVX-512, SVE)
+    //   epilogue -> full-width loop plus a counted tail (AVX2, SSE, NEON)
+    //   length   -> one loop with a per-iteration vector length (RVV)
+    //
+    // Mirrors LLVM's TailFoldingStyle selection in the loop vectorizer:
+    // the source shape is the same either way, and the target picks.
+    template <size_t N>
+    void foreach_vec(const variable<size_t>& count,
+                     const std::function<void(const vlen&)>& body,
+                     size_t unroll = 1);
+
+    // Single-body loop with automatic epilogue. The body builder runs twice
+    // — once for the main loop with vlen::all(), once for the tail with
+    // vlen::count(width % N) — and receives its active length as an
+    // argument, which it passes on to loads and stores.
     template <size_t N>
     void foreach_with_epilogue(const variable<size_t>& width,
-                               const std::function<void()>& body);
+                               const std::function<void(const vlen&)>& body);
 
-    // ir_load from ir_ptr — uses stride for partial count dispatch.
-    // Full mode + stride==N: direct load. Full mode + stride<N: partial load
-    // with constant count. Partial mode: partial load with scaled count.
+    // ir_load from ir_ptr: the stride scales the active length, so a
+    // subsampled plane (stride N/2) loads half as many elements as the
+    // main plane for the same iteration.
     template <size_t N, typename T>
-    variable<float[N]> ir_load(const ir_ptr<T>& src);
+    variable<float[N]> ir_load(const ir_ptr<T>& src, const vlen& vl = vlen::all());
 
-    // store_interleaved3 from ir_ptr — auto-dispatches in Partial mode.
     template <typename T, size_t N>
     void store_interleaved3(const ir_ptr<T>& dst,
                             const variable<float[N]>& a,
                             const variable<float[N]>& b,
-                            const variable<float[N]>& c);
+                            const variable<float[N]>& c,
+                            const vlen& vl = vlen::all());
 
-    // Pointer advance — uses ir_ptr stride for auto-advance in Full mode,
-    // skipped in Partial mode.
+    // Pointer advance by one iteration's worth of elements. A no-op when
+    // `vl` is a tail (the tail runs once, nothing follows it).
     template <typename T>
-    void ir_advance(const ir_ptr<T>& ptr);
+    void ir_advance(const ir_ptr<T>& ptr, const vlen& vl = vlen::all());
 
-    // Raw pointer advance (backward compat — manual stride).
+    // Raw pointer advance with an explicit byte step.
     template <typename PtrT>
-    void ir_advance(const variable<PtrT>& ptr, size_t bytes);
+    void ir_advance(const variable<PtrT>& ptr, size_t bytes,
+                    const vlen& vl = vlen::all());
 
     // ── IR-managed stack and memory ops (LLVM-style) ──────────
 
@@ -1406,9 +1566,44 @@ void jit_kernel::foreach (const B& begin,
                           const S& step) {
     using namespace Xbyak;
 
-    // LLVM-style: loop counter is an IR GPR value. No .reg() at recording time.
-    // Physical registers resolved at lowering time via EmitContext::reads.
-    jit_kernel_ir::value_id idx_vid;
+    if (!_ir) {
+        // Eager mode: emit the loop immediately. Kernels that still emit raw
+        // xbyak (cpu_convert) and stack_frame::clear() call foreach outside
+        // IR mode, so the eager form has to stay.
+        auto idx = var<size_t>();
+        const auto& idx_reg = idx.reg();
+        if constexpr (std::is_integral_v<std::decay_t<B>>) {
+            mov(idx_reg, static_cast<size_t>(begin));
+        } else if constexpr (std::is_base_of_v<Xbyak::Reg, std::decay_t<B>>) {
+            mov(idx_reg, begin);
+        } else {
+            mov(idx_reg, begin.reg());
+        }
+
+        Label loop_begin;
+        Label loop_end;
+        L(loop_begin);
+        if constexpr (std::is_integral_v<std::decay_t<E>>) {
+            cmp(idx_reg, static_cast<size_t>(end));
+        } else if constexpr (std::is_base_of_v<Xbyak::Reg, std::decay_t<E>>) {
+            cmp(idx_reg, end);
+        } else {
+            cmp(idx_reg, end.reg());
+        }
+        jge(loop_end, T_NEAR);
+
+        fn(idx);
+
+        add(idx_reg, static_cast<size_t>(step));
+        jmp(loop_begin, T_NEAR);
+        L(loop_end);
+        return;
+    }
+
+    // IR mode: the loop counter is an IR GPR value. No .reg() at recording
+    // time — physical registers are resolved at lowering time via
+    // EmitContext::reads.
+    jit_kernel_ir::value_id idx_vid = jit_kernel_ir::invalid_value;
     if constexpr (std::is_integral_v<std::decay_t<B>>) {
         auto begin_val = static_cast<size_t>(begin);
         idx_vid = ir_def_gpr({}, [this, begin_val](const jit_kernel_ir::EmitContext& ctx) {
@@ -1650,13 +1845,19 @@ jit_kernel::variable<float[N]> jit_kernel::vec_permute(const variable<float[N]>&
         const int* cref = constant(data, N);
         auto addr = reinterpret_cast<std::uintptr_t>(cref);
 
-        auto table_vid = _ir->def({},
+        // The table address needs a GPR to load through. Ask the allocator
+        // for one (an IR value) instead of borrowing a register and
+        // push/popping around it: emit closures run after allocation, so
+        // "borrowing" means clobbering whatever the allocator put there.
+        auto addr_vid = _ir->def({},
             [this, addr](const jit_kernel_ir::EmitContext& ctx) {
+                mov(Xbyak::Reg64(ctx.def->idx), addr);
+            },
+            "perm_table_addr", jit_kernel_ir::RegisterClass::GPR);
+        auto table_vid = _ir->def({addr_vid},
+            [this](const jit_kernel_ir::EmitContext& ctx) {
                 reg_type def(ctx.def->idx);
-                push(param1);
-                mov(param1, addr);
-                uni_vmovdqu(def, address_frame(sizeof(reg_type))[param1]);
-                pop(param1);
+                uni_vmovdqu(def, address_frame(sizeof(reg_type))[Xbyak::Reg64(ctx.reads[0].idx)]);
             },
             "perm_table");
         return ir_def<N>({table_vid, src.vid()},
@@ -1671,31 +1872,46 @@ jit_kernel::variable<float[N]> jit_kernel::vec_permute(const variable<float[N]>&
 }
 
 template <size_t N, typename PtrT>
-jit_kernel::variable<float[N]> jit_kernel::ir_load(const variable<PtrT>& src_ptr, size_t byte_offset) {
-    // Partial mode: delegate to ir_load_partial (safe for tail iterations).
-    if (_loop_mode == LoopMode::Partial && byte_offset == 0) {
-        auto count = variable<size_t>(*this, _partial_count);
-        return ir_load_partial<N>(src_ptr, count);
+jit_kernel::variable<float[N]> jit_kernel::ir_load(const variable<PtrT>& src_ptr,
+                                                   size_t byte_offset,
+                                                   const vlen& vl) {
+    // A count with no predicate: if this target can predicate loads of
+    // this element type, materialize the mask and use it; otherwise fall
+    // back to scalarized access (LLVM's ScalarizeMaskedMemIntrin, done
+    // here rather than as a pass because there is only one memory op form).
+    if (vl.has_count() && !vl.has_mask()) {
+        if (target().supports_masked_access(sizeof(elem_of<PtrT>))) {
+            auto mask = ir_active_lane_mask<N>(variable<size_t>(*this, vl.count()));
+            return ir_load<N>(src_ptr, byte_offset, vlen::predicated(mask, vl.count()));
+        }
+        return ir_load_partial<N>(src_ptr, variable<size_t>(*this, vl.count()), byte_offset);
     }
 
     using reg_type = typename reg_traits<float[N]>::type;
     using elem_type = std::remove_cv_t<std::remove_pointer_t<PtrT>>;
-    bool masked = _predicated;
-    auto mask_idx = _active_mask.getIdx();
 
-    // Pointer: IR-managed (value_id in reads[0]) or pre-allocated (captured index).
+    // The pointer must be an IR value: call arg() inside IR mode. Capturing
+    // a physical register index at recording time is not valid — the
+    // allocator assigns registers afterwards, so the captured index refers
+    // to whatever ends up there.
     auto ptr_vid = src_ptr.vid();
-    bool ptr_in_ir = (ptr_vid != jit_kernel_ir::invalid_value);
-    auto ptr_idx = ptr_in_ir ? 0u : static_cast<std::uint32_t>(src_ptr.reg().getIdx());
+    OPENVINO_ASSERT(ptr_vid != jit_kernel_ir::invalid_value,
+                    "ir_load: pointer is not an IR value (call arg() after begin_ir())");
 
-    std::vector<jit_kernel_ir::value_id> reads;
-    if (ptr_in_ir) reads.push_back(ptr_vid);
+    // The predicate is an operand, not ambient state: this op reads it, so
+    // the allocator keeps it live and is free to place it anywhere in the
+    // mask file.
+    const bool masked = vl.has_mask();
+    std::vector<jit_kernel_ir::value_id> reads{ptr_vid};
+    if (masked) {
+        reads.push_back(vl.mask());
+    }
 
-    // Common emit helper: resolves pointer register from either ctx.reads[0] or captured index.
-    auto emit = [this, ptr_in_ir, ptr_idx, byte_offset, masked, mask_idx]
+    auto emit = [this, byte_offset, masked]
                 (const jit_kernel_ir::EmitContext& ctx) {
-        auto ptr_reg = ptr_in_ir ? Xbyak::Reg64(ctx.reads[0].idx) : Xbyak::Reg64(ptr_idx);
+        auto ptr_reg = Xbyak::Reg64(ctx.reads[0].idx);
         auto dst = reg_type(ctx.def->idx);
+        const auto mask_idx = masked ? ctx.reads[1].idx : 0U;
 
         if constexpr (std::is_same_v<elem_type, uint8_t>) {
             auto addr = address_frame(N)[ptr_reg + byte_offset];
@@ -1731,14 +1947,29 @@ jit_kernel::variable<float[N]> jit_kernel::ir_load(const variable<PtrT>& src_ptr
     };
 
     const char* name = masked ? "load_masked" : "load";
-    auto vid = _ir->def(std::move(reads), std::move(emit), name,
-                        jit_kernel_ir::RegisterClass::Vec, jit_kernel_ir::OpKind::Load);
+    auto vid = _ir->def(std::move(reads), std::move(emit), name);
     return variable<float[N]>(*this, vid);
+}
+
+template <typename PtrT>
+jit_kernel_ir::value_id jit_kernel::ir_offset_ptr(const variable<PtrT>& base,
+                                                  size_t byte_offset) {
+    auto pvid = base.vid();
+    OPENVINO_ASSERT(pvid != jit_kernel_ir::invalid_value,
+                    "ir_offset_ptr: pointer is not an IR value");
+    if (byte_offset == 0) {
+        return pvid;
+    }
+    return ir_def_gpr({pvid}, [this, byte_offset](const jit_kernel_ir::EmitContext& ctx) {
+        lea(Xbyak::Reg64(ctx.def->idx),
+            address_frame(sizeof(size_t))[Xbyak::Reg64(ctx.reads[0].idx) + byte_offset]);
+    }, "offset_ptr");
 }
 
 template <size_t N, typename PtrT>
 jit_kernel::variable<float[N]> jit_kernel::ir_load_partial(const variable<PtrT>& src_ptr,
-                                                            const variable<size_t>& count) {
+                                                            const variable<size_t>& count,
+                                                            size_t byte_offset) {
     using elem_type = std::remove_cv_t<std::remove_pointer_t<PtrT>>;
 
     // Allocate a zeroed stack slot, memcpy count elements into it, then
@@ -1768,16 +1999,12 @@ jit_kernel::variable<float[N]> jit_kernel::ir_load_partial(const variable<PtrT>&
         }
     }, "zero_slot");
 
-    // Scalar copy count elements from src to stack
-    ir_memcpy<elem_type>(stack, src_ptr.vid(), count.vid());
+    // Scalar copy of `count` elements from src (+offset) into the slot.
+    ir_memcpy<elem_type>(stack, ir_offset_ptr(src_ptr, byte_offset), count.vid());
 
-    // Full-width type-converting load from the stack (always safe — slot is N-wide).
-    // Temporarily force Full mode to avoid recursive dispatch to ir_load_partial.
-    auto saved_mode = _loop_mode;
-    _loop_mode = LoopMode::Full;
-    auto result = ir_load<N>(stack_ptr);
-    _loop_mode = saved_mode;
-    return result;
+    // Full-width type-converting load from the stack — always safe, the
+    // slot is N-wide and zero-filled beyond `count`.
+    return ir_load<N>(stack_ptr, size_t{0}, vlen::all());
 }
 
 template <typename T>
@@ -1828,33 +2055,86 @@ void jit_kernel::ir_memcpy(jit_kernel_ir::value_id dst_vid,
 }
 
 template <size_t N, typename PtrT, typename ElemT>
+void jit_kernel::ir_store_partial(const variable<PtrT>& dst_ptr,
+                                  const variable<ElemT[N]>& val,
+                                  const variable<size_t>& count,
+                                  size_t byte_offset) {
+    using dst_elem = std::remove_cv_t<std::remove_pointer_t<PtrT>>;
+
+    // Slot must hold whichever is wider: the converted elements or one
+    // hardware vector (the f32 path writes the full register width).
+    constexpr size_t elem_slot = N * sizeof(dst_elem);
+    constexpr size_t vec_width = N * sizeof(float);
+    constexpr size_t slot_bytes = elem_slot > vec_width ? elem_slot : vec_width;
+
+    auto stack = ir_alloca(slot_bytes);
+    auto stack_ptr = variable<PtrT>(*this, stack);
+
+    // Full-width store into the slot — always safe, the slot is N-wide.
+    ir_store<N>(stack_ptr, size_t{0}, val, vlen::all());
+
+    // Copy exactly `count` elements out to the destination (+offset).
+    ir_memcpy<dst_elem>(ir_offset_ptr(dst_ptr, byte_offset), stack, count.vid());
+}
+
+template <size_t N, typename PtrT, typename ElemT>
 void jit_kernel::ir_store(const variable<PtrT>& dst_ptr, size_t byte_offset,
-                          const variable<ElemT[N]>& val) {
+                          const variable<ElemT[N]>& val, const vlen& vl) {
+    // A count with no predicate: predicate the store if the target can,
+    // otherwise scalarize. A full-width store here would overrun the
+    // destination on the last iteration.
+    if (vl.has_count() && !vl.has_mask()) {
+        if (target().supports_masked_access(sizeof(elem_of<PtrT>))) {
+            auto mask = ir_active_lane_mask<N>(variable<size_t>(*this, vl.count()));
+            ir_store<N>(dst_ptr, byte_offset, val, vlen::predicated(mask, vl.count()));
+            return;
+        }
+        ir_store_partial<N>(dst_ptr, val, variable<size_t>(*this, vl.count()), byte_offset);
+        return;
+    }
+
     using reg_type = typename reg_traits<ElemT[N]>::type;
     using dst_elem = std::remove_cv_t<std::remove_pointer_t<PtrT>>;
-    bool masked = _predicated;
-    auto mask_idx = _active_mask.getIdx();
+    const bool masked = vl.has_mask();
 
-    // Pointer: IR-managed (value_id in reads[0]) or pre-allocated (captured index).
-    // Val is always the last read.
+    // Narrowing conversions are separate IR values, not in-place edits of
+    // the stored value: an op that clobbers a register it only declares as
+    // a read would corrupt the value for any later use. Both conversions
+    // have non-destructive three-operand encodings, so the allocator is
+    // free to reuse the source register when the source dies here (that
+    // makes this exactly as cheap as the in-place form used to be).
+    auto src_vid = val.vid();
+    if constexpr (std::is_same_v<dst_elem, uint8_t>) {
+        src_vid = _ir->def({src_vid}, [this](const jit_kernel_ir::EmitContext& ctx) {
+            uni_vcvtps2dq(reg_type(ctx.def->idx), reg_type(ctx.reads[0].idx));
+        }, "cvt_f32_i32");
+    } else if constexpr (std::is_same_v<dst_elem, ov::bfloat16>) {
+        // @todo claude: use vcvtneps2bf16 where available — this truncates
+        // instead of rounding to nearest even.
+        src_vid = _ir->def({src_vid}, [this](const jit_kernel_ir::EmitContext& ctx) {
+            vpsrld(reg_type(ctx.def->idx), reg_type(ctx.reads[0].idx), 16);
+        }, "cvt_f32_bf16");
+    }
+
+    // Pointer must be an IR value, same rule as ir_load.
+    // reads = {ptr, val} and, when predicated, the mask.
     auto ptr_vid = dst_ptr.vid();
-    bool ptr_in_ir = (ptr_vid != jit_kernel_ir::invalid_value);
-    auto ptr_idx = ptr_in_ir ? 0u : static_cast<std::uint32_t>(dst_ptr.reg().getIdx());
+    OPENVINO_ASSERT(ptr_vid != jit_kernel_ir::invalid_value,
+                    "ir_store: pointer is not an IR value (call arg() after begin_ir())");
 
-    std::vector<jit_kernel_ir::value_id> reads;
-    if (ptr_in_ir) reads.push_back(ptr_vid);
-    reads.push_back(val.vid());
-    // val_read_idx: position of the vec value in ctx.reads[]
-    auto val_read_idx = ptr_in_ir ? 1u : 0u;
+    std::vector<jit_kernel_ir::value_id> reads{ptr_vid, src_vid};
+    if (masked) {
+        reads.push_back(vl.mask());
+    }
 
     ir_use(std::move(reads),
-        [this, ptr_in_ir, ptr_idx, val_read_idx, byte_offset, masked, mask_idx]
+        [this, byte_offset, masked]
         (const jit_kernel_ir::EmitContext& ctx) {
-            auto ptr_reg = ptr_in_ir ? Xbyak::Reg64(ctx.reads[0].idx) : Xbyak::Reg64(ptr_idx);
-            auto src = reg_type(ctx.reads[val_read_idx].idx);
+            auto ptr_reg = Xbyak::Reg64(ctx.reads[0].idx);
+            auto src = reg_type(ctx.reads[1].idx);
+            const auto mask_idx = masked ? ctx.reads[2].idx : 0U;
 
             if constexpr (std::is_same_v<dst_elem, uint8_t>) {
-                uni_vcvtps2dq(src, src);
                 auto addr = address_frame(N)[ptr_reg + byte_offset];
                 if (masked) {
                     vpmovusdb(addr | Xbyak::Opmask(mask_idx), src);
@@ -1869,8 +2149,6 @@ void jit_kernel::ir_store(const variable<PtrT>& dst_ptr, size_t byte_offset,
                     vcvtps2ph(addr, src, 0x4);
                 }
             } else if constexpr (std::is_same_v<dst_elem, ov::bfloat16>) {
-                // @todo claude: consider vcvtneps2bf16 when available (proper rounding)
-                vpsrld(src, src, 16);
                 auto addr = address_frame(N * sizeof(ov::bfloat16))[ptr_reg + byte_offset];
                 if (masked) {
                     vpmovdw(addr | Xbyak::Opmask(mask_idx), src);
@@ -1885,40 +2163,55 @@ void jit_kernel::ir_store(const variable<PtrT>& dst_ptr, size_t byte_offset,
                     uni_vmovups(addr, src);
                 }
             }
-        }, masked ? "store_masked" : "store", jit_kernel_ir::OpKind::Store);
+        }, masked ? "store_masked" : "store");
+}
+
+// ── foreach_vec ────────────────────────────────────────────────────────
+
+template <size_t N>
+void jit_kernel::foreach_vec(const variable<size_t>& count,
+                             const std::function<void(const vlen&)>& body,
+                             size_t unroll) {
+    switch (target().preferred_tail_folding()) {
+    case vector_target::tail_folding::mask:
+        foreach_predicated<N>(count, body, unroll);
+        return;
+    case vector_target::tail_folding::epilogue:
+        OPENVINO_ASSERT(unroll == 1, "foreach_vec: unrolling the epilogue form is not implemented");
+        foreach_with_epilogue<N>(count, body);
+        return;
+    case vector_target::tail_folding::length:
+        // RVV: the loop header sets vl = min(remaining, VLMAX) with vsetvli
+        // and the body's accesses encode nothing. Needs a RISC-V code
+        // generator plus vl modelled as machine state (LLVM does this with
+        // implicit VL/VTYPE operands and the RISCVInsertVSETVLI pass), so
+        // it is unimplemented rather than approximated.
+        OPENVINO_THROW("foreach_vec: vector-length tail folding needs a target that sets vl");
+    }
+    OPENVINO_THROW("foreach_vec: unknown tail folding style");
 }
 
 // ── foreach_predicated ─────────────────────────────────────────────────
+//
+// One loop, no tail: each iteration computes how many elements are left
+// and hands the body that active length. This is the shape SVE and RVV use
+// natively and the shape AVX-512 can emulate with a k-register, so it is
+// the primary strategy — foreach_vec() selects it when the target says
+// predication is available.
 
 template <size_t N>
 void jit_kernel::foreach_predicated(const variable<size_t>& total_count,
-                                    const std::function<void(const Xbyak::Opmask&)>& fn,
+                                    const std::function<void(const vlen&)>& fn,
                                     size_t unroll) {
     using namespace Xbyak;
-    using namespace dnnl::impl::cpu::x64;
 
-    const auto mask = Opmask(1);
-    _predicated = true;
-    _active_mask = mask;
-
-    // LLVM-style: remaining and iter_count are IR GPR values.
-    // Handles both IR-managed and eagerly-allocated total_count.
     auto tc_vid = total_count.vid();
-    bool tc_in_ir = (tc_vid != jit_kernel_ir::invalid_value);
+    OPENVINO_ASSERT(tc_vid != jit_kernel_ir::invalid_value,
+                    "foreach_predicated: count is not an IR value (call arg() after begin_ir())");
 
-    jit_kernel_ir::value_id remaining_vid;
-    if (tc_in_ir) {
-        remaining_vid = ir_def_gpr({tc_vid}, [this](const jit_kernel_ir::EmitContext& ctx) {
-            mov(Reg64(ctx.def->idx), Reg64(ctx.reads[0].idx));
-        }, "remaining");
-    } else {
-        auto tc_idx = static_cast<std::uint32_t>(total_count.reg().getIdx());
-        remaining_vid = ir_def_gpr({}, [this, tc_idx](const jit_kernel_ir::EmitContext& ctx) {
-            mov(Reg64(ctx.def->idx), Reg64(tc_idx));
-        }, "remaining");
-    }
-
-    const size_t elems = N;
+    auto remaining_vid = ir_def_gpr({tc_vid}, [this](const jit_kernel_ir::EmitContext& ctx) {
+        mov(Reg64(ctx.def->idx), Reg64(ctx.reads[0].idx));
+    }, "remaining");
 
     auto remaining_var = variable<size_t>(*this, remaining_vid);
     auto iter_count_var = ir_shr(ir_add(remaining_var, N * unroll - 1),
@@ -1926,140 +2219,122 @@ void jit_kernel::foreach_predicated(const variable<size_t>& total_count,
 
     foreach(size_t{0}, iter_count_var, [&](const variable<size_t>&) {
         for (size_t u = 0; u < unroll; ++u) {
-            // Mask setup reads remaining_vid — resolved at lowering time.
-            // Partial mask uses push/pop for scratch to avoid clobbering
-            // IR-allocated registers (rax/rcx are in the GPR pool).
-            ir_use({remaining_vid}, [this, elems, mask](
-                                        const jit_kernel_ir::EmitContext& ctx) {
-                auto rem = Reg64(ctx.reads[0].idx);
-                auto rem32 = Reg32(ctx.reads[0].idx);
-                Label full_mask, mask_done, zero_mask;
-                cmp(rem, 0);
-                jle(zero_mask, T_NEAR);
-                cmp(rem, elems);
-                jge(full_mask, T_NEAR);
+            // Active length of this iteration: min(remaining, N). Consumers
+            // that cannot take a predicate (interleaved stores on x86) need
+            // the clamped count, not the remaining total.
+            auto active_vid = _ir->def_early_clobber({remaining_vid},
+                [this](const jit_kernel_ir::EmitContext& ctx) {
+                    auto len = Reg64(ctx.def->idx);
+                    auto rem = Reg64(ctx.reads[0].idx);
+                    mov(len, N);
+                    cmp(rem, N);
+                    cmovb(len, rem);   // remaining < N on the final iteration
+                }, "active_len", jit_kernel_ir::RegisterClass::GPR);
 
-                // Partial mask: (1 << remaining) - 1 via bts.
-                // Pick a scratch register that isn't the remaining register.
-                auto scratch_idx = (ctx.reads[0].idx == 0) ? 1U : 0U;
-                push(Reg64(scratch_idx));
-                xor_(Reg32(scratch_idx), Reg32(scratch_idx));
-                bts(Reg32(scratch_idx), rem32);
-                dec(Reg32(scratch_idx));
-                kmovw(mask, Reg32(scratch_idx));
-                pop(Reg64(scratch_idx));
-                jmp(mask_done, T_NEAR);
+            // The predicate is materialized once per iteration and passed
+            // to every access; on SVE this is whilelt, on RVV the loop
+            // would set vl instead and the accesses would encode nothing.
+            const lane_mask_scope masks(*this);
+            auto mask = ir_active_lane_mask<N>(variable<size_t>(*this, active_vid));
+            fn(vlen::predicated(mask, active_vid));
 
-                L(zero_mask);
-                kxorw(mask, mask, mask);
-                jmp(mask_done, T_NEAR);
-
-                L(full_mask);
-                kxnorw(mask, mask, mask);
-
-                L(mask_done);
-            }, "mask_setup");
-
-            fn(mask);
-
-            ir_use({remaining_vid}, [this, elems](
-                                        const jit_kernel_ir::EmitContext& ctx) {
-                sub(Reg64(ctx.reads[0].idx), elems);
+            ir_use({remaining_vid}, [this](const jit_kernel_ir::EmitContext& ctx) {
+                sub(Reg64(ctx.reads[0].idx), N);
             }, "remaining_dec");
-        }  // end unroll loop
+        }
     });
-
-    _predicated = false;
 }
 
 // ── foreach_with_epilogue ─────────────────────────────────────────────
-// Single body, auto-generated main loop + tail. The body builder is
-// invoked twice with different _loop_mode. DSL methods (ir_load,
-// store_interleaved3, ir_advance) dispatch based on the mode.
+// One body, recorded twice: main loop with a full active length, tail with
+// the leftover element count. The active length is an argument, so the
+// body's memory operations state which one they use instead of reading
+// kernel state that happens to be set.
 
 template <size_t N>
 void jit_kernel::foreach_with_epilogue(const variable<size_t>& width,
-                                       const std::function<void()>& body) {
+                                       const std::function<void(const vlen&)>& body) {
     using namespace Xbyak;
 
     auto main_count = ir_shr(width, static_cast<int>(std::logb(N)));
     auto tail_count = ir_and(width, N - 1);
 
-    // ── Main loop: Full mode ──────────────────────────────────
-    _loop_mode = LoopMode::Full;
     foreach(size_t{0}, main_count, [&](const variable<size_t>&) {
-        body();
+        const lane_mask_scope masks(*this);
+        body(vlen::all());
     });
 
-    // ── Tail: Partial mode ────────────────────────────────────
     ir_cmp(tail_count, size_t{0});
     ir_if(&CodeGenerator::je, [&]() {
-        _loop_mode = LoopMode::Partial;
-        _partial_count = tail_count.vid();
-        body();
-        _loop_mode = LoopMode::Full;
-        _partial_count = jit_kernel_ir::invalid_value;
+        const lane_mask_scope masks(*this);
+        body(vlen::elements(tail_count.vid(), /*terminal=*/true));
     });
 }
 
 template <typename PtrT>
-void jit_kernel::ir_advance(const variable<PtrT>& ptr, size_t bytes) {
-    if (_loop_mode == LoopMode::Partial) return;  // tail runs once
-    auto pvid = ptr.vid();
-    if (pvid != jit_kernel_ir::invalid_value) {
-        ir_use({pvid}, [this, bytes](const jit_kernel_ir::EmitContext& ctx) {
-            add(Xbyak::Reg64(ctx.reads[0].idx), bytes);
-        }, "ptr_advance");
-    } else {
-        auto pidx = static_cast<std::uint32_t>(ptr.reg().getIdx());
-        ir_use({}, [this, pidx, bytes](const jit_kernel_ir::EmitContext&) {
-            add(Xbyak::Reg64(pidx), bytes);
-        }, "ptr_advance");
+void jit_kernel::ir_advance(const variable<PtrT>& ptr, size_t bytes, const vlen& vl) {
+    if (vl.is_terminal()) {
+        return;  // last iteration: nothing after it reads the pointer
     }
+    auto pvid = ptr.vid();
+    OPENVINO_ASSERT(pvid != jit_kernel_ir::invalid_value,
+                    "ir_advance: pointer is not an IR value (call arg() after begin_ir())");
+    ir_use({pvid}, [this, bytes](const jit_kernel_ir::EmitContext& ctx) {
+        add(Xbyak::Reg64(ctx.reads[0].idx), bytes);
+    }, "ptr_advance");
 }
 
 // ── ir_ptr overloads ──────────────────────────────────────────────────
 
 template <size_t N, typename T>
-jit_kernel::variable<float[N]> jit_kernel::ir_load(const ir_ptr<T>& src) {
-    // Full mode + full stride: direct load (fastest path).
-    if (_loop_mode == LoopMode::Full && src.stride >= N) {
-        return ir_load<N>(src.ptr);
+jit_kernel::variable<float[N]> jit_kernel::ir_load(const ir_ptr<T>& src, const vlen& vl) {
+    // This pointer consumes a full vector per iteration, so the loop's
+    // active length applies unchanged — including its predicate, which
+    // must not be re-derived.
+    if (src.stride >= N) {
+        return ir_load<N>(src.ptr, size_t{0}, vl);
     }
-    // All other cases: partial load with per-pointer count.
-    // Full mode + stride<N: constant count = stride.
-    // Partial mode + stride==N: count = _partial_count.
-    // Partial mode + stride<N: count = _partial_count * stride / N.
+
+    // Otherwise the active length is scaled to this pointer's stride: a
+    // plane read at N/2 elements per iteration consumes half as many
+    // elements as one read at N. A per-pointer count means a per-pointer
+    // predicate, so any mask in `vl` does not apply here — the scaled
+    // count is passed on and the memory op decides how to realize it.
     auto count_vid = [&]() -> jit_kernel_ir::value_id {
-        if (_loop_mode == LoopMode::Full) {
-            // Constant count = stride
+        if (!vl.has_count()) {
+            // Fewer elements than lanes, but a compile-time count.
             return ir_def_gpr({}, [this, s = src.stride](const jit_kernel_ir::EmitContext& ctx) {
                 mov(Xbyak::Reg64(ctx.def->idx), s);
             }, "load_count");
         }
         if (src.stride == N) {
-            return _partial_count;
+            return vl.count();
         }
-        // Scale: partial_count >> log2(N/stride)
-        return ir_shr(variable<size_t>(*this, _partial_count),
+        return ir_shr(variable<size_t>(*this, vl.count()),
                       static_cast<int>(std::log2(N / src.stride))).vid();
     }();
-    return ir_load_partial<N>(src.ptr, variable<size_t>(*this, count_vid));
+    return ir_load<N>(src.ptr, size_t{0}, vlen::elements(count_vid));
 }
 
 template <typename T>
-void jit_kernel::ir_advance(const ir_ptr<T>& ptr) {
-    ir_advance(ptr.ptr, ptr.stride * sizeof(T));
+void jit_kernel::ir_advance(const ir_ptr<T>& ptr, const vlen& vl) {
+    ir_advance(ptr.ptr, ptr.stride * sizeof(T), vl);
 }
 
 template <typename T, size_t N>
 void jit_kernel::store_interleaved3(const ir_ptr<T>& dst,
                                     const variable<float[N]>& a,
                                     const variable<float[N]>& b,
-                                    const variable<float[N]>& c) {
-    if (_loop_mode == LoopMode::Partial) {
-        auto count = variable<size_t>(*this, _partial_count);
-        store_interleaved3(dst.ptr, a, b, c, count);
+                                    const variable<float[N]>& c,
+                                    const vlen& vl) {
+    // x86 has no predicated interleaved store (the target says so), so a
+    // short iteration goes through the counted form: build the interleave
+    // in a stack slot and copy count*3 elements out. On SVE/RVV the same
+    // call would lower to a predicated ST3 / a segment store honouring vl.
+    if (!vl.is_all()) {
+        OPENVINO_ASSERT(vl.has_count(),
+                        "store_interleaved3: this target needs an element count, not just a mask");
+        store_interleaved3(dst.ptr, a, b, c, variable<size_t>(*this, vl.count()));
     } else {
         store_interleaved3(dst.ptr, a, b, c);
     }
@@ -2079,6 +2354,80 @@ jit_kernel::variable<float[N]> jit_kernel::ir_broadcast(const Xbyak::Address& ad
     return ir_def<N>({}, [this, addr](const jit_kernel_ir::EmitContext& ctx) {
         uni_vbroadcastss(reg_type(ctx.def->idx), addr);
     }, "broadcast");
+}
+
+template <size_t N, typename PtrT>
+jit_kernel::variable<float[N]> jit_kernel::ir_broadcast(const variable<PtrT>& ptr,
+                                                        size_t byte_offset) {
+    using reg_type = typename reg_traits<float[N]>::type;
+    using elem_type = std::remove_cv_t<std::remove_pointer_t<PtrT>>;
+    static_assert(std::is_same_v<elem_type, float>, "ir_broadcast: float pointers only");
+
+    auto pvid = ptr.vid();
+    OPENVINO_ASSERT(pvid != jit_kernel_ir::invalid_value,
+                    "ir_broadcast: pointer is not an IR value (call arg() after begin_ir())");
+
+    return ir_def<N>({pvid}, [this, byte_offset](const jit_kernel_ir::EmitContext& ctx) {
+        uni_vbroadcastss(reg_type(ctx.def->idx),
+                         address_frame(sizeof(float))[Xbyak::Reg64(ctx.reads[0].idx) + byte_offset]);
+    }, "broadcast");
+}
+
+// Active-lane mask for `count` leading lanes of an N-lane vector.
+//
+// bits = count >= N ? all-ones : (1 << count) - 1, then moved to a
+// predicate register. Both steps are IR values, so the scratch GPR and the
+// predicate are allocated rather than borrowed.
+template <size_t N>
+jit_kernel_ir::value_id jit_kernel::ir_active_lane_mask(const variable<size_t>& count) {
+    using namespace Xbyak;
+    static_assert(N <= 64, "active lane mask supports up to 64 lanes");
+
+    auto count_vid = count.vid();
+    OPENVINO_ASSERT(count_vid != jit_kernel_ir::invalid_value,
+                    "ir_active_lane_mask: count is not an IR value");
+
+    // One predicate per active length per body instance.
+    auto cached = _lane_masks.find(count_vid);
+    if (cached != _lane_masks.end()) {
+        return cached->second;
+    }
+
+    // Early clobber: the sequence zeroes the destination before reading
+    // the count, so the destination must not be the count's register. The
+    // allocator would otherwise be free to reuse it — the count often dies
+    // at this op.
+    auto bits_vid = _ir->def_early_clobber({count_vid}, [this](const jit_kernel_ir::EmitContext& ctx) {
+        auto bits = Reg64(ctx.def->idx);
+        auto cnt = Reg64(ctx.reads[0].idx);
+        Label all_lanes;
+        Label done;
+
+        cmp(cnt, N);
+        jge(all_lanes, CodeGenerator::T_NEAR);
+        // (1 << count) - 1; count == 0 yields 0, which is what we want.
+        xor_(bits, bits);
+        bts(bits, cnt);
+        dec(bits);
+        jmp(done, CodeGenerator::T_NEAR);
+
+        L(all_lanes);
+        mov(bits, (N == 64) ? ~uint64_t{0} : ((uint64_t{1} << N) - 1));
+
+        L(done);
+    }, "lane_mask_bits", jit_kernel_ir::RegisterClass::GPR);
+
+    auto mask_vid = ir_def_mask({bits_vid}, [this](const jit_kernel_ir::EmitContext& ctx) {
+        auto mask = Opmask(ctx.def->idx);
+        if constexpr (N <= 16) {
+            kmovw(mask, Reg32(ctx.reads[0].idx));
+        } else {
+            kmovq(mask, Reg64(ctx.reads[0].idx));
+        }
+    }, "active_lane_mask");
+
+    _lane_masks.emplace(count_vid, mask_vid);
+    return mask_vid;
 }
 
 template <size_t N>
@@ -2310,13 +2659,6 @@ void jit_kernel::store_interleaved3(const variable<T*>& dst,
                                     const variable<float[N]>& a,
                                     const variable<float[N]>& b,
                                     const variable<float[N]>& c) {
-    // Partial mode: delegate to count variant (stack+memcpy).
-    if (_loop_mode == LoopMode::Partial) {
-        auto count = variable<size_t>(*this, _partial_count);
-        store_interleaved3(dst, a, b, c, count);
-        return;
-    }
-
     auto [o0, o1, o2] = interleave_regs(a, b, c);
 
     const size_t step = N * sizeof(T);
@@ -2339,9 +2681,11 @@ void jit_kernel::store_interleaved3(const variable<T*>& dst,
     auto stack = ir_alloca(3 * t_step);
     auto stack_ptr = variable<T*>(*this, stack);
 
-    ir_store(stack_ptr, size_t{0}, o0);
-    ir_store(stack_ptr, t_step, o1);
-    ir_store(stack_ptr, 2 * t_step, o2);
+    // Full-width stores into the slot: it is 3N-wide, and the element count
+    // is applied once by the memcpy below.
+    ir_store(stack_ptr, size_t{0}, o0, vlen::all());
+    ir_store(stack_ptr, t_step, o1, vlen::all());
+    ir_store(stack_ptr, 2 * t_step, o2, vlen::all());
 
     auto total = ir_imul(count, 3);
 

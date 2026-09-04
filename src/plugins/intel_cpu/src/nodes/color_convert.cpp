@@ -365,6 +365,7 @@ void JitConverter<T[N]>::generate() {
     // LLVM-style: begin_ir before arg — args are IR GPR values.
     // Required for ir_load_partial in the tail path (ir_memcpy needs
     // pointer vids as IR reads).
+    set_vec_width(N * sizeof(float) * 8);  // 512 on AVX-512 (N=16)
     begin_ir();
 
     auto width = arg(&Params::width);
@@ -395,9 +396,9 @@ void JitConverter<T[N]>::generate() {
     constexpr uint8_t even_mask = 0xA0;
     constexpr uint8_t odd_mask  = 0xF5;
 
-    foreach_with_epilogue<N>(width, [&]() {
-        auto y_raw = ir_load<N>(y);
-        auto uv_raw = ir_load<N>(uv);
+    foreach_vec<N>(width, [&](const vlen& vl) {
+        auto y_raw = ir_load<N>(y, vl);
+        auto uv_raw = ir_load<N>(uv, vl);
         auto u = vsubps(uv_raw.shuffle(even_mask), uv_off);
         auto v = vsubps(uv_raw.shuffle(odd_mask), uv_off);
         auto yy = vmulps(vsubps(y_raw, y_off), y_scale);
@@ -407,12 +408,12 @@ void JitConverter<T[N]>::generate() {
 
         ir_cmp(colorFormat, size_t{0});
         ir_if(&Xbyak::CodeGenerator::jne,
-            [&]() { store_interleaved3(dst, r, g, b); },
-            [&]() { store_interleaved3(dst, b, g, r); });
+            [&]() { store_interleaved3(dst, r, g, b, vl); },
+            [&]() { store_interleaved3(dst, b, g, r, vl); });
 
-        ir_advance(y);
-        ir_advance(uv);
-        ir_advance(dst);
+        ir_advance(y, vl);
+        ir_advance(uv, vl);
+        ir_advance(dst, vl);
     });
 
     end_ir();
@@ -698,6 +699,7 @@ void JitConverter<T[N]>::generate() {
     // sample covers 2 luma samples in 4:2:0 subsampling.
     static const uint8_t uv_unpack_order[] = {0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7};
 
+    set_vec_width(N * sizeof(float) * 8);  // 512 on AVX-512 (N=16)
     begin_ir();
 
     auto width = arg(&Params::width);
@@ -727,14 +729,14 @@ void JitConverter<T[N]>::generate() {
 
     auto clamp_lo = ir_zero<N>();
 
-    // Single body — foreach_with_epilogue handles main loop + tail.
-    // ir_load(ir_ptr) uses stride for per-pointer partial counts.
-    // Full mode: Y loads N, U/V load N/2 (via ir_load_partial with constant count).
-    // Partial mode: Y loads tail_count, U/V load tail_count/2.
-    foreach_with_epilogue<N>(width, [&]() {
-        auto y_raw = ir_load<N>(y);
-        auto u_raw = ir_load<N>(u).permute(uv_unpack_order);
-        auto v_raw = ir_load<N>(v).permute(uv_unpack_order);
+    // One body, one active length. Whether the leftover pixels are handled
+    // by a predicated iteration or by a counted tail is the target's
+    // choice; `vl` scales per pointer, so Y consumes N elements per
+    // iteration while U and V consume N/2 each (their ir_ptr stride).
+    foreach_vec<N>(width, [&](const vlen& vl) {
+        auto y_raw = ir_load<N>(y, vl);
+        auto u_raw = ir_load<N>(u, vl).permute(uv_unpack_order);
+        auto v_raw = ir_load<N>(v, vl).permute(uv_unpack_order);
 
         auto yy = vmulps(vsubps(y_raw, y_off), y_scale);
         auto uu = vsubps(u_raw, uv_off);
@@ -746,13 +748,13 @@ void JitConverter<T[N]>::generate() {
 
         ir_cmp(colorFormat, size_t{0});
         ir_if(&Xbyak::CodeGenerator::jne,
-            [&]() { store_interleaved3(dst, r, g, b); },
-            [&]() { store_interleaved3(dst, b, g, r); });
+            [&]() { store_interleaved3(dst, r, g, b, vl); },
+            [&]() { store_interleaved3(dst, b, g, r, vl); });
 
-        ir_advance(y);
-        ir_advance(u);
-        ir_advance(v);
-        ir_advance(dst);
+        ir_advance(y, vl);
+        ir_advance(u, vl);
+        ir_advance(v, vl);
+        ir_advance(dst, vl);
     });
 
     end_ir();
