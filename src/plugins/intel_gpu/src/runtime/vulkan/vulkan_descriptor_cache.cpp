@@ -5,6 +5,7 @@
 #include "vulkan_descriptor_cache.hpp"
 
 #include <algorithm>
+#include <functional>
 #include <limits>
 #include <utility>
 
@@ -40,6 +41,9 @@ vulkan_descriptor_cache::~vulkan_descriptor_cache() {
 }
 
 bool vulkan_descriptor_cache::descriptor_key::operator<(const descriptor_key& other) const {
+    if (layout != other.layout) {
+        return std::less<VkDescriptorSetLayout>{}(layout, other.layout);
+    }
     if (allocations.size() != other.allocations.size()) {
         return allocations.size() < other.allocations.size();
     }
@@ -63,12 +67,12 @@ bool vulkan_descriptor_cache::descriptor_key::operator<(const descriptor_key& ot
     return false;
 }
 
-bool vulkan_descriptor_cache::requires_mutable_set(const vulkan_prepared_arguments& prepared) const {
-    return _sets.size() >= capacity && _sets.find(make_key(prepared)) == _sets.end();
+bool vulkan_descriptor_cache::requires_mutable_set(VkDescriptorSetLayout layout, const vulkan_prepared_arguments& prepared) const {
+    return _sets.size() >= capacity && _sets.find(make_key(layout, prepared)) == _sets.end();
 }
 
 vulkan_descriptor_cache::lookup_result vulkan_descriptor_cache::lookup_or_allocate(VkDescriptorSetLayout layout, const vulkan_prepared_arguments& prepared) {
-    auto key = make_key(prepared);
+    auto key = make_key(layout, prepared);
     const auto cached = _sets.find(key);
     if (cached != _sets.end()) {
         return {cached->second, lookup_status::reused};
@@ -97,8 +101,9 @@ void vulkan_descriptor_cache::update(VkDescriptorSet descriptor_set, const std::
     vkUpdateDescriptorSets(_device, static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data(), 0, nullptr);
 }
 
-vulkan_descriptor_cache::descriptor_key vulkan_descriptor_cache::make_key(const vulkan_prepared_arguments& prepared) {
+vulkan_descriptor_cache::descriptor_key vulkan_descriptor_cache::make_key(VkDescriptorSetLayout layout, const vulkan_prepared_arguments& prepared) {
     descriptor_key key;
+    key.layout = layout;
     key.buffer_infos = prepared.buffer_infos;
     key.allocations.reserve(prepared.allocations.size());
     for (const auto& allocation : prepared.allocations) {

@@ -6,6 +6,7 @@
 
 #include <vulkan/vulkan.h>
 
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -32,6 +33,7 @@ public:
 
     std::shared_ptr<const vulkan_pipeline_state> get_or_create_pipeline(uint32_t descriptor_count,
                                                                         uint32_t push_constants_size,
+                                                                        const std::array<size_t, 3>& local_size,
                                                                         const vulkan_specialization_constants& specialization_constants = {});
 
 private:

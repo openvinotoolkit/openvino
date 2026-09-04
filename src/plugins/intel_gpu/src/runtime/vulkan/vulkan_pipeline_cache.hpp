@@ -15,6 +15,8 @@
 #include <utility>
 #include <vector>
 
+#include "vulkan_kernel_interface.hpp"
+
 namespace cldnn {
 namespace vulkan {
 
@@ -29,6 +31,7 @@ struct vulkan_shader_state {
     uint64_t identity = 0;
     VkShaderModule module = VK_NULL_HANDLE;
     std::string entry_point;
+    vulkan_kernel_interface interface;
 };
 
 struct vulkan_pipeline_state {
@@ -50,8 +53,6 @@ public:
 
     std::shared_ptr<const vulkan_shader_state> get_or_create_shader(const std::vector<uint8_t>& spirv, const std::string& entry_point);
     std::shared_ptr<const vulkan_pipeline_state> get_or_create_pipeline(const std::shared_ptr<const vulkan_shader_state>& shader,
-                                                                        uint32_t descriptor_count,
-                                                                        uint32_t push_constants_size,
                                                                         const vulkan_specialization_constants& specialization_constants);
 
 private:
@@ -60,8 +61,6 @@ private:
 
     struct pipeline_key {
         uint64_t shader_identity = 0;
-        uint32_t descriptor_count = 0;
-        uint32_t push_constants_size = 0;
         specialization_key specialization_constants;
 
         bool operator<(const pipeline_key& other) const;

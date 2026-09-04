@@ -4,13 +4,16 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <vector>
 
 #include "clspv_bootstrap_spirv.hpp"
 #include "intel_gpu/runtime/kernel_builder.hpp"
 #include "test_utils.h"
+#include "vulkan/vulkan_kernel_interface.hpp"
 #include "vulkan/vulkan_pipeline_cache.hpp"
 #include "vulkan/vulkan_stream.hpp"
 
@@ -18,12 +21,36 @@ using namespace cldnn;
 using namespace cldnn::vulkan;
 using namespace tests;
 
+namespace {
+
+constexpr uint32_t workgroup_size_x_spec_id = 0;
+constexpr uint32_t workgroup_size_y_spec_id = 1;
+constexpr uint32_t workgroup_size_z_spec_id = 2;
+
+}  // namespace
+
+TEST(vulkan_clspv_bootstrap, reflects_canonical_compute_interface) {
+    std::vector<uint8_t> spirv(sizeof(clspv_bootstrap_spirv));
+    std::memcpy(spirv.data(), clspv_bootstrap_spirv, spirv.size());
+
+    const auto interface = vulkan_kernel_interface::reflect(spirv, "clspv_bootstrap");
+    ASSERT_EQ(interface.descriptor_bindings.size(), 2);
+    EXPECT_EQ(interface.descriptor_bindings[0], (vulkan_descriptor_binding{0, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER}));
+    EXPECT_EQ(interface.descriptor_bindings[1], (vulkan_descriptor_binding{0, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER}));
+    EXPECT_EQ(interface.push_constant_size, sizeof(float));
+    EXPECT_EQ(interface.local_size_defaults, (std::array<uint32_t, 3>{1, 1, 1}));
+    ASSERT_TRUE(interface.local_size_specialization_ids[0].has_value());
+    ASSERT_TRUE(interface.local_size_specialization_ids[1].has_value());
+    ASSERT_TRUE(interface.local_size_specialization_ids[2].has_value());
+    EXPECT_EQ(*interface.local_size_specialization_ids[0], workgroup_size_x_spec_id);
+    EXPECT_EQ(*interface.local_size_specialization_ids[1], workgroup_size_y_spec_id);
+    EXPECT_EQ(*interface.local_size_specialization_ids[2], workgroup_size_z_spec_id);
+    EXPECT_EQ(interface.specialization_ids, (std::vector<uint32_t>{workgroup_size_x_spec_id, workgroup_size_y_spec_id, workgroup_size_z_spec_id}));
+}
+
 TEST(vulkan_clspv_bootstrap, executes_host_compiled_opencl_c_through_vulkan_runtime) {
     constexpr size_t element_count = 256;
     constexpr size_t local_size = 64;
-    constexpr uint32_t workgroup_size_x_spec_id = 0;
-    constexpr uint32_t workgroup_size_y_spec_id = 1;
-    constexpr uint32_t workgroup_size_z_spec_id = 2;
     constexpr float increment = 1.25f;
 
     auto target_engine = create_test_engine(engine_types::vulkan, runtime_types::vulkan);
@@ -70,8 +97,7 @@ TEST(vulkan_clspv_bootstrap, executes_host_compiled_opencl_c_through_vulkan_runt
         {workgroup_size_z_spec_id, 1},
     };
     auto& vulkan_command_stream = dynamic_cast<vulkan_stream&>(*command_stream);
-    auto completion =
-        vulkan_command_stream.enqueue_kernel(*kernels.front(), descriptor, arguments, specialization, {}, true);
+    auto completion = vulkan_command_stream.enqueue_kernel(*kernels.front(), descriptor, arguments, specialization, {}, true);
     ASSERT_NE(completion, nullptr);
     completion->wait();
 

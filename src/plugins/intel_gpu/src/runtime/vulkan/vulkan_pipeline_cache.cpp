@@ -209,8 +209,7 @@ bool extract_cache_payload(const std::vector<uint8_t>& file, const std::vector<u
 }  // namespace
 
 bool vulkan_pipeline_cache::pipeline_key::operator<(const pipeline_key& other) const {
-    return std::tie(shader_identity, descriptor_count, push_constants_size, specialization_constants) <
-           std::tie(other.shader_identity, other.descriptor_count, other.push_constants_size, other.specialization_constants);
+    return std::tie(shader_identity, specialization_constants) < std::tie(other.shader_identity, other.specialization_constants);
 }
 
 vulkan_pipeline_cache::vulkan_pipeline_cache(VkDevice device, VkPhysicalDevice physical_device) : _device(device), _diagnostics_enabled(diagnostics_enabled()) {
@@ -374,6 +373,7 @@ std::shared_ptr<const vulkan_shader_state> vulkan_pipeline_cache::get_or_create_
     auto shader = std::make_shared<vulkan_shader_state>();
     shader->identity = _next_shader_identity++;
     shader->entry_point = entry_point;
+    shader->interface = vulkan_kernel_interface::reflect(spirv, entry_point);
     check_vk_result(vkCreateShaderModule(_device, &shader_info, nullptr, &shader->module), "vkCreateShaderModule");
     _shaders.emplace(key, shader);
     ++_shader_misses;
@@ -382,8 +382,6 @@ std::shared_ptr<const vulkan_shader_state> vulkan_pipeline_cache::get_or_create_
 }
 
 std::shared_ptr<const vulkan_pipeline_state> vulkan_pipeline_cache::get_or_create_pipeline(const std::shared_ptr<const vulkan_shader_state>& shader,
-                                                                                           uint32_t descriptor_count,
-                                                                                           uint32_t push_constants_size,
                                                                                            const vulkan_specialization_constants& specialization_constants) {
     OPENVINO_ASSERT(shader != nullptr && shader->module != VK_NULL_HANDLE, "[GPU][Vulkan] Cannot create a pipeline for a null shader");
 
@@ -396,9 +394,14 @@ std::shared_ptr<const vulkan_pipeline_state> vulkan_pipeline_cache::get_or_creat
     for (size_t index = 1; index < constants.size(); ++index) {
         OPENVINO_ASSERT(constants[index - 1].first != constants[index].first, "[GPU][Vulkan] Duplicate specialization constant id ", constants[index].first);
     }
+    for (const auto& constant : constants) {
+        OPENVINO_ASSERT(std::binary_search(shader->interface.specialization_ids.begin(), shader->interface.specialization_ids.end(), constant.first),
+                        "[GPU][Vulkan] Shader does not declare specialization constant id ",
+                        constant.first);
+    }
 
     std::lock_guard<std::mutex> lock(_mutex);
-    pipeline_key key{shader->identity, descriptor_count, push_constants_size, constants};
+    pipeline_key key{shader->identity, constants};
     const auto existing = _pipelines.find(key);
     if (existing != _pipelines.end()) {
         ++_pipeline_hits;
@@ -407,22 +410,22 @@ std::shared_ptr<const vulkan_pipeline_state> vulkan_pipeline_cache::get_or_creat
 
     const auto start = std::chrono::steady_clock::now();
     auto pipeline = std::make_shared<vulkan_pipeline_state>();
-    pipeline->descriptor_count = descriptor_count;
-    pipeline->push_constants_size = push_constants_size;
+    pipeline->descriptor_count = static_cast<uint32_t>(shader->interface.descriptor_bindings.size());
+    pipeline->push_constants_size = shader->interface.push_constant_size;
     pipeline->shader = shader;
 
     try {
-        std::vector<VkDescriptorSetLayoutBinding> bindings(descriptor_count);
-        for (uint32_t index = 0; index < descriptor_count; ++index) {
-            bindings[index].binding = index;
-            bindings[index].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        std::vector<VkDescriptorSetLayoutBinding> bindings(shader->interface.descriptor_bindings.size());
+        for (size_t index = 0; index < bindings.size(); ++index) {
+            bindings[index].binding = shader->interface.descriptor_bindings[index].binding;
+            bindings[index].descriptorType = shader->interface.descriptor_bindings[index].type;
             bindings[index].descriptorCount = 1;
             bindings[index].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
         }
 
         VkDescriptorSetLayoutCreateInfo descriptor_layout_info{};
         descriptor_layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        descriptor_layout_info.bindingCount = descriptor_count;
+        descriptor_layout_info.bindingCount = static_cast<uint32_t>(bindings.size());
         descriptor_layout_info.pBindings = bindings.empty() ? nullptr : bindings.data();
         check_vk_result(vkCreateDescriptorSetLayout(_device, &descriptor_layout_info, nullptr, &pipeline->descriptor_set_layout),
                         "vkCreateDescriptorSetLayout");
@@ -430,14 +433,14 @@ std::shared_ptr<const vulkan_pipeline_state> vulkan_pipeline_cache::get_or_creat
         VkPushConstantRange push_constant_range{};
         push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
         push_constant_range.offset = 0;
-        push_constant_range.size = push_constants_size;
+        push_constant_range.size = shader->interface.push_constant_size;
 
         VkPipelineLayoutCreateInfo pipeline_layout_info{};
         pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         pipeline_layout_info.setLayoutCount = 1;
         pipeline_layout_info.pSetLayouts = &pipeline->descriptor_set_layout;
-        pipeline_layout_info.pushConstantRangeCount = push_constants_size == 0 ? 0 : 1;
-        pipeline_layout_info.pPushConstantRanges = push_constants_size == 0 ? nullptr : &push_constant_range;
+        pipeline_layout_info.pushConstantRangeCount = shader->interface.push_constant_size == 0 ? 0 : 1;
+        pipeline_layout_info.pPushConstantRanges = shader->interface.push_constant_size == 0 ? nullptr : &push_constant_range;
         check_vk_result(vkCreatePipelineLayout(_device, &pipeline_layout_info, nullptr, &pipeline->pipeline_layout), "vkCreatePipelineLayout");
 
         std::vector<VkSpecializationMapEntry> specialization_entries;

@@ -75,6 +75,7 @@ struct vulkan_stream::resource_state {
         VkQueryPool profiling_query_pool = VK_NULL_HANDLE;
         VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
         VkDescriptorSet descriptor_set = VK_NULL_HANDLE;
+        VkDescriptorSetLayout descriptor_set_layout = VK_NULL_HANDLE;
         uint32_t descriptor_capacity = 0;
         uint32_t descriptor_binding_count = 0;
         VkFence fence = VK_NULL_HANDLE;
@@ -175,7 +176,10 @@ struct vulkan_stream::resource_state {
         }
     }
 
-    slot& get_or_begin_batch(uint32_t descriptor_count, size_t local_invocations, bool mutable_descriptor_required) {
+    slot& get_or_begin_batch(uint32_t descriptor_count,
+                             VkDescriptorSetLayout descriptor_set_layout,
+                             size_t local_invocations,
+                             bool mutable_descriptor_required) {
         const auto selected_limit = select_batch_limit(local_invocations);
         smallest_selected_batch_limit = std::min(smallest_selected_batch_limit, selected_limit);
         largest_selected_batch_limit = std::max(largest_selected_batch_limit, selected_limit);
@@ -187,7 +191,7 @@ struct vulkan_stream::resource_state {
             flush();
         }
 
-        auto& slot = acquire(descriptor_count, mutable_descriptor_required);
+        auto& slot = acquire(descriptor_count, descriptor_set_layout, mutable_descriptor_required);
         recording_slot = &slot;
         active_batch_limit = selected_limit;
         if (!inference_in_progress) {
@@ -217,8 +221,8 @@ struct vulkan_stream::resource_state {
         return slot;
     }
 
-    bool descriptor_batch_boundary_required(const vulkan_prepared_arguments& prepared) const {
-        return descriptor_cache.requires_mutable_set(prepared);
+    bool descriptor_batch_boundary_required(VkDescriptorSetLayout layout, const vulkan_prepared_arguments& prepared) const {
+        return descriptor_cache.requires_mutable_set(layout, prepared);
     }
 
     void retain_dispatch(slot& slot, const vulkan_prepared_arguments& prepared, std::shared_ptr<const void> kernel_lifetime) {
@@ -427,12 +431,12 @@ struct vulkan_stream::resource_state {
             return cached.descriptor_set;
         }
 
-        // All Vulkan compute pipelines describe consecutive storage-buffer bindings,
-        // so layouts with the same binding count are descriptor-set compatible. A
-        // cache miss at capacity starts a new batch before this mutable set is used.
+        // A cache miss at capacity uses a transient set allocated from the exact
+        // descriptor-set layout selected by the pipeline.
         descriptor_is_immutable = false;
         OPENVINO_ASSERT(slot.descriptor_pool != VK_NULL_HANDLE, "[GPU][Vulkan] Mutable descriptor resources were not prepared for the active generation");
-        OPENVINO_ASSERT(slot.descriptor_set == VK_NULL_HANDLE || slot.descriptor_binding_count == descriptor_count,
+        OPENVINO_ASSERT(slot.descriptor_set == VK_NULL_HANDLE ||
+                            (slot.descriptor_binding_count == descriptor_count && slot.descriptor_set_layout == pipeline.descriptor_set_layout),
                         "[GPU][Vulkan] Mutable descriptor set is incompatible with the active transient generation");
         if (slot.descriptor_set == VK_NULL_HANDLE) {
             VkDescriptorSetAllocateInfo descriptor_set_info{};
@@ -441,6 +445,7 @@ struct vulkan_stream::resource_state {
             descriptor_set_info.descriptorSetCount = 1;
             descriptor_set_info.pSetLayouts = &pipeline.descriptor_set_layout;
             check_vk_result(vkAllocateDescriptorSets(device, &descriptor_set_info, &slot.descriptor_set), "vkAllocateDescriptorSets");
+            slot.descriptor_set_layout = pipeline.descriptor_set_layout;
             slot.descriptor_binding_count = descriptor_count;
             slot.descriptor_allocations.clear();
             slot.descriptor_buffer_infos.clear();
@@ -693,10 +698,11 @@ private:
         return std::min<size_t>({work_group_capacity, subgroup_capacity, max_retained_dispatches_per_batch});
     }
 
-    slot& acquire(uint32_t descriptor_count, bool mutable_descriptor_required) {
-        const auto slot_is_compatible = [descriptor_count, mutable_descriptor_required](const slot& candidate) {
+    slot& acquire(uint32_t descriptor_count, VkDescriptorSetLayout descriptor_set_layout, bool mutable_descriptor_required) {
+        const auto slot_is_compatible = [descriptor_count, descriptor_set_layout, mutable_descriptor_required](const slot& candidate) {
             const bool descriptor_is_compatible =
-                !mutable_descriptor_required || candidate.descriptor_set == VK_NULL_HANDLE || candidate.descriptor_binding_count == descriptor_count;
+                !mutable_descriptor_required || candidate.descriptor_set == VK_NULL_HANDLE ||
+                (candidate.descriptor_binding_count == descriptor_count && candidate.descriptor_set_layout == descriptor_set_layout);
             return !candidate.transient_command_buffer_submitted && descriptor_is_compatible;
         };
         for (auto& slot : slots) {
@@ -705,7 +711,7 @@ private:
             }
             if (slot.submission == nullptr && slot_is_compatible(slot)) {
                 if (mutable_descriptor_required) {
-                    ensure_descriptor_pool(slot, descriptor_count);
+                    ensure_descriptor_pool(slot, descriptor_count, descriptor_set_layout);
                 }
                 return slot;
             }
@@ -729,7 +735,7 @@ private:
             }
 
             if (mutable_descriptor_required) {
-                ensure_descriptor_pool(slot, descriptor_count);
+                ensure_descriptor_pool(slot, descriptor_count, descriptor_set_layout);
             }
             return slot;
         }
@@ -742,7 +748,7 @@ private:
         }
         OPENVINO_ASSERT(slot.submission == nullptr && !slot.transient_command_buffer_submitted, "[GPU][Vulkan] Transient command resources were not released");
         if (mutable_descriptor_required) {
-            ensure_descriptor_pool(slot, descriptor_count);
+            ensure_descriptor_pool(slot, descriptor_count, descriptor_set_layout);
         }
         return slot;
     }
@@ -818,21 +824,26 @@ private:
             check_vk_result(vkResetDescriptorPool(device, slot.descriptor_pool, 0), "vkResetDescriptorPool(transient generation)");
             ++descriptor_pool_resets;
             slot.descriptor_set = VK_NULL_HANDLE;
+            slot.descriptor_set_layout = VK_NULL_HANDLE;
             slot.descriptor_binding_count = 0;
             slot.descriptor_allocations.clear();
             slot.descriptor_buffer_infos.clear();
         }
     }
 
-    void ensure_descriptor_pool(slot& slot, uint32_t descriptor_count) {
+    void ensure_descriptor_pool(slot& slot, uint32_t descriptor_count, VkDescriptorSetLayout descriptor_set_layout) {
         if (slot.descriptor_pool != VK_NULL_HANDLE && slot.descriptor_capacity >= descriptor_count) {
-            return;
-        }
-        if (slot.descriptor_pool != VK_NULL_HANDLE) {
+            if (slot.descriptor_set == VK_NULL_HANDLE || slot.descriptor_set_layout == descriptor_set_layout) {
+                return;
+            }
+            check_vk_result(vkResetDescriptorPool(device, slot.descriptor_pool, 0), "vkResetDescriptorPool(incompatible layout)");
+            ++descriptor_pool_resets;
+        } else if (slot.descriptor_pool != VK_NULL_HANDLE) {
             vkDestroyDescriptorPool(device, slot.descriptor_pool, nullptr);
             slot.descriptor_pool = VK_NULL_HANDLE;
         }
         slot.descriptor_set = VK_NULL_HANDLE;
+        slot.descriptor_set_layout = VK_NULL_HANDLE;
         slot.descriptor_binding_count = 0;
         slot.descriptor_allocations.clear();
         slot.descriptor_buffer_infos.clear();
@@ -846,8 +857,10 @@ private:
         descriptor_pool_info.maxSets = 1;
         descriptor_pool_info.poolSizeCount = descriptor_count == 0 ? 0 : 1;
         descriptor_pool_info.pPoolSizes = descriptor_count == 0 ? nullptr : &pool_size;
-        check_vk_result(vkCreateDescriptorPool(device, &descriptor_pool_info, nullptr, &slot.descriptor_pool), "vkCreateDescriptorPool");
-        slot.descriptor_capacity = descriptor_count;
+        if (slot.descriptor_pool == VK_NULL_HANDLE) {
+            check_vk_result(vkCreateDescriptorPool(device, &descriptor_pool_info, nullptr, &slot.descriptor_pool), "vkCreateDescriptorPool");
+            slot.descriptor_capacity = descriptor_count;
+        }
     }
 
     slot* recording_slot = nullptr;
@@ -872,7 +885,7 @@ private:
 
     slot& begin_transfer(const vulkan_prepared_arguments& prepared) {
         flush();
-        auto& slot = acquire(0, false);
+        auto& slot = acquire(0, VK_NULL_HANDLE, false);
         recording_slot = &slot;
         active_batch_limit = 1;
         active_direct_recording = true;
@@ -919,7 +932,9 @@ void vulkan_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& d
     auto* vk_kernel = dynamic_cast<vulkan_kernel*>(&kernel);
     OPENVINO_ASSERT(vk_kernel != nullptr, "[GPU][Vulkan] Cannot bind arguments to a kernel from another backend");
     const auto prepared = prepare_vulkan_arguments(descriptor, data);
-    vk_kernel->get_or_create_pipeline(static_cast<uint32_t>(prepared.buffer_infos.size()), static_cast<uint32_t>(prepared.push_constants.size()));
+    OPENVINO_ASSERT(descriptor.workGroups.local.size() == 3, "[GPU][Vulkan] Compute dispatch requires a three-dimensional local work-group size");
+    const std::array<size_t, 3> local_size{descriptor.workGroups.local[0], descriptor.workGroups.local[1], descriptor.workGroups.local[2]};
+    vk_kernel->get_or_create_pipeline(static_cast<uint32_t>(prepared.buffer_infos.size()), static_cast<uint32_t>(prepared.push_constants.size()), local_size);
 }
 
 event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
@@ -953,13 +968,10 @@ event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
     auto* vk_kernel = dynamic_cast<vulkan_kernel*>(&kernel);
     OPENVINO_ASSERT(vk_kernel != nullptr, "[GPU][Vulkan] Cannot dispatch a kernel from another backend");
     auto prepared = prepare_vulkan_arguments(descriptor, data);
-    const auto pipeline = vk_kernel->get_or_create_pipeline(static_cast<uint32_t>(prepared.buffer_infos.size()),
-                                                            static_cast<uint32_t>(prepared.push_constants.size()),
-                                                            specialization_constants);
-
     OPENVINO_ASSERT(descriptor.workGroups.global.size() == 3 && descriptor.workGroups.local.size() == 3,
                     "[GPU][Vulkan] Compute dispatch requires three-dimensional global and local work-group sizes");
     std::array<uint32_t, 3> group_counts{};
+    std::array<size_t, 3> local_sizes{};
     size_t local_invocations = 1;
     for (size_t axis = 0; axis < 3; ++axis) {
         const auto local_size = descriptor.workGroups.local[axis];
@@ -967,15 +979,22 @@ event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
         OPENVINO_ASSERT(local_invocations <= std::numeric_limits<size_t>::max() / local_size,
                         "[GPU][Vulkan] Local work-group invocation count overflows size_t");
         local_invocations *= local_size;
+        local_sizes[axis] = local_size;
         group_counts[axis] = static_cast<uint32_t>((descriptor.workGroups.global[axis] + local_size - 1) / local_size);
     }
+    const auto pipeline = vk_kernel->get_or_create_pipeline(static_cast<uint32_t>(prepared.buffer_infos.size()),
+                                                            static_cast<uint32_t>(prepared.push_constants.size()),
+                                                            local_sizes,
+                                                            specialization_constants);
 
-    const bool mutable_descriptor_required = _resources->descriptor_batch_boundary_required(prepared);
+    const bool mutable_descriptor_required = _resources->descriptor_batch_boundary_required(pipeline->descriptor_set_layout, prepared);
     if (mutable_descriptor_required) {
         _resources->flush();
     }
-    auto& resources =
-        _resources->get_or_begin_batch(checked_u32(prepared.buffer_infos.size(), "descriptor count"), local_invocations, mutable_descriptor_required);
+    auto& resources = _resources->get_or_begin_batch(checked_u32(prepared.buffer_infos.size(), "descriptor count"),
+                                                     pipeline->descriptor_set_layout,
+                                                     local_invocations,
+                                                     mutable_descriptor_required);
 
     bool descriptor_is_immutable = false;
     const VkDescriptorSet descriptor_set = _resources->get_or_update_descriptor_set(resources, *pipeline, prepared, descriptor_is_immutable);
