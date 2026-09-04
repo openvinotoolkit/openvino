@@ -145,14 +145,21 @@ jobs:
           else
             test_filter='*smoke*'
           fi
-          ${INSTALL_TEST_DIR}/ov_gpu_"${TEST_TYPE}"_tests \
+
+          test_bin="${INSTALL_TEST_DIR}/ov_gpu_${TEST_TYPE}_tests"
+
+          set +e
+          "${test_bin}" \
             --report_unique_name \
-            --gtest_filter="${test_filter}" \
-            --gtest_output="json:${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}/ov_gpu_${TEST_TYPE}_tests.json"
+            --gtest_filter="${test_filter}"
+          test_exit=$?
+          set -e
+
+          exit ${test_exit}
 
       - name: Upload Test Results
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-        if: always()
+        if: ${{ false }} # temporary: saving test results is disabled
         with:
           name: test-results-${{ inputs.test_type }}-${{ inputs.device }}
           path: ${{ env.INSTALL_TEST_DIR }}/${{ steps.run_tests.outputs.test_results_dir }}
