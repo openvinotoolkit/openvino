@@ -647,9 +647,44 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return does_support_fusings;
         };
 
-        auto mvn_supports_fusings = [](mvn_node& node) -> bool {
+        // An MVN which requires alignment is executed on a virtually flattened iteration space:
+        // mvn_impl::static_canonicalize_shapes() folds every axis below the first reduced axis into batch and
+        // every reduced axis into the innermost one, e.g. [6,108,108,256] with axes={3} becomes [69984,1,1,256].
+        // Post-op peer tensors keep their original shape, so a peer may only be fused when its element index
+        // survives that fold:
+        //   - the reduced axes are always the trailing contiguous block (see the MVN6Decomposition callback in
+        //     transformations_pipeline.cpp, which is the only way a non-decomposed MVN reaches this point), so
+        //     the innermost axis keeps unit stride inside the folded innermost dim;
+        //   - MVNKernelBfyxOpt indexes peers with FUSED_OP_n_INPUTm_GET_INDEX_SAFE(b, f, y, x), which takes each
+        //     index modulo that axis' size, so `x % peer_size_x` still yields the original innermost index.
+        // A peer which varies along any other axis (e.g. a full-shape eltwise peer) would be indexed with a
+        // batch value that runs over the whole folded outer dim and must not be fused.
+        auto mvn_flattened_peer_is_indexable = [](const mvn_node& node, const layout& peer_layout) -> bool {
+            const auto& in_pshape = node.get_input_layout(0).get_partial_shape();
+            const auto& peer_pshape = peer_layout.get_partial_shape();
+            if (in_pshape.is_dynamic() || peer_pshape.is_dynamic())
+                return false;
+            // Scalar peers are broadcast without any index calculation
+            if (peer_layout.count() == 1)
+                return true;
+            if (peer_pshape.size() != in_pshape.size())
+                return false;
+            const auto last_axis = peer_pshape.size() - 1;
+            for (size_t i = 0; i < last_axis; i++) {
+                if (peer_pshape[i].get_length() != 1)
+                    return false;
+            }
+            return peer_pshape[last_axis].get_length() == in_pshape[last_axis].get_length();
+        };
+
+        auto mvn_supports_fusings = [&](mvn_node& node, const std::vector<layout>& peer_layouts) -> bool {
             auto in_layout = node.get_input_layout(0);
-            return !node.get_primitive()->requires_alignment(in_layout.get_partial_shape());
+            if (!node.get_primitive()->requires_alignment(in_layout.get_partial_shape()))
+                return true;
+
+            return std::all_of(peer_layouts.begin(), peer_layouts.end(), [&](const layout& peer_layout) {
+                return mvn_flattened_peer_is_indexable(node, peer_layout);
+            });
         };
 
         auto dts_supports_fusings = [](depth_to_space_node& node) -> bool {
@@ -941,6 +976,17 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto out_layout = quantize_node.get_output_layout();
             auto in_layout = input_data.get_output_layout();
 
+            // Layouts of the quantize parameters, i.e. of every fused-op tensor the post-op code may index.
+            // program::fuse_nodes() drops the per-tensor ones before they can be indexed, but they are reported
+            // here as well rather than duplicating that drop logic - per-tensor parameters are scalars in
+            // practice, which every consumer of this list accepts anyway.
+            auto quantize_param_layouts = [&]() {
+                std::vector<layout> layouts;
+                for (size_t i = 1; i < quantize_node.get_dependencies().size(); i++)
+                    layouts.push_back(quantize_node.get_dependency(i).get_output_layout());
+                return layouts;
+            };
+
             // In dynamic shape, quantize-fusion is disable in only cldnn convolution
             if ((in_layout.is_dynamic() || out_layout.is_dynamic()) &&
                 (input_data.is_type<convolution>() && !lo.has_all_enabled_onednn_impls_optimization_attribute()))
@@ -975,7 +1021,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                            quantize_node.get_scale_shift_opt() &&
                            out_dt_is_i8_u8;
 
-            should_fuse |= input_data.is_type<mvn>() && mvn_supports_fusings(input_data.as<mvn>()) &&
+            should_fuse |= input_data.is_type<mvn>() &&
+                           mvn_supports_fusings(input_data.as<mvn>(), quantize_param_layouts()) &&
                            quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<activation>() && quantize_node.get_scale_shift_opt();
@@ -1060,7 +1107,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 can_fuse_parents[i] = (parents[i].first->is_type<convolution>() &&
                                        conv_supports_fusings(parents[i].first->as<convolution>())) ||
                                       (parents[i].first->is_type<mvn>() &&
-                                       mvn_supports_fusings(parents[i].first->as<mvn>())) ||
+                                       mvn_supports_fusings(parents[i].first->as<mvn>(),
+                                                            { parents[parents.size() - 1 - i].first->get_output_layout() })) ||
                                       (parents[i].first->is_type<group_normalization>()) ||
                                       (parents[i].first->is_type<rms>()) ||
                                       (parents[i].first->is_type<deconvolution>()) ||
