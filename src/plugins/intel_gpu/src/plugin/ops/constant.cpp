@@ -101,7 +101,24 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
     cldnn::primitive_id constPrimID;
     const auto* data = op->get_data_ptr<char>();
 
-    const auto cache_key = std::make_tuple(data, const_shape, op->get_output_element_type(0));
+    // Check whether this constant comes from a shared source buffer that may be used across devices.
+    // The imported view may not own the underlying storage; though the actual backing buffer is not kept alive by the
+    // weight-sharing context, the source buffer track held on the plugin side. That means each consumer must retain
+    // a strong reference to the source buffer for as long as the imported constant may still be used.
+    // We register it in ProgramBuilder::m_shared_weight_sources so the buffer remains valid while the graph is alive.
+    std::shared_ptr<ov::AlignedBuffer> cross_device_weight_shared_buffer;
+    if (p.get_weight_sharing_ctx()) {
+        // It's assumed that the constant is a shared constant with cross-device visibility if the model has
+        // a weight sharing context and a valid source buffer and a constant id is registered in the weight sharing context.
+        auto constant_source_id = weight_sharing::Extension::get_constant_source_id(*op);
+        auto source_buffer = weight_sharing::Extension::get_constant_source_buffer(*op);
+        if (source_buffer) {
+            p.register_shared_weight_source(source_buffer);
+            auto constant_id = weight_sharing::Extension::get_constant_id(*op);
+            cross_device_weight_shared_buffer = weight_sharing::get_buffer(*p.get_weight_sharing_ctx(), constant_source_id, constant_id);
+        }
+    }
+    const auto cache_key = std::make_tuple(data, const_shape, op->get_output_element_type(0), cross_device_weight_shared_buffer != nullptr);
 
     auto bufIter = p.blobMemCache.find(cache_key);
 
@@ -110,9 +127,27 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         p.primitive_ids[initialconstPrimID] = constPrimID;
         p.profiling_ids.push_back(initialconstPrimID);
     } else {
+        cldnn::memory::ptr mem = nullptr;
+        if (cross_device_weight_shared_buffer) {
+            mem =  p.get_engine().create_hostbuffer(cross_device_weight_shared_buffer->get_ptr(),
+                                        cross_device_weight_shared_buffer->size(),
+                                        cldnn::allocation_type::cl_mem,
+                                        constLayout);
+            p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
+            p.register_remote_constant(initialconstPrimID);
+            p.blobMemCache[cache_key] = initialconstPrimID;
+            constPrimID = initialconstPrimID;
+            GPU_DEBUG_LOG << "[" << initialconstPrimID << ": import shared constant] imported shared constant: source ID: "
+                          << weight_sharing::Extension::get_constant_source_id(*op)
+                          << ", constant ID: " << weight_sharing::Extension::get_constant_id(*op)
+                          << ", ptr: " << static_cast<void*>(cross_device_weight_shared_buffer->get_ptr())
+                          << ", size: " << cross_device_weight_shared_buffer->size()
+                          << ", layout: " << constLayout.to_short_string() << std::endl;
+            return;
+        }
         auto partial_upload = try_prepare_partial_upload(p, op, const_shape, out_dtype, constFormat, constLayout);
 
-        cldnn::memory::ptr mem = nullptr;
+
 
         if (partial_upload.enabled) {
             mem = partial_upload.memory;

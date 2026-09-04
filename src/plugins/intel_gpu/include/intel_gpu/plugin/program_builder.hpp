@@ -22,6 +22,7 @@
 #include <cstdint>
 #include <mutex>
 #include <set>
+#include <unordered_set>
 
 #if defined(_WIN32) && !defined(__GNUC__)
 #    define __PRETTY_FUNCTION__ __FUNCSIG__
@@ -82,7 +83,9 @@ public:
     ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& engine, const ExecutionConfig& config,
             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr,
             std::shared_ptr<cldnn::ICompilationContext> compilation_context = nullptr,
-            bool innerProgram = false);
+            bool innerProgram = false,
+            ov::internal::WeightSharingCtxPtr weight_sharing_ctx = nullptr);
+    ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& engine, const ExecutionConfig& config, ov::internal::WeightSharingCtxPtr weight_sharing_ctx);
     ProgramBuilder(cldnn::engine& engine, const ExecutionConfig& config);
 
     static const cldnn::primitive_id m_preProcessTag;
@@ -97,8 +100,13 @@ public:
     std::vector<cldnn::primitive_id> profiling_ids;
 
     std::map<size_t, cldnn::layout> inputLayouts;
-    using BlobCacheKey = std::tuple<const char*, ov::Shape, ov::element::Type>;
+    using IsRemoteWeight = bool;
+    using BlobCacheKey = std::tuple<const char*, ov::Shape, ov::element::Type, IsRemoteWeight>;
     std::map<BlobCacheKey, cldnn::primitive_id> blobMemCache;
+
+    void register_remote_constant(const cldnn::primitive_id& id) {
+        remote_constant_ids.insert(id);
+    }
 
     std::shared_ptr<cldnn::program> get_compiled_program() const;
     std::shared_ptr<cldnn::topology> get_topology() const { return m_topology; }
@@ -145,6 +153,8 @@ public:
     std::shared_ptr<cldnn::ICompilationContext> get_compilation_context() const { return m_compilation_context; }
     std::shared_ptr<ov::Model> get_model() const { return m_model; }
 
+    ov::internal::WeightSharingCtxPtr get_weight_sharing_ctx() const { return m_weight_sharing_ctx; }
+    void register_shared_weight_source(std::shared_ptr<ov::AlignedBuffer> source);
 private:
     static factories_map_t factories_map;
     std::shared_ptr<cldnn::program> m_program;
@@ -162,6 +172,9 @@ private:
     std::shared_ptr<cldnn::ICompilationContext> m_compilation_context;
 
     bool m_is_inner_program = false;
+    std::unordered_set<cldnn::primitive_id> remote_constant_ids;
+    ov::internal::WeightSharingCtxPtr m_weight_sharing_ctx;
+    std::set<std::shared_ptr<ov::AlignedBuffer>> m_shared_weight_sources;
 
     void EnableQueryMode() { queryMode = true; }
     void DisableQueryMode() { queryMode = false; }

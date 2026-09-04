@@ -11,7 +11,7 @@
 #include "common_test_utils/unicode_utils.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
-#include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/container_util.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
@@ -224,6 +224,18 @@ TEST_P(OVCheckSetSupportedRWMetricsPropsTestsNPU, ChangeCorrectProperties) {
             EXPECT_EQ(actual_value, expect_value) << "Property is changed in wrong way";
         }
     }
+}
+
+TEST(OVInternalPropertiesNPU, ModelSharingContextListedInInternalButNotPublicProperties) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    ov::Core core;
+    const auto supported_properties = core.get_property(ov::test::utils::DEVICE_NPU, ov::supported_properties);
+    ASSERT_FALSE(util::contains(supported_properties, ov::internal::model_sharing_context.name()));
+
+    const auto internal_supported_properties =
+        core.get_property(ov::test::utils::DEVICE_NPU, ov::internal::supported_properties);
+    ASSERT_TRUE(util::contains(internal_supported_properties, ov::internal::model_sharing_context.name()));
 }
 
 const std::vector<ov::AnyMap> compat_CorrectPluginMutableProperties = {

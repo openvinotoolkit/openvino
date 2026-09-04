@@ -9,6 +9,7 @@
 
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
@@ -46,6 +47,20 @@ TEST_F(CompatibilityStringGPU, CompatibilityCheckListedInSupportedProperties) {
     ov::Core core;
     auto supported = core.get_property(ov::test::utils::DEVICE_GPU, ov::supported_properties);
     ASSERT_NE(std::find(supported.begin(), supported.end(), ov::compatibility_check.name()), supported.end());
+}
+
+TEST_F(CompatibilityStringGPU, ModelSharingContextListedInInternalButNotPublicProperties) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::Core core;
+
+    auto internal_supported = core.get_property(ov::test::utils::DEVICE_GPU, ov::internal::supported_properties);
+    ASSERT_NE(std::find(internal_supported.begin(), internal_supported.end(),
+                        ov::internal::model_sharing_context.name()),
+              internal_supported.end());
+
+    auto supported = core.get_property(ov::test::utils::DEVICE_GPU, ov::supported_properties);
+    ASSERT_EQ(std::find(supported.begin(), supported.end(), ov::internal::model_sharing_context.name()),
+              supported.end());
 }
 
 // A descriptor generated on this device is reported as SUPPORTED.
