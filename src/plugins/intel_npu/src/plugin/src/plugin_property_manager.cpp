@@ -373,12 +373,18 @@ std::pair<FilteredConfig, ov::AnyMap> PluginPropertyManager::getMergedConfigAndU
             continue;
         }
 
-        // If the config has the option, but is not recognized as a known property for the plugin, we assume it is
-        // suported and can be changed for the current configuration.
-        OPENVINO_ASSERT(propertyDescriptorIt->second.isSupported(propertyArguments),
-                        "[ NOT_FOUND ] Option '",
-                        key,
-                        "' is not supported for current configuration");
+        if (!propertyDescriptorIt->second.isSupported(propertyArguments)) {
+            // In case of both property is import to not throw an error if they are not supported by the device but may
+            // be by the compiler.
+            if (mergeMode == ConfigMergeMode::Import && updatedConfig.getOpt(key).mode() == OptionMode::Both) {
+                _logger.warning("Property '%s' is recognized as a compiler option, will not be used for current "
+                                "configuration.",
+                                key.c_str());
+                continue;
+            }
+
+            OPENVINO_THROW("[ NOT_FOUND ] Option '", key, "' is not supported for current configuration");
+        }
 
         if (key == ov::hint::model.name()) {
             const auto model = value.second.is<std::shared_ptr<const ov::Model>>()

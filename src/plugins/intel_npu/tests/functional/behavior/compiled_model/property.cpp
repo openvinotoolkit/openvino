@@ -615,6 +615,57 @@ TEST_P(compatibility_CheckCompilerTypeProperty, GlobalPluginPropertyRespectsDriv
     EXPECT_TRUE(compiled_model.get_property(ov::intel_npu::qdq_optimization_aggressive));
 }
 
+TEST_P(compatibility_CheckCompilerTypeProperty, CheckTurboWhenLoadingFromCacheWithCiP) {
+    std::string logs;
+    std::mutex logs_mutex;
+    ov::Core core;
+    ov::test::utils::LoggerLevelGuard levelGuard(::intel_npu::Logger::global().level());
+    const std::string cache_dir = ov::test::utils::generateTestFilePrefix();
+
+    OV_ASSERT_NO_THROW(
+        core.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)));
+    OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::cache_dir(cache_dir)));
+
+    ov::CompiledModel compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, deviceName, {{ov::intel_npu::turbo(true)}}));
+
+    ASSERT_EQ(compiled_model.get_property(ov::intel_npu::compiler_type), ov::intel_npu::CompilerType::PLUGIN);
+    EXPECT_TRUE(compiled_model.get_property(ov::intel_npu::turbo));
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(ov::log::Level::WARNING)));
+    ov::CompiledModel compiled_model_from_cache;
+    {
+        ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
+        OV_ASSERT_NO_THROW(compiled_model_from_cache =
+                               core.compile_model(model, deviceName, {{ov::intel_npu::turbo(true)}}));
+    }
+
+    auto backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
+    if (!backend->isCommandQueueExtSupported()) {
+        // Loading from cache must only warn that the compile-time property is not used, not fail.
+        ASSERT_NE(logs.find("Property 'NPU_TURBO' is recognized as a compiler option, will not be used for current "
+                            "configuration."),
+                  std::string::npos);
+    } else {
+        EXPECT_THROW(compiled_model_from_cache.get_property(ov::intel_npu::compiler_type), ov::Exception);
+        EXPECT_TRUE(compiled_model_from_cache.get_property(ov::intel_npu::turbo));
+        EXPECT_TRUE(compiled_model_from_cache.get_property(ov::loaded_from_cache));
+    }
+
+    // Release handles before removing the cache directory to avoid file-lock issues on some platforms.
+    compiled_model = {};
+    compiled_model_from_cache = {};
+    ov::test::utils::removeFilesWithExt(cache_dir, "blob");
+    ov::test::utils::removeDir(cache_dir);
+}
+
 using CheckCompilerVersionProperty = ClassExecutableNetworkGetPropertiesTestNPU;
 
 TEST_P(CheckCompilerVersionProperty, GetCompilerVersionFromCompiledModel) {

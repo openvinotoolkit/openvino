@@ -389,13 +389,18 @@ TEST_P(CompatibilityCheckTests, CheckTurboWithGetMergedConfigAndUnknownPropertie
         ASSERT_TRUE(unknownProperties.empty());
     } else {
         {
-            utils::LogCallbackGuard log_callback_guard(log_cb);
-            utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
-            OV_EXPECT_THROW(
-                propertiesManager->getMergedConfigAndUnknownProperties({{ov::intel_npu::turbo(true)}},
-                                                                       ::intel_npu::ConfigMergeMode::Import),
-                ov::Exception,
-                testing::HasSubstr("[ NOT_FOUND ] Option 'NPU_TURBO' is not supported for current configuration"));
+            auto [filteredConfig, unknownProperties] = [&]() {
+                utils::LogCallbackGuard log_callback_guard(log_cb);
+                utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
+                return propertiesManager->getMergedConfigAndUnknownProperties({{ov::intel_npu::turbo(true)}},
+                                                                              ::intel_npu::ConfigMergeMode::Import);
+            }();
+
+            ASSERT_NE(logs.find("Property 'NPU_TURBO' is recognized as a compiler option, will not be used for current "
+                                "configuration."),
+                      std::string::npos);
+            ASSERT_FALSE(filteredConfig.has<::intel_npu::TURBO>());
+            ASSERT_TRUE(unknownProperties.empty());
         }
     }
 
