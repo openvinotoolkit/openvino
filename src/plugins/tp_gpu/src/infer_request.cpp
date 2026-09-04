@@ -15,13 +15,34 @@
 
 #include "compiled_model.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
+#include "openvino/runtime/intel_gpu/remote_properties.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
 namespace ov {
 namespace tp_gpu {
 
 namespace {
+
+// Byte ceiling for routing a user input through plugin-owned USM-host memory
+// instead of letting the GPU plugin stage it through a device copy.  Small by
+// design: what the staging removes is a fixed per-copy wait, so it pays for
+// scalars and index vectors and stops paying once the payload is large enough
+// for device residency to matter.  Zero turns the staging off entirely.
+size_t input_stage_max_bytes() {
+    static const size_t n = [] {
+        if (const char* v = std::getenv("TP_INPUT_STAGE_MAX_BYTES")) {
+            const long long x = std::atoll(v);
+            if (x >= 0) {
+                return static_cast<size_t>(x);
+            }
+        }
+        return static_cast<size_t>(4096);
+    }();
+    return n;
+}
 
 // Fan-out wrapper that broadcasts reset()/set_state() to every per-rank state
 // sharing the same variable_id.  Without this, calling state.reset() only
@@ -301,6 +322,77 @@ InferRequest::InferRequest(const std::shared_ptr<const CompiledModel>& compiled_
             }
         }
     }
+
+    const size_t num_inputs = compiled_model->inputs().size();
+    m_input_stage.assign(m_rank_requests.size(), std::vector<ov::SoPtr<ov::ITensor>>(num_inputs));
+    m_input_stage_capacity.assign(m_rank_requests.size(), std::vector<size_t>(num_inputs, 0));
+    m_input_stage_refused.assign(m_rank_requests.size(), std::vector<uint8_t>(num_inputs, 0));
+}
+
+ov::SoPtr<ov::ITensor> InferRequest::stage_input(size_t rank,
+                                                 size_t input_idx,
+                                                 const ov::SoPtr<ov::ITensor>& user_tensor) {
+    const size_t limit = input_stage_max_bytes();
+    if (limit == 0 || !user_tensor) {
+        return {};
+    }
+    // Device-side memory the caller owns already skips the plugin's staging
+    // copy; wrapping it again would only add work.
+    if (std::dynamic_pointer_cast<ov::IRemoteTensor>(user_tensor._ptr) != nullptr) {
+        return {};
+    }
+    const size_t bytes = user_tensor->get_byte_size();
+    if (bytes == 0 || bytes > limit) {
+        return {};
+    }
+    if (m_input_stage_refused[rank][input_idx] != 0) {
+        return {};
+    }
+
+    auto& slot = m_input_stage[rank][input_idx];
+    auto& capacity = m_input_stage_capacity[rank][input_idx];
+    const auto& shape = user_tensor->get_shape();
+    const auto type = user_tensor->get_element_type();
+
+    if (!slot || slot->get_element_type() != type || bytes > capacity) {
+        try {
+            const auto& ctx = m_compiled_model->get_rank_compiled()[rank]->get_context();
+            OPENVINO_ASSERT(ctx, "[TP_GPU] rank ", rank, " has no remote context");
+            auto staged = ctx->create_tensor(
+                type,
+                shape,
+                {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::USM_HOST_BUFFER}});
+            slot = ov::SoPtr<ov::ITensor>(staged._ptr, staged._so);
+            capacity = bytes;
+        } catch (const std::exception&) {
+            // Nothing here is required for correctness: fall back to handing
+            // the caller's tensor over, which is what happened before.
+            m_input_stage_refused[rank][input_idx] = 1;
+            slot = {};
+            capacity = 0;
+            return {};
+        }
+    } else if (slot->get_shape() != shape) {
+        slot->set_shape(shape);
+    }
+
+    void* dst = nullptr;
+    if (auto remote = std::dynamic_pointer_cast<ov::IRemoteTensor>(slot._ptr)) {
+        const auto& props = remote->get_properties();
+        auto it = props.find(ov::intel_gpu::mem_handle.name());
+        if (it != props.end()) {
+            dst = it->second.as<ov::intel_gpu::gpu_handle_param>();
+        }
+    }
+    if (dst == nullptr) {
+        m_input_stage_refused[rank][input_idx] = 1;
+        slot = {};
+        capacity = 0;
+        return {};
+    }
+
+    std::memcpy(dst, user_tensor->data(), bytes);
+    return slot;
 }
 
 void InferRequest::bind_cache() {
@@ -363,8 +455,9 @@ void InferRequest::infer() {
             continue;
         }
         auto tensor = get_tensor(user_inputs[i]);
-        for (auto& req : m_rank_requests) {
-            req->set_tensor(rank0_inputs[i], tensor);
+        for (size_t rank = 0; rank < m_rank_requests.size(); ++rank) {
+            auto staged = stage_input(rank, i, tensor);
+            m_rank_requests[rank]->set_tensor(rank0_inputs[i], staged ? staged : tensor);
         }
     }
 
