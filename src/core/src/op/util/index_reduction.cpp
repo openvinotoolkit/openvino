@@ -33,7 +33,6 @@ void ov::op::util::IndexReduction::set_index_element_type(const element::Type& i
 
 void ov::op::util::IndexReduction::validate_and_infer_types() {
     OV_OP_SCOPE(util_IndexReduction_validate_and_infer_types);
-    // TODO(amprocte): Should reject if size of reduction axis is zero.
     const PartialShape& arg_shape = get_input_partial_shape(0);
     Rank rank = arg_shape.rank();
 

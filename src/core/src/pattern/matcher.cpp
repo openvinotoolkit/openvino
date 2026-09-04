@@ -147,6 +147,31 @@ bool Matcher::match_permutation(const OutputVector& pattern_args, const OutputVe
     return true;
 }
 
+bool Matcher::match_permutations(OutputVector& pattern_args, const OutputVector& args) {
+    // The enumeration order of permutations is observable behavior, not an implementation detail:
+    // the matcher commits to the first permutation that matches, so when more than one permutation
+    // of a commutative pattern can match (e.g. a label competing with any_input()), the order
+    // decides which graph operand each pattern operand binds to. Order-sensitive patterns rely on
+    // the long-standing lexicographic enumeration (sort + next_permutation over the Output<Node>
+    // ordering); replacing it with an unordered scheme such as Heap's algorithm changes those
+    // bindings.
+    const auto less = [](const ov::Output<ov::Node>& n1, const ov::Output<ov::Node>& n2) {
+        return n1 < n2;
+    };
+    std::sort(pattern_args.begin(), pattern_args.end(), less);
+    do {
+        OPENVINO_LOG_MATCHER6(this);
+        auto saved = start_match();
+        if (match_permutation(pattern_args, args)) {
+            auto res = saved.finish(true);
+            OPENVINO_LOG_MATCHER7(this);
+            return res;
+        }
+        OPENVINO_LOG_MATCHER8(this);
+    } while (std::next_permutation(pattern_args.begin(), pattern_args.end(), less));
+    return false;
+}
+
 bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& graph_node) {
     auto args = graph_node->input_values();
     auto pattern_args = pattern_node->input_values();
@@ -157,27 +182,9 @@ bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& g
     }
 
     if (ov::op::util::is_commutative(graph_node)) {
-        // TODO: [nikolayk] we don't really have to use lexicographically-based perms,
-        // heap's algo should be faster
-        std::sort(begin(pattern_args),
-                  end(pattern_args),
-                  [](const ov::Output<ov::Node>& n1, const ov::Output<ov::Node>& n2) {
-                      return n1 < n2;
-                  });
-        do {
-            OPENVINO_LOG_MATCHER6(this);
-            auto saved = start_match();
-            if (match_permutation(pattern_args, args)) {
-                auto res = saved.finish(true);
-                OPENVINO_LOG_MATCHER7(this);
-                return res;
-            }
-            OPENVINO_LOG_MATCHER8(this);
-        } while (std::next_permutation(begin(pattern_args),
-                                       end(pattern_args),
-                                       [](const ov::Output<ov::Node>& n1, const ov::Output<ov::Node>& n2) {
-                                           return n1 < n2;
-                                       }));
+        if (match_permutations(pattern_args, args)) {
+            return true;
+        }
     } else {
         OPENVINO_LOG_MATCHER9(this);
         auto res = match_permutation(pattern_args, args);
