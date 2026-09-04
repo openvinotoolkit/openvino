@@ -31,7 +31,7 @@ from common.common_utils import shell, retry
 from shutil import which
 import openvino as ov
 
-log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
+log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.NOTSET, stream=sys.stdout)
 
 def get_devices():
     return os.environ.get("TEST_DEVICE", "CPU;MULTI:CPU;AUTO").split(';')
@@ -42,45 +42,59 @@ def get_cmd_output(*cmd):
         output = subprocess.check_output(cmd, stderr=subprocess.STDOUT, universal_newlines=True, encoding='utf-8', env={**os.environ, 'PYTHONIOENCODING': 'utf-8'}, timeout=60.0)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
         if isinstance(error, subprocess.CalledProcessError):
-            print(f"'{' '.join(map(str, cmd))}' returned {error.returncode}. Output:")
+            log.error("'%s' returned %d. Output:\n%s", " ".join(map(str, cmd)), error.returncode, error.output)
         else:
-            print(f"'{' '.join(map(str, cmd))}' timed out after {error.timeout} seconds. Output:")
-        print(error.output)
+            log.error("'%s' timed out after %s s. Output:\n%s", " ".join(map(str, cmd)), error.timeout, error.output)
         raise
     return output
 
 
 @retry(max_retries=3, exceptions=(requests.RequestException,), delay=5, exponential_backoff=True)
 def _requests_get(url):
-    return requests.get(url)
+    # (connect_timeout, read_timeout)
+    # 10 s to establish the TCP connection, 30 s of inactivity between data chunks
+    return requests.get(url, timeout=(10, 30))
 
 
 def download(test_data_dir, file_path):
     if file_path.exists():
+        log.debug("Already cached: %s", file_path)
         return file_path
     lock_path = test_data_dir / 'download.lock'
     with contextlib.suppress(FileNotFoundError, PermissionError):
         lock_path.unlink()
     for _ in range(9999):  # Give up after about 3 hours
+        lock_acquired = False
         with contextlib.suppress(FileExistsError, PermissionError):
             with lock_path.open('bx'):
                 if not file_path.exists():
                     if test_data_dir / 'bvlcalexnet-12.onnx' == file_path:
-                        response = _requests_get("https://media.githubusercontent.com/media/onnx/models/4c46cd00fbdb7cd30b6c1c17ab54f2e1f4f7b177/validated/vision/classification/alexnet/model/bvlcalexnet-12.onnx?download=true")
+                        url = "https://media.githubusercontent.com/media/onnx/models/4c46cd00fbdb7cd30b6c1c17ab54f2e1f4f7b177/validated/vision/classification/alexnet/model/bvlcalexnet-12.onnx?download=true"
+                        log.info("Downloading %s -> %s", url, file_path)
+                        response = _requests_get(url)
                         with file_path.open('wb') as nfnet:
                             nfnet.write(response.content)
                     elif test_data_dir / 'efficientnet-lite4-11-qdq.onnx' == file_path:
-                        response = _requests_get("https://media.githubusercontent.com/media/onnx/models/4c46cd00fbdb7cd30b6c1c17ab54f2e1f4f7b177/validated/vision/classification/efficientnet-lite4/model/efficientnet-lite4-11-qdq.onnx?download=true")
+                        url = "https://media.githubusercontent.com/media/onnx/models/4c46cd00fbdb7cd30b6c1c17ab54f2e1f4f7b177/validated/vision/classification/efficientnet-lite4/model/efficientnet-lite4-11-qdq.onnx?download=true"
+                        log.info("Downloading %s -> %s", url, file_path)
+                        response = _requests_get(url)
                         with file_path.open('wb') as nfnet:
                             nfnet.write(response.content)
                     else:
-                        response = _requests_get("https://storage.openvinotoolkit.org/repositories/openvino/ci_dependencies/test/2021.4/samples_smoke_tests_data_2021.4.zip")
+                        url = "https://storage.openvinotoolkit.org/repositories/openvino/ci_dependencies/test/2021.4/samples_smoke_tests_data_2021.4.zip"
+                        log.info("Downloading %s -> %s", url, test_data_dir)
+                        response = _requests_get(url)
                         with zipfile.ZipFile(io.BytesIO(response.content)) as zfile:
                             zfile.extractall(test_data_dir)
                         cv2.imwrite(str(test_data_dir / 'dog-224x224.bmp'), cv2.resize(cv2.imread(str(test_data_dir / 'samples_smoke_tests_data_2021.4/validation_set/227x227/dog.bmp')), (224, 224)))
-            lock_path.unlink(missing_ok=True)
+                    log.info("Download complete: %s (%d bytes)", file_path, file_path.stat().st_size)
+            lock_acquired = True
+        if lock_acquired:
+            with contextlib.suppress(FileNotFoundError, PermissionError):
+                lock_path.unlink()
             assert file_path.exists()
             return file_path
+        log.debug("Waiting for download lock on %s ...", file_path.name)
         time.sleep(1.0)
 
 
@@ -302,13 +316,25 @@ class SamplesCommonTestClass():
 
         cmd_line = get_cmd_func(param_cp, use_preffix=use_preffix, long_hyphen=long_hyphen)
 
-        log.info("Running command: {} {}".format(executable_path, cmd_line))
+        # Build a short tag for all log messages so each test is unambiguously
+        # identified even when xdist interleaves output from parallel workers.
+        device = param_cp.get("d", "-")
+        test_tag = "[{}/{}]".format(sample_type, device)
+
+        log.info("%s Running command: %s %s", test_tag, executable_path, cmd_line)
         retcode, stdout, stderr = shell([executable_path, cmd_line])
 
         if get_shell_result:
             return retcode, stdout, stderr
         # Check return code
-        if (retcode != 0):
-            log.error(stderr)
+        if retcode != 0:
+            log.warning(
+                "%s FAILED (retcode=%d). Sample stdout (may contain plugin error details):\n%s",
+                test_tag,
+                retcode,
+                stdout[:4000],
+            )
+            log.error("%s stderr: %s", test_tag, stderr)
         assert retcode == 0, "Sample execution failed"
+        log.info("%s completed (retcode=0)", test_tag)
         return stdout

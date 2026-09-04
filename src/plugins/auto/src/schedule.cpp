@@ -310,6 +310,20 @@ Schedule::~Schedule() {
     });
     m_worker_requests.clear();
     LOG_INFO_TAG("scheduler ending");
+    // Explicitly release heavy shared members with logging so any blocking
+    // teardown operation (e.g. thread-pool join) is visible in the log.
+    // Without this, the hang would occur silently during automatic member
+    // variable destruction after the dtor body returns.
+    LOG_INFO_TAG("schedule dtor: resetting plugin");
+    m_plugin.reset();
+    LOG_INFO_TAG("schedule dtor: resetting context");
+    m_context.reset();
+    LOG_INFO_TAG("schedule dtor: resetting passthrough compiled model");
+    m_passthrough_compiled_model = {};
+    LOG_INFO_TAG("schedule dtor: passthrough compiled model reset");
+    LOG_INFO_TAG("schedule dtor: resetting executor");
+    m_executor.reset();
+    LOG_INFO_TAG("schedule dtor: done");
 }
 }  // namespace auto_plugin
 }  // namespace ov
