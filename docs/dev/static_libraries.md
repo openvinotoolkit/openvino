@@ -201,17 +201,19 @@ These samples link against the static package the same way any consuming applica
   | MULTI, HETERO, AUTO, BATCH | Yes | |
   | IR, ONNX, PDPD, TF, TF Lite frontends | Yes | |
 
-* Static build support means building static libraries only for OpenVINO Runtime libraries. All other third-party prebuilt dependencies remain in the same format:
-    * `TBB` is a shared library and is not rebuilt as part of a static OpenVINO build; the prebuilt shared TBB package is copied to `<install_root>/runtime/3rdparty/tbb/bin` and must be available to your application at run time (on `PATH` on Windows, or `LD_LIBRARY_PATH` on Linux).
-        > **NOTE**: The prebuilt TBB package can also be downloaded directly:
-        > * Linux x64: `https://storage.openvinotoolkit.org/dependencies/thirdparty/linux/oneapi-tbb-2021.13.1-lin-release.tgz`
-        > * Windows x64: `https://storage.openvinotoolkit.org/dependencies/thirdparty/windows/oneapi-tbb-2021.13.2-win.zip`
-        >
-        > The TBB version differs per OS and changes between OpenVINO releases; check [cmake/dependencies.cmake](../../cmake/dependencies.cmake) for the version matching your checkout before downloading.
-    * To use your own oneTBB build instead of the prebuilt package (for example, to build oneTBB as a static library), follow the official [oneTBB installation instructions](https://github.com/uxlfoundation/oneTBB/blob/master/INSTALL.md) and set `TBBROOT` to the installation directory before configuring OpenVINO.
-        > **NOTE**: The oneTBB team does not recommend using oneTBB as a static library, see [Why onetbb does not like a static library?](https://github.com/uxlfoundation/oneTBB/issues/646).
+* Static build support means building static libraries only for OpenVINO Runtime libraries. Third-party prebuilt dependencies keep their original format — in particular `TBB` stays a shared library: it is not rebuilt as part of a static OpenVINO build, and the prebuilt package is copied to `<install_root>/runtime/3rdparty/tbb/bin`, so it must be available to your application at run time (on `PATH` on Windows, or `LD_LIBRARY_PATH` on Linux).
 
-* `TBBBind_2_5` is not available on Windows x64 during a static OpenVINO build (see description for `ENABLE_TBBBIND_2_5` CMake option [here](cmake_options_for_custom_compilation.md) to understand what this library is responsible for). So, capabilities enabled by `TBBBind_2_5` are not available. To enable them, build [oneTBB from source code](https://github.com/oneapi-src/oneTBB) and provide the path to built oneTBB artifacts via `TBBROOT` environment variable before OpenVINO CMake scripts are run.
+  > **NOTE**: The prebuilt TBB package can also be downloaded directly:
+  > * Linux x64: `https://storage.openvinotoolkit.org/dependencies/thirdparty/linux/oneapi-tbb-2021.13.1-lin-release.tgz`
+  > * Windows x64: `https://storage.openvinotoolkit.org/dependencies/thirdparty/windows/oneapi-tbb-2021.13.2-win.zip`
+  >
+  > The TBB version differs per OS and changes between OpenVINO releases; check [cmake/dependencies.cmake](../../cmake/dependencies.cmake) for the version matching your checkout before downloading.
+
+### Using a custom TBB build
+
+`TBBBind_2_5` is not available on Windows x64 during a static OpenVINO build, so the capabilities it enables (see the `ENABLE_TBBBIND_2_5` CMake option in [CMake Options for Custom Compilation](cmake_options_for_custom_compilation.md)) are lost. To get them back — or to use a static oneTBB — build [oneTBB from source](https://github.com/uxlfoundation/oneTBB/blob/master/INSTALL.md) and set `TBBROOT` to the installation directory before configuring OpenVINO.
+
+> **NOTE**: A static oneTBB is not a recommended configuration: it is safe only if exactly one copy of oneTBB ends up in the process, and it disables features that rely on run-time dynamic loading (`tbbbind` topology constraints, `tbbmalloc_proxy`, TCM). Read [Static Linking of oneTBB](https://uxlfoundation.github.io/oneTBB/main/intro/static_linking.html) before choosing it, and validate performance and correctness of your application yourself.
 
 ## See also
 
