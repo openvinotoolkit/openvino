@@ -49,6 +49,7 @@ private:
     std::optional<ov::intel_npu::CompilerType> resolveCompilerType(ov::intel_npu::CompilerType compilerType,
                                                                    const std::string& deviceId,
                                                                    const std::string& platform) const;
+    void warnCompilerOnlyOptionSkipped(const std::string& key) const;
 
     FilteredConfig _config;
 
