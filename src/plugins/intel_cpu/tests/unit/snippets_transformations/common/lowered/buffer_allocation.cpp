@@ -3,6 +3,7 @@
 //
 
 #include "openvino/opsets/opset1.hpp"
+#include "openvino/core/visibility.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
@@ -23,10 +24,16 @@
 #include "snippets/op/result.hpp"
 
 #include "transformations/snippets/common/shape_inference.hpp"
+#if defined(OPENVINO_ARCH_X86_64)
 #include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
 #include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_buffers.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
+#elif defined(OPENVINO_ARCH_ARM64)
+#include "transformations/snippets/aarch64/pass/lowered/gemm_cpu_blocking.hpp"
+#include "transformations/snippets/aarch64/pass/lowered/insert_gemm_copy_buffers.hpp"
+#include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
+#endif
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
@@ -36,7 +43,12 @@
 namespace ov {
 namespace test {
 namespace snippets {
+
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+
+#if defined(OPENVINO_ARCH_X86_64)
 using BrgemmConfig = intel_cpu::brgemm_utils::BrgemmConfig;
+#endif
 
 class BufferAllocationCPUTest : public BufferAllocationTest {
 protected:
@@ -47,6 +59,7 @@ protected:
     std::vector<ov::snippets::lowered::pass::PassPipeline::PositionedPassLowered> getBackendSpecificPasses() override {
         std::vector<ov::snippets::lowered::pass::PassPipeline::PositionedPassLowered> backend_passes;
 
+#if defined(OPENVINO_ARCH_X86_64)
         // Add BrgemmCPUBlocking after MarkLoops
         backend_passes.emplace_back(
             ov::snippets::pass::PassPosition(ov::snippets::pass::PassPosition::Place::After,
@@ -58,6 +71,19 @@ protected:
             ov::snippets::pass::PassPosition(ov::snippets::pass::PassPosition::Place::After,
                                              ov::snippets::lowered::pass::SplitLoops::get_type_info_static()),
             std::make_shared<ov::intel_cpu::pass::InsertBrgemmCopyBuffers>());
+#elif defined(OPENVINO_ARCH_ARM64)
+        // Add GemmCPUBlocking after MarkLoops
+        backend_passes.emplace_back(
+            ov::snippets::pass::PassPosition(ov::snippets::pass::PassPosition::Place::After,
+                                             ov::snippets::lowered::pass::MarkLoops::get_type_info_static()),
+            std::make_shared<ov::intel_cpu::pass::GemmCPUBlocking>());
+
+        // Add InsertGemmCopyBuffers after SplitLoops
+        backend_passes.emplace_back(
+            ov::snippets::pass::PassPosition(ov::snippets::pass::PassPosition::Place::After,
+                                             ov::snippets::lowered::pass::SplitLoops::get_type_info_static()),
+            std::make_shared<ov::intel_cpu::pass::aarch64::InsertGemmCopyBuffers>());
+#endif
 
         return backend_passes;
     }
@@ -76,13 +102,6 @@ protected:
         const auto subtensor_power = std::vector<size_t>{1, ov::snippets::utils::get_full_dim_value()};
         const auto subtensor_full = std::vector<size_t>(2, ov::snippets::utils::get_full_dim_value());
 
-        const BrgemmConfig brgemm_config(dnnl::impl::cpu::x64::cpu_isa_t::avx512_core,
-                                         ov::element::f32,
-                                         ov::element::f32,
-                                         ov::element::f32,
-                                         false,
-                                         false);
-
         // Dims are selected in order to have blocking loops by each dim
         OPENVINO_ASSERT(shapes.size() == 3, "Incorrect count of input shapes");
         const auto parameter0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shapes[0]);
@@ -93,10 +112,25 @@ protected:
         const auto load_reshape = std::make_shared<ov::snippets::op::LoadReorder>(parameter1, 1, 0, order);
         const auto store = std::make_shared<ov::snippets::op::Store>(load_reshape);
         const auto relu0 = std::make_shared<ov::op::v0::Relu>(store);
+#if defined(OPENVINO_ARCH_X86_64)
+        const BrgemmConfig brgemm_config(dnnl::impl::cpu::x64::cpu_isa_t::avx512_core,
+                                         ov::element::f32,
+                                         ov::element::f32,
+                                         ov::element::f32,
+                                         false,
+                                         false);
         const auto brgemm_cpu0 =
             std::make_shared<ov::intel_cpu::BrgemmCPU>(OutputVector{parameter0, relu0}, brgemm_config);
 
         const auto relu1 = std::make_shared<ov::op::v0::Relu>(brgemm_cpu0);
+#elif defined(OPENVINO_ARCH_ARM64)
+        using PortDescriptor = ov::snippets::modifier::MemoryAccess::PortDescriptor;
+        const auto gemm_cpu0 =
+            std::make_shared<ov::intel_cpu::aarch64::GemmCPU>(parameter0, relu0,
+                                                               PortDescriptor{}, PortDescriptor{}, PortDescriptor{});
+
+        const auto relu1 = std::make_shared<ov::op::v0::Relu>(gemm_cpu0);
+#endif
 
         // Decomposed Softmax
         const auto reduce_max = std::make_shared<ov::snippets::op::ReduceMax>(relu1, 3);
@@ -109,10 +143,18 @@ protected:
         const auto power = std::make_shared<ov::snippets::op::PowerStatic>(reduce_sum, -1.f);
         const auto multiply = std::make_shared<ov::op::v1::Multiply>(exp, power);
 
+#if defined(OPENVINO_ARCH_X86_64)
         const auto brgemm_cpu1 =
             std::make_shared<ov::intel_cpu::BrgemmCPU>(OutputVector{multiply, parameter2}, brgemm_config);
 
         const auto relu2 = std::make_shared<ov::op::v0::Relu>(brgemm_cpu1);
+#elif defined(OPENVINO_ARCH_ARM64)
+        const auto gemm_cpu1 =
+            std::make_shared<ov::intel_cpu::aarch64::GemmCPU>(multiply, parameter2,
+                                                               PortDescriptor{}, PortDescriptor{}, PortDescriptor{});
+
+        const auto relu2 = std::make_shared<ov::op::v0::Relu>(gemm_cpu1);
+#endif
 
         const auto body = std::make_shared<ov::Model>(std::make_shared<ov::snippets::op::Result>(relu2), ov::ParameterVector{parameter0, parameter1, parameter2});
 
@@ -120,8 +162,13 @@ protected:
         MarkOp(store, {subtensor_scalar}, {subtensor_scalar});
         MarkOp(power, {subtensor_power}, {subtensor_power});
 
+#if defined(OPENVINO_ARCH_X86_64)
         MarkOp(brgemm_cpu0, {subtensor_full, subtensor_full}, {subtensor_full});
         MarkOp(brgemm_cpu1, {subtensor_full, subtensor_full}, {subtensor_full});
+#elif defined(OPENVINO_ARCH_ARM64)
+        MarkOp(gemm_cpu0, {subtensor_full, subtensor_full}, {subtensor_full});
+        MarkOp(gemm_cpu1, {subtensor_full, subtensor_full}, {subtensor_full});
+#endif
 
         ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(load_reshape->input(0))->set_layout(order);
 
@@ -129,6 +176,7 @@ protected:
     }
 };
 
+#if defined(OPENVINO_ARCH_X86_64)
 class MHABF16AMXBufferAllocationTest : public BufferAllocationCPUTest {
 protected:
     std::shared_ptr<ov::Model> GetModel(const std::vector<ov::PartialShape>& shapes) const override {
@@ -203,11 +251,13 @@ protected:
         return body;
     }
 };
+#endif  // OPENVINO_ARCH_X86_64
 
 TEST_P(MHAFP32BufferAllocationTest, BufferAllocationCPU) {
     Validate();
 }
 
+#if defined(OPENVINO_ARCH_X86_64)
 TEST_P(MHABF16AMXBufferAllocationTest, BufferAllocationCPU) {
     // Scratchpad memory for AMX with CopyA (dynamic case) has allocation size which depends on element count in vector register.
     // So the current `expected_allocation_size` in the test is targeted on real AVX512 platforms with vector registers with 512 bits.
@@ -216,6 +266,7 @@ TEST_P(MHABF16AMXBufferAllocationTest, BufferAllocationCPU) {
         GTEST_SKIP();
     Validate();
 }
+#endif
 
 namespace BufferAllocationCPUTest_Instances {
 
@@ -267,6 +318,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHAOptimizedWOSplit, MH
                                  ::testing::Values(3)),    // (Buffer before brgemm0) + (between brgemms) + (after brgemm1)
                          BufferAllocationTest::getTestCaseName);
 
+#if defined(OPENVINO_ARCH_X86_64)
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXNotOptimizedWSplit, MHABF16AMXBufferAllocationTest,
                          ::testing::Combine(
                                  ::testing::Values(static_shapes),
@@ -306,6 +358,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXOptimizedWOSp
                                  ::testing::Values(3),
                                  ::testing::Values(7)),
                          BufferAllocationTest::getTestCaseName);
+#endif  // OPENVINO_ARCH_X86_64
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHAOptimizedWSplit_Dynamic, MHAFP32BufferAllocationTest,
                          ::testing::Combine(
@@ -317,6 +370,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHAOptimizedWSplit_Dyna
                                  ::testing::Values(3)), // (Buffer before brgemm0) + (between brgemms) + (after brgemm1)
                          BufferAllocationTest::getTestCaseName);
 
+#if defined(OPENVINO_ARCH_X86_64)
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXOptimizedWSplit_Dynamic, MHABF16AMXBufferAllocationTest,
                          ::testing::Combine(
                                  ::testing::Values(dynamic_shapes),
@@ -326,8 +380,46 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXOptimizedWSpl
                                  ::testing::Values(3),
                                  ::testing::Values(7)),
                          BufferAllocationTest::getTestCaseName);
+#endif  // OPENVINO_ARCH_X86_64
 
 }  // namespace BufferAllocationCPUTest_Instances
+
+#else
+
+class GenericBufferAllocationTest : public EltwiseBufferAllocationTest {};
+
+TEST_P(GenericBufferAllocationTest, BufferAllocationCPU) {
+    Validate();
+}
+
+namespace GenericBufferAllocationTest_Instances {
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_GenericNotOptimized,
+                         GenericBufferAllocationTest,
+                         ::testing::Combine(
+                             ::testing::Values(std::vector<ov::PartialShape>{{1, 3, 100, 100}}),
+                             ::testing::Values(false),
+                             ::testing::Values(false),
+                             ::testing::Values(80000),
+                             ::testing::Values(2),
+                             ::testing::Values(2)),
+                         BufferAllocationTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_GenericOptimized,
+                         GenericBufferAllocationTest,
+                         ::testing::Combine(
+                             ::testing::Values(std::vector<ov::PartialShape>{{1, 3, 100, 100}}),
+                             ::testing::Values(true),
+                             ::testing::Values(false),
+                             ::testing::Values(40000),
+                             ::testing::Values(1),
+                             ::testing::Values(1)),
+                         BufferAllocationTest::getTestCaseName);
+
+}  // namespace GenericBufferAllocationTest_Instances
+
+#endif  // OPENVINO_ARCH_X86_64 || OPENVINO_ARCH_ARM64
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov
