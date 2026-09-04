@@ -568,6 +568,30 @@ TEST_F(TransformationTestsF, MVNFusionTestDoesNotFuseApproximateReciprocalExpone
     manager.register_pass<ov::pass::MVNFusion>();
 }
 
+TEST_F(TransformationTestsF, MVNFusionTestDoesNotFuseApproximateNegativeHalfExponent) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 224});
+    auto mean1_axes = ov::op::v0::Constant::create(element::i32, Shape{1}, {2});
+    auto mean1 = std::make_shared<ov::op::v1::ReduceMean>(input, mean1_axes, true);
+    auto squared_difference = std::make_shared<ov::op::v0::SquaredDifference>(input, mean1);
+    auto mean2_axes = ov::op::v0::Constant::create(element::i32, Shape{1}, {2});
+    auto mean2 = std::make_shared<ov::op::v1::ReduceMean>(squared_difference, mean2_axes, true);
+    auto eps = ov::op::v0::Constant::create(element::f32, Shape{}, {1e-9f});
+    auto add_eps = std::make_shared<ov::op::v1::Add>(mean2, eps);
+    auto const_0_5 = ov::op::v0::Constant::create(element::f32, Shape{}, {-0.50000006f});
+    auto power = std::make_shared<ov::op::v1::Power>(add_eps, const_0_5);
+    auto gamma = ov::op::v0::Constant::create(element::f32, Shape{}, {1.0f});
+    auto mul1 = std::make_shared<ov::op::v1::Multiply>(power, gamma);
+    auto mul2 = std::make_shared<ov::op::v1::Multiply>(input, mul1);
+    auto mul3 = std::make_shared<ov::op::v1::Multiply>(mul1, mean1);
+    auto beta = ov::op::v0::Constant::create(element::f32, Shape{}, {-1.0f});
+    auto sub = std::make_shared<ov::op::v1::Subtract>(beta, mul3);
+    auto add = std::make_shared<ov::op::v1::Add>(mul2, sub);
+
+    model = std::make_shared<ov::Model>(OutputVector{add}, ParameterVector{input});
+
+    manager.register_pass<ov::pass::MVNFusion>();
+}
+
 TEST_F(TransformationTestsF, MVNFusionTestDoesNotFuseApproximateRsqrtNumerator) {
     auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 224});
     auto mean1_axes = ov::op::v0::Constant::create(element::i32, Shape{1}, {2});
