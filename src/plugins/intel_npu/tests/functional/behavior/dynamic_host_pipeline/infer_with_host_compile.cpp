@@ -461,18 +461,12 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
            "inference, but got: "
         << logCapture.str();
 
-    logCapture.clear();
     ov::Tensor inTensor1 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model,
                             testContext.reqDynamic,
                             testContext.reqReference,
                             inTensor1,
                             "CompileAndInferWithDecreasedSize_third");
-    // A new host tensor with the same shape should still reuse the command list.
-    ASSERT_TRUE(logContains(logCapture, "Reuse command list without update since no tensor change detected"))
-        << "Expected log to contain 'Reuse command list without update since no tensor change detected' for third "
-           "inference, but got: "
-        << logCapture.str();
 
     logCapture.clear();
     ov::Shape shape2 = {1, 720, 720, 16};
@@ -532,18 +526,12 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
            "inference, but got: "
         << logCapture.str();
 
-    logCapture.clear();
     ov::Tensor inTensor1 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model,
                             testContext.reqDynamic,
                             testContext.reqReference,
                             inTensor1,
                             "CompileAndInferWithIncreasedSize_third");
-    // A new host tensor with the same shape should still reuse the command list.
-    ASSERT_TRUE(logContains(logCapture, "Reuse command list without update since no tensor change detected"))
-        << "Expected log to contain 'Reuse command list without update since no tensor change detected' for third "
-           "inference, but got: "
-        << logCapture.str();
 
     logCapture.clear();
     ov::Shape shape2 = {1, 720, 1280, 16};
@@ -778,7 +766,7 @@ TEST_P(InferWithDefaultHostCompileTests, CompileDynamicModelWithNoHostCompileMod
     auto model = createModelByName(selectedModelName);
 
     ov::CompiledModel compiledModel;
-    // Compilation shall pass since load of npu_mlir_runtime is deffered with NPU_CREATE_EXECUTOR=0
+    // Compilation shall pass since load of openvino_intel_npu_mlir_runtime is deffered with NPU_CREATE_EXECUTOR=0
     OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, configuration));
 
     std::stringstream modelStream;

@@ -47,6 +47,61 @@ Example:
     </skip_config>
 
     <skip_config>
+        <message>Data type u1 not supported by NPU</message>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u1\D.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Data type u2 and 4-bit network outputs not supported by NPU3720</message>
+        <enable_rules>
+            <device>3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u2.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=i4.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u4.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=nf4.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u2.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=i4.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u4.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=nf4.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Data type f4e2m1 not supported by NPU</message>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=f4e2m1.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=f4e2m1.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Data type f8e8m0 not supported by NPU</message>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=f8e8m0.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=f8e8m0.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Data types f8e4m3, f8e5m2 not supported by NPU3720, NPU4000</message>
+        <enable_rules>
+            <device>3720</device>
+            <device>4000</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=f8e4m3.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=f8e5m2.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=f8e4m3.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=f8e5m2.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
         <message>Data types not supported by NPU3720 PV Driver.</message>
         <enable_rules>
             <device>3720</device>
@@ -54,8 +109,6 @@ Example:
         </enable_rules>
         <filters>
             <filter>.*InferRequestIOTensorSetPrecisionTest.*type=boolean.*</filter>
-            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=i4.*</filter>
-            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u4.*</filter>
             <filter>.*InferRequestIOTensorSetPrecisionTest.*type=i16.*</filter>
             <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u16.*</filter>
             <filter>.*InferRequestIOTensorSetPrecisionTest.*type=bf16.*</filter>
@@ -93,16 +146,6 @@ Example:
         <filters>
             <filter>.*smoke_BehaviorTests_OVClassSpecificDeviceTest/OVSpecificDeviceGetConfigTest.GetConfigSpecificDeviceNoThrow.*</filter>
             <filter>.*smoke_BehaviorTests_OVClassSpecificDeviceTest/OVSpecificDeviceTestSetConfig.SetConfigSpecificDeviceNoThrow.*</filter>
-        </filters>
-    </skip_config>
-
-    <skip_config>
-        <message>Output I4 / U4 precision is not currently supported.</message>
-        <filters>
-            <filter>.*smoke.*OVInferRequestCheckTensorPrecision.*type=i4.*</filter>
-            <filter>.*smoke.*OVInferRequestCheckTensorPrecision.*type=u4.*</filter>
-            <filter>.*smoke.*OVInferRequestIOTensorSetPrecisionTestNPU.*type=i4.*</filter>
-            <filter>.*smoke.*OVInferRequestIOTensorSetPrecisionTestNPU.*type=u4.*</filter>
         </filters>
     </skip_config>
 
@@ -220,27 +263,6 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- E#170977 -->
-    <skip_config>
-        <message>Data type u2 not supported by NPU3720</message>
-        <enable_rules>
-            <device>3720</device>
-        </enable_rules>
-        <filters>
-            <filter>.*InferRequestCheckTensorPrecision.*type=u2.*</filter>
-            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u2.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- E###### -->
-    <skip_config>
-        <message>Data type u1 not supported by NPU</message>
-        <filters>
-            <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
-            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u1\D.*</filter>
-        </filters>
-    </skip_config>
-
     <skip_config>
         <message>Tests skipped to reduce overall log length</message>
         <filters>
@@ -252,9 +274,10 @@ Example:
 
     <!-- C#191861 -->
     <skip_config>
-        <message>Blobs for OVBlobCompatibilityNPU need to be updated for NPU5010</message>
+        <message>Blobs for OVBlobCompatibilityNPU need to be updated for NPU5010 and NPU6010</message>
         <enable_rules>
             <device>5010</device>
+            <device>6010</device>
         </enable_rules>
         <filters>
             <filter>.*OVBlobCompatibilityNPU.*</filter>
@@ -370,40 +393,6 @@ Example:
         </enable_rules>
         <filters>
             <filter>.*InferWithHostCompileTests.*model=MaxPool.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- C#191823 -->
-    <skip_config>
-        <message>HostCompile cannot compile the dynamic Add model because AdjustScaleShiftForDWConv requires static Reshape shapes.</message>
-        <enable_rules>
-            <device>4000</device>
-            <device>5010</device>
-        </enable_rules>
-        <filters>
-            <filter>.*DynamicBatchingTests.DynamicCheckMultipleBatchingRun0.*NPU_BATCH_MODE_PLUGIN.*</filter>
-            <filter>.*DynamicBatchingTests.DynamicCheckMultipleBatchingRunsSeq.*NPU_BATCH_MODE_PLUGIN.*</filter>
-            <filter>.*DynamicBatchedTensorsRunTests.DynamicSetInputRemoteTensorsMultipleInfer.*NPU_BATCH_MODE_PLUGIN.*</filter>
-            <filter>.*DynamicBatchedTensorsRunTests.DynamicSetInputRemoteTensorsDynamicBatchInflation.*NPU_BATCH_MODE_PLUGIN.*</filter>
-            <filter>.*DynamicBatchedTensorsRunTests.DynamicSetInputRemoteTensorsDynamicBatchDeflation.*NPU_BATCH_MODE_PLUGIN.*</filter>
-            <filter>.*DynamicBatchedTensorsRunTests.SetInputRemoteSingleBatchedTensorSingleInfer.*NPU_BATCH_MODE_PLUGIN.*</filter>
-            <filter>.*DynamicBatchedTensorsRunTests.SetInputRemoteSingleBatchedTensorSingleInferWithExportImport.*NPU_BATCH_MODE_PLUGIN.*</filter>
-            <filter>.*DynamicBatchedTensorsRunTests.SetInputRemoteSingleBatchedTensorDynamicBatchInflation.*NPU_BATCH_MODE_PLUGIN.*</filter>
-            <filter>.*DynamicBatchedTensorsRunTests.SetInputRemoteSingleBatchedTensorDynamicBatchInflationWithExportImport.*NPU_BATCH_MODE_PLUGIN.*</filter>
-            <filter>.*DynamicBatchedTensorsRunTests.SetInputRemoteSingleBatchedTensorDynamicBatchDeflation.*NPU_BATCH_MODE_PLUGIN.*</filter>
-            <filter>.*DynamicBatchedTensorsRunTests.DynamicSetInputDifferentTensorsMultipleInfer.*NPU_BATCH_MODE_PLUGIN.*</filter>
-            <filter>.*RoiTensorsTestsRun.RunStridedTensorWithDynamicBoundedBatching.*</filter>
-        </filters>
-    </skip_config>
-
-    <skip_config>
-        <message>HostCompile cannot compile the dynamic MaxPool model because ConvertBatchedLayerTo1N requires static AffineReshape shapes.</message>
-        <enable_rules>
-            <device>4000</device>
-            <device>5010</device>
-        </enable_rules>
-        <filters>
-            <filter>.*InferWithDefaultHostCompileTests.CompileDynamicModelWithNoHostCompileMode.*model=MaxPool_NCHW_DynBatch.*</filter>
         </filters>
     </skip_config>
 

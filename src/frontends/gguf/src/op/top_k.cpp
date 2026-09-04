@@ -30,9 +30,8 @@ OutputVector translate_top_k(const NodeContext& context) {
     const int64_t axis = rank.is_static() ? rank.get_length() - 1 : -1;
     ov::Output<ov::Node> k_node;
     if (rank.is_static() && out_ps[rank.get_length() - 1].is_static()) {
-        k_node = ov::op::v0::Constant::create(ov::element::i64,
-                                              ov::Shape{},
-                                              {out_ps[rank.get_length() - 1].get_length()});
+        k_node =
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {out_ps[rank.get_length() - 1].get_length()});
     } else {
         k_node = std::make_shared<ov::op::v0::Squeeze>(
             get_dimensions(input, {static_cast<int>(rank.is_static() ? rank.get_length() - 1 : 3)}),
@@ -45,7 +44,7 @@ OutputVector translate_top_k(const NodeContext& context) {
                                      ov::op::v11::TopK::Mode::MAX,
                                      context.get_attribute<ov::element::Type>("output_type"));
 
-    return rename_outputs_with_suffix({indices}, context.get_name());
+    return rename_outputs_with_suffix({std::move(indices)}, context.get_name());
 }
 
 }  // namespace op

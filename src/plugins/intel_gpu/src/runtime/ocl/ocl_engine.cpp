@@ -247,8 +247,13 @@ memory_ptr ocl_engine::create_hostbuffer(void* cpu_address,
     return create_hostbuffer_impl(cpu_address, data_size, _allocation_type, output_layout, CL_MEM_READ_WRITE);
 }
 
-memory_ptr ocl_engine::create_hostbuffer(const void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) {
-    return create_hostbuffer_impl(const_cast<void*>(cpu_address), data_size, _allocation_type, output_layout, CL_MEM_READ_ONLY);
+memory_ptr ocl_engine::create_hostbuffer(const void* cpu_address,
+                                         size_t data_size,
+                                         allocation_type _allocation_type,
+                                         const layout output_layout,
+                                         bool host_read_only) {
+    cl_mem_flags flags = host_read_only ? (CL_MEM_READ_ONLY | CL_MEM_HOST_READ_ONLY) : CL_MEM_READ_ONLY;
+    return create_hostbuffer_impl(const_cast<void*>(cpu_address), data_size, _allocation_type, output_layout, flags);
 }
 
 memory::ptr ocl_engine::reinterpret_buffer(const memory& memory, const layout& new_layout) {

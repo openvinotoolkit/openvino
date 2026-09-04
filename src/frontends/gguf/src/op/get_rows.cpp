@@ -29,6 +29,22 @@ OutputVector translate_get_rows(const NodeContext& context) {
     auto data = context.get_input(0);
     auto indices = context.get_input(1);
 
+    if (op_case == 3) {
+        return {std::move(data)};
+    }
+
+    if (op_case == 4) {
+        auto flat_indices =
+            std::make_shared<ov::op::v0::Squeeze>(indices,
+                                                  ov::op::v0::Constant::create(ov::element::i64, {3}, {0, 1, 2}));
+        auto axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {2});
+        res = std::make_shared<ov::op::v8::Gather>(data, flat_indices, axis);
+        if (res.get_element_type() != context.get_output_type()) {
+            res = std::make_shared<ov::op::v0::Convert>(res, context.get_output_type());
+        }
+        return rename_outputs_with_suffix({std::move(res)}, context.get_name());
+    }
+
     // MoE gating-weight gather (op_case 10): data = probs [1,1,T,E], indices = selected experts
     // [1,1,T,K]; per-row (GatherElements) gather over the expert axis picks each token's K
     // selected-expert probs -> [1,1,T,K], distinct from the embedding-style row gather below.
@@ -44,7 +60,7 @@ OutputVector translate_get_rows(const NodeContext& context) {
             ge,
             ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, -1, K, 1}),
             false);  // [1,T,K,1]
-        return rename_outputs_with_suffix({col}, context.get_name());
+        return rename_outputs_with_suffix({std::move(col)}, context.get_name());
     }
 
     if (op_case == 2) {
@@ -79,7 +95,7 @@ OutputVector translate_get_rows(const NodeContext& context) {
     }
     // The two Squeezes above dropped the leading axes; restore ggml's rank-4 form.
     res = std::make_shared<ov::op::v0::Unsqueeze>(res, ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

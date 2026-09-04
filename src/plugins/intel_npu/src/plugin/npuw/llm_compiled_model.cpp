@@ -9,13 +9,13 @@
 #include "embedding/redirect_new_kv_to_output.hpp"
 #include "embedding/remove_empty_kv_inputs.hpp"
 #include "infer_request_utils.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "llm_compiled_model_utils.hpp"
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
 #include "moe_transformations/apply_moe_device_routed_transforms.hpp"
 #include "npuw_transformations/add_position_ids_param.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
-#include "npuw_transformations/decompose_gqa.hpp"
 #include "npuw_transformations/detect_causal_mask.hpp"
 #include "npuw_transformations/duplicate_shared_kv_concat.hpp"
 #include "npuw_transformations/lora_stateful_to_stateless.hpp"
@@ -257,10 +257,13 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
         LOG_WARN(compiler_gate_support_msg << "unsupported");
     }
 
-    if (desc.arch == "5010" && desc.compiler_ver >= ONEAPI_MAKE_VERSION(8, 1)) {
-        // Flash attention tile with GQA is supported starting from compiler version 8.1 on NPU5010
-        desc.support_flash_attention_tile = true;
-    }
+    static const std::unordered_set<std::string_view> flash_attention_tile_supported_platforms = {
+        ov::intel_npu::Platform::NPU5010,
+        ov::intel_npu::Platform::NPU6010};
+
+    // Flash attention tile with GQA is supported starting from compiler version 8.1 on supported platforms
+    desc.support_flash_attention_tile =
+        flash_attention_tile_supported_platforms.count(desc.arch) && desc.compiler_ver >= ONEAPI_MAKE_VERSION(8, 1);
 
     return std::make_optional(std::move(desc));
 }
@@ -425,6 +428,33 @@ void split_llm_properties(const ov::AnyMap& properties, ov::AnyMap& llm_properti
         } else {
             other_properties.insert(*it);
         }
+    }
+}
+
+// Decide on using fused flash attention tile based on provided option and NPU capabilities.
+// If hardware supports and attention hint is set to HFA, then we can use fused flash attention implementation
+// automatically, unless user explicitly disables it via NPUW_ATTN_HFA_FUSED=NO option.
+void resolve_hfa_fused_attention(::intel_npu::Config& cfg,
+                                 ov::AnyMap& other_props,
+                                 const std::optional<NPUDesc>& npudesc) {
+    uint32_t max_prompt_len = align_to(cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
+    const auto prefill_attn_hint_provided = cfg.has<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>();
+    const auto hfa_fused_npu_supported = npudesc.has_value() && npudesc->support_flash_attention_tile;
+    const auto prompt_length_supported =
+        max_prompt_len >= 4096;  // HFA fused attention tile is optimal prompt length >= 4096
+
+    // If NPUW_LLM_PREFILL_ATTENTION_HINT was not provided, set HFA automatically
+    // when the hardware and prompt length favor the fused flash attention tile implementation
+    if (!prefill_attn_hint_provided && hfa_fused_npu_supported && prompt_length_supported) {
+        cfg.update({{"NPUW_LLM_PREFILL_ATTENTION_HINT", "HFA"}});
+        LOG_INFO("Auto-selected NPUW_LLM_PREFILL_ATTENTION_HINT to HFA");
+    }
+
+    const auto is_hfa =
+        cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>() == ::intel_npu::npuw::llm::AttentionHint::HFA;
+    if (other_props.count("NPUW_ATTN_HFA_FUSED") == 0 && is_hfa && hfa_fused_npu_supported) {
+        other_props["NPUW_ATTN_HFA_FUSED"] = "YES";
+        LOG_INFO("Set NPUW_ATTN_HFA_FUSED to YES");
     }
 }
 
@@ -755,16 +785,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     refine_dynamic_props(npuw_llm_props, npudesc);
     m_cfg.update(any_copy(npuw_llm_props));
 
-    // Decide on using fused flash attention tile based on provided option and NPU capabilities.
-    // If hardware supports and attention hint is set to HFA, then we can use fused flash attention implementation
-    // automatically, unless user explicitly disables it via NPUW_ATTN_HFA_FUSED=NO option.
-    const auto is_hfa =
-        m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>() == ::intel_npu::npuw::llm::AttentionHint::HFA;
-    const auto hfa_fused_npu_supported = npudesc.has_value() && npudesc->support_flash_attention_tile;
-    if (other_props.count("NPUW_ATTN_HFA_FUSED") == 0 && is_hfa && hfa_fused_npu_supported) {
-        other_props["NPUW_ATTN_HFA_FUSED"] = "YES";
-        LOG_INFO("Set NPUW_ATTN_HFA_FUSED to YES");
-    }
+    resolve_hfa_fused_attention(m_cfg, other_props, npudesc);
 
     m_is_whisper = m_cfg.get<::intel_npu::NPUW_WHISPER>();
     if (m_is_whisper) {
@@ -1028,12 +1049,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             .run_on_model(lm_head_model);
     }
 
-    LOG_DEBUG("5.1, decompose GroupQueryAttention OP");
-    ov::npuw::DecomposeGQA(true).run_on_model(prefill_model);
-    for (auto& model_variant : generate_model_variants) {
-        ov::npuw::DecomposeGQA(false).run_on_model(model_variant);
-    }
-
     const auto prefill_attn_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>();
     const auto generate_attn_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT>();
     const bool prefill_attn_dyn = prefill_attn_hint == ::intel_npu::npuw::llm::AttentionHint::DYNAMIC;
@@ -1218,7 +1233,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
 
     m_longrope_context_limit =
-        ov::npuw::patterns::pre_compute::extract_phi_v5_longrope_context_limit(prefill_model).value_or(0u);
+        ov::npuw::patterns::pre_compute::extract_longrope_context_limit(prefill_model).value_or(0u);
     if (m_longrope_context_limit > 0u) {
         LOG_INFO("Detected long-rope context limit: " << m_longrope_context_limit);
     }
@@ -1229,12 +1244,26 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         const bool is_best = (generate_hint == ::intel_npu::npuw::llm::GenerateHint::BEST_PERF);
         const bool force_rope_cache = m_longrope_context_limit > 0u;
 
+        // Every variant derives its coefficients from the same model constants and
+        // indexes them by absolute position, so the tables only differ in length -
+        // keep one set covering the longest LUT.
+        auto absorb_longrope_tables = [this](const auto& tables) {
+            if (tables.rotary_ndims == 0) {
+                return;
+            }
+            if (m_longrope_tables.rotary_ndims == 0) {
+                m_longrope_tables = tables;
+            } else {
+                NPUW_ASSERT(m_longrope_tables.rotary_ndims == tables.rotary_ndims);
+                m_longrope_tables.max_len = std::max(m_longrope_tables.max_len, tables.max_len);
+            }
+        };
+
         if (!is_best || (max_prompt_len >= CACHE_ROPE_START || force_rope_cache)) {
             LOG_DEBUG("Enable RoPE Cache for prefill");
-            ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(
-                max_prompt_len,
-                ov::npuw::LLMInferRequest::layer_names::longrope_input);
+            ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(max_prompt_len);
             rope_prefill_cacher.run_on_model(prefill_model);
+            absorb_longrope_tables(rope_prefill_cacher.host_tables());
         }
 
         // Apply RoPE Cache to all generate variant models
@@ -1242,12 +1271,22 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             const uint32_t kv_size = m_kvcache_sizes[i];
             if (!is_best || (kv_size >= CACHE_ROPE_START || force_rope_cache)) {
                 LOG_DEBUG("Enable RoPE Cache for generate variant with size: " << kv_size);
-                ov::npuw::patterns::pre_compute::RopeCache rope_cacher(
-                    kv_size,
-                    ov::npuw::LLMInferRequest::layer_names::longrope_input);
+                ov::npuw::patterns::pre_compute::RopeCache rope_cacher(kv_size);
                 rope_cacher.run_on_model(generate_model_variants[i]);
+                absorb_longrope_tables(rope_cacher.host_tables());
             }
         }
+
+        // The long factors are only worth materializing if a position can actually reach
+        // the context limit and they differ from the short ones - models that declare
+        // LongRoPE but set the limit at (or beyond) their whole context, or repeat the
+        // same factors twice, always run in the short regime.
+        m_longrope_tables.has_long = m_longrope_context_limit < m_longrope_tables.max_len &&
+                                     m_longrope_tables.inv_freq_long != m_longrope_tables.inv_freq_short;
+        if (m_longrope_tables.rotary_ndims > 0 && !m_longrope_tables.has_long) {
+            LOG_INFO("LongRoPE long factors are unreachable for this configuration - keeping the short ones only");
+        }
+        m_longrope_tables.rebuild_tables();
     }
 
     if (is_moe) {
@@ -1474,6 +1513,13 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
             m_enable_prefix_caching & m_prefix_caching_block_size & m_prefix_caching_max_num_blocks &
             m_longrope_context_limit & m_is_whisper & m_eos_token_id & m_decomposed_sdpa_size & m_is_eagle &
             m_is_embedding & m_is_block_kv_cache & m_is_encoder_embedding;
+
+        // LongRoPE cos/sin tables: the transformed graphs have npuw_lr_cos/npuw_lr_sin
+        // inputs the host must fill every call, but deserialization imports already-
+        // compiled children and never re-runs RopeCache - so they have to travel with
+        // the blob. Only the dimensions and the two inverse-frequency arrays are
+        // written; LongRopeCosSin::serialize() rebuilds the tables on read.
+        stream & m_longrope_tables;
 
         // Write config
         stream & m_cfg;
@@ -1702,6 +1748,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
             compiled->m_decomposed_sdpa_size & compiled->m_is_eagle & compiled->m_is_embedding &
             compiled->m_is_block_kv_cache & compiled->m_is_encoder_embedding;
 
+        // LongRoPE cos/sin tables - see the matching comment in serialize()
+        stream & compiled->m_longrope_tables;
+
         // Deserialize config
         stream & compiled->m_cfg;
         compiled->implement_properties();
@@ -1801,24 +1850,28 @@ bool ov::npuw::LLMCompiledModel::compute_continuous_prefill_supported() const {
             }
         }
     }
-    // Position ids must form a single linear sequence: 3-D M-RoPE cannot be validated
-    // as a contiguous continuation and is excluded statically. A read-only property
-    // must never throw, so a dynamic rank is treated as unsupported rather than
-    // queried through PartialShape::size(), which asserts a static rank.
+    // The request-level API must carry position ids: the prefill submodel gains them
+    // from AddPositionIdsParam even when the original model has none, and a
+    // synthesized sequence cannot express a continuation start.
+    if (!ov::npuw::util::find_port_by_name(inputs(), ov::npuw::LLMInferRequest::layer_names::position_ids)
+             .has_value()) {
+        return false;
+    }
+    // Position ids must be the exact [batch, seq] sequence the runtime validation
+    // accepts: 3-D M-RoPE cannot be validated as a contiguous continuation. A
+    // read-only property must never throw, so a dynamic rank is treated as
+    // unsupported rather than queried through PartialShape::size(), which asserts
+    // a static rank.
     const auto position_ids_port =
         ov::npuw::util::find_port_by_name(prefill_inputs, ov::npuw::LLMInferRequest::layer_names::position_ids);
     if (!position_ids_port.has_value()) {
         return false;
     }
     const auto& position_ids_rank = position_ids_port.value().get_partial_shape().rank();
-    if (position_ids_rank.is_dynamic() || position_ids_rank.get_length() >= 3) {
+    if (position_ids_rank.is_dynamic() || position_ids_rank.get_length() != 2) {
         return false;
     }
-    // Every static exclusion above passed, but this change carries the protocol only:
-    // nothing attaches the coordinator to the variable state yet, so a proposal would
-    // throw. A capability the request cannot honour must never be advertised, so the
-    // answer stays false until the delta prefill path lands and lifts this.
-    return false;
+    return true;
 }
 
 ov::Any ov::npuw::LLMCompiledModel::get_property(const std::string& name) const {

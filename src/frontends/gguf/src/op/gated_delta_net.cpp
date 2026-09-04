@@ -2,15 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/gated_delta_net.hpp"
+
 #include <cmath>
 #include <cstdint>
 #include <memory>
+#include <vector>
+
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/exp.hpp"
-#include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/matmul.hpp"
@@ -22,10 +27,6 @@
 #include "openvino/op/tile.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include <vector>
-
-#include "node_context.hpp"
-#include "op_table.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -103,11 +104,10 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     auto new_state = std::make_shared<ov::op::v1::Reshape>(state_transposed, flat_shape_1d, false);
     auto packed = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{attn, new_state}, 0);
     // [1, 1, T*B + S_v*B, S_v*H_v] with the row axis dynamic via -1.
-    auto out_shape =
-        ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, 1, -1, S_v * H_v});
+    auto out_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, 1, -1, S_v * H_v});
     auto res = std::make_shared<ov::op::v1::Reshape>(packed, out_shape, false);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 // Serializable reference path: a recurrent OV Loop scan over the sequence built from core ops,
@@ -138,7 +138,7 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
 
     // T is dynamic at runtime: T-dependent reshapes use -1 and the Loop trip count is read at
     // runtime, so the convert-time T is only used for the static dims (B/H_v/S_v/H_k).
-    (void) T;
+    (void)T;
 
     auto axis_0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
     auto axis_1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
@@ -159,8 +159,10 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
         auto q_unsq = std::make_shared<ov::op::v0::Unsqueeze>(q_t, axis_2);
         auto k_unsq = std::make_shared<ov::op::v0::Unsqueeze>(k_t, axis_2);
         auto bcast_shape = ov::op::v0::Constant::create(ov::element::i64, {5}, std::vector<int64_t>{1, 1, rq1, 1, 1});
-        auto q_bcast = std::make_shared<ov::op::v3::Broadcast>(q_unsq, bcast_shape, ov::op::BroadcastType::BIDIRECTIONAL);
-        auto k_bcast = std::make_shared<ov::op::v3::Broadcast>(k_unsq, bcast_shape, ov::op::BroadcastType::BIDIRECTIONAL);
+        auto q_bcast =
+            std::make_shared<ov::op::v3::Broadcast>(q_unsq, bcast_shape, ov::op::BroadcastType::BIDIRECTIONAL);
+        auto k_bcast =
+            std::make_shared<ov::op::v3::Broadcast>(k_unsq, bcast_shape, ov::op::BroadcastType::BIDIRECTIONAL);
         auto perm_5d = ov::op::v0::Constant::create(ov::element::i64, {5}, std::vector<int64_t>{0, 2, 1, 3, 4});
         auto q_transposed = std::make_shared<ov::op::v1::Transpose>(q_bcast, perm_5d);
         auto k_transposed = std::make_shared<ov::op::v1::Transpose>(k_bcast, perm_5d);
@@ -267,11 +269,10 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
 
     auto packed = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{attn_1d, state_1d}, 0);
     // [1, 1, -1, S_v*H_v]: the row axis (T*B + S_v*B) is dynamic via -1.
-    auto out_shape =
-        ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, 1, -1, S_v * H_v});
+    auto out_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, 1, -1, S_v * H_v});
     auto res = std::make_shared<ov::op::v1::Reshape>(packed, out_shape, false);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

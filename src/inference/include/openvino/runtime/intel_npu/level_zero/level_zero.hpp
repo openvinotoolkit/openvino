@@ -125,7 +125,7 @@ public:
     }
 
     /**
-     * @brief This function is used to obtain remote tensor object from user-supplied DMA-BUF System Heap object
+     * @brief This function is used to obtain remote tensor object from user-supplied DMA-BUF file descriptor object
      * @param type Tensor element type
      * @param shape Tensor shape
      * @param fd A int object that should be wrapped by a remote tensor

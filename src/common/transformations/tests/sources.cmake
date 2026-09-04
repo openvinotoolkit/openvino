@@ -104,6 +104,7 @@ set(COMMON_OPTIMIZATIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/pad_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/paged_causal_conv1d_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/paged_gated_delta_net_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/paged_selective_ssm_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/preprocessing_fusion_tests.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/pull_through_reduce_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/push_constant_to_subgraphs.cpp
@@ -235,6 +236,7 @@ set(OP_CONVERSIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/normalize_l2_decomposition_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/reduce_l1_decomposition_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/reduce_l2_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/rnn_cell_decomposition_clip_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/scaled_dot_product_decomposition_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/sdpa_to_paged_attention_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/simplify_ctc_greedy_decoder_seq_len_test.cpp

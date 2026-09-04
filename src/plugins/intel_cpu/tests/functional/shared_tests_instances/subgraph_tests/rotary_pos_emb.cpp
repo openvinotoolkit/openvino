@@ -9,16 +9,14 @@ namespace test {
 
 INSTANTIATE_TEST_SUITE_P(smoke_RoPETestLlama2StridedSlice,
                          RoPETestLlama2StridedSlice,
-                         ::testing::Combine(
-                            ::testing::Values(ov::element::f32),
-                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ::testing::Combine(::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          RoPETestLlama2StridedSlice::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_RoPETestChatGLMStridedSlice,
                          RoPETestChatGLMStridedSlice,
-                         ::testing::Combine(
-                            ::testing::Values(ov::element::f32),
-                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ::testing::Combine(::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          RoPETestChatGLMStridedSlice::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_RoPETestQwen7bStridedSlice,
@@ -37,16 +35,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_RoPETestGPTJStridedSlice,
 
 INSTANTIATE_TEST_SUITE_P(smoke_RoPETestLlama2Slice,
                          RoPETestLlama2Slice,
-                         ::testing::Combine(
-                            ::testing::Values(ov::element::f32),
-                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ::testing::Combine(::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          RoPETestLlama2Slice::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_RoPETestChatGLMSlice,
                          RoPETestChatGLMSlice,
-                         ::testing::Combine(
-                            ::testing::Values(ov::element::f32),
-                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ::testing::Combine(::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          RoPETestChatGLMSlice::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_RoPETestQwen7bSlice,
@@ -65,18 +61,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_RoPETestGPTJSlice,
 
 INSTANTIATE_TEST_SUITE_P(smoke_RoPETestChatGLM,
                          RoPETestChatGLM2DRoPEStridedSlice,
-                         ::testing::Combine(
-                            ::testing::Values(ov::element::f32),
-                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ::testing::Combine(::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          RoPETestChatGLM2DRoPEStridedSlice::getTestCaseName);
 
 const std::vector<std::string> vit_param = {"VariadicSplit", "Slice", "StridedSlice"};
 INSTANTIATE_TEST_SUITE_P(smoke_RoPETestQwenVL,
                          RoPETestQwenVL,
-                         ::testing::Combine(
-                            ::testing::Values(ov::element::f32),
-                            ::testing::Values(ov::test::utils::DEVICE_CPU),
-                            ::testing::ValuesIn(vit_param)),
+                         ::testing::Combine(::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::ValuesIn(vit_param)),
                          RoPETestQwenVL::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_RoPETestChatGLM,
@@ -88,14 +82,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_RoPETestChatGLM,
 
 INSTANTIATE_TEST_SUITE_P(smoke_RoPETestGPTOSS,
                          RoPETestGPTOSS,
-                         ::testing::Combine(
-                            ::testing::Values(ov::element::f32),
-                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ::testing::Combine(::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          RoPETestGPTOSS::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_RoPETestLtxVideo,
                          RoPETestLtxVideo,
-                         ::testing::Combine(::testing::Values(ov::element::f32),
+                         ::testing::Combine(::testing::Values(ov::element::f32, ov::element::bf16, ov::element::f16),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          RoPETestLtxVideo::getTestCaseName);
 
