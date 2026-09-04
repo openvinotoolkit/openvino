@@ -43,12 +43,10 @@ void KernelBase::CheckDispatchData(const std::string& kernelName, const kernel_s
                                      ": Dispatch data cannot contain zeros. Actual: " +
                                      toString(dispatchData));
 
-        if (!engineInfo.supports_non_uniform_work_group) {
-            if (dispatchData.gws[i] % dispatchData.lws[i] != 0)
-                throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName +
-                                        ": GWS must be divisible by corresponding LWS. Actual: " +
-                                        toString(dispatchData));
-        }
+        if (dispatchData.gws[i] % dispatchData.lws[i] != 0)
+            throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName +
+                                    ": GWS must be divisible by corresponding LWS. Actual: " +
+                                    toString(dispatchData));
     }
 }
 
