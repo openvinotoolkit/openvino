@@ -196,13 +196,8 @@ std::vector<TRShape> shape_infer(const StridedSlice* op,
                     auto sliced_dim =
                         start && stop ? slice::make_dim(input_dim, *start, *stop, stride) : last_dynamic_dim->second;
 
-                    // Propagate the input symbol only if the sliced dimension is equal to the input dimension and the
-                    // slice provably preserves its size. Equal intervals do not imply equal sizes (e.g. stride 2 on
-                    // [1..inf]), and unknown begin/end cannot prove it either; the interval check itself is unchanged,
-                    // so this can only remove symbol equalities.
-                    if (start && stop && sliced_dim == input_dim && sliced_dim != Dimension::dynamic() &&
-                        (input_dim.is_static() || slice::is_identity_slice(input_dim, *start, *stop, stride))) {
-                        DimType::merge(sliced_dim, sliced_dim, input_dim);
+                    if (start && stop) {  // unknown begin/end cannot prove that the size is preserved
+                        slice::merge_symbol_if_size_preserved(sliced_dim, input_dim, *start, *stop, stride);
                     }
 
                     out.push_back(std::move(sliced_dim));

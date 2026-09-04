@@ -256,9 +256,8 @@ TEST(type_prop, slice_v8_basic_param_inputs_default_axes_symbols_prop) {
 
     EXPECT_EQ(op->get_element_type(), et);
     EXPECT_EQ(op->get_output_partial_shape(0), expected_out_shape);
-    // start, stop and step are not constant: the sliced size is unknown for every axis in the axes list (0..6), so
-    // no symbol is propagated there even if the output interval matches the input one (dims 0 and 6; dim 4 is fully
-    // dynamic and never propagates its symbol)
+    // non-constant start/stop/step: no symbol is propagated on the sliced axes 0..6, even where the output interval
+    // equals the input one (dims 0 and 6)
     EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
                 ElementsAre(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, symbols[7], symbols[8]));
 }
@@ -1268,8 +1267,7 @@ TEST_P(SliceV8IntervalTest, start_stop_as_interval) {
 }
 
 TEST(type_prop, slice_v8_step_2_on_unbounded_dims_does_not_propagate_symbols) {
-    // Regression: a strided (step 2) slice over dims with bounds [1..inf] keeps the same interval as its input,
-    // but its size is ceil(D/2) != D, so the input dimension symbols must not be propagated to the output.
+    // Step 2 on [1..inf] keeps the interval but changes the size (ceil(D/2)), so the symbols must not be propagated.
     PartialShape data_shape{-1, Dimension(1, -1), Dimension(1, -1), 96};
     PartialShape expected_out_shape{-1, Dimension(1, -1), Dimension(1, -1), 96};
     auto symbols = set_shape_symbols(data_shape);
@@ -1289,7 +1287,7 @@ TEST(type_prop, slice_v8_step_2_on_unbounded_dims_does_not_propagate_symbols) {
 }
 
 TEST(type_prop, slice_v8_step_2_from_1_on_unbounded_dims_does_not_propagate_symbols) {
-    // Control: the same slice starting at 1 yields [0..inf] which already blocks the symbol propagation today.
+    // Start 1 yields [0..inf] != [1..inf], so the interval check alone blocks the symbol propagation.
     PartialShape data_shape{-1, Dimension(1, -1), Dimension(1, -1), 96};
     PartialShape expected_out_shape{-1, Dimension(0, -1), Dimension(0, -1), 96};
     auto symbols = set_shape_symbols(data_shape);
@@ -1309,7 +1307,7 @@ TEST(type_prop, slice_v8_step_2_from_1_on_unbounded_dims_does_not_propagate_symb
 }
 
 TEST(type_prop, slice_v8_full_range_step_1_on_unbounded_dims_propagates_symbols) {
-    // Control: an identity slice (start 0, stop max, step 1) preserves the size, so symbols are kept.
+    // An identity slice (start 0, stop max, step 1) preserves the size, so the symbols are kept.
     PartialShape data_shape{-1, Dimension(1, -1), Dimension(1, -1), 96};
     PartialShape expected_out_shape{-1, Dimension(1, -1), Dimension(1, -1), 96};
     auto symbols = set_shape_symbols(data_shape);
@@ -1348,7 +1346,8 @@ TEST(type_prop, slice_v8_bounded_dims_full_range_propagates_symbols_only_when_st
 }
 
 TEST(type_prop, slice_v8_bounded_dims_full_reverse_propagates_symbols) {
-    // start >= max - 1 with stop <= -max - 1 and step -1 reverses the whole dimension for every length in [2..5].
+    // start >= max - 1 with stop <= -max - 1 and step -1 reverses the whole dimension for every length in [2..5];
+    // start 3 does not (5 -> 4).
     PartialShape data_shape{Dimension(2, 5), Dimension(2, 5)};
     PartialShape expected_out_shape{Dimension(2, 5), Dimension(2, 4)};
     auto symbols = set_shape_symbols(data_shape);
@@ -1387,7 +1386,7 @@ TEST(type_prop, slice_v8_negative_start_with_bounds_does_not_propagate_symbols) 
     EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(symbols[0], nullptr, symbols[2]));
 }
 
-TEST(type_prop, slice_v8_stop_is_shape_of_input_dim_on_unbounded_dims) {
+TEST(type_prop, slice_v8_stop_is_shape_of_input_dim_on_unbounded_dims_does_not_propagate_symbols) {
     // x[:, :ShapeOf(x)[1], :ShapeOf(x)[2]]: the stop bounds are (1, INT64_MAX) so the output interval equals the input,
     // but the bounds alone do not prove the size is preserved; the symbols are not propagated.
     PartialShape data_shape{-1, Dimension(1, -1), Dimension(1, -1), 96};
