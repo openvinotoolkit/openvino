@@ -13,6 +13,7 @@
 #include <array>
 #include <cctype>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <mutex>
@@ -476,6 +477,13 @@ bool needs_q8_0_c_requant(const std::string& name, GgufTensorType qtype) {
     return qtype == GGUF_TYPE_Q5_K;
 }
 
+// Keep an exact-decode escape hatch for strict validation against ggml's original Q4_K values.
+// Production leaves this unset and uses the compressed-FC-friendly u4 requantization.
+bool q4_k_f16_zero_point_enabled() {
+    const char* env = std::getenv("OV_GGUF_Q4_K_ZP_F16");
+    return env != nullptr && *env != '\0' && std::strcmp(env, "0") != 0;
+}
+
 }  // namespace
 
 void notify_lossy_weight_approximation(LossyWeightApproximation kind) {
@@ -514,11 +522,12 @@ void notify_lossy_weight_approximation(LossyWeightApproximation kind) {
 ov::element::Type gguf_zero_point_type(const std::string& name, GgufTensorType qtype) {
     // The CPU compressed-FullyConnected fast path only folds the dequant when the zero-point is an
     // INTEGER constant; a fractional f16 one leaves a ~2x slower kernel. Q4_K matmul weights are
-    // decoded and requantized to an OpenVINO u4 grid with an integer zero-point. Q2_0's zero-point
-    // is exactly 1, so u8 is faithful there. Other asymmetric formats keep f16 because their
-    // zero-point can exceed u8 range. Tensors selected for Q8_0_C are excluded because their
+    // decoded and requantized to an OpenVINO u4 grid with an integer zero-point. Strict oracle
+    // validation can request Q4_K's faithful f16 zero-point via OV_GGUF_Q4_K_ZP_F16. Q2_0's
+    // zero-point is exactly 1, so u8 is faithful there. Other asymmetric formats keep f16 because
+    // their zero-point can exceed u8 range. Tensors selected for Q8_0_C are excluded because their
     // faithful dequantization feeds that separate requantization path.
-    const bool integer_zp = qtype == GGUF_TYPE_Q2_0 || qtype == GGUF_TYPE_Q4_K;
+    const bool integer_zp = qtype == GGUF_TYPE_Q2_0 || (qtype == GGUF_TYPE_Q4_K && !q4_k_f16_zero_point_enabled());
     return (integer_zp && !needs_q8_0_c_requant(name, qtype)) ? ov::element::u8 : ov::element::f16;
 }
 
