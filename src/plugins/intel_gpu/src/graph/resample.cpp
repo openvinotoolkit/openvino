@@ -90,7 +90,7 @@ static std::vector<layout> calc_output_layouts(resample_node const& /*node*/, co
         tensors.emplace(3, ov::Tensor(ov::element::i64, axes_shape, axes.data()));
     }
 
-    auto& memory_deps = impl_param.memory_deps;
+    const auto& memory_deps = impl_param.memory_deps;
     const auto ta = MemoryAccessor(&memory_deps, impl_param.get_stream(), ov::make_tensor_accessor(tensors));
 
     auto pads_begin = desc->pads_begin;
@@ -143,7 +143,7 @@ static std::vector<layout> calc_output_layouts(resample_node const& /*node*/, co
         tensors.emplace(2, ov::Tensor(ov::element::i64, axes_shape, axes.data()));
     }
 
-    auto& memory_deps = impl_param.memory_deps;
+    const auto& memory_deps = impl_param.memory_deps;
     const auto ta = MemoryAccessor(&memory_deps, impl_param.get_stream(), ov::make_tensor_accessor(tensors));
 
     auto pads_begin = desc->pads_begin;
@@ -163,8 +163,7 @@ std::vector<layout> resample_inst::calc_output_layouts(resample_node const& node
     auto desc = impl_param.typed_desc<resample>();
     if (desc->operation_type == Mode::BILINEAR_PILLOW || desc->operation_type == Mode::BICUBIC_PILLOW)
         return v11::calc_output_layouts<ShapeType>(node, impl_param);
-    else
-        return v4::calc_output_layouts<ShapeType>(node, impl_param);
+    return v4::calc_output_layouts<ShapeType>(node, impl_param);
 }
 
 template std::vector<layout> resample_inst::calc_output_layouts<ov::PartialShape>(resample_node const& node, const kernel_impl_params& impl_param);
@@ -194,7 +193,7 @@ std::string resample_inst::to_string(resample_node const& node) {
 
     if (desc->shape_calc_mode == resample::InterpolateOp::ShapeCalcMode::SCALES) {
         std::string axesAndScalesDump;
-        std::string delim = "";
+        std::string delim;
         for (size_t i = 0; i < desc->axes.size(); i++) {
             axesAndScalesDump += delim;
             delim = ", ";

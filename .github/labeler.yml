@@ -71,6 +71,11 @@
 - 'src/frontends/common/include/openvino/frontend/extension.hpp'
 - 'src/frontends/common/include/openvino/frontend/extension/**/*'
 
+'category: GGUF FE':
+- 'src/frontends/gguf/**/*'
+- 'tests/model_hub_tests/gguf/**/*'
+- 'tests/requirements_gguf'
+
 'category: GPU':
 - 'src/plugins/intel_gpu/**/*'
 - 'thirdparty/ocl/**/*'
@@ -154,7 +159,8 @@
 - 'tests/requirements_tensorflow'
 - any: ['tests/model_hub_tests/**',
         '!tests/model_hub_tests/pytorch/**/*',
-        '!tests/model_hub_tests/jax/**/*']
+        '!tests/model_hub_tests/jax/**/*',
+        '!tests/model_hub_tests/gguf/**/*']
 
 'category: TFL FE':
 - 'src/frontends/tensorflow_lite/**/*'
@@ -170,7 +176,8 @@
 - 'tests/requirements_pytorch'
 - any: ['tests/model_hub_tests/**',
         '!tests/model_hub_tests/tensorflow/**/*',
-        '!tests/model_hub_tests/jax/**/*']
+        '!tests/model_hub_tests/jax/**/*',
+        '!tests/model_hub_tests/gguf/**/*']
 
 'category: JAX FE':
 - 'src/frontends/jax/**/*'
@@ -178,7 +185,8 @@
 - 'tests/layer_tests/jax_tests/**/*'
 - any: ['tests/model_hub_tests/**',
         '!tests/model_hub_tests/tensorflow/**/*',
-        '!tests/model_hub_tests/pytorch/**/*']
+        '!tests/model_hub_tests/pytorch/**/*',
+        '!tests/model_hub_tests/gguf/**/*']
 
 'category: tools':
 - any: ['tools/**',

@@ -11,7 +11,7 @@ class ResampleKernelRef : public ResampleKernelBase {
 public:
     using Parent = ResampleKernelBase;
     ResampleKernelRef() : ResampleKernelBase("resample_ref") {}
-    ~ResampleKernelRef() override {}
+    ~ResampleKernelRef() override = default;
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

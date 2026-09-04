@@ -31,6 +31,11 @@ on:
         type: string
         required: false
         default: 'vs2022'
+      build-samples:
+        description: 'Whether to build OpenVINO C++/C samples and include them in the OpenVINO package'
+        type: boolean
+        required: false
+        default: false
 
 permissions: read-all
 
@@ -137,7 +142,7 @@ jobs:
           # python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
 
           # For getting rid of SSL issues during model downloading for unit tests
-          python3 -m pip install certifi
+          python3 -m pip install certifi==2026.7.22 packaging==26.3
 
       #
       # Build
@@ -157,15 +162,22 @@ jobs:
 
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        if: ${{ contains(inputs.build-variant, 'vs2022') }}
         with:
-          toolset: 14.42 # v2022
+          toolset: "14.42" # v2022
+
+      - name: Configure Developer Command Prompt for Microsoft Visual C++ for VS 2026
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        if: ${{ inputs.build-variant == 'vs2026' }}
+        with:
+          toolset: "14.50" # v2026
 
       - name: Set SSL_CERT_FILE for model downloading for unit tests
         run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
       - name: CMake configure
         env:
-          CMAKE_OPTIONS: ${{ inputs.cmake-options }}
+          CMAKE_OPTIONS: ${{ inputs.cmake-options }} -DENABLE_SAMPLES=${{ inputs.build-samples && 'ON' || 'OFF' }}
         run: |
           $cmakeOptions = "$env:CMAKE_OPTIONS"
           $splitCmakeOptions = $cmakeOptions.Split(" ")
@@ -189,6 +201,11 @@ jobs:
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_TEST_DIR }} --component tests
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_PDB_DIR }} --component pdb
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DEV_PACKAGE }} --component developer_package
+
+      # Samples are built by the main build (ENABLE_SAMPLES=ON); install their binaries into the package
+      - name: Install OpenVINO samples
+        if: ${{ inputs.build-samples }}
+        run: cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }} --component samples_bin
 
       # Setup additional Python versions for wheels building
       - name: Setup Python 3.10

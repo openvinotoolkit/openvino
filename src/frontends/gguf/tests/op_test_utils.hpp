@@ -16,25 +16,27 @@
 
 #pragma once
 
-#include <cnpy.h>
-#include <gtest/gtest.h>
-
 #include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
+#include "cnpy.h"
 #include "common_test_utils/file_utils.hpp"
+#include "gtest/gtest.h"
 #include "op_table.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/visibility.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/util/file_util.hpp"
 
@@ -47,6 +49,16 @@
 namespace ov_gguf_test {
 
 using namespace ov::frontend::gguf;
+
+// Set of ggml op types that some test in this binary has actually converted.  Every
+// SingleOpDecoder construction records its op type here, so the record is a by-product of the tests
+// running rather than a hand-maintained list that can drift.  Checked against op_table.cpp by the
+// coverage gate in test_op_coverage.cpp, which therefore fails when a new op is registered without
+// a test.  Populated at run time, so the gate has to run last -- see that file for how.
+inline std::set<std::string>& converted_op_types() {
+    static std::set<std::string> ops;
+    return ops;
+}
 
 // Description of one tensor (graph input or op output) in the single-op model.
 struct TensorDesc {
@@ -70,6 +82,7 @@ public:
           m_inputs(std::move(inputs)),
           m_output(std::move(output)),
           m_attributes(std::move(attributes)) {
+        converted_op_types().insert(m_op_type);
         for (const auto& in : m_inputs) {
             m_input_names.push_back(in.name);
             auto p = std::make_shared<ov::op::v0::Parameter>(in.type, in.shape);
@@ -125,6 +138,10 @@ public:
     std::vector<std::string> get_model_output_names() const override {
         return {m_output.name};
     }
+
+    // The optional model-scope accessors (get_model_extra_inputs, get_tokenizer_config) both
+    // default to empty on GgufDecoder, which is exactly right for a single-op test decoder: no
+    // auxiliary inputs and no tokenizer metadata. So neither is overridden here.
 
 private:
     const TensorDesc& find_input(const std::string& name) const {
@@ -211,9 +228,15 @@ inline ov::Tensor make_f32_tensor(const ov::Shape& shape, const std::vector<floa
 }
 
 // Compile on CPU and run one inference with the given named inputs; return the single output.
+//
+// Inference precision is requested as f32: these tests validate the converted graph against an fp32
+// reference, not the plugin's reduced-precision arithmetic, so wherever fp32 inference is available we
+// want it regardless of the plugin's performance-mode default (e.g. bf16 on avx512_core_bf16 hosts).
+// Where fp32 is not supported (ARM, which always infers in fp16) the request is silently ignored, and
+// the wider tolerance below covers the resulting rounding error.
 inline ov::Tensor run_on_cpu(const std::shared_ptr<ov::Model>& model, const std::map<std::string, ov::Tensor>& inputs) {
     ov::Core core;
-    auto compiled = core.compile_model(model, "CPU");
+    auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
     auto req = compiled.create_infer_request();
     for (const auto& kv : inputs) {
         req.set_tensor(kv.first, kv.second);
@@ -222,15 +245,28 @@ inline ov::Tensor run_on_cpu(const std::shared_ptr<ov::Model>& model, const std:
     return req.get_output_tensor(0);
 }
 
+// Default relative tolerance, per inference precision the CPU plugin actually uses.
+//
+// On ARM the f32 request above cannot be honored (the plugin always infers in fp16), so rounding
+// error accumulates through long op chains such as rope; the measured worst case needs ~3e-3.
+//
+// Everywhere else the f32 request holds and the measured worst case across this suite is ~1.4e-6,
+// so the bound stays near fp32 precision — tight enough that a real conversion error cannot hide
+// inside it.
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    define OV_GGUF_TEST_DEFAULT_RTOL 1e-2f
+#else
+#    define OV_GGUF_TEST_DEFAULT_RTOL 1e-5f
+#endif
+
 // Compare against an fp32 reference with a combined absolute + relative tolerance:
 //   |actual - expected| <= atol + rtol * |expected|
-// The relative term matters on hardware that runs the graph in fp16 (e.g. ARM CPU by default),
-// where the rounding error grows with the magnitude of the value; a fixed absolute atol tuned on
-// fp32 x86 is too tight there. rtol defaults to ~fp16 precision (2^-9).
+// The relative term matters on hardware that runs the graph in fp16 (e.g. ARM CPU), where the
+// rounding error grows with the magnitude of the value.
 inline void expect_near(const ov::Tensor& actual,
                         const std::vector<float>& expected,
                         float atol = 1e-4f,
-                        float rtol = 2e-3f) {
+                        float rtol = OV_GGUF_TEST_DEFAULT_RTOL) {
     ASSERT_EQ(actual.get_element_type(), ov::element::f32);
     ASSERT_EQ(actual.get_size(), expected.size());
     const float* a = actual.data<float>();

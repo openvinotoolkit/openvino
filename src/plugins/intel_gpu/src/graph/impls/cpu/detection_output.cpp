@@ -100,9 +100,8 @@ public:
             float bbox1_size = bbox1.area();
             float bbox2_size = bbox2.area();
             return intersect_size / (bbox1_size + bbox2_size - intersect_size);
-        } else {
-            return 0.0f;
         }
+        return 0.0f;
     }
 
     static void decode_bounding_box(const bounding_box& prior_bbox,

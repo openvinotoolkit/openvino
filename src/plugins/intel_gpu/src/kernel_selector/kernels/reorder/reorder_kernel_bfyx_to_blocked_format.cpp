@@ -46,7 +46,7 @@ ParamsKey ReorderKernel_bfyx_to_blocked_format::GetSupportedKey() const {
 }
 
 static inline std::string GetTiledInputOrder(size_t size) {
-    std::string order_str = "";
+    std::string order_str;
     switch (size) {
     case 4:
         order_str = "b, f + lh, y, x";

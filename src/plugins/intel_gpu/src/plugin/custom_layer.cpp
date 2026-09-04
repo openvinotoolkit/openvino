@@ -227,8 +227,7 @@ cldnn::format CustomLayer::FormatFromString(const std::string & str) {
     auto it = FormatNameToType.find(str);
     if (it != FormatNameToType.end())
         return it->second;
-    else
-        return cldnn::format::format_num;
+    return cldnn::format::format_num;
 }
 
 void CustomLayer::LoadFromFile(const std::string configFile, CustomLayerMap& customLayers, bool can_be_missed) {
@@ -239,9 +238,8 @@ void CustomLayer::LoadFromFile(const std::string configFile, CustomLayerMap& cus
         if (can_be_missed) {
             // config file might not exist - like global config, for example
             return;
-        } else {
-            OPENVINO_THROW("Error loading custom layer configuration file: ", configFile, ", ", res.description(), " at offset ", res.offset);
         }
+        OPENVINO_THROW("Error loading custom layer configuration file: ", configFile, ", ", res.description(), " at offset ", res.offset);
     }
 
 #ifdef _WIN32

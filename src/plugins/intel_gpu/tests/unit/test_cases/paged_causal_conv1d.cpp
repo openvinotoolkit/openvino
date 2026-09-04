@@ -25,6 +25,7 @@ struct paged_causal_conv1d_test_params {
     int32_t kernel_size;
     ov::element::Type precision;
     bool with_bias;
+    bool is_caching_test = false;
 };
 
 struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_causal_conv1d_test_params> {
@@ -222,13 +223,14 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
                                                                     cldnn::memory::ptr block_idx_mem,
                                                                     cldnn::memory::ptr block_idx_begins_mem,
                                                                     cldnn::memory::ptr past_lens_mem,
-                                                                    cldnn::memory::ptr cache_interval_mem) {
+                                                                    cldnn::memory::ptr cache_interval_mem,
+                                                                    bool is_caching_test) {
         auto& engine = get_test_engine();
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
-        cldnn::network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), false);
+        cldnn::network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
 
         net->set_input_data("input_embeds", input_mem);
         net->set_input_data("conv_state_table", state_mem);
@@ -320,7 +322,17 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
                                     data_type);
 
         auto [out_mem, net] =
-            run_network(topo, input_mem, state_mem, weight_mem, bias_mem, subseq_mem, block_idx_mem, block_idx_begins_mem, past_lens_mem, cache_interval_mem);
+            run_network(topo,
+                        input_mem,
+                        state_mem,
+                        weight_mem,
+                        bias_mem,
+                        subseq_mem,
+                        block_idx_mem,
+                        block_idx_begins_mem,
+                        past_lens_mem,
+                        cache_interval_mem,
+                        p.is_caching_test);
 
         ASSERT_TRUE(out_mem != nullptr);
         ASSERT_EQ(out_mem->count(), ref_output.size());
@@ -360,7 +372,8 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
     static std::string PrintToStringParamName(const testing::TestParamInfo<paged_causal_conv1d_test_params>& info) {
         const auto& p = info.param;
         return "paged_causal_conv1d_gpu_test_" + p.precision.to_string() + "_tokens_" + std::to_string(p.tokens) + "_seq_" + std::to_string(p.num_sequences) +
-               "_hidden_" + std::to_string(p.hidden_size) + "_kernel_" + std::to_string(p.kernel_size) + (p.with_bias ? "_bias" : "_no_bias");
+               "_hidden_" + std::to_string(p.hidden_size) + "_kernel_" + std::to_string(p.kernel_size) + (p.with_bias ? "_bias" : "_no_bias") +
+               (p.is_caching_test ? "_cached" : "");
     }
 };
 
@@ -376,7 +389,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_causal_conv1d_gpu_test,
                                            paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f32, true},
                                            paged_causal_conv1d_test_params{12, 3, 32, 5, ov::element::f32, true},
                                            paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f16, false},
-                                           paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f32, false}),
+                                           paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f32, false},
+                                           paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f16, true, true}),
                          paged_causal_conv1d_gpu_test::PrintToStringParamName);
 
 }  // namespace

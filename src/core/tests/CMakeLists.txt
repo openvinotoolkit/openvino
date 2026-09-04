@@ -99,6 +99,7 @@ set(OV_CORE_TESTS_SRCS
 )
 
 include(conditional_compilation/sources.cmake)
+include(frontend/sources.cmake)
 include(pass/sources.cmake)
 include(reference/sources.cmake)
 include(type_prop/sources.cmake)
@@ -110,6 +111,7 @@ ov_add_test_target(
     SOURCES
         ${OV_CORE_TESTS_SRCS}
         ${OV_CORE_TESTS_CC_SRCS}
+        ${OV_CORE_TESTS_FRONTEND_SRCS}
         ${OV_CORE_TESTS_PASS_SRCS}
         ${OV_CORE_TESTS_REFERENCE_SRCS}
         ${OV_CORE_TESTS_TYPE_PROP_SRCS}
@@ -124,7 +126,7 @@ ov_add_test_target(
         # process models
         test_model_zoo
     LINK_LIBRARIES
-       common_test_utils
+        common_test_utils
         openvino::reference
         openvino::util
         openvino::shape_inference
@@ -137,6 +139,12 @@ ov_add_test_target(
     TESTS_PER_SOURCE
     LABELS
         OV UNIT CORE
+    CHECK_SOURCES_LISTED
+    CHECK_SOURCES_EXCLUDE_TARGETS
+        openvino_mock1_frontend
+        ov_file_load_benchmark
+    CHECK_SOURCES_EXCLUDE_FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/dnnl.cpp
 )
 
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:openvino_core_obj,SOURCE_DIR>/src

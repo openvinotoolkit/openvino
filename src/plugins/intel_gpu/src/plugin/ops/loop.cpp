@@ -70,7 +70,7 @@ static void SetLoopInputOutputMap(ProgramBuilder& p,
     // set input mapping & back edges
     for (const auto& loop_input_desc : loop_input_descs) {
         auto external_id = inputs.at(loop_input_desc->m_input_index);
-        auto& body_input = body_inputs.at(loop_input_desc->m_body_parameter_index);
+        const auto& body_input = body_inputs.at(loop_input_desc->m_body_parameter_index);
         cldnn::primitive_id internal_id = layer_type_name_ID(body_input);
 
         // set input mapping
@@ -189,7 +189,7 @@ static std::vector<cldnn::primitive_id> GetOutputNames(const cldnn::primitive_id
     }
 
     // setup outputs for backedges
-    for (auto& back_edge : back_edges) {
+    for (const auto& back_edge : back_edges) {
         auto iter = std::find(output_names.begin(), output_names.end(), back_edge.from);
         // Do not add duplicated output name
         if (iter == output_names.end()) {

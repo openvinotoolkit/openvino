@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
-#include "openvino/frontend/exception.hpp"
 #include "openvino/op/concat.hpp"
-#include "openvino/op/convert.hpp"
+
+#include <memory>
 
 #include "node_context.hpp"
 #include "op_table.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/op/convert.hpp"
 #include "utils.hpp"
 
 namespace ov {

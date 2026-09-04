@@ -165,7 +165,7 @@ public:
 
     static std::unique_ptr<primitive_impl> create(const pooling_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
-        auto& config = impl_params.prog->get_config();
+        const auto& config = impl_params.prog->get_config();
         auto attr = impl_params.attrs_onednn;
         auto prim_desc = get_pooling_primitive_descriptor(impl_params, *attr);
 

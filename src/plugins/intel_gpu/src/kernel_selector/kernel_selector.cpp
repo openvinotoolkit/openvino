@@ -146,7 +146,7 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params, Ke
 }
 
 std::shared_ptr<KernelBase> kernel_selector_base::GetImplementation(std::string& kernel_name) const {
-    for (auto& impl : implementations) {
+    for (const auto& impl : implementations) {
         if (impl->GetName().compare(kernel_name) == 0)
             return impl;
     }
@@ -167,7 +167,7 @@ KernelList kernel_selector_base::GetAllImplementations(const Params& params, Ker
     if (params.GetType() == kType) {
         ParamsKey requireKey = params.GetParamsKey();
         bool forceImplementation = !params.forceImplementation.empty();
-        for (auto& impl : implementations) {
+        for (const auto& impl : implementations) {
             const ParamsKey implKey = impl->GetSupportedKey();
             if (!implKey.Support(requireKey))
                 continue;

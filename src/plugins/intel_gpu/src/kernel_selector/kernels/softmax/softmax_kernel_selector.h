@@ -16,7 +16,7 @@ public:
 
     softmax_kernel_selector();
 
-    ~softmax_kernel_selector() override {}
+    ~softmax_kernel_selector() override = default;
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

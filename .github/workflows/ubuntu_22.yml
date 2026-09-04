@@ -131,6 +131,8 @@ jobs:
       build-debian-packages: true
       build-rpm-packages: false
       build-additional-python-packages: true
+      build-samples: true
+      generate-gguf-fixtures: true
       target-branch: ${{ inputs.target-branch }}
       cmake-options: >-
             -G 'Ninja Multi-Config'
@@ -493,6 +495,35 @@ jobs:
       model_scope: 'precommit'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
 
+  GGUF_Models_Tests_Precommit:
+    name: GGUF Models tests
+    if: ${{ github.event_name != 'schedule' && fromJSON(needs.smart_ci.outputs.affected_components).GGUF_FE.test }}
+    needs: [ Docker, Build, Smart_CI ]
+    uses: ./.github/workflows/job_gguf_models_tests.yml
+    with:
+      runner: 'aks-linux-8-cores-32gb'
+      model_scope: 'precommit'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
+
+  GGUF_Models_Tests_Nightly:
+    name: GGUF Models Nightly tests
+    if: ${{ github.event_name == 'schedule' }}
+    needs: [ Docker, Build, Smart_CI ]
+    uses: ./.github/workflows/job_gguf_models_tests.yml
+    with:
+      runner: 'aks-linux-16-cores-64gb'
+      model_scope: 'nightly'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
+
+  GGUF_LlamaCpp_Validation:
+    name: GGUF Frontend x llama.cpp validation
+    if: ${{ github.event_name != 'schedule' && fromJSON(needs.smart_ci.outputs.affected_components).GGUF_FE.test }}
+    needs: [ Docker, Build, Smart_CI ]
+    uses: ./.github/workflows/job_gguf_llamacpp_validation.yml
+    with:
+      runner: 'aks-linux-16-cores-32gb'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
+
   NVIDIA_Plugin:
     name: NVIDIA plugin
     needs: [ Docker, Build, Smart_CI ]
@@ -531,6 +562,7 @@ jobs:
         shell: bash
         run: |
           SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+          # nosemgrep: yaml.github-actions.security.audit.unsafe-add-mask-workflow-command.unsafe-add-mask-workflow-command
           echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
           echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
           echo "✓ Connection string loaded and masked"
@@ -659,7 +691,8 @@ jobs:
   Overall_Status:
     name: ci/gha_overall_status
     needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, CXX_Unit_Tests, Python_Unit_Tests, TensorFlow_Layer_Tests, Pytorch_Layer_Tests,
-            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, JAX_Models_Tests_Precommit, NVIDIA_Plugin, Openvino_tokenizers, iGPU,
+            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, JAX_Models_Tests_Precommit, GGUF_Models_Tests_Precommit,
+            NVIDIA_Plugin, Openvino_tokenizers, iGPU,
             Keras3_OpenVINO_Backend, iGPU_RoPE_Tests]
     if: ${{ always() }}
     runs-on: ubuntu-latest

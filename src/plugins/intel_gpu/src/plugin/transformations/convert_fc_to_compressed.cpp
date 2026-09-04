@@ -46,9 +46,9 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         if (!fc || transformation_callback(fc)) {
             return false;
         }
-        bool has_transpose = pattern_map.count(transpose_m);
+        bool has_transpose = pattern_map.count(transpose_m) != 0u;
         auto scale_shape = pattern_map.at(mul_const_m).get_shape();
-        bool sub_with_convert = (pattern_map.count(sub_with_convert_m) > 0) ? true : false;
+        bool sub_with_convert = pattern_map.count(sub_with_convert_m) > 0;
 
         auto weight_shape = fc->get_input_shape(1);
         bool is_weight_3d = (std::count_if(weight_shape.begin(), weight_shape.end(), [](size_t d) { return d > 1; }) == 3);
@@ -71,9 +71,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             if (current_shape.size() == 3) {
                 if (is_weight_3d)
                     return constant;
-                else
-                    new_shape = (has_transpose || !grouped) ? ov::Shape{current_shape[0] * current_shape[1], current_shape[2]}
-                                                            : ov::Shape{current_shape[0], current_shape[1] * current_shape[2]};
+                new_shape = (has_transpose || !grouped) ? ov::Shape{current_shape[0] * current_shape[1], current_shape[2]}
+                                                        : ov::Shape{current_shape[0], current_shape[1] * current_shape[2]};
             } else if (current_shape.size() == 4 && is_weight_3d) {
                 new_shape = (has_transpose || !grouped) ? ov::Shape{current_shape[0], current_shape[1] * current_shape[2], current_shape[3]}
                                                         : ov::Shape{current_shape[0], current_shape[1], current_shape[2] * current_shape[3]};
@@ -96,7 +95,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             // Convert ZP to u8
             if (constant->get_element_type() == ov::element::u8)
                 result = constant;
-            else if (constant->get_element_type() == ov::element::u4)
+            else if (constant->get_element_type() == ov::element::u4 || constant->get_element_type() == ov::element::u2)
                 result = std::make_shared<ov::op::v0::Convert>(node, ov::element::u8);
             // Only unsigned ZP types can be converted to u8.
             else if (weight_u8 && sub_with_convert && !constant->get_element_type().is_signed())

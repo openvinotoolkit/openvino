@@ -17,7 +17,7 @@ void skipped_branch_memory_dependencies::run(program& p) {
     auto& processing_order = p.get_processing_order();
     auto itrB = processing_order.begin();
     while (itrB != processing_order.end()) {
-        auto& nodeB = *itrB;
+        const auto& nodeB = *itrB;
         auto itrA = ++itrB;
         if (!nodeB->may_use_mempool())
             continue;
@@ -35,7 +35,7 @@ void skipped_branch_memory_dependencies::run(program& p) {
 
         // mark all nodes in between B and lastUsr of B as forbidden to share buffer with B
         while (itrA != processing_order.get_processing_iterator(**lastUsr) && itrA != processing_order.end()) {
-            auto& nodeA = *itrA;
+            const auto& nodeA = *itrA;
             itrA++;
             add_memory_dependency(nodeA, nodeB);
             add_memory_dependency(nodeB, nodeA);

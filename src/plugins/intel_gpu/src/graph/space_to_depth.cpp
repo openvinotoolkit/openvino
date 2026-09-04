@@ -92,16 +92,12 @@ layout space_to_depth_inst::calc_output_layout(space_to_depth_node const& node, 
             output_type,
             input_format,
             tensor(TensorValue(input_layout.batch()), TensorValue(feature), TensorValue(x), TensorValue(y), TensorValue(z))};
-    } else {
-        const size_t feature = input_layout.feature() * block_size * block_size;
-        const size_t y = input_layout.spatial(1) / block_size;
-        const size_t x = input_layout.spatial(0) / block_size;
-
-        return layout{
-            output_type,
-            input_format,
-            tensor(TensorValue(input_layout.batch()), TensorValue(feature), TensorValue(x), TensorValue(y))};
     }
+    const size_t feature = input_layout.feature() * block_size * block_size;
+    const size_t y = input_layout.spatial(1) / block_size;
+    const size_t x = input_layout.spatial(0) / block_size;
+
+    return layout{output_type, input_format, tensor(TensorValue(input_layout.batch()), TensorValue(feature), TensorValue(x), TensorValue(y))};
 }
 
 std::string space_to_depth_inst::to_string(space_to_depth_node const& node) {

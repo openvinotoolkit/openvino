@@ -27,7 +27,7 @@ public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
     using DispatchData = CommonDispatchData;
 
-    ~ReduceKernelBase() override {}
+    ~ReduceKernelBase() override = default;
 
 protected:
     bool Validate(const Params&) const override;
