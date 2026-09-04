@@ -19,7 +19,7 @@
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
-#include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
+#include "plugin/transformations/expand_broadcast_reshape_sdpa_fusion.hpp"
 #include "subgraphs_builders.hpp"
 
 using namespace testing;
@@ -171,7 +171,7 @@ TEST_P(SDPAOptimizationTestsP, PassesSequence) {
 
     manager.register_pass<KVCacheFusion>();
     manager.register_pass<TransposeFusion>(false);
-    manager.register_pass<UnsqueezeBroadcastReshapeSDPAFusion>();
+    manager.register_pass<ExpandBroadcastReshapeSDPAFusion>();
     manager.register_pass<IndirectKVCache>();
 
     model_ref = make_ref_model(batch,

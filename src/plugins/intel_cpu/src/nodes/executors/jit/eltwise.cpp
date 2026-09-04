@@ -407,14 +407,6 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
     return true;
 
 #elif defined(OPENVINO_ARCH_ARM64)
-    if (any_of(algorithm,
-               Algorithm::EltwiseBitwiseAnd,
-               Algorithm::EltwiseBitwiseNot,
-               Algorithm::EltwiseBitwiseOr,
-               Algorithm::EltwiseBitwiseXor)) {
-        return false;
-    }
-
     std::vector<ov::element::Type> supported_input_precisions = std::vector<ov::element::Type>{ov::element::f16,
                                                                                                ov::element::f32,
                                                                                                ov::element::i32,

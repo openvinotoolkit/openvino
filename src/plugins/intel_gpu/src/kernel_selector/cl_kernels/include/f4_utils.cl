@@ -177,6 +177,9 @@ float16 __attribute__((overloadable)) _convert_float16(fp4e2m1_t16 val) {
 }
 
 
+fp4e2m1_t __attribute__((overloadable)) _convert_fp4e2m1_t(fp4e2m1_t val) {
+    return val;
+}
 fp4e2m1_t __attribute__((overloadable)) _convert_fp4e2m1_t(half val) {
     fp4e2m1_t res;
     res.data = _intel_convert_f16_to_f4(val);

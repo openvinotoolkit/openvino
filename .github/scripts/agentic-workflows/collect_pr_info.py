@@ -23,10 +23,9 @@ from __future__ import annotations
 
 import json
 import os
-import re
 from typing import TYPE_CHECKING, Any
 
-from common import github_client
+from common import MERGE_QUEUE_PR_RE, github_client
 
 if TYPE_CHECKING:
     from github.PullRequest import PullRequest
@@ -36,9 +35,6 @@ if TYPE_CHECKING:
 OUTPUT_DIR = "/tmp/gh-aw/agent/ci-doctor"
 PR_INFO_JSON = os.path.join(OUTPUT_DIR, "pr-info.json")
 PR_INFO_TXT = os.path.join(OUTPUT_DIR, "pr-info.txt")
-
-# Merge-queue branches look like: gh-readonly-queue/<base_branch>/pr-<number>-<sha>
-MERGE_QUEUE_PR_RE = re.compile(r"/pr-(\d+)-[0-9a-f]+$")
 
 # Cap the number of changed files and the PR body length written to disk so the
 # artifact stays small and the agent context is not flooded.
@@ -190,7 +186,8 @@ def main() -> None:
         write_outputs(None)
         return
 
-    repo = github_client(token).get_repo(repo_name)
+    gh = github_client(token)
+    repo = gh.get_repo(repo_name)
 
     if run_id:
         run_mode(repo, run_id)

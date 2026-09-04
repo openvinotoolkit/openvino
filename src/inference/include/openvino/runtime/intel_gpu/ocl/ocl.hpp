@@ -10,7 +10,6 @@
  */
 #pragma once
 
-#include <memory>
 #include <string>
 
 #include "openvino/runtime/core.hpp"
@@ -43,6 +42,7 @@ using gpu_handle_param = void*;
 
 using SharedBufferHandle = ov::intel_gpu::SharedBufferHandle;
 using VirtualAddressMemory = ov::intel_gpu::VirtualAddressMemory;
+using FileDescriptor = ov::intel_gpu::FileDescriptor;
 
 /**
  * @brief This class represents an abstraction for GPU plugin remote tensor
@@ -334,7 +334,7 @@ public:
      * @brief This function is used to obtain a remote tensor object from a user-supplied VirtualAddressMemory
      * @param type Tensor element type
      * @param shape Tensor shape
-     * @param buff A VirtualAddressMemory object that contains cpu pointer and size(optional)
+     * @param buff A VirtualAddressMemory object that contains cpu pointer and size(optional) and access mode
      * @return A remote tensor instance
      */
     ClBufferTensor create_tensor(const element::Type type, const Shape& shape, VirtualAddressMemory buff) {
@@ -342,7 +342,27 @@ public:
 
         AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::CPU_VA},
                          {ov::intel_gpu::cpu_va.name(), static_cast<gpu_handle_param>(buff.ptr)},
-                         {ov::intel_gpu::cpu_va_size.name(), buff.size}};  // if -1 then use shape to get the size
+                         {ov::intel_gpu::cpu_va_size.name(), buff.size},  // if -1 then use shape to get the size
+                         {ov::intel_gpu::cpu_va_access.name(), buff.access}};
+        return create_tensor(type, shape, params).as<ClBufferTensor>();
+    }
+
+    /**
+     * @brief This function is used to obtain a remote tensor object from a file.
+     * The plugin memory-maps the file and keeps the mapping alive for the whole tensor lifetime,
+     * so the file must not be modified until the returned tensor is destroyed.
+     * @param type Tensor element type
+     * @param shape Tensor shape
+     * @param file_descriptor Descriptor with the path, offset and access mode of the file containing tensor data.
+     * The offset must be a multiple of the system memory mapping alignment: the page size on Linux
+     * (typically 4 KiB) and the allocation granularity on Windows (typically 64 KiB).
+     * AccessMode::READ_WRITE additionally requires the file to be writable by the calling process
+     * and makes the tensor writes visible in the file.
+     * @return A remote tensor instance
+     */
+    ClBufferTensor create_tensor(const element::Type type, const Shape& shape, const FileDescriptor& file_descriptor) {
+        AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::MMAPED_FILE},
+                         {ov::intel_gpu::file_descriptor.name(), file_descriptor}};
         return create_tensor(type, shape, params).as<ClBufferTensor>();
     }
 

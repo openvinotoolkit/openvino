@@ -23,10 +23,12 @@ struct std::hash<ov::intel_gpu::SharedBufferHandle> {
 template <>
 struct std::hash<ov::intel_gpu::VirtualAddressMemory> {
     size_t operator()(const ov::intel_gpu::VirtualAddressMemory& mem) const noexcept {
-        // Hash both pointer and size to distinguish different allocations
-        size_t h1 = std::hash<const void*>{}(mem.ptr);
-        size_t h2 = std::hash<int64_t>{}(mem.size);
-        return h1 ^ (h2 << 1);
+        // Hash pointer, size and access mode to distinguish different allocations/imports
+        size_t seed = 0;
+        seed = cldnn::hash_combine(seed, mem.ptr);
+        seed = cldnn::hash_combine(seed, mem.size);
+        seed = cldnn::hash_combine(seed, mem.access);
+        return seed;
     }
 };
 
@@ -172,7 +174,8 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
                                    cldnn::shared_surface surf,
                                    uint32_t plane,
                                    ov::intel_gpu::SharedBufferHandle shared_buffer_handle,
-                                   ov::intel_gpu::VirtualAddressMemory va_mem)
+                                   ov::intel_gpu::VirtualAddressMemory va_mem,
+                                   std::shared_ptr<ov::MappedMemory> mapped_memory)
     : m_context(context)
     , m_element_type(element_type)
     , m_shape(shape)
@@ -182,7 +185,12 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
     , m_surf(surf)
     , m_plane(plane)
     , m_shared_buffer_handle(shared_buffer_handle)
-    , m_va_mem(va_mem) {
+    , m_va_mem(va_mem)
+    , m_mapped_memory(std::move(mapped_memory)) {
+#ifdef OV_GPU_WITH_SYCL_RT
+    // TODO: enable RemoteTensor for SYCL_RT once SYCL interop is wired up.
+    OPENVINO_THROW("[GPU] RemoteTensor is not supported with SYCL runtime yet");
+#endif
     update_hash();
     allocate();
 }
@@ -407,10 +415,20 @@ void RemoteTensorImpl::allocate() {
         break;
     }
     case TensorType::BT_CPU_VA: {
-        m_memory_object = engine.create_hostbuffer(m_va_mem.ptr,
-                                        m_va_mem.size > -1 ? m_va_mem.size : m_layout.bytes_count(),
-                                        cldnn::allocation_type::cl_mem,
-                                        m_layout);
+        const auto buffer_size = m_va_mem.size > -1 ? m_va_mem.size : m_layout.bytes_count();
+        if (m_va_mem.access == ov::intel_gpu::AccessMode::READ) {
+            // host_read_only is set for the file-mmap case, since the host side will never write it either.
+            m_memory_object = engine.create_hostbuffer(static_cast<const void*>(m_va_mem.ptr),
+                                            buffer_size,
+                                            cldnn::allocation_type::cl_mem,
+                                            m_layout,
+                                            /*host_read_only=*/m_mapped_memory != nullptr);
+        } else {
+            m_memory_object = engine.create_hostbuffer(m_va_mem.ptr,
+                                            buffer_size,
+                                            cldnn::allocation_type::cl_mem,
+                                            m_layout);
+        }
         break;
     }
 #ifdef _WIN32
@@ -439,7 +457,7 @@ void RemoteTensorImpl::allocate() {
     update_properties();
     update_strides();
 
-    if (enable_caching)
+    if (enable_caching && m_memory_object)
         context->add_to_cache(m_hash, m_memory_object);
 }
 
@@ -458,7 +476,11 @@ bool RemoteTensorImpl::is_shared() const noexcept {
 }
 
 bool RemoteTensorImpl::supports_caching() const {
-    return is_shared();
+#ifdef _WIN32
+    return is_shared() && !m_mapped_memory;
+#else
+    return is_shared() && !m_mapped_memory && m_mem_type != TensorType::BT_SURF_SHARED;
+#endif
 }
 
 void RemoteTensorImpl::update_hash() {

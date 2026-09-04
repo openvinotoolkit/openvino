@@ -110,7 +110,7 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
         jcp.src_prc = precision_of<T>::value;
         jcp.dst_prc = precision_of<T>::value;
         jcp.rotary_ndims = config.rotary_ndims;
-        jcp.interleave = false;
+        jcp.mode = jit_rotary_compile_params::Mode::ROTATE_HALF;
         jcp.cos_sin_ndims = config.cos_sin_ndims;
         m_rotaryKernel = createJitKernel(jcp);
     }
@@ -203,7 +203,7 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
         jcp.src_prc = precision_of<T>::value;
         jcp.dst_prc = precision_of<T>::value;
         jcp.rotary_ndims = config.rotary_ndims;
-        jcp.interleave = true;
+        jcp.mode = jit_rotary_compile_params::Mode::INTERLEAVE;
         jcp.mix_cos_sin = false;
         m_rotaryKernel = createJitKernel(jcp, true);
     }
@@ -251,8 +251,16 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
 template <typename T>
 struct RoPE::RoPEExecutorLtxVideo : public RoPE::Executor {
     const op::internal::RoPE::Config& m_config;
+    std::shared_ptr<kernel::JitKernelBase> m_rotaryKernel;
 
-    explicit RoPEExecutorLtxVideo(const op::internal::RoPE::Config& config) : m_config(config) {}
+    explicit RoPEExecutorLtxVideo(const op::internal::RoPE::Config& config) : m_config(config) {
+        jit_rotary_compile_params jcp;
+        jcp.src_prc = precision_of<T>::value;
+        jcp.dst_prc = precision_of<T>::value;
+        jcp.rotary_ndims = config.rotary_ndims;
+        jcp.mode = jit_rotary_compile_params::Mode::LTX_VIDEO;
+        m_rotaryKernel = createJitKernel(jcp, true);
+    }
 
     void execute([[maybe_unused]] const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
@@ -274,11 +282,15 @@ struct RoPE::RoPEExecutorLtxVideo : public RoPE::Executor {
             const float* sin = &t_sin.at<float>({b, p, 0}, true);
             auto* dst = t_dst.ptr<T>(b, p);
 
-            for (size_t r = 0; r < rotary_dims; r += 2) {
-                auto real = static_cast<float>(x[r]);
-                auto imag = static_cast<float>(x[r + 1]);
-                dst[r] = static_cast<T>(cos[r] * real - sin[r] * imag);
-                dst[r + 1] = static_cast<T>(sin[r + 1] * real + cos[r + 1] * imag);
+            if (m_rotaryKernel) {
+                execJitKernel(m_rotaryKernel, x, dst, cos, sin);
+            } else {
+                for (size_t r = 0; r < rotary_dims; r += 2) {
+                    auto real = static_cast<float>(x[r]);
+                    auto imag = static_cast<float>(x[r + 1]);
+                    dst[r] = static_cast<T>(cos[r] * real - sin[r] * imag);
+                    dst[r + 1] = static_cast<T>(sin[r + 1] * real + cos[r + 1] * imag);
+                }
             }
         });
     }
@@ -294,7 +306,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
         jcp.src_prc = precision_of<T>::value;
         jcp.dst_prc = precision_of<T>::value;
         jcp.rotary_ndims = config.rotary_ndims;
-        jcp.interleave = true;
+        jcp.mode = jit_rotary_compile_params::Mode::INTERLEAVE;
         // if use precomputed rope cache then it's mixed
         // otherwise rope has separate cos/sin inputs
         jcp.mix_cos_sin = config.use_rope_cache;
@@ -409,7 +421,7 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
         jcp.src_prc = precision_of<T>::value;
         jcp.dst_prc = precision_of<T>::value;
         jcp.rotary_ndims = config.rotary_ndims;
-        jcp.interleave = false;
+        jcp.mode = jit_rotary_compile_params::Mode::ROTATE_HALF;
         m_rotaryKernel = createJitKernel(jcp);
     }
 

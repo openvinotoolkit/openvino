@@ -93,12 +93,11 @@ struct stages_helper {
         return {};
     }
 
-    size_t get_index(kv_stage stage) const noexcept {
+    size_t get_index(kv_stage stage) const {
         const auto idx = try_get_index(stage);
         OPENVINO_ASSERT(idx.has_value(), "expect stage ", static_cast<uint8_t>(stage), " exist");
         return *idx;
     }
-
 };
 
 struct kv_cache_impl : multi_stage_primitive<kv_cache> {

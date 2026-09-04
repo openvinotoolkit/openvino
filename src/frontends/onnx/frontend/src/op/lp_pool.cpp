@@ -10,6 +10,7 @@
 #include "openvino/op/reshape.hpp"
 #include "utils/common.hpp"
 #include "utils/norm.hpp"
+#include "utils/pooling_factory.hpp"
 #include "utils/split.hpp"
 using namespace ov::op;
 using ov::Shape;
@@ -55,8 +56,29 @@ ov::OutputVector global_lp_pool(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Concat>(slices, channel_axis)};
 }
 
-ONNX_OP("GlobalLpPool", OPSET_SINCE(1), ai_onnx::opset_1::global_lp_pool);
+ov::OutputVector lp_pool(const ov::frontend::onnx::Node& node) {
+    // In opset 1 the 'p' attribute is a float, since opset 2 it is an integer.
+    const auto p_norm = node.get_attribute_value<float>("p", 2.f);
+    return pooling::PoolingFactory(node).make_lp_pool(p_norm);
+}
+
+static bool register_multiple_translators(void) {
+    ONNX_OP_M("GlobalLpPool", OPSET_SINCE(1), ai_onnx::opset_1::global_lp_pool);
+    ONNX_OP_M("LpPool", OPSET_IN(1), ai_onnx::opset_1::lp_pool);
+    return true;
+}
+
+static bool registered = register_multiple_translators();
 }  // namespace opset_1
+
+namespace opset_2 {
+ov::OutputVector lp_pool(const ov::frontend::onnx::Node& node) {
+    const auto p_norm = node.get_attribute_value<std::int64_t>("p", 2);
+    return pooling::PoolingFactory(node).make_lp_pool(static_cast<float>(p_norm));
+}
+
+ONNX_OP("LpPool", OPSET_SINCE(2), ai_onnx::opset_2::lp_pool);
+}  // namespace opset_2
 }  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend

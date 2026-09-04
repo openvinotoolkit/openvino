@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
-
-#include "openvino/core/node_output.hpp"
 #include "openvino/decompositions/rms_norm.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/pass/node_registry.hpp"
+
+#include <memory>
 
 #include "node_context.hpp"
 #include "op_table.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/pass/node_registry.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -31,7 +31,7 @@ OutputVector translate_rms_norm(const NodeContext& context) {
     ov::pass::NodeRegistry reg;
     auto res = ov::decomposition::rms_norm(reg, input_node, axes, eps);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op
