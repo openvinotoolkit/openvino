@@ -108,12 +108,10 @@ ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
                                            std::vector<int64_t>(rank_length, 0));
 
         const auto axes = inputs[3];
-        // Reject non-constant axes to prevent unvalidated offsets during inference
-        const auto axes_const = ov::as_type_ptr<v0::Constant>(axes.get_node_shared_ptr());
-        CHECK_VALID_NODE(node,
-                         axes_const != nullptr,
-                         "Pad with non-constant axes is not supported due to security constraints.");
-        ov::util::validate_axes(axes_const->cast_vector<int64_t>(), data_rank, *axes_const);
+        // Axes may be a runtime input per spec (opset 18+); only constant values can be range-checked here.
+        if (const auto axes_const = ov::as_type_ptr<v0::Constant>(axes.get_node_shared_ptr())) {
+            ov::util::validate_axes(axes_const->cast_vector<int64_t>(), data_rank, *axes_const);
+        }
 
         auto scatter_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
 
