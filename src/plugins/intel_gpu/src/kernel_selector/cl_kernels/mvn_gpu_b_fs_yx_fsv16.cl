@@ -160,7 +160,7 @@ KERNEL(mvn_mean_1)(
 // ================================================================================================
 #elif MVN_KERNEL_MEAN_2
 
-DECLARE_PACKED_ACCUMULATE(accumulate_sum_input, ACCUMULATOR_TYPE, ACCUMULATOR_TYPE, FSV, FSV, ITEM_GROUPS, LWS, ACCUMULATE_SUM)
+DECLARE_PACKED_ACCUMULATE(accumulate_sum_input, ACCUMULATOR_TYPE, ACCUMULATOR_TYPE, FSV, FSV, ITEM_GROUPS, LWS, ACCUMULATE_SUM_IDENTITY)
 
 #if IS_DYNAMIC
 #if SG_NUM != 1
@@ -221,7 +221,7 @@ KERNEL(mvn_mean_2)(
 #define EXTRA_ARGS_IMPL         , mean
 #define EXTRA_ARGS_DECL         EXTRA_ARGS_DECL_IMPL
 #define EXTRA_ARGS              EXTRA_ARGS_IMPL
-#define ACCUMULATE_SUM_SQ_DEV(curr, next, idx, mean)   ACCUMULATE_SUM_SQ(curr, TO_MEAN_TYPE(next) - _sub_group_shuffle(mean, idx), idx)
+#define ACCUMULATE_SUM_SQ_DEV(curr, next, idx, mean)   ((curr) + ((DECODE_INPUT0_COMPUTE_TYPE(next) - _sub_group_shuffle(mean, idx)) * (DECODE_INPUT0_COMPUTE_TYPE(next) - _sub_group_shuffle(mean, idx))))
 #if IS_DYNAMIC
 DECLARE_PACKED_ACCUMULATE_DYN_EARGS(accumulate_sum_sq_dev, MEAN_TYPE, INPUT0_TYPE, FSV, INPUT_SLICE_PITCH, GWS, ACCUMULATE_SUM_SQ_DEV, EXTRA_ARGS_DECL, EXTRA_ARGS)
 #else
@@ -282,7 +282,7 @@ KERNEL(mvn_var_1)(
 // ================================================================================================
 #elif MVN_KERNEL_VAR_2
 
-DECLARE_PACKED_ACCUMULATE(accumulate_sum, MEAN_TYPE, MEAN_TYPE, FSV, FSV, ITEM_GROUPS, LWS, ACCUMULATE_SUM)
+DECLARE_PACKED_ACCUMULATE(accumulate_sum, MEAN_TYPE, MEAN_TYPE, FSV, FSV, ITEM_GROUPS, LWS, ACCUMULATE_SUM_IDENTITY)
 #if IS_DYNAMIC
 #if SG_NUM != 1
 DECLARE_WG_PACKED_REDUCE_ADD(reduce_var_across_sg, MEAN_TYPE, FSV, SG_NUM, REDUCE_NO_POST_OP)
@@ -371,7 +371,7 @@ DECLARE_SG_PACKED_REDUCE_ADD(reduce_mean, MEAN_TYPE, FSV, CALC_MEAN)
 #define EXTRA_ARGS_IMPL         , mean
 #define EXTRA_ARGS_DECL         EXTRA_ARGS_DECL_IMPL
 #define EXTRA_ARGS              EXTRA_ARGS_IMPL
-#define ACCUMULATE_SUM_SQ_DEV(curr, next, idx, mean)   ACCUMULATE_SUM_SQ(curr, next - _sub_group_shuffle(mean, idx), idx)
+#define ACCUMULATE_SUM_SQ_DEV(curr, next, idx, mean)   ((curr) + ((DECODE_INPUT0_COMPUTE_TYPE(next) - _sub_group_shuffle(mean, idx)) * (DECODE_INPUT0_COMPUTE_TYPE(next) - _sub_group_shuffle(mean, idx))))
 #if IS_DYNAMIC
 DECLARE_PACKED_ACCUMULATE_DYN_EARGS(accumulate_sum_sq_dev, MEAN_TYPE, INPUT0_TYPE, FSV, INPUT_SLICE_PITCH, LWS, ACCUMULATE_SUM_SQ_DEV, EXTRA_ARGS_DECL, EXTRA_ARGS)
 #if SG_NUM != 1
@@ -509,10 +509,14 @@ KERNEL(mvn_final)(
 
         unroll_for(uint si = 0; si < SIMD; ++si) {
             uint output_spatial = output_spatial_base + si;
-            MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[si]) - mean) * inv_variance;
+            MEAN_TYPE normalized = (DECODE_INPUT0_COMPUTE_TYPE(in_pack[si]) - mean) * inv_variance;
             OUTPUT_TYPE result;
 #           if HAS_FUSED_OPS
+#               if MVN_BF16_COMPUTE
+                float normalized_activation = normalized;
+#               else
                 ACTIVATION_TYPE normalized_activation = TO_ACTIVATION_TYPE(normalized);
+#               endif
                 FUSED_OPS;
                 result = FUSED_OPS_RESULT;
 #           else
@@ -552,10 +556,14 @@ KERNEL(mvn_final)(
 
         unroll_for(uint si = 0; si < SIMD; ++si) {
             uint output_spatial = output_spatial_base + si;
-            MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[si]) - mean) * inv_variance;
+            MEAN_TYPE normalized = (DECODE_INPUT0_COMPUTE_TYPE(in_pack[si]) - mean) * inv_variance;
             OUTPUT_TYPE result;
 #           if HAS_FUSED_OPS
+#               if MVN_BF16_COMPUTE
+                float normalized_activation = normalized;
+#               else
                 ACTIVATION_TYPE normalized_activation = TO_ACTIVATION_TYPE(normalized);
+#               endif
                 FUSED_OPS;
                 result = FUSED_OPS_RESULT;
 #           else
@@ -615,10 +623,14 @@ KERNEL(mvn_final)(
         OUTPUT_PACKED_TYPE result;
         unroll_for(uint si = 0; si < sg_uniform_leftovers; ++si) {
             uint output_spatial = output_spatial_base + si;
-            MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[si]) - mean) * inv_variance;
+            MEAN_TYPE normalized = (DECODE_INPUT0_COMPUTE_TYPE(in_pack[si]) - mean) * inv_variance;
             OUTPUT_TYPE result;
 #           if HAS_FUSED_OPS
+#               if MVN_BF16_COMPUTE
+                float normalized_activation = normalized;
+#               else
                 ACTIVATION_TYPE normalized_activation = TO_ACTIVATION_TYPE(normalized);
+#               endif
                 FUSED_OPS;
                 result = FUSED_OPS_RESULT;
 #           else
@@ -656,9 +668,15 @@ KERNEL(mvn_final)(
 
         OUTPUT_PACKED_TYPE result;
         unroll_for(uint set_idx = 0; set_idx < FSV; ++set_idx) {
-            MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[set_idx]) - _sub_group_shuffle(mean, set_idx)) * _sub_group_shuffle(inv_variance, set_idx);
+            MEAN_TYPE normalized = (DECODE_INPUT0_COMPUTE_TYPE(in_pack[set_idx]) - _sub_group_shuffle(mean, set_idx)) * _sub_group_shuffle(inv_variance, set_idx);
 #           if HAS_FUSED_OPS
+#               if MVN_BF16_COMPUTE
+                // bf16: fused ops run in float (fused activation type is F32), so keep the
+                // activation value as float; ACTIVATION_TYPE is ushort for bf16.
+                float normalized_activation = normalized;
+#               else
                 ACTIVATION_TYPE normalized_activation = TO_ACTIVATION_TYPE(normalized);
+#               endif
                 FUSED_OPS;
                 result[set_idx] = FUSED_OPS_RESULT;
 #           else
@@ -699,9 +717,15 @@ KERNEL(mvn_final)(
 
         OUTPUT_PACKED_TYPE result;
         unroll_for(uint set_idx = 0; set_idx < FSV; ++set_idx) {
-            MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[set_idx]) - _sub_group_shuffle(mean, set_idx)) * _sub_group_shuffle(inv_variance, set_idx);
+            MEAN_TYPE normalized = (DECODE_INPUT0_COMPUTE_TYPE(in_pack[set_idx]) - _sub_group_shuffle(mean, set_idx)) * _sub_group_shuffle(inv_variance, set_idx);
 #           if HAS_FUSED_OPS
+#               if MVN_BF16_COMPUTE
+                // bf16: fused ops run in float (fused activation type is F32), so keep the
+                // activation value as float; ACTIVATION_TYPE is ushort for bf16.
+                float normalized_activation = normalized;
+#               else
                 ACTIVATION_TYPE normalized_activation = TO_ACTIVATION_TYPE(normalized);
+#               endif
                 FUSED_OPS;
                 result[set_idx] = FUSED_OPS_RESULT;
 #           else
@@ -730,9 +754,15 @@ KERNEL(mvn_final)(
 
         OUTPUT_PACKED_TYPE result;
         unroll_for(uint set_idx = 0; set_idx < FSV; ++set_idx) {
-            MEAN_TYPE normalized = (TO_MEAN_TYPE(in_pack[set_idx]) - _sub_group_shuffle(mean, set_idx)) * _sub_group_shuffle(inv_variance, set_idx);
+            MEAN_TYPE normalized = (DECODE_INPUT0_COMPUTE_TYPE(in_pack[set_idx]) - _sub_group_shuffle(mean, set_idx)) * _sub_group_shuffle(inv_variance, set_idx);
 #           if HAS_FUSED_OPS
+#               if MVN_BF16_COMPUTE
+                // bf16: fused ops run in float (fused activation type is F32), so keep the
+                // activation value as float; ACTIVATION_TYPE is ushort for bf16.
+                float normalized_activation = normalized;
+#               else
                 ACTIVATION_TYPE normalized_activation = TO_ACTIVATION_TYPE(normalized);
+#               endif
                 FUSED_OPS;
                 result[set_idx] = FUSED_OPS_RESULT;
 #           else

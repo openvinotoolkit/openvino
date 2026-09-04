@@ -27,6 +27,9 @@ JitConstants MVNKernelBase::GetJitConstants(const mvn_params& params, MVNKernelB
         MakeJitConstant(toString(params.mvnMode), ""),
         MakeJitConstant("NORMALIZE_VARIANCE", params.mvnNormalizeVariance),
         MakeJitConstant("EPS_" + toString(params.mvnEpsMode), ""),
+        // bf16 needs the final normalization computed in the float decode domain (ACTIVATION_TYPE
+        // is ushort there). For other dtypes the kernels keep the legacy ACTIVATION_TYPE math.
+        MakeJitConstant("MVN_BF16_COMPUTE", static_cast<int>(params.inputs[0].GetDType() == Datatype::BF16)),
     });
 
     return jit;
@@ -96,8 +99,9 @@ KernelsData MVNKernelBase::GetCommonKernelsData(const Params& params) const {
 }
 
 Datatype MVNKernelBase::GetActivationType(const mvn_params& params) const {
-    if (params.inputs[0].GetDType() == Datatype::F16)
-        return Datatype::F16;
+    const auto input_dt = params.inputs[0].GetDType();
+    if (input_dt == Datatype::F16 || input_dt == Datatype::BF16)
+        return input_dt;
     return Datatype::F32;
 }
 
