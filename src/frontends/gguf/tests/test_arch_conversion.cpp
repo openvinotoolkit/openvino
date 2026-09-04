@@ -43,8 +43,10 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <set>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
@@ -194,6 +196,49 @@ const std::map<std::string, Fingerprint>& fingerprints() {
     return fp;
 }
 
+using GraphDependency = std::pair<std::string, std::string>;
+
+const std::map<std::string, std::vector<GraphDependency>>& graph_dependencies() {
+    static const std::map<std::string, std::vector<GraphDependency>> dependencies{
+        {"hunyuan-dense-dense.gguf.hdr", {{"blk.0.Qcur_rope", "blk.0.Qcur_normed"}}},
+        {"hunyuan-moe-moe.gguf.hdr", {{"blk.0.Qcur_rope", "blk.0.Qcur_normed"}}},
+        {"qwen3-dense.gguf.hdr", {{"blk.0.Qcur_normed", "blk.0.Qcur_rope"}}},
+        {"qwen3moe-moe.gguf.hdr", {{"blk.0.Qcur_normed", "blk.0.Qcur_rope"}}},
+    };
+    return dependencies;
+}
+
+std::shared_ptr<ov::Node> find_node(const std::shared_ptr<ov::Model>& model, const std::string& name) {
+    const auto ops = model->get_ordered_ops();
+    const auto it = std::find_if(ops.begin(), ops.end(), [&](const std::shared_ptr<ov::Node>& node) {
+        const auto& friendly_name = node->get_friendly_name();
+        return friendly_name.find(name) != std::string::npos && friendly_name.find(name + ".") == std::string::npos;
+    });
+    return it == ops.end() ? nullptr : *it;
+}
+
+bool is_ancestor(const std::shared_ptr<ov::Node>& ancestor, const std::shared_ptr<ov::Node>& descendant) {
+    std::vector<std::shared_ptr<ov::Node>> pending;
+    for (const auto& input : descendant->input_values()) {
+        pending.push_back(input.get_node_shared_ptr());
+    }
+    std::set<const ov::Node*> visited;
+    while (!pending.empty()) {
+        const auto node = pending.back();
+        pending.pop_back();
+        if (node == ancestor) {
+            return true;
+        }
+        if (!visited.insert(node.get()).second) {
+            continue;
+        }
+        for (const auto& input : node->input_values()) {
+            pending.push_back(input.get_node_shared_ptr());
+        }
+    }
+    return false;
+}
+
 // A scratch directory that outlives one test, so the reconstructed .gguf can be written once per
 // test and removed afterwards without leaving multi-MB files behind on failure.
 class ScratchDir {
@@ -246,23 +291,16 @@ TEST_P(GGUFArchConversion, MatchesManifestExpectation) {
             << "update fingerprints() -- and say why in the commit message.";
         EXPECT_EQ(model->inputs().size(), it->second.inputs)
             << "graph input count for " << fixture.header_file << " changed; see fingerprints().";
-        if (fixture.header_file == "hunyuan-dense-dense.gguf.hdr" ||
-            fixture.header_file == "hunyuan-moe-moe.gguf.hdr") {
-            size_t rope_pos = model->get_ordered_ops().size();
-            size_t norm_pos = model->get_ordered_ops().size();
-            const auto ordered_ops = model->get_ordered_ops();
-            for (size_t i = 0; i < ordered_ops.size(); ++i) {
-                const auto& name = ordered_ops[i]->get_friendly_name();
-                if (name.find("blk.0.Qcur_rope") != std::string::npos) {
-                    rope_pos = i;
-                } else if (name.find("blk.0.Qcur_normed") != std::string::npos &&
-                           name.find(".rms") == std::string::npos) {
-                    norm_pos = i;
-                }
+        if (const auto dependency_it = graph_dependencies().find(fixture.header_file);
+            dependency_it != graph_dependencies().end()) {
+            for (const auto& dependency : dependency_it->second) {
+                const auto producer = find_node(model, dependency.first);
+                const auto consumer = find_node(model, dependency.second);
+                ASSERT_TRUE(producer) << fixture.header_file << " has no expected producer " << dependency.first;
+                ASSERT_TRUE(consumer) << fixture.header_file << " has no expected consumer " << dependency.second;
+                EXPECT_TRUE(is_ancestor(producer, consumer))
+                    << fixture.header_file << ": " << dependency.second << " must depend on " << dependency.first;
             }
-            ASSERT_LT(rope_pos, ordered_ops.size()) << "Hunyuan layer 0 has no Q RoPE output";
-            ASSERT_LT(norm_pos, ordered_ops.size()) << "Hunyuan layer 0 has no Q-norm output";
-            EXPECT_LT(rope_pos, norm_pos) << "Hunyuan must apply learned Q/K norm after RoPE, matching llama.cpp";
         }
         break;
     }
