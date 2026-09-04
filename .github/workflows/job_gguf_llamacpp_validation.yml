@@ -26,6 +26,7 @@ env:
   LLAMA_CPP_REPO: mvafin/llama.cpp
   LLAMA_CPP_REF: 16fb7d9d326a3fe69a331ce5fbe7a679a1a281bb
   INSTALL_DIR: ${{ github.workspace }}/install
+  NINJA_LOGS_ARCHIVE_DIR: ${{ github.workspace }}/ninja_logs_archive
   SCCACHE_DIR: ${{ github.workspace }}/.sccache
 
 jobs:
@@ -69,6 +70,17 @@ jobs:
           ref: ${{ env.LLAMA_CPP_REF }}
           path: llama.cpp
 
+      - name: Prepare Ninja log collection directory
+        run: rm -rf "${NINJA_LOGS_ARCHIVE_DIR}" && mkdir -p "${NINJA_LOGS_ARCHIVE_DIR}"
+
+      - name: Checkout collect_ninja_logs script
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          path: ci-scripts-openvino
+          sparse-checkout: .github/scripts/collect_ninja_logs_snapshot.sh
+          sparse-checkout-cone-mode: true
+
       - name: Configure llama.cpp against the OpenVINO package
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
@@ -80,6 +92,28 @@ jobs:
 
       - name: Build llama.cpp
         run: cmake --build llama.cpp/build --parallel "$(nproc)"
+
+      - name: Snapshot Ninja logs after llama.cpp build
+        if: always()
+        run: |
+          bash "${{ github.workspace }}/ci-scripts-openvino/.github/scripts/collect_ninja_logs_snapshot.sh" \
+            "${NINJA_LOGS_ARCHIVE_DIR}" llama_cpp_build "${{ github.workspace }}/llama.cpp/build"
+
+      - name: Archive collected Ninja logs
+        if: always()
+        run: |
+          if [[ ! -d "${NINJA_LOGS_ARCHIVE_DIR}" ]] || [[ -z "$(ls -A "${NINJA_LOGS_ARCHIVE_DIR}" 2>/dev/null)" ]]; then
+            exit 0
+          fi
+          tar -czf "${{ github.workspace }}/llama.cpp/build/ninja_logs.tar.gz" -C "${NINJA_LOGS_ARCHIVE_DIR}" .
+
+      - name: Upload Ninja build logs
+        if: always()
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: ninja_log_gguf_llamacpp_validation
+          path: ${{ github.workspace }}/llama.cpp/build/ninja_logs.tar.gz
+          if-no-files-found: warn
 
       - name: Show sccache stats
         run: sccache --show-stats

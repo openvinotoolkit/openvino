@@ -106,6 +106,7 @@ jobs:
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
       BUILD_DIR: /__w/openvino/openvino/openvino_build
+      NINJA_LOGS_ARCHIVE_DIR: /__w/openvino/openvino/ninja_logs_archive
       COVERITY_TOOL_DIR: /__w/openvino/openvino/coverity_tool
 
     steps:
@@ -148,6 +149,9 @@ jobs:
       # Build
       #
 
+      - name: Prepare Ninja log collection directory
+        run: rm -rf "${NINJA_LOGS_ARCHIVE_DIR}" && mkdir -p "${NINJA_LOGS_ARCHIVE_DIR}"
+
       - name: CMake configure - OpenVINO
         run: |
           cmake \
@@ -168,6 +172,25 @@ jobs:
 
       - name: Cmake build - OpenVINO with Coverity
         run: ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-build --dir ${BUILD_DIR}/cov-int cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+
+      - name: Snapshot Ninja logs after Cmake build - OpenVINO with Coverity
+        run: bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" "${NINJA_LOGS_ARCHIVE_DIR}" cmake_build_coverity "${BUILD_DIR}"
+
+      - name: Archive collected Ninja logs
+        if: always()
+        run: |
+          if [[ ! -d "${NINJA_LOGS_ARCHIVE_DIR}" ]] || [[ -z "$(ls -A "${NINJA_LOGS_ARCHIVE_DIR}" 2>/dev/null)" ]]; then
+            exit 0
+          fi
+          tar -czf "${BUILD_DIR}/ninja_logs.tar.gz" -C "${NINJA_LOGS_ARCHIVE_DIR}" .
+
+      - name: Upload Ninja build logs
+        if: always()
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: ninja_log_coverity
+          path: ${{ env.BUILD_DIR }}/ninja_logs.tar.gz
+          if-no-files-found: warn
 
       - name: Pack Artefacts
         run: tar -cvf - cov-int | pigz > openvino.tgz

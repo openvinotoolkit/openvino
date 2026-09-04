@@ -82,6 +82,7 @@ jobs:
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
       INSTALL_PDB_DIR: "${{ github.workspace }}\\install_pdb"
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
+      NINJA_LOGS_ARCHIVE_DIR: "${{ github.workspace }}\\ninja_logs_archive"
       MODELS_PATH: "${{ github.workspace }}\\testdata"
       SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
 
@@ -171,13 +172,22 @@ jobs:
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
+      - name: Prepare Ninja log collection directory
+        run: |
+          if (Test-Path -LiteralPath $env:NINJA_LOGS_ARCHIVE_DIR) {
+            Remove-Item -LiteralPath $env:NINJA_LOGS_ARCHIVE_DIR -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $env:NINJA_LOGS_ARCHIVE_DIR -Force | Out-Null
+
       - name: Clean ccache stats
         run: '& ccache --zero-stats'
 
       - name: Cmake build - CC COLLECT
         run: |
-          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet && `
+          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+          & "${{ env.OPENVINO_REPO }}/.github/scripts/collect_ninja_logs_snapshot.ps1" -ArchiveRoot $env:NINJA_LOGS_ARCHIVE_DIR -SnapshotName cmake_build_cc_collect -BuildDirs @($env:BUILD_DIR)
           cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- --quiet
+          & "${{ env.OPENVINO_REPO }}/.github/scripts/collect_ninja_logs_snapshot.ps1" -ArchiveRoot $env:NINJA_LOGS_ARCHIVE_DIR -SnapshotName cmake_build_sea_itt_lib -BuildDirs @($env:BUILD_DIR)
 
       - name: Show ccache stats
         run: '& ccache --show-stats'
@@ -191,6 +201,13 @@ jobs:
         run: |
           cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples
           cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device -- --quiet
+
+      - name: Snapshot Ninja logs after C++ samples build
+        run: |
+          & "${{ env.OPENVINO_REPO }}/.github/scripts/collect_ninja_logs_snapshot.ps1" `
+            -ArchiveRoot $env:NINJA_LOGS_ARCHIVE_DIR `
+            -SnapshotName cpp_samples_hello_query_device `
+            -BuildDirs @("${{ env.BUILD_DIR }}/cpp_samples")
 
       - name: Perform code tracing via ITT collector
         shell: cmd
@@ -289,101 +306,19 @@ jobs:
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
-  Build_And_Run_On_Mode:
-    name: Conditional Compilation
-    timeout-minutes: 40
-    needs: [Build_And_Run_Collect_Mode, Smart_CI]
-    defaults:
-      run:
-        shell: pwsh
-    runs-on: aks-win-16-cores-32gb-build
-    env:
-      CMAKE_BUILD_TYPE: 'Release'
-      CMAKE_TOOLCHAIN_FILE: "${{ github.workspace }}\\openvino\\cmake\\toolchains\\onecoreuap.toolchain.cmake"
-      OPENVINO_REPO: "${{ github.workspace }}\\openvino"
-      BUILD_DIR: "${{ github.workspace }}\\openvino_build"
-      MODELS_PATH: "${{ github.workspace }}\\testdata"
-      SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
-    if: "!needs.smart_ci.outputs.skip_workflow"
-
-    steps:
-      - name: Clone OpenVINO
-        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
-        timeout-minutes: 15
-        with:
-          path: 'openvino'
-          submodules: 'recursive'
-
-      - name: Clone test models
-        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
-        timeout-minutes: 15
-        with:
-          repository: 'openvinotoolkit/testdata'
-          path: 'testdata'
-          lfs: 'true'
-          ref: ${{ env.TARGET_BRANCH }}
-
-      - name: Download selective build statistics package
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
-        with:
-          name: openvino_selective_build_stat
-          path: ${{ env.SELECTIVE_BUILD_STAT_DIR }}
-
-      - name: Extract selective build statistics package
-        run: Expand-Archive ${{ env.SELECTIVE_BUILD_STAT_DIR }}/openvino_selective_build_stat.zip -DestinationPath "${{ env.SELECTIVE_BUILD_STAT_DIR }}"
-
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: ./openvino/.github/actions/setup_python
-        with:
-          version: ${{ env.PYTHON_VERSION }}
-          set-pip-install-path: 'false'
-          self-hosted-runner: 'true'
-          use-pip-proxy: 'true'
-
-      - name: CMake configure - CC ON
+      - name: Archive collected Ninja logs
+        if: always()
         run: |
-          cmake `
-            -DENABLE_TESTS=OFF `
-            -DBUILD_SHARED_LIBS=OFF `
-            -DSELECTIVE_BUILD=ON `
-            -DENABLE_TEMPLATE=OFF `
-            -DENABLE_INTEL_GPU=OFF `
-            -DENABLE_INTEL_NPU=OFF `
-            -DENABLE_OV_TF_FRONTEND=OFF `
-            -DENABLE_OV_TF_LITE_FRONTEND=OFF `
-            -DENABLE_OV_PADDLE_FRONTEND=OFF `
-            -DENABLE_OV_PYTORCH_FRONTEND=OFF `
-            -DENABLE_OV_JAX_FRONTEND=OFF `
-            -DENABLE_OV_ONNX_FRONTEND=OFF `
-            -DSELECTIVE_BUILD_STAT=${{ env.SELECTIVE_BUILD_STAT_DIR }}\*.csv `
-            -S ${{ env.OPENVINO_REPO }} `
-            -B ${{ env.BUILD_DIR }}
+          if (-not (Test-Path -LiteralPath $env:NINJA_LOGS_ARCHIVE_DIR)) { exit 0 }
+          $items = Get-ChildItem -LiteralPath $env:NINJA_LOGS_ARCHIVE_DIR -Force
+          if (-not $items) { exit 0 }
+          tar -czf "$env:BUILD_DIR/ninja_logs.tar.gz" -C $env:NINJA_LOGS_ARCHIVE_DIR .
 
-        # Number of threads is hardcoded due to OutOfMemory issues. Unless we switch CMake's generator to Ninja, we can't
-        # set number of jobs separately for compilation and linking. The issue most likely occurs during linking.
-      - name: Cmake build - CC ON
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /verbosity:minimal
+      - name: Upload Ninja build logs
+        if: always()
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: ninja_log_windows_cc_collect
+          path: ${{ env.BUILD_DIR }}/ninja_logs.tar.gz
+          if-no-files-found: warn
 
-      - name: List bin files
-        shell: cmd
-        run: dir ${{ env.OPENVINO_REPO }}\bin\ /s
-
-      - name: Run with CC-ed runtime
-        shell: cmd
-        run: |
-          set path=%path%;${{ env.OPENVINO_REPO }}\temp\Windows_AMD64\tbb\bin;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
-          ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }}\benchmark_app.exe -niter 1 -nireq 1 -m ${{ env.MODELS_PATH }}\models\test_model\test_model_fp32.xml -d CPU
-
-  Overall_Status:
-    name: ci/gha_overall_status_windows_cc
-    needs: [Smart_CI, Build_And_Run_Collect_Mode, Build_And_Run_On_Mode]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check status of all jobs
-        if: >-
-          ${{
-            contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')
-          }}
-        run: exit 1

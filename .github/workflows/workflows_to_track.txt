@@ -53,8 +53,6 @@ name: Code snippets
 name: Linux RISC-V with Conan (Ubuntu 22.04, Python 3.10)
 ==> ./workflow_rerunner.yml <==
 name: Rerun Workflow with Known Errors
-==> ./linux_sanitizers.yml <==
-name: Linux Sanitizers (Ubuntu 22.04, Python 3.11)
 ==> ./py_checks.yml <==
 name: Python API Checks
 ==> ./webassembly.yml <==

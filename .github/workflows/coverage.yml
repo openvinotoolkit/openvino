@@ -83,6 +83,7 @@ jobs:
       build-additional-python-packages: false
       build-debian-packages: false
       upload-coverage-notes: true
+      upload-ninja-log: true
       use_latest_onednn: false
       cmake-options: >-
         -G 'Ninja Multi-Config'

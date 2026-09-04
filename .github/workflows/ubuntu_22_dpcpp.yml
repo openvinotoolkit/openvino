@@ -84,6 +84,7 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_linux.yml
     with:
+      store_artifacts: false
       runner: 'aks-linux-16-cores-32gb'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64_dpcpp }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
@@ -104,16 +105,3 @@ jobs:
             -DCPACK_GENERATOR=TGZ
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
 
-  Overall_Status:
-    name: ci/gha_overall_status_ubuntu_22.04_dpcpp
-    needs: [Smart_CI, Build]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check status of all jobs
-        if: >-
-          ${{
-            contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')
-          }}
-        run: exit 1
