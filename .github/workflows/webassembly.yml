@@ -146,7 +146,6 @@ jobs:
           mode: zero-stats
 
       - name: cmake --build - build
-        shell: bash -x {0}
         run: cmake --build ${OPENVINO_BUILD_DIR} --target hello_query_device --parallel $(nproc)
 
       - name: Compile cache statistics (hello_query_device)

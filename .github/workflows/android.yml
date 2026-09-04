@@ -220,7 +220,6 @@ jobs:
           mode: zero-stats
 
       - name: Build OneTBB project
-        shell: bash -x {0}
         run: cmake --build ${TBB_BUILD} --parallel $(nproc) -- --quiet
 
       - name: Compile cache statistics (onetbb)
@@ -270,7 +269,6 @@ jobs:
           mode: zero-stats
 
       - name: CMake - build OpenVINO
-        shell: bash -x {0}
         run: cmake --build ${BUILD_DIR} --parallel $(nproc) -- --quiet
 
       - name: Compile cache statistics (openvino)

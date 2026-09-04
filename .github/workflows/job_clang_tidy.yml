@@ -123,7 +123,6 @@ jobs:
           BUILD_TARGET: ${{ inputs.build-target }}
           BUILD_EXTRA_ARGS: ${{ inputs.build-extra-args }}
         run: |
-          set -x
           cmake \
             --build "${BUILD_DIR}" \
             --parallel "$(($(nproc) - 1))" \

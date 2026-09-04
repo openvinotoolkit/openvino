@@ -163,7 +163,6 @@ jobs:
           mode: zero-stats
 
       - name: Cmake build - OpenVINO
-        shell: bash -x {0}
         run: cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
       - name: Compile cache statistics (openvino main build)
