@@ -20,9 +20,21 @@ namespace ov {
 namespace reference {
 template <typename T>
 size_t normalize_index(const T idx, const size_t dim_value) {
+    // Per the operator specification the index must lie within [-dim_value, dim_value - 1]. 
     if (idx < 0) {
-        return static_cast<size_t>(idx + dim_value);
+        const int64_t normalized = static_cast<int64_t>(idx) + static_cast<int64_t>(dim_value);
+        OPENVINO_ASSERT(normalized >= 0,
+                        "ScatterElementsUpdate index ",
+                        static_cast<int64_t>(idx),
+                        " is out of bounds for the axis of size ",
+                        dim_value);
+        return static_cast<size_t>(normalized);
     } else {
+        OPENVINO_ASSERT(static_cast<size_t>(idx) < dim_value,
+                        "ScatterElementsUpdate index ",
+                        static_cast<int64_t>(idx),
+                        " is out of bounds for the axis of size ",
+                        dim_value);
         return static_cast<size_t>(idx);
     }
 }
