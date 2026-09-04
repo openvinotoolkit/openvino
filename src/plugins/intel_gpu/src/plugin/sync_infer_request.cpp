@@ -1205,19 +1205,49 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
         m_plugin_outputs[output_idx] = user_tensor_wrapper;
     }
 
-    if (!is_dynamic) {
+    // Snapshot whether the previous binding was caller-owned before the map is mutated below.
+    const bool had_user_device_buffer = m_plugin_outputs.count(output_idx) > 0 && m_plugin_outputs[output_idx].owner == TensorOwner::USER;
+    {
         bool need_lockable_mem = network->does_node_need_lockable_output(internal_name);
         bool has_device_buffer = m_plugin_outputs.count(output_idx) > 0;
         bool update_device_tensor = !has_device_buffer ||
                                     is_generic_remote ||
-                                    (m_plugin_outputs[output_idx].owner == TensorOwner::USER && !is_remote_tensor_impl);
+                                    (had_user_device_buffer && !is_remote_tensor_impl);
         if (update_device_tensor) {
-            if (!is_remote_tensor_impl) {
-                m_plugin_outputs[output_idx] =
-                    create_or_share_device_tensor(user_tensor_wrapper, internal_name, pshape, device_tensor_et, need_lockable_mem || convert_needed);
-            } else {
-                m_plugin_outputs[output_idx] = { create_device_tensor(pshape, device_tensor_et, need_lockable_mem || convert_needed), TensorOwner::PLUGIN };
+            if (!is_dynamic) {
+                if (!is_remote_tensor_impl) {
+                    m_plugin_outputs[output_idx] =
+                        create_or_share_device_tensor(user_tensor_wrapper, internal_name, pshape, device_tensor_et, need_lockable_mem || convert_needed);
+                } else {
+                    m_plugin_outputs[output_idx] = { create_device_tensor(pshape, device_tensor_et, need_lockable_mem || convert_needed), TensorOwner::PLUGIN };
+                }
+            } else if (!is_remote_tensor_impl) {
+                // Drop any stale dynamic binding so an imported caller USM pointer isn't reused after set_output_tensor().
+                m_plugin_outputs.erase(output_idx);
             }
+        }
+    }
+
+    if (is_dynamic && user_tensor_wrapper.owner == TensorOwner::USER) {
+        // Caller-owned memory and the plugin-owned OutputMemoryBlock are mutually exclusive.
+        network->unregister_output_memory_block(internal_name);
+
+        auto& engine = m_graph->get_engine();
+        // Import a caller USM-host pointer as a shared remote tensor so the graph writes into it directly.
+        const bool can_share_user_usm_host =
+            !is_remote_tensor_impl && !is_generic_remote && !convert_needed &&
+            engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu &&
+            engine.detect_usm_allocation_type(user_tensor->data()) == cldnn::allocation_type::usm_host &&
+            can_use_usm_host(engine, total_output_bytes);
+        const bool need_lockable_mem = network->does_node_need_lockable_output(internal_name);
+        if (can_share_user_usm_host) {
+            m_plugin_outputs[output_idx] =
+                create_or_share_device_tensor(user_tensor_wrapper, internal_name, pshape, device_tensor_et, need_lockable_mem || convert_needed);
+        } else if (had_user_device_buffer && !is_remote_tensor_impl && !is_generic_remote) {
+            // Prev binding shared caller memory but the new host tensor is ineligible: recreate
+            // plugin-owned memory so set_output_memory() rebinds the Result off the stale allocation.
+            m_plugin_outputs[output_idx] =
+                create_or_share_device_tensor(user_tensor_wrapper, internal_name, pshape, device_tensor_et, need_lockable_mem || convert_needed);
         }
     }
 
@@ -1230,10 +1260,6 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
             if (block_it != m_output_memory_blocks.end()) {
                 network->register_output_memory_block(internal_name, block_it->second.get());
             }
-        } else if (is_dynamic) {
-            // User set a custom tensor — unregister any previously registered block
-            // so the graph uses its normal memory pool and copies to user's tensor.
-            network->unregister_output_memory_block(internal_name);
         }
         return {};
     }
