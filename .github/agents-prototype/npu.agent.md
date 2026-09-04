@@ -1,7 +1,7 @@
 ---
 name: NPU Plugin Agent
 description: OpenVINO NPU plugin agent. Validates and fixes NPU-specific compilation and inference issues, benchmarks performance with benchmark_app, and reports latency results to the OV Orchestrator. Runs in parallel with Transformation, CPU, and GPU agents; its result is non-blocking. Reports skipped when no NPU hardware is available.
-model: claude-sonnet-4.6
+model: claude-sonnet-5
 ---
 # NPU Agent
 

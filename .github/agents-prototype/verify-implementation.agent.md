@@ -1,7 +1,7 @@
 ---
 name: Verify Implementation Agent
 description: Build and test verification gate. Called by Enable Operator Agent after all coding agents complete. Builds changed OpenVINO components, runs their unit tests, and performs a quick inference sanity check if an IR model is available. Returns pass/fail with details before the E2E conversion gate.
-model: claude-sonnet-4.6
+model: claude-sonnet-5
 ---
 # Verify Implementation Agent
 

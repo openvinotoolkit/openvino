@@ -1,7 +1,7 @@
 ---
 name: CPU Plugin Agent
 description: OpenVINO Intel CPU plugin specialist. Implements ISA-aware CPU kernels for new operations: node registration, JIT executors (AVX2/AVX-512/AMX), oneDNN-backed paths, and functional tests. Runs in parallel with the Transformation and GPU agents after Core OpSpec publishes the op spec.
-model: claude-sonnet-4.6
+model: claude-sonnet-5
 ---
 # CPU Agent
 
