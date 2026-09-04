@@ -42,6 +42,9 @@ PadTransformation::PadTransformation(const Params& params) : LayerTransformation
 }
 
 namespace {
+    // Input port of PadBase carrying the pad value (arg_pad_value).
+    constexpr size_t padValueInputIndex = 3;
+
     bool hasPositiveIndexes(const std::shared_ptr<ov::op::util::PadBase>& pad) {
         const auto padsBegin = pad->get_pads_begin();
         const auto padsEnd = pad->get_pads_end();
@@ -59,7 +62,7 @@ bool PadTransformation::transform(ov::pass::pattern::Matcher& m) {
     }
 
     const auto pad = ov::as_type_ptr<ov::op::util::PadBase>(NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions));
-    const auto padConstant = ov::as_type_ptr<ov::opset1::Constant>(pad->get_input_node_shared_ptr(3));
+    const auto padConstant = ov::as_type_ptr<ov::opset1::Constant>(pad->get_input_node_shared_ptr(padValueInputIndex));
     const auto padConstantValue = padConstant->cast_vector<float>()[0];
 
     const auto padsBegin = pad->get_pads_begin();
@@ -191,6 +194,11 @@ bool PadTransformation::canBeTransformed(const std::shared_ptr<Node>& op) const 
         return false;
     }
 
+    if (mode == op::PadMode::CONSTANT &&
+        !NetworkHelper::checkConstantNotInf(pad->get_input_node_shared_ptr(padValueInputIndex))) {
+        return false;
+    }
+
     const auto dequantization = NetworkHelper::getDequantization(op, defaultPrecisions);
     if (dequantization.empty()) {
         return false;
@@ -266,7 +274,7 @@ bool PadTransformation::canBeTransformed(const std::shared_ptr<Node>& op) const 
             return false;
         }
 
-        const auto constant = ov::as_type_ptr<ov::opset1::Constant>(pad->get_input_node_shared_ptr(3));
+        const auto constant = ov::as_type_ptr<ov::opset1::Constant>(pad->get_input_node_shared_ptr(padValueInputIndex));
         const auto constantValue = constant->cast_vector<float>()[0];
         if (constantValue != 0.f && !padAndDqByTheSameDimension(dequantization.multiplyConstant)) {
             return false;
