@@ -205,7 +205,7 @@ These samples link against the static package the same way any consuming applica
 
   > **NOTE**: The prebuilt TBB package can also be downloaded directly:
   > * Linux x64: `https://storage.openvinotoolkit.org/dependencies/thirdparty/linux/oneapi-tbb-2021.13.1-lin-release.tgz`
-  > * Windows x64: `https://storage.openvinotoolkit.org/dependencies/thirdparty/windows/oneapi-tbb-2021.13.2-win.zip`
+  > * Windows x64: `https://storage.openvinotoolkit.org/dependencies/thirdparty/windows/oneapi-tbb-2021.13.3-vs2022-win.zip`
   >
   > The TBB version differs per OS and changes between OpenVINO releases; check [cmake/dependencies.cmake](../../cmake/dependencies.cmake) for the version matching your checkout before downloading.
 
