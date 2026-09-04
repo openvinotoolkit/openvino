@@ -179,19 +179,6 @@ bool is_cw_compressed(const std::shared_ptr<ov::Model>& model) {
     return false;
 }
 
-bool is_int8_compressed(const std::shared_ptr<ov::Model>& model) {
-    std::vector<std::string> rt_info_path = {"nncf", "weight_compression", "mode"};
-    if (!model->has_rt_info(rt_info_path)) {
-        // NB: Model isn't compressed by NNCF - skip
-        return false;
-    }
-    auto mode = model->get_rt_info<std::string>(rt_info_path);
-    if (mode.find("int8") != std::string::npos) {
-        return true;
-    }
-    return false;
-}
-
 struct NPUDesc {
     std::string arch;
     int64_t max_tiles = 0;
