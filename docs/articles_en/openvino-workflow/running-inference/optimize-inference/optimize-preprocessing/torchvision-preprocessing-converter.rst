@@ -33,6 +33,18 @@ the overall application complexity and enabling additional performance optimizat
       transforms.Resize
 
 
+.. note::
+
+   ``transforms.Resize`` with ``InterpolationMode.NEAREST`` is implemented on top of the
+   ``Interpolate`` operator's ``nearest`` mode, configured with ``coordinate_transformation_mode``
+   and ``nearest_mode`` attributes chosen to closely mirror Pillow's rounding behavior. This
+   configuration is not guaranteed to be bit-exact with ``torchvision``/Pillow for every
+   input/output size combination, especially for non-square images where the height and width
+   scale factors differ. See the ``nearest_mode`` note in the
+   :doc:`Interpolate <../../../../documentation/openvino-ir-format/operation-sets/operation-specs/image/interpolate-11>`
+   operation specification for details and possible future improvements.
+
+
 Example
 ###################
 
