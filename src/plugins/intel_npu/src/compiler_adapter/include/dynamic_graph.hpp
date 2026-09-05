@@ -23,7 +23,7 @@ public:
                  const FilteredConfig& config,
                  BlobType blobType = BlobType::LLVM);
 
-    std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
+    uint64_t export_main_blob(std::ostream& stream) const override;
 
     void* get_handle() const override;
 

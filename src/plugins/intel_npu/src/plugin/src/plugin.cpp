@@ -7,8 +7,13 @@
 #include <fstream>
 #include <numeric>
 
+#include "batch_size_section.hpp"
 #include "blob_format_importers.hpp"
 #include "compiled_model.hpp"
+#include "compiler_schedules_sections.hpp"
+#include "driver_compiler_adapter.hpp"
+#include "intel_npu/common/blob_reader.hpp"
+#include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/filtered_config.hpp"
@@ -18,6 +23,7 @@
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "io_layouts_section.hpp"
 #include "npuw/compiled_model.hpp"
 #include "npuw/flux2_compiled_model.hpp"
 #include "npuw/gqa_compiled_model.hpp"
@@ -44,8 +50,8 @@ constexpr std::string_view FAILED_IMPORT_MODEL_PREFACE = "Could not import the m
 constexpr std::string_view IMPORT_MODEL_UNEXPECTED_FAILURE_MESSAGE = "Unexpected exception while importing the model";
 
 /**
- * @brief Just checks if there is any "WeightlessCacheAttribute" present in the model. In the negative case, an error is
- * thrown. The weights separation flow in its current state cannot work without this attribuite.
+ * @brief Just checks if there is any "WeightlessCacheAttribute" present in the model. In the negative case, an
+ * error is thrown. The weights separation flow in its current state cannot work without this attribuite.
  */
 void check_weightless_cache_attribute_occurrence(const std::shared_ptr<const ov::Model>& model) {
     if (!model) {
@@ -212,8 +218,9 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     // parse again env_variables to update registered configs which have env vars set
     config.parseEnvVars();
 
-    // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
-    // to enable those for OV Core to query. Note: do this last to not filter them out. register npuw caching properties
+    // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still
+    // need to enable those for OV Core to query. Note: do this last to not filter them out. register npuw caching
+    // properties
     for_each_exposed_npuw_option([&](auto tag) {
         using Opt = typename decltype(tag)::type;
         REGISTER_OPTION(Opt);
@@ -310,6 +317,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                                           const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::compile_model");
     update_log_level(properties);
+
+    // Created at this stage to allow functions to register blob sections on the fly
+    auto blobWriter = std::make_shared<BlobWriter>();
 
     // Before going any further: if
     // ... 1 - NPUW mode is activated
@@ -507,12 +517,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<intel_npu::IGraph> graph;
 
-    auto compileWithConfig = [&](auto&& modelToCompile, const auto& config) {
+    auto compileWithConfig = [&](auto&& modelToCompile, const auto& config, const auto& blobWriter) {
         if (!localConfig.get<ENABLE_WEIGHTLESS>()) {
-            return compiler->compile(modelToCompile, config);
+            return compiler->compile(modelToCompile, config, blobWriter);
         } else {
             check_weightless_cache_attribute_occurrence(model);
-            return compiler->compileWS(std::move(modelToCompile), config);
+            return compiler->compileWS(std::move(modelToCompile), config, blobWriter);
         }
     };
 
@@ -544,9 +554,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             std::stringstream strStream;
             strStream << ov::hint::PerformanceMode::THROUGHPUT;
             modifiedConfig.update({{ov::hint::performance_mode.name(), strStream.str()}});
-            graph = compileWithConfig(std::move(modelToCompile), modifiedConfig);
+            graph = compileWithConfig(std::move(modelToCompile), modifiedConfig, blobWriter);
         } else {
-            graph = compileWithConfig(std::move(modelToCompile), localConfig);
+            graph = compileWithConfig(std::move(modelToCompile), localConfig, blobWriter);
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
@@ -562,6 +572,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             // Initial batch setup for static cases
             graph->set_batch_size(batch.value());
         }
+
+        blobWriter->register_section(std::make_shared<BatchSizeSection>(batch.value(), _logger.level()));
     }
 
     if (localConfig.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
@@ -573,12 +585,32 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
     try {
-        compiledModel = std::make_shared<CompiledModel>(model, shared_from_this(), device, graph, localConfig, batch);
+        compiledModel =
+            std::make_shared<CompiledModel>(model, shared_from_this(), device, graph, localConfig, blobWriter);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
         OPENVINO_THROW("Unexpected exception thrown upon attempting to create the \"CompiledModel\" object");
     }
+
+    blobWriter->register_section(
+        std::make_shared<CompilerVersionSection>(localConfig.get<COMPILER_VERSION>(), _logger.level()));
+
+    // Registed the IO layouts section
+    std::vector<ov::Layout> inputLayouts;
+    std::vector<ov::Layout> outputLayouts;
+
+    for (const ov::Output<const ov::Node>& nodeOutput : compiledModel->inputs()) {
+        inputLayouts.push_back(
+            std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
+    }
+    for (const ov::Output<const ov::Node>& nodeOutput : compiledModel->outputs()) {
+        outputLayouts.push_back(
+            std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
+    }
+
+    blobWriter->register_section(
+        std::make_shared<IOLayoutsSection>(std::move(inputLayouts), std::move(outputLayouts), _logger.level()));
 
     ++_compiledModelLoadCounter;
     OV_ITT_TASK_SKIP(PLUGIN_COMPILE_MODEL);
@@ -711,7 +743,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
                                            device,
                                            graph,
                                            blobFormatImporter->get_config(),
-                                           graph->get_batch_size());
+                                           blobFormatImporter->create_blob_writer());
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,

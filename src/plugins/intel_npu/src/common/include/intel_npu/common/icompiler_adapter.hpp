@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/igraph.hpp"
 
@@ -12,7 +13,8 @@ namespace intel_npu {
 class ICompilerAdapter {
 public:
     virtual std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
-                                            const FilteredConfig& config) const = 0;
+                                            const FilteredConfig& config,
+                                            const std::shared_ptr<BlobWriter>& blobWriter) const = 0;
 
     /**
      * @brief Compiles the model, weights separation enabled.
@@ -26,10 +28,12 @@ public:
      * @param config Will be passed to the compiler. Additionally, the "SEPARATE_WEIGHTS_VERSION" option will determine
      * which weights separation implementation will be used. See the weights separation specific methods within
      * "icompiler.hpp".
+     * @param blobWriter TODO
      * @return A "WeightlessGraph" type of object.
      */
     virtual std::shared_ptr<IGraph> compileWS(std::shared_ptr<ov::Model>&& model,
-                                              const FilteredConfig& config) const = 0;
+                                              const FilteredConfig& config,
+                                              const std::shared_ptr<BlobWriter>& blobWriter) const = 0;
 
     virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
                                       const FilteredConfig& config) const = 0;
