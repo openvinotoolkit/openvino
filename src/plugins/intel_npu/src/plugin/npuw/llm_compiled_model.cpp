@@ -26,6 +26,7 @@
 #include "npuw_transformations/reshape_sliced_head_to_static.hpp"
 #include "npuw_transformations/reshape_to_static.hpp"
 #include "npuw_transformations/right_align_mask_slice_for_conv.hpp"
+#include "npuw_transformations/select_last_chunk_logits.hpp"
 #include "npuw_transformations/slice_out_embeds.hpp"
 #include "npuw_transformations/split_kvcache_into_blocks.hpp"
 #include "openvino/op/convert.hpp"
@@ -926,8 +927,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     } else {
         LOG_DEBUG("Adding position_ids input in case it doesn't exist in model: LFM-2 case.");
         ov::npuw::AddPositionIdsParam().run_on_model(kvcache_model);
-        LOG_DEBUG("Right-align attention_mask slice for Conv operations: LFM-2 case.");
-        ov::npuw::RightAlignMaskSliceForConv().run_on_model(kvcache_model);
+        if (!m_use_chunk_prefill) {
+            LOG_DEBUG("Right-align attention_mask slice for Conv operations: LFM-2 case.");
+            ov::npuw::RightAlignMaskSliceForConv().run_on_model(kvcache_model);
+        }
         LOG_DEBUG("Transform kvcache model from stateful to stateless.");
         ov::pass::StatefulToStateless().run_on_model(kvcache_model);
     }
@@ -956,14 +959,23 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     ov::npuw::DetectAttentionMask().run_on_model(kvcache_model);
     ov::npuw::log_detected_masks(kvcache_model);
 
-    if (!m_is_whisper) {
-        LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
-        ov::npuw::PatchSlidingWindowMask().run_on_model(kvcache_model);
-    }
-
     LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
     prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
+
+    if (!m_is_whisper) {
+        LOG_DEBUG("Try patch sliding window attention mask for the generate model, if it exists.");
+        ov::npuw::PatchSlidingWindowMask().run_on_model(kvcache_model);
+        if (!m_use_chunk_prefill) {
+            LOG_DEBUG("Apply the same sliding window attention mask patch to whole-prefill model.");
+            ov::npuw::PatchSlidingWindowMask().run_on_model(prefill_model);
+        }
+    }
+
+    if (m_use_chunk_prefill && !m_is_embedding) {
+        LOG_DEBUG("Right-align attention_mask slice for Conv operations in generate model: LFM-2 case.");
+        ov::npuw::RightAlignMaskSliceForConv().run_on_model(kvcache_model);
+    }
 
     m_kvcache_desc =
         KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim, max_generation_token_len};
@@ -1042,11 +1054,17 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (lm_head_model) {
         LOG_DEBUG("Shared LM head: slice the prefill output");
         // KVCache model is already reshaped to [1, max_generation_token_len, embed size],
-        // so only apply slice to the Prefill model:
-        ov::npuw::SliceOutEmbeds(axes.batch, m_kvcache_desc.max_generation_token_len).run_on_model(prefill_model);
+        // so only apply a static slice to whole-prefill models. Chunked prefill uses
+        // host-side selection because a short final chunk is left-aligned.
+        if (!m_use_chunk_prefill) {
+            ov::npuw::SliceOutEmbeds(axes.batch, m_kvcache_desc.max_generation_token_len).run_on_model(prefill_model);
+        }
         LOG_DEBUG("Make LM head model with static shapes");
         ov::npuw::ReshapeSlicedHeadToStatic(axes.batch, m_kvcache_desc.max_generation_token_len)
             .run_on_model(lm_head_model);
+    } else if (m_use_chunk_prefill) {
+        LOG_DEBUG("Chunked prefill: dynamically select the last valid logits.");
+        ov::npuw::SelectLastChunkLogits(axes.batch, m_prefill_chunk_size).run_on_model(prefill_model);
     }
 
     const auto prefill_attn_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>();

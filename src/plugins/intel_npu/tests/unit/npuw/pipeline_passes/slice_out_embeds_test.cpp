@@ -95,6 +95,27 @@ TEST_F(SliceOutEmbedsPassTest, SliceIsNotInsertedWhenGenerationTokenLenEqualsPro
         << "Expected no v8::Slice directly feeding output_embeds when generation len == prompt len";
 }
 
+TEST_F(SliceOutEmbedsPassTest, ChunkedPrefillKeepsEmbedsForHostLastTokenSelection) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_SHARED_HEAD", "YES"},
+                                                      {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                                                      {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"},
+                                                      {"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "1"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_sub_model(recorder, "_prefill");
+    const auto& lm_head = require_sub_model(recorder, "_lm_head");
+    const auto embeds = find_output(prefill.model, ov::npuw::LLMCompiledModel::output_embeds);
+    ASSERT_TRUE(embeds.has_value()) << "output_embeds output not found on prefill model";
+    ASSERT_TRUE(embeds->get_partial_shape().is_static());
+    EXPECT_EQ(embeds->get_shape(), (ov::Shape{1, 32, 64}));
+    EXPECT_FALSE(output_embeds_has_slice_producer(prefill.model));
+    EXPECT_EQ(lm_head.model->input(0).get_shape(), (ov::Shape{1, 1, 64}));
+}
+
 // Test 3: When SHARED_HEAD=NO, SliceOutEmbeds does not fire. The lm_head sub-model
 // must not be created and the prefill model must not expose an output_embeds output.
 TEST_F(SliceOutEmbedsPassTest, SliceNotAppliedWhenNoSharedHead) {

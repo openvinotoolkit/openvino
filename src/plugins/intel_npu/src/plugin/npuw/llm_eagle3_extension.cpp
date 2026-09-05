@@ -114,7 +114,8 @@ struct KVCacheSegment {
 };
 
 void pad_hidden_state_input(const ov::SoPtr<ov::ITensor>& hidden_state,
-                            const ov::SoPtr<ov::ITensor>& padded_hidden_state) {
+                            const ov::SoPtr<ov::ITensor>& padded_hidden_state,
+                            bool left_aligned = false) {
     // Pad the token_length dimension of hidden state input [batch, token_length, embedding_size].
     // Caller guarantees both tensors are rank-3 with batch=1 (validated in store_user_inputs).
     constexpr size_t kTokenDim = 1;
@@ -128,8 +129,14 @@ void pad_hidden_state_input(const ov::SoPtr<ov::ITensor>& hidden_state,
 
     ov::npuw::util::fill_tensor_bytes(padded_hidden_state, 0u);
 
-    // Tokens are right-aligned: copy src flush to the right end of dst.
-    ov::npuw::util::copy_to_right(hidden_state, padded_hidden_state);
+    if (left_aligned) {
+        std::copy_n(reinterpret_cast<const uint8_t*>(hidden_state->data()),
+                    hidden_state->get_byte_size(),
+                    reinterpret_cast<uint8_t*>(padded_hidden_state->data()));
+    } else {
+        // Whole-prefill and generate inputs retain the established right alignment.
+        ov::npuw::util::copy_to_right(hidden_state, padded_hidden_state);
+    }
 }
 
 void pad_tree_mask_input(const ov::SoPtr<ov::ITensor>& tree_mask, const ov::SoPtr<ov::ITensor>& padded_tree_mask) {
@@ -287,10 +294,9 @@ void Eagle3Extension::accumulate_chunk_last_hidden_state(
                     "Can't write chunk by stored chunked sequence offset and requested number of tokens, as it will "
                     "exceed pre-allocated size");
 
-    // Extract only the rightmost chunk_token_count tokens from the output
-    // The chunk_output is right-aligned with padding on the left
+    // Chunked prefill outputs are left-aligned with padding on the right.
     constexpr uint32_t seq_dim = 1;
-    const uint32_t chunk_start_offset = chunk_seq_len - chunk_token_count;
+    const uint32_t chunk_start_offset = 0u;
 
     auto chunk_output_slice = util::make_tensor_slice(chunk_output, seq_dim, chunk_start_offset, chunk_seq_len);
 
@@ -354,7 +360,7 @@ void Eagle3Extension::prepare_inputs_for_chunk(
     // Create tensor slice for current chunk along the sequence dimension
     auto chunk_tensor = util::make_tensor_slice(m_hidden_states, seq_dim, chunk_start_token, chunk_end_token);
 
-    pad_hidden_state_input(chunk_tensor, padded_tensor);
+    pad_hidden_state_input(chunk_tensor, padded_tensor, true);
     LOG_VERB("Eagle3 Draft: Set hidden_states chunk [" << chunk_start_token << ":" << chunk_end_token
                                                        << "] for chunk processing");
 }
