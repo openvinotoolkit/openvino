@@ -1998,3 +1998,58 @@ TEST_F(IRFrontendTests, string_const_offset_plus_size_overflow_is_rejected) {
 
     ASSERT_THROW(core.read_model(xmlFileName, binFileName), ov::Exception);
 }
+
+TEST_F(IRFrontendTests, read_value_layer_with_missing_variable_id_attribute) {
+    std::string testModelV11 = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer id="0" name="input" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,1,128"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="ReadValue" type="ReadValue" version="opset6">
+            <data variable_type="f32" variable_shape="1,1,128"/>
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="2" name="output" type="Result" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+        <edge from-layer="1" from-port="1" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+
+    // Regression test: a ReadValue layer without a "variable_id" attribute must not crash (null Variable
+    // dereference), it must be rejected with a clean exception instead.
+    OV_EXPECT_THROW(core.read_model(testModelV11, ov::Tensor()),
+                    ov::Exception,
+                    testing::HasSubstr("Variable is not initialized."));
+}

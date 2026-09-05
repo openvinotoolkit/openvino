@@ -20,8 +20,11 @@ static void CreateOneHotOpGeneric(ProgramBuilder& p, const std::shared_ptr<ov::o
     auto on_value_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
     auto off_value_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(3));
 
-    OPENVINO_ASSERT(on_value_node != nullptr || off_value_node != nullptr || depth_value_node != nullptr,
-                    "[GPU] Unsupported on/off/depth nodes type in ",
+    // A non-constant depth is handled below by the two input primitive variant,
+    // but on/off are read as compile time values right away, so they must be constants.
+    // Non-constant ones are expected to have been rewritten into a mask + Select by DecomposeOneHotNonConstValues.
+    OPENVINO_ASSERT(on_value_node != nullptr && off_value_node != nullptr,
+                    "[GPU] Unsupported on/off nodes type in ",
                     op->get_friendly_name(),
                     " (",
                     op->get_type_name(),
