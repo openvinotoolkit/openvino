@@ -28,6 +28,7 @@ enum class HFATileInputId : uint8_t {
     V_TILE = 4,     // Current V (value) tile slice
     Q = 5,          // Query tensor (full, not tiled)
     MASK_TILE = 6,  // Current attention mask tile slice
+    SCALE = 7,      // Post-QK attention scale
 
     // Sentinel value for enum range
     COUNT
@@ -62,6 +63,8 @@ inline const char* hfa_tile_input_id_to_string(HFATileInputId id) {
         return "Q";
     case HFATileInputId::MASK_TILE:
         return "MASK_TILE";
+    case HFATileInputId::SCALE:
+        return "SCALE";
     default:
         return "UNKNOWN";
     }
@@ -112,6 +115,8 @@ struct HostFlashAttention {
     std::size_t _present_key_param_idx = 0u;
     std::size_t _present_value_param_idx = 0u;
     std::size_t _attention_mask_param_idx = 0u;
+    std::optional<std::size_t> _attention_scale_param_idx;
+    std::optional<std::size_t> _attention_sink_param_idx;
 
     // KV cache block parameter indices (for split KV cache support)
     // After SplitKVCacheIntoBlocks transformation, KV cache is split into multiple block parameters
@@ -119,12 +124,12 @@ struct HostFlashAttention {
     std::vector<std::size_t> _past_key_block_indices;    // [block_0_idx, block_1_idx, ..., block_N_idx]
     std::vector<std::size_t> _past_value_block_indices;  // [block_0_idx, block_1_idx, ..., block_N_idx]
 
-    // Tile model parameter index mapping
+    // Tile model parameter index mappings
     // Maps tile parameter IDs (PAST_ACC, K_TILE, Q, etc.) to actual input indices
-    // Tile model I/O: Inputs[past_acc, past_max, past_d, k_tile, v_tile, q, mask_tile]
-    //                 Outputs[acc, max, d] for regular tiles or [output] for final tile
-    // This is created after tile model generation in from() method
+    // for the regular and final tile models. The models can omit different optional
+    // inputs, so the maps must be kept separately.
     std::map<HFATileInputId, std::size_t> _tile_param_index_map;
+    std::map<HFATileInputId, std::size_t> _final_tile_param_index_map;
 
     // Tile model output index mapping
     // Maps tile output IDs (UPDATED_ACC, UPDATED_MAX, UPDATED_D) to actual output indices
@@ -144,6 +149,9 @@ struct HostFlashAttention {
     static std::optional<HostFlashAttention> from(const std::shared_ptr<ov::Model>& model,
                                                   bool fused_flash_attention = true,
                                                   bool enable_mask_skipping = false);
+
+    // Resolve attention scale and sink after function construction promotes Const inputs to closure Parameters.
+    bool resolve_attention_parameters(const std::shared_ptr<ov::Model>& model);
 };
 
 }  // namespace function
@@ -174,6 +182,8 @@ struct HostFlashAttentionInfo {
         std::size_t present_key = 0u;
         std::size_t present_value = 0u;
         std::size_t attention_mask = 0u;
+        std::optional<std::size_t> attention_scale;
+        std::optional<std::size_t> attention_sink;
     } _sdpa_indices;
 
     // Pre-cached tile input indices
@@ -185,7 +195,19 @@ struct HostFlashAttentionInfo {
         std::size_t acc = 0u;
         std::size_t max = 0u;
         std::size_t d = 0u;
+        std::optional<std::size_t> scale;
     } _tile_input_indices;
+
+    struct {
+        std::size_t q = 0u;
+        std::size_t k = 0u;
+        std::size_t v = 0u;
+        std::size_t mask = 0u;
+        std::size_t acc = 0u;
+        std::size_t max = 0u;
+        std::size_t d = 0u;
+        std::optional<std::size_t> scale;
+    } _final_tile_input_indices;
 
     // Pre-cached tile output indices
     struct {
@@ -306,7 +328,9 @@ struct HFARuntimeContext {
     template <typename HFADesc>
     void initialize_mask_cache(const HFADesc& hfa_desc, const std::string& device_name, AllocatorFn allocator) {
         // Get mask tensor shape from the final tile model
-        const size_t mask_input_idx = hfa_desc._sdpa_attention_info._tile_input_indices.mask;
+        const size_t mask_input_idx = hfa_desc._sdpa_attention_info._final_tile_input_indices.mask;
+        OPENVINO_ASSERT(mask_input_idx < hfa_desc._compiled_final_tile_model->inputs().size(),
+                        "HFA final tile mask input index out of range");
         const auto& mask_port = hfa_desc._compiled_final_tile_model->inputs()[mask_input_idx];
         const auto mask_shape = mask_port.get_shape();
         const auto mask_dtype = mask_port.get_element_type();
@@ -414,13 +438,14 @@ struct HFARuntimeContext {
     // State Buffer Modifications
     // ============================================================================
 
-    /// Initialize state tensors: acc=0, max=-inf, sum=0 (static utility)
+    /// Initialize state tensors. An attention sink becomes the initial max and unit denominator.
     static void initialize_state_tensors(ov::SoPtr<ov::ITensor>& acc,
                                          ov::SoPtr<ov::ITensor>& max,
-                                         ov::SoPtr<ov::ITensor>& sum);
+                                         ov::SoPtr<ov::ITensor>& sum,
+                                         const ov::SoPtr<ov::ITensor>& attention_sink = {});
 
     /// Prepare next buffer asynchronously (call during NPU execution)
-    void prepare_next_state_buffers();
+    void prepare_next_state_buffers(const ov::SoPtr<ov::ITensor>& attention_sink = {});
 
     /// Switch to next buffer after inference
     void switch_buffers();

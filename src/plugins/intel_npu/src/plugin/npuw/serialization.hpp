@@ -263,6 +263,7 @@ void serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguousInf
 void serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionBlockInfo& var);
 std::shared_ptr<ov::npuw::compiled::PyramidAttention> make_pyramid_from_stream(Stream& stream, uint8_t tag);
 void serialize(Stream& stream, ov::npuw::compiled::HostFlashAttention& var);
+void serialize_host_flash_attention_v0(Stream& stream, ov::npuw::compiled::HostFlashAttention& var);
 void serialize(Stream& stream, ov::npuw::compiled::MoEExperts& var);
 void serialize(Stream& stream, ov::npuw::compiled::MoEDownstream& var);
 

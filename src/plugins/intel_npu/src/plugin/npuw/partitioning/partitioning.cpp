@@ -929,6 +929,9 @@ std::vector<std::string> Partitioner::initFunctionPipeline(FunctionPipelineType 
     // Collect all groups of function call(s) and process them in groups
     std::map<std::string, int> idx;
     for (auto&& part_sg : P.subgraphs) {
+        if (part_sg._optimized_out) {
+            continue;
+        }
         if (!part_sg._repeated_id.empty() &&
             (selected_repeated_ids.empty() || selected_repeated_ids.count(part_sg._repeated_id) > 0)) {
             auto pfix = "__" + std::to_string(idx[part_sg._repeated_id]++);
@@ -1847,6 +1850,23 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
     funcall._is_lazy_unpack.resize(funcall._lazy_closure.size(), false);
     function._num_params_total = new_param_idx;
     function._model->validate_nodes_and_infer_types();
+    if (function._host_flash_attention &&
+        !function._host_flash_attention->resolve_attention_parameters(function._model)) {
+        LOG_WARN("HFA attention parameters could not be resolved after closure parameterization");
+        function._host_flash_attention.reset();
+    }
+    if (function._pyramid_attention) {
+        const auto pattern_nodes = ov::npuw::util::find_sdpa_pattern_nodes(function._model);
+        if (pattern_nodes.attention_sink_node) {
+            auto refreshed_pyramid = ov::npuw::function::PyramidAttention::from(function._model);
+            if (!refreshed_pyramid) {
+                LOG_WARN("Pyramid attention sink variants could not be rebuilt after closure parameterization");
+                function._pyramid_attention.reset();
+            } else {
+                function._pyramid_attention = std::move(refreshed_pyramid);
+            }
+        }
+    }
     P.functions.insert({func_name, std::move(function)});
 
     // Write down the funcall to the list of subgraphs

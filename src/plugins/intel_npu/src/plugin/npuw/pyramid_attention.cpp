@@ -14,6 +14,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -253,6 +254,30 @@ static bool concat_present_before_past(const std::shared_ptr<ov::Node>& concat_n
     return past_idx.has_value() && *past_idx > 0;
 }
 
+static void patch_attention_sink_slice_end(const std::shared_ptr<ov::Model>& model) {
+    const auto pattern_nodes = ov::npuw::util::find_sdpa_pattern_nodes(model);
+    if (!pattern_nodes.attention_sink_node || !pattern_nodes.softmax_slice_node) {
+        return;
+    }
+
+    const auto sink_slice = ov::as_type_ptr<ov::op::v8::Slice>(pattern_nodes.softmax_slice_node);
+    if (!sink_slice) {
+        return;
+    }
+    const auto end = ov::as_type_ptr<ov::op::v0::Constant>(sink_slice->input_value(2).get_node_shared_ptr());
+    if (!end || end->get_shape().size() != 1u || end->get_shape()[0] != 1u) {
+        return;
+    }
+
+    if (end->get_element_type() == ov::element::i32) {
+        sink_slice->input(2).replace_source_output(
+            ov::op::v0::Constant::create(ov::element::i32, end->get_shape(), std::vector<int32_t>{-1}));
+    } else if (end->get_element_type() == ov::element::i64) {
+        sink_slice->input(2).replace_source_output(
+            ov::op::v0::Constant::create(ov::element::i64, end->get_shape(), std::vector<int64_t>{-1}));
+    }
+}
+
 // Helper function to process a single pyramid model (clone, reshape, patch, optimize)
 std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov::Model>& original_model,
                                                         size_t model_idx,
@@ -401,6 +426,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
         ov::npuw::function::patch_broadcast_constants(cloned_model, full_context_length);
         // The map key is unused by patch_reshape_constants; only the dim-index value matters.
         ov::npuw::function::patch_reshape_constants(cloned_model, {{"", static_cast<size_t>(value_concat_axis)}});
+        patch_attention_sink_slice_end(cloned_model);
 
         // Directly set partial shape on the Parameter node — bypasses reshape() name/pointer
         // lookup entirely. reshape(Output<Node>) can silently miss, reshape(string) uses
@@ -524,6 +550,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
     // Apply pre-reshape patching using helper functions
     ov::npuw::function::patch_broadcast_constants(cloned_model, full_context_length);
     ov::npuw::function::patch_reshape_constants(cloned_model, past_value_sequence_dims);
+    patch_attention_sink_slice_end(cloned_model);
 
     cloned_model->reshape(new_shapes);
     cloned_model->validate_nodes_and_infer_types();
@@ -560,8 +587,12 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
 
     LOG_INFO("Found SDPA pattern: MatMul -> Add -> Softmax -> MatMul");
 
-    // Extract query_length and full_context_length from Softmax output shape
-    auto softmax_output_shape = pattern_nodes.softmax_node->get_output_shape(0);
+    // The sink-aware decomposition appends one score before Softmax, then removes
+    // its probability before the value MatMul. Pyramid lengths must describe the
+    // real KV context, not that temporary extra score.
+    const auto& attention_probabilities =
+        pattern_nodes.softmax_slice_node ? pattern_nodes.softmax_slice_node : pattern_nodes.softmax_node;
+    auto softmax_output_shape = attention_probabilities->get_output_shape(0);
     size_t query_length = 0;
     size_t full_context_length = 0;
 

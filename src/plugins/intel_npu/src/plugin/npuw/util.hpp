@@ -239,7 +239,11 @@ struct SDPAPatternNodes {
     std::shared_ptr<ov::Node> matmul1_node = nullptr;
     std::shared_ptr<ov::Node> matmul2_node = nullptr;
     std::shared_ptr<ov::Node> softmax_node = nullptr;
+    // Present for the six-input SDPA attention-sink decomposition.
+    std::shared_ptr<ov::Node> softmax_slice_node = nullptr;
     std::shared_ptr<ov::Node> add_node = nullptr;
+    std::shared_ptr<ov::Node> attention_scale_node = nullptr;
+    std::shared_ptr<ov::Node> attention_sink_node = nullptr;
     // 1 (contiguous) or N (block-split) Parameter nodes feeding the KV Concat.
     std::vector<std::shared_ptr<ov::Node>> past_key_param_nodes;
     std::vector<std::shared_ptr<ov::Node>> past_value_param_nodes;
@@ -248,7 +252,7 @@ struct SDPAPatternNodes {
 
     bool is_valid() const {
         return matmul1_node && matmul2_node && softmax_node && add_node && past_key_concat_node &&
-               past_value_concat_node;
+               past_value_concat_node && (!attention_sink_node || softmax_slice_node);
     }
 
     // Log pattern information for debugging. prefix is optional.
@@ -257,6 +261,9 @@ struct SDPAPatternNodes {
         LOG_DEBUG("  MatMul1: " << (matmul1_node ? matmul1_node->get_friendly_name() : "null"));
         LOG_DEBUG("  Add: " << (add_node ? add_node->get_friendly_name() : "null"));
         LOG_DEBUG("  Softmax: " << (softmax_node ? softmax_node->get_friendly_name() : "null"));
+        LOG_DEBUG("  Softmax Slice: " << (softmax_slice_node ? softmax_slice_node->get_friendly_name() : "null"));
+        LOG_DEBUG("  Attention Scale: " << (attention_scale_node ? attention_scale_node->get_friendly_name() : "null"));
+        LOG_DEBUG("  Attention Sink: " << (attention_sink_node ? attention_sink_node->get_friendly_name() : "null"));
         LOG_DEBUG("  MatMul2: " << (matmul2_node ? matmul2_node->get_friendly_name() : "null"));
         LOG_DEBUG("  Key Concat: " << (past_key_concat_node ? past_key_concat_node->get_friendly_name() : "null"));
         LOG_DEBUG(
@@ -265,6 +272,10 @@ struct SDPAPatternNodes {
         LOG_DEBUG("  Past value params: " << past_value_param_nodes.size());
     }
 };
+
+bool is_valid_attention_sink_slice(const std::shared_ptr<ov::Node>& sink_concat_node,
+                                   const std::shared_ptr<ov::Node>& softmax_node,
+                                   const std::shared_ptr<ov::Node>& slice_node);
 
 // Find the decomposed SDPA sub-graph pattern (MatMul->Add->Softmax->MatMul) in a
 // model and return all relevant nodes.  Returns an invalid result if not found.

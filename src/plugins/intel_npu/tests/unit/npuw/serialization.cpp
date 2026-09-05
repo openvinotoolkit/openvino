@@ -314,6 +314,8 @@ void expect_host_flash_attention_equal(const ov::npuw::compiled::HostFlashAttent
     EXPECT_EQ(lhs._sdpa_indices.present_key, rhs._sdpa_indices.present_key);
     EXPECT_EQ(lhs._sdpa_indices.present_value, rhs._sdpa_indices.present_value);
     EXPECT_EQ(lhs._sdpa_indices.attention_mask, rhs._sdpa_indices.attention_mask);
+    EXPECT_EQ(lhs._sdpa_indices.attention_scale, rhs._sdpa_indices.attention_scale);
+    EXPECT_EQ(lhs._sdpa_indices.attention_sink, rhs._sdpa_indices.attention_sink);
     EXPECT_EQ(lhs._tile_input_indices.q, rhs._tile_input_indices.q);
     EXPECT_EQ(lhs._tile_input_indices.k, rhs._tile_input_indices.k);
     EXPECT_EQ(lhs._tile_input_indices.v, rhs._tile_input_indices.v);
@@ -321,6 +323,15 @@ void expect_host_flash_attention_equal(const ov::npuw::compiled::HostFlashAttent
     EXPECT_EQ(lhs._tile_input_indices.acc, rhs._tile_input_indices.acc);
     EXPECT_EQ(lhs._tile_input_indices.max, rhs._tile_input_indices.max);
     EXPECT_EQ(lhs._tile_input_indices.d, rhs._tile_input_indices.d);
+    EXPECT_EQ(lhs._tile_input_indices.scale, rhs._tile_input_indices.scale);
+    EXPECT_EQ(lhs._final_tile_input_indices.q, rhs._final_tile_input_indices.q);
+    EXPECT_EQ(lhs._final_tile_input_indices.k, rhs._final_tile_input_indices.k);
+    EXPECT_EQ(lhs._final_tile_input_indices.v, rhs._final_tile_input_indices.v);
+    EXPECT_EQ(lhs._final_tile_input_indices.mask, rhs._final_tile_input_indices.mask);
+    EXPECT_EQ(lhs._final_tile_input_indices.acc, rhs._final_tile_input_indices.acc);
+    EXPECT_EQ(lhs._final_tile_input_indices.max, rhs._final_tile_input_indices.max);
+    EXPECT_EQ(lhs._final_tile_input_indices.d, rhs._final_tile_input_indices.d);
+    EXPECT_EQ(lhs._final_tile_input_indices.scale, rhs._final_tile_input_indices.scale);
     EXPECT_EQ(lhs._tile_output_indices.acc, rhs._tile_output_indices.acc);
     EXPECT_EQ(lhs._tile_output_indices.max, rhs._tile_output_indices.max);
     EXPECT_EQ(lhs._tile_output_indices.d, rhs._tile_output_indices.d);
@@ -840,7 +851,12 @@ TEST(SerializationTest, OVTypes_HostFlashAttention) {
     var._sdpa_attention_info._k_seq_dim = 1;
     var._sdpa_attention_info._v_seq_dim = 2;
     var._sdpa_attention_info._sdpa_indices = {3, {4}, {5}, 6, 7, 8};
+    var._sdpa_attention_info._sdpa_indices.attention_scale = 9;
+    var._sdpa_attention_info._sdpa_indices.attention_sink = 9;
     var._sdpa_attention_info._tile_input_indices = {9, 10, 11, 12, 13, 14, 15};
+    var._sdpa_attention_info._tile_input_indices.scale = 16;
+    var._sdpa_attention_info._final_tile_input_indices = {17, 18, 19, 20, 21, 22, 23};
+    var._sdpa_attention_info._final_tile_input_indices.scale = 24;
     var._sdpa_attention_info._tile_output_indices = {16, 17, 18};
     var._tile_size = 64;
     var._can_use_tensor_view = true;
@@ -853,6 +869,35 @@ TEST(SerializationTest, OVTypes_HostFlashAttention) {
     read(ss, res);
 
     expect_host_flash_attention_equal(var, res);
+}
+
+TEST(SerializationTest, OVTypes_HostFlashAttentionV0RestoresSharedTileMap) {
+    using namespace ov::npuw::s11n;
+
+    ov::npuw::compiled::HostFlashAttention var;
+    var._sdpa_attention_info._query_size = 8;
+    var._sdpa_attention_info._context_size = 32;
+    var._sdpa_attention_info._k_seq_dim = 1;
+    var._sdpa_attention_info._v_seq_dim = 2;
+    var._sdpa_attention_info._sdpa_indices = {3, {4}, {5}, 6, 7, 8};
+    var._sdpa_attention_info._tile_input_indices = {9, 10, 11, 12, 13, 14, 15};
+    var._sdpa_attention_info._tile_output_indices = {16, 17, 18};
+    var._tile_size = 64;
+    var._can_use_tensor_view = true;
+
+    ov::npuw::compiled::HostFlashAttention res;
+    std::stringstream ss;
+    auto writer = Stream::writer(ss);
+    ov::npuw::orc::serialize_host_flash_attention_v0(writer, var);
+    auto reader = Stream::reader(ss);
+    ov::npuw::orc::serialize_host_flash_attention_v0(reader, res);
+
+    EXPECT_EQ(res._sdpa_attention_info._tile_input_indices.q, 9u);
+    EXPECT_EQ(res._sdpa_attention_info._tile_input_indices.mask, 12u);
+    EXPECT_EQ(res._sdpa_attention_info._final_tile_input_indices.q, 9u);
+    EXPECT_EQ(res._sdpa_attention_info._final_tile_input_indices.mask, 12u);
+    EXPECT_FALSE(res._sdpa_attention_info._sdpa_indices.attention_scale.has_value());
+    EXPECT_FALSE(res._sdpa_attention_info._sdpa_indices.attention_sink.has_value());
 }
 
 /**
@@ -872,6 +917,28 @@ TEST(SerializationTest, OVTypes_HostFlashAttention_OOBTileIndexRejected) {
     var._sdpa_attention_info._tile_output_indices = {0, 1, 2};
     var._tile_size = 64;
     var._can_use_tensor_view = true;
+
+    ov::npuw::compiled::HostFlashAttention res;
+    std::stringstream ss;
+    write(ss, var);
+    EXPECT_THROW(read(ss, res), ov::Exception);
+}
+
+TEST(SerializationTest, OVTypes_HostFlashAttention_OOBFinalTileIndexRejected) {
+    using namespace ov::npuw::s11n;
+
+    ov::npuw::compiled::HostFlashAttention var;
+    var._sdpa_attention_info._tile_input_indices = {0, 1, 2, 3, 4, 5, 6};
+    var._sdpa_attention_info._final_tile_input_indices = {
+        7,
+        8,
+        9,
+        10,
+        std::numeric_limits<std::size_t>::max(),
+        12,
+        13,
+    };
+    var._sdpa_attention_info._tile_output_indices = {0, 1, 2};
 
     ov::npuw::compiled::HostFlashAttention res;
     std::stringstream ss;
