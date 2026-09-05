@@ -37,7 +37,7 @@ CPU
       * Ubuntu 22.04 long-term support (LTS), 64-bit (Kernel 5.15+)
       * macOS 12.6 and above, ARM64
       * Red Hat Enterprise Linux (RHEL) 8 and 9, 64-bit
-      * openSUSE Tumbleweed, 64-bit and ARM64
+      * openSUSE Tumbleweed, Leap 16.0 and Leap 16.1 64-bit and ARM64
       * Ubuntu 22.04 ARM64
 
 GPU
@@ -64,6 +64,7 @@ GPU
       * Ubuntu 24.04 long-term support (LTS), 64-bit
       * Ubuntu 22.04 long-term support (LTS), 64-bit
       * Red Hat Enterprise Linux (RHEL) 8 and 9, 64-bit
+      * openSUSE Tumbleweed, Leap 16.0 and Leap 16.1 64-bit and ARM64
 
    .. tab-item:: Additional considerations
 
@@ -87,6 +88,7 @@ Intel® Neural Processing Unit
 
       * Ubuntu 24.04 long-term support (LTS), 64-bit (preview support)
       * Ubuntu 22.04 long-term support (LTS), 64-bit
+      * openSUSE Tumbleweed, Leap 16.0 and Leap 16.1 64-bit and ARM64
       * Windows 11, 64-bit (22H2 and later)
 
    .. tab-item:: Additional considerations
@@ -106,6 +108,7 @@ Operating systems and developer environment
 
       * Ubuntu 24.04 with Linux kernel 6.8+
       * Ubuntu 22.04 with Linux kernel 5.15+
+      * openSUSE Tumbleweed, Leap 16.0 and Leap 16.1 64-bit and ARM64
       * Red Hat Enterprise Linux 9.3-9.4 with Linux kernel 5.4
 
       Build environment components:
@@ -321,7 +324,7 @@ to learn more about the release types.
          .. tab-item:: Linux
             :sync: linux
 
-            OpenVINO RPM packages are compatible with and can be run on openSUSE Tumbleweed only.
+            OpenVINO RPM packages are compatible with and can be run on openSUSE Tumbleweed, Leap 16.0 and Leap 16.1.
 
             Software:
 
