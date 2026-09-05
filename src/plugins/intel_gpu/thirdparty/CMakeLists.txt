@@ -13,13 +13,20 @@ if(OV_GPU_RUNTIME_VULKAN_ENABLED)
     set(CLSPV_COMPILER_ID "clspv-770b077f8de4ce1018ee907f2f0a69bc41d42192"
         CACHE STRING "CLSPV identity included in Vulkan kernel cache keys")
 
+    set(clspv_search_options)
+    if(CLSPV_ROOT)
+        # An explicit prefix already names a target installation, outside the cross-toolchain sysroot.
+        set(clspv_search_options NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
+    endif()
     find_path(CLSPV_INCLUDE_DIR
         NAMES clspv/Compiler.h
         HINTS "${CLSPV_ROOT}/include"
+        ${clspv_search_options}
         REQUIRED)
     find_library(CLSPV_CORE_LIBRARY
         NAMES clspv_core
         HINTS "${CLSPV_ROOT}/lib" "${CLSPV_ROOT}/lib64"
+        ${clspv_search_options}
         REQUIRED)
 
     add_library(openvino_intel_gpu_clspv_api INTERFACE)

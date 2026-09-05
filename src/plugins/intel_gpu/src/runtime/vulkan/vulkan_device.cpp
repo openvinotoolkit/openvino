@@ -95,8 +95,13 @@ void vulkan_device::initialize_info() {
     vkGetPhysicalDeviceProperties2(_physical_device, &properties2);
     const auto& properties = properties2.properties;
 
-    VkPhysicalDeviceFeatures features{};
-    vkGetPhysicalDeviceFeatures(_physical_device, &features);
+    VkPhysicalDeviceShaderFloat16Int8Features arithmetic{};
+    arithmetic.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES;
+    VkPhysicalDeviceFeatures2 features2{};
+    features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    features2.pNext = &arithmetic;
+    vkGetPhysicalDeviceFeatures2(_physical_device, &features2);
+    const auto& features = features2.features;
 
     VkPhysicalDeviceMemoryProperties memory_properties{};
     vkGetPhysicalDeviceMemoryProperties(_physical_device, &memory_properties);
@@ -124,8 +129,7 @@ void vulkan_device::initialize_info() {
     _max_memory_allocation_count = std::max(properties.limits.maxMemoryAllocationCount, 1U);
     _non_coherent_atom_size = std::max<VkDeviceSize>(properties.limits.nonCoherentAtomSize, 1);
 
-    // Eltwise uses a portable FP16 storage conversion path and performs arithmetic in FP32.
-    _info.supports_fp16 = true;
+    _info.supports_fp16 = arithmetic.shaderFloat16 == VK_TRUE;
     _info.supports_fp64 = features.shaderFloat64 == VK_TRUE;
     _info.supports_fp16_denorms = false;
     _info.supports_khr_subgroups = subgroup_properties.subgroupSize > 0 && (subgroup_properties.supportedStages & VK_SHADER_STAGE_COMPUTE_BIT) != 0;
@@ -256,6 +260,26 @@ void vulkan_device::initialize() {
     const auto required_profile = query_vulkan_required_device_profile(_physical_device);
     OPENVINO_ASSERT(required_profile.is_supported(), "[GPU][Vulkan] ", required_profile.incompatibility_reason());
 
+    // CLSPV preserves the arithmetic types used by the existing OpenCL kernels.
+    // Enable supported types without making them part of the required device profile.
+    VkPhysicalDeviceShaderFloat16Int8Features enabled_arithmetic{};
+    enabled_arithmetic.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES;
+    VkPhysicalDevice16BitStorageFeatures enabled_storage16{};
+    enabled_storage16.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES;
+    enabled_storage16.pNext = &enabled_arithmetic;
+    VkPhysicalDeviceFeatures2 supported_features{};
+    supported_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    supported_features.pNext = &enabled_storage16;
+    vkGetPhysicalDeviceFeatures2(_physical_device, &supported_features);
+
+    VkPhysicalDeviceFeatures enabled_features{};
+    enabled_features.shaderInt16 = supported_features.features.shaderInt16;
+    enabled_features.shaderInt64 = supported_features.features.shaderInt64;
+    enabled_features.shaderFloat64 = supported_features.features.shaderFloat64;
+    enabled_storage16.uniformAndStorageBuffer16BitAccess = VK_FALSE;
+    enabled_storage16.storagePushConstant16 = VK_FALSE;
+    enabled_storage16.storageInputOutput16 = VK_FALSE;
+
     VkPhysicalDevice8BitStorageFeatures enabled_storage8{};
     enabled_storage8.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES;
     enabled_storage8.storageBuffer8BitAccess = VK_TRUE;
@@ -271,10 +295,12 @@ void vulkan_device::initialize() {
     enabled_storage8.pNext = &enabled_synchronization2;
     enabled_synchronization2.pNext = &enabled_timeline;
     enabled_timeline.pNext = &enabled_maintenance4;
+    enabled_maintenance4.pNext = &enabled_storage16;
 
     VkDeviceCreateInfo device_create_info{};
     device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     device_create_info.pNext = &enabled_storage8;
+    device_create_info.pEnabledFeatures = &enabled_features;
     device_create_info.queueCreateInfoCount = 1;
     device_create_info.pQueueCreateInfos = &queue_create_info;
     device_create_info.enabledExtensionCount = static_cast<uint32_t>(enabled_extensions.size());

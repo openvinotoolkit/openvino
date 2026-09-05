@@ -17,7 +17,7 @@
 namespace cldnn::vulkan {
 namespace {
 
-const kernel_selector::ReorderKernelRef& get_reference_kernel() {
+const kernel_selector::KernelBase& get_reference_kernel() {
     static const kernel_selector::ReorderKernelRef kernel;
     return kernel;
 }
@@ -54,11 +54,12 @@ bool is_structural_copy(const layout& input, const layout& output) {
     return input.count() == output.count() && input.bytes_count() == output.bytes_count() && input.get_linear_offset() == 0 && output.get_linear_offset() == 0;
 }
 
-kernel_selector::reorder_params make_reference_params(const kernel_impl_params& impl_params) {
+kernel_selector::reorder_params make_reference_params(const kernel_impl_params& impl_params, bool is_shape_agnostic) {
     const auto& primitive = impl_params.typed_desc<reorder>();
     kernel_selector::reorder_params params;
     params.uniqueID = std::to_string(impl_params.hash());
     params.engineInfo = make_kernel_selector_engine_info(impl_params.get_program().get_engine().get_device_info());
+    params.is_shape_agnostic = is_shape_agnostic;
     params.inputs[0] = convert_data_tensor(impl_params.get_input_layout(0));
     params.outputs[0] = convert_data_tensor(impl_params.get_output_layout(0));
     params.layerID = primitive->id;
@@ -66,6 +67,7 @@ kernel_selector::reorder_params make_reference_params(const kernel_impl_params& 
     params.mode = kernel_selector::MeanSubtractMode::NONE;
     params.surface_input = false;
     params.truncate = primitive->truncate;
+    params.set_dynamic_shape_offsets();
     return params;
 }
 
@@ -77,7 +79,7 @@ public:
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::vulkan::reorder_copy_impl)
 
-    reorder_copy_impl() : parent("vulkan_reorder_copy") {}
+    explicit reorder_copy_impl(bool is_dynamic = false) : parent("vulkan_reorder_copy", is_dynamic) {}
 
     std::unique_ptr<primitive_impl> clone() const override {
         return std::make_unique<reorder_copy_impl>(*this);
@@ -110,12 +112,21 @@ public:
 
     reorder_impl() : parent("vulkan_reorder_clspv") {}
 
-    explicit reorder_impl(kernel_selector::KernelData kernel_data) : parent(std::move(kernel_data)) {
+    reorder_impl(kernel_selector::KernelData kernel_data, bool is_dynamic) : parent(std::move(kernel_data), is_dynamic) {
         OPENVINO_ASSERT(_kernel_data.kernels.size() == 1, "[GPU][Vulkan] Reference Reorder expects exactly one kernel-selector dispatch");
     }
 
     std::unique_ptr<primitive_impl> clone() const override {
         return std::make_unique<reorder_impl>(*this);
+    }
+
+protected:
+    void update_dispatch_data(const kernel_impl_params& params) override {
+        const auto kernel_params = make_reference_params(params, true);
+        if (_kernel_data.update_dispatch_data_func == nullptr) {
+            get_reference_kernel().GetUpdateDispatchDataFunc(_kernel_data);
+        }
+        _kernel_data.update_dispatch_data_func(kernel_params, _kernel_data);
     }
 };
 
@@ -127,15 +138,14 @@ bool ReorderImplementationManager::validate_impl(const program_node& node) const
     const auto& input = node.get_input_layout(0);
     const auto& output = node.get_output_layout(0);
     const auto& primitive = node.as<reorder>().get_primitive();
-    const bool common_contract = is_supported_type(input.data_type) && is_supported_type(output.data_type) && format::is_simple_data_format(input.format) &&
-                                 format::is_simple_data_format(output.format) && !format::is_weights_format(input.format) &&
-                                 !format::is_weights_format(output.format) && !primitive->mean.is_valid() && primitive->subtract_per_feature.empty() &&
-                                 !primitive->has_surface_input();
+    const bool common_contract = is_supported_type(input.data_type) && is_supported_type(output.data_type) && !input.format.is_image() &&
+                                 !output.format.is_image() && !format::is_weights_format(input.format) && !format::is_weights_format(output.format) &&
+                                 !primitive->mean.is_valid() && primitive->subtract_per_feature.empty() && !primitive->has_surface_input();
     if (!common_contract) {
         return false;
     }
     if (input.is_dynamic() || output.is_dynamic()) {
-        return is_structural_copy(input, output);
+        return true;
     }
     return input.count() == output.count();
 }
@@ -143,11 +153,11 @@ bool ReorderImplementationManager::validate_impl(const program_node& node) const
 std::unique_ptr<primitive_impl> ReorderImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
     OPENVINO_ASSERT(node.is_type<reorder>(), "[GPU][Vulkan] Invalid node type passed to Reorder manager");
     if (is_structural_copy(node.get_input_layout(0), node.get_output_layout(0))) {
-        return std::make_unique<reorder_copy_impl>();
+        return std::make_unique<reorder_copy_impl>(params.is_dynamic());
     }
-    auto candidates = get_reference_kernel().GetKernelsData(make_reference_params(params));
+    auto candidates = get_reference_kernel().GetKernelsData(make_reference_params(params, params.is_dynamic()));
     OPENVINO_ASSERT(candidates.size() == 1, "[GPU][Vulkan] Kernel selector did not produce the generic reference Reorder kernel");
-    return std::make_unique<reorder_impl>(std::move(candidates.front()));
+    return std::make_unique<reorder_impl>(std::move(candidates.front()), params.is_dynamic());
 }
 
 }  // namespace cldnn::vulkan
