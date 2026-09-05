@@ -532,6 +532,20 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_opset21_axis_negativ
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_opset21_nncf_axis) {
+    auto model = convert_model("dequantize_linear_21_nncf_axis.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input(std::vector<int8_t>{1, 2, 3, 4, 5, 6, 7, 8});
+    test_case.add_input(std::vector<float>{1.0f, 2.0f, 1.0f, 2.0f});
+    test_case.add_expected_output<float>({2, 4}, std::vector<float>{1.0f, 2.0f, 6.0f, 8.0f, 5.0f, 6.0f, 14.0f, 16.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_opset21_invalid_axis) {
+    EXPECT_THROW(convert_model("dequantize_linear_21_invalid_axis.onnx"), ov::Exception);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_ignore_axis) {
     auto model = convert_model("dequantize_linear_scalar_ignore_axis.onnx");
 

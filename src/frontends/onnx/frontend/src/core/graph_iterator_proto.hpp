@@ -116,6 +116,10 @@ public:
 
     std::map<std::string, std::string> get_metadata() const override;
 
+    const std::string& get_producer_name() const {
+        return m_model->producer_name();
+    }
+
     std::filesystem::path get_model_dir() const override {
         return m_model_dir;
     }

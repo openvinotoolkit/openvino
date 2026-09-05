@@ -276,6 +276,39 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     // Normalize axis to handle negative values
     axis = common::normalize_axis(node.get_description(), axis, src_x.get_partial_shape().rank());
 
+    const auto& input_shape = src_x.get_partial_shape();
+    const auto is_scale_compatible_with_axis = [&](int64_t candidate_axis) {
+        if (!scale_shape.is_static() || scale_shape.rank().get_length() != input_shape.rank().get_length() ||
+            input_shape[candidate_axis].get_length() % block_size != 0) {
+            return false;
+        }
+
+        for (int64_t i = 0; i < input_shape.rank().get_length(); ++i) {
+            const int64_t expected_dim = i == candidate_axis
+                                             ? static_cast<int64_t>(input_shape[i].get_length() / block_size)
+                                             : static_cast<int64_t>(input_shape[i].get_length());
+            if (static_cast<int64_t>(scale_shape[i].get_length()) != expected_dim) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    // NNCF models exported through PyTorch can declare axis 0 while serializing scales grouped over another axis.
+    if (node.get_producer_name() == "pytorch" && !is_scale_compatible_with_axis(axis)) {
+        int64_t compatible_axis = -1;
+        for (int64_t candidate_axis = 0; candidate_axis < input_shape.rank().get_length(); ++candidate_axis) {
+            if (is_scale_compatible_with_axis(candidate_axis)) {
+                FRONT_END_GENERAL_CHECK(compatible_axis == -1,
+                                        "DequantizeLinear scale shape is compatible with multiple blocked axes");
+                compatible_axis = candidate_axis;
+            }
+        }
+        if (compatible_axis != -1) {
+            axis = compatible_axis;
+        }
+    }
+
     // Check that dimension at axis is divisible by block_size
     FRONT_END_GENERAL_CHECK(src_x.get_shape()[axis] % block_size == 0,
                             "DequantizeLinear doesn't support case when dimension of X at axis ",
@@ -301,7 +334,6 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     // - axis=0: [num_blocks, block_size, ...] with block_size at position 1
     // - axis>0: [..., num_blocks, block_size, ...] with block_size at position axis+1
     std::vector<size_t> target_shape_vector;
-    const auto& input_shape = src_x.get_partial_shape();
     for (int64_t i = 0; i < input_shape.rank().get_length(); i++) {
         if (i == axis) {
             // Always num_blocks first, then block_size

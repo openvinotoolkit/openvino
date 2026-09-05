@@ -59,6 +59,7 @@ public:
     const std::string& domain() const;
     const std::string& op_type() const;
     const std::string& name() const;
+    const std::string& producer_name() const;
     int64_t opset_version() const;
 
     const std::string& description() const;
@@ -129,6 +130,9 @@ const std::string& Node::Impl::op_type() const {
 }
 const std::string& Node::Impl::name() const {
     return m_name;
+}
+const std::string& Node::Impl::producer_name() const {
+    return m_graph->get_producer_name();
 }
 int64_t Node::Impl::opset_version() const {
     return m_graph->get_opset_version(m_domain);
@@ -439,6 +443,16 @@ const std::string& Node::get_name() const {
         return m_decoder->get_name();
     }
     FRONT_END_NOT_IMPLEMENTED(get_name);
+}
+
+const std::string& Node::get_producer_name() const {
+    static const std::string empty_producer_name;
+    if (m_pimpl != nullptr) {
+        return m_pimpl->producer_name();
+    } else if (m_decoder != nullptr) {
+        return m_decoder->get_producer_name();
+    }
+    return empty_producer_name;
 }
 
 int64_t Node::opset_version() const {
