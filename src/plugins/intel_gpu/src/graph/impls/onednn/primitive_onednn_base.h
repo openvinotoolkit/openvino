@@ -360,7 +360,7 @@ private:
 
             if (cache.empty()) {
                 _prim = PrimType(_pd);
-                cache = _prim.get_cache_blob();
+                cache = get_cache_blob_or_empty();
 
                 {
                     std::lock_guard<std::mutex> lock(cacheAccessMutex);
@@ -373,6 +373,28 @@ private:
     }
 
 protected:
+    // Returns an empty blob if the primitive does not support cache blob serialization.
+    std::vector<uint8_t> get_cache_blob_or_empty() const {
+        std::vector<uint8_t> cache;
+        try {
+            cache = _prim.get_cache_blob();
+        } catch (const dnnl::error& e) {
+            if (e.status != dnnl_unimplemented) {
+                throw;
+            }
+        }
+        return cache;
+    }
+
+    // Falls back to constructing the primitive from _pd alone when the blob is empty.
+    PrimType make_primitive_from_blob(const std::vector<uint8_t>& cache_blob) const {
+        if (cache_blob.empty()) {
+            return PrimType(_pd);
+        } else {
+            return PrimType(_pd, cache_blob);
+        }
+    }
+
     virtual bool optimized_out(typed_primitive_inst<PType>&) const { return false; }
 
     void configure_post_ops_arguments(typed_primitive_inst<PType>& instance, std::unordered_map<int, dnnl::memory>& args) const {
