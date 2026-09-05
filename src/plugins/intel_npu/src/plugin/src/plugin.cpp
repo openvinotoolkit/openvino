@@ -19,9 +19,6 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "npuw/compiled_model.hpp"
-#include "npuw/flux2_compiled_model.hpp"
-#include "npuw/gqa_compiled_model.hpp"
-#include "npuw/llm_compiled_model.hpp"
 #include "npuw/orc/schema_npuw.hpp"
 #include "npuw/serialization.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
@@ -80,25 +77,11 @@ std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
     ov::npuw::s11n::IndicatorType serialization_indicator;
     if (ov::npuw::orc::try_read_bytes(stream, serialization_indicator.data(), serialization_indicator.size()) &&
         serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
-        ov::npuw::s11n::IndicatorType compiled_model_indicator;
-        if (ov::npuw::orc::try_read_bytes(stream, compiled_model_indicator.data(), compiled_model_indicator.size())) {
-            stream.clear();
-            stream.seekg(stream_start_pos);
-
-            if (compiled_model_indicator == NPUW_FLUX2_COMPILED_MODEL_INDICATOR) {
-                return ov::npuw::Flux2CompiledModel::import_model(stream, pluginSO, properties);
-            } else if (compiled_model_indicator == NPUW_GQA_COMPILED_MODEL_INDICATOR) {
-                return ov::npuw::GQACompiledModel::import_model(stream, pluginSO, properties);
-            } else if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
-                // Properties are required for ov::weights_path
-                return ov::npuw::LLMCompiledModel::import_model(stream, pluginSO, properties);
-            } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
-                OPENVINO_THROW("Legacy flat NPUW CompiledModel blobs are no longer supported. Re-export the model with "
-                               "the current ORC serializer.");
-            } else {
-                OPENVINO_THROW("Couldn't deserialize NPUW blob - fatal error!");
-            }
-        }
+        stream.clear();
+        stream.seekg(stream_start_pos);
+        // Every indicator-headed NPUW blob names its compiled model right after the
+        // NPUW indicator - the common dispatch picks the implementation from it.
+        return ov::npuw::ICompiledModel::import_model(stream, pluginSO, properties);
     }
     stream.clear();
     stream.seekg(stream_start_pos);

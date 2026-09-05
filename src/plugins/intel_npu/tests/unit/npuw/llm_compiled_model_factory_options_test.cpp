@@ -302,6 +302,21 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, VisibleLlmPropertiesRoundTripThroughC
     EXPECT_EQ(compiled->get_property("NPUW_LLM_PREFILL_CHUNK_SIZE").as<uint64_t>(), 0u);
 }
 
+// The rerank tag only gates the batched wrapper at the entry point and must stay
+// out of the submodel configs.
+TEST_F(LLMCompiledModelFactoryOptionsTest, TextRerankTagKeptOutOfStageConfigs) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(), {{"NPUW_TEXT_RERANK", "YES"}}, recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_call(recorder, "_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+    expect_missing_prop(prefill.props, "NPUW_TEXT_RERANK");
+    expect_missing_prop(generate.props, "NPUW_TEXT_RERANK");
+}
+
 TEST_F(LLMCompiledModelFactoryOptionsTest, DefaultStageConfigsCarryBaselineNpuwOptions) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
