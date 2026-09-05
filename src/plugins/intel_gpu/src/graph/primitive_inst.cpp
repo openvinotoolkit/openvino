@@ -755,6 +755,48 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     const auto& actual_layouts = updated_params.output_layouts;
     OPENVINO_ASSERT(actual_layouts[0].is_static(), "[GPU] Can't realloc mem for dynamic layout");
 
+    if (!can_be_optimized() && _outputs.size() == 1 && users.size() == 1) {
+        auto* permute_inst = users.front();
+        if (permute_inst->get_node().is_type<permute>() && !permute_inst->is_output() &&
+            permute_inst->get_node().is_runtime_skippable() && !permute_inst->_impl_params->has_fused_primitives() &&
+            permute_inst->_impl_params->get_input_layout(0).data_type == permute_inst->_impl_params->get_output_layout().data_type &&
+            permute_inst->_outputs.size() == 1 && permute_inst->output_memory_ptr() &&
+            get_network().is_output_remote_memory(*permute_inst->output_memory_ptr())) {
+            if (!permute_inst->_update_shape_done_by_other) {
+                permute_inst->update_shape();
+                permute_inst->_update_shape_done_by_other = true;
+            }
+
+            permute_inst->do_runtime_skip_permute();
+            auto remote_memory = permute_inst->output_memory_ptr();
+            const bool can_bind_remote = permute_inst->can_be_optimized() && actual_layouts[0].bytes_count() <= remote_memory->size();
+            if (can_bind_remote) {
+                const bool memory_changed = !_outputs[0] ||
+                    !get_network().get_engine().is_the_same_buffer(*_outputs[0], *remote_memory);
+                if (memory_changed && _outputs[0] && get_node().get_program().get_config().get_enable_memory_pool()) {
+                    get_network().get_memory_pool().release_memory(_outputs[0].get(),
+                                                                   get_node().get_unique_id(),
+                                                                   get_node().id(),
+                                                                   get_network_id());
+                }
+                _outputs[0] = get_network().get_engine().reinterpret_buffer(*remote_memory, actual_layouts[0]);
+                _max_output_layout_count[0] = remote_memory->size() / data_type_traits::size_of(actual_layouts[0].data_type);
+                _mem_allocated = false;
+                if (memory_changed)
+                    set_flag(ExecutionFlags::MEMORY_CHANGED);
+                GPU_DEBUG_TRACE_DETAIL << id() << ": use runtime-skippable permute user's remote tensor memory "
+                                       << _outputs[0]->buffer_ptr() << std::endl;
+                return;
+            }
+
+            permute_inst->set_can_be_optimized(false);
+            if (_outputs[0] && get_network().get_engine().is_the_same_buffer(*_outputs[0], *remote_memory)) {
+                clear_output_memory();
+                _mem_allocated = false;
+            }
+        }
+    }
+
     if (users.size() == 1 && users.front()->get_node().is_type<reorder>() && users.front()->can_be_optimized()) {
         auto* reorder_inst = users.front();
         if (reorder_inst->is_output()
@@ -1745,6 +1787,7 @@ void primitive_inst::do_runtime_skip_permute() {
             prev_dim = permute_dest[i];
         }
     }
+
     GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_permute] " << id() << " : can_be_optimized ? " << can_skip << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "            - Input layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
@@ -2169,6 +2212,9 @@ void primitive_inst::prepare_primitive() {
     const bool prev_execution_skipped = can_be_optimized()
                         || (_impl_params->output_layouts[0].is_static() && _impl_params->output_layouts[0].count() == 0);
     const auto orig_outputs = _outputs;
+    const bool output_reallocation_requested = _output_reallocation_requested;
+    _output_reallocation_requested = false;
+    bool outputs_reallocated = false;
     if ((is_dynamic() || get_node().is_in_shape_of_subgraph()) && !has_inner_networks()) {
         do_runtime_in_place_concat();
         update_shape();
@@ -2223,6 +2269,12 @@ void primitive_inst::prepare_primitive() {
         do_runtime_in_place_crop();
         do_runtime_skip_resample();
 
+        if (can_be_optimized() && get_node().is_runtime_skippable() && output_memory_ptr() &&
+            get_network().is_output_remote_memory(*output_memory_ptr()) &&
+            (!input_memory_ptr() || !get_network().get_engine().is_the_same_buffer(input_memory(), output_memory()))) {
+            set_can_be_optimized(false);
+        }
+
         if (!is_valid_fusion()) {
             OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("unfused_subgraph_build: " + id()));
             get_unfused_subgraph();
@@ -2238,6 +2290,7 @@ void primitive_inst::prepare_primitive() {
             if (get_flag(ExecutionFlags::IMPL_CHANGED)) {
                 update_weights();
                 realloc_if_needed(prev_execution_skipped);
+                outputs_reallocated = true;
             }
         }
 
@@ -2248,6 +2301,7 @@ void primitive_inst::prepare_primitive() {
             set_flag(ExecutionFlags::SHAPE_CHANGED);
 
             realloc_if_needed(prev_execution_skipped);
+            outputs_reallocated = true;
         }
 
         OPENVINO_ASSERT(_impl_params->get_output_layout().is_static(),
@@ -2256,9 +2310,9 @@ void primitive_inst::prepare_primitive() {
     _update_shape_done_by_other = false; // reset
     OPENVINO_ASSERT(_impl != nullptr, "[GPU] Implementation is nullptr for ", primitive_id,  " primitive");
 
-    // Re-acquire output memory when _outputs[0] was cleared by
-    // invalidate_ext_block_compute_nodes (double-buffer flip).
-    if (is_dynamic() && !has_inner_networks() && !_outputs.empty() && !_outputs[0]) {
+    // Re-acquire output memory after an external binding change or a double-buffer flip.
+    if (is_dynamic() && !has_inner_networks() && !_outputs.empty() &&
+        (!_outputs[0] || (!outputs_reallocated && output_reallocation_requested))) {
         realloc_if_needed(prev_execution_skipped);
         set_flag(ExecutionFlags::MEMORY_CHANGED);
     }
