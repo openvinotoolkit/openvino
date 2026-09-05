@@ -19,6 +19,7 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "lazy_tensor.hpp"
+#include "llm_test_helpers.hpp"
 #include "model_builder.hpp"
 #include "moe_transformations/moe_transformation.hpp"
 #include "openvino/core/parallel.hpp"
@@ -32,6 +33,11 @@
 #include "weights_bank.hpp"
 
 using ov::test::npuw::ModelBuilder;
+using Gather = ov::npuw::Subgraph::Gather;
+using QuantUnpackGather = ov::npuw::Subgraph::QuantUnpackGather;
+using Stream = ov::npuw::s11n::Stream;
+using ov::test::npuw::MockSubCompiledModel;
+using ov::test::npuw::NullPlugin;
 
 namespace ov {
 namespace npuw {
@@ -49,6 +55,64 @@ struct CompiledModelTestAccess {
 }  // namespace ov
 
 namespace {
+
+std::shared_ptr<ov::Model> make_validation_model(std::size_t n_inputs) {
+    ov::ParameterVector parameters;
+    for (std::size_t i = 0; i < n_inputs; ++i) {
+        parameters.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1}));
+    }
+    return std::make_shared<ov::Model>(ov::ResultVector{}, parameters);
+}
+
+void expect_serialize_valid(const Gather& hg,
+                            const QuantUnpackGather& qug,
+                            std::size_t param_base,
+                            std::size_t closure_size,
+                            std::size_t n_model_inputs) {
+    auto writer = ov::npuw::CompiledModelDescTestAccessor::make();
+    auto plugin = std::make_shared<NullPlugin>();
+    if (n_model_inputs != 0) {
+        auto model = make_validation_model(n_model_inputs);
+        ov::npuw::CompiledModelDescTestAccessor::compiled_model(writer) =
+            ov::SoPtr<ov::ICompiledModel>{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+    }
+    ov::npuw::CompiledModelDescTestAccessor::host_gather(writer) = hg;
+    ov::npuw::CompiledModelDescTestAccessor::quant_unpack_gather(writer) = qug;
+    ov::npuw::CompiledModelDescTestAccessor::param_base(writer) = param_base;
+    auto& closure = ov::npuw::CompiledModelDescTestAccessor::closure(writer);
+    closure.get().closure.resize(closure_size);
+    closure.get().closure_uid.resize(closure_size, -1);
+    closure.get().is_remote.resize(closure_size, false);
+
+    std::stringstream ss;
+    auto stream = Stream::writer(ss);
+    writer.serialize(stream, {});
+}
+
+void expect_serialize_throws(const Gather& hg,
+                             const QuantUnpackGather& qug,
+                             std::size_t param_base,
+                             std::size_t closure_size,
+                             std::size_t n_model_inputs) {
+    auto writer = ov::npuw::CompiledModelDescTestAccessor::make();
+    auto plugin = std::make_shared<NullPlugin>();
+    if (n_model_inputs != 0) {
+        auto model = make_validation_model(n_model_inputs);
+        ov::npuw::CompiledModelDescTestAccessor::compiled_model(writer) =
+            ov::SoPtr<ov::ICompiledModel>{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+    }
+    ov::npuw::CompiledModelDescTestAccessor::host_gather(writer) = hg;
+    ov::npuw::CompiledModelDescTestAccessor::quant_unpack_gather(writer) = qug;
+    ov::npuw::CompiledModelDescTestAccessor::param_base(writer) = param_base;
+    auto& closure = ov::npuw::CompiledModelDescTestAccessor::closure(writer);
+    closure.get().closure.resize(closure_size);
+    closure.get().closure_uid.resize(closure_size, -1);
+    closure.get().is_remote.resize(closure_size, false);
+
+    std::stringstream ss;
+    auto stream = Stream::writer(ss);
+    writer.serialize(stream, {});
+}
 
 constexpr char kExpectedOobIndexMessage[] = "CPU closure index is out of range";
 constexpr char kExpectedClosureUidSizeMessage[] = "closure_uid size does not match closure size";
@@ -1311,6 +1375,394 @@ TEST(SerializationTest, OVTypes_WeightsBank_cpu_roundtrip) {
 
     expect_tensors_equal(var.get(uid0, "CPU"), res.get(uid0, "CPU"));
     expect_tensors_equal(var.get(uid1, "CPU"), res.get(uid1, "CPU"));
+}
+
+TEST(SerializationTest, AllSentinelsPass) {
+    EXPECT_NO_THROW(expect_serialize_valid({-1, -1, -1}, {-1, -1, -1, -1, -1}, 0, 0, 0));
+}
+
+TEST(SerializationTest, AllSentinelsPassWithNonZeroInputCount) {
+    EXPECT_NO_THROW(expect_serialize_valid({-1, -1, -1}, {-1, -1, -1, -1, -1}, 2, 4, 8));
+}
+
+TEST(SerializationTest, ValidHostGatherIndicesPass) {
+    Gather hg{5, 3, 6};
+    EXPECT_NO_THROW(expect_serialize_valid(hg, {-1, -1, -1, -1, -1}, 2, 4, 8));
+}
+
+TEST(SerializationTest, ValidQuantUnpackGatherIndicesPass) {
+    QuantUnpackGather qug{0, 1, 2, 3, 4};
+    EXPECT_NO_THROW(expect_serialize_valid({-1, -1, -1}, qug, 0, 0, 8));
+}
+
+TEST(SerializationTest, HostGatherDstIdxExactlyAtBoundFails) {
+    Gather hg{8, 5, 0};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherDstIdxFarOOBFails) {
+    Gather hg{1000, 5, 0};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherDstIdxNegativeNonSentinelFails) {
+    Gather hg{-2, 5, 0};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherIdxIdxOOBFails) {
+    Gather hg{0, 5, 8};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherSrcIdxBelowParamBaseFails) {
+    Gather hg{0, 1, 0};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherSrcIdxExactlyAtClosureEndFails) {
+    Gather hg{0, 6, 0};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherSrcIdxFarPastClosureFails) {
+    Gather hg{0, 1000, 0};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherSrcIdxAtLastValidClosureSlotPasses) {
+    Gather hg{0, 5, 0};
+    EXPECT_NO_THROW(expect_serialize_valid(hg, {-1, -1, -1, -1, -1}, 2, 4, 8));
+}
+
+TEST(SerializationTest, HostGatherActiveMissingSrcIdxFails) {
+    Gather hg{0, -1, 1};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherActiveMissingIdxIdxFails) {
+    Gather hg{0, 5, -1};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherInactiveNonSentinelSrcIdxFails) {
+    Gather hg{-1, 5, -1};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherInactiveNonSentinelIdxIdxFails) {
+    Gather hg{-1, -1, 1};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, QuantUnpackGatherDstIdxOOBFails) {
+    QuantUnpackGather qug{8, 0, -1, 1, 1};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, QuantUnpackGatherSrcWIdxOOBFails) {
+    QuantUnpackGather qug{0, 8, -1, 1, 1};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, QuantUnpackGatherSrcZIdxOOBFails) {
+    QuantUnpackGather qug{0, 1, 8, 1, 1};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, QuantUnpackGatherSrcSIdxOOBFails) {
+    QuantUnpackGather qug{0, 1, -1, 8, 1};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, QuantUnpackGatherIdxIdxOOBFails) {
+    QuantUnpackGather qug{0, 1, -1, 1, 8};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, QuantUnpackGatherActiveMissingSrcWIdxFails) {
+    QuantUnpackGather qug{0, -1, -1, 1, 1};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, QuantUnpackGatherActiveMissingSrcSIdxFails) {
+    QuantUnpackGather qug{0, 1, -1, -1, 1};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, QuantUnpackGatherActiveMissingIdxIdxFails) {
+    QuantUnpackGather qug{0, 1, -1, 1, -1};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, QuantUnpackGatherActiveOptionalSrcZIdxPasses) {
+    QuantUnpackGather qug{0, 1, -1, 2, 3};
+    EXPECT_NO_THROW(expect_serialize_valid({-1, -1, -1}, qug, 0, 0, 8));
+}
+
+TEST(SerializationTest, QuantUnpackGatherInactiveNonSentinelSrcWIdxFails) {
+    QuantUnpackGather qug{-1, 1, -1, -1, -1};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, ParamBaseClosureSizeExceedsInputsFails) {
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, {-1, -1, -1, -1, -1}, 6, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, ParamBaseClosureSizeOverflowWrapFails) {
+    EXPECT_THROW(
+        expect_serialize_throws({-1, -1, -1}, {-1, -1, -1, -1, -1}, std::numeric_limits<std::size_t>::max(), 2, 8),
+        ov::Exception);
+}
+
+TEST(SerializationTest, ParamBaseClosureSizeExactlyAtBoundPasses) {
+    EXPECT_NO_THROW(expect_serialize_valid({-1, -1, -1}, {-1, -1, -1, -1, -1}, 4, 4, 8));
+}
+
+TEST(SerializationTest, ParamBaseLargerThanInputsFails) {
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, {-1, -1, -1, -1, -1}, 9, 1, 8), ov::Exception);
+}
+
+TEST(SerializationTest, ParamBaseLargerThanInputsZeroClosureFails) {
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, {-1, -1, -1, -1, -1}, 9, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, NoCompiledModelAllSentinelsPasses) {
+    EXPECT_NO_THROW(expect_serialize_valid({-1, -1, -1}, {-1, -1, -1, -1, -1}, 0, 0, 0));
+}
+
+TEST(SerializationTest, NoCompiledModelNonSentinelDstIdxFails) {
+    EXPECT_THROW(expect_serialize_throws({0, -1, -1}, {-1, -1, -1, -1, -1}, 0, 0, 0), ov::Exception);
+}
+
+TEST(SerializationTest, NoCompiledModelNonSentinelSrcIdxFails) {
+    EXPECT_THROW(expect_serialize_throws({-1, 0, -1}, {-1, -1, -1, -1, -1}, 0, 0, 0), ov::Exception);
+}
+
+TEST(SerializationTest, NoCompiledModelNonSentinelQuantDstIdxFails) {
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, {0, -1, -1, -1, -1}, 0, 0, 0), ov::Exception);
+}
+
+TEST(SerializationTest, FuncallSubmodelValidHostGatherPasses) {
+    auto plugin = std::make_shared<NullPlugin>();
+    auto model = make_validation_model(8);
+
+    // Submodel 0: function body
+    auto sub0 = ov::npuw::CompiledModelDescTestAccessor::make();
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(sub0) =
+        ov::SoPtr<ov::ICompiledModel>{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+
+    // Submodel 1: function call referencing submodel 0
+    auto sub1 = ov::npuw::CompiledModelDescTestAccessor::make();
+    sub1.replaced_by = 0;
+    Gather hg{5, 3, 6};
+    ov::npuw::CompiledModelDescTestAccessor::host_gather(sub1) = hg;
+    ov::npuw::CompiledModelDescTestAccessor::param_base(sub1) = 2;
+    auto& closure1 = ov::npuw::CompiledModelDescTestAccessor::closure(sub1);
+    closure1.get().closure.resize(4);
+    closure1.get().closure_uid.resize(4, -1);
+    closure1.get().is_remote.resize(4, false);
+
+    ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
+    submodels.push_back(std::move(sub0));
+    submodels.push_back(std::move(sub1));
+
+    std::stringstream ss;
+    auto stream = Stream::writer(ss);
+    EXPECT_NO_THROW(submodels[0].serialize(stream, {}));
+    EXPECT_NO_THROW(submodels[1].serialize(stream, {}));
+    EXPECT_NO_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels));
+}
+
+TEST(SerializationTest, FuncallSubmodelHostGatherDstIdxOOBFails) {
+    auto plugin = std::make_shared<NullPlugin>();
+    auto model = make_validation_model(8);
+
+    // Submodel 0: function body
+    auto sub0 = ov::npuw::CompiledModelDescTestAccessor::make();
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(sub0) =
+        ov::SoPtr<ov::ICompiledModel>{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+
+    // Submodel 1: function call referencing submodel 0, but host_gather dst_idx=8 is out of bounds [0, 8)
+    auto sub1 = ov::npuw::CompiledModelDescTestAccessor::make();
+    sub1.replaced_by = 0;
+    Gather hg{8, 0, 0};
+    ov::npuw::CompiledModelDescTestAccessor::host_gather(sub1) = hg;
+    auto& closure1 = ov::npuw::CompiledModelDescTestAccessor::closure(sub1);
+    closure1.get().closure.resize(1);
+    closure1.get().closure_uid.resize(1, -1);
+    closure1.get().is_remote.resize(1, false);
+
+    ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
+    submodels.push_back(std::move(sub0));
+    submodels.push_back(std::move(sub1));
+
+    std::stringstream ss;
+    auto stream = Stream::writer(ss);
+    EXPECT_NO_THROW(submodels[0].serialize(stream, {}));
+    EXPECT_NO_THROW(submodels[1].serialize(stream, {}));
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
+}
+
+TEST(SerializationTest, FuncallSubmodelClosureOverflowFails) {
+    auto plugin = std::make_shared<NullPlugin>();
+    auto model = make_validation_model(8);
+
+    // Submodel 0: function body with 8 inputs
+    auto sub0 = ov::npuw::CompiledModelDescTestAccessor::make();
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(sub0) =
+        ov::SoPtr<ov::ICompiledModel>{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+
+    // Submodel 1: function call referencing submodel 0, param_base=6 + closure_size=4 = 10 > 8
+    auto sub1 = ov::npuw::CompiledModelDescTestAccessor::make();
+    sub1.replaced_by = 0;
+    ov::npuw::CompiledModelDescTestAccessor::param_base(sub1) = 6;
+    auto& closure1 = ov::npuw::CompiledModelDescTestAccessor::closure(sub1);
+    closure1.get().closure.resize(4);
+    closure1.get().closure_uid.resize(4, -1);
+    closure1.get().is_remote.resize(4, false);
+
+    ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
+    submodels.push_back(std::move(sub0));
+    submodels.push_back(std::move(sub1));
+
+    std::stringstream ss;
+    auto stream = Stream::writer(ss);
+    EXPECT_NO_THROW(submodels[0].serialize(stream, {}));
+    EXPECT_NO_THROW(submodels[1].serialize(stream, {}));
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
+}
+
+TEST(SerializationTest, FuncallSubmodelRoundTripThroughReadPath) {
+    auto plugin = std::make_shared<NullPlugin>();
+    auto model = make_validation_model(8);
+    ov::SoPtr<ov::ICompiledModel> body_cm{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+
+    auto sub0 = ov::npuw::CompiledModelDescTestAccessor::make();
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(sub0) = body_cm;
+
+    // Submodel 1: function call into submodel 0, carrying an active host gather
+    auto sub1 = ov::npuw::CompiledModelDescTestAccessor::make();
+    sub1.replaced_by = 0;
+    Gather hg{5, 3, 6};
+    ov::npuw::CompiledModelDescTestAccessor::host_gather(sub1) = hg;
+    ov::npuw::CompiledModelDescTestAccessor::param_base(sub1) = 2;
+    auto& closure1 = ov::npuw::CompiledModelDescTestAccessor::closure(sub1);
+    closure1.get().closure.resize(4);
+    closure1.get().closure_uid.resize(4, -1);
+    closure1.get().is_remote.resize(4, false);
+
+    std::stringstream ss;
+    auto writer = Stream::writer(ss);
+    ASSERT_NO_THROW(sub0.serialize(writer, {}));
+    ASSERT_NO_THROW(sub1.serialize(writer, {}));
+
+    ov::npuw::CompiledModelDescTestAccessor::SubmodelVec imported;
+    imported.push_back(ov::npuw::CompiledModelDescTestAccessor::make());
+    imported.push_back(ov::npuw::CompiledModelDescTestAccessor::make());
+
+    // Reading a funcall desc must not trip the in-codec index check, which is skipped
+    // because the funcall has no compiled model of its own at this point.
+    auto reader = Stream::reader(ss);
+    ASSERT_NO_THROW(imported[0].serialize(reader, {}));
+    ASSERT_NO_THROW(imported[1].serialize(reader, {}));
+
+    ASSERT_EQ(ov::npuw::CompiledModelDescTestAccessor::host_gather(imported[1]).dst_idx, 5);
+    ASSERT_FALSE(ov::npuw::CompiledModelDescTestAccessor::compiled_model(imported[1]));
+
+    // Import attaches a compiled model to the function body only.
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(imported[0]) = body_cm;
+
+    EXPECT_NO_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(imported));
+
+    ov::npuw::CompiledModelDescTestAccessor::host_gather(imported[1]).dst_idx = 8;
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(imported), ov::Exception);
+}
+
+// The checks below need no compiled model, so a funcall desc must be rejected by the codec itself.
+TEST(SerializationTest, FuncallSubmodelNegativeGatherIndexFails) {
+    auto desc = ov::npuw::CompiledModelDescTestAccessor::make();
+    desc.replaced_by = 0;
+    Gather hg{-5, 3, 6};
+    ov::npuw::CompiledModelDescTestAccessor::host_gather(desc) = hg;
+    ov::npuw::CompiledModelDescTestAccessor::param_base(desc) = 2;
+    auto& closure = ov::npuw::CompiledModelDescTestAccessor::closure(desc);
+    closure.get().closure.resize(4);
+    closure.get().closure_uid.resize(4, -1);
+    closure.get().is_remote.resize(4, false);
+
+    std::stringstream ss;
+    auto stream = Stream::writer(ss);
+    EXPECT_THROW(desc.serialize(stream, {}), ov::Exception);
+}
+
+TEST(SerializationTest, FuncallSubmodelHostGatherSrcIdxOutOfClosureFails) {
+    auto desc = ov::npuw::CompiledModelDescTestAccessor::make();
+    desc.replaced_by = 0;
+    // src_idx - param_base == 7, past the end of a 4-entry closure
+    Gather hg{5, 9, 6};
+    ov::npuw::CompiledModelDescTestAccessor::host_gather(desc) = hg;
+    ov::npuw::CompiledModelDescTestAccessor::param_base(desc) = 2;
+    auto& closure = ov::npuw::CompiledModelDescTestAccessor::closure(desc);
+    closure.get().closure.resize(4);
+    closure.get().closure_uid.resize(4, -1);
+    closure.get().is_remote.resize(4, false);
+
+    std::stringstream ss;
+    auto stream = Stream::writer(ss);
+    EXPECT_THROW(desc.serialize(stream, {}), ov::Exception);
+}
+
+TEST(SerializationTest, ReplacedByOutOfRangeFails) {
+    // Submodel 0: replaced_by points to submodel 5 (out of range)
+    auto sub0 = ov::npuw::CompiledModelDescTestAccessor::make();
+    sub0.replaced_by = 5;
+
+    ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
+    submodels.push_back(std::move(sub0));
+
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
+}
+
+TEST(SerializationTest, FunctionBodyWithCorruptedReplacedByFails) {
+    auto plugin = std::make_shared<NullPlugin>();
+    auto model = make_validation_model(8);
+
+    // Submodel 0: Function body that has a compiled_model, but its replaced_by field is corrupted (points OOB to 99)
+    auto sub0 = ov::npuw::CompiledModelDescTestAccessor::make();
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(sub0) =
+        ov::SoPtr<ov::ICompiledModel>{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+    sub0.replaced_by = 99;
+
+    ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
+    submodels.push_back(std::move(sub0));
+
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
+}
+
+TEST(SerializationTest, MultiHopReplacedByFails) {
+    auto plugin = std::make_shared<NullPlugin>();
+    auto model = make_validation_model(8);
+
+    // Submodel 0: function body with compiled_model
+    auto sub0 = ov::npuw::CompiledModelDescTestAccessor::make();
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(sub0) =
+        ov::SoPtr<ov::ICompiledModel>{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+
+    // Submodel 1: function call targeting submodel 0 (no compiled_model)
+    auto sub1 = ov::npuw::CompiledModelDescTestAccessor::make();
+    sub1.replaced_by = 0;
+
+    // Submodel 2: multi-hop function call targeting submodel 1 instead of function body submodel 0 directly
+    auto sub2 = ov::npuw::CompiledModelDescTestAccessor::make();
+    sub2.replaced_by = 1;
+
+    ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
+    submodels.push_back(std::move(sub0));
+    submodels.push_back(std::move(sub1));
+    submodels.push_back(std::move(sub2));
+
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
 }
 
 TEST(SerializationTest, CompiledModelDesc_rejects_oob_cpu_closure_index_weightful) {
