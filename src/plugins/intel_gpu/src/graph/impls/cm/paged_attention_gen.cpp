@@ -620,10 +620,13 @@ JitConstants PagedAttentionGeneratorSmallQ::get_jit_constants(const kernel_impl_
     jit.make("Q_head_chunks_per_kv_head", q_chunking.q_head_chunks_per_kv_head);
     jit.make("Q_head_chunk_size", q_chunking.q_head_chunk_size);
 
-    // TILE_Q packs multiple q-tokens per SG. Constraint: Q_head_chunk_size*TILE_Q<=8
-    // (DPAS RepeatCount cap). Helper clamps automatically.
-    const int xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
-    const int tile_q = get_small_q_tile_q(xe_arch, static_cast<int>(q_chunking.q_head_chunk_size));
+    // TILE_Q packs multiple q-tokens per workgroup; the kernel splits the resulting
+    // Q_ROWS = Q_head_chunk_size * TILE_Q rows across WG_THREADS threads that share one
+    // marshalled K/V tile through SLM. The helper enforces the legal Q_ROWS values.
+    // This stage carries one of two compiled rungs; the host picks between them per
+    // inference from the batch's q_lens (pick_small_q_tile_q).
+    const int tile_q = get_small_q_tile_q_for_rung(params, _rung);
+    OPENVINO_ASSERT(tile_q > 0, "pa_small_q stage rung ", _rung, " has no valid TILE_Q for this shape");
     jit.make("TILE_Q", tile_q);
 
     // ONLINE_TILE_STEPS: online-softmax tile granularity. Overridable via env
@@ -671,7 +674,7 @@ Arguments PagedAttentionGeneratorSmallQ::get_arguments_desc(const kernel_impl_pa
 }
 
 DispatchDataFunc PagedAttentionGeneratorSmallQ::get_dispatch_data_func() const {
-    return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+    return DispatchDataFunc{[rung = _rung](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
         OPENVINO_ASSERT(!params.is_dynamic());
         auto& wgs = kd.params.workGroups;
         const auto desc = params.typed_desc<paged_attention>();
@@ -679,17 +682,27 @@ DispatchDataFunc PagedAttentionGeneratorSmallQ::get_dispatch_data_func() const {
         OPENVINO_ASSERT(rt_params != nullptr);
 
         const size_t kv_heads_num = desc->kv_heads_num;
-        const size_t partition_num = rtp->num_of_partitions;
+        const size_t partition_num = rtp->small_q_num_of_partitions;
+        OPENVINO_ASSERT(partition_num != 0, "small_q_num_of_partitions not set for the small-q stage");
 
         OPENVINO_ASSERT(rtp->q_chunking.q_head_chunks_per_kv_head > 0, "Invalid q_head_chunks_per_kv_head in runtime params");
-        // gws[0] = tile count (one SG per TILE_Q consecutive q-tokens of a subseq).
-        // selected_token_count scalar carries tile_count too (kernel indexes mapping triples).
+        // One *workgroup* per tile: its WG_THREADS threads split the tile's Q_ROWS q-rows
+        // and share the dequantized/transposed K/V tile through SLM, so the marshal runs once
+        // per tile instead of once per q-row-group. gws[0] is therefore tile_count scaled by
+        // the workgroup size, and the kernel takes the tile index from cm_group_id(0).
+        // selected_token_count scalar still carries tile_count (kernel indexes mapping triples).
         const size_t tile_count = rtp->small_q_tile_count;
-        wgs.global = {tile_count, kv_heads_num * static_cast<size_t>(rtp->q_chunking.q_head_chunks_per_kv_head), partition_num};
-        wgs.local = {1, 1, 1};
+        const int wg_threads = get_small_q_wg_threads(static_cast<int>(rtp->q_chunking.q_head_chunk_size),
+                                                      std::max(1, rtp->small_q_tile_q));
+        wgs.global = {tile_count * static_cast<size_t>(wg_threads),
+                      kv_heads_num * static_cast<size_t>(rtp->q_chunking.q_head_chunks_per_kv_head), partition_num};
+        wgs.local = {static_cast<size_t>(wg_threads), 1, 1};
 
         auto& scalars = kd.params.scalars;
-        std::vector<size_t> scaler_value = {1, tile_count};
+        // scalar 0 carries the runtime KV_PARTITION_SIZE (it used to be an unused constant 1);
+        // it must be the same value partition_num above was derived from.
+        OPENVINO_ASSERT(rtp->small_q_partition_size != 0, "small_q_partition_size not set");
+        std::vector<size_t> scaler_value = {rtp->small_q_partition_size, tile_count};
         scalars.resize(scaler_value.size());
         for (size_t i = 0; i < scaler_value.size(); ++i) {
             scalars[i].t = ScalarDescriptor::Types::INT32;
@@ -698,8 +711,8 @@ DispatchDataFunc PagedAttentionGeneratorSmallQ::get_dispatch_data_func() const {
 
         if (DEBUG_ENABLED) {
             std::cout << "PagedAttentionGeneratorSmallQ::get_dispatch_data_func: small_q_tokens=" << rtp->small_q_token_count << ", tile_count=" << tile_count
-                      << ", TILE_Q=" << rtp->small_q_tile_q << ", partition_num=" << partition_num << ", gws=[" << wgs.global[0] << ", " << wgs.global[1]
-                      << ", " << wgs.global[2] << "]\n";
+                      << ", TILE_Q=" << rtp->small_q_tile_q << ", wg_threads=" << wg_threads << ", partition_num=" << partition_num << ", gws=["
+                      << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << "], lws=[" << wgs.local[0] << ", 1, 1]\n";
         }
     }};
 }
@@ -714,12 +727,11 @@ JitConstants PagedAttentionGeneratorSmallQFinalization::get_jit_constants(const 
     jit.make("HEAD_SIZE", desc->k_head_size);
     jit.make("HEADS_NUM", desc->heads_num);
 
-    // Finalization decomposes token_row into (tile_idx, t_in_tile) via TILE_Q,
-    // so TILE_Q must match PagedAttentionGeneratorSmallQ.
-    const auto sq_partition_size = PagedAttentionGeneratorSingleToken::get_partition_size(desc->has_xattention);
-    const auto sq_q_chunking = get_single_token_q_chunking(params, *desc, sq_partition_size);
-    const int xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
-    const int tile_q = get_small_q_tile_q(xe_arch, static_cast<int>(sq_q_chunking.q_head_chunk_size));
+    // Finalization decomposes token_row into (tile_idx, t_in_tile) via TILE_Q, so TILE_Q must
+    // match the PagedAttentionGeneratorSmallQ stage of the same rung -- which is why both
+    // resolve it through the one helper.
+    const int tile_q = get_small_q_tile_q_for_rung(params, _rung);
+    OPENVINO_ASSERT(tile_q > 0, "pa_small_q_finalization stage rung ", _rung, " has no valid TILE_Q for this shape");
     jit.make("TILE_Q", tile_q);
     return jit;
 }
@@ -760,7 +772,8 @@ DispatchDataFunc PagedAttentionGeneratorSmallQFinalization::get_dispatch_data_fu
         wgs.local = {1, 1, 1};
 
         auto& scalars = kd.params.scalars;
-        const size_t partition_num = rtp->num_of_partitions;
+        const size_t partition_num = rtp->small_q_num_of_partitions;
+        OPENVINO_ASSERT(partition_num != 0, "small_q_num_of_partitions not set for the small-q finalization stage");
         std::vector<size_t> scaler_value = {partition_token_rows, partition_num};
         scalars.resize(scaler_value.size());
         for (size_t i = 0; i < scaler_value.size(); ++i) {

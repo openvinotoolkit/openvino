@@ -92,6 +92,30 @@ public:
     Stage::Ptr xattn_estimate_gemmqk_256 = make_stage<XAttentionEstimateGEMMQK>(256);
     Stage::Ptr xattn_estimate_find_block_256 = make_stage<XAttentionEstimateFindBlock>(256);
     Stage::Ptr xattn_estimate_post_proc_256 = make_stage<XAttentionEstimatePostProc>(256);
+    // Extra compiled TILE_Q rungs, so the host can fit the workgroup to the batch's q_len
+    // instead of rounding up to one compiled size. See SMALL_Q_EXTRA_RUNG_TILE_Q.
+    Stage::Ptr pa_small_q_alt = make_stage<PagedAttentionGeneratorSmallQ>(1);
+    Stage::Ptr pa_small_q_finalization_alt = make_stage<PagedAttentionGeneratorSmallQFinalization>(1);
+    Stage::Ptr pa_small_q_r2 = make_stage<PagedAttentionGeneratorSmallQ>(2);
+    Stage::Ptr pa_small_q_finalization_r2 = make_stage<PagedAttentionGeneratorSmallQFinalization>(2);
+
+    Stage::Ptr& small_q_stage(int rung) {
+        switch (rung) {
+        case 1: return pa_small_q_alt;
+        case 2: return pa_small_q_r2;
+        default: return pa_small_q;
+        }
+    }
+    Stage::Ptr& small_q_fin_stage(int rung) {
+        switch (rung) {
+        case 1: return pa_small_q_finalization_alt;
+        case 2: return pa_small_q_finalization_r2;
+        default: return pa_small_q_finalization;
+        }
+    }
+    // The accessors above fall through to rung 0, so a rung with no declared stage pair would
+    // silently run the wrong TILE_Q. Fail the build instead if the table outgrows them.
+    static_assert(SMALL_Q_RUNGS <= 3, "add a Stage::Ptr pair (and a switch case) per extra rung");
 
     PagedAttentionCmImpl() : PrimitiveImplCM(PagedAttentionImplementationManager::get_type_info_static()) {
         m_rt_params = std::make_unique<PagedAttentionRuntimeParams>();
@@ -107,6 +131,15 @@ public:
         add_stage(pa_single_token_finalization, params);
         add_stage(pa_small_q, params);
         add_stage(pa_small_q_finalization, params);
+        for (int r = 1; r < static_cast<int>(SMALL_Q_RUNGS); ++r) {
+            if (get_small_q_tile_q_for_rung(params, r) <= 0) {
+                continue;  // redundant with rung 0, or illegal for this shape
+            }
+            add_stage(small_q_stage(r), params);
+            add_stage(small_q_fin_stage(r), params);
+            GPU_DEBUG_TRACE_DETAIL << "  small-q rung " << r << ": TILE_Q="
+                                   << get_small_q_tile_q_for_rung(params, r) << std::endl;
+        }
         add_stage(pa_multi_token_1, params);
         if (desc->has_xattention) {
             add_stage(pa_multi_token_128, params);
@@ -282,7 +315,33 @@ public:
             const auto sq_partition_size = PagedAttentionGeneratorSingleToken::get_partition_size(desc->has_xattention);
             const auto sq_q_chunking = get_single_token_q_chunking(params, *desc, sq_partition_size);
             const int xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
-            const int small_q_tile_q = get_small_q_tile_q(xe_arch, static_cast<int>(sq_q_chunking.q_head_chunk_size));
+            const int sq_chunk = static_cast<int>(sq_q_chunking.q_head_chunk_size);
+            const int tile_q_max = get_small_q_tile_q(xe_arch, sq_chunk);
+
+            // TILE_Q is compiled into the small-q kernel pair, so the rung has to be settled
+            // before anything is counted with it. Pre-scan the small-q q_lens, pick, and let
+            // the loop below count tiles with the value the kernels will actually carry.
+            int small_q_tile_q = tile_q_max;
+            rt_params->small_q_rung = 0;
+            if (use_split_mixed) {
+                int max_small_q_len = 0;
+                for (size_t seq_id = 0; seq_id + 1 < subsequence_begins.size(); ++seq_id) {
+                    const auto q_len = std::max<int32_t>(subsequence_begins[seq_id + 1] - subsequence_begins[seq_id], 0);
+                    const auto past_len = std::max<int32_t>(past_lens[seq_id], 0);
+                    if (q_len > 1 && q_len <= static_cast<int32_t>(SMALL_Q_THRESHOLD) && past_len > 0) {
+                        max_small_q_len = std::max<int>(max_small_q_len, q_len);
+                    }
+                }
+                if (max_small_q_len > 0) {
+                    const int rung = pick_small_q_rung(params, max_small_q_len);
+                    if (rung == 0 || (has_stage(small_q_stage(rung)) && has_stage(small_q_fin_stage(rung)))) {
+                        rt_params->small_q_rung = rung;
+                        small_q_tile_q = get_small_q_tile_q_for_rung(params, rung);
+                    }
+                    GPU_DEBUG_TRACE_DETAIL << "  small-q max q_len " << max_small_q_len << " -> rung "
+                                           << rt_params->small_q_rung << " (TILE_Q=" << small_q_tile_q << ")" << std::endl;
+                }
+            }
             rt_params->small_q_tile_q = small_q_tile_q;
 
             for (size_t subsequence_id = 0; subsequence_id + 1 < subsequence_begins.size(); ++subsequence_id) {
@@ -313,6 +372,29 @@ public:
             if (use_split_mixed && (rt_params->single_token_selected_count > 0 || rt_params->small_q_token_count > 0)) {
                 rt_params->num_of_partitions = ceil_div(max_context_len, sq_partition_size);
                 rt_params->q_chunking = sq_q_chunking;
+
+                // Two different partition values, deliberately. The jit bound is what the kernel
+                // was compiled with and is therefore what the q-chunking must be checked
+                // against; the runtime value is what this batch actually dispatches with, and
+                // is the one gws[2], the kernel scalar and the partial buffers all derive from.
+                const auto small_q_jit_partition = PagedAttentionGeneratorSmallQ::get_partition_size(desc->has_xattention);
+                const auto small_q_partition_size = pick_small_q_partition(max_context_len, desc->has_xattention);
+                OPENVINO_ASSERT(small_q_partition_size > 0 &&
+                                    small_q_partition_size <= small_q_jit_partition &&
+                                    (small_q_partition_size % get_kv_split_size(xe_arch).first) == 0,
+                                "small_q runtime partition ", small_q_partition_size,
+                                " must be a non-zero multiple of kv_step and <= the jit bound ",
+                                small_q_jit_partition);
+                rt_params->small_q_partition_size = small_q_partition_size;
+                rt_params->small_q_num_of_partitions = ceil_div(max_context_len, small_q_partition_size);
+
+                const auto small_q_chunking = get_single_token_q_chunking(params, *desc, small_q_jit_partition);
+                OPENVINO_ASSERT(small_q_chunking.q_head_chunk_size == sq_q_chunking.q_head_chunk_size &&
+                                    small_q_chunking.q_head_chunks_per_kv_head == sq_q_chunking.q_head_chunks_per_kv_head,
+                                "pa_small_q q-chunking (", small_q_chunking.q_head_chunk_size, "x",
+                                small_q_chunking.q_head_chunks_per_kv_head, " at partition ", small_q_partition_size,
+                                ") disagrees with the dispatch chunking (", sq_q_chunking.q_head_chunk_size, "x",
+                                sq_q_chunking.q_head_chunks_per_kv_head, " at partition ", sq_partition_size, ")");
             }
 
             if (desc->has_xattention) {
@@ -609,8 +691,22 @@ public:
                     res_event = {execute_stage(res_event, instance, pa_single_token_finalization)};
                 }
                 if (rt_params->small_q_token_count > 0) {
-                    res_event = {execute_stage(res_event, instance, pa_small_q)};
-                    res_event = {execute_stage(res_event, instance, pa_small_q_finalization)};
+                    // Both stages of the pair must carry the TILE_Q update_rt_params picked:
+                    // pa_small_q writes partials at tile_idx * TILE_Q + t and finalization
+                    // decomposes token_row by TILE_Q.
+                    // update_rt_params already validated the rung against has_stage(); assert
+                    // rather than trust it, since routing to an unactivated stage reaches
+                    // execute_stage with a null Kernel::ptr.
+                    const int rung = rt_params->small_q_rung;
+                    Stage::Ptr& small_q = small_q_stage(rung);
+                    Stage::Ptr& small_q_finalization = small_q_fin_stage(rung);
+                    OPENVINO_ASSERT(has_stage(small_q) && has_stage(small_q_finalization),
+                                    "No compiled pa_small_q stage pair for rung ", rung,
+                                    " (TILE_Q=", rt_params->small_q_tile_q, ")");
+                    GPU_DEBUG_TRACE_DETAIL << "Execute small-q rung " << rung
+                                           << " TILE_Q=" << rt_params->small_q_tile_q << std::endl;
+                    res_event = {execute_stage(res_event, instance, small_q)};
+                    res_event = {execute_stage(res_event, instance, small_q_finalization)};
                 }
                 execute_multi_token_path();
             } else {
@@ -750,10 +846,13 @@ public:
             int64_t small_q_buf_elems = 16;
             int64_t small_q_mapping_elems = 3;
             if (needs_small_q_buffers) {
-                OPENVINO_ASSERT(rt_params->num_of_partitions != 0);
+                // Sized by small_q's own partition count, which is what both small-q stages
+                // index with.
+                OPENVINO_ASSERT(rt_params->small_q_num_of_partitions != 0);
                 const size_t partition_token_rows = rt_params->small_q_tile_count * static_cast<size_t>(std::max(1, rt_params->small_q_tile_q));
-                small_q_buf_elems = static_cast<int64_t>(partition_token_rows * desc->heads_num * rt_params->num_of_partitions);
-                small_q_tmp_out_elems = static_cast<int64_t>(partition_token_rows * desc->heads_num * desc->v_head_size * rt_params->num_of_partitions);
+                small_q_buf_elems = static_cast<int64_t>(partition_token_rows * desc->heads_num * rt_params->small_q_num_of_partitions);
+                small_q_tmp_out_elems =
+                    static_cast<int64_t>(partition_token_rows * desc->heads_num * desc->v_head_size * rt_params->small_q_num_of_partitions);
                 small_q_mapping_elems = static_cast<int64_t>(rt_params->small_q_tile_count * 3);
             }
             internal_buffers.emplace_back(small_q_tmp_out_elems, ov::element::f32);               // SMALL_Q_PARTITIONOUT
