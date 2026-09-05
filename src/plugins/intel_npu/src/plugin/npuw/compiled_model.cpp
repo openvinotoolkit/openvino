@@ -1491,6 +1491,53 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
                            num_submodels,
                            ")");
         }
+
+        // param_base, the closure size and spatial->params[*].idx all come straight off the wire.
+        // They index the function body's input ports (and size the spatial IO vectors) with
+        // unchecked operator[] at infer-request construction and closure unpacking time.
+        // A function call carries no compiled model on its own - it is indexed against its body.
+        const auto real_idx = submodel_desc.replaced_by.value_or(idx);
+        const auto& real_desc = compiled->m_compiled_submodels[real_idx];
+        if (real_desc.compiled_model == nullptr) {
+            continue;
+        }
+
+        const auto num_inputs = real_desc.compiled_model->inputs().size();
+        // unsafe_get() avoids blocking on the weights-bank evaluation future: the closure is sized
+        // during deserialization and the async evaluation only fills its entries.
+        const auto closure_size = compiled->m_compiled_submodels[idx].closure.unsafe_get().closure.size();
+        if (submodel_desc.param_base > num_inputs || closure_size > num_inputs - submodel_desc.param_base) {
+            OPENVINO_THROW("Invalid m_compiled_submodels[",
+                           idx,
+                           "].param_base ",
+                           submodel_desc.param_base,
+                           " (closure: ",
+                           closure_size,
+                           ", inputs: ",
+                           num_inputs,
+                           ")");
+        }
+
+        if (!submodel_desc.spatial.has_value()) {
+            continue;
+        }
+        const auto& spatial_params = submodel_desc.spatial->params;
+        for (std::size_t param_idx = 0u; param_idx < spatial_params.size(); ++param_idx) {
+            const auto port_idx = spatial_params[param_idx].idx;
+            if (port_idx >= submodel_desc.param_base) {
+                OPENVINO_THROW("Invalid m_compiled_submodels[",
+                               idx,
+                               "].spatial->params[",
+                               param_idx,
+                               "] input port index ",
+                               port_idx,
+                               " (param_base: ",
+                               submodel_desc.param_base,
+                               ", inputs: ",
+                               num_inputs,
+                               ")");
+            }
+        }
     }
 
     if (compiled->m_inputs_to_submodels_inputs.size() != compiled->inputs().size()) {

@@ -156,18 +156,54 @@ std::shared_ptr<ov::npuw::CompiledModel> make_compiled_model_with_input_link(
     return compiled;
 }
 
-std::shared_ptr<ov::Model> make_simple_model(const std::string& name) {
-    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
-    auto res = std::make_shared<ov::op::v0::Result>(param);
-    return std::make_shared<ov::Model>(ov::OutputVector{res->output(0)}, ov::ParameterVector{param}, name);
+std::shared_ptr<ov::Model> make_simple_model(const std::string& name, std::size_t num_inputs = 1u) {
+    ov::ParameterVector params;
+    ov::OutputVector results;
+    for (std::size_t i = 0u; i < num_inputs; ++i) {
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+        params.push_back(param);
+        results.push_back(std::make_shared<ov::op::v0::Result>(param)->output(0));
+    }
+    return std::make_shared<ov::Model>(results, params, name);
 }
 
-void add_fake_submodel(const std::shared_ptr<ov::npuw::CompiledModel>& compiled) {
-    auto model = make_simple_model("fake_sub");
+void add_fake_submodel(const std::shared_ptr<ov::npuw::CompiledModel>& compiled, std::size_t num_inputs = 1u) {
+    auto model = make_simple_model("fake_sub", num_inputs);
     auto plugin = make_test_plugin();
     ov::npuw::CompiledModel::CompiledModelDesc desc;
     desc.compiled_model = ov::SoPtr<ov::ICompiledModel>{std::make_shared<FakeSubCompiledModel>(model, plugin)};
     compiled->m_compiled_submodels.push_back(std::move(desc));
+}
+
+// Adds a function-call submodel: no compiled model of its own, indices refer to the body.
+void add_fake_funcall_submodel(const std::shared_ptr<ov::npuw::CompiledModel>& compiled,
+                               std::size_t body_idx,
+                               std::size_t param_base,
+                               std::size_t closure_size) {
+    ov::npuw::CompiledModel::CompiledModelDesc desc;
+    desc.replaced_by = body_idx;
+    desc.param_base = param_base;
+    desc.closure.get().closure.resize(closure_size);
+    compiled->m_compiled_submodels.push_back(std::move(desc));
+}
+
+// Attaches a spatial descriptor with a single param to the last submodel, mimicking a
+// deserialized ov::npuw::compiled::Spatial coming from an ORC blob.
+void set_spatial_on_last_submodel(const std::shared_ptr<ov::npuw::CompiledModel>& compiled,
+                                  std::size_t param_idx,
+                                  std::size_t param_base,
+                                  std::size_t tail_size) {
+    auto& desc = compiled->m_compiled_submodels.back();
+    desc.param_base = param_base;
+
+    ov::npuw::compiled::Spatial spatial;
+    spatial.range = 4u;
+    spatial.nway = 4u;
+    spatial.out_dim = 0u;
+    spatial.nway_iters = 1u;
+    spatial.tail_size = tail_size;
+    spatial.params.push_back(ov::npuw::compiled::Spatial::Param{param_idx, 0u});
+    desc.spatial = std::move(spatial);
 }
 
 void expect_validation_throw_contains(const std::shared_ptr<ov::npuw::CompiledModel>& compiled,
@@ -326,6 +362,96 @@ TEST(CompiledModelOrcImportValidationTest, RejectsNoLinkPrevOutputProducer) {
 
     expect_validation_throw_contains(compiled,
                                      "m_submodels_input_to_prev_output[0] output link: NO_LINK is not allowed");
+}
+
+TEST(CompiledModelOrcImportValidationTest, AcceptsValidSpatialParamIdx) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
+    set_spatial_on_last_submodel(compiled, 0u, 1u, 2u);
+
+    EXPECT_NO_THROW(ov::npuw::CompiledModel::validate_import_routing_tables(compiled));
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsSpatialBlobWithWildParamIdx) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
+    // Shape of a crafted blob: an index far past the port count, paired with a param_base
+    // large enough that the spatial IO vectors would be resized to accept it.
+    set_spatial_on_last_submodel(compiled, 0xDEADBEEFu, 0xFFFFFFFFu, 2u);
+
+    expect_validation_throw_contains(compiled, "m_compiled_submodels[0].param_base 4294967295");
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsSpatialParamIdxBeyondParamBase) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
+    set_spatial_on_last_submodel(compiled, 0u, 0u, 2u);
+
+    expect_validation_throw_contains(compiled, "m_compiled_submodels[0].spatial->params[0] input port index");
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsParamBaseBeyondInputPorts) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
+    compiled->m_compiled_submodels.back().param_base = 2u;
+
+    expect_validation_throw_contains(compiled, "m_compiled_submodels[0].param_base 2");
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsClosureBeyondBodyInputPorts) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
+    auto& desc = compiled->m_compiled_submodels.back();
+    desc.param_base = 1u;  // the body exposes exactly one input port
+    desc.closure.get().closure.resize(1u);
+
+    expect_validation_throw_contains(compiled, "m_compiled_submodels[0].param_base 1");
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsFuncallParamBaseBeyondBodyInputPorts) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
+    add_fake_funcall_submodel(compiled, 0u, 0xDEADBEEFu, 0u);
+
+    expect_validation_throw_contains(compiled, "m_compiled_submodels[1].param_base 3735928559");
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsFuncallClosureBeyondBodyInputPorts) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
+    add_fake_funcall_submodel(compiled, 0u, 1u, 1u);
+
+    expect_validation_throw_contains(compiled, "m_compiled_submodels[1].param_base 1");
+}
+
+TEST(CompiledModelOrcImportValidationTest, AcceptsFuncallParamBaseWithinBodyInputPorts) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
+    add_fake_funcall_submodel(compiled, 0u, 1u, 0u);
+
+    EXPECT_NO_THROW(ov::npuw::CompiledModel::validate_import_routing_tables(compiled));
+}
+
+// The port vector read at the paired site stays in range (idx < inputs()), so only the
+// idx < param_base bound rejects the out-of-range write into the param_base-sized tail vector.
+TEST(CompiledModelOrcImportValidationTest, RejectsSpatialParamIdxInClosureRange) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled, 2u);
+    auto& desc = compiled->m_compiled_submodels.back();
+    desc.closure.get().closure.resize(1u);
+    set_spatial_on_last_submodel(compiled, 1u, 1u, 2u);
+
+    expect_validation_throw_contains(compiled, "m_compiled_submodels[0].spatial->params[0] input port index 1");
+}
+
+// param_base is inflated past the real port count so that the param_base-sized vectors accept
+// an idx that is still out of range for the port vector itself.
+TEST(CompiledModelOrcImportValidationTest, RejectsInflatedParamBaseWithParamIdxAtPortCount) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled, 2u);
+    set_spatial_on_last_submodel(compiled, 2u, 3u, 2u);
+
+    expect_validation_throw_contains(compiled, "m_compiled_submodels[0].param_base 3");
 }
 
 }  // namespace
