@@ -214,10 +214,10 @@ void ov::npuw::util::pad_position_ids(const ov::SoPtr<ov::ITensor>& padded_posit
     }
 }
 
-void ov::npuw::util::copy_per_layer_inputs_chunk_to_right(const ov::SoPtr<ov::ITensor>& src,
-                                                          const ov::SoPtr<ov::ITensor>& dst,
-                                                          uint32_t src_offset_tokens,
-                                                          uint32_t chunk_tokens) {
+void ov::npuw::util::copy_per_layer_inputs_chunk_to_left(const ov::SoPtr<ov::ITensor>& src,
+                                                         const ov::SoPtr<ov::ITensor>& dst,
+                                                         uint32_t src_offset_tokens,
+                                                         uint32_t chunk_tokens) {
     // Gemma4 26B A4B has dangling per_layer_inputs with zero-sized tensors.
     if (src->get_byte_size() == 0u || dst->get_byte_size() == 0u) {
         OPENVINO_ASSERT(src->get_byte_size() == 0u && dst->get_byte_size() == 0u,
@@ -285,7 +285,11 @@ void ov::npuw::util::copy_per_layer_inputs_chunk_to_right(const ov::SoPtr<ov::IT
     const size_t chunk_bytes = static_cast<size_t>(chunk_tokens) * src_per_token_bytes;
     const size_t offset_bytes = static_cast<size_t>(src_offset_tokens) * src_per_token_bytes;
 
+    if (chunk_tokens < dst_seq_len) {
+        auto* dst_data = reinterpret_cast<uint8_t*>(dst->data());
+        std::memset(dst_data + chunk_bytes, 0, dst_seq_len_bytes - chunk_bytes);
+    }
     std::copy_n(reinterpret_cast<const uint8_t*>(src->data()) + offset_bytes,
                 chunk_bytes,
-                reinterpret_cast<uint8_t*>(dst->data()) + dst->get_byte_size() - chunk_bytes);
+                reinterpret_cast<uint8_t*>(dst->data()));
 }
