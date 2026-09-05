@@ -93,6 +93,12 @@ inline half8 unpack_to_half(uint2x8_t v) __attribute__((overloadable)) {
 }
 #endif
 
+// Extract a single U2 value from a packed byte by index (0..3)
+inline float convert_as_uint2_float(uchar source, uint index) {
+    uint shift = (index % 4) * 2;
+    return (float)((source >> shift) & 0x03);
+}
+
 // Macros for generic unpacking
 #define UNPACK_UINT2x4(target_type, v) CAT(unpack_to_, target_type)(v)
 #define UNPACK_UINT2x8(target_type, v) CAT(unpack_to_, target_type)(v)
