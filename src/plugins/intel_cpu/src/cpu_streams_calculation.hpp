@@ -147,7 +147,8 @@ void configure_x86_hybrid_threads(Config& config,
                                   const std::vector<std::vector<int>>& proc_type_table,
                                   const ov::MemBandwidthPressure& tolerance,
                                   bool int8_intensive,
-                                  bool is_LLM);
+                                  bool is_LLM,
+                                  int num_streams = 1);
 
 void configure_x86_hybrid_lp_threads(Config& config,
                                      const std::vector<std::vector<int>>& proc_type_table,
