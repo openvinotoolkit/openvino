@@ -18,7 +18,6 @@
 #include "intel_npu/utils/utils.hpp"
 #include "metadata.hpp"
 #include "openvino/pass/constant_folding.hpp"
-#include "openvino/runtime/properties.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace intel_npu {
@@ -28,58 +27,50 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<IDevice>& device,
                              const std::shared_ptr<IGraph>& graph,
                              const FilteredConfig& config,
+                             const ov::AnyMap& properties,
                              const std::optional<int64_t>& batchSize)
     : ICompiledModel(model, plugin, nullptr, nullptr),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
       _graph(graph),
-      _batchSize(batchSize) {
+      _batchSize(batchSize),
+      _propertiesManager(
+          std::make_unique<CompiledModelPropertyManager>(config, properties, _device, _graph, _batchSize, _logger)) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
-
-    // Support for specific properties might depend on the characteristics of the compiled model.
-    // Adjust lower level config availability to influence the supported properties list if needed
-    FilteredConfig localConfig = config;
-
-    OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
-    _propertiesManager = std::make_unique<CompiledModelPropertyManager>(localConfig, _graph, _batchSize, _logger);
 
     OPENVINO_ASSERT(_graph != nullptr, "Invalid graph handle! Failed to initialize compiled model!");
     _logger.info("The current compiled model is a %s one", to_string(_graph->get_kind()));
 
     // Immediate-init path: when weights load is not deferred, initialize the graph now.
     // The deferred path (CREATE_EXECUTOR off or DEFER_WEIGHTS_LOAD on) is handled in create_infer_request().
-    const FilteredConfig& modelConfig = _propertiesManager->getConfig();
-    if (modelConfig.get<CREATE_EXECUTOR>() && !modelConfig.get<DEFER_WEIGHTS_LOAD>()) {
-        _graph->initialize(modelConfig);
+    if (config.get<CREATE_EXECUTOR>() && !config.get<DEFER_WEIGHTS_LOAD>()) {
+        _graph->initialize(config);
     } else {
         _logger.info("Graph initialize is deferred; weights will be loaded on the first infer request creation.");
     }
-
-    OV_ITT_TASK_SKIP(COMPILED_MODEL);
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::create_infer_request");
 
-    std::call_once(_streamExecutorsInitFlag, [this] {
-        const_cast<CompiledModel*>(this)->configure_stream_executors();
-    });
-
     // sanity check
     OPENVINO_ASSERT(_device != nullptr, "No available devices. Failed to create infer request!");
 
-    if (!_propertiesManager->getConfig().get<CREATE_EXECUTOR>() ||
-        _propertiesManager->getConfig().get<DEFER_WEIGHTS_LOAD>()) {
+    const auto localConfig = _propertiesManager->getConfig();
+    if (!localConfig.get<CREATE_EXECUTOR>() || localConfig.get<DEFER_WEIGHTS_LOAD>()) {
         OPENVINO_ASSERT(_graph != nullptr, "Invalid graph handle! Failed to create infer request!");
-        _graph->initialize(_propertiesManager->getConfig());
+        _graph->initialize(localConfig);
     }
 
     OPENVINO_ASSERT(_graph != nullptr && _graph->init_completed(),
                     "Graph is unavailable or failed to initialize. The driver may be missing or too old to run "
                     "inference for this blob.");
 
-    const std::shared_ptr<InferRequest>& inferRequest =
-        _device->createInferRequest(shared_from_this(), _propertiesManager->getConfig());
+    const std::shared_ptr<InferRequest>& inferRequest = _device->createInferRequest(shared_from_this(), localConfig);
+
+    std::call_once(_streamExecutorsInitFlag, [this, &localConfig] {
+        const_cast<CompiledModel*>(this)->configure_stream_executors(localConfig.get<NUM_STREAMS>());
+    });
 
     return std::make_shared<AsyncInferRequest>(inferRequest,
                                                get_task_executor(),
@@ -96,12 +87,14 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
+    const auto localConfig = _propertiesManager->getConfig();
+
     uint64_t blobSizesBeforeVersioning;
     std::optional<uint64_t> blobSizeAfterEncryption = std::nullopt;
     std::optional<std::vector<uint64_t>> initBlobSizes;
 
-    if (_propertiesManager->getConfig().has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
-        _propertiesManager->getConfig().get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
+    if (localConfig.has<CACHE_ENCRYPTION_CALLBACKS>() &&
+        localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
         std::string encryptedBlobStr;
         {
             std::string tmpBlobStr;
@@ -111,8 +104,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
                     _graph->export_blob(tmpStringStream);  // +1x blob size
                 tmpBlobStr = tmpStringStream.str();        // +2x blob size
             }  // -1x blob size when deallocating temporary stringstream
-            encryptedBlobStr =
-                _propertiesManager->getConfig().get<CACHE_ENCRYPTION_CALLBACKS>().encrypt(tmpBlobStr);  // +2x blob size
+            encryptedBlobStr = localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt(tmpBlobStr);  // +2x blob size
             blobSizeAfterEncryption = encryptedBlobStr.size();
         }  // -1x blob size when deallocating temporary blob string
         stream.write(encryptedBlobStr.c_str(), encryptedBlobStr.size());
@@ -122,7 +114,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
         std::tie(blobSizesBeforeVersioning, initBlobSizes) = _graph->export_blob(stream);
     }
 
-    if (!_propertiesManager->getConfig().get<EXPORT_RAW_BLOB>()) {
+    if (!localConfig.get<EXPORT_RAW_BLOB>()) {
         std::optional<std::vector<ov::Layout>> inputLayouts = std::vector<ov::Layout>();
         std::optional<std::vector<ov::Layout>> outputLayouts = std::vector<ov::Layout>();
 
@@ -136,8 +128,8 @@ void CompiledModel::export_model(std::ostream& stream) const {
         }
 
         std::optional<uint32_t> compilerVersion = std::nullopt;
-        if (_propertiesManager->getConfig().has(ov::intel_npu::compiler_version.name())) {
-            compilerVersion = _propertiesManager->getConfig().get<COMPILER_VERSION>();
+        if (localConfig.has<COMPILER_VERSION>()) {
+            compilerVersion = localConfig.get<COMPILER_VERSION>();
         }
 
         Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning,
@@ -200,23 +192,7 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
 }
 
 void CompiledModel::set_property(const ov::AnyMap& properties) {
-    // 1. Set the property via Properties interface
     _propertiesManager->setProperty(properties);
-
-    // 2. Extra hooks
-    if (properties.count(std::string(WORKLOAD_TYPE::key())) != 0) {
-        if (_graph != nullptr) {
-            const auto workloadType = properties.at(ov::workload_type.name()).as<ov::WorkloadType>();
-            _graph->set_workload_type(workloadType);
-        }
-    }
-
-    if (properties.count(std::string(MODEL_PRIORITY::key())) != 0) {
-        if (_graph != nullptr) {
-            const auto modelPriority = properties.at(ov::hint::model_priority.name()).as<ov::hint::Priority>();
-            _graph->set_model_priority(modelPriority);
-        }
-    }
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
@@ -227,29 +203,24 @@ const std::shared_ptr<IGraph>& CompiledModel::get_graph() const {
     return _graph;
 }
 
-const FilteredConfig& CompiledModel::get_config() const {
-    return _propertiesManager->getConfig();
-}
-
 void CompiledModel::release_memory() {
     if (_graph != nullptr) {
         _graph->evict_memory();
     }
 }
 
-void CompiledModel::configure_stream_executors() {
-    const FilteredConfig& config = get_config();
+void CompiledModel::configure_stream_executors(ov::streams::Num numStreams) {
+    const auto localConfig = _propertiesManager->getConfig();
 
     // In case of sequential execution of async requests for the same compiled model, the compiled model must use
     // dedicated executors with a single thread to ensure sequential execution of its async requests.
-    if (config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+    if (localConfig.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         set_task_executor(make_executor("Intel NPU plugin start inferences executor", 1));
         _resultExecutor = make_executor("Intel NPU plugin wait inferences executor", 1);
 
         return;
     }
 
-    const auto numStreams = config.get<NUM_STREAMS>();
     if (numStreams > 0) {
         // Use a single thread for start executors to reduce contention on the shared task queue, while scaling wait
         // executor workers with num_streams to improve result fetch throughput. Callbacks intentionally run on wait
@@ -269,7 +240,7 @@ void CompiledModel::configure_stream_executors() {
         // idle periods (30 s timeout) is derived from the optimal number of parallel infer requests recommended for
         // the current platform in THROUGHPUT mode. The pool can then grow dynamically to match runtime workload.
         const size_t keepWorkers = static_cast<size_t>(
-            utils::getOptimalNumberOfInferRequestsInParallel(config.get<PLATFORM>(),
+            utils::getOptimalNumberOfInferRequestsInParallel(_device->getName(),
                                                              ov::hint::PerformanceMode::THROUGHPUT));
 
         set_task_executor(make_executor("Intel NPU plugin run inferences executor", keepWorkers, true));

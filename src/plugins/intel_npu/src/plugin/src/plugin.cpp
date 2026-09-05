@@ -11,7 +11,6 @@
 #include "compiled_model.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
-#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/itt.hpp"
@@ -114,34 +113,12 @@ std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
     return nullptr;
 }
 
-std::shared_ptr<const ov::Model> get_model_ptr_from_map(const ov::AnyMap& properties) {
-    if (properties.count(ov::hint::model.name())) {
-        try {
-            return properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>();
-        } catch (const ov::Exception&) {
-            try {
-                return std::const_pointer_cast<const ov::Model>(
-                    properties.at(ov::hint::model.name()).as<std::shared_ptr<ov::Model>>());
-            } catch (const ov::Exception&) {
-                OPENVINO_THROW("The value of the \"ov::hint::model\" configuration option (\"MODEL_PTR\") has the "
-                               "wrong data type. Expected: std::shared_ptr<const ov::Model>.");
-            }
-        }
-    }
-
-    return nullptr;
-}
-
-void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredConfig& config) {
-    // Initialize (note: it will reset registered options)
+void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel_npu::OptionsDesc& options) {
     options.reset();
 
-#define REGISTER_OPTION(OPT_TYPE)                             \
-    do {                                                      \
-        auto dummyopt = details::makeOptionModel<OPT_TYPE>(); \
-        std::string o_name = dummyopt.key().data();           \
-        options.add<OPT_TYPE>();                              \
-        config.enable(std::move(o_name), false);              \
+#define REGISTER_OPTION(OPT_TYPE) \
+    do {                          \
+        options.add<OPT_TYPE>();  \
     } while (0)
 
     REGISTER_OPTION(LOG_LEVEL);
@@ -157,11 +134,7 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(PERFORMANCE_HINT);
     REGISTER_OPTION(EXECUTION_MODE_HINT);
     REGISTER_OPTION(PERFORMANCE_HINT_NUM_REQUESTS);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    REGISTER_OPTION(ENABLE_CPU_PINNING);
-    OPENVINO_SUPPRESS_DEPRECATED_END
     REGISTER_OPTION(INFERENCE_PRECISION_HINT);
-    REGISTER_OPTION(MODEL_PRIORITY);
     REGISTER_OPTION(COMPILATION_MODE_PARAMS);
     REGISTER_OPTION(DMA_ENGINES);
     REGISTER_OPTION(TILES);
@@ -194,58 +167,31 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(ENABLE_STRIDES_FOR);
     REGISTER_OPTION(SHARED_COMMON_QUEUE);
     REGISTER_OPTION(CACHE_ENCRYPTION_CALLBACKS);
-    REGISTER_OPTION(RUNTIME_REQUIREMENTS);
-    REGISTER_OPTION(COMPATIBILITY_CHECK);
+    REGISTER_OPTION(MAX_TILES);
+    REGISTER_OPTION(MODEL_PTR);
+    REGISTER_OPTION(DISABLE_IDLE_MEMORY_PRUNING);
 
     if (backend) {
         // Options registered only if drivers is present and supports the corresponding extension
-        REGISTER_OPTION(MAX_TILES);
+        REGISTER_OPTION(MODEL_PRIORITY);
 
         if (backend->isCommandQueueExtSupported()) {
             REGISTER_OPTION(WORKLOAD_TYPE);
         }
-        if (backend->isContextExtSupported()) {
-            REGISTER_OPTION(DISABLE_IDLE_MEMORY_PRUNING);
-        }
     }
 
-    // parse again env_variables to update registered configs which have env vars set
-    config.parseEnvVars();
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    REGISTER_OPTION(ENABLE_CPU_PINNING);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
-    // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
-    // to enable those for OV Core to query. Note: do this last to not filter them out. register npuw caching properties
+    // NPUW properties are requested by OV Core during caching and
+    // have no effect on the NPU plugin. But we still need to enable
+    // those for OV Core to query. Note: do this last to not filter
+    // them out. register npuw caching properties
     for_each_exposed_npuw_option([&](auto tag) {
         using Opt = typename decltype(tag)::type;
         REGISTER_OPTION(Opt);
     });
-
-    config.enableRuntimeOptions();
-
-    // Special cases - options with OptionMode::Both must be enabled for the plugin even if the compiler does not
-    // support them, because they may be used by the plugin itself or by the driver.
-    // We still check compiler support to decide whether these options should be removed from the config string.
-
-    // NPU_TURBO might be supported by the driver
-    if (backend && backend->isCommandQueueExtSupported()) {
-        config.enable(ov::intel_npu::turbo.name(), true);
-    }
-
-    // LOG_LEVEL, PERFORMANCE_HINT and PERF_COUNT are needed by runtime options
-    config.enable(ov::log::level.name(), true);
-    config.enable(ov::hint::performance_mode.name(), true);
-    config.enable(ov::enable_profiling.name(), true);
-
-    if (config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN && backend != nullptr) {
-        auto device = backend->getDevice();
-        if (device) {
-            auto platformName = device->getName();
-            CompilerAdapterFactory compilerFactory;
-            auto compileType = compilerFactory.determineAppropriateCompilerTypeBasedOnPlatform(platformName);
-            if (compileType == ov::intel_npu::CompilerType::DRIVER) {
-                config.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compileType)}});
-            }
-        }
-    }
 }
 
 }  // namespace
@@ -257,22 +203,20 @@ Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
     set_device_name("NPU");
 
     std::shared_ptr<OptionsDesc> options = std::make_shared<OptionsDesc>();
+
     // parse env_variables to get LOG_LEVEL if needed
     options->add<LOG_LEVEL>();
-
-    FilteredConfig config(options);
-    config.parseEnvVars();
-    Logger::global().setLevel(config.get<LOG_LEVEL>());
-    _logger.setLevel(config.get<LOG_LEVEL>());
+    std::shared_ptr<FilteredConfig> config = std::make_shared<FilteredConfig>(options);
+    config->parseEnvVars();
+    Logger::global().setLevel(config->get<LOG_LEVEL>());
+    _logger.setLevel(config->get<LOG_LEVEL>());
 
     OV_ITT_TASK_CHAIN(PLUGIN, itt::domains::NPUPlugin, "Plugin::Plugin", "GetBackend");
     // backend registry shall be created after configs are updated
     _backendsRegistry = std::make_unique<BackendsRegistry>();
     _backend = _backendsRegistry->getEngineBackend();
 
-    OV_ITT_TASK_NEXT(PLUGIN, "InitConfig");
-    init_config(_backend._ptr.get(), *options, config);
-
+    register_options(_backend, *options);
     if (_backend) {
         OV_ITT_TASK_NEXT(PLUGIN, "RegisterBackendOptions");
         _backend->registerOptions(*options);
@@ -282,19 +226,16 @@ Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
     OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
     _compilerOptionSupportHelper = std::make_shared<CompilerOptionSupportHelper>(_backend, CompilerAdapterFactory());
     _propertiesManager =
-        std::make_unique<PluginPropertyManager>(config, _backend, _compilerOptionSupportHelper, _logger);
+        std::make_unique<PluginPropertyManager>(options, _backend, _compilerOptionSupportHelper, _logger);
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {
     if (properties.empty()) {
         return;
     }
-    update_log_level(properties);
-
-    if (_backend != nullptr) {
-        _backend->updateInfo(properties);
+    if (const auto logLevel = properties.find(ov::log::level.name()); logLevel != properties.end()) {
+        _logger.setLevel(logLevel->second.as<ov::log::Level>());
     }
-
     _propertiesManager->setProperty(properties);
 }
 
@@ -306,10 +247,31 @@ bool Plugin::is_property_supported(const std::string& name, const ov::AnyMap& ar
     return _propertiesManager->isPropertySupported(name, arguments);
 }
 
+void Plugin::update_properties_before_operation(const ov::AnyMap& properties) const {
+    const auto logLevel = properties.find(ov::log::level.name());
+    const auto disableIdleMemoryPruning = properties.find(ov::intel_npu::disable_idle_memory_prunning.name());
+    if (logLevel == properties.end() && disableIdleMemoryPruning == properties.end()) {
+        return;
+    }
+
+    if (logLevel != properties.end()) {
+        _logger.setLevel(logLevel->second.as<ov::log::Level>());
+        Logger::global().setLevel(logLevel->second.as<ov::log::Level>());
+        if (_backend != nullptr) {
+            _backend->updateInfo({{ov::log::level.name(), logLevel->second}});
+        }
+    }
+
+    if (disableIdleMemoryPruning != properties.end()) {
+        _propertiesManager->setProperty(
+            {{ov::intel_npu::disable_idle_memory_prunning.name(), disableIdleMemoryPruning->second}});
+    }
+}
+
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::compile_model");
-    update_log_level(properties);
+    update_properties_before_operation(properties);
 
     // Before going any further: if
     // ... 1 - NPUW mode is activated
@@ -326,17 +288,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
-    if (_backend != nullptr) {
-        _backend->updateInfo(localProperties);
-    }
-
-    // Resolving the requested compiler type based on local and global properties.
-    // It can still remain PREFER_PLUGIN even after this point
-    ov::intel_npu::CompilerType compilerType = _propertiesManager->determineCompilerType(localProperties);
-
-    auto deviceId = _propertiesManager->determineDeviceId(localProperties);
     // DEVICE_ID can be passed both as an index and as a platform name.
     // Identify the right device object to be taken into account when the target compilation platform is determined
+    std::string deviceId = _propertiesManager->determineDeviceId(localProperties);
     std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, deviceId);
 
     // Determine the final compilation target based on NPU_PLATFORM, determined device name (if any) and the list of
@@ -346,6 +300,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                       device == nullptr ? std::move(deviceId) : device->getName(),
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
+    ov::intel_npu::CompilerType compilerType = _propertiesManager->determineCompilerType(localProperties);
     CompilerAdapterFactory factory;
     auto compiler = factory.getCompiler(_backend,
                                         compilerType,
@@ -358,15 +313,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
-    FilteredConfig localConfig = _propertiesManager->getConfigForSpecificCompiler(localProperties);
-    localConfig.update({{ov::intel_npu::compiler_version.name(), std::to_string(compiler->get_version())}});
+    auto mergedConfigAndUnknownProperties =
+        _propertiesManager->getMergedConfigAndUnknownProperties(localProperties, ConfigMergeMode::Compile);
+    auto& localConfig = mergedConfigAndUnknownProperties.first;
+    auto& unknownProperties = mergedConfigAndUnknownProperties.second;
 
-    auto updateBatchMode = [&](ov::intel_npu::BatchMode mode) {
-        std::stringstream strStream;
-        strStream << mode;
-        _logger.info("Setting batching mode to %s.", strStream.str().c_str());
-        localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
-    };
+    localConfig.updateAny(ov::intel_npu::compiler_version.name(), compiler->get_version());
 
     // Resolve HostCompile before batching so the selected mode controls subsequent model and batch handling.
     if (compilerType == ov::intel_npu::CompilerType::PLUGIN && !localConfig.has<COMPILATION_MODE>() &&
@@ -404,7 +356,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         if (inputsDynamic && outputsDynamic && allPortsHaveFiniteUpperBounds) {
             _logger.info("NPU_COMPILATION_MODE not set; selecting 'HostCompile_Interpreter' "
                          "for fully-dynamic model (inputs and outputs both dynamic)");
-            localConfig.update({{ov::intel_npu::compilation_mode.name(), "HostCompile_Interpreter"}});
+            localConfig.update(ov::intel_npu::compilation_mode.name(), "HostCompile_Interpreter");
         }
     }
 
@@ -421,8 +373,23 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     bool shouldHandleBatching = false;
     bool successfullyDebatched = false;
 
-    if (localConfig.isAvailable(ov::intel_npu::batch_mode.name())) {
-        // Set default batch mode if not configured
+    auto updateBatchMode = [&](ov::intel_npu::BatchMode mode) {
+        localConfig.updateAny(ov::intel_npu::batch_mode.name(), mode);
+    };
+
+    const auto batchIsAvailable = [&]() {
+        bool isSupported = false;
+        try {
+            isSupported =
+                _compilerOptionSupportHelper->isOptionSupported(compilerType, ov::intel_npu::batch_mode.name());
+        } catch (...) {
+            isSupported = false;
+        }
+
+        return isSupported;
+    }();
+
+    if (batchIsAvailable) {
         if (!localConfig.has(ov::intel_npu::batch_mode.name())) {
             updateBatchMode(ov::intel_npu::BatchMode::AUTO);
         }
@@ -435,8 +402,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             // Handle models with variables (states)
             if (!model->get_variables().empty()) {
                 if (localConfig.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
-                    OPENVINO_THROW(
-                        "This model contains states, thus it is not supported when handling batching on the plugin");
+                    OPENVINO_THROW("This model contains states, thus it is not supported when handling batching on "
+                                   "the plugin");
                 }
                 updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
             }
@@ -448,9 +415,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     if (shouldHandleBatching) {
+        std::optional<ov::intel_npu::BatchMode> batchMode = std::nullopt;
+        if (batchIsAvailable) {
+            batchMode = localConfig.get<BATCH_MODE>();
+        }
+
         // Process batching
         std::tie(batchedModel, successfullyDebatched) =
-            intel_npu::batch_helpers::handlePluginBatching(model, localConfig, updateBatchMode, originalBatch, _logger);
+            intel_npu::batch_helpers::handlePluginBatching(model, updateBatchMode, batchMode, originalBatch, _logger);
     }
 
     if (localConfig.has(ov::intel_npu::enable_strides_for.name())) {
@@ -459,8 +431,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                 !intel_npu::batch_helpers::checkModelDynamicDims(model),
                 "Dynamic shape tensors are not supported with the dynamic strides feature (ENABLE_STRIDES_FOR).");
 
-            OPENVINO_ASSERT(useDynamicGraphForDynamicModel || successfullyDebatched ||
-                                !localConfig.isAvailable(ov::intel_npu::batch_mode.name()) ||
+            OPENVINO_ASSERT(useDynamicGraphForDynamicModel || successfullyDebatched || !batchIsAvailable ||
                                 localConfig.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER,
                             "Dynamic batching is not supported with the dynamic strides feature (ENABLE_STRIDES_FOR).");
         }
@@ -468,9 +439,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     // Update stepping w/ information from driver, unless provided by user or we are off-device
     // Ignore if compilation was requested for a platform that is different from the current one
-    if (!localConfig.has<STEPPING>() && device != nullptr && device->getName() == compilationPlatform) {
+    if (!localConfig.has<STEPPING>() &&
+        _compilerOptionSupportHelper->isOptionSupported(compilerType, ov::intel_npu::stepping.name()) &&
+        device != nullptr && device->getName() == compilationPlatform) {
         try {
-            localConfig.update({{ov::intel_npu::stepping.name(), std::to_string(device->getSubDevId())}});
+            localConfig.update(ov::intel_npu::stepping.name(), std::to_string(device->getSubDevId()));
         } catch (...) {
             _logger.warning("Stepping information not implemented by selected backend. Skipping. Please provide "
                             "NPU_STEPPING if required.");
@@ -478,9 +451,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
     // Update max_tiles w/ information from driver, unless provided by user or we are off-device
     // Ignore if compilation was requested for a platform that is different from the current one
-    if (!localConfig.has<MAX_TILES>() && device != nullptr && device->getName() == compilationPlatform) {
+    if (!localConfig.has<MAX_TILES>() &&
+        _compilerOptionSupportHelper->isOptionSupported(compilerType, ov::intel_npu::max_tiles.name()) &&
+        device != nullptr && device->getName() == compilationPlatform) {
         try {
-            localConfig.update({{ov::intel_npu::max_tiles.name(), std::to_string(device->getMaxNumSlices())}});
+            localConfig.update(ov::intel_npu::max_tiles.name(), std::to_string(device->getMaxNumSlices()));
         } catch (...) {
             _logger.warning("Max tiles information not implemented by selected backend. Default value will be used.");
         }
@@ -488,7 +463,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
 
-    if (localConfig.isAvailable(ov::enable_weightless.name()) && !localConfig.get<CACHE_DIR>().empty()) {
+    const bool isWeightlessSupported = [&]() {
+        try {
+            return _compilerOptionSupportHelper->isOptionSupported(compilerType, ov::enable_weightless.name());
+        } catch (...) {
+            return false;
+        }
+    }();
+
+    if (isWeightlessSupported && !localConfig.get<CACHE_DIR>().empty()) {
         // If OV caching is enabled, then weights separation is performed only if the user opted for optimizing the
         // size of the binary object
         const bool cacheModeOptimizeSize = (localConfig.get<CACHE_MODE>() == ov::CacheMode::OPTIMIZE_SIZE);
@@ -502,7 +485,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                 "was set to false. Weights separation WILL be performed in this case.");
         }
 
-        localConfig.update({{ov::enable_weightless.name(), cacheModeOptimizeSize ? "YES" : "NO"}});
+        localConfig.update(ov::enable_weightless.name(), cacheModeOptimizeSize ? "YES" : "NO");
     }
 
     std::shared_ptr<intel_npu::IGraph> graph;
@@ -510,10 +493,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto compileWithConfig = [&](auto&& modelToCompile, const auto& config) {
         if (!localConfig.get<ENABLE_WEIGHTLESS>()) {
             return compiler->compile(modelToCompile, config);
-        } else {
-            check_weightless_cache_attribute_occurrence(model);
-            return compiler->compileWS(std::move(modelToCompile), config);
         }
+
+        check_weightless_cache_attribute_occurrence(model);
+        return compiler->compileWS(std::move(modelToCompile), config);
     };
 
     try {
@@ -541,9 +524,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             _logger.info("Setting performance mode to THROUGHPUT for batched model compilation.");
 
             auto modifiedConfig = localConfig;  // Copy only when needed
-            std::stringstream strStream;
-            strStream << ov::hint::PerformanceMode::THROUGHPUT;
-            modifiedConfig.update({{ov::hint::performance_mode.name(), strStream.str()}});
+            modifiedConfig.updateAny(ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT);
             graph = compileWithConfig(std::move(modelToCompile), modifiedConfig);
         } else {
             graph = compileWithConfig(std::move(modelToCompile), localConfig);
@@ -573,7 +554,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
     try {
-        compiledModel = std::make_shared<CompiledModel>(model, shared_from_this(), device, graph, localConfig, batch);
+        compiledModel = std::make_shared<CompiledModel>(model,
+                                                        shared_from_this(),
+                                                        device,
+                                                        graph,
+                                                        localConfig,
+                                                        unknownProperties,
+                                                        batch);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -605,23 +592,9 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) con
     return std::make_shared<RemoteContextImpl>(_backend);
 }
 
-bool Plugin::should_import_raw_blob(const ov::AnyMap& properties) const {
-    const bool skipCompatibility = (properties.find(DISABLE_VERSION_CHECK::key().data()) != properties.end())
-                                       ? properties.at(DISABLE_VERSION_CHECK::key().data()).as<bool>()
-                                       : _propertiesManager->getConfig().get<DISABLE_VERSION_CHECK>();
-    if (skipCompatibility) {
-        return true;
-    }
-
-    const bool importRawBlob = (properties.find(IMPORT_RAW_BLOB::key().data()) != properties.end())
-                                   ? properties.at(IMPORT_RAW_BLOB::key().data()).as<bool>()
-                                   : _propertiesManager->getConfig().get<IMPORT_RAW_BLOB>();
-    return importRawBlob;
-}
-
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model(std::istream)");
-    update_log_level(properties);
+    update_properties_before_operation(properties);
 
     _logger.debug("Importing a compiled model from the given stream");
 
@@ -638,7 +611,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     }
 
     BlobSource blobSource(stream, _logger.level());
-
     try {
         return import_model(blobSource, localProperties);
     } catch (const std::exception& ex) {
@@ -651,7 +623,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compiledBlob,
                                                          const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model(ov::Tensor)");
-    update_log_level(properties);
+    update_properties_before_operation(properties);
 
     _logger.debug("Importing a compiled model from the given tensor");
 
@@ -667,7 +639,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
     }
 
     BlobSource blobSource(compiledBlob, _logger.level());
-
     try {
         return import_model(blobSource, localProperties);
     } catch (const std::exception& ex) {
@@ -682,21 +653,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
     _logger.trace("Importing a compiled model using a BlobSource object");
 
     OPENVINO_ASSERT(_backend != nullptr, NO_BACKEND_MESSAGE);
-    _backend->updateInfo(properties);
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "fork_local_config");
-    FilteredConfig localConfig = _propertiesManager->getConfigWithCompilerPropertiesDisabled(properties);
+    auto [runtimeConfig, unknownProperties] =
+        _propertiesManager->getMergedConfigAndUnknownProperties(properties, ConfigMergeMode::Import);
 
-    std::unique_ptr<IBlobFormatImporter> blobFormatImporter =
-        blob_format_importer_factory::create(blobSource,
-                                             should_import_raw_blob(properties),
-                                             get_model_ptr_from_map(properties),
-                                             localConfig);
+    std::unique_ptr<IBlobFormatImporter> blobFormatImporter = blob_format_importer_factory::create(
+        blobSource,
+        runtimeConfig.get<DISABLE_VERSION_CHECK>() ? true : runtimeConfig.get<IMPORT_RAW_BLOB>(),
+        runtimeConfig.has<MODEL_PTR>() ? runtimeConfig.get<MODEL_PTR>().lock() : nullptr,
+        runtimeConfig);
 
-    std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, _propertiesManager->determineDeviceId(properties));
+    std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, runtimeConfig.get<DEVICE_ID>());
     OPENVINO_ASSERT(device != nullptr, "Device not found.");
 
-    if (!localConfig.get<LOADED_FROM_CACHE>()) {
+    if (!runtimeConfig.get<LOADED_FROM_CACHE>()) {
         _logger.warning("The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead");
     }
 
@@ -711,6 +682,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
                                            device,
                                            graph,
                                            blobFormatImporter->get_config(),
+                                           unknownProperties,
                                            graph->get_batch_size());
 }
 
@@ -733,17 +705,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                         const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::query_model");
-    update_log_level(properties);
+    update_properties_before_operation(properties);
 
     auto localProperties = properties;
 
-    if (_backend != nullptr) {
-        _backend->updateInfo(localProperties);
-    }
-
-    ov::intel_npu::CompilerType compilerType = _propertiesManager->determineCompilerType(localProperties);
-    auto deviceId = _propertiesManager->determineDeviceId(localProperties);
-
+    std::string deviceId = _propertiesManager->determineDeviceId(localProperties);
     std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, deviceId);
 
     const auto compilationPlatform =
@@ -751,6 +717,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
                                       device == nullptr ? std::move(deviceId) : device->getName(),
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
+    ov::intel_npu::CompilerType compilerType = _propertiesManager->determineCompilerType(localProperties);
     CompilerAdapterFactory factory;
     auto compiler = factory.getCompiler(_backend,
                                         compilerType,
@@ -762,7 +729,9 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
         localProperties[ov::intel_npu::platform.name()] = compilationPlatform;
     }
 
-    FilteredConfig localConfig = _propertiesManager->getConfigForSpecificCompiler(localProperties);
+    auto localConfig =
+        _propertiesManager->getMergedConfigAndUnknownProperties(localProperties, ConfigMergeMode::Query).first;
+
     ov::SupportedOpsMap supportedOpsMap;
     try {
         supportedOpsMap = compiler->query(model->clone(), localConfig);
@@ -773,13 +742,6 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     }
 
     return supportedOpsMap;
-}
-
-void Plugin::update_log_level(const ov::AnyMap& properties) const {
-    if (properties.count(ov::log::level.name()) != 0) {
-        Logger::global().setLevel(properties.at(ov::log::level.name()).as<ov::log::Level>());
-        _logger.setLevel(properties.at(ov::log::level.name()).as<ov::log::Level>());
-    }
 }
 
 std::atomic<int> Plugin::_compiledModelLoadCounter{1};

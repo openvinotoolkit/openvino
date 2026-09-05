@@ -57,14 +57,14 @@ bool deBatchModel(std::shared_ptr<ov::Model>& model,
 /**
  * @brief Handles plugin-side batching logic including validation and model reshaping
  * @param model The model to process
- * @param localConfig Configuration
+ * @param batchMode Resolved batch mode, if supported by the active compiler
  * @param originalBatch Output parameter to store original batch dimension
  * @param logger Logger instance for diagnostic messages
  */
 std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
     std::shared_ptr<const ov::Model> model,
-    FilteredConfig& localConfig,
     const std::function<void(ov::intel_npu::BatchMode)>& updateBatchMode,
+    std::optional<ov::intel_npu::BatchMode> batchMode,
     std::optional<ov::Dimension>& originalBatch,
     Logger logger);
 

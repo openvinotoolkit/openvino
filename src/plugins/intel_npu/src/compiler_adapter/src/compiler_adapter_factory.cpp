@@ -31,18 +31,21 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
         if (device != nullptr) {
             compilerType = determineAppropriateCompilerTypeBasedOnPlatform(platform);
             if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
-                if (_pluginCompilerIsPresent) {
-                    try {
-                        return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs(),
-                                                                       optionSupportCache,
-                                                                       device->getDeviceProperties());
-                    } catch (...) {
-                        _pluginCompilerIsPresent = false;
-                        compilerType = ov::intel_npu::CompilerType::DRIVER;
-                    }
-                } else {
+                const auto pluginCompilerPresence = _pluginCompilerPresence.load(std::memory_order_acquire);
+                if (pluginCompilerPresence == PluginCompilerPresence::ABSENT) {
                     // plugin compiler isn't present, fallback to driver compiler
                     compilerType = ov::intel_npu::CompilerType::DRIVER;
+                } else {
+                    try {
+                        auto pluginCompiler = std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs(),
+                                                                                      optionSupportCache,
+                                                                                      device->getDeviceProperties());
+                        _pluginCompilerPresence.store(PluginCompilerPresence::PRESENT, std::memory_order_release);
+                        return pluginCompiler;
+                    } catch (...) {
+                        _pluginCompilerPresence.store(PluginCompilerPresence::ABSENT, std::memory_order_release);
+                        compilerType = ov::intel_npu::CompilerType::DRIVER;
+                    }
                 }
             }
         } else {
@@ -78,11 +81,41 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
     }
 }
 
-const std::vector<ov::intel_npu::CompilerType>& CompilerAdapterFactory::getSupportedCompilerTypes() {
-    static const std::vector<ov::intel_npu::CompilerType> supportedCompilerTypes = {
-        ov::intel_npu::CompilerType::DRIVER,
-        ov::intel_npu::CompilerType::PLUGIN};
-    return supportedCompilerTypes;
+void CompilerAdapterFactory::decideCompilerType(ov::intel_npu::CompilerType& compilerType, std::string_view platform) {
+    if (compilerType != ov::intel_npu::CompilerType::PREFER_PLUGIN) {
+        return;
+    }
+
+    const auto pluginCompilerPresence = _pluginCompilerPresence.load(std::memory_order_acquire);
+    if (pluginCompilerPresence == PluginCompilerPresence::ABSENT) {
+        compilerType = ov::intel_npu::CompilerType::DRIVER;
+        return;
+    } else if (pluginCompilerPresence == PluginCompilerPresence::UNKNOWN) {
+        compilerType = determineAppropriateCompilerTypeBasedOnPlatform(platform);
+        if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
+            return;
+        }
+
+        try {
+            (void)std::make_unique<PluginCompilerAdapter>(nullptr);
+            _pluginCompilerPresence.store(PluginCompilerPresence::PRESENT, std::memory_order_release);
+            compilerType = ov::intel_npu::CompilerType::PLUGIN;
+            return;
+        } catch (...) {
+            _pluginCompilerPresence.store(PluginCompilerPresence::ABSENT, std::memory_order_release);
+            compilerType = ov::intel_npu::CompilerType::DRIVER;
+            return;
+        }
+    }
+
+    compilerType = ov::intel_npu::CompilerType::PLUGIN;
+}
+
+const std::vector<ov::intel_npu::CompilerType>& CompilerAdapterFactory::getKnownCompilerTypes() {
+    static const std::vector<ov::intel_npu::CompilerType> knownCompiler = {ov::intel_npu::CompilerType::DRIVER,
+                                                                           ov::intel_npu::CompilerType::PLUGIN};
+
+    return knownCompiler;
 }
 
 }  // namespace intel_npu
