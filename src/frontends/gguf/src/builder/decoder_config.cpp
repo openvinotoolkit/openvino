@@ -78,6 +78,10 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
         const size_t qn = weights.at("blk.0.attn_q_norm.weight").get_shape()[0];
         qk_norm_full = (arch != "gemma4") && (qn != static_cast<size_t>(head_size));
     }
+    // Hunyuan's graph applies RoPE before its learned per-head Q/K RMSNorm. This order is
+    // architecture-specific and cannot be inferred from the identical tensor shapes used by
+    // Qwen3/Gemma, which normalize before RoPE.
+    qk_norm_after_rope = arch == "hunyuan-dense" || arch == "hunyuan-moe";
     n_dense_lead = cfg_i("n_layer_dense_lead");
     // Detect MoE from the first non-dense-lead layer (layer 0 may be dense even in MoE models).
     {

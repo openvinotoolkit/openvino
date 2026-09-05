@@ -6,9 +6,11 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <numeric>
 #include <sstream>
+#include <utility>
 
 #include "gguf.hpp"
 #include "openvino/core/parallel.hpp"
@@ -133,13 +135,15 @@ void unpack_256_4(const uint8_t* data, uint8_t* dst) {
 // Q4_K asymmetric: super-block = |f16 d|f16 dmin|12 bytes scales/mins|128 bytes ql|.
 // 8 sub-blocks of 32 with 6-bit scale and 6-bit min each.
 // Outputs: u32-packed u4 weights + f16 scales + zp (one per sub-block).
-// Dequant is w = scale*q - min, scale = d*sc_raw, min = dmin*m_raw, expressed as scale*(q - zp).
-// The zp element type selects the representation:
-//   - u8  -> INTEGER zp = round(min/scale): forces min to a multiple of scale (injects a small
-//            per-weight rounding error) but keeps the low-precision form the CPU plugin fuses
-//            into the MatMul -- this is what the original ggml-openvino backend does.
-//   - f16 -> FRACTIONAL zp = min/scale: faithful, used on the requant path (token_embd/output)
-//            where the dequant is re-quantized channel-wise rather than fed to the MatMul.
+// Dequant is w = scale*q - min, scale = d*sc_raw, min = dmin*m_raw.
+//
+// With an f16 zp, preserve the source nibbles and express the exact affine offset as min/scale.
+// With a u8 zp, faithfully decode one 32-value group to f32 and requantize it to a NEW u4 grid.
+// The latter follows NNCF's data-free INT4_ASYM baseline (range includes zero, min/max scale,
+// integral clipped zp), followed by one cheap least-squares scale refinement. Candidate errors
+// are evaluated with the actually stored f16 scale. A candidate is used only when it reduces
+// squared error without increasing the maximum error versus the former rounded-zp representation.
+// Only 32 f32 values are live per worker.
 void fill_q4_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr, ov::Tensor& zp_arr) {
     const uint64_t bytes_per_block = kQ4K_BLOCK_BYTES;
     const uint64_t n_super_block = tensor.bsize / bytes_per_block;
@@ -168,14 +172,110 @@ void fill_q4_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& sc
         for (int j = 0; j < 8; ++j) {
             const float sc = d * sc_raw[j];
             const float mn = dmin * m_raw[j];
-            scales[i * 8 + j] = ov::float16(sc);
-            const float zpval = (sc != 0.f) ? (mn / sc) : 0.f;
-            if (int_zp)
-                zp_u8[i * 8 + j] = quantize_zp_u8(zpval);
-            else
+            if (!int_zp) {
+                scales[i * 8 + j] = ov::float16(sc);
+                const float zpval = (sc != 0.f) ? (mn / sc) : 0.f;
                 zp_f16[i * 8 + j] = ov::float16(zpval);
+                continue;
+            }
+
+            float values[32];
+            uint8_t source_q[32];
+            const uint8_t* source = block_data + 16 + (j / 2) * 32;
+            float min_value = 0.0f;
+            float max_value = 0.0f;
+            for (int k = 0; k < 32; ++k) {
+                const uint8_t q = (j % 2 == 0) ? (source[k] & 0x0F) : (source[k] >> 4);
+                source_q[k] = q;
+                values[k] = sc * static_cast<float>(q) - mn;
+                min_value = std::min(min_value, values[k]);
+                max_value = std::max(max_value, values[k]);
+            }
+
+            struct Error {
+                double squared;
+                float max_abs;
+            };
+            const auto measure = [&](float runtime_scale, uint8_t zp, const uint8_t* quantized) {
+                Error error{0.0, 0.0f};
+                for (int k = 0; k < 32; ++k) {
+                    const float diff = values[k] - runtime_scale * (static_cast<int>(quantized[k]) - zp);
+                    error.squared += static_cast<double>(diff) * diff;
+                    error.max_abs = std::max(error.max_abs, std::fabs(diff));
+                }
+                return error;
+            };
+
+            // Start from the previous compressed-FC representation. Requantization must not
+            // regress either its total error or its worst reconstructed value.
+            uint8_t best_q[32];
+            std::copy_n(source_q, 32, best_q);
+            ov::float16 best_scale(sc);
+            uint8_t best_zp = quantize_zp_u8((sc != 0.0f) ? (mn / sc) : 0.0f);
+            Error best_error = measure(static_cast<float>(best_scale), best_zp, best_q);
+            const float fallback_max_error = best_error.max_abs;
+
+            float initial_scale = (max_value - min_value) / 15.0f;
+            if (std::fabs(initial_scale) < std::numeric_limits<float>::epsilon()) {
+                initial_scale = std::numeric_limits<float>::epsilon();
+            }
+            const auto rounded_zp = static_cast<long>(std::nearbyint(-min_value / initial_scale));
+            const uint8_t zp = static_cast<uint8_t>(std::min<long>(15, std::max<long>(0, rounded_zp)));
+
+            const auto evaluate = [&](float scale_candidate, uint8_t* quantized) {
+                const ov::float16 scale_f16(scale_candidate);
+                const float runtime_scale = static_cast<float>(scale_f16);
+                if (!(runtime_scale > 0.0f) || !std::isfinite(runtime_scale)) {
+                    return std::make_pair(
+                        scale_f16,
+                        Error{std::numeric_limits<double>::infinity(), std::numeric_limits<float>::infinity()});
+                }
+                for (int k = 0; k < 32; ++k) {
+                    const long rounded = static_cast<long>(std::nearbyint(values[k] / runtime_scale)) + zp;
+                    quantized[k] = static_cast<uint8_t>(std::min<long>(15, std::max<long>(0, rounded)));
+                }
+                return std::make_pair(scale_f16, measure(runtime_scale, zp, quantized));
+            };
+
+            const auto accept = [&](const std::pair<ov::float16, Error>& candidate, const uint8_t* candidate_q) {
+                if (candidate.second.squared < best_error.squared && candidate.second.max_abs <= fallback_max_error) {
+                    best_scale = candidate.first;
+                    best_zp = zp;
+                    best_error = candidate.second;
+                    std::copy_n(candidate_q, 32, best_q);
+                }
+            };
+
+            uint8_t candidate_q[32];
+            auto candidate = evaluate(initial_scale, candidate_q);
+            accept(candidate, candidate_q);
+
+            // With the min/max assignments fixed, this is the least-squares optimal scale for
+            // x ~= scale * (q-zp). Requantize once more with it and retain it only if the actual
+            // f16-scale reconstruction improves both criteria versus the retained representation.
+            double numerator = 0.0;
+            double denominator = 0.0;
+            for (int k = 0; k < 32; ++k) {
+                const int centered = static_cast<int>(candidate_q[k]) - zp;
+                numerator += static_cast<double>(values[k]) * centered;
+                denominator += static_cast<double>(centered) * centered;
+            }
+            if (denominator != 0.0) {
+                candidate = evaluate(static_cast<float>(numerator / denominator), candidate_q);
+                accept(candidate, candidate_q);
+            }
+
+            scales[i * 8 + j] = best_scale;
+            zp_u8[i * 8 + j] = best_zp;
+            uint8_t* destination = weights + i * 128 + j * 16;
+            std::fill_n(destination, 16, 0);
+            for (int k = 0; k < 32; ++k) {
+                destination[k / 2] |= static_cast<uint8_t>(best_q[k] << (4 * (k % 2)));
+            }
         }
-        unpack_256_4(block_data + 16, weights + i * 128);
+        if (!int_zp) {
+            unpack_256_4(block_data + 16, weights + i * 128);
+        }
     });
 }
 
@@ -196,7 +296,7 @@ static inline void get_scale_min_k4(int j, const uint8_t* q, uint8_t* d, uint8_t
 // ports of ggml's dequantize_row_q{4,5,6}_K: they compute w = (d*sc)*q - (dmin*m) with the products
 // kept in f32 (d/dmin are the f16 super-block scales widened to f32), matching what the upstream
 // backend feeds into its Q8_0_C requant. This is NOT the general dequant path -- the compressed
-// matmul weights still go through fill_*/make_int4 (f16 scales, integer zp) unchanged. Each function
+// matmul weights still go through fill_*/make_int4 unchanged. Each function
 // fills ONE row (`cols` floats) so the caller never materializes the whole f32 weight.
 static void dequant_row_q4_k_f32(const uint8_t* row, size_t cols, float* y) {
     const uint64_t bpb = kQ4K_BLOCK_BYTES;
@@ -709,7 +809,7 @@ void gguf_fill_sym(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& sc
     }
 }
 
-// Asymmetric types (Q4_1, Q4_K, Q5_K, Q5_1, Q2_K): fill weights + scales + integer zero-points.
+// Asymmetric types (Q4_1, Q4_K, Q5_K, Q5_1, Q2_K): fill weights, scales, and zero-points.
 void gguf_fill_asym(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales, ov::Tensor& zp) {
     if (tensor.type == GGUF_TYPE_Q4_1) {
         fill_q4_1(tensor, weights, scales, zp);

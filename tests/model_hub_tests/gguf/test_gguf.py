@@ -5,12 +5,10 @@
 # Verifies the GGUF frontend against real .gguf checkpoints downloaded from the Hugging Face
 # Hub, one per architecture listed in src/frontends/gguf/docs/supported_models.md.
 #
-# Each test downloads one .gguf file, converts it with core.read_model(), compiles it, and
-# runs a single forward step (one new token, no prior context -- see utils.py for why that is
-# enough to exercise the frontend's default stateless lowering without extra setup). The
-# check is deliberately shallow: a finite, correctly shaped logits tensor. It does not build a
-# tokenizer or run more than one step, since this suite is about frontend conversion/inference
-# correctness, not generation quality or text coherence (which
+# Each test downloads one .gguf file, converts it, compiles it, and runs two forward steps,
+# feeding the cache/state outputs of the first step into the second. The checks cover finite,
+# correctly shaped logits and populated, changing KV caches. The suite does not build a tokenizer
+# because it verifies frontend conversion/inference correctness rather than text coherence (which
 # src/frontends/gguf/tests/compare_with_llama.py and the GenAI-based harness described in
 # supported_models.md already cover for the architectures where that matters).
 #
