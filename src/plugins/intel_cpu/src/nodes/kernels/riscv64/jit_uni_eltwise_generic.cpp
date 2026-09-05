@@ -243,7 +243,7 @@ void jit_uni_eltwise_generic<isa>::update_vlen(const Xbyak_riscv::Reg& gpr_work_
         return;
     }
 
-    vsetvli(reg_vlen, gpr_work_amount, sew, lmul);
+    vsetvli(reg_vlen, gpr_work_amount, sew, lmul, VTA::tu, VMA::mu);
     current_lmul = lmul;
     current_sew = sew;
 
