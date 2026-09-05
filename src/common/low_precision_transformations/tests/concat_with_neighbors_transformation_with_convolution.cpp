@@ -52,7 +52,6 @@ public:
     ov::builder::subgraph::FakeQuantizeOnData fakeQuantize3;
     ov::element::Type precisionBeforeOp;
     ov::builder::subgraph::DequantizationOperations dequantizationBefore;
-    ov::element::Type precisionAfterOp;
     ov::builder::subgraph::DequantizationOperations dequantizationAfter1;
     ov::builder::subgraph::DequantizationOperations dequantizationAfter2;
 };
@@ -134,7 +133,6 @@ public:
             testValues.result.fakeQuantize3,
             testValues.result.precisionBeforeOp,
             testValues.result.dequantizationBefore,
-            testValues.result.precisionAfterOp,
             testValues.result.dequantizationAfter1,
             testValues.result.dequantizationAfter2);
     }
@@ -218,7 +216,6 @@ const std::vector<ConcatWithNeighborsWithConvolutionTestValues> testValues = {
             },
             ov::element::u8,
             {{}, {}, {}},
-            ov::element::u8,
             { ov::element::f32, {128.f}, {{ 0.00333333f, 0.00333333f, 0.00333333f, 0.01f, 0.01f, 0.01f }} },
             { {}, {}, {{ 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f }} }
         }
@@ -248,7 +245,6 @@ const std::vector<ConcatWithNeighborsWithConvolutionTestValues> testValues = {
             { 256ul, ov::Shape({}), {-1.28f}, {1.27f}, {0.f}, {255.f} },
             ov::element::u8,
             {{}, {}, {}},
-            ov::element::u8,
             { ov::element::f32, {128.f}, {{ 0.00333333f, 0.00333333f, 0.00333333f, 0.01f, 0.01f, 0.01f }} },
             { {}, {}, {{ 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f }} }
         }

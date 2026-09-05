@@ -58,12 +58,9 @@ public:
         const ElementwiseWithMultiParentDequantizationTransformationTestValues testValues = GetParam();
 
         actualFunction = ElementwiseWithMultiParentDequantizationFunction::get(
-            testValues.precision,
             testValues.inputShape,
-            TestTransformationParams::toParams(testValues.params),
             testValues.actual.precision1,
             testValues.actual.dequantization1,
-            testValues.actual.precision2,
             testValues.actual.dequantization2);
 
         SimpleLowPrecisionTransformer transform;
@@ -71,12 +68,9 @@ public:
         transform.transform(actualFunction);
 
         referenceFunction = ElementwiseWithMultiParentDequantizationFunction::get(
-            testValues.precision,
             testValues.inputShape,
-            TestTransformationParams::toParams(testValues.params),
             testValues.expected.precision1,
             testValues.expected.dequantization1,
-            testValues.expected.precision2,
             testValues.expected.dequantization2);
     }
 
