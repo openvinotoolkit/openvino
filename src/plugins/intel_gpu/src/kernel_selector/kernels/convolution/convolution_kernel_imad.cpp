@@ -128,6 +128,13 @@ JitConstants ConvolutionKernel_imad::GetJitConstants(const convolution_params& p
         MakeJitConstant("FSV", in_fsv),
     });
 
+    const auto ip_major = static_cast<uint32_t>(params.engineInfo.ip_version >> 16);
+    const bool is_xe2_or_later = params.engineInfo.arch >= gpu_arch::xe2 ||
+                                 (params.engineInfo.arch == gpu_arch::unknown && ip_major >= 20);
+    if (is_xe2_or_later) {
+        mem_consts.AddConstants({MakeJitConstant("CHECK_GROUPED_IFM_TAIL", 1)});
+    }
+
     if (params.filterSize.x != 3 || params.filterSize.y != 3) {
         mem_consts.AddConstants({MakeJitConstant("NON_BLOCK_LOAD", 1)});
     }

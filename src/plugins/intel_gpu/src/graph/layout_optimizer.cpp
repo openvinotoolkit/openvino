@@ -51,6 +51,7 @@
 #include <vector>
 #include <memory>
 #include <utility>
+#include <string>
 #include <openvino/op/constant.hpp>
 
 #include "pass_manager.h"
@@ -60,6 +61,17 @@
 #endif
 
 using namespace cldnn;
+
+namespace {
+
+bool is_timm_debug_node(const program_node& node) {
+    const auto& id = node.id();
+    return id.find("stages.0.blocks.0.norm/aten::layer_norm/MVN") != std::string::npos ||
+           id.find("stages.0.blocks.0/aten::permute/Transpose_1") != std::string::npos ||
+           id.find("stages.0.blocks.1.conv_dw/aten::_convolution/GroupConvolution") != std::string::npos;
+}
+
+}  // namespace
 
 static size_t get_post_ops_count(const program_node& node) {
     size_t onednn_post_ops_count = 0;
@@ -178,6 +190,19 @@ int64_t cldnn::get_convolution_channel_count(const convolution_node& conv_node, 
 bool layout_optimizer::is_format_supported(program_node& node, format::type fmt) {
     if (node.is_type<fully_connected>() && fmt == format::byxf)
         return false;
+
+    if (node.is_type<mvn>() &&
+        (fmt == format::b_fs_yx_fsv16 || fmt == format::b_fs_yx_fsv32 ||
+         fmt == format::b_fs_zyx_fsv16 || fmt == format::b_fs_zyx_fsv32) &&
+        node.get_input_layout(0).data_type != data_types::i8 &&
+        node.get_input_layout(0).data_type != data_types::u8) {
+        if (is_timm_debug_node(node)) {
+            GPU_DEBUG_LOG << "[layout_optimizer] TIMM is_format_supported reject_fp_blocked_mvn node=" << node.id()
+                          << " candidate_fmt=" << fmt_to_str(fmt)
+                          << " input_dt=" << dt_to_str(node.get_input_layout(0).data_type) << std::endl;
+        }
+        return false;
+    }
 
     if (node.is_type<input_layout>())
         return node.get_output_layout().format == fmt;
@@ -1142,6 +1167,10 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
     bool i8_u8_input = input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8;
 
     if (prim->deformable_mode) {
+        if (is_timm_debug_node(node))
+            GPU_DEBUG_LOG << "[layout_optimizer] TIMM conv_expected node=" << node.id()
+                          << " reason=deformable_mode expected="
+                          << fmt_to_str(format::adjust_to_rank(format::bfyx, output_layout.get_partial_shape().size())) << std::endl;
         return format::adjust_to_rank(format::bfyx, output_layout.get_partial_shape().size());
     }
 
@@ -1158,6 +1187,9 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
     // Use planar bfyx format for dynamic convolutions with explicit padding in clDNN
     if (node.is_dynamic() && output_layout.get_partial_shape().size() == 4 && node.use_explicit_padding() && !i8_u8_input &&
         (!use_onednn_impls || !onednn_valid_post_ops || node.has_padded_dependency())) {
+        if (is_timm_debug_node(node))
+            GPU_DEBUG_LOG << "[layout_optimizer] TIMM conv_expected node=" << node.id()
+                          << " reason=dynamic_explicit_padding expected=bfyx" << std::endl;
         return format::bfyx;
     }
 
@@ -1166,6 +1198,9 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
             expected_format = format::b_fs_yx_fsv16;
         else if (input_layout.get_partial_shape().size() == 5)
             expected_format = format::b_fs_zyx_fsv16;
+        if (is_timm_debug_node(node))
+            GPU_DEBUG_LOG << "[layout_optimizer] TIMM conv_expected node=" << node.id()
+                          << " reason=dynamic_tensor expected=" << fmt_to_str(expected_format) << std::endl;
         return expected_format;
     }
 
@@ -1253,6 +1288,15 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
         }
     }
 
+    if (is_timm_debug_node(node)) {
+        GPU_DEBUG_LOG << "[layout_optimizer] TIMM conv_expected node=" << node.id()
+                      << " input_fmt=" << fmt_to_str(input_layout.format)
+                      << " output_fmt=" << fmt_to_str(output_layout.format)
+                      << " input_dt=" << dt_to_str(input_layout.data_type)
+                      << " output_dt=" << dt_to_str(output_layout.data_type)
+                      << " groups=" << node.get_groups()
+                      << " expected=" << fmt_to_str(expected_format) << std::endl;
+    }
     return expected_format;
 }
 

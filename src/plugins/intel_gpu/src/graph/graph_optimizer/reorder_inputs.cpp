@@ -27,6 +27,7 @@
 #include <list>
 #include <map>
 #include <set>
+#include <string>
 
 using namespace cldnn;
 
@@ -37,6 +38,21 @@ reorder_inputs::reorder_inputs(reorder_factory& rf_ref) : base_pass("reorder_inp
 void reorder_inputs::run(program& p) { run(p, _rf); }
 
 namespace {
+
+bool is_timm_debug_node(const program_node* node) {
+    if (node == nullptr)
+        return false;
+
+    const auto& id = node->id();
+    return id.find("stages.0.blocks.0.norm/aten::layer_norm/MVN") != std::string::npos ||
+           id.find("stages.0.blocks.0/aten::permute/Transpose_1") != std::string::npos ||
+           id.find("stages.0.blocks.1.conv_dw/aten::_convolution/GroupConvolution") != std::string::npos ||
+           id.find("stages.0.blocks.0/aten::permute/Transpose_1_0_reorder") != std::string::npos;
+}
+
+bool is_timm_debug_edge(program_node* predecessor, program_node* successor) {
+    return is_timm_debug_node(predecessor) || is_timm_debug_node(successor);
+}
 
 std::map<program_node*, format::type> get_preferred_formats(program& p, layout_optimizer& lo) {
     std::map<program_node*, format::type> fmt_map;
@@ -52,6 +68,12 @@ std::map<program_node*, format::type> get_preferred_formats(program& p, layout_o
         auto ex = lo.get_preferred_format(*n);
         auto impl = lo.get_preferred_impl_type(*n, ex);
         fmt_map[n] = ex;
+
+        if (is_timm_debug_node(n)) {
+            GPU_DEBUG_LOG << "[reorder_inputs] TIMM get_preferred_formats node=" << n->id()
+                          << " preferred_format=" << fmt_to_str(ex)
+                          << " preferred_impl=" << static_cast<int>(impl) << std::endl;
+        }
 
         n->set_preferred_impl_type(impl);
 
@@ -76,6 +98,12 @@ std::map<program_node*, format::type> get_preferred_formats(program& p, layout_o
             auto impl = lo.get_preferred_impl_type(*n, ex);
             fmt_map[n] = ex;
 
+            if (is_timm_debug_node(n)) {
+                GPU_DEBUG_LOG << "[reorder_inputs] TIMM get_preferred_formats(recalc) node=" << n->id()
+                              << " preferred_format=" << fmt_to_str(ex)
+                              << " preferred_impl=" << static_cast<int>(impl) << std::endl;
+            }
+
             n->set_preferred_impl_type(impl);
         }
     }
@@ -86,6 +114,8 @@ enum class direction_e {
     forwards = 0,
     backwards = 1
 };
+
+const char* dir_msg(direction_e dir);
 
 inline constexpr direction_e reverse(direction_e dir) {
     return dir == direction_e::forwards ? direction_e::backwards : direction_e::forwards;
@@ -171,17 +201,39 @@ bool can_propagate_formats_rec(
     auto first_fmt = get_target_output_format(lo, fmt_map, predecessor, successor);
     auto second_fmt = get_target_input_format(lo, fmt_map, successor, predecessor);
 
+    if (is_timm_debug_edge(predecessor, successor)) {
+        GPU_DEBUG_LOG << "[reorder_inputs] TIMM can_propagate dir=" << dir_msg(dir)
+                      << " predecessor=" << predecessor->id()
+                      << " successor=" << successor->id()
+                      << " candidate_fmt=" << fmt_to_str(fmt)
+                      << " selected_fmt=" << fmt_to_str(sel_fmt)
+                      << " first_fmt=" << fmt_to_str(first_fmt)
+                      << " second_fmt=" << fmt_to_str(second_fmt) << std::endl;
+    }
+
     if (lo.can_fuse_reorder(*predecessor,
                             *successor,
                             first_fmt,
-                            second_fmt))
+                            second_fmt)) {
+        if (is_timm_debug_edge(predecessor, successor))
+            GPU_DEBUG_LOG << "[reorder_inputs] TIMM can_propagate fused edge predecessor=" << predecessor->id()
+                          << " successor=" << successor->id() << std::endl;
         return true;
+    }
 
-    if (sel_fmt != format::any)
+    if (sel_fmt != format::any) {
+        if (is_timm_debug_edge(predecessor, successor))
+            GPU_DEBUG_LOG << "[reorder_inputs] TIMM can_propagate stop(sel_fmt) node=" << node->id()
+                          << " selected_fmt=" << fmt_to_str(sel_fmt) << std::endl;
         return false;
+    }
 
-    if (!lo.is_format_supported(*node, fmt))
+    if (!lo.is_format_supported(*node, fmt)) {
+        if (is_timm_debug_edge(predecessor, successor))
+            GPU_DEBUG_LOG << "[reorder_inputs] TIMM can_propagate reject_format node=" << node->id()
+                          << " candidate_fmt=" << fmt_to_str(fmt) << std::endl;
         return false;
+    }
 
     auto reverse_reorders = std::count_if(
         travel_direction_wrapper<reverse(dir)>::next_nodes(node).begin(),
@@ -190,8 +242,12 @@ bool can_propagate_formats_rec(
         return get_node(rev)->is_in_data_flow() && fmt_map.at(get_node(rev)) != fmt && get_node(rev) != prev;
     });
 
-    if (reverse_reorders > 0)
+    if (reverse_reorders > 0) {
+        if (is_timm_debug_edge(predecessor, successor))
+            GPU_DEBUG_LOG << "[reorder_inputs] TIMM can_propagate stop(reverse_reorders) node=" << node->id()
+                          << " reverse_reorders=" << reverse_reorders << std::endl;
         return false;
+    }
 
     for (auto next : travel_direction_wrapper<dir>::next_nodes(node)) {
         if (!get_node(next)->is_in_data_flow())
@@ -221,12 +277,22 @@ void propagate_formats_rec(std::map<program_node*, format::type>& fmt_map,
     if (lo.can_fuse_reorder(*predecessor,
                             *successor,
                             first_fmt,
-                            second_fmt))
+                            second_fmt)) {
+        if (is_timm_debug_edge(predecessor, successor))
+            GPU_DEBUG_LOG << "[reorder_inputs] TIMM propagate fused edge predecessor=" << predecessor->id()
+                          << " successor=" << successor->id() << std::endl;
         return;
+    }
 
     fmt = travel_direction_wrapper<dir>::first(first_fmt, second_fmt);
     fmt_map.at(node) = fmt;
     GPU_DEBUG_LOG << "Propagate_formats_rec: " << node->id() << " - " << fmt_to_str(fmt) << std::endl;
+    if (is_timm_debug_edge(predecessor, successor)) {
+        GPU_DEBUG_LOG << "[reorder_inputs] TIMM propagate assign node=" << node->id()
+                      << " propagated_fmt=" << fmt_to_str(fmt)
+                      << " predecessor=" << predecessor->id()
+                      << " successor=" << successor->id() << std::endl;
+    }
 
     for (auto next : travel_direction_wrapper<dir>::next_nodes(node)) {
         if (!get_node(next)->is_in_data_flow())
@@ -288,16 +354,33 @@ reorder_cnt count_reorders_in_dir(const std::map<program_node*, format::type>& f
         auto successor = travel_direction_wrapper<dir>::second(node, get_node(next));
         auto first_fmt = get_target_output_format(lo, fmt_map, predecessor, successor);
         auto second_fmt = get_target_input_format(lo, fmt_map, successor, predecessor);
+        auto can_fuse = lo.can_fuse_reorder(*predecessor, *successor, first_fmt, second_fmt);
+
+        if (is_timm_debug_edge(predecessor, successor) || is_timm_debug_node(node)) {
+            GPU_DEBUG_LOG << "[reorder_inputs] TIMM count_reorders dir=" << dir_msg(dir)
+                          << " anchor=" << node->id()
+                          << " predecessor=" << predecessor->id()
+                          << " successor=" << successor->id()
+                          << " first_fmt=" << fmt_to_str(first_fmt)
+                          << " second_fmt=" << fmt_to_str(second_fmt)
+                          << " can_fuse=" << can_fuse << std::endl;
+        }
 
         if (second_fmt == format::any ||
             (first_fmt != second_fmt &&
-             !lo.can_fuse_reorder(*predecessor,
-                                  *successor,
-                                  first_fmt, second_fmt))) {
+             !can_fuse)) {
             cnt += 1;
             auto l = travel_direction_wrapper<dir>::first(node, get_node(next))->get_output_layout();
             if (l.is_static())
                 size += l.count();
+
+            if (is_timm_debug_edge(predecessor, successor) || is_timm_debug_node(node)) {
+                GPU_DEBUG_LOG << "[reorder_inputs] TIMM count_reorders add dir=" << dir_msg(dir)
+                              << " anchor=" << node->id()
+                              << " predecessor=" << predecessor->id()
+                              << " successor=" << successor->id()
+                              << " elem_count=" << (l.is_static() ? l.count() : 0) << std::endl;
+            }
         }
     }
 
@@ -347,6 +430,14 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
         auto best_reorder_cnt = count_reorders(fmt_map, lo, node);
         auto best_format = sel_fmt;
 
+        if (is_timm_debug_node(node)) {
+            GPU_DEBUG_LOG << "[reorder_inputs] TIMM minimize start node=" << node->id()
+                          << " selected_fmt=" << fmt_to_str(sel_fmt)
+                          << " preferred_fmt=" << fmt_to_str(preferred_format)
+                          << " reorder_cnt=" << best_reorder_cnt.number
+                          << " reorder_elems=" << best_reorder_cnt.total_sizes << std::endl;
+        }
+
         if (best_reorder_cnt.number == 0)
             continue;
 
@@ -358,6 +449,11 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
             if (user_fmt != format::any &&
                 lo.is_format_supported(*node, user_fmt)) {
                 local_formats.insert(user_fmt);
+                if (is_timm_debug_node(node) || is_timm_debug_node(user)) {
+                    GPU_DEBUG_LOG << "[reorder_inputs] TIMM minimize candidate_from_user node=" << node->id()
+                                  << " user=" << user->id()
+                                  << " fmt=" << fmt_to_str(user_fmt) << std::endl;
+                }
             }
         }
 
@@ -370,11 +466,26 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
             if (dep_fmt != format::any &&
                 lo.is_format_supported(*node, dep_fmt)) {
                 local_formats.insert(dep_fmt);
+                if (is_timm_debug_node(node) || is_timm_debug_node(dep.first)) {
+                    GPU_DEBUG_LOG << "[reorder_inputs] TIMM minimize candidate_from_dep node=" << node->id()
+                                  << " dep=" << dep.first->id()
+                                  << " fmt=" << fmt_to_str(dep_fmt) << std::endl;
+                }
             }
         }
 
-        if (local_formats.empty())
+        if (local_formats.empty()) {
+            if (is_timm_debug_node(node))
+                GPU_DEBUG_LOG << "[reorder_inputs] TIMM minimize empty_candidates node=" << node->id() << std::endl;
             continue;
+        }
+
+        if (is_timm_debug_node(node)) {
+            GPU_DEBUG_LOG << "[reorder_inputs] TIMM minimize candidates node=" << node->id();
+            for (auto candidate_fmt : local_formats)
+                GPU_DEBUG_LOG << " " << fmt_to_str(candidate_fmt);
+            GPU_DEBUG_LOG << std::endl;
+        }
 
         for (auto new_fmt : local_formats) {
             // Avoid setting of formats which will require transform from higher rank to smaller one which requires dimension squeeze
@@ -385,6 +496,12 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
 
             auto reorders_cnt = count_reorders(fmt_map, lo, node);
 
+            if (is_timm_debug_node(node))
+                GPU_DEBUG_LOG << "[reorder_inputs] TIMM minimize try node=" << node->id()
+                              << " candidate_fmt=" << fmt_to_str(new_fmt)
+                              << " reorder_cnt=" << reorders_cnt.number
+                              << " reorder_elems=" << reorders_cnt.total_sizes << std::endl;
+
             if (reorders_cnt.number < best_reorder_cnt.number ||
                 (reorders_cnt.number == best_reorder_cnt.number && reorders_cnt.total_sizes < best_reorder_cnt.total_sizes
                                                                 && !node->get_output_layout().is_dynamic())) {
@@ -394,6 +511,11 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
         }
 
         fmt_map.at(node) = best_format;
+        if (is_timm_debug_node(node))
+            GPU_DEBUG_LOG << "[reorder_inputs] TIMM minimize result node=" << node->id()
+                          << " best_fmt=" << fmt_to_str(best_format)
+                          << " reorder_cnt=" << best_reorder_cnt.number
+                          << " reorder_elems=" << best_reorder_cnt.total_sizes << std::endl;
     }
 }
 
@@ -456,18 +578,36 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
 
         in_layout.format = get_target_output_format(lo, fmt_map, predecessor, successor);
         out_layout.format = get_target_input_format(lo, fmt_map, successor, predecessor);
-        if (in_layout.format == out_layout.format)
-            continue;
+        if (is_timm_debug_edge(predecessor, successor))
+            GPU_DEBUG_LOG << "[reorder_inputs] TIMM insert consider predecessor=" << predecessor->id()
+                          << " successor=" << successor->id()
+                          << " in_fmt=" << fmt_to_str(in_layout.format)
+                          << " out_fmt=" << fmt_to_str(out_layout.format) << std::endl;
 
-        if (need_align_shape_for_numpy_broadcast(predecessor, successor, out_layout.format))
+        if (in_layout.format == out_layout.format) {
+            if (is_timm_debug_edge(predecessor, successor))
+                GPU_DEBUG_LOG << "[reorder_inputs] TIMM insert skip_same_fmt predecessor=" << predecessor->id()
+                              << " successor=" << successor->id() << std::endl;
             continue;
+        }
+
+        if (need_align_shape_for_numpy_broadcast(predecessor, successor, out_layout.format)) {
+            if (is_timm_debug_edge(predecessor, successor))
+                GPU_DEBUG_LOG << "[reorder_inputs] TIMM insert skip_numpy_broadcast predecessor=" << predecessor->id()
+                              << " successor=" << successor->id() << std::endl;
+            continue;
+        }
 
         GPU_DEBUG_LOG << dir_msg(dir) << "  " << node->id() << " --> " << get_node(next)->id() << " ## "
                       << fmt_to_str(in_layout.format) << " --> " << fmt_to_str(out_layout.format) << std::endl;
 
         if (in_layout.format == format::any || out_layout.format == format::any ||
-            in_layout.format == format::custom || out_layout.format == format::custom)
+            in_layout.format == format::custom || out_layout.format == format::custom) {
+            if (is_timm_debug_edge(predecessor, successor))
+                GPU_DEBUG_LOG << "[reorder_inputs] TIMM insert skip_invalid_fmt predecessor=" << predecessor->id()
+                              << " successor=" << successor->id() << std::endl;
             continue;
+        }
 
         auto reorder_pair = rf.get_reorder(predecessor->id(),
                                            port_idx,
@@ -478,6 +618,12 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         if (reorder && (in_layout.format != format::any && out_layout.format != format::any)) {
             auto& reorder_node = p.get_or_create(reorder);
             GPU_DEBUG_LOG << dir_msg(dir) << "  " << reorder_node.id() << "  Reorder is added" << std::endl;
+            if (is_timm_debug_edge(predecessor, successor) || is_timm_debug_node(&reorder_node))
+                GPU_DEBUG_LOG << "[reorder_inputs] TIMM insert added reorder=" << reorder_node.id()
+                              << " predecessor=" << predecessor->id()
+                              << " successor=" << successor->id()
+                              << " in_fmt=" << fmt_to_str(in_layout.format)
+                              << " out_fmt=" << fmt_to_str(out_layout.format) << std::endl;
             p.add_intermediate(reorder_node,
                                *travel_direction_wrapper<dir>::second(node, get_node(next)),
                                *travel_direction_wrapper<dir>::first(node, get_node(next)),
