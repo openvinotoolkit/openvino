@@ -151,6 +151,8 @@ public:
                                 size_t batch_index,
                                 const std::shared_ptr<ov::ITensor>& userTensor = nullptr) override;
 
+    std::vector<ov::ProfilingInfo> get_profiling_info() const override;
+
     // Predicts VM runtime output shapes for the given input/output tensors. A nullptr tensor entry falls
     // back to the graph metadata max shape. Uses the pipeline's own graph handle and VM execution context,
     // which is the same context reused by execute_vm_runtime.
