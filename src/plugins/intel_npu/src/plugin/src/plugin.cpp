@@ -70,8 +70,15 @@ void check_weightless_cache_attribute_occurrence(const std::shared_ptr<const ov:
 std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
                                                       ov::AnyMap& properties,
                                                       std::shared_ptr<const ov::IPlugin> pluginSO) {
+    // NPUW dispatch is chosen from the blob's own header/indicator, ignoring config. When the caller
+    // marks the source untrusted, refuse it here so a forged blob handed across a trust boundary
+    // cannot reach the NPUW deserializers.
+    const bool untrusted =
+        properties.count(UNTRUSTED_SOURCE::key().data()) && properties.at(UNTRUSTED_SOURCE::key().data()).as<bool>();
+
     if (const auto header = ov::npuw::orc::is_orc(stream);
         header.has_value() && header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA) {
+        OPENVINO_ASSERT(!untrusted, "NPUW blob import is disabled because NPU_UNTRUSTED_SOURCE is set.");
         return ov::npuw::CompiledModel::import_model(stream, pluginSO, properties);
     }
 
@@ -80,6 +87,7 @@ std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
     ov::npuw::s11n::IndicatorType serialization_indicator;
     if (ov::npuw::orc::try_read_bytes(stream, serialization_indicator.data(), serialization_indicator.size()) &&
         serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
+        OPENVINO_ASSERT(!untrusted, "NPUW blob import is disabled because NPU_UNTRUSTED_SOURCE is set.");
         ov::npuw::s11n::IndicatorType compiled_model_indicator;
         if (ov::npuw::orc::try_read_bytes(stream, compiled_model_indicator.data(), compiled_model_indicator.size())) {
             stream.clear();
@@ -185,6 +193,7 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(DISABLE_VERSION_CHECK);
     REGISTER_OPTION(EXPORT_RAW_BLOB);
     REGISTER_OPTION(IMPORT_RAW_BLOB);
+    REGISTER_OPTION(UNTRUSTED_SOURCE);
     REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
     REGISTER_OPTION(TURBO);
     REGISTER_OPTION(ENABLE_WEIGHTLESS);
