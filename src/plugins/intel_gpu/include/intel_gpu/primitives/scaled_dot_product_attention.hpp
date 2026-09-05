@@ -41,9 +41,11 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
                                  const std::vector<int64_t>& input_v_transpose_order = {},
                                  const std::vector<int64_t>& output_transpose_order = {},
                                  const QuantizationAttributes& quantization_attributes = {},
-                                 bool is_kv_compressed = false)
+                                 bool is_kv_compressed = false,
+                                 bool causal_lower_right = false)
         : primitive_base(id, inputs)
         , is_causal(is_causal)
+        , causal_lower_right(causal_lower_right)
         , indirect_axis(indirect_axis)
         , is_kv_compressed(is_kv_compressed)
         , quantization_attributes(quantization_attributes)
@@ -68,6 +70,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         }
 
     bool is_causal = false;
+    bool causal_lower_right = false;
     bool has_attn_mask_input = false;
     bool has_scale_input = false;
     bool has_sink_input = false;
@@ -87,6 +90,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, is_causal);
+        seed = hash_combine(seed, causal_lower_right);
         seed = hash_combine(seed, has_attn_mask_input);
         seed = hash_combine(seed, has_scale_input);
         seed = hash_combine(seed, has_sink_input);
@@ -122,6 +126,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         auto rhs_casted = downcast<const scaled_dot_product_attention>(rhs);
 
         return is_causal == rhs_casted.is_causal &&
+         causal_lower_right == rhs_casted.causal_lower_right &&
                has_attn_mask_input == rhs_casted.has_attn_mask_input &&
                has_scale_input == rhs_casted.has_scale_input &&
                has_sink_input == rhs_casted.has_sink_input &&
@@ -145,6 +150,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<scaled_dot_product_attention>::save(ob);
         ob << is_causal;
+        ob << causal_lower_right;
         ob << is_kv_compressed;
         ob << has_attn_mask_input;
         ob << has_scale_input;
@@ -174,6 +180,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
     void load(BinaryInputBuffer& ib) override {
         primitive_base<scaled_dot_product_attention>::load(ib);
         ib >> is_causal;
+        ib >> causal_lower_right;
         ib >> is_kv_compressed;
         ib >> has_attn_mask_input;
         ib >> has_scale_input;
