@@ -5,6 +5,7 @@
 #pragma once
 
 #include <ostream>
+#include <string_view>
 
 namespace cldnn {
 
@@ -69,5 +70,13 @@ engine_types get_default_engine_type();
 
 /// @brief Get default runtime type
 runtime_types get_default_runtime_type();
+
+// Stable string tag for a runtime type ("OCL"/"ZE"/"SYCL"), used to partition on-disk
+// caches per runtime. This is a COMPATIBILITY CONSTANT: changing a returned value
+// invalidates every existing GPU cache keyed with the old value.
+std::string_view to_cache_tag(runtime_types type);
+
+// to_cache_tag(get_default_runtime_type()) for this build.
+std::string_view get_runtime_cache_tag();
 
 }  // namespace cldnn

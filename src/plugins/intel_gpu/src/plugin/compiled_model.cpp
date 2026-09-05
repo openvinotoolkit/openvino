@@ -9,6 +9,7 @@
 #include "openvino/core/version.hpp"
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/runtime/engine_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
@@ -281,13 +282,15 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
 }
 
 std::string CompiledModel::build_runtime_requirements(const cldnn::device_info& info) {
-    // v1 GPU compatibility descriptor: meta=<schema>;ov=<major.minor.patch>;desc=[<device props>].
+    // v2 GPU compatibility descriptor: meta=<schema>;ov=<major.minor.patch>;desc=[<device props>].
     // The desc fields are the device properties that invalidate a compiled blob if changed:
-    //   driver (owns the kernel binaries), ip (GFX IP hardware version), eus (execution units).
+    //   rt (compile-time runtime - OCL/ZE store incompatible kernel binaries), driver (owns the
+    //   kernel binaries), ip (GFX IP hardware version), eus (execution units).
     std::ostringstream ss;
     ss << "meta=1.0"
        << ";ov=" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH
-       << ";desc=[driver=" << info.driver_version
+       << ";desc=[rt=" << cldnn::get_runtime_cache_tag()
+       << ";driver=" << info.driver_version
        << ";ip=" << info.gfx_ver.major << "." << static_cast<uint32_t>(info.gfx_ver.minor) << "."
        << static_cast<uint32_t>(info.gfx_ver.revision)
        << ";eus=" << info.execution_units_count << "]";

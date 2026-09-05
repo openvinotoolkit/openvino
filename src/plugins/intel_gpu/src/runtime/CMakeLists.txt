@@ -2,7 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "openvino_intel_gpu_runtime")
+# OV_GPU_SUFFIX (empty for single-RT builds) distinguishes the per-runtime target names of a
+# COMBINED build; OV_GPU_RT is this pass's runtime (defaults to the global GPU_RT_TYPE).
+set(TARGET_NAME "openvino_intel_gpu_runtime${OV_GPU_SUFFIX}")
+if(NOT DEFINED OV_GPU_RT)
+    set(OV_GPU_RT "${GPU_RT_TYPE}")
+endif()
 
 file(GLOB LIBRARY_SOURCES_MAIN
     "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
@@ -43,17 +48,17 @@ endif()
 
 set(LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_MAIN})
 
-if(GPU_RT_TYPE STREQUAL "OCL")
+if(OV_GPU_RT STREQUAL "OCL")
     list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_OCL})
     set(SYCL_SOURCES ${OCL_SYCL_SOURCES})
 endif()
 
-if(GPU_RT_TYPE STREQUAL "ZE")
+if(OV_GPU_RT STREQUAL "ZE")
     list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_OCL})
     list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_ZE})
 endif()
 
-if(GPU_RT_TYPE STREQUAL "SYCL")
+if(OV_GPU_RT STREQUAL "SYCL")
     list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_SYCL})
     set(SYCL_SOURCES ${LIBRARY_SOURCES_SYCL})
 endif()
@@ -90,11 +95,11 @@ if(GPU_RT_TYPE STREQUAL "SYCL")
 endif()
 
 if(ENABLE_ONEDNN_FOR_GPU)
-  ov_target_link_libraries_as_system(${TARGET_NAME} PUBLIC onednn_gpu_tgt)
+  ov_target_link_libraries_as_system(${TARGET_NAME} PUBLIC onednn_gpu_tgt${OV_GPU_SUFFIX})
 endif()
 
 ov_set_threading_interface_for(${TARGET_NAME})
-ov_gpu_set_runtime_interface_for(${TARGET_NAME})
+ov_gpu_set_runtime_interface_for(${TARGET_NAME} RUNTIME ${OV_GPU_RT})
 
 # Requires OpenCL even for Level Zero builds because of kernel builder and OneDNN
 target_link_libraries(${TARGET_NAME} PRIVATE

@@ -10,6 +10,7 @@
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/file_util.hpp"
+#include "intel_gpu/runtime/engine_configuration.hpp"
 #include "to_string_utils.h"
 #include "utils.hpp"
 
@@ -335,6 +336,9 @@ private:
         }
 
         std::string key_str(key.begin(), key.end());
+        // Partition the oneDNN cache per runtime so a blob built by one runtime is never
+        // loaded by the other (the driver-string difference alone is not a safe guard).
+        key_str += get_runtime_cache_tag();
         size_t hash = std::hash<std::string>()(key_str);
         return path + std::to_string(hash) + ".onednn.cl_cache";
     }

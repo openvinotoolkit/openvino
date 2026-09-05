@@ -4,6 +4,12 @@
 
 #pragma once
 
+#include <cstdint>
+#include <map>
+#include <optional>
+#include <string>
+#include <vector>
+
 #include "cache_guard.hpp"
 #include "cache_manager.hpp"
 #include "dev/plugin.hpp"
@@ -131,6 +137,20 @@ bool is_config_applicable(const std::string& device_name, const std::string& dev
  */
 bool is_virtual_device(const std::string& device_name);
 
+// One physical device of a dispatch group (a device name with >1 candidate library).
+// Generic: holds only opaque tokens/ids/indices and integer scores, no vendor logic.
+struct DispatchEntry {
+    // How one candidate library sees this device: its own internal id and its score.
+    struct CandidateView {
+        std::string internal_id;              // the id THIS library uses (may differ across libs)
+        DeviceCompatibilityScore score = PROBE_SCORE_INCOMPATIBLE;
+    };
+    std::string canonical_id;                 // ".N" shown to the user (core assigns)
+    std::vector<uint8_t> fingerprint;         // opaque cross-candidate identity (merge key)
+    std::map<size_t, CandidateView> per_lib;  // candidate idx -> how that candidate sees this device
+    std::optional<size_t> winner_idx;         // resolved candidate (lazy)
+};
+
 class CoreImpl : public ov::ICore, public std::enable_shared_from_this<ov::ICore> {
 private:
     mutable std::map<std::string, ov::Plugin> m_plugins;
@@ -141,7 +161,7 @@ private:
     mutable std::unordered_map<std::string, std::mutex> m_dev_mutexes;
 
     std::mutex& get_mutex(const std::string& dev_name = "") const;
-    void add_mutex(const std::string& dev_name);
+    void add_mutex(const std::string& dev_name) const;
 
     bool is_proxy_device(const ov::Plugin& plugin) const;
     bool is_proxy_device(const std::string& dev_name) const;
@@ -170,10 +190,17 @@ private:
     mutable ov::CacheGuard m_cache_guard;
 
     struct PluginDescriptor {
-        std::filesystem::path m_lib_location{};
-        ov::AnyMap m_default_config{};
+        // One candidate plugin library. A descriptor holds >= 1; more than one marks a
+        // dispatch group (see m_dispatch_map). Ordinary device names have exactly one.
+        struct Candidate {
+            std::filesystem::path m_lib_location{};
+            ov::AnyMap m_default_config{};
+            CreatePluginEngineFunc* m_plugin_create_func = nullptr;
+        };
+        std::vector<Candidate> m_candidates{Candidate{}};  // always non-empty
+
+        // Per-descriptor (per device name), shared across candidates.
         std::vector<std::filesystem::path> m_list_of_extensions{};
-        CreatePluginEngineFunc* m_plugin_create_func = nullptr;
         CreateExtensionFunc* m_extension_create_func = nullptr;
         mutable std::vector<Extension::Ptr> m_extensions{};  // mutable because of lazy init
 
@@ -182,19 +209,36 @@ private:
         PluginDescriptor(const std::filesystem::path& lib_location,
                          const ov::AnyMap& default_config = {},
                          const std::vector<std::filesystem::path>& list_of_extensions = {})
-            : m_lib_location(lib_location),
-              m_default_config(default_config),
+            : m_candidates{Candidate{lib_location, default_config, nullptr}},
               m_list_of_extensions(list_of_extensions) {}
 
         PluginDescriptor(CreatePluginEngineFunc* plugin_create_func,
                          const ov::AnyMap& default_config = {},
                          CreateExtensionFunc* extension_create_func = nullptr)
-            : m_lib_location(),
-              m_default_config(default_config),
-              m_list_of_extensions(),
-              m_plugin_create_func(plugin_create_func),
+            : m_candidates{Candidate{{}, default_config, plugin_create_func}},
               m_extension_create_func(extension_create_func) {}
+
+        // The first candidate; the only one for an ordinary single-plugin device name.
+        Candidate& primary() {
+            return m_candidates.front();
+        }
+        const Candidate& primary() const {
+            return m_candidates.front();
+        }
+        // Number of candidate libraries (>= 1); > 1 marks a dispatch group.
+        size_t candidate_count() const {
+            return m_candidates.size();
+        }
+        bool is_dispatch_group() const {
+            return m_candidates.size() > 1;
+        }
+        const std::filesystem::path& candidate_lib(size_t i) const {
+            return m_candidates[i].m_lib_location;
+        }
     };
+
+    // Canonical dispatch table per dispatch-group device name, lazily built on first use.
+    mutable std::map<std::string, std::vector<DispatchEntry>> m_dispatch_map;
 
     std::shared_ptr<ov::threading::ExecutorManager> m_executor_manager;
     mutable std::unordered_set<std::string> m_opset_names;
@@ -225,6 +269,28 @@ private:
 
     bool is_hidden_device(const std::string& device_name) const;
     void register_plugin_in_registry_unsafe(const std::string& device_name, PluginDescriptor& desc);
+
+    // Candidate index serving device_id (empty = default): argmax(score), ties -> registry order.
+    // Builds m_dispatch_map[device_name] on first use. nullopt if none serves it; caller holds mutex.
+    std::optional<size_t> resolve_dispatch_winner_unsafe(const std::string& device_name,
+                                                         const PluginDescriptor& desc,
+                                                         const std::string& device_id) const;
+
+    // Dispatch-aware get_plugin: resolves the winner for config's device id, or behaves like
+    // get_plugin(plugin_name) for a single-candidate name.
+    ov::Plugin get_plugin(const std::string& plugin_name, const ov::AnyMap& config) const;
+
+    // Shared get_plugin core. device_id (empty = default/bare) selects the dispatch-group winner.
+    ov::Plugin get_plugin_impl(const std::string& plugin_name, const std::string& device_id) const;
+
+    // {candidate's own id -> canonical ".N" id} for every device candidate_idx enumerated, pushed
+    // to a group member so it adopts Core's numbering. Caller holds the mutex.
+    std::map<std::string, std::string> dispatch_device_id_map_unsafe(const std::string& device_name,
+                                                                     size_t candidate_idx) const;
+
+    // Canonical merged device ids of a dispatch group (each device once, unserviceable omitted);
+    // nullopt for a non-group name, empty if no candidate serves any. Builds the map on first use.
+    std::optional<std::vector<std::string>> dispatch_group_device_ids(const std::string& device_name) const;
 
     void add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& extensions) const;
 
@@ -282,6 +348,14 @@ public:
      * @return A list of plugin names
      */
     std::vector<std::string> get_registered_devices() const;
+
+    /**
+     * @brief Number of candidate libraries registered under a device name. Returns 1 for an
+     * ordinary single-plugin device name, >1 for a dispatch group, and 0 if the device name
+     * is not registered. Read-only; intended for diagnostics and tests.
+     * @param device_name A name of device
+     */
+    size_t get_registered_candidate_count(const std::string& device_name) const;
 
     /**
      * @brief Sets config values for a plugin or set of plugins

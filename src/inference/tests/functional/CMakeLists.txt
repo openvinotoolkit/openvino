@@ -10,6 +10,8 @@ endif()
 
 set(DEPENDENCIES
     mock_engine
+    mock_dispatch_candidate_a
+    mock_dispatch_candidate_b
     openvino_template_extension
 )
 

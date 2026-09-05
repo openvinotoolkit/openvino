@@ -29,6 +29,7 @@ GPU Plugin contains the following components:
 * [GPU plugin operations enabling flow](./docs/gpu_plugin_ops_enabling.md)
 * [GPU plugin unit test](./docs/gpu_plugin_unit_test.md)
 * [Run benchmark from device_mem](./docs/use_device_mem.md)
+* [GPU dual-runtime dispatch (COMBINED build)](./docs/gpu_dual_runtime_dispatch.md)
 
 ## Documentation on dynamic-shape
 This contents explain the internal implementation of dynamic shape support in the GPU Plugin. For general usage of dynamic shape and limitations of the GPU plugin, please refer to this link: [GPU Device — OpenVINO™ documentation - Version(2026)](https://docs.openvino.ai/2026/openvino-workflow/running-inference/inference-devices-and-modes/gpu-device.html#dynamic-shapes).

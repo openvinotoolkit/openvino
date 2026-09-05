@@ -10,6 +10,7 @@
 #endif
 #include "impls/ocl_v2/utils/kernels_db.hpp"
 #include "intel_gpu/runtime/kernel_args.hpp"
+#include "intel_gpu/runtime/engine_configuration.hpp"
 #include "openvino/util/pp.hpp"
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
@@ -235,6 +236,9 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
             std::string full_code = options + " " + _device->get_info().driver_version;
             full_code += _device->get_info().dev_name;
+            // Partition the kernel cache per runtime: OCL and ZE store incompatible native
+            // binaries, so their .cl_cache files must never share a hash (wrong-format load).
+            full_code += get_runtime_cache_tag();
             for (auto& ss : b.source)
                 full_code += ss;
 

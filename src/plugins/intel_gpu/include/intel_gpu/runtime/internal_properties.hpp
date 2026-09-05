@@ -23,6 +23,13 @@ static constexpr Property<std::string, PropertyMutability::RO> driver_version{"G
  */
 static constexpr Property<std::string, PropertyMutability::RO> device_id{"GPU_DEVICE_ID"};
 
+/**
+ * @brief Read-only property carrying the compile-time GPU runtime tag ("OCL"/"ZE"/"SYCL").
+ * Folded into the model cache key so OCL and ZE builds never share a cache blob.
+ * The key string is a cache-compatibility constant - do not rename across releases.
+ */
+static constexpr Property<std::string, PropertyMutability::RO> runtime_type{"GPU_RUNTIME_TYPE"};
+
 enum class QueueTypes : int16_t {
     in_order,
     out_of_order
