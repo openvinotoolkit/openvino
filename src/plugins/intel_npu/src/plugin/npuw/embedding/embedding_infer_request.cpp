@@ -213,7 +213,20 @@ void ov::npuw::EmbeddingInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input
     LOG_DEBUG("Calling inference for embedding prefill model...");
     LOG_BLOCK();
 
+    OPENVINO_ASSERT(input_ids->get_shape().size() == 2 && attention_mask->get_shape().size() == 2,
+                    "NPUW text embedding expects rank-2 input_ids/attention_mask tensors, got ranks ",
+                    input_ids->get_shape().size(),
+                    "/",
+                    attention_mask->get_shape().size());
+
     const auto prompt_length = input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM];
+
+    // Rank-2 alone doesn't rule out a batch dim > 1, which would also make the
+    // right-aligned padding copies below write past their static destinations.
+    OPENVINO_ASSERT(input_ids->get_size() == prompt_length && attention_mask->get_size() == prompt_length,
+                    "NPUW text embedding expects input_ids and attention_mask to have a single batch of size "
+                    "equal to their sequence length");
+
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     if (prompt_length > kvcache_desc.max_prompt_size) {
         OPENVINO_THROW("Input prompt is longer than configured \"NPUW_LLM_MAX_PROMPT_LEN\": ",
