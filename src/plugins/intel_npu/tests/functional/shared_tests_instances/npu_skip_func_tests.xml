@@ -396,4 +396,15 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- E###### -->
+    <skip_config>
+        <message>HostCompile not implemented on NPU3720</message>
+        <enable_rules>
+            <device>3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*OVCompiledGraphImportExportTestNPU.*NonELFBlobExportThrows.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>
