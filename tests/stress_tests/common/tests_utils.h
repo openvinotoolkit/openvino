@@ -105,6 +105,8 @@ std::string getTestCaseNameMemLeaks(const testing::TestParamInfo<MemLeaksTestCas
 
 void runTest(const std::function<void(std::string, std::string, int)> &tests_pipeline, const TestCase &params);
 
+void runStressTest(const std::string& scenario, const TestCase& params);
+
 void _runTest(const std::function<void(std::string, std::string, int)> &tests_pipeline, const TestCase &params);
 
 void test_wrapper(const std::function<void(std::string, std::string, int)> &tests_pipeline,
