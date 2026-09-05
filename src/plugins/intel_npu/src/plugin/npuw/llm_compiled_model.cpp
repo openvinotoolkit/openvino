@@ -66,6 +66,27 @@ bool is_aligned_to(T value, T alignment) {
     return value % alignment == 0;
 }
 
+// Number of bytes an ov::Tensor built over this port would span. The continuous KV strategy
+// shares one allocation across generate variants, so the byte size of the past KV inputs --
+// not the declared KV cache size -- is what decides whether a shared view stays in bounds.
+std::size_t port_byte_size(const ov::Output<const ov::Node>& port) {
+    // Mirrors ov::Tensor's own accounting, including sub-byte element types.
+    return (ov::shape_size(port.get_shape()) * port.get_element_type().bitwidth() + 7) / 8;
+}
+
+// Byte size of every past_key_values input of a compiled model, keyed by input name.
+std::unordered_map<std::string, std::size_t> collect_past_kv_bytes(
+    const std::shared_ptr<ov::npuw::ICompiledModel_v0>& compiled) {
+    std::unordered_map<std::string, std::size_t> sizes;
+    for (const auto& input_port : compiled->inputs()) {
+        const auto& name = input_port.get_any_name();
+        if (ov::npuw::util::starts_with(name, ov::npuw::LLMInferRequest::layer_names::past_key_values)) {
+            sizes[name] = port_byte_size(input_port);
+        }
+    }
+    return sizes;
+}
+
 }  // namespace
 
 class CutLMHead : public ov::pass::MatcherPass {
@@ -1713,6 +1734,104 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
     return compiled_model;
 }
 
+// Re-establish the generate-variant invariants that the compile path builds by construction
+// but the blob does not carry.
+//
+// create_generate_model_variants() emits the variants in strictly ascending KV cache size, which
+// is why m_generate_compiled_variants.back() is provably the largest one and why the continuous
+// KV strategy may hand that variant's past KV allocation to every other variant. Deserialization
+// reads m_kvcache_sizes, the variant count and each variant's tensor shapes as independent blob
+// fields and preserves blob order, so nothing recreates that ordering. Without this check a blob
+// whose last variant is not the largest makes LLMContinuousKVCacheStrategy::on_initialize() build
+// tensor views whose shape exceeds the underlying allocation, turning every subsequent KV write
+// into a heap overflow.
+void ov::npuw::LLMCompiledModel::validate_imported_kv_variants() const {
+    const auto num_variants = m_generate_compiled_variants.size();
+    OPENVINO_ASSERT(m_kvcache_sizes.size() == num_variants,
+                    "NPUW: imported blob declares ",
+                    m_kvcache_sizes.size(),
+                    " KV cache size(s) but ",
+                    num_variants,
+                    " generate variant(s).");
+
+    // Encoder embedding models are prefill-only and have no generate variants at all.
+    if (num_variants == 0) {
+        return;
+    }
+
+    OPENVINO_ASSERT(m_kvcache_desc.total_size >= m_kvcache_desc.max_prompt_size,
+                    "NPUW: imported KV cache total size ",
+                    m_kvcache_desc.total_size,
+                    " is smaller than max_prompt_size ",
+                    m_kvcache_desc.max_prompt_size,
+                    ".");
+
+    for (std::size_t i = 0; i < num_variants; ++i) {
+        OPENVINO_ASSERT(m_kvcache_sizes[i] >= m_kvcache_desc.max_generation_token_len,
+                        "NPUW: imported KV cache size ",
+                        m_kvcache_sizes[i],
+                        " of generate variant ",
+                        i,
+                        " is smaller than max_generation_token_len ",
+                        m_kvcache_desc.max_generation_token_len,
+                        ".");
+        OPENVINO_ASSERT(i == 0 || m_kvcache_sizes[i - 1] < m_kvcache_sizes[i],
+                        "NPUW: imported generate variants are not ordered by ascending KV cache size: variant ",
+                        i - 1,
+                        " declares ",
+                        m_kvcache_sizes[i - 1],
+                        " and variant ",
+                        i,
+                        " declares ",
+                        m_kvcache_sizes[i],
+                        ".");
+    }
+
+    // The declared sizes above are only metadata. What actually bounds the shared writes is the
+    // past KV allocation of the last variant, so compare the real tensor footprints too.
+    const auto largest_bytes = collect_past_kv_bytes(m_generate_compiled_variants.back());
+    for (std::size_t i = 0; i + 1 < num_variants; ++i) {
+        for (const auto& [name, bytes] : collect_past_kv_bytes(m_generate_compiled_variants[i])) {
+            const auto it = largest_bytes.find(name);
+            OPENVINO_ASSERT(it != largest_bytes.end(),
+                            "NPUW: generate variant ",
+                            i,
+                            " has past KV input '",
+                            name,
+                            "' which is missing from the last generate variant.");
+            OPENVINO_ASSERT(bytes <= it->second,
+                            "NPUW: past KV input '",
+                            name,
+                            "' of generate variant ",
+                            i,
+                            " needs ",
+                            bytes,
+                            " bytes but the last generate variant, whose allocation is shared with it, only holds ",
+                            it->second,
+                            " bytes.");
+        }
+    }
+
+    // Under chunk prefill the prefill model's past KV inputs are rebound onto that same allocation
+    // by bind_past_kv(), using the prefill port shapes. Transposed-mismatch disables the binding.
+    if (m_use_chunk_prefill && m_kvcache_desc.v_tensors_transposed_pre == m_kvcache_desc.v_tensors_transposed_gen) {
+        for (const auto& [name, bytes] : collect_past_kv_bytes(m_prefill_compiled)) {
+            const auto it = largest_bytes.find(name);
+            if (it == largest_bytes.end()) {
+                continue;  // bind_past_kv() skips names absent from the generate model
+            }
+            OPENVINO_ASSERT(bytes <= it->second,
+                            "NPUW: past KV input '",
+                            name,
+                            "' of the prefill model needs ",
+                            bytes,
+                            " bytes but the generate allocation it is bound to only holds ",
+                            it->second,
+                            " bytes.");
+        }
+    }
+}
+
 std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserialize(
     std::istream& stream,
     const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -1786,6 +1905,8 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
             compiled->m_lm_head_compiled =
                 ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
         }
+
+        compiled->validate_imported_kv_variants();
 
         return compiled;
     };

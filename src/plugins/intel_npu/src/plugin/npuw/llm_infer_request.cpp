@@ -512,6 +512,16 @@ void ov::npuw::LLMInferRequest::bind_past_kv() {
         auto data = kvcache_past_kv_in_tensor->data();
 
         auto origTensor = m_prefill_request->get_tensor(prefill_in_port);
+        // The new tensor is an unchecked view over the generate model's allocation, so make sure
+        // the prefill shape actually fits into it before handing it to the prefill request.
+        OPENVINO_ASSERT(origTensor->get_byte_size() <= kvcache_past_kv_in_tensor->get_byte_size(),
+                        "Prefill past KV input '",
+                        input_name,
+                        "' needs ",
+                        origTensor->get_byte_size(),
+                        " bytes but the generate allocation it is bound to only holds ",
+                        kvcache_past_kv_in_tensor->get_byte_size(),
+                        " bytes.");
         auto new_tensor =
             ov::get_tensor_impl(ov::Tensor(origTensor->get_element_type(), origTensor->get_shape(), data));
         m_prefill_request->set_tensor(prefill_in_port, new_tensor);
