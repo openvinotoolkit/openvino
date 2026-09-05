@@ -9,6 +9,7 @@
 #include <intel_gpu/primitives/resample.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -2975,4 +2976,98 @@ TEST(resample_gpu, pillow_bf16) {
 
 TEST(resample_gpu, basic_in2x3x2x2_nearest_cached) {
     test_basic_in2x3x2x2_nearest<float>(true);
+}
+
+// Regression: resample_opt now handles LINEAR_ONNX for 4D inputs. Before the change the
+// kernel did not enable ResampleType::LINEAR_ONNX, so forcing "resample_opt" for a
+// LINEAR_ONNX node failed with "Could not find a suitable kernel".
+TEST(resample_gpu, opt_linear_onnx_4d_f16) {
+    auto& engine = get_test_engine();
+
+    tensor input_size{1, 8, 13, 13};
+    tensor output_size{1, 8, 26, 26};
+    auto in_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
+    std::vector<ov::float16> in_vals(input_size.count());
+    for (size_t i = 0; i < in_vals.size(); ++i)
+        in_vals[i] = ov::float16(0.1f * static_cast<float>(i % 17) - 0.8f);
+    set_values<ov::float16>(in_mem, in_vals);
+
+    auto make_net = [&](const std::string& kernel) {
+        topology topo(input_layout("in", in_mem->get_layout()),
+                      resample("resample", input_info("in"), output_size, 8,
+                                resample::InterpolateOp::InterpolateMode::LINEAR_ONNX));
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "resample" }));
+        ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, kernel };
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "resample", impl } }));
+        network net(engine, topo, config);
+        net.set_input_data("in", in_mem);
+        return net.execute().at("resample").get_memory();
+    };
+
+    auto out_ref = make_net("resample_ref");
+    auto out_opt = make_net("resample_opt");
+
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_ptr(out_ref, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> opt_ptr(out_opt, get_test_stream());
+    for (size_t i = 0; i < ref_ptr.size(); ++i) {
+        ASSERT_TRUE(are_equal(ref_ptr[i], opt_ptr[i], 1e-2f))
+            << "Mismatch at " << i << ": ref " << ref_ptr[i] << " opt " << opt_ptr[i];
+    }
+}
+
+// Regression: the resample_opt kernel previously defined FUSED_OPS twice in NEAREST mode
+// (a branch-local block plus the shared one), which failed the CL build with
+// CL_BUILD_PROGRAM_FAILURE as soon as an eltwise op fused into the node. This forces
+// resample_opt for a NEAREST node that carries a fused eltwise.
+TEST(resample_gpu, opt_nearest_fused_eltwise_builds) {
+    auto& engine = get_test_engine();
+
+    tensor input_size{1, 8, 13, 13};
+    tensor output_size{1, 8, 26, 26};
+    auto in_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
+    std::vector<ov::float16> in_vals(input_size.count());
+    for (size_t i = 0; i < in_vals.size(); ++i)
+        in_vals[i] = ov::float16(0.1f * static_cast<float>(i % 13) - 0.6f);
+    set_values<ov::float16>(in_mem, in_vals);
+    // the scale has the resample output shape so the eltwise product broadcasts over it
+    auto scale = engine.allocate_memory({ data_types::f16, format::bfyx, output_size });
+    set_values<ov::float16>(scale, std::vector<ov::float16>(output_size.count(), ov::float16(0.5f)));
+
+    // eltwise wired after the resample; the pass manager fuses it into the resample node.
+    topology topo(input_layout("in", in_mem->get_layout()),
+                  data("scale", scale),
+                  resample("resample", input_info("in"), output_size, 8,
+                            resample::InterpolateOp::InterpolateMode::NEAREST),
+                  eltwise("scaled", input_info("resample"), input_info("scale"), eltwise_mode::prod));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "scaled" }));
+    ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, "resample_opt" };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "resample", impl } }));
+    network net(engine, topo, config);
+    net.set_input_data("in", in_mem);
+
+    // Before the FUSED_OPS structure fix this throws (CL build failure); it must now build and run.
+    auto out_opt = net.execute().at("scaled").get_memory();
+
+    // The nearest-2x sample picks one of the input values; the eltwise multiplies it by 0.5.
+    // We check that invariant instead of comparing against a free-selection reference, whose
+    // resample kernel may use a different coordinate convention for NEAREST.
+    std::unordered_set<float> in_set(in_vals.begin(), in_vals.end());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> opt_ptr(out_opt, get_test_stream());
+    for (size_t i = 0; i < opt_ptr.size(); ++i) {
+        float v = float(opt_ptr[i]);
+        ASSERT_TRUE(std::isfinite(v)) << "Non-finite output at " << i;
+        // v must equal 0.5 * input[j] for some input j.
+        bool found = false;
+        for (float src : in_set) {
+            if (std::abs(v - 0.5f * src) < 1e-2f) {
+                found = true;
+                break;
+            }
+        }
+        ASSERT_TRUE(found) << "Output " << v << " at " << i << " is not 0.5 * any input value.";
+    }
 }

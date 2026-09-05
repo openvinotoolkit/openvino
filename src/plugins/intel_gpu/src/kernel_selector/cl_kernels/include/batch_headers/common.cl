@@ -56,6 +56,21 @@
 #define AS_TYPE_EXT(type, val, src_type) CAT(CAT(AS_TYPE_PREFIX_, src_type), type)(val)
 #define AS_TYPE(type, val) CAT(as_, type)(val)
 
+#if defined(cl_khr_fp16)
+// Float16 Softplus (log(1 + exp(x))) evaluated in float so that exp(x) cannot
+// overflow the float16 range (exp(12) is already past the f16 max of ~65504).
+// The small-x branch keeps the historical log(exp(x) + 1) expression for
+// bit-compatibility; for x >= 20, log(1 + exp(x)) equals x to f16 precision.
+inline half softplus_f16(half x) __attribute__((overloadable)) {
+    float xf = convert_float(x);
+    return convert_half(xf > 20.0f ? xf : log(exp(xf) + 1.0f));
+}
+inline half4 softplus_f16(half4 x) __attribute__((overloadable)) {
+    float4 xf = convert_float4(x);
+    return convert_half4(xf > 20.0f ? xf : log(exp(xf) + 1.0f));
+}
+#endif
+
 // ====================================================================================================================
 // TYPE_SIZE(type) - evaluates to size of "type" in bytes
 // type [PP] - Must evaluate to non-vectorized type.

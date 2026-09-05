@@ -2612,3 +2612,48 @@ INSTANTIATE_TEST_SUITE_P(, TiledPerformancePermuteTest,
         {{1, 256, 128, 256}, format::bfyx},
         {{1, 256, 256, 128}, format::b_fs_yx_fsv16},
     }));
+
+// Regression: the permute_tile_8x8_4x4 kernel now supports the f<->x swap order
+// cldnn [0,2,1,3] (ONNX [0,3,2,1], NCHW -> NWHC). Before the change Validate()
+// rejected this order, so forcing the tiled kernel failed with "Could not find a
+// suitable kernel".
+TEST(permute_gpu_f32, tile_8x8_4x4_fy_swap) {
+    auto& engine = get_test_engine();
+
+    tensor input_size{1, 16, 16, 8};
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
+    tests::set_random_values<ov::float16>(input);
+
+    // cldnn order [0,2,1,3] (swap f and x); the input shape is asymmetric so a rotate-only
+    // implementation would produce wrong values.
+    std::vector<uint16_t> order{ 0, 3, 2, 1 };
+    topology topology(input_layout("input", input->get_layout()),
+                      permute("output", input_info("input"), order));
+
+    // reference
+    {
+        ExecutionConfig config_ref = get_test_default_config(engine);
+        ov::intel_gpu::ImplementationDesc ref_impl = { format::bfyx, "permute_ref" };
+        config_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "output", ref_impl } }));
+        network network_ref(engine, topology, config_ref);
+        network_ref.set_input_data("input", input);
+        auto outputs_ref = network_ref.execute();
+        auto output_ref = outputs_ref.at("output").get_memory();
+
+        // tiled kernel (the one that must now accept [0,2,1,3])
+        ExecutionConfig config_tile = get_test_default_config(engine);
+        ov::intel_gpu::ImplementationDesc tile_impl = { format::bfyx, "permute_tile_8x8_4x4" };
+        config_tile.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "output", tile_impl } }));
+        network network_tile(engine, topology, config_tile);
+        network_tile.set_input_data("input", input);
+        auto outputs_tile = network_tile.execute();
+        auto output_tile = outputs_tile.at("output").get_memory();
+
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_ptr(output_ref, get_test_stream());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> tile_ptr(output_tile, get_test_stream());
+        for (size_t i = 0; i < ref_ptr.size(); ++i) {
+            ASSERT_NEAR(static_cast<float>(ref_ptr[i]), static_cast<float>(tile_ptr[i]), 1e-3f)
+                << "Mismatch at " << i;
+        }
+    }
+}

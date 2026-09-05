@@ -1315,10 +1315,19 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             break;
         }
         case ActivationFunction::SOFTPLUS: {
-            const JitTerm input_f = out_dt == Datatype::F16 ? JitTerm{"convert_float(input)"} : input;
-            const JitTerm output =
-                out_dt == Datatype::F16 ? JitTerm{"convert_half(" + (log(exp(input_f) + one)).str() + ")"} : JitTerm{(log(exp(input_f) + one)).str()};
-            jitConstants.AddConstant(MakeJitConstant(macro_def, output.str()));
+            if (out_dt == Datatype::F16) {
+                // exp(x) overflows float16 for |x| above ~11, so the whole
+                // expression must run in float. softplus_f16 (common.cl) upcasts
+                // to float, matches the historical f16 result for small |x| and
+                // saturates the output to x for large x. Overloaded for both the
+                // scalar (ref) and half4 (opt) activation kernels.
+                jitConstants.AddConstant(MakeJitConstant(macro_def, "softplus_f16(input)"));
+            } else {
+                // Numerically stable Softplus: max(x, 0) + log(1 + exp(-|x|)),
+                // equivalent to log(1 + exp(x)) but never overflows.
+                jitConstants.AddConstant(MakeJitConstant(macro_def,
+                    (max_func(input, zero) + log(one + exp(neg(abs_func(input))))).str()));
+            }
             break;
         }
         case ActivationFunction::SOFTSIGN: {
