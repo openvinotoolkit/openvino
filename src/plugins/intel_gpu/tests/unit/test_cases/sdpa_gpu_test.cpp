@@ -307,6 +307,140 @@ TEST_P(sdpa_gpu_test, basic_caching) {
     auto p = GetParam();
     execute(p, true);
 }
+
+struct micro_sdpa_prefetch_k_params {
+    int head_size;
+    int num_heads;
+    int seq_len_q;
+    int seq_len_kv;
+    bool is_causal;
+};
+
+class sdpa_micro_prefetch_k_test : public ::testing::TestWithParam<micro_sdpa_prefetch_k_params> {
+public:
+    static std::string PrintToStringParamName(const testing::TestParamInfo<micro_sdpa_prefetch_k_params>& info) {
+        const auto& p = info.param;
+        return "d" + std::to_string(p.head_size) + "_h" + std::to_string(p.num_heads) + "_q" +
+               std::to_string(p.seq_len_q) + "_kv" + std::to_string(p.seq_len_kv) +
+               (p.is_causal ? "_causal" : "_full");
+    }
+};
+
+TEST_P(sdpa_micro_prefetch_k_test, multi_tile_k_runs_micro_sdpa) {
+    auto& engine = get_test_engine();
+    const auto& device_info = engine.get_device_info();
+    const auto p = GetParam();
+
+    if (!device_info.supports_immad)
+        GTEST_SKIP() << "sdpa_micro requires a device with systolic (immad) support";
+    if (device_info.arch < cldnn::gpu_arch::xe_hpc)
+        GTEST_SKIP() << "PREFETCH_K0/PREFETCH_K are only emitted for arch >= xe_hpc; this device "
+                        "runs sdpa_micro without the prefetch under test";
+    if (device_info.arch == cldnn::gpu_arch::xe3p && p.head_size <= 64)
+        GTEST_SKIP() << "micro SDPA is disabled on xe3p for head_size <= 64";
+
+    const ov::Shape q_shape{1, static_cast<size_t>(p.num_heads), static_cast<size_t>(p.seq_len_q),
+                            static_cast<size_t>(p.head_size)};
+    const ov::Shape kv_shape{1, static_cast<size_t>(p.num_heads), static_cast<size_t>(p.seq_len_kv),
+                             static_cast<size_t>(p.head_size)};
+
+    const layout q_layout(q_shape, data_types::f16, format::bfyx);
+    const layout kv_layout(kv_shape, data_types::f16, format::bfyx);
+
+    auto q_mem = engine.allocate_memory(q_layout);
+    auto k_mem = engine.allocate_memory(kv_layout);
+    auto v_mem = engine.allocate_memory(kv_layout);
+
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    auto fill_random = [&](const memory::ptr& mem) {
+        set_values(mem, rg.generate_random_1d<ov::float16>(mem->get_layout().count(), -1.0f, 1.0f));
+    };
+    fill_random(q_mem);
+    fill_random(k_mem);
+    fill_random(v_mem);
+
+    // Fresh topology per run: dropping the redundant trailing reorder renames the SDPA node in
+    // place, which mutates the topology object.
+    auto make_topology = [&]() {
+        topology topo;
+        topo.add(input_layout("q", q_layout));
+        topo.add(input_layout("k", kv_layout));
+        topo.add(input_layout("v", kv_layout));
+        topo.add(scaled_dot_product_attention("sdpa",
+                                              {input_info("q"), input_info("k"), input_info("v")},
+                                              p.is_causal,
+                                              -1,
+                                              {0, 1, 2, 3},
+                                              {0, 1, 2, 3},
+                                              {0, 1, 2, 3},
+                                              {0, 1, 2, 3},
+                                              {},
+                                              false));
+        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+        return topo;
+    };
+
+    auto run_network = [&]() {
+        auto topology = make_topology();
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        // Advisory only: kernel_name is read by the legacy impls/ocl selector, not by ocl_v2.
+        // The assertion below is what guarantees micro SDPA ran.
+        config.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_micro"}}}));
+
+        auto network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+        network->set_input_data("q", q_mem);
+        network->set_input_data("k", k_mem);
+        network->set_input_data("v", v_mem);
+        auto output = network->execute().at("result").get_memory();
+        return std::make_pair(network, output);
+    };
+
+    // Look up by type, not id: the node is renamed to "result" when the reorder is dropped. The
+    // node description carries the selected OpenCL entry point; kernel_id only has the impl class.
+    auto selected_sdpa_kernel = [](const cldnn::network::ptr& net) {
+        for (const auto& info : net->get_primitives_info()) {
+            if (info.type_id == "scaled_dot_product_attention")
+                return net->get_primitive_info(info.original_id);
+        }
+        return std::string{};
+    };
+
+    // A GPU fault from the prefetch would surface here as CL_OUT_OF_RESOURCES out of execute().
+    auto [network, output] = run_network();
+    const auto sdpa_info = selected_sdpa_kernel(network);
+    ASSERT_FALSE(sdpa_info.empty()) << "no scaled_dot_product_attention node in the built program";
+    ASSERT_NE(sdpa_info.find("sdpa_micro"), std::string::npos)
+        << "sdpa_micro was not selected; the multi-K-tile prefetch path was not exercised. Node "
+           "description was:\n"
+        << sdpa_info;
+
+    // No non-micro reference exists to compare against, and a prefetch cannot change results
+    // anyway; this is coverage. Verified: the pre-fix ordering also passes here.
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_data(output, get_test_stream());
+    ASSERT_EQ(output_data.size(), ov::shape_size(q_shape));
+    bool all_zero = true;
+    for (size_t i = 0; i < output_data.size(); ++i) {
+        const float v = static_cast<float>(output_data[i]);
+        ASSERT_TRUE(std::isfinite(v)) << "non-finite output at index " << i;
+        all_zero = all_zero && (v == 0.0f);
+    }
+    ASSERT_FALSE(all_zero) << "output is entirely zero";
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_sdpa_micro_prefetch_k,
+    sdpa_micro_prefetch_k_test,
+    ::testing::Values(
+        micro_sdpa_prefetch_k_params{64, 4, 300, 1000, false},
+        micro_sdpa_prefetch_k_params{64, 4, 300, 1000, true},
+        micro_sdpa_prefetch_k_params{128, 2, 300, 1000, true},
+        micro_sdpa_prefetch_k_params{256, 2, 177, 177, true}
+    ),
+    sdpa_micro_prefetch_k_test::PrintToStringParamName
+);
 #endif
 
 TEST(sdpa_gpu_custom, dynamic_mismatched_v_head_size) {
