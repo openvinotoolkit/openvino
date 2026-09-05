@@ -1762,6 +1762,18 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         uint32_t num_variants = 0;
         stream & num_variants;
 
+        // m_kvcache_sizes and the generate variants are conceptually one object: the size table
+        // has exactly one entry per variant. They are serialized as two independent fields, so a
+        // corrupted blob can declare a size table that disagrees with the variant count. The two
+        // containers are later indexed by each other's size, so a mismatch is an out-of-bounds
+        // access. Enforce the invariant here, at restore time, before anything can consume it.
+        OPENVINO_ASSERT(compiled->m_kvcache_sizes.size() == num_variants,
+                        "NPUW blob: kvcache size table (",
+                        compiled->m_kvcache_sizes.size(),
+                        ") does not match generate variant count (",
+                        num_variants,
+                        ").");
+
         compiled->m_generate_compiled_variants.reserve(num_variants);
 
         // Deserialize CompiledModels
