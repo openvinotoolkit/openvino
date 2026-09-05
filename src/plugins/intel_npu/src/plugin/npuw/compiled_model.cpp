@@ -1277,8 +1277,18 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         meta_stream & compiled->m_inputs_to_submodels_inputs & compiled->m_outputs_to_submodels_outputs &
             compiled->m_param_subscribers & compiled->m_submodels_input_to_prev_output;
         meta_stream & compiled->m_dev_list;
-        meta_stream & compiled->m_cfg;
+
+        // Config precedence, low to high: blob -> env vars -> host import props.
+        //
+        // Security: the config comes from a potentially untrusted cache blob.
+        // Read it into a temporary Config and copy over only the options meant to round-trip through a blob (CACHED).
+        // Any UNCACHED / HIDDEN debug knobs (e.g. NPUW_DUMP_*, NPUW_CACHE_DIR) are dropped.
+        ::intel_npu::Config blob_cfg(compiled->m_options_desc);
+        meta_stream & blob_cfg;
+        compiled->m_cfg.update(blob_cfg.extract(::intel_npu::cachedNPUWOptionKeys()));
         compiled->m_cfg.parseEnvVars();
+        compiled->m_cfg.updateAnyKnown(properties);
+
         meta_stream & compiled->m_non_npuw_props;
         meta_stream & is_weightless;
         meta_stream & compiled->m_bf16_consts;
