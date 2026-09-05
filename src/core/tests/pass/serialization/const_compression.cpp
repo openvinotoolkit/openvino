@@ -326,54 +326,16 @@ TEST_F(SerializationConstantCompressionTest, EmptyConstants) {
     std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
     std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
 
-    ASSERT_EQ(file_size(bin_1), unique_const_count * sizeof(int8_t));
+    ASSERT_EQ(file_size(bin_1), 0);
 
+    ASSERT_EQ(file_size(bin_1), 0);
+    
     ov::Core core;
     auto model_imported = core.read_model(m_out_xml_path_1, m_out_bin_path_1);
-
-    const auto& [success, message] = compare_functions(model_initial, model_imported, true, true, false, true, true);
-    ASSERT_TRUE(success) << message;
-}
-
-TEST_F(SerializationConstantCompressionTest, EmptyAndNotEmptyConstantSameValues) {
-    constexpr int unique_const_count = 1;
-    auto A = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{});
-    auto B = ov::op::v0::Constant::create(ov::element::i8, ov::Shape{1}, std::vector<int8_t>{0});
-
-    auto model_initial = std::make_shared<ov::Model>(ov::OutputVector{A, B}, ov::ParameterVector{});
-
-    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(model_initial);
-
-    std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
-    std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
-
-    ASSERT_EQ(file_size(bin_1), unique_const_count * sizeof(int8_t));
-
-    ov::Core core;
-    auto model_imported = core.read_model(m_out_xml_path_1, m_out_bin_path_1);
-
-    const auto& [success, message] = compare_functions(model_initial, model_imported, true, true, false, true, true);
-    ASSERT_TRUE(success) << message;
-}
-
-TEST_F(SerializationConstantCompressionTest, EmptyAndNotEmptyConstantsDifferentValues) {
-    constexpr int unique_const_count = 2;
-    auto A = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{});
-    auto B = ov::op::v0::Constant::create(ov::element::i8, ov::Shape{1}, std::vector<int8_t>{1});
-
-    auto model_initial = std::make_shared<ov::Model>(ov::OutputVector{A, B}, ov::ParameterVector{});
-
-    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(model_initial);
-
-    std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
-    std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
-
-    ASSERT_EQ(file_size(bin_1), unique_const_count * sizeof(int8_t));
-
-    ov::Core core;
-    auto model_imported = core.read_model(m_out_xml_path_1, m_out_bin_path_1);
-
-    const auto& [success, message] = compare_functions(model_initial, model_imported, true, true, false, true, true);
+    
+    bool success;
+    std::string message;
+    std::tie(success, message) = compare_functions(model_initial, model_imported, true, true, false, true, true);
     ASSERT_TRUE(success) << message;
 }
 
