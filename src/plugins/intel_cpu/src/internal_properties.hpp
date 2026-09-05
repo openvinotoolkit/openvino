@@ -80,4 +80,15 @@ static constexpr Property<bool, PropertyMutability::RW> enable_tensor_parallel{"
  */
 static constexpr Property<bool, PropertyMutability::RW> enable_sage_attn{"ENABLE_SAGE_ATTN"};
 
+/**
+ * @brief Evaluate the exponential of a softmax numerator with a degree-1 polynomial instead of the
+ * accurate one, wherever Snippets fuses the softmax. Trades a max relative error of 2.98e-2 on the
+ * exponential, and 6.15e-2 on the normalised probabilities, for one fused multiply-add in place of
+ * a degree-5 polynomial and a compare/blend pair. Off unless asked for.
+ * @param true - approximate
+ * @param false - accurate
+ */
+static constexpr Property<bool, PropertyMutability::RW> snippets_approximate_softmax_exp{
+    "SNIPPETS_APPROXIMATE_SOFTMAX_EXP"};
+
 }  // namespace ov::intel_cpu

@@ -654,6 +654,10 @@ private:
 
     void register_table_entries() override;
     size_t aux_vecs_count() const override;
+
+    // Set from the node's run-time info, which MarkApproximateSoftmaxExp puts there. Never true
+    // for the Exp that jit_erf_emitter owns, which is built through the constructor taking no node.
+    bool m_use_fast_exp{false};
 };
 
 class jit_erf_emitter : public jit_emitter {
