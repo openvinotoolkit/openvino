@@ -42,6 +42,7 @@
 #include "openvino/op/logical_not.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/minimum.hpp"
+#include "openvino/op/mvn.hpp"
 #include "openvino/op/negative.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/range.hpp"
@@ -4294,5 +4295,54 @@ TEST(eval, interpolate_padding_overflow) {
                                      {element::i64, Shape{1}}};
 
     OV_EXPECT_THROW(std::ignore = op->evaluate(outputs, inputs), ov::Exception, _);
+}
+
+TEST(eval, mvn_6_out_of_range_positive_axis) {
+    const auto data = std::make_shared<Parameter>(element::f32, Shape{2, 2});
+    const auto axes = std::make_shared<Parameter>(element::i64, Shape{1});
+    const auto op = std::make_shared<op::v6::MVN>(data, axes, false, 1e-6f, op::MVNEpsMode::INSIDE_SQRT);
+
+    auto data_tensor = ov::Tensor(element::f32, Shape{2, 2});
+    std::fill_n(data_tensor.data<float>(), 4, 1.f);
+    auto axes_tensor = ov::Tensor(element::i64, Shape{1});
+    axes_tensor.data<int64_t>()[0] = 1000;
+
+    auto outputs = TensorVector{{element::f32, Shape{2, 2}}};
+    const auto inputs = TensorVector{data_tensor, axes_tensor};
+
+    OV_EXPECT_THROW(std::ignore = op->evaluate(outputs, inputs), ov::Exception, _);
+}
+
+TEST(eval, mvn_6_out_of_range_negative_axis) {
+    const auto data = std::make_shared<Parameter>(element::f32, Shape{2, 2});
+    const auto axes = std::make_shared<Parameter>(element::i64, Shape{1});
+    const auto op = std::make_shared<op::v6::MVN>(data, axes, false, 1e-6f, op::MVNEpsMode::INSIDE_SQRT);
+
+    auto data_tensor = ov::Tensor(element::f32, Shape{2, 2});
+    std::fill_n(data_tensor.data<float>(), 4, 1.f);
+    auto axes_tensor = ov::Tensor(element::i64, Shape{1});
+    axes_tensor.data<int64_t>()[0] = -1000;
+
+    auto outputs = TensorVector{{element::f32, Shape{2, 2}}};
+    const auto inputs = TensorVector{data_tensor, axes_tensor};
+
+    OV_EXPECT_THROW(std::ignore = op->evaluate(outputs, inputs), ov::Exception, _);
+}
+
+TEST(eval, mvn_6_in_range_axes_are_accepted) {
+    const auto data = std::make_shared<Parameter>(element::f32, Shape{2, 2});
+    const auto axes = std::make_shared<Parameter>(element::i64, Shape{2});
+    const auto op = std::make_shared<op::v6::MVN>(data, axes, false, 1e-6f, op::MVNEpsMode::INSIDE_SQRT);
+
+    auto data_tensor = ov::Tensor(element::f32, Shape{2, 2});
+    std::fill_n(data_tensor.data<float>(), 4, 1.f);
+    auto axes_tensor = ov::Tensor(element::i64, Shape{2});
+    axes_tensor.data<int64_t>()[0] = -1;
+    axes_tensor.data<int64_t>()[1] = 0;
+
+    auto outputs = TensorVector{{element::f32, Shape{2, 2}}};
+    const auto inputs = TensorVector{data_tensor, axes_tensor};
+
+    EXPECT_TRUE(op->evaluate(outputs, inputs));
 }
 }  // namespace ov::test
