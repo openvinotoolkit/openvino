@@ -189,9 +189,16 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
                 }
             }
 
+            auto rank_matches_order = [](const ov::Output<ov::Node>& out, size_t order_size) -> bool {
+                const auto& r = out.get_partial_shape().rank();
+                return r.is_static() && r.get_length() == static_cast<int64_t>(order_size);
+            };
             auto replace_sdpa_inputs = [&](ov::Node* reshape_k, ov::Node* reshape_v) {
                 auto key_source = reshape_k->input_value(0);
                 auto value_source = reshape_v->input_value(0);
+                if (!rank_matches_order(key_source, sdpa->get_input1_transpose_order().size()) ||
+                    !rank_matches_order(value_source, sdpa->get_input2_transpose_order().size()))
+                    return false;
                 sdpa->input(1).replace_source_output(key_source);
                 sdpa->input(2).replace_source_output(value_source);
                 return true;
