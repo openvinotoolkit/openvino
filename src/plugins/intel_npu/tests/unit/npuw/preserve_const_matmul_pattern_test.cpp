@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "openvino/op/constant.hpp"
@@ -40,7 +41,9 @@ SubgraphNodes build_asymm_matmul_subgraph(const ov::Shape& weight_shape,
                                           const ov::Shape& zerop_shape,
                                           const ov::Shape& scale_shape,
                                           bool transpose_b,
-                                          bool convert_before_matmul = true) {
+                                          bool convert_before_matmul = true,
+                                          std::optional<float> weight_shift = std::nullopt,
+                                          std::optional<float> zerop_shift = std::nullopt) {
     auto qweight = std::make_shared<ov::op::v0::Constant>(weight_type, weight_shape, 0);
     auto qzerop = std::make_shared<ov::op::v0::Constant>(weight_type, zerop_shape, 0);
     // When there is no Convert after Multiply, Multiply must produce f32 directly, which
@@ -57,7 +60,17 @@ SubgraphNodes build_asymm_matmul_subgraph(const ov::Shape& weight_shape,
     const auto mid_type = convert_before_matmul ? ov::element::f16 : ov::element::f32;
     auto cvtw = std::make_shared<ov::op::v0::Convert>(qweight, mid_type);
     auto cvtz = std::make_shared<ov::op::v0::Convert>(qzerop, mid_type);
-    auto sub = std::make_shared<ov::op::v1::Subtract>(cvtw, cvtz);
+    ov::Output<ov::Node> shifted_weight = cvtw;
+    ov::Output<ov::Node> shifted_zerop = cvtz;
+    if (weight_shift.has_value()) {
+        auto shift = ov::op::v0::Constant::create(mid_type, ov::Shape{}, {weight_shift.value()});
+        shifted_weight = std::make_shared<ov::op::v1::Subtract>(cvtw, shift);
+    }
+    if (zerop_shift.has_value()) {
+        auto shift = ov::op::v0::Constant::create(mid_type, ov::Shape{}, {zerop_shift.value()});
+        shifted_zerop = std::make_shared<ov::op::v1::Subtract>(cvtz, shift);
+    }
+    auto sub = std::make_shared<ov::op::v1::Subtract>(shifted_weight, shifted_zerop);
     auto mul = std::make_shared<ov::op::v1::Multiply>(sub, qcoeff);
 
     std::shared_ptr<ov::Node> mm_weight_input;
@@ -194,6 +207,63 @@ TEST(OptPatterns, StandardLayout_NoConvert_MatchesAndPreservesConsts) {
     EXPECT_TRUE(std::find(to_keep.begin(), to_keep.end(), qweight) != to_keep.end());
     EXPECT_TRUE(std::find(to_keep.begin(), to_keep.end(), qzerop) != to_keep.end());
     EXPECT_TRUE(std::find(to_keep.begin(), to_keep.end(), qcoeff) != to_keep.end());
+}
+
+TEST(OptPatterns, PairedSub128_MatchesAndPreservesConsts) {
+    const ov::Shape weight_shape{32064, 3072};
+    const ov::Shape scale_shape{32064, 1};
+    auto [qweight, qzerop, qcoeff, model] = build_asymm_matmul_subgraph(weight_shape,
+                                                                        ov::element::u8,
+                                                                        weight_shape,
+                                                                        scale_shape,
+                                                                        /*transpose_b=*/true,
+                                                                        /*convert_before_matmul=*/true,
+                                                                        128.0f,
+                                                                        128.0f);
+
+    ResultNodes to_keep;
+    run_preserve_pattern(model, to_keep);
+
+    ASSERT_EQ(to_keep.size(), 3u);
+    EXPECT_TRUE(std::find(to_keep.begin(), to_keep.end(), qweight) != to_keep.end());
+    EXPECT_TRUE(std::find(to_keep.begin(), to_keep.end(), qzerop) != to_keep.end());
+    EXPECT_TRUE(std::find(to_keep.begin(), to_keep.end(), qcoeff) != to_keep.end());
+}
+
+TEST(OptPatterns, Non128Subtraction_DoesNotPreserveConsts) {
+    const ov::Shape weight_shape{32064, 3072};
+    const ov::Shape scale_shape{32064, 1};
+    auto [qweight, qzerop, qcoeff, model] = build_asymm_matmul_subgraph(weight_shape,
+                                                                        ov::element::u8,
+                                                                        weight_shape,
+                                                                        scale_shape,
+                                                                        /*transpose_b=*/true,
+                                                                        /*convert_before_matmul=*/true,
+                                                                        127.0f,
+                                                                        127.0f);
+
+    ResultNodes to_keep;
+    run_preserve_pattern(model, to_keep);
+
+    EXPECT_TRUE(to_keep.empty());
+}
+
+TEST(OptPatterns, OneSidedSub128_DoesNotPreserveConsts) {
+    const ov::Shape weight_shape{32064, 3072};
+    const ov::Shape scale_shape{32064, 1};
+    auto [qweight, qzerop, qcoeff, model] = build_asymm_matmul_subgraph(weight_shape,
+                                                                        ov::element::u8,
+                                                                        weight_shape,
+                                                                        scale_shape,
+                                                                        /*transpose_b=*/true,
+                                                                        /*convert_before_matmul=*/true,
+                                                                        128.0f,
+                                                                        std::nullopt);
+
+    ResultNodes to_keep;
+    run_preserve_pattern(model, to_keep);
+
+    EXPECT_TRUE(to_keep.empty());
 }
 
 }  // namespace

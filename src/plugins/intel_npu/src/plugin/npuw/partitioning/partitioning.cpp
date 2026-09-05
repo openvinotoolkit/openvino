@@ -2423,7 +2423,8 @@ void Partitioner::optimize(const std::string& func_name) {
                                                                                                gather_w_id,
                                                                                                gather_z_id,
                                                                                                gather_s_id,
-                                                                                               gather_idx_id};
+                                                                                               gather_idx_id,
+                                                                                               param_new_and_unpack_gather.second.apply_sub128};
                 }
             }
         }

@@ -69,13 +69,23 @@ struct Context {
     PPtr host_gather(const PPtr& w, const PPtr& ids);
 
     struct QuantizedGather {
+        struct Params {
+            PPtr w, z, s;
+            bool apply_sub128 = false;
+        };
+
         // New param -> orig params
-        std::map<PPtr, DQUnpack> params_to_runtime_unpack_gather;
+        std::map<PPtr, Params> params_to_runtime_unpack_gather;
         PPtr pids;
     };
     std::optional<QuantizedGather> params_to_quant_gather_unpack;
     bool found_host_gather_quant() const;
-    PPtr host_gather_unpack_quant(const PPtr& ids, const PPtr& w, const PPtr& z, const PPtr& s, ov::element::Type type);
+    PPtr host_gather_unpack_quant(const PPtr& ids,
+                                  const PPtr& w,
+                                  const PPtr& z,
+                                  const PPtr& s,
+                                  ov::element::Type type,
+                                  bool apply_sub128 = false);
 
     using Ref = std::reference_wrapper<Context>;
 };

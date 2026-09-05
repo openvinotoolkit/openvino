@@ -18,6 +18,25 @@ namespace npuw {
 namespace patterns {
 namespace opt {
 
+namespace {
+
+bool is_subtract_128(const std::shared_ptr<ov::Node>& node) {
+    const auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(node);
+    if (subtract == nullptr) {
+        return false;
+    }
+
+    const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(subtract->input_value(1).get_node_shared_ptr());
+    if (constant == nullptr || ov::shape_size(constant->get_shape()) != 1) {
+        return false;
+    }
+
+    const auto value = constant->cast_vector<double>();
+    return value.front() == 128.0;
+}
+
+}  // namespace
+
 void Context::permute(const PPtr& orig_param, const Context::Axes& order) {
     closures_to_permute[orig_param] = order;
 
@@ -142,7 +161,8 @@ Context::PPtr Context::host_gather_unpack_quant(const Context::PPtr& ids,
                                                 const Context::PPtr& w,
                                                 const Context::PPtr& z,
                                                 const Context::PPtr& s,
-                                                ov::element::Type type) {
+                                                ov::element::Type type,
+                                                bool apply_sub128) {
     const auto& w_shape = w->get_shape();
     const auto& ids_shape = ids->get_shape();
 
@@ -177,7 +197,7 @@ Context::PPtr Context::host_gather_unpack_quant(const Context::PPtr& ids,
 
     NPUW_ASSERT(new_param);
     params_to_quant_gather_unpack = QuantizedGather{};
-    params_to_quant_gather_unpack->params_to_runtime_unpack_gather[new_param] = {w, z, s};
+    params_to_quant_gather_unpack->params_to_runtime_unpack_gather[new_param] = {w, z, s, apply_sub128};
     params_to_quant_gather_unpack->pids = ids;
     return new_param;
 }
@@ -1079,7 +1099,9 @@ DQLiftGatherAsymCW::DQLiftGatherAsymCW() {
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
-    auto qsubz = opp::wrap_type<ov::op::v1::Subtract>({qcvtw, qcvtz});
+    auto qshiftw = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0), opp::any_input()});
+    auto qshiftz = opp::optional<ov::op::v1::Subtract>({qcvtz->output(0), opp::any_input()});
+    auto qsubz = opp::wrap_type<ov::op::v1::Subtract>({qshiftw, qshiftz});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsubz, qcoeff});
     auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
 
@@ -1097,6 +1119,14 @@ DQLiftGatherAsymCW::DQLiftGatherAsymCW() {
         auto matched_out_s = node_to_output.at(qcoeff);
         auto matched_out_ids = uat::_(node_to_output).at_or_at(cvtids, pids);
         const auto& matched_out_gather = node_to_output.at(gather);
+
+        if (node_to_output.count(qshiftw) != node_to_output.count(qshiftz)) {
+            return false;
+        }
+        if (node_to_output.count(qshiftw) && (!is_subtract_128(node_to_output.at(qshiftw).get_node_shared_ptr()) ||
+                                             !is_subtract_128(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
+            return false;
+        }
 
         // Replicate the compute part
         auto gather_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
@@ -1380,7 +1410,9 @@ HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_
 
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qgthrw});
     auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qgthrz});
-    auto qsubz = opp::wrap_type<ov::op::v1::Subtract>({qcvtw, qcvtz});
+    auto qshiftw = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0), opp::any_input()});
+    auto qshiftz = opp::optional<ov::op::v1::Subtract>({qcvtz->output(0), opp::any_input()});
+    auto qsubz = opp::wrap_type<ov::op::v1::Subtract>({qshiftw, qshiftz});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsubz, qgthrs});
     auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
 
@@ -1389,6 +1421,17 @@ HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_
         auto& node_to_output = m.get_pattern_value_map();
         const auto& matched_out_mul = node_to_output.at(qmuls);
         auto out_shape = matched_out_mul.get_shape();
+
+        if (node_to_output.count(qshiftw) != node_to_output.count(qshiftz)) {
+            return false;
+        }
+        // The paired shifts mark u8 tensors adapted for an i8 DQ graph. The current
+        // host path replaces that graph with direct u8 dequantization, where the
+        // equal shifts cancel: (W - 128) - (Z - 128) == W - Z.
+        if (node_to_output.count(qshiftw) && (!is_subtract_128(node_to_output.at(qshiftw).get_node_shared_ptr()) ||
+                                             !is_subtract_128(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
+            return false;
+        }
 
         if (out_shape.size() != 3 && out_shape.size() != 4) {
             return false;
@@ -1429,7 +1472,8 @@ HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_
                                                              matched_qweight,
                                                              matched_qzerop,
                                                              matched_qcoeff,
-                                                             ov::element::f16);
+                                                             ov::element::f16,
+                                                             node_to_output.count(qshiftw) != 0);
             matched_node_cvt->input(0).replace_source_output(new_wi);
 
             matched_node_cvt->validate_and_infer_types();
@@ -1933,7 +1977,9 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx,
     auto qzerop = opp::wrap_type<ov::op::v0::Constant>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
-    auto qsub = opp::wrap_type<ov::op::v1::Subtract>({qcvtw, qcvtz});
+    auto qshiftw = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0), opp::any_input()});
+    auto qshiftz = opp::optional<ov::op::v1::Subtract>({qcvtz->output(0), opp::any_input()});
+    auto qsub = opp::wrap_type<ov::op::v1::Subtract>({qshiftw, qshiftz});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsub, qcoeff});
     // The Convert between Multiply and MatMul is optional (some models omit it when Multiply is already f32)
     auto qcvtm = opp::optional<ov::op::v0::Convert>({qmuls});
@@ -1970,6 +2016,14 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx,
         auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
 
         auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
+
+        if (node_to_output.count(qshiftw) != node_to_output.count(qshiftz)) {
+            return false;
+        }
+        if (node_to_output.count(qshiftw) && (!is_subtract_128(node_to_output.at(qshiftw).get_node_shared_ptr()) ||
+                                             !is_subtract_128(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
+            return false;
+        }
 
         // Standard layout: weight [OC, IC], scale [OC, 1], transpose_b=true
         const bool standard_layout = qcoeff_shape.size() == 2 && qcoeff_shape[1] == 1 &&

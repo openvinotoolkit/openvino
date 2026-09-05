@@ -16,6 +16,7 @@
 #include "moe_transformations/apply_moe_device_routed_transforms.hpp"
 #include "npuw_transformations/add_position_ids_param.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
+#include "npuw_transformations/insert_vocab_sub128.hpp"
 #include "npuw_transformations/detect_causal_mask.hpp"
 #include "npuw_transformations/duplicate_shared_kv_concat.hpp"
 #include "npuw_transformations/lora_stateful_to_stateless.hpp"
@@ -879,6 +880,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     LOG_DEBUG("Creating kvcache model as clone of passed one.");
     auto kvcache_model = model->clone();
+
+    if (m_cfg.get<::intel_npu::NPUW_LLM_VOCAB_U8ASYM_TO_I8ASYM>()) {
+        ov::npuw::InsertVocabSub128 pass;
+        if (!pass.run_on_model(kvcache_model)) {
+            LOG_INFO("No asymmetric u8 vocab found - graph Sub128 insertion is skipped.");
+        }
+    }
 
     auto use_text_embed_key = pop_option(other_props, std::string("NPUW_TEXT_EMBED"));
     m_is_embedding = use_text_embed_key.value_or(false).as<bool>() == true;

@@ -73,6 +73,7 @@ struct Subgraph {
         int64_t src_s_idx = -1;
 
         int64_t idx_idx = -1;
+        bool apply_sub128 = false;
     };
     QuantUnpackGather _quant_unpack_gather;
     ov::npuw::v1::subgraphs::FunctionPipeline _pipeline;
