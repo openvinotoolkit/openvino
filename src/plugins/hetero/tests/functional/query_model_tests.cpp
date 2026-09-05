@@ -176,6 +176,56 @@ TEST_F(HeteroTests, query_model_by_two_device) {
         }
     }
 }
+
+TEST_F(HeteroTests, multi_gpu_pipeline_parallel_inference_regression) {
+    std::vector<std::string> gpu_devices;
+    auto available_devices = core.get_available_devices();
+    for (const auto& dev : available_devices) {
+        if (dev.rfind("GPU", 0) == 0) {
+            gpu_devices.push_back(dev);
+        }
+    }
+    if (gpu_devices.size() < 2) {
+        GTEST_SKIP() << "Test requires at least 2 GPU devices for multi-GPU pipeline parallel verification, found: "
+                     << gpu_devices.size();
+    }
+
+    const std::string dev0 = gpu_devices[0];
+    const std::string dev1 = gpu_devices[1];
+    const auto model = create_model_with_multi_add();
+
+    std::set<ov::hint::ModelDistributionPolicy> model_policy = {ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL};
+    ov::AnyMap config = {
+        ov::device::priorities(dev0 + "," + dev1),
+        ov::hint::model_distribution_policy(model_policy)
+    };
+
+    ov::CompiledModel compiled_model;
+    EXPECT_NO_THROW({
+        compiled_model = core.compile_model(model, "HETERO", config);
+    });
+
+    auto infer_request = compiled_model.create_infer_request();
+    auto input_tensor = ov::Tensor(ov::element::f32, ov::Shape{1, 3, 1, 1});
+    float* input_ptr = input_tensor.data<float>();
+    for (size_t i = 0; i < input_tensor.get_size(); ++i) {
+        input_ptr[i] = static_cast<float>(i);
+    }
+    infer_request.set_input_tensor(input_tensor);
+
+    for (int iter = 0; iter < 3; ++iter) {
+        EXPECT_NO_THROW({
+            infer_request.infer();
+        }) << "Inference iteration failed at iter " << iter;
+        auto output_tensor = infer_request.get_output_tensor();
+        ASSERT_EQ(output_tensor.get_shape(), (ov::Shape{1, 3, 1, 1}));
+        const float* output_ptr = output_tensor.data<float>();
+        for (size_t i = 0; i < output_tensor.get_size(); ++i) {
+            EXPECT_FLOAT_EQ(output_ptr[i], input_ptr[i] + 4.0f)
+                << "Mismatch at element " << i << " during iteration " << iter;
+        }
+    }
+}
 }  // namespace tests
 }  // namespace hetero
 }  // namespace ov

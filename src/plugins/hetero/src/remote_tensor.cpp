@@ -69,12 +69,8 @@ void RemoteTensor::copy_to(const std::shared_ptr<ov::ITensor>& dst,
             auto itensor = std::dynamic_pointer_cast<ov::ITensor>(remote->get_tensor(static_cast<int>(i))._ptr);
             m_remote_tensors[i]->copy_to(itensor, src_offset, dst_offset, roi_shape);
         }
-    } else {
-        int i = 0;
-        for (auto& tensor : m_remote_tensors) {
-            tensor->copy_to(dst, src_offset, dst_offset + i * get_strides()[0], roi_shape);
-            i++;
-        }
+    } else if (!m_remote_tensors.empty()) {
+        m_remote_tensors[0]->copy_to(dst, src_offset, dst_offset, roi_shape);
     }
 }
 
@@ -88,12 +84,8 @@ void RemoteTensor::copy_from(const std::shared_ptr<const ov::ITensor>& src,
             m_remote_tensors[i]->copy_from(itensor, src_offset, dst_offset, roi_shape);
         }
     } else {
-        auto new_roi_shape = get_shape();
-        new_roi_shape[0] = roi_shape[0];
-        int i = 0;
         for (auto& tensor : m_remote_tensors) {
-            tensor->copy_from(src, src_offset + i * get_strides()[0], dst_offset, new_roi_shape);
-            i++;
+            tensor->copy_from(src, src_offset, dst_offset, roi_shape);
         }
     }
 }

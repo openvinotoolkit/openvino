@@ -158,18 +158,10 @@ event::ptr gpu_buffer::copy_from(stream& stream, const memory& src_mem, size_t s
 
     check_boundaries(src_mem.size(), src_offset, _bytes_count, dst_offset, size, "gpu_buffer::copy_from(memory&)");
 
-    switch (src_mem.get_allocation_type()) {
-        case allocation_type::usm_host:
-        case allocation_type::usm_shared:
-        case allocation_type::usm_device: {
-            // If other is gpu_usm, down cast to gpu_buffer is not possible.
-            // But it can read as host ptr if it's allocation type is either usm_host or usm_shared.
-            const auto* usm_mem = downcast<const gpu_usm>(&src_mem);
-            return copy_from(stream, usm_mem->buffer_ptr(), src_offset, dst_offset, size, blocking);
-        }
-        case allocation_type::cl_mem: {
-            OPENVINO_ASSERT(!src_mem.get_layout().format.is_image_2d());
+    if (src_mem.get_allocation_type() == allocation_type::cl_mem) {
+        OPENVINO_ASSERT(!src_mem.get_layout().format.is_image_2d());
 
+        if (src_mem.get_engine() == this->get_engine()) {
             auto* cl_stream = downcast<ocl_stream>(&stream);
             const auto* cl_mem_buffer = downcast<const gpu_buffer>(&src_mem);
             auto* ev_ocl = &downcast<ocl_event>(result_event.get())->get();
@@ -182,9 +174,25 @@ event::ptr gpu_buffer::copy_from(stream& stream, const memory& src_mem, size_t s
 
             return result_event;
         }
-        default:
-            OPENVINO_THROW("[GPU] Unsupported buffer type for gpu_buffer::copy_from() function");
+    } else if (memory_capabilities::is_usm_type(src_mem.get_allocation_type())) {
+        if (src_mem.get_allocation_type() != allocation_type::usm_device && src_mem.get_engine() == this->get_engine()) {
+            const auto* usm_mem = downcast<const gpu_usm>(&src_mem);
+            return copy_from(stream, usm_mem->buffer_ptr(), src_offset, dst_offset, size, blocking);
+        }
+    } else {
+        OPENVINO_THROW("[GPU] Unsupported buffer type for gpu_buffer::copy_from() function");
     }
+
+    // Fallback host-staging branch for cross-engine transfers or usm_device -> cl_mem copies.
+    // D2H copy must execute on the source engine's own service stream to prevent the destination GPU queue
+    // from attempting to access foreign VRAM or mismatched OpenCL contexts.
+    std::vector<char> tmp_buf(size);
+    auto& src_stream = src_mem.get_engine()->get_service_stream();
+    src_mem.copy_to(src_stream, tmp_buf.data(), src_offset, 0, size, true);
+
+    GPU_DEBUG_TRACE_DETAIL << "Suboptimal copy call from " << src_mem.get_allocation_type() << " to " << get_allocation_type() << "\n";
+    // H2D copy into this memory must be synchronous (blocking=true) so tmp_buf is not destroyed while DMA is in flight.
+    return copy_from(stream, tmp_buf.data(), 0, dst_offset, size, true);
 }
 
 event::ptr gpu_buffer::copy_to(stream& stream, void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) const {
@@ -628,27 +636,33 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& src_mem, size_t src_
     auto* cl_event = blocking ? nullptr : &downcast<ocl_event>(result_event.get())->get();
 
     if (src_mem.get_allocation_type() == allocation_type::cl_mem) {
-        const auto* cl_mem_buffer = downcast<const gpu_buffer>(&src_mem);
-        auto* dst_ptr = reinterpret_cast<char*>(buffer_ptr());
+        if (src_mem.get_engine() == this->get_engine() && this->get_allocation_type() != allocation_type::usm_device) {
+            const auto* cl_mem_buffer = downcast<const gpu_buffer>(&src_mem);
+            auto* dst_ptr = reinterpret_cast<char*>(buffer_ptr());
 
-        return cl_mem_buffer->copy_to(stream, dst_ptr, src_offset, dst_offset, size, blocking);
-    }
-    if (memory_capabilities::is_usm_type(src_mem.get_allocation_type())) {
+            return cl_mem_buffer->copy_to(stream, dst_ptr, src_offset, dst_offset, size, blocking);
+        }
+    } else if (memory_capabilities::is_usm_type(src_mem.get_allocation_type()) && src_mem.get_engine() == this->get_engine()) {
+        // Direct USM memcpy requires same engine (same OpenCL context / virtual address space).
+        // Cross-engine USM copies cause hardware BCS page faults on discrete multi-GPU setups. See #37692.
         const auto* usm_mem = downcast<const gpu_usm>(&src_mem);
         const auto* src_ptr = reinterpret_cast<const char*>(usm_mem->buffer_ptr()) + src_offset;
         auto* dst_ptr = reinterpret_cast<char*>(buffer_ptr()) + dst_offset;
 
         TRY_CATCH_CL_ERROR(cl_stream->get_usm_helper().enqueue_memcpy(cl_stream->get_cl_queue(), dst_ptr, src_ptr, size, blocking, nullptr, cl_event));
-    } else {
-        std::vector<char> tmp_buf;
-        tmp_buf.resize(size);
-        src_mem.copy_to(stream, tmp_buf.data(), src_offset, 0, size, true);
-
-        GPU_DEBUG_TRACE_DETAIL << "Suboptimal copy call from " << src_mem.get_allocation_type() << " to " << get_allocation_type() << "\n";
-        return copy_from(stream, tmp_buf.data(), 0, 0, size, blocking);
+        return result_event;
     }
 
-    return result_event;
+    // Fallback host-staging branch for cross-engine transfers or cl_mem -> usm_device copies.
+    // D2H copy must execute on the source engine's own service stream to prevent the destination GPU queue
+    // from attempting to access foreign VRAM or mismatched OpenCL contexts.
+    std::vector<char> tmp_buf(size);
+    auto& src_stream = src_mem.get_engine()->get_service_stream();
+    src_mem.copy_to(src_stream, tmp_buf.data(), src_offset, 0, size, true);
+
+    GPU_DEBUG_TRACE_DETAIL << "Suboptimal copy call from " << src_mem.get_allocation_type() << " to " << get_allocation_type() << "\n";
+    // H2D copy into this memory must be synchronous (blocking=true) so tmp_buf is not destroyed while DMA is in flight.
+    return copy_from(stream, tmp_buf.data(), 0, dst_offset, size, true);
 }
 
 event::ptr gpu_usm::copy_to(stream& stream, void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) const {
