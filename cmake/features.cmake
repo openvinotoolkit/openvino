@@ -53,6 +53,7 @@ endif()
 
 ov_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ${ENABLE_ONEDNN_FOR_GPU_DEFAULT} "ENABLE_INTEL_GPU" OFF)
 ov_dependent_option (ENABLE_CM_FOR_GPU "Enable C for Metal (CM) kernels at GPU runtime" ON "ENABLE_INTEL_GPU" OFF)
+ov_dependent_option (ENABLE_GPU_MLIR "Enable MLIR / Graph Compiler based execution in GPU plugin" OFF "ENABLE_INTEL_GPU" OFF)
 
 ov_dependent_option (ENABLE_INTEL_NPU "NPU plugin for OpenVINO runtime" ON "X86_64;WIN32 OR LINUX OR ANDROID" OFF)
 # matches ENABLE_INTEL_NPU_COMPILER default: internal NPU tools aren't built for static libs

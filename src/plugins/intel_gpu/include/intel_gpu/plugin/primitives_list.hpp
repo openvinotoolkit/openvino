@@ -330,3 +330,6 @@ REGISTER_FACTORY(internal, GatherMatmul);
 REGISTER_FACTORY(internal, GatherMatmulCompressed);
 REGISTER_FACTORY(internal, GroupedMatMulCompressed);
 REGISTER_FACTORY(internal, Atan2);
+#ifdef ENABLE_GPU_MLIR
+REGISTER_FACTORY(internal, MLIR);
+#endif
