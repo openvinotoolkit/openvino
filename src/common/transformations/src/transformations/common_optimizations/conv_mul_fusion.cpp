@@ -64,7 +64,7 @@ ConvolutionMultiplyFusion::ConvolutionMultiplyFusion() {
         if (!is_scalar_multiplier) {
             auto final_const_shape = Shape(weights_rank, 1);
             final_const_shape[0] = channel_dim;
-            final_const = std::make_shared<v1::Reshape>(
+            final_const = ov::op::util::make_try_fold<v1::Reshape>(
                 m_const,
                 v0::Constant::create(element::i64, Shape{final_const_shape.size()}, final_const_shape),
                 true);
@@ -147,7 +147,7 @@ GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
                 final_const_shape[0] = G;
                 final_const_shape[1] = O;
             }
-            final_const = std::make_shared<v1::Reshape>(
+            final_const = ov::op::util::make_try_fold<v1::Reshape>(
                 m_const,
                 v0::Constant::create(element::i64, Shape{final_const_shape.size()}, final_const_shape),
                 true);
@@ -215,7 +215,7 @@ ConvolutionBackpropDataMultiplyFusion::ConvolutionBackpropDataMultiplyFusion() {
         if (!is_scalar_multiplier) {
             auto final_const_shape = Shape(weights_rank - 1, 1);
             final_const_shape[0] = channel_dim;
-            final_const = std::make_shared<v1::Reshape>(
+            final_const = ov::op::util::make_try_fold<v1::Reshape>(
                 m_const,
                 v0::Constant::create(element::i64, Shape{final_const_shape.size()}, final_const_shape),
                 true);
@@ -292,7 +292,7 @@ GroupConvolutionBackpropDataMultiplyFusion::GroupConvolutionBackpropDataMultiply
             auto final_const_shape = Shape(weights_rank, 1);
             final_const_shape[0] = G;
             final_const_shape[2] = O;
-            final_const = std::make_shared<v1::Reshape>(
+            final_const = ov::op::util::make_try_fold<v1::Reshape>(
                 m_const,
                 v0::Constant::create(element::i64, Shape{final_const_shape.size()}, final_const_shape),
                 true);

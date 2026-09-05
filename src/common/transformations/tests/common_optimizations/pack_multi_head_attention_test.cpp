@@ -74,10 +74,16 @@ std::shared_ptr<ov::Node> build_ROPE(const std::shared_ptr<ov::Node>& input, con
 std::shared_ptr<ov::Node> build_sdpa(const std::shared_ptr<ov::Node>& q,
                                      const std::shared_ptr<ov::Node>& k,
                                      const std::shared_ptr<ov::Node>& v,
-                                     const Shape& bias_shape) {
+                                     const Shape& bias_shape,
+                                     bool add_divide_scale = false) {
     auto qk = std::make_shared<MatMul>(q, k, false, true);
+    std::shared_ptr<ov::Node> qk_scaled = qk;
+    if (add_divide_scale) {
+        auto scale = Constant::create(element::f32, Shape{1, 1, 1, 1}, {8.0f});
+        qk_scaled = std::make_shared<Divide>(qk, scale);
+    }
     auto bias = Constant::create(element::f32, bias_shape, {0.0f});
-    auto add = std::make_shared<Add>(qk, bias);
+    auto add = std::make_shared<Add>(qk_scaled, bias);
     auto softmax = std::make_shared<Softmax>(add, -1);
     auto attn = std::make_shared<MatMul>(softmax, v);
     return attn;
@@ -100,7 +106,8 @@ std::shared_ptr<ov::Model> build_model_mha(size_t batch,
                                            size_t seq_len,
                                            size_t head_size,
                                            size_t num_heads,
-                                           size_t num_groups) {
+                                           size_t num_groups,
+                                           bool add_divide_scale = false) {
     OPENVINO_ASSERT(num_heads % num_groups == 0, "num_heads must be divisible by num_groups");
 
     const ov::Shape input_shape{batch, seq_len, head_size};
@@ -123,7 +130,7 @@ std::shared_ptr<ov::Model> build_model_mha(size_t batch,
         for (size_t h = 0; h < heads_per_group; ++h) {
             auto q_proj = build_qkv_projection(norm, proj_shape, bias_shape);
             auto q = build_ROPE(q_proj, rope_shape);
-            auto attn_out = build_sdpa(q, k, v, sdpa_bias_shape);
+            auto attn_out = build_sdpa(q, k, v, sdpa_bias_shape, add_divide_scale);
             auto projected = build_post_sdpa(attn_out, input_shape, post_sdpa_weights_shape);
             all_head_outputs.push_back(projected);
         }
@@ -138,7 +145,8 @@ std::shared_ptr<ov::Model> build_model_mha(size_t batch,
 std::shared_ptr<ov::Model> build_model_mha_packed_ref(size_t batch,
                                                       size_t seq_len,
                                                       size_t head_size,
-                                                      size_t num_heads) {
+                                                      size_t num_heads,
+                                                      bool absorb_divide_scale = false) {
     const ov::Shape input_shape{batch, seq_len, head_size};
 
     auto input = std::make_shared<Parameter>(element::f32, input_shape);
@@ -161,6 +169,9 @@ std::shared_ptr<ov::Model> build_model_mha_packed_ref(size_t batch,
     const ov::Shape rope_shape{batch, num_heads, seq_len, head_size};
     auto q = build_ROPE(q_proj, rope_shape);
     auto k = build_ROPE(k_proj, rope_shape);
+    if (absorb_divide_scale) {
+        k = std::make_shared<Multiply>(k, Constant::create(element::f32, Shape{1, 1, 1, 1}, {0.125f}));
+    }
 
     auto attn_out = build_sdpa(q, k, v_proj, sdpa_bias_shape);
 
@@ -196,6 +207,19 @@ TEST_P(PackGQATest, PackGQA) {
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, PackMHAAbsorbsDivideScaleIntoMatMulInput) {
+    {
+        model = build_model_mha(1, 128, 64, 2, 2, true);
+        manager.register_pass<ov::pass::PackMultiHeadAttention>();
+    }
+
+    { model_ref = build_model_mha_packed_ref(1, 128, 64, 2, true); }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    disable_rt_info_check();
 }
 
 INSTANTIATE_TEST_SUITE_P(PackGQATests,
