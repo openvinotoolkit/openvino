@@ -5,6 +5,7 @@
 #include <climits>
 #include <cstdint>
 #include <memory>
+#include <numeric>
 #include <vector>
 
 #include "node_context.hpp"
@@ -53,6 +54,12 @@ OutputVector translate_cpy(const NodeContext& context) {
     }
 
     if (op_case == 3 && input_shape.is_static() && ov::shape_size(input_shape.to_shape()) == 0) {
+        return {context.get_input(1)};
+    }
+
+    if (op_case == 5) {
+        // Empty recurrent compaction is a true no-op. Do not rename the shared cache producer:
+        // it can feed other nodes and its stable name is used by stateful passes/fingerprints.
         return {context.get_input(1)};
     }
 
@@ -123,15 +130,26 @@ OutputVector translate_cpy(const NodeContext& context) {
             src.get_node_shared_ptr()->set_friendly_name("gdn_writeback_source_" + context.get_name());
         } else if (op_case == 2) {
             const int64_t window_size = input_shape[3].get_length();
-            auto src_begin = context.get_input("rs_src_begin_" + writeback_name);
-            auto src_end =
-                std::make_shared<ov::op::v1::Add>(src_begin,
-                                                  ov::op::v0::Constant::create(ov::element::i64, {1}, {window_size}));
-            auto window = std::make_shared<ov::op::v8::Slice>(context.get_input(0),
-                                                              src_begin,
-                                                              src_end,
-                                                              one,
-                                                              ov::op::v0::Constant::create(ov::element::i64, {1}, {3}));
+            const std::string src_begin_name = "rs_src_begin_" + writeback_name;
+            ov::Output<ov::Node> window;
+            auto col_axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {3});
+            if (context.has_input(src_begin_name)) {
+                auto src_begin = context.get_input(src_begin_name);
+                auto src_end = std::make_shared<ov::op::v1::Add>(
+                    src_begin,
+                    ov::op::v0::Constant::create(ov::element::i64, {1}, {window_size}));
+                window = std::make_shared<ov::op::v8::Slice>(context.get_input(0), src_begin, src_end, one, col_axis);
+            } else if (context.has_input("chunk_valid_len")) {
+                std::vector<int64_t> offsets(window_size);
+                std::iota(offsets.begin(), offsets.end(), 0);
+                auto indices = std::make_shared<ov::op::v1::Add>(
+                    ov::op::v0::Constant::create(ov::element::i64, {static_cast<size_t>(window_size)}, offsets),
+                    context.get_input("chunk_valid_len"));
+                window = std::make_shared<ov::op::v8::Gather>(context.get_input(0), indices, col_axis);
+            } else {
+                auto src_begin = ov::op::v0::Constant::create(ov::element::i64, {1}, {-window_size});
+                window = std::make_shared<ov::op::v8::Slice>(context.get_input(0), src_begin, int_max, one, col_axis);
+            }
             src = reshape_writeback(window);
             src.get_node_shared_ptr()->set_friendly_name("conv_writeback_source_" + context.get_name());
         } else {
@@ -154,9 +172,25 @@ OutputVector translate_cpy(const NodeContext& context) {
         return rename_outputs_with_suffix({std::move(res)}, context.get_name());
     }
 
+    ov::Output<ov::Node> value = context.get_input(0);
+    if (op_case == 2) {
+        // A recurrent convolution update copies the trailing d_conv - 1 columns from the
+        // [state | current chunk] window.  The VIEW carrying that slice can be folded out of the
+        // decoder graph, so recover the logical window from its declared shape before flattening
+        // it into the cache row.  Slicing is also correct when the input has already been narrowed.
+        FRONT_END_OP_CONVERSION_CHECK(
+            input_shape.rank().is_static() && input_shape.rank().get_length() == 4 && input_shape[3].is_static(),
+            "Convolution-state CPY requires a static window width");
+        const auto window_size = input_shape[3].get_length();
+        value = std::make_shared<ov::op::v8::Slice>(value,
+                                                    ov::op::v0::Constant::create(ov::element::i64, {1}, {-window_size}),
+                                                    ov::op::v0::Constant::create(ov::element::i64, {1}, {INT_MAX}),
+                                                    ov::op::v0::Constant::create(ov::element::i64, {1}, {1}),
+                                                    ov::op::v0::Constant::create(ov::element::i64, {1}, {3}));
+    }
+
     ov::Output<ov::Node> res =
-        std::make_shared<ov::op::v0::Convert>(context.get_input(0),
-                                              context.get_attribute<ov::element::Type>("output_type"));
+        std::make_shared<ov::op::v0::Convert>(value, context.get_attribute<ov::element::Type>("output_type"));
 
     // A CPY may reinterpret the source layout into its destination's (e.g. qwen3-next's conv-state
     // writeback flattens the contiguous [S, F] conv_state_last into the flat [S*F] recurrent cache
