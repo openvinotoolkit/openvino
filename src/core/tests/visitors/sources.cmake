@@ -22,6 +22,7 @@ set(OV_CORE_TESTS_VISITORS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op/avg_pool.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/batch_norm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/batch_to_space.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/bevpool_v2.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/binary_convolution.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/bitwise_and.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/bitwise_left_shift.cpp

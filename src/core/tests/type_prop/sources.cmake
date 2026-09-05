@@ -19,6 +19,7 @@ set(OV_CORE_TESTS_TYPE_PROP_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/avg_pool.cpp
     ${CMAKE_CURRENT_LIST_DIR}/batch_norm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/batch_to_space.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/bevpool_v2.cpp
     ${CMAKE_CURRENT_LIST_DIR}/binary_convolution.cpp
     ${CMAKE_CURRENT_LIST_DIR}/binary_elementwise.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bitwise_and.cpp
