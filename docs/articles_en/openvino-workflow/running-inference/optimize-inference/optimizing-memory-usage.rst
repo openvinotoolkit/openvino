@@ -56,3 +56,37 @@ The most RAM-consuming OpenVINO stage is model compilation. It may cause several
   
     * ``MALLOC_MMAP_THRESHOLD_=13107200`` sets the default value as a static threshold. Adjust this value to balance memory recovery and performance. Note that model compile time can be affected.
     * Try a different memory allocator, such as ``jemalloc``, for more careful memory management.
+
+Reduce memory footprint between inference runs
++++++++++++++++++++++++++++++++++++++++++++++++
+
+A compiled model may retain extra memory after compilation, for example driver-allocated
+buffers, even while no inference request is running. If your application compiles a model
+once but only runs inference intermittently, ``ov::CompiledModel::release_memory()`` lets
+you release this memory explicitly, without discarding or recompiling the ``ov::CompiledModel``
+object itself.
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. code-block:: python
+
+         compiled_model.release_memory()
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. code-block:: cpp
+
+         compiled_model.release_memory();
+
+.. important::
+
+   Make sure no inference requests created from the compiled model are still running when
+   ``release_memory()`` is called, as this may throw an exception, depending on the plugin.
+
+This method is implemented by the CPU, GPU, and NPU plugins, where it measurably lowers the
+idle memory footprint (on NPU, for example, via driver graph eviction). Plugins that do not
+implement it treat the call as a no-op.

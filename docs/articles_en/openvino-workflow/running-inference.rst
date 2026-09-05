@@ -18,6 +18,7 @@ Running and Integrating Inference Pipeline
    running-inference/python-api-exclusives
    running-inference/inference-devices-and-modes
    Optimize Inference <running-inference/optimize-inference>
+   running-inference/logging
 
 
 OpenVINO Runtime is a set of C++ libraries with C and Python bindings, providing a common

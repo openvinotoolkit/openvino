@@ -382,6 +382,11 @@ The plugin supports the following properties:
       - ``ov::cache_dir``
       - ``ov::intel_cpu::denormals_optimization``
       - ``ov::intel_cpu::sparse_weights_decompression_rate``
+      - ``ov::hint::kv_cache_precision``
+      - ``ov::key_cache_precision``
+      - ``ov::value_cache_precision``
+      - ``ov::key_cache_group_size``
+      - ``ov::value_cache_group_size``
 
    .. tab-item:: Read-only properties
 

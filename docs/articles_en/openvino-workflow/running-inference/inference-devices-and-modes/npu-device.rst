@@ -315,6 +315,16 @@ Example: Setting ``performance-hint-override=latency`` through ``ov::intel_npu::
 to use all available resources for the given platform. If ``ov::intel_npu::max_tiles`` is not provided,
 the compiler falls back to a fixed lookup table embedded in the library to determine available resources, which might not be representative of all SKUs.
 
+**ov::intel_npu::enable_strides_for**
+
+This property accepts a comma-separated list of input or output tensor names for which the
+plugin should allow custom, non-default memory strides instead of requiring densely packed
+tensors. It is useful when the application binds tensors that are views into a larger buffer.
+
+.. code-block::
+
+   core.compile_model(model, "NPU", ov::intel_npu::enable_strides_for("input_1,output_1"));
+
 **ov::cache_encryption_callbacks**
 
 Enables blob encryption and decryption using user-provided callbacks. This is a write-only property that accepts a struct with encryption and decryption callback functions.

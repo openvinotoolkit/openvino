@@ -149,6 +149,70 @@ auto compiled = core.compile_model(modelPath,
     }
 }
 
+void part7() {
+    std::string modelPath = "/tmp/myModel.xml";
+    std::string device = "CPU";
+//! [ov:caching:part7]
+ov::Core core;
+auto model = core.read_model(modelPath);
+auto compiled = core.compile_model(model, device);
+
+// Export the compiled model to a stream
+std::stringstream model_stream;
+compiled.export_model(model_stream);
+
+// Get the exported data as a string, then wrap it in a Tensor
+std::string model_data = model_stream.str();
+ov::Tensor compiled_blob(ov::element::u8, {model_data.size()}, model_data.data());
+
+// Import the compiled model back from the Tensor
+auto imported = core.import_model(compiled_blob, device);
+//! [ov:caching:part7]
+    if (!imported) {
+        throw std::runtime_error("error");
+    }
+}
+
+void part8() {
+    std::string modelPath = "/tmp/myModel.xml";
+    std::string device = "CPU";
+//! [ov:caching:part8]
+ov::Core core;
+
+// ov::enable_weightless takes priority over CacheMode when both are set.
+auto compiled = core.compile_model(modelPath, device, ov::enable_weightless(true));
+//! [ov:caching:part8]
+    if (!compiled) {
+        throw std::runtime_error("error");
+    }
+}
+
+void part9() {
+    std::string modelPath = "/tmp/myModel.xml";
+    std::string device = "CPU";
+//! [ov:caching:part9]
+ov::Core core;
+auto model = core.read_model(modelPath);
+auto compiled = core.compile_model(model, device, ov::enable_weightless(true));
+
+// Export a weightless blob: it does not contain the model weights.
+std::stringstream model_stream;
+compiled.export_model(model_stream);
+std::string model_data = model_stream.str();
+ov::Tensor weightless_blob(ov::element::u8, {model_data.size()}, model_data.data());
+
+// The weights must be supplied separately when importing a weightless blob:
+// Option 1: a path to the original weights file.
+auto imported_from_path = core.import_model(weightless_blob, device, ov::weights_path("/tmp/myModel.bin"));
+
+// Option 2: the original ov::Model object.
+auto imported_from_model = core.import_model(weightless_blob, device, ov::hint::model(model));
+//! [ov:caching:part9]
+    if (!imported_from_path || !imported_from_model) {
+        throw std::runtime_error("error");
+    }
+}
+
 int main() {
     try {
         part0();
@@ -158,6 +222,9 @@ int main() {
         part4();
         part5();
         part6();
+        part7();
+        part8();
+        part9();
     } catch (...) {
     }
     return 0;

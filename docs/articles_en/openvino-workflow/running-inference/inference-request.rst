@@ -132,8 +132,8 @@ Both are thread-safe.
   requests simultaneously, possibly complicating the application logic. Therefore, for
   multi-request scenarios, consider also the ``ov::InferRequest::set_callback`` method, to
   trigger a callback when the request is complete. Note that to avoid cyclic references
-  in the callback, weak reference of infer_request should be used (``ov::InferRequest*``,
-  ``ov::InferRequest&, std::weal_ptr<ov::InferRequest>``, etc.).
+  in the callback, a weak reference to infer_request should be used (``ov::InferRequest*``,
+  ``ov::InferRequest&``, ``std::weak_ptr<ov::InferRequest>``, etc.).
 
   .. tab-set::
 
@@ -151,6 +151,13 @@ Both are thread-safe.
               :language: cpp
               :fragment: set_callback
 
+  .. note::
+
+     ``ov::InferRequest::wait`` and ``ov::InferRequest::wait_for`` do not return until
+     the callback registered via ``set_callback`` has finished executing — they are not
+     released right after the inference itself completes. If the callback performs
+     heavy work, ``wait``/``wait_for`` are blocked for that long as well, which is one
+     more reason to keep callbacks lightweight.
 
   If you want to abort a running inference request, use the ``ov::InferRequest::cancel``
   method.

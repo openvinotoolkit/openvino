@@ -50,6 +50,11 @@ With OpenVINO 2024.4, the following methods have been introduced:
 - :ref:`CompiledModel.getProperty() <getProperty>`
 - :ref:`CompiledModel.setProperty() <setProperty>`
 
+With OpenVINO 2025.3, the following have been added:
+
+- :doc:`AsyncInferQueue <./openvino-node/interfaces/AsyncInferQueue>` — manages a pool of ``InferRequest`` objects for asynchronous inference.
+- :ref:`Model.reshape() <reshape>` — reshapes model inputs with partial shapes.
+
 
 Additional Resources
 #####################

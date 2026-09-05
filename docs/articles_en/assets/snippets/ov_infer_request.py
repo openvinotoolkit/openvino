@@ -32,6 +32,8 @@ infer_request.wait_for(10)
 #! [wait_for]
 
 #! [set_callback]
+# Note: infer_request.wait()/wait_for() will not return until this callback
+# has finished executing.
 def callback(request, _):
     request.start_async()
 
