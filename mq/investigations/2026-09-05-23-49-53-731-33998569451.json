@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-05-23-49-53-731-33998569451",
+  "timestamp": "2026-09-05T23:49:53Z",
+  "run_id": "33998569451",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33998569451",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37918",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37918",
+  "author": "dependabot[bot]",
+  "category": "Infrastructure",
+  "title": "Build job cancelled by runner shutdown signal during CMake configure",
+  "signature": "runner has received a shutdown signal operation was canceled|Infrastructure",
+  "signature_hash": "39e65673e42b712c",
+  "confidence": "High",
+  "failed_jobs": [
+    {"name": "Build / Build", "conclusion": "cancelled", "symptom": "Job cancelled mid-CMake-configure due to a runner shutdown signal"},
+    {"name": "ci/gha_overall_status_linux_arm64", "conclusion": "failure", "symptom": "Overall status check failed because upstream Build job was cancelled"}
+  ],
+  "key_errors": [
+    "##[error]The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.",
+    "##[error]The operation was canceled."
+  ],
+  "root_cause": "The self-hosted/GitHub-hosted runner executing the 'Build / Build' job received a shutdown signal while CMake configuration was in progress (immediately after 'Performing Test OPENVINO_GLIBC_MUSL - Failed', a benign feature-detection step). This is a runner-infrastructure interruption, not caused by the PR's own change (a trivial package-lock.json dependency bump with no build-affecting content). The downstream overall-status job then failed because its upstream dependency was cancelled.",
+  "reproduction_steps": "N/A - not reproducible locally; this is a transient runner infrastructure interruption unrelated to build logic.",
+  "recommended_actions": [
+    "Re-run the failed jobs for this workflow run; the underlying build did not encounter a code-related error.",
+    "If shutdown-signal cancellations recur frequently for the linux_arm64 runner pool, escalate to GitHub Actions / self-hosted runner infrastructure owners to check for runner scaling or eviction issues."
+  ],
+  "prevention_strategies": "No PR-side prevention possible; this is an infrastructure-layer interruption. Consider adding automatic retry-on-cancel logic in the merge-queue workflow_rerunner for this specific shutdown-signal signature.",
+  "historical_context": "No prior recorded occurrence of this exact runner-shutdown-signal pattern was found under mq/patterns before this run; first occurrence recorded now."
+}

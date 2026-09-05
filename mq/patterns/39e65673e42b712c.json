@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "signature": "runner has received a shutdown signal operation was canceled|Infrastructure",
+  "signature_hash": "39e65673e42b712c",
+  "title": "Build job cancelled by runner shutdown signal during CMake configure",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-09-05T23:49:53Z",
+  "last_seen": "2026-09-05T23:49:53Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/33998569451"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/37918"],
+  "recent_timestamps": ["2026-09-05T23:49:53Z"],
+  "rerun_search_string": "runner has received a shutdown signal"
+}
