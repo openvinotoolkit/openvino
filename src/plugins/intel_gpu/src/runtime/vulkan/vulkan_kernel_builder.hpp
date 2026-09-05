@@ -21,6 +21,7 @@ public:
                        const std::string& options,
                        std::vector<kernel::ptr>& output) const override;
     void build_kernels(const kernel_artifact& artifact, std::vector<kernel::ptr>& output) const override;
+    kernel_compiler_info get_compiler_info() const override;
 
 private:
     const vulkan_engine& _engine;

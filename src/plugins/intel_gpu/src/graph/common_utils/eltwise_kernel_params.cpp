@@ -14,6 +14,20 @@
 #include "program_node.h"
 
 namespace cldnn {
+namespace {
+void initialize_unfused_eltwise_base(const kernel_impl_params& impl_params, kernel_selector::eltwise_params& params, bool is_shape_agnostic) {
+    const auto& device_info = impl_params.get_program().get_engine().get_device_info();
+    params.uniqueID = std::to_string(impl_params.hash());
+    params.engineInfo = make_kernel_selector_engine_info(device_info);
+
+    params.is_shape_agnostic = is_shape_agnostic;
+    params.stage_id = 0;
+    params.inputs[0] = convert_data_tensor(impl_params.get_input_layout(0));
+    params.outputs[0] = convert_data_tensor(impl_params.get_output_layout(0));
+    params.layerID = impl_params.desc->id;
+}
+
+}  // namespace
 
 kernel_selector::EltwiseMode convert_to_eltwise_mode(eltwise_mode mode) {
     switch (mode) {
@@ -79,8 +93,7 @@ kernel_selector::EltwiseMode convert_to_eltwise_mode(eltwise_mode mode) {
     }
 }
 
-kernel_selector::eltwise_params lower_eltwise_params(const kernel_impl_params& impl_params,
-                                                     kernel_selector::eltwise_params params) {
+kernel_selector::eltwise_params lower_eltwise_params(const kernel_impl_params& impl_params, kernel_selector::eltwise_params params) {
     const auto& primitive = impl_params.typed_desc<eltwise>();
     const auto input_count = primitive->input.size();
     const auto mode = convert_to_eltwise_mode(primitive->mode);
@@ -92,15 +105,12 @@ kernel_selector::eltwise_params lower_eltwise_params(const kernel_impl_params& i
     if (input_count == 1) {
         params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0)}, mode});
     } else {
-        params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0),
-                                      kernel_selector::eltwise_params::InputType::Buffer(1)},
-                                     mode});
+        params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0), kernel_selector::eltwise_params::InputType::Buffer(1)}, mode});
     }
 
     for (uint32_t index = 2; index < static_cast<uint32_t>(input_count); ++index) {
-        params.operations.push_back({{kernel_selector::eltwise_params::InputType::Intermediate(index - 2),
-                                      kernel_selector::eltwise_params::InputType::Buffer(index)},
-                                     mode});
+        params.operations.push_back(
+            {{kernel_selector::eltwise_params::InputType::Intermediate(index - 2), kernel_selector::eltwise_params::InputType::Buffer(index)}, mode});
     }
 
     params.coefficients = primitive->coefficients;
@@ -151,12 +161,20 @@ kernel_selector::eltwise_params lower_eltwise_params(const kernel_impl_params& i
 
     params.int8_quantization = true;
     for (size_t index = 0; index < input_count; ++index) {
-        if (impl_params.input_layouts[index].data_type != data_types::u8 &&
-            impl_params.input_layouts[index].data_type != data_types::i8) {
+        if (impl_params.input_layouts[index].data_type != data_types::u8 && impl_params.input_layouts[index].data_type != data_types::i8) {
             params.int8_quantization = false;
         }
     }
 
+    return params;
+}
+
+kernel_selector::eltwise_params make_unfused_eltwise_kernel_params(const kernel_impl_params& impl_params, bool is_shape_agnostic) {
+    OPENVINO_ASSERT(impl_params.fused_desc.empty(), "[GPU] Unfused Eltwise lowering received fused operations");
+    kernel_selector::eltwise_params params;
+    initialize_unfused_eltwise_base(impl_params, params, is_shape_agnostic);
+    params = lower_eltwise_params(impl_params, std::move(params));
+    params.set_dynamic_shape_offsets();
     return params;
 }
 

@@ -45,8 +45,18 @@ std::string reorder_source_options(const std::string& original_options) {
 
 class source_kernel_frontend final {
 public:
-    static void append_batch_headers(kernels_cache::batch_program& program, const std::map<std::string, std::string>& batch_headers) {
+    static std::string remove_includes(const std::string& source) {
+        static const std::regex include_regex(R"(#include\s+\"[^\"]+\"[^\r\n]*(\r?\n|$))");
+        return std::regex_replace(source, include_regex, "");
+    }
+
+    static void append_batch_headers(kernels_cache::batch_program& program,
+                                     const std::map<std::string, std::string>& batch_headers,
+                                     KernelSourceHeaders source_headers) {
         if (program.language != kernel_language::OCLC) {
+            return;
+        }
+        if (source_headers == KernelSourceHeaders::REFERENCED_ONLY) {
             return;
         }
         static const std::vector<std::string> micro_kernel_include_names{
@@ -56,11 +66,46 @@ public:
         };
         for (const auto& header : batch_headers) {
             if (std::find(micro_kernel_include_names.begin(), micro_kernel_include_names.end(), header.first) == micro_kernel_include_names.end()) {
-                program.source.push_back(header.second);
+                program.source.push_back(remove_includes(header.second));
             } else {
-                program.micro_headers.push_back(header.second);
+                program.micro_headers.push_back(remove_includes(header.second));
             }
         }
+    }
+
+    static void inline_referenced_headers(kernels_cache::batch_program& program, const std::map<std::string, std::string>& batch_headers) {
+        const std::regex include_regex(R"(#include\s+\"([^\"]+)\")");
+        const auto common_header = batch_headers.find("common");
+        OPENVINO_ASSERT(common_header != batch_headers.end(), "[GPU] Source compiler requires the common kernel preamble");
+        std::set<std::string> expanded_headers{"common"};
+
+        std::function<std::string(const std::string&)> expand = [&](const std::string& source) {
+            std::string result;
+            size_t last_position = 0;
+            for (std::sregex_iterator iterator(source.begin(), source.end(), include_regex), end; iterator != end; ++iterator) {
+                result += source.substr(last_position, iterator->position() - last_position);
+                auto header_name = (*iterator)[1].str();
+                header_name = header_name.substr(header_name.find_last_of("/\\") + 1);
+                const auto extension_position = header_name.find_last_of('.');
+                if (extension_position != std::string::npos) {
+                    header_name.erase(extension_position);
+                }
+                const auto header = batch_headers.find(header_name);
+                OPENVINO_ASSERT(header != batch_headers.end(), "[GPU] Kernel source references unavailable batch header '", header_name, "'");
+                if (expanded_headers.insert(header_name).second) {
+                    result += expand(header->second);
+                    result += '\n';
+                }
+                last_position = iterator->position() + iterator->length();
+            }
+            result += source.substr(last_position);
+            return result;
+        };
+
+        for (auto& source : program.source) {
+            source = expand(source);
+        }
+        program.source.insert(program.source.begin(), common_header->second + "\n");
     }
 
     static std::string normalize_options(const kernel_string& kernel) {
@@ -158,6 +203,9 @@ void kernel_cache_frontend::prepare(const kernels_cache::kernels_code& pending,
             const auto& kernel = code.kernel_strings[kernel_part_index];
             const bool is_spirv = kernel->language == kernel_language::SPIRV;
             std::string full_code = kernel->jit + kernel->str + kernel->undefs;
+            if (kernel->language == kernel_language::OCLC && context.source_headers == KernelSourceHeaders::BATCH_PREAMBLE) {
+                full_code = source_kernel_frontend::remove_includes(full_code);
+            }
             const std::string entry_point = kernel->entry_point;
             std::string options = is_spirv ? precompiled_spirv_frontend::normalize_options(*kernel) : source_kernel_frontend::normalize_options(*kernel);
 
@@ -176,7 +224,7 @@ void kernel_cache_frontend::prepare(const kernels_cache::kernels_code& pending,
                 bucket_id = static_cast<int32_t>(program_buckets.size() - 1);
                 current_bucket.emplace_back(bucket_id, 0, options, kernel->language);
                 if (!is_spirv) {
-                    source_kernel_frontend::append_batch_headers(current_bucket.back(), *context.batch_headers);
+                    source_kernel_frontend::append_batch_headers(current_bucket.back(), *context.batch_headers, context.source_headers);
                 }
             }
 
@@ -185,7 +233,7 @@ void kernel_cache_frontend::prepare(const kernels_cache::kernels_code& pending,
                 const auto batch_id = static_cast<int32_t>(current_bucket.size());
                 current_bucket.emplace_back(bucket_id, batch_id, options, kernel->language);
                 if (!is_spirv) {
-                    source_kernel_frontend::append_batch_headers(current_bucket.back(), *context.batch_headers);
+                    source_kernel_frontend::append_batch_headers(current_bucket.back(), *context.batch_headers, context.source_headers);
                 }
             }
 
@@ -205,9 +253,11 @@ void kernel_cache_frontend::prepare(const kernels_cache::kernels_code& pending,
             const bool source_requires_includes = batch.language == kernel_language::OCLC_V2 || batch.language == kernel_language::CM;
             if (source_requires_includes) {
                 source_kernel_frontend::expand_includes(batch);
+            } else if (batch.language == kernel_language::OCLC && context.source_headers == KernelSourceHeaders::REFERENCED_ONLY) {
+                source_kernel_frontend::inline_referenced_headers(batch, *context.batch_headers);
             }
 
-            std::string full_code = options + " " + context.driver_version + context.device_name;
+            std::string full_code = options + " " + context.driver_version + context.device_name + context.compiler_cache_identity;
             for (const auto& source : batch.source) {
                 full_code += source;
             }

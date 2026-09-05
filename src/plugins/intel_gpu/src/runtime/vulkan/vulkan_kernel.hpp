@@ -23,7 +23,7 @@ class vulkan_device;
 
 class vulkan_kernel final : public kernel {
 public:
-    vulkan_kernel(std::shared_ptr<vulkan_device> device, std::vector<uint8_t> spirv, std::string entry_point);
+    vulkan_kernel(std::shared_ptr<vulkan_device> device, std::vector<uint8_t> spirv, std::string entry_point, std::string build_log = {});
 
     std::shared_ptr<kernel> clone(bool reuse_kernel_handle = false) const override;
     bool is_same(const kernel& other) const override;

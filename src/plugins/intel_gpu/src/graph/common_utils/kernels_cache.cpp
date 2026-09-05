@@ -97,12 +97,18 @@ bool kernels_cache::is_cache_enabled() const {
 void kernels_cache::get_program_source(const kernels_code& kernels_source_code, std::vector<kernels_cache::batch_program>* all_batches) const {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildAll::GetProgramSource");
     kernel_cache_frontend_context context;
+    const auto compiler_info = _builder->get_compiler_info();
     context.max_kernels_per_batch = _config.get_max_kernels_per_batch();
+    if (compiler_info.max_source_kernels_per_batch != 0) {
+        context.max_kernels_per_batch = std::min(context.max_kernels_per_batch, compiler_info.max_source_kernels_per_batch);
+    }
     context.program_id = _prog_id;
     context.device_name = _device->get_info().dev_name;
     context.driver_version = _device->get_info().driver_version;
     context.dump_sources_path = GPU_DEBUG_VALUE_OR(_config.get_dump_sources_path(), "");
     context.batch_headers = &batch_headers;
+    context.source_headers = compiler_info.source_headers;
+    context.compiler_cache_identity = compiler_info.cache_identity;
     kernel_cache_frontend::prepare(kernels_source_code, context, *all_batches);
 }
 
@@ -160,7 +166,8 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
     }
     std::vector<kernel::ptr> kernels;
     const auto source_format = batch.language == kernel_language::SPIRV ? KernelFormat::SPIRV : KernelFormat::SOURCE;
-    const auto cached_format = batch.language == kernel_language::SPIRV ? KernelFormat::SPIRV : KernelFormat::NATIVE_BIN;
+    const auto compiler_info = _builder->get_compiler_info();
+    const auto cached_format = batch.language == kernel_language::SPIRV ? KernelFormat::SPIRV : compiler_info.source_cache_format;
     const auto entry_point = batch.entry_point_to_id.size() == 1 ? batch.entry_point_to_id.begin()->first : std::string{};
     const auto make_artifact = [&](const void* payload, size_t payload_size, KernelFormat format, const std::string& build_options) {
         kernel_artifact artifact;

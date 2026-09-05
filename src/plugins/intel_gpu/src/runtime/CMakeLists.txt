@@ -134,7 +134,9 @@ if(OV_GPU_RUNTIME_VULKAN_ENABLED)
     set(VULKAN_RUNTIME_TARGET "openvino_intel_gpu_runtime_vulkan_obj${OV_GPU_SUFFIX}")
     add_library(${VULKAN_RUNTIME_TARGET} OBJECT ${LIBRARY_SOURCES_VULKAN})
     ov_gpu_configure_runtime_target(${VULKAN_RUNTIME_TARGET})
-    target_link_libraries(${VULKAN_RUNTIME_TARGET} PRIVATE Vulkan::Vulkan)
+    target_link_libraries(${VULKAN_RUNTIME_TARGET} PRIVATE
+        Vulkan::Vulkan
+        openvino_intel_gpu_clspv_api)
     list(APPEND RUNTIME_BACKEND_OBJECTS $<TARGET_OBJECTS:${VULKAN_RUNTIME_TARGET}>)
 endif()
 
@@ -170,7 +172,9 @@ if(OV_GPU_RUNTIME_ZE_ENABLED)
         openvino::zero_loader)
 endif()
 if(OV_GPU_RUNTIME_VULKAN_ENABLED)
-    target_link_libraries(${TARGET_NAME} PRIVATE Vulkan::Vulkan)
+    target_link_libraries(${TARGET_NAME} PRIVATE
+        Vulkan::Vulkan
+        openvino_intel_gpu_clspv_api)
 endif()
 
 if(OV_GPU_WITH_SYCL)

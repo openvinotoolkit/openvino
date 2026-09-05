@@ -198,6 +198,14 @@ function(ov_gpu_build_stack RUNTIME SUFFIX MODULE_NAME)
     endif()
 
     ov_build_target_faster(${MODULE_NAME} PCH)
+
+    if(RUNTIME STREQUAL "VULKAN")
+        get_property(clspv_core_library GLOBAL PROPERTY OV_GPU_CLSPV_CORE_LIBRARY)
+        add_custom_command(TARGET ${MODULE_NAME} POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                    "${clspv_core_library}" "$<TARGET_FILE_DIR:${MODULE_NAME}>"
+            COMMENT "Deploying the Vulkan model compiler next to the Intel GPU plugin")
+    endif()
 endfunction()
 
 ov_gpu_build_stack(${GPU_RT_TYPE} "" ${TARGET_NAME})

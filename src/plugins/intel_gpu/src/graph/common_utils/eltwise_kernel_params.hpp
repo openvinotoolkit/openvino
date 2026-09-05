@@ -11,8 +11,8 @@
 namespace cldnn {
 
 kernel_selector::EltwiseMode convert_to_eltwise_mode(eltwise_mode mode);
-kernel_selector::eltwise_params lower_eltwise_params(const kernel_impl_params& impl_params,
-                                                     kernel_selector::eltwise_params params);
+kernel_selector::eltwise_params lower_eltwise_params(const kernel_impl_params& impl_params, kernel_selector::eltwise_params params);
+kernel_selector::eltwise_params make_unfused_eltwise_kernel_params(const kernel_impl_params& impl_params, bool is_shape_agnostic);
 kernel_impl_params canonicalize_eltwise_shapes(const kernel_impl_params& impl_params);
 
 }  // namespace cldnn

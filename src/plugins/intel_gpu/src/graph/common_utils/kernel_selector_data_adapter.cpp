@@ -4,6 +4,8 @@
 
 #include "kernel_selector_data_adapter.hpp"
 
+#include <type_traits>
+
 #include "openvino/core/except.hpp"
 
 namespace cldnn {
@@ -47,6 +49,38 @@ kernel_selector::Datatype to_data_type(data_types data_type) {
     default:
         OPENVINO_THROW("[GPU] Unable to convert cldnn data type ", data_type, " to kernel_selector data type");
     }
+}
+
+kernel_selector::EngineInfo make_kernel_selector_engine_info(const device_info& info) {
+    kernel_selector::EngineInfo result;
+    result.supports_fp16 = info.supports_fp16;
+    result.supports_fp64 = info.supports_fp64;
+    result.supports_fp16_denorms = info.supports_fp16_denorms;
+    result.supports_khr_subgroups = info.supports_khr_subgroups;
+    result.supports_intel_subgroups = info.supports_intel_subgroups;
+    result.supports_intel_subgroups_short = info.supports_intel_subgroups_short;
+    result.supports_intel_subgroups_char = info.supports_intel_subgroups_char;
+    result.supports_intel_required_subgroup_size = info.supports_intel_required_subgroup_size;
+    result.supports_image = info.supports_image;
+    result.supports_work_group_collective_functions = info.supports_work_group_collective_functions;
+    result.supports_non_uniform_work_group = info.supports_non_uniform_work_group;
+    result.supports_imad = info.supports_imad;
+    result.supports_immad = info.supports_immad;
+    result.enable_sub_groups_emulation = true;
+    result.deviceType = info.dev_type == device_type::discrete_gpu ? kernel_selector::dev_type::discrete_gpu : kernel_selector::dev_type::integrated_gpu;
+    result.maxWorkGroupSize = info.max_work_group_size;
+    result.maxLocalMemSize = info.max_local_mem_size;
+    result.maxImage2dWidth = info.max_image2d_width;
+    result.maxImage2dHeight = info.max_image2d_height;
+    result.computeUnitsCount = info.execution_units_count;
+    result.maxThreadsPerExecutionUnit = info.num_threads_per_eu > 0 ? info.num_threads_per_eu : 7;
+    result.maxThreadsPerDevice = result.maxThreadsPerExecutionUnit * info.execution_units_count;
+    result.driverVersion = info.driver_version;
+    result.supportedSimdSizes = info.supported_simd_sizes;
+    result.vendor_id = info.vendor_id;
+    result.ip_version = info.ip_version;
+    result.arch = kernel_selector::gpu_arch(static_cast<std::underlying_type<gpu_arch>::type>(info.arch));
+    return result;
 }
 
 kernel_selector::DataLayout to_data_layout(format data_format) {
@@ -150,15 +184,11 @@ kernel_selector::DataLayout to_data_layout(format data_format) {
     case format::image_2d_rgba:
         return kernel_selector::DataLayout::image_2d_rgba;
     default:
-        OPENVINO_THROW("[GPU] Can't convert tensor format to kernel selector format as f=",
-                       data_format,
-                       " is not handled");
+        OPENVINO_THROW("[GPU] Can't convert tensor format to kernel selector format as f=", data_format, " is not handled");
     }
 }
 
-kernel_selector::Tensor::NDims compute_tensor_dimensions(const layout& tensor_layout,
-                                                         size_t channel_count,
-                                                         tensor view_offset) {
+kernel_selector::Tensor::NDims compute_tensor_dimensions(const layout& tensor_layout, size_t channel_count, tensor view_offset) {
     const auto& padding = tensor_layout.data_padding;
     const auto& dynamic_padding = layout::format_sizes(padding._dynamic_dims_mask, tensor_layout.format);
     const auto& original_shape = tensor_layout.get_partial_shape();
@@ -167,8 +197,7 @@ kernel_selector::Tensor::NDims compute_tensor_dimensions(const layout& tensor_la
     ov::PartialShape ordered_shape;
     const auto& axis_order = tensor_layout.format.dims_order();
     for (size_t index = 0; index < axis_order.size(); ++index) {
-        ordered_shape.push_back(axis_order[index] < original_shape.size() ? original_shape[axis_order[index]]
-                                                                          : ov::Dimension(1));
+        ordered_shape.push_back(axis_order[index] < original_shape.size() ? original_shape[axis_order[index]] : ov::Dimension(1));
     }
 
     const auto& lower_padding = layout::format_sizes(padding._lower_size, tensor_layout.format);
@@ -183,8 +212,7 @@ kernel_selector::Tensor::NDims compute_tensor_dimensions(const layout& tensor_la
         const auto reserved_elements = dimension.is_dynamic() ? 0 : dimension.get_length() - view_offsets[tensor_index];
 
         auto& result = dimensions[index];
-        result.v =
-            dimension.is_dynamic() ? 0 : static_cast<size_t>(dimension.get_length() - view_offsets[tensor_index]);
+        result.v = dimension.is_dynamic() ? 0 : static_cast<size_t>(dimension.get_length() - view_offsets[tensor_index]);
         result.pitch = pitch;
         result.pad.before = dynamic_padding[tensor_index] ? 0 : lower;
         result.pad.after = dynamic_padding[tensor_index] ? 0 : upper;
@@ -198,8 +226,7 @@ kernel_selector::Tensor::NDims compute_tensor_dimensions(const layout& tensor_la
 
 kernel_selector::DataTensor convert_data_tensor(const layout& tensor_layout, tensor view_offset) {
     const auto data_layout = to_data_layout(tensor_layout.format);
-    auto dimensions =
-        compute_tensor_dimensions(tensor_layout, kernel_selector::DataTensor::ChannelsCount(data_layout), view_offset);
+    auto dimensions = compute_tensor_dimensions(tensor_layout, kernel_selector::DataTensor::ChannelsCount(data_layout), view_offset);
     return {dimensions, to_data_type(tensor_layout.data_type), data_layout};
 }
 

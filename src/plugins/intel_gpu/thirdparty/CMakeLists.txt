@@ -5,6 +5,36 @@
 set(XETLA_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/xetla/include/" CACHE PATH "Path to XeTLA headers")
 
 #
+# CLSPV model compiler for the Vulkan runtime
+#
+
+if(OV_GPU_RUNTIME_VULKAN_ENABLED)
+    set(CLSPV_ROOT "" CACHE PATH "Path to a target CLSPV shared-library installation")
+    set(CLSPV_COMPILER_ID "clspv-770b077f8de4ce1018ee907f2f0a69bc41d42192"
+        CACHE STRING "CLSPV identity included in Vulkan kernel cache keys")
+
+    find_path(CLSPV_INCLUDE_DIR
+        NAMES clspv/Compiler.h
+        HINTS "${CLSPV_ROOT}/include"
+        REQUIRED)
+    find_library(CLSPV_CORE_LIBRARY
+        NAMES clspv_core
+        HINTS "${CLSPV_ROOT}/lib" "${CLSPV_ROOT}/lib64"
+        REQUIRED)
+
+    add_library(openvino_intel_gpu_clspv_api INTERFACE)
+    target_include_directories(openvino_intel_gpu_clspv_api SYSTEM INTERFACE "${CLSPV_INCLUDE_DIR}")
+    target_link_libraries(openvino_intel_gpu_clspv_api INTERFACE "${CLSPV_CORE_LIBRARY}")
+    target_compile_definitions(openvino_intel_gpu_clspv_api INTERFACE
+        OV_GPU_CLSPV_COMPILER_ID="${CLSPV_COMPILER_ID}")
+
+    set_property(GLOBAL PROPERTY OV_GPU_CLSPV_CORE_LIBRARY "${CLSPV_CORE_LIBRARY}")
+    install(FILES "${CLSPV_CORE_LIBRARY}"
+            DESTINATION ${OV_CPACK_RUNTIMEDIR}
+            COMPONENT ${OV_CPACK_COMP_CORE})
+endif()
+
+#
 # oneDNN for GPU plugin
 #
 

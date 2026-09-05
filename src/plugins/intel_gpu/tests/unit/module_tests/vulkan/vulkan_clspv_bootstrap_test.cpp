@@ -33,6 +33,7 @@ TEST(vulkan_clspv_bootstrap, reflects_canonical_compute_interface) {
     std::vector<uint8_t> spirv(sizeof(clspv_bootstrap_spirv));
     std::memcpy(spirv.data(), clspv_bootstrap_spirv, spirv.size());
 
+    EXPECT_EQ(vulkan_kernel_interface::get_single_entry_point(spirv), "clspv_bootstrap");
     const auto interface = vulkan_kernel_interface::reflect(spirv, "clspv_bootstrap");
     ASSERT_EQ(interface.descriptor_bindings.size(), 2);
     EXPECT_EQ(interface.descriptor_bindings[0], (vulkan_descriptor_binding{0, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER}));
@@ -65,14 +66,10 @@ TEST(vulkan_clspv_bootstrap, executes_host_compiled_opencl_c_through_vulkan_runt
     }
     input->copy_from(*command_stream, input_values.data(), true);
 
-    kernel_artifact artifact;
-    artifact.payload = clspv_bootstrap_spirv;
-    artifact.payload_size = sizeof(clspv_bootstrap_spirv);
-    artifact.format = KernelFormat::SPIRV;
-    artifact.entry_point = "clspv_bootstrap";
     std::vector<kernel::ptr> kernels;
-    target_engine->create_kernel_builder()->build_kernels(artifact, kernels);
+    target_engine->create_kernel_builder()->build_kernels(clspv_bootstrap_spirv, sizeof(clspv_bootstrap_spirv), KernelFormat::SPIRV, {}, kernels);
     ASSERT_EQ(kernels.size(), 1);
+    EXPECT_EQ(kernels.front()->get_id(), "clspv_bootstrap");
 
     kernel_arguments_desc descriptor;
     descriptor.workGroups.global = {element_count, 1, 1};

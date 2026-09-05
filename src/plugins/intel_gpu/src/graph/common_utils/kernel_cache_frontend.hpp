@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "common_utils/kernels_cache.hpp"
+#include "intel_gpu/runtime/kernel_builder.hpp"
 
 namespace cldnn {
 
@@ -21,6 +22,8 @@ struct kernel_cache_frontend_context {
     std::string driver_version;
     std::string dump_sources_path;
     const std::map<std::string, std::string>* batch_headers = nullptr;
+    KernelSourceHeaders source_headers = KernelSourceHeaders::BATCH_PREAMBLE;
+    std::string compiler_cache_identity;
 };
 
 /// Converts pending kernel descriptions into compiler/artifact batches.

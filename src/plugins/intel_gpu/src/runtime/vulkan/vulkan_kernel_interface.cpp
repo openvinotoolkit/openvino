@@ -387,6 +387,29 @@ bool vulkan_descriptor_binding::operator<(const vulkan_descriptor_binding& other
     return std::tie(set, binding, type) < std::tie(other.set, other.binding, other.type);
 }
 
+std::string vulkan_kernel_interface::get_single_entry_point(const std::vector<uint8_t>& spirv) {
+    OPENVINO_ASSERT(spirv.size() >= 5 * sizeof(uint32_t) && spirv.size() % sizeof(uint32_t) == 0, "[GPU][Vulkan] SPIR-V binary has an invalid size");
+    std::vector<uint32_t> words(spirv.size() / sizeof(uint32_t));
+    std::memcpy(words.data(), spirv.data(), spirv.size());
+    OPENVINO_ASSERT(words.front() == spirv_magic, "[GPU][Vulkan] Invalid SPIR-V magic number");
+
+    std::optional<std::string> entry_point;
+    for (size_t offset = 5; offset < words.size();) {
+        const auto instruction = words[offset];
+        const auto word_count = static_cast<uint16_t>(instruction >> 16);
+        const auto opcode = static_cast<spirv_opcode>(instruction & 0xffffU);
+        OPENVINO_ASSERT(word_count > 0 && word_count <= words.size() - offset, "[GPU][Vulkan] SPIR-V contains a truncated instruction");
+        if (opcode == spirv_opcode::entry_point) {
+            OPENVINO_ASSERT(word_count >= 4, "[GPU][Vulkan] Invalid OpEntryPoint instruction");
+            OPENVINO_ASSERT(!entry_point.has_value(), "[GPU][Vulkan] A cached SPIR-V module must contain exactly one entry point");
+            entry_point = decode_spirv_string(words.data() + offset + 3, word_count - 3);
+        }
+        offset += word_count;
+    }
+    OPENVINO_ASSERT(entry_point.has_value(), "[GPU][Vulkan] Cached SPIR-V module has no entry point");
+    return std::move(*entry_point);
+}
+
 vulkan_kernel_interface vulkan_kernel_interface::reflect(const std::vector<uint8_t>& spirv, const std::string& entry_point) {
     const auto state = parse_spirv(spirv, entry_point);
     vulkan_kernel_interface result;

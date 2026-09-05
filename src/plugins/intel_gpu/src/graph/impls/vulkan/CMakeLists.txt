@@ -13,7 +13,6 @@ find_host_program(OV_GPU_SPIRV_OPT_EXECUTABLE NAMES spirv-opt REQUIRED)
 find_host_program(OV_GPU_SPIRV_VAL_EXECUTABLE NAMES spirv-val REQUIRED)
 
 set(VULKAN_KERNEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/kernels")
-set(VULKAN_ELTWISE_KERNEL_DIR "${VULKAN_KERNEL_DIR}/eltwise")
 set(VULKAN_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 set(VULKAN_SHADER_GENERATOR "${VULKAN_KERNEL_DIR}/generate_spirv_header.py")
 set(VULKAN_CLSPV_REFLECTION_VALIDATOR "${VULKAN_KERNEL_DIR}/validate_clspv_reflection.py")
@@ -128,14 +127,6 @@ foreach(shader_name IN ITEMS foundation_stage_local foundation_stage_output)
         DEPENDENCIES "${CMAKE_CURRENT_SOURCE_DIR}/vulkan_shader_abi.inc"
     )
 endforeach()
-add_vulkan_shader(
-    NAME reorder_convert
-    SOURCE "${VULKAN_KERNEL_DIR}/reorder_convert.comp"
-    DESCRIPTION "kernels/reorder_convert.comp"
-    DEPENDENCIES
-        "${CMAKE_CURRENT_SOURCE_DIR}/vulkan_shader_abi.inc"
-)
-
 # Compiler bootstrap only. Production Eltwise is added from kernel_selector after
 # the source-materialization contract is connected to this host-only AOT path.
 add_vulkan_clspv_kernel(
@@ -144,9 +135,6 @@ add_vulkan_clspv_kernel(
     ENTRY_POINT clspv_bootstrap
     DESCRIPTION "kernels/clspv_bootstrap.cl"
 )
-
-# Eltwise owns its source modules and complete generated-variant registry.
-include("${VULKAN_ELTWISE_KERNEL_DIR}/variants.cmake")
 
 get_property(VULKAN_GENERATED_HEADERS GLOBAL PROPERTY OV_GPU_VULKAN_GENERATED_HEADERS)
 set_property(SOURCE ${VULKAN_GENERATED_HEADERS} PROPERTY GENERATED TRUE)

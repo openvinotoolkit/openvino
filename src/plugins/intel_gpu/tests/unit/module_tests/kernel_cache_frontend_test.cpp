@@ -77,3 +77,25 @@ TEST(kernel_cache_frontend, source_frontend_preserves_batch_option_normalization
     EXPECT_EQ(batches[0].language, kernel_language::OCLC);
     EXPECT_EQ(batches[0].options, "-DFIRST=1 -DSECOND=2 ");
 }
+
+TEST(kernel_cache_frontend, referenced_headers_keep_common_preamble_outside_conditional_includes) {
+    auto pending = make_pending_kernel(kernel_language::OCLC,
+                                       "#if OPTIONAL_FEATURE\n#include \"common.cl\"\n#endif\n#include \"helper.cl\"\n",
+                                       "-DOPTIONAL_FEATURE=0",
+                                       false);
+    const std::map<std::string, std::string> headers{
+        {"common", "#define CAT_IMPL(lhs, rhs) lhs ## rhs\n#define CAT(lhs, rhs) CAT_IMPL(lhs, rhs)"},
+        {"helper", "#include \"common.cl\"\nint CAT(helper, _value);"},
+    };
+    auto context = make_context(headers);
+    context.source_headers = KernelSourceHeaders::REFERENCED_ONLY;
+    std::vector<kernels_cache::batch_program> batches;
+
+    kernel_cache_frontend::prepare(pending, context, batches);
+
+    ASSERT_EQ(batches.size(), 1u);
+    ASSERT_EQ(batches[0].source.size(), 2u);
+    EXPECT_EQ(batches[0].source[0], headers.at("common") + "\n");
+    EXPECT_EQ(batches[0].source[1].find("#include"), std::string::npos);
+    EXPECT_NE(batches[0].source[1].find("int CAT(helper, _value);"), std::string::npos);
+}

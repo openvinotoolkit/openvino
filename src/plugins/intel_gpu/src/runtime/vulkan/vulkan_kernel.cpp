@@ -15,21 +15,23 @@
 namespace cldnn {
 namespace vulkan {
 struct vulkan_kernel::shared_state {
-    shared_state(std::shared_ptr<vulkan_device> device_owner, std::vector<uint8_t> binary, std::string name)
+    shared_state(std::shared_ptr<vulkan_device> device_owner, std::vector<uint8_t> binary, std::string name, std::string compilation_log)
         : device_owner(std::move(device_owner)),
           binary(std::move(binary)),
-          entry_point(std::move(name)) {
+          entry_point(std::move(name)),
+          build_log(std::move(compilation_log)) {
         shader = this->device_owner->get_pipeline_cache().get_or_create_shader(this->binary, entry_point);
     }
 
     std::shared_ptr<vulkan_device> device_owner;
     std::vector<uint8_t> binary;
     std::string entry_point;
+    std::string build_log;
     std::shared_ptr<const vulkan_shader_state> shader;
 };
 
-vulkan_kernel::vulkan_kernel(std::shared_ptr<vulkan_device> device, std::vector<uint8_t> spirv, std::string entry_point)
-    : _state(std::make_shared<shared_state>(std::move(device), std::move(spirv), std::move(entry_point))) {}
+vulkan_kernel::vulkan_kernel(std::shared_ptr<vulkan_device> device, std::vector<uint8_t> spirv, std::string entry_point, std::string build_log)
+    : _state(std::make_shared<shared_state>(std::move(device), std::move(spirv), std::move(entry_point), std::move(build_log))) {}
 
 vulkan_kernel::vulkan_kernel(std::shared_ptr<shared_state> state) : _state(std::move(state)) {}
 
@@ -51,7 +53,7 @@ std::vector<uint8_t> vulkan_kernel::get_binary() const {
 }
 
 std::string vulkan_kernel::get_build_log() const {
-    return {};
+    return _state->build_log;
 }
 
 std::shared_ptr<const vulkan_pipeline_state> vulkan_kernel::get_or_create_pipeline(uint32_t descriptor_count,

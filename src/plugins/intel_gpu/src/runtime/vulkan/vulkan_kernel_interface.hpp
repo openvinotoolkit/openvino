@@ -31,6 +31,7 @@ struct vulkan_kernel_interface final {
     std::array<std::optional<uint32_t>, 3> local_size_specialization_ids;
     std::vector<uint32_t> specialization_ids;
 
+    static std::string get_single_entry_point(const std::vector<uint8_t>& spirv);
     static vulkan_kernel_interface reflect(const std::vector<uint8_t>& spirv, const std::string& entry_point);
     void validate_canonical_compute_abi(const std::string& entry_point) const;
 };
