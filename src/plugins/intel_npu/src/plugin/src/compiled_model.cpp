@@ -96,6 +96,12 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
+    const bool rawBlobExportRequested = _propertiesManager->getConfig().get<EXPORT_RAW_BLOB>();
+    OPENVINO_ASSERT(rawBlobExportRequested
+                        ? _graph->get_blob_type() == BlobType::ELF && _graph->get_kind() == GraphKind::Weightful
+                        : true,
+                    "Requested raw blob export, but the graph is not a weightful ELF one.");
+
     uint64_t blobSizesBeforeVersioning;
     std::optional<uint64_t> blobSizeAfterEncryption = std::nullopt;
     std::optional<std::vector<uint64_t>> initBlobSizes;
@@ -122,36 +128,38 @@ void CompiledModel::export_model(std::ostream& stream) const {
         std::tie(blobSizesBeforeVersioning, initBlobSizes) = _graph->export_blob(stream);
     }
 
-    if (!_propertiesManager->getConfig().get<EXPORT_RAW_BLOB>()) {
-        std::optional<std::vector<ov::Layout>> inputLayouts = std::vector<ov::Layout>();
-        std::optional<std::vector<ov::Layout>> outputLayouts = std::vector<ov::Layout>();
-
-        for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
-            inputLayouts->push_back(
-                std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
-        }
-        for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
-            outputLayouts->push_back(
-                std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
-        }
-
-        std::optional<uint32_t> compilerVersion = std::nullopt;
-        if (_propertiesManager->getConfig().has(ov::intel_npu::compiler_version.name())) {
-            compilerVersion = _propertiesManager->getConfig().get<COMPILER_VERSION>();
-        }
-
-        Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning,
-                                           CURRENT_OPENVINO_VERSION,
-                                           initBlobSizes,
-                                           _batchSize,
-                                           inputLayouts,
-                                           outputLayouts,
-                                           compilerVersion,
-                                           blobSizeAfterEncryption,
-                                           _graph->get_compatibility_descriptor(),
-                                           _graph->get_blob_type())
-            .write(stream);
+    if (rawBlobExportRequested) {
+        return;
     }
+
+    std::optional<std::vector<ov::Layout>> inputLayouts = std::vector<ov::Layout>();
+    std::optional<std::vector<ov::Layout>> outputLayouts = std::vector<ov::Layout>();
+
+    for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
+        inputLayouts->push_back(
+            std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
+    }
+    for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
+        outputLayouts->push_back(
+            std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
+    }
+
+    std::optional<uint32_t> compilerVersion = std::nullopt;
+    if (_propertiesManager->getConfig().has(ov::intel_npu::compiler_version.name())) {
+        compilerVersion = _propertiesManager->getConfig().get<COMPILER_VERSION>();
+    }
+
+    Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning,
+                                       CURRENT_OPENVINO_VERSION,
+                                       initBlobSizes,
+                                       _batchSize,
+                                       inputLayouts,
+                                       outputLayouts,
+                                       compilerVersion,
+                                       blobSizeAfterEncryption,
+                                       _graph->get_compatibility_descriptor(),
+                                       _graph->get_blob_type())
+        .write(stream);
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
