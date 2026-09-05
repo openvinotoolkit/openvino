@@ -30,7 +30,7 @@ OutputVector translate_get_rows(const NodeContext& context) {
     auto indices = context.get_input(1);
 
     if (op_case == 3) {
-        return {data};
+        return {std::move(data)};
     }
 
     if (op_case == 4) {
@@ -42,7 +42,7 @@ OutputVector translate_get_rows(const NodeContext& context) {
         if (res.get_element_type() != context.get_output_type()) {
             res = std::make_shared<ov::op::v0::Convert>(res, context.get_output_type());
         }
-        return rename_outputs_with_suffix({res}, context.get_name());
+        return rename_outputs_with_suffix({std::move(res)}, context.get_name());
     }
 
     // MoE gating-weight gather (op_case 10): data = probs [1,1,T,E], indices = selected experts
@@ -60,7 +60,7 @@ OutputVector translate_get_rows(const NodeContext& context) {
             ge,
             ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, -1, K, 1}),
             false);  // [1,T,K,1]
-        return rename_outputs_with_suffix({col}, context.get_name());
+        return rename_outputs_with_suffix({std::move(col)}, context.get_name());
     }
 
     if (op_case == 2) {
@@ -95,7 +95,7 @@ OutputVector translate_get_rows(const NodeContext& context) {
     }
     // The two Squeezes above dropped the leading axes; restore ggml's rank-4 form.
     res = std::make_shared<ov::op::v0::Unsqueeze>(res, ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

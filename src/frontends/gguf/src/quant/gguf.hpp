@@ -95,12 +95,8 @@ using GGUFLoad = std::tuple<std::unordered_map<std::string, GGUFMetaData>,
                             std::shared_ptr<ov::MappedMemory>,
                             std::shared_ptr<ov::AlignedBuffer>>;
 
-// Fill pre-allocated i4 weights (u32-packed, XORed for i4 sign) and f16 scales from a
-// Q4_0 tensor. No bias: Q4_0 is symmetric (zp = -8*scale is implicit, not stored).
-void gguf_fill_q4_0(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales);
-
 // Fill pre-allocated weights and f16 scales from a symmetric GGUF tensor
-// (Q8_0/Q5_0/Q6_K: i8 weights; Q3_K: i4 weights packed as u8).
+// (Q8_0/Q5_0/Q6_K: i8 weights; Q4_0/Q3_K: i4 weights packed as u8).
 // No zero-point: the center value is subtracted during unpacking so weights are centered at 0.
 void gguf_fill_sym(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales);
 

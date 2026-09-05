@@ -4,6 +4,8 @@
 
 #include "intel_npu/common/network_metadata.hpp"
 
+#include "openvino/core/except.hpp"
+
 namespace intel_npu {
 
 void NetworkMetadata::bindRelatedDescriptors() {
@@ -24,6 +26,15 @@ void NetworkMetadata::bindRelatedDescriptors() {
             if (relatedDescriptorIterator != outputs.end()) {
                 input.relatedDescriptorIndex = std::distance(outputs.begin(), relatedDescriptorIterator);
                 outputs.at(*input.relatedDescriptorIndex).relatedDescriptorIndex = ioIndex;
+
+                // A state input and its state output are two views of the same variable, so their shape and
+                // precision must match. Otherwise the buffer shared between them, which is sized from the input,
+                // would be undersized for the output.
+                OPENVINO_ASSERT(relatedDescriptorIterator->shapeFromCompiler == input.shapeFromCompiler &&
+                                    relatedDescriptorIterator->precision == input.precision,
+                                "State input '",
+                                input.nameFromCompiler,
+                                "' does not match its state output in shape or precision.");
             }
         } else if (input.isShapeTensor) {
             const auto relatedDescriptorIterator =
