@@ -130,14 +130,8 @@ public:
         const std::pair<ov::Shape, ov::Shape> shapes = std::get<1>(GetParam());
         ConcatWithNotQuantizedParentTransformationTestValues testValues = std::get<2>(GetParam());
 
-        // dequantization output precision depends on input precision
-        // to avoid huge amount of tests cases let's define dequantization output precision as input precision
-        if (!testValues.actual.dequantization1.multiply.empty()) {
-            testValues.actual.dequantization1.multiply.outPrecision = precision;
-        }
-        if (!testValues.actual.dequantization2.multiply.empty()) {
-            testValues.actual.dequantization2.multiply.outPrecision = precision;
-        }
+        setDequantizationOutPrecision(testValues.actual.dequantization1, precision);
+        setDequantizationOutPrecision(testValues.actual.dequantization2, precision);
 
         actualFunction = ov::builder::subgraph::ConcatFunction::get(
             precision,
@@ -197,9 +191,7 @@ public:
             standaloneCleanupManager.run_passes(actualFunction);
         }
 
-        if (!testValues.result.dequantizationAfter.multiply.empty()) {
-            testValues.result.dequantizationAfter.multiply.outPrecision = precision;
-        }
+        setDequantizationOutPrecision(testValues.result.dequantizationAfter, precision);
 
         if (!testValues.params.updatePrecisions &&
             (precision == ov::element::f32) &&
