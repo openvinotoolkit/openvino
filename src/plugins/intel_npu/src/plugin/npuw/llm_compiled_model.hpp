@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 
 #include "compiled_model.hpp"
 #include "npuw_transformations/kv_axes_position.hpp"
@@ -124,6 +125,9 @@ private:
     bool m_is_block_kv_cache = false;
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_kvcache_compiled;
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_prefill_compiled;
+    // The default chunk is always last. The optional first variant right-sizes a short tail chunk.
+    std::vector<std::shared_ptr<ov::npuw::ICompiledModel_v0>> m_prefill_compiled_variants;
+    std::vector<uint32_t> m_prefill_chunk_sizes;
     // This model is optional, so can be null.
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_lm_head_compiled;
 
@@ -178,6 +182,10 @@ private:
     void compile_generate_model_variants(const std::vector<std::shared_ptr<ov::Model>>& generate_model_variants,
                                          const std::shared_ptr<const ov::IPlugin>& plugin,
                                          const ov::AnyMap& generate_config);
+
+    void compile_prefill_model_variants(const std::vector<std::shared_ptr<ov::Model>>& prefill_model_variants,
+                                        const std::shared_ptr<const ov::IPlugin>& plugin,
+                                        const ov::AnyMap& prefill_config);
 
     bool m_is_eagle = false;
 };

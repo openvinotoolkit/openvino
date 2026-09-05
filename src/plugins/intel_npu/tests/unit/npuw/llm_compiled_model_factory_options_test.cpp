@@ -211,6 +211,34 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, GeneratePyramidBuildsExpectedGenerate
     EXPECT_TRUE(compiled->get_property("NPUW_LLM_GENERATE_PYRAMID").as<bool>());
 }
 
+TEST_F(LLMCompiledModelFactoryOptionsTest, ShorterPrefillChunkBuildsExactlyTwoPrefillStages) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    const ov::AnyMap props = {{"NPUW_LLM_SHARED_HEAD", "NO"},
+                              {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                              {"NPUW_LLM_PREFILL_CHUNK_SIZE", "64"},
+                              {"NPUW_LLM_PREFILL_SHORTER_CHUNK_SIZE", "32"}};
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(), props, recorder));
+    ASSERT_NE(compiled, nullptr);
+    EXPECT_EQ(recorder.calls().size(), 3u);
+    EXPECT_EQ(recorder.count_suffix("_prefill"), 1u);
+    EXPECT_NE(recorder.find_suffix("_prefill_chunk32"), nullptr);
+    EXPECT_EQ(recorder.count_contains("_kv"), 1u);
+    EXPECT_EQ(compiled->get_property("NPUW_LLM_PREFILL_SHORTER_CHUNK_SIZE").as<uint64_t>(), 32u);
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, ShorterPrefillChunkMustBeSmallerThanDefaultChunk) {
+    RecordingFactory recorder;
+    const ov::AnyMap props = {{"NPUW_LLM_SHARED_HEAD", "NO"},
+                              {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                              {"NPUW_LLM_PREFILL_CHUNK_SIZE", "64"},
+                              {"NPUW_LLM_PREFILL_SHORTER_CHUNK_SIZE", "64"}};
+
+    EXPECT_THROW(create_compiled_model(build_llm_model(), props, recorder), ov::Exception);
+}
+
 TEST_F(LLMCompiledModelFactoryOptionsTest, ConfigOverridesAndAdditionsArePassedToFactory) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;

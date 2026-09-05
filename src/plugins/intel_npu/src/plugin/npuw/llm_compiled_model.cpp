@@ -66,6 +66,10 @@ bool is_aligned_to(T value, T alignment) {
     return value % alignment == 0;
 }
 
+bool is_power_of_two(uint64_t value) {
+    return value > 0 && (value & (value - 1)) == 0;
+}
+
 }  // namespace
 
 class CutLMHead : public ov::pass::MatcherPass {
@@ -746,6 +750,25 @@ void ov::npuw::LLMCompiledModel::compile_generate_model_variants(
     }
 }
 
+void ov::npuw::LLMCompiledModel::compile_prefill_model_variants(
+    const std::vector<std::shared_ptr<ov::Model>>& prefill_model_variants,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& prefill_config) {
+    LOG_INFO("Compiling " << prefill_model_variants.size() << " prefill model variant(s)...");
+    m_prefill_compiled_variants.reserve(prefill_model_variants.size());
+
+    for (size_t i = 0; i < prefill_model_variants.size(); ++i) {
+        LOG_DEBUG("Compiling prefill variant " << (i + 1) << "/" << prefill_model_variants.size()
+                                               << " with chunk size: " << m_prefill_chunk_sizes[i]);
+        auto compiled_variant = m_compiled_model_factory(prefill_model_variants[i], plugin, prefill_config);
+        NPUW_ASSERT(compiled_variant && "Can't create ov::npuw::CompiledModel for passed prefill model and its config, "
+                                        "please check passed config.");
+        m_prefill_compiled_variants.push_back(compiled_variant);
+    }
+
+    m_prefill_compiled = m_prefill_compiled_variants.back();
+}
+
 ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
                                              const ov::AnyMap& properties,
@@ -817,6 +840,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // the generate model they're not mutually exclusive
     const ::intel_npu::npuw::llm::PrefillHint prefill_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_HINT>();
     m_prefill_chunk_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE>();
+    const uint64_t prefill_shorter_chunk_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_SHORTER_CHUNK_SIZE>();
     m_use_chunk_prefill = (prefill_hint == ::intel_npu::npuw::llm::PrefillHint::DYNAMIC && m_prefill_chunk_size > 0);
 
     uint32_t max_prompt_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
@@ -832,9 +856,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         if (m_prefill_chunk_size >= max_prompt_len) {
             m_use_chunk_prefill = false;
         } else {
-            const auto is_power_of_two = [](uint64_t n) {
-                return n > 0 && (n & (n - 1)) == 0;
-            };
             if (!is_power_of_two(m_prefill_chunk_size)) {
                 OPENVINO_THROW("Configuration Error: chunk size (",
                                m_prefill_chunk_size,
@@ -856,6 +877,17 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             LOG_INFO("Prefix caching block size: " << m_prefix_caching_block_size);
             LOG_INFO("Prefix caching maximum number of blocks: " << m_prefix_caching_max_num_blocks);
         }
+    }
+
+    if (prefill_shorter_chunk_size > 0) {
+        OPENVINO_ASSERT(m_use_chunk_prefill,
+                        "NPUW_LLM_PREFILL_SHORTER_CHUNK_SIZE requires dynamic chunked prefill. "
+                        "Set NPUW_LLM_PREFILL_HINT=DYNAMIC and make NPUW_LLM_PREFILL_CHUNK_SIZE smaller than "
+                        "NPUW_LLM_MAX_PROMPT_LEN.");
+        OPENVINO_ASSERT(is_power_of_two(prefill_shorter_chunk_size),
+                        "NPUW_LLM_PREFILL_SHORTER_CHUNK_SIZE must be a power of two.");
+        OPENVINO_ASSERT(prefill_shorter_chunk_size < m_prefill_chunk_size,
+                        "NPUW_LLM_PREFILL_SHORTER_CHUNK_SIZE must be smaller than NPUW_LLM_PREFILL_CHUNK_SIZE.");
     }
 
     // Continuous prefill is opt-in and mutually exclusive with the hash prefix cache.
@@ -882,6 +914,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     auto use_text_embed_key = pop_option(other_props, std::string("NPUW_TEXT_EMBED"));
     m_is_embedding = use_text_embed_key.value_or(false).as<bool>() == true;
+
+    OPENVINO_ASSERT(prefill_shorter_chunk_size == 0 || !m_is_embedding,
+                    "NPUW_LLM_PREFILL_SHORTER_CHUNK_SIZE is not supported for text embedding models.");
 
     if (m_is_embedding) {
         // Both embedding flavours only ever prefill; what differs is how they attend. An
@@ -1004,14 +1039,26 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     LOG_DEBUG("Make prefill model with static shapes");
     m_max_lora_rank = m_cfg.get<::intel_npu::NPUW_LLM_MAX_LORA_RANK>();
+    std::vector<std::shared_ptr<ov::Model>> prefill_model_variants;
     if (m_use_chunk_prefill) {
-        ov::npuw::ReshapeToStatic(static_cast<uint32_t>(m_prefill_chunk_size),
-                                  m_kvcache_desc.max_prompt_size,
-                                  axes,
-                                  m_max_lora_rank,
-                                  0,
-                                  true)
-            .run_on_model(prefill_model);
+        m_prefill_chunk_sizes = {static_cast<uint32_t>(m_prefill_chunk_size)};
+        if (prefill_shorter_chunk_size > 0) {
+            m_prefill_chunk_sizes.insert(m_prefill_chunk_sizes.begin(),
+                                         static_cast<uint32_t>(prefill_shorter_chunk_size));
+            LOG_INFO("Shorter Prefill tail chunk support is enabled: " << prefill_shorter_chunk_size << " and "
+                                                                       << m_prefill_chunk_size);
+        }
+        prefill_model_variants.reserve(m_prefill_chunk_sizes.size());
+        for (const auto chunk_size : m_prefill_chunk_sizes) {
+            auto prefill_variant = chunk_size == m_prefill_chunk_size ? prefill_model : prefill_model->clone();
+            ov::npuw::ReshapeToStatic(chunk_size, m_kvcache_desc.max_prompt_size, axes, m_max_lora_rank, 0, true)
+                .run_on_model(prefill_variant);
+            if (chunk_size != m_prefill_chunk_size) {
+                prefill_variant->set_friendly_name(prefill_model->get_friendly_name() + "_chunk" +
+                                                   std::to_string(chunk_size));
+            }
+            prefill_model_variants.push_back(prefill_variant);
+        }
     } else {
         ov::npuw::ReshapeToStatic(m_kvcache_desc.max_prompt_size,
                                   m_kvcache_desc.max_prompt_size,
@@ -1020,6 +1067,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                   whisper_lhs_seq_size,
                                   true)
             .run_on_model(prefill_model);
+        m_prefill_chunk_sizes = {m_kvcache_desc.max_prompt_size};
+        prefill_model_variants.push_back(prefill_model);
     }
     LOG_DEBUG("Make kvcache model with static shapes");
 
@@ -1043,7 +1092,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Shared LM head: slice the prefill output");
         // KVCache model is already reshaped to [1, max_generation_token_len, embed size],
         // so only apply slice to the Prefill model:
-        ov::npuw::SliceOutEmbeds(axes.batch, m_kvcache_desc.max_generation_token_len).run_on_model(prefill_model);
+        for (auto& prefill_variant : prefill_model_variants) {
+            ov::npuw::SliceOutEmbeds(axes.batch, m_kvcache_desc.max_generation_token_len).run_on_model(prefill_variant);
+        }
         LOG_DEBUG("Make LM head model with static shapes");
         ov::npuw::ReshapeSlicedHeadToStatic(axes.batch, m_kvcache_desc.max_generation_token_len)
             .run_on_model(lm_head_model);
@@ -1091,9 +1142,24 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                 " variants were optimized, which is not allowed.");
             }
         }
-        if (!prefill_attn_dyn && ov::npuw::util::OptimizeValueTensors(true).run_on_model(prefill_model)) {
-            LOG_DEBUG("V-tensors tranposed in prefill model");
-            m_kvcache_desc.v_tensors_transposed_pre = true;
+        if (!prefill_attn_dyn) {
+            size_t optimized_count = 0;
+            for (auto& prefill_variant : prefill_model_variants) {
+                if (ov::npuw::util::OptimizeValueTensors(true).run_on_model(prefill_variant)) {
+                    ++optimized_count;
+                }
+            }
+            if (optimized_count == prefill_model_variants.size()) {
+                LOG_DEBUG("V-tensors tranposed in prefill model");
+                m_kvcache_desc.v_tensors_transposed_pre = true;
+            } else {
+                OPENVINO_ASSERT(optimized_count == 0,
+                                "Partial optimization detected: ",
+                                optimized_count,
+                                " out of ",
+                                prefill_model_variants.size(),
+                                " prefill variants were optimized, which is not allowed.");
+            }
         }
     } else {
         LOG_DEBUG("Check and apply opt layout --- SKIPPED");
@@ -1105,7 +1171,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         } else {
             LOG_DEBUG("Don't remove input key/values from prefill model.");
             LOG_DEBUG("Ask prefill model to output key/values for prefill chunk size tokens.");
-            ov::npuw::RedirectNewKvToOutput().run_on_model(prefill_model);
+            for (auto& prefill_variant : prefill_model_variants) {
+                ov::npuw::RedirectNewKvToOutput().run_on_model(prefill_variant);
+            }
         }
 
         LOG_DEBUG("Optimize generate model to output key/values for new token.");
@@ -1118,7 +1186,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type).run_on_model(generate_model_variants[i]);
     }
     LOG_DEBUG("Converting KV-cache in prefill model to" << kv_kache_storage_type);
-    ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type).run_on_model(prefill_model);
+    for (auto& prefill_variant : prefill_model_variants) {
+        ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type).run_on_model(prefill_variant);
+    }
 
     std::optional<std::string> user_compilation_mode_params = std::nullopt;
     if (const auto it = other_props.find("NPU_COMPILATION_MODE_PARAMS"); it != other_props.end()) {
@@ -1261,9 +1331,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
         if (!is_best || (max_prompt_len >= CACHE_ROPE_START || force_rope_cache)) {
             LOG_DEBUG("Enable RoPE Cache for prefill");
-            ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(max_prompt_len);
-            rope_prefill_cacher.run_on_model(prefill_model);
-            absorb_longrope_tables(rope_prefill_cacher.host_tables());
+            for (auto& prefill_variant : prefill_model_variants) {
+                ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(max_prompt_len);
+                rope_prefill_cacher.run_on_model(prefill_variant);
+                absorb_longrope_tables(rope_prefill_cacher.host_tables());
+            }
         }
 
         // Apply RoPE Cache to all generate variant models
@@ -1301,7 +1373,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         // Fold shape-compute chains (ShapeOf→Gather→Concat etc.) in the prefill model before
         // online partitioning runs pattern matching (e.g. GPTOSSRouter).  Must run after
         // ReshapeToStatic has made all shapes static so that ShapeOf bounds are resolvable.
-        ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(prefill_model);
+        for (auto&& prefill_variant : prefill_model_variants) {
+            ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(prefill_variant);
+        }
         for (auto&& model_variant : generate_model_variants) {
             ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(model_variant);
         }
@@ -1318,8 +1392,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Regularize models for the better partitioning assuming it is a transformer
     // Apply these transformations to all variant models
     {
-        ov::npuw::patterns::regularize::RegularizeSDPA(prefill_attn_dyn || prefill_attn_pyramid || prefill_attn_hfa)
-            .run_on_model(prefill_model);
+        for (auto& prefill_variant : prefill_model_variants) {
+            ov::npuw::patterns::regularize::RegularizeSDPA(prefill_attn_dyn || prefill_attn_pyramid || prefill_attn_hfa)
+                .run_on_model(prefill_variant);
+        }
         for (auto& model_variant : generate_model_variants) {
             ov::npuw::patterns::regularize::RegularizeSDPA(generate_attn_dyn || generate_attn_pyramid ||
                                                            generate_attn_hfa)
@@ -1330,6 +1406,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Apply block-based KV cache transformation for chunk prefill after ShapeOfParameter
     // This ensures ShapeOf nodes are already regularized before transformation
     if (m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE>()) {
+        OPENVINO_ASSERT(prefill_shorter_chunk_size == 0,
+                        "NPUW_LLM_PREFILL_SHORTER_CHUNK_SIZE cannot be combined with "
+                        "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE.");
         OPENVINO_ASSERT(!m_enable_prefix_caching,
                         "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE and NPUW_LLM_ENABLE_PREFIX_CACHING "
                         "cannot be enabled simultaneously — this combination is not yet supported. "
@@ -1380,19 +1459,19 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // isolate and convert each SDPA to HFA independently (e.g. Gemma-4 L15–L34 reuse
     // L13/L14 KV).
     if ((prefill_attn_hfa || prefill_attn_pyramid) && !m_is_embedding) {
-        ov::pass::GraphRewrite rewr;
-        rewr.add_matcher<ov::npuw::pass::DuplicateSharedKVConcat>();
-        if (rewr.run_on_model(prefill_model)) {
-            LOG_INFO("DuplicateSharedKVConcat applied to prefill model");
+        for (auto& prefill_variant : prefill_model_variants) {
+            ov::pass::GraphRewrite rewr;
+            rewr.add_matcher<ov::npuw::pass::DuplicateSharedKVConcat>();
+            if (rewr.run_on_model(prefill_variant)) {
+                LOG_INFO("DuplicateSharedKVConcat applied to prefill model");
+            }
         }
     }
 
     // Compile multiple generate model variants with different sizes
     compile_generate_model_variants(generate_model_variants, plugin, generate_config);
 
-    m_prefill_compiled = m_compiled_model_factory(prefill_model, plugin, prefill_config);
-    NPUW_ASSERT(m_prefill_compiled && "Can't create ov::npuw::CompiledModel for passed prefill "
-                                      "model and its config, please check passed config.");
+    compile_prefill_model_variants(prefill_model_variants, plugin, prefill_config);
     if (lm_head_model) {
         auto lm_head_config = get_default_lm_head_config(npudesc);
         merge_config_with(lm_head_config, other_props);
@@ -1540,7 +1619,13 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
             compiled_variant->serialize(model_stream, enc_ctx);
         }
 
-        m_prefill_compiled->serialize(model_stream, enc_ctx);
+        // Serialize Prefill metadata immediately before the corresponding child models.
+        auto prefill_variant_count = static_cast<uint32_t>(m_prefill_compiled_variants.size());
+        stream & m_prefill_chunk_sizes & prefill_variant_count;
+
+        for (const auto& compiled_variant : m_prefill_compiled_variants) {
+            compiled_variant->serialize(model_stream, enc_ctx);
+        }
         const bool is_shared_lm_head = m_lm_head_compiled != nullptr;
         stream & is_shared_lm_head;
         if (is_shared_lm_head) {
@@ -1644,8 +1729,10 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
                 compiled_variant->finalize_weights_bank();
             }
 
-            compiled->m_prefill_compiled->set_weights_bank(bank);
-            compiled->m_prefill_compiled->finalize_weights_bank();
+            for (const auto& compiled_variant : compiled->m_prefill_compiled_variants) {
+                compiled_variant->set_weights_bank(bank);
+                compiled_variant->finalize_weights_bank();
+            }
 
             if (compiled->m_lm_head_compiled) {
                 compiled->m_lm_head_compiled->set_weights_bank(bank);
@@ -1664,8 +1751,10 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
                 compiled_variant->reconstruct_closure();
             }
 
-            compiled->m_prefill_compiled->set_weights_bank(bank);
-            compiled->m_prefill_compiled->reconstruct_closure();
+            for (const auto& compiled_variant : compiled->m_prefill_compiled_variants) {
+                compiled_variant->set_weights_bank(bank);
+                compiled_variant->reconstruct_closure();
+            }
 
             if (compiled->m_lm_head_compiled) {
                 compiled->m_lm_head_compiled->set_weights_bank(bank);
@@ -1779,7 +1868,18 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
             compiled->m_kvcache_compiled = compiled->m_generate_compiled_variants.back();
         }
 
-        compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
+        stream & compiled->m_prefill_chunk_sizes;
+        uint32_t prefill_variant_count = 0;
+        stream & prefill_variant_count;
+        NPUW_ASSERT(prefill_variant_count > 0 && compiled->m_prefill_chunk_sizes.size() == prefill_variant_count &&
+                    "Serialized Prefill variant metadata is inconsistent.");
+        compiled->m_prefill_compiled_variants.reserve(prefill_variant_count);
+        for (uint32_t i = 0; i < prefill_variant_count; ++i) {
+            auto compiled_variant = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
+            compiled->m_prefill_compiled_variants.push_back(compiled_variant);
+        }
+        NPUW_ASSERT(!compiled->m_prefill_compiled_variants.empty() && "No Prefill variants found in serialized model.");
+        compiled->m_prefill_compiled = compiled->m_prefill_compiled_variants.back();
         bool is_shared_lm_head = false;
         stream & is_shared_lm_head;
         if (is_shared_lm_head) {
@@ -1950,6 +2050,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::generate_moe_hint, NPUW_LLM_GENERATE_MOE_HINT, get),
                           BIND(npuw::llm::generate_pyramid, NPUW_LLM_GENERATE_PYRAMID, get),
                           BIND(npuw::llm::prefill_chunk_size, NPUW_LLM_PREFILL_CHUNK_SIZE, get),
+                          BIND(npuw::llm::prefill_shorter_chunk_size, NPUW_LLM_PREFILL_SHORTER_CHUNK_SIZE, get),
                           BIND(npuw::llm::prefill_hint, NPUW_LLM_PREFILL_HINT, getString),
                           BIND(npuw::llm::generate_hint, NPUW_LLM_GENERATE_HINT, getString),
                           BIND(npuw::llm::prefill_attn_hint, NPUW_LLM_PREFILL_ATTENTION_HINT, getString),

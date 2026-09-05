@@ -224,6 +224,12 @@ controlled by the new property ``NPUW_LLM_PREFILL_CHUNK_SIZE`` (default: 1024).
 If the ``MAX_PROMPT_LEN`` property is set to a value greater than the chunk size, the mechanism
 is activated automatically. Set ``PREFILL_HINT`` to ``STATIC`` to disable this feature.
 
+For a shorter final chunk, set ``NPUW_LLM_PREFILL_SHORTER_CHUNK_SIZE`` to a non-zero power of two
+smaller than ``NPUW_LLM_PREFILL_CHUNK_SIZE``. This compiles one additional Prefill model and uses it
+only when the final chunk fits the shorter size, avoiding padded token computation. The default value
+is ``0``, which disables the additional model. This option cannot be combined with
+``NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE``.
+
 Use the following code snippet to change the default settings:
 
 .. tab-set::
