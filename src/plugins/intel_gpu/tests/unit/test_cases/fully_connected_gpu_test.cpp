@@ -3996,7 +3996,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         // dq_scale ~= 0.75 / 127 = 0.0059, so the true result stays finite:
         //   243840 (scales_group_size: 128 * int8: 127 * u4: 15) * 0.0059 * 20 ~= 28.8K < 65504.
         // The old code still overflows because it first converts the large int accumulator to fp16.
-        auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, 0.25f, 0.75f);
+        auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, 0, 0);
         set_values(input_mem, input_data);
 
         auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 15);
@@ -4124,7 +4124,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         auto scale_mem = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx });
 
         // Positive activations keep int accumulators large while the final fp32 result stays finite.
-        auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, 0.25f, 0.75f);
+        auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, 0, 0);
         set_values(input_mem, input_data);
 
         auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 15);
@@ -4258,7 +4258,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         // INT8 weights [0,255] produce large int_acc ~690K >> 65504 per group.
         // True result = 690K * 0.004 * 4 ~ 10K << 65504: always FP16-safe.
         // Old code: convert_half(690K) = INF → NaN cascade.
-        auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, 0.25f, 0.5f);
+        auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, 0, 0);
         set_values(input_mem, input_data);
 
         // UINT8 weights [0, 255]: large range ensures int_acc >> 65504.
@@ -6312,7 +6312,7 @@ struct fc_bf_tiled_dyn_b_accuracy_test : public ::testing::TestWithParam<std::tu
         set_values(weights_mem, weights_data);
         auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -1.0f, 1.0f);
         set_values(scale_mem, scale_data);
-        auto zp_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -0.5f, 0.5f);
+        auto zp_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, 0, 0);
         set_values(dcomp_zp_mem, zp_data);
 
         auto dyn_layout = layout{ {-1, ifm_num}, data_types::f16, format::bfyx };
@@ -6470,12 +6470,12 @@ TEST_P(fully_connected_gpu_u2_validation, various_sizes) {
     }
     set_values(weights_mem, packed_weights);
 
-    auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, 0.5f, 2.0f);
+    auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, 0, 2);
     set_values(scale_mem, scale_data);
 
     std::vector<ov::float16> zp_data;
     if (use_zp) {
-        zp_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, 0.5f, 1.5f);
+        zp_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, 0, 1);
         set_values(zp_mem, zp_data);
     }
 

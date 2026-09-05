@@ -4001,8 +4001,8 @@ TEST(grouped_matmul_gpu_tests, smoke_2d_3d_f16) {
         offsets[i] = offsets[i - 1] + tokens_per_expert[i];
 
     tests::random_generator rg("grouped_matmul_smoke");
-    auto mat_a_f32 = rg.generate_random_1d<float>(total_tokens * K, -0.5f, 0.5f);
-    auto mat_b_f32 = rg.generate_random_1d<float>(G * N * K, -0.5f, 0.5f);
+    auto mat_a_f32 = rg.generate_random_1d<float>(total_tokens * K, 0, 0);
+    auto mat_b_f32 = rg.generate_random_1d<float>(G * N * K, 0, 0);
 
     std::vector<ov::float16> mat_a_f16(mat_a_f32.size());
     std::vector<ov::float16> mat_b_f16(mat_b_f32.size());

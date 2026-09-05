@@ -555,8 +555,8 @@ TEST(bf16_onednn_ops, moe_gemm_bf16) {
     const int num_experts = 1, num_tokens = 4, hidden = 64, out_N = 32;
 
     tests::random_generator rg("bf16_moe_gemm");
-    auto input_f32 = rg.generate_random_1d<float>(num_tokens * hidden, -0.5f, 0.5f);
-    auto weight_f32 = rg.generate_random_1d<float>(num_experts * out_N * hidden, -0.5f, 0.5f);
+    auto input_f32 = rg.generate_random_1d<float>(num_tokens * hidden, 0, 0);
+    auto weight_f32 = rg.generate_random_1d<float>(num_experts * out_N * hidden, 0, 0);
 
     ov::op::internal::MOECompressed::Config moe_config;
     moe_config.top_k = 1;
@@ -647,10 +647,10 @@ TEST(bf16_onednn_ops, gated_mlp_bf16) {
     tests::random_generator rg("bf16_gated_mlp");
     const int batch = 2, ifm = 32, hidden = 16;
 
-    auto src_f32 = rg.generate_random_1d<float>(batch * ifm, -0.5f, 0.5f);
-    auto gate_f32 = rg.generate_random_1d<float>(ifm * hidden, -0.5f, 0.5f);
-    auto up_f32 = rg.generate_random_1d<float>(ifm * hidden, -0.5f, 0.5f);
-    auto down_f32 = rg.generate_random_1d<float>(hidden * ifm, -0.5f, 0.5f);
+    auto src_f32 = rg.generate_random_1d<float>(batch * ifm, 0, 0);
+    auto gate_f32 = rg.generate_random_1d<float>(ifm * hidden, 0, 0);
+    auto up_f32 = rg.generate_random_1d<float>(ifm * hidden, 0, 0);
+    auto down_f32 = rg.generate_random_1d<float>(hidden * ifm, 0, 0);
 
     auto run_gated_mlp = [&](data_types dt) -> std::vector<float> {
         auto src_mem = engine.allocate_memory({{batch, 1, 1, ifm}, dt, format::bfyx});

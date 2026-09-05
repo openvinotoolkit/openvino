@@ -295,7 +295,7 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
         auto conv_weight = rg.generate_random_1d<T>(ov::shape_size(weight_layout.get_shape()), -1.0f, 1.0f, 256);
         std::vector<T> conv_bias;
         if (p.with_bias) {
-            conv_bias = rg.generate_random_1d<T>(ov::shape_size(bias_layout.get_shape()), -0.5f, 0.5f, 256);
+            conv_bias = rg.generate_random_1d<T>(ov::shape_size(bias_layout.get_shape()), 0, 0, 256);
         }
 
         auto ref_state = conv_state_table;

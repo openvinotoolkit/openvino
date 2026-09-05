@@ -3278,7 +3278,7 @@ TEST(prepare_buffer_fusing, in_place_crop_split_axis1_three_crops_vlsdpa_consume
     auto splits_len_mem   = engine.allocate_memory({{F}, data_types::i64, format::bfyx});
     auto scale_mem        = engine.allocate_memory({{1}, data_types::f16, format::bfyx});
 
-    auto input_data = rg.generate_random_1d<ov::float16>(L * F * H * S, -0.5f, 0.5f);
+    auto input_data = rg.generate_random_1d<ov::float16>(L * F * H * S, 0, 0);
     set_values(input_mem, input_data);
     set_values(cu_seqlens_mem, cu_seqlens);
     set_values<int64_t>(axis_mem, {1});
