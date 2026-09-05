@@ -8,7 +8,6 @@
 #include <iterator>
 #include <ostream>
 
-#include "compiler_impl.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"

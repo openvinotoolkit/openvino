@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "compiler_impl.hpp"
 #include "dynamic_graph.hpp"
 #include "graph.hpp"
 #include "intel_npu/common/device_helpers.hpp"
@@ -31,28 +32,34 @@ namespace intel_npu {
 namespace {
 constexpr OptionSupportCache::CacheKey pluginOptionSupportKey =
     static_cast<OptionSupportCache::CacheKey>(ov::intel_npu::CompilerType::PLUGIN);
+
+/// Loads the compiler-in-plugin, translating any failure into the aborting message callers expect.
+ov::SoPtr<IVCLCompiler> loadVCLCompiler(const std::optional<IDevice::DeviceProperties>& deviceProperties) {
+    Logger logger("PluginCompilerAdapter", Logger::global().level());
+    logger.info("Loading PLUGIN compiler");
+    try {
+        return makeVCLCompiler(ov::util::path_to_string(ov::util::get_ov_lib_path()), deviceProperties);
+    } catch (const std::exception& vclException) {
+        OPENVINO_THROW("VCL compiler loading failed, aborting. Error: ", vclException.what());
+    }
 }
+}  // namespace
 
 PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                                              const std::shared_ptr<OptionSupportCache>& optionSupportCache,
                                              const std::optional<IDevice::DeviceProperties>& deviceProperties)
+    : PluginCompilerAdapter(loadVCLCompiler(deviceProperties), zeroInitStruct, optionSupportCache) {}
+
+PluginCompilerAdapter::PluginCompilerAdapter(ov::SoPtr<IVCLCompiler> compiler,
+                                             const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                                             const std::shared_ptr<OptionSupportCache>& optionSupportCache)
     : _zeroInitStruct(zeroInitStruct),
       _optionSupportCache(optionSupportCache),
+      _compiler(std::move(compiler)),
       _logger("PluginCompilerAdapter", Logger::global().level()) {
     _logger.info("initialize PluginCompilerAdapter start");
 
-    _logger.info("Loading PLUGIN compiler");
-    try {
-        auto ovLibPath = ov::util::path_to_string(ov::util::get_ov_lib_path());
-        auto vclCompilerPtr = std::make_shared<VCLCompilerImpl>(ovLibPath, deviceProperties);
-        OPENVINO_ASSERT(vclCompilerPtr != nullptr, "VCL compiler is nullptr");
-        auto vclLib = vclCompilerPtr->getLinkedLibrary();
-        _logger.info("PLUGIN VCL compiler is loading");
-        OPENVINO_ASSERT(vclLib != nullptr, "VCL library is nullptr");
-        _compiler = ov::SoPtr<VCLCompilerImpl>(vclCompilerPtr, vclLib);
-    } catch (const std::exception& vclException) {
-        OPENVINO_THROW("VCL compiler loading failed, aborting. Error: ", vclException.what());
-    }
+    OPENVINO_ASSERT(_compiler != nullptr, "PluginCompilerAdapter requires a non-null compiler");
 
     if (_zeroInitStruct == nullptr) {
         return;
@@ -287,26 +294,8 @@ uint32_t PluginCompilerAdapter::get_version() const {
 }
 
 std::vector<std::string> PluginCompilerAdapter::get_supported_options() const {
-    std::vector<char> options;
-    _compiler->get_supported_options(options);
-    size_t optionsSize = options.size();
-    while (optionsSize > 0 && options[optionsSize - 1] == '\0') {
-        --optionsSize;
-    }
-    if (optionsSize == 0) {
-        _logger.info("get_supported_options returned no options; returning an empty supported options vector.");
-        return {};
-    }
-
-    std::string compilerOptionsStr(options.data(), optionsSize);
-    _logger.debug("VCLCompilerImpl return supported_options: %s", compilerOptionsStr.c_str());
-    // vectorize string
-    std::istringstream suppstream(compilerOptionsStr);
-    std::vector<std::string> compilerOpts = {};
-    std::string option;
-    while (suppstream >> option) {
-        compilerOpts.push_back(option);
-    }
+    // Trimming and tokenisation happen in the compiler; the adapter only owns the cache write-through.
+    const std::vector<std::string> compilerOpts = _compiler->get_supported_options();
 
     if (_optionSupportCache) {
         _optionSupportCache->setSupportedOptions(pluginOptionSupportKey, compilerOpts);

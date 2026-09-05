@@ -8,12 +8,12 @@
 
 #include <optional>
 
-#include "compiler_impl.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/common/option_support_cache.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "ivcl_compiler.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
@@ -21,9 +21,21 @@ namespace intel_npu {
 
 class PluginCompilerAdapter final : public ICompilerAdapter {
 public:
+    /**
+     * @brief Loads the compiler-in-plugin from disk and adapts it.
+     */
     PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                           const std::shared_ptr<OptionSupportCache>& optionSupportCache = nullptr,
                           const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt);
+
+    /**
+     * @brief Adapts an already-constructed compiler.
+     * @param zeroInitStruct Pass null to construct without a Level Zero driver; the adapter then
+     *        produces export-only graphs with no runtime metadata.
+     */
+    PluginCompilerAdapter(ov::SoPtr<IVCLCompiler> compiler,
+                          const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                          const std::shared_ptr<OptionSupportCache>& optionSupportCache = nullptr);
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
                                     const FilteredConfig& config) const override;
@@ -44,7 +56,7 @@ private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     std::shared_ptr<OptionSupportCache> _optionSupportCache;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
-    ov::SoPtr<VCLCompilerImpl> _compiler;
+    ov::SoPtr<IVCLCompiler> _compiler;
 
     Logger _logger;
 };
