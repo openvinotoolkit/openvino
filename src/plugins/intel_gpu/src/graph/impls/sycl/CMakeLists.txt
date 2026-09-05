@@ -6,11 +6,11 @@ if(NOT OV_GPU_WITH_SYCL)
     return()
 endif()
 
-set(TARGET_NAME "openvino_intel_gpu_sycl_obj")
+set(TARGET_NAME "openvino_intel_gpu_sycl_obj${OV_GPU_SUFFIX}")
 
 set(SOURCES_OCL_RT "${CMAKE_CURRENT_SOURCE_DIR}/impl_example.cpp")
 
-if(GPU_RT_TYPE STREQUAL "SYCL")
+if(OV_GPU_RUNTIME_SYCL_ENABLED)
     set(EXCLUDED_SOURCE_PATHS ${SOURCES_OCL_RT})
 else()
     file(GLOB EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
@@ -19,6 +19,7 @@ endif()
 
 ov_gpu_add_backend_target(
     NAME ${TARGET_NAME}
+    LINK_LIBRARIES OpenCL::OpenCL LevelZero::Headers
     BYPASS
         EXCLUDED_SOURCE_PATHS ${EXCLUDED_SOURCE_PATHS}
 )

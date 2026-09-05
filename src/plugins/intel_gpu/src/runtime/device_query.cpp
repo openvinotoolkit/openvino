@@ -3,11 +3,17 @@
 //
 
 #include "intel_gpu/runtime/device_query.hpp"
-#include "ocl/ocl_device_detector.hpp"
-#include "ze/ze_device_detector.hpp"
+
+#if defined(OV_GPU_WITH_OCL_RT) || defined(OV_GPU_WITH_ZE_RT)
+#    include "ocl/ocl_device_detector.hpp"
+#endif
+
+#ifdef OV_GPU_WITH_ZE_RT
+#    include "ze/ze_device_detector.hpp"
+#endif
 
 #ifdef OV_GPU_WITH_SYCL_RT
-#include "sycl/sycl_device_detector.hpp"
+#    include "sycl/sycl_device_detector.hpp"
 #endif
 
 #include <map>
@@ -41,7 +47,7 @@ device_query::device_query(engine_types engine_type,
         OPENVINO_ASSERT(engine_type == engine_types::ocl || engine_type == engine_types::sycl);
         ocl::ocl_device_detector ocl_detector;
         _available_devices = ocl_detector.get_available_devices(user_context, user_device, ctx_device_id, target_tile_id, initialize_devices);
-#ifdef OV_GPU_WITH_ZE_RT
+#    ifdef OV_GPU_WITH_ZE_RT
         // If running with ZE runtime, convert found OCL devices to ZE devices
         std::map<std::string, device::ptr> ze_devices;
         for (auto& device : _available_devices) {
@@ -49,7 +55,7 @@ device_query::device_query(engine_types engine_type,
             ze_devices[device.first] = ze_device;
         }
         _available_devices = std::move(ze_devices);
-#endif
+#    endif
         break;
     }
 #endif

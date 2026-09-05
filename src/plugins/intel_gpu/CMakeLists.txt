@@ -6,7 +6,15 @@ if (NOT ENABLE_INTEL_GPU)
     return()
 endif()
 
+include(cmake/features.cmake)
+
+if(OV_GPU_RUNTIME_ZE_ENABLED OR OV_GPU_RUNTIME_SYCL_ENABLED)
+    ov_add_zero_loader()
+endif()
+
 set (TARGET_NAME "openvino_intel_gpu_plugin")
+set(OV_GPU_RT "${GPU_RT_TYPE}")
+set(OV_GPU_SUFFIX "")
 
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/utils.cmake)
 
@@ -94,13 +102,13 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:__cplusplus")
 endif()
 
-if(GPU_RT_TYPE STREQUAL "SYCL" AND NOT OV_GPU_WITH_SYCL)
-    message(FATAL_ERROR "GPU_RT_TYPE is set to SYCL, but SYCL is not available for the selected compiler/environment.")
+if(OV_GPU_RUNTIME_SYCL_ENABLED AND NOT OV_GPU_WITH_SYCL)
+    message(FATAL_ERROR "GPU_RT_TYPE selects SYCL, but SYCL is not available for the selected compiler/environment.")
 endif()
 
 # When -fsycl and -flto are both active, archive members are emitted in a format
 # that the linker cannot read from static libraries ("archive member is neither ET_REL nor LLVM bitcode").
-if(OV_GPU_WITH_SYCL AND ENABLE_LTO)
+if(OV_GPU_RUNTIME_SYCL_ENABLED AND ENABLE_LTO)
     message(FATAL_ERROR "Intel GPU plugin with SYCL is not supported with ENABLE_LTO=ON")
 endif()
 
@@ -114,9 +122,7 @@ if(ENABLE_GPU_DEBUG_CAPS)
 endif()
 
 set(INTEL_GPU_TARGET_OCL_VERSION "300"
-  CACHE STRING "Target version of OpenCL which should be used by GPU plugin")
-
-add_definitions(-DCL_TARGET_OPENCL_VERSION=${INTEL_GPU_TARGET_OCL_VERSION})
+    CACHE STRING "Target version of OpenCL which should be used by GPU plugin")
 
 set(MAIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
@@ -128,41 +134,59 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     ov_add_compiler_flags(-Werror)
 endif()
 
-add_subdirectory(src/runtime)
-add_subdirectory(src/kernel_selector)
-add_subdirectory(src/graph)
-
 file(GLOB_RECURSE PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/plugin/*.hpp)
 
-ov_add_plugin(NAME ${TARGET_NAME}
-              DEVICE_NAME "GPU"
-              SOURCES ${PLUGIN_SOURCES}
-              DEFAULT_CONFIG ${PLUGIN_DEFAULT_CONFIG}
-              VERSION_DEFINES_FOR src/plugin/plugin.cpp
-              # ADD_CLANG_TIDY makes ov_add_plugin apply clang-tidy to this target.
-              # Libraries not created via ov_add_plugin call ov_apply_clang_tidy() directly.
-              ADD_CLANG_TIDY)
+# Build one GPU stack for an explicit runtime. The empty suffix preserves every
+# established target and artifact name; a future multi-library composition can
+# invoke the same boundary with distinct suffixes without changing runtime logic.
+function(ov_gpu_build_stack RUNTIME SUFFIX MODULE_NAME)
+    set(OV_GPU_RT "${RUNTIME}")
+    set(OV_GPU_SUFFIX "${SUFFIX}")
 
-target_compile_options(${TARGET_NAME} PRIVATE
-    $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
+    foreach(_ov_gpu_runtime IN LISTS OV_GPU_SUPPORTED_RUNTIMES)
+        set(OV_GPU_RUNTIME_${_ov_gpu_runtime}_ENABLED OFF)
+    endforeach()
+    set(OV_GPU_RUNTIME_${RUNTIME}_ENABLED ON)
 
-target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph openvino::pugixml)
+    # Explicit binary directories keep repeated stack construction independent;
+    # an empty suffix retains the existing out-of-tree directory layout.
+    add_subdirectory(src/runtime src/runtime${SUFFIX})
+    add_subdirectory(src/kernel_selector src/kernel_selector${SUFFIX})
+    add_subdirectory(src/graph src/graph${SUFFIX})
 
-target_include_directories(${TARGET_NAME} PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/include/)
+    ov_add_plugin(NAME ${MODULE_NAME}
+                  DEVICE_NAME "GPU"
+                  SOURCES ${PLUGIN_SOURCES}
+                  DEFAULT_CONFIG ${PLUGIN_DEFAULT_CONFIG}
+                  VERSION_DEFINES_FOR src/plugin/plugin.cpp
+                  # ADD_CLANG_TIDY makes ov_add_plugin apply clang-tidy to this target.
+                  # Libraries not created via ov_add_plugin call ov_apply_clang_tidy() directly.
+                  ADD_CLANG_TIDY
+                  ${ARGN})
 
-ov_set_threading_interface_for(${TARGET_NAME})
-ov_gpu_set_runtime_interface_for(${TARGET_NAME})
+    target_compile_options(${MODULE_NAME} PRIVATE
+        $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
 
-set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+    target_link_libraries(${MODULE_NAME} PRIVATE openvino_intel_gpu_graph${SUFFIX} openvino::pugixml)
 
-# Workaround to avoid warnings during LTO build
-if(CMAKE_COMPILER_IS_GNUCXX)
-  set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized -Wno-stringop-overflow"
-                                                  LINK_FLAGS_RELWITHDEBINFO "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized -Wno-stringop-overflow")
-endif()
+    target_include_directories(${MODULE_NAME} PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 
-ov_build_target_faster(${TARGET_NAME} PCH)
+    ov_set_threading_interface_for(${MODULE_NAME})
+    ov_gpu_set_runtime_interface_for(${MODULE_NAME} RUNTIME ${RUNTIME})
+
+    set_target_properties(${MODULE_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+    # Workaround to avoid warnings during LTO build
+    if(CMAKE_COMPILER_IS_GNUCXX)
+      set_target_properties(${MODULE_NAME} PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized -Wno-stringop-overflow"
+                                                      LINK_FLAGS_RELWITHDEBINFO "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized -Wno-stringop-overflow")
+    endif()
+
+    ov_build_target_faster(${MODULE_NAME} PCH)
+endfunction()
+
+ov_gpu_build_stack(${GPU_RT_TYPE} "" ${TARGET_NAME})
 
 if(ENABLE_TESTS)
   add_subdirectory(tests)

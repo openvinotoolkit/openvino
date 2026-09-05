@@ -37,7 +37,7 @@ ov_add_test_target(
             OV GPU
 )
 
-ov_gpu_set_runtime_interface_for(${TARGET_NAME})
+ov_gpu_set_runtime_interface_for(${TARGET_NAME} RUNTIME ${GPU_RT_TYPE})
 
 if(ENABLE_PROXY)
     target_compile_definitions(${TARGET_NAME} PUBLIC PROXY_PLUGIN_ENABLED)
