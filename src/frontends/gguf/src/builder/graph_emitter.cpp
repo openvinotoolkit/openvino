@@ -72,6 +72,12 @@ const ov::PartialShape& GraphEmitter::shape_of_tensor(const std::string& name) c
     return it->second;
 }
 
+ov::element::Type GraphEmitter::type_of_tensor(const std::string& name) const {
+    auto it = m_tensor_types.find(name);
+    OPENVINO_ASSERT(it != m_tensor_types.end(), "[GGUF] internal: no type recorded for '", name, "'");
+    return it->second;
+}
+
 ov::Shape GraphEmitter::static_shape_of(const std::string& tensor_name) const {
     const auto& shape = shape_of_tensor(tensor_name);
     OPENVINO_ASSERT(shape.is_static(),

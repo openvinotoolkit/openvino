@@ -6,8 +6,8 @@
 
 #include <string>
 
-#include "builder/decoder_config.hpp"
 #include "builder/graph_emitter.hpp"
+#include "openvino/frontend/gguf/builder/decoder_config.hpp"
 
 namespace ov {
 namespace frontend {
