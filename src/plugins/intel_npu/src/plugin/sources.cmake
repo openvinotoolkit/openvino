@@ -67,6 +67,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/just_sync_infer_request.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/kv_cache_block_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/kv_cache_block_manager.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/kv_cache_sliding_window_manager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/kv_cache_sliding_window_manager.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/lazy_tensor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/lazy_tensor.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_block_kvcache_strategy.cpp
