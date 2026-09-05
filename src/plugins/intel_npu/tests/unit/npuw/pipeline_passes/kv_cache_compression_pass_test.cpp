@@ -41,6 +41,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_min.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/softmax.hpp"
@@ -245,6 +246,75 @@ TEST_P(KVCacheCompressionPassTest, ModelValidAfterPass) {
 
     ASSERT_NO_THROW(ov::npuw::run_kv_cache_dynamic_quantization_passes(model, make_compression_params(p)));
     EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
+}
+
+TEST(KVCacheCompressionPassRegressionTest, NonTransposedValueAuxUsesTokenAxis) {
+    auto model = build_sdpa_model(1);
+    ov::npuw::KVCacheCompressionParams params;
+    params.key = {QuantizationType::Asymmetric, element::i8};
+    params.value = {QuantizationType::Asymmetric, element::i8};
+
+    ASSERT_NO_THROW(ov::npuw::run_kv_cache_dynamic_quantization_passes(model, params));
+
+    bool found_value_scale = false;
+    for (const auto& input : model->inputs()) {
+        if (input.get_any_name().find("/past_key_values/value/scale") == std::string::npos) {
+            continue;
+        }
+        PartialShape ps{1, 4, 8, 1};
+        EXPECT_EQ(input.get_partial_shape(), ps) << "for input: " << input.get_any_name();
+        found_value_scale = true;
+    }
+    EXPECT_TRUE(found_value_scale) << "Value scale parameter was not added";
+}
+
+TEST(KVCacheCompressionPassRegressionTest, NonTransposedValueUsesEmbeddingReductionAxis) {
+    auto model = build_sdpa_model(1);
+    ov::npuw::KVCacheCompressionParams params;
+    params.key = {QuantizationType::Asymmetric, element::i8};
+    params.value = {QuantizationType::Asymmetric, element::i8};
+
+    ASSERT_NO_THROW(ov::npuw::run_kv_cache_dynamic_quantization_passes(model, params, false));
+
+    const auto expect_shape = [&model](const std::string& name, const PartialShape& expected) {
+        for (const auto& input : model->inputs()) {
+            if (input.get_any_name().find(name) != std::string::npos) {
+                EXPECT_EQ(input.get_partial_shape(), expected) << name;
+                return true;
+            }
+        }
+        ADD_FAILURE() << "Missing input: " << name;
+        return false;
+    };
+
+    expect_shape("/past_key_values/key/scale", PartialShape{1, 4, 8, 1});
+    expect_shape("/past_key_values/value/scale", PartialShape{1, 4, 8, 1});
+    expect_shape("/past_key_values/key/zp", PartialShape{1, 4, 8, 1});
+    expect_shape("/past_key_values/value/zp", PartialShape{1, 4, 8, 1});
+
+    size_t key_reduce_axis_count = 0;
+    size_t value_reduce_axis_count = 0;
+    for (const auto& node : model->get_ops()) {
+        const auto reduce_min = ov::as_type_ptr<ov::op::v1::ReduceMin>(node);
+        if (!reduce_min || reduce_min->get_input_size() < 2) {
+            continue;
+        }
+        const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(reduce_min->input_value(1).get_node_shared_ptr());
+        if (!constant) {
+            continue;
+        }
+        const auto axes = constant->cast_vector<int64_t>();
+        ASSERT_EQ(axes.size(), 1u);
+        if (reduce_min->get_friendly_name().find("/key/ReduceMin") != std::string::npos) {
+            EXPECT_EQ(axes.front(), 3);
+            ++key_reduce_axis_count;
+        } else if (reduce_min->get_friendly_name().find("/value/ReduceMin") != std::string::npos) {
+            EXPECT_EQ(axes.front(), 3);
+            ++value_reduce_axis_count;
+        }
+    }
+    EXPECT_EQ(key_reduce_axis_count, 1u);
+    EXPECT_EQ(value_reduce_axis_count, 1u);
 }
 
 // The pass must inject exactly (num_sdpa * 2 * added_per_cache) new Parameters
@@ -667,7 +737,7 @@ TEST_P(KVCacheMultiStepDecodeTest, TransformedModelIoTypesMatchQuantConfig) {
     auto xform_model = build_decode_step_model(WINDOW);
     xform_model = apply_kv_cache_io_precision_for_test(xform_model, p.key_dt, p.val_dt);
     ASSERT_NO_THROW(ov::npuw::run_kv_cache_dynamic_quantization_passes(
-        xform_model, p.to_compression_params()));
+        xform_model, p.to_compression_params(), true));
     ASSERT_NO_THROW(xform_model->validate_nodes_and_infer_types());
 
     const bool key_asym = (p.key_quant_type == QuantizationType::Asymmetric);
@@ -776,7 +846,7 @@ TEST_P(KVCacheMultiStepDecodeTest, DecodeLoopAccuracy) {
     auto ref_model   = build_decode_step_model(WINDOW);
     auto xform_model = build_decode_step_model(WINDOW);
     ASSERT_NO_THROW(ov::npuw::run_kv_cache_dynamic_quantization_passes(
-        xform_model, p.to_compression_params()));
+        xform_model, p.to_compression_params(), true));
     ASSERT_NO_THROW(xform_model->validate_nodes_and_infer_types());
 
     std::mt19937 rng(77);
