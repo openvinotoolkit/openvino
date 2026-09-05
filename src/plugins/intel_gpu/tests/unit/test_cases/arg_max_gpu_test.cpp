@@ -1391,6 +1391,56 @@ TEST(arg_max_gpu_topk_radix, f16_max_duplicates_n70_k5_indices_tiebreak) {
     }
 }
 
+// Radix test: f32 random input verified against a stable_sort reference, including index tiebreaks
+TEST(arg_max_gpu_topk_radix, f32_max_random_values_and_indices) {
+    static const int32_t batch_num = 3, feature_num = 512;
+    auto& engine = get_test_engine();
+    const int top_k = 32;
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {batch_num, feature_num, 1, 1}});
+    auto top_k_input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
+    auto second_output = engine.allocate_memory({data_types::f32, format::bfyx, {batch_num, top_k, 1, 1}});
+
+    std::vector<float> input_vec(batch_num * feature_num);
+    std::mt19937 rng(1234);
+    std::uniform_int_distribution<int> dist(-40, 40);
+    for (size_t i = 0; i < input_vec.size(); i++)
+        input_vec[i] = static_cast<float>(dist(rng)) * 0.25f;
+    set_values(input, input_vec);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(cldnn::data("const", top_k_input));
+    topology.add(mutable_data("second_output", second_output));
+    topology.add(arg_max_min("arg_max",
+                             {input_info("input"), input_info("const"), input_info("second_output")},
+                             ov::op::TopKMode::MAX, top_k, 1,
+                             ov::op::TopKSortType::SORT_VALUES, true, false, data_types::f32));
+
+    network network(engine, topology, get_radix_topk_config(engine));
+    auto info = network.get_primitive_info("arg_max");
+    ASSERT_TRUE(info.find("arg_max_min_topk_radix") != std::string::npos)
+        << "Expected arg_max_min_topk_radix, got: " << info;
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    cldnn::mem_lock<float, mem_lock_type::read> val_ptr(outputs.at("arg_max").get_memory(), get_test_stream());
+    cldnn::mem_lock<float> idx_ptr(second_output, get_test_stream());
+
+    for (int b = 0; b < batch_num; b++) {
+        std::vector<std::pair<float, int>> ref;
+        for (int i = 0; i < feature_num; i++)
+            ref.push_back({input_vec[b * feature_num + i], i});
+        std::stable_sort(ref.begin(), ref.end(), [](const auto& a, const auto& b) { return a.first > b.first; });
+
+        for (int k = 0; k < top_k; k++) {
+            ASSERT_EQ(val_ptr[b * top_k + k], ref[k].first) << "value mismatch at b=" << b << " k=" << k;
+            ASSERT_EQ(static_cast<int>(idx_ptr[b * top_k + k]), ref[k].second)
+                << "index mismatch at b=" << b << " k=" << k;
+        }
+    }
+}
+
+
 // Verify that arg_max_min_axis is selected over radix for small sort_size and k=1
 TEST(arg_max_gpu_topk_radix, fallback_to_axis_for_small_sort_size_and_topk1) {
     auto& engine = get_test_engine();
