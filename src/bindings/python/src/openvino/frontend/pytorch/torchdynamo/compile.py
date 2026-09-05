@@ -112,6 +112,15 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
 
         om = fe.convert(im)
 
+        # vLLM-specific compile hooks (register __pa__ Parameters, normalize
+        # symint-heavy Concat ranks, MatMul weight decompression). No-op on
+        # graphs that don't have the matching patterns.
+        try:
+            from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh
+            _vh.apply_post_convert(om, options)
+        except Exception as _ee:
+            logger.debug("vllm.apply_post_convert skipped: %s", _ee)
+
         if file_name is not None:
             serialize(om, file_name + ".xml", file_name + ".bin")
 
@@ -126,13 +135,26 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         torch.bool: Type.boolean
     }
 
-    for idx, input_data in enumerate(args):
-        if isinstance(input_data, int):
-            om.inputs[idx].get_node().set_element_type(dtype_mapping[torch.int64])
-            om.inputs[idx].get_node().set_partial_shape(PartialShape(list(torch.Size([1]))))
-        else:
-            om.inputs[idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
-            om.inputs[idx].get_node().set_partial_shape(PartialShape(list(decoder.input_shapes[idx])))
+    # vLLM path handles int/symint inputs itself, either baking them as
+    # Constants or rebuilding them from a ShapeOf of the tensor input whose
+    # dimension they denote (which needs gm, for the FX symbol metadata). The
+    # hook returns False for non-vLLM graphs, in which case we fall through
+    # to the upstream loop below.
+    _shaped = False
+    try:
+        from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh
+        _shaped = _vh.apply_input_shapes(om, args, options, gm=gm)
+    except Exception as _ee:
+        logger.debug("vllm.apply_input_shapes skipped: %s", _ee)
+
+    if not _shaped:
+        for idx, input_data in enumerate(args):
+            if isinstance(input_data, int):
+                om.inputs[idx].get_node().set_element_type(dtype_mapping[torch.int64])
+                om.inputs[idx].get_node().set_partial_shape(PartialShape(list(torch.Size([1]))))
+            else:
+                om.inputs[idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
+                om.inputs[idx].get_node().set_partial_shape(PartialShape(list(decoder.input_shapes[idx])))
 
     om.validate_nodes_and_infer_types()
 
@@ -141,6 +163,21 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
     if model_hash_str is not None:
         if not _is_cache_dir_in_config(options):
             config["CACHE_DIR"] = cache_root
+
+    # vLLM-specific OV-config defaults (KV cache precision, FC dynamic-
+    # quantization group, narrow-float GEMM hint). No-op on non-CPU devices.
+    try:
+        from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh
+        _vh.apply_post_config(config, device, options)
+    except Exception as _ee:
+        logger.debug("vllm.apply_post_config skipped: %s", _ee)
+
+    if options and options.get("perf_count"):
+        config["PERF_COUNT"] = "YES"
+
+    _num_threads = os.environ.get("OV_INFERENCE_NUM_THREADS")
+    if device == "CPU" and _num_threads and "INFERENCE_NUM_THREADS" not in config:
+        config["INFERENCE_NUM_THREADS"] = int(_num_threads)
 
     compiled = core.compile_model(om, device, config)
     logger.debug(f"OpenVINO graph compile successful on device {device}")
