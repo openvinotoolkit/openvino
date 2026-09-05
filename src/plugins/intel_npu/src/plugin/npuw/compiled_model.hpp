@@ -113,7 +113,6 @@ public:
     static std::shared_ptr<CompiledModel> import_model(std::istream& stream,
                                                        const std::shared_ptr<const ov::IPlugin>& plugin,
                                                        const ov::AnyMap& properties);
-    static void validate_import_routing_tables(const std::shared_ptr<CompiledModel>& compiled);
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
 
     void set_property(const ov::AnyMap& properties) override;
@@ -137,6 +136,32 @@ public:
     void finalize_weights_bank() override;
     void reconstruct_closure() override;
     void serialize(std::ostream& stream, const s11n::CompiledContext& ctx) const override;
+
+    using ToSubmodel = std::pair<size_t /* submodel_idx */
+                                 ,
+                                 size_t /* port_idx     */
+                                 >;
+    static const constexpr auto NO_LINK = ToSubmodel{-1, -1};
+
+    // What validate_import_routing_tables() needs to know about a single submodel.
+    struct SubmodelPorts {
+        std::optional<std::size_t> replaced_by;
+        // Unset for optimized-out submodels, which carry no compiled model to count ports on
+        std::optional<std::size_t> num_inputs;
+        std::optional<std::size_t> num_outputs;
+    };
+
+    // Rejects routing tables restored from an untrusted blob which refer to
+    // submodels or ports that do not exist, or which don't cover every global
+    // input/output the imported model actually has (init_gio()/report_io() index
+    // both vectors by the model's real port count, not by the vector's own size).
+    static void validate_import_routing_tables(const std::vector<SubmodelPorts>& submodels,
+                                               std::size_t num_global_inputs,
+                                               std::size_t num_global_outputs,
+                                               const std::vector<ToSubmodel>& inputs_to_submodels_inputs,
+                                               const std::vector<ToSubmodel>& outputs_to_submodels_outputs,
+                                               const std::map<std::size_t, std::vector<ToSubmodel>>& param_subscribers,
+                                               const std::map<ToSubmodel, ToSubmodel>& submodels_input_to_prev_output);
 
 private:
     // FIXME: This class has many friends..
@@ -221,12 +246,6 @@ private:
 
     std::string m_name;
     const bool m_loaded_from_cache;
-
-    using ToSubmodel = std::pair<size_t /* submodel_idx */
-                                 ,
-                                 size_t /* port_idx     */
-                                 >;
-    static const constexpr auto NO_LINK = ToSubmodel{-1, -1};
 
     // In the below vector, index == compiled model's input/output port idex.
     std::vector<ToSubmodel> m_inputs_to_submodels_inputs;

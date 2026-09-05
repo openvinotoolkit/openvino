@@ -1362,6 +1362,31 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         have_weights = true;
     };
 
+    // Every routing table below is dereferenced unchecked by finalize_weights_bank()/
+    // reconstruct_closure() (both reached from consume_weights_bank()), so validation
+    // must run immediately after all Subgraph sections are read and before either of
+    // them executes - not after consume_weights_bank(), which is too late.
+    auto validate_submodels_read_so_far = [&]() {
+        std::vector<SubmodelPorts> submodel_ports;
+        submodel_ports.reserve(compiled->m_compiled_submodels.size());
+        for (const auto& desc : compiled->m_compiled_submodels) {
+            SubmodelPorts ports;
+            ports.replaced_by = desc.replaced_by;
+            if (desc.compiled_model) {
+                ports.num_inputs = desc.compiled_model->inputs().size();
+                ports.num_outputs = desc.compiled_model->outputs().size();
+            }
+            submodel_ports.push_back(std::move(ports));
+        }
+        validate_import_routing_tables(submodel_ports,
+                                       compiled->inputs().size(),
+                                       compiled->outputs().size(),
+                                       compiled->m_inputs_to_submodels_inputs,
+                                       compiled->m_outputs_to_submodels_outputs,
+                                       compiled->m_param_subscribers,
+                                       compiled->m_submodels_input_to_prev_output);
+    };
+
     if (encrypted) {
         root.expect_end();
 
@@ -1371,6 +1396,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
                peek_child_header(decrypted_stream).type == CompiledModelDesc::kOrcType) {
             consume_submodel(decrypted_stream);
         }
+        validate_submodels_read_so_far();
         if (require_weights_bank) {
             if (decrypted_stream.peek() == std::char_traits<char>::eof()) {
                 OPENVINO_THROW("Missing ORC weights bank container");
@@ -1381,6 +1407,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         while (!root.done() && peek_child_header(stream).type == CompiledModelDesc::kOrcType) {
             consume_submodel(stream);
         }
+        validate_submodels_read_so_far();
         if (require_weights_bank) {
             if (root.done()) {
                 OPENVINO_THROW("Missing ORC weights bank container");
@@ -1396,149 +1423,126 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         OPENVINO_THROW("Missing ORC weights bank container");
     }
 
-    validate_import_routing_tables(compiled);
-
     compiled->implement_properties();
     return compiled;
 }
 
-void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_ptr<CompiledModel>& compiled) {
-    const auto num_submodels = compiled->m_compiled_submodels.size();
+void ov::npuw::CompiledModel::validate_import_routing_tables(
+    const std::vector<SubmodelPorts>& submodels,
+    std::size_t num_global_inputs,
+    std::size_t num_global_outputs,
+    const std::vector<ToSubmodel>& inputs_to_submodels_inputs,
+    const std::vector<ToSubmodel>& outputs_to_submodels_outputs,
+    const std::map<std::size_t, std::vector<ToSubmodel>>& param_subscribers,
+    const std::map<ToSubmodel, ToSubmodel>& submodels_input_to_prev_output) {
+    const auto num_submodels = submodels.size();
 
-    // The NO_LINK sentinel is only meaningful for global inputs (a Parameter may be unused by
-    // any submodel). Every other table is dereferenced without checking for it, so accepting the
-    // sentinel there would turn a malformed blob into an out-of-bounds access at infer-request time.
-    const auto ensure_submodel_index = [&](const char* table_name,
-                                           std::size_t owner_idx,
-                                           const char* field_name,
-                                           const auto& link,
-                                           bool allow_no_link) {
-        if (link == CompiledModel::NO_LINK) {
-            if (allow_no_link) {
-                return;
+    // init_gio()/report_io() iterate the model's real input()/output() count and index
+    // these vectors positionally, so a short or padded vector is just as unsafe as a
+    // dangling entry inside it.
+    if (inputs_to_submodels_inputs.size() != num_global_inputs) {
+        OPENVINO_THROW("Imported NPUW model: global input mapping has ",
+                       inputs_to_submodels_inputs.size(),
+                       " entries but the model has ",
+                       num_global_inputs,
+                       " input(s)");
+    }
+    if (outputs_to_submodels_outputs.size() != num_global_outputs) {
+        OPENVINO_THROW("Imported NPUW model: global output mapping has ",
+                       outputs_to_submodels_outputs.size(),
+                       " entries but the model has ",
+                       num_global_outputs,
+                       " output(s)");
+    }
+
+    for (std::size_t idx = 0; idx < num_submodels; ++idx) {
+        const auto& replaced_by = submodels[idx].replaced_by;
+        if (replaced_by && replaced_by.value() >= num_submodels) {
+            OPENVINO_THROW("Imported NPUW model: submodel ",
+                           idx,
+                           " is replaced by submodel ",
+                           replaced_by.value(),
+                           " while only ",
+                           num_submodels,
+                           " submodel(s) are present");
+        }
+        // An in-range index is not enough: request construction (e.g. JustInferRequest)
+        // dereferences the target's compiled_model unconditionally, so it must actually
+        // be a function body - not an optimized-out submodel or another call site.
+        if (replaced_by && !submodels[replaced_by.value()].num_inputs) {
+            OPENVINO_THROW("Imported NPUW model: submodel ",
+                           idx,
+                           " is replaced by submodel ",
+                           replaced_by.value(),
+                           " which is not a compiled function body");
+        }
+    }
+
+    // Port count is only known for submodels backed by a compiled model - the optimized-out
+    // ones may still be legally referenced by the tables but are never executed.
+    auto port_count = [&](std::size_t idx, bool is_input) -> std::optional<std::size_t> {
+        const auto real_idx = submodels[idx].replaced_by.value_or(idx);
+        if (real_idx >= num_submodels) {
+            return std::nullopt;
+        }
+        return is_input ? submodels[real_idx].num_inputs : submodels[real_idx].num_outputs;
+    };
+
+    auto check = [&](const char* what, const ToSubmodel& link, bool is_input, bool allow_no_link) {
+        if (link == NO_LINK) {
+            if (!allow_no_link) {
+                OPENVINO_THROW("Imported NPUW model: ", what, " is not linked to any submodel");
             }
-            OPENVINO_THROW("Invalid ", table_name, "[", owner_idx, "] ", field_name, " link: NO_LINK is not allowed");
+            return;
         }
         if (link.first >= num_submodels) {
-            OPENVINO_THROW("Invalid ",
-                           table_name,
-                           "[",
-                           owner_idx,
-                           "] ",
-                           field_name,
-                           " submodel index ",
+            OPENVINO_THROW("Imported NPUW model: ",
+                           what,
+                           " refers to submodel ",
                            link.first,
-                           " (submodel count: ",
+                           " while only ",
                            num_submodels,
-                           ")");
+                           " submodel(s) are present");
+        }
+        const auto ports = port_count(link.first, is_input);
+        if (ports && link.second >= ports.value()) {
+            OPENVINO_THROW("Imported NPUW model: ",
+                           what,
+                           " refers to ",
+                           is_input ? "input" : "output",
+                           " port ",
+                           link.second,
+                           " of submodel ",
+                           link.first,
+                           " which has only ",
+                           ports.value(),
+                           " of them");
         }
     };
 
-    const auto ensure_input_port_index =
-        [&](const char* table_name, std::size_t owner_idx, const auto& link, bool allow_no_link) {
-            ensure_submodel_index(table_name, owner_idx, "input", link, allow_no_link);
-            if (link == CompiledModel::NO_LINK) {
-                return;
-            }
-            const auto& submodel_desc = compiled->m_compiled_submodels.at(link.first);
-            if (submodel_desc.compiled_model != nullptr &&
-                link.second >= submodel_desc.compiled_model->inputs().size()) {
-                OPENVINO_THROW("Invalid ",
-                               table_name,
-                               "[",
-                               owner_idx,
-                               "] input port index ",
-                               link.second,
-                               " for submodel ",
-                               link.first,
-                               " (inputs: ",
-                               submodel_desc.compiled_model->inputs().size(),
-                               ")");
-            }
-        };
-
-    const auto ensure_output_port_index =
-        [&](const char* table_name, std::size_t owner_idx, const auto& link, bool allow_no_link) {
-            ensure_submodel_index(table_name, owner_idx, "output", link, allow_no_link);
-            if (link == CompiledModel::NO_LINK) {
-                return;
-            }
-            const auto& submodel_desc = compiled->m_compiled_submodels.at(link.first);
-            if (submodel_desc.compiled_model != nullptr &&
-                link.second >= submodel_desc.compiled_model->outputs().size()) {
-                OPENVINO_THROW("Invalid ",
-                               table_name,
-                               "[",
-                               owner_idx,
-                               "] output port index ",
-                               link.second,
-                               " for submodel ",
-                               link.first,
-                               " (outputs: ",
-                               submodel_desc.compiled_model->outputs().size(),
-                               ")");
-            }
-        };
-
-    for (std::size_t idx = 0u; idx < compiled->m_compiled_submodels.size(); ++idx) {
-        const auto& submodel_desc = compiled->m_compiled_submodels[idx];
-        if (submodel_desc.replaced_by.has_value() && submodel_desc.replaced_by.value() >= num_submodels) {
-            OPENVINO_THROW("Invalid m_compiled_submodels[",
-                           idx,
-                           "].replaced_by index ",
-                           submodel_desc.replaced_by.value(),
-                           " (submodel count: ",
-                           num_submodels,
-                           ")");
+    for (const auto& link : inputs_to_submodels_inputs) {
+        check("global input mapping", link, true, true);
+    }
+    for (const auto& link : outputs_to_submodels_outputs) {
+        check("global output mapping", link, false, false);
+    }
+    for (const auto& kvp : param_subscribers) {
+        // The key is a global input index consumed unchecked by init_gio()/bind_global_params()
+        // as m_npuw_model->inputs()[param_idx] - just as untrusted as the subscriber values.
+        if (kvp.first >= num_global_inputs) {
+            OPENVINO_THROW("Imported NPUW model: parameter subscriber refers to global input ",
+                           kvp.first,
+                           " while the model has only ",
+                           num_global_inputs,
+                           " input(s)");
+        }
+        for (const auto& link : kvp.second) {
+            check("parameter subscriber", link, true, false);
         }
     }
-
-    if (compiled->m_inputs_to_submodels_inputs.size() != compiled->inputs().size()) {
-        OPENVINO_THROW("Invalid m_inputs_to_submodels_inputs size ",
-                       compiled->m_inputs_to_submodels_inputs.size(),
-                       " (expected ",
-                       compiled->inputs().size(),
-                       ")");
-    }
-
-    if (compiled->m_outputs_to_submodels_outputs.size() != compiled->outputs().size()) {
-        OPENVINO_THROW("Invalid m_outputs_to_submodels_outputs size ",
-                       compiled->m_outputs_to_submodels_outputs.size(),
-                       " (expected ",
-                       compiled->outputs().size(),
-                       ")");
-    }
-
-    for (std::size_t idx = 0u; idx < compiled->m_inputs_to_submodels_inputs.size(); ++idx) {
-        ensure_input_port_index("m_inputs_to_submodels_inputs", idx, compiled->m_inputs_to_submodels_inputs[idx], true);
-    }
-
-    for (std::size_t idx = 0u; idx < compiled->m_outputs_to_submodels_outputs.size(); ++idx) {
-        ensure_output_port_index("m_outputs_to_submodels_outputs",
-                                 idx,
-                                 compiled->m_outputs_to_submodels_outputs[idx],
-                                 false);
-    }
-
-    for (const auto& kvp : compiled->m_param_subscribers) {
-        const auto input_idx = kvp.first;
-        if (input_idx >= compiled->m_inputs_to_submodels_inputs.size()) {
-            OPENVINO_THROW("Invalid m_param_subscribers key ",
-                           input_idx,
-                           " (inputs: ",
-                           compiled->m_inputs_to_submodels_inputs.size(),
-                           ")");
-        }
-        for (const auto& link_to : kvp.second) {
-            ensure_input_port_index("m_param_subscribers", input_idx, link_to, false);
-        }
-    }
-
-    std::size_t routing_idx = 0u;
-    for (const auto& kvp : compiled->m_submodels_input_to_prev_output) {
-        ensure_input_port_index("m_submodels_input_to_prev_output", routing_idx, kvp.first, false);
-        ensure_output_port_index("m_submodels_input_to_prev_output", routing_idx, kvp.second, false);
-        ++routing_idx;
+    for (const auto& kvp : submodels_input_to_prev_output) {
+        check("submodel input link", kvp.first, true, false);
+        check("submodel output link", kvp.second, false, false);
     }
 }
 
