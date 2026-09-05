@@ -750,6 +750,10 @@ std::vector<ov::PropertyName> Plugin::get_caching_properties() const {
         ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RW},
+        // attn_kernel_mode changes implementation selection (AUTO vs PA_CM) and therefore
+        // changes the compiled blob. It must participate in the cache key so AUTO- and
+        // PA_CM-compiled blobs are not silently reused for each other.
+        ov::PropertyName{ov::hint::attn_kernel_mode.name(), PropertyMutability::RW},
     };
 
     return caching_properties;
@@ -808,6 +812,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::weights_path.name(), PropertyMutability::RW},
         ov::PropertyName{ov::cache_encryption_callbacks.name(), PropertyMutability::WO},
         ov::PropertyName{ov::hint::kv_cache_precision.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::attn_kernel_mode.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::model.name(), PropertyMutability::WO},
         ov::PropertyName{ov::intel_gpu::offload_ratio.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::config_file.name(), PropertyMutability::RW},

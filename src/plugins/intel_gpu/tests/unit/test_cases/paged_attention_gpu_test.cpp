@@ -136,6 +136,24 @@ TEST_P(cm_small_q_test, basic) {
     execute(p, p.run_reference);
 }
 
+class cm_legacy_pa_test : public PagedAttentionTest<paged_attention_test_params> {};
+TEST_P(cm_legacy_pa_test, basic) {
+    auto p = GetParam();
+    if (!check_cm_available())
+        GTEST_SKIP() << "CM JIT support is required for CM paged attention tests, and the device must be Xe1 or later";
+
+    execute(p, p.run_reference);
+}
+
+static paged_attention_test_params make_cm_legacy_pa_params(paged_attention_test_params params) {
+    params.block_size = 16;
+    params.has_xattention = false;
+    params.xattention_threshold = std::nullopt;
+    params.xattention_block_size = std::nullopt;
+    params.use_cm_kernel = true;
+    return params;
+}
+
 // qq_bias on the CM kernels. smoke_qq_bias covers the same masks on the OCL path; these cases add
 // has_xattention so the CM kernels carry the mask instead - pa_small_q.cm for the small-q
 // subsequences and cm_pa_xe*.hpp for the rest.
@@ -875,6 +893,53 @@ INSTANTIATE_TEST_SUITE_P(smoke_cm_small_q, cm_small_q_test, ::testing::ValuesIn(
     paged_attention_test_params{ {{8, 34}},  2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
 }));
 
+INSTANTIATE_TEST_SUITE_P(
+    regression_cm_legacy_pa,
+    cm_legacy_pa_test,
+    ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+        // q_len sweep: small-q, the small-q boundary, and multi-token prefill.
+        make_cm_legacy_pa_params(paged_attention_test_params{{{2, 34}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}}),
+        make_cm_legacy_pa_params(paged_attention_test_params{{{3, 34}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}}),
+        make_cm_legacy_pa_params(paged_attention_test_params{{{5, 34}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}}),
+        make_cm_legacy_pa_params(paged_attention_test_params{{{8, 34}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}}),
+        make_cm_legacy_pa_params(paged_attention_test_params{{{15, 34}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}}),
+        make_cm_legacy_pa_params(paged_attention_test_params{{{16, 34}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}}),
+        make_cm_legacy_pa_params(paged_attention_test_params{{{17, 34}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}}),
+
+        // Past-length boundaries include one-block decode and partition tails.
+        make_cm_legacy_pa_params(paged_attention_test_params{{{8, 1}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}}),
+        make_cm_legacy_pa_params(paged_attention_test_params{{{8, 15}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}}),
+        make_cm_legacy_pa_params(paged_attention_test_params{{{8, 255}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}}),
+        make_cm_legacy_pa_params(paged_attention_test_params{{{8, 256}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}}),
+        make_cm_legacy_pa_params(paged_attention_test_params{{{8, 300}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}}),
+        make_cm_legacy_pa_params(paged_attention_test_params{{{8, 1023}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}}),
+
+        // GQA and head-size variants.
+        make_cm_legacy_pa_params(paged_attention_test_params{{{8, 34}}, 4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}}),
+        make_cm_legacy_pa_params(paged_attention_test_params{{{8, 34}}, 8, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}}),
+        make_cm_legacy_pa_params(paged_attention_test_params{{{8, 34}}, 4, 2, 128, 128, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}}),
+        make_cm_legacy_pa_params(paged_attention_test_params{{{5, 34}}, 28, 28, 128, 128, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}}),
+
+        // KV-cache compression, including the by-channel CM layout.
+        make_cm_legacy_pa_params(paged_attention_test_params{{{8, 34}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}}),
+        make_cm_legacy_pa_params(paged_attention_test_params{{{8, 34}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}}),
+        make_cm_legacy_pa_params(paged_attention_test_params{{{16, 34}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}}),
+        make_cm_legacy_pa_params(paged_attention_test_params{{{8, 300}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}}),
+
+        // Mixed batches exercise all CM stages in one dispatch.
+        make_cm_legacy_pa_params(paged_attention_test_params{{{8, 34}, {1, 100}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f, 100.0f}, std::vector<int>{128, 128}}),
+        make_cm_legacy_pa_params(paged_attention_test_params{{{8, 34}, {32, 0}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f, 100.0f}, std::vector<int>{128, 128}}),
+        make_cm_legacy_pa_params(paged_attention_test_params{{{4, 20}, {8, 34}, {16, 50}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f, 100.0f, 100.0f}, std::vector<int>{128, 128, 128}}),
+        make_cm_legacy_pa_params(paged_attention_test_params{{{2, 34}, {1, 515}, {40, 0}, {16, 7}}, 4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f, 100.0f, 100.0f, 100.0f}, std::vector<int>{128, 128, 128, 128}}),
+        make_cm_legacy_pa_params(paged_attention_test_params{{{8, 34}, {1, 100}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f, 100.0f}, std::vector<int>{128, 128}}),
+
+        // Multi-sequence GQA: $4:2$ covers all CM routes; $8:2$ covers the compressed small-q path.
+        make_cm_legacy_pa_params(paged_attention_test_params{{{8, 34}, {1, 100}, {32, 0}}, 4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f, 100.0f, 100.0f}, std::vector<int>{128, 128, 128}}),
+        make_cm_legacy_pa_params(paged_attention_test_params{{{4, 20}, {8, 34}}, 8, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f, 100.0f}, std::vector<int>{128, 128}}),
+
+        make_cm_legacy_pa_params(paged_attention_test_params{{{8, 34}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}}),
+    }));
+
 INSTANTIATE_TEST_SUITE_P(smoke_cm_qq_bias, cm_qq_bias_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
     // single sequence, q_len sweep - all of these are small-q subsequences
     paged_attention_test_params{ {{2, 32}},  2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}, ov::element::dynamic, true, make_tree_qq_bias({2}) },
@@ -908,6 +973,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_cm_qq_bias, cm_qq_bias_test, ::testing::ValuesIn(
     paged_attention_test_params{ {{4, 20}, {8, 34}},  2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, std::vector<float>{100.0f, 100.0f}, std::vector<int>{128, 128}, ov::element::dynamic, true, make_tree_qq_bias({4, 8}) },
     paged_attention_test_params{ {{16, 40}, {1, 100}, {8, 34}}, 4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, std::vector<float>{100.0f, 100.0f, 100.0f}, std::vector<int>{128, 128, 128}, ov::element::dynamic, true, make_tree_qq_bias({16, 1, 8}) },
     paged_attention_test_params{ {{8, 34}, {32, 0}, {2, 16}},   2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, std::vector<float>{100.0f, 100.0f, 100.0f}, std::vector<int>{128, 128, 128}, ov::element::dynamic, true, make_tree_qq_bias({8, 0, 2}) },
+
+    // PA_CM property with sparse/XAttention disabled: exercise every CM route with tree masks.
+    make_cm_legacy_pa_params(paged_attention_test_params{ {{1, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, make_tree_qq_bias({1}) }),
+    make_cm_legacy_pa_params(paged_attention_test_params{ {{8, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, make_tree_qq_bias({8}) }),
+    make_cm_legacy_pa_params(paged_attention_test_params{ {{32, 40}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, make_tree_qq_bias({32}) }),
+
+    // Multi-sequence: tree masks on either side of a prefill sequence and on both small-q sequences.
+    make_cm_legacy_pa_params(paged_attention_test_params{ {{8, 34}, {64, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, make_tree_qq_bias({8, 0}) }),
+    make_cm_legacy_pa_params(paged_attention_test_params{ {{64, 0}, {8, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, make_tree_qq_bias({0, 8}) }),
+    make_cm_legacy_pa_params(paged_attention_test_params{ {{4, 20}, {8, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, make_tree_qq_bias({4, 8}) }),
+
+    // Compressed KV cache: both CM quantization layouts, including GQA and mixed routing.
+    make_cm_legacy_pa_params(paged_attention_test_params{ {{8, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, make_tree_qq_bias({8}) }),
+    make_cm_legacy_pa_params(paged_attention_test_params{ {{16, 40}}, 4, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, make_tree_qq_bias({16}) }),
+    make_cm_legacy_pa_params(paged_attention_test_params{ {{8, 34}, {1, 100}, {32, 0}}, 8, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, make_tree_qq_bias({8, 1, 0}) }),
 }));
 
 // Performance-focused tests with larger sequence lengths, single/multi-subsequences, and CM v.s. OCL/micro path (which is triggered with xattention ON/OFF).

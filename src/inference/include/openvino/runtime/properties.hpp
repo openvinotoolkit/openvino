@@ -378,6 +378,47 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
 static constexpr Property<PerformanceMode> performance_mode{"PERFORMANCE_HINT"};
 
 /**
+ * @brief Enum to define attention kernel backend hints.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+enum class AttnKernelMode {
+    AUTO = 0,  //!< Plugin chooses attention kernel backend automatically
+    PA_CM = 1, //!< Prefer CM PagedAttention kernel backend
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const AttnKernelMode& attn_kernel_mode) {
+    switch (attn_kernel_mode) {
+    case AttnKernelMode::AUTO:
+        return os << "AUTO";
+    case AttnKernelMode::PA_CM:
+        return os << "PA_CM";
+    default:
+        OPENVINO_THROW("Unsupported attention kernel mode hint");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, AttnKernelMode& attn_kernel_mode) {
+    std::string str;
+    is >> str;
+    if (str == "AUTO") {
+        attn_kernel_mode = AttnKernelMode::AUTO;
+    } else if (str == "PA_CM") {
+        attn_kernel_mode = AttnKernelMode::PA_CM;
+    } else {
+        OPENVINO_THROW("Unsupported attention kernel mode: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Hint for selecting attention kernel backend.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<AttnKernelMode> attn_kernel_mode{"ATTENTION_KERNEL_MODE"};
+
+/**
  * @enum       SchedulingCoreType
  * @brief      This enum contains definition of core type can be used for CPU tasks on different devices.
  */

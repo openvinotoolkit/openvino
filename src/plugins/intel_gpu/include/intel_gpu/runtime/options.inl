@@ -25,6 +25,7 @@ OV_CONFIG_RELEASE_OPTION(ov, compilation_num_threads, std::max(1, static_cast<in
 OV_CONFIG_RELEASE_OPTION(ov::hint, inference_precision, ov::element::f16, "Model floating-point inference precision. Supported values: { f16, f32, bf16, dynamic }", [](ov::element::Type t) { return t == ov::element::f16 || t == ov::element::f32 || t == ov::element::bf16 || t == ov::element::dynamic; })
 OV_CONFIG_RELEASE_OPTION(ov::hint, model_priority, ov::hint::Priority::MEDIUM, "High-level hint that defines the priority of the model. It may impact number of threads used for model compilation and inference as well as device queue settings")
 OV_CONFIG_RELEASE_OPTION(ov::hint, performance_mode, ov::hint::PerformanceMode::LATENCY, "High-level hint that defines target model inference mode. It may impact number of streams, auto batching, etc")
+OV_CONFIG_RELEASE_OPTION(ov::hint, attn_kernel_mode, ov::hint::AttnKernelMode::AUTO, "High-level hint that defines target attention kernel backend. Supported values: AUTO, PA_CM")
 OV_CONFIG_RELEASE_OPTION(ov::hint, execution_mode, ov::hint::ExecutionMode::PERFORMANCE, "High-level hint that defines the most important metric for the model. Performance mode allows unsafe optimizations that may reduce the model accuracy")
 OV_CONFIG_RELEASE_OPTION(ov::hint, num_requests, 0, "Hint that provides number of requests populated by the application")
 OV_CONFIG_RELEASE_OPTION(ov::hint, enable_cpu_pinning, false, "Controls if CPU threads are pinned to the cores or not")

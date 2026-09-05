@@ -94,7 +94,6 @@ static void CreatePA_KV_ReorderOp(ProgramBuilder& p, const std::shared_ptr<ov::o
     const size_t kv_heads_num = rt_info.at(num_k_heads_id).as<int64_t>();
 
     const size_t block_size = prim.has_xattention ? cldnn::paged_attention::block_size_xattn : cldnn::paged_attention::block_size;
-
     prim.kv_heads_num = kv_heads_num;
     if (prim.is_kv_compressed) {
         if (prim.is_key_by_channel) {
