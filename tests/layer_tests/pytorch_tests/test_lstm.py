@@ -53,13 +53,14 @@ class aten_lstm_packed(torch.nn.Module):
 
 
 class aten_gru(torch.nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers, has_bias, bidirectional, batch_first):
+    def __init__(self, input_size, hidden_size, num_layers, dropout, has_bias, bidirectional, batch_first):
         torch.nn.Module.__init__(self)
         self.gru = torch.nn.GRU(input_size,
                                 hidden_size,
                                 num_layers,
-                                has_bias,
-                                batch_first,
+                                dropout=dropout,
+                                bias=has_bias,
+                                batch_first=batch_first,
                                 bidirectional=bidirectional)
 
     def forward(self, input_tensor, h0):
@@ -159,20 +160,22 @@ class TestGRU(PytorchLayerTest):
         h0 = self.random.randn(n, 3, self.hidden_size)
         return (input, h0)
 
-    @pytest.mark.parametrize("input_size,hidden_size", [(10, 20),])
+    @pytest.mark.parametrize("input_size,hidden_size", [(10, 20), (32, 32),])
     @pytest.mark.parametrize("num_layers", [1, 2, 7])
+    @pytest.mark.parametrize("dropout", [0.0])
     @pytest.mark.parametrize("has_bias", [True, False])
     @pytest.mark.parametrize("bidirectional", [True, False])
     @pytest.mark.parametrize("batch_first", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_gru(self, input_size, hidden_size, num_layers, has_bias, bidirectional, batch_first, ie_device, precision, ir_version):
+    def test_gru(self, input_size, hidden_size, num_layers, dropout, has_bias, bidirectional, batch_first, ie_device, precision, ir_version):
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
+
         self.bidirectional = bidirectional
         self.batch_first = batch_first
-        self._test(aten_gru(input_size, hidden_size, num_layers, has_bias, bidirectional, batch_first), "aten::gru",
+        self._test(aten_gru(input_size, hidden_size, num_layers, dropout, has_bias, bidirectional, batch_first), "aten::gru",
                    ie_device, precision, ir_version, trace_model=True)
 
 
