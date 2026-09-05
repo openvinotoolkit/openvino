@@ -165,6 +165,70 @@ TDim make_dim(const TDim& dim, const Bounds& start, const Bounds& stop, int64_t 
 }
 
 /**
+ * \brief Check if the slice provably preserves the dimension size.
+ *
+ * True only if the step is +/-1 and start/stop cover the whole dimension for every length within `dim` and every
+ * start/stop value within their bounds; interval equality is not enough.
+ *
+ * \tparam TDim   Type of dimension.
+ *
+ * \param dim    Input dimension.
+ * \param start  Slice start bounds.
+ * \param stop   Slice stop bounds.
+ * \param step   Slice step.
+ *
+ * \return True if the slice is size preserving, otherwise false.
+ */
+template <class TDim>
+bool is_size_preserving_slice(const TDim& dim, const Bounds& start, const Bounds& stop, const int64_t step) {
+    if (step != 1 && step != -1) {
+        return false;
+    }
+    const auto dim_max = ov::util::dim::value_convert(dim.get_max_length());
+    const auto is_inf = ov::util::dim::is_inf_bound(dim_max);
+    if (step > 0) {
+        // start clips to 0 and stop to the length for every length within the dimension
+        const auto start_at_begin = (start.first == 0 && start.second == 0) ||
+                                    (ov::util::is_min(start.first) && ov::util::is_min(start.second)) ||
+                                    (!is_inf && start.second < 0 && start.second <= -dim_max);
+        const auto stop_at_end = (ov::util::is_max(stop.first) && ov::util::is_max(stop.second)) ||
+                                 (!is_inf && stop.first >= dim_max);
+        return start_at_begin && stop_at_end;
+    }
+    // start clips to the last index and stop to before the first one for every length within the dimension
+    const auto start_at_last = (ov::util::is_max(start.first) && ov::util::is_max(start.second)) ||
+                               (start.first == -1 && start.second == -1) ||
+                               (!is_inf && start.first >= 0 && start.first >= dim_max - 1);
+    const auto stop_before_begin = (ov::util::is_min(stop.first) && ov::util::is_min(stop.second)) ||
+                                   (!is_inf && stop.second <= -dim_max - 1);
+    return start_at_last && stop_before_begin;
+}
+
+/**
+ * \brief Merge the input dimension symbol into the sliced dimension if the slice provably preserves its size.
+ *
+ * Equal intervals do not imply equal sizes (e.g. step 2 on `[1..inf]` stays `[1..inf]`), so the symbol is merged only
+ * if the sliced dimension equals the input one, is not fully dynamic, and the input is static or the slice is size
+ * preserving.
+ *
+ * \param sliced  Sliced dimension (updated in place).
+ * \param dim     Input dimension.
+ * \param start   Slice start bounds.
+ * \param stop    Slice stop bounds.
+ * \param step    Slice step.
+ */
+inline void merge_symbol_if_size_preserved(ov::Dimension& sliced,
+                                           const ov::Dimension& dim,
+                                           const Bounds& start,
+                                           const Bounds& stop,
+                                           const int64_t step) {
+    if (sliced == dim && sliced != ov::Dimension::dynamic() &&
+        (dim.is_static() || is_size_preserving_slice(dim, start, stop, step))) {
+        ov::Dimension::merge(sliced, sliced, dim);
+    }
+}
+
+/**
  * \brief Computes the size of the default strides ([1, 1, ..., 1]) of a StridedSlice.
  *
  * \param begin  Begin argument of a StridedSlice.

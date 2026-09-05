@@ -14,7 +14,11 @@
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/util/gather_base.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
@@ -251,4 +255,122 @@ TEST_F(TransformationTestsF, ValueOptimizationSymbolAndValue) {
         model_ref = make_shared<Model>(OutputVector{reshape_0, reshape_1}, ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+shared_ptr<v0::Parameter> make_bhw8_input() {
+    return make_shared<v0::Parameter>(element::f32, PartialShape{-1, Dimension(1, -1), Dimension(1, -1), 8});
+}
+
+// x[:, ::step, ::step, :] as Slice, or as StridedSlice with masked (full range) begin/end
+shared_ptr<Node> make_hw_slice(const Output<Node>& input, int64_t step, bool strided) {
+    if (strided) {
+        auto begin = v0::Constant::create(element::i64, {4}, {0, 0, 0, 0});
+        auto end = v0::Constant::create(element::i64, {4}, {0, 0, 0, 0});
+        auto stride = v0::Constant::create(element::i64, {4}, std::vector<int64_t>{1, step, step, 1});
+        auto mask = std::vector<int64_t>(4, 1);
+        return make_shared<v1::StridedSlice>(input, begin, end, stride, mask, mask);
+    }
+    auto start = v0::Constant::create(element::i64, {2}, {0, 0});
+    auto stop = v0::Constant::create(element::i64, {2}, {INT64_MAX, INT64_MAX});
+    auto steps = v0::Constant::create(element::i64, {2}, std::vector<int64_t>{step, step});
+    auto axes = v0::Constant::create(element::i64, {2}, {1, 2});
+    return make_shared<v8::Slice>(input, start, stop, steps, axes);
+}
+
+// Reshape(slice, [B from ShapeOf(input), H and W from ShapeOf(slice), 8])
+shared_ptr<Model> make_reshape_after_hw_slice(int64_t step, bool strided) {
+    auto input = make_bhw8_input();
+    auto batch = get_dim_by_idx(input, {0});  // ShapeOf(input) is the earliest shape source of every input dim
+    auto slice = make_hw_slice(input, step, strided);
+    auto pattern = make_shared<v0::Concat>(OutputVector{batch,
+                                                        get_dim_by_idx(slice, {1}),
+                                                        get_dim_by_idx(slice, {2}),
+                                                        v0::Constant::create(element::i64, {1}, {8})->output(0)},
+                                           0);
+    auto reshape = make_shared<v1::Reshape>(slice, pattern, false);
+    return make_shared<Model>(OutputVector{reshape}, ParameterVector{input});
+}
+
+TEST_F(TransformationTestsF, ValueOptimizationKeepsSourceAcrossSliceStep2) {
+    // H and W are read from a step-2 Slice, so they differ from the input dims and OptimizeSymbolsUsedAsValues must
+    // not re-source them to ShapeOf(input); the pattern is the Slice output shape, hence the expected ShapeOf(slice).
+    model = make_reshape_after_hw_slice(2, /*strided=*/false);
+    manager.set_per_pass_validation(false);
+    manager.register_pass<pass::SymbolicPropagation>();
+    manager.register_pass<pass::OptimizeSymbolsUsedAsValues>();
+    manager.register_pass<pass::SharedOpOptimization>();
+    {
+        auto input = make_bhw8_input();
+        auto slice = make_hw_slice(input, 2, /*strided=*/false);
+        auto reshape = make_shared<v1::Reshape>(slice, make_shared<v3::ShapeOf>(slice, element::i64), false);
+        model_ref = make_shared<Model>(OutputVector{reshape}, ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, ValueOptimizationKeepsSourceAcrossStridedSliceStride2) {
+    // Same as above with the StridedSlice form (masked full range, stride 2 on H and W).
+    model = make_reshape_after_hw_slice(2, /*strided=*/true);
+    manager.set_per_pass_validation(false);
+    manager.register_pass<pass::SymbolicPropagation>();
+    manager.register_pass<pass::OptimizeSymbolsUsedAsValues>();
+    manager.register_pass<pass::SharedOpOptimization>();
+    {
+        auto input = make_bhw8_input();
+        auto slice = make_hw_slice(input, 2, /*strided=*/true);
+        auto reshape = make_shared<v1::Reshape>(slice, make_shared<v3::ShapeOf>(slice, element::i64), false);
+        model_ref = make_shared<Model>(OutputVector{reshape}, ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST(TransformationTests, ValueOptimizationReusesSourceAcrossIdentitySlice) {
+    // A step-1 full-range slice preserves H and W, so the values read from ShapeOf(slice) are legitimately re-sourced
+    // to the earliest shape source, ShapeOf(input).
+    auto model = make_reshape_after_hw_slice(1, /*strided=*/false);
+    const auto input = model->get_parameters()[0];
+    const auto pattern = model->get_result()->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(1);
+
+    pass::Manager manager;
+    manager.set_per_pass_validation(false);
+    manager.register_pass<pass::SymbolicPropagation>();
+    manager.register_pass<pass::OptimizeSymbolsUsedAsValues>();
+    manager.run_passes(model);
+
+    for (size_t i = 1; i <= 2; ++i) {
+        const auto gather = pattern->get_input_node_shared_ptr(i);
+        ASSERT_TRUE(ov::is_type<ov::op::util::GatherBase>(gather)) << "pattern input " << i;
+        const auto shape_of = gather->get_input_node_shared_ptr(0);
+        ASSERT_TRUE(ov::is_type<ov::op::util::ShapeOfBase>(shape_of)) << "pattern input " << i;
+        EXPECT_EQ(shape_of->get_input_node_shared_ptr(0), input) << "pattern input " << i;
+    }
+}
+
+TEST(TransformationTests, SliceStep2ConcatDoesNotEquateInputDimSymbols) {
+    // Concat merges the symbols of its non-axis dimensions, so a step-2 slice output concatenated with another tensor
+    // must not make the slice input dimension equal to that tensor's dimension.
+    auto x = make_shared<v0::Parameter>(element::f32, PartialShape{-1, Dimension(1, -1), 4});
+    auto z = make_shared<v0::Parameter>(element::f32, PartialShape{-1, Dimension(1, -1), 6});
+
+    auto start = v0::Constant::create(element::i64, {1}, {0});
+    auto stop = v0::Constant::create(element::i64, {1}, {INT64_MAX});
+    auto step = v0::Constant::create(element::i64, {1}, {2});
+    auto axes = v0::Constant::create(element::i64, {1}, {1});
+    auto slice = make_shared<v8::Slice>(x, start, stop, step, axes);
+    auto concat = make_shared<v0::Concat>(OutputVector{slice, z}, 2);
+    auto model = make_shared<Model>(OutputVector{concat}, ParameterVector{x, z});
+
+    pass::Manager manager;
+    manager.set_per_pass_validation(false);
+    manager.register_pass<pass::SymbolicPropagation>();
+    manager.run_passes(model);
+
+    const auto x_dim = x->get_output_partial_shape(0)[1].get_symbol();
+    const auto z_dim = z->get_output_partial_shape(0)[1].get_symbol();
+    const auto concat_dim = concat->get_output_partial_shape(0)[1].get_symbol();
+    ASSERT_NE(x_dim, nullptr);
+    ASSERT_NE(z_dim, nullptr);
+    EXPECT_FALSE(symbol::are_equal(x_dim, z_dim));
+    EXPECT_FALSE(symbol::are_equal(x_dim, concat_dim));
+    EXPECT_TRUE(symbol::are_equal(z_dim, concat_dim));
 }

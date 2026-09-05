@@ -182,3 +182,20 @@ TEST_F(StridedSliceStaticShapeInferenceTest, default_stride) {
 
     ASSERT_EQ(output_shapes.front(), StaticShape({1, 2, 2}));
 }
+
+TEST_F(StridedSliceStaticShapeInferenceTest, ignore_begin_end_identity_and_stride_two_on_unbounded_dims) {
+    const auto mask = std::vector<int64_t>(4, 1);
+    const auto max_d = std::numeric_limits<StaticDimension::value_type>::max();
+
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape::dynamic());
+    const auto begin = op::v0::Constant::create(element::i64, ov::Shape{4}, {0, 0, 0, 0});
+    const auto end = op::v0::Constant::create(element::i64, ov::Shape{4}, {0, 0, 0, 0});
+    const auto stride = op::v0::Constant::create(element::i64, ov::Shape{4}, {1, 2, 2, 1});
+
+    const auto op = make_op(data, begin, end, stride, mask, mask);
+
+    input_shapes = StaticShapeVector{{2, max_d, max_d, 96}, {4}, {4}, {4}};
+    output_shapes = shape_inference(op.get(), input_shapes);
+
+    EXPECT_THAT(output_shapes, ElementsAre(StaticShape{2, max_d, max_d, 96}));
+}
