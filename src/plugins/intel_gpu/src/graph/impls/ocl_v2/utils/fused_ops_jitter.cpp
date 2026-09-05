@@ -839,7 +839,11 @@ JitConstants make_activation_jit_constants(const std::string& suffix,
         break;
     case activation_func::relu_negative_slope: {
         const JitTerm slope = convert_to_type("m"_jit, calc_dt);
-        jit.add(make_jit_constant(macro_def, ternary(isinf(slope), ternary(input.ge(zero), input, neg(slope)), max(input, zero) + (slope * min(input, zero)))));
+        // OpenCL max/min may drop the NaN operand, so branch on the input
+        // explicitly to keep NaN propagating instead of turning into zero.
+        jit.add(make_jit_constant(
+            macro_def,
+            ternary(isnan(input), input, ternary(isinf(slope), ternary(input.ge(zero), input, neg(slope)), max(input, zero) + (slope * min(input, zero))))));
         break;
     }
     case activation_func::elu: {

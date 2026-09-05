@@ -88,6 +88,11 @@ JitTerm isinf(const JitTerm& arg) {
     return jit_term;
 }
 
+JitTerm isnan(const JitTerm& arg) {
+    JitTerm jit_term{"(isnan(" + arg.str() + "))"};
+    return jit_term;
+}
+
 JitTerm exp(const JitTerm& arg) {
     JitTerm jit_term{"(exp(" + arg.str() + "))"};
     return jit_term;
@@ -1171,11 +1176,16 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             break;
         case ActivationFunction::RELU_NEGATIVE_SLOPE: {
             const JitTerm slope = disable_type_conversion ? "m"_jit : to_type("m"_jit);
+            // OpenCL fmax/fmin return the non-NaN operand, so the naive
+            // fmax(x, 0) + slope * fmin(x, 0) form silently turns a NaN input
+            // into zero. Branch on the input explicitly to keep NaN propagating.
             jitConstants.AddConstant(MakeJitConstant(
                 macro_def,
-                ternary(isinf(slope),
-                        ternary(input.ge(zero), input, neg(slope)),
-                        max_func(input, zero) + (slope * min_func(input, zero)))
+                ternary(isnan(input),
+                        input,
+                        ternary(isinf(slope),
+                                ternary(input.ge(zero), input, neg(slope)),
+                                max_func(input, zero) + (slope * min_func(input, zero))))
                     .str()));
             break;
         }
