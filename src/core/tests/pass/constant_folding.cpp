@@ -4158,4 +4158,22 @@ TEST(constant_folding, loop_with_node_which_has_no_evaluate) {
     EXPECT_NO_THROW(pass::ConstantFolding().run_on_model(model));
     EXPECT_EQ(count_ops_of_type<op::v5::Loop>(model), 1);
 }
+
+TEST_P(UnsupportedTypesTest, random_poisson) {
+    // Make sure that ConstantFolding with RandomPoisson doesn't throw and does not fold.
+    const auto& type = GetParam();
+    for (const auto alignment : {op::PhiloxAlignment::PYTORCH, op::PhiloxAlignment::TENSORFLOW}) {
+        auto rates = op::v0::Constant::create(type, Shape{2, 3}, {1});
+        auto random = std::make_shared<op::v17::RandomPoisson>(rates, 150, 69, alignment);
+        auto m = make_shared<Model>(random, ParameterVector{});
+
+        EXPECT_NO_THROW(run_constant_folding(m));
+
+        EXPECT_EQ(m->get_ops().size(), 3);
+        EXPECT_EQ(count_ops_of_type<op::v17::RandomPoisson>(m), 1);
+        EXPECT_EQ(count_ops_of_type<op::v0::Constant>(m), 1);
+        ASSERT_EQ(m->get_results().size(), 1);
+    }
+}
+
 }  // namespace ov::test
