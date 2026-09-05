@@ -3,6 +3,8 @@
 //
 #include "llm_compiled_model.hpp"
 
+#include <algorithm>
+
 #include "embedding/embedding_infer_request.hpp"
 #include "embedding/encoder_embedding_infer_request.hpp"
 #include "embedding/prepare_embedding_model.hpp"
@@ -1779,6 +1781,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
             compiled->m_kvcache_compiled = compiled->m_generate_compiled_variants.back();
         }
 
+        // Reject blobs whose KVCacheDesc::dim is not a valid axis for the restored KV tensors.
+        compiled->validate_imported_kvcache_dim();
+
         compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
         bool is_shared_lm_head = false;
         stream & is_shared_lm_head;
@@ -1803,6 +1808,30 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     NPUW_ASSERT(compiled && "Couldn't create NPUW compiled model!");
 
     return compiled;
+}
+
+void ov::npuw::LLMCompiledModel::validate_imported_kvcache_dim() const {
+    // Nothing to validate for pipelines without a generate stage / KV cache.
+    if (m_generate_compiled_variants.empty()) {
+        return;
+    }
+    // KVCacheDesc::dim indexes the sequence axis of the past-key tensors. Cross-check it against
+    // the rank those restored tensors actually declare; on the compile path dim is a derived axis
+    // in [0, rank), so a dim outside that range can only come from a tampered blob.
+    for (const auto& port : m_generate_compiled_variants.back()->inputs()) {
+        // A port can carry several tensor names; match against all of them, as the runtime does
+        // when it collects the past-KV ports, so get_any_name()'s choice of alias can't hide one.
+        const auto& names = port.get_names();
+        const bool is_past_key = std::any_of(names.begin(), names.end(), [](const std::string& name) {
+            return ov::npuw::util::isPastKeyParam(name);
+        });
+        if (!is_past_key) {
+            continue;
+        }
+        const auto& rank = port.get_partial_shape().rank();
+        NPUW_ASSERT(rank.is_static() && m_kvcache_desc.dim < static_cast<uint32_t>(rank.get_length()) &&
+                    "Imported KVCacheDesc::dim is out of range for the KV tensor rank");
+    }
 }
 
 std::shared_ptr<const ov::Model> ov::npuw::LLMCompiledModel::get_runtime_model() const {
