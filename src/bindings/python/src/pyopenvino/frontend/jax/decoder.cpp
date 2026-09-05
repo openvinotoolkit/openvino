@@ -17,6 +17,6 @@ using namespace ov::frontend;
 
 
 void regclass_frontend_jax_decoder(py::module m) {
-    py::class_<jax::JaxDecoder, IDecoder, PyDecoder, std::shared_ptr<jax::JaxDecoder>>(m, "_FrontEndJaxDecoder")
+    py::class_<jax::JaxDecoder, IDecoder, PyDecoder, std::shared_ptr<jax::JaxDecoder>>(m, "_FrontEndJaxDecoder", py::dynamic_attr())
         .def(py::init<>());
 }
