@@ -105,19 +105,19 @@ function(ov_download_tbb)
         # build oneTBB with Visual Studio 2022 (MSVC 14.42)
         # NOTE: if this archive name/version changes, update the TBB direct-download example in docs/dev/static_libraries.md
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_WIN "oneapi-tbb-2021.13.3-vs2022-win.zip"
+                ARCHIVE_WIN "oneapi-tbb-2021.13.3-win-try-lock.zip"
                 TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "228b7061b058aa2ec2bcecdd433e39a5c34cfcf8045de6aab9f455b51c64a3f0"
+                SHA256 "efe34db73ff3d409d55e99368971c4face765990db4d50e500492894a9a8a0d3"
                 USE_NEW_LOCATION TRUE)
     elseif(LINUX AND X86_64 AND OPENVINO_GNU_LIBC AND OV_LIBC_VERSION VERSION_GREATER_EQUAL 2.17)
         # build oneTBB with gcc 4.8 (glibc 2.17)
         # NOTE: if this archive name/version changes, update the TBB direct-download example in docs/dev/static_libraries.md
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "oneapi-tbb-2021.13.1-lin-release.tgz"
+                ARCHIVE_LIN "oneapi-tbb-2021.13.3-lin-try-lock.tgz"
                 TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "93cf8ada4793044697f76179247c6a35ca0e47ee2a3a228fc9ed91703aa79730"
+                SHA256 "2e7025819cd7e38ef211b942eb1d7e5b4d164f275b51f2410997f5eb38c0ca41"
                 USE_NEW_LOCATION TRUE)
     elseif(YOCTO_AARCH64)
         RESOLVE_DEPENDENCY(TBB
