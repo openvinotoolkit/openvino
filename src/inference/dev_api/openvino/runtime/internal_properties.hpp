@@ -62,6 +62,12 @@ static constexpr Property<std::string, PropertyMutability::WO> config_device_id{
 static constexpr Property<int32_t, PropertyMutability::RW> threads_per_stream{"THREADS_PER_STREAM"};
 
 /**
+ * @brief Read-only property to get the PagedAttention block size for the compiled model.
+ * @ingroup ov_dev_api_plugin_api
+ */
+static constexpr Property<size_t, PropertyMutability::RO> paged_attention_block_size{"PAGED_ATTENTION_BLOCK_SIZE"};
+
+/**
  * @brief It contains compiled_model_runtime_properties information to make plugin runtime can check whether it is
  * compatible with the cached compiled model, the result is returned by get_property() calling.
  *

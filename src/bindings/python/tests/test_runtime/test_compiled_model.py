@@ -37,6 +37,8 @@ def test_get_runtime_model(device):
     compiled_model = generate_relu_compiled_model(device)
     runtime_model = compiled_model.get_runtime_model()
     assert isinstance(runtime_model, Model)
+    assert compiled_model.get_rt_info() == runtime_model.get_rt_info()
+    assert compiled_model.rt_info == runtime_model.rt_info
 
 
 def test_export_import_stream(device):
