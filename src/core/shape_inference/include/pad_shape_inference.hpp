@@ -90,6 +90,11 @@ std::vector<TRShape> shape_infer(const util::PadBase* op,
                                               "REFLECT padding mode requires an input of dimension "
                                               "of at least 2 at each "
                                               "spatial axis.");
+                        NODE_VALIDATION_CHECK(op,
+                                              pad_mode != op::PadMode::WRAP || dim_lb >= 1,
+                                              "WRAP padding mode requires an input of dimension of "
+                                              "at least 1 at each "
+                                              "spatial axis.");
                     }
                     NODE_SHAPE_INFER_CHECK(
                         op,
