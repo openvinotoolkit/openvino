@@ -1788,6 +1788,22 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     return true;
                 }
 
+                // A single output feature (N == 1) FC has a matmul too small to amortize
+                // the cost of dynamically quantizing its activation
+                {
+                    const auto& wshape = root->get_input_partial_shape(1);
+                    const bool is_compressed_wei = cldnn::one_of(root->get_input_element_type(1), supported_woq_types);
+                    if (is_compressed_wei && wshape.rank().is_static() && wshape.size() >= 2) {
+                        const auto& n_dim = wshape[wshape.size() - 2];  // output feature N (weight is [N, K])
+                        if (n_dim.is_static() && n_dim.get_length() == 1) {
+                            GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
+                                                                            " compressed weight with N==1 (activation quantization is unprofitable;"
+                                                                            " keep weight-only quantization with f16 activation)" << std::endl;
+                            return true;
+                        }
+                    }
+                }
+
                 return false;
             });
 
