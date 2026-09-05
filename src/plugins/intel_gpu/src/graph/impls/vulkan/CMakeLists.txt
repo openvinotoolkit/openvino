@@ -6,9 +6,9 @@ if(NOT OV_GPU_RUNTIME_VULKAN_ENABLED)
     return()
 endif()
 
-find_host_program(OV_GPU_GLSLC_EXECUTABLE NAMES glslc REQUIRED)
 find_host_program(OV_GPU_CLSPV_EXECUTABLE NAMES clspv REQUIRED)
 find_host_program(OV_GPU_CLSPV_REFLECTION_EXECUTABLE NAMES clspv-reflection REQUIRED)
+find_host_program(OV_GPU_SLANGC_EXECUTABLE NAMES slangc REQUIRED)
 find_host_program(OV_GPU_SPIRV_OPT_EXECUTABLE NAMES spirv-opt REQUIRED)
 find_host_program(OV_GPU_SPIRV_VAL_EXECUTABLE NAMES spirv-val REQUIRED)
 
@@ -19,53 +19,6 @@ set(VULKAN_CLSPV_REFLECTION_VALIDATOR "${VULKAN_KERNEL_DIR}/validate_clspv_refle
 set(VULKAN_PORTABLE_PUSH_CONSTANT_LIMIT 128)  # Vulkan guarantees at least 128 bytes.
 set_property(GLOBAL PROPERTY OV_GPU_VULKAN_GENERATED_HEADERS "")
 set_property(GLOBAL PROPERTY OV_GPU_VULKAN_GENERATED_INCLUDE_DIR "${VULKAN_GENERATED_INCLUDE_DIR}")
-
-function(add_vulkan_shader)
-    cmake_parse_arguments(PARSE_ARGV 0 SHADER
-        ""
-        "NAME;SOURCE;OPTIMIZATION;DESCRIPTION"
-        "DEFINITIONS;DEPENDENCIES")
-
-    if(NOT SHADER_NAME OR NOT SHADER_SOURCE)
-        message(FATAL_ERROR "A Vulkan shader requires NAME and SOURCE")
-    endif()
-
-    if(NOT SHADER_OPTIMIZATION)
-        set(SHADER_OPTIMIZATION "--eliminate-dead-code-aggressive")
-    endif()
-    if(NOT SHADER_DESCRIPTION)
-        set(SHADER_DESCRIPTION "${SHADER_SOURCE}")
-    endif()
-
-    set(compiler_definitions)
-    foreach(definition IN LISTS SHADER_DEFINITIONS)
-        list(APPEND compiler_definitions "-D${definition}")
-    endforeach()
-
-    set(raw_spirv "${CMAKE_CURRENT_BINARY_DIR}/${SHADER_NAME}.raw.spv")
-    set(optimized_spirv "${CMAKE_CURRENT_BINARY_DIR}/${SHADER_NAME}.spv")
-    set(generated_header "${VULKAN_GENERATED_INCLUDE_DIR}/${SHADER_NAME}_spirv.hpp")
-
-    add_custom_command(
-        OUTPUT "${generated_header}"
-        COMMAND "${CMAKE_COMMAND}" -E make_directory "${VULKAN_GENERATED_INCLUDE_DIR}"
-        COMMAND "${OV_GPU_GLSLC_EXECUTABLE}" --target-env=vulkan1.3
-                -I "${VULKAN_KERNEL_DIR}" -I "${CMAKE_CURRENT_SOURCE_DIR}"
-                ${compiler_definitions} "${SHADER_SOURCE}" -o "${raw_spirv}"
-        COMMAND "${OV_GPU_SPIRV_OPT_EXECUTABLE}" "${SHADER_OPTIMIZATION}"
-                "${raw_spirv}" -o "${optimized_spirv}"
-        COMMAND "${OV_GPU_SPIRV_VAL_EXECUTABLE}" --target-env vulkan1.3 "${optimized_spirv}"
-        COMMAND "${Python3_EXECUTABLE}" "${VULKAN_SHADER_GENERATOR}"
-                "${optimized_spirv}" "${generated_header}" "${SHADER_NAME}_spirv" "${SHADER_DESCRIPTION}"
-        DEPENDS
-            "${SHADER_SOURCE}"
-            ${SHADER_DEPENDENCIES}
-            "${VULKAN_SHADER_GENERATOR}"
-        COMMENT "Generating host-compiled Vulkan shader ${SHADER_NAME}"
-        VERBATIM)
-
-    set_property(GLOBAL APPEND PROPERTY OV_GPU_VULKAN_GENERATED_HEADERS "${generated_header}")
-endfunction()
 
 function(add_vulkan_clspv_kernel)
     cmake_parse_arguments(PARSE_ARGV 0 KERNEL "" "NAME;SOURCE;ENTRY_POINT;DESCRIPTION" "DEFINITIONS;DEPENDENCIES")
@@ -118,22 +71,56 @@ function(add_vulkan_clspv_kernel)
     set_property(GLOBAL APPEND PROPERTY OV_GPU_VULKAN_GENERATED_HEADERS "${generated_header}")
 endfunction()
 
-# Foundation and conversion shaders remain independent of operation-specific modules.
-foreach(shader_name IN ITEMS foundation_stage_local foundation_stage_output)
-    add_vulkan_shader(
-        NAME "${shader_name}"
-        SOURCE "${VULKAN_KERNEL_DIR}/${shader_name}.comp"
-        DESCRIPTION "kernels/${shader_name}.comp"
-        DEPENDENCIES "${CMAKE_CURRENT_SOURCE_DIR}/vulkan_shader_abi.inc"
-    )
-endforeach()
-# Compiler bootstrap only. Production Eltwise is added from kernel_selector after
-# the source-materialization contract is connected to this host-only AOT path.
+function(add_vulkan_slang_kernel)
+    cmake_parse_arguments(PARSE_ARGV 0 KERNEL "" "NAME;SOURCE;ENTRY_POINT;DESCRIPTION" "")
+
+    if(NOT KERNEL_NAME OR NOT KERNEL_SOURCE OR NOT KERNEL_ENTRY_POINT)
+        message(FATAL_ERROR "A Slang Vulkan kernel requires NAME, SOURCE, and ENTRY_POINT")
+    endif()
+    if(NOT KERNEL_DESCRIPTION)
+        set(KERNEL_DESCRIPTION "${KERNEL_SOURCE}")
+    endif()
+
+    set(raw_spirv "${CMAKE_CURRENT_BINARY_DIR}/${KERNEL_NAME}.raw.spv")
+    set(optimized_spirv "${CMAKE_CURRENT_BINARY_DIR}/${KERNEL_NAME}.spv")
+    set(generated_header "${VULKAN_GENERATED_INCLUDE_DIR}/${KERNEL_NAME}_spirv.hpp")
+
+    add_custom_command(
+        OUTPUT "${generated_header}"
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "${VULKAN_GENERATED_INCLUDE_DIR}"
+        COMMAND "${OV_GPU_SLANGC_EXECUTABLE}" "${KERNEL_SOURCE}"
+                -target spirv -profile spirv_1_6 -stage compute -entry "${KERNEL_ENTRY_POINT}"
+                -emit-spirv-directly -fvk-use-entrypoint-name -O3 -o "${raw_spirv}"
+        COMMAND "${OV_GPU_SPIRV_OPT_EXECUTABLE}" --eliminate-dead-code-aggressive
+                "${raw_spirv}" -o "${optimized_spirv}"
+        COMMAND "${OV_GPU_SPIRV_VAL_EXECUTABLE}" --target-env vulkan1.3 "${optimized_spirv}"
+        COMMAND "${Python3_EXECUTABLE}" "${VULKAN_SHADER_GENERATOR}"
+                "${optimized_spirv}" "${generated_header}" "${KERNEL_NAME}_spirv" "${KERNEL_DESCRIPTION}"
+        DEPENDS
+            "${KERNEL_SOURCE}"
+            "${OV_GPU_SLANGC_EXECUTABLE}"
+            "${OV_GPU_SPIRV_OPT_EXECUTABLE}"
+            "${OV_GPU_SPIRV_VAL_EXECUTABLE}"
+            "${VULKAN_SHADER_GENERATOR}"
+        COMMENT "Generating host-compiled Slang Vulkan kernel ${KERNEL_NAME}"
+        VERBATIM)
+
+    set_property(GLOBAL APPEND PROPERTY OV_GPU_VULKAN_GENERATED_HEADERS "${generated_header}")
+endfunction()
+
+# Build-time compiler contracts only. Production Eltwise is materialized from
+# kernel_selector and compiled in-process while the model is compiled.
 add_vulkan_clspv_kernel(
     NAME clspv_bootstrap
     SOURCE "${VULKAN_KERNEL_DIR}/clspv_bootstrap.cl"
     ENTRY_POINT clspv_bootstrap
     DESCRIPTION "kernels/clspv_bootstrap.cl"
+)
+add_vulkan_slang_kernel(
+    NAME slang_bootstrap
+    SOURCE "${VULKAN_KERNEL_DIR}/slang_bootstrap.slang"
+    ENTRY_POINT slang_bootstrap
+    DESCRIPTION "kernels/slang_bootstrap.slang"
 )
 
 get_property(VULKAN_GENERATED_HEADERS GLOBAL PROPERTY OV_GPU_VULKAN_GENERATED_HEADERS)

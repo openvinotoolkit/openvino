@@ -5,18 +5,14 @@
 #include <gtest/gtest.h>
 
 #include <array>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
 
 #include "common_utils/gpu_execution_plan.hpp"
-#include "foundation_stage_local_spirv.hpp"
-#include "foundation_stage_output_spirv.hpp"
 #include "intel_gpu/runtime/kernel_builder.hpp"
+#include "slang_bootstrap_spirv.hpp"
 #include "test_utils.h"
-#include "vulkan/vulkan_shader_abi.hpp"
-#include "vulkan/vulkan_stream.hpp"
 
 using namespace cldnn;
 using namespace cldnn::vulkan;
@@ -29,47 +25,31 @@ kernel::ptr build_spirv_kernel(engine& target_engine, const uint32_t* spirv, siz
     artifact.payload = spirv;
     artifact.payload_size = spirv_size;
     artifact.format = KernelFormat::SPIRV;
-    artifact.entry_point = "main";
+    artifact.entry_point = "slang_bootstrap";
 
     std::vector<kernel::ptr> kernels;
     target_engine.create_kernel_builder()->build_kernels(artifact, kernels);
-    OPENVINO_ASSERT(kernels.size() == 1, "[GPU][Vulkan] Synthetic foundation shader must contain one entry point");
+    OPENVINO_ASSERT(kernels.size() == 1, "[GPU][Vulkan] Slang bootstrap must contain one entry point");
     return kernels.front();
 }
 
-event::ptr execute_foundation_stages(vulkan_stream& command_stream,
+scalar_desc make_float_scalar(float value) {
+    scalar_desc result;
+    result.t = scalar_desc::Types::FLOAT32;
+    result.v.f32 = value;
+    return result;
+}
+
+event::ptr execute_foundation_stages(stream& command_stream,
                                      const gpu_kernel_lifecycle& lifecycle,
                                      const kernel_arguments_desc& local_stage,
                                      const kernel_arguments_data& local_stage_data,
                                      const kernel_arguments_desc& output_stage,
-                                     const kernel_arguments_data& output_stage_data,
-                                     size_t local_size) {
-    const vulkan_specialization_constants local_specialization = {
-        {shader_abi::index(shader_abi::specialization_id::local_size_x), static_cast<uint32_t>(local_size)},
-        {shader_abi::index(shader_abi::specialization_id::foundation_local_memory_words), static_cast<uint32_t>(local_size)},
-    };
-    const vulkan_specialization_constants output_specialization = {
-        {shader_abi::index(shader_abi::specialization_id::local_size_x), static_cast<uint32_t>(local_size)},
-    };
-
+                                     const kernel_arguments_data& output_stage_data) {
     gpu_execution_plan plan(2, {true, false});
-    return plan.execute_with(
-        command_stream,
-        lifecycle,
-        {},
-        true,
-        [&](size_t dispatch_index) {
-            return dispatch_index == 0 ? gpu_dispatch_binding{&local_stage, local_stage_data} : gpu_dispatch_binding{&output_stage, output_stage_data};
-        },
-        [&](size_t dispatch_index,
-            kernel& selected_kernel,
-            const kernel_arguments_desc& descriptor,
-            const kernel_arguments_data& arguments,
-            const std::vector<event::ptr>& dependencies,
-            bool request_completion) {
-            const auto& specialization = dispatch_index == 0 ? local_specialization : output_specialization;
-            return command_stream.enqueue_kernel(selected_kernel, descriptor, arguments, specialization, dependencies, request_completion);
-        });
+    return plan.execute(command_stream, lifecycle, {}, true, [&](size_t dispatch_index) {
+        return dispatch_index == 0 ? gpu_dispatch_binding{&local_stage, local_stage_data} : gpu_dispatch_binding{&output_stage, output_stage_data};
+    });
 }
 
 }  // namespace
@@ -94,18 +74,28 @@ TEST(vulkan_execution_plan, two_stage_dispatch_uses_internal_and_local_memory) {
     input->copy_from(*command_stream, input_values.data(), true);
 
     gpu_kernel_lifecycle lifecycle;
-    lifecycle.emplace_back(build_spirv_kernel(*target_engine, foundation_stage_local_spirv, sizeof(foundation_stage_local_spirv)));
-    lifecycle.emplace_back(build_spirv_kernel(*target_engine, foundation_stage_output_spirv, sizeof(foundation_stage_output_spirv)));
+    lifecycle.emplace_back(build_spirv_kernel(*target_engine, slang_bootstrap_spirv, sizeof(slang_bootstrap_spirv)));
+    lifecycle.emplace_back(build_spirv_kernel(*target_engine, slang_bootstrap_spirv, sizeof(slang_bootstrap_spirv)));
 
     kernel_arguments_desc local_stage;
     local_stage.workGroups.global = {element_count, 1, 1};
     local_stage.workGroups.local = {local_size, 1, 1};
-    local_stage.arguments = {{argument_desc::Types::INPUT, 0}, {argument_desc::Types::INTERNAL_BUFFER, 0}};
+    local_stage.arguments = {
+        {argument_desc::Types::INPUT, 0},
+        {argument_desc::Types::INTERNAL_BUFFER, 0},
+        {argument_desc::Types::SCALAR, 0},
+    };
+    local_stage.scalars = {make_float_scalar(1.0f)};
 
     kernel_arguments_desc output_stage;
     output_stage.workGroups.global = {element_count, 1, 1};
     output_stage.workGroups.local = {local_size, 1, 1};
-    output_stage.arguments = {{argument_desc::Types::INTERNAL_BUFFER, 0}, {argument_desc::Types::OUTPUT, 0}};
+    output_stage.arguments = {
+        {argument_desc::Types::INTERNAL_BUFFER, 0},
+        {argument_desc::Types::OUTPUT, 0},
+        {argument_desc::Types::SCALAR, 0},
+    };
+    output_stage.scalars = {make_float_scalar(2.0f)};
 
     kernel_arguments_data local_stage_data;
     local_stage_data.inputs = {input};
@@ -115,8 +105,7 @@ TEST(vulkan_execution_plan, two_stage_dispatch_uses_internal_and_local_memory) {
     output_stage_data.intermediates = {intermediate};
     output_stage_data.outputs = {output};
 
-    auto& vulkan_command_stream = dynamic_cast<vulkan_stream&>(*command_stream);
-    auto completion = execute_foundation_stages(vulkan_command_stream, lifecycle, local_stage, local_stage_data, output_stage, output_stage_data, local_size);
+    auto completion = execute_foundation_stages(*command_stream, lifecycle, local_stage, local_stage_data, output_stage, output_stage_data);
     ASSERT_NE(completion, nullptr);
     completion->wait();
 
@@ -130,8 +119,8 @@ TEST(vulkan_execution_plan, two_stage_dispatch_uses_internal_and_local_memory) {
     output->copy_to(*command_stream, actual.data(), true);
     for (size_t index = 0; index < element_count; ++index) {
         const auto group_base = (index / local_size) * local_size;
-        const auto adjacent_index = group_base + (index + 1) % local_size;
-        const auto expected = (input_values[adjacent_index] + 1.0f) * 2.0f;
+        const auto adjacent_index = group_base + (index + 2) % local_size;
+        const auto expected = input_values[adjacent_index] + 3.0f;
         EXPECT_FLOAT_EQ(actual[index], expected) << "Mismatch at element " << index;
     }
 }
@@ -143,8 +132,8 @@ TEST(vulkan_execution_plan, transient_slots_survive_pool_reset_tuning_transition
     auto command_stream = target_engine->create_stream(get_test_default_config(*target_engine));
 
     gpu_kernel_lifecycle lifecycle;
-    lifecycle.emplace_back(build_spirv_kernel(*target_engine, foundation_stage_local_spirv, sizeof(foundation_stage_local_spirv)));
-    lifecycle.emplace_back(build_spirv_kernel(*target_engine, foundation_stage_output_spirv, sizeof(foundation_stage_output_spirv)));
+    lifecycle.emplace_back(build_spirv_kernel(*target_engine, slang_bootstrap_spirv, sizeof(slang_bootstrap_spirv)));
+    lifecycle.emplace_back(build_spirv_kernel(*target_engine, slang_bootstrap_spirv, sizeof(slang_bootstrap_spirv)));
 
     struct workload {
         size_t element_count;
@@ -175,12 +164,22 @@ TEST(vulkan_execution_plan, transient_slots_survive_pool_reset_tuning_transition
         kernel_arguments_desc local_stage;
         local_stage.workGroups.global = {current.element_count, 1, 1};
         local_stage.workGroups.local = {local_size, 1, 1};
-        local_stage.arguments = {{argument_desc::Types::INPUT, 0}, {argument_desc::Types::INTERNAL_BUFFER, 0}};
+        local_stage.arguments = {
+            {argument_desc::Types::INPUT, 0},
+            {argument_desc::Types::INTERNAL_BUFFER, 0},
+            {argument_desc::Types::SCALAR, 0},
+        };
+        local_stage.scalars = {make_float_scalar(1.0f)};
 
         kernel_arguments_desc output_stage;
         output_stage.workGroups.global = {current.element_count, 1, 1};
         output_stage.workGroups.local = {local_size, 1, 1};
-        output_stage.arguments = {{argument_desc::Types::INTERNAL_BUFFER, 0}, {argument_desc::Types::OUTPUT, 0}};
+        output_stage.arguments = {
+            {argument_desc::Types::INTERNAL_BUFFER, 0},
+            {argument_desc::Types::OUTPUT, 0},
+            {argument_desc::Types::SCALAR, 0},
+        };
+        output_stage.scalars = {make_float_scalar(2.0f)};
 
         kernel_arguments_data local_stage_data;
         local_stage_data.inputs = {current.input};
@@ -190,9 +189,7 @@ TEST(vulkan_execution_plan, transient_slots_survive_pool_reset_tuning_transition
         output_stage_data.intermediates = {current.intermediate};
         output_stage_data.outputs = {current.output};
 
-        auto& vulkan_command_stream = dynamic_cast<vulkan_stream&>(*command_stream);
-        auto completion =
-            execute_foundation_stages(vulkan_command_stream, lifecycle, local_stage, local_stage_data, output_stage, output_stage_data, local_size);
+        auto completion = execute_foundation_stages(*command_stream, lifecycle, local_stage, local_stage_data, output_stage, output_stage_data);
         ASSERT_NE(completion, nullptr);
         completion->wait();
 
@@ -200,8 +197,8 @@ TEST(vulkan_execution_plan, transient_slots_survive_pool_reset_tuning_transition
         current.output->copy_to(*command_stream, actual.data(), true);
         for (size_t index = 0; index < current.element_count; ++index) {
             const auto group_base = (index / local_size) * local_size;
-            const auto adjacent_index = group_base + (index + 1) % local_size;
-            const auto expected = (current.input_values[adjacent_index] + 1.0f) * 2.0f;
+            const auto adjacent_index = group_base + (index + 2) % local_size;
+            const auto expected = current.input_values[adjacent_index] + 3.0f;
             EXPECT_FLOAT_EQ(actual[index], expected) << "Mismatch at iteration " << iteration << ", index " << index;
         }
     }
