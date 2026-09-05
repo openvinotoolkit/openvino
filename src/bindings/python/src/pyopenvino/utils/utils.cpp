@@ -54,6 +54,8 @@ PY_TYPE check_container_element_type(const T& container) {
             check_type(PY_TYPE::PARTIAL_SHAPE);
         } else if (py::isinstance<ov::hint::ModelDistributionPolicy>(it)) {
             check_type(PY_TYPE::MODEL_DISTRIBUTION_POLICY);
+        } else if (py::isinstance<py::dict>(it)) {
+            check_type(PY_TYPE::DICT);
         }
     }
 
@@ -519,6 +521,14 @@ ov::Any py_object_to_any(const py::object& py_obj) {
             return _list.cast<std::vector<bool>>();
         case PY_TYPE::PARTIAL_SHAPE:
             return _list.cast<std::vector<ov::PartialShape>>();
+        case PY_TYPE::DICT: {
+            std::vector<ov::AnyMap> out;
+            out.reserve(_list.size());
+            for (const auto& item : _list) {
+                out.push_back(py_object_to_any_map(py::reinterpret_borrow<py::object>(item)));
+            }
+            return out;
+        }
         default:
             OPENVINO_ASSERT(false, "Unsupported attribute type.");
         }
