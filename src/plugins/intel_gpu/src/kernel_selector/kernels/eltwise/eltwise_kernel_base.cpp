@@ -299,7 +299,17 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                     op += cast_type + "f" + mode + "(" + input0_str + ", convert_float(" + input1_str + "))";
                 } else {
                     // input_0 != int && input_1 != int
-                    op += cast_type + "f" + mode + "(" + input0_str + ", " + input1_str + ")";
+                    if (ew.mode == EltwiseMode::MODULU) {
+                        op += cast_type + "fmod(" + input0_str + ", " + input1_str + ")";
+                    } else {
+                        // OpenCL fmax/fmin return the non-NaN operand, while Maximum/Minimum
+                        // must propagate a NaN from either input (the semantics the CPU plugin
+                        // follows). Select via isnan explicitly; for finite values this reduces
+                        // to the plain fmax/fmin result.
+                        const auto* fmode = (ew.mode == EltwiseMode::MIN ? "fmin" : "fmax");
+                        op += cast_type + "(isnan(" + input0_str + ") ? " + input0_str + " : (isnan(" + input1_str + ") ? " + input1_str + " : " + fmode + "(" +
+                              input0_str + ", " + input1_str + ")))";
+                    }
                 }
             } break;
             case EltwiseMode::POW:
