@@ -7,11 +7,13 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/clamp.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/round.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils.hpp"
@@ -48,19 +50,17 @@ OutputVector translate_fake_quantize_per_tensor_affine(const NodeContext& contex
         std::make_shared<v0::FakeQuantize>(input_node, bound_low, bound_high, bound_low, bound_high, levels))};
 }
 
-OutputVector translate_fake_quantize_per_channel_affine(const NodeContext& context) {
-    num_inputs_check(context, 6, 6);
-    auto input_node = context.get_input(0);
-    auto scale = std::make_shared<v0::Convert>(context.get_input(1), element::f32);
-    auto zero_point = std::make_shared<v0::Convert>(context.get_input(2), element::f32);
-    auto axis = get_input_as_i32(context, 3);
-    auto out_low_const = context.const_input<int64_t>(4);
-    auto out_high_const = context.const_input<int64_t>(5);
-    // Calculate levels value - distance between bounds.
-    auto levels = std::abs(out_high_const - out_low_const) + 1;
-    auto out_low = std::make_shared<v0::Convert>(context.get_input(4), element::f32);
-    auto out_high = std::make_shared<v0::Convert>(context.get_input(5), element::f32);
-
+namespace {
+// Build a per-channel FakeQuantize. Scale and zero point are 1D tensors that are broadcast along axis of the input,
+// out_low and out_high are the scalar quantization bounds (quant_min and quant_max).
+OutputVector make_fake_quantize_per_channel(const NodeContext& context,
+                                            const Output<Node>& input_node,
+                                            const Output<Node>& scale,
+                                            const Output<Node>& zero_point,
+                                            const Output<Node>& axis,
+                                            const Output<Node>& out_low,
+                                            const Output<Node>& out_high,
+                                            size_t levels) {
     auto const_neg_1 = v0::Constant::create(element::i32, Shape{1}, {-1});
     auto const_0 = v0::Constant::create(element::i32, Shape{}, {0});
     auto const_1 = v0::Constant::create(element::i32, Shape{}, {1});
@@ -86,6 +86,50 @@ OutputVector translate_fake_quantize_per_channel_affine(const NodeContext& conte
     auto bound_low = std::make_shared<v1::Minimum>(bound_a, bound_b);
     return {context.mark_node(
         std::make_shared<v0::FakeQuantize>(input_node, bound_low, bound_high, bound_low, bound_high, levels))};
+}
+}  // namespace
+
+OutputVector translate_fake_quantize_per_channel_affine(const NodeContext& context) {
+    num_inputs_check(context, 6, 6);
+    auto out_low_const = context.const_input<int64_t>(4);
+    auto out_high_const = context.const_input<int64_t>(5);
+    // Calculate levels value - distance between bounds.
+    auto levels = static_cast<size_t>(std::abs(out_high_const - out_low_const) + 1);
+    return make_fake_quantize_per_channel(context,
+                                          context.get_input(0),
+                                          std::make_shared<v0::Convert>(context.get_input(1), element::f32),
+                                          std::make_shared<v0::Convert>(context.get_input(2), element::f32),
+                                          get_input_as_i32(context, 3),
+                                          std::make_shared<v0::Convert>(context.get_input(4), element::f32),
+                                          std::make_shared<v0::Convert>(context.get_input(5), element::f32),
+                                          levels);
+}
+
+OutputVector translate_fake_quantize_learnable_per_channel_affine(const NodeContext& context) {
+    // aten::_fake_quantize_learnable_per_channel_affine(Tensor self, Tensor scale, Tensor zero_point, int axis,
+    //     int quant_min, int quant_max, float grad_factor=1.0) -> Tensor
+    // grad_factor (input 6) only rescales gradients during training, it has no effect on the forward pass,
+    // so it is accepted and ignored here.
+    num_inputs_check(context, 7, 7);
+    auto out_low_const = context.const_input<int64_t>(4);
+    auto out_high_const = context.const_input<int64_t>(5);
+    // Calculate levels value - distance between bounds.
+    auto levels = static_cast<size_t>(std::abs(out_high_const - out_low_const) + 1);
+    // Unlike the non-learnable variant, zero point is a float (learnable) tensor here. PyTorch rounds it to the
+    // nearest integer and clamps it into [quant_min, quant_max] before quantizing, see _get_rounded_zero_point.
+    auto zero_point = std::make_shared<v0::Convert>(context.get_input(2), element::f32);
+    auto zero_point_rounded = std::make_shared<v5::Round>(zero_point, v5::Round::RoundMode::HALF_TO_EVEN);
+    auto zero_point_clamped = std::make_shared<v0::Clamp>(zero_point_rounded,
+                                                          static_cast<double>(out_low_const),
+                                                          static_cast<double>(out_high_const));
+    return make_fake_quantize_per_channel(context,
+                                          context.get_input(0),
+                                          std::make_shared<v0::Convert>(context.get_input(1), element::f32),
+                                          zero_point_clamped,
+                                          get_input_as_i32(context, 3),
+                                          std::make_shared<v0::Convert>(context.get_input(4), element::f32),
+                                          std::make_shared<v0::Convert>(context.get_input(5), element::f32),
+                                          levels);
 }
 
 }  // namespace op
